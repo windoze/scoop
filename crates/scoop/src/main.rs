@@ -5,6 +5,7 @@
 
 mod cli;
 mod commands;
+mod fixtures;
 
 use clap::Parser as _;
 

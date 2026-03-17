@@ -2,16 +2,16 @@
 //!
 //! 早期阶段 fixtures runner 的目标是把框架搭起来：
 //! - 能递归发现 `tests/fixtures/**/*.scoop`
-//! - 能读取文件并做最小 smoke（目前只验证“能读”）
+//! - 能按文件头注释指令执行（pass/fail）
 //!
 //! 后续阶段会逐步扩展为：
 //! - parse fixtures（AST snapshot / 错误恢复）
 //! - typecheck fixtures（pass/fail）
 //! - run-pass fixtures（stdout 对比）
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 
 pub fn run(fixtures: Option<PathBuf>) -> Result<()> {
     let root = fixtures.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
@@ -22,49 +22,7 @@ pub fn run(fixtures: Option<PathBuf>) -> Result<()> {
         )
     })?;
 
-    let mut files = Vec::new();
-    collect_scoop_files(&root, &mut files)?;
-
-    if files.is_empty() {
-        return Err(miette!(
-            "fixtures 目录下未发现任何 .scoop 文件：{}",
-            root.display()
-        ));
-    }
-
-    let mut ok = 0usize;
-    for file in files {
-        let source = scoopc::source::SourceFile::load(&file)
-            .wrap_err_with(|| format!("读取 fixture 失败：{}", file.display()))?;
-
-        // 当前阶段：对所有 fixture 做“能解析文件头 + 顶层 fun + block span”的最小解析。
-        // 后续会按 fixtures 分类做更精细的断言（pass/fail/run 等）。
-        scoopc::parser::parse_file(&source)
-            .wrap_err_with(|| format!("解析 fixture 失败：{}", file.display()))?;
-        ok += 1;
-    }
-
+    let ok = crate::fixtures::run_all(&root)?;
     println!("fixtures: ok ({ok})");
-    Ok(())
-}
-
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in std::fs::read_dir(dir)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
-    {
-        let entry = entry.into_diagnostic()?;
-        let path = entry.path();
-        let ty = entry.file_type().into_diagnostic()?;
-
-        if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
-            continue;
-        }
-
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
     Ok(())
 }

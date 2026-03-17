@@ -1,0 +1,5 @@
+// EXPECT: fail
+// EXPECT-ERROR: 函数名
+
+fun () {}
+

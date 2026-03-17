@@ -351,10 +351,10 @@ tests/
 
 每个 fixture 采用“单文件 + 注释指令”的形式（类似 LLVM lit 或 Rust compiletest）：
 
-- `// EXPECT: pass`
-- `// EXPECT-ERROR: <regex>`
-- `// RUN-STDOUT: <file>`
-- `// ARGS: ...`
+- [x] `// EXPECT: pass|fail`
+- [x] `// EXPECT-ERROR: <substring>`（当前为子串匹配；后续可升级为 regex）
+- [ ] `// RUN-STDOUT: <file>`
+- [ ] `// ARGS: ...`
 
 ### 10.2 诊断（compile-fail）的 golden 规范
 
