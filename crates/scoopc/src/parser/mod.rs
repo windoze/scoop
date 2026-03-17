@@ -142,28 +142,183 @@ impl Parser {
         let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
         let name = ast::Ident { span: name_tok.span };
 
-        let params_span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+        let (params_span, params) = self.parse_param_list()?;
 
-        // TODO: return type / generics / effect rows / where clause
+        let return_ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        // TODO: generics / effect rows / where clause（当前先粗暴跳过，避免阻塞后续顶层解析）
+        let mut last_end = return_ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(params_span.end);
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
+            if self.is_top_level_item_start() {
+                break;
+            }
+            last_end = self.bump().span.end;
+        }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
             let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+            last_end = span.end;
             ast::FunBody::Block(ast::Block { span })
         } else {
             ast::FunBody::Missing
         };
 
-        let end = match &body {
-            ast::FunBody::Block(b) => b.span.end,
-            ast::FunBody::Missing => params_span.end,
-        };
-
         Ok(ast::FunDecl {
-            span: Span::new(kw.span.start, end),
+            span: Span::new(kw.span.start, last_end),
             name,
             params_span,
+            params,
+            return_ty,
             body,
         })
+    }
+
+    fn parse_param_list(&mut self) -> Result<(Span, Vec<ast::Param>), ParseError> {
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = open.span.start;
+
+        let mut params = Vec::new();
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok((Span::new(start, close.span.end), params));
+        }
+
+        loop {
+            let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
+            let name = ast::Ident { span: name_tok.span };
+
+            let ty = if self.eat_symbol(Symbol::Colon) {
+                Some(self.parse_type_ref()?)
+            } else {
+                None
+            };
+            params.push(ast::Param { name, ty });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // trailing comma
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        let close = self.expect_symbol(Symbol::RParen)?;
+        Ok((Span::new(start, close.span.end), params))
+    }
+
+    fn parse_type_ref(&mut self) -> Result<ast::TypeRef, ParseError> {
+        let mut ty = if self.peek_symbol(Symbol::LParen) {
+            self.parse_tuple_or_group_type()?
+        } else {
+            self.parse_path_type()?
+        };
+
+        if self.peek_symbol(Symbol::Question) {
+            let q = self.bump();
+            let span = Span::new(ty.span().start, q.span.end);
+            ty = ast::TypeRef::Nullable {
+                span,
+                inner: Box::new(ty),
+            };
+        }
+
+        Ok(ty)
+    }
+
+    fn parse_tuple_or_group_type(&mut self) -> Result<ast::TypeRef, ParseError> {
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = open.span.start;
+
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok(ast::TypeRef::Tuple(ast::TypeTuple {
+                span: Span::new(start, close.span.end),
+                elements: Vec::new(),
+            }));
+        }
+
+        let first = self.parse_type_ref()?;
+        if self.eat_symbol(Symbol::Comma) {
+            let mut elements = vec![first];
+            while !self.peek_symbol(Symbol::RParen) && !self.peek_kind(TokenKind::Eof) {
+                elements.push(self.parse_type_ref()?);
+                if self.eat_symbol(Symbol::Comma) {
+                    // allow trailing comma
+                    if self.peek_symbol(Symbol::RParen) {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+            let close = self.expect_symbol(Symbol::RParen)?;
+            return Ok(ast::TypeRef::Tuple(ast::TypeTuple {
+                span: Span::new(start, close.span.end),
+                elements,
+            }));
+        }
+
+        // grouping type: `(T)` → `T`
+        let _close = self.expect_symbol(Symbol::RParen)?;
+        Ok(first)
+    }
+
+    fn parse_path_type(&mut self) -> Result<ast::TypeRef, ParseError> {
+        let first = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
+        let start = first.span.start;
+        let mut segments = vec![ast::Ident { span: first.span }];
+
+        while self.peek_symbol(Symbol::Dot) {
+            self.bump();
+            let seg = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
+            segments.push(ast::Ident { span: seg.span });
+        }
+
+        let mut args = Vec::new();
+        let mut end = segments.last().unwrap().span.end;
+        if self.peek_symbol(Symbol::Lt) {
+            let (a, gt_end) = self.parse_type_args()?;
+            args = a;
+            end = gt_end;
+        }
+
+        Ok(ast::TypeRef::Path(ast::TypePath {
+            span: Span::new(start, end),
+            segments,
+            args,
+        }))
+    }
+
+    fn parse_type_args(&mut self) -> Result<(Vec<ast::TypeRef>, usize), ParseError> {
+        let _lt = self.expect_symbol(Symbol::Lt)?;
+        let mut args = Vec::new();
+
+        if self.peek_symbol(Symbol::Gt) {
+            let gt = self.bump();
+            return Ok((args, gt.span.end));
+        }
+
+        loop {
+            args.push(self.parse_type_ref()?);
+            if self.eat_symbol(Symbol::Comma) {
+                if self.peek_symbol(Symbol::Gt) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+        let gt = self.expect_symbol(Symbol::Gt)?;
+        Ok((args, gt.span.end))
     }
 
     fn parse_type_decl(&mut self) -> Result<ast::TypeDecl, ParseError> {

@@ -56,6 +56,8 @@ pub struct FunDecl {
     pub span: Span,
     pub name: Ident,
     pub params_span: Span,
+    pub params: Vec<Param>,
+    pub return_ty: Option<TypeRef>,
     pub body: FunBody,
 }
 
@@ -68,6 +70,45 @@ pub enum FunBody {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct Param {
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeRef {
+    Path(TypePath),
+    Tuple(TypeTuple),
+    Nullable {
+        span: Span,
+        inner: Box<TypeRef>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct TypePath {
+    pub span: Span,
+    pub segments: Vec<Ident>,
+    pub args: Vec<TypeRef>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeTuple {
+    pub span: Span,
+    pub elements: Vec<TypeRef>,
+}
+
+impl TypeRef {
+    pub fn span(&self) -> Span {
+        match self {
+            TypeRef::Path(p) => p.span,
+            TypeRef::Tuple(t) => t.span,
+            TypeRef::Nullable { span, .. } => *span,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
