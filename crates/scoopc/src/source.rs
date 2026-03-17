@@ -51,6 +51,15 @@ impl SourceFile {
         &self.text
     }
 
+    /// 根据 span 切片源文本。
+    ///
+    /// # Panics
+    /// 如果 span 越界将 panic。编译器内部 span 应该始终来自 lexer/parser，
+    /// 因此越界代表内部 bug。
+    pub fn slice(&self, span: crate::span::Span) -> &str {
+        &self.text[span.start..span.end]
+    }
+
     /// 将字节偏移映射为 (line, column)（均为 1-based）。
     ///
     /// 注意：本函数目前按 UTF-8 字节偏移处理，column 以 Unicode scalar
