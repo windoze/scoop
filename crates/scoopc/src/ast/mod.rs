@@ -31,6 +31,24 @@ pub struct ImportDecl {
 #[derive(Debug, Clone)]
 pub enum Item {
     Fun(FunDecl),
+    Type(TypeDecl),
+}
+
+#[derive(Debug, Clone)]
+pub struct TypeDecl {
+    pub span: Span,
+    pub kind: TypeKind,
+    pub name: Ident,
+    pub body: Option<Block>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeKind {
+    Class,
+    Interface,
+    Struct,
+    Enum,
+    Effect,
 }
 
 #[derive(Debug, Clone)]
@@ -56,4 +74,3 @@ pub struct Block {
 pub struct Ident {
     pub span: Span,
 }
-

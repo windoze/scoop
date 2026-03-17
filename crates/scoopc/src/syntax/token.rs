@@ -34,6 +34,11 @@ pub enum StringKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword {
+    // modifiers
+    Open,
+    Abstract,
+    Sealed,
+
     // declarations
     Package,
     Import,

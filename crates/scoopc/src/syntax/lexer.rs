@@ -167,6 +167,9 @@ impl<'a> Lexer<'a> {
         }
 
         let kw = match ident {
+            "open" => Some(Keyword::Open),
+            "abstract" => Some(Keyword::Abstract),
+            "sealed" => Some(Keyword::Sealed),
             "package" => Some(Keyword::Package),
             "import" => Some(Keyword::Import),
             "fun" => Some(Keyword::Fun),

@@ -1,0 +1,24 @@
+// EXPECT: pass
+// 目标：验证 parser 能跳过类型声明头与 `{ ... }` body，并继续解析后续顶层 item。
+
+package fixtures.parse
+
+open class Animal(val name: String)
+
+interface Hashable {
+    fun hash(): Int
+}
+
+struct Point(val x: Int, val y: Int)
+
+enum Option<T> {
+    Some(val value: T),
+    None
+}
+
+effect Raise<E> {
+    fun raise(error: E): Nothing
+}
+
+fun main() {}
+

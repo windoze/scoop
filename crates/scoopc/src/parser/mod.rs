@@ -71,6 +71,10 @@ impl Parser {
                 items.push(ast::Item::Fun(self.parse_fun_decl()?));
                 continue;
             }
+            if self.is_type_decl_start() {
+                items.push(ast::Item::Type(self.parse_type_decl()?));
+                continue;
+            }
 
             // 早期阶段：遇到未知顶层结构直接报错（后续再做错误恢复）
             let tok = self.peek().clone();
@@ -158,6 +162,74 @@ impl Parser {
             span: Span::new(kw.span.start, end),
             name,
             params_span,
+            body,
+        })
+    }
+
+    fn parse_type_decl(&mut self) -> Result<ast::TypeDecl, ParseError> {
+        let start = self.peek().span.start;
+
+        // modifiers（当前仅消费，不进入 AST）
+        while self.peek_keyword(Keyword::Open)
+            || self.peek_keyword(Keyword::Abstract)
+            || self.peek_keyword(Keyword::Sealed)
+        {
+            self.bump();
+        }
+
+        let (kind_kw, kind) = if self.peek_keyword(Keyword::Class) {
+            (self.bump(), ast::TypeKind::Class)
+        } else if self.peek_keyword(Keyword::Interface) {
+            (self.bump(), ast::TypeKind::Interface)
+        } else if self.peek_keyword(Keyword::Struct) {
+            (self.bump(), ast::TypeKind::Struct)
+        } else if self.peek_keyword(Keyword::Enum) {
+            (self.bump(), ast::TypeKind::Enum)
+        } else if self.peek_keyword(Keyword::Effect) {
+            (self.bump(), ast::TypeKind::Effect)
+        } else {
+            let tok = self.peek().clone();
+            return Err(ParseError::Expected {
+                expected: "类型声明关键字（class/interface/struct/enum/effect）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let name_tok = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
+        let name = ast::Ident { span: name_tok.span };
+
+        // optional generic params: `<...>`
+        if self.peek_symbol(Symbol::Lt) {
+            let _ = self.consume_balanced(Symbol::Lt, Symbol::Gt)?;
+        }
+
+        // optional primary ctor params: `( ... )`
+        if self.peek_symbol(Symbol::LParen) {
+            let _ = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+        }
+
+        // header tail（继承/实现等）：消耗到 `{` 或下一个顶层 item 开始
+        let mut last_end = name_tok.span.end.max(kind_kw.span.end);
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
+            if self.is_top_level_item_start() {
+                break;
+            }
+            last_end = self.bump().span.end;
+        }
+
+        let body = if self.peek_symbol(Symbol::LBrace) {
+            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+            last_end = span.end;
+            Some(ast::Block { span })
+        } else {
+            None
+        };
+
+        Ok(ast::TypeDecl {
+            span: Span::new(start, last_end),
+            kind,
+            name,
             body,
         })
     }
@@ -271,10 +343,45 @@ impl Parser {
     fn peek_symbol(&self, sym: Symbol) -> bool {
         self.peek().kind == TokenKind::Symbol(sym)
     }
+
+    fn is_type_decl_start(&self) -> bool {
+        self.peek_keyword(Keyword::Open)
+            || self.peek_keyword(Keyword::Abstract)
+            || self.peek_keyword(Keyword::Sealed)
+            || self.peek_keyword(Keyword::Class)
+            || self.peek_keyword(Keyword::Interface)
+            || self.peek_keyword(Keyword::Struct)
+            || self.peek_keyword(Keyword::Enum)
+            || self.peek_keyword(Keyword::Effect)
+    }
+
+    fn is_top_level_item_start(&self) -> bool {
+        matches!(
+            self.peek().kind,
+            TokenKind::Keyword(
+                Keyword::Package
+                    | Keyword::Import
+                    | Keyword::Fun
+                    | Keyword::Val
+                    | Keyword::Var
+                    | Keyword::Open
+                    | Keyword::Abstract
+                    | Keyword::Sealed
+                    | Keyword::Class
+                    | Keyword::Interface
+                    | Keyword::Struct
+                    | Keyword::Enum
+                    | Keyword::Effect
+            )
+        )
+    }
 }
 
 fn kw_name(kw: Keyword) -> &'static str {
     match kw {
+        Keyword::Open => "`open`",
+        Keyword::Abstract => "`abstract`",
+        Keyword::Sealed => "`sealed`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
         Keyword::Fun => "`fun`",
@@ -349,5 +456,15 @@ mod tests {
         assert!(ast.package.is_some());
         assert_eq!(ast.imports.len(), 0);
         assert_eq!(ast.items.len(), 1);
+    }
+
+    #[test]
+    fn parse_type_decls() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "open class A(x: Int) : B(x)\nstruct P(val x: Int)\nenum E { A, B }\nfun main() {}",
+        );
+        let ast = parse_file(&src).unwrap();
+        assert_eq!(ast.items.len(), 4);
     }
 }

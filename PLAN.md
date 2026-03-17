@@ -52,7 +52,7 @@
 
 ### 2.1 词法分析（Lexer）
 
-- [x] Token 集：关键字、标识符、数字、字符串、基础运算符、注解（`@`）、泛型尖括号等（见 `scoopc::syntax::lexer`）
+- [x] Token 集：关键字、标识符、数字、字符串、基础运算符、注解（`@`）、泛型尖括号、常用 modifier（`open/abstract/sealed`）等（见 `scoopc::syntax::lexer`）
 - [x] 注释：行注释 `//`、块注释 `/* */`（当前实现为**非嵌套**；若后续需要可扩展为嵌套）
 - [x] 字符串：
   - 普通字符串（`"..."`）
@@ -63,7 +63,7 @@
 
 ### 2.2 语法分析（Parser）
 
-- [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun`，函数体仅保证 `{ ... }` 括号平衡并记录 span
+- [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`），函数/类型体仅保证 `{ ... }` 括号平衡并记录 span
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
 - [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
@@ -76,7 +76,7 @@
 - [ ] 建议区分：
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
-- [x] AST（最小骨架）：File/Package/Import/Fun/Block/Ident，节点带 span 并可回切源文本
+- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident，节点带 span 并可回切源文本
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。
