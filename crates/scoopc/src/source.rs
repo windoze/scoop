@@ -32,6 +32,17 @@ impl SourceFile {
         })
     }
 
+    /// 创建一个“虚拟源文件”（常用于单元测试）。
+    pub fn new_virtual(path: impl Into<PathBuf>, text: impl Into<String>) -> Self {
+        let text = text.into();
+        let line_starts = compute_line_starts(&text);
+        Self {
+            path: path.into(),
+            text,
+            line_starts,
+        }
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -93,4 +104,3 @@ mod tests {
         assert_eq!(file.offset_to_line_col(6).unwrap(), (3, 1)); // 'e'
     }
 }
-

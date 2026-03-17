@@ -34,8 +34,13 @@ pub fn run(fixtures: Option<PathBuf>) -> Result<()> {
 
     let mut ok = 0usize;
     for file in files {
-        scoopc::source::SourceFile::load(&file)
+        let source = scoopc::source::SourceFile::load(&file)
             .wrap_err_with(|| format!("读取 fixture 失败：{}", file.display()))?;
+
+        // 当前阶段：对所有 fixture 做“能解析文件头 + 顶层 fun + block span”的最小解析。
+        // 后续会按 fixtures 分类做更精细的断言（pass/fail/run 等）。
+        scoopc::parser::parse_file(&source)
+            .wrap_err_with(|| format!("解析 fixture 失败：{}", file.display()))?;
         ok += 1;
     }
 
