@@ -1,0 +1,9 @@
+[package]
+name = "scoopc"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+miette = { version = "7.6.0", features = ["fancy"] }
+thiserror = "2.0.12"
+tracing = "0.1.40"

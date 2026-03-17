@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/scoop",
+    "crates/scoopc",
+    "crates/scoop_runtime",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"

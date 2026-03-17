@@ -1,0 +1,12 @@
+[package]
+name = "scoop"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+miette = { version = "7.6.0", features = ["fancy"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+
+scoopc = { path = "../scoopc" }

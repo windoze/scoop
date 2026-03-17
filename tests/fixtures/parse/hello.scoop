@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 本文件用于验证最小 fixtures runner 能发现并读取 .scoop 文件。
+
+package fixtures.parse
+
+fun main() {
+    // TODO: 后续阶段这里会变成真正的 parse/typecheck/run fixture。
+}
+
