@@ -24,7 +24,7 @@
 - [x] `crates/scoop/`：CLI（`scoop build/run/test`），负责调用 `scoopc`、链接、跑测试（已建立骨架）
 - [x] `crates/scoop_runtime/`：早期运行时构建 glue（clang + C runtime）（已建立骨架）
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
-- [ ] `sysroot/`：`.scoop` 形式的内建 API 声明（core/io/gc/unsafe 等）
+- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 core/io/gc/unsafe 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
 - [ ] `tools/`：辅助脚本（抽取 spec 代码块、生成/更新 golden 等）
 
@@ -101,8 +101,8 @@
 
 ### 3.3 sysroot 注入
 
-- [ ] 编译器启动时加载 `sysroot/*.scoop`（只需声明/签名即可，不必先能执行）
-- [ ] sysroot 里的内建声明要被当作“已解析符号”
+- [x] sysroot 文件与 loader 骨架：可发现并解析 `sysroot/*.scoop`（当前实现见 `scoopc::sysroot`）
+- [ ] 编译流程注入：编译器启动时自动加载 sysroot，并把其中声明纳入名字解析/类型检查环境
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。

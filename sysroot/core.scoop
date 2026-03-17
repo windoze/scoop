@@ -1,0 +1,22 @@
+// Scoop sysroot (early stage)
+//
+// 说明：
+// - sysroot 是编译器内建 API 的“声明源”（便于 IDE/文档/规范一致）
+// - 早期阶段这里只放最小集合，随着实现推进逐步补齐
+
+package scoop.core
+
+// Root types
+interface Any
+
+// Option / nullable sugar
+enum Option<T> {
+    Some(val value: T),
+    None
+}
+
+// Built-in effect: Raise
+effect Raise<E> {
+    fun raise(error: E): Nothing
+}
+

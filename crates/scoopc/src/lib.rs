@@ -13,3 +13,4 @@ pub mod parser;
 pub mod source;
 pub mod span;
 pub mod syntax;
+pub mod sysroot;
