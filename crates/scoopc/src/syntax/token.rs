@@ -91,6 +91,10 @@ pub enum Symbol {
     Minus,
     Star,
     Slash,
+    And,   // &
+    Or,    // |
+    Caret, // ^
+    Tilde, // ~
     Eq,
     Lt,
     Gt,
@@ -103,6 +107,8 @@ pub enum Symbol {
     BangEq,      // !=
     LtEq,        // <=
     GtEq,        // >=
+    LtLt,        // <<
+    GtGt,        // >>
     AndAnd,      // &&
     OrOr,        // ||
     BangBang,    // !!

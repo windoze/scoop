@@ -194,6 +194,10 @@ fn sym_name(sym: Symbol) -> &'static str {
         Symbol::Minus => "`-`",
         Symbol::Star => "`*`",
         Symbol::Slash => "`/`",
+        Symbol::And => "`&`",
+        Symbol::Or => "`|`",
+        Symbol::Caret => "`^`",
+        Symbol::Tilde => "`~`",
         Symbol::Eq => "`=`",
         Symbol::Lt => "`<`",
         Symbol::Gt => "`>`",
@@ -204,6 +208,8 @@ fn sym_name(sym: Symbol) -> &'static str {
         Symbol::BangEq => "`!=`",
         Symbol::LtEq => "`<=`",
         Symbol::GtEq => "`>=`",
+        Symbol::LtLt => "`<<`",
+        Symbol::GtGt => "`>>`",
         Symbol::AndAnd => "`&&`",
         Symbol::OrOr => "`||`",
         Symbol::BangBang => "`!!`",
@@ -211,4 +217,3 @@ fn sym_name(sym: Symbol) -> &'static str {
         Symbol::Elvis => "`?:`",
     }
 }
-

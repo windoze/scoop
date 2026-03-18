@@ -299,6 +299,14 @@ impl<'a> Lexer<'a> {
             self.bump_bytes(2);
             return Some(Symbol::GtEq);
         }
+        if self.peek_bytes2() == Some([b'<', b'<']) {
+            self.bump_bytes(2);
+            return Some(Symbol::LtLt);
+        }
+        if self.peek_bytes2() == Some([b'>', b'>']) {
+            self.bump_bytes(2);
+            return Some(Symbol::GtGt);
+        }
         if self.peek_bytes2() == Some([b'&', b'&']) {
             self.bump_bytes(2);
             return Some(Symbol::AndAnd);
@@ -338,6 +346,10 @@ impl<'a> Lexer<'a> {
             '-' => Symbol::Minus,
             '*' => Symbol::Star,
             '/' => Symbol::Slash,
+            '&' => Symbol::And,
+            '|' => Symbol::Or,
+            '^' => Symbol::Caret,
+            '~' => Symbol::Tilde,
             '=' => Symbol::Eq,
             '<' => Symbol::Lt,
             '>' => Symbol::Gt,
@@ -504,6 +516,33 @@ mod tests {
         let ks = kinds("x!! ?: y");
         assert!(ks.contains(&TokenKind::Symbol(Symbol::BangBang)));
         assert!(ks.contains(&TokenKind::Symbol(Symbol::Elvis)));
+    }
+
+    #[test]
+    fn lex_bitwise_and_shift_symbols() {
+        assert_eq!(
+            kinds("a & b && c | d || e ^ f ~g << 1 >> 2"),
+            vec![
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::And),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::AndAnd),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::Or),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::OrOr),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::Caret),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::Tilde),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::LtLt),
+                TokenKind::IntLiteral,
+                TokenKind::Symbol(Symbol::GtGt),
+                TokenKind::IntLiteral,
+                TokenKind::Eof,
+            ]
+        );
     }
 
     #[test]

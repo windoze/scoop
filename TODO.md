@@ -188,7 +188,7 @@
 
 ## T02：Parser/AST（阶段 1：从“可解析声明”走向“可解析表达式”）
 
-### T0200 [TODO] Lexer：补齐位运算与移位运算符 token（spec §2.3.4 / Appendix B.8）
+### T0200 [DONE] Lexer：补齐位运算与移位运算符 token（spec §2.3.4 / Appendix B.8）
 - 描述：在 lexer 中新增对 `&`、`|`、`^`、`~`、`<<`、`>>` 的 token 支持。
 - 目标：只做词法层 longest-match；不引入任何优先级/结合性逻辑；不实现复合赋值（如 `&=`）除非 spec 明确要求。
 - 验收：新增 lexer 单测：包含上述符号的源码能被正确分词（并与 `&&`/`||` 区分）；`cargo test -p scoopc syntax::lexer::*` 通过。
