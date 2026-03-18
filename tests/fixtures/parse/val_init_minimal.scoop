@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: val_init_minimal.ast
+// 目标：验证 initializer 已被建模为 Expr（当前阶段可先输出 Missing 占位）。
+
+package fixtures.parse
+
+val x = 1
+
+fun main() {}
+
