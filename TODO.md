@@ -145,19 +145,31 @@
 
 ### T0106a [DONE] fixtures runner：run-pass phase + stdout golden 比对（不依赖 codegen）
 - 描述：让 `scoop test` 识别 `tests/fixtures/codegen/**`（或 `run-pass/**`）为 run-pass phase；实现读取 `// RUN-STDOUT:` 指定的 golden 文件并与“实际 stdout”做比较（换行归一化）。
-- 目标：只实现 stdout golden 的读取与比对；不实现真正编译/运行（由 T0106b/T0807 接入）；不实现 stderr/超时/退出码断言。
+- 目标：只实现 stdout golden 的读取与比对；不实现真正编译/运行（由 T0106b2/T0807 接入）；不实现 stderr/超时/退出码断言。
 - 验收：新增单测覆盖 stdout golden 的 pass/mismatch；`cargo test -p scoop` 通过。
 - 依赖：T0107
 
-### T0106b [TODO] run-pass fixtures：接入 `scoop run` 并增加 1 个可执行 fixture
-- 描述：当 `scoop run`（T0807）可用后，在 fixtures runner 中真正执行 fixture，并断言 stdout。
+### T0106b（拆分为子任务）
+- 描述：run-pass phase 的“真实执行”需要同时具备：
+  - fixtures runner 层面的进程执行/捕获（可单测）
+  - driver 层面的 `scoop run`（T0807）与 build/link/codegen pipeline
+- 目标：保证可单独实现 & 单独验证：先把 runner 的执行能力做出来，再接入 `scoop run` 并补一个真实可运行 fixture。
+
+### T0106b1 [TODO] run-pass fixtures：引入可注入的“进程执行器”（捕获 stdout）
+- 描述：为 run-pass phase 引入执行接口：给定一个命令（后续由 `scoop run` 提供），运行并捕获 stdout，然后与 `RUN-STDOUT` golden 做比对。
+- 目标：只实现“执行外部命令 + 捕获 stdout + stdout golden 比对”；不实现真正编译 Scoop；不实现 stderr/超时/退出码断言。
+- 验收：新增单测：执行一个最小外部命令并通过 stdout golden 比对；`cargo test -p scoop` 通过。
+- 依赖：T0106a
+
+### T0106b2 [TODO] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
+- 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。
 - 目标：先只做 stdout；stderr/超时/退出码仍留给后续任务。
 - 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
-- 依赖：T0106a、T0807
+- 依赖：T0106b1、T0807
 
 ### T0107 [DONE] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
 - 描述：扩展文件头指令解析，支持运行期断言（stdout 文件、退出码、超时毫秒）。
-- 目标：先只实现“解析与结构化存储”；fixture runner 暂可忽略这些字段直到 T0106b。
+- 目标：先只实现“解析与结构化存储”；fixture runner 暂可忽略这些字段直到 T0106b2。
 - 验收：为 `crates/scoop/src/fixtures/expectations.rs` 新增单测覆盖三个字段；旧指令保持兼容。
 - 依赖：T0004
 
@@ -165,7 +177,7 @@
 - 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
 - 目标：先只支持设置环境变量；不做进程级 sandbox。
 - 验收：新增 1 个 run-pass fixture：在运行时读取 env 并打印/分支；runner 能正确设置 env。
-- 依赖：T0106b、T0102
+- 依赖：T0106b2、T0102
 
 ### T0109 [TODO] lexer/parser fuzz（崩溃防线，可选但高收益）
 - 描述：引入 `cargo-fuzz` 或最小随机输入测试，保证 lexer/parser 对任意输入不 panic。
@@ -1033,7 +1045,7 @@
 - 描述：实现 `Raise.raise(e)`：写 perform slot + set flag + 早退；调用边界检查 flag 并向外传播；try/catch 在边界消费 slot。
 - 目标：先只支持 `Raise` + `try/catch`（无 finally、无用户自定义 effect）；先不支持跨函数捕获复杂状态。
 - 验收：新增 run-pass fixture：`try { Raise.raise(...) } catch { ... }` 能运行并输出预期；新增 compile-fail：未处理 Raise 报 required effects。
-- 依赖：T0613、T0106b、T0807
+- 依赖：T0613、T0106b2、T0807
 
 ### T0615 [TODO] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
 - 描述：确保 `finally` 在正常路径与 raise/unwind 路径都执行一次。
@@ -1212,7 +1224,7 @@
   - signed `>>` 用算术右移，unsigned `>>` 用逻辑右移
   - shift count 必须 mask（例如 `shift % bitWidth`），避免 LLVM 对超范围 shift 的 UB
 - 验收：新增 run-pass fixture：位运算与移位得到稳定结果（含 `UInt8` 的 `>>`）；输出正确。
-- 依赖：T0802、T0708、T0106b
+- 依赖：T0802、T0708、T0106b2
 
 ### T0809 [TODO] codegen v2：局部变量（alloca）与赋值
 - 描述：把 HIR/MIR locals 映射到 LLVM alloca/load/store，支持 `var` 赋值更新。
@@ -1290,7 +1302,7 @@
 - 描述：实现 runtime 字符串承载（可先用 C 字符串包装）与打印函数，供 early run-pass 使用。
 - 目标：先只支持 UTF-8 字面量与拼接后置；不实现完整 String API。
 - 验收：链接后程序调用 `println("hi")` 能输出；run-pass fixture 通过。
-- 依赖：T0820、T0106b、T0902
+- 依赖：T0820、T0106b2、T0902
 
 ### T0822 [TODO] codegen：字符串字面量与调用 `println`（spec §8.1）
 - 描述：把 `"..."` 与 raw string lowering 为 runtime 字符串对象（或常量指针），并生成对 `scoop_println` 的调用。
@@ -1366,7 +1378,7 @@
 - 描述：在 `scoop_alloc` 中分配对象并记录到 heap 列表；实现一次 mark-sweep（手动触发）。
 - 目标：先不做触发策略；先提供 `scoop_gc_collect()` 手动调用。
 - 验收：新增 run-pass fixture：分配大量对象并手动触发 collect，不崩溃且能回收未引用对象（可用计数验证）。
-- 依赖：T0909、T0106b
+- 依赖：T0909、T0106b2
 
 ### T0911 [TODO] 线程注册 + stop-the-world 扫描所有线程（PLAN §9.1）
 - 描述：实现线程注册表，GC 时暂停所有注册线程并扫描其 shadow stack。
@@ -1384,7 +1396,7 @@
 - 描述：实现 handler stack（TLS），并按“最近匹配 handler”分发；arm body 在 dispatch scope 外执行。
 - 目标：先只支持单层 handler；多层嵌套后续。
 - 验收：新增 run-pass fixture：嵌套 handle 时最近者优先；在 arm 内再次 perform 不会捕获到同一个 handler（按 Appendix A.4）。
-- 依赖：T0906、T0106b
+- 依赖：T0906、T0106b2
 
 ### T0914 [TODO] continuation 对象：one-shot 状态位 + resume API（PLAN §6.3.3）
 - 描述：定义 continuation 结构：捕获 handler stack + 目标状态；实现原子 one-shot。
@@ -1436,7 +1448,7 @@
 - 描述：为 `@Extern` 函数定义名称映射（如 `@Extern("puts")`）与最小 ABI（C ABI）。
 - 目标：先只支持简单参数/返回类型（Int/ptr）；结构体传递后续。
 - 验收：新增 run-pass fixture：调用 `@Extern("puts")` 打印字符串（或调用自带 runtime 打印 API）；输出正确。
-- 依赖：T1001、T0810、T0106b
+- 依赖：T1001、T0810、T0106b2
 
 ### T1007 [TODO] `@Intrinsic`：sysroot 声明与编译器 lowering（spec §15.7）
 - 描述：在 sysroot 中声明 intrinsic，并在 lowering/codegen 阶段把它们替换为内建操作（例如算术、类型反射）。
@@ -1695,7 +1707,7 @@
 - 描述：让构建系统支持选择 runtime 实现（环境变量/feature）：同一套 fixtures 可在两种 runtime 下跑。
 - 目标：先只支持本地切换；CI 双跑后续。
 - 验收：`SCOOP_RUNTIME=hybrid cargo run -p scoop -- test` 与默认模式都能跑过至少一组 GC fixtures。
-- 依赖：T1402、T0106b
+- 依赖：T1402、T0106b2
 
 ### T1405 [TODO] 最终替换 C GC：把 GC 驱动层也迁移到 Scoop（PLAN §15.2）
 - 描述：把 stop-the-world/线程枚举/OS API glue 逐步迁移，最终 C runtime 只保留极薄启动层或完全移除。
