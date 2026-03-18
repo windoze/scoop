@@ -7,13 +7,16 @@
 //! 当前阶段支持：
 //! - parse fixtures（调用 `scoopc::parser::parse_file`）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
+//! - run-pass fixtures：当前仅提供 stdout golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
 //!
 //! 目录路由（phase）：
 //! - `tests/fixtures/parse/**` → parse
 //! - `tests/fixtures/resolve/**` → resolve
+//! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - 其它一级目录（如 `typecheck/`、`infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
+mod run_pass;
 
 use std::path::Component;
 use std::path::{Path, PathBuf};
@@ -61,12 +64,14 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         None => FixturePhase::Parse,
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
         Some(name) if name == "resolve" => FixturePhase::Resolve,
+        Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
+        FixturePhase::RunPass => run_pass::run_fixture_unimplemented(rel, path, &exp),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
             fixture: rel.display().to_string(),
@@ -88,6 +93,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
 enum FixturePhase {
     Parse,
     Resolve,
+    RunPass,
     Unimplemented(String),
 }
 

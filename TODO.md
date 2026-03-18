@@ -143,7 +143,7 @@
 - 目标：先只做 stdout 对比；stderr/超时/退出码后续任务补齐。
 - 备注：该能力依赖 driver 的 `scoop run` 与后端/链接（T0807）。为保证“可单独实现 & 单独验证”，拆分为以下两个子任务。
 
-### T0106a [TODO] fixtures runner：run-pass phase + stdout golden 比对（不依赖 codegen）
+### T0106a [DONE] fixtures runner：run-pass phase + stdout golden 比对（不依赖 codegen）
 - 描述：让 `scoop test` 识别 `tests/fixtures/codegen/**`（或 `run-pass/**`）为 run-pass phase；实现读取 `// RUN-STDOUT:` 指定的 golden 文件并与“实际 stdout”做比较（换行归一化）。
 - 目标：只实现 stdout golden 的读取与比对；不实现真正编译/运行（由 T0106b/T0807 接入）；不实现 stderr/超时/退出码断言。
 - 验收：新增单测覆盖 stdout golden 的 pass/mismatch；`cargo test -p scoop` 通过。
