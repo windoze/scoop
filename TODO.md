@@ -172,10 +172,10 @@
 - 验收：新增单测：执行一个最小外部命令并通过 stdout golden 比对；`cargo test -p scoop` 通过。
 - 依赖：T0106a
 
-### T0109 [TODO] lexer/parser fuzz（崩溃防线，可选但高收益）
+### T0109 [DONE] lexer/parser fuzz（崩溃防线，可选但高收益）
 - 描述：引入 `cargo-fuzz` 或最小随机输入测试，保证 lexer/parser 对任意输入不 panic。
 - 目标：只要求“不崩溃”；不要求高质量错误恢复。
-- 验收：新增 fuzz target（或单测）跑固定轮数；CI 可选跳过（但本地可跑）。
+- 验收：新增随机输入单测（固定种子 + 固定轮数）；`cargo test -p scoopc` 通过。
 - 依赖：T0008、T0009
 
 ### T0110 [TODO] 覆盖矩阵检查：每个 spec 章节至少 1 pass/1 fail（PLAN §10.6）

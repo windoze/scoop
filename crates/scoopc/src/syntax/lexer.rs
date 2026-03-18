@@ -402,6 +402,54 @@ mod tests {
         lex(src).unwrap().into_iter().map(|t| t.kind).collect()
     }
 
+    /// 一个极简、可复现的伪随机数生成器（避免引入 `rand` 依赖）。
+    #[derive(Clone)]
+    struct XorShift64 {
+        state: u64,
+    }
+
+    impl XorShift64 {
+        fn new(seed: u64) -> Self {
+            // xorshift 在 0 种子下会卡住；这里做一次扰动。
+            let seed = if seed == 0 { 0x9E37_79B9_7F4A_7C15 } else { seed };
+            Self { state: seed }
+        }
+
+        fn next_u64(&mut self) -> u64 {
+            // https://en.wikipedia.org/wiki/Xorshift
+            let mut x = self.state;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.state = x;
+            x
+        }
+
+        fn gen_usize(&mut self, upper_exclusive: usize) -> usize {
+            if upper_exclusive == 0 {
+                return 0;
+            }
+            (self.next_u64() as usize) % upper_exclusive
+        }
+    }
+
+    fn gen_source(rng: &mut XorShift64, max_len: usize) -> String {
+        // 尽量覆盖 lexer 关心的字符：注释/字符串/括号/运算符/空白等。
+        const CHARS: &[char] = &[
+            ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']',
+            '+', '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c',
+            'x', 'y', 'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
+        ];
+
+        let len = rng.gen_usize(max_len + 1);
+        let mut s = String::with_capacity(len);
+        for _ in 0..len {
+            let ch = CHARS[rng.gen_usize(CHARS.len())];
+            s.push(ch);
+        }
+        s
+    }
+
     #[test]
     fn lex_keywords_and_idents() {
         let ks = kinds("package p\nfun f() { val x = 1 }");
@@ -464,5 +512,22 @@ mod tests {
         assert!(ks.contains(&TokenKind::Symbol(Symbol::At)));
         assert!(ks.contains(&TokenKind::Keyword(Keyword::Fun)));
         assert!(ks.contains(&TokenKind::Ident));
+    }
+
+    /// 崩溃防线：确保 lexer 对“任意输入”都不会 panic。
+    ///
+    /// 这不是高强度 fuzz（不追求覆盖率/错误恢复质量），只要能尽早发现 panic 即可。
+    #[test]
+    fn lexer_random_inputs_do_not_panic() {
+        let mut rng = XorShift64::new(0xC0FF_EE12_3456_789A);
+        for i in 0..2_000usize {
+            let src = gen_source(&mut rng, 256);
+            let res = std::panic::catch_unwind(|| {
+                let _ = lex(&src);
+            });
+            if res.is_err() {
+                panic!("lexer panic（iter={i}）: {src:?}");
+            }
+        }
     }
 }

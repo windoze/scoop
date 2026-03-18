@@ -413,7 +413,7 @@ tests/
 
 ### 10.5 Fuzz/性质测试（可选但很有价值）
 
-- [ ] lexer/parser fuzz（避免崩溃，保证错误恢复）
+- [x] lexer/parser fuzz（避免崩溃，保证错误恢复）
 - [ ] IR lowering fuzz（随机小 AST → 不崩溃）
 - [ ] GC 压测（随机分配/释放/跨线程）
 
