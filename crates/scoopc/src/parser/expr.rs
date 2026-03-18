@@ -1,10 +1,12 @@
 //! 表达式解析（早期最小子集）。
 //!
-//! 当前阶段只实现“原子表达式”（T0206）：
+//! 当前阶段实现：
+//! - “原子表达式”（T0206）：
 //! - ident
 //! - int literal
 //! - string literal
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
+//! - postfix 调用表达式（T0209）：`callee(args...)`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -17,6 +19,26 @@ use crate::syntax::token::{Symbol, TokenKind};
 use super::{ParseError, Parser};
 
 impl Parser {
+    /// 尝试解析一个“postfix 表达式”（当前仅支持函数调用）。
+    ///
+    /// - 起始处必须是原子表达式，否则返回 `Ok(None)` 且不消费 token。
+    /// - 解析到原子表达式后，会尽可能多地消耗 postfix 后缀（例如连续调用）。
+    pub(super) fn try_parse_expr_postfix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(mut expr) = self.try_parse_expr_atom()? else {
+            return Ok(None);
+        };
+
+        loop {
+            if self.peek_symbol(Symbol::LParen) {
+                expr = self.parse_call_expr(expr)?;
+                continue;
+            }
+            break;
+        }
+
+        Ok(Some(expr))
+    }
+
     /// 尝试解析一个“原子表达式”。
     ///
     /// - 若当前位置不是原子表达式的起始 token，则返回 `Ok(None)`，并且不消费任何 token。
@@ -64,6 +86,59 @@ impl Parser {
         Ok(None)
     }
 
+    fn parse_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = callee.span.start;
+
+        let mut args = Vec::new();
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok(ast::Expr {
+                span: Span::new(start, close.span.end),
+                kind: ast::ExprKind::Call {
+                    callee: Box::new(callee),
+                    args,
+                },
+            });
+        }
+
+        loop {
+            let tok = *self.peek();
+            let arg = self.try_parse_expr_postfix()?.ok_or(ParseError::Expected {
+                expected: "表达式（参数）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+            args.push(arg);
+
+            if self.eat_symbol(Symbol::Comma) {
+                // trailing comma
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+
+        let close = self.expect_symbol(Symbol::RParen)?;
+        Ok(ast::Expr {
+            span: Span::new(start, close.span.end),
+            kind: ast::ExprKind::Call {
+                callee: Box::new(callee),
+                args,
+            },
+        })
+    }
+
     fn try_parse_paren_group_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         let open = self.expect_symbol(Symbol::LParen)?;
         let start = open.span.start;
@@ -74,8 +149,8 @@ impl Parser {
             return Ok(Some(ast::Expr::missing(Span::new(start, close.span.end))));
         }
 
-        // 仅当括号内也是“原子表达式”时才保留其 kind；否则整体降级为 Missing。
-        let inner = self.try_parse_expr_atom()?;
+        // 仅当括号内也是“当前已支持的表达式子集”时才保留其 kind；否则整体降级为 Missing。
+        let inner = self.try_parse_expr_postfix()?;
         let Some(mut inner) = inner else {
             let span = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start)?;
             return Ok(Some(ast::Expr::missing(span)));

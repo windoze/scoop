@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: postfix_call.ast
+// 目标：验证 postfix 调用表达式 `f(...)` 能用于 initializer 与函数体表达式语句。
+
+package fixtures.parse
+
+val x = f(1, 2)
+
+fun main() {
+    f()
+}
+

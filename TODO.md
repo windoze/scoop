@@ -242,7 +242,7 @@
 - 验收：新增 parse fixture 覆盖局部 val/var；新增 parse-fail fixture：`val = 1`。
 - 依赖：T0207
 
-### T0209 [TODO] Parser：引入 postfix 表达式（调用 `f(...)`）
+### T0209 [DONE] Parser：引入 postfix 表达式（调用 `f(...)`）
 - 描述：支持函数调用表达式（callee + args），args 先支持逗号分隔表达式（基于已有原子表达式）。
 - 目标：不实现命名参数、不实现 trailing lambda。
 - 验收：新增 parse fixture：`val x = f(1, 2)`；以及 `fun main(){ f() }`。

@@ -122,6 +122,10 @@ pub enum ExprKind {
     IntLit,
     StringLit,
     Block(Block),
+    /// 调用表达式：`callee(args...)`（postfix）。
+    ///
+    /// 当前阶段（T0209）仅支持位置参数与逗号分隔参数列表；命名参数/trailing lambda 等语法后续再补齐。
+    Call { callee: Box<Expr>, args: Vec<Expr> },
 }
 
 impl Expr {

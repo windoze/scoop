@@ -1,0 +1,90 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 154..176,
+            path: [
+                Ident {
+                    span: 162..170,
+                },
+                Ident {
+                    span: 171..176,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 178..193,
+                kind: Val,
+                name: Ident {
+                    span: 182..183,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 186..193,
+                        kind: Call {
+                            callee: Expr {
+                                span: 186..187,
+                                kind: Ident(
+                                    Ident {
+                                        span: 186..187,
+                                    },
+                                ),
+                            },
+                            args: [
+                                Expr {
+                                    span: 188..189,
+                                    kind: IntLit,
+                                },
+                                Expr {
+                                    span: 191..192,
+                                    kind: IntLit,
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 195..217,
+                name: Ident {
+                    span: 199..203,
+                },
+                params_span: 203..205,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 206..217,
+                        stmts: [
+                            Stmt {
+                                span: 212..215,
+                                kind: Expr(
+                                    Expr {
+                                        span: 212..215,
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 212..213,
+                                                kind: Ident(
+                                                    Ident {
+                                                        span: 212..213,
+                                                    },
+                                                ),
+                                            },
+                                            args: [],
+                                        },
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}
