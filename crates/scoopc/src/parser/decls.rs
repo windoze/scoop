@@ -306,6 +306,12 @@ impl Parser {
                 continue;
             }
 
+            if self.peek_keyword(Keyword::Fun) {
+                let decl = self.parse_type_member_fun_decl()?;
+                members.push(ast::TypeMember::Fun(decl));
+                continue;
+            }
+
             // 当前阶段：type body 里除 `val/var` 以外的成员先粗暴跳过。
             // 目标：保持括号平衡与 span 正确，让后续任务（T0203/T0204）可以增量补齐。
             self.skip_type_member_fallback();
@@ -426,6 +432,53 @@ impl Parser {
             name,
             ty,
             init,
+        })
+    }
+
+    fn parse_type_member_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
+        // 目标：只解析函数声明头（name/params/return type），函数体仍只保留 span。
+        let kw = self.expect_keyword(Keyword::Fun)?;
+        let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
+        let name = ast::Ident { span: name_tok.span };
+
+        let (params_span, params) = self.parse_param_list()?;
+
+        let return_ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        // TODO: generics / effect rows / where clause（当前先粗暴跳过，避免阻塞后续 type body 解析）
+        let mut last_end = return_ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(params_span.end);
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
+            if self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+            {
+                break;
+            }
+            last_end = self.bump().span.end;
+        }
+
+        let body = if self.peek_symbol(Symbol::LBrace) {
+            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+            last_end = span.end;
+            ast::FunBody::Block(ast::Block { span })
+        } else {
+            ast::FunBody::Missing
+        };
+
+        Ok(ast::FunDecl {
+            span: Span::new(kw.span.start, last_end),
+            name,
+            params_span,
+            params,
+            return_ty,
+            body,
         })
     }
 

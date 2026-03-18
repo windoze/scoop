@@ -206,7 +206,7 @@
 - 验收：parse fixture 覆盖成功/失败（缺少名字/缺少冒号等）；错误应给出 `scoop::parse::*` 错误码与准确位置。
 - 依赖：T0201
 
-### T0203 [TODO] Parser：解析类型体内的 `fun` 成员声明头
+### T0203 [DONE] Parser：解析类型体内的 `fun` 成员声明头
 - 描述：在 type body 中解析 `fun name(params): Ret { ... }`（body 仍是 span）。
 - 目标：不解析函数体语句；不支持表达式体 `= expr`（后续任务）。
 - 验收：新增 parse fixture 覆盖成员函数；`scoop dump-ast` 输出包含成员列表。
