@@ -376,6 +376,7 @@ tests/
 
 - [x] `// EXPECT: pass|fail`
 - [x] `// EXPECT-ERROR: <substring>`（当前为子串匹配；后续可升级为 regex）
+- [x] `// EXPECT-AST: <file>`（parse fixtures：AST snapshot / golden）
 - [ ] `// RUN-STDOUT: <file>`
 - [x] `// ARGS: ...`
 

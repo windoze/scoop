@@ -61,9 +61,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
     };
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
-        FixturePhase::Parse => scoopc::parser::parse_file(&source)
-            .map(|_| ())
-            .map_err(box_diagnostic),
+        FixturePhase::Parse => parse_fixture(&source, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -95,6 +93,62 @@ enum FixturePhase {
 struct UnimplementedPhase {
     phase: String,
     fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 AST golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::ast_golden_read_failed))]
+struct AstGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("AST snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::ast_golden_mismatch))]
+struct AstGoldenMismatch {
+    path: String,
+    fixture: String,
+}
+
+fn parse_fixture(
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+
+    let Some(golden_rel) = exp.ast_golden else {
+        return Ok(());
+    };
+
+    let golden_path = fixture_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(golden_rel);
+
+    let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(AstGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+
+    let actual = format!("{ast:#?}\n");
+    let expected = normalize_newlines(&expected);
+    let actual = normalize_newlines(&actual);
+
+    if expected != actual {
+        return Err(box_diagnostic(AstGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
 }
 
 fn resolve_fixture(
@@ -198,6 +252,10 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn normalize_newlines(s: &str) -> String {
+    s.replace("\r\n", "\n")
 }
 
 /// 返回 fixture 的一级目录名（即 phase 目录）。

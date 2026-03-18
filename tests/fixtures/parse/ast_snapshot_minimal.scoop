@@ -1,0 +1,6 @@
+// EXPECT: pass
+// EXPECT-AST: ast_snapshot_minimal.ast
+
+package fixtures.parse
+
+fun main() {}

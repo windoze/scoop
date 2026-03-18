@@ -120,7 +120,7 @@
 - 验收：新增 `crates/scoop/src/fixtures/expectations.rs` 单测：`ARGS` 可解析为 Vec<String>；原有指令保持兼容。
 - 依赖：T0004
 
-### T0103 [TODO] parse fixtures：支持 AST snapshot（golden）比对
+### T0103 [DONE] parse fixtures：支持 AST snapshot（golden）比对
 - 描述：为 `tests/fixtures/parse/**` 增加 `// EXPECT-AST: <file>`，将 `Debug`/pretty-print 输出与 golden 文件对比。
 - 目标：先只覆盖 parser 输出（不涉及 resolver/typecheck）；golden 采用“全文一致”。
 - 验收：新增一个 parse fixture + 对应 `.ast` 文件；`scoop test` 在 parse phase 里完成比对。
