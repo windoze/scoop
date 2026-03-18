@@ -1,5 +1,4 @@
 Now implement all steps in the TODO.md.
-You can spawn multiple agents to work on different steps in parallel if they don't depend on each other. You can also break down complex steps into smaller steps and assign them to different agents. Make sure to update PLAN.md and TODO.md accordingly as you progress through the steps.
 Rules:
 1. When you see any step is too complex, you should break it down into smaller steps and implement them one by one, and update PLAN.md and TODO.md accordingly.
 2. After every step is completed, you should update PLAN.md and TODO.md to reflect the progress and any changes made to the plan. Then git commit the changes with a message describing the completed step.
