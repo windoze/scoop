@@ -6,6 +6,21 @@
 
 Scoop is a statically-typed, garbage-collected programming language. It aims to provide a Kotlin-like experience without JVM restrictions, featuring true value types, rich enums, an algebraic effect system, monomorphized generics, and compile-time reflection.
 
+### 1.1 Spec Doctest Fixtures
+
+This spec may contain executable Scoop snippets. Code blocks that include a `// FIXTURE:` directive are treated as doctest fixtures:
+
+- Extracted into `tests/fixtures/spec_doctest/` (see `tools/scoop_tools`)
+- Verified in CI via `cargo run -p scoop_tools -- spec-fixtures check`
+- Executed by `cargo run -p scoop -- test`
+
+```scoop
+// FIXTURE: spec_doctest/overview_minimal_main.scoop
+// EXPECT: pass
+
+fun main() {}
+```
+
 ## 2. Type System
 
 ### 2.1 Type Hierarchy

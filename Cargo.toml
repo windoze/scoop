@@ -4,6 +4,7 @@ members = [
     "crates/scoop",
     "crates/scoopc",
     "crates/scoop_runtime",
+    "tools/scoop_tools",
 ]
 
 [workspace.package]

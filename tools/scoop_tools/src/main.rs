@@ -1,0 +1,69 @@
+//! Scoop 仓库内置工具（开发期）。
+//!
+//! 目标：
+//! - 把 “规范/fixtures/实现” 三者联动起来，避免文档漂移
+//! - 提供可在 CI 强制执行的一致性检查（check mode）
+
+mod spec_fixtures;
+
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+use miette::{Context as _, Result};
+
+#[derive(Debug, Parser)]
+#[command(name = "scoop-tools", version, about = "Scoop repository tools")]
+struct Args {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    /// 从 `SCOOP_FULL_SPEC.md` 抽取 doctest fixtures，并写入/检查 `tests/fixtures/spec_doctest`
+    SpecFixtures {
+        /// 运行模式：`sync`（写文件）或 `check`（仅检查一致性）
+        #[arg(value_parser = ["sync", "check"])]
+        mode: String,
+
+        /// 规范文件路径（默认：`SCOOP_FULL_SPEC.md`）
+        #[arg(long, default_value = "SCOOP_FULL_SPEC.md")]
+        spec: PathBuf,
+
+        /// fixtures 根目录（默认：`tests/fixtures`）
+        #[arg(long, default_value = "tests/fixtures")]
+        fixtures_root: PathBuf,
+    },
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+
+    match args.command {
+        Command::SpecFixtures {
+            mode,
+            spec,
+            fixtures_root,
+        } => {
+            let mode = match mode.as_str() {
+                "sync" => spec_fixtures::Mode::Sync,
+                "check" => spec_fixtures::Mode::Check,
+                other => return Err(miette::miette!("未知 mode：{other}")),
+            };
+
+            let report = spec_fixtures::run(mode, &spec, &fixtures_root)
+                .wrap_err("spec fixtures 处理失败")?;
+
+            if report.is_empty() {
+                eprintln!("spec fixtures: no blocks found (ok)");
+            } else {
+                eprintln!(
+                    "spec fixtures: ok ({})",
+                    report.len()
+                );
+            }
+        }
+    }
+
+    Ok(())
+}

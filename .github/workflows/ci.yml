@@ -19,6 +19,8 @@ jobs:
       - name: Cargo test
         run: cargo test --all
 
+      - name: Spec doctest fixtures
+        run: cargo run -p scoop_tools -- spec-fixtures check
+
       - name: Fixture smoke
         run: cargo run -p scoop -- test
-

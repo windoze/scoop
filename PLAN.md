@@ -26,7 +26,7 @@
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
 - [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 core/io/gc/unsafe 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
-- [ ] `tools/`：辅助脚本（抽取 spec 代码块、生成/更新 golden 等）
+- [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
 
 > 现阶段仓库还很小，可以先在单 crate 内落地；当模块多起来再迁移到 workspace。
 
@@ -366,9 +366,9 @@ tests/
 
 ### 10.3 spec doctest（强烈建议）
 
-- [ ] 工具：从 `SCOOP_FULL_SPEC.md` 抽取 fenced code block
-- [ ] 约定：代码块通过注释标记其期望（pass/fail/run）
-- [ ] 在 CI 中强制：spec 里的可运行示例必须全部通过
+- [x] 工具：从 `SCOOP_FULL_SPEC.md` 抽取包含 `// FIXTURE:` 的 fenced code block，生成 `tests/fixtures/spec_doctest/*`
+- [x] 约定：代码块通过注释标记其期望（`// EXPECT:` / `// EXPECT-ERROR:`），`// FIXTURE:` 指定输出路径
+- [x] 在 CI 中强制：`cargo run -p scoop_tools -- spec-fixtures check` + `cargo run -p scoop -- test`
 
 ### 10.4 运行期 fixtures（run-pass）
 

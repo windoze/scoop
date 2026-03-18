@@ -1,0 +1,4 @@
+// FIXTURE: spec_doctest/overview_minimal_main.scoop
+// EXPECT: pass
+
+fun main() {}
