@@ -100,7 +100,7 @@ impl Parser {
         } else if self.peek_keyword(Keyword::Var) {
             self.bump()
         } else {
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             return Err(ParseError::Expected {
                 expected: "`val` / `var`",
                 found: tok.kind,
@@ -133,7 +133,7 @@ impl Parser {
                 || self.peek_symbol(Symbol::Semicolon)
                 || self.is_top_level_item_start()
             {
-                let tok = self.peek().clone();
+                let tok = *self.peek();
                 return Err(ParseError::Expected {
                     expected: "表达式（initializer）",
                     found: tok.kind,
@@ -150,11 +150,10 @@ impl Parser {
             let mut depth_bracket = 0usize;
 
             while !self.peek_kind(TokenKind::Eof) {
-                if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                    if self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start() {
+                if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                    && (self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start()) {
                         break;
                     }
-                }
 
                 let tok = self.bump();
                 if let TokenKind::Symbol(sym) = tok.kind {
@@ -244,7 +243,7 @@ impl Parser {
         } else if self.peek_keyword(Keyword::Effect) {
             (self.bump(), ast::TypeKind::Effect)
         } else {
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             return Err(ParseError::Expected {
                 expected: "类型声明关键字（class/interface/struct/enum/effect）",
                 found: tok.kind,

@@ -37,7 +37,7 @@ impl Parser {
         if self.peek_keyword(kw) {
             Ok(self.bump())
         } else {
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             Err(ParseError::Expected {
                 expected: kw_name(kw),
                 found: tok.kind,
@@ -50,7 +50,7 @@ impl Parser {
         if self.peek_symbol(sym) {
             Ok(self.bump())
         } else {
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             Err(ParseError::Expected {
                 expected: sym_name(sym),
                 found: tok.kind,
@@ -67,7 +67,7 @@ impl Parser {
         if self.peek_kind(kind) {
             Ok(self.bump())
         } else {
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             Err(ParseError::Expected {
                 expected,
                 found: tok.kind,
@@ -94,7 +94,7 @@ impl Parser {
     }
 
     pub(super) fn bump(&mut self) -> Token {
-        let tok = self.peek().clone();
+        let tok = *self.peek();
         self.i = (self.i + 1).min(self.tokens.len());
         tok
     }

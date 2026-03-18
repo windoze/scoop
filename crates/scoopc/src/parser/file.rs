@@ -34,7 +34,7 @@ impl Parser {
             }
 
             // 早期阶段：遇到未知顶层结构直接报错（后续再做错误恢复）
-            let tok = self.peek().clone();
+            let tok = *self.peek();
             return Err(ParseError::Expected {
                 expected: "顶层声明（例如 `fun`）",
                 found: tok.kind,

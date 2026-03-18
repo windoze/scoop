@@ -282,12 +282,11 @@ fn resolve_type_path(
     candidates.dedup();
 
     for fqn in candidates {
-        if let Some(sym) = index.by_fqn.get(&fqn) {
-            if sym.kind == SymbolKind::Type {
+        if let Some(sym) = index.by_fqn.get(&fqn)
+            && sym.kind == SymbolKind::Type {
                 // TODO: 在后续阶段把解析结果写回 AST/HIR
                 return Ok(());
             }
-        }
     }
 
     Err(ResolveError::UnresolvedType {
