@@ -1,6 +1,6 @@
 //! `scoop dump-ast` 子命令。
 //!
-//! 当前阶段：输出“早期 AST”（文件头 + 顶层 fun + block span）。
+//! 当前阶段：输出“早期 AST”（文件头 + 顶层声明 + `Block { stmts }` 的最小语句子集）。
 //! 后续会逐步扩展为完整 AST/HIR dump。
 
 use std::path::PathBuf;
