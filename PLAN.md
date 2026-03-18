@@ -24,7 +24,7 @@
 - [x] `crates/scoop/`：CLI（`scoop build/run/test`），负责调用 `scoopc`、链接、跑测试（已建立骨架）
 - [x] `crates/scoop_runtime/`：早期运行时构建 glue（clang + C runtime）（已建立骨架）
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
-- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 core/io/gc/unsafe 等）
+- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
 - [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
 
@@ -53,6 +53,7 @@
 ### 2.1 词法分析（Lexer）
 
 - [x] Token 集：关键字、标识符、数字、字符串、基础运算符、注解（`@`）、泛型尖括号、常用 modifier（`open/abstract/sealed`）等（见 `scoopc::syntax::lexer`）
+- [ ] 补齐位运算与移位运算符 token：`&` `|` `^` `~` `<<` `>>`（spec §2.3.4 / Appendix B.8）
 - [x] 注释：行注释 `//`、块注释 `/* */`（当前实现为**非嵌套**；若后续需要可扩展为嵌套）
 - [x] 字符串：
   - 普通字符串（`"..."`）
@@ -69,6 +70,7 @@
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
   - [x] 顶层 `val`/`var`：解析声明头；initializer 暂仅保留 span（不解析表达式）
   - [ ] 类型体内部成员声明：`val`/`var`/`fun`/nested type
+- [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
 - [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [ ] 运算符优先级（Pratt 或 precedence climbing）
@@ -102,6 +104,7 @@
   - 先收集声明头（type/function/field signatures）
   - 再解析函数体与初始化表达式
 - [x] import 解析与名字绑定（最小子集）：对 fun/val 顶层签名里的 `TypeRef::Path` 做存在性解析（含 star import）
+- [ ] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
 - [ ] 作用域：块级/类型体/泛型参数/扩展 receiver（逐步补齐）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
 
@@ -109,6 +112,11 @@
 
 - [x] sysroot 文件与 loader 骨架：可发现并解析 `sysroot/*.scoop`（当前实现见 `scoopc::sysroot`）
 - [x] 编译流程注入：通过 `scoopc::session::Session` 默认加载 sysroot，并在 `build_top_level_index` 中纳入名字解析环境
+- [ ] sysroot：补齐内建标量类型的“可见声明”（spec §2.3.4 / runtime §3）
+  - `Int/UInt`：word-sized（随 target 指针宽度变化，Swift 约定）
+  - 固定位宽整数：`Int8/16/32/64`、`UInt8/16/32/64`
+  - 标准别名：`Byte/Short/UShort/Long/ULong`，以及 `UIntPtr = UInt`
+  - 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
@@ -120,6 +128,11 @@
 ### 4.1 类型表示（核心）
 
 - [ ] 区分引用类型 vs 值类型（spec §2）
+- [ ] 内建整数模型（spec §2.3.4 / runtime §3）
+  - `Int/UInt` 的 bit width = target pointer size
+  - 固定位宽整数类型与类型大小/对齐（为 FFI/序列化提供稳定布局）
+  - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
+- [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
 - [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
 - [ ] 函数类型（含 effect row）：`(A, B) -> T / E` 与 receiver function type（spec §7.5）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
@@ -404,6 +417,10 @@ tests/
 - [ ] `@Unsafe`：
   - 函数级与块级 `@Unsafe { ... }`
   - 非 unsafe context 禁止：指针运算/unsafe 原语/调用 `@Unsafe` 函数/调用 `@Extern`
+- [ ] `Ptr<T>` / `UIntPtr` 与指针整数转换（spec §15.9.4 / runtime §4~§5）
+  - `UIntPtr` 仅为 `UInt` 的别名（类型本身不 unsafe）
+  - 指针 ↔ 整数转换必须在 unsafe context，且通过 sysroot intrinsics（不通过 `as/as?`）
+  - `Ptr<T>` 的 `T` 必须是 GC-free value type（不允许直接/间接包含 GC ref）
 - [ ] `@NoGC`：
   - 禁止 GC 堆分配；只能调用 `@NoGC` 与 `@Extern`
   - 编译器证明不了“无分配”就必须报错（保守）
@@ -454,9 +471,10 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 
 - [ ] 操作符重载（operator overloading）
   - 解析 `a + b` → 解析/绑定到 `plus`/`minus` 等约定方法（按 Kotlin 规则）
+  - 补齐位运算与移位：`and/or/xor/inv/shl/shr`（Appendix B.8）
   - 运行期与值类型/引用类型的 codegen 覆盖
 - [ ] `object` 与 companion object（如需要）
-- [ ] `typealias`（纯类型层语法糖）
+- [ ] `typealias`（纯类型层语法糖；基础实现已因 sysroot 标准别名前置）
 - [ ] Ranges/progressions 与 `for` 迭代协议
 - [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）
 

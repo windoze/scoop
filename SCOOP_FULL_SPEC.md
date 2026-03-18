@@ -33,6 +33,7 @@ Types
 │   └── boxed value type
 │
 └── Value types (inline, copy semantics, immutable)
+    ├── built-in scalar types (e.g., Int/UInt, Int32/UInt32, ...)
     ├── struct
     ├── enum (rich, tagged union)
     ├── tuple
@@ -94,7 +95,7 @@ Structs are named value types with named fields.
 ```kotlin
 struct Point(val x: Int, val y: Int)
 
-struct Color(val r: UByte, val g: UByte, val b: UByte, val a: UByte) : Hashable {
+struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
     fun hash(): Int = ...
 }
 ```
@@ -121,7 +122,7 @@ enum Color {
     Red,
     Green,
     Blue,
-    Custom(val r: UByte, val g: UByte, val b: UByte)
+    Custom(val r: Byte, val g: Byte, val b: Byte)
 }
 
 enum Option<T> {
@@ -143,7 +144,7 @@ enum Result<T, E> {
 **Memory layout**:
 
 - Layout is `tag + union` where the union size equals the largest variant.
-- Tag size is determined by variant count: ≤256 variants → `u8`, ≤65536 → `u16`.
+- Tag size is determined by variant count: ≤256 variants → `UInt8`, ≤65536 → `UInt16`.
 - The compiler automatically boxes oversized variants and emits a lint warning when size disparity is significant.
 - **Niche optimization** is applied where possible:
   - `Option<ReferenceType>` uses null pointer for `None` — zero overhead.
@@ -209,6 +210,87 @@ val y = p._1    // "hi"
 - Tuples are value types (immutable, copy semantics).
 - Tuples support destructuring in `val`/`var` bindings and `when` expressions.
 - `Unit` / `()` is the 0-arity tuple and the implicit return type of functions with no declared return type.
+
+#### 2.3.4 Built-in Integer Types
+
+Scoop provides a set of built-in integer value types that are available on all targets.
+
+These types are **language built-ins**: their layout and semantics are fixed by the compiler. However, their *visible* declarations (including standard aliases) MUST be provided by the sysroot, so that they can be referenced from user code and tooling like normal types.
+
+> 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供。
+
+##### Word-sized integers (`Int` / `UInt`)
+
+Following Swift's convention for native languages:
+
+- `Int` is the target's **native signed word-sized integer**.
+- `UInt` is the target's **native unsigned word-sized integer**.
+
+Both have a bit width equal to the compilation target's pointer size:
+
+- On 64-bit targets: `Int` / `UInt` are 64-bit.
+- On 32-bit targets: `Int` / `UInt` are 32-bit.
+
+These types are the preferred choice for:
+
+- Collection sizes and indices
+- In-memory offsets
+- `sizeOf<T>()` / `alignOf<T>()` results
+
+##### Fixed-width integers (`IntN` / `UIntN`)
+
+For portable, layout-stable code (serialization, file formats, on-disk structures, FFI ABIs), Scoop also provides fixed-width integers:
+
+- Signed: `Int8`, `Int16`, `Int32`, `Int64`
+- Unsigned: `UInt8`, `UInt16`, `UInt32`, `UInt64`
+
+Future extension (not in 0.1): `Int128` / `UInt128` may be provided on some targets.
+
+##### Standard aliases
+
+The sysroot MUST provide standard type aliases for conventional names:
+
+```kotlin
+typealias Byte   = UInt8
+typealias Short  = Int16
+typealias UShort = UInt16
+typealias Long   = Int64
+typealias ULong  = UInt64
+
+// Explicit "address-sized integer" name for unsafe/FFI documentation.
+// In Scoop 0.1 this is just an alias to UInt.
+typealias UIntPtr = UInt
+```
+
+Note: `Byte` is an **unsigned** 8-bit integer (`UInt8`).
+
+##### Operations and semantics
+
+All integer types support:
+
+- Arithmetic: `+`, `-`, `*`, `/`, `%`
+- Comparison: `==`, `!=`, `<`, `<=`, `>`, `>=`
+- Bitwise: `&`, `|`, `^`, `~`
+- Shifts: `<<`, `>>`
+
+**Bit width and representation:**
+
+- Fixed-width integers have the specified bit width (`Int32` is 32-bit, etc.).
+- Word-sized integers (`Int` / `UInt`) have a bit width equal to the target pointer size.
+- Signed integers use two's complement representation.
+
+**Overflow:**
+
+Unless otherwise specified by an intrinsic API, integer operations are defined as **modular arithmetic** modulo `2^bitWidth` (wrap-around).
+
+**Right shift:**
+
+- For signed integers, `>>` is an arithmetic right shift.
+- For unsigned integers, `>>` is a logical right shift.
+
+**Shift counts:**
+
+Shift counts are masked by the type's bit width (equivalent to `shift % bitWidth`) to avoid target-dependent behavior.
 
 ### 2.4 Nullability
 
@@ -620,6 +702,8 @@ Resumption context:
 | `, k ->` (escape) | GC-allocated state machine struct; step function driven by external caller |
 
 Implementation details:
+
+Note: the runtime symbol names used in this section (e.g., `__scoop_effect_active`, `scoop_perform_*`, `__scoop_run_executor`) are illustrative only and do **not** constitute a stable ABI. The exact runtime entrypoints and symbol names are implementation-defined and may change.
 
 - **Per-thread runtime state**: effect dispatch/unwinding state is maintained in thread-local storage (TLS), including the active handler stack pointer and the current "perform slot" used by flag-based unwinding.
 - **Cross-thread resume**: when a continuation is resumed, its captured handler stack is installed into the resuming thread’s TLS effect state. This makes the effect context conceptually fiber-local even when the scheduler migrates tasks across threads (e.g., work-stealing executors).
@@ -2086,6 +2170,7 @@ The `@Intrinsic` annotation marks declarations whose implementation is provided 
 
 ```kotlin
 @Intrinsic
+// Word-sized signed integer (bit width equals the target pointer size).
 struct Int {
     fun toString(): String
     fun toFloat(): Float
@@ -2152,7 +2237,7 @@ If an external function needs to interact with the Scoop GC (e.g., allocate GC-m
 ```kotlin
 @NoGC
 @Unsafe
-fun bumpAlloc(alloc: Ptr<UByte>, size: Int): Ptr<UByte> {
+fun bumpAlloc(alloc: Ptr<Byte>, size: Int): Ptr<Byte> {
     // Implementation is expected to use raw pointers and manual memory management.
     // All operations must be allocation-free and only call other @NoGC / @Extern functions.
     return alloc + size
@@ -2198,6 +2283,55 @@ An unsafe block has the form `@Unsafe { ... }` and may appear wherever a block i
 #### 15.9.3 Relationship to `@NoGC`
 
 `@Unsafe` does not imply `@NoGC`. Functions (or blocks) that require both properties may be annotated with both.
+
+#### 15.9.4 Raw pointers (`Ptr<T>`) and address integers (`UIntPtr`)
+
+The sysroot may expose a raw pointer type:
+
+```kotlin
+@Intrinsic
+struct Ptr<T>
+```
+
+`Ptr<T>` is a low-level primitive intended for runtime/FFI code. Unsafe pointer operations (such as dereferencing, raw memory loads/stores, pointer arithmetic, and pointer/integer casts) must only be permitted within an unsafe context (see §15.9.1).
+
+**GC-free pointee restriction:**
+
+To avoid hiding GC-managed references inside untracked memory, `Ptr<T>` is only well-formed when `T` is a **GC-free value type**:
+
+- `T` must be a value type (`struct` / `enum` / tuple / built-in scalar).
+- `T` must not contain (directly or transitively) any reference-typed fields.
+- In particular, any field whose runtime representation contains a GC pointer (including `Option<RefType>` niches) makes the containing type non-GC-free.
+
+This restriction is enforced statically.
+
+**Pointer-sized integers:**
+
+`UIntPtr` is defined by the sysroot as an alias to the target word-sized unsigned integer:
+
+```kotlin
+typealias UIntPtr = UInt
+```
+
+`UIntPtr` exists for clarity when documenting address arithmetic and FFI APIs. The type itself is not unsafe.
+
+**Pointer ↔ integer casts:**
+
+Converting between pointers and integers is unsafe and must require an unsafe context. The exact API surface is sysroot-defined (typically via intrinsics).
+
+For example:
+
+```kotlin
+@Intrinsic @NoGC @Unsafe
+fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
+
+@Intrinsic @NoGC @Unsafe
+fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
+```
+
+Note: these conversions are **not** expressed via `as` / `as?` (those are runtime type casts expressed via `Raise`). Pointer/integer conversions must be provided via sysroot intrinsics and must require an unsafe context.
+
+Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) if the pointed-to object may move.
 
 ### 15.10 GC Pinning API (`pin` / `unpin`)
 
@@ -2478,6 +2612,13 @@ Additional Kotlin-like rules:
 Scoop supports Kotlin-style operator overloading via specially-named functions.
 
 - For each operator token, there is a corresponding function name (e.g., `+` → `plus`, `-` → `minus`, `*` → `times`, `/` → `div`).
+- Bitwise operators map to conventional names:
+  - `a & b` → `and`
+  - `a | b` → `or`
+  - `a ^ b` → `xor`
+  - `~a` → `inv`
+  - `a << b` → `shl`
+  - `a >> b` → `shr` (arithmetic for signed integers, logical for unsigned integers)
 - Indexing uses `get` / `set` (`a[i]`, `a[i] = v`).
 - Comparison uses `compareTo` for ordering operators.
 
