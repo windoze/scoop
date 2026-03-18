@@ -1,6 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR: 未闭合的块注释
+// EXPECT-ERROR-CODE: scoop::lex::unterminated_block_comment
+// EXPECT-ERROR-AT: 6:1
 
 /*
 fun main() {}
-

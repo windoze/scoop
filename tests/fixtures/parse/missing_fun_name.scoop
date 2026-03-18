@@ -1,5 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR: 函数名
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 6:5
 
 fun () {}
-

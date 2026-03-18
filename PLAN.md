@@ -364,8 +364,8 @@ tests/
 
 ### 10.2 诊断（compile-fail）的 golden 规范
 
-- [ ] 诊断必须包含：错误码（稳定 ID）、主消息、关联 span（行列）、可选 note/help
-- [ ] golden 文件不要求完全匹配文本，但要能匹配“错误码 + span + 关键片段”（避免小改动导致大面积更新）
+- [x] 诊断必须包含：错误码（稳定 ID）、主消息、关联 span（行列）、可选 note/help（当前 lexer/parser 已提供 code + label span）
+- [x] fixtures 断言策略：支持匹配“错误码 + 错误位置（行列）+ 关键片段”（先用文件头注释指令实现；未来可再升级为独立 `.golden`）
 
 ### 10.3 spec doctest（强烈建议）
 

@@ -10,7 +10,7 @@ mod expectations;
 
 use std::path::{Path, PathBuf};
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{miette, Context as _, Diagnostic as _, IntoDiagnostic as _, Result};
 
 use expectations::{Expect, FixtureExpectation};
 
@@ -45,6 +45,24 @@ fn run_one(path: &Path) -> Result<()> {
         (Expect::Pass, Err(e)) => Err(miette!("期望通过，但解析失败：{e}")),
         (Expect::Fail, Ok(_)) => Err(miette!("期望失败，但解析成功")),
         (Expect::Fail, Err(e)) => {
+            if let Some(expected_code) = exp.error_code {
+                let actual_code = e.code().map(|c| c.to_string());
+                if actual_code.as_deref() != Some(expected_code) {
+                    return Err(miette!(
+                        "错误码不匹配：期望 {expected_code:?}，实际为：{actual_code:?}"
+                    ));
+                }
+            }
+
+            if let Some((line, col)) = exp.error_at {
+                let (actual_line, actual_col) = primary_label_line_col(&source, &e)?;
+                if (actual_line, actual_col) != (line, col) {
+                    return Err(miette!(
+                        "错误位置不匹配：期望 {line}:{col}，实际为：{actual_line}:{actual_col}"
+                    ));
+                }
+            }
+
             if let Some(needle) = exp.error_contains {
                 let msg = e.to_string();
                 if !msg.contains(needle) {
@@ -56,6 +74,27 @@ fn run_one(path: &Path) -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn primary_label_line_col(
+    source: &scoopc::source::SourceFile,
+    diag: &dyn miette::Diagnostic,
+) -> Result<(usize, usize)> {
+    let mut first = None;
+    let mut primary = None;
+
+    if let Some(labels) = diag.labels() {
+        for l in labels {
+            first.get_or_insert(l.offset());
+            if l.primary() {
+                primary = Some(l.offset());
+                break;
+            }
+        }
+    }
+
+    let offset = primary.or(first).ok_or_else(|| miette!("诊断未提供 labels/span，无法断言错误位置"))?;
+    source.offset_to_line_col(offset)
 }
 
 fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
@@ -78,4 +117,3 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     }
     Ok(())
 }
-
