@@ -11,6 +11,7 @@
 pub mod ast;
 pub mod parser;
 pub mod resolve;
+pub mod session;
 pub mod source;
 pub mod span;
 pub mod syntax;

@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 
 use miette::{miette, Context as _, IntoDiagnostic as _, Result};
 
+use crate::source::SourceFile;
+
 #[derive(Debug)]
 pub struct Sysroot {
     pub root: PathBuf,
@@ -19,6 +21,7 @@ pub struct Sysroot {
 #[derive(Debug)]
 pub struct SysrootFile {
     pub path: PathBuf,
+    pub source: SourceFile,
     pub ast: crate::ast::File,
 }
 
@@ -50,10 +53,10 @@ impl Sysroot {
 
         let mut files = Vec::new();
         for path in paths {
-            let source = crate::source::SourceFile::load(&path)?;
+            let source = SourceFile::load(&path)?;
             let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
-            files.push(SysrootFile { path, ast });
+            files.push(SysrootFile { path, source, ast });
         }
 
         Ok(Self { root, files })

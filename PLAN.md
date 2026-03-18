@@ -105,7 +105,7 @@
 ### 3.3 sysroot 注入
 
 - [x] sysroot 文件与 loader 骨架：可发现并解析 `sysroot/*.scoop`（当前实现见 `scoopc::sysroot`）
-- [ ] 编译流程注入：编译器启动时自动加载 sysroot，并把其中声明纳入名字解析/类型检查环境
+- [x] 编译流程注入：通过 `scoopc::session::Session` 默认加载 sysroot，并在 `build_top_level_index` 中纳入名字解析环境
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
