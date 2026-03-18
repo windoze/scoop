@@ -97,6 +97,17 @@ impl Parser {
         })
     }
 
+    /// 向前看第 `n` 个 token（`n=0` 等价于 `peek()`）。
+    ///
+    /// 超出范围时返回最后一个 token（lexer 保证至少有 EOF）。
+    pub(super) fn peek_n(&self, n: usize) -> &Token {
+        self.tokens.get(self.i + n).unwrap_or_else(|| {
+            self.tokens
+                .last()
+                .expect("lexer must produce at least EOF token")
+        })
+    }
+
     pub(super) fn bump(&mut self) -> Token {
         let tok = *self.peek();
         self.i = (self.i + 1).min(self.tokens.len());

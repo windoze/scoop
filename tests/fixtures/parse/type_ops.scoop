@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-AST: type_ops.ast
+// 目标：验证 `is`/`!is`/`as`/`as?` 的表达式解析与 span 覆盖。
+
+package fixtures.parse
+
+val a = x is Foo
+val b = x !is Foo
+val c = x as Foo
+val d = x as? Foo
+
+fun main() {
+    // `if` 仍未实现为表达式（T0214），这里仅确保包含 type op 的 token 序列不会破坏块解析。
+    if (x is Foo) { x }
+}
+

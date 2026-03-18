@@ -150,6 +150,24 @@ pub enum BinaryOp {
     Elvis,
 }
 
+/// 类型相关的表达式操作符：运行期类型判断。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeCheckOp {
+    /// `expr is Type`
+    Is,
+    /// `expr !is Type`
+    NotIs,
+}
+
+/// 类型相关的表达式操作符：显式转换。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CastOp {
+    /// `expr as Type`（失败时抛出/raise，由后续阶段决定）
+    As,
+    /// `expr as? Type`（失败时返回 `None`，由后续阶段决定）
+    AsQ,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
@@ -191,6 +209,25 @@ pub enum ExprKind {
         op: BinaryOp,
         op_span: Span,
         rhs: Box<Expr>,
+    },
+    /// 运行期类型判断：`expr is Type` / `expr !is Type`。
+    ///
+    /// 说明：
+    /// - 仅做语法建模；smart cast 与运行期语义留到后续阶段处理（typecheck/effect/codegen）。
+    TypeCheck {
+        expr: Box<Expr>,
+        op: TypeCheckOp,
+        op_span: Span,
+        ty: TypeRef,
+    },
+    /// 显式类型转换：`expr as Type` / `expr as? Type`。
+    ///
+    /// 说明：仅做语法建模；失败语义（raise/返回 None）留到后续阶段处理。
+    Cast {
+        expr: Box<Expr>,
+        op: CastOp,
+        op_span: Span,
+        ty: TypeRef,
     },
 }
 

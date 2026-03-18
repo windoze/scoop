@@ -11,6 +11,7 @@
 //! - postfix 非空断言（T0212）：`expr!!`
 //! - 二元运算符优先级（T0211）：`1 + 2 * 3`
 //! - Elvis（T0212）：`a ?: b`
+//! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -18,7 +19,7 @@
 
 use crate::ast;
 use crate::span::Span;
-use crate::syntax::token::{Symbol, TokenKind};
+use crate::syntax::token::{Keyword, Symbol, TokenKind};
 
 use super::{ParseError, Parser};
 
@@ -65,44 +66,120 @@ impl Parser {
         };
 
         loop {
-            let (l_bp, r_bp, op) = match self.peek_binary_op() {
+            let infix = match self.peek_infix_op() {
                 Some(x) => x,
                 None => break,
             };
 
-            if l_bp < min_bp {
+            if infix.l_bp < min_bp {
                 break;
             }
 
-            let op_tok = self.bump();
-            let Some(rhs) = self.parse_expr_bp(r_bp)? else {
-                let tok = *self.peek();
-                return Err(ParseError::Expected {
-                    expected: "表达式（右操作数）",
-                    found: tok.kind,
-                    span: tok.span.into(),
-                });
-            };
+            let op_span = self.bump_infix_op_span(infix.consume);
 
-            lhs = ast::Expr {
-                span: Span::new(lhs.span.start, rhs.span.end),
-                kind: ast::ExprKind::Binary {
-                    lhs: Box::new(lhs),
-                    op,
-                    op_span: op_tok.span,
-                    rhs: Box::new(rhs),
-                },
-            };
+            match infix.kind {
+                InfixOpKind::Binary(op) => {
+                    let Some(rhs) = self.parse_expr_bp(infix.r_bp)? else {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "表达式（右操作数）",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    };
+
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, rhs.span.end),
+                        kind: ast::ExprKind::Binary {
+                            lhs: Box::new(lhs),
+                            op,
+                            op_span,
+                            rhs: Box::new(rhs),
+                        },
+                    };
+                }
+                InfixOpKind::TypeCheck(op) => {
+                    let ty = self.parse_type_ref()?;
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, ty.span().end),
+                        kind: ast::ExprKind::TypeCheck {
+                            expr: Box::new(lhs),
+                            op,
+                            op_span,
+                            ty,
+                        },
+                    };
+                }
+                InfixOpKind::Cast(op) => {
+                    let ty = self.parse_type_ref()?;
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, ty.span().end),
+                        kind: ast::ExprKind::Cast {
+                            expr: Box::new(lhs),
+                            op,
+                            op_span,
+                            ty,
+                        },
+                    };
+                }
+            }
         }
 
         Ok(Some(lhs))
     }
 
-    fn peek_binary_op(&self) -> Option<(u8, u8, ast::BinaryOp)> {
+    fn bump_infix_op_span(&mut self, consume: u8) -> Span {
+        let first = self.bump();
+        if consume <= 1 {
+            return first.span;
+        }
+
+        let mut end = first.span.end;
+        for _ in 1..consume {
+            end = self.bump().span.end;
+        }
+        Span::new(first.span.start, end)
+    }
+
+    fn peek_infix_op(&self) -> Option<InfixOp> {
+        // 1) `!is`（两个 token）：`!` + `is`
+        if self.peek_symbol(Symbol::Bang) && self.peek_n(1).kind == TokenKind::Keyword(Keyword::Is)
+        {
+            return Some(InfixOp {
+                l_bp: 8,
+                r_bp: 9,
+                consume: 2,
+                kind: InfixOpKind::TypeCheck(ast::TypeCheckOp::NotIs),
+            });
+        }
+
+        // 2) 单 token 的 keyword 运算符：`is` / `as` / `as?`
+        if let TokenKind::Keyword(kw) = self.peek().kind {
+            let kind = match kw {
+                Keyword::Is => InfixOpKind::TypeCheck(ast::TypeCheckOp::Is),
+                Keyword::As => InfixOpKind::Cast(ast::CastOp::As),
+                Keyword::AsQ => InfixOpKind::Cast(ast::CastOp::AsQ),
+                _ => return None,
+            };
+            return Some(InfixOp {
+                l_bp: 8,
+                r_bp: 9,
+                consume: 1,
+                kind,
+            });
+        }
+
+        // 3) 普通 symbol 二元运算符
         let TokenKind::Symbol(sym) = self.peek().kind else {
             return None;
         };
-        binary_binding_power(sym)
+        let (l_bp, r_bp, op) = binary_binding_power(sym)?;
+        Some(InfixOp {
+            l_bp,
+            r_bp,
+            consume: 1,
+            kind: InfixOpKind::Binary(op),
+        })
     }
 
     /// 尝试解析一个“原子表达式”。
@@ -289,6 +366,22 @@ impl Parser {
             span: Span::new(start, self.peek().span.end).into(),
         })
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct InfixOp {
+    l_bp: u8,
+    r_bp: u8,
+    /// 该运算符在 token 流中占用的 token 数量（`!is` 为 2，其余为 1）。
+    consume: u8,
+    kind: InfixOpKind,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum InfixOpKind {
+    Binary(ast::BinaryOp),
+    TypeCheck(ast::TypeCheckOp),
+    Cast(ast::CastOp),
 }
 
 fn binary_binding_power(sym: Symbol) -> Option<(u8, u8, ast::BinaryOp)> {

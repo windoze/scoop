@@ -81,6 +81,7 @@
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
    - [x] postfix 非空断言：`expr!!`
    - [x] Elvis：`a ?: b`（低优先级二元，右结合）
+   - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [x] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）

@@ -266,7 +266,7 @@
 - 验收：新增 parse fixture：`val x = a ?: b`、`val y = a!!`；`scoop test` 通过。
 - 依赖：T0211
 
-### T0213 [TODO] Parser：支持类型判断/转换操作符（`is`/`!is`/`as`/`as?`）（spec §4.3~§4.5）
+### T0213 [DONE] Parser：支持类型判断/转换操作符（`is`/`!is`/`as`/`as?`）（spec §4.3~§4.5）
 - 描述：为表达式引入类型相关二元/三元节点（expr + TypeRef）。
 - 目标：先完成语法；smart cast 与失败语义留给 typecheck/effect。
 - 验收：新增 parse fixture：`if (x is Foo) { x }`（只要能解析）；`val y = x as? Foo`。
