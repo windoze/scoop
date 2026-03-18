@@ -302,7 +302,7 @@
 - 验收：新增 parse fixture：`fun id<T>(x: T): T { x }`；`struct Box<T> { val v: T }`（若已支持成员）。
 - 依赖：T0201、T0203
 
-### T0219 [TODO] Parser：函数类型与 effect row 的语法（spec §7.5、§5.8、§14.7）
+### T0219 [DONE] Parser：函数类型与 effect row 的语法（spec §7.5、§5.8、§14.7）
 - 描述：支持类型位置的函数类型：`(A, B) -> T` 以及带 `/ RowExpr` 形式。
 - 目标：先只做解析，不做 subeffecting/推断；`RowExpr` 先支持 `Pure` 与 `E1+E2`。
 - 验收：新增 parse fixture：`val f: (Int) -> Int / Pure`（或 sysroot 类型名）；确保 TypeRef/TypeKind 正确建模。

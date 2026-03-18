@@ -1,0 +1,206 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 156..178,
+            path: [
+                Ident {
+                    span: 164..172,
+                },
+                Ident {
+                    span: 173..178,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 180..206,
+                kind: Val,
+                name: Ident {
+                    span: 184..185,
+                },
+                ty: Some(
+                    Function(
+                        TypeFunction {
+                            span: 187..206,
+                            receiver: None,
+                            params_span: 187..192,
+                            params: [
+                                Path(
+                                    TypePath {
+                                        span: 188..191,
+                                        segments: [
+                                            Ident {
+                                                span: 188..191,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                            ],
+                            return_ty: Path(
+                                TypePath {
+                                    span: 196..199,
+                                    segments: [
+                                        Ident {
+                                            span: 196..199,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                            effects: Some(
+                                EffectRowExpr {
+                                    span: 202..206,
+                                    terms: [],
+                                },
+                            ),
+                        },
+                    ),
+                ),
+                init: None,
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 207..250,
+                kind: Val,
+                name: Ident {
+                    span: 211..212,
+                },
+                ty: Some(
+                    Function(
+                        TypeFunction {
+                            span: 214..250,
+                            receiver: None,
+                            params_span: 214..216,
+                            params: [],
+                            return_ty: Path(
+                                TypePath {
+                                    span: 220..223,
+                                    segments: [
+                                        Ident {
+                                            span: 220..223,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                            effects: Some(
+                                EffectRowExpr {
+                                    span: 226..250,
+                                    terms: [
+                                        TypePath {
+                                            span: 227..232,
+                                            segments: [
+                                                Ident {
+                                                    span: 227..232,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                        TypePath {
+                                            span: 235..249,
+                                            segments: [
+                                                Ident {
+                                                    span: 235..240,
+                                                },
+                                            ],
+                                            args: [
+                                                Path(
+                                                    TypePath {
+                                                        span: 241..248,
+                                                        segments: [
+                                                            Ident {
+                                                                span: 241..248,
+                                                            },
+                                                        ],
+                                                        args: [],
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    ],
+                                },
+                            ),
+                        },
+                    ),
+                ),
+                init: None,
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 251..281,
+                kind: Val,
+                name: Ident {
+                    span: 255..256,
+                },
+                ty: Some(
+                    Function(
+                        TypeFunction {
+                            span: 258..281,
+                            receiver: Some(
+                                Path(
+                                    TypePath {
+                                        span: 258..264,
+                                        segments: [
+                                            Ident {
+                                                span: 258..264,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                            ),
+                            params_span: 265..270,
+                            params: [
+                                Path(
+                                    TypePath {
+                                        span: 266..269,
+                                        segments: [
+                                            Ident {
+                                                span: 266..269,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                            ],
+                            return_ty: Path(
+                                TypePath {
+                                    span: 274..277,
+                                    segments: [
+                                        Ident {
+                                            span: 274..277,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                            effects: Some(
+                                EffectRowExpr {
+                                    span: 280..281,
+                                    terms: [
+                                        TypePath {
+                                            span: 280..281,
+                                            segments: [
+                                                Ident {
+                                                    span: 280..281,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                    ],
+                                },
+                            ),
+                        },
+                    ),
+                ),
+                init: None,
+            },
+        ),
+    ],
+}

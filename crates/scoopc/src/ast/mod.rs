@@ -390,7 +390,36 @@ pub enum ValKind {
 pub enum TypeRef {
     Path(TypePath),
     Tuple(TypeTuple),
+    /// 函数类型（spec §7.5）：`(A, B) -> C / R` 或 `T.(A, B) -> C / R`
+    Function(TypeFunction),
     Nullable { span: Span, inner: Box<TypeRef> },
+}
+
+/// 函数类型（type position）。
+///
+/// 说明：
+/// - `receiver` 对应 receiver function type：`T.(...) -> ...`
+/// - `effects` 对应可选的 effect row：`/ Pure` 或 `/ (E1 + E2)`
+#[derive(Debug, Clone)]
+pub struct TypeFunction {
+    pub span: Span,
+    pub receiver: Option<Box<TypeRef>>,
+    pub params_span: Span,
+    pub params: Vec<TypeRef>,
+    pub return_ty: Box<TypeRef>,
+    pub effects: Option<EffectRowExpr>,
+}
+
+/// effect row 表达式（spec §5.8）。
+///
+/// 当前阶段（T0219）只需要语法结构：
+/// - `Pure`（空 effect row）
+/// - `E1 + E2 + ...`（并集；项为 effect 名/row 变量的路径）
+#[derive(Debug, Clone)]
+pub struct EffectRowExpr {
+    pub span: Span,
+    /// `terms.is_empty()` 表示 `Pure`。
+    pub terms: Vec<TypePath>,
 }
 
 #[derive(Debug, Clone)]
@@ -411,6 +440,7 @@ impl TypeRef {
         match self {
             TypeRef::Path(p) => p.span,
             TypeRef::Tuple(t) => t.span,
+            TypeRef::Function(f) => f.span,
             TypeRef::Nullable { span, .. } => *span,
         }
     }

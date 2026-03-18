@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: type_function_effect_row.ast
+// 目标：验证 type position 的函数类型 `->` 与 effect row `/ RowExpr`（T0219）。
+
+package fixtures.parse
+
+val f: (Int) -> Int / Pure
+val g: () -> Int / (Async + Raise<IOError>)
+val h: String.(Int) -> Int / E

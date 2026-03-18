@@ -223,6 +223,23 @@ fn resolve_type_ref(
             }
             Ok(())
         }
+        ast::TypeRef::Function(f) => {
+            if let Some(receiver) = &f.receiver {
+                resolve_type_ref(source, file, index, receiver)?;
+            }
+            for p in &f.params {
+                resolve_type_ref(source, file, index, p)?;
+            }
+            resolve_type_ref(source, file, index, &f.return_ty)?;
+
+            if let Some(effects) = &f.effects {
+                for term in &effects.terms {
+                    resolve_type_path(source, file, index, term)?;
+                }
+            }
+
+            Ok(())
+        }
         ast::TypeRef::Nullable { inner, .. } => resolve_type_ref(source, file, index, inner),
     }
 }
