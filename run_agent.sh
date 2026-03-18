@@ -13,5 +13,5 @@ while true; do
 
     echo "Running codex with PROMPT.md..."
     codex  exec --dangerously-bypass-approvals-and-sandbox "$(cat "$PROMPT_FILE")" >> ~/tmp/scoop_1_codex_output.txt
-    ~/bin/codex-web-notify.sh "`git log -n 5`"
+    "$REPO_DIR/notification.sh"
 done
