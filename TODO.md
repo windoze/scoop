@@ -9,6 +9,10 @@
 - 每个任务用 `TxxYY` 编号：
   - `xx` 表示阶段/主题（大方向）
   - `YY` 表示该主题下的序号
+- 任务状态：
+  - `[TODO]`：可立即实现与验证（本 agent 默认优先挑选第一个 `[TODO]`）
+  - `[BLOCKED]`：依赖未满足，暂不可实现；需先完成依赖任务再回到该任务
+  - `[DONE]`：已实现并验证
 - 每个任务必须包含：
   - **描述**：一句话说明要做什么
   - **目标**：实现范围/不做什么（避免任务膨胀）
@@ -161,10 +165,11 @@
 - 验收：新增单测：执行一个最小外部命令并通过 stdout golden 比对；`cargo test -p scoop` 通过。
 - 依赖：T0106a
 
-### T0106b2 [TODO] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
+### T0106b2 [BLOCKED] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
 - 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。
 - 目标：先只做 stdout；stderr/超时/退出码仍留给后续任务。
 - 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
+- 阻塞：`scoop run` 当前仍为“未实现”占位（T0807 依赖 T0806：link + runtime + codegen 链路）。
 - 依赖：T0106b1、T0807
 
 ### T0107 [DONE] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
@@ -173,10 +178,11 @@
 - 验收：为 `crates/scoop/src/fixtures/expectations.rs` 新增单测覆盖三个字段；旧指令保持兼容。
 - 依赖：T0004
 
-### T0108 [TODO] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
+### T0108 [BLOCKED] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
 - 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
 - 目标：先只支持设置环境变量；不做进程级 sandbox。
 - 验收：新增 1 个 run-pass fixture：在运行时读取 env 并打印/分支；runner 能正确设置 env。
+- 阻塞：该能力需要 run-pass fixtures 的“真实执行”（T0106b2）才能通过 fixture 验收。
 - 依赖：T0106b2、T0102
 
 ### T0109 [TODO] lexer/parser fuzz（崩溃防线，可选但高收益）
