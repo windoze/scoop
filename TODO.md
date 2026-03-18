@@ -142,6 +142,12 @@
 - 验收：`cargo run -p scoop_tools -- spec-fixtures check --fix` 可运行；新增单测覆盖“写回行为不改变未变更文件”。
 - 依赖：T0012
 
+### T0107 [DONE] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
+- 描述：扩展文件头指令解析，支持运行期断言（stdout 文件、退出码、超时毫秒）。
+- 目标：先只实现“解析与结构化存储”；fixture runner 暂可忽略这些字段直到 T0106b2。
+- 验收：为 `crates/scoop/src/fixtures/expectations.rs` 新增单测覆盖三个字段；旧指令保持兼容。
+- 依赖：T0004
+
 ### T0106 run-pass fixtures（拆分为子任务）
 - 描述：在 fixtures 体系里新增 run-pass（建议目录 `tests/fixtures/codegen` 或 `run-pass`），编译后运行并断言 stdout。
 - 目标：先只做 stdout 对比；stderr/超时/退出码后续任务补齐。
@@ -158,32 +164,13 @@
   - fixtures runner 层面的进程执行/捕获（可单测）
   - driver 层面的 `scoop run`（T0807）与 build/link/codegen pipeline
 - 目标：保证可单独实现 & 单独验证：先把 runner 的执行能力做出来，再接入 `scoop run` 并补一个真实可运行 fixture。
+- 备注：与 `scoop run` 的集成（T0106b2）因依赖执行链路，已移动到 T08（紧随 T0807）以保持 TODO 顺序可用。
 
 ### T0106b1 [DONE] run-pass fixtures：引入可注入的“进程执行器”（捕获 stdout）
 - 描述：为 run-pass phase 引入执行接口：给定一个命令（后续由 `scoop run` 提供），运行并捕获 stdout，然后与 `RUN-STDOUT` golden 做比对。
 - 目标：只实现“执行外部命令 + 捕获 stdout + stdout golden 比对”；不实现真正编译 Scoop；不实现 stderr/超时/退出码断言。
 - 验收：新增单测：执行一个最小外部命令并通过 stdout golden 比对；`cargo test -p scoop` 通过。
 - 依赖：T0106a
-
-### T0106b2 [BLOCKED] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
-- 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。
-- 目标：先只做 stdout；stderr/超时/退出码仍留给后续任务。
-- 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
-- 阻塞：`scoop run` 当前仍为“未实现”占位（T0807 依赖 T0806：link + runtime + codegen 链路）。
-- 依赖：T0106b1、T0807
-
-### T0107 [DONE] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
-- 描述：扩展文件头指令解析，支持运行期断言（stdout 文件、退出码、超时毫秒）。
-- 目标：先只实现“解析与结构化存储”；fixture runner 暂可忽略这些字段直到 T0106b2。
-- 验收：为 `crates/scoop/src/fixtures/expectations.rs` 新增单测覆盖三个字段；旧指令保持兼容。
-- 依赖：T0004
-
-### T0108 [BLOCKED] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
-- 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
-- 目标：先只支持设置环境变量；不做进程级 sandbox。
-- 验收：新增 1 个 run-pass fixture：在运行时读取 env 并打印/分支；runner 能正确设置 env。
-- 阻塞：该能力需要 run-pass fixtures 的“真实执行”（T0106b2）才能通过 fixture 验收。
-- 依赖：T0106b2、T0102
 
 ### T0109 [TODO] lexer/parser fuzz（崩溃防线，可选但高收益）
 - 描述：引入 `cargo-fuzz` 或最小随机输入测试，保证 lexer/parser 对任意输入不 panic。
@@ -1222,6 +1209,20 @@
 - 目标：先不做 sandbox；超时/退出码断言留给 fixtures。
 - 验收：`scoop run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 返回 0。
 - 依赖：T0806
+
+### T0106b2 [TODO] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
+- 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。
+- 目标：先只做 stdout；stderr/超时/退出码仍留给后续任务。
+- 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
+- 备注：该任务本身属于测试体系，但其验收依赖完整执行链路（`scoop run` + link/runtime/codegen），因此放在这里以便按依赖顺序推进。
+- 依赖：T0106b1、T0807
+
+### T0108 [TODO] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
+- 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
+- 目标：先只支持设置环境变量；不做进程级 sandbox。
+- 验收：新增 1 个 run-pass fixture：在运行时读取 env 并打印/分支；runner 能正确设置 env。
+- 备注：该能力需要 run-pass fixtures 的“真实执行”（T0106b2）才能通过 fixture 验收。
+- 依赖：T0106b2、T0102
 
 ### T0808 [TODO] codegen v1：整数/布尔字面量 + 运算（含位运算/移位）+ return（spec §2.3.4）
 - 描述：为最小表达式子集生成 LLVM IR：Int/Bool 字面量、算术/比较、位运算 `& | ^ ~`、移位 `<< >>`、return。

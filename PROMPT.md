@@ -16,7 +16,12 @@ For the first incomplete task (or subtask) in `TODO.md`:
 5. **Stop.** Do not proceed to the next task. The caller will invoke you again for the next iteration.
 
 **Handling Roadblocks:**
-- If a task cannot be implemented as originally planned, update `PLAN.md` to explain the change and justify it. Then modify `TODO.md` accordingly. Commit these changes and stop — the next invocation will pick up from there.
+- If a task cannot be implemented as originally planned:
+  1. Keep the task as `[TODO]` — never mark it `[BLOCKED]` or leave it in any intermediate state.
+  2. Move it to the appropriate location in `TODO.md`: directly after the task(s) it is now waiting on, so the file continues to reflect correct dependency and priority order.
+  3. Reorder any other tasks in `TODO.md` whose position is affected by this change.
+  4. Update `PLAN.md` to explain why the task was moved and what it is waiting on.
+  5. Commit these changes and stop — the next invocation will pick up from there.
 
 **Code Organization & Quality:**
 - **Workspace:** Transform the project into a workspace (e.g., using Cargo workspaces, npm workspaces, or similar) early to facilitate modular development.
