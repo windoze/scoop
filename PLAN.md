@@ -405,8 +405,9 @@ tests/
 
 ### 10.4 运行期 fixtures（run-pass）
 
-- [ ] `scoop test` 支持编译并运行 fixture，比较 stdout/stderr
-- [ ] 支持超时、退出码断言
+- [ ] T0106a：fixtures runner 识别 `codegen/`（或 `run-pass/`）phase，并实现 stdout golden 比对（对比逻辑可单测独立验证）
+- [ ] T0106b：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout（stderr 后续补齐）
+- [ ] 支持超时、退出码断言（fixtures 指令：`TIMEOUT`/`EXPECT-EXIT`）
 - [ ] 对 GC 压测类测试，支持 `SCOOP_GC_STRESS=1` 之类的环境变量切换（让 CI 可控）
 
 ### 10.5 Fuzz/性质测试（可选但很有价值）
