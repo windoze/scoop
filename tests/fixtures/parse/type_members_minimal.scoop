@@ -1,0 +1,40 @@
+// EXPECT: pass
+// 目标：为“类型体成员”后续解析做回归底座。
+// 当前阶段 parser 只保证类型体 `{ ... }` 括号平衡与 span 正确，但应能容纳常见成员声明形态。
+
+package fixtures.parse
+
+class Box {
+    val value: Int
+    var count: Int
+
+    fun inc(delta: Int): Int {
+        delta
+    }
+
+    struct Nested {
+        val x: Int
+    }
+}
+
+interface HasId {
+    val id: Int
+    fun id(): Int { 1 }
+
+    interface NestedInterface {}
+}
+
+struct Point {
+    val x: Int
+    val y: Int
+    fun len(): Int { 0 }
+
+    class NestedClass {}
+}
+
+effect Raise<E> {
+    fun raise(error: E): Nothing
+    effect NestedEffect {}
+}
+
+fun main() {}

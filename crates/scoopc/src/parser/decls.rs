@@ -276,7 +276,10 @@ impl Parser {
         let body = if self.peek_symbol(Symbol::LBrace) {
             let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
             last_end = span.end;
-            Some(ast::Block { span })
+            Some(ast::TypeBody {
+                span,
+                members: Vec::new(),
+            })
         } else {
             None
         };

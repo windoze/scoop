@@ -40,7 +40,31 @@ pub struct TypeDecl {
     pub span: Span,
     pub kind: TypeKind,
     pub name: Ident,
-    pub body: Option<Block>,
+    /// 类型体（`{ ... }`）。
+    ///
+    /// 当前阶段：
+    /// - parser 仍可能仅保证括号平衡与 span 正确
+    /// - 成员列表的解析会在后续任务中逐步补齐
+    pub body: Option<TypeBody>,
+}
+
+/// 类型体（`{ ... }`）——可包含成员列表。
+///
+/// 注意：这里与 `Block` 不同：
+/// - `Block` 用于函数体/表达式块（后续会包含语句）
+/// - `TypeBody` 用于 `class/interface/struct/enum/effect` 的成员声明列表
+#[derive(Debug, Clone)]
+pub struct TypeBody {
+    pub span: Span,
+    pub members: Vec<TypeMember>,
+}
+
+/// 类型体中的成员声明（最小骨架）。
+#[derive(Debug, Clone)]
+pub enum TypeMember {
+    Val(ValDecl),
+    Fun(FunDecl),
+    Type(TypeDecl),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

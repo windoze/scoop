@@ -194,7 +194,7 @@
 - 验收：新增 lexer 单测：包含上述符号的源码能被正确分词（并与 `&&`/`||` 区分）；`cargo test -p scoopc syntax::lexer::*` 通过。
 - 依赖：T0008
 
-### T0201 [TODO] AST：类型体成员（TypeDecl members）建模
+### T0201 [DONE] AST：类型体成员（TypeDecl members）建模
 - 描述：把 `TypeDecl.body: Option<Block>` 升级为“可包含成员列表”的结构（仍可保留 span）。
 - 目标：先支持成员声明列表：`val/var/fun/nested type` 的最小骨架；成员体可继续只做括号平衡。
 - 验收：新增 `tests/fixtures/parse/type_members_minimal.scoop` 覆盖 class/interface/struct/effect 的成员；`scoop test` 通过。
