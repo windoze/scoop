@@ -224,7 +224,7 @@
 - 验收：`cargo test -p scoopc` 通过；新增一个 parse fixture：`val x = 1` 能在 AST 里看到字面量表达式（或暂时 Missing，取决于实现选择）。
 - 依赖：T0009
 
-### T0206 [TODO] Parser：解析顶层 `val/var` initializer 的“原子表达式”
+### T0206 [DONE] Parser：解析顶层 `val/var` initializer 的“原子表达式”
 - 描述：为顶层 `val/var` initializer 实现“原子表达式”解析：ident/int/string/`( ... )`（填充到 `ValDecl.init: Option<Expr>`）。
 - 目标：不解析二元运算、不解析调用；错误恢复先最小化。
 - 验收：新增 parse fixture 覆盖 `val a = 1`、`val b = "x"`、`val c = foo`；`scoop test` 通过。

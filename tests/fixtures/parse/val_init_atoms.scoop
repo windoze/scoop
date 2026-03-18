@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: val_init_atoms.ast
+// 目标：覆盖顶层 `val/var` initializer 的原子表达式：int/string/ident/括号分组。
+
+package fixtures.parse
+
+val a = 1
+val b = "x"
+val c = foo
+var d = (a)
+
+fun main() {}
+

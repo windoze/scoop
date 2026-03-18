@@ -1,0 +1,106 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 152..174,
+            path: [
+                Ident {
+                    span: 160..168,
+                },
+                Ident {
+                    span: 169..174,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 176..185,
+                kind: Val,
+                name: Ident {
+                    span: 180..181,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 184..185,
+                        kind: IntLit,
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 186..197,
+                kind: Val,
+                name: Ident {
+                    span: 190..191,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 194..197,
+                        kind: StringLit,
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 198..209,
+                kind: Val,
+                name: Ident {
+                    span: 202..203,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 206..209,
+                        kind: Ident(
+                            Ident {
+                                span: 206..209,
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 210..221,
+                kind: Var,
+                name: Ident {
+                    span: 214..215,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 218..221,
+                        kind: Ident(
+                            Ident {
+                                span: 219..220,
+                            },
+                        ),
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 223..236,
+                name: Ident {
+                    span: 227..231,
+                },
+                params_span: 231..233,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 234..236,
+                    },
+                ),
+            },
+        ),
+    ],
+}

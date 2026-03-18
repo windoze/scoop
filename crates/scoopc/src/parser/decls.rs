@@ -142,35 +142,82 @@ impl Parser {
             }
 
             let init_start = self.peek().span.start;
+            let atom = self.try_parse_expr_atom()?;
 
-            // 当前阶段不解析表达式：仅保证能“跳过 initializer”并继续解析后续顶层 item。
-            // 策略：在括号深度为 0 时，遇到 `;` 或下一个顶层 item 开始即停止。
-            let mut depth_paren = 0usize;
-            let mut depth_brace = 0usize;
-            let mut depth_bracket = 0usize;
+            // 若 initializer 只有一个原子表达式，则直接使用解析结果；
+            // 否则（例如 `1 + 2` / `f(1)` 等）保持兼容：吞掉剩余 token 并降级为 Missing，
+            // 避免把未实现的表达式解析变成“顶层语法错误”。
+            if let Some(expr) = atom {
+                last_end = expr.span.end;
 
-            while !self.peek_kind(TokenKind::Eof) {
-                if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
-                    && (self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start()) {
+                if self.peek_kind(TokenKind::Eof)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.is_top_level_item_start()
+                {
+                    Some(expr)
+                } else {
+                    // 继续跳过 initializer 的剩余部分，直到 `;` 或下一个顶层 item。
+                    // 策略：在括号深度为 0 时停止（保持与旧实现一致，尽量少引入新错误）。
+                    let mut depth_paren = 0usize;
+                    let mut depth_brace = 0usize;
+                    let mut depth_bracket = 0usize;
+
+                    while !self.peek_kind(TokenKind::Eof) {
+                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                            && (self.peek_symbol(Symbol::Semicolon)
+                                || self.is_top_level_item_start())
+                        {
+                            break;
+                        }
+
+                        let tok = self.bump();
+                        if let TokenKind::Symbol(sym) = tok.kind {
+                            match sym {
+                                Symbol::LParen => depth_paren += 1,
+                                Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                                Symbol::LBrace => depth_brace += 1,
+                                Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                                Symbol::LBracket => depth_bracket += 1,
+                                Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                                _ => {}
+                            }
+                        }
+                        last_end = tok.span.end;
+                    }
+
+                    Some(ast::Expr::missing(Span::new(init_start, last_end)))
+                }
+            } else {
+                // initializer 不是原子表达式的起始 token（例如 `-1`/`if (...) ...`）。
+                // 当前阶段不报错：直接跳过整段 initializer 并以 Missing 占位。
+                let mut depth_paren = 0usize;
+                let mut depth_brace = 0usize;
+                let mut depth_bracket = 0usize;
+
+                while !self.peek_kind(TokenKind::Eof) {
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                        && (self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start())
+                    {
                         break;
                     }
 
-                let tok = self.bump();
-                if let TokenKind::Symbol(sym) = tok.kind {
-                    match sym {
-                        Symbol::LParen => depth_paren += 1,
-                        Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
-                        Symbol::LBrace => depth_brace += 1,
-                        Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
-                        Symbol::LBracket => depth_bracket += 1,
-                        Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
-                        _ => {}
+                    let tok = self.bump();
+                    if let TokenKind::Symbol(sym) = tok.kind {
+                        match sym {
+                            Symbol::LParen => depth_paren += 1,
+                            Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                            Symbol::LBrace => depth_brace += 1,
+                            Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                            Symbol::LBracket => depth_bracket += 1,
+                            Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                            _ => {}
+                        }
                     }
+                    last_end = tok.span.end;
                 }
-                last_end = tok.span.end;
-            }
 
-            Some(ast::Expr::missing(Span::new(init_start, last_end)))
+                Some(ast::Expr::missing(Span::new(init_start, last_end)))
+            }
         } else {
             None
         };

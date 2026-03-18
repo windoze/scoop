@@ -25,7 +25,7 @@ File {
                 init: Some(
                     Expr {
                         span: 185..186,
-                        kind: Missing,
+                        kind: IntLit,
                     },
                 ),
             },
