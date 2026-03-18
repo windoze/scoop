@@ -641,6 +641,28 @@ impl<'a> Parser<'a> {
             });
         }
 
+        // 该 snippet parser 会复用 `parse_block()`（例如 `{ ... }` block expr），
+        // 而 block 内的错误恢复会把诊断记录到 `p.errors` 中。
+        // snippet 解析是“独立入口”，因此需要在此处把这些诊断重新提升为返回值。
+        if !p.errors.is_empty() {
+            let count = p.errors.len();
+            let span = p
+                .errors
+                .iter()
+                .find_map(ParseError::primary_span)
+                .unwrap_or_else(|| (0usize, 0usize).into());
+            let mut errors = std::mem::take(&mut p.errors);
+            return Err(if count == 1 {
+                errors.pop().expect("count==1 已保证 errors 非空")
+            } else {
+                ParseError::Many {
+                    count,
+                    span,
+                    errors,
+                }
+            });
+        }
+
         Ok(expr)
     }
 

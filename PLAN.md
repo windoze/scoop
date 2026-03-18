@@ -89,7 +89,7 @@
 - [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [x] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）
-- [ ] 错误恢复：尽量产出更多诊断而不是第一个错误就退出（用于 IDE 与 fixtures）
+- [x] 错误恢复：尽量产出更多诊断而不是第一个错误就退出（用于 IDE 与 fixtures）
 
 ### 2.3 语法树表示（AST/Parse Tree）
 

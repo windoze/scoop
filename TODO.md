@@ -308,7 +308,7 @@
 - 验收：新增 parse fixture：`val f: (Int) -> Int / Pure`（或 sysroot 类型名）；确保 TypeRef/TypeKind 正确建模。
 - 依赖：T0218
 
-### T0220 [TODO] Parser：错误恢复（top-level 同步点 + block 同步点）
+### T0220 [DONE] Parser：错误恢复（top-level 同步点 + block 同步点）
 - 描述：遇到语法错误时跳过到下一个同步 token（如 `fun/class/val/var` 或 `}`）继续解析，产出更多诊断。
 - 目标：先保证“不 panic + 尽量多报”；不追求 IDE 级别恢复质量。
 - 验收：新增 parse fixture：同一文件里 2 个错误，runner 能同时报出（或至少不被第 1 个错误终止）；错误码稳定。

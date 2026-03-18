@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR: 2 个错误
+// EXPECT-ERROR-CODE: scoop::parse::many_errors
+// EXPECT-ERROR-AT: 8:5
+
+package fixtures.parse
+
+fun () {}
+fun ok() {
+    val x = 1 +
+}
+

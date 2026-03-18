@@ -32,7 +32,16 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            stmts.push(self.parse_stmt()?);
+            match self.parse_stmt() {
+                Ok(stmt) => stmts.push(stmt),
+                Err(e) => {
+                    // T0220：block 内错误恢复：
+                    // - 记录诊断
+                    // - 跳过到下一个“看起来像语句起始”的 token 或 `}`/`;`
+                    self.record_error(e);
+                    stmts.push(self.recover_stmt_after_error());
+                }
+            }
         }
 
         if self.peek_kind(TokenKind::Eof) {
@@ -165,20 +174,49 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_missing_stmt(&mut self) -> ast::Stmt {
-        // 保证至少消耗一个 token，避免死循环。
+        // 错误恢复与“未实现语句”fallback 都会走到这里：
+        // - 必须保证 cursor 前进（避免死循环）
+        // - 同时不要吞掉 block 的 `}`（否则会导致外层的 `{ ... }` 不平衡）
+        if self.peek_kind(TokenKind::Eof) || self.peek_symbol(Symbol::RBrace) {
+            let pos = self.peek().span.start;
+            return ast::Stmt {
+                span: Span::new(pos, pos),
+                kind: ast::StmtKind::Missing,
+            };
+        }
+
         let start = self.peek().span.start;
-        let mut last_end = self.peek().span.end;
+        let mut last_end;
 
         // 粗粒度“语句恢复”：
         // - 在括号深度为 0 时，遇到 `;` / `}` 认为到达语句边界。
+        // - 在括号深度为 0 时，遇到“像是下一条语句起始”的 token，也认为到达边界。
         // - 其余 token 全部吞掉，直到边界出现（但不吞 `}`）。
         let mut depth_paren = 0usize;
         let mut depth_brace = 0usize;
         let mut depth_bracket = 0usize;
 
+        // 先吞掉一个 token，确保前进。
+        let first = self.bump();
+        last_end = first.span.end;
+        if let TokenKind::Symbol(sym) = first.kind {
+            match sym {
+                Symbol::LParen => depth_paren += 1,
+                Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                Symbol::LBracket => depth_bracket += 1,
+                Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                Symbol::LBrace => depth_brace += 1,
+                Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                _ => {}
+            }
+        }
+
         while !self.peek_kind(TokenKind::Eof) {
             if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
-                if self.peek_symbol(Symbol::Semicolon) || self.peek_symbol(Symbol::RBrace) {
+                if self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_stmt_start()
+                {
                     break;
                 }
             }
@@ -209,5 +247,22 @@ impl<'a> Parser<'a> {
             span: Span::new(start, last_end),
             kind: ast::StmtKind::Missing,
         }
+    }
+
+    fn recover_stmt_after_error(&mut self) -> ast::Stmt {
+        // 若当前位置已经是一个“潜在的语句边界”，则不要吞掉它，
+        // 这样外层循环还能继续尝试解析后续语句。
+        if self.peek_kind(TokenKind::Eof)
+            || self.peek_symbol(Symbol::RBrace)
+            || self.is_stmt_start()
+        {
+            let pos = self.peek().span.start;
+            return ast::Stmt {
+                span: Span::new(pos, pos),
+                kind: ast::StmtKind::Missing,
+            };
+        }
+
+        self.parse_missing_stmt()
     }
 }

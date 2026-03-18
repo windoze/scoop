@@ -414,20 +414,37 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
-                let decl = self.parse_type_member_val_decl()?;
-                members.push(ast::TypeMember::Val(decl));
+                match self.parse_type_member_val_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Val(decl)),
+                    Err(e) => {
+                        // T0220：type body 内错误恢复：
+                        // 记录诊断并跳过到下一个 member 起始/分隔符。
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
                 continue;
             }
 
             if self.peek_keyword(Keyword::Fun) {
-                let decl = self.parse_type_member_fun_decl()?;
-                members.push(ast::TypeMember::Fun(decl));
+                match self.parse_type_member_fun_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Fun(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
                 continue;
             }
 
             if self.is_type_decl_start() {
-                let decl = self.parse_type_decl()?;
-                members.push(ast::TypeMember::Type(decl));
+                match self.parse_type_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Type(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
                 continue;
             }
 

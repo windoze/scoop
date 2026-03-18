@@ -164,6 +164,31 @@ impl<'a> Parser<'a> {
             || self.peek_keyword(Keyword::Fun)
             || self.is_type_decl_start()
     }
+
+    /// 粗粒度判断：当前位置是否“可能是一个语句的起始”。
+    ///
+    /// 该函数主要用于错误恢复（T0220），用于在 block 内尽量恢复到下一个语句边界，
+    /// 而不是因为一个语法错误吞掉后续整个 block。
+    pub(super) fn is_stmt_start(&self) -> bool {
+        matches!(
+            self.peek().kind,
+            TokenKind::Keyword(
+                Keyword::Val
+                    | Keyword::Var
+                    | Keyword::Return
+                    | Keyword::If
+                    | Keyword::When
+                    | Keyword::Try
+                    | Keyword::Handle
+                    | Keyword::Perform
+                    | Keyword::Async
+                    | Keyword::Await
+            ) | TokenKind::Ident
+                | TokenKind::IntLiteral
+                | TokenKind::StringLiteral(_)
+                | TokenKind::Symbol(Symbol::LBrace | Symbol::LParen)
+        )
+    }
 }
 
 fn kw_name(kw: Keyword) -> &'static str {

@@ -29,6 +29,16 @@ pub enum ParseError {
     #[diagnostic(transparent)]
     Lex(#[from] LexError),
 
+    #[error("语法错误：共 {count} 个错误")]
+    #[diagnostic(code(scoop::parse::many_errors))]
+    Many {
+        count: usize,
+        #[label("第一个错误发生在这里")]
+        span: miette::SourceSpan,
+        #[related]
+        errors: Vec<ParseError>,
+    },
+
     #[error("语法错误：期望 {expected}，但遇到 {found:?}")]
     #[diagnostic(code(scoop::parse::expected))]
     Expected {
@@ -63,6 +73,7 @@ struct Parser<'a> {
     source_text: &'a str,
     tokens: Vec<Token>,
     i: usize,
+    errors: Vec<ParseError>,
 }
 
 impl<'a> Parser<'a> {
@@ -71,6 +82,43 @@ impl<'a> Parser<'a> {
             source_text,
             tokens,
             i: 0,
+            errors: Vec::new(),
+        }
+    }
+
+    fn record_error(&mut self, err: ParseError) {
+        self.errors.push(err);
+    }
+
+    fn finish(self, file: ast::File) -> Result<ast::File, ParseError> {
+        let count = self.errors.len();
+        match count {
+            0 => Ok(file),
+            1 => Err(self.errors.into_iter().next().expect("len==1 已保证有元素")),
+            _ => {
+                let span = self
+                    .errors
+                    .iter()
+                    .find_map(ParseError::primary_span)
+                    .unwrap_or_else(|| (0usize, 0usize).into());
+                Err(ParseError::Many {
+                    count,
+                    span,
+                    errors: self.errors,
+                })
+            }
+        }
+    }
+}
+
+impl ParseError {
+    fn primary_span(&self) -> Option<miette::SourceSpan> {
+        match self {
+            ParseError::Lex(_) => None,
+            ParseError::Many { span, .. } => Some(*span),
+            ParseError::Expected { span, .. } => Some(*span),
+            ParseError::UnterminatedGroup { span, .. } => Some(*span),
+            ParseError::FStringUnescapedRBrace { span } => Some(*span),
         }
     }
 }
