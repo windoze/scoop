@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: block_local_val_var.ast
+// 目标：验证函数体 block 内的 `val/var` 局部绑定会被解析为语句。
+
+package fixtures.parse
+
+fun f() {
+    val x: Int = 1
+    var y = "s"
+    x
+}
+

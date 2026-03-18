@@ -99,6 +99,7 @@ pub struct Block {
     ///
     /// 当前阶段（T0207）仅保证：
     /// - 能解析空语句（`;`）与表达式语句（原子表达式）
+    /// - 能解析局部 `val/var` 绑定语句（T0208）
     /// - 其它语句形态会以 `StmtKind::Missing` 占位（保持 cursor 前进与括号平衡）
     pub stmts: Vec<Stmt>,
 }
@@ -145,6 +146,7 @@ pub struct Stmt {
 pub enum StmtKind {
     Empty,
     Expr(Expr),
+    Val(ValDecl),
     Missing,
 }
 
@@ -174,10 +176,7 @@ pub enum ValKind {
 pub enum TypeRef {
     Path(TypePath),
     Tuple(TypeTuple),
-    Nullable {
-        span: Span,
-        inner: Box<TypeRef>,
-    },
+    Nullable { span: Span, inner: Box<TypeRef> },
 }
 
 #[derive(Debug, Clone)]

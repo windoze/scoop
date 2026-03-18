@@ -10,7 +10,7 @@
 
 use crate::ast;
 use crate::span::Span;
-use crate::syntax::token::{Symbol, TokenKind};
+use crate::syntax::token::{Keyword, Symbol, TokenKind};
 
 use super::{ParseError, Parser};
 
@@ -50,6 +50,25 @@ impl Parser {
     }
 
     fn parse_stmt(&mut self) -> Result<ast::Stmt, ParseError> {
+        // 局部 `val/var` 绑定语句（T0208）。
+        //
+        // 注意：此处不能直接复用顶层的 `parse_val_decl`，因为顶层的 initializer 边界规则会假设
+        // “下一个 token 必须是顶层 item start/`;`/EOF”，在 block 语境下会误把后续语句吞进 initializer。
+        if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+            let decl = self.parse_local_val_decl()?;
+            let mut span = decl.span;
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::Val(decl),
+            });
+        }
+
         // 先尝试“表达式语句”：当前阶段的表达式仍只覆盖原子表达式，
         // 因此语句边界也就天然落在该原子表达式结束处。
         if let Some(expr) = self.try_parse_expr_atom()? {
@@ -67,6 +86,82 @@ impl Parser {
         }
 
         Ok(self.parse_missing_stmt())
+    }
+
+    fn parse_local_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+        let kw = if self.peek_keyword(Keyword::Val) {
+            self.bump()
+        } else if self.peek_keyword(Keyword::Var) {
+            self.bump()
+        } else {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`val` / `var`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let kind = match kw.kind {
+            TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
+            TokenKind::Keyword(Keyword::Var) => ast::ValKind::Var,
+            _ => unreachable!("kw 已经被 peek_keyword 过滤"),
+        };
+
+        let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
+
+        let ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        let mut last_end = ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(name_tok.span.end);
+
+        let init = if self.eat_symbol(Symbol::Eq) {
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+            {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（initializer）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let init_start = self.peek().span.start;
+            match self.try_parse_expr_atom()? {
+                Some(expr) => {
+                    last_end = expr.span.end;
+                    Some(expr)
+                }
+                None => {
+                    // initializer 不是原子表达式起始 token（例如 `-1` / `if (...) ...`）：
+                    // 当前阶段不报错，消耗一个 token 并降级为 Missing，保证 cursor 前进。
+                    let tok = self.bump();
+                    last_end = tok.span.end;
+                    Some(ast::Expr::missing(Span::new(init_start, last_end)))
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(ast::ValDecl {
+            span: Span::new(kw.span.start, last_end),
+            kind,
+            name,
+            ty,
+            init,
+        })
     }
 
     fn parse_missing_stmt(&mut self) -> ast::Stmt {

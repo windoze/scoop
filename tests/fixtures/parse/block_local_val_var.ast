@@ -1,0 +1,99 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 144..166,
+            path: [
+                Ident {
+                    span: 152..160,
+                },
+                Ident {
+                    span: 161..166,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 168..220,
+                name: Ident {
+                    span: 172..173,
+                },
+                params_span: 173..175,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 176..220,
+                        stmts: [
+                            Stmt {
+                                span: 182..196,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 182..196,
+                                        kind: Val,
+                                        name: Ident {
+                                            span: 186..187,
+                                        },
+                                        ty: Some(
+                                            Path(
+                                                TypePath {
+                                                    span: 189..192,
+                                                    segments: [
+                                                        Ident {
+                                                            span: 189..192,
+                                                        },
+                                                    ],
+                                                    args: [],
+                                                },
+                                            ),
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 195..196,
+                                                kind: IntLit,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 201..212,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 201..212,
+                                        kind: Var,
+                                        name: Ident {
+                                            span: 205..206,
+                                        },
+                                        ty: None,
+                                        init: Some(
+                                            Expr {
+                                                span: 209..212,
+                                                kind: StringLit,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 217..218,
+                                kind: Expr(
+                                    Expr {
+                                        span: 217..218,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 217..218,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

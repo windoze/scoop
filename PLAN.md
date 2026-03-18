@@ -76,6 +76,7 @@
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
 - [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
    - [x] 块表达式 `{ ... }`：解析为 `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
+   - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [ ] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）

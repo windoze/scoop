@@ -236,7 +236,7 @@
 - 验收：新增 parse fixture：`fun f() { 1 }`；AST 中 block 至少包含 1 个 expr stmt。
 - 依赖：T0205
 
-### T0208 [TODO] Parser：解析函数体（block）中的 `val/var` 局部绑定（spec §9）
+### T0208 [DONE] Parser：解析函数体（block）中的 `val/var` 局部绑定（spec §9）
 - 描述：支持 `val x: T = expr`/`val x = expr` 作为语句出现在 block 内。
 - 目标：先不实现 destructuring；`var` 的赋值语义留给 typecheck。
 - 验收：新增 parse fixture 覆盖局部 val/var；新增 parse-fail fixture：`val = 1`。
