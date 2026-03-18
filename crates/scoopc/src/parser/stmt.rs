@@ -4,7 +4,7 @@
 //! - 把块表达式 `{ ... }` 解析为 `ast::Block { stmts }`
 //! - 语句仅支持：
 //!   - 空语句：`;`
-//!   - 表达式语句：基于现有“postfix 表达式”解析（`try_parse_expr_postfix`，当前支持成员访问/调用）
+//!   - 表达式语句：基于现有表达式子集解析（`try_parse_expr`，当前支持 postfix + 二元优先级）
 //! - 其它尚未实现的语句形态：以 `StmtKind::Missing` 占位，并尽量跳过到语句边界，
 //!   以保证 parser cursor 前进与括号平衡（避免把“未实现”误报为顶层语法错误）
 
@@ -69,9 +69,9 @@ impl Parser {
             });
         }
 
-        // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（原子 + postfix），
+        // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（postfix + 常见二元优先级），
         // 因此语句边界也就天然落在该表达式结束处。
-        if let Some(expr) = self.try_parse_expr_postfix()? {
+        if let Some(expr) = self.try_parse_expr()? {
             let mut span = expr.span;
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
@@ -138,13 +138,13 @@ impl Parser {
             }
 
             let init_start = self.peek().span.start;
-            match self.try_parse_expr_postfix()? {
+            match self.try_parse_expr()? {
                 Some(expr) => {
                     last_end = expr.span.end;
                     Some(expr)
                 }
                 None => {
-                    // initializer 不是原子表达式起始 token（例如 `-1` / `if (...) ...`）：
+                    // initializer 不是当前表达式子集的起始 token（例如 `-1` / `if (...) ...`）：
                     // 当前阶段不报错，消耗一个 token 并降级为 Missing，保证 cursor 前进。
                     let tok = self.bump();
                     last_end = tok.span.end;

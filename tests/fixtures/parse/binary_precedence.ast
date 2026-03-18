@@ -1,0 +1,73 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 139..161,
+            path: [
+                Ident {
+                    span: 147..155,
+                },
+                Ident {
+                    span: 156..161,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 163..180,
+                kind: Val,
+                name: Ident {
+                    span: 167..168,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 171..180,
+                        kind: Binary {
+                            lhs: Expr {
+                                span: 171..172,
+                                kind: IntLit,
+                            },
+                            op: Add,
+                            op_span: 173..174,
+                            rhs: Expr {
+                                span: 175..180,
+                                kind: Binary {
+                                    lhs: Expr {
+                                        span: 175..176,
+                                        kind: IntLit,
+                                    },
+                                    op: Mul,
+                                    op_span: 177..178,
+                                    rhs: Expr {
+                                        span: 179..180,
+                                        kind: IntLit,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 182..195,
+                name: Ident {
+                    span: 186..190,
+                },
+                params_span: 190..192,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 193..195,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

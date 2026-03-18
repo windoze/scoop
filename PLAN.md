@@ -80,7 +80,7 @@
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
-- [ ] 运算符优先级（Pratt 或 precedence climbing）
+- [x] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）
 - [ ] 错误恢复：尽量产出更多诊断而不是第一个错误就退出（用于 IDE 与 fixtures）
 

@@ -254,7 +254,7 @@
 - 验收：新增 parse fixture：`val x = a.b.c(1)`；并确保 span 覆盖整段表达式。
 - 依赖：T0209
 
-### T0211 [TODO] Parser：实现二元运算优先级（precedence climbing / Pratt）
+### T0211 [DONE] Parser：实现二元运算优先级（precedence climbing / Pratt）
 - 描述：支持 `+ - * / %`、比较/相等、位运算 `& | ^`、移位 `<< >>`、逻辑 `&& ||` 等优先级集合。
 - 目标：先不引入操作符重载绑定规则（那是 typecheck 阶段）；仅保证语法树结合性正确。
 - 验收：新增 parse fixture：`1 + 2 * 3` 解析为 `+(1, *(2,3))`；加一个 snapshot golden（配合 T0103 更佳）。

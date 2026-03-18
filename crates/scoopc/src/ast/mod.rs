@@ -114,6 +114,39 @@ pub struct Expr {
     pub kind: ExprKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BinaryOp {
+    // arithmetic
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+
+    // shifts
+    Shl,
+    Shr,
+
+    // bitwise
+    BitAnd,
+    BitXor,
+    BitOr,
+
+    // comparisons
+    Lt,
+    Le,
+    Gt,
+    Ge,
+
+    // equality
+    Eq,
+    Ne,
+
+    // boolean logic
+    LogAnd,
+    LogOr,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
@@ -127,11 +160,28 @@ pub enum ExprKind {
     /// 说明：
     /// - 当前阶段仅建模普通 `.` 成员访问；
     /// - safe-call（`?.`）会在后续任务中单独补齐。
-    MemberAccess { receiver: Box<Expr>, member: Ident },
+    MemberAccess {
+        receiver: Box<Expr>,
+        member: Ident,
+    },
     /// 调用表达式：`callee(args...)`（postfix）。
     ///
     /// 当前阶段（T0209）仅支持位置参数与逗号分隔参数列表；命名参数/trailing lambda 等语法后续再补齐。
-    Call { callee: Box<Expr>, args: Vec<Expr> },
+    Call {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
+    },
+    /// 二元运算表达式：`lhs op rhs`。
+    ///
+    /// 说明：
+    /// - 当前阶段（T0211）仅实现常见二元运算符的优先级与结合性（语法层面）；
+    /// - 操作符重载与类型规则在 typecheck 阶段处理。
+    Binary {
+        lhs: Box<Expr>,
+        op: BinaryOp,
+        op_span: Span,
+        rhs: Box<Expr>,
+    },
 }
 
 impl Expr {

@@ -91,10 +91,11 @@ pub enum Symbol {
     Minus,
     Star,
     Slash,
-    And,   // &
-    Or,    // |
-    Caret, // ^
-    Tilde, // ~
+    Percent, // %
+    And,     // &
+    Or,      // |
+    Caret,   // ^
+    Tilde,   // ~
     Eq,
     Lt,
     Gt,

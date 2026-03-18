@@ -9,7 +9,11 @@ struct XorShift64 {
 impl XorShift64 {
     fn new(seed: u64) -> Self {
         // xorshift 在 0 种子下会卡住；这里做一次扰动。
-        let seed = if seed == 0 { 0x9E37_79B9_7F4A_7C15 } else { seed };
+        let seed = if seed == 0 {
+            0x9E37_79B9_7F4A_7C15
+        } else {
+            seed
+        };
         Self { state: seed }
     }
 
@@ -34,9 +38,9 @@ impl XorShift64 {
 fn gen_source(rng: &mut XorShift64, max_len: usize) -> String {
     // parser 会先走 lexer，所以字符集同样偏向 token/分隔符/空白等。
     const CHARS: &[char] = &[
-        ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']',
-        '+', '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c',
-        'x', 'y', 'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
+        ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']', '+',
+        '-', '*', '/', '%', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c', 'x', 'y',
+        'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
     ];
 
     let len = rng.gen_usize(max_len + 1);

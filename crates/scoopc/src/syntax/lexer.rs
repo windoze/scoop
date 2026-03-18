@@ -213,7 +213,10 @@ impl<'a> Lexer<'a> {
 
     fn lex_int_literal(&mut self) {
         self.bump_char();
-        while self.peek_char().is_some_and(|c| c.is_ascii_digit() || c == '_') {
+        while self
+            .peek_char()
+            .is_some_and(|c| c.is_ascii_digit() || c == '_')
+        {
             self.bump_char();
         }
     }
@@ -346,6 +349,7 @@ impl<'a> Lexer<'a> {
             '-' => Symbol::Minus,
             '*' => Symbol::Star,
             '/' => Symbol::Slash,
+            '%' => Symbol::Percent,
             '&' => Symbol::And,
             '|' => Symbol::Or,
             '^' => Symbol::Caret,
@@ -423,7 +427,11 @@ mod tests {
     impl XorShift64 {
         fn new(seed: u64) -> Self {
             // xorshift 在 0 种子下会卡住；这里做一次扰动。
-            let seed = if seed == 0 { 0x9E37_79B9_7F4A_7C15 } else { seed };
+            let seed = if seed == 0 {
+                0x9E37_79B9_7F4A_7C15
+            } else {
+                seed
+            };
             Self { state: seed }
         }
 
@@ -448,9 +456,9 @@ mod tests {
     fn gen_source(rng: &mut XorShift64, max_len: usize) -> String {
         // 尽量覆盖 lexer 关心的字符：注释/字符串/括号/运算符/空白等。
         const CHARS: &[char] = &[
-            ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']',
-            '+', '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c',
-            'x', 'y', 'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
+            ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']', '+',
+            '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c', 'x', 'y',
+            'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
         ];
 
         let len = rng.gen_usize(max_len + 1);
@@ -540,6 +548,19 @@ mod tests {
                 TokenKind::IntLiteral,
                 TokenKind::Symbol(Symbol::GtGt),
                 TokenKind::IntLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_percent_symbol() {
+        assert_eq!(
+            kinds("a % b"),
+            vec![
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::Percent),
+                TokenKind::Ident,
                 TokenKind::Eof,
             ]
         );

@@ -8,7 +8,11 @@ use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 use super::{ParseError, Parser};
 
 impl Parser {
-    pub(super) fn consume_balanced(&mut self, open: Symbol, close: Symbol) -> Result<Span, ParseError> {
+    pub(super) fn consume_balanced(
+        &mut self,
+        open: Symbol,
+        close: Symbol,
+    ) -> Result<Span, ParseError> {
         let open_tok = self.expect_symbol(open)?;
         let start = open_tok.span.start;
 
@@ -201,6 +205,7 @@ fn sym_name(sym: Symbol) -> &'static str {
         Symbol::Minus => "`-`",
         Symbol::Star => "`*`",
         Symbol::Slash => "`/`",
+        Symbol::Percent => "`%`",
         Symbol::And => "`&`",
         Symbol::Or => "`|`",
         Symbol::Caret => "`^`",

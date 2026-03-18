@@ -54,7 +54,9 @@ impl Parser {
     pub(super) fn parse_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Fun)?;
         let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
 
         let (params_span, params) = self.parse_param_list()?;
 
@@ -115,7 +117,9 @@ impl Parser {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
 
         let ty = if self.eat_symbol(Symbol::Colon) {
             Some(self.parse_type_ref()?)
@@ -142,10 +146,10 @@ impl Parser {
             }
 
             let init_start = self.peek().span.start;
-            let expr = self.try_parse_expr_postfix()?;
+            let expr = self.try_parse_expr()?;
 
-            // 若 initializer 只有一个“当前已支持的表达式子集”（原子 + postfix），则直接使用解析结果；
-            // 否则（例如 `1 + 2` 等）保持兼容：吞掉剩余 token 并降级为 Missing，
+            // 若 initializer 只有一个“当前已支持的表达式子集”（postfix + 常见二元优先级），则直接使用解析结果；
+            // 否则（例如 `a ?: b` / `a!!` 等）保持兼容：吞掉剩余 token 并降级为 Missing，
             // 避免把未实现的表达式解析变成“顶层语法错误”。
             if let Some(expr) = expr {
                 last_end = expr.span.end;
@@ -163,7 +167,9 @@ impl Parser {
                     let mut depth_bracket = 0usize;
 
                     while !self.peek_kind(TokenKind::Eof) {
-                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
                             && (self.peek_symbol(Symbol::Semicolon)
                                 || self.is_top_level_item_start())
                         {
@@ -188,14 +194,16 @@ impl Parser {
                     Some(ast::Expr::missing(Span::new(init_start, last_end)))
                 }
             } else {
-                // initializer 不是原子表达式的起始 token（例如 `-1`/`if (...) ...`）。
+                // initializer 不是当前表达式子集的起始 token（例如 `-1`/`if (...) ...`）。
                 // 当前阶段不报错：直接跳过整段 initializer 并以 Missing 占位。
                 let mut depth_paren = 0usize;
                 let mut depth_brace = 0usize;
                 let mut depth_bracket = 0usize;
 
                 while !self.peek_kind(TokenKind::Eof) {
-                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0
+                    if depth_paren == 0
+                        && depth_brace == 0
+                        && depth_bracket == 0
                         && (self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start())
                     {
                         break;
@@ -245,7 +253,9 @@ impl Parser {
 
         loop {
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
-            let name = ast::Ident { span: name_tok.span };
+            let name = ast::Ident {
+                span: name_tok.span,
+            };
 
             let ty = if self.eat_symbol(Symbol::Colon) {
                 Some(self.parse_type_ref()?)
@@ -299,7 +309,9 @@ impl Parser {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
 
         // optional generic params: `<...>`
         if self.peek_symbol(Symbol::Lt) {
@@ -404,7 +416,9 @@ impl Parser {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
 
         // `val x Int` / `val x (Int, Int)`：在 member 位置基本只能是“漏写冒号”。
         // 提前给更贴近语法位置的错误，而不是等到下一轮循环在更远处报错。
@@ -498,7 +512,9 @@ impl Parser {
         // 目标：只解析函数声明头（name/params/return type），函数体仍只保留 span。
         let kw = self.expect_keyword(Keyword::Fun)?;
         let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
 
         let (params_span, params) = self.parse_param_list()?;
 

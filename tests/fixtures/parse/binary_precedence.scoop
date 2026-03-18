@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: binary_precedence.ast
+// 目标：验证二元运算符优先级：`1 + 2 * 3` 解析为 `+(1, *(2,3))`。
+
+package fixtures.parse
+
+val x = 1 + 2 * 3
+
+fun main() {}
+

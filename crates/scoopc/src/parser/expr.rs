@@ -8,6 +8,7 @@
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
 //! - postfix 调用表达式（T0209）：`callee(args...)`
 //! - postfix 成员访问（T0210）：`receiver.member`
+//! - 二元运算符优先级（T0211）：`1 + 2 * 3`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -20,6 +21,14 @@ use crate::syntax::token::{Symbol, TokenKind};
 use super::{ParseError, Parser};
 
 impl Parser {
+    /// 尝试解析一个表达式（当前为：postfix + 常见二元运算符优先级）。
+    ///
+    /// - 若当前位置不是表达式的起始 token，则返回 `Ok(None)` 且不消费 token。
+    /// - 若能解析出表达式，则返回 `Ok(Some(expr))`。
+    pub(super) fn try_parse_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        self.parse_expr_bp(0)
+    }
+
     /// 尝试解析一个“postfix 表达式”（当前支持成员访问与函数调用）。
     ///
     /// - 起始处必须是原子表达式，否则返回 `Ok(None)` 且不消费 token。
@@ -42,6 +51,52 @@ impl Parser {
         }
 
         Ok(Some(expr))
+    }
+
+    fn parse_expr_bp(&mut self, min_bp: u8) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(mut lhs) = self.try_parse_expr_postfix()? else {
+            return Ok(None);
+        };
+
+        loop {
+            let (l_bp, r_bp, op) = match self.peek_binary_op() {
+                Some(x) => x,
+                None => break,
+            };
+
+            if l_bp < min_bp {
+                break;
+            }
+
+            let op_tok = self.bump();
+            let Some(rhs) = self.parse_expr_bp(r_bp)? else {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（右操作数）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            };
+
+            lhs = ast::Expr {
+                span: Span::new(lhs.span.start, rhs.span.end),
+                kind: ast::ExprKind::Binary {
+                    lhs: Box::new(lhs),
+                    op,
+                    op_span: op_tok.span,
+                    rhs: Box::new(rhs),
+                },
+            };
+        }
+
+        Ok(Some(lhs))
+    }
+
+    fn peek_binary_op(&self) -> Option<(u8, u8, ast::BinaryOp)> {
+        let TokenKind::Symbol(sym) = self.peek().kind else {
+            return None;
+        };
+        binary_binding_power(sym)
     }
 
     /// 尝试解析一个“原子表达式”。
@@ -109,7 +164,7 @@ impl Parser {
 
         loop {
             let tok = *self.peek();
-            let arg = self.try_parse_expr_postfix()?.ok_or(ParseError::Expected {
+            let arg = self.try_parse_expr()?.ok_or(ParseError::Expected {
                 expected: "表达式（参数）",
                 found: tok.kind,
                 span: tok.span.into(),
@@ -170,7 +225,7 @@ impl Parser {
         }
 
         // 仅当括号内也是“当前已支持的表达式子集”时才保留其 kind；否则整体降级为 Missing。
-        let inner = self.try_parse_expr_postfix()?;
+        let inner = self.try_parse_expr()?;
         let Some(mut inner) = inner else {
             let span = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start)?;
             return Ok(Some(ast::Expr::missing(span)));
@@ -182,7 +237,8 @@ impl Parser {
             return Ok(Some(inner));
         }
 
-        // 括号内存在额外 token（例如 `(1 + 2)`）：当前阶段不支持，吞掉整段并降级为 Missing。
+        // 括号内存在额外 token（例如 `(1, 2)` / `(1; 2)`）：
+        // 当前阶段不支持，吞掉整段并降级为 Missing。
         let span = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start)?;
         Ok(Some(ast::Expr::missing(span)))
     }
@@ -216,4 +272,48 @@ impl Parser {
             span: Span::new(start, self.peek().span.end).into(),
         })
     }
+}
+
+fn binary_binding_power(sym: Symbol) -> Option<(u8, u8, ast::BinaryOp)> {
+    // 参考 C/Swift 的常见优先级层级（从高到低）：
+    // - multiplicative: * / %
+    // - additive: + -
+    // - shift: << >>
+    // - relational: < <= > >=
+    // - equality: == !=
+    // - bitwise: & ^ |
+    // - logical: && ||
+    //
+    // 说明：当前阶段所有二元运算均按“左结合”处理。
+    let (prec, op) = match sym {
+        Symbol::Star => (11, ast::BinaryOp::Mul),
+        Symbol::Slash => (11, ast::BinaryOp::Div),
+        Symbol::Percent => (11, ast::BinaryOp::Rem),
+
+        Symbol::Plus => (10, ast::BinaryOp::Add),
+        Symbol::Minus => (10, ast::BinaryOp::Sub),
+
+        Symbol::LtLt => (9, ast::BinaryOp::Shl),
+        Symbol::GtGt => (9, ast::BinaryOp::Shr),
+
+        Symbol::Lt => (8, ast::BinaryOp::Lt),
+        Symbol::LtEq => (8, ast::BinaryOp::Le),
+        Symbol::Gt => (8, ast::BinaryOp::Gt),
+        Symbol::GtEq => (8, ast::BinaryOp::Ge),
+
+        Symbol::EqEq => (7, ast::BinaryOp::Eq),
+        Symbol::BangEq => (7, ast::BinaryOp::Ne),
+
+        Symbol::And => (6, ast::BinaryOp::BitAnd),
+        Symbol::Caret => (5, ast::BinaryOp::BitXor),
+        Symbol::Or => (4, ast::BinaryOp::BitOr),
+
+        Symbol::AndAnd => (3, ast::BinaryOp::LogAnd),
+        Symbol::OrOr => (2, ast::BinaryOp::LogOr),
+
+        _ => return None,
+    };
+
+    // Pratt/precedence climbing：左结合使用 (prec, prec + 1)。
+    Some((prec, prec + 1, op))
 }
