@@ -377,7 +377,9 @@ tests/
 - [x] `// EXPECT: pass|fail`
 - [x] `// EXPECT-ERROR: <substring>`（当前为子串匹配；后续可升级为 regex）
 - [x] `// EXPECT-AST: <file>`（parse fixtures：AST snapshot / golden）
-- [ ] `// RUN-STDOUT: <file>`
+- [x] `// RUN-STDOUT: <file>`
+- [x] `// EXPECT-EXIT: <code>`
+- [x] `// TIMEOUT: <ms>`
 - [x] `// ARGS: ...`
 
 ### 10.2 诊断（compile-fail）的 golden 规范

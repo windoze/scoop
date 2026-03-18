@@ -8,6 +8,9 @@
 //! - `// EXPECT-ERROR-AT: <line>:<col>`（1-based）
 //! - `// ARGS: <args...>`（按空白分割，原样传递给 driver/编译器阶段）
 //! - `// EXPECT-AST: <file>`（parse fixtures：将 AST dump 与 golden 文件做全文比对）
+//! - `// RUN-STDOUT: <file>`（run-pass fixtures：stdout golden）
+//! - `// EXPECT-EXIT: <code>`（run-pass fixtures：期望退出码）
+//! - `// TIMEOUT: <ms>`（run-pass fixtures：超时毫秒）
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
@@ -23,6 +26,9 @@ pub struct FixtureExpectation<'a> {
     pub error_at: Option<(usize, usize)>,
     pub args: Vec<String>,
     pub ast_golden: Option<&'a str>,
+    pub run_stdout: Option<&'a str>,
+    pub expect_exit: Option<i32>,
+    pub timeout_ms: Option<u64>,
 }
 
 impl<'a> FixtureExpectation<'a> {
@@ -34,6 +40,9 @@ impl<'a> FixtureExpectation<'a> {
         let mut error_at = None;
         let mut args = Vec::new();
         let mut ast_golden = None;
+        let mut run_stdout = None;
+        let mut expect_exit = None;
+        let mut timeout_ms = None;
 
         // 只扫描开头若干行，避免把正文里的 `// EXPECT:` 误判为指令。
         for line in text.lines().take(32) {
@@ -74,6 +83,18 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("EXPECT-AST:") {
                 ast_golden = Some(rest.trim());
             }
+
+            if let Some(rest) = directive.strip_prefix("RUN-STDOUT:") {
+                run_stdout = Some(rest.trim());
+            }
+
+            if let Some(rest) = directive.strip_prefix("EXPECT-EXIT:") {
+                expect_exit = rest.trim().parse::<i32>().ok();
+            }
+
+            if let Some(rest) = directive.strip_prefix("TIMEOUT:") {
+                timeout_ms = rest.trim().parse::<u64>().ok();
+            }
         }
 
         Self {
@@ -83,6 +104,9 @@ impl<'a> FixtureExpectation<'a> {
             error_at,
             args,
             ast_golden,
+            run_stdout,
+            expect_exit,
+            timeout_ms,
         }
     }
 }
@@ -107,6 +131,9 @@ mod tests {
         assert_eq!(exp.error_at, None);
         assert!(exp.args.is_empty());
         assert_eq!(exp.ast_golden, None);
+        assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.expect_exit, None);
+        assert_eq!(exp.timeout_ms, None);
     }
 
     #[test]
@@ -120,6 +147,9 @@ mod tests {
         assert_eq!(exp.error_at, Some((3, 5)));
         assert!(exp.args.is_empty());
         assert_eq!(exp.ast_golden, None);
+        assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.expect_exit, None);
+        assert_eq!(exp.timeout_ms, None);
     }
 
     #[test]
@@ -132,11 +162,24 @@ mod tests {
             vec!["--dump-ast", "--emit-llvm", "--gc-stress"]
         );
         assert_eq!(exp.ast_golden, None);
+        assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.expect_exit, None);
+        assert_eq!(exp.timeout_ms, None);
     }
 
     #[test]
     fn parse_expect_ast_golden_path() {
         let exp = FixtureExpectation::from_source("// EXPECT-AST: hello.ast\nfun main() {}\n");
         assert_eq!(exp.ast_golden, Some("hello.ast"));
+    }
+
+    #[test]
+    fn parse_run_directives() {
+        let exp = FixtureExpectation::from_source(
+            "// RUN-STDOUT: out.txt\n// EXPECT-EXIT: 42\n// TIMEOUT: 1500\nfun main() {}\n",
+        );
+        assert_eq!(exp.run_stdout, Some("out.txt"));
+        assert_eq!(exp.expect_exit, Some(42));
+        assert_eq!(exp.timeout_ms, Some(1500));
     }
 }

@@ -144,7 +144,7 @@
 - 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
 - 依赖：T0107、T0807
 
-### T0107 [TODO] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
+### T0107 [DONE] fixtures 指令：新增 `RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT`
 - 描述：扩展文件头指令解析，支持运行期断言（stdout 文件、退出码、超时毫秒）。
 - 目标：先只实现“解析与结构化存储”；fixture runner 暂可忽略这些字段直到 T0106。
 - 验收：为 `crates/scoop/src/fixtures/expectations.rs` 新增单测覆盖三个字段；旧指令保持兼容。
