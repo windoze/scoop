@@ -68,7 +68,7 @@
 - [x] fun 签名最小解析：参数列表 + 返回类型（支持 Path/泛型参数列表/tuple/nullable 的 `TypeRef` 子集）
 - [x] 工程化：拆分 `scoopc::parser` 为多文件模块（cursor/decls/types/file），避免单文件过长，便于后续语句/表达式迭代
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
-  - [x] 顶层 `val`/`var`：解析声明头；initializer 暂仅保留 span（不解析表达式）
+  - [x] 顶层 `val`/`var`：解析声明头；initializer 暂以 `Expr(Missing)` 占位（不解析表达式）
   - [ ] 类型体内部成员声明：`val`/`var`/`fun`/nested type
     - [x] `val`/`var` 成员声明头（type body）
     - [x] `fun` 成员声明头
@@ -85,7 +85,7 @@
 - [ ] 建议区分：
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
-- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/TypeBody/TypeMember/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
+- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/TypeBody/TypeMember/Block/Expr/Stmt/Ident/Param/TypeRef，节点带 span 并可回切源文本
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。

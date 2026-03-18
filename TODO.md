@@ -218,14 +218,14 @@
 - 验收：新增 parse fixture 覆盖嵌套类型与重复定义错误（先由 resolver 后续阶段处理也可）。
 - 依赖：T0201
 
-### T0205 [TODO] AST：引入表达式/语句最小骨架（Expr/Stmt）
+### T0205 [DONE] AST：引入表达式/语句最小骨架（Expr/Stmt）
 - 描述：为后续解析函数体与 initializer 做 AST 扩展：`Expr`/`Stmt` 的最小子集。
 - 目标：第一步只需要：标识符、整数/字符串字面量、块表达式（空块即可）、缺失占位（Missing）。
 - 验收：`cargo test -p scoopc` 通过；新增一个 parse fixture：`val x = 1` 能在 AST 里看到字面量表达式（或暂时 Missing，取决于实现选择）。
 - 依赖：T0009
 
 ### T0206 [TODO] Parser：解析顶层 `val/var` initializer 的“原子表达式”
-- 描述：把 `ValDecl.init: Option<Span>` 升级为 `Option<Expr>`，并能解析：ident/int/string/`( ... )`。
+- 描述：为顶层 `val/var` initializer 实现“原子表达式”解析：ident/int/string/`( ... )`（填充到 `ValDecl.init: Option<Expr>`）。
 - 目标：不解析二元运算、不解析调用；错误恢复先最小化。
 - 验收：新增 parse fixture 覆盖 `val a = 1`、`val b = "x"`、`val c = foo`；`scoop test` 通过。
 - 依赖：T0205

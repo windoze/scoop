@@ -97,6 +97,51 @@ pub struct Block {
     pub span: Span,
 }
 
+/// 表达式（最小子集）。
+///
+/// 说明：当前阶段只需要支撑 initializer 与函数体解析的增量推进，因此先保留一个非常小的集合。
+/// 后续任务会逐步补齐调用、成员访问、二元运算、控制流等表达式节点。
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub span: Span,
+    pub kind: ExprKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
+    /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
+    Missing,
+    Ident(Ident),
+    IntLit,
+    StringLit,
+    Block(Block),
+}
+
+impl Expr {
+    pub fn missing(span: Span) -> Self {
+        Self {
+            span,
+            kind: ExprKind::Missing,
+        }
+    }
+}
+
+/// 语句（最小骨架）。
+///
+/// 目前阶段仅为后续 block 解析预留结构；T0207/T0208 会逐步扩展其子集。
+#[derive(Debug, Clone)]
+pub struct Stmt {
+    pub span: Span,
+    pub kind: StmtKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum StmtKind {
+    Empty,
+    Expr(Expr),
+    Missing,
+}
+
 #[derive(Debug, Clone)]
 pub struct Param {
     pub name: Ident,
@@ -109,8 +154,8 @@ pub struct ValDecl {
     pub kind: ValKind,
     pub name: Ident,
     pub ty: Option<TypeRef>,
-    /// 初始化表达式的源代码范围（当前阶段不解析表达式，只保留 span）。
-    pub init: Option<Span>,
+    /// 初始化表达式（当前阶段可能为 `ExprKind::Missing`，后续任务会逐步补齐解析）。
+    pub init: Option<Expr>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

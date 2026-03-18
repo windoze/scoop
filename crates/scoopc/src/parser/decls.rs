@@ -170,7 +170,7 @@ impl Parser {
                 last_end = tok.span.end;
             }
 
-            Some(Span::new(init_start, last_end))
+            Some(ast::Expr::missing(Span::new(init_start, last_end)))
         } else {
             None
         };
@@ -431,7 +431,7 @@ impl Parser {
                 last_end = tok.span.end;
             }
 
-            Some(Span::new(init_start, last_end))
+            Some(ast::Expr::missing(Span::new(init_start, last_end)))
         } else {
             None
         };

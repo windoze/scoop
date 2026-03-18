@@ -69,7 +69,10 @@ File {
                                         ),
                                     ),
                                     init: Some(
-                                        240..241,
+                                        Expr {
+                                            span: 240..241,
+                                            kind: Missing,
+                                        },
                                     ),
                                 },
                             ),
