@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: type_params_decl.ast
+
+package fixtures.parse
+
+fun id<T>(x: T): T { x }
+
+struct Box<T> {
+    val v: T
+}
+

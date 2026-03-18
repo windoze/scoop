@@ -7,6 +7,48 @@ use crate::syntax::token::{Keyword, Symbol, TokenKind};
 use super::{ParseError, Parser};
 
 impl<'a> Parser<'a> {
+    fn parse_type_param_list(&mut self) -> Result<(Span, Vec<ast::TypeParam>), ParseError> {
+        let lt = self.expect_symbol(Symbol::Lt)?;
+        let start = lt.span.start;
+
+        let mut params = Vec::new();
+        if self.peek_symbol(Symbol::Gt) {
+            let gt = self.bump();
+            return Ok((Span::new(start, gt.span.end), params));
+        }
+
+        loop {
+            let name_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
+            let name = ast::Ident {
+                span: name_tok.span,
+            };
+            params.push(ast::TypeParam {
+                span: name_tok.span,
+                name,
+            });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma
+                if self.peek_symbol(Symbol::Gt) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        let gt = self.expect_symbol(Symbol::Gt)?;
+        Ok((Span::new(start, gt.span.end), params))
+    }
+
+    fn parse_type_params_opt(&mut self) -> Result<(Option<Span>, Vec<ast::TypeParam>), ParseError> {
+        if !self.peek_symbol(Symbol::Lt) {
+            return Ok((None, Vec::new()));
+        }
+        let (span, params) = self.parse_type_param_list()?;
+        Ok((Some(span), params))
+    }
+
     pub(super) fn parse_package_decl(&mut self) -> Result<ast::PackageDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Package)?;
         let path = self.parse_dotted_path()?;
@@ -58,6 +100,8 @@ impl<'a> Parser<'a> {
             span: name_tok.span,
         };
 
+        let (_type_params_span, type_params) = self.parse_type_params_opt()?;
+
         let (params_span, params) = self.parse_param_list()?;
 
         let return_ty = if self.eat_symbol(Symbol::Colon) {
@@ -66,7 +110,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // TODO: generics / effect rows / where clause（当前先粗暴跳过，避免阻塞后续顶层解析）
+        // TODO: effect rows / where clause（当前先粗暴跳过，避免阻塞后续顶层解析）
         let mut last_end = return_ty
             .as_ref()
             .map(|t| t.span().end)
@@ -89,6 +133,7 @@ impl<'a> Parser<'a> {
         Ok(ast::FunDecl {
             span: Span::new(kw.span.start, last_end),
             name,
+            type_params,
             params_span,
             params,
             return_ty,
@@ -313,18 +358,20 @@ impl<'a> Parser<'a> {
             span: name_tok.span,
         };
 
-        // optional generic params: `<...>`
-        if self.peek_symbol(Symbol::Lt) {
-            let _ = self.consume_balanced(Symbol::Lt, Symbol::Gt)?;
+        let mut last_end = name_tok.span.end.max(kind_kw.span.end);
+
+        let (type_params_span, type_params) = self.parse_type_params_opt()?;
+        if let Some(span) = type_params_span {
+            last_end = last_end.max(span.end);
         }
 
         // optional primary ctor params: `( ... )`
         if self.peek_symbol(Symbol::LParen) {
-            let _ = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+            let span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+            last_end = last_end.max(span.end);
         }
 
         // header tail（继承/实现等）：消耗到 `{` 或下一个顶层 item 开始
-        let mut last_end = name_tok.span.end.max(kind_kw.span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
             // 注意：该函数既用于顶层，也用于 type body 内的 nested type。
             // 在 nested 场景下，`}` 可能是外层 type body 的结束符，必须在此处停止，
@@ -350,6 +397,7 @@ impl<'a> Parser<'a> {
             span: Span::new(start, last_end),
             kind,
             name,
+            type_params,
             body,
         })
     }
@@ -516,6 +564,8 @@ impl<'a> Parser<'a> {
             span: name_tok.span,
         };
 
+        let (_type_params_span, type_params) = self.parse_type_params_opt()?;
+
         let (params_span, params) = self.parse_param_list()?;
 
         let return_ty = if self.eat_symbol(Symbol::Colon) {
@@ -524,7 +574,7 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // TODO: generics / effect rows / where clause（当前先粗暴跳过，避免阻塞后续 type body 解析）
+        // TODO: effect rows / where clause（当前先粗暴跳过，避免阻塞后续 type body 解析）
         let mut last_end = return_ty
             .as_ref()
             .map(|t| t.span().end)
@@ -550,6 +600,7 @@ impl<'a> Parser<'a> {
         Ok(ast::FunDecl {
             span: Span::new(kw.span.start, last_end),
             name,
+            type_params,
             params_span,
             params,
             return_ty,

@@ -66,6 +66,7 @@
 
  - [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`）；类型体仅保证 `{ ... }` 括号平衡并记录 span
 - [x] fun 签名最小解析：参数列表 + 返回类型（支持 Path/泛型参数列表/tuple/nullable 的 `TypeRef` 子集）
+- [x] 声明处泛型参数列表：`fun id<T>(...)` / `struct Box<T> { ... }`（仅无约束；约束/变型/where 后续补）
 - [x] 工程化：拆分 `scoopc::parser` 为多文件模块（cursor/decls/types/file），避免单文件过长，便于后续语句/表达式迭代
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
   - [x] 顶层 `val`/`var`：解析声明头；initializer 支持原子表达式（ident/int/string/括号分组），更复杂表达式暂以 `Expr(Missing)` 占位并跳过

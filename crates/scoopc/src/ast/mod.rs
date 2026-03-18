@@ -35,11 +35,23 @@ pub enum Item {
     Val(ValDecl),
 }
 
+/// 声明处的类型参数（type parameter）。
+///
+/// 当前阶段（T0218）仅支持无约束的 `T` / `U`：
+/// - 不支持 `in/out` 变型
+/// - 不支持上界/下界（`:` / `where`）
+#[derive(Debug, Clone)]
+pub struct TypeParam {
+    pub span: Span,
+    pub name: Ident,
+}
+
 #[derive(Debug, Clone)]
 pub struct TypeDecl {
     pub span: Span,
     pub kind: TypeKind,
     pub name: Ident,
+    pub type_params: Vec<TypeParam>,
     /// 类型体（`{ ... }`）。
     ///
     /// 当前阶段：
@@ -80,6 +92,7 @@ pub enum TypeKind {
 pub struct FunDecl {
     pub span: Span,
     pub name: Ident,
+    pub type_params: Vec<TypeParam>,
     pub params_span: Span,
     pub params: Vec<Param>,
     pub return_ty: Option<TypeRef>,

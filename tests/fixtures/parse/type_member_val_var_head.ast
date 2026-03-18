@@ -21,6 +21,7 @@ File {
                 name: Ident {
                     span: 204..205,
                 },
+                type_params: [],
                 body: Some(
                     TypeBody {
                         span: 206..243,
@@ -87,6 +88,7 @@ File {
                 name: Ident {
                     span: 249..253,
                 },
+                type_params: [],
                 params_span: 253..255,
                 params: [],
                 return_ty: None,

@@ -296,7 +296,7 @@
 - 验收：新增 parse fixture：`val s = f\"hi {name}\"`（按语言语法）；AST 中能区分 text 与 expr parts。
 - 依赖：T0205、T0008
 
-### T0218 [TODO] Parser：声明处泛型参数列表（`<T, U>`）（spec §3）
+### T0218 [DONE] Parser：声明处泛型参数列表（`<T, U>`）（spec §3）
 - 描述：为 `fun`/`class`/`struct`/`enum`/`effect` 增加 type params 的 AST 与解析。
 - 目标：先支持不带约束的 `T`；variance/in/out/where 约束后续任务。
 - 验收：新增 parse fixture：`fun id<T>(x: T): T { x }`；`struct Box<T> { val v: T }`（若已支持成员）。

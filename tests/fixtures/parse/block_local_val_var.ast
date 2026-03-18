@@ -20,6 +20,7 @@ File {
                 name: Ident {
                     span: 172..173,
                 },
+                type_params: [],
                 params_span: 173..175,
                 params: [],
                 return_ty: None,

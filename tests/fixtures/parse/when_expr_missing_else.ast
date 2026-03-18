@@ -80,6 +80,7 @@ File {
                 name: Ident {
                     span: 232..236,
                 },
+                type_params: [],
                 params_span: 236..238,
                 params: [],
                 return_ty: None,

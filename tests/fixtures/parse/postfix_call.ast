@@ -55,6 +55,7 @@ File {
                 name: Ident {
                     span: 199..203,
                 },
+                type_params: [],
                 params_span: 203..205,
                 params: [],
                 return_ty: None,
