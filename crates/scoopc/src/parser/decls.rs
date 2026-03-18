@@ -77,9 +77,9 @@ impl Parser {
         }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
-            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
-            last_end = span.end;
-            ast::FunBody::Block(ast::Block { span })
+            let block = self.parse_block()?;
+            last_end = block.span.end;
+            ast::FunBody::Block(block)
         } else {
             ast::FunBody::Missing
         };
@@ -524,9 +524,9 @@ impl Parser {
         }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
-            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
-            last_end = span.end;
-            ast::FunBody::Block(ast::Block { span })
+            let block = self.parse_block()?;
+            last_end = block.span.end;
+            ast::FunBody::Block(block)
         } else {
             ast::FunBody::Missing
         };

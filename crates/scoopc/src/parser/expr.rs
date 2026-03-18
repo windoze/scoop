@@ -49,6 +49,14 @@ impl Parser {
             }));
         }
 
+        if self.peek_symbol(Symbol::LBrace) {
+            let block = self.parse_block()?;
+            return Ok(Some(ast::Expr {
+                span: block.span,
+                kind: ast::ExprKind::Block(block),
+            }));
+        }
+
         if self.peek_symbol(Symbol::LParen) {
             return self.try_parse_paren_group_expr();
         }
@@ -114,4 +122,3 @@ impl Parser {
         })
     }
 }
-

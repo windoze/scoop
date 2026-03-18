@@ -95,6 +95,12 @@ pub enum FunBody {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub span: Span,
+    /// 块内语句列表。
+    ///
+    /// 当前阶段（T0207）仅保证：
+    /// - 能解析空语句（`;`）与表达式语句（原子表达式）
+    /// - 其它语句形态会以 `StmtKind::Missing` 占位（保持 cursor 前进与括号平衡）
+    pub stmts: Vec<Stmt>,
 }
 
 /// 表达式（最小子集）。

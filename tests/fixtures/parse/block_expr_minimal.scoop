@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: block_expr_minimal.ast
+// 目标：验证块表达式 `{ ... }` 会被解析为 `Block { stmts }`，且支持表达式语句。
+
+package fixtures.parse
+
+fun f() { 1 }
+fun main() {}
+

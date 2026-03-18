@@ -42,6 +42,7 @@ File {
                 body: Block(
                     Block {
                         span: 199..201,
+                        stmts: [],
                     },
                 ),
             },

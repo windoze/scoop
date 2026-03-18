@@ -64,7 +64,7 @@
 
 ### 2.2 语法分析（Parser）
 
-- [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`），函数/类型体仅保证 `{ ... }` 括号平衡并记录 span
+ - [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`）；类型体仅保证 `{ ... }` 括号平衡并记录 span
 - [x] fun 签名最小解析：参数列表 + 返回类型（支持 Path/泛型参数列表/tuple/nullable 的 `TypeRef` 子集）
 - [x] 工程化：拆分 `scoopc::parser` 为多文件模块（cursor/decls/types/file），避免单文件过长，便于后续语句/表达式迭代
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
@@ -75,6 +75,7 @@
     - [x] nested type 声明
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
 - [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
+   - [x] 块表达式 `{ ... }`：解析为 `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [ ] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）

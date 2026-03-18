@@ -68,6 +68,21 @@ File {
                                     body: Block(
                                         Block {
                                             span: 220..225,
+                                            stmts: [
+                                                Stmt {
+                                                    span: 222..223,
+                                                    kind: Expr(
+                                                        Expr {
+                                                            span: 222..223,
+                                                            kind: Ident(
+                                                                Ident {
+                                                                    span: 222..223,
+                                                                },
+                                                            ),
+                                                        },
+                                                    ),
+                                                },
+                                            ],
                                         },
                                     ),
                                 },
@@ -113,6 +128,7 @@ File {
                 body: Block(
                     Block {
                         span: 257..259,
+                        stmts: [],
                     },
                 ),
             },

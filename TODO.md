@@ -230,7 +230,7 @@
 - 验收：新增 parse fixture 覆盖 `val a = 1`、`val b = "x"`、`val c = foo`；`scoop test` 通过。
 - 依赖：T0205
 
-### T0207 [TODO] Parser：解析块表达式 `{ ... }` 为 `Block { stmts }`
+### T0207 [DONE] Parser：解析块表达式 `{ ... }` 为 `Block { stmts }`
 - 描述：把当前 `Block` 从仅 span 扩展为包含语句列表；先支持空语句与表达式语句。
 - 目标：暂不支持控制流（if/when/return）；先保证括号匹配与 span 正确。
 - 验收：新增 parse fixture：`fun f() { 1 }`；AST 中 block 至少包含 1 个 expr stmt。

@@ -1,0 +1,62 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 160..182,
+            path: [
+                Ident {
+                    span: 168..176,
+                },
+                Ident {
+                    span: 177..182,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 184..197,
+                name: Ident {
+                    span: 188..189,
+                },
+                params_span: 189..191,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 192..197,
+                        stmts: [
+                            Stmt {
+                                span: 194..195,
+                                kind: Expr(
+                                    Expr {
+                                        span: 194..195,
+                                        kind: IntLit,
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 198..211,
+                name: Ident {
+                    span: 202..206,
+                },
+                params_span: 206..208,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 209..211,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}
