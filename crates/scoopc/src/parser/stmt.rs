@@ -144,7 +144,7 @@ impl Parser {
                     Some(expr)
                 }
                 None => {
-                    // initializer 不是当前表达式子集的起始 token（例如 `-1` / `if (...) ...`）：
+                    // initializer 不是当前表达式子集的起始 token（例如 `-1` / `when (...) { ... }`）：
                     // 当前阶段不报错，消耗一个 token 并降级为 Missing，保证 cursor 前进。
                     let tok = self.bump();
                     last_end = tok.span.end;

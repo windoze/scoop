@@ -272,7 +272,7 @@
 - 验收：新增 parse fixture：`if (x is Foo) { x }`（只要能解析）；`val y = x as? Foo`。
 - 依赖：T0211
 
-### T0214 [TODO] Parser：支持 `if` 表达式（spec §14.6/Appendix B）
+### T0214 [DONE] Parser：支持 `if` 表达式（spec §14.6/Appendix B）
 - 描述：解析 `if (cond) thenExpr else elseExpr?` 作为表达式。
 - 目标：先只支持必须带括号条件；允许 else 缺省（作为 `Unit` 或语法错误，按设计决定）。
 - 验收：新增 parse fixture：`val x = if (a) 1 else 2`；新增 parse-fail fixture：缺少 `)` 的错误恢复。

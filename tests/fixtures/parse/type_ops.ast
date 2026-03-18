@@ -168,7 +168,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 218..377,
+                span: 218..362,
                 name: Ident {
                     span: 222..226,
                 },
@@ -177,11 +177,67 @@ File {
                 return_ty: None,
                 body: Block(
                     Block {
-                        span: 229..377,
+                        span: 229..362,
                         stmts: [
                             Stmt {
-                                span: 356..375,
-                                kind: Missing,
+                                span: 341..360,
+                                kind: Expr(
+                                    Expr {
+                                        span: 341..360,
+                                        kind: If {
+                                            cond: Expr {
+                                                span: 345..353,
+                                                kind: TypeCheck {
+                                                    expr: Expr {
+                                                        span: 345..346,
+                                                        kind: Ident(
+                                                            Ident {
+                                                                span: 345..346,
+                                                            },
+                                                        ),
+                                                    },
+                                                    op: Is,
+                                                    op_span: 347..349,
+                                                    ty: Path(
+                                                        TypePath {
+                                                            span: 350..353,
+                                                            segments: [
+                                                                Ident {
+                                                                    span: 350..353,
+                                                                },
+                                                            ],
+                                                            args: [],
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                            then_branch: Expr {
+                                                span: 355..360,
+                                                kind: Block(
+                                                    Block {
+                                                        span: 355..360,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 357..358,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 357..358,
+                                                                        kind: Ident(
+                                                                            Ident {
+                                                                                span: 357..358,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                            else_branch: None,
+                                        },
+                                    },
+                                ),
                             },
                         ],
                     },

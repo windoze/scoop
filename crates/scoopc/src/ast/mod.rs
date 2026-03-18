@@ -176,6 +176,16 @@ pub enum ExprKind {
     IntLit,
     StringLit,
     Block(Block),
+    /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
+    ///
+    /// 说明：
+    /// - 当前阶段（T0214）只支持括号条件；
+    /// - `else` 允许缺省（语义由后续 typecheck 决定）。
+    If {
+        cond: Box<Expr>,
+        then_branch: Box<Expr>,
+        else_branch: Option<Box<Expr>>,
+    },
     /// 成员访问表达式：`receiver.member`（postfix）。
     ///
     /// 说明：

@@ -10,7 +10,6 @@ val c = x as Foo
 val d = x as? Foo
 
 fun main() {
-    // `if` 仍未实现为表达式（T0214），这里仅确保包含 type op 的 token 序列不会破坏块解析。
+    // `if` 已实现为表达式（T0214）：这里验证 `is` 作为 if 条件时仍能正确解析。
     if (x is Foo) { x }
 }
-

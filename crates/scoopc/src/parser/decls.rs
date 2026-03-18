@@ -194,7 +194,7 @@ impl Parser {
                     Some(ast::Expr::missing(Span::new(init_start, last_end)))
                 }
             } else {
-                // initializer 不是当前表达式子集的起始 token（例如 `-1`/`if (...) ...`）。
+                // initializer 不是当前表达式子集的起始 token（例如 `-1` / `when (...) { ... }`）。
                 // 当前阶段不报错：直接跳过整段 initializer 并以 Missing 占位。
                 let mut depth_paren = 0usize;
                 let mut depth_brace = 0usize;

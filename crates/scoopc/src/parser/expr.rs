@@ -12,6 +12,7 @@
 //! - 二元运算符优先级（T0211）：`1 + 2 * 3`
 //! - Elvis（T0212）：`a ?: b`
 //! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
+//! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -214,6 +215,10 @@ impl Parser {
             }));
         }
 
+        if self.peek_keyword(Keyword::If) {
+            return Ok(Some(self.parse_if_expr()?));
+        }
+
         if self.peek_symbol(Symbol::LBrace) {
             let block = self.parse_block()?;
             return Ok(Some(ast::Expr {
@@ -227,6 +232,57 @@ impl Parser {
         }
 
         Ok(None)
+    }
+
+    fn parse_if_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let if_kw = self.expect_keyword(Keyword::If)?;
+        let start = if_kw.span.start;
+
+        let open = self.expect_symbol(Symbol::LParen)?;
+
+        let tok = *self.peek();
+        let cond = self.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（if 条件）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        self.expect_symbol(Symbol::RParen)?;
+
+        let tok = *self.peek();
+        let then_branch = self.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（then 分支）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        let (end, else_branch) = if self.peek_keyword(Keyword::Else) {
+            self.bump();
+            let tok = *self.peek();
+            let else_expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "表达式（else 分支）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+            (else_expr.span.end, Some(Box::new(else_expr)))
+        } else {
+            (then_branch.span.end, None)
+        };
+
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::If {
+                cond: Box::new(cond),
+                then_branch: Box::new(then_branch),
+                else_branch,
+            },
+        })
     }
 
     fn parse_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
