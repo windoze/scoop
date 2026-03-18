@@ -405,6 +405,7 @@ dependencies = [
  "clap",
  "miette",
  "scoopc",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
 ]

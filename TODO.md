@@ -108,7 +108,7 @@
 
 ## T01：测试体系与工具（增强，但保持小步）
 
-### T0101 [TODO] fixtures runner：按目录路由更多 phase（typecheck/infer/effects/...）
+### T0101 [DONE] fixtures runner：按目录路由更多 phase（typecheck/infer/effects/...）
 - 描述：把 phase 判定从“只有 parse/resolve”扩展为按 `tests/fixtures/<phase>/` 路由。
 - 目标：先把路由与报错信息做对；每个 phase 仍可先返回 “未实现” 的清晰错误。
 - 验收：新增空目录 `tests/fixtures/typecheck`；`scoop test` 能识别该 phase 并给出“未实现”但带文件路径的诊断（并在 fixture 里可 EXPECT fail）。

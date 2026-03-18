@@ -1,0 +1,4 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未实现（fixture: typecheck/unimplemented_phase.scoop）
+
+fun main() {}

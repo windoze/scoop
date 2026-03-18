@@ -7,13 +7,20 @@
 //! 当前阶段支持：
 //! - parse fixtures（调用 `scoopc::parser::parse_file`）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
+//!
+//! 目录路由（phase）：
+//! - `tests/fixtures/parse/**` → parse
+//! - `tests/fixtures/resolve/**` → resolve
+//! - 其它一级目录（如 `typecheck/`、`infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
 
-use std::path::{Path, PathBuf};
 use std::path::Component;
+use std::path::{Path, PathBuf};
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::Diagnostic;
+use miette::{Context as _, IntoDiagnostic as _, Result, miette};
+use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
 
@@ -44,9 +51,11 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
     let exp = FixtureExpectation::from_source(source.text());
 
     let rel = path.strip_prefix(fixtures_root).unwrap_or(path);
-    let phase = match rel.components().next() {
-        Some(Component::Normal(name)) if name == "resolve" => FixturePhase::Resolve,
-        _ => FixturePhase::Parse,
+    let phase = match phase_dir(rel) {
+        None => FixturePhase::Parse,
+        Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
+        Some(name) if name == "resolve" => FixturePhase::Resolve,
+        Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
@@ -54,6 +63,10 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
             .map(|_| ())
             .map_err(box_diagnostic),
         FixturePhase::Resolve => resolve_fixture(session, &source),
+        FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
+            phase,
+            fixture: rel.display().to_string(),
+        })),
     };
 
     match (exp.expect, result) {
@@ -67,10 +80,19 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum FixturePhase {
     Parse,
     Resolve,
+    Unimplemented(String),
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("fixtures phase `{phase}` 未实现（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::unimplemented_phase))]
+struct UnimplementedPhase {
+    phase: String,
+    fixture: String,
 }
 
 fn resolve_fixture(
@@ -149,7 +171,9 @@ fn primary_label_line_col(
         }
     }
 
-    let offset = primary.or(first).ok_or_else(|| miette!("诊断未提供 labels/span，无法断言错误位置"))?;
+    let offset = primary
+        .or(first)
+        .ok_or_else(|| miette!("诊断未提供 labels/span，无法断言错误位置"))?;
     source.offset_to_line_col(offset)
 }
 
@@ -172,4 +196,20 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// 返回 fixture 的一级目录名（即 phase 目录）。
+///
+/// 例如：
+/// - `parse/hello.scoop` → Some("parse")
+/// - `resolve/foo/bar.scoop` → Some("resolve")
+/// - `hello.scoop` → None（直接放在根目录下，按 parse 处理以保持兼容）
+fn phase_dir(rel: &Path) -> Option<&std::ffi::OsStr> {
+    let mut comps = rel.components();
+    let first = comps.next();
+    let second = comps.next();
+    match (first, second) {
+        (Some(Component::Normal(name)), Some(_)) => Some(name),
+        _ => None,
+    }
 }

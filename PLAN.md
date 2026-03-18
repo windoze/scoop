@@ -368,6 +368,10 @@ tests/
     cone/                # .cone 打包/消费/单态化缓存
 ```
 
+当前 runner 约定：fixture 的一级目录名就是 phase（例如 `parse/`、`resolve/`、`typecheck/`）。未实现的 phase 也必须给出清晰诊断，便于先写 fixture 再补实现。
+
+- [x] phase 路由：按 `tests/fixtures/<phase>/**` 目录名决定执行阶段（未实现 phase 返回“未实现”诊断）
+
 每个 fixture 采用“单文件 + 注释指令”的形式（类似 LLVM lit 或 Rust compiletest）：
 
 - [x] `// EXPECT: pass|fail`
