@@ -49,6 +49,8 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
 fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path) -> Result<()> {
     let source = scoopc::source::SourceFile::load(path)?;
     let exp = FixtureExpectation::from_source(source.text());
+    // T0102：当前仅解析 `// ARGS:` 并结构化存储，后续 phase/runner 再真正消费这些参数。
+    let _ = exp.args.len();
 
     let rel = path.strip_prefix(fixtures_root).unwrap_or(path);
     let phase = match phase_dir(rel) {

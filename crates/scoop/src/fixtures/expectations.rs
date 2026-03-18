@@ -6,6 +6,7 @@
 //! - `// EXPECT-ERROR: <substring>`
 //! - `// EXPECT-ERROR-CODE: <code>`（例如 `scoop::parse::expected`）
 //! - `// EXPECT-ERROR-AT: <line>:<col>`（1-based）
+//! - `// ARGS: <args...>`（按空白分割，原样传递给 driver/编译器阶段）
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
@@ -19,6 +20,7 @@ pub struct FixtureExpectation<'a> {
     pub error_contains: Option<&'a str>,
     pub error_code: Option<&'a str>,
     pub error_at: Option<(usize, usize)>,
+    pub args: Vec<String>,
 }
 
 impl<'a> FixtureExpectation<'a> {
@@ -28,6 +30,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut error_contains = None;
         let mut error_code = None;
         let mut error_at = None;
+        let mut args = Vec::new();
 
         // 只扫描开头若干行，避免把正文里的 `// EXPECT:` 误判为指令。
         for line in text.lines().take(32) {
@@ -59,6 +62,11 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("EXPECT-ERROR-AT:") {
                 error_at = parse_line_col(rest.trim());
             }
+
+            if let Some(rest) = directive.strip_prefix("ARGS:") {
+                let rest = rest.trim();
+                args.extend(rest.split_whitespace().map(|s| s.to_string()));
+            }
         }
 
         Self {
@@ -66,6 +74,7 @@ impl<'a> FixtureExpectation<'a> {
             error_contains,
             error_code,
             error_at,
+            args,
         }
     }
 }
@@ -88,6 +97,7 @@ mod tests {
         assert_eq!(exp.error_contains, None);
         assert_eq!(exp.error_code, None);
         assert_eq!(exp.error_at, None);
+        assert!(exp.args.is_empty());
     }
 
     #[test]
@@ -99,5 +109,17 @@ mod tests {
         assert_eq!(exp.error_contains, Some("boom"));
         assert_eq!(exp.error_code, Some("scoop::parse::expected"));
         assert_eq!(exp.error_at, Some((3, 5)));
+        assert!(exp.args.is_empty());
+    }
+
+    #[test]
+    fn parse_args_whitespace_split() {
+        let exp = FixtureExpectation::from_source(
+            "// ARGS: --dump-ast  --emit-llvm   --gc-stress\nfun main() {}\n",
+        );
+        assert_eq!(
+            exp.args,
+            vec!["--dump-ast", "--emit-llvm", "--gc-stress"]
+        );
     }
 }

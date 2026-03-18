@@ -114,7 +114,7 @@
 - 验收：新增空目录 `tests/fixtures/typecheck`；`scoop test` 能识别该 phase 并给出“未实现”但带文件路径的诊断（并在 fixture 里可 EXPECT fail）。
 - 依赖：T0003
 
-### T0102 [TODO] fixtures 指令：支持 `// ARGS:`（传递给 driver/编译器阶段）
+### T0102 [DONE] fixtures 指令：支持 `// ARGS:`（传递给 driver/编译器阶段）
 - 描述：允许单个 fixture 指定额外参数（例如 `--dump-ast` / `--emit-llvm` / `--gc-stress`）。
 - 目标：只实现解析与结构化存储；不急于支持所有参数。
 - 验收：新增 `crates/scoop/src/fixtures/expectations.rs` 单测：`ARGS` 可解析为 Vec<String>；原有指令保持兼容。
