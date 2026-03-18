@@ -126,7 +126,7 @@
 - 验收：新增一个 parse fixture + 对应 `.ast` 文件；`scoop test` 在 parse phase 里完成比对。
 - 依赖：T0003、T0009
 
-### T0104 [TODO] compile-fail golden：升级为“错误码 + 位置 + 子串”组合断言
+### T0104 [DONE] compile-fail golden：升级为“错误码 + 位置 + 子串”组合断言
 - 描述：把当前 fixtures fail 断言策略固化成推荐模板，并补齐文档与示例。
 - 目标：先不引入 regex；保持实现简单。
 - 验收：新增至少 2 个 compile-fail fixture（parse/resolve 各 1 个）同时断言 code+at+contains；`scoop test` 通过。

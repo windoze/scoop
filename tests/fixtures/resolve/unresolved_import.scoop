@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的 import
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_import
+// EXPECT-ERROR-AT: 8:1
+
+package fixtures.resolve
+
+import missing.pkg.Type
+
+fun f(x: Any) {}

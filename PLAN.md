@@ -385,6 +385,15 @@ tests/
 - [x] 诊断必须包含：错误码（稳定 ID）、主消息、关联 span（行列）、可选 note/help（当前 lexer/parser 已提供 code + label span）
 - [x] fixtures 断言策略：支持匹配“错误码 + 错误位置（行列）+ 关键片段”（先用文件头注释指令实现；未来可再升级为独立 `.golden`）
 
+推荐模板（compile-fail fixture 文件头）：
+
+```
+// EXPECT: fail
+// EXPECT-ERROR: <关键片段>
+// EXPECT-ERROR-CODE: <稳定错误码>
+// EXPECT-ERROR-AT: <line>:<col>
+```
+
 ### 10.3 spec doctest（强烈建议）
 
 - [x] 工具：从 `SCOOP_FULL_SPEC.md` 抽取包含 `// FIXTURE:` 的 fenced code block，生成 `tests/fixtures/spec_doctest/*`

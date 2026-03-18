@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未闭合的字符串字面量
+// EXPECT-ERROR-CODE: scoop::lex::unterminated_string
+// EXPECT-ERROR-AT: 6:1
+
+"unterminated
