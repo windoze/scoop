@@ -21,11 +21,12 @@
 
 use crate::ast;
 use crate::span::Span;
-use crate::syntax::token::{Keyword, Symbol, TokenKind};
+use crate::syntax::lexer::{LexError, lex};
+use crate::syntax::token::{Keyword, StringKind, Symbol, Token, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// 尝试解析一个表达式（当前为：postfix + 常见二元运算符优先级）。
     ///
     /// - 若当前位置不是表达式的起始 token，则返回 `Ok(None)` 且不消费 token。
@@ -349,11 +350,19 @@ impl Parser {
             }));
         }
 
-        if matches!(self.peek().kind, TokenKind::StringLiteral(_)) {
+        if let TokenKind::StringLiteral(string_kind) = self.peek().kind {
             let tok = self.bump();
-            return Ok(Some(ast::Expr {
-                span: tok.span,
-                kind: ast::ExprKind::StringLit,
+            return Ok(Some(match string_kind {
+                StringKind::Normal { interpolated: true } => {
+                    self.parse_interpolated_string_expr(tok, false)?
+                }
+                StringKind::Raw { interpolated: true } => {
+                    self.parse_interpolated_string_expr(tok, true)?
+                }
+                _ => ast::Expr {
+                    span: tok.span,
+                    kind: ast::ExprKind::StringLit,
+                },
             }));
         }
 
@@ -378,6 +387,261 @@ impl Parser {
         }
 
         Ok(None)
+    }
+
+    fn parse_interpolated_string_expr(
+        &mut self,
+        tok: Token,
+        raw: bool,
+    ) -> Result<ast::Expr, ParseError> {
+        // lexer 会把整个 `f"..."` / `f"""..."""` 当作一个 token；
+        // 这里在 parser 层把其拆分为：Text/Expr 片段列表（spec §8.2）。
+        let (content_start, content_end) = if raw {
+            // f""" ... """
+            (tok.span.start + 4, tok.span.end.saturating_sub(3))
+        } else {
+            // f" ... "
+            (tok.span.start + 2, tok.span.end.saturating_sub(1))
+        };
+
+        // 内部健壮性：span 理论上来自 lexer，不应越界；这里避免 panic 影响 fuzz/fixtures。
+        if content_start > content_end || content_end > self.source_text.len() {
+            return Ok(ast::Expr::missing(tok.span));
+        }
+
+        let parts = self.split_interpolated_string_parts(content_start, content_end, raw)?;
+        Ok(ast::Expr {
+            span: tok.span,
+            kind: ast::ExprKind::InterpolatedString { raw, parts },
+        })
+    }
+
+    fn split_interpolated_string_parts(
+        &mut self,
+        content_start: usize,
+        content_end: usize,
+        raw: bool,
+    ) -> Result<Vec<ast::InterpolatedStringPart>, ParseError> {
+        let bytes = self.source_text.as_bytes();
+        let mut parts = Vec::new();
+
+        let mut i = content_start;
+        let mut text_start = content_start;
+
+        while i < content_end {
+            let b = bytes[i];
+
+            // 普通字符串里支持 `\` 转义；转义序列中的 `{`/`}` 不应触发插值分片。
+            if !raw && b == b'\\' {
+                i += 1;
+                if i < content_end {
+                    let ch = self.source_text[i..].chars().next().unwrap();
+                    i += ch.len_utf8();
+                }
+                continue;
+            }
+
+            // `{{` / `}}`：字面量大括号（spec §8.2）。
+            if b == b'{' {
+                if i + 1 < content_end && bytes[i + 1] == b'{' {
+                    i += 2;
+                    continue;
+                }
+
+                // 单个 `{`：插值表达式起始。
+                if text_start < i {
+                    parts.push(ast::InterpolatedStringPart::Text {
+                        span: Span::new(text_start, i),
+                    });
+                }
+
+                let open_brace = i;
+                let expr_start = i + 1;
+                let Some(expr_close) =
+                    self.find_interpolation_close_in_f_string(expr_start, content_end)
+                else {
+                    return Err(ParseError::UnterminatedGroup {
+                        close: Symbol::RBrace,
+                        span: Span::new(open_brace, content_end).into(),
+                    });
+                };
+
+                let expr = self.parse_expr_snippet(expr_start, expr_close)?;
+                parts.push(ast::InterpolatedStringPart::Expr { expr });
+
+                // 跳过 `}`，继续扫描后续文本。
+                i = expr_close + 1;
+                text_start = i;
+                continue;
+            }
+
+            if b == b'}' {
+                if i + 1 < content_end && bytes[i + 1] == b'}' {
+                    i += 2;
+                    continue;
+                }
+
+                // 单个 `}` 出现在插值字符串文本中时是语法错误（应写成 `}}`）。
+                return Err(ParseError::FStringUnescapedRBrace {
+                    span: Span::new(i, i + 1).into(),
+                });
+            }
+
+            // 其它字符：按 UTF-8 前进，保持 index 在 char boundary 上，避免后续 slice panic。
+            if b < 0x80 {
+                i += 1;
+            } else {
+                let ch = self.source_text[i..].chars().next().unwrap();
+                i += ch.len_utf8();
+            }
+        }
+
+        if text_start < content_end {
+            parts.push(ast::InterpolatedStringPart::Text {
+                span: Span::new(text_start, content_end),
+            });
+        }
+
+        Ok(parts)
+    }
+
+    /// 在 f-string 的内容区间内，从 `expr_start` 扫描并找到与插值起始 `{` 匹配的 `}`。
+    ///
+    /// 需要忽略表达式内部的字符串/注释，并对表达式内部的 `{}` 进行括号平衡；
+    /// 这样才能正确处理例如：`f"{ if (a) { b } else { c } }"` 这种嵌套 `{}` 的情况。
+    fn find_interpolation_close_in_f_string(
+        &self,
+        expr_start: usize,
+        limit: usize,
+    ) -> Option<usize> {
+        let bytes = self.source_text.as_bytes();
+        let mut i = expr_start;
+        let mut brace_depth = 0usize;
+
+        while i < limit {
+            // line comment
+            if i + 1 < limit && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+                i += 2;
+                while i < limit && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+
+            // block comment (non-nested)
+            if i + 1 < limit && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < limit {
+                    if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                        i += 2;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+
+            // string literal: "..." / """...""", optionally prefixed with `f`
+            if bytes[i] == b'f' && i + 1 < limit && bytes[i + 1] == b'"' {
+                i = self.skip_string_literal(i + 1, limit);
+                continue;
+            }
+            if bytes[i] == b'"' {
+                i = self.skip_string_literal(i, limit);
+                continue;
+            }
+
+            match bytes[i] {
+                b'{' => {
+                    brace_depth += 1;
+                    i += 1;
+                }
+                b'}' => {
+                    if brace_depth == 0 {
+                        return Some(i);
+                    }
+                    brace_depth = brace_depth.saturating_sub(1);
+                    i += 1;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+
+        None
+    }
+
+    /// 从 `"` 开始跳过一个字符串字面量，返回“紧随其后”的索引。
+    ///
+    /// 该函数是“面向括号平衡扫描”的最小实现：不解析转义语义，只负责正确跳过字符串范围。
+    fn skip_string_literal(&self, quote_start: usize, limit: usize) -> usize {
+        let bytes = self.source_text.as_bytes();
+
+        // raw string: """ ... """
+        if quote_start + 2 < limit
+            && bytes[quote_start] == b'"'
+            && bytes[quote_start + 1] == b'"'
+            && bytes[quote_start + 2] == b'"'
+        {
+            let mut i = quote_start + 3;
+            while i + 2 < limit {
+                if bytes[i] == b'"' && bytes[i + 1] == b'"' && bytes[i + 2] == b'"' {
+                    return i + 3;
+                }
+                i += 1;
+            }
+            return limit;
+        }
+
+        // normal string: " ... " (with backslash escapes)
+        let mut i = quote_start + 1;
+        while i < limit {
+            match bytes[i] {
+                b'\\' => {
+                    // consume '\' + next byte if present
+                    i = (i + 2).min(limit);
+                }
+                b'"' => {
+                    return i + 1;
+                }
+                b'\n' => {
+                    return limit;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        limit
+    }
+
+    fn parse_expr_snippet(&self, start: usize, end: usize) -> Result<ast::Expr, ParseError> {
+        let snippet = &self.source_text[start..end];
+
+        let mut tokens = lex(snippet).map_err(|e| ParseError::Lex(shift_lex_error(e, start)))?;
+        for t in &mut tokens {
+            t.span = Span::new(t.span.start + start, t.span.end + start);
+        }
+
+        let mut p = Parser::new(self.source_text, tokens);
+        let tok = *p.peek();
+        let expr = p.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（f-string 插值）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        if !p.peek_kind(TokenKind::Eof) {
+            let tok = *p.peek();
+            return Err(ParseError::Expected {
+                expected: "插值表达式结束（`}`）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        Ok(expr)
     }
 
     fn parse_if_expr(&mut self) -> Result<ast::Expr, ParseError> {
@@ -467,11 +731,13 @@ impl Parser {
             let arrow = self.expect_symbol(Symbol::Arrow)?;
 
             let tok = *self.peek();
-            let body = self.try_parse_expr_in_when_arm()?.ok_or(ParseError::Expected {
-                expected: "表达式（when 分支 body）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
+            let body = self
+                .try_parse_expr_in_when_arm()?
+                .ok_or(ParseError::Expected {
+                    expected: "表达式（when 分支 body）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?;
 
             arms.push(ast::WhenArm {
                 span: Span::new(pat_span.start, body.span.end),
@@ -763,7 +1029,10 @@ fn scan_type_ref_end_inner(tokens: &[crate::syntax::token::Token], start: usize)
     }
 }
 
-fn scan_tuple_or_group_type_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+fn scan_tuple_or_group_type_end(
+    tokens: &[crate::syntax::token::Token],
+    start: usize,
+) -> Option<usize> {
     if !matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::LParen)) {
         return None;
     }
@@ -777,7 +1046,10 @@ fn scan_tuple_or_group_type_end(tokens: &[crate::syntax::token::Token], start: u
 
     if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
         i += 1;
-        while !matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen) | TokenKind::Eof) {
+        while !matches!(
+            kind_at(tokens, i),
+            TokenKind::Symbol(Symbol::RParen) | TokenKind::Eof
+        ) {
             i = scan_type_ref_end(tokens, i)?;
             if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
                 i += 1;
@@ -921,4 +1193,25 @@ fn binary_binding_power(sym: Symbol) -> Option<(u8, u8, ast::BinaryOp)> {
 
         _ => None,
     }
+}
+
+fn shift_lex_error(err: LexError, base_offset: usize) -> LexError {
+    match err {
+        LexError::InvalidChar { ch, span } => LexError::InvalidChar {
+            ch,
+            span: shift_source_span(span, base_offset),
+        },
+        LexError::UnterminatedBlockComment { span } => LexError::UnterminatedBlockComment {
+            span: shift_source_span(span, base_offset),
+        },
+        LexError::UnterminatedString { span } => LexError::UnterminatedString {
+            span: shift_source_span(span, base_offset),
+        },
+    }
+}
+
+fn shift_source_span(span: miette::SourceSpan, base_offset: usize) -> miette::SourceSpan {
+    let offset = span.offset();
+    let len = span.len();
+    (offset + base_offset, len).into()
 }

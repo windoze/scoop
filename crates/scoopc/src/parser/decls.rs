@@ -6,7 +6,7 @@ use crate::syntax::token::{Keyword, Symbol, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(super) fn parse_package_decl(&mut self) -> Result<ast::PackageDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Package)?;
         let path = self.parse_dotted_path()?;

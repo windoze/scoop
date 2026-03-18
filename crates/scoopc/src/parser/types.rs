@@ -6,7 +6,7 @@ use crate::syntax::token::{Symbol, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(super) fn parse_type_ref(&mut self) -> Result<ast::TypeRef, ParseError> {
         let mut ty = if self.peek_symbol(Symbol::LParen) {
             self.parse_tuple_or_group_type()?
@@ -113,4 +113,3 @@ impl Parser {
         Ok((args, gt.span.end))
     }
 }
-

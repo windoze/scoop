@@ -8,8 +8,8 @@
 mod cursor;
 mod decls;
 mod expr;
-mod stmt;
 mod file;
+mod stmt;
 mod types;
 
 #[cfg(test)]
@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::source::SourceFile;
-use crate::syntax::lexer::{lex, LexError};
+use crate::syntax::lexer::{LexError, lex};
 use crate::syntax::token::{Symbol, Token, TokenKind};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -45,20 +45,32 @@ pub enum ParseError {
         #[label("从这里开始")]
         span: miette::SourceSpan,
     },
+
+    #[error("语法错误：插值字符串中出现未转义的 `}}`（使用 `}}}}` 表示字面量 `}}`）")]
+    #[diagnostic(code(scoop::parse::f_string_unescaped_rbrace))]
+    FStringUnescapedRBrace {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
     let tokens = lex(source.text())?;
-    Parser::new(tokens).parse_file()
+    Parser::new(source.text(), tokens).parse_file()
 }
 
-struct Parser {
+struct Parser<'a> {
+    source_text: &'a str,
     tokens: Vec<Token>,
     i: usize,
 }
 
-impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, i: 0 }
+impl<'a> Parser<'a> {
+    fn new(source_text: &'a str, tokens: Vec<Token>) -> Self {
+        Self {
+            source_text,
+            tokens,
+            i: 0,
+        }
     }
 }

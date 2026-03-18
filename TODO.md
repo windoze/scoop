@@ -290,7 +290,7 @@
 - 验收：新增 parse fixture：`val p2 = p with { x: 1, y: 2 }`；覆盖多字段与嵌套 path。
 - 依赖：T0211
 
-### T0217 [TODO] Parser：字符串插值表达式（`f"..."`）的 token 分片
+### T0217 [DONE] Parser：字符串插值表达式（`f"..."`）的 token 分片
 - 描述：把 lexer 产出的 f-string token 进一步在 parser 里拆为“文本片段 + 插值 expr”列表（spec §8.2）。
 - 目标：先支持 `${expr}` 或 `{expr}` 一种形式（以 spec 为准）；raw f-string 同理。
 - 验收：新增 parse fixture：`val s = f\"hi {name}\"`（按语言语法）；AST 中能区分 text 与 expr parts。

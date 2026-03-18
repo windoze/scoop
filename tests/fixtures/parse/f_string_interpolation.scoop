@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: f_string_interpolation.ast
+// 目标：验证 f-string（`f"..."`/`f"""..."""`）在 parser 内被拆分为 text/expr parts（spec §8.2）。
+
+package fixtures.parse
+
+val s = f"hi {name}!"
+val raw = f"""raw {name}""".trimIndent()
+
+fun main() {}
+

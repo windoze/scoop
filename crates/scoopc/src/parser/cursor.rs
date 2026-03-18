@@ -7,7 +7,7 @@ use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(super) fn consume_balanced(
         &mut self,
         open: Symbol,

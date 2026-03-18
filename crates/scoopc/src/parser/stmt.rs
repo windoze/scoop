@@ -14,7 +14,7 @@ use crate::syntax::token::{Keyword, Symbol, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     /// 解析块表达式（含函数体 block）：`{ stmt* }`。
     pub(super) fn parse_block(&mut self) -> Result<ast::Block, ParseError> {
         let open = self.expect_symbol(Symbol::LBrace)?;

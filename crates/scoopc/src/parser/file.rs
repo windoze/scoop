@@ -5,7 +5,7 @@ use crate::syntax::token::{Keyword, TokenKind};
 
 use super::{ParseError, Parser};
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(super) fn parse_file(mut self) -> Result<ast::File, ParseError> {
         let package = if self.peek_keyword(Keyword::Package) {
             Some(self.parse_package_decl()?)

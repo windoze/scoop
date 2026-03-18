@@ -184,6 +184,15 @@ pub enum CastOp {
     AsQ,
 }
 
+/// 插值字符串的片段（spec §8.2）。
+#[derive(Debug, Clone)]
+pub enum InterpolatedStringPart {
+    /// 纯文本片段（保持源码 span；转义/去重写回等语义留给后续阶段）。
+    Text { span: Span },
+    /// 插值表达式片段：`{ expr }`。
+    Expr { expr: Expr },
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
@@ -191,6 +200,14 @@ pub enum ExprKind {
     Ident(Ident),
     IntLit,
     StringLit,
+    /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
+    ///
+    /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。
+    InterpolatedString {
+        /// 是否为 raw f-string（`f"""..."""`）。
+        raw: bool,
+        parts: Vec<InterpolatedStringPart>,
+    },
     Block(Block),
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     ///

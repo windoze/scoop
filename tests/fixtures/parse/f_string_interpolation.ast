@@ -1,0 +1,118 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 175..197,
+            path: [
+                Ident {
+                    span: 183..191,
+                },
+                Ident {
+                    span: 192..197,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 199..220,
+                kind: Val,
+                name: Ident {
+                    span: 203..204,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 207..220,
+                        kind: InterpolatedString {
+                            raw: false,
+                            parts: [
+                                Text {
+                                    span: 209..212,
+                                },
+                                Expr {
+                                    expr: Expr {
+                                        span: 213..217,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 213..217,
+                                            },
+                                        ),
+                                    },
+                                },
+                                Text {
+                                    span: 218..219,
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 221..261,
+                kind: Val,
+                name: Ident {
+                    span: 225..228,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 231..261,
+                        kind: Call {
+                            callee: Expr {
+                                span: 231..259,
+                                kind: MemberAccess {
+                                    receiver: Expr {
+                                        span: 231..248,
+                                        kind: InterpolatedString {
+                                            raw: true,
+                                            parts: [
+                                                Text {
+                                                    span: 235..239,
+                                                },
+                                                Expr {
+                                                    expr: Expr {
+                                                        span: 240..244,
+                                                        kind: Ident(
+                                                            Ident {
+                                                                span: 240..244,
+                                                            },
+                                                        ),
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    },
+                                    member: Ident {
+                                        span: 249..259,
+                                    },
+                                },
+                            },
+                            args: [],
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 263..276,
+                name: Ident {
+                    span: 267..271,
+                },
+                params_span: 271..273,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 274..276,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}
