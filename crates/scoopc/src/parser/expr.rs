@@ -8,7 +8,9 @@
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
 //! - postfix 调用表达式（T0209）：`callee(args...)`
 //! - postfix 成员访问（T0210）：`receiver.member`
+//! - postfix 非空断言（T0212）：`expr!!`
 //! - 二元运算符优先级（T0211）：`1 + 2 * 3`
+//! - Elvis（T0212）：`a ?: b`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -45,6 +47,10 @@ impl Parser {
             }
             if self.peek_symbol(Symbol::LParen) {
                 expr = self.parse_call_expr(expr)?;
+                continue;
+            }
+            if self.peek_symbol(Symbol::BangBang) {
+                expr = self.parse_not_null_assert_expr(expr)?;
                 continue;
             }
             break;
@@ -214,6 +220,17 @@ impl Parser {
         })
     }
 
+    fn parse_not_null_assert_expr(&mut self, receiver: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let op_tok = self.expect_symbol(Symbol::BangBang)?;
+        Ok(ast::Expr {
+            span: Span::new(receiver.span.start, op_tok.span.end),
+            kind: ast::ExprKind::NotNullAssert {
+                expr: Box::new(receiver),
+                op_span: op_tok.span,
+            },
+        })
+    }
+
     fn try_parse_paren_group_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         let open = self.expect_symbol(Symbol::LParen)?;
         let start = open.span.start;
@@ -283,37 +300,44 @@ fn binary_binding_power(sym: Symbol) -> Option<(u8, u8, ast::BinaryOp)> {
     // - equality: == !=
     // - bitwise: & ^ |
     // - logical: && ||
+    // - elvis: ?:
     //
-    // 说明：当前阶段所有二元运算均按“左结合”处理。
-    let (prec, op) = match sym {
-        Symbol::Star => (11, ast::BinaryOp::Mul),
-        Symbol::Slash => (11, ast::BinaryOp::Div),
-        Symbol::Percent => (11, ast::BinaryOp::Rem),
+    // 说明：
+    // - 大多数二元运算符按“左结合”处理；
+    // - Elvis `?:` 按“右结合”处理（与 Kotlin 类似）：`a ?: b ?: c` 解析为 `a ?: (b ?: c)`。
+    //
+    // Pratt/precedence climbing：
+    // - 左结合：使用 (prec, prec + 1)
+    // - 右结合：使用 (prec, prec)
+    match sym {
+        Symbol::Star => Some((11, 12, ast::BinaryOp::Mul)),
+        Symbol::Slash => Some((11, 12, ast::BinaryOp::Div)),
+        Symbol::Percent => Some((11, 12, ast::BinaryOp::Rem)),
 
-        Symbol::Plus => (10, ast::BinaryOp::Add),
-        Symbol::Minus => (10, ast::BinaryOp::Sub),
+        Symbol::Plus => Some((10, 11, ast::BinaryOp::Add)),
+        Symbol::Minus => Some((10, 11, ast::BinaryOp::Sub)),
 
-        Symbol::LtLt => (9, ast::BinaryOp::Shl),
-        Symbol::GtGt => (9, ast::BinaryOp::Shr),
+        Symbol::LtLt => Some((9, 10, ast::BinaryOp::Shl)),
+        Symbol::GtGt => Some((9, 10, ast::BinaryOp::Shr)),
 
-        Symbol::Lt => (8, ast::BinaryOp::Lt),
-        Symbol::LtEq => (8, ast::BinaryOp::Le),
-        Symbol::Gt => (8, ast::BinaryOp::Gt),
-        Symbol::GtEq => (8, ast::BinaryOp::Ge),
+        Symbol::Lt => Some((8, 9, ast::BinaryOp::Lt)),
+        Symbol::LtEq => Some((8, 9, ast::BinaryOp::Le)),
+        Symbol::Gt => Some((8, 9, ast::BinaryOp::Gt)),
+        Symbol::GtEq => Some((8, 9, ast::BinaryOp::Ge)),
 
-        Symbol::EqEq => (7, ast::BinaryOp::Eq),
-        Symbol::BangEq => (7, ast::BinaryOp::Ne),
+        Symbol::EqEq => Some((7, 8, ast::BinaryOp::Eq)),
+        Symbol::BangEq => Some((7, 8, ast::BinaryOp::Ne)),
 
-        Symbol::And => (6, ast::BinaryOp::BitAnd),
-        Symbol::Caret => (5, ast::BinaryOp::BitXor),
-        Symbol::Or => (4, ast::BinaryOp::BitOr),
+        Symbol::And => Some((6, 7, ast::BinaryOp::BitAnd)),
+        Symbol::Caret => Some((5, 6, ast::BinaryOp::BitXor)),
+        Symbol::Or => Some((4, 5, ast::BinaryOp::BitOr)),
 
-        Symbol::AndAnd => (3, ast::BinaryOp::LogAnd),
-        Symbol::OrOr => (2, ast::BinaryOp::LogOr),
+        Symbol::AndAnd => Some((3, 4, ast::BinaryOp::LogAnd)),
+        Symbol::OrOr => Some((2, 3, ast::BinaryOp::LogOr)),
 
-        _ => return None,
-    };
+        // Elvis：比 `||` 更低一档的二元（但仍高于未来可能出现的赋值/控制流）。
+        Symbol::Elvis => Some((1, 1, ast::BinaryOp::Elvis)),
 
-    // Pratt/precedence climbing：左结合使用 (prec, prec + 1)。
-    Some((prec, prec + 1, op))
+        _ => None,
+    }
 }

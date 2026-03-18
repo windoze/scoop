@@ -260,7 +260,7 @@
 - 验收：新增 parse fixture：`1 + 2 * 3` 解析为 `+(1, *(2,3))`；加一个 snapshot golden（配合 T0103 更佳）。
 - 依赖：T0205、T0200
 
-### T0212 [TODO] Parser：支持 Elvis `?:` 与 not-null `!!`（spec Appendix B.3）
+### T0212 [DONE] Parser：支持 Elvis `?:` 与 not-null `!!`（spec Appendix B.3）
 - 描述：把 `?:` 作为低优先级二元；把 `!!` 作为 postfix。
 - 目标：只做解析；类型/效果语义后续做。
 - 验收：新增 parse fixture：`val x = a ?: b`、`val y = a!!`；`scoop test` 通过。

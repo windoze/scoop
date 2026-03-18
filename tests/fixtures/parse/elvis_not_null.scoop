@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: elvis_not_null.ast
+// 目标：验证 Elvis `?:` 与 postfix 非空断言 `!!` 的解析。
+
+package fixtures.parse
+
+val x = a ?: b
+val y = a!!
+
+fun main() {}
+

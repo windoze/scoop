@@ -79,6 +79,8 @@
    - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
+   - [x] postfix 非空断言：`expr!!`
+   - [x] Elvis：`a ?: b`（低优先级二元，右结合）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [x] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）

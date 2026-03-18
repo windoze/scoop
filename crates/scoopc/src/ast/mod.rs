@@ -145,6 +145,9 @@ pub enum BinaryOp {
     // boolean logic
     LogAnd,
     LogOr,
+
+    // null-coalescing / elvis
+    Elvis,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +173,13 @@ pub enum ExprKind {
     Call {
         callee: Box<Expr>,
         args: Vec<Expr>,
+    },
+    /// 非空断言：`expr!!`（postfix）。
+    ///
+    /// 说明：仅做语法建模；运行期异常语义留到后续阶段（typecheck/effect/codegen）决定。
+    NotNullAssert {
+        expr: Box<Expr>,
+        op_span: Span,
     },
     /// 二元运算表达式：`lhs op rhs`。
     ///
