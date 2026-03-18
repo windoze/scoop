@@ -53,6 +53,10 @@ impl Parser {
         };
 
         loop {
+            if self.peek_keyword(Keyword::With) {
+                expr = self.parse_with_update_expr(expr)?;
+                continue;
+            }
             if self.peek_symbol(Symbol::Dot) {
                 expr = self.parse_member_access_expr(expr)?;
                 continue;
@@ -605,6 +609,81 @@ impl Parser {
                 expr: Box::new(receiver),
                 op_span: op_tok.span,
             },
+        })
+    }
+
+    fn parse_with_update_expr(&mut self, base: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let with_kw = self.expect_keyword(Keyword::With)?;
+        let start = base.span.start;
+
+        let open = self.expect_symbol(Symbol::LBrace)?;
+        let mut updates = Vec::new();
+
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
+            let path = self.parse_field_path()?;
+            let colon = self.expect_symbol(Symbol::Colon)?;
+
+            let tok = *self.peek();
+            let value = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "表达式（with 更新值）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+
+            updates.push(ast::WithUpdateField {
+                span: Span::new(path.span.start, value.span.end),
+                path,
+                colon_span: colon.span,
+                value,
+            });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma
+                if self.peek_symbol(Symbol::RBrace) {
+                    break;
+                }
+                continue;
+            }
+
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RBrace,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RBrace)?;
+
+        Ok(ast::Expr {
+            span: Span::new(start, close.span.end),
+            kind: ast::ExprKind::WithUpdate {
+                base: Box::new(base),
+                with_span: with_kw.span,
+                updates,
+            },
+        })
+    }
+
+    fn parse_field_path(&mut self) -> Result<ast::FieldPath, ParseError> {
+        let first = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
+        let start = first.span.start;
+
+        let mut segments = vec![ast::Ident { span: first.span }];
+        while self.eat_symbol(Symbol::Dot) {
+            let seg = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
+            segments.push(ast::Ident { span: seg.span });
+        }
+
+        let end = segments
+            .last()
+            .map(|x| x.span.end)
+            .unwrap_or(first.span.end);
+
+        Ok(ast::FieldPath {
+            span: Span::new(start, end),
+            segments,
         })
     }
 

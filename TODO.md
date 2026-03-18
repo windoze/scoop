@@ -284,7 +284,7 @@
 - 验收：新增 parse fixture：带 3 个分支的 when；再加 1 个 parse fixture：缺少 `else` 时仍能解析（穷尽性检查留给后续 typecheck）。
 - 依赖：T0214
 
-### T0216 [TODO] Parser：值类型更新 `with` 表达式语法（spec §2.6）
+### T0216 [DONE] Parser：值类型更新 `with` 表达式语法（spec §2.6）
 - 描述：解析 `expr with { path: value, ... }`，path 为 `a.b.c` 的字段路径。
 - 目标：仅语法；不做字段存在性与类型检查。
 - 验收：新增 parse fixture：`val p2 = p with { x: 1, y: 2 }`；覆盖多字段与嵌套 path。

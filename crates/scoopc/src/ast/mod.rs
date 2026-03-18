@@ -114,6 +114,22 @@ pub struct Expr {
     pub kind: ExprKind,
 }
 
+/// 字段路径：`a.b.c`（用于值类型更新 `with` 表达式等场景）。
+#[derive(Debug, Clone)]
+pub struct FieldPath {
+    pub span: Span,
+    pub segments: Vec<Ident>,
+}
+
+/// `with` 更新项：`path: value`。
+#[derive(Debug, Clone)]
+pub struct WithUpdateField {
+    pub span: Span,
+    pub path: FieldPath,
+    pub colon_span: Span,
+    pub value: Expr,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     // arithmetic
@@ -250,6 +266,16 @@ pub enum ExprKind {
         op: CastOp,
         op_span: Span,
         ty: TypeRef,
+    },
+    /// 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅做语法建模；
+    /// - 字段存在性、类型检查与 lowering 会在后续阶段实现（见 PLAN §4.5）。
+    WithUpdate {
+        base: Box<Expr>,
+        with_span: Span,
+        updates: Vec<WithUpdateField>,
     },
 }
 
