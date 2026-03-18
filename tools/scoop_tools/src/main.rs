@@ -5,6 +5,7 @@
 //! - 提供可在 CI 强制执行的一致性检查（check mode）
 
 mod spec_fixtures;
+mod fixtures_matrix;
 
 use std::path::PathBuf;
 
@@ -29,6 +30,21 @@ enum Command {
         /// 在 `check` 模式下自动写回不一致文件（只改动受影响文件）
         #[arg(long)]
         fix: bool,
+
+        /// 规范文件路径（默认：`SCOOP_FULL_SPEC.md`）
+        #[arg(long, default_value = "SCOOP_FULL_SPEC.md")]
+        spec: PathBuf,
+
+        /// fixtures 根目录（默认：`tests/fixtures`）
+        #[arg(long, default_value = "tests/fixtures")]
+        fixtures_root: PathBuf,
+    },
+
+    /// 覆盖矩阵检查：按 spec 章节统计 fixtures 的 pass/fail 缺口（仅报告，不强制失败）
+    FixturesMatrix {
+        /// 运行模式：当前仅支持 `check`（输出报告）
+        #[arg(value_parser = ["check"])]
+        mode: String,
 
         /// 规范文件路径（默认：`SCOOP_FULL_SPEC.md`）
         #[arg(long, default_value = "SCOOP_FULL_SPEC.md")]
@@ -67,6 +83,17 @@ fn main() -> Result<()> {
                     report.len()
                 );
             }
+        }
+
+        Command::FixturesMatrix {
+            mode,
+            spec,
+            fixtures_root,
+        } => {
+            let _ = mode; // 当前只有 check；保留参数形态，便于后续扩展。
+            let report = fixtures_matrix::run_check(&spec, &fixtures_root)
+                .wrap_err("fixtures matrix 检查失败")?;
+            eprintln!("{}", report.render());
         }
     }
 

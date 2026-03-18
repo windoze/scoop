@@ -178,7 +178,7 @@
 - 验收：新增随机输入单测（固定种子 + 固定轮数）；`cargo test -p scoopc` 通过。
 - 依赖：T0008、T0009
 
-### T0110 [TODO] 覆盖矩阵检查：每个 spec 章节至少 1 pass/1 fail（PLAN §10.6）
+### T0110 [DONE] 覆盖矩阵检查：每个 spec 章节至少 1 pass/1 fail（PLAN §10.6）
 - 描述：在 `tools/scoop_tools` 增加检查命令，扫描 fixtures 目录并提示缺口（按 spec/plan 章节映射）。
 - 目标：先只做“提示/报告”（非强制 fail）；规则可逐步细化。
 - 验收：`cargo run -p scoop_tools -- fixtures-matrix check` 输出报告；并有单测覆盖“缺口检测”。

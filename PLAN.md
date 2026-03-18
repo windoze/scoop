@@ -26,7 +26,7 @@
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
 - [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
-- [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
+- [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查 + fixtures 覆盖矩阵报告；后续扩展 golden 工具）
 
 > 现阶段仓库还很小，可以先在单 crate 内落地；当模块多起来再迁移到 workspace。
 
@@ -423,6 +423,9 @@ tests/
 - 1 个 compile-pass
 - 1 个 compile-fail（覆盖常见误用）
 - 若涉及运行期语义（GC/effect/async），再加 1 个 run-pass
+
+工具（仅报告，不强制 fail）：
+- `cargo run -p scoop_tools -- fixtures-matrix check`
 
 ---
 
