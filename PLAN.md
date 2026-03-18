@@ -399,6 +399,7 @@ tests/
 - [x] 工具：从 `SCOOP_FULL_SPEC.md` 抽取包含 `// FIXTURE:` 的 fenced code block，生成 `tests/fixtures/spec_doctest/*`
 - [x] 约定：代码块通过注释标记其期望（`// EXPECT:` / `// EXPECT-ERROR:`），`// FIXTURE:` 指定输出路径
 - [x] 在 CI 中强制：`cargo run -p scoop_tools -- spec-fixtures check` + `cargo run -p scoop -- test`
+- [x] 本地修复：`cargo run -p scoop_tools -- spec-fixtures check --fix`（只写回受影响文件）
 
 ### 10.4 运行期 fixtures（run-pass）
 

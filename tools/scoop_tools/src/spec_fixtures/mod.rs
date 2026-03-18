@@ -26,7 +26,7 @@ pub struct GeneratedFixture {
     pub content: String,
 }
 
-pub fn run(mode: Mode, spec_path: &Path, fixtures_root: &Path) -> Result<Vec<PathBuf>> {
+pub fn run(mode: Mode, fix: bool, spec_path: &Path, fixtures_root: &Path) -> Result<Vec<PathBuf>> {
     let spec_text = std::fs::read_to_string(spec_path)
         .into_diagnostic()
         .wrap_err_with(|| format!("无法读取规范文件：{}", spec_path.display()))?;
@@ -48,7 +48,13 @@ pub fn run(mode: Mode, spec_path: &Path, fixtures_root: &Path) -> Result<Vec<Pat
     let out_root = fixtures_root.join(GENERATED_DIR);
     match mode {
         Mode::Sync => sync(&out_root, &by_path)?,
-        Mode::Check => check(&out_root, &by_path)?,
+        Mode::Check => {
+            if fix {
+                check_fix(&out_root, &by_path)?;
+            } else {
+                check(&out_root, &by_path)?;
+            }
+        }
     }
 
     Ok(by_path.keys().cloned().collect())
@@ -152,6 +158,52 @@ fn check(out_root: &Path, desired: &BTreeMap<PathBuf, String>) -> Result<()> {
     Ok(())
 }
 
+fn check_fix(out_root: &Path, desired: &BTreeMap<PathBuf, String>) -> Result<()> {
+    // 目标：在 `check` 语义下“自动修复”，但只改动受影响文件（不重写内容一致的文件）。
+    std::fs::create_dir_all(out_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法创建输出目录：{}", out_root.display()))?;
+
+    let base = out_root.parent().unwrap_or(out_root);
+
+    // 写入/更新发生变化的文件
+    for (rel, content) in desired {
+        let abs = base.join(rel);
+        if let Some(parent) = abs.parent() {
+            std::fs::create_dir_all(parent)
+                .into_diagnostic()
+                .wrap_err_with(|| format!("无法创建目录：{}", parent.display()))?;
+        }
+
+        match std::fs::read_to_string(&abs) {
+            Ok(existing) if existing == *content => {
+                // 内容一致：不写回，避免无意义的 mtime 变化（也便于测试只改动受影响文件）。
+                continue;
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(e)
+                    .into_diagnostic()
+                    .wrap_err_with(|| format!("无法读取：{}", abs.display()));
+            }
+        }
+
+        std::fs::write(&abs, content)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法写入：{}", abs.display()))?;
+    }
+
+    // 删除多余文件（只清理 spec_doctest 目录树）
+    let mut desired_abs: BTreeSet<PathBuf> = BTreeSet::new();
+    for rel in desired.keys() {
+        desired_abs.insert(base.join(rel));
+    }
+    remove_stale_scoop_files(out_root, &desired_abs)?;
+
+    Ok(())
+}
+
 fn remove_stale_scoop_files(dir: &Path, keep: &BTreeSet<PathBuf>) -> Result<()> {
     if !dir.exists() {
         return Ok(());
@@ -213,6 +265,7 @@ fn find_extra_scoop_files(dir: &Path, keep: &BTreeSet<PathBuf>) -> Result<Vec<Pa
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
 
     #[test]
     fn validate_fixture_path_rules() {
@@ -243,5 +296,44 @@ fun main() {}
         assert_eq!(fixtures[0].rel_path, PathBuf::from("spec_doctest/ok.scoop"));
         assert!(fixtures[0].content.contains("fun main() {}"));
     }
-}
 
+    #[test]
+    fn check_fix_does_not_rewrite_unchanged_files() {
+        let dir = tempdir().unwrap();
+        let out_root = dir.path().join(GENERATED_DIR);
+        let base = out_root.parent().unwrap_or(&out_root);
+
+        let mut desired: BTreeMap<PathBuf, String> = BTreeMap::new();
+        desired.insert(PathBuf::from("spec_doctest/ok.scoop"), "ok\n".to_string());
+        desired.insert(
+            PathBuf::from("spec_doctest/update.scoop"),
+            "new\n".to_string(),
+        );
+
+        // 1) 一个“内容已正确”的文件：在 unix 下设置为只读，保证 check_fix 不会尝试重写它。
+        let ok_abs = base.join("spec_doctest/ok.scoop");
+        std::fs::create_dir_all(ok_abs.parent().unwrap()).unwrap();
+        std::fs::write(&ok_abs, "ok\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&ok_abs).unwrap().permissions();
+            perms.set_mode(0o444);
+            std::fs::set_permissions(&ok_abs, perms).unwrap();
+        }
+
+        // 2) 一个“需要更新”的文件
+        let update_abs = base.join("spec_doctest/update.scoop");
+        std::fs::write(&update_abs, "old\n").unwrap();
+
+        // 3) 一个“多余文件”：应被删除
+        let extra_abs = base.join("spec_doctest/extra.scoop");
+        std::fs::write(&extra_abs, "extra\n").unwrap();
+
+        check_fix(&out_root, &desired).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&ok_abs).unwrap(), "ok\n");
+        assert_eq!(std::fs::read_to_string(&update_abs).unwrap(), "new\n");
+        assert!(!extra_abs.exists());
+    }
+}

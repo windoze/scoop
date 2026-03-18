@@ -132,7 +132,7 @@
 - 验收：新增至少 2 个 compile-fail fixture（parse/resolve 各 1 个）同时断言 code+at+contains；`scoop test` 通过。
 - 依赖：T0003、T0005
 
-### T0105 [TODO] spec-fixtures：支持 `check --fix`（自动写回生成文件）
+### T0105 [DONE] spec-fixtures：支持 `check --fix`（自动写回生成文件）
 - 描述：新增选项在 spec 变更时自动更新 `tests/fixtures/spec_doctest/*`。
 - 目标：默认仍是 check-only；`--fix` 只改动受影响文件。
 - 验收：`cargo run -p scoop_tools -- spec-fixtures check --fix` 可运行；新增单测覆盖“写回行为不改变未变更文件”。

@@ -26,6 +26,10 @@ enum Command {
         #[arg(value_parser = ["sync", "check"])]
         mode: String,
 
+        /// 在 `check` 模式下自动写回不一致文件（只改动受影响文件）
+        #[arg(long)]
+        fix: bool,
+
         /// 规范文件路径（默认：`SCOOP_FULL_SPEC.md`）
         #[arg(long, default_value = "SCOOP_FULL_SPEC.md")]
         spec: PathBuf,
@@ -42,6 +46,7 @@ fn main() -> Result<()> {
     match args.command {
         Command::SpecFixtures {
             mode,
+            fix,
             spec,
             fixtures_root,
         } => {
@@ -51,7 +56,7 @@ fn main() -> Result<()> {
                 other => return Err(miette::miette!("未知 mode：{other}")),
             };
 
-            let report = spec_fixtures::run(mode, &spec, &fixtures_root)
+            let report = spec_fixtures::run(mode, fix, &spec, &fixtures_root)
                 .wrap_err("spec fixtures 处理失败")?;
 
             if report.is_empty() {
