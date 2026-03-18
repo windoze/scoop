@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::duplicate_definition
+// EXPECT-ERROR-AT: 7:7
+// EXPECT-ERROR: fixtures.resolve.Outer
+package fixtures.resolve
+
+class Outer {
+    class Inner
+}
+
+class Outer {}
+

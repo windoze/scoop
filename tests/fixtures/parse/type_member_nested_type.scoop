@@ -1,0 +1,29 @@
+// EXPECT: pass
+// EXPECT-AST: type_member_nested_type.ast
+// 目标：验证 type body 内的 nested type（class/interface/struct/enum/effect）会进入 AST。
+package fixtures.parse
+
+class Outer {
+    interface I {
+        fun f(): Int
+    }
+
+    struct S {
+        val x: Int
+    }
+
+    enum E {
+        A,
+        B
+    }
+
+    effect Eff {
+        fun raise(error: Int): Nothing
+    }
+
+    // 覆盖一个“无 body 的 nested type 且紧贴外层 `}`”的场景（避免吞掉外层 `}`）。
+    class Last(val value: Int)
+}
+
+fun main() {}
+

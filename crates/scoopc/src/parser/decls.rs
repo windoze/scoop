@@ -267,6 +267,12 @@ impl Parser {
         // header tail（继承/实现等）：消耗到 `{` 或下一个顶层 item 开始
         let mut last_end = name_tok.span.end.max(kind_kw.span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
+            // 注意：该函数既用于顶层，也用于 type body 内的 nested type。
+            // 在 nested 场景下，`}` 可能是外层 type body 的结束符，必须在此处停止，
+            // 否则会把外层 `}` 吞掉导致解析错位。
+            if self.peek_symbol(Symbol::RBrace) {
+                break;
+            }
             if self.is_top_level_item_start() {
                 break;
             }
@@ -312,8 +318,14 @@ impl Parser {
                 continue;
             }
 
-            // 当前阶段：type body 里除 `val/var` 以外的成员先粗暴跳过。
-            // 目标：保持括号平衡与 span 正确，让后续任务（T0203/T0204）可以增量补齐。
+            if self.is_type_decl_start() {
+                let decl = self.parse_type_decl()?;
+                members.push(ast::TypeMember::Type(decl));
+                continue;
+            }
+
+            // 当前阶段：type body 里除 `val/var` / `fun` / nested type 以外的成员先粗暴跳过。
+            // 目标：保持括号平衡与 span 正确，让后续任务可以增量补齐。
             self.skip_type_member_fallback();
         }
 

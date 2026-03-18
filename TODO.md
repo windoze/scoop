@@ -212,7 +212,7 @@
 - 验收：新增 parse fixture 覆盖成员函数；`scoop dump-ast` 输出包含成员列表。
 - 依赖：T0201
 
-### T0204 [TODO] Parser：解析类型体内的 nested type（class/interface/struct/enum/effect）
+### T0204 [DONE] Parser：解析类型体内的 nested type（class/interface/struct/enum/effect）
 - 描述：允许在类型体内声明嵌套类型，并保留 span。
 - 目标：仅做语法层嵌套，不做语义（inner/this 等）处理。
 - 验收：新增 parse fixture 覆盖嵌套类型与重复定义错误（先由 resolver 后续阶段处理也可）。
