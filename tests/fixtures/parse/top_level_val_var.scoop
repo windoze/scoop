@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：验证 parser 支持顶层 val/var 声明（initializer 暂不解析，仅跳过）。
+
+package fixtures.parse
+
+val x: Int = 1
+var y = x
+
+fun main() {}
+

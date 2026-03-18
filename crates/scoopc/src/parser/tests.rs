@@ -19,3 +19,12 @@ fn parse_type_decls() {
     assert_eq!(ast.items.len(), 4);
 }
 
+#[test]
+fn parse_top_level_val_var() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval x: Int = 1\nvar y = x\nfun main() {}",
+    );
+    let ast = parse_file(&src).unwrap();
+    assert_eq!(ast.items.len(), 3);
+}

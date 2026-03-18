@@ -32,6 +32,7 @@ pub struct ImportDecl {
 pub enum Item {
     Fun(FunDecl),
     Type(TypeDecl),
+    Val(ValDecl),
 }
 
 #[derive(Debug, Clone)]
@@ -76,6 +77,22 @@ pub struct Block {
 pub struct Param {
     pub name: Ident,
     pub ty: Option<TypeRef>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ValDecl {
+    pub span: Span,
+    pub kind: ValKind,
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+    /// 初始化表达式的源代码范围（当前阶段不解析表达式，只保留 span）。
+    pub init: Option<Span>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValKind {
+    Val,
+    Var,
 }
 
 #[derive(Debug, Clone)]

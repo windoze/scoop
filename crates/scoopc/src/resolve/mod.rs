@@ -34,6 +34,7 @@ pub enum ResolveError {
 pub enum SymbolKind {
     Fun,
     Type,
+    Value,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +70,9 @@ impl Index {
                 }
                 ast::Item::Type(ty) => {
                     self.insert_symbol(source, &pkg, SymbolKind::Type, ty.name.span)?;
+                }
+                ast::Item::Val(v) => {
+                    self.insert_symbol(source, &pkg, SymbolKind::Value, v.name.span)?;
                 }
             }
         }
@@ -137,4 +141,3 @@ mod tests {
         assert!(msg.contains("重复定义"));
     }
 }
-

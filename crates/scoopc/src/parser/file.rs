@@ -24,6 +24,10 @@ impl Parser {
                 items.push(ast::Item::Fun(self.parse_fun_decl()?));
                 continue;
             }
+            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+                items.push(ast::Item::Val(self.parse_val_decl()?));
+                continue;
+            }
             if self.is_type_decl_start() {
                 items.push(ast::Item::Type(self.parse_type_decl()?));
                 continue;

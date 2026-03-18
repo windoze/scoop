@@ -95,6 +95,99 @@ impl Parser {
         })
     }
 
+    pub(super) fn parse_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+        let kw = if self.peek_keyword(Keyword::Val) {
+            self.bump()
+        } else if self.peek_keyword(Keyword::Var) {
+            self.bump()
+        } else {
+            let tok = self.peek().clone();
+            return Err(ParseError::Expected {
+                expected: "`val` / `var`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let kind = match kw.kind {
+            TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
+            TokenKind::Keyword(Keyword::Var) => ast::ValKind::Var,
+            _ => unreachable!("kw 已经被 peek_keyword 过滤"),
+        };
+
+        let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+        let name = ast::Ident { span: name_tok.span };
+
+        let ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        let mut last_end = ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(name_tok.span.end);
+
+        let init = if self.eat_symbol(Symbol::Eq) {
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.is_top_level_item_start()
+            {
+                let tok = self.peek().clone();
+                return Err(ParseError::Expected {
+                    expected: "表达式（initializer）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let init_start = self.peek().span.start;
+
+            // 当前阶段不解析表达式：仅保证能“跳过 initializer”并继续解析后续顶层 item。
+            // 策略：在括号深度为 0 时，遇到 `;` 或下一个顶层 item 开始即停止。
+            let mut depth_paren = 0usize;
+            let mut depth_brace = 0usize;
+            let mut depth_bracket = 0usize;
+
+            while !self.peek_kind(TokenKind::Eof) {
+                if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                    if self.peek_symbol(Symbol::Semicolon) || self.is_top_level_item_start() {
+                        break;
+                    }
+                }
+
+                let tok = self.bump();
+                if let TokenKind::Symbol(sym) = tok.kind {
+                    match sym {
+                        Symbol::LParen => depth_paren += 1,
+                        Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                        Symbol::LBrace => depth_brace += 1,
+                        Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                        Symbol::LBracket => depth_bracket += 1,
+                        Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                        _ => {}
+                    }
+                }
+                last_end = tok.span.end;
+            }
+
+            Some(Span::new(init_start, last_end))
+        } else {
+            None
+        };
+
+        self.eat_symbol(Symbol::Semicolon);
+
+        Ok(ast::ValDecl {
+            span: Span::new(kw.span.start, last_end),
+            kind,
+            name,
+            ty,
+            init,
+        })
+    }
+
     pub(super) fn parse_param_list(&mut self) -> Result<(Span, Vec<ast::Param>), ParseError> {
         let open = self.expect_symbol(Symbol::LParen)?;
         let start = open.span.start;
@@ -209,4 +302,3 @@ impl Parser {
         Ok(parts)
     }
 }
-
