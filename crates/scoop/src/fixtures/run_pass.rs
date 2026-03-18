@@ -2,9 +2,11 @@
 //!
 //! 说明：
 //! - 本模块当前只落地“stdout golden 对比”与诊断类型（T0106a）
-//! - 真正的“编译 + 运行”由后续任务（T0106b / T0807）在 driver 侧接入
+//! - “执行外部命令并捕获 stdout”的接口由 T0106b1 提供
+//! - 真正的 `scoop run <fixture>` 接入与可执行 fixture 由后续任务（T0106b2 / T0807）完成
 
 use std::path::Path;
+use std::process::Command;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -34,6 +36,28 @@ struct RunStdoutReadFailed {
 #[diagnostic(code(scoop::fixtures::run_stdout_mismatch))]
 struct RunStdoutMismatch {
     path: String,
+    fixture: String,
+}
+
+// 说明：下面这组诊断与执行入口会在 T0106b2（接入 `scoop run`）中被 fixtures runner 调用。
+// 目前阶段仅提供“可单测的执行能力”，因此在非 test build 下暂时未被引用。
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法执行 run-pass 命令：{program}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_exec_failed))]
+struct RunExecFailed {
+    program: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Debug, Error, Diagnostic)]
+#[error("run-pass 命令退出码非 0：{status}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_exec_nonzero_exit))]
+struct RunExecNonZeroExit {
+    status: String,
     fixture: String,
 }
 
@@ -71,9 +95,42 @@ pub(crate) fn run_fixture_unimplemented(
 
     Err(super::box_diagnostic(RunPassUnimplemented {
         fixture: rel_fixture.display().to_string(),
-        reason: "需要先实现 `scoop run`（T0807），并在 fixtures runner 中接入真实执行（T0106b）"
+        reason: "需要先实现 `scoop run`（T0807），并在 fixtures runner 中接入真实执行（T0106b2）"
             .to_string(),
     }))
+}
+
+/// 执行一个外部命令来“运行”该 run-pass fixture，并断言 stdout 与 golden 一致。
+///
+/// 说明：
+/// - 该函数是 run-pass phase 的“真实执行接口”（T0106b1）；
+/// - 真正的 `scoop run <fixture>` 接入由后续任务（T0106b2/T0807）完成；
+/// - 当前阶段只做 stdout 捕获 + `RUN-STDOUT` golden 比对（不做 stderr/超时/退出码断言）。
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn run_fixture_command(
+    rel_fixture: &Path,
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+    mut cmd: Command,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let output = cmd.output().map_err(|e| {
+        super::box_diagnostic(RunExecFailed {
+            program: cmd.get_program().to_string_lossy().to_string(),
+            fixture: rel_fixture.display().to_string(),
+            source: e,
+        })
+    })?;
+
+    if !output.status.success() {
+        return Err(super::box_diagnostic(RunExecNonZeroExit {
+            status: output.status.to_string(),
+            fixture: rel_fixture.display().to_string(),
+        }));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_stdout_matches(fixture_path, exp, &stdout)?;
+    Ok(())
 }
 
 /// 断言 stdout 与 golden 文件一致（按 `RUN-STDOUT` 指令）。
@@ -164,6 +221,52 @@ mod tests {
         assert_eq!(
             err.code().unwrap().to_string(),
             "scoop::fixtures::run_stdout_mismatch"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_captures_stdout_and_compares_golden() {
+        let dir = make_temp_dir("run_fixture_command_captures_stdout_and_compares_golden");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("out.txt");
+
+        std::fs::write(&fixture_path, "// RUN-STDOUT: out.txt\nfun main() {}\n").unwrap();
+        std::fs::write(&golden_path, "hello\r\nworld\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("printf 'hello\\nworld\\n'");
+            cmd
+        };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_nonzero_exit_has_stable_code() {
+        let dir = make_temp_dir("run_fixture_command_nonzero_exit_has_stable_code");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(&fixture_path, "fun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("fun main() {}\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("exit 3");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exec_nonzero_exit"
         );
 
         std::fs::remove_dir_all(&dir).unwrap();

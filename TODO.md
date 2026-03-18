@@ -155,7 +155,7 @@
   - driver 层面的 `scoop run`（T0807）与 build/link/codegen pipeline
 - 目标：保证可单独实现 & 单独验证：先把 runner 的执行能力做出来，再接入 `scoop run` 并补一个真实可运行 fixture。
 
-### T0106b1 [TODO] run-pass fixtures：引入可注入的“进程执行器”（捕获 stdout）
+### T0106b1 [DONE] run-pass fixtures：引入可注入的“进程执行器”（捕获 stdout）
 - 描述：为 run-pass phase 引入执行接口：给定一个命令（后续由 `scoop run` 提供），运行并捕获 stdout，然后与 `RUN-STDOUT` golden 做比对。
 - 目标：只实现“执行外部命令 + 捕获 stdout + stdout golden 比对”；不实现真正编译 Scoop；不实现 stderr/超时/退出码断言。
 - 验收：新增单测：执行一个最小外部命令并通过 stdout golden 比对；`cargo test -p scoop` 通过。
