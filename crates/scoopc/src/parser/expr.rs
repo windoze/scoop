@@ -7,6 +7,7 @@
 //! - string literal
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
 //! - postfix 调用表达式（T0209）：`callee(args...)`
+//! - postfix 成员访问（T0210）：`receiver.member`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -19,7 +20,7 @@ use crate::syntax::token::{Symbol, TokenKind};
 use super::{ParseError, Parser};
 
 impl Parser {
-    /// 尝试解析一个“postfix 表达式”（当前仅支持函数调用）。
+    /// 尝试解析一个“postfix 表达式”（当前支持成员访问与函数调用）。
     ///
     /// - 起始处必须是原子表达式，否则返回 `Ok(None)` 且不消费 token。
     /// - 解析到原子表达式后，会尽可能多地消耗 postfix 后缀（例如连续调用）。
@@ -29,6 +30,10 @@ impl Parser {
         };
 
         loop {
+            if self.peek_symbol(Symbol::Dot) {
+                expr = self.parse_member_access_expr(expr)?;
+                continue;
+            }
             if self.peek_symbol(Symbol::LParen) {
                 expr = self.parse_call_expr(expr)?;
                 continue;
@@ -135,6 +140,21 @@ impl Parser {
             kind: ast::ExprKind::Call {
                 callee: Box::new(callee),
                 args,
+            },
+        })
+    }
+
+    fn parse_member_access_expr(&mut self, receiver: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let _dot = self.expect_symbol(Symbol::Dot)?;
+        let member_tok = self.expect_kind(TokenKind::Ident, "成员名（标识符）")?;
+
+        Ok(ast::Expr {
+            span: Span::new(receiver.span.start, member_tok.span.end),
+            kind: ast::ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: ast::Ident {
+                    span: member_tok.span,
+                },
             },
         })
     }

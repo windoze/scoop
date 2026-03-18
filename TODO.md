@@ -248,7 +248,7 @@
 - 验收：新增 parse fixture：`val x = f(1, 2)`；以及 `fun main(){ f() }`。
 - 依赖：T0206、T0207
 
-### T0210 [TODO] Parser：引入成员访问表达式（`.`）与链式组合
+### T0210 [DONE] Parser：引入成员访问表达式（`.`）与链式组合
 - 描述：支持 `a.b`、`a.b.c()` 这种 postfix 链。
 - 目标：只做语法树，不做名字解析；不处理 safe-call `?.`（如果 spec 需要可后续补）。
 - 验收：新增 parse fixture：`val x = a.b.c(1)`；并确保 span 覆盖整段表达式。

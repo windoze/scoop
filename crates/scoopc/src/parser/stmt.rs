@@ -4,7 +4,7 @@
 //! - 把块表达式 `{ ... }` 解析为 `ast::Block { stmts }`
 //! - 语句仅支持：
 //!   - 空语句：`;`
-//!   - 表达式语句：基于现有“postfix 表达式”解析（`try_parse_expr_postfix`，当前仅支持调用）
+//!   - 表达式语句：基于现有“postfix 表达式”解析（`try_parse_expr_postfix`，当前支持成员访问/调用）
 //! - 其它尚未实现的语句形态：以 `StmtKind::Missing` 占位，并尽量跳过到语句边界，
 //!   以保证 parser cursor 前进与括号平衡（避免把“未实现”误报为顶层语法错误）
 
@@ -69,7 +69,7 @@ impl Parser {
             });
         }
 
-        // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（原子 + postfix 调用），
+        // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（原子 + postfix），
         // 因此语句边界也就天然落在该表达式结束处。
         if let Some(expr) = self.try_parse_expr_postfix()? {
             let mut span = expr.span;

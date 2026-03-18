@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: member_access_chain.ast
+// 目标：验证成员访问表达式与 postfix 链式组合：`a.b.c(1)`。
+
+package fixtures.parse
+
+val x = a.b.c(1)
+

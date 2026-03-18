@@ -144,8 +144,8 @@ impl Parser {
             let init_start = self.peek().span.start;
             let expr = self.try_parse_expr_postfix()?;
 
-            // 若 initializer 只有一个“当前已支持的表达式子集”（原子 + postfix 调用），则直接使用解析结果；
-            // 否则（例如 `1 + 2` / `a.b` 等）保持兼容：吞掉剩余 token 并降级为 Missing，
+            // 若 initializer 只有一个“当前已支持的表达式子集”（原子 + postfix），则直接使用解析结果；
+            // 否则（例如 `1 + 2` 等）保持兼容：吞掉剩余 token 并降级为 Missing，
             // 避免把未实现的表达式解析变成“顶层语法错误”。
             if let Some(expr) = expr {
                 last_end = expr.span.end;

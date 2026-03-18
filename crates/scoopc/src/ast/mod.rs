@@ -122,6 +122,12 @@ pub enum ExprKind {
     IntLit,
     StringLit,
     Block(Block),
+    /// 成员访问表达式：`receiver.member`（postfix）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅建模普通 `.` 成员访问；
+    /// - safe-call（`?.`）会在后续任务中单独补齐。
+    MemberAccess { receiver: Box<Expr>, member: Ident },
     /// 调用表达式：`callee(args...)`（postfix）。
     ///
     /// 当前阶段（T0209）仅支持位置参数与逗号分隔参数列表；命名参数/trailing lambda 等语法后续再补齐。

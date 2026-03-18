@@ -78,6 +78,7 @@
    - [x] 块表达式 `{ ... }`：解析为 `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
    - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
+   - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [ ] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）
