@@ -200,7 +200,7 @@
 - 验收：新增 `tests/fixtures/parse/type_members_minimal.scoop` 覆盖 class/interface/struct/effect 的成员；`scoop test` 通过。
 - 依赖：T0009
 
-### T0202 [TODO] Parser：解析类型体内的 `val/var` 成员声明头
+### T0202 [DONE] Parser：解析类型体内的 `val/var` 成员声明头
 - 描述：在 type body 中解析 `val x: T`/`var x: T`，initializer 先保留 span。
 - 目标：不做 accessor、不做 delegated property、不做表达式解析。
 - 验收：parse fixture 覆盖成功/失败（缺少名字/缺少冒号等）；错误应给出 `scoop::parse::*` 错误码与准确位置。

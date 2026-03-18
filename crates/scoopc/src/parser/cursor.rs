@@ -142,6 +142,13 @@ impl Parser {
             )
         )
     }
+
+    pub(super) fn is_type_member_start(&self) -> bool {
+        self.peek_keyword(Keyword::Val)
+            || self.peek_keyword(Keyword::Var)
+            || self.peek_keyword(Keyword::Fun)
+            || self.is_type_decl_start()
+    }
 }
 
 fn kw_name(kw: Keyword) -> &'static str {

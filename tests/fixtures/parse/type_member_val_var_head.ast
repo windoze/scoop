@@ -1,0 +1,98 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 174..196,
+            path: [
+                Ident {
+                    span: 182..190,
+                },
+                Ident {
+                    span: 191..196,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 198..243,
+                kind: Class,
+                name: Ident {
+                    span: 204..205,
+                },
+                body: Some(
+                    TypeBody {
+                        span: 206..243,
+                        members: [
+                            Val(
+                                ValDecl {
+                                    span: 212..222,
+                                    kind: Val,
+                                    name: Ident {
+                                        span: 216..217,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 219..222,
+                                                segments: [
+                                                    Ident {
+                                                        span: 219..222,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: None,
+                                },
+                            ),
+                            Val(
+                                ValDecl {
+                                    span: 227..241,
+                                    kind: Var,
+                                    name: Ident {
+                                        span: 231..232,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 234..237,
+                                                segments: [
+                                                    Ident {
+                                                        span: 234..237,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: Some(
+                                        240..241,
+                                    ),
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 245..258,
+                name: Ident {
+                    span: 249..253,
+                },
+                params_span: 253..255,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 256..258,
+                    },
+                ),
+            },
+        ),
+    ],
+}

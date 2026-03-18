@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: type_member_val_var_head.ast
+// 目标：验证 type body 内的 `val/var` 成员声明头会进入 AST（initializer 暂仅保留 span）。
+
+package fixtures.parse
+
+class C {
+    val x: Int
+    var y: Int = x
+}
+
+fun main() {}
+

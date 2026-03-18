@@ -274,12 +274,9 @@ impl Parser {
         }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
-            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
-            last_end = span.end;
-            Some(ast::TypeBody {
-                span,
-                members: Vec::new(),
-            })
+            let body = self.parse_type_body()?;
+            last_end = body.span.end;
+            Some(body)
         } else {
             None
         };
@@ -290,6 +287,195 @@ impl Parser {
             name,
             body,
         })
+    }
+
+    fn parse_type_body(&mut self) -> Result<ast::TypeBody, ParseError> {
+        let open = self.expect_symbol(Symbol::LBrace)?;
+        let start = open.span.start;
+
+        let mut members = Vec::new();
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
+            // 允许多余的分号（例如 Kotlin 风格的 `;` 作为 member 分隔符）。
+            if self.eat_symbol(Symbol::Semicolon) {
+                continue;
+            }
+
+            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+                let decl = self.parse_type_member_val_decl()?;
+                members.push(ast::TypeMember::Val(decl));
+                continue;
+            }
+
+            // 当前阶段：type body 里除 `val/var` 以外的成员先粗暴跳过。
+            // 目标：保持括号平衡与 span 正确，让后续任务（T0203/T0204）可以增量补齐。
+            self.skip_type_member_fallback();
+        }
+
+        let close = self.expect_symbol(Symbol::RBrace)?;
+        Ok(ast::TypeBody {
+            span: Span::new(start, close.span.end),
+            members,
+        })
+    }
+
+    fn parse_type_member_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+        let kw = if self.peek_keyword(Keyword::Val) {
+            self.bump()
+        } else if self.peek_keyword(Keyword::Var) {
+            self.bump()
+        } else {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`val` / `var`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let kind = match kw.kind {
+            TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
+            TokenKind::Keyword(Keyword::Var) => ast::ValKind::Var,
+            _ => unreachable!("kw 已经被 peek_keyword 过滤"),
+        };
+
+        let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+        let name = ast::Ident { span: name_tok.span };
+
+        // `val x Int` / `val x (Int, Int)`：在 member 位置基本只能是“漏写冒号”。
+        // 提前给更贴近语法位置的错误，而不是等到下一轮循环在更远处报错。
+        if !self.peek_symbol(Symbol::Colon)
+            && (self.peek_kind(TokenKind::Ident) || self.peek_symbol(Symbol::LParen))
+        {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`:`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        let mut last_end = ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(name_tok.span.end);
+
+        let init = if self.eat_symbol(Symbol::Eq) {
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+            {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（initializer）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let init_start = self.peek().span.start;
+
+            // 当前阶段不解析表达式：仅保证能“跳过 initializer”并继续解析后续 member。
+            // 策略：在括号深度为 0 时，遇到 `;` / `}` / 下一个 member 开始即停止。
+            let mut depth_paren = 0usize;
+            let mut depth_brace = 0usize;
+            let mut depth_bracket = 0usize;
+
+            while !self.peek_kind(TokenKind::Eof) {
+                if depth_paren == 0
+                    && depth_brace == 0
+                    && depth_bracket == 0
+                    && (self.peek_symbol(Symbol::Semicolon)
+                        || self.peek_symbol(Symbol::RBrace)
+                        || self.is_type_member_start())
+                {
+                    break;
+                }
+
+                let tok = self.bump();
+                if let TokenKind::Symbol(sym) = tok.kind {
+                    match sym {
+                        Symbol::LParen => depth_paren += 1,
+                        Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                        Symbol::LBrace => depth_brace += 1,
+                        Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                        Symbol::LBracket => depth_bracket += 1,
+                        Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                        _ => {}
+                    }
+                }
+                last_end = tok.span.end;
+            }
+
+            Some(Span::new(init_start, last_end))
+        } else {
+            None
+        };
+
+        self.eat_symbol(Symbol::Semicolon);
+
+        Ok(ast::ValDecl {
+            span: Span::new(kw.span.start, last_end),
+            kind,
+            name,
+            ty,
+            init,
+        })
+    }
+
+    fn skip_type_member_fallback(&mut self) {
+        // 保证至少消耗一个 token，避免死循环。
+        if self.peek_kind(TokenKind::Eof) || self.peek_symbol(Symbol::RBrace) {
+            return;
+        }
+
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+
+        let first = self.bump();
+        if let TokenKind::Symbol(sym) = first.kind {
+            match sym {
+                Symbol::LParen => depth_paren += 1,
+                Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                Symbol::LBrace => depth_brace += 1,
+                Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                Symbol::LBracket => depth_bracket += 1,
+                Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                _ => {}
+            }
+        }
+
+        while !self.peek_kind(TokenKind::Eof) {
+            if depth_paren == 0
+                && depth_brace == 0
+                && depth_bracket == 0
+                && (self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_type_member_start())
+            {
+                break;
+            }
+
+            let tok = self.bump();
+            if let TokenKind::Symbol(sym) = tok.kind {
+                match sym {
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    _ => {}
+                }
+            }
+        }
     }
 
     pub(super) fn parse_dotted_path(&mut self) -> Result<Vec<ast::Ident>, ParseError> {

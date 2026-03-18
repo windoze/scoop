@@ -70,6 +70,9 @@
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
   - [x] 顶层 `val`/`var`：解析声明头；initializer 暂仅保留 span（不解析表达式）
   - [ ] 类型体内部成员声明：`val`/`var`/`fun`/nested type
+    - [x] `val`/`var` 成员声明头（type body）
+    - [ ] `fun` 成员声明头
+    - [ ] nested type 声明
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
 - [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）

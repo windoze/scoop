@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: `:`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:11
+
+package fixtures.parse
+
+class C {
+    val x Int
+}
+
