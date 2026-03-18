@@ -1,0 +1,124 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 144..166,
+            path: [
+                Ident {
+                    span: 152..160,
+                },
+                Ident {
+                    span: 161..166,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 168..246,
+                kind: Val,
+                name: Ident {
+                    span: 172..173,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 176..246,
+                        kind: When {
+                            subject: Expr {
+                                span: 182..188,
+                                kind: Ident(
+                                    Ident {
+                                        span: 182..188,
+                                    },
+                                ),
+                            },
+                            arms: [
+                                WhenArm {
+                                    span: 196..219,
+                                    pat: Is {
+                                        is_span: 196..198,
+                                        ty: Path(
+                                            TypePath {
+                                                span: 199..202,
+                                                segments: [
+                                                    Ident {
+                                                        span: 199..202,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    },
+                                    arrow_span: 203..205,
+                                    body: Expr {
+                                        span: 206..219,
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 206..217,
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 206..212,
+                                                        kind: Ident(
+                                                            Ident {
+                                                                span: 206..212,
+                                                            },
+                                                        ),
+                                                    },
+                                                    member: Ident {
+                                                        span: 213..217,
+                                                    },
+                                                },
+                                            },
+                                            args: [],
+                                        },
+                                    },
+                                },
+                                WhenArm {
+                                    span: 224..230,
+                                    pat: IntLit {
+                                        span: 224..225,
+                                    },
+                                    arrow_span: 226..228,
+                                    body: Expr {
+                                        span: 229..230,
+                                        kind: IntLit,
+                                    },
+                                },
+                                WhenArm {
+                                    span: 235..244,
+                                    pat: Else {
+                                        span: 235..239,
+                                    },
+                                    arrow_span: 240..242,
+                                    body: Expr {
+                                        span: 243..244,
+                                        kind: IntLit,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 248..261,
+                name: Ident {
+                    span: 252..256,
+                },
+                params_span: 256..258,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 259..261,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

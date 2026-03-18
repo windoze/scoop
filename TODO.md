@@ -278,10 +278,10 @@
 - 验收：新增 parse fixture：`val x = if (a) 1 else 2`；新增 parse-fail fixture：缺少 `)` 的错误恢复。
 - 依赖：T0205、T0207
 
-### T0215 [TODO] Parser：支持 `when` 表达式骨架（spec §4）
+### T0215 [DONE] Parser：支持 `when` 表达式骨架（spec §4）
 - 描述：解析 `when (expr) { ... }`，case 先支持：`is T`、`else`、常量字面量分支。
 - 目标：先不做穷尽性检查；pattern 的完整语义后续补。
-- 验收：新增 parse fixture：带 3 个分支的 when；再加 1 个 parse-fail fixture：缺少 `else` 时仍能解析（允许后续 typecheck 报错）。
+- 验收：新增 parse fixture：带 3 个分支的 when；再加 1 个 parse fixture：缺少 `else` 时仍能解析（穷尽性检查留给后续 typecheck）。
 - 依赖：T0214
 
 ### T0216 [TODO] Parser：值类型更新 `with` 表达式语法（spec §2.6）

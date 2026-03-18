@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: when_expr_missing_else.ast
+// 目标：缺少 `else` 时仍应能被 parser 接受（穷尽性检查留到 typecheck）。
+
+package fixtures.parse
+
+val y = when (n) {
+    0 -> 0
+    is Int -> 1
+}
+
+fun main() {}
+

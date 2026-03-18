@@ -13,6 +13,7 @@
 //! - Elvis（T0212）：`a ?: b`
 //! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
 //! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
+//! - `when` 表达式（T0215）：`when (expr) { ... }`（最小分支子集）
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -31,6 +32,15 @@ impl Parser {
     /// - 若能解析出表达式，则返回 `Ok(Some(expr))`。
     pub(super) fn try_parse_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         self.parse_expr_bp(0)
+    }
+
+    /// `when` 分支 body 的表达式解析（带 arm 边界规则）。
+    ///
+    /// 由于 lexer 不保留换行，`when { ... }` 的 arm 列表需要依靠 token 形态推断边界：
+    /// - 若看到 `is <TypeRef> ->`，优先将其解释为“下一个 arm 的 pattern 起始”，
+    ///   而不是把 `is` 当成当前表达式的中缀类型判断运算符。
+    fn try_parse_expr_in_when_arm(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        self.parse_expr_bp_in_when_arm(0)
     }
 
     /// 尝试解析一个“postfix 表达式”（当前支持成员访问与函数调用）。
@@ -81,6 +91,74 @@ impl Parser {
             match infix.kind {
                 InfixOpKind::Binary(op) => {
                     let Some(rhs) = self.parse_expr_bp(infix.r_bp)? else {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "表达式（右操作数）",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    };
+
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, rhs.span.end),
+                        kind: ast::ExprKind::Binary {
+                            lhs: Box::new(lhs),
+                            op,
+                            op_span,
+                            rhs: Box::new(rhs),
+                        },
+                    };
+                }
+                InfixOpKind::TypeCheck(op) => {
+                    let ty = self.parse_type_ref()?;
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, ty.span().end),
+                        kind: ast::ExprKind::TypeCheck {
+                            expr: Box::new(lhs),
+                            op,
+                            op_span,
+                            ty,
+                        },
+                    };
+                }
+                InfixOpKind::Cast(op) => {
+                    let ty = self.parse_type_ref()?;
+                    lhs = ast::Expr {
+                        span: Span::new(lhs.span.start, ty.span().end),
+                        kind: ast::ExprKind::Cast {
+                            expr: Box::new(lhs),
+                            op,
+                            op_span,
+                            ty,
+                        },
+                    };
+                }
+            }
+        }
+
+        Ok(Some(lhs))
+    }
+
+    fn parse_expr_bp_in_when_arm(&mut self, min_bp: u8) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(mut lhs) = self.try_parse_expr_postfix()? else {
+            return Ok(None);
+        };
+
+        loop {
+            let infix = match self.peek_infix_op_in_when_arm() {
+                Some(x) => x,
+                None => break,
+            };
+
+            if infix.l_bp < min_bp {
+                break;
+            }
+
+            let op_span = self.bump_infix_op_span(infix.consume);
+
+            match infix.kind {
+                InfixOpKind::Binary(op) => {
+                    let Some(rhs) = self.parse_expr_bp_in_when_arm(infix.r_bp)? else {
                         let tok = *self.peek();
                         return Err(ParseError::Expected {
                             expected: "表达式（右操作数）",
@@ -183,6 +261,66 @@ impl Parser {
         })
     }
 
+    fn peek_infix_op_in_when_arm(&self) -> Option<InfixOp> {
+        // 1) `!is`（两个 token）：`!` + `is`
+        if self.peek_symbol(Symbol::Bang) && self.peek_n(1).kind == TokenKind::Keyword(Keyword::Is)
+        {
+            return Some(InfixOp {
+                l_bp: 8,
+                r_bp: 9,
+                consume: 2,
+                kind: InfixOpKind::TypeCheck(ast::TypeCheckOp::NotIs),
+            });
+        }
+
+        // 2) 单 token 的 keyword 运算符：`is` / `as` / `as?`
+        if let TokenKind::Keyword(kw) = self.peek().kind {
+            if kw == Keyword::Is && self.looks_like_when_is_arm_start() {
+                return None;
+            }
+
+            let kind = match kw {
+                Keyword::Is => InfixOpKind::TypeCheck(ast::TypeCheckOp::Is),
+                Keyword::As => InfixOpKind::Cast(ast::CastOp::As),
+                Keyword::AsQ => InfixOpKind::Cast(ast::CastOp::AsQ),
+                _ => return None,
+            };
+            return Some(InfixOp {
+                l_bp: 8,
+                r_bp: 9,
+                consume: 1,
+                kind,
+            });
+        }
+
+        // 3) 普通 symbol 二元运算符
+        let TokenKind::Symbol(sym) = self.peek().kind else {
+            return None;
+        };
+        let (l_bp, r_bp, op) = binary_binding_power(sym)?;
+        Some(InfixOp {
+            l_bp,
+            r_bp,
+            consume: 1,
+            kind: InfixOpKind::Binary(op),
+        })
+    }
+
+    fn looks_like_when_is_arm_start(&self) -> bool {
+        if self.peek().kind != TokenKind::Keyword(Keyword::Is) {
+            return false;
+        }
+
+        let Some(end) = scan_type_ref_end(&self.tokens, self.i + 1) else {
+            return false;
+        };
+
+        self.tokens
+            .get(end)
+            .map(|t| t.kind == TokenKind::Symbol(Symbol::Arrow))
+            .unwrap_or(false)
+    }
+
     /// 尝试解析一个“原子表达式”。
     ///
     /// - 若当前位置不是原子表达式的起始 token，则返回 `Ok(None)`，并且不消费任何 token。
@@ -217,6 +355,10 @@ impl Parser {
 
         if self.peek_keyword(Keyword::If) {
             return Ok(Some(self.parse_if_expr()?));
+        }
+
+        if self.peek_keyword(Keyword::When) {
+            return Ok(Some(self.parse_when_expr()?));
         }
 
         if self.peek_symbol(Symbol::LBrace) {
@@ -282,6 +424,108 @@ impl Parser {
                 then_branch: Box::new(then_branch),
                 else_branch,
             },
+        })
+    }
+
+    fn parse_when_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let when_kw = self.expect_keyword(Keyword::When)?;
+        let start = when_kw.span.start;
+
+        let open_paren = self.expect_symbol(Symbol::LParen)?;
+
+        let tok = *self.peek();
+        let subject = self.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（when subject）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open_paren.span.start, self.peek().span.end).into(),
+            });
+        }
+        self.expect_symbol(Symbol::RParen)?;
+
+        let open_brace = self.expect_symbol(Symbol::LBrace)?;
+        let mut arms = Vec::new();
+
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
+            // 允许多余的 `;`（类似 block 内的空语句）
+            while self.eat_symbol(Symbol::Semicolon) {}
+            if self.peek_symbol(Symbol::RBrace) {
+                break;
+            }
+
+            let pat = self.parse_when_pat()?;
+            let pat_span = pat.span();
+            let arrow = self.expect_symbol(Symbol::Arrow)?;
+
+            let tok = *self.peek();
+            let body = self.try_parse_expr_in_when_arm()?.ok_or(ParseError::Expected {
+                expected: "表达式（when 分支 body）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+
+            arms.push(ast::WhenArm {
+                span: Span::new(pat_span.start, body.span.end),
+                pat,
+                arrow_span: arrow.span,
+                body,
+            });
+
+            while self.eat_symbol(Symbol::Semicolon) {}
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RBrace,
+                span: Span::new(open_brace.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close_brace = self.expect_symbol(Symbol::RBrace)?;
+
+        Ok(ast::Expr {
+            span: Span::new(start, close_brace.span.end),
+            kind: ast::ExprKind::When {
+                subject: Box::new(subject),
+                arms,
+            },
+        })
+    }
+
+    fn parse_when_pat(&mut self) -> Result<ast::WhenPat, ParseError> {
+        if self.peek_keyword(Keyword::Else) {
+            let tok = self.bump();
+            return Ok(ast::WhenPat::Else { span: tok.span });
+        }
+
+        if self.peek_keyword(Keyword::Is) {
+            let is_tok = self.bump();
+            let ty = self.parse_type_ref()?;
+            return Ok(ast::WhenPat::Is {
+                is_span: is_tok.span,
+                ty,
+            });
+        }
+
+        if self.peek_kind(TokenKind::IntLiteral) {
+            let tok = self.bump();
+            return Ok(ast::WhenPat::IntLit { span: tok.span });
+        }
+
+        if matches!(self.peek().kind, TokenKind::StringLiteral(_)) {
+            let tok = self.bump();
+            return Ok(ast::WhenPat::StringLit { span: tok.span });
+        }
+
+        let tok = *self.peek();
+        Err(ParseError::Expected {
+            expected: "when 分支模式（`else` / `is T` / 字面量）",
+            found: tok.kind,
+            span: tok.span.into(),
         })
     }
 
@@ -422,6 +666,115 @@ impl Parser {
             span: Span::new(start, self.peek().span.end).into(),
         })
     }
+}
+
+fn scan_type_ref_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+    scan_type_ref_end_inner(tokens, start).map(|mut i| {
+        if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Question)) {
+            i += 1;
+        }
+        i
+    })
+}
+
+fn scan_type_ref_end_inner(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+    match kind_at(tokens, start) {
+        TokenKind::Symbol(Symbol::LParen) => scan_tuple_or_group_type_end(tokens, start),
+        _ => scan_path_type_end(tokens, start),
+    }
+}
+
+fn scan_tuple_or_group_type_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+    if !matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::LParen)) {
+        return None;
+    }
+
+    let mut i = start + 1;
+    if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen)) {
+        return Some(i + 1);
+    }
+
+    i = scan_type_ref_end(tokens, i)?;
+
+    if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
+        i += 1;
+        while !matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen) | TokenKind::Eof) {
+            i = scan_type_ref_end(tokens, i)?;
+            if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
+                i += 1;
+                // allow trailing comma
+                if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen)) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+        if !matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen)) {
+            return None;
+        }
+        return Some(i + 1);
+    }
+
+    if !matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::RParen)) {
+        return None;
+    }
+    Some(i + 1)
+}
+
+fn scan_path_type_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+    if !matches!(kind_at(tokens, start), TokenKind::Ident) {
+        return None;
+    }
+
+    let mut i = start + 1;
+    while matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Dot)) {
+        i += 1;
+        if !matches!(kind_at(tokens, i), TokenKind::Ident) {
+            return None;
+        }
+        i += 1;
+    }
+
+    if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Lt)) {
+        i = scan_type_args_end(tokens, i)?;
+    }
+
+    Some(i)
+}
+
+fn scan_type_args_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
+    if !matches!(kind_at(tokens, start), TokenKind::Symbol(Symbol::Lt)) {
+        return None;
+    }
+
+    let mut i = start + 1;
+
+    if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Gt)) {
+        return Some(i + 1);
+    }
+
+    loop {
+        i = scan_type_ref_end(tokens, i)?;
+        if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Comma)) {
+            i += 1;
+            if matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Gt)) {
+                break;
+            }
+            continue;
+        }
+        break;
+    }
+
+    if !matches!(kind_at(tokens, i), TokenKind::Symbol(Symbol::Gt)) {
+        return None;
+    }
+
+    Some(i + 1)
+}
+
+fn kind_at(tokens: &[crate::syntax::token::Token], i: usize) -> TokenKind {
+    tokens.get(i).map(|t| t.kind).unwrap_or(TokenKind::Eof)
 }
 
 #[derive(Debug, Clone, Copy)]

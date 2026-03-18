@@ -186,6 +186,18 @@ pub enum ExprKind {
         then_branch: Box<Expr>,
         else_branch: Option<Box<Expr>>,
     },
+    /// `when (subject) { pat -> expr; ... }`（表达式形式）。
+    ///
+    /// 当前阶段（T0215）仅支持 very small pattern 子集：
+    /// - `is Type`
+    /// - `else`
+    /// - 常量字面量（int/string）
+    ///
+    /// 穷尽性检查与完整 pattern 语义留到后续 typecheck 阶段实现（spec §4）。
+    When {
+        subject: Box<Expr>,
+        arms: Vec<WhenArm>,
+    },
     /// 成员访问表达式：`receiver.member`（postfix）。
     ///
     /// 说明：
@@ -246,6 +258,35 @@ impl Expr {
         Self {
             span,
             kind: ExprKind::Missing,
+        }
+    }
+}
+
+/// `when` 的一个分支（arm）：`pat -> body`。
+#[derive(Debug, Clone)]
+pub struct WhenArm {
+    pub span: Span,
+    pub pat: WhenPat,
+    pub arrow_span: Span,
+    pub body: Expr,
+}
+
+/// `when` 分支的模式（早期最小子集）。
+#[derive(Debug, Clone)]
+pub enum WhenPat {
+    Else { span: Span },
+    Is { is_span: Span, ty: TypeRef },
+    IntLit { span: Span },
+    StringLit { span: Span },
+}
+
+impl WhenPat {
+    pub fn span(&self) -> Span {
+        match self {
+            WhenPat::Else { span } => *span,
+            WhenPat::Is { is_span, ty } => Span::new(is_span.start, ty.span().end),
+            WhenPat::IntLit { span } => *span,
+            WhenPat::StringLit { span } => *span,
         }
     }
 }

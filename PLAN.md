@@ -83,6 +83,7 @@
    - [x] Elvis：`a ?: b`（低优先级二元，右结合）
    - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）
    - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
+   - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
 - [ ] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [x] 运算符优先级（Pratt 或 precedence climbing）
 - [ ] 关键歧义：struct literal vs lambda（对应 spec §12）

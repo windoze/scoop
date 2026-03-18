@@ -1,0 +1,14 @@
+// EXPECT: pass
+// EXPECT-AST: when_expr_basic.ast
+// 目标：验证 `when` 表达式骨架：`when (expr) { ... }`（is/字面量/else）。
+
+package fixtures.parse
+
+val x = when (animal) {
+    is Dog -> animal.bark()
+    0 -> 0
+    else -> 1
+}
+
+fun main() {}
+
