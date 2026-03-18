@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：验证 resolve 阶段能解析 sysroot 类型（import star）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+fun f(x: Option<Any>): Any {}
+

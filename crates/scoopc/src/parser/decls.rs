@@ -21,26 +21,25 @@ impl Parser {
 
     pub(super) fn parse_import_decl(&mut self) -> Result<ast::ImportDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Import)?;
-        let path = self.parse_dotted_path()?;
+        let first = self.expect_kind(TokenKind::Ident, "标识符")?;
+        let mut path = vec![ast::Ident { span: first.span }];
         let mut has_star = false;
-        let mut end = path.last().map(|i| i.span.end).unwrap_or(kw.span.end);
+        let mut end = first.span.end;
 
-        if self.peek_symbol(Symbol::Dot) {
-            // 可能是 `import a.b.*`
-            let dot_tok = self.bump();
+        while self.peek_symbol(Symbol::Dot) {
+            self.bump(); // '.'
+
+            // `import a.b.*`：`*` 不进入 path，但 span 覆盖到 `*`
             if self.peek_symbol(Symbol::Star) {
-                let star_tok = self.bump();
+                let star = self.bump();
                 has_star = true;
-                end = star_tok.span.end;
-                // dot 不进入 path，但 span 需要覆盖
-                let _ = dot_tok;
-            } else {
-                return Err(ParseError::Expected {
-                    expected: "`*`（import star）",
-                    found: self.peek().kind,
-                    span: self.peek().span.into(),
-                });
+                end = star.span.end;
+                break;
             }
+
+            let seg = self.expect_kind(TokenKind::Ident, "标识符")?;
+            end = seg.span.end;
+            path.push(ast::Ident { span: seg.span });
         }
 
         self.eat_symbol(Symbol::Semicolon);

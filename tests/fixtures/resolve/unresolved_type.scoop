@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的类型
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 9:10
+// 目标：验证 resolve 阶段能在缺失符号时报错，并提供稳定错误码/位置。
+
+package fixtures.resolve
+
+fun f(x: Missing) {}

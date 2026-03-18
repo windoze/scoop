@@ -91,7 +91,7 @@
 
 ### 3.1 包系统（Cone 的源级部分）
 
-- [ ] `package` 声明、`import`、通配 `*`
+- [x] `package` 声明、`import`、通配 `*`（已支持解析 + 最小名字绑定：TypeRef 按 import/star import 解析）
 - [ ] 可见性：`public/internal/private`
 - [ ] 作用域：文件级、块级、类/接口/结构体内部、泛型参数作用域
 
@@ -101,7 +101,7 @@
 - [ ] 两阶段/多阶段解析：
   - 先收集声明头（type/function/field signatures）
   - 再解析函数体与初始化表达式
-- [ ] import 解析与名字绑定（逐步补齐）
+- [x] import 解析与名字绑定（最小子集）：对 fun/val 顶层签名里的 `TypeRef::Path` 做存在性解析（含 star import）
 - [ ] 作用域：块级/类型体/泛型参数/扩展 receiver（逐步补齐）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
 
