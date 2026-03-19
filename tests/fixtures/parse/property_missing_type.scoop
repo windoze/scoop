@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR: `:`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 11:9
+// 目标：spec §10.1：当前阶段 type body 属性要求显式类型（缺失 `: Type` 时在 accessor 处报错）。
+
+package fixtures.parse
+
+class C {
+    val x
+        get() = 1
+}

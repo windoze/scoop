@@ -1,0 +1,91 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 140..162,
+            path: [
+                Ident {
+                    span: 148..156,
+                },
+                Ident {
+                    span: 157..162,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 164..208,
+                kind: Class,
+                name: Ident {
+                    span: 170..171,
+                },
+                type_params: [],
+                body: Some(
+                    TypeBody {
+                        span: 172..208,
+                        members: [
+                            Property(
+                                PropertyDecl {
+                                    span: 178..206,
+                                    kind: Val,
+                                    name: Ident {
+                                        span: 182..183,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 185..188,
+                                                segments: [
+                                                    Ident {
+                                                        span: 185..188,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: None,
+                                    getter: Some(
+                                        AccessorDecl {
+                                            span: 197..206,
+                                            kind: Get,
+                                            param: None,
+                                            body: Expr(
+                                                Expr {
+                                                    span: 205..206,
+                                                    kind: IntLit,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    setter: None,
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 210..223,
+                receiver: None,
+                name: Ident {
+                    span: 214..218,
+                },
+                type_params: [],
+                params_span: 218..220,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 221..223,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

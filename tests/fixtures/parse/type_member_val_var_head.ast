@@ -26,8 +26,8 @@ File {
                     TypeBody {
                         span: 206..243,
                         members: [
-                            Val(
-                                ValDecl {
+                            Property(
+                                PropertyDecl {
                                     span: 212..222,
                                     kind: Val,
                                     name: Ident {
@@ -47,10 +47,12 @@ File {
                                         ),
                                     ),
                                     init: None,
+                                    getter: None,
+                                    setter: None,
                                 },
                             ),
-                            Val(
-                                ValDecl {
+                            Property(
+                                PropertyDecl {
                                     span: 227..241,
                                     kind: Var,
                                     name: Ident {
@@ -72,9 +74,15 @@ File {
                                     init: Some(
                                         Expr {
                                             span: 240..241,
-                                            kind: Missing,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 240..241,
+                                                },
+                                            ),
                                         },
                                     ),
+                                    getter: None,
+                                    setter: None,
                                 },
                             ),
                         ],

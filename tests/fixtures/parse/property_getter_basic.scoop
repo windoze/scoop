@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: property_getter_basic.ast
+// 目标：spec §10.1：class 属性支持自定义 getter（get() = expr）。
+
+package fixtures.parse
+
+class C {
+    val x: Int
+        get() = 1
+}
+
+fun main() {}
+

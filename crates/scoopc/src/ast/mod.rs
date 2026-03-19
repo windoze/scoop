@@ -74,9 +74,54 @@ pub struct TypeBody {
 /// 类型体中的成员声明（最小骨架）。
 #[derive(Debug, Clone)]
 pub enum TypeMember {
-    Val(ValDecl),
+    Property(PropertyDecl),
     Fun(FunDecl),
     Type(TypeDecl),
+}
+
+/// 属性声明（spec §10.1）。
+///
+/// 当前阶段（T0234）仅用于 type body 内（class/interface/struct/enum/effect）的成员；
+/// 顶层/局部 `val/var` 仍使用 `ValDecl`。
+#[derive(Debug, Clone)]
+pub struct PropertyDecl {
+    pub span: Span,
+    pub kind: ValKind,
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+    /// 属性初始化表达式（例如 `var x: Int = 1`）。
+    ///
+    /// 注意：属性也可以是“纯计算属性”（无 backing field），此时 `init` 可能为 None。
+    pub init: Option<Expr>,
+    /// 自定义 getter（`get()`）。
+    pub getter: Option<AccessorDecl>,
+    /// 自定义 setter（`set(value)`）。
+    pub setter: Option<AccessorDecl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessorKind {
+    Get,
+    Set,
+}
+
+/// 属性 accessor 声明：`get()` / `set(value)`。
+#[derive(Debug, Clone)]
+pub struct AccessorDecl {
+    pub span: Span,
+    pub kind: AccessorKind,
+    /// setter 的参数名（getter 为 None）。
+    pub param: Option<Ident>,
+    pub body: AccessorBody,
+}
+
+#[derive(Debug, Clone)]
+pub enum AccessorBody {
+    /// `{ ... }`
+    Block(Block),
+    /// `= expr`
+    Expr(Expr),
+    Missing,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

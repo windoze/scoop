@@ -73,7 +73,7 @@
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
   - [x] 顶层 `val`/`var`：解析声明头；initializer 支持原子表达式（ident/int/string/括号分组），更复杂表达式暂以 `Expr(Missing)` 占位并跳过
   - [ ] 类型体内部成员声明：`val`/`var`/`fun`/nested type
-    - [x] `val`/`var` 成员声明头（type body）
+    - [x] 属性（`val`/`var`）成员：支持 `: Type` + initializer；支持 accessors：`get()` / `set(value)`（`= expr` / `{ ... }`）
     - [x] `fun` 成员声明头
     - [x] nested type 声明
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
@@ -198,6 +198,7 @@
 
 ### 4.7 属性系统（spec §10）
 
+- [x] 语法解析：属性声明 + accessors（`get()` / `set(value)`，支持 `= expr` / `{ ... }`）
 - [ ] 类属性：
   - 默认 getter/setter（生成 backing field）
   - 自定义 accessor + `field` 关键字规则

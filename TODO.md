@@ -392,7 +392,7 @@
 - 验收：新增 parse fixture：`fun Any.id(): Any { this }`（按语言关键字）；AST 中 receiver 可见。
 - 依赖：T0218
 
-### T0234 [TODO] AST+Parser：属性声明与 accessors（spec §10.1）
+### T0234 [DONE] AST+Parser：属性声明与 accessors（spec §10.1）
 - 描述：在 type body 中支持 `val/var name: T`，以及可选 `get()`/`set(value)` accessor（body 可为 block 或 `= expr`）。
 - 目标：先只解析 class 的属性；value type 的限制交给 typecheck。
 - 验收：新增 parse fixture：最小 property + getter；property 缺少类型时的错误策略明确。

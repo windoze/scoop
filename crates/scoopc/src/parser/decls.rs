@@ -578,8 +578,8 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
-                match self.parse_type_member_val_decl() {
-                    Ok(decl) => members.push(ast::TypeMember::Val(decl)),
+                match self.parse_type_member_property_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Property(decl)),
                     Err(e) => {
                         // T0220：type body 内错误恢复：
                         // 记录诊断并跳过到下一个 member 起始/分隔符。
@@ -624,7 +624,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_type_member_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+    fn parse_type_member_property_decl(&mut self) -> Result<ast::PropertyDecl, ParseError> {
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
         } else if self.peek_keyword(Keyword::Var) {
@@ -649,11 +649,10 @@ impl<'a> Parser<'a> {
             span: name_tok.span,
         };
 
-        // `val x Int` / `val x (Int, Int)`：在 member 位置基本只能是“漏写冒号”。
-        // 提前给更贴近语法位置的错误，而不是等到下一轮循环在更远处报错。
-        if !self.peek_symbol(Symbol::Colon)
-            && (self.peek_kind(TokenKind::Ident) || self.peek_symbol(Symbol::LParen))
-        {
+        // spec §10.1：属性声明在无 initializer 时必须显式标注类型；
+        // 为避免把 `val x` 解析成“无类型属性并继续吞掉 accessors”，当前阶段（T0234）
+        // 直接要求 type body 内的属性具备 `: Type`（即使将来允许类型推断，也可在 parser 层放宽）。
+        if !self.peek_symbol(Symbol::Colon) {
             let tok = *self.peek();
             return Err(ParseError::Expected {
                 expected: "`:`",
@@ -662,11 +661,10 @@ impl<'a> Parser<'a> {
             });
         }
 
-        let ty = if self.eat_symbol(Symbol::Colon) {
-            Some(self.parse_type_ref()?)
-        } else {
-            None
-        };
+        let ty = Some({
+            self.bump(); // ':'
+            self.parse_type_ref()?
+        });
 
         let mut last_end = ty
             .as_ref()
@@ -678,6 +676,7 @@ impl<'a> Parser<'a> {
                 || self.peek_symbol(Symbol::Semicolon)
                 || self.peek_symbol(Symbol::RBrace)
                 || self.is_type_member_start()
+                || self.is_property_accessor_start()
             {
                 let tok = *self.peek();
                 return Err(ParseError::Expected {
@@ -688,53 +687,236 @@ impl<'a> Parser<'a> {
             }
 
             let init_start = self.peek().span.start;
+            let expr = self.try_parse_expr()?;
 
-            // 当前阶段不解析表达式：仅保证能“跳过 initializer”并继续解析后续 member。
-            // 策略：在括号深度为 0 时，遇到 `;` / `}` / 下一个 member 开始即停止。
-            let mut depth_paren = 0usize;
-            let mut depth_brace = 0usize;
-            let mut depth_bracket = 0usize;
-
-            while !self.peek_kind(TokenKind::Eof) {
-                if depth_paren == 0
-                    && depth_brace == 0
-                    && depth_bracket == 0
-                    && (self.peek_symbol(Symbol::Semicolon)
-                        || self.peek_symbol(Symbol::RBrace)
-                        || self.is_type_member_start())
+            if let Some(expr) = expr {
+                last_end = expr.span.end;
+                if self.peek_kind(TokenKind::Eof)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_type_member_start()
+                    || self.is_property_accessor_start()
                 {
-                    break;
+                    Some(expr)
+                } else {
+                    // 继续跳过 initializer 的剩余部分，直到 `;` / `}` / 下一个 member / accessor 起始。
+                    let span =
+                        self.skip_until_type_member_or_accessor_boundary(init_start, last_end);
+                    last_end = span.end;
+                    Some(ast::Expr::missing(span))
                 }
-
-                let tok = self.bump();
-                if let TokenKind::Symbol(sym) = tok.kind {
-                    match sym {
-                        Symbol::LParen => depth_paren += 1,
-                        Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
-                        Symbol::LBrace => depth_brace += 1,
-                        Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
-                        Symbol::LBracket => depth_bracket += 1,
-                        Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
-                        _ => {}
-                    }
-                }
-                last_end = tok.span.end;
+            } else {
+                // initializer 不是当前表达式子集的起始 token。
+                let span = self.skip_until_type_member_or_accessor_boundary(init_start, last_end);
+                last_end = span.end;
+                Some(ast::Expr::missing(span))
             }
-
-            Some(ast::Expr::missing(Span::new(init_start, last_end)))
         } else {
             None
         };
 
+        // accessors：`get()` / `set(value)`
+        let mut getter = None;
+        let mut setter = None;
+        while self.is_property_accessor_start() {
+            let acc = self.parse_property_accessor_decl()?;
+            last_end = last_end.max(acc.span.end);
+            match acc.kind {
+                ast::AccessorKind::Get => getter = Some(acc),
+                ast::AccessorKind::Set => setter = Some(acc),
+            }
+        }
+
         self.eat_symbol(Symbol::Semicolon);
 
-        Ok(ast::ValDecl {
+        Ok(ast::PropertyDecl {
             span: Span::new(kw.span.start, last_end),
             kind,
             name,
             ty,
             init,
+            getter,
+            setter,
         })
+    }
+
+    fn is_property_accessor_start(&self) -> bool {
+        if !self.peek_kind(TokenKind::Ident) || !self.peek_symbol_n(1, Symbol::LParen) {
+            return false;
+        }
+
+        let tok = self.peek();
+        let Some(name) = self.source_text.get(tok.span.start..tok.span.end) else {
+            return false;
+        };
+
+        match name {
+            // get() (= expr | { ... })
+            "get" => {
+                self.peek_symbol_n(2, Symbol::RParen)
+                    && matches!(
+                        self.peek_n(3).kind,
+                        TokenKind::Symbol(Symbol::Eq | Symbol::LBrace)
+                    )
+            }
+            // set(value) (= expr | { ... })
+            "set" => {
+                self.peek_kind_n(2, TokenKind::Ident)
+                    && self.peek_symbol_n(3, Symbol::RParen)
+                    && matches!(
+                        self.peek_n(4).kind,
+                        TokenKind::Symbol(Symbol::Eq | Symbol::LBrace)
+                    )
+            }
+            _ => false,
+        }
+    }
+
+    fn peek_symbol_n(&self, n: usize, sym: Symbol) -> bool {
+        self.peek_n(n).kind == TokenKind::Symbol(sym)
+    }
+
+    fn peek_kind_n(&self, n: usize, kind: TokenKind) -> bool {
+        self.peek_n(n).kind == kind
+    }
+
+    fn parse_property_accessor_decl(&mut self) -> Result<ast::AccessorDecl, ParseError> {
+        let name_tok = self.expect_kind(TokenKind::Ident, "accessor 名称（get/set）")?;
+        let start = name_tok.span.start;
+        let kind = match self.source_text.get(name_tok.span.start..name_tok.span.end) {
+            Some("get") => ast::AccessorKind::Get,
+            Some("set") => ast::AccessorKind::Set,
+            _ => {
+                return Err(ParseError::Expected {
+                    expected: "`get` / `set`",
+                    found: TokenKind::Ident,
+                    span: name_tok.span.into(),
+                });
+            }
+        };
+
+        self.expect_symbol(Symbol::LParen)?;
+
+        let param = if kind == ast::AccessorKind::Set {
+            let tok = self.expect_kind(TokenKind::Ident, "setter 参数名（标识符）")?;
+            let ident = ast::Ident { span: tok.span };
+            // 可选 `: Type`（未来补齐；当前先消费但不进入 AST）。
+            if self.eat_symbol(Symbol::Colon) {
+                let _ = self.parse_type_ref()?;
+            }
+            Some(ident)
+        } else {
+            // getter: `get()`
+            if !self.peek_symbol(Symbol::RParen) {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "`)`",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+            None
+        };
+
+        let close = self.expect_symbol(Symbol::RParen)?;
+        let mut last_end = close.span.end;
+
+        let body = if self.eat_symbol(Symbol::Eq) {
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+                || self.is_property_accessor_start()
+            {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（accessor body）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let expr_start = self.peek().span.start;
+            let expr = self.try_parse_expr()?;
+
+            if let Some(expr) = expr {
+                last_end = expr.span.end;
+                if self.peek_kind(TokenKind::Eof)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_type_member_start()
+                    || self.is_property_accessor_start()
+                {
+                    ast::AccessorBody::Expr(expr)
+                } else {
+                    let span =
+                        self.skip_until_type_member_or_accessor_boundary(expr_start, last_end);
+                    last_end = span.end;
+                    ast::AccessorBody::Expr(ast::Expr::missing(span))
+                }
+            } else {
+                let span = self.skip_until_type_member_or_accessor_boundary(expr_start, last_end);
+                last_end = span.end;
+                ast::AccessorBody::Expr(ast::Expr::missing(span))
+            }
+        } else if self.peek_symbol(Symbol::LBrace) {
+            let block = self.parse_block()?;
+            last_end = block.span.end;
+            ast::AccessorBody::Block(block)
+        } else {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`=` 或 `{ ... }`（accessor body）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        Ok(ast::AccessorDecl {
+            span: Span::new(start, last_end),
+            kind,
+            param,
+            body,
+        })
+    }
+
+    fn skip_until_type_member_or_accessor_boundary(
+        &mut self,
+        start: usize,
+        mut last_end: usize,
+    ) -> Span {
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+
+        while !self.peek_kind(TokenKind::Eof) {
+            if depth_paren == 0
+                && depth_brace == 0
+                && depth_bracket == 0
+                && (self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_type_member_start()
+                    || self.is_property_accessor_start())
+            {
+                break;
+            }
+
+            let tok = self.bump();
+            if let TokenKind::Symbol(sym) = tok.kind {
+                match sym {
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    _ => {}
+                }
+            }
+            last_end = tok.span.end;
+        }
+
+        Span::new(start, last_end)
     }
 
     fn parse_type_member_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
