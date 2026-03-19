@@ -513,11 +513,12 @@
 - 依赖：T0249、T0219
 - 完成：AST 新增 `EffectRowParam`，并在 `FunDecl`/`TypeDecl` 上挂载 `eff_param`；`FunDecl` 新增 `effects: Option<EffectRowExpr>`；parser 支持 `<eff E (= RowExpr)?>` 并解析函数签名的 `/ RowExpr`；函数泛型列表支持 `fun <...> name` 与 `fun name<...>` 两种位置（兼容历史 fixtures）；新增 parse fixture `tests/fixtures/parse/effect_row_param_basic.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0251 [TODO] Parser：`typealias` 声明语法（为 sysroot 标准别名铺路）（Appendix B.10）
+### T0251 [DONE] Parser：`typealias` 声明语法（为 sysroot 标准别名铺路）（Appendix B.10）
 - 描述：支持顶层 `typealias Name = Type` 的解析，并把它纳入 AST（含 span）。
 - 目标：先只支持“非泛型 typealias”；先只允许顶层；不做循环检测与展开（留给 resolver/typecheck）。
 - 验收：新增 parse fixture：`typealias Byte = UInt8`、`typealias UIntPtr = UInt` 可解析；错误形式（缺 `=`/缺类型）给出稳定错误码。
 - 依赖：T0009
+- 完成：lexer 新增关键字 `typealias`；AST 新增 `TypeAliasDecl` 与 `Item::TypeAlias`；parser 支持解析顶层 `typealias Name = Type`；resolve 的 `Index`/绑定检查将 typealias 视为 type-level symbol 并解析 RHS `TypeRef`；新增 parse fixtures `typealias_basic`（含 AST golden）与两个 fail fixtures；新增单测 `parser::tests::parse_top_level_typealias`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0252 [TODO] Parser：prefix 一元运算（`!`/`-`/`~`）（spec §2.3.4 / Appendix B.8）
 - 描述：在表达式语法中加入 prefix unary：逻辑非 `!`、数值取负 `-`、按位取反 `~`。

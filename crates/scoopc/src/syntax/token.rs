@@ -53,6 +53,8 @@ pub enum Keyword {
     // declarations
     Package,
     Import,
+    /// `typealias`（Appendix B.10）。
+    Typealias,
     Fun,
     Val,
     Var,

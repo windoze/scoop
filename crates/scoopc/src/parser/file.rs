@@ -35,6 +35,16 @@ impl<'a> Parser<'a> {
         while !self.peek_kind(TokenKind::Eof) {
             let head = self.peek_after_modifiers().kind;
 
+            if head == TokenKind::Keyword(Keyword::Typealias) {
+                match self.parse_typealias_decl() {
+                    Ok(decl) => items.push(ast::Item::TypeAlias(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.recover_to_top_level_sync();
+                    }
+                }
+                continue;
+            }
             if head == TokenKind::Keyword(Keyword::Fun) {
                 match self.parse_fun_decl() {
                     Ok(decl) => items.push(ast::Item::Fun(decl)),

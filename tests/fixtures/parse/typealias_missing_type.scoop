@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 类型名
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:18
+// 目标：Appendix B.10：typealias 声明的 RHS 必须是一个类型。
+
+package fixtures.parse
+
+typealias Byte = ;
+

@@ -408,6 +408,31 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// 解析顶层 `typealias Name = Type` 声明（Appendix B.10）。
+    ///
+    /// 当前阶段（T0251）约束：
+    /// - 仅支持顶层（由 `parse_file` 调用点保证）
+    /// - 仅支持非泛型 typealias（不允许 `typealias Name<T> = ...`）
+    pub(super) fn parse_typealias_decl(&mut self) -> Result<ast::TypeAliasDecl, ParseError> {
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        self.expect_keyword(Keyword::Typealias)?;
+
+        let name_tok = self.expect_kind(TokenKind::Ident, "类型别名名（标识符）")?;
+        let name = ast::Ident { span: name_tok.span };
+
+        self.expect_symbol(Symbol::Eq)?;
+        let ty = self.parse_type_ref()?;
+
+        Ok(ast::TypeAliasDecl {
+            span: Span::new(start, ty.span().end),
+            modifiers,
+            name,
+            ty,
+        })
+    }
+
     pub(super) fn parse_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
         let start = self.peek().span.start;
         let modifiers = self.parse_modifiers();

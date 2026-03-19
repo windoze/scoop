@@ -78,7 +78,7 @@
   - [x] 属性声明与 accessors：`ValDecl` 新增 `accessors: Vec<Accessor>` 字段；`Accessor` 节点支持 `get()`/`set(value)` + 表达式体（`= expr`）或块体（`{ stmts }`）；类型体中 `parse_property_decl` 在 `parse_val_decl` 后探测 `get(`/`set(` 模式并解析 accessor；`get`/`set` 作为上下文关键字（soft keyword），不加入 lexer 关键字表；6 个 pass/fail fixtures + 5 个 unit tests 覆盖（T0234）
   - [x] 委托属性 `by expr`：`ValDecl` 新增 `delegate: Option<Expr>` 字段；`parse_property_decl` 在 `parse_val_decl` 后探测 `by` 上下文关键字并解析委托表达式；`by` 与 accessors 在语法层互斥；支持 `val x: T by lazy { ... }` 等 trailing lambda 形式；2 个 pass/fail fixtures + 3 个 unit tests 覆盖（T0235）
   - [x] Rich enum variant 声明：`Member::Variant(EnumVariant)` 新增 AST 节点；`EnumVariant` 含 `name: Ident` + `params: Vec<Param>`；`parse_type_body` 接收 `TypeKind` 参数，对 `Enum` 类型识别裸标识符作为 variant 开始；`parse_enum_variant` 解析 `Name` / `Name(val field: T, ...)` 形式；variant 参数要求 `val` 关键字 + 类型标注；1 个 pass + 2 个 fail fixtures + 3 个 unit tests 覆盖（T0236）
-- [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
+- [x] `typealias` 声明：解析顶层 `typealias Name = Type` 并纳入 AST（T0251，为 sysroot 标准别名与 Kotlin 兼容铺路）
 - [x] Expr/Stmt 最小骨架（T0205）：Ident/IntLit/StringLit/BlockExpr/Missing + Stmt::Expr/Stmt::ValDecl
 - [x] val/var initializer 解析为原子表达式（T0206）：`ValDecl.init` 从 `Option<Span>` 升级为 `Option<Expr>`，支持 ident/int/string 原子
 - [x] 块表达式解析（T0207）：`parse_block_expr` 解析 `{ stmt* }` 为 `BlockExpr { stmts }`；`FunBody::Block` 改用 `BlockExpr`（含 stmts）替代旧 `Block`（仅 span）；块内支持表达式语句与 val/var 声明

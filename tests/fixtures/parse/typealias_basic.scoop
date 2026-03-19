@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: typealias_basic.ast
+
+package fixtures.parse
+
+typealias Byte = UInt8
+typealias UIntPtr = UInt
+

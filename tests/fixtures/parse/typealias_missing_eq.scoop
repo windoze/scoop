@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: `=`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:16
+// 目标：Appendix B.10：typealias 声明必须包含 `=`。
+
+package fixtures.parse
+
+typealias Byte UInt8
+

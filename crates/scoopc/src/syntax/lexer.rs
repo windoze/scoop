@@ -179,6 +179,7 @@ impl<'a> Lexer<'a> {
             "annotation" => Some(Keyword::Annotation),
             "package" => Some(Keyword::Package),
             "import" => Some(Keyword::Import),
+            "typealias" => Some(Keyword::Typealias),
             "fun" => Some(Keyword::Fun),
             "val" => Some(Keyword::Val),
             "var" => Some(Keyword::Var),

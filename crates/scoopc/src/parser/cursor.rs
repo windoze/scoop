@@ -178,7 +178,8 @@ impl<'a> Parser<'a> {
         matches!(
             self.peek_after_modifiers().kind,
             TokenKind::Keyword(
-                Keyword::Fun
+                Keyword::Typealias
+                    | Keyword::Fun
                     | Keyword::Val
                     | Keyword::Var
                     | Keyword::Class
@@ -250,6 +251,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Annotation => "`annotation`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
+        Keyword::Typealias => "`typealias`",
         Keyword::Fun => "`fun`",
         Keyword::Val => "`val`",
         Keyword::Var => "`var`",

@@ -30,9 +30,37 @@ pub struct ImportDecl {
 
 #[derive(Debug, Clone)]
 pub enum Item {
+    TypeAlias(TypeAliasDecl),
     Fun(FunDecl),
     Type(TypeDecl),
     Val(ValDecl),
+}
+
+/// 类型别名声明：`typealias Name = Type`（Appendix B.10）。
+///
+/// 当前阶段（T0251）仅支持：
+/// - 顶层声明
+/// - 非泛型 typealias（不支持 `typealias Name<T> = ...`）
+/// - 语义（展开/循环检测）留给 resolver/typecheck
+#[derive(Clone)]
+pub struct TypeAliasDecl {
+    pub span: Span,
+    pub modifiers: Vec<Modifier>,
+    pub name: Ident,
+    pub ty: TypeRef,
+}
+
+impl std::fmt::Debug for TypeAliasDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("TypeAliasDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("name", &self.name);
+        s.field("ty", &self.ty);
+        s.finish()
+    }
 }
 
 /// 声明修饰符（modifiers）。

@@ -81,6 +81,10 @@ impl Index {
 
         for item in &file.items {
             match item {
+                ast::Item::TypeAlias(ta) => {
+                    // typealias 是类型命名空间的顶层符号（T0251）。
+                    self.insert_symbol(source, &pkg, SymbolKind::Type, ta.name.span)?;
+                }
                 ast::Item::Fun(fun) => {
                     self.insert_symbol(source, &pkg, SymbolKind::Fun, fun.name.span)?;
                 }
@@ -159,6 +163,9 @@ pub fn check_file_bindings(
 
     for item in &file.items {
         match item {
+            ast::Item::TypeAlias(ta) => {
+                resolve_type_ref(source, file, index, &ta.ty)?;
+            }
             ast::Item::Fun(fun) => {
                 if let Some(receiver) = &fun.receiver {
                     resolve_type_ref(source, file, index, receiver)?;
