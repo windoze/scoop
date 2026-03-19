@@ -640,11 +640,12 @@
 - 依赖：T0010
 - 完成：新增 `scoopc::ty`（`TypeId`/`TypeKind`/`TypeStore` + `Display`），支持 `Any/Unit/Nothing/Int/UInt/IntN/UIntN/Option<T>`（含 tuple 预留）；新增单测覆盖格式化输出与 ref/value 分类；`cargo test --all` 通过。
 
-### T0402 [TODO] 从 sysroot 收集“内建类型/效果”的类型信息
+### T0402 [DONE] 从 sysroot 收集“内建类型/效果”的类型信息
 - 描述：基于 sysroot AST 建立 type env（Any/Option/Raise），为后续 typecheck 提供起点。
 - 目标：先只读取声明头（名字 + kind + 泛型参数个数），不做方法体。
 - 验收：新增单测：加载 sysroot 后能查询到 `scoop.core.Option` 的泛型参数数量为 1。
 - 依赖：T0010、T0401
+- 完成：新增 `scoopc::typecheck::TypeEnv`，从 sysroot AST 收集 type/typealias 声明头信息（kind + arity）；新增单测 `sysroot_type_env_contains_option_arity`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0403 [TODO] `TypeRef` → `Type` lowering（支持 Path/Tuple/Nullable）
 - 描述：把 AST 的 `TypeRef` 解析到内部类型（已 resolve 的前提下）。

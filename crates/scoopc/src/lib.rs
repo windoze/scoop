@@ -17,3 +17,4 @@ pub mod span;
 pub mod syntax;
 pub mod sysroot;
 pub mod ty;
+pub mod typecheck;
