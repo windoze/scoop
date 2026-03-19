@@ -7,6 +7,7 @@
 //! - string literal
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
 //! - lambda 表达式（T0222）：`{ params -> body }` / `{ body }`
+//! - struct literal（T0224）：`Point { x: 1, y: 2 }`
 //! - postfix 调用表达式（T0209）：`callee(args...)`
 //! - postfix 成员访问（T0210）：`receiver.member`
 //! - postfix 非空断言（T0212）：`expr!!`
@@ -336,6 +337,14 @@ impl<'a> Parser<'a> {
     /// - 为避免在表达式尚未完全实现时“误报语法错误”，未知起始 token 会交由上层做 fallback 跳过。
     pub(super) fn try_parse_expr_atom(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         if self.peek_kind(TokenKind::Ident) {
+            // struct literal：`TypeName { field: expr, ... }`
+            //
+            // 注意：当前阶段（T0224）仅在 `Ident` 后紧跟 `{` 时触发，
+            // 以避免把 `list.map { it }` 之类“尚未实现 trailing lambda”的源码误解析并报错。
+            if self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace) {
+                return Ok(Some(self.parse_struct_lit_expr()?));
+            }
+
             let tok = self.bump();
             return Ok(Some(ast::Expr {
                 span: tok.span,
@@ -384,6 +393,69 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    /// 解析 struct literal：`TypeName { field: expr, ... }`（spec §12）。
+    ///
+    /// 当前阶段约束（与 TODO T0224 保持一致）：
+    /// - 仅支持单段 `TypeName`（不解析 `a.b.Type`），避免与 “member access + trailing lambda” 的 `{}` 形态冲突；
+    /// - 字段初始化只支持 `name: expr`（不支持省略写法）。
+    fn parse_struct_lit_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let ty_tok = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
+        let start = ty_tok.span.start;
+
+        let ty_ident = ast::Ident { span: ty_tok.span };
+        let ty = ast::TypePath {
+            span: ty_tok.span,
+            segments: vec![ty_ident],
+            args: Vec::new(),
+        };
+
+        let _open = self.expect_symbol(Symbol::LBrace)?;
+
+        let mut fields = Vec::new();
+
+        if !self.peek_symbol(Symbol::RBrace) {
+            loop {
+                let name_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
+                let name = ast::Ident {
+                    span: name_tok.span,
+                };
+
+                let colon = self.expect_symbol(Symbol::Colon)?;
+
+                let tok = *self.peek();
+                let value = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（字段初始化值）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?;
+
+                fields.push(ast::StructLitField {
+                    span: Span::new(name_tok.span.start, value.span.end),
+                    name,
+                    colon_span: colon.span,
+                    value,
+                });
+
+                if self.eat_symbol(Symbol::Comma) {
+                    // allow trailing comma
+                    if self.peek_symbol(Symbol::RBrace) {
+                        break;
+                    }
+                    continue;
+                }
+
+                break;
+            }
+        }
+
+        let close = self.expect_symbol(Symbol::RBrace)?;
+
+        Ok(ast::Expr {
+            span: Span::new(start, close.span.end),
+            kind: ast::ExprKind::StructLit { ty, fields },
+        })
     }
 
     fn parse_interpolated_string_expr(

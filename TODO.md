@@ -332,7 +332,7 @@
 - 验收：`cargo test -p scoopc` 通过；新增 parse fixture（配合 T0224）可在 AST 看到 struct literal。
 - 依赖：T0205
 
-### T0224 [TODO] Parser：struct literal 解析（`Point { x: 1, y: 2 }`）
+### T0224 [DONE] Parser：struct literal 解析（`Point { x: 1, y: 2 }`）
 - 描述：在 postfix/primary 解析中支持 `TypeName { field: expr, ... }` 形式。
 - 目标：先只支持 `TypePath` + `{}`；不支持泛型推断/构造函数重载。
 - 验收：新增 parse fixture：`val p = Point { x: 1, y: 2 }`；字段缺少冒号时报 parse error。

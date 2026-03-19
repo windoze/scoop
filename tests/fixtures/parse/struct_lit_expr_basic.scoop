@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: struct_lit_expr_basic.ast
+
+package fixtures.parse
+
+val p = Point { x: 1, y: 2 }
+
+fun main() {}
+

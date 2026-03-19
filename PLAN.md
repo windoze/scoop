@@ -87,7 +87,7 @@
    - [x] lambda 表达式：`{ params -> body }` / `{ body }`（参数支持可选类型注解；body 可为单表达式或 block）
    - [ ] struct literal 表达式：`TypeName { field: expr, ... }`（spec §12）
      - [x] AST 节点：`ExprKind::StructLit`
-     - [ ] 解析：postfix/primary 识别 `TypePath { ... }`
+     - [x] 解析：postfix/primary 识别 `TypeName { ... }`（当前仅单段 `TypeName`）
      - [ ] `{}` 歧义消解：struct literal vs lambda
    - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
    - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
