@@ -479,7 +479,7 @@
 - 完成：lexer 新增 5 个 modifier 关键字（`public/internal/private/inline/override`）；AST 引入 `Modifier` 并在 `TypeDecl/FunDecl/ValDecl/PropertyDecl` 保存 `modifiers`（空时不影响既有 AST snapshot）；parser 在顶层与 type body 内统一解析 modifiers（排序去重，顺序无关）；新增 parse fixture：`tests/fixtures/parse/modifiers_basic.scoop`
 
 ### T0246 [TODO] Parser：`const fun` / `comptime` / splice 语法（spec §6）
-- 描述：支持 `const fun`、`comptime { ... }`、`comptime if/for`、以及 splice `~{...}`（具体符号以 spec 为准）。
+- 描述：支持 `const fun`、`comptime { ... }`、`comptime if/for`、以及 splice `value.[field]`（用于在 comptime 中通过 FieldMeta 访问值的字段）。
 - 目标：先只做语法与 AST 表达；执行语义留给 T12。
 - 验收：新增 parse fixture：包含 const fun 与 comptime block；解析成功并保留 span/节点。
 - 依赖：T0207
@@ -1590,8 +1590,8 @@
 - 验收：comptime fixture：基于 `fieldsOf<T>()` 生成序列化代码片段（可先只打印/导出元数据）。
 - 依赖：T1203、T0010
 
-### T1205 [TODO] Splice operator（`~{...}`）最小实现（spec §6.4）
-- 描述：支持将 comptime 生成的 AST 片段 splice 回程序（先限用于声明位置）。
+### T1205 [TODO] Splice operator（`value.[field]`）最小实现（spec §6.4）
+- 描述：支持 `.[field]` 语法，在 comptime for 中通过 FieldMeta 访问值的特定字段（先限用于声明位置）。
 - 目标：先只做“生成声明列表”；不做表达式 splice。
 - 验收：comptime fixture：通过 splice 生成一个函数/struct，后续解析/类型检查通过。
 - 依赖：T1203、T0201
