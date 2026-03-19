@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：验证函数参数在函数体内可解析（局部作用域）。
+
+package fixtures.resolve
+
+fun id(x) {
+    x
+}
+

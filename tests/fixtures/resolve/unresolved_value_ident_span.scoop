@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的值
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_value
+// EXPECT-ERROR-AT: 10:5
+// 目标：验证未定义标识符的诊断位置精确指到 ident 本身。
+
+package fixtures.resolve
+
+fun f(x) {
+    y
+}
+

@@ -1,14 +1,13 @@
-//! 块级作用域（val/var）与最小值名字解析（T0304）。
+//! 块级作用域（val/var）与表达式裸标识符解析（T0304/T0305）。
 //!
 //! 目标：
 //! - 在 resolve 阶段为 block 建立 scope 栈；
 //! - 记录局部 `val/var` 绑定，并允许嵌套块遮蔽（shadowing）；
-//! - 对表达式中的裸标识符（`ExprKind::Ident`）做最小“存在性”解析：
+//! - 对表达式中的裸标识符（`ExprKind::Ident`）做最小解析并写回 AST：
 //!   - 先查局部作用域栈
 //!   - 再查同包/导入的顶层 fun/value（避免把明显合法的顶层调用误报为未定义）
 //!
 //! 非目标（后续任务处理）：
-//! - 不把解析结果写回 AST/HIR（T0305）
 //! - 不解析成员访问（`.`）的目标（T0310）
 //! - 不实现 `this`/构造参数/成员初始化的特殊作用域规则（T0313）
 
@@ -20,17 +19,16 @@ use super::{ImportTable, Index, ResolveError, SymbolKind, package_prefix};
 
 pub(super) fn check_block_scopes(
     source: &SourceFile,
-    file: &ast::File,
+    file: &mut ast::File,
     index: &Index,
     imports: &ImportTable,
 ) -> Result<(), ResolveError> {
     let mut checker = BlockScopeChecker::new(source, file, index, imports);
-    checker.check_file()
+    checker.check_file(file)
 }
 
 struct BlockScopeChecker<'a> {
     source: &'a SourceFile,
-    file: &'a ast::File,
     index: &'a Index,
     imports: &'a ImportTable,
     pkg_prefix: String,
@@ -40,14 +38,13 @@ struct BlockScopeChecker<'a> {
 impl<'a> BlockScopeChecker<'a> {
     fn new(
         source: &'a SourceFile,
-        file: &'a ast::File,
+        file: &ast::File,
         index: &'a Index,
         imports: &'a ImportTable,
     ) -> Self {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         Self {
             source,
-            file,
             index,
             imports,
             pkg_prefix,
@@ -55,8 +52,8 @@ impl<'a> BlockScopeChecker<'a> {
         }
     }
 
-    fn check_file(&mut self) -> Result<(), ResolveError> {
-        for item in &self.file.items {
+    fn check_file(&mut self, file: &mut ast::File) -> Result<(), ResolveError> {
+        for item in &mut file.items {
             match item {
                 ast::Item::Fun(fun) => self.check_fun(fun)?,
                 ast::Item::Type(ty) => self.check_type_decl(ty)?,
@@ -66,12 +63,12 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_type_decl(&mut self, ty: &ast::TypeDecl) -> Result<(), ResolveError> {
-        let Some(body) = &ty.body else {
+    fn check_type_decl(&mut self, ty: &mut ast::TypeDecl) -> Result<(), ResolveError> {
+        let Some(body) = &mut ty.body else {
             return Ok(());
         };
 
-        for member in &body.members {
+        for member in &mut body.members {
             match member {
                 ast::TypeMember::Property(_) => {
                     // T0313 会引入 `this`/构造参数/成员初始化作用域等规则。
@@ -85,17 +82,17 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_fun(&mut self, fun: &ast::FunDecl) -> Result<(), ResolveError> {
+    fn check_fun(&mut self, fun: &mut ast::FunDecl) -> Result<(), ResolveError> {
         // 函数级作用域：先放入参数（允许 block 内部遮蔽参数名）。
         self.push_scope();
-        for p in &fun.params {
+        for p in &mut fun.params {
             self.declare_ident(&p.name)?;
-            if let Some(default) = &p.default_value {
+            if let Some(default) = &mut p.default_value {
                 self.check_expr(default)?;
             }
         }
 
-        match &fun.body {
+        match &mut fun.body {
             ast::FunBody::Block(b) => self.check_block(b)?,
             ast::FunBody::Missing => {}
         }
@@ -104,11 +101,11 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_block(&mut self, block: &ast::Block) -> Result<(), ResolveError> {
+    fn check_block(&mut self, block: &mut ast::Block) -> Result<(), ResolveError> {
         self.push_scope();
 
         // 语义：局部变量在其声明之后可见；因此先解析 init，再把 bind 注入当前 scope。
-        for stmt in &block.stmts {
+        for stmt in &mut block.stmts {
             self.check_stmt(stmt)?;
         }
 
@@ -116,8 +113,8 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_stmt(&mut self, stmt: &ast::Stmt) -> Result<(), ResolveError> {
-        match &stmt.kind {
+    fn check_stmt(&mut self, stmt: &mut ast::Stmt) -> Result<(), ResolveError> {
+        match &mut stmt.kind {
             ast::StmtKind::Empty | ast::StmtKind::Break { .. } | ast::StmtKind::Continue { .. } => {
             }
             ast::StmtKind::Expr(e) => self.check_expr(e)?,
@@ -140,15 +137,15 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_comptime_if(&mut self, ci: &ast::ComptimeIf) -> Result<(), ResolveError> {
-        self.check_expr(&ci.cond)?;
-        self.check_block(&ci.then_branch)?;
+    fn check_comptime_if(&mut self, ci: &mut ast::ComptimeIf) -> Result<(), ResolveError> {
+        self.check_expr(&mut ci.cond)?;
+        self.check_block(&mut ci.then_branch)?;
 
-        let Some(else_branch) = &ci.else_branch else {
+        let Some(else_branch) = &mut ci.else_branch else {
             return Ok(());
         };
 
-        match &**else_branch {
+        match &mut **else_branch {
             ast::ComptimeIfElse::Block(b) => self.check_block(b)?,
             ast::ComptimeIfElse::If(next) => self.check_comptime_if(next)?,
         }
@@ -156,20 +153,20 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_comptime_for(&mut self, cf: &ast::ComptimeFor) -> Result<(), ResolveError> {
-        self.check_expr(&cf.iter)?;
+    fn check_comptime_for(&mut self, cf: &mut ast::ComptimeFor) -> Result<(), ResolveError> {
+        self.check_expr(&mut cf.iter)?;
 
         // `comptime for (x in xs) { ... }` 的 binder 在 body 作用域内可见。
         self.push_scope();
         self.declare_ident(&cf.binder)?;
-        self.check_block(&cf.body)?;
+        self.check_block(&mut cf.body)?;
         self.pop_scope();
 
         Ok(())
     }
 
-    fn check_val_decl(&mut self, v: &ast::ValDecl) -> Result<(), ResolveError> {
-        if let Some(init) = &v.init {
+    fn check_val_decl(&mut self, v: &mut ast::ValDecl) -> Result<(), ResolveError> {
+        if let Some(init) = &mut v.init {
             self.check_expr(init)?;
         }
 
@@ -180,10 +177,10 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_expr(&mut self, expr: &ast::Expr) -> Result<(), ResolveError> {
-        match &expr.kind {
+    fn check_expr(&mut self, expr: &mut ast::Expr) -> Result<(), ResolveError> {
+        match &mut expr.kind {
             ast::ExprKind::Missing | ast::ExprKind::IntLit | ast::ExprKind::StringLit => {}
-            ast::ExprKind::Ident(id) => self.check_value_ident(id)?,
+            ast::ExprKind::Ident(id) => self.resolve_value_ident(id)?,
             ast::ExprKind::InterpolatedString { parts, .. } => {
                 for p in parts {
                     if let ast::InterpolatedStringPart::Expr { expr } = p {
@@ -195,18 +192,18 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::Lambda(lam) => {
                 // lambda 的参数在其 body 内可见；暂不记录 capture 信息（非目标）。
                 self.push_scope();
-                for p in &lam.params {
+                for p in &mut lam.params {
                     self.declare_ident(&p.name)?;
-                    if let Some(default) = &p.default_value {
+                    if let Some(default) = &mut p.default_value {
                         self.check_expr(default)?;
                     }
                 }
-                self.check_expr(&lam.body)?;
+                self.check_expr(lam.body.as_mut())?;
                 self.pop_scope();
             }
             ast::ExprKind::StructLit { fields, .. } => {
                 for f in fields {
-                    self.check_expr(&f.value)?;
+                    self.check_expr(&mut f.value)?;
                 }
             }
             ast::ExprKind::If {
@@ -214,50 +211,50 @@ impl<'a> BlockScopeChecker<'a> {
                 then_branch,
                 else_branch,
             } => {
-                self.check_expr(cond)?;
-                self.check_expr(then_branch)?;
+                self.check_expr(cond.as_mut())?;
+                self.check_expr(then_branch.as_mut())?;
                 if let Some(e) = else_branch {
-                    self.check_expr(e)?;
+                    self.check_expr(e.as_mut())?;
                 }
             }
             ast::ExprKind::When { subject, arms } => {
-                self.check_expr(subject)?;
+                self.check_expr(subject.as_mut())?;
                 for arm in arms {
-                    self.check_expr(&arm.body)?;
+                    self.check_expr(&mut arm.body)?;
                 }
             }
             ast::ExprKind::MemberAccess { receiver, .. }
             | ast::ExprKind::SafeMemberAccess { receiver, .. } => {
                 // 仅解析 receiver；member 本身的解析留到 T0310。
-                self.check_expr(receiver)?;
+                self.check_expr(receiver.as_mut())?;
             }
             ast::ExprKind::SpliceField { receiver, field } => {
-                self.check_expr(receiver)?;
-                self.check_expr(field)?;
+                self.check_expr(receiver.as_mut())?;
+                self.check_expr(field.as_mut())?;
             }
             ast::ExprKind::Call { callee, args } => {
-                self.check_expr(callee)?;
+                self.check_expr(callee.as_mut())?;
                 for a in args {
                     self.check_expr(a)?;
                 }
             }
-            ast::ExprKind::NamedArg { value, .. } => self.check_expr(value)?,
-            ast::ExprKind::NotNullAssert { expr, .. } => self.check_expr(expr)?,
-            ast::ExprKind::Unary { expr, .. } => self.check_expr(expr)?,
+            ast::ExprKind::NamedArg { value, .. } => self.check_expr(value.as_mut())?,
+            ast::ExprKind::NotNullAssert { expr, .. } => self.check_expr(expr.as_mut())?,
+            ast::ExprKind::Unary { expr, .. } => self.check_expr(expr.as_mut())?,
             ast::ExprKind::Binary { lhs, rhs, .. } => {
-                self.check_expr(lhs)?;
-                self.check_expr(rhs)?;
+                self.check_expr(lhs.as_mut())?;
+                self.check_expr(rhs.as_mut())?;
             }
             ast::ExprKind::Assign { lhs, rhs, .. } => {
-                self.check_expr(lhs)?;
-                self.check_expr(rhs)?;
+                self.check_expr(lhs.as_mut())?;
+                self.check_expr(rhs.as_mut())?;
             }
-            ast::ExprKind::TypeCheck { expr, .. } => self.check_expr(expr)?,
-            ast::ExprKind::Cast { expr, .. } => self.check_expr(expr)?,
+            ast::ExprKind::TypeCheck { expr, .. } => self.check_expr(expr.as_mut())?,
+            ast::ExprKind::Cast { expr, .. } => self.check_expr(expr.as_mut())?,
             ast::ExprKind::WithUpdate { base, updates, .. } => {
-                self.check_expr(base)?;
+                self.check_expr(base.as_mut())?;
                 for u in updates {
-                    self.check_expr(&u.value)?;
+                    self.check_expr(&mut u.value)?;
                 }
             }
         }
@@ -265,7 +262,7 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_value_ident(&self, id: &ast::Ident) -> Result<(), ResolveError> {
+    fn resolve_value_ident(&mut self, id: &mut ast::ValueIdent) -> Result<(), ResolveError> {
         let name = self.source.slice(id.span);
 
         // `this` 的精确作用域规则在 T0313；此处先作为保守放行，避免误报。
@@ -273,7 +270,16 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        if self.is_value_name_resolved(name) {
+        if let Some(decl_span) = self.local_decl_span(name) {
+            id.resolved = Some(ast::ResolvedValueRef::Local {
+                name: name.to_string(),
+                decl_span,
+            });
+            return Ok(());
+        }
+
+        if let Some(fqn) = self.top_level_value_fqn(name) {
+            id.resolved = Some(ast::ResolvedValueRef::TopLevel { fqn });
             return Ok(());
         }
 
@@ -283,18 +289,14 @@ impl<'a> BlockScopeChecker<'a> {
         })
     }
 
-    fn is_value_name_resolved(&self, name: &str) -> bool {
-        self.is_in_local_scope(name) || self.is_in_top_level(name)
-    }
-
-    fn is_in_local_scope(&self, name: &str) -> bool {
+    fn local_decl_span(&self, name: &str) -> Option<Span> {
         self.scopes
             .iter()
             .rev()
-            .any(|frame| frame.contains_key(name))
+            .find_map(|frame| frame.get(name).copied())
     }
 
-    fn is_in_top_level(&self, name: &str) -> bool {
+    fn top_level_value_fqn(&self, name: &str) -> Option<String> {
         let mut candidates: Vec<String> = Vec::new();
 
         if !self.pkg_prefix.is_empty() {
@@ -317,11 +319,11 @@ impl<'a> BlockScopeChecker<'a> {
             if self.index.by_fqn.get(&fqn).is_some_and(|syms| {
                 syms.get(SymbolKind::Fun).is_some() || syms.get(SymbolKind::Value).is_some()
             }) {
-                return true;
+                return Some(fqn);
             }
         }
 
-        false
+        None
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -405,10 +407,10 @@ mod tests {
     #[test]
     fn unresolved_value_in_fun_body_is_error() {
         let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { x }");
-        let file = parse_file(&src).unwrap();
+        let mut file = parse_file(&src).unwrap();
         let index = build_index(&[(&src, &file)]);
 
-        let err = super::super::check_file_bindings(&src, &file, &index).unwrap_err();
+        let err = super::super::check_file_bindings(&src, &mut file, &index).unwrap_err();
         assert!(matches!(err, ResolveError::UnresolvedValue { .. }));
     }
 
@@ -418,9 +420,65 @@ mod tests {
             "<mem>",
             "package a\nfun f() { val x = 1\n{ val x = 2\nx }\nx }",
         );
-        let file = parse_file(&src).unwrap();
+        let mut file = parse_file(&src).unwrap();
         let index = build_index(&[(&src, &file)]);
 
-        super::super::check_file_bindings(&src, &file, &index).unwrap();
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+    }
+
+    #[test]
+    fn value_ident_resolution_is_written_back() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nfun top() {}\nfun f(x) { x\ntop }",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+
+        // 找到 `fun f` 的 body 里两个 Expr 语句：`x` 与 `top`。
+        let fun_f = file
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if src.slice(f.name.span) == "f" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun f");
+
+        let ast::FunBody::Block(block) = &fun_f.body else {
+            panic!("expected block body");
+        };
+
+        let mut idents = block
+            .stmts
+            .iter()
+            .filter_map(|s| match &s.kind {
+                ast::StmtKind::Expr(e) => match &e.kind {
+                    ast::ExprKind::Ident(id) => Some(id),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(idents.len(), 2);
+
+        // `x` 解析为局部（参数）。
+        let x = idents.remove(0);
+        assert!(matches!(
+            x.resolved,
+            Some(ast::ResolvedValueRef::Local { ref name, .. }) if name == "x"
+        ));
+
+        // `top` 解析为顶层（同包）。
+        let top = idents.remove(0);
+        assert_eq!(
+            top.resolved,
+            Some(ast::ResolvedValueRef::TopLevel {
+                fqn: "a.top".to_string()
+            })
+        );
     }
 }

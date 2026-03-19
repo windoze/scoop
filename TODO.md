@@ -559,11 +559,12 @@
 - 依赖：T0207、T0301
 - 完成：在 `scoopc::resolve` 新增块级作用域检查（局部 `val/var` + 参数；嵌套块允许遮蔽），并对 `ExprKind::Ident` 做最小 value 名字存在性解析（先查局部 scope，再查同包/导入的顶层 fun/value）；新增 resolve fixtures：`unresolved_value_in_block`（fail）与 `local_shadowing_ok`（pass）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0305 [TODO] Resolver：表达式中的标识符引用解析（到变量/参数/顶层）
+### T0305 [DONE] Resolver：表达式中的标识符引用解析（到变量/参数/顶层）
 - 描述：对 `Expr::Ident` 绑定到某个 SymbolId（或暂用字符串），并在 AST/HIR 中记录解析结果。
 - 目标：先不解析成员访问（`.`）的具体 target；先解析裸 ident。
 - 验收：新增 resolve fixture：函数参数引用 OK；未定义 ident 报错并精确指到 ident span。
 - 依赖：T0304
+- 完成：AST 将 `ExprKind::Ident` 升级为 `ValueIdent { span, resolved }` 并引入 `ResolvedValueRef(Local/TopLevel)`；parser 构造未解析 `ValueIdent`；resolver 在块级作用域检查中把裸 ident 解析到“局部绑定（参数/val）或顶层符号（FQN）”并写回；新增 resolve fixtures `param_reference_ok`（pass）与 `unresolved_value_ident_span`（fail）；新增单测 `resolve::scopes::tests::value_ident_resolution_is_written_back`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0306 [TODO] Resolver：可见性修饰符（public/internal/private）（PLAN §3.1）
 - 描述：在 AST/解析层引入 visibility，并在 resolve 阶段做最小合法性检查。

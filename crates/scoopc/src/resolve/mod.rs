@@ -238,13 +238,15 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
 /// 在 `Index` 的基础上，做最小的文件级名字绑定检查：
 /// - import 的目标是否存在
 /// - 函数签名/顶层 val/var 的类型引用是否可解析（仅 TypeRef::Path）
+/// - （T0305）对表达式中的裸标识符（`ExprKind::Ident`）做解析并写回到 AST
 ///
 /// 当前阶段的简化：
-/// - 只解析类型名（type namespace）；不解析值/函数名
-/// - 只检查“存在性”，不做重载/可见性/作用域
+/// - 类型引用：只做存在性解析（type namespace），不做泛型 arity/alias 展开等深层语义
+/// - 值引用：仅解析裸 `ident`（先局部/参数，再同包或 import 引入的顶层 fun/value），不解析成员访问与调用目标
+/// - 不做重载/可见性/跨文件编译单元等复杂规则（后续任务补齐）
 pub fn check_file_bindings(
     source: &SourceFile,
-    file: &ast::File,
+    file: &mut ast::File,
     index: &Index,
 ) -> Result<(), ResolveError> {
     // T0303：先构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
@@ -416,7 +418,7 @@ mod tests {
             "<mem>",
             "package a\nimport scoop.core.*\nfun f(x: Option<Any>): Any {}",
         );
-        let ast = parse_file(&src).unwrap();
+        let mut ast = parse_file(&src).unwrap();
 
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
         for f in &sess.sysroot().files {
@@ -425,14 +427,14 @@ mod tests {
         pairs.push((&src, &ast));
 
         let index = Index::build(&pairs).unwrap();
-        check_file_bindings(&src, &ast, &index).unwrap();
+        check_file_bindings(&src, &mut ast, &index).unwrap();
     }
 
     #[test]
     fn unresolved_type_is_error() {
         let sess = Session::new().unwrap();
         let src = SourceFile::new_virtual("<mem>", "package a\nfun f(x: Missing) {}");
-        let ast = parse_file(&src).unwrap();
+        let mut ast = parse_file(&src).unwrap();
 
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
         for f in &sess.sysroot().files {
@@ -441,7 +443,7 @@ mod tests {
         pairs.push((&src, &ast));
 
         let index = Index::build(&pairs).unwrap();
-        let err = check_file_bindings(&src, &ast, &index).unwrap_err();
+        let err = check_file_bindings(&src, &mut ast, &index).unwrap_err();
         assert!(matches!(err, ResolveError::UnresolvedType { .. }));
     }
 }

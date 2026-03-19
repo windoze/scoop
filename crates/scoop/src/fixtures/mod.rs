@@ -165,7 +165,7 @@ fn resolve_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -174,7 +174,7 @@ fn resolve_fixture(
     pairs.push((source, &ast));
 
     let index = scoopc::resolve::Index::build(&pairs).map_err(box_diagnostic)?;
-    scoopc::resolve::check_file_bindings(source, &ast, &index).map_err(box_diagnostic)?;
+    scoopc::resolve::check_file_bindings(source, &mut ast, &index).map_err(box_diagnostic)?;
     Ok(())
 }
 

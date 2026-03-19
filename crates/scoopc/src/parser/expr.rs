@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
             let tok = self.bump();
             return Ok(Some(ast::Expr {
                 span: tok.span,
-                kind: ast::ExprKind::Ident(ast::Ident { span: tok.span }),
+                kind: ast::ExprKind::Ident(ast::ValueIdent::new(tok.span)),
             }));
         }
 

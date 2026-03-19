@@ -512,11 +512,58 @@ pub struct LambdaExpr {
     pub body: Box<Expr>,
 }
 
+/// 值上下文中的标识符引用（expression ident）。
+///
+/// 说明：
+/// - parser 阶段仅记录 `span`，不做任何名字解析；
+/// - resolve 阶段（T0305）会把解析结果写回 `resolved`，用于后续 lowering/typecheck。
+#[derive(Clone, PartialEq, Eq)]
+pub struct ValueIdent {
+    pub span: Span,
+    pub resolved: Option<ResolvedValueRef>,
+}
+
+impl ValueIdent {
+    pub fn new(span: Span) -> Self {
+        Self {
+            span,
+            resolved: None,
+        }
+    }
+}
+
+impl std::fmt::Debug for ValueIdent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 为了保持 parse fixtures 的 AST snapshot 稳定回归：
+        // - 未解析时输出应与旧版 `Ident { span }` 完全一致；
+        // - 只有在 resolver 写回 `resolved` 后才额外打印该字段。
+        let mut s = f.debug_struct("Ident");
+        s.field("span", &self.span);
+        if self.resolved.is_some() {
+            s.field("resolved", &self.resolved);
+        }
+        s.finish()
+    }
+}
+
+/// Resolver 写回到 AST 的“值引用”解析结果（T0305）。
+///
+/// 当前阶段的简化：
+/// - `TopLevel` 暂只记录 FQN（Fully Qualified Name），不区分 fun/value；
+/// - `Local` 使用声明处 binder span 作为最小“身份标识”。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResolvedValueRef {
+    /// 局部绑定（函数参数、block 内 `val/var`）。
+    Local { name: String, decl_span: Span },
+    /// 顶层符号（同包或通过 import 引入）。
+    TopLevel { fqn: String },
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
     Missing,
-    Ident(Ident),
+    Ident(ValueIdent),
     IntLit,
     StringLit,
     /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
