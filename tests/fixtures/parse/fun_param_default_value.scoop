@@ -1,0 +1,7 @@
+// EXPECT: pass
+// EXPECT-AST: fun_param_default_value.ast
+
+package fixtures.parse
+
+fun f(x: Any = default()) {}
+

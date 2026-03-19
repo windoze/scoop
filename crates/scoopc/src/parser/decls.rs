@@ -307,7 +307,24 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            params.push(ast::Param { name, ty });
+
+            // Appendix B.5.2：函数参数默认值：`param: T = expr`
+            let default_value = if self.eat_symbol(Symbol::Eq) {
+                let tok = *self.peek();
+                Some(self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（参数默认值）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?)
+            } else {
+                None
+            };
+
+            params.push(ast::Param {
+                name,
+                ty,
+                default_value,
+            });
 
             if self.eat_symbol(Symbol::Comma) {
                 // trailing comma

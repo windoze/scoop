@@ -926,7 +926,11 @@ impl<'a> Parser<'a> {
             } else {
                 None
             };
-            params.push(ast::Param { name, ty });
+            params.push(ast::Param {
+                name,
+                ty,
+                default_value: None,
+            });
 
             if self.peek_symbol(Symbol::Arrow) {
                 let arrow = self.bump();

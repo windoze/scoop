@@ -448,10 +448,23 @@ pub enum StmtKind {
     Missing,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Param {
     pub name: Ident,
     pub ty: Option<TypeRef>,
+    pub default_value: Option<Expr>,
+}
+
+impl std::fmt::Debug for Param {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("Param");
+        s.field("name", &self.name);
+        s.field("ty", &self.ty);
+        if self.default_value.is_some() {
+            s.field("default_value", &self.default_value);
+        }
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -557,6 +570,7 @@ mod tests {
                         span: Span::new(1, 2),
                     },
                     ty: None,
+                    default_value: None,
                 }],
                 arrow_span: Some(arrow_span),
                 body: Box::new(body),

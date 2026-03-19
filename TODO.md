@@ -368,7 +368,7 @@
 - 验收：新增 parse fixture：`val y = x?.foo(1)` 与 `val z = x?.bar`；AST 中能区分 `.` 与 `?.`。
 - 依赖：T0210
 
-### T0230 [TODO] Parser：函数参数默认值（Appendix B.5.2）
+### T0230 [DONE] Parser：函数参数默认值（Appendix B.5.2）
 - 描述：在参数声明中支持 `param: T = expr`。
 - 目标：先只解析并保存 Expr；不实现默认值应用规则。
 - 验收：新增 parse fixture：`fun f(x: Any = default()) {}`；默认值缺失表达式时报错。
