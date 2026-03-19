@@ -11,6 +11,7 @@
 //! - 构建索引并检测重复定义
 
 mod imports;
+mod scopes;
 
 use std::collections::HashMap;
 
@@ -20,6 +21,7 @@ use thiserror::Error;
 use crate::{ast, source::SourceFile, span::Span};
 
 pub use imports::{ImportNamespace, ImportTable};
+use scopes::check_block_scopes;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ResolveError {
@@ -44,6 +46,14 @@ pub enum ResolveError {
     #[error("未解析的类型：{name}")]
     #[diagnostic(code(scoop::resolve::unresolved_type))]
     UnresolvedType {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("未解析的值：{name}")]
+    #[diagnostic(code(scoop::resolve::unresolved_value))]
+    UnresolvedValue {
         name: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -238,7 +248,7 @@ pub fn check_file_bindings(
     index: &Index,
 ) -> Result<(), ResolveError> {
     // T0303：先构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
-    let _imports = ImportTable::build(source, file, index)?;
+    let imports = ImportTable::build(source, file, index)?;
 
     for item in &file.items {
         match item {
@@ -266,6 +276,9 @@ pub fn check_file_bindings(
             ast::Item::Type(_) => {}
         }
     }
+
+    // T0304：在函数体/表达式块中建立块级作用域（val/var）并做最小值名字解析。
+    check_block_scopes(source, file, index, &imports)?;
 
     Ok(())
 }

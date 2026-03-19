@@ -134,7 +134,7 @@
 
 - [x] `package` 声明、`import`、通配 `*`（已支持解析 + 最小名字绑定：TypeRef 按 import/star import 解析）
 - [ ] 可见性：`public/internal/private`
-- [ ] 作用域：文件级、块级、类/接口/结构体内部、泛型参数作用域
+- [ ] 作用域：文件级、类/接口/结构体内部、泛型参数作用域（块级局部 `val/var` 已完成，见 T0304）
 
 ### 3.2 符号表与解析
 
@@ -146,7 +146,8 @@
 - [x] import 解析与名字绑定（最小子集）：对 fun/val 顶层签名里的 `TypeRef::Path` 做存在性解析（含 star import）
 - [x] import 表（T0303）：显式 import 按 type/value 命名空间拆分，并保留 `*` import 前缀（为 expr 解析准备）
 - [ ] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
-- [ ] 作用域：块级/类型体/泛型参数/扩展 receiver（逐步补齐）
+- [x] 作用域：块级（函数体/表达式块内局部 `val/var`，含遮蔽）（T0304）
+- [ ] 作用域：类型体/泛型参数/扩展 receiver（逐步补齐）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
 
 ### 3.3 sysroot 注入

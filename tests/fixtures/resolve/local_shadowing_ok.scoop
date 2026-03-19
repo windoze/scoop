@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：验证块级作用域允许嵌套块遮蔽（shadowing），且引用解析按最近作用域生效。
+
+package fixtures.resolve
+
+fun f() {
+    val x = 1
+    {
+        val x = 2
+        x
+    }
+    x
+}
+

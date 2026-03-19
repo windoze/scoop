@@ -552,11 +552,12 @@
 - 依赖：T0301
 - 完成：新增 `scoopc::resolve::ImportTable`，在构建时把显式 import 按 type/value（fun/value）命名空间拆分，并保留 `*` import 前缀列表；`check_file_bindings` 改为构建 ImportTable 以统一验证 import 存在性；新增单测覆盖 type/value 分流与 debug 输出；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0304 [TODO] Resolver：块级作用域（val/var）符号表（spec §9）
+### T0304 [DONE] Resolver：块级作用域（val/var）符号表（spec §9）
 - 描述：在 resolve 阶段为 block 建立 scope 栈，记录局部变量定义与遮蔽规则。
 - 目标：先只支持 block 内 `val/var`；不做捕获/闭包。
 - 验收：新增 resolve fixture：引用未定义局部变量报错；同名遮蔽按规则允许/禁止（需决定）。
 - 依赖：T0207、T0301
+- 完成：在 `scoopc::resolve` 新增块级作用域检查（局部 `val/var` + 参数；嵌套块允许遮蔽），并对 `ExprKind::Ident` 做最小 value 名字存在性解析（先查局部 scope，再查同包/导入的顶层 fun/value）；新增 resolve fixtures：`unresolved_value_in_block`（fail）与 `local_shadowing_ok`（pass）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0305 [TODO] Resolver：表达式中的标识符引用解析（到变量/参数/顶层）
 - 描述：对 `Expr::Ident` 绑定到某个 SymbolId（或暂用字符串），并在 AST/HIR 中记录解析结果。

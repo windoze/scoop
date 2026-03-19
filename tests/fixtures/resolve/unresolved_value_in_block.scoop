@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的值
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_value
+// EXPECT-ERROR-AT: 10:5
+// 目标：验证 resolve 阶段能在函数体中报未定义值，并提供稳定错误码/位置。
+
+package fixtures.resolve
+
+fun f() {
+    x
+}
