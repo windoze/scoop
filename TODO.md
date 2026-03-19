@@ -654,11 +654,12 @@
 - 依赖：T0011、T0402
 - 完成：新增 `scoopc::typecheck::lower`（`check_file_type_refs` + `TypeLowerError`），实现 `TypeRef::{Path,Tuple,Nullable}` lowering 并新增错误码 `scoop::typecheck::type_arity_mismatch`；`scoopc::ty` 增加名义类型表示（nominal types）以承载非 builtin 的 `Path` lowering；fixtures runner 接入 `typecheck` phase 并新增 `tests/fixtures/typecheck/{option_any_ok,option_arity_mismatch}.scoop`（同时把 `unimplemented_phase.scoop` 升级为 smoke）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0404 [TODO] 类型检查 pass：仅检查顶层声明头（fun/val/type）签名合法
+### T0404 [DONE] 类型检查 pass：仅检查顶层声明头（fun/val/type）签名合法
 - 描述：实现 `typecheck::check_file_headers`，不进入函数体。
 - 目标：先把“类型环境 + 错误诊断”跑通；不要求表达式 AST 完整。
 - 验收：新增 `tests/fixtures/typecheck/`：至少 2 个 pass + 2 个 fail；在 `scoop test` typecheck phase 下回归。
 - 依赖：T0101、T0403
+- 完成：新增 `scoopc::typecheck::check_file_headers`（`TypeHeaderError`，错误码 `scoop::typecheck::missing_type_annotation` / `unsupported_pattern_binding`），并在 `crates/scoop/src/fixtures/mod.rs` 的 typecheck phase 中接入；新增 fixtures：`typecheck/top_level_val_with_type_ok.scoop`（pass）与 `typecheck/top_level_val_missing_type_is_error.scoop`（fail，断言 `missing_type_annotation` 与位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0405 [TODO] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
 - 描述：为 `Expr::IntLit/StringLit/...` 推导类型。

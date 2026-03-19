@@ -178,6 +178,7 @@
 - [x] `scoopc::ty`：引入 `TypeId/TypeKind`（Ref/Value）与最小 builtin（T0401）
 - [x] sysroot 类型环境：收集内建类型/效果声明头（T0402）
 - [x] `TypeRef` → `Type` lowering：支持 Path/Tuple/Nullable + 泛型 arity 检查（T0403）
+- [x] 顶层声明头签名检查（不进入函数体/initializer）：`scoopc::typecheck::check_file_headers`（T0404）
 - [ ] 区分引用类型 vs 值类型（spec §2）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - `Int/UInt` 的 bit width = target pointer size

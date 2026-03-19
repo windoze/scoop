@@ -232,6 +232,8 @@ fn typecheck_fixture(
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
+    scoopc::typecheck::check_file_headers(source, &ast).map_err(box_diagnostic)?;
+
     scoopc::typecheck::check_file_type_refs(
         source,
         &ast,

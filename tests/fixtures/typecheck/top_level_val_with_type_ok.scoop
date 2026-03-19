@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：T0404 顶层声明头检查：顶层 val/var 需要显式类型注解（当前阶段不做推断）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Any = 1
+
