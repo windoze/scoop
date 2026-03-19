@@ -472,6 +472,48 @@ impl WhenPat {
     }
 }
 
+/// 模式（pattern）——用于 `val` 解构绑定等语法位置。
+///
+/// 注意：当前阶段只实现解构绑定所需的最小子集（T0244）：
+/// - `_` wildcard
+/// - 绑定标识符（bind）
+/// - tuple pattern：`(p1, p2, ...)`
+/// - struct pattern：`TypeName { field, field: pat, ... }`
+#[derive(Debug, Clone)]
+pub struct Pattern {
+    pub span: Span,
+    pub kind: PatternKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum PatternKind {
+    Wildcard,
+    Bind(Ident),
+    Tuple(Vec<Pattern>),
+    Struct {
+        path: TypePath,
+        fields: Vec<StructPatternField>,
+    },
+    Missing,
+}
+
+impl Pattern {
+    pub fn missing(span: Span) -> Self {
+        Self {
+            span,
+            kind: PatternKind::Missing,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StructPatternField {
+    pub span: Span,
+    pub name: Ident,
+    /// `None` 表示 shorthand：`Point { x }` 等价于 `Point { x: x }`（语义留给后续阶段）。
+    pub value: Option<Box<Pattern>>,
+}
+
 /// 语句（最小骨架）。
 ///
 /// 目前阶段仅为后续 block 解析预留结构；T0207/T0208 会逐步扩展其子集。
@@ -534,14 +576,44 @@ impl std::fmt::Debug for Param {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ValDecl {
     pub span: Span,
     pub kind: ValKind,
-    pub name: Ident,
+    pub binding: ValBinding,
     pub ty: Option<TypeRef>,
     /// 初始化表达式（当前阶段可能为 `ExprKind::Missing`，后续任务会逐步补齐解析）。
     pub init: Option<Expr>,
+}
+
+#[derive(Clone)]
+pub enum ValBinding {
+    Name(Ident),
+    Pattern(Pattern),
+}
+
+impl ValDecl {
+    pub fn name(&self) -> Option<Ident> {
+        match self.binding {
+            ValBinding::Name(name) => Some(name),
+            ValBinding::Pattern(_) => None,
+        }
+    }
+}
+
+impl std::fmt::Debug for ValDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("ValDecl");
+        s.field("span", &self.span);
+        s.field("kind", &self.kind);
+        match &self.binding {
+            ValBinding::Name(name) => s.field("name", name),
+            ValBinding::Pattern(pat) => s.field("pattern", pat),
+        };
+        s.field("ty", &self.ty);
+        s.field("init", &self.init);
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

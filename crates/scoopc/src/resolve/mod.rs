@@ -88,7 +88,10 @@ impl Index {
                     self.insert_symbol(source, &pkg, SymbolKind::Type, ty.name.span)?;
                 }
                 ast::Item::Val(v) => {
-                    self.insert_symbol(source, &pkg, SymbolKind::Value, v.name.span)?;
+                    // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
+                    if let Some(name) = v.name() {
+                        self.insert_symbol(source, &pkg, SymbolKind::Value, name.span)?;
+                    }
                 }
             }
         }

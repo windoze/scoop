@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: 变量名
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 10:9
+// 目标：`var` 按 spec 不支持 destructuring（T0244）。
+
+package fixtures.parse
+
+fun f() {
+    var (a, b) = pair
+}

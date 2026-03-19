@@ -9,6 +9,7 @@ mod cursor;
 mod decls;
 mod expr;
 mod file;
+mod pattern;
 mod stmt;
 mod types;
 

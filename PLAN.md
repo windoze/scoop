@@ -118,7 +118,7 @@
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
 - [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
-- [x] Pattern AST 节点（T0237）：`Pattern` 枚举含 Wildcard/Literal/Bind/Tuple/Variant/Struct/Or/Guard/Is/NotIs/Else/Rest；供 `when` 与 `val` destructuring 复用；14 个 unit tests 覆盖构造与 span
+- [x] Pattern AST 节点（T0244）：新增 `Pattern`（Wildcard/Bind/Tuple/Struct）与 `ValBinding`，用于 block 内 `val` 解构绑定；`when` 分支模式仍使用 `WhenPat`（后续再统一迁移）
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。

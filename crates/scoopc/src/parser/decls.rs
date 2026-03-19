@@ -309,9 +309,8 @@ impl<'a> Parser<'a> {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let name = ast::Ident { span: name_tok.span };
+        let binding = ast::ValBinding::Name(name);
 
         let ty = if self.eat_symbol(Symbol::Colon) {
             Some(self.parse_type_ref()?)
@@ -427,7 +426,7 @@ impl<'a> Parser<'a> {
         Ok(ast::ValDecl {
             span: Span::new(kw.span.start, last_end),
             kind,
-            name,
+            binding,
             ty,
             init,
         })

@@ -464,11 +464,12 @@
 - 依赖：T0242、T0211
 - 实现：`parse_when_arm` 在 pattern 与 `->` 之间检测 `if` 关键字，解析 guard 表达式并包装为 `Pattern::Guard`；`looks_like_tuple_pattern_ahead` 更新为同时接受 `->` 和 `if` 作为 tuple pattern 判定条件；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
 
-### T0244 [TODO] Parser：`val` destructuring（tuple/struct pattern）（spec §4.2、§9）
+### T0244 [DONE] Parser：`val` destructuring（tuple/struct pattern）（spec §4.2、§9）
 - 描述：支持 `val (a, b) = expr` 与 `val Point { x, y } = expr`。
 - 目标：明确限制：`var` 不支持 destructuring（按 spec）。
 - 验收：新增 parse fixture：两个 destructuring 例子；新增 parse-fail fixture：`var (a, b) = ...`。
 - 依赖：T0237、T0208
+- 完成：`ValDecl` 引入 `ValBinding::{Name, Pattern}`；新增 `Pattern` AST（Wildcard/Bind/Tuple/Struct）；block 内解析 `val` 的 tuple/struct 解构并要求 initializer；`var (...)` 给出稳定 `scoop::parse::expected` 并避免级联错误；1 个 pass + 1 个 fail fixture 覆盖
 
 ### T0245 [TODO] Parser：修饰符与可见性（public/internal/private/open/abstract/sealed/inline/override）
 - 描述：在顶层声明与类型成员上解析修饰符列表，并在 AST 中保存（顺序无关）。

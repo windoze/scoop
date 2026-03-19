@@ -243,12 +243,48 @@ impl<'a> Parser<'a> {
             _ => unreachable!("kw 已经被 peek_keyword 过滤"),
         };
 
-        let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
+        // `var (a, b) = ...`：按 spec 不支持。
+        //
+        // 这里主动吞掉 `( ... )`，把 cursor 恢复到 `=` 附近，避免 block 内错误恢复
+        // 把 `(` 当作“下一条语句起始”从而产生级联错误（ManyErrors）。
+        if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LParen) {
+            let tok = *self.peek();
+            let _ = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+            return Err(ParseError::Expected {
+                expected: "变量名（标识符）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        // T0244：`val` 支持解构绑定（tuple/struct pattern）；`var` 按 spec 不支持。
+        let (binding, binding_end) = if kind == ast::ValKind::Val && self.peek_symbol(Symbol::LParen)
+        {
+            let pat = self.parse_pattern()?;
+            let end = pat.span.end;
+            (ast::ValBinding::Pattern(pat), end)
+        } else if kind == ast::ValKind::Val && self.looks_like_struct_pattern_ahead() {
+            let pat = self.parse_pattern()?;
+            let end = pat.span.end;
+            (ast::ValBinding::Pattern(pat), end)
+        } else {
+            let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+            let name = ast::Ident { span: name_tok.span };
+            // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
+            if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
+                let tok = *self.peek();
+                let _ = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+                return Err(ParseError::Expected {
+                    expected: "`:` / `=`（`var` 不支持解构绑定）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+            (ast::ValBinding::Name(name), name_tok.span.end)
         };
 
-        let ty = if self.eat_symbol(Symbol::Colon) {
+        let ty = if matches!(binding, ast::ValBinding::Name(_)) && self.eat_symbol(Symbol::Colon)
+        {
             Some(self.parse_type_ref()?)
         } else {
             None
@@ -257,7 +293,7 @@ impl<'a> Parser<'a> {
         let mut last_end = ty
             .as_ref()
             .map(|t| t.span().end)
-            .unwrap_or(name_tok.span.end);
+            .unwrap_or(binding_end);
 
         let init = if self.eat_symbol(Symbol::Eq) {
             if self.peek_kind(TokenKind::Eof)
@@ -286,6 +322,13 @@ impl<'a> Parser<'a> {
                     Some(ast::Expr::missing(Span::new(init_start, last_end)))
                 }
             }
+        } else if matches!(binding, ast::ValBinding::Pattern(_)) {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`=`（解构绑定需要 initializer）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
         } else {
             None
         };
@@ -293,7 +336,7 @@ impl<'a> Parser<'a> {
         Ok(ast::ValDecl {
             span: Span::new(kw.span.start, last_end),
             kind,
-            name,
+            binding,
             ty,
             init,
         })
