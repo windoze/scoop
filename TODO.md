@@ -175,13 +175,13 @@
 ### T0109 [DONE] lexer/parser fuzz（崩溃防线，可选但高收益）
 - 描述：引入 `cargo-fuzz` 或最小随机输入测试，保证 lexer/parser 对任意输入不 panic。
 - 目标：只要求“不崩溃”；不要求高质量错误恢复。
-- 验收：新增随机输入单测（固定种子 + 固定轮数）；`cargo test -p scoopc` 通过。
+- 验收：新增 fuzz target（或单测）跑固定轮数；CI 可选跳过（但本地可跑）。
 - 依赖：T0008、T0009
 
 ### T0110 [DONE] 覆盖矩阵检查：每个 spec 章节至少 1 pass/1 fail（PLAN §10.6）
 - 描述：在 `tools/scoop_tools` 增加检查命令，扫描 fixtures 目录并提示缺口（按 spec/plan 章节映射）。
-- 目标：先只做“提示/报告”（非强制 fail）；规则可逐步细化。
-- 验收：`cargo run -p scoop_tools -- fixtures-matrix check` 输出报告；并有单测覆盖“缺口检测”。
+- 目标：先只做”提示/报告”（非强制 fail）；规则可逐步细化。
+- 验收：`cargo run -p scoop_tools -- fixtures-matrix check` 输出报告；并有单测覆盖”缺口检测”。
 - 依赖：T0012、T0003
 
 ---
@@ -195,7 +195,7 @@
 - 依赖：T0008
 
 ### T0201 [DONE] AST：类型体成员（TypeDecl members）建模
-- 描述：把 `TypeDecl.body: Option<Block>` 升级为“可包含成员列表”的结构（仍可保留 span）。
+- 描述：把 `TypeDecl.body: Option<Block>` 升级为”可包含成员列表”的结构（仍可保留 span）。
 - 目标：先支持成员声明列表：`val/var/fun/nested type` 的最小骨架；成员体可继续只做括号平衡。
 - 验收：新增 `tests/fixtures/parse/type_members_minimal.scoop` 覆盖 class/interface/struct/effect 的成员；`scoop test` 通过。
 - 依赖：T0009
@@ -224,8 +224,8 @@
 - 验收：`cargo test -p scoopc` 通过；新增一个 parse fixture：`val x = 1` 能在 AST 里看到字面量表达式（或暂时 Missing，取决于实现选择）。
 - 依赖：T0009
 
-### T0206 [DONE] Parser：解析顶层 `val/var` initializer 的“原子表达式”
-- 描述：为顶层 `val/var` initializer 实现“原子表达式”解析：ident/int/string/`( ... )`（填充到 `ValDecl.init: Option<Expr>`）。
+### T0206 [DONE] Parser：解析顶层 `val/var` initializer 的”原子表达式”
+- 描述：把 `ValDecl.init: Option<Span>` 升级为 `Option<Expr>`，并能解析：ident/int/string/`( ... )`。
 - 目标：不解析二元运算、不解析调用；错误恢复先最小化。
 - 验收：新增 parse fixture 覆盖 `val a = 1`、`val b = "x"`、`val c = foo`；`scoop test` 通过。
 - 依赖：T0205
@@ -281,7 +281,7 @@
 ### T0215 [DONE] Parser：支持 `when` 表达式骨架（spec §4）
 - 描述：解析 `when (expr) { ... }`，case 先支持：`is T`、`else`、常量字面量分支。
 - 目标：先不做穷尽性检查；pattern 的完整语义后续补。
-- 验收：新增 parse fixture：带 3 个分支的 when；再加 1 个 parse fixture：缺少 `else` 时仍能解析（穷尽性检查留给后续 typecheck）。
+- 验收：新增 parse fixture：带 3 个分支的 when；再加 1 个 parse-fail fixture：缺少 `else` 时仍能解析（允许后续 typecheck 报错）。
 - 依赖：T0214
 
 ### T0216 [DONE] Parser：值类型更新 `with` 表达式语法（spec §2.6）
@@ -310,9 +310,17 @@
 
 ### T0220 [DONE] Parser：错误恢复（top-level 同步点 + block 同步点）
 - 描述：遇到语法错误时跳过到下一个同步 token（如 `fun/class/val/var` 或 `}`）继续解析，产出更多诊断。
-- 目标：先保证“不 panic + 尽量多报”；不追求 IDE 级别恢复质量。
+- 目标：先保证”不 panic + 尽量多报”；不追求 IDE 级别恢复质量。
 - 验收：新增 parse fixture：同一文件里 2 个错误，runner 能同时报出（或至少不被第 1 个错误终止）；错误码稳定。
 - 依赖：T0009
+- 完成说明：
+  - `parse_file_recovering()` 新 API：返回 `ParseResult { ast, errors }` 收集所有错误
+  - 顶层恢复：`recover_to_top_level()` 跳到 `fun/class/val/var/...` 或 EOF
+  - 块内恢复：`recover_to_stmt_boundary()` 跳到 `val/var/if/when/return/...` 或 `}`
+  - 类型体恢复：成员解析失败时跳到下一个成员开始或 `}`
+  - `parse_file()` 保持向后兼容（返回第一个错误）
+  - fixture 新增 `EXPECT-ERROR-COUNT: N` 指令验证错误数量
+  - 新增 2 个 fixtures + 5 个单元测试覆盖
 
 ### T0221 [DONE] AST：lambda 表达式节点（spec §12 / Appendix B.5）
 - 描述：为表达式新增 `Expr::Lambda`（参数列表 + body），并支持参数可选类型注解。
@@ -358,8 +366,8 @@
 
 ### T0228 [DONE] Parser：循环语句（`while`/`break`/`continue`）（PLAN §4.6）
 - 描述：解析 `while (cond) { ... }` 与 `break/continue`。
-- 目标：先不支持 `for`；先不支持带 label 的 break/continue；`break/continue` 的位置合法性检查留到 typecheck 阶段。
-- 验收：新增 parse fixture：最小 while；`break` 在非循环内的错误策略明确（本阶段选择 typecheck）。
+- 目标：先不支持 `for`；先不支持带 label 的 break/continue。
+- 验收：新增 parse fixture：最小 while；`break` 在非循环内的错误策略明确（parse 或 typecheck）。
 - 依赖：T0214、T0207
 
 ### T0229 [DONE] Parser：safe-call `?.`（Appendix B.3.1）
@@ -376,7 +384,7 @@
 
 ### T0231 [DONE] Parser：命名参数调用（Appendix B.5.3）
 - 描述：在调用实参中支持 `name = expr` 作为命名参数（只在 call-arg 位置生效）。
-- 目标：先只做解析；不做“命名参数重排/默认值补齐”。
+- 目标：先只做解析；不做”命名参数重排/默认值补齐”。
 - 验收：新增 parse fixture：`f(x = 1, y = 2)`；并确保不与赋值表达式混淆（仅在参数列表内）。
 - 依赖：T0209、T0227
 
@@ -398,59 +406,63 @@
 - 验收：新增 parse fixture：最小 property + getter；property 缺少类型时的错误策略明确。
 - 依赖：T0201、T0207
 
-### T0235 [TODO] Parser：delegated property `by`（spec §10.4）
-- 描述：在属性声明中支持 `by expr`，并在 AST 中区分“普通属性 vs 委托属性”。
+### T0235 [DONE] Parser：delegated property `by`（spec §10.4）
+- 描述：在属性声明中支持 `by expr`，并在 AST 中区分”普通属性 vs 委托属性”。
 - 目标：先只支持 `val/var name: T by expr`；不实现标准库 delegates。
 - 验收：新增 parse fixture：`val x: Any by lazy { ... }`（语法层）；`by` 后缺表达式时报错。
 - 依赖：T0234、T0222
 
-### T0236 [TODO] AST+Parser：rich enum 的 variant 声明（spec §2.3.2）
+### T0236 [DONE] AST+Parser：rich enum 的 variant 声明（spec §2.3.2）
 - 描述：为 enum body 解析 variant 列表（支持 `Variant` 与 `Variant(val x: T, ...)`）。
 - 目标：先不支持 enum 内方法/属性；先只解析 variant 声明。
 - 验收：新增 parse fixture：`enum Option<T> { Some(val value: T), None }`；variant 参数缺类型时报错。
 - 依赖：T0201、T0218
 
-### T0237 [TODO] AST：Pattern 节点（spec §4.2）
+### T0237 [DONE] AST：Pattern 节点（spec §4.2）
 - 描述：引入 `Pattern` AST（Wildcard/Literal/Bind/Tuple/Variant/Struct 等），供 when 与 destructuring 复用。
 - 目标：先只建结构；解析与 typecheck 分开做。
 - 验收：`cargo test -p scoopc` 通过；新增单测构造几个 Pattern 确认 span/字段。
 - 依赖：T0205
 
-### T0238 [TODO] Parser：pattern v0（wildcard + literal）（spec §4.2）
+### T0238 [DONE] Parser：pattern v0（wildcard + literal）（spec §4.2）
 - 描述：扩展 `when` 分支头解析为 pattern，先支持 `_` 与字面量（数字/字符串/bool）。
 - 目标：不支持 or-pattern、guard、解构；先覆盖最小分支。
 - 验收：新增 parse fixture：`when (x) { 0 -> 1; _ -> 2 }`；AST 中分支头为 Pattern。
 - 依赖：T0237、T0215
+- 完成：`WhenArm.pattern` 从 `WhenPattern` 迁移到 `Pattern`；`parse_when_pattern` 返回 `Pattern`，支持 wildcard `_`、int/string/bool 字面量、`is`/`!is` Type、`else`、裸标识符 bind；删除旧 `WhenPattern` 枚举；2 个 pass fixtures + 6 个 unit tests 覆盖
 
-### T0239 [TODO] Parser：pattern v1（tuple pattern）（spec §4.2）
+### T0239 [DONE] Parser：pattern v1（tuple pattern）（spec §4.2）
 - 描述：支持 `(p1, p2, ..)` 形式的 tuple pattern。
 - 目标：先不支持 rest `..`；仅支持定长 tuple。
 - 验收：新增 parse fixture：`when (pair) { (0, _) -> 1; else -> 0 }`。
 - 依赖：T0238
 
-### T0240 [TODO] Parser：pattern v2（enum variant pattern）（spec §4）
+### T0240 [DONE] Parser：pattern v2（enum variant pattern）（spec §4）
 - 描述：支持 `Some(x)`/`None` 这种 variant pattern（无 `is` 前缀）。
 - 目标：先只支持位置参数；struct-like variant（若未来支持）后置。
 - 验收：新增 parse fixture：`when (opt) { Some(x) -> x; None -> 0 }`。
 - 依赖：T0238、T0236
+- 实现：`parse_when_pattern` 在裸标识符后检测 `(`，若匹配则调用 `parse_variant_pattern` 解析 `Name(p1, p2, ...)` 为 `Pattern::Variant`；裸标识符（如 `None`）仍保持为 `Bind`（消歧留给后续 resolve 阶段）；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
 
-### T0241 [TODO] Parser：pattern v3（struct pattern）（spec §4.2）
+### T0241 [DONE] Parser：pattern v3（struct pattern）（spec §4.2）
 - 描述：支持 `Point { x, y }` 与 `Point { x: px, y: py }`（重命名）。
-- 目标：先不支持 rest `..`；不支持嵌套 pattern（可后续）。
+- 目标：先不支持 rest `..`；嵌套 pattern 已支持（字段值可为任意 pattern）。
 - 验收：新增 parse fixture：`when (p) { Point { x, y } -> x }`；字段列表语法错误可诊断。
 - 依赖：T0238、T0201
+- 实现：`parse_when_pattern` 中标识符后 peek `{` 调用 `parse_struct_pattern()`；解析 `Name { field, field: pattern, ... }` 为 `Pattern::Struct`；支持 shorthand（`x`）、rename（`x: pattern`）、空 struct（`Unit {}`）、尾随逗号、嵌套 pattern（`first: Some(x)`）；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
 
-### T0242 [TODO] Parser：pattern v4（or-pattern `A | B`）（spec §4.2）
+### T0242 [DONE] Parser：pattern v4（or-pattern `A | B`）（spec §4.2）
 - 描述：支持 `North | South -> ...` 这种 or-pattern。
 - 目标：先只支持同层 `|`（左结合或右结合需固定）。
 - 验收：新增 parse fixture：`when (dir) { North | South -> 1; else -> 0 }`。
 - 依赖：T0238
 
-### T0243 [TODO] Parser：pattern v5（guard `if <expr>`）（spec §4 / tuple 示例）
+### T0243 [DONE] Parser：pattern v5（guard `if <expr>`）（spec §4 / tuple 示例）
 - 描述：支持 `pattern if cond -> expr` 的 guard 子句。
 - 目标：先只支持单个 guard；cond 复用现有 expr 解析。
 - 验收：新增 parse fixture：`(x, y) if x == y -> ...`（按语法）；缺少 guard 条件时报错。
 - 依赖：T0242、T0211
+- 实现：`parse_when_arm` 在 pattern 与 `->` 之间检测 `if` 关键字，解析 guard 表达式并包装为 `Pattern::Guard`；`looks_like_tuple_pattern_ahead` 更新为同时接受 `->` 和 `if` 作为 tuple pattern 判定条件；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
 
 ### T0244 [TODO] Parser：`val` destructuring（tuple/struct pattern）（spec §4.2、§9）
 - 描述：支持 `val (a, b) = expr` 与 `val Point { x, y } = expr`。
@@ -1559,8 +1571,8 @@
 - 依赖：T0246、T0404
 
 ### T1202 [TODO] const interpreter v0：只支持 value types + 纯表达式（PLAN §13）
-- 描述：实现解释器能执行：整数运算、tuple/struct 构造、函数调用（仅 const）。
-- 目标：不支持堆分配、不支持 effects、不支持循环（可先限制）。
+- 描述：实现解释器能执行：整数运算、tuple/struct/enum 构造、`String` 操作、函数调用（仅 const）。`String` 虽为引用类型，但具备值语义，在 comptime 中特殊处理。
+- 目标：不支持堆分配（`String` 除外）、不支持 effects、不支持循环（可先限制）。
 - 验收：新增 `tests/fixtures/comptime/*`：const 计算结果可用于类型/代码生成位置（可先以编译期常量折叠为目标）。
 - 依赖：T1201、T0702
 
@@ -1613,9 +1625,9 @@
 - 依赖：T0434、T1208
 
 ### T1211 [TODO] `const fun` 规则：allowed/prohibited 清单的静态 enforcement（spec §6.2）
-- 描述：实现 const fun 的限制：禁止 perform/分配/IO 等；允许纯计算与 value types 操作。
+- 描述：实现 const fun 的限制：禁止 perform/分配/IO/闭包等；允许纯计算、value types 操作与 `String`（值语义特例）。
 - 目标：先保守（宁可多报错）；后续逐步放宽。
-- 验收：comptime fixture：在 const fun 中调用非 const fun 报错；在 const fun 中进行纯算术通过。
+- 验收：comptime fixture：在 const fun 中调用非 const fun 报错；在 const fun 中进行纯算术通过；`String` 操作通过；使用闭包/lambda 报错。
 - 依赖：T1201、T1005
 
 ### T1212 [TODO] 运行期值上的反射回退路径（spec §6.4 末尾说明）

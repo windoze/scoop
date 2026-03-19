@@ -26,7 +26,7 @@
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
 - [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
-- [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查 + fixtures 覆盖矩阵报告；后续扩展 golden 工具）
+- [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
 
 > 现阶段仓库还很小，可以先在单 crate 内落地；当模块多起来再迁移到 workspace。
 
@@ -57,56 +57,68 @@
 - [x] 注释：行注释 `//`、块注释 `/* */`（当前实现为**非嵌套**；若后续需要可扩展为嵌套）
 - [x] 字符串：
   - 普通字符串（`"..."`）
-  - `f` 插值字符串（`f"..."`/`f"""..."""`）：lexer 识别字面量边界；parser 进一步拆分为 text/expr parts（spec §8.2）
+  - `f` 插值字符串（`f"..."`）（lexer 识别字面量边界；parser 将 f-string token 拆为文本段 + 插值 expr 列表，AST `FStringExpr`/`FStringPart` 已实现）
   - raw 三引号字符串（`""" ... """`）与 `f""" ... """`
   - 大括号转义（`{{` / `}}`）属于字符串内容层语义，lexer 无需特殊处理
 - [x] Span（源代码位置）基础设施：`Span` + `SourceFile` 行列映射
 
 ### 2.2 语法分析（Parser）
 
-- [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`）；类型体仅保证 `{ ... }` 括号平衡并记录 span
+- [x] Parser v0（最小可用）：支持 `package` / `import` / 顶层 `fun` + 基础类型声明（`class/interface/struct/enum/effect`），函数/类型体仅保证 `{ ... }` 括号平衡并记录 span
 - [x] fun 签名最小解析：参数列表 + 返回类型（支持 Path/泛型参数列表/tuple/nullable 的 `TypeRef` 子集）
-- [x] fun 参数默认值：`param: T = expr`（Appendix B.5.2；仅语法解析并保留 Expr）
-- [x] TypeRef：支持函数类型 `->` 与可选 effect row `/ RowExpr`（spec §7.5/§5.8；当前仅语法解析）
-- [x] 声明处泛型参数列表：`fun id<T>(...)` / `struct Box<T> { ... }`（仅无约束；约束/变型/where 后续补）
 - [x] 工程化：拆分 `scoopc::parser` 为多文件模块（cursor/decls/types/file），避免单文件过长，便于后续语句/表达式迭代
 - [ ] Kotlin-like 声明（逐步补齐）：`class/interface/struct/enum/effect/val/var/...`
-  - [x] 顶层 `val`/`var`：解析声明头；initializer 支持原子表达式（ident/int/string/括号分组），更复杂表达式暂以 `Expr(Missing)` 占位并跳过
-  - [ ] 类型体内部成员声明：`val`/`var`/`fun`/nested type
-    - [x] 属性（`val`/`var`）成员：支持 `: Type` + initializer；支持 accessors：`get()` / `set(value)`（`= expr` / `{ ... }`）
-    - [x] `fun` 成员声明头
-    - [x] nested type 声明
+  - [x] 顶层 `val`/`var`：解析声明头；initializer 暂仅保留 span（不解析表达式）
+  - [x] 类型体内部成员声明：`val`/`var`/`fun`/nested type（T0201：TypeBody + Member 建模，parse_type_body 实现）
+  - [x] 类型体 `val`/`var` 成员声明头：解析 `val x: T`/`var x: T`，带 pass/fail fixtures 覆盖（T0202）
+  - [x] 类型体 `fun` 成员声明头：解析 `fun name(params): Ret { ... }`（body 仍是 span），含 pass/fail fixtures 覆盖（T0203）
+  - [x] 类型体嵌套类型声明：class/interface/struct/enum/effect 均可作为成员，支持多层嵌套与修饰符（T0204）
+  - [x] 属性声明与 accessors：`ValDecl` 新增 `accessors: Vec<Accessor>` 字段；`Accessor` 节点支持 `get()`/`set(value)` + 表达式体（`= expr`）或块体（`{ stmts }`）；类型体中 `parse_property_decl` 在 `parse_val_decl` 后探测 `get(`/`set(` 模式并解析 accessor；`get`/`set` 作为上下文关键字（soft keyword），不加入 lexer 关键字表；6 个 pass/fail fixtures + 5 个 unit tests 覆盖（T0234）
+  - [x] 委托属性 `by expr`：`ValDecl` 新增 `delegate: Option<Expr>` 字段；`parse_property_decl` 在 `parse_val_decl` 后探测 `by` 上下文关键字并解析委托表达式；`by` 与 accessors 在语法层互斥；支持 `val x: T by lazy { ... }` 等 trailing lambda 形式；2 个 pass/fail fixtures + 3 个 unit tests 覆盖（T0235）
+  - [x] Rich enum variant 声明：`Member::Variant(EnumVariant)` 新增 AST 节点；`EnumVariant` 含 `name: Ident` + `params: Vec<Param>`；`parse_type_body` 接收 `TypeKind` 参数，对 `Enum` 类型识别裸标识符作为 variant 开始；`parse_enum_variant` 解析 `Name` / `Name(val field: T, ...)` 形式；variant 参数要求 `val` 关键字 + 类型标注；1 个 pass + 2 个 fail fixtures + 3 个 unit tests 覆盖（T0236）
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
-- [x] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、block
-   - [x] block（函数体 / 控制结构 body）：`{ ... }` → `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
-   - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
-   - [x] `return` 语句：`return` / `return expr`（仅 block 内；顶层 `return` 直接报 parse 错误）
-   - [x] 赋值语句/表达式：`lhs = rhs`（lhs 限标识符/成员访问；不支持复合赋值与解构赋值）
-   - [x] `while`/`break`/`continue`：语法解析（当前仅支持 `while (cond) { ... }`；位置合法性留到 typecheck）
-   - [x] postfix 调用表达式：`callee(args...)`（支持位置参数；支持命名参数 `name = expr`；支持 trailing lambda：`callee { ... }` / `callee(args) { ... }`）
-   - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
-   - [x] postfix safe-call：`receiver?.member` / `receiver?.call(...)`（Appendix B.3.1；当前仅语法建模）
-   - [x] postfix 非空断言：`expr!!`
-   - [x] Elvis：`a ?: b`（低优先级二元，右结合）
-   - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）
-   - [x] lambda 表达式：`{ params -> body }` / `{ body }`（参数支持可选类型注解；body 可为单表达式或 block）
-   - [ ] struct literal 表达式：`TypeName { field: expr, ... }`（spec §12）
-     - [x] AST 节点：`ExprKind::StructLit`
-     - [x] 解析：postfix/primary 识别 `TypeName { ... }`（当前仅单段 `TypeName`）
-     - [x] `{}` 歧义消解：struct literal vs lambda
-   - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
-   - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
-- [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
-- [x] 运算符优先级（Pratt 或 precedence climbing）
-- [x] 关键歧义：struct literal vs lambda（对应 spec §12）
-- [x] 错误恢复：尽量产出更多诊断而不是第一个错误就退出（用于 IDE 与 fixtures）
+- [x] Expr/Stmt 最小骨架（T0205）：Ident/IntLit/StringLit/BlockExpr/Missing + Stmt::Expr/Stmt::ValDecl
+- [x] val/var initializer 解析为原子表达式（T0206）：`ValDecl.init` 从 `Option<Span>` 升级为 `Option<Expr>`，支持 ident/int/string 原子
+- [x] 块表达式解析（T0207）：`parse_block_expr` 解析 `{ stmt* }` 为 `BlockExpr { stmts }`；`FunBody::Block` 改用 `BlockExpr`（含 stmts）替代旧 `Block`（仅 span）；块内支持表达式语句与 val/var 声明
+- [x] 块内 val/var 局部绑定（T0208）：`parse_stmt` 已支持 `val x: T = expr`/`val x = expr`/`var x = expr`；新增 pass/fail fixtures 覆盖（含 `val = 1` 缺名报错）
+- [x] 函数调用表达式（T0209）：`parse_expr` 引入后缀调用循环，解析 `f(a, b)` 为 `CallExpr { callee, args }`；支持嵌套调用 `f(g(x))`、尾随逗号；`parse_stmt` 和 `ValDecl.init` 改用 `parse_expr`
+- [x] 成员访问表达式（T0210）：后缀循环新增 `.` 分支，解析 `a.b` 为 `FieldAccessExpr { receiver, field }`；支持链式 `a.b.c(1)` 与调用组合
+- [ ] 语句/表达式（逐步补齐）：lambda
+  - [x] Lambda AST 节点：`Expr::Lambda(LambdaExpr)` + `LambdaParam`（T0221）
+  - [x] Lambda 表达式解析：`{ params -> body }` / `{ -> body }` 的 lookahead 歧义消解 + 参数列表 + block body 解析；6 个 pass/fail fixtures 覆盖（T0222）
+  - [x] Trailing lambda：`f(a, b) { ... }` 与 `expr { ... }` 形式，尾随 lambda 作为最后一个 `CallArg::Positional(Lambda)`；bare `{ body }` 无 `->` 时解析为零参数 lambda；5 个 pass fixtures 覆盖（T0232）
+- [x] `when` 表达式解析：`when (subject) { pattern -> body, ... }`（T0215：AST `WhenExpr`/`WhenArm`/`WhenPattern` + parser + pass/fail fixtures）
+  - [x] Pattern v0（T0238）：`WhenArm.pattern` 迁移为 `Pattern`，删除 `WhenPattern`；支持 wildcard `_`、int/string/bool 字面量、`is`/`!is` Type、`else`、裸标识符 bind；2 个 pass fixtures + 6 个 unit tests 覆盖
+  - [x] Pattern v1 — tuple pattern（T0239）：`parse_when_pattern` 新增 `(` 检测调用 `parse_tuple_pattern()`，解析 `(p1, p2, ...)` 为 `Pattern::Tuple`；支持嵌套 pattern、尾随逗号、空 tuple `()`；`no_call` 标志 + `looks_like_tuple_pattern_ahead()` lookahead 消解 arm body call 与下一 arm tuple pattern 的歧义；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
+  - [x] Pattern v2 — enum variant pattern（T0240）：`parse_when_pattern` 在裸标识符后 peek `(` 调用 `parse_variant_pattern()`，解析 `Name(p1, p2, ...)` 为 `Pattern::Variant`；支持嵌套 variant（`Some(Some(x))`）、空参数（`Point()`）、尾随逗号、wildcard 字段；裸标识符（无括号）保持为 `Bind`（消歧留给 resolve 阶段）；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
+  - [x] Pattern v3 — struct pattern（T0241）：`parse_when_pattern` 在裸标识符后 peek `{` 调用 `parse_struct_pattern()`，解析 `Name { field, field: pattern, ... }` 为 `Pattern::Struct`；支持 shorthand（`x`）、rename（`x: pattern`）、空 struct（`Unit {}`）、尾随逗号、嵌套 pattern（`first: Some(x)`）；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
+  - [x] Pattern v4 — or-pattern（T0242）：`parse_when_pattern` 拆分为 `parse_when_pattern`（含 `|` 循环）+ `parse_when_pattern_atom`（单个 pattern）；`A | B` 解析为左结合 `Pattern::Or`；支持多级 `A | B | C`、嵌套在 tuple/variant/struct 内的 or-pattern、混合 literal/bind/variant/wildcard；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
+  - [x] Pattern v5 — guard `if <expr>`（T0243）：`parse_when_arm` 在 pattern 与 `->` 之间检测 `if` 关键字，解析 guard 表达式并包装为 `Pattern::Guard`；`looks_like_tuple_pattern_ahead` 更新为同时接受 `->` 和 `if` 作为 tuple pattern 判定条件；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
+- [x] `if` 表达式解析：`if (cond) thenExpr else elseExpr`（T0214：AST `IfExpr` + parser + pass/fail fixtures）
+- [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）（T0216：AST `WithExpr`/`WithField` + parser + pass/fail fixtures）
+- [x] 运算符优先级（Pratt parser）：二元运算 `+ - * / %`、比较 `< > <= >= == !=`、逻辑 `&& ||`、位运算 `& | ^`、移位 `<< >>`；一元前缀 `- ! ~`；括号分组 `(expr)`；`Percent` token 新增
+- [x] Elvis `?:` 二元运算（最低优先级）与 not-null 断言 `!!` 后缀运算（T0212）
+- [x] 类型判断/转换操作符：`is`/`!is`/`as`/`as?`（与比较运算符同优先级，RHS 为 TypeRef）（T0213）
+- [x] 声明处泛型参数列表：`fun id<T>(...)` / `struct Box<T> { ... }` — AST `TypeParam` 节点 + `type_params` 字段 + `parse_type_param_list`（T0218）
+- [x] struct literal AST 节点：`Expr::StructLit(StructLitExpr)` + `StructLitField`（T0223）
+- [x] struct literal 解析：`TypeName { field: expr, ... }`（T0224）— `looks_like_struct_lit()` lookahead 在 `parse_expr_primary` 中识别 `Ident(.Ident)*(<...>)? { (Ident: | })` 模式，调用 `parse_struct_lit_expr()` + `parse_path_type_inner()` 解析；6 个 pass/fail fixtures 覆盖
+- [x] 关键歧义：struct literal vs lambda（对应 spec §12）（T0225）— `looks_like_struct_lit()` 增加 `has_arrow_inside_braces()` 扫描：在 `{ Ident :` 匹配后，前扫顶层 `->` 来排除 lambda with typed params；4 个 pass fixtures 覆盖
+- [x] `return` 语句解析：`Stmt::Return(ReturnStmt)` + `parse_return_stmt`（T0226）— 支持 `return` 与 `return expr`；3 个 pass fixtures 覆盖
+- [x] 赋值语句解析：`Stmt::Assign(AssignStmt)` + `parse_stmt` 中 `= rhs` 检测（T0227）— 支持 `x = expr` 与 `a.b.c = expr`；2 个 pass + 1 个 fail fixtures 覆盖
+- [x] `while` 循环表达式解析：`Expr::While(WhileExpr)` + `parse_while_expr`（T0228）— 支持 `while (cond) body`；`break`/`continue` 作为 `Stmt::Break`/`Stmt::Continue`；lexer 新增 `While`/`Break`/`Continue` 关键字；2 个 pass + 1 个 fail fixtures 覆盖
+- [x] 错误恢复：`parse_file_recovering()` 新 API，顶层/块内/类型体三级同步点恢复，收集多个诊断
+- [x] safe-call `?.`：`FieldAccessExpr` 与 `CallExpr` 新增 `safe: bool` 标志；postfix 循环处理 `QuestionDot` token，支持 `x?.member` 与 `x?.foo(args)`；2 个 pass + 1 个 fail fixtures 覆盖（T0229）
+- [x] 函数参数默认值：`Param` 新增 `default: Option<Expr>` 字段；`parse_param_list` 解析 `= expr`；1 个 pass + 1 个 fail fixtures 覆盖（T0230）
+- [x] 命名参数调用：新增 `CallArg` 枚举（`Positional(Expr)` / `Named { name, value }`）；`CallExpr.args` 改为 `Vec<CallArg>`；`parse_call_arg` 通过 lookahead `Ident + =` 区分命名参数与位置参数；2 个 pass fixtures 覆盖（T0231）
+- [x] 扩展函数 receiver：`FunDecl` 新增 `receiver: Option<TypeRef>` 字段；`parse_fun_receiver_and_name` 通过 lookahead 识别 `Type.name(...)` / `pkg.Type.name(...)` / `List<T>.name(...)` 模式并拆分 receiver 与函数名；type params 支持 spec 风格 `fun <T> Type.name(...)` 和 Kotlin 风格 `fun name<T>(...)`；resolve 侧同步处理 receiver TypeRef；3 个 pass + 1 个 fail fixtures + 5 个 unit tests 覆盖（T0233）
 
 ### 2.3 语法树表示（AST/Parse Tree）
 
 - [ ] 建议区分：
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
-- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/TypeBody/TypeMember/Block/Expr/Stmt/Ident/Param/TypeRef/LambdaExpr，节点带 span 并可回切源文本
+- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
+- [x] Pattern AST 节点（T0237）：`Pattern` 枚举含 Wildcard/Literal/Bind/Tuple/Variant/Struct/Or/Guard/Is/NotIs/Else/Rest；供 `when` 与 `val` destructuring 复用；14 个 unit tests 覆盖构造与 span
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。
@@ -158,7 +170,8 @@
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
 - [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
 - [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
-- [ ] 函数类型（含 effect row）：`(A, B) -> T / E` 与 receiver function type（spec §7.5）
+- [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
+- [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
 
 ### 4.2 声明类型：class/interface/struct/enum/effect
@@ -198,7 +211,6 @@
 
 ### 4.7 属性系统（spec §10）
 
-- [x] 语法解析：属性声明 + accessors（`get()` / `set(value)`，支持 `= expr` / `{ ... }`）
 - [ ] 类属性：
   - 默认 getter/setter（生成 backing field）
   - 自定义 accessor + `field` 关键字规则
@@ -215,9 +227,8 @@
 
 - [ ] `inline`：仅作为优化提示（不改变语义）
 - [ ] 扩展函数：
-  - [x] receiver 语法解析：`fun T.name(...)`（仅 AST；分发/codegen 后续补齐）
-  - [ ] 解析与分发规则（静态分发、member 优先）
-  - [ ] codegen：receiver 作为第一个参数的普通函数
+  - 解析与分发规则（静态分发、member 优先）
+  - codegen：receiver 作为第一个参数的普通函数
 
 **本阶段 DoD**
 - `scoopc` 能对一批无泛型/少量泛型的示例做类型检查（含 struct/enum/Option/when/is/as）。
@@ -432,26 +443,25 @@ tests/
 ### 10.4 运行期 fixtures（run-pass）
 
 - [x] T0106a：fixtures runner 识别 `codegen/`（或 `run-pass/`）phase，并实现 stdout golden 比对（对比逻辑可单测独立验证）
-- [x] T0106b1：run-pass phase：引入可注入的进程执行器（捕获 stdout）并补齐单测
-- [ ] T0106b2（BLOCKED，待 T0807）：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout + 增加 1 个可执行 fixture（stderr 后续补齐）
+- [ ] T0106b：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout（stderr 后续补齐）
 - [ ] 支持超时、退出码断言（fixtures 指令：`TIMEOUT`/`EXPECT-EXIT`）
 - [ ] 对 GC 压测类测试，支持 `SCOOP_GC_STRESS=1` 之类的环境变量切换（让 CI 可控）
 
 ### 10.5 Fuzz/性质测试（可选但很有价值）
 
-- [x] lexer/parser fuzz（避免崩溃，保证错误恢复）
+- [x] lexer/parser fuzz（避免崩溃，保证错误恢复）— 实现为 `crates/scoopc/tests/fuzz.rs`：adversarial + deterministic random + structured fragment 三类测试（5000+ iterations）
 - [ ] IR lowering fuzz（随机小 AST → 不崩溃）
 - [ ] GC 压测（随机分配/释放/跨线程）
 
 ### 10.6 覆盖矩阵（建议维护）
 
+- [x] `cargo run -p scoop_tools -- fixtures-matrix check`：按 phase 目录扫描 fixtures，报告缺少 pass 或 fail 的缺口（见 `tools/scoop_tools/src/fixtures_matrix/`）
+- [ ] 后续可细化为按 spec 章节粒度检查（当前为 phase 粒度）
+
 为每个 spec 章节至少准备：
 - 1 个 compile-pass
 - 1 个 compile-fail（覆盖常见误用）
 - 若涉及运行期语义（GC/effect/async），再加 1 个 run-pass
-
-工具（仅报告，不强制 fail）：
-- `cargo run -p scoop_tools -- fixtures-matrix check`
 
 ---
 
@@ -504,7 +514,8 @@ fixtures：
 
 ## 13. 编译期执行与反射（阶段 11：comptime）
 
-- [ ] `const fun` 解释器（先支持 value types/纯计算）
+- [ ] `const fun` 解释器（先支持 value types/纯计算；`String` 作为特例允许——具有值语义）
+- [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）
 

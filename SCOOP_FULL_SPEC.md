@@ -1007,6 +1007,7 @@ val y = add(a, b)
 - Local `var` / `val` bindings
 - Control flow: `if`, `when`, `for`, `while`
 - All value type operations (arithmetic, string operations, struct/tuple/enum construction)
+- `String` operations — although `String` is a reference type at runtime, it has value-type semantics (immutable, content-equality) and is specially handled during compile-time evaluation
 - `comptime for` / `comptime if`
 
 #### Prohibited in `const fun`:
@@ -1014,7 +1015,8 @@ val y = add(a, b)
 - Calling non-`const` functions
 - Any effect (IO, Async, Raise, etc.)
 - Accessing global mutable state
-- Creating reference type instances (class instances require heap allocation, unavailable at compile time)
+- Creating reference type instances (class instances require heap allocation, unavailable at compile time) — exception: `String` is allowed (see above)
+- Closures / lambdas (capturing environment makes compile-time analysis intractable — whether a closure fully satisfies `const` semantics depends on its capture set, which is difficult to verify statically)
 
 ### 6.3 `comptime` Blocks
 
