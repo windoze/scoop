@@ -76,14 +76,15 @@
     - [x] `fun` 成员声明头
     - [x] nested type 声明
 - [ ] `typealias` 声明：语法解析 + AST 表示（为 sysroot 标准别名与 Kotlin 兼容铺路）
-- [ ] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、块表达式
-   - [x] 块表达式 `{ ... }`：解析为 `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
+- [x] 语句/表达式（逐步补齐）：调用、成员访问、lambda、if/when、block
+   - [x] block（函数体 / 控制结构 body）：`{ ... }` → `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
    - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
    - [x] postfix 非空断言：`expr!!`
    - [x] Elvis：`a ?: b`（低优先级二元，右结合）
    - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）
+   - [x] lambda 表达式：`{ params -> body }` / `{ body }`（参数支持可选类型注解；body 可为单表达式或 block）
    - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
    - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
 - [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）

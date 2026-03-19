@@ -10,7 +10,7 @@
 
 use crate::ast;
 use crate::span::Span;
-use crate::syntax::token::{Keyword, Symbol, TokenKind};
+use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 
 use super::{ParseError, Parser};
 
@@ -18,6 +18,14 @@ impl<'a> Parser<'a> {
     /// 解析块表达式（含函数体 block）：`{ stmt* }`。
     pub(super) fn parse_block(&mut self) -> Result<ast::Block, ParseError> {
         let open = self.expect_symbol(Symbol::LBrace)?;
+        self.parse_block_with_open(open)
+    }
+
+    /// 在已经消费了 `{` 后解析块内容，直到匹配的 `}`。
+    ///
+    /// 该入口被 `parse_block()` 与 lambda 解析共享，以避免重复实现 block 内语句解析与错误恢复逻辑。
+    pub(super) fn parse_block_with_open(&mut self, open: Token) -> Result<ast::Block, ParseError> {
+        debug_assert_eq!(open.kind, TokenKind::Symbol(Symbol::LBrace));
         let start = open.span.start;
 
         let mut stmts = Vec::new();

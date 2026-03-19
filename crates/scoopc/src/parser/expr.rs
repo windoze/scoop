@@ -6,6 +6,7 @@
 //! - int literal
 //! - string literal
 //! - 括号分组 `( ... )`（仅在内部也是原子表达式时才保留其 kind，否则降级为 Missing）
+//! - lambda 表达式（T0222）：`{ params -> body }` / `{ body }`
 //! - postfix 调用表达式（T0209）：`callee(args...)`
 //! - postfix 成员访问（T0210）：`receiver.member`
 //! - postfix 非空断言（T0212）：`expr!!`
@@ -375,11 +376,7 @@ impl<'a> Parser<'a> {
         }
 
         if self.peek_symbol(Symbol::LBrace) {
-            let block = self.parse_block()?;
-            return Ok(Some(ast::Expr {
-                span: block.span,
-                kind: ast::ExprKind::Block(block),
-            }));
+            return Ok(Some(self.parse_lambda_expr()?));
         }
 
         if self.peek_symbol(Symbol::LParen) {
@@ -641,7 +638,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        // 该 snippet parser 会复用 `parse_block()`（例如 `{ ... }` block expr），
+        // 该 snippet parser 可能会复用 `parse_block()`（例如 `if (...) { ... }` / `when` arm 的 block body），
         // 而 block 内的错误恢复会把诊断记录到 `p.errors` 中。
         // snippet 解析是“独立入口”，因此需要在此处把这些诊断重新提升为返回值。
         if !p.errors.is_empty() {
@@ -666,6 +663,124 @@ impl<'a> Parser<'a> {
         Ok(expr)
     }
 
+    /// 解析 lambda 表达式：`{ params -> body }` / `{ body }`（spec §12 / Appendix B.5）。
+    ///
+    /// 说明：
+    /// - 在“通用表达式起始”位置遇到 `{` 时优先解析为 lambda（Kotlin 风格）。
+    /// - `if` / `when` 等控制结构的 `{ ... }` block body 由各自解析函数优先处理，
+    ///   以避免把 `if (cond) { ... }` 解析成 lambda。
+    fn parse_lambda_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let open = self.expect_symbol(Symbol::LBrace)?;
+        let start = open.span.start;
+
+        let mut params = Vec::new();
+        let mut arrow_span = None;
+
+        if self.peek_symbol(Symbol::Arrow) {
+            // 0 参数显式箭头：`{ -> body }`
+            let arrow = self.bump();
+            arrow_span = Some(arrow.span);
+        } else if let Some((ps, arrow)) = self.try_parse_lambda_params_and_arrow()? {
+            params = ps;
+            arrow_span = Some(arrow);
+        }
+
+        let block = self.parse_block_with_open(open)?;
+        let end = block.span.end;
+
+        // 当前阶段（T0222）只区分两类 body：
+        // - 单表达式 body：直接用该表达式
+        // - block body：用 `ExprKind::Block`（包含语句列表）
+        let body = match block.stmts.as_slice() {
+            [ast::Stmt {
+                kind: ast::StmtKind::Expr(expr),
+                ..
+            }] => expr.clone(),
+            _ => ast::Expr {
+                span: block.span,
+                kind: ast::ExprKind::Block(block),
+            },
+        };
+
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::Lambda(ast::LambdaExpr {
+                params,
+                arrow_span,
+                body: Box::new(body),
+            }),
+        })
+    }
+
+    /// 尝试解析 lambda 的参数列表并消费 `->`。
+    ///
+    /// 成功时返回 `(params, arrow_span)`；
+    /// 若当前位置不像 lambda 参数起始（或缺少 `->`），返回 `Ok(None)` 且不消费任何 token。
+    fn try_parse_lambda_params_and_arrow(
+        &mut self,
+    ) -> Result<Option<(Vec<ast::Param>, Span)>, ParseError> {
+        if !self.peek_kind(TokenKind::Ident) {
+            return Ok(None);
+        }
+
+        let checkpoint = self.i;
+        let mut params = Vec::new();
+
+        loop {
+            if !self.peek_kind(TokenKind::Ident) {
+                self.i = checkpoint;
+                return Ok(None);
+            }
+
+            let name_tok = self.bump();
+            let name = ast::Ident {
+                span: name_tok.span,
+            };
+
+            let ty = if self.eat_symbol(Symbol::Colon) {
+                Some(self.parse_type_ref()?)
+            } else {
+                None
+            };
+            params.push(ast::Param { name, ty });
+
+            if self.peek_symbol(Symbol::Arrow) {
+                let arrow = self.bump();
+                return Ok(Some((params, arrow.span)));
+            }
+
+            if self.eat_symbol(Symbol::Comma) {
+                // 与其它列表一致：允许一个宽容的 trailing comma（例如 `{ a, b, -> a }`）。
+                if self.peek_symbol(Symbol::Arrow) {
+                    let arrow = self.bump();
+                    return Ok(Some((params, arrow.span)));
+                }
+                continue;
+            }
+
+            // 缺少 `->`：不是 lambda params 形态，回退到 `{ body }`。
+            self.i = checkpoint;
+            return Ok(None);
+        }
+    }
+
+    fn parse_control_body_expr(&mut self, expected: &'static str) -> Result<ast::Expr, ParseError> {
+        if self.peek_symbol(Symbol::LBrace) {
+            let block = self.parse_block()?;
+            return Ok(ast::Expr {
+                span: block.span,
+                kind: ast::ExprKind::Block(block),
+            });
+        }
+
+        let tok = *self.peek();
+        self.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected,
+            found: tok.kind,
+            span: tok.span.into(),
+        })
+    }
+
     fn parse_if_expr(&mut self) -> Result<ast::Expr, ParseError> {
         let if_kw = self.expect_keyword(Keyword::If)?;
         let start = if_kw.span.start;
@@ -687,21 +802,11 @@ impl<'a> Parser<'a> {
         }
         self.expect_symbol(Symbol::RParen)?;
 
-        let tok = *self.peek();
-        let then_branch = self.try_parse_expr()?.ok_or(ParseError::Expected {
-            expected: "表达式（then 分支）",
-            found: tok.kind,
-            span: tok.span.into(),
-        })?;
+        let then_branch = self.parse_control_body_expr("表达式（then 分支）")?;
 
         let (end, else_branch) = if self.peek_keyword(Keyword::Else) {
             self.bump();
-            let tok = *self.peek();
-            let else_expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
-                expected: "表达式（else 分支）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
+            let else_expr = self.parse_control_body_expr("表达式（else 分支）")?;
             (else_expr.span.end, Some(Box::new(else_expr)))
         } else {
             (then_branch.span.end, None)
@@ -752,14 +857,21 @@ impl<'a> Parser<'a> {
             let pat_span = pat.span();
             let arrow = self.expect_symbol(Symbol::Arrow)?;
 
-            let tok = *self.peek();
-            let body = self
-                .try_parse_expr_in_when_arm()?
-                .ok_or(ParseError::Expected {
-                    expected: "表达式（when 分支 body）",
-                    found: tok.kind,
-                    span: tok.span.into(),
-                })?;
+            let body = if self.peek_symbol(Symbol::LBrace) {
+                let block = self.parse_block()?;
+                ast::Expr {
+                    span: block.span,
+                    kind: ast::ExprKind::Block(block),
+                }
+            } else {
+                let tok = *self.peek();
+                self.try_parse_expr_in_when_arm()?
+                    .ok_or(ParseError::Expected {
+                        expected: "表达式（when 分支 body）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?
+            };
 
             arms.push(ast::WhenArm {
                 span: Span::new(pat_span.start, body.span.end),

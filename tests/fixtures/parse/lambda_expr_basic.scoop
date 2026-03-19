@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: lambda_expr_basic.ast
+// 目标：验证 lambda 表达式解析：`{ x: Any -> x }` / `{ it }` / 多参数 `{ a, b -> a }`。
+
+package fixtures.parse
+
+val f = { x: Any -> x }
+val g = { it }
+val h = { a, b -> a }
+
+fun main() {}
+

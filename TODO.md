@@ -320,7 +320,7 @@
 - 验收：`cargo test -p scoopc` 通过；新增一个 parse fixture（配合 T0222）可在 AST 看到 lambda。
 - 依赖：T0205
 
-### T0222 [TODO] Parser：lambda 表达式解析（`{ x -> expr }` / `{ expr }`）
+### T0222 [DONE] Parser：lambda 表达式解析（`{ x -> expr }` / `{ expr }`）
 - 描述：在表达式解析中识别 `{ ... }` 为 lambda，并解析 `->` 前参数、`->` 后 body（可用 block 语句列表）。
 - 目标：先只支持：0~N 参数、单表达式 body 或 block body；不做类型推断。
 - 验收：新增 parse fixture：`val f = { x: Any -> x }` 与 `list.map { it }`（只要能解析）；`scoop test` 通过。

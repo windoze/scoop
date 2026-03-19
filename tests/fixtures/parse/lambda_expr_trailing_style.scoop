@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：确保 Kotlin 风格 `call { ... }` 的源码在当前阶段不会导致 parse 失败。
+//
+// 说明：真正把 `{ ... }` 绑定为“trailing lambda 参数”由后续任务（T0232）完成；
+// 当前 fixture 只要求 parser 可前进并保持括号平衡。
+
+package fixtures.parse
+
+val y = list.map { it }
+
+fun main() {}
+
