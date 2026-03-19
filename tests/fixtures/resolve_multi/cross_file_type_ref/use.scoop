@@ -1,0 +1,7 @@
+// EXPECT: pass
+// 目标：验证 resolve_multi 会把同一 case 目录内的多个文件作为一个编译单元构建索引。
+
+package fixtures.resolve_multi.cross_file_type_ref
+
+fun id(x: Foo): Foo { x }
+

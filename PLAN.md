@@ -401,6 +401,7 @@ tests/
   fixtures/
     parse/               # 仅解析：AST snapshot / 语法错误恢复
     resolve/             # 名字解析：import/visibility
+    resolve_multi/        # 名字解析：多文件编译单元（目录为 case）
     typecheck/           # 类型检查：compile-pass / compile-fail
     infer/               # 推断专项
     effects/             # effect rows / handle / required effects / entrypoint Pure
@@ -416,7 +417,10 @@ tests/
 
 - [x] phase 路由：按 `tests/fixtures/<phase>/**` 目录名决定执行阶段（未实现 phase 返回“未实现”诊断）
 
-每个 fixture 采用“单文件 + 注释指令”的形式（类似 LLVM lit 或 Rust compiletest）：
+默认每个 fixture 采用“单文件 + 注释指令”的形式（类似 LLVM lit 或 Rust compiletest）。
+对于需要跨文件验证的规则（例如 `private` 可见性、跨文件引用等），额外提供 `resolve_multi/<case>/`：
+- `<case>/` 目录内包含 2+ 个 `.scoop` 文件
+- runner 先把同一 case 的所有文件作为一个编译单元构建索引，再逐文件执行 resolve 并按各自文件头注释断言 pass/fail
 
 - [x] `// EXPECT: pass|fail`
 - [x] `// EXPECT-ERROR: <substring>`（当前为子串匹配；后续可升级为 regex）

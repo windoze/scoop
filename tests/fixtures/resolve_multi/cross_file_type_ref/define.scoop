@@ -1,0 +1,7 @@
+// EXPECT: pass
+// 目标：为 resolve_multi case 提供跨文件可见的类型定义。
+
+package fixtures.resolve_multi.cross_file_type_ref
+
+struct Foo {}
+

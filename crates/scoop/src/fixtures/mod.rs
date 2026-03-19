@@ -12,6 +12,7 @@
 //! 目录路由（phase）：
 //! - `tests/fixtures/parse/**` → parse
 //! - `tests/fixtures/resolve/**` → resolve
+//! - `tests/fixtures/resolve_multi/<case>/**` → resolve（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - 其它一级目录（如 `typecheck/`、`infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
 
@@ -28,10 +29,22 @@ use thiserror::Error;
 use expectations::{Expect, FixtureExpectation};
 
 pub fn run_all(fixtures_root: &Path) -> Result<usize> {
-    let mut files = Vec::new();
-    collect_scoop_files(fixtures_root, &mut files)?;
+    // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
+    // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
+    let resolve_multi_root = fixtures_root.join("resolve_multi");
+    let resolve_multi_cases = collect_resolve_multi_cases(&resolve_multi_root)?;
 
-    if files.is_empty() {
+    let mut files = Vec::new();
+    collect_scoop_files(
+        fixtures_root,
+        &mut files,
+        resolve_multi_root
+            .is_dir()
+            .then_some(resolve_multi_root.as_path()),
+    )?;
+    files.sort();
+
+    if files.is_empty() && resolve_multi_cases.is_empty() {
         return Err(miette!(
             "fixtures 目录下未发现任何 .scoop 文件：{}",
             fixtures_root.display()
@@ -44,6 +57,11 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
         run_one(&session, fixtures_root, &file)
             .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
         ok += 1;
+    }
+
+    for case_dir in resolve_multi_cases {
+        ok += run_resolve_multi_case(&session, fixtures_root, &case_dir)
+            .wrap_err_with(|| format!("resolve_multi case 失败：{}", case_dir.display()))?;
     }
 
     Ok(ok)
@@ -95,6 +113,13 @@ enum FixturePhase {
     Resolve,
     RunPass,
     Unimplemented(String),
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("resolve_multi case 需要至少 2 个 `.scoop` 文件（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::resolve_multi_case_too_small))]
+struct ResolveMultiCaseTooSmall {
+    fixture: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -178,6 +203,67 @@ fn resolve_fixture(
     Ok(())
 }
 
+/// 运行一个 `tests/fixtures/resolve_multi/<case>/` 的多文件编译单元。
+///
+/// 规则（当前阶段）：
+/// - case 目录下必须有 2+ 个 `.scoop` 文件
+/// - 先把 case 内所有文件 + sysroot 一起构建 `Index`
+/// - 再对 case 内每个文件分别运行 `check_file_bindings`，并按各自文件头注释断言 pass/fail
+fn run_resolve_multi_case(
+    session: &scoopc::session::Session,
+    fixtures_root: &Path,
+    case_dir: &Path,
+) -> Result<usize> {
+    let mut paths = Vec::new();
+    collect_scoop_files(case_dir, &mut paths, None)?;
+    paths.sort();
+
+    if paths.len() < 2 {
+        let rel = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+        return Err(ResolveMultiCaseTooSmall {
+            fixture: rel.display().to_string(),
+        }
+        .into());
+    }
+
+    let mut sources = Vec::with_capacity(paths.len());
+    let mut asts = Vec::with_capacity(paths.len());
+    for path in &paths {
+        let source = scoopc::source::SourceFile::load(path)?;
+        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        sources.push(source);
+        asts.push(ast);
+    }
+
+    let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    for (s, a) in sources.iter().zip(asts.iter()) {
+        pairs.push((s, a));
+    }
+
+    let index = scoopc::resolve::Index::build(&pairs).map_err(miette::Report::new)?;
+
+    for (source, ast) in sources.iter().zip(asts.iter_mut()) {
+        let exp = FixtureExpectation::from_source(source.text());
+
+        let result: std::result::Result<(), Box<dyn miette::Diagnostic>> =
+            scoopc::resolve::check_file_bindings(source, ast, &index).map_err(box_diagnostic);
+
+        match (exp.expect, result) {
+            (Expect::Pass, Ok(())) => {}
+            (Expect::Pass, Err(e)) => return Err(miette!("期望通过，但执行失败：{e}")),
+            (Expect::Fail, Ok(())) => return Err(miette!("期望失败，但执行成功")),
+            (Expect::Fail, Err(e)) => {
+                assert_diagnostic_matches(source, &exp, &*e)?;
+            }
+        }
+    }
+
+    Ok(paths.len())
+}
+
 fn box_diagnostic<E>(e: E) -> Box<dyn miette::Diagnostic>
 where
     E: miette::Diagnostic + 'static,
@@ -243,7 +329,15 @@ fn primary_label_line_col(
     source.offset_to_line_col(offset)
 }
 
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+fn collect_scoop_files_inner(
+    dir: &Path,
+    out: &mut Vec<PathBuf>,
+    skip_dir: Option<&Path>,
+) -> Result<()> {
+    if skip_dir.is_some_and(|skip| dir.starts_with(skip)) {
+        return Ok(());
+    }
+
     for entry in std::fs::read_dir(dir)
         .into_diagnostic()
         .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
@@ -253,7 +347,7 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let ty = entry.file_type().into_diagnostic()?;
 
         if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
+            collect_scoop_files_inner(&path, out, skip_dir)?;
             continue;
         }
 
@@ -262,6 +356,32 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>, skip_dir: Option<&Path>) -> Result<()> {
+    collect_scoop_files_inner(dir, out, skip_dir)
+}
+
+fn collect_resolve_multi_cases(resolve_multi_root: &Path) -> Result<Vec<PathBuf>> {
+    if !resolve_multi_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut cases = Vec::new();
+    for entry in std::fs::read_dir(resolve_multi_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", resolve_multi_root.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            cases.push(path);
+        }
+    }
+
+    // 稳定排序（便于定位错误）。
+    cases.sort();
+    Ok(cases)
 }
 
 fn normalize_newlines(s: &str) -> String {

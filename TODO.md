@@ -573,11 +573,12 @@
 - 依赖：T0301、T0245
 - 完成：`scoopc::resolve::Index` 的 `Symbol` 记录 `Visibility(public/internal/private)` 与 `decl_file`；resolve 阶段对 type/value（含 fun）解析增加可见性过滤，并在跨文件引用 `private` 符号时返回 `scoop::resolve::not_visible`；新增单测覆盖“private 顶层符号在其他文件引用时报错”与“非法可见性修饰符组合报错”；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0307 [TODO] Session/fixtures：支持“多文件编译单元”的 resolve/typecheck
+### T0307 [DONE] Session/fixtures：支持“多文件编译单元”的 resolve/typecheck
 - 描述：允许一个 fixture case 包含多个 `.scoop` 文件，并作为同一编译单元构建 index/resolve/typecheck。
 - 目标：先只用于 resolve/typecheck；run-pass 后续可复用同一机制。
 - 验收：新增 `tests/fixtures/resolve_multi/<case>/`（目录内 2+ 文件）并跑通；`scoop test` 能按“目录作为单元”执行。
 - 依赖：T0003、T0011
+- 完成：fixtures runner 新增 `resolve_multi/<case>/` 支持（按 case 目录聚合多文件，构建单一 `Index` 后逐文件 resolve 并断言）；新增多文件用例 `tests/fixtures/resolve_multi/cross_file_type_ref/`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0308 [TODO] Resolver：两阶段解析（先收集声明头，再解析 body/init）
 - 描述：把当前“一次性检查”拆为：collect headers → build symbol tables → resolve bodies（支持 forward reference 的明确规则）。
