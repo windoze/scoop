@@ -362,7 +362,7 @@
 - 验收：新增 parse fixture：最小 while；`break` 在非循环内的错误策略明确（本阶段选择 typecheck）。
 - 依赖：T0214、T0207
 
-### T0229 [TODO] Parser：safe-call `?.`（Appendix B.3.1）
+### T0229 [DONE] Parser：safe-call `?.`（Appendix B.3.1）
 - 描述：把 `x?.member` 与 `x?.call()` 解析为专用 AST 节点（或在 AST 中标记为 safe-call）。
 - 目标：先只做语法；desugar 规则交给 lowering/typecheck。
 - 验收：新增 parse fixture：`val y = x?.foo(1)` 与 `val z = x?.bar`；AST 中能区分 `.` 与 `?.`。

@@ -84,6 +84,7 @@
    - [x] `while`/`break`/`continue`：语法解析（当前仅支持 `while (cond) { ... }`；位置合法性留到 typecheck）
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
+   - [x] postfix safe-call：`receiver?.member` / `receiver?.call(...)`（Appendix B.3.1；当前仅语法建模）
    - [x] postfix 非空断言：`expr!!`
    - [x] Elvis：`a ?: b`（低优先级二元，右结合）
    - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）

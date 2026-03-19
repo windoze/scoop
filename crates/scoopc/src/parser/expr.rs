@@ -10,6 +10,7 @@
 //! - struct literal（T0224）：`Point { x: 1, y: 2 }`
 //! - postfix 调用表达式（T0209）：`callee(args...)`
 //! - postfix 成员访问（T0210）：`receiver.member`
+//! - postfix safe-call（T0229）：`receiver?.member` / `receiver?.call(...)`
 //! - postfix 非空断言（T0212）：`expr!!`
 //! - 二元运算符优先级（T0211）：`1 + 2 * 3`
 //! - Elvis（T0212）：`a ?: b`
@@ -135,6 +136,10 @@ impl<'a> Parser<'a> {
             }
             if self.peek_symbol(Symbol::Dot) {
                 expr = self.parse_member_access_expr(expr)?;
+                continue;
+            }
+            if self.peek_symbol(Symbol::QuestionDot) {
+                expr = self.parse_safe_member_access_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::LParen) {
@@ -1173,6 +1178,25 @@ impl<'a> Parser<'a> {
             span: Span::new(receiver.span.start, member_tok.span.end),
             kind: ast::ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
+                member: ast::Ident {
+                    span: member_tok.span,
+                },
+            },
+        })
+    }
+
+    fn parse_safe_member_access_expr(
+        &mut self,
+        receiver: ast::Expr,
+    ) -> Result<ast::Expr, ParseError> {
+        let op = self.expect_symbol(Symbol::QuestionDot)?;
+        let member_tok = self.expect_kind(TokenKind::Ident, "成员名（标识符）")?;
+
+        Ok(ast::Expr {
+            span: Span::new(receiver.span.start, member_tok.span.end),
+            kind: ast::ExprKind::SafeMemberAccess {
+                receiver: Box::new(receiver),
+                op_span: op.span,
                 member: ast::Ident {
                     span: member_tok.span,
                 },

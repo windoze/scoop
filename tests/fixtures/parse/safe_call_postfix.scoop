@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: safe_call_postfix.ast
+// 目标：验证 safe-call `?.` 可用于成员访问与方法调用，并在 AST 中与普通 `.` 区分。
+
+package fixtures.parse
+
+val y = x?.foo(1)
+val z = x?.bar
+

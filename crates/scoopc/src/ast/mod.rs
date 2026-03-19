@@ -292,9 +292,17 @@ pub enum ExprKind {
     ///
     /// 说明：
     /// - 当前阶段仅建模普通 `.` 成员访问；
-    /// - safe-call（`?.`）会在后续任务中单独补齐。
+    /// - safe-call（`?.`）使用单独的 `ExprKind::SafeMemberAccess` 表示。
     MemberAccess {
         receiver: Box<Expr>,
+        member: Ident,
+    },
+    /// safe-call 成员访问表达式：`receiver?.member`（postfix）（Appendix B.3.1）。
+    ///
+    /// 说明：仅做语法建模；desugar/运行期语义留到后续阶段（typecheck/lowering）决定。
+    SafeMemberAccess {
+        receiver: Box<Expr>,
+        op_span: Span,
         member: Ident,
     },
     /// 调用表达式：`callee(args...)`（postfix）。
