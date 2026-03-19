@@ -72,6 +72,23 @@ fn parse_type_decls() {
 }
 
 #[test]
+fn parse_annotation_class_decl() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nannotation class Deprecated(val message: String = \"\")\nclass C {}\n",
+    );
+    let file = parse_file(&src).unwrap();
+    assert_eq!(file.items.len(), 2);
+
+    let ast::Item::Type(t) = &file.items[0] else {
+        panic!("期望第一个 item 为类型声明");
+    };
+
+    assert_eq!(t.kind, ast::TypeKind::Class);
+    assert!(t.modifiers.contains(&ast::Modifier::Annotation));
+}
+
+#[test]
 fn parse_top_level_val_var() {
     let src = SourceFile::new_virtual(
         "<mem>",

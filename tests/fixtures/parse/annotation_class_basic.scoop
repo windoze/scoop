@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: annotation_class_basic.ast
+
+package fixtures.parse
+
+annotation class Rename(val key: String)
+
+class User {
+    @Rename("created_at")
+    val createdAt: String
+}
+

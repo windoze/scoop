@@ -485,11 +485,12 @@
 - 依赖：T0207
 - 完成：lexer 新增关键字 `const`/`comptime`/`for`/`in`；AST 新增 `Modifier::Const`、`StmtKind::ComptimeBlock/ComptimeIf/ComptimeFor` 与 `ExprKind::SpliceField`；parser 支持解析 `comptime { ... }`、`comptime if/for`（含 `else comptime if` 链）与 splice；新增 parse fixture `tests/fixtures/parse/comptime_syntax_basic.scoop`（含 AST golden）；新增单测 `parser::tests::parse_comptime_syntax_and_splice`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0247 [TODO] Parser：`annotation class` 声明语法（spec §15.2）
+### T0247 [DONE] Parser：`annotation class` 声明语法（spec §15.2）
 - 描述：支持 `annotation class Name(...)`（可视为 class + annotation modifier）。
 - 目标：先只解析；target/retention 等后续。
 - 验收：新增 parse fixture：声明注解并使用（使用部分依赖 T1001）；解析成功。
 - 依赖：T0245
+- 完成：lexer 新增关键字 `annotation`；AST 新增 `Modifier::Annotation`；parser 将 `annotation` 作为 modifier 解析并允许 `annotation class`；新增 parse fixture `tests/fixtures/parse/annotation_class_basic.scoop`（含 AST golden；注解使用语法将由 T1001 进一步接入到 AST）
 
 ### T0248 [TODO] Parser：class/interface 的继承列表与主构造头（简化版）（spec §2.2 / Appendix B.2）
 - 描述：支持 `class Dog(name: String) : Animal(name), IFoo` 的最小语法：构造参数列表 + `:` 后基类/接口列表。

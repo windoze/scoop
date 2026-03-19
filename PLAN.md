@@ -469,7 +469,8 @@ tests/
 ## 11. `@NoGC` / `@Unsafe` / `@Extern`（阶段 9：实现“系统编程通道”）
 
 - [ ] 通用注解系统（spec §15）：
-  - 解析注解声明（`annotation class`）与注解使用（`@Name(...)`）
+  - [x] 解析注解声明（`annotation class`）
+  - [ ] 解析注解使用（`@Name(...)`）
   - 注解 target（函数/类型/字段/参数/表达式块等）与合法性检查
   - 注解仅编译期存在（不进运行时布局）
   - 内建注解：`@Intrinsic/@Extern/@Inline/@Deprecated`（具体名字按 sysroot 定义）

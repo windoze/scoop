@@ -21,6 +21,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(Keyword::Inline) => ast::Modifier::Inline,
                 TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
                 TokenKind::Keyword(Keyword::Const) => ast::Modifier::Const,
+                TokenKind::Keyword(Keyword::Annotation) => ast::Modifier::Annotation,
                 _ => break,
             };
 

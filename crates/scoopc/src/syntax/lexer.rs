@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             "inline" => Some(Keyword::Inline),
             "override" => Some(Keyword::Override),
             "const" => Some(Keyword::Const),
+            "annotation" => Some(Keyword::Annotation),
             "package" => Some(Keyword::Package),
             "import" => Some(Keyword::Import),
             "fun" => Some(Keyword::Fun),
@@ -584,6 +585,13 @@ mod tests {
         assert!(ks.contains(&TokenKind::Symbol(Symbol::At)));
         assert!(ks.contains(&TokenKind::Keyword(Keyword::Fun)));
         assert!(ks.contains(&TokenKind::Ident));
+    }
+
+    #[test]
+    fn lex_annotation_keyword() {
+        let ks = kinds("annotation class A");
+        assert!(ks.contains(&TokenKind::Keyword(Keyword::Annotation)));
+        assert!(ks.contains(&TokenKind::Keyword(Keyword::Class)));
     }
 
     /// 崩溃防线：确保 lexer 对“任意输入”都不会 panic。

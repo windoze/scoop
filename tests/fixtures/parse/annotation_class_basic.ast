@@ -1,0 +1,74 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 59..81,
+            path: [
+                Ident {
+                    span: 67..75,
+                },
+                Ident {
+                    span: 76..81,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 83..123,
+                modifiers: [
+                    Annotation,
+                ],
+                kind: Class,
+                name: Ident {
+                    span: 100..106,
+                },
+                type_params: [],
+                body: None,
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 125..191,
+                kind: Class,
+                name: Ident {
+                    span: 131..135,
+                },
+                type_params: [],
+                body: Some(
+                    TypeBody {
+                        span: 136..191,
+                        members: [
+                            Property(
+                                PropertyDecl {
+                                    span: 168..189,
+                                    kind: Val,
+                                    name: Ident {
+                                        span: 172..181,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 183..189,
+                                                segments: [
+                                                    Ident {
+                                                        span: 183..189,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: None,
+                                    getter: None,
+                                    setter: None,
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

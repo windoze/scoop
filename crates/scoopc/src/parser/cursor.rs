@@ -238,6 +238,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Inline => "`inline`",
         Keyword::Override => "`override`",
         Keyword::Const => "`const`",
+        Keyword::Annotation => "`annotation`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
         Keyword::Fun => "`fun`",
@@ -284,6 +285,7 @@ fn is_modifier_keyword(kw: Keyword) -> bool {
             | Keyword::Inline
             | Keyword::Override
             | Keyword::Const
+            | Keyword::Annotation
     )
 }
 

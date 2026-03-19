@@ -44,6 +44,11 @@ pub enum Keyword {
     Inline,
     Override,
     Const,
+    /// `annotation`（用于 `annotation class`）。
+    ///
+    /// 说明：当前阶段把它当作 modifier 解析与存储；语义限制（只能用于 class 等）
+    /// 留给后续 typecheck/resolve。
+    Annotation,
 
     // declarations
     Package,

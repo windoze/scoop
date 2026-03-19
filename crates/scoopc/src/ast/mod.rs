@@ -57,6 +57,11 @@ pub enum Modifier {
     ///
     /// 说明：当前阶段仅做语法层解析与存储；语义检查与执行由后续阶段实现。
     Const,
+    /// 注解类标记：`annotation class`（spec §15.2）。
+    ///
+    /// 当前阶段仅用于 parser 把 `annotation` 作为修饰符解析并存储；
+    /// 语义限制（例如只允许用于 class、参数必须是 `val` 等）由后续阶段实现。
+    Annotation,
 }
 
 /// 声明处的类型参数（type parameter）。
