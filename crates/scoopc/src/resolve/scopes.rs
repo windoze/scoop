@@ -60,8 +60,18 @@ impl<'a> BlockScopeChecker<'a> {
             match item {
                 ast::Item::Fun(fun) => self.check_fun(fun)?,
                 ast::Item::Type(ty) => self.check_type_decl(ty)?,
-                ast::Item::Val(_) | ast::Item::TypeAlias(_) => {}
+                ast::Item::Val(v) => self.check_top_level_val(v)?,
+                ast::Item::TypeAlias(_) => {}
             }
+        }
+        Ok(())
+    }
+
+    fn check_top_level_val(&mut self, v: &mut ast::ValDecl) -> Result<(), ResolveError> {
+        // 顶层 `val/var` 的 initializer 不引入额外局部作用域；
+        // 但 initializer 内部若包含 block/lambda 等表达式，会在对应分支里自行 push scope。
+        if let Some(init) = &mut v.init {
+            self.check_expr(init)?;
         }
         Ok(())
     }

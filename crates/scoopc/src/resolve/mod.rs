@@ -24,6 +24,16 @@ use crate::{ast, source::SourceFile, span::Span};
 pub use imports::{ImportNamespace, ImportTable};
 use scopes::check_block_scopes;
 
+/// 单个文件的“声明头（headers）”解析产物。
+///
+/// 两阶段解析（T0308）的目标是把“声明头收集/校验”与“body/init 解析”解耦：
+/// - phase 1：构建/校验 import 表、解析签名里的类型引用等（不进入函数体）
+/// - phase 2：解析函数体与 initializer 中的值引用（后续可扩展到属性 init/accessor 等）
+#[derive(Debug, Clone)]
+pub struct FileHeaders {
+    pub imports: ImportTable,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum ResolveError {
     #[error("重复定义：{name}")]
@@ -354,38 +364,109 @@ pub fn check_file_bindings(
     file: &mut ast::File,
     index: &Index,
 ) -> Result<(), ResolveError> {
-    // T0303：先构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
+    // T0308：两阶段解析（headers → bodies/init）。
+    let headers = check_file_headers(source, file, index)?;
+    check_file_bodies(source, file, index, &headers)?;
+
+    Ok(())
+}
+
+/// Phase 1：解析并校验“声明头”信息（不进入函数体与 initializer）。
+pub fn check_file_headers(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+) -> Result<FileHeaders, ResolveError> {
+    // T0303：构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
     let imports = ImportTable::build(source, file, index)?;
 
+    // 解析签名里的类型引用（type/function/field signatures）。
+    // 说明：当前阶段仍以“存在性解析”为主；更深层的泛型/alias 语义交给 typecheck。
     for item in &file.items {
         match item {
-            ast::Item::TypeAlias(ta) => {
-                resolve_type_ref(source, file, index, &ta.ty)?;
-            }
-            ast::Item::Fun(fun) => {
-                if let Some(receiver) = &fun.receiver {
-                    resolve_type_ref(source, file, index, receiver)?;
-                }
-                for p in &fun.params {
-                    if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, ty)?;
-                    }
-                }
-                if let Some(ret) = &fun.return_ty {
-                    resolve_type_ref(source, file, index, ret)?;
-                }
-            }
+            ast::Item::TypeAlias(ta) => resolve_type_ref(source, file, index, &ta.ty)?,
+            ast::Item::Fun(fun) => resolve_fun_header(source, file, index, fun)?,
             ast::Item::Val(v) => {
                 if let Some(ty) = &v.ty {
                     resolve_type_ref(source, file, index, ty)?;
                 }
             }
-            ast::Item::Type(_) => {}
+            ast::Item::Type(ty) => resolve_type_decl_headers(source, file, index, ty)?,
         }
     }
 
-    // T0304：在函数体/表达式块中建立块级作用域（val/var）并做最小值名字解析。
-    check_block_scopes(source, file, index, &imports)?;
+    Ok(FileHeaders { imports })
+}
+
+/// Phase 2：解析函数体与 initializer 中的值引用（以及块级作用域）。
+pub fn check_file_bodies(
+    source: &SourceFile,
+    file: &mut ast::File,
+    index: &Index,
+    headers: &FileHeaders,
+) -> Result<(), ResolveError> {
+    // T0304/T0305：在函数体/表达式块中建立块级作用域（val/var）并做最小值名字解析；
+    // T0308：扩展到顶层 `val/var` 的 initializer（见 scopes.rs 的实现）。
+    check_block_scopes(source, file, index, &headers.imports)?;
+    Ok(())
+}
+
+fn resolve_fun_header(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    fun: &ast::FunDecl,
+) -> Result<(), ResolveError> {
+    if let Some(receiver) = &fun.receiver {
+        resolve_type_ref(source, file, index, receiver)?;
+    }
+    for p in &fun.params {
+        if let Some(ty) = &p.ty {
+            resolve_type_ref(source, file, index, ty)?;
+        }
+    }
+    if let Some(ret) = &fun.return_ty {
+        resolve_type_ref(source, file, index, ret)?;
+    }
+    Ok(())
+}
+
+fn resolve_type_decl_headers(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ty: &ast::TypeDecl,
+) -> Result<(), ResolveError> {
+    // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
+    if let Some(primary_ctor) = &ty.primary_ctor {
+        for p in &primary_ctor.params {
+            if let Some(ty) = &p.ty {
+                resolve_type_ref(source, file, index, ty)?;
+            }
+        }
+    }
+
+    // 继承/实现列表：解析 supertype 的类型引用。
+    for st in &ty.supertypes {
+        resolve_type_ref(source, file, index, &st.ty)?;
+    }
+
+    // 类型体成员签名：property/fun/nested type。
+    let Some(body) = &ty.body else {
+        return Ok(());
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                if let Some(ty) = &p.ty {
+                    resolve_type_ref(source, file, index, ty)?;
+                }
+            }
+            ast::TypeMember::Fun(f) => resolve_fun_header(source, file, index, f)?,
+            ast::TypeMember::Type(nested) => resolve_type_decl_headers(source, file, index, nested)?,
+        }
+    }
 
     Ok(())
 }

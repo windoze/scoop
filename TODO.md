@@ -580,11 +580,12 @@
 - 依赖：T0003、T0011
 - 完成：fixtures runner 新增 `resolve_multi/<case>/` 支持（按 case 目录聚合多文件，构建单一 `Index` 后逐文件 resolve 并断言）；新增多文件用例 `tests/fixtures/resolve_multi/cross_file_type_ref/`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0308 [TODO] Resolver：两阶段解析（先收集声明头，再解析 body/init）
+### T0308 [DONE] Resolver：两阶段解析（先收集声明头，再解析 body/init）
 - 描述：把当前“一次性检查”拆为：collect headers → build symbol tables → resolve bodies（支持 forward reference 的明确规则）。
 - 目标：第一步只做结构拆分与数据流；不改变现有错误码太多。
 - 验收：新增 resolve fixture：函数体里引用同文件后定义的顶层符号（是否允许按设计）；resolver 行为稳定且有诊断。
 - 依赖：T0307
+- 完成：将 `check_file_bindings` 拆分为 `check_file_headers`（构建 import 表 + 解析声明头里的 TypeRef）与 `check_file_bodies`（块级作用域 + 值解析）；新增 `FileHeaders` 作为 phase 间数据载体；type decl headers（主构造参数类型、supertype、成员签名）也纳入 type 引用解析；将值解析扩展到顶层 `val/var` initializer；新增 resolve fixtures：`forward_ref_top_level_symbol_ok`（pass）与 `unresolved_value_in_top_level_init`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0309 [TODO] Resolver：泛型参数作用域与解析（type params 是符号）
 - 描述：在 resolve 阶段把声明处 type params 纳入作用域，使 `TypeRef` 中的 `T` 可解析到泛型参数。
