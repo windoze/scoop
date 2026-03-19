@@ -545,11 +545,12 @@
 - 依赖：T0201、T0301
 - 完成：`scoopc::resolve::Index` 递归把类型体成员（property/fun/nested type）纳入索引并复用 `duplicate_definition` 诊断；新增 resolve fixture `tests/fixtures/resolve/duplicate_member_definition_in_type_body.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0303 [TODO] Resolver：import 解析扩展为“类型与值”两套规则
+### T0303 [DONE] Resolver：import 解析扩展为“类型与值”两套规则
 - 描述：当前 import 只用于 type path；扩展为后续表达式里的值解析准备。
 - 目标：先只建 import 表（显式/星号）；不立刻应用到 expr。
 - 验收：新增单测：构造 import 表并序列化/debug 输出可见；现有 resolve fixtures 不回归。
 - 依赖：T0301
+- 完成：新增 `scoopc::resolve::ImportTable`，在构建时把显式 import 按 type/value（fun/value）命名空间拆分，并保留 `*` import 前缀列表；`check_file_bindings` 改为构建 ImportTable 以统一验证 import 存在性；新增单测覆盖 type/value 分流与 debug 输出；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0304 [TODO] Resolver：块级作用域（val/var）符号表（spec §9）
 - 描述：在 resolve 阶段为 block 建立 scope 栈，记录局部变量定义与遮蔽规则。

@@ -10,12 +10,16 @@
 //! - 把每个文件的 `package` + 顶层声明名组合成 FQN（Fully Qualified Name）
 //! - 构建索引并检测重复定义
 
+mod imports;
+
 use std::collections::HashMap;
 
 use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::{ast, source::SourceFile, span::Span};
+
+pub use imports::{ImportNamespace, ImportTable};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ResolveError {
@@ -233,7 +237,8 @@ pub fn check_file_bindings(
     file: &ast::File,
     index: &Index,
 ) -> Result<(), ResolveError> {
-    check_imports_exist(source, file, index)?;
+    // T0303：先构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
+    let _imports = ImportTable::build(source, file, index)?;
 
     for item in &file.items {
         match item {
@@ -262,41 +267,6 @@ pub fn check_file_bindings(
         }
     }
 
-    Ok(())
-}
-
-fn check_imports_exist(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-) -> Result<(), ResolveError> {
-    for import in &file.imports {
-        let path = import
-            .path
-            .iter()
-            .map(|id| source.slice(id.span))
-            .collect::<Vec<_>>()
-            .join(".");
-
-        if import.has_star {
-            let prefix = format!("{path}.");
-            let ok = index.by_fqn.keys().any(|k| k.starts_with(&prefix));
-            if !ok {
-                return Err(ResolveError::UnresolvedImport {
-                    import: format!("{path}.*"),
-                    span: import.span.into(),
-                });
-            }
-            continue;
-        }
-
-        if !index.by_fqn.contains_key(&path) {
-            return Err(ResolveError::UnresolvedImport {
-                import: path,
-                span: import.span.into(),
-            });
-        }
-    }
     Ok(())
 }
 

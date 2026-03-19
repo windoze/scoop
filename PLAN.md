@@ -144,6 +144,7 @@
   - 先收集声明头（type/function/field signatures）
   - 再解析函数体与初始化表达式
 - [x] import 解析与名字绑定（最小子集）：对 fun/val 顶层签名里的 `TypeRef::Path` 做存在性解析（含 star import）
+- [x] import 表（T0303）：显式 import 按 type/value 命名空间拆分，并保留 `*` import 前缀（为 expr 解析准备）
 - [ ] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
 - [ ] 作用域：块级/类型体/泛型参数/扩展 receiver（逐步补齐）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
