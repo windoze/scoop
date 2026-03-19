@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR: 顶层声明
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 8:1
+
+package fixtures.parse
+
+return 1
+

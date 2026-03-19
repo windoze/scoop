@@ -344,7 +344,7 @@
 - 验收：新增 parse fixture：`Point { x: 1 }` 解析为 struct lit；`list.map { it }` 解析为 lambda；两者都能通过。
 - 依赖：T0222、T0224
 
-### T0226 [TODO] Parser：语句 `return`（spec §7.1/§7.3）
+### T0226 [DONE] Parser：语句 `return`（spec §7.1/§7.3）
 - 描述：在 block 语句中支持 `return` 与 `return expr`。
 - 目标：先不支持 label/non-local return（后续在 inline 语义里处理）。
 - 验收：新增 parse fixture：`fun f(): Any { return x }`；`return` 在顶层报错（或解析后由 typecheck 报错，需明确策略）。

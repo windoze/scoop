@@ -113,6 +113,7 @@ pub struct Block {
     /// 当前阶段（T0207）仅保证：
     /// - 能解析空语句（`;`）与表达式语句（原子表达式）
     /// - 能解析局部 `val/var` 绑定语句（T0208）
+    /// - 能解析 `return` / `return expr` 语句（T0226）
     /// - 其它语句形态会以 `StmtKind::Missing` 占位（保持 cursor 前进与括号平衡）
     pub stmts: Vec<Stmt>,
 }
@@ -404,6 +405,15 @@ pub enum StmtKind {
     Empty,
     Expr(Expr),
     Val(ValDecl),
+    /// `return` / `return expr`（spec §7.1/§7.3）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅支持 block 内的 return 语句；
+    /// - label/non-local return 的语义留到后续阶段处理。
+    Return {
+        return_span: Span,
+        value: Option<Expr>,
+    },
     Missing,
 }
 

@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: return_stmt_basic.ast
+
+package fixtures.parse
+
+fun f(): Any {
+    return x
+}
+

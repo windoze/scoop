@@ -86,6 +86,53 @@ impl<'a> Parser<'a> {
             });
         }
 
+        // `return` 语句（T0226）。
+        if self.peek_keyword(Keyword::Return) {
+            let kw = self.bump();
+            let return_span = kw.span;
+
+            let value = if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+            {
+                None
+            } else {
+                match self.try_parse_expr()? {
+                    Some(expr) => Some(expr),
+                    None => {
+                        // `return` 后既不是语句边界，也不是当前表达式子集的起始：
+                        // - 若下一个 token 看起来像“下一条语句的起始”，则视为 `return` 无返回值；
+                        // - 否则报错，避免静默吞掉明显的语法问题（例如 `return + 1`）。
+                        if self.is_stmt_start() {
+                            None
+                        } else {
+                            let tok = *self.peek();
+                            return Err(ParseError::Expected {
+                                expected: "表达式（return 的返回值）",
+                                found: tok.kind,
+                                span: tok.span.into(),
+                            });
+                        }
+                    }
+                }
+            };
+
+            let mut span = Span::new(
+                return_span.start,
+                value.as_ref().map(|e| e.span.end).unwrap_or(return_span.end),
+            );
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::Return { return_span, value },
+            });
+        }
+
         // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（postfix + 常见二元优先级），
         // 因此语句边界也就天然落在该表达式结束处。
         if let Some(expr) = self.try_parse_expr()? {
