@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: modifiers_basic.ast
+
+package fixtures.parse
+
+public abstract sealed class C {
+    internal inline fun f(x: Int): Int { 1 }
+    private override val p: Int = 1
+}
+
+public fun top() { }
+

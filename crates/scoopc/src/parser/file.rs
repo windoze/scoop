@@ -33,7 +33,9 @@ impl<'a> Parser<'a> {
 
         let mut items = Vec::new();
         while !self.peek_kind(TokenKind::Eof) {
-            if self.peek_keyword(Keyword::Fun) {
+            let head = self.peek_after_modifiers().kind;
+
+            if head == TokenKind::Keyword(Keyword::Fun) {
                 match self.parse_fun_decl() {
                     Ok(decl) => items.push(ast::Item::Fun(decl)),
                     Err(e) => {
@@ -43,7 +45,10 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
-            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+            if matches!(
+                head,
+                TokenKind::Keyword(Keyword::Val | Keyword::Var)
+            ) {
                 match self.parse_val_decl() {
                     Ok(decl) => items.push(ast::Item::Val(decl)),
                     Err(e) => {

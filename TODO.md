@@ -471,11 +471,12 @@
 - 依赖：T0237、T0208
 - 完成：`ValDecl` 引入 `ValBinding::{Name, Pattern}`；新增 `Pattern` AST（Wildcard/Bind/Tuple/Struct）；block 内解析 `val` 的 tuple/struct 解构并要求 initializer；`var (...)` 给出稳定 `scoop::parse::expected` 并避免级联错误；1 个 pass + 1 个 fail fixture 覆盖
 
-### T0245 [TODO] Parser：修饰符与可见性（public/internal/private/open/abstract/sealed/inline/override）
+### T0245 [DONE] Parser：修饰符与可见性（public/internal/private/open/abstract/sealed/inline/override）
 - 描述：在顶层声明与类型成员上解析修饰符列表，并在 AST 中保存（顺序无关）。
 - 目标：先只解析并存储；合法性（如 `override` 只能用于 member）交给 resolve/typecheck。
 - 验收：新增 parse fixture：带多修饰符的 class/fun/property；`scoop dump-ast` 可看到 modifiers。
 - 依赖：T0009
+- 完成：lexer 新增 5 个 modifier 关键字（`public/internal/private/inline/override`）；AST 引入 `Modifier` 并在 `TypeDecl/FunDecl/ValDecl/PropertyDecl` 保存 `modifiers`（空时不影响既有 AST snapshot）；parser 在顶层与 type body 内统一解析 modifiers（排序去重，顺序无关）；新增 parse fixture：`tests/fixtures/parse/modifiers_basic.scoop`
 
 ### T0246 [TODO] Parser：`const fun` / `comptime` / splice 语法（spec §6）
 - 描述：支持 `const fun`、`comptime { ... }`、`comptime if/for`、以及 splice `~{...}`（具体符号以 spec 为准）。

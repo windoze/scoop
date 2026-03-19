@@ -7,6 +7,32 @@ use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 use super::{ParseError, Parser};
 
 impl<'a> Parser<'a> {
+    fn parse_modifiers(&mut self) -> Vec<ast::Modifier> {
+        let mut modifiers = Vec::new();
+
+        loop {
+            let modifier = match self.peek().kind {
+                TokenKind::Keyword(Keyword::Public) => ast::Modifier::Public,
+                TokenKind::Keyword(Keyword::Internal) => ast::Modifier::Internal,
+                TokenKind::Keyword(Keyword::Private) => ast::Modifier::Private,
+                TokenKind::Keyword(Keyword::Open) => ast::Modifier::Open,
+                TokenKind::Keyword(Keyword::Abstract) => ast::Modifier::Abstract,
+                TokenKind::Keyword(Keyword::Sealed) => ast::Modifier::Sealed,
+                TokenKind::Keyword(Keyword::Inline) => ast::Modifier::Inline,
+                TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
+                _ => break,
+            };
+
+            self.bump();
+            modifiers.push(modifier);
+        }
+
+        // T0245：修饰符顺序无关，统一排序并去重，保证 AST snapshot 稳定。
+        modifiers.sort_unstable();
+        modifiers.dedup();
+        modifiers
+    }
+
     fn parse_type_param_list(&mut self) -> Result<(Span, Vec<ast::TypeParam>), ParseError> {
         let lt = self.expect_symbol(Symbol::Lt)?;
         let start = lt.span.start;
@@ -243,7 +269,10 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parse_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
-        let kw = self.expect_keyword(Keyword::Fun)?;
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        let _kw = self.expect_keyword(Keyword::Fun)?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
 
         let (_type_params_span, type_params) = self.parse_type_params_opt()?;
@@ -277,7 +306,8 @@ impl<'a> Parser<'a> {
         };
 
         Ok(ast::FunDecl {
-            span: Span::new(kw.span.start, last_end),
+            span: Span::new(start, last_end),
+            modifiers,
             receiver,
             name,
             type_params,
@@ -289,6 +319,9 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn parse_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
         } else if self.peek_keyword(Keyword::Var) {
@@ -424,7 +457,8 @@ impl<'a> Parser<'a> {
         self.eat_symbol(Symbol::Semicolon);
 
         Ok(ast::ValDecl {
-            span: Span::new(kw.span.start, last_end),
+            span: Span::new(start, last_end),
+            modifiers,
             kind,
             binding,
             ty,
@@ -489,13 +523,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_type_decl(&mut self) -> Result<ast::TypeDecl, ParseError> {
         let start = self.peek().span.start;
 
-        // modifiers（当前仅消费，不进入 AST）
-        while self.peek_keyword(Keyword::Open)
-            || self.peek_keyword(Keyword::Abstract)
-            || self.peek_keyword(Keyword::Sealed)
-        {
-            self.bump();
-        }
+        let modifiers = self.parse_modifiers();
 
         let (kind_kw, kind) = if self.peek_keyword(Keyword::Class) {
             (self.bump(), ast::TypeKind::Class)
@@ -558,6 +586,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::TypeDecl {
             span: Span::new(start, last_end),
+            modifiers,
             kind,
             name,
             type_params,
@@ -571,12 +600,17 @@ impl<'a> Parser<'a> {
 
         let mut members = Vec::new();
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
+            let head = self.peek_after_modifiers().kind;
+
             // 允许多余的分号（例如 Kotlin 风格的 `;` 作为 member 分隔符）。
             if self.eat_symbol(Symbol::Semicolon) {
                 continue;
             }
 
-            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+            if matches!(
+                head,
+                TokenKind::Keyword(Keyword::Val | Keyword::Var)
+            ) {
                 match self.parse_type_member_property_decl() {
                     Ok(decl) => members.push(ast::TypeMember::Property(decl)),
                     Err(e) => {
@@ -589,7 +623,7 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            if self.peek_keyword(Keyword::Fun) {
+            if head == TokenKind::Keyword(Keyword::Fun) {
                 match self.parse_type_member_fun_decl() {
                     Ok(decl) => members.push(ast::TypeMember::Fun(decl)),
                     Err(e) => {
@@ -624,6 +658,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type_member_property_decl(&mut self) -> Result<ast::PropertyDecl, ParseError> {
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
         } else if self.peek_keyword(Keyword::Var) {
@@ -729,7 +766,8 @@ impl<'a> Parser<'a> {
         self.eat_symbol(Symbol::Semicolon);
 
         Ok(ast::PropertyDecl {
-            span: Span::new(kw.span.start, last_end),
+            span: Span::new(start, last_end),
+            modifiers,
             kind,
             name,
             ty,
@@ -920,7 +958,10 @@ impl<'a> Parser<'a> {
 
     fn parse_type_member_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         // 目标：只解析函数声明头（name/params/return type），函数体仍只保留 span。
-        let kw = self.expect_keyword(Keyword::Fun)?;
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        let _kw = self.expect_keyword(Keyword::Fun)?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
 
         let (_type_params_span, type_params) = self.parse_type_params_opt()?;
@@ -957,7 +998,8 @@ impl<'a> Parser<'a> {
         };
 
         Ok(ast::FunDecl {
-            span: Span::new(kw.span.start, last_end),
+            span: Span::new(start, last_end),
+            modifiers,
             receiver,
             name,
             type_params,

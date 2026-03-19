@@ -35,6 +35,26 @@ pub enum Item {
     Val(ValDecl),
 }
 
+/// 声明修饰符（modifiers）。
+///
+/// 说明：
+/// - 目前阶段（T0245）仅做语法层“解析并存储”，不做合法性/组合校验；
+/// - 解析时会做去重与排序，因此**顺序无关**（便于 fixtures/AST snapshot 稳定回归）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Modifier {
+    // visibility
+    Public,
+    Internal,
+    Private,
+    // inheritance / dispatch
+    Open,
+    Abstract,
+    Sealed,
+    // misc
+    Inline,
+    Override,
+}
+
 /// 声明处的类型参数（type parameter）。
 ///
 /// 当前阶段（T0218）仅支持无约束的 `T` / `U`：
@@ -46,9 +66,10 @@ pub struct TypeParam {
     pub name: Ident,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TypeDecl {
     pub span: Span,
+    pub modifiers: Vec<Modifier>,
     pub kind: TypeKind,
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
@@ -58,6 +79,21 @@ pub struct TypeDecl {
     /// - parser 仍可能仅保证括号平衡与 span 正确
     /// - 成员列表的解析会在后续任务中逐步补齐
     pub body: Option<TypeBody>,
+}
+
+impl std::fmt::Debug for TypeDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("TypeDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("kind", &self.kind);
+        s.field("name", &self.name);
+        s.field("type_params", &self.type_params);
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// 类型体（`{ ... }`）——可包含成员列表。
@@ -83,9 +119,10 @@ pub enum TypeMember {
 ///
 /// 当前阶段（T0234）仅用于 type body 内（class/interface/struct/enum/effect）的成员；
 /// 顶层/局部 `val/var` 仍使用 `ValDecl`。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PropertyDecl {
     pub span: Span,
+    pub modifiers: Vec<Modifier>,
     pub kind: ValKind,
     pub name: Ident,
     pub ty: Option<TypeRef>,
@@ -97,6 +134,23 @@ pub struct PropertyDecl {
     pub getter: Option<AccessorDecl>,
     /// 自定义 setter（`set(value)`）。
     pub setter: Option<AccessorDecl>,
+}
+
+impl std::fmt::Debug for PropertyDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("PropertyDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("kind", &self.kind);
+        s.field("name", &self.name);
+        s.field("ty", &self.ty);
+        s.field("init", &self.init);
+        s.field("getter", &self.getter);
+        s.field("setter", &self.setter);
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,9 +187,10 @@ pub enum TypeKind {
     Effect,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FunDecl {
     pub span: Span,
+    pub modifiers: Vec<Modifier>,
     /// 扩展函数 receiver（`fun T.name(...)` 中的 `T`）。
     ///
     /// 当前阶段（T0233）仅在 parser 中解析并保留该 TypeRef；
@@ -147,6 +202,24 @@ pub struct FunDecl {
     pub params: Vec<Param>,
     pub return_ty: Option<TypeRef>,
     pub body: FunBody,
+}
+
+impl std::fmt::Debug for FunDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("FunDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("receiver", &self.receiver);
+        s.field("name", &self.name);
+        s.field("type_params", &self.type_params);
+        s.field("params_span", &self.params_span);
+        s.field("params", &self.params);
+        s.field("return_ty", &self.return_ty);
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -579,6 +652,7 @@ impl std::fmt::Debug for Param {
 #[derive(Clone)]
 pub struct ValDecl {
     pub span: Span,
+    pub modifiers: Vec<Modifier>,
     pub kind: ValKind,
     pub binding: ValBinding,
     pub ty: Option<TypeRef>,
@@ -605,6 +679,9 @@ impl std::fmt::Debug for ValDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("ValDecl");
         s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
         s.field("kind", &self.kind);
         match &self.binding {
             ValBinding::Name(name) => s.field("name", name),

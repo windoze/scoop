@@ -52,7 +52,7 @@
 
 ### 2.1 词法分析（Lexer）
 
-- [x] Token 集：关键字、标识符、数字、字符串、基础运算符、注解（`@`）、泛型尖括号、常用 modifier（`open/abstract/sealed`）等（见 `scoopc::syntax::lexer`）
+- [x] Token 集：关键字、标识符、数字、字符串、基础运算符、注解（`@`）、泛型尖括号、常用 modifier（`public/internal/private/open/abstract/sealed/inline/override`）等（见 `scoopc::syntax::lexer`）
 - [x] 补齐位运算与移位运算符 token：`&` `|` `^` `~` `<<` `>>`（spec §2.3.4 / Appendix B.8）
 - [x] 注释：行注释 `//`、块注释 `/* */`（当前实现为**非嵌套**；若后续需要可扩展为嵌套）
 - [x] 字符串：
@@ -73,6 +73,7 @@
   - [x] 类型体 `val`/`var` 成员声明头：解析 `val x: T`/`var x: T`，带 pass/fail fixtures 覆盖（T0202）
   - [x] 类型体 `fun` 成员声明头：解析 `fun name(params): Ret { ... }`（body 仍是 span），含 pass/fail fixtures 覆盖（T0203）
   - [x] 类型体嵌套类型声明：class/interface/struct/enum/effect 均可作为成员，支持多层嵌套与修饰符（T0204）
+  - [x] 声明修饰符列表：顶层与类型成员支持 `public/internal/private/open/abstract/sealed/inline/override`；AST 保存 `modifiers` 并排序去重（顺序无关）；新增 parse fixture 覆盖（T0245）
   - [x] 属性声明与 accessors：`ValDecl` 新增 `accessors: Vec<Accessor>` 字段；`Accessor` 节点支持 `get()`/`set(value)` + 表达式体（`= expr`）或块体（`{ stmts }`）；类型体中 `parse_property_decl` 在 `parse_val_decl` 后探测 `get(`/`set(` 模式并解析 accessor；`get`/`set` 作为上下文关键字（soft keyword），不加入 lexer 关键字表；6 个 pass/fail fixtures + 5 个 unit tests 覆盖（T0234）
   - [x] 委托属性 `by expr`：`ValDecl` 新增 `delegate: Option<Expr>` 字段；`parse_property_decl` 在 `parse_val_decl` 后探测 `by` 上下文关键字并解析委托表达式；`by` 与 accessors 在语法层互斥；支持 `val x: T by lazy { ... }` 等 trailing lambda 形式；2 个 pass/fail fixtures + 3 个 unit tests 覆盖（T0235）
   - [x] Rich enum variant 声明：`Member::Variant(EnumVariant)` 新增 AST 节点；`EnumVariant` 含 `name: Ident` + `params: Vec<Param>`；`parse_type_body` 接收 `TypeKind` 参数，对 `Enum` 类型识别裸标识符作为 variant 开始；`parse_enum_variant` 解析 `Name` / `Name(val field: T, ...)` 形式；variant 参数要求 `val` 关键字 + 类型标注；1 个 pass + 2 个 fail fixtures + 3 个 unit tests 覆盖（T0236）

@@ -126,29 +126,52 @@ impl<'a> Parser<'a> {
         self.peek().kind == TokenKind::Symbol(sym)
     }
 
+    pub(super) fn peek_after_modifiers(&self) -> &Token {
+        let mut idx = self.i;
+        loop {
+            let tok = self.tokens.get(idx).unwrap_or_else(|| {
+                self.tokens
+                    .last()
+                    .expect("lexer must produce at least EOF token")
+            });
+
+            match tok.kind {
+                TokenKind::Keyword(kw) if is_modifier_keyword(kw) => {
+                    idx = idx.saturating_add(1);
+                    continue;
+                }
+                _ => return tok,
+            }
+        }
+    }
+
     pub(super) fn is_type_decl_start(&self) -> bool {
-        self.peek_keyword(Keyword::Open)
-            || self.peek_keyword(Keyword::Abstract)
-            || self.peek_keyword(Keyword::Sealed)
-            || self.peek_keyword(Keyword::Class)
-            || self.peek_keyword(Keyword::Interface)
-            || self.peek_keyword(Keyword::Struct)
-            || self.peek_keyword(Keyword::Enum)
-            || self.peek_keyword(Keyword::Effect)
+        matches!(
+            self.peek_after_modifiers().kind,
+            TokenKind::Keyword(
+                Keyword::Class
+                    | Keyword::Interface
+                    | Keyword::Struct
+                    | Keyword::Enum
+                    | Keyword::Effect
+            )
+        )
     }
 
     pub(super) fn is_top_level_item_start(&self) -> bool {
-        matches!(
+        if matches!(
             self.peek().kind,
+            TokenKind::Keyword(Keyword::Package | Keyword::Import)
+        ) {
+            return true;
+        }
+
+        matches!(
+            self.peek_after_modifiers().kind,
             TokenKind::Keyword(
-                Keyword::Package
-                    | Keyword::Import
-                    | Keyword::Fun
+                Keyword::Fun
                     | Keyword::Val
                     | Keyword::Var
-                    | Keyword::Open
-                    | Keyword::Abstract
-                    | Keyword::Sealed
                     | Keyword::Class
                     | Keyword::Interface
                     | Keyword::Struct
@@ -159,10 +182,19 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn is_type_member_start(&self) -> bool {
-        self.peek_keyword(Keyword::Val)
-            || self.peek_keyword(Keyword::Var)
-            || self.peek_keyword(Keyword::Fun)
-            || self.is_type_decl_start()
+        matches!(
+            self.peek_after_modifiers().kind,
+            TokenKind::Keyword(
+                Keyword::Val
+                    | Keyword::Var
+                    | Keyword::Fun
+                    | Keyword::Class
+                    | Keyword::Interface
+                    | Keyword::Struct
+                    | Keyword::Enum
+                    | Keyword::Effect
+            )
+        )
     }
 
     /// 粗粒度判断：当前位置是否“可能是一个语句的起始”。
@@ -196,9 +228,14 @@ impl<'a> Parser<'a> {
 
 fn kw_name(kw: Keyword) -> &'static str {
     match kw {
+        Keyword::Public => "`public`",
+        Keyword::Internal => "`internal`",
+        Keyword::Private => "`private`",
         Keyword::Open => "`open`",
         Keyword::Abstract => "`abstract`",
         Keyword::Sealed => "`sealed`",
+        Keyword::Inline => "`inline`",
+        Keyword::Override => "`override`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
         Keyword::Fun => "`fun`",
@@ -228,6 +265,20 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::As => "`as`",
         Keyword::AsQ => "`as?`",
     }
+}
+
+fn is_modifier_keyword(kw: Keyword) -> bool {
+    matches!(
+        kw,
+        Keyword::Public
+            | Keyword::Internal
+            | Keyword::Private
+            | Keyword::Open
+            | Keyword::Abstract
+            | Keyword::Sealed
+            | Keyword::Inline
+            | Keyword::Override
+    )
 }
 
 fn sym_name(sym: Symbol) -> &'static str {

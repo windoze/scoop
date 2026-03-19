@@ -335,6 +335,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ValDecl {
             span: Span::new(kw.span.start, last_end),
+            modifiers: Vec::new(),
             kind,
             binding,
             ty,
