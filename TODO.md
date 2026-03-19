@@ -314,7 +314,7 @@
 - 验收：新增 parse fixture：同一文件里 2 个错误，runner 能同时报出（或至少不被第 1 个错误终止）；错误码稳定。
 - 依赖：T0009
 
-### T0221 [TODO] AST：lambda 表达式节点（spec §12 / Appendix B.5）
+### T0221 [DONE] AST：lambda 表达式节点（spec §12 / Appendix B.5）
 - 描述：为表达式新增 `Expr::Lambda`（参数列表 + body），并支持参数可选类型注解。
 - 目标：先不实现捕获分析/闭包 lowering；仅 AST 结构。
 - 验收：`cargo test -p scoopc` 通过；新增一个 parse fixture（配合 T0222）可在 AST 看到 lambda。

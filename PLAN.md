@@ -96,7 +96,7 @@
 - [ ] 建议区分：
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
-- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/TypeBody/TypeMember/Block/Expr/Stmt/Ident/Param/TypeRef，节点带 span 并可回切源文本
+- [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/TypeBody/TypeMember/Block/Expr/Stmt/Ident/Param/TypeRef/LambdaExpr，节点带 span 并可回切源文本
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。

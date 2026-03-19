@@ -206,6 +206,25 @@ pub enum InterpolatedStringPart {
     Expr { expr: Expr },
 }
 
+/// Lambda 表达式（spec §12）。
+///
+/// 语法形态（Kotlin 风格）：
+/// - `{ params -> body }`
+/// - `{ body }`
+///
+/// 说明：
+/// - 参数类型注解可省略，通常由期望函数类型向下传播推断（spec §14.4）。
+/// - `{ body }` 形式不含 `->`，因此 `arrow_span` 为 `None` 且 `params` 为空；隐式 `it` 等语义由后续 typecheck 决定。
+#[derive(Debug, Clone)]
+pub struct LambdaExpr {
+    /// 参数列表（参数类型可省略）。
+    pub params: Vec<Param>,
+    /// `->` 的 span；`{ body }` 形式为 `None`。
+    pub arrow_span: Option<Span>,
+    /// Lambda 主体表达式。若解析为 block body，可使用 `ExprKind::Block` 表示。
+    pub body: Box<Expr>,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     /// 解析失败或尚未实现时的占位节点（保持 span 以便诊断/回归）。
@@ -222,6 +241,10 @@ pub enum ExprKind {
         parts: Vec<InterpolatedStringPart>,
     },
     Block(Block),
+    /// Lambda 表达式：`{ params -> body }` / `{ body }`（spec §12）。
+    ///
+    /// 当前任务（T0221）仅引入 AST 节点建模；解析与 `{}` 歧义消解见后续任务（T0222/T0225）。
+    Lambda(LambdaExpr),
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     ///
     /// 说明：
@@ -449,4 +472,37 @@ impl TypeRef {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ident {
     pub span: Span,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lambda_ast_node_is_constructible() {
+        let arrow_span = Span::new(3, 5);
+        let body = Expr {
+            span: Span::new(5, 6),
+            kind: ExprKind::IntLit,
+        };
+        let lambda = Expr {
+            span: Span::new(0, 6),
+            kind: ExprKind::Lambda(LambdaExpr {
+                params: vec![Param {
+                    name: Ident { span: Span::new(1, 2) },
+                    ty: None,
+                }],
+                arrow_span: Some(arrow_span),
+                body: Box::new(body),
+            }),
+        };
+
+        match &lambda.kind {
+            ExprKind::Lambda(l) => {
+                assert_eq!(l.params.len(), 1);
+                assert_eq!(l.arrow_span, Some(arrow_span));
+            }
+            other => panic!("expected Lambda, got {other:?}"),
+        }
+    }
 }
