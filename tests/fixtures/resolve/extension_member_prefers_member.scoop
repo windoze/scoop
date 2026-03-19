@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：当 member 与 extension 同名时，member 优先（T0312）。
+
+package fixtures.resolve
+
+struct Point {
+    fun ext() {}
+}
+
+fun Point.ext() {}
+
+fun use(p: Point) {
+    p.ext()
+}
+

@@ -51,7 +51,10 @@ impl TypeParamScopes {
     }
 
     fn contains(&self, name: &str) -> bool {
-        self.frames.iter().rev().any(|frame| frame.contains_key(name))
+        self.frames
+            .iter()
+            .rev()
+            .any(|frame| frame.contains_key(name))
     }
 
     /// 压入一个“声明级” type param 作用域帧。
@@ -194,6 +197,25 @@ pub struct Symbol {
     pub visibility: Visibility,
 }
 
+/// Index 侧记录的扩展函数信息（T0312）。
+///
+/// 说明：
+/// - 扩展函数在语法上仍是“顶层 fun 声明”，因此其符号本体仍存放在 `by_fqn` 的 fun 命名空间里；
+/// - 这里额外记录 receiver 的“可用于匹配的类型 FQN”，用于把 `receiver.member()` 的 `member`
+///   在无同名 member 时解析到 extension；
+/// - 当前阶段仅用于 name resolution（不做重载/最具体匹配），并且只会在**同包**内查找扩展声明。
+#[derive(Debug, Clone)]
+pub struct ExtensionFunSymbol {
+    /// 扩展函数自身的 FQN（例如 `a.ext`）。
+    pub fqn: String,
+    /// 该扩展函数声明所在文件的 package 前缀（例如 `a`；无 package 时为空）。
+    pub pkg_prefix: String,
+    /// member 名称（即扩展函数的声明名，例如 `ext`）。
+    pub name: String,
+    /// receiver 的类型 FQN（例如 `a.Point` / `scoop.core.Any`）；无法解析时为 None。
+    pub receiver_ty_fqn: Option<String>,
+}
+
 /// 同一个 FQN 下按命名空间（type/value/fun）分组的符号集合。
 ///
 /// 说明：
@@ -229,6 +251,8 @@ impl NamespacedSymbols {
 pub struct Index {
     /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
     pub by_fqn: HashMap<String, NamespacedSymbols>,
+    /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
+    pub extension_funs: Vec<ExtensionFunSymbol>,
 }
 
 impl Index {
@@ -237,7 +261,180 @@ impl Index {
         for (source, file) in files {
             index.add_file(source, file)?;
         }
+        index.collect_extension_funs(files);
         Ok(index)
+    }
+
+    fn collect_extension_funs(&mut self, files: &[(&SourceFile, &ast::File)]) {
+        self.extension_funs.clear();
+
+        for (source, file) in files {
+            let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+            for item in &file.items {
+                let ast::Item::Fun(fun) = item else {
+                    continue;
+                };
+
+                let Some(receiver) = &fun.receiver else {
+                    continue;
+                };
+
+                let name = source.slice(fun.name.span).to_string();
+                let fqn = if pkg_prefix.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{pkg_prefix}.{name}")
+                };
+
+                let receiver_ty_fqn = self.type_ref_to_fqn_in_file(source, file, receiver);
+
+                self.extension_funs.push(ExtensionFunSymbol {
+                    fqn,
+                    pkg_prefix: pkg_prefix.clone(),
+                    name,
+                    receiver_ty_fqn,
+                });
+            }
+        }
+    }
+
+    /// 在“同包扩展函数”里查找一个可用于 `receiver.member` 的候选（T0312）。
+    ///
+    /// 当前阶段最小规则：
+    /// - 仅在与使用点相同 package 前缀下查找（不支持 import 扩展）；
+    /// - receiver 类型必须可匹配（当前仅支持：完全相等；或扩展 receiver 为 `scoop.core.Any` 时视为通配）；
+    /// - 若扩展函数不可见（private 且跨文件），返回 `NotVisible`。
+    fn find_extension_fun_fqn(
+        &self,
+        use_source: &SourceFile,
+        pkg_prefix: &str,
+        receiver_ty_fqn: &str,
+        member_name: &str,
+        use_span: Span,
+    ) -> Result<Option<String>, ResolveError> {
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        for ext in &self.extension_funs {
+            if ext.pkg_prefix != pkg_prefix {
+                continue;
+            }
+            if ext.name != member_name {
+                continue;
+            }
+
+            let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
+                continue;
+            };
+
+            if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                continue;
+            }
+
+            let Some(syms) = self.by_fqn.get(&ext.fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Fun) else {
+                continue;
+            };
+
+            if is_symbol_visible_from(use_source, sym) {
+                return Ok(Some(ext.fqn.clone()));
+            }
+
+            not_visible = Some((ext.fqn.clone(), sym.visibility, sym.span));
+        }
+
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: use_span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Ok(None)
+    }
+
+    fn type_ref_to_fqn_in_file(
+        &self,
+        source: &SourceFile,
+        file: &ast::File,
+        ty: &ast::TypeRef,
+    ) -> Option<String> {
+        match ty {
+            ast::TypeRef::Path(p) => self.type_path_to_fqn_in_file(source, file, p),
+            _ => None,
+        }
+    }
+
+    fn type_path_to_fqn_in_file(
+        &self,
+        source: &SourceFile,
+        file: &ast::File,
+        path: &ast::TypePath,
+    ) -> Option<String> {
+        let segments = path
+            .segments
+            .iter()
+            .map(|id| source.slice(id.span))
+            .collect::<Vec<_>>();
+        let local = segments.join(".");
+
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        let mut candidates: Vec<String> = Vec::new();
+
+        // 1) 同包优先：pkg + local
+        if !pkg_prefix.is_empty() {
+            candidates.push(format!("{pkg_prefix}.{local}"));
+        }
+
+        // 2) 直接使用 local（允许显式写 FQN：`scoop.core.Any`）
+        candidates.push(local.clone());
+
+        // 3) 对单段名字，应用 import 规则（显式 import / star import）
+        if segments.len() == 1 {
+            let name = segments[0];
+            for import in &file.imports {
+                let import_path = import
+                    .path
+                    .iter()
+                    .map(|id| source.slice(id.span))
+                    .collect::<Vec<_>>()
+                    .join(".");
+
+                if import.has_star {
+                    candidates.push(format!("{import_path}.{name}"));
+                } else {
+                    let last = import
+                        .path
+                        .last()
+                        .map(|id| source.slice(id.span))
+                        .unwrap_or("");
+                    if last == name {
+                        candidates.push(import_path);
+                    }
+                }
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        for fqn in candidates {
+            let Some(syms) = self.by_fqn.get(&fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                continue;
+            };
+            if is_symbol_visible_from(source, sym) {
+                return Some(fqn);
+            }
+        }
+
+        None
     }
 
     fn add_file(&mut self, source: &SourceFile, file: &ast::File) -> Result<(), ResolveError> {
@@ -452,7 +649,9 @@ pub fn check_file_headers(
     // 说明：当前阶段仍以“存在性解析”为主；更深层的泛型/alias 语义交给 typecheck。
     for item in &file.items {
         match item {
-            ast::Item::TypeAlias(ta) => resolve_type_ref(source, file, index, &type_params, &ta.ty)?,
+            ast::Item::TypeAlias(ta) => {
+                resolve_type_ref(source, file, index, &type_params, &ta.ty)?
+            }
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;
                 let result = (|| resolve_fun_header(source, file, index, &type_params, fun))();
@@ -464,7 +663,9 @@ pub fn check_file_headers(
                     resolve_type_ref(source, file, index, &type_params, ty)?;
                 }
             }
-            ast::Item::Type(ty) => resolve_type_decl_headers(source, file, index, ty, &mut type_params)?,
+            ast::Item::Type(ty) => {
+                resolve_type_decl_headers(source, file, index, ty, &mut type_params)?
+            }
         }
     }
 
@@ -552,7 +753,13 @@ fn resolve_type_decl_headers(
                     // Kotlin 风格：嵌套类型默认**不捕获**外层类型参数。
                     // 若未来引入 `inner` 等语义，可在此处再决定是否继承外层作用域。
                     let mut nested_type_params = TypeParamScopes::new();
-                    resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
+                    resolve_type_decl_headers(
+                        source,
+                        file,
+                        index,
+                        nested,
+                        &mut nested_type_params,
+                    )?;
                 }
             }
         }
@@ -598,7 +805,9 @@ fn resolve_type_ref(
 
             Ok(())
         }
-        ast::TypeRef::Nullable { inner, .. } => resolve_type_ref(source, file, index, type_params, inner),
+        ast::TypeRef::Nullable { inner, .. } => {
+            resolve_type_ref(source, file, index, type_params, inner)
+        }
     }
 }
 

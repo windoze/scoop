@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：当类型体中无同名 member 时，`p.ext()` 可解析到同包 extension fun（T0312）。
+
+package fixtures.resolve
+
+struct Point {}
+
+fun Point.ext() {}
+
+fun use(p: Point) {
+    p.ext()
+}
+

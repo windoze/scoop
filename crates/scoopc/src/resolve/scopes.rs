@@ -253,7 +253,9 @@ impl<'a> BlockScopeChecker<'a> {
                 self.check_expr(receiver.as_mut())?;
                 self.resolve_member_access(receiver.as_ref(), member)?;
             }
-            ast::ExprKind::SafeMemberAccess { receiver, member, .. } => {
+            ast::ExprKind::SafeMemberAccess {
+                receiver, member, ..
+            } => {
                 self.check_expr(receiver.as_mut())?;
                 self.resolve_member_access(receiver.as_ref(), member)?;
             }
@@ -355,10 +357,7 @@ impl<'a> BlockScopeChecker<'a> {
     }
 
     fn local_binding(&self, name: &str) -> Option<&LocalBinding> {
-        self.scopes
-            .iter()
-            .rev()
-            .find_map(|frame| frame.get(name))
+        self.scopes.iter().rev().find_map(|frame| frame.get(name))
     }
 
     fn top_level_value_fqn(
@@ -559,42 +558,50 @@ impl<'a> BlockScopeChecker<'a> {
         let member_name = self.source.slice(member.span);
         let member_fqn = format!("{receiver_ty_fqn}.{member_name}");
 
-        let Some(syms) = self.index.by_fqn.get(&member_fqn) else {
-            return Err(ResolveError::UnresolvedMember {
-                name: member_fqn,
-                span: member.span.into(),
-            });
-        };
+        if let Some(syms) = self.index.by_fqn.get(&member_fqn) {
+            // 与调用解析（T0311）解耦：这里只做存在性与最小“绑定写回”。
+            // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
+            let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-        // 与调用解析（T0311）解耦：这里只做存在性与最小“绑定写回”。
-        // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
-        let mut not_visible: Option<(String, Visibility, Span)> = None;
-
-        if let Some(sym) = syms.get(SymbolKind::Fun) {
-            if is_symbol_visible_from(self.source, sym) {
-                member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
-                return Ok(());
-            }
-            not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
-        }
-
-        if let Some(sym) = syms.get(SymbolKind::Value) {
-            if is_symbol_visible_from(self.source, sym) {
-                member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: member_fqn });
-                return Ok(());
-            }
-            if not_visible.is_none() {
+            if let Some(sym) = syms.get(SymbolKind::Fun) {
+                if is_symbol_visible_from(self.source, sym) {
+                    member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
+                    return Ok(());
+                }
                 not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
             }
+
+            if let Some(sym) = syms.get(SymbolKind::Value) {
+                if is_symbol_visible_from(self.source, sym) {
+                    member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: member_fqn });
+                    return Ok(());
+                }
+                if not_visible.is_none() {
+                    not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
+                }
+            }
+
+            // 同名 member 与 extension 并存时：member 优先（即便 member 不可见，也不回退到 extension）。
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: member.span.into(),
+                    def_span: def_span.into(),
+                });
+            }
         }
 
-        if let Some((name, visibility, def_span)) = not_visible {
-            return Err(ResolveError::NotVisible {
-                name,
-                visibility,
-                use_span: member.span.into(),
-                def_span: def_span.into(),
-            });
+        // T0312：若不存在同名 member，则尝试在同包可见的 extension fun 中按 receiver 类型匹配。
+        if let Some(fqn) = self.index.find_extension_fun_fqn(
+            self.source,
+            &self.pkg_prefix,
+            &receiver_ty_fqn,
+            member_name,
+            member.span,
+        )? {
+            member.resolved = Some(ast::ResolvedMemberRef::ExtensionFun { fqn });
+            return Ok(());
         }
 
         Err(ResolveError::UnresolvedMember {
@@ -853,6 +860,98 @@ mod tests {
     }
 
     #[test]
+    fn extension_fun_is_resolved_when_no_member() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Point {}\nfun Point.ext() {}\nfun use(p: Point) { p.ext() }",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+
+        let fun_use = file
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if src.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, .. } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            panic!("expected member access callee");
+        };
+
+        assert!(matches!(
+            member.resolved,
+            Some(ast::ResolvedMemberRef::ExtensionFun { ref fqn }) if fqn == "a.ext"
+        ));
+    }
+
+    #[test]
+    fn member_still_wins_over_extension_with_same_name() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Point { fun ext() {} }\nfun Point.ext() {}\nfun use(p: Point) { p.ext() }",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+
+        let fun_use = file
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if src.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, .. } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            panic!("expected member access callee");
+        };
+
+        assert!(matches!(
+            member.resolved,
+            Some(ast::ResolvedMemberRef::Fun { ref fqn }) if fqn == "a.Point.ext"
+        ));
+    }
+
+    #[test]
     fn call_callee_ident_is_resolved_to_top_level_fun() {
         let src = SourceFile::new_virtual("<mem>", "package a\nfun top() {}\nfun f() { top() }");
         let mut file = parse_file(&src).unwrap();
@@ -873,7 +972,11 @@ mod tests {
             panic!("expected block body");
         };
 
-        let Some(ast::Stmt { kind: ast::StmtKind::Expr(call), .. }) = block.stmts.first() else {
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
             panic!("expected first stmt to be an expr");
         };
 
@@ -897,8 +1000,10 @@ mod tests {
     fn ambiguous_call_is_error() {
         let s1 = SourceFile::new_virtual("<p1>", "package p1\nfun foo() {}");
         let s2 = SourceFile::new_virtual("<p2>", "package p2\nfun foo() {}");
-        let s3 =
-            SourceFile::new_virtual("<use>", "package use\nimport p1.foo\nimport p2.foo\nfun use() { foo() }");
+        let s3 = SourceFile::new_virtual(
+            "<use>",
+            "package use\nimport p1.foo\nimport p2.foo\nfun use() { foo() }",
+        );
 
         let f1 = parse_file(&s1).unwrap();
         let f2 = parse_file(&s2).unwrap();

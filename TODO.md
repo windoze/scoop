@@ -608,11 +608,12 @@
 - 依赖：T0305、T0209
 - 完成：在 `resolve::scopes` 为 `ExprKind::Call` 增加 `Call(Ident)` 的 fun 命名空间解析：唯一匹配写回 `ValueIdent.resolved`；多个可见候选时报新错误码 `scoop::resolve::ambiguous_call`；新增单测 `ambiguous_call_is_error`；新增 fixtures：`resolve/call_top_level_fun_ok`（pass）与 `resolve_multi/ambiguous_call`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0312 [TODO] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
+### T0312 [DONE] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
 - 描述：实现最小规则：member 优先于 extension；extension 需要 receiver 类型可匹配。
 - 目标：先只在同包/同文件找 extension；跨包 import 扩展后续。
 - 验收：resolve fixture：同名 member 与 extension 并存时解析到 member；只有 extension 时解析到 extension。
 - 依赖：T0233、T0310
+- 完成：`Index` 在 build 后收集同包扩展函数（记录 receiver 类型 FQN），成员访问解析在无同名 member 时按 receiver 类型匹配 extension 并写回 `ResolvedMemberRef::ExtensionFun`（`scoop.core.Any` 作为通配）；新增单测 `resolve::scopes::{extension_fun_is_resolved_when_no_member, member_still_wins_over_extension_with_same_name}` 与 resolve fixtures `extension_member_only_extension_ok`/`extension_member_prefers_member`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0313 [TODO] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
 - 描述：为 class 主构造参数、属性初始化表达式、成员函数体建立正确作用域（含 `this`）。

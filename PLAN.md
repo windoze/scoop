@@ -153,6 +153,7 @@
 - [ ] 作用域：类型体/泛型参数/扩展 receiver（逐步补齐）
   - [x] 泛型参数：签名中的 `TypeRef` 支持解析声明处 type params（T0309）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
+  - [x] 扩展函数/扩展属性：member 优先；无同名 member 时按 receiver 类型匹配 extension（T0312）
 
 ### 3.3 sysroot 注入
 

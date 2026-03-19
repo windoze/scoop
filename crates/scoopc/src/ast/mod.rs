@@ -600,6 +600,15 @@ pub enum ResolvedMemberRef {
     Value { fqn: String },
     /// 解析到类型体中的方法（fun namespace）。
     Fun { fqn: String },
+    /// 解析到扩展属性（extension property）。
+    ///
+    /// 注意：当前阶段（T0312）主要用于 member access 的“同名优先级”与后续 lowering/typecheck；
+    /// 具体 extension property 的语法与语义会在后续任务中逐步补齐。
+    ExtensionValue { fqn: String },
+    /// 解析到扩展函数（extension function）。
+    ///
+    /// 该变体表示 `receiver.member` 并非来自类型体成员，而是来自“同包可见”的扩展声明。
+    ExtensionFun { fqn: String },
 }
 
 #[derive(Debug, Clone)]
@@ -1007,7 +1016,9 @@ pub enum TypeRef {
     /// 星投影（star projection）：仅允许出现在类型实参位置，例如 `List<*>`。
     ///
     /// 说明：当前阶段（T0249）仅做语法层解析与存储；语义由后续 typecheck 实现。
-    Star { span: Span },
+    Star {
+        span: Span,
+    },
     /// 函数类型（spec §7.5）：`(A, B) -> C / R` 或 `T.(A, B) -> C / R`
     Function(TypeFunction),
     Nullable {
