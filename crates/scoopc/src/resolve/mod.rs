@@ -127,6 +127,14 @@ pub enum ResolveError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用解析歧义：{name}")]
+    #[diagnostic(code(scoop::resolve::ambiguous_call))]
+    AmbiguousCall {
+        name: String,
+        #[label("这里的调用存在多个候选函数")]
+        span: miette::SourceSpan,
+    },
+
     #[error("符号不可见：{name}（{visibility}）")]
     #[diagnostic(code(scoop::resolve::not_visible))]
     NotVisible {

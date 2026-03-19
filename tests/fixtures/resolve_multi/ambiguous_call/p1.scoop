@@ -1,0 +1,7 @@
+// EXPECT: pass
+// 目标：为 ambiguous_call case 提供第一个 `foo` 定义（不同 package）。
+
+package fixtures.resolve_multi.ambiguous_call.p1
+
+fun foo() {}
+

@@ -601,11 +601,12 @@
 - 依赖：T0302、T0210
 - 完成：AST 新增 `MemberIdent`/`ResolvedMemberRef`（解析前 Debug 输出保持与旧 `Ident` 一致）；resolver 在 block scopes 中记录局部绑定的声明类型，并对 `ExprKind::MemberAccess`/`SafeMemberAccess` 在 receiver 类型可静态确定时解析成员到 `value/fun` 并写回；新增错误码 `scoop::resolve::unresolved_member` 并精确标注成员名 span；新增 resolve fixtures `member_access_ok`（pass）与 `unresolved_member_access`（fail）；新增单测 `resolve::scopes::tests::member_access_resolution_is_written_back`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0311 [TODO] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
+### T0311 [DONE] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
 - 描述：把 `f(...)` 的 callee 从“裸 ident”解析为某个 fun symbol（先要求唯一匹配）。
 - 目标：先不支持重载；若同名多个定义则报歧义错误。
 - 验收：resolve fixture：调用顶层函数成功；同名多个函数时报 `ambiguous_call`（新错误码）。
 - 依赖：T0305、T0209
+- 完成：在 `resolve::scopes` 为 `ExprKind::Call` 增加 `Call(Ident)` 的 fun 命名空间解析：唯一匹配写回 `ValueIdent.resolved`；多个可见候选时报新错误码 `scoop::resolve::ambiguous_call`；新增单测 `ambiguous_call_is_error`；新增 fixtures：`resolve/call_top_level_fun_ok`（pass）与 `resolve_multi/ambiguous_call`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0312 [TODO] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
 - 描述：实现最小规则：member 优先于 extension；extension 需要 receiver 类型可匹配。

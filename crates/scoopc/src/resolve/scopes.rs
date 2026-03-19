@@ -266,6 +266,7 @@ impl<'a> BlockScopeChecker<'a> {
                 for a in args {
                     self.check_expr(a)?;
                 }
+                self.resolve_call_callee(callee.as_mut())?;
             }
             ast::ExprKind::NamedArg { value, .. } => self.check_expr(value.as_mut())?,
             ast::ExprKind::NotNullAssert { expr, .. } => self.check_expr(expr.as_mut())?,
@@ -286,6 +287,38 @@ impl<'a> BlockScopeChecker<'a> {
                     self.check_expr(&mut u.value)?;
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    /// 解析调用表达式的 callee（T0311：`Call(Ident)` → 顶层 fun symbol）。
+    ///
+    /// 当前策略（最小子集）：
+    /// - 仅处理 `callee` 是裸标识符（`ExprKind::Ident`）的情况；
+    /// - 若该标识符解析为局部绑定（参数/局部 val），则认为是“通过值调用”（例如函数值），此处不介入；
+    /// - 否则尝试按 fun 命名空间解析到顶层函数：
+    ///   - 唯一匹配：写回到 `ValueIdent.resolved = TopLevel { fqn }`
+    ///   - 多个匹配：报 `scoop::resolve::ambiguous_call`
+    /// - 若没有任何函数候选（例如只有同名顶层 value），则保持现状交给后续 typecheck 诊断“不可调用”。
+    fn resolve_call_callee(&self, callee: &mut ast::Expr) -> Result<(), ResolveError> {
+        let ast::ExprKind::Ident(id) = &mut callee.kind else {
+            return Ok(());
+        };
+
+        // `this(...)` 的构造调用/委托构造语义留给 T0313/后续 class 语义处理。
+        if self.source.slice(id.span) == "this" {
+            return Ok(());
+        }
+
+        // 局部绑定：不做顶层函数解析（保守放行）。
+        if matches!(id.resolved, Some(ast::ResolvedValueRef::Local { .. })) {
+            return Ok(());
+        }
+
+        let name = self.source.slice(id.span);
+        if let Some(fqn) = self.top_level_fun_fqn(name, id.span)? {
+            id.resolved = Some(ast::ResolvedValueRef::TopLevel { fqn });
         }
 
         Ok(())
@@ -393,6 +426,67 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         Ok(None)
+    }
+
+    fn top_level_fun_fqn(
+        &self,
+        name: &str,
+        use_span: Span,
+    ) -> Result<Option<String>, ResolveError> {
+        let mut candidates: Vec<String> = Vec::new();
+
+        if !self.pkg_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.pkg_prefix, name));
+        }
+        // 允许用户引用 root package 下的符号（无 package 声明时也可匹配）。
+        candidates.push(name.to_string());
+
+        if let Some(fqns) = self.imports.value.explicit.get(name) {
+            candidates.extend(fqns.iter().cloned());
+        }
+        for prefix in &self.imports.star {
+            candidates.push(format!("{prefix}.{name}"));
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        let mut matches: Vec<String> = Vec::new();
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        for fqn in candidates {
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Fun) else {
+                continue;
+            };
+
+            if is_symbol_visible_from(self.source, sym) {
+                matches.push(fqn);
+            } else if not_visible.is_none() {
+                not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+            }
+        }
+
+        match matches.len() {
+            0 => {
+                if let Some((name, visibility, def_span)) = not_visible {
+                    return Err(ResolveError::NotVisible {
+                        name,
+                        visibility,
+                        use_span: use_span.into(),
+                        def_span: def_span.into(),
+                    });
+                }
+                Ok(None)
+            }
+            1 => Ok(matches.into_iter().next()),
+            _ => Err(ResolveError::AmbiguousCall {
+                name: name.to_string(),
+                span: use_span.into(),
+            }),
+        }
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -756,6 +850,63 @@ mod tests {
             member.resolved,
             Some(ast::ResolvedMemberRef::Fun { ref fqn }) if fqn == "a.Point.m"
         ));
+    }
+
+    #[test]
+    fn call_callee_ident_is_resolved_to_top_level_fun() {
+        let src = SourceFile::new_virtual("<mem>", "package a\nfun top() {}\nfun f() { top() }");
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+
+        let fun_f = file
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if src.slice(f.name.span) == "f" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun f");
+
+        let ast::FunBody::Block(block) = &fun_f.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt { kind: ast::StmtKind::Expr(call), .. }) = block.stmts.first() else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, .. } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            panic!("expected ident callee");
+        };
+
+        assert_eq!(
+            id.resolved,
+            Some(ast::ResolvedValueRef::TopLevel {
+                fqn: "a.top".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn ambiguous_call_is_error() {
+        let s1 = SourceFile::new_virtual("<p1>", "package p1\nfun foo() {}");
+        let s2 = SourceFile::new_virtual("<p2>", "package p2\nfun foo() {}");
+        let s3 =
+            SourceFile::new_virtual("<use>", "package use\nimport p1.foo\nimport p2.foo\nfun use() { foo() }");
+
+        let f1 = parse_file(&s1).unwrap();
+        let f2 = parse_file(&s2).unwrap();
+        let mut f3 = parse_file(&s3).unwrap();
+
+        let index = Index::build(&[(&s1, &f1), (&s2, &f2), (&s3, &f3)]).unwrap();
+        let err = super::super::check_file_bindings(&s3, &mut f3, &index).unwrap_err();
+        assert!(matches!(err, ResolveError::AmbiguousCall { .. }));
     }
 
     #[test]

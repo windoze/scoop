@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：验证 `foo()` 调用在 resolve 阶段能绑定到同包顶层函数（T0311）。
+
+package fixtures.resolve
+
+fun foo() {}
+
+fun use() {
+    foo()
+}
+
