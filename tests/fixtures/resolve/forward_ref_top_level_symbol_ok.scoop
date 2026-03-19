@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：验证两阶段解析（T0308）后，函数体与顶层 initializer 都可以引用同文件后定义的顶层符号（forward ref）。
+
+package fixtures.resolve
+
+val x = later()
+
+fun use() {
+    later()
+}
+
+fun later() {}
+

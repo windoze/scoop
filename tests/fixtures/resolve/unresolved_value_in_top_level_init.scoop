@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的值
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_value
+// EXPECT-ERROR-AT: 9:9
+// 目标：验证 resolver 会解析顶层 `val/var` initializer 中的裸标识符引用。
+
+package fixtures.resolve
+
+val x = missing
+
