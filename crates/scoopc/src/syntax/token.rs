@@ -80,6 +80,8 @@ pub enum Keyword {
     When,
     For,
     In,
+    /// `out`（声明处变型/星投影相关语法的一部分，spec §3）。
+    Out,
     While,
     Break,
     Continue,

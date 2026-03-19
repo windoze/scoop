@@ -64,15 +64,40 @@ pub enum Modifier {
     Annotation,
 }
 
+/// 类型参数的变型标记（spec §3.2~§3.3）。
+///
+/// 说明：当前阶段（T0249）仅做语法层“解析并存储”，不做任何合法性校验。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamVariance {
+    In,
+    Out,
+}
+
 /// 声明处的类型参数（type parameter）。
 ///
-/// 当前阶段（T0218）仅支持无约束的 `T` / `U`：
-/// - 不支持 `in/out` 变型
-/// - 不支持上界/下界（`:` / `where`）
-#[derive(Debug, Clone)]
+/// 当前阶段：
+/// - (T0218) 支持无约束的 `T` / `U`
+/// - (T0249) 额外支持 `in T` / `out T` 声明处变型
+/// - 不支持上界/下界（`:` / `where`）（留给后续任务）
+#[derive(Clone)]
 pub struct TypeParam {
     pub span: Span,
+    pub variance: Option<TypeParamVariance>,
     pub name: Ident,
+}
+
+impl std::fmt::Debug for TypeParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 为了保持 fixtures 的 AST snapshot 稳定回归：
+        // - `variance` 为 None 时不输出该字段（与 T0218 之前保持一致）
+        let mut s = f.debug_struct("TypeParam");
+        s.field("span", &self.span);
+        if self.variance.is_some() {
+            s.field("variance", &self.variance);
+        }
+        s.field("name", &self.name);
+        s.finish()
+    }
 }
 
 /// 类型声明的主构造头（primary constructor header）。
@@ -807,6 +832,10 @@ pub enum ValKind {
 pub enum TypeRef {
     Path(TypePath),
     Tuple(TypeTuple),
+    /// 星投影（star projection）：仅允许出现在类型实参位置，例如 `List<*>`。
+    ///
+    /// 说明：当前阶段（T0249）仅做语法层解析与存储；语义由后续 typecheck 实现。
+    Star { span: Span },
     /// 函数类型（spec §7.5）：`(A, B) -> C / R` 或 `T.(A, B) -> C / R`
     Function(TypeFunction),
     Nullable {
@@ -860,6 +889,7 @@ impl TypeRef {
         match self {
             TypeRef::Path(p) => p.span,
             TypeRef::Tuple(t) => t.span,
+            TypeRef::Star { span } => *span,
             TypeRef::Function(f) => f.span,
             TypeRef::Nullable { span, .. } => *span,
         }

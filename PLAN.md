@@ -102,6 +102,7 @@
 - [x] Elvis `?:` 二元运算（最低优先级）与 not-null 断言 `!!` 后缀运算（T0212）
 - [x] 类型判断/转换操作符：`is`/`!is`/`as`/`as?`（与比较运算符同优先级，RHS 为 TypeRef）（T0213）
 - [x] 声明处泛型参数列表：`fun id<T>(...)` / `struct Box<T> { ... }` — AST `TypeParam` 节点 + `type_params` 字段 + `parse_type_param_list`（T0218）
+- [x] 泛型语法补齐：type args 支持 `*`（star projection），type params 支持 `in/out` 声明处变型（T0249）
 - [x] struct literal AST 节点：`Expr::StructLit(StructLitExpr)` + `StructLitField`（T0223）
 - [x] struct literal 解析：`TypeName { field: expr, ... }`（T0224）— `looks_like_struct_lit()` lookahead 在 `parse_expr_primary` 中识别 `Ident(.Ident)*(<...>)? { (Ident: | })` 模式，调用 `parse_struct_lit_expr()` + `parse_path_type_inner()` 解析；6 个 pass/fail fixtures 覆盖
 - [x] 关键歧义：struct literal vs lambda（对应 spec §12）（T0225）— `looks_like_struct_lit()` 增加 `has_arrow_inside_braces()` 扫描：在 `{ Ident :` 匹配后，前扫顶层 `->` 来排除 lambda with typed params；4 个 pass fixtures 覆盖

@@ -192,7 +192,13 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            args.push(self.parse_type_ref()?);
+            // T0249：支持 star projection `*`（仅允许出现在类型实参位置，例如 `List<*>`）。
+            if self.peek_symbol(Symbol::Star) {
+                let star = self.bump();
+                args.push(ast::TypeRef::Star { span: star.span });
+            } else {
+                args.push(self.parse_type_ref()?);
+            }
             if self.eat_symbol(Symbol::Comma) {
                 if self.peek_symbol(Symbol::Gt) {
                     break;

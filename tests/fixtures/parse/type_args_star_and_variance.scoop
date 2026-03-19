@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: type_args_star_and_variance.ast
+
+package fixtures.parse
+
+// star projection：`*` 只能出现在类型实参位置（例如 `List<*>`）。
+interface StarList : List<*> {}
+
+// 声明处变型：在 type parameter 声明位置支持 `in T` / `out T`。
+interface ReadOnlyProperty<in T, out V> {}
+

@@ -499,11 +499,12 @@
 - 依赖：T0218、T0201
 - 完成：AST `TypeDecl` 新增 `primary_ctor` 与 `supertypes`；parser 在 type decl header 解析主构造参数列表与 `:` 后 supertype 列表（基类构造调用参数仅保留括号 span）；新增 `type_inheritance_basic` pass + `type_inheritance_missing_colon_fail` fail fixtures；更新相关 AST goldens；`cargo test --all` 与 `scoop test` 通过。
 
-### T0249 [TODO] Parser：star projection `*` 与变型 `in/out` 的语法支持（spec §3.2~§3.3）
+### T0249 [DONE] Parser：star projection `*` 与变型 `in/out` 的语法支持（spec §3.2~§3.3）
 - 描述：在类型实参位置支持 `*`；在 type param 声明位置支持 `in T`/`out T`。
 - 目标：先只解析并存储；合法性检查交给 typecheck。
 - 验收：新增 parse fixture：`List<*>`、`interface ReadOnlyProperty<in T, out V>`；解析成功。
 - 依赖：T0218
+- 完成：lexer 新增关键字 `out`；AST 新增 `TypeParamVariance` 与 `TypeParam.variance`、`TypeRef::Star`；parser 支持 type param 列表内的 `in/out` 与 type args 内的 `*`；新增 parse fixture `tests/fixtures/parse/type_args_star_and_variance.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0250 [TODO] Parser：effect row 参数 `eff`（spec §3.4 / §5.8）
 - 描述：在泛型参数列表中支持 `eff E = Pure`，并在函数/函数类型上使用 `/ E`。

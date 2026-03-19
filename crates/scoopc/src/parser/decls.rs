@@ -46,12 +46,26 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            // T0249：支持声明处变型：`in T` / `out T`。
+            let (variance, variance_start) = match self.peek().kind {
+                TokenKind::Keyword(Keyword::In) => {
+                    let kw = self.bump();
+                    (Some(ast::TypeParamVariance::In), Some(kw.span.start))
+                }
+                TokenKind::Keyword(Keyword::Out) => {
+                    let kw = self.bump();
+                    (Some(ast::TypeParamVariance::Out), Some(kw.span.start))
+                }
+                _ => (None, None),
+            };
+
             let name_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
             let name = ast::Ident {
                 span: name_tok.span,
             };
             params.push(ast::TypeParam {
-                span: name_tok.span,
+                span: Span::new(variance_start.unwrap_or(name_tok.span.start), name_tok.span.end),
+                variance,
                 name,
             });
 

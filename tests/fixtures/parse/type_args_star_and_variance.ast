@@ -1,0 +1,89 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 64..86,
+            path: [
+                Ident {
+                    span: 72..80,
+                },
+                Ident {
+                    span: 81..86,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 172..203,
+                kind: Interface,
+                name: Ident {
+                    span: 182..190,
+                },
+                type_params: [],
+                supertypes: [
+                    SuperType {
+                        span: 193..200,
+                        ty: Path(
+                            TypePath {
+                                span: 193..200,
+                                segments: [
+                                    Ident {
+                                        span: 193..197,
+                                    },
+                                ],
+                                args: [
+                                    Star {
+                                        span: 198..199,
+                                    },
+                                ],
+                            },
+                        ),
+                    },
+                ],
+                body: Some(
+                    TypeBody {
+                        span: 201..203,
+                        members: [],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 284..326,
+                kind: Interface,
+                name: Ident {
+                    span: 294..310,
+                },
+                type_params: [
+                    TypeParam {
+                        span: 311..315,
+                        variance: Some(
+                            In,
+                        ),
+                        name: Ident {
+                            span: 314..315,
+                        },
+                    },
+                    TypeParam {
+                        span: 317..322,
+                        variance: Some(
+                            Out,
+                        ),
+                        name: Ident {
+                            span: 321..322,
+                        },
+                    },
+                ],
+                body: Some(
+                    TypeBody {
+                        span: 324..326,
+                        members: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

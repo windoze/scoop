@@ -264,6 +264,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::When => "`when`",
         Keyword::For => "`for`",
         Keyword::In => "`in`",
+        Keyword::Out => "`out`",
         Keyword::While => "`while`",
         Keyword::Break => "`break`",
         Keyword::Continue => "`continue`",

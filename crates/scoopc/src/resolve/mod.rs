@@ -233,6 +233,8 @@ fn resolve_type_ref(
             }
             Ok(())
         }
+        // 星投影不引入可解析的符号引用：`List<*>` 中的 `*` 由 typecheck 决定具体含义。
+        ast::TypeRef::Star { .. } => Ok(()),
         ast::TypeRef::Function(f) => {
             if let Some(receiver) = &f.receiver {
                 resolve_type_ref(source, file, index, receiver)?;
