@@ -85,6 +85,10 @@
    - [x] Elvis：`a ?: b`（低优先级二元，右结合）
    - [x] 类型判断/转换：`is`/`!is`/`as`/`as?`（语法建模；smart cast/失败语义留给后续阶段）
    - [x] lambda 表达式：`{ params -> body }` / `{ body }`（参数支持可选类型注解；body 可为单表达式或 block）
+   - [ ] struct literal 表达式：`TypeName { field: expr, ... }`（spec §12）
+     - [x] AST 节点：`ExprKind::StructLit`
+     - [ ] 解析：postfix/primary 识别 `TypePath { ... }`
+     - [ ] `{}` 歧义消解：struct literal vs lambda
    - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
    - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
 - [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）

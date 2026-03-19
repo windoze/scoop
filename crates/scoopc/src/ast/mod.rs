@@ -143,6 +143,15 @@ pub struct WithUpdateField {
     pub value: Expr,
 }
 
+/// struct literal 的字段初始化项：`name: expr`（spec §12）。
+#[derive(Debug, Clone)]
+pub struct StructLitField {
+    pub span: Span,
+    pub name: Ident,
+    pub colon_span: Span,
+    pub value: Expr,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     // arithmetic
@@ -245,6 +254,17 @@ pub enum ExprKind {
     ///
     /// 当前任务（T0221）仅引入 AST 节点建模；解析与 `{}` 歧义消解见后续任务（T0222/T0225）。
     Lambda(LambdaExpr),
+    /// struct literal：`TypeName { field: expr, ... }`（spec §12）。
+    ///
+    /// 说明：
+    /// - 当前任务（T0223）仅引入 AST 节点建模；
+    /// - 解析见后续任务（T0224）；
+    /// - 与 lambda 的 `{}` 歧义消解见后续任务（T0225）；
+    /// - 当前阶段只支持显式字段初始化 `name: expr`（不支持省略写法）。
+    StructLit {
+        ty: TypePath,
+        fields: Vec<StructLitField>,
+    },
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     ///
     /// 说明：
@@ -503,6 +523,48 @@ mod tests {
                 assert_eq!(l.arrow_span, Some(arrow_span));
             }
             other => panic!("expected Lambda, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn struct_lit_ast_node_is_constructible() {
+        let ty = TypePath {
+            span: Span::new(0, 5),
+            segments: vec![Ident {
+                span: Span::new(0, 5),
+            }],
+            args: vec![],
+        };
+
+        let field_name = Ident {
+            span: Span::new(8, 9),
+        };
+        let value = Expr {
+            span: Span::new(11, 12),
+            kind: ExprKind::IntLit,
+        };
+        let field = StructLitField {
+            span: Span::new(8, 12),
+            name: field_name,
+            colon_span: Span::new(9, 10),
+            value,
+        };
+
+        let lit = Expr {
+            span: Span::new(0, 13),
+            kind: ExprKind::StructLit {
+                ty,
+                fields: vec![field],
+            },
+        };
+
+        match &lit.kind {
+            ExprKind::StructLit { ty, fields } => {
+                assert_eq!(ty.segments.len(), 1);
+                assert_eq!(fields.len(), 1);
+                assert_eq!(fields[0].name.span, field_name.span);
+            }
+            other => panic!("expected StructLit, got {other:?}"),
         }
     }
 }

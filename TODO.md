@@ -326,7 +326,7 @@
 - 验收：新增 parse fixture：`val f = { x: Any -> x }` 与 `list.map { it }`（只要能解析）；`scoop test` 通过。
 - 依赖：T0221、T0207
 
-### T0223 [TODO] AST：struct literal 表达式节点（spec §12）
+### T0223 [DONE] AST：struct literal 表达式节点（spec §12）
 - 描述：新增 `Expr::StructLit`（类型名 + 字段初始化列表），字段项包含 `name: expr`。
 - 目标：先不支持字段省略写法；只支持显式 `name: expr`。
 - 验收：`cargo test -p scoopc` 通过；新增 parse fixture（配合 T0224）可在 AST 看到 struct literal。
