@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0406 表达式类型检查 v0：变量引用（局部/参数/顶层）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val a: Int = 1
+val b: Int = a
+
+fun f(x: Any) {
+    val y = x
+    val z = y
+    val w: Int = b
+}
+

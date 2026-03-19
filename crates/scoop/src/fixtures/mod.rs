@@ -211,7 +211,7 @@ fn typecheck_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -224,6 +224,14 @@ fn typecheck_fixture(
     // typecheck phase 的前置条件：签名中的类型引用应当已 resolve（至少保证存在性/可见性）。
     let headers =
         scoopc::resolve::check_file_headers(source, &ast, &index).map_err(box_diagnostic)?;
+
+    // T0406：表达式类型检查需要 resolver 在 AST 上写回 ValueIdent.resolved。
+    // 因此 typecheck phase 在通过 headers 解析后，还需要进一步解析函数体/initializer（bodies）。
+    //
+    // 说明：
+    // - 这里复用 resolver 的 block scope + value ident 解析逻辑（T0304/T0305/T0308）；
+    // - 若 bodies 中存在未定义值引用，将以 resolve 错误提前失败（避免后续 typecheck 重复报错）。
+    scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(box_diagnostic)?;
 
     // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(box_diagnostic)?;

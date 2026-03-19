@@ -668,11 +668,12 @@
 - 依赖：T0206、T0401、T0418
 - 完成：`scoopc::ty` 补齐 builtin `Bool/String`；parser 将 `()` 解析为 `ExprKind::UnitLit`；resolve/type lowering 对 `Int/UInt/Bool/String/Unit/Nothing` 做 builtin 兜底并在 type lowering 中映射到 builtin `TypeId`；新增 `scoopc::typecheck::check_file_exprs` 对顶层 `val/var` initializer 做字面量类型检查并给出错误码 `scoop::typecheck::initializer_type_mismatch`；新增 fixtures：`typecheck/literals_ok.scoop`（pass）与 `typecheck/literal_type_mismatch_is_error.scoop`（fail），并更新 `top_level_val_with_type_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 均通过。
 
-### T0406 [TODO] 表达式类型检查 v0：变量引用（局部/参数/顶层）
+### T0406 [DONE] 表达式类型检查 v0：变量引用（局部/参数/顶层）
 - 描述：对 resolve 后的 ident 引用给出类型。
 - 目标：先不支持 forward reference（或明确规则）；错误信息指向引用处。
 - 验收：typecheck fixture：`fun f(x: Any) { val y = x }` 通过；`val y = missing` 报未定义符号（若 resolve 已报则这里不重复/或只报一次）。
 - 依赖：T0305、T0405
+- 完成：typecheck phase 先运行 `resolve::check_file_bodies` 写回 `ValueIdent.resolved`，并在 resolver 中对 `true/false` 做字面量 special-case；`scoopc::typecheck::expr` 增加对 `ExprKind::Ident` 的类型推导（Local/TopLevel），并在函数体内对局部 `val/var` initializer 做最小推导与注册；新增 fixture `tests/fixtures/typecheck/value_ident_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0407 [TODO] 表达式类型检查：函数调用（无重载、按名称唯一解析）
 - 描述：对 `Call(callee, args)` 做参数数量检查与类型匹配。

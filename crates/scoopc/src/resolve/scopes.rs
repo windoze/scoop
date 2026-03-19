@@ -466,6 +466,16 @@ impl<'a> BlockScopeChecker<'a> {
     fn resolve_value_ident(&mut self, id: &mut ast::ValueIdent) -> Result<(), ResolveError> {
         let name = self.source.slice(id.span);
 
+        // `true/false` 当前阶段仍以 ident token 形式存在，但语义上属于字面量。
+        // 因此它们不应参与名字解析，也不应在 resolve 阶段报“未定义符号”。
+        //
+        // 说明：
+        // - 未来 lexer/parser 很可能会把它们升级为专门的 BoolLit token/ExprKind；
+        // - 在那之前，这个 special-case 用于保持 fixtures 与 typecheck 增量推进的稳定性。
+        if name == "true" || name == "false" {
+            return Ok(());
+        }
+
         if name == "this" {
             if let Some(ctx) = self.this_context.last() {
                 id.resolved = Some(ast::ResolvedValueRef::Local {
