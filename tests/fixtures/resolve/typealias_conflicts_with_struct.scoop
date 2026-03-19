@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::duplicate_definition
+// EXPECT-ERROR-AT: 11:11
+// EXPECT-ERROR: fixtures.resolve.Byte
+// 目标：typealias 与 struct 同名应当冲突（T0314）。
+
+package fixtures.resolve
+
+struct UInt8 {}
+
+typealias Byte = UInt8
+
+struct Byte {}

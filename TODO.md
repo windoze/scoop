@@ -622,11 +622,12 @@
 - 依赖：T0248、T0308
 - 完成：`scoopc::resolve::scopes` 引入 `this` 上下文（类型体成员/扩展函数）并补齐主构造参数在 property init/accessor 与 member fun 体内的可见性；`this` 在无 receiver 语境下会按未定义值报错；新增 resolve fixtures `class_member_this_and_ctor_param_ok`（pass）与 `this_outside_receiver_is_error`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0314 [TODO] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
+### T0314 [DONE] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
 - 描述：把 `typealias Name = Type` 作为一种 type-level symbol 纳入索引与 import 环境，使得 `Byte/UIntPtr` 等别名能被当作类型引用。
 - 目标：resolve 阶段只做“名字可见性/冲突检测”；不做 alias 展开与循环检测（交给 typecheck）。
 - 验收：新增 resolve fixture：`typealias Byte = UInt8; fun f(x: Byte): Byte { x }` 可解析；同名 typealias 与 struct/class 冲突时报错并定位两个声明。
 - 依赖：T0251、T0301、T0308
+- 完成：补齐 resolve fixtures：`resolve/typealias_is_type_symbol_ok.scoop`（pass）与 `resolve/typealias_conflicts_with_struct.scoop`（fail，断言 `duplicate_definition` 及位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ---
 
