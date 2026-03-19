@@ -15,7 +15,10 @@ use std::collections::HashMap;
 
 use crate::{ast, source::SourceFile, span::Span};
 
-use super::{ImportTable, Index, ResolveError, SymbolKind, package_prefix};
+use super::{
+    ImportTable, Index, ResolveError, SymbolKind, Visibility, is_symbol_visible_from,
+    package_prefix,
+};
 
 pub(super) fn check_block_scopes(
     source: &SourceFile,
@@ -278,9 +281,12 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        if let Some(fqn) = self.top_level_value_fqn(name) {
-            id.resolved = Some(ast::ResolvedValueRef::TopLevel { fqn });
-            return Ok(());
+        match self.top_level_value_fqn(name, id.span)? {
+            Some(fqn) => {
+                id.resolved = Some(ast::ResolvedValueRef::TopLevel { fqn });
+                return Ok(());
+            }
+            None => {}
         }
 
         Err(ResolveError::UnresolvedValue {
@@ -296,7 +302,11 @@ impl<'a> BlockScopeChecker<'a> {
             .find_map(|frame| frame.get(name).copied())
     }
 
-    fn top_level_value_fqn(&self, name: &str) -> Option<String> {
+    fn top_level_value_fqn(
+        &self,
+        name: &str,
+        use_span: Span,
+    ) -> Result<Option<String>, ResolveError> {
         let mut candidates: Vec<String> = Vec::new();
 
         if !self.pkg_prefix.is_empty() {
@@ -315,15 +325,48 @@ impl<'a> BlockScopeChecker<'a> {
         candidates.sort();
         candidates.dedup();
 
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
         for fqn in candidates {
-            if self.index.by_fqn.get(&fqn).is_some_and(|syms| {
-                syms.get(SymbolKind::Fun).is_some() || syms.get(SymbolKind::Value).is_some()
-            }) {
-                return Some(fqn);
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+
+            // value namespace：fun/value 任一存在即匹配（与 T0304/T0305 旧逻辑保持一致）。
+            let sym_fun = syms.get(SymbolKind::Fun);
+            let sym_val = syms.get(SymbolKind::Value);
+            if sym_fun.is_none() && sym_val.is_none() {
+                continue;
+            }
+
+            if let Some(sym) = sym_fun {
+                if is_symbol_visible_from(self.source, sym) {
+                    return Ok(Some(fqn));
+                }
+                if not_visible.is_none() {
+                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+                }
+            }
+
+            if let Some(sym) = sym_val {
+                if is_symbol_visible_from(self.source, sym) {
+                    return Ok(Some(fqn));
+                }
+                if not_visible.is_none() {
+                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+                }
             }
         }
 
-        None
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: use_span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Ok(None)
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -428,10 +471,7 @@ mod tests {
 
     #[test]
     fn value_ident_resolution_is_written_back() {
-        let src = SourceFile::new_virtual(
-            "<mem>",
-            "package a\nfun top() {}\nfun f(x) { x\ntop }",
-        );
+        let src = SourceFile::new_virtual("<mem>", "package a\nfun top() {}\nfun f(x) { x\ntop }");
         let mut file = parse_file(&src).unwrap();
         let index = build_index(&[(&src, &file)]);
 
@@ -480,5 +520,18 @@ mod tests {
                 fqn: "a.top".to_string()
             })
         );
+    }
+
+    #[test]
+    fn private_top_level_is_not_visible_from_other_file() {
+        let s1 = SourceFile::new_virtual("<a1>", "package a\nprivate fun hidden() {}");
+        let s2 = SourceFile::new_virtual("<a2>", "package a\nfun use() { hidden() }");
+
+        let file1 = parse_file(&s1).unwrap();
+        let mut file2 = parse_file(&s2).unwrap();
+
+        let index = Index::build(&[(&s1, &file1), (&s2, &file2)]).unwrap();
+        let err = super::super::check_file_bindings(&s2, &mut file2, &index).unwrap_err();
+        assert!(matches!(err, ResolveError::NotVisible { .. }));
     }
 }

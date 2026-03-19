@@ -14,6 +14,7 @@ mod imports;
 mod scopes;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -58,6 +59,24 @@ pub enum ResolveError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("符号不可见：{name}（{visibility}）")]
+    #[diagnostic(code(scoop::resolve::not_visible))]
+    NotVisible {
+        name: String,
+        visibility: Visibility,
+        #[label("这里引用了不可见符号")]
+        use_span: miette::SourceSpan,
+        #[label("该符号定义在这里")]
+        def_span: miette::SourceSpan,
+    },
+
+    #[error("非法的可见性修饰符组合（public/internal/private 只能出现一个）")]
+    #[diagnostic(code(scoop::resolve::invalid_visibility))]
+    InvalidVisibility {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,11 +86,37 @@ pub enum SymbolKind {
     Value,
 }
 
+/// 可见性（visibility）。
+///
+/// 当前阶段（T0306）：
+/// - `public` 默认可见；
+/// - `private` 对顶层声明按“文件内可见”处理：跨文件引用将报错；
+/// - `internal` 的 cone/module 语义留给后续任务，这里先等同于可见。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    Public,
+    Internal,
+    Private,
+}
+
+impl std::fmt::Display for Visibility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Visibility::Public => "public",
+            Visibility::Internal => "internal",
+            Visibility::Private => "private",
+        };
+        write!(f, "{s}")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Symbol {
     pub kind: SymbolKind,
     pub name: String,
     pub span: Span,
+    pub decl_file: PathBuf,
+    pub visibility: Visibility,
 }
 
 /// 同一个 FQN 下按命名空间（type/value/fun）分组的符号集合。
@@ -127,10 +172,12 @@ impl Index {
             match item {
                 ast::Item::TypeAlias(ta) => {
                     // typealias 是类型命名空间的顶层符号（T0251）。
-                    self.insert_symbol(source, &pkg, SymbolKind::Type, ta.name.span)?;
+                    let visibility = visibility_from_modifiers(&ta.modifiers, ta.span)?;
+                    self.insert_symbol(source, &pkg, SymbolKind::Type, ta.name.span, visibility)?;
                 }
                 ast::Item::Fun(fun) => {
-                    self.insert_symbol(source, &pkg, SymbolKind::Fun, fun.name.span)?;
+                    let visibility = visibility_from_modifiers(&fun.modifiers, fun.span)?;
+                    self.insert_symbol(source, &pkg, SymbolKind::Fun, fun.name.span, visibility)?;
                 }
                 ast::Item::Type(ty) => {
                     self.add_type_decl(source, &pkg, ty)?;
@@ -138,7 +185,8 @@ impl Index {
                 ast::Item::Val(v) => {
                     // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
                     if let Some(name) = v.name() {
-                        self.insert_symbol(source, &pkg, SymbolKind::Value, name.span)?;
+                        let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
+                        self.insert_symbol(source, &pkg, SymbolKind::Value, name.span, visibility)?;
                     }
                 }
             }
@@ -159,7 +207,8 @@ impl Index {
         ty: &ast::TypeDecl,
     ) -> Result<(), ResolveError> {
         // 1) 先插入类型自身（type namespace）。
-        self.insert_symbol(source, prefix, SymbolKind::Type, ty.name.span)?;
+        let visibility = visibility_from_modifiers(&ty.modifiers, ty.span)?;
+        self.insert_symbol(source, prefix, SymbolKind::Type, ty.name.span, visibility)?;
 
         // 2) 递归处理类型体成员：fields/methods/nested types。
         let type_name = source.slice(ty.name.span);
@@ -176,10 +225,24 @@ impl Index {
         for member in &body.members {
             match member {
                 ast::TypeMember::Property(p) => {
-                    self.insert_symbol(source, &type_prefix, SymbolKind::Value, p.name.span)?;
+                    let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
+                    self.insert_symbol(
+                        source,
+                        &type_prefix,
+                        SymbolKind::Value,
+                        p.name.span,
+                        visibility,
+                    )?;
                 }
                 ast::TypeMember::Fun(f) => {
-                    self.insert_symbol(source, &type_prefix, SymbolKind::Fun, f.name.span)?;
+                    let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
+                    self.insert_symbol(
+                        source,
+                        &type_prefix,
+                        SymbolKind::Fun,
+                        f.name.span,
+                        visibility,
+                    )?;
                 }
                 ast::TypeMember::Type(nested) => {
                     self.add_type_decl(source, &type_prefix, nested)?;
@@ -196,6 +259,7 @@ impl Index {
         pkg_prefix: &str,
         kind: SymbolKind,
         name_span: Span,
+        visibility: Visibility,
     ) -> Result<(), ResolveError> {
         let local = source.slice(name_span).to_string();
         let fqn = if pkg_prefix.is_empty() {
@@ -208,6 +272,8 @@ impl Index {
             kind,
             name: local,
             span: name_span,
+            decl_file: source.path().to_path_buf(),
+            visibility,
         };
 
         let entry = self.by_fqn.entry(fqn.clone()).or_default();
@@ -221,6 +287,44 @@ impl Index {
 
         *entry.slot_mut(kind) = Some(symbol);
         Ok(())
+    }
+}
+
+fn visibility_from_modifiers(
+    modifiers: &[ast::Modifier],
+    decl_span: Span,
+) -> Result<Visibility, ResolveError> {
+    let mut found: Option<Visibility> = None;
+    for m in modifiers {
+        let vis = match m {
+            ast::Modifier::Public => Some(Visibility::Public),
+            ast::Modifier::Internal => Some(Visibility::Internal),
+            ast::Modifier::Private => Some(Visibility::Private),
+            _ => None,
+        };
+
+        let Some(vis) = vis else {
+            continue;
+        };
+
+        if let Some(prev) = found {
+            if prev != vis {
+                return Err(ResolveError::InvalidVisibility {
+                    span: decl_span.into(),
+                });
+            }
+        } else {
+            found = Some(vis);
+        }
+    }
+
+    Ok(found.unwrap_or(Visibility::Public))
+}
+
+fn is_symbol_visible_from(source: &SourceFile, symbol: &Symbol) -> bool {
+    match symbol.visibility {
+        Visibility::Public | Visibility::Internal => true,
+        Visibility::Private => symbol.decl_file == source.path(),
     }
 }
 
@@ -243,7 +347,8 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
 /// 当前阶段的简化：
 /// - 类型引用：只做存在性解析（type namespace），不做泛型 arity/alias 展开等深层语义
 /// - 值引用：仅解析裸 `ident`（先局部/参数，再同包或 import 引入的顶层 fun/value），不解析成员访问与调用目标
-/// - 不做重载/可见性/跨文件编译单元等复杂规则（后续任务补齐）
+/// - 可见性（T0306）：仅实现顶层 `private` 的“文件内可见”规则（跨文件引用报错）；`internal` 的 cone/module 语义后续补齐
+/// - 不做重载/跨文件编译单元等复杂规则（后续任务补齐）
 pub fn check_file_bindings(
     source: &SourceFile,
     file: &mut ast::File,
@@ -376,15 +481,35 @@ fn resolve_type_path(
     candidates.sort();
     candidates.dedup();
 
+    let mut not_visible: Option<(String, Visibility, Span)> = None;
     for fqn in candidates {
-        if index
-            .by_fqn
-            .get(&fqn)
-            .is_some_and(|syms| syms.get(SymbolKind::Type).is_some())
-        {
+        let Some(syms) = index.by_fqn.get(&fqn) else {
+            continue;
+        };
+
+        let Some(sym) = syms.get(SymbolKind::Type) else {
+            continue;
+        };
+
+        if is_symbol_visible_from(source, sym) {
             // TODO: 在后续阶段把解析结果写回 AST/HIR
             return Ok(());
         }
+
+        // 若只有不可见的候选，报“不可见”而不是“未解析”。
+        // 但依旧继续尝试其它候选（例如同名但来自其它 import 的 public type）。
+        if not_visible.is_none() {
+            not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+        }
+    }
+
+    if let Some((name, visibility, def_span)) = not_visible {
+        return Err(ResolveError::NotVisible {
+            name,
+            visibility,
+            use_span: path.span.into(),
+            def_span: def_span.into(),
+        });
     }
 
     Err(ResolveError::UnresolvedType {
@@ -428,6 +553,15 @@ mod tests {
 
         let index = Index::build(&pairs).unwrap();
         check_file_bindings(&src, &mut ast, &index).unwrap();
+    }
+
+    #[test]
+    fn invalid_visibility_modifiers_is_error() {
+        let src = SourceFile::new_virtual("<mem>", "package a\npublic private fun f() {}");
+        let ast = parse_file(&src).unwrap();
+
+        let err = Index::build(&[(&src, &ast)]).unwrap_err();
+        assert!(matches!(err, ResolveError::InvalidVisibility { .. }));
     }
 
     #[test]

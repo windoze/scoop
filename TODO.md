@@ -566,11 +566,12 @@
 - 依赖：T0304
 - 完成：AST 将 `ExprKind::Ident` 升级为 `ValueIdent { span, resolved }` 并引入 `ResolvedValueRef(Local/TopLevel)`；parser 构造未解析 `ValueIdent`；resolver 在块级作用域检查中把裸 ident 解析到“局部绑定（参数/val）或顶层符号（FQN）”并写回；新增 resolve fixtures `param_reference_ok`（pass）与 `unresolved_value_ident_span`（fail）；新增单测 `resolve::scopes::tests::value_ident_resolution_is_written_back`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0306 [TODO] Resolver：可见性修饰符（public/internal/private）（PLAN §3.1）
+### T0306 [DONE] Resolver：可见性修饰符（public/internal/private）（PLAN §3.1）
 - 描述：在 AST/解析层引入 visibility，并在 resolve 阶段做最小合法性检查。
 - 目标：先只实现语法 + 文件内可见性检查；跨包规则后续补。
 - 验收：新增 resolve fixture：private 顶层符号在其他文件引用时报错（需要多文件 fixture 支持或单测构造多文件）。
 - 依赖：T0301、T0245
+- 完成：`scoopc::resolve::Index` 的 `Symbol` 记录 `Visibility(public/internal/private)` 与 `decl_file`；resolve 阶段对 type/value（含 fun）解析增加可见性过滤，并在跨文件引用 `private` 符号时返回 `scoop::resolve::not_visible`；新增单测覆盖“private 顶层符号在其他文件引用时报错”与“非法可见性修饰符组合报错”；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0307 [TODO] Session/fixtures：支持“多文件编译单元”的 resolve/typecheck
 - 描述：允许一个 fixture case 包含多个 `.scoop` 文件，并作为同一编译单元构建 index/resolve/typecheck。

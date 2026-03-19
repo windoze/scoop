@@ -133,7 +133,7 @@
 ### 3.1 包系统（Cone 的源级部分）
 
 - [x] `package` 声明、`import`、通配 `*`（已支持解析 + 最小名字绑定：TypeRef 按 import/star import 解析）
-- [ ] 可见性：`public/internal/private`
+- [x] 可见性：`public/internal/private`
 - [ ] 作用域：文件级、类/接口/结构体内部、泛型参数作用域（块级局部 `val/var` 已完成，见 T0304）
 
 ### 3.2 符号表与解析
