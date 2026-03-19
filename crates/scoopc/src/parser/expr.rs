@@ -1232,6 +1232,38 @@ impl<'a> Parser<'a> {
 
     fn parse_member_access_expr(&mut self, receiver: ast::Expr) -> Result<ast::Expr, ParseError> {
         let _dot = self.expect_symbol(Symbol::Dot)?;
+
+        // Splice：`receiver.[field]`（spec §6.4）。
+        //
+        // 说明：该语法只在 `.` 后紧跟 `[` 时成立，与普通成员访问 `receiver.member` 区分。
+        if self.peek_symbol(Symbol::LBracket) {
+            let open = self.bump();
+            debug_assert_eq!(open.kind, TokenKind::Symbol(Symbol::LBracket));
+
+            let tok = *self.peek();
+            let field = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "表达式（splice 字段）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+
+            if self.peek_kind(TokenKind::Eof) {
+                return Err(ParseError::UnterminatedGroup {
+                    close: Symbol::RBracket,
+                    span: Span::new(open.span.start, self.peek().span.end).into(),
+                });
+            }
+            let close = self.expect_symbol(Symbol::RBracket)?;
+
+            return Ok(ast::Expr {
+                span: Span::new(receiver.span.start, close.span.end),
+                kind: ast::ExprKind::SpliceField {
+                    receiver: Box::new(receiver),
+                    field: Box::new(field),
+                },
+            });
+        }
+
         let member_tok = self.expect_kind(TokenKind::Ident, "成员名（标识符）")?;
 
         Ok(ast::Expr {

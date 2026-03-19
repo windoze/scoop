@@ -53,6 +53,10 @@ pub enum Modifier {
     // misc
     Inline,
     Override,
+    /// 编译期可求值/可用于编译期执行的标记（spec §6）。
+    ///
+    /// 说明：当前阶段仅做语法层解析与存储；语义检查与执行由后续阶段实现。
+    Const,
 }
 
 /// 声明处的类型参数（type parameter）。
@@ -420,6 +424,15 @@ pub enum ExprKind {
         receiver: Box<Expr>,
         member: Ident,
     },
+    /// Splice 字段访问：`receiver.[field]`（spec §6.4）。
+    ///
+    /// 说明：
+    /// - 该语法用于在 `comptime` 语境下通过 `FieldMeta` 动态选择字段；
+    /// - 当前阶段仅做语法建模；合法性（只能用于 `comptime for` 且 `field` 为 `FieldMeta`）由后续阶段实现。
+    SpliceField {
+        receiver: Box<Expr>,
+        field: Box<Expr>,
+    },
     /// safe-call 成员访问表达式：`receiver?.member`（postfix）（Appendix B.3.1）。
     ///
     /// 说明：仅做语法建模；desugar/运行期语义留到后续阶段（typecheck/lowering）决定。
@@ -587,6 +600,37 @@ pub struct StructPatternField {
     pub value: Option<Box<Pattern>>,
 }
 
+/// `comptime if` 语句（spec §6.3）。
+///
+/// 说明：分支裁剪与“未选中分支不做类型检查”等语义由后续阶段实现；当前阶段仅做语法建模。
+#[derive(Debug, Clone)]
+pub struct ComptimeIf {
+    pub span: Span,
+    pub comptime_span: Span,
+    pub if_span: Span,
+    pub cond: Expr,
+    pub then_branch: Block,
+    pub else_branch: Option<Box<ComptimeIfElse>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ComptimeIfElse {
+    Block(Block),
+    If(Box<ComptimeIf>),
+}
+
+/// `comptime for (x in xs) { ... }` 语句（spec §6.3）。
+#[derive(Debug, Clone)]
+pub struct ComptimeFor {
+    pub span: Span,
+    pub comptime_span: Span,
+    pub for_span: Span,
+    pub binder: Ident,
+    pub in_span: Span,
+    pub iter: Expr,
+    pub body: Block,
+}
+
 /// 语句（最小骨架）。
 ///
 /// 目前阶段仅为后续 block 解析预留结构；T0207/T0208 会逐步扩展其子集。
@@ -627,6 +671,17 @@ pub enum StmtKind {
     Continue {
         continue_span: Span,
     },
+    /// `comptime { ... }` 执行块（spec §6）。
+    ///
+    /// 说明：当前阶段仅做语法建模；真正的编译期执行入口在后续阶段实现（见 TODO T12xx）。
+    ComptimeBlock {
+        comptime_span: Span,
+        body: Block,
+    },
+    /// `comptime if (...) { ... } else ...`（spec §6.3）。
+    ComptimeIf(ComptimeIf),
+    /// `comptime for (x in xs) { ... }`（spec §6.3）。
+    ComptimeFor(ComptimeFor),
     Missing,
 }
 

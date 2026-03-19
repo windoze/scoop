@@ -478,11 +478,12 @@
 - 依赖：T0009
 - 完成：lexer 新增 5 个 modifier 关键字（`public/internal/private/inline/override`）；AST 引入 `Modifier` 并在 `TypeDecl/FunDecl/ValDecl/PropertyDecl` 保存 `modifiers`（空时不影响既有 AST snapshot）；parser 在顶层与 type body 内统一解析 modifiers（排序去重，顺序无关）；新增 parse fixture：`tests/fixtures/parse/modifiers_basic.scoop`
 
-### T0246 [TODO] Parser：`const fun` / `comptime` / splice 语法（spec §6）
+### T0246 [DONE] Parser：`const fun` / `comptime` / splice 语法（spec §6）
 - 描述：支持 `const fun`、`comptime { ... }`、`comptime if/for`、以及 splice `value.[field]`（用于在 comptime 中通过 FieldMeta 访问值的字段）。
 - 目标：先只做语法与 AST 表达；执行语义留给 T12。
 - 验收：新增 parse fixture：包含 const fun 与 comptime block；解析成功并保留 span/节点。
 - 依赖：T0207
+- 完成：lexer 新增关键字 `const`/`comptime`/`for`/`in`；AST 新增 `Modifier::Const`、`StmtKind::ComptimeBlock/ComptimeIf/ComptimeFor` 与 `ExprKind::SpliceField`；parser 支持解析 `comptime { ... }`、`comptime if/for`（含 `else comptime if` 链）与 splice；新增 parse fixture `tests/fixtures/parse/comptime_syntax_basic.scoop`（含 AST golden）；新增单测 `parser::tests::parse_comptime_syntax_and_splice`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0247 [TODO] Parser：`annotation class` 声明语法（spec §15.2）
 - 描述：支持 `annotation class Name(...)`（可视为 class + annotation modifier）。

@@ -1,0 +1,351 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 198..220,
+            path: [
+                Ident {
+                    span: 206..214,
+                },
+                Ident {
+                    span: 215..220,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 222..277,
+                modifiers: [
+                    Const,
+                ],
+                receiver: None,
+                name: Ident {
+                    span: 232..235,
+                },
+                type_params: [],
+                params_span: 235..251,
+                params: [
+                    Param {
+                        name: Ident {
+                            span: 236..237,
+                        },
+                        ty: Some(
+                            Path(
+                                TypePath {
+                                    span: 239..242,
+                                    segments: [
+                                        Ident {
+                                            span: 239..242,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    },
+                    Param {
+                        name: Ident {
+                            span: 244..245,
+                        },
+                        ty: Some(
+                            Path(
+                                TypePath {
+                                    span: 247..250,
+                                    segments: [
+                                        Ident {
+                                            span: 247..250,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    },
+                ],
+                return_ty: Some(
+                    Path(
+                        TypePath {
+                            span: 253..256,
+                            segments: [
+                                Ident {
+                                    span: 253..256,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                body: Block(
+                    Block {
+                        span: 257..277,
+                        stmts: [
+                            Stmt {
+                                span: 263..275,
+                                kind: Return {
+                                    return_span: 263..269,
+                                    value: Some(
+                                        Expr {
+                                            span: 270..275,
+                                            kind: Binary {
+                                                lhs: Expr {
+                                                    span: 270..271,
+                                                    kind: Ident(
+                                                        Ident {
+                                                            span: 270..271,
+                                                        },
+                                                    ),
+                                                },
+                                                op: Add,
+                                                op_span: 272..273,
+                                                rhs: Expr {
+                                                    span: 274..275,
+                                                    kind: Ident(
+                                                        Ident {
+                                                            span: 274..275,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 279..568,
+                receiver: None,
+                name: Ident {
+                    span: 283..284,
+                },
+                type_params: [],
+                params_span: 284..294,
+                params: [
+                    Param {
+                        name: Ident {
+                            span: 285..290,
+                        },
+                        ty: Some(
+                            Path(
+                                TypePath {
+                                    span: 292..293,
+                                    segments: [
+                                        Ident {
+                                            span: 292..293,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    },
+                ],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 295..568,
+                        stmts: [
+                            Stmt {
+                                span: 301..566,
+                                kind: ComptimeBlock {
+                                    comptime_span: 301..309,
+                                    body: Block {
+                                        span: 310..566,
+                                        stmts: [
+                                            Stmt {
+                                                span: 320..400,
+                                                kind: ComptimeFor(
+                                                    ComptimeFor {
+                                                        span: 320..400,
+                                                        comptime_span: 320..328,
+                                                        for_span: 329..332,
+                                                        binder: Ident {
+                                                            span: 334..339,
+                                                        },
+                                                        in_span: 340..342,
+                                                        iter: Expr {
+                                                            span: 343..353,
+                                                            kind: Call {
+                                                                callee: Expr {
+                                                                    span: 343..351,
+                                                                    kind: Ident(
+                                                                        Ident {
+                                                                            span: 343..351,
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                args: [],
+                                                            },
+                                                        },
+                                                        body: Block {
+                                                            span: 355..400,
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 369..390,
+                                                                    kind: Val(
+                                                                        ValDecl {
+                                                                            span: 369..390,
+                                                                            kind: Val,
+                                                                            name: Ident {
+                                                                                span: 373..374,
+                                                                            },
+                                                                            ty: None,
+                                                                            init: Some(
+                                                                                Expr {
+                                                                                    span: 377..390,
+                                                                                    kind: SpliceField {
+                                                                                        receiver: Expr {
+                                                                                            span: 377..382,
+                                                                                            kind: Ident(
+                                                                                                Ident {
+                                                                                                    span: 377..382,
+                                                                                                },
+                                                                                            ),
+                                                                                        },
+                                                                                        field: Expr {
+                                                                                            span: 384..389,
+                                                                                            kind: Ident(
+                                                                                                Ident {
+                                                                                                    span: 384..389,
+                                                                                                },
+                                                                                            ),
+                                                                                        },
+                                                                                    },
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ],
+                                                        },
+                                                    },
+                                                ),
+                                            },
+                                            Stmt {
+                                                span: 410..560,
+                                                kind: ComptimeIf(
+                                                    ComptimeIf {
+                                                        span: 410..560,
+                                                        comptime_span: 410..418,
+                                                        if_span: 419..421,
+                                                        cond: Expr {
+                                                            span: 423..427,
+                                                            kind: Ident(
+                                                                Ident {
+                                                                    span: 423..427,
+                                                                },
+                                                            ),
+                                                        },
+                                                        then_branch: Block {
+                                                            span: 429..462,
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 443..452,
+                                                                    kind: Val(
+                                                                        ValDecl {
+                                                                            span: 443..452,
+                                                                            kind: Val,
+                                                                            name: Ident {
+                                                                                span: 447..448,
+                                                                            },
+                                                                            ty: None,
+                                                                            init: Some(
+                                                                                Expr {
+                                                                                    span: 451..452,
+                                                                                    kind: IntLit,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ],
+                                                        },
+                                                        else_branch: Some(
+                                                            If(
+                                                                ComptimeIf {
+                                                                    span: 468..560,
+                                                                    comptime_span: 468..476,
+                                                                    if_span: 477..479,
+                                                                    cond: Expr {
+                                                                        span: 481..486,
+                                                                        kind: Ident(
+                                                                            Ident {
+                                                                                span: 481..486,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    then_branch: Block {
+                                                                        span: 488..521,
+                                                                        stmts: [
+                                                                            Stmt {
+                                                                                span: 502..511,
+                                                                                kind: Val(
+                                                                                    ValDecl {
+                                                                                        span: 502..511,
+                                                                                        kind: Val,
+                                                                                        name: Ident {
+                                                                                            span: 506..507,
+                                                                                        },
+                                                                                        ty: None,
+                                                                                        init: Some(
+                                                                                            Expr {
+                                                                                                span: 510..511,
+                                                                                                kind: IntLit,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                    else_branch: Some(
+                                                                        Block(
+                                                                            Block {
+                                                                                span: 527..560,
+                                                                                stmts: [
+                                                                                    Stmt {
+                                                                                        span: 541..550,
+                                                                                        kind: Val(
+                                                                                            ValDecl {
+                                                                                                span: 541..550,
+                                                                                                kind: Val,
+                                                                                                name: Ident {
+                                                                                                    span: 545..546,
+                                                                                                },
+                                                                                                ty: None,
+                                                                                                init: Some(
+                                                                                                    Expr {
+                                                                                                        span: 549..550,
+                                                                                                        kind: IntLit,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                },
+                                                            ),
+                                                        ),
+                                                    },
+                                                ),
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

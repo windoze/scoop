@@ -1,0 +1,26 @@
+// EXPECT: pass
+// EXPECT-AST: comptime_syntax_basic.ast
+// 目标：验证 `const fun`、`comptime { ... }`、`comptime if/for` 与 splice `value.[field]` 的语法能被解析并保留到 AST。
+
+package fixtures.parse
+
+const fun add(a: Int, b: Int): Int {
+    return a + b
+}
+
+fun f(value: T) {
+    comptime {
+        comptime for (field in fieldsOf()) {
+            val x = value.[field]
+        }
+
+        comptime if (cond) {
+            val y = 1
+        } else comptime if (cond2) {
+            val y = 2
+        } else {
+            val y = 3
+        }
+    }
+}
+

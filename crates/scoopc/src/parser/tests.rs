@@ -111,6 +111,84 @@ fn parse_call_named_args() {
     assert!(matches!(&value.kind, ast::ExprKind::IntLit));
 }
 
+#[test]
+fn parse_comptime_syntax_and_splice() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+package a
+
+const fun add(a: Int, b: Int): Int { return a + b }
+
+fun f(value: T) {
+    comptime {
+        comptime for (field in fieldsOf()) {
+            val x = value.[field]
+        }
+
+        comptime if (cond) {
+            val y = 1
+        } else comptime if (cond2) {
+            val y = 2
+        } else {
+            val y = 3
+        }
+    }
+}
+"#,
+    );
+
+    let file = parse_file(&src).unwrap();
+    assert_eq!(file.items.len(), 2);
+
+    let ast::Item::Fun(f) = &file.items[1] else {
+        panic!("期望第二个 item 为 fun 声明");
+    };
+    let ast::FunBody::Block(body) = &f.body else {
+        panic!("期望 fun body 为 block");
+    };
+
+    assert_eq!(body.stmts.len(), 1);
+    let ast::StmtKind::ComptimeBlock { body: cbody, .. } = &body.stmts[0].kind else {
+        panic!("期望函数体内第一条语句为 comptime block");
+    };
+
+    assert_eq!(cbody.stmts.len(), 2);
+
+    // 1) `comptime for`
+    let ast::StmtKind::ComptimeFor(cf) = &cbody.stmts[0].kind else {
+        panic!("期望 comptime block 内第一条语句为 comptime for");
+    };
+    assert_eq!(src.slice(cf.binder.span), "field");
+    let ast::ExprKind::Call { .. } = &cf.iter.kind else {
+        panic!("期望 comptime for 的 iter 为调用表达式");
+    };
+
+    assert_eq!(cf.body.stmts.len(), 1);
+    let ast::StmtKind::Val(v) = &cf.body.stmts[0].kind else {
+        panic!("期望 comptime for body 内第一条语句为 val 声明");
+    };
+    let init = v.init.as_ref().expect("val 应当包含 initializer");
+    let ast::ExprKind::SpliceField { receiver, field } = &init.kind else {
+        panic!("期望 val initializer 为 splice 表达式");
+    };
+    assert!(matches!(&receiver.kind, ast::ExprKind::Ident(_)));
+    assert!(matches!(&field.kind, ast::ExprKind::Ident(_)));
+
+    // 2) `comptime if` + `else comptime if`
+    let ast::StmtKind::ComptimeIf(ci) = &cbody.stmts[1].kind else {
+        panic!("期望 comptime block 内第二条语句为 comptime if");
+    };
+    assert!(matches!(&ci.cond.kind, ast::ExprKind::Ident(_)));
+    let Some(else_branch) = ci.else_branch.as_deref() else {
+        panic!("期望 comptime if 包含 else 分支");
+    };
+    let ast::ComptimeIfElse::If(nested) = else_branch else {
+        panic!("期望 else 分支为 `else comptime if ...`");
+    };
+    assert!(nested.else_branch.is_some());
+}
+
 /// 崩溃防线：确保 parser 对“任意输入”都不会 panic。
 ///
 /// 由于 parser 内部大量逻辑依赖 token cursor 的边界行为，这类测试能尽早发现

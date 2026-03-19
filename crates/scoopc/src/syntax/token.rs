@@ -43,6 +43,7 @@ pub enum Keyword {
     Sealed,
     Inline,
     Override,
+    Const,
 
     // declarations
     Package,
@@ -68,9 +69,12 @@ pub enum Keyword {
 
     // control flow / misc
     Return,
+    Comptime,
     If,
     Else,
     When,
+    For,
+    In,
     While,
     Break,
     Continue,

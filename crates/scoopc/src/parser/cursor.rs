@@ -208,6 +208,7 @@ impl<'a> Parser<'a> {
                 Keyword::Val
                     | Keyword::Var
                     | Keyword::Return
+                    | Keyword::Comptime
                     | Keyword::If
                     | Keyword::When
                     | Keyword::While
@@ -236,6 +237,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Sealed => "`sealed`",
         Keyword::Inline => "`inline`",
         Keyword::Override => "`override`",
+        Keyword::Const => "`const`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
         Keyword::Fun => "`fun`",
@@ -255,9 +257,12 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Async => "`async`",
         Keyword::Await => "`await`",
         Keyword::Return => "`return`",
+        Keyword::Comptime => "`comptime`",
         Keyword::If => "`if`",
         Keyword::Else => "`else`",
         Keyword::When => "`when`",
+        Keyword::For => "`for`",
+        Keyword::In => "`in`",
         Keyword::While => "`while`",
         Keyword::Break => "`break`",
         Keyword::Continue => "`continue`",
@@ -278,6 +283,7 @@ fn is_modifier_keyword(kw: Keyword) -> bool {
             | Keyword::Sealed
             | Keyword::Inline
             | Keyword::Override
+            | Keyword::Const
     )
 }
 
