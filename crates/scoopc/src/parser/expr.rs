@@ -12,6 +12,7 @@
 //! - postfix 成员访问（T0210）：`receiver.member`
 //! - postfix safe-call（T0229）：`receiver?.member` / `receiver?.call(...)`
 //! - postfix 非空断言（T0212）：`expr!!`
+//! - prefix 一元运算（T0252）：`!expr` / `-expr` / `~expr`
 //! - 二元运算符优先级（T0211）：`1 + 2 * 3`
 //! - Elvis（T0212）：`a ?: b`
 //! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
@@ -180,8 +181,38 @@ impl<'a> Parser<'a> {
         Ok(Some(expr))
     }
 
+    fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        let TokenKind::Symbol(sym) = self.peek().kind else {
+            return self.try_parse_expr_postfix();
+        };
+
+        let op = match sym {
+            Symbol::Bang => ast::UnaryOp::Not,
+            Symbol::Minus => ast::UnaryOp::Neg,
+            Symbol::Tilde => ast::UnaryOp::BitNot,
+            _ => return self.try_parse_expr_postfix(),
+        };
+
+        let op_tok = self.bump();
+        let tok = *self.peek();
+        let expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
+            expected: "表达式（前缀一元运算的操作数）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        Ok(Some(ast::Expr {
+            span: Span::new(op_tok.span.start, expr.span.end),
+            kind: ast::ExprKind::Unary {
+                op,
+                op_span: op_tok.span,
+                expr: Box::new(expr),
+            },
+        }))
+    }
+
     fn parse_expr_bp(&mut self, min_bp: u8) -> Result<Option<ast::Expr>, ParseError> {
-        let Some(mut lhs) = self.try_parse_expr_postfix()? else {
+        let Some(mut lhs) = self.try_parse_expr_prefix()? else {
             return Ok(None);
         };
 
@@ -249,7 +280,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_bp_in_when_arm(&mut self, min_bp: u8) -> Result<Option<ast::Expr>, ParseError> {
-        let Some(mut lhs) = self.try_parse_expr_postfix()? else {
+        let Some(mut lhs) = self.try_parse_expr_prefix()? else {
             return Ok(None);
         };
 

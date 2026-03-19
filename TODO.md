@@ -520,11 +520,12 @@
 - 依赖：T0009
 - 完成：lexer 新增关键字 `typealias`；AST 新增 `TypeAliasDecl` 与 `Item::TypeAlias`；parser 支持解析顶层 `typealias Name = Type`；resolve 的 `Index`/绑定检查将 typealias 视为 type-level symbol 并解析 RHS `TypeRef`；新增 parse fixtures `typealias_basic`（含 AST golden）与两个 fail fixtures；新增单测 `parser::tests::parse_top_level_typealias`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0252 [TODO] Parser：prefix 一元运算（`!`/`-`/`~`）（spec §2.3.4 / Appendix B.8）
+### T0252 [DONE] Parser：prefix 一元运算（`!`/`-`/`~`）（spec §2.3.4 / Appendix B.8）
 - 描述：在表达式语法中加入 prefix unary：逻辑非 `!`、数值取负 `-`、按位取反 `~`。
 - 目标：先只实现语法与 AST 节点；优先级规则固定为“高于二元运算、低于 postfix（调用/成员访问/`!!`）”。
 - 验收：新增 parse fixture：`val x = ~a`、`val y = -(1 + 2)`、`val z = !flag`；AST 结构符合预期。
 - 依赖：T0206、T0209、T0210
+- 完成：AST 新增 `UnaryOp` 与 `ExprKind::Unary`；parser 引入 `try_parse_expr_prefix()`，支持 `!`/`-`/`~` 并确保 postfix 优先级更高；新增 parse fixture `tests/fixtures/parse/prefix_unary_basic.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ---
 

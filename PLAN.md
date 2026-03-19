@@ -98,7 +98,7 @@
   - [x] Pattern v5 — guard `if <expr>`（T0243）：`parse_when_arm` 在 pattern 与 `->` 之间检测 `if` 关键字，解析 guard 表达式并包装为 `Pattern::Guard`；`looks_like_tuple_pattern_ahead` 更新为同时接受 `->` 和 `if` 作为 tuple pattern 判定条件；1 个 pass + 1 个 fail fixture + 6 个 unit tests 覆盖
 - [x] `if` 表达式解析：`if (cond) thenExpr else elseExpr`（T0214：AST `IfExpr` + parser + pass/fail fixtures）
 - [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）（T0216：AST `WithExpr`/`WithField` + parser + pass/fail fixtures）
-- [x] 运算符优先级（Pratt parser）：二元运算 `+ - * / %`、比较 `< > <= >= == !=`、逻辑 `&& ||`、位运算 `& | ^`、移位 `<< >>`；一元前缀 `- ! ~`；括号分组 `(expr)`；`Percent` token 新增
+- [x] 运算符优先级（Pratt parser）：二元运算 `+ - * / %`、比较 `< > <= >= == !=`、逻辑 `&& ||`、位运算 `& | ^`、移位 `<< >>`；一元前缀 `- ! ~`（T0252）；括号分组 `(expr)`；`Percent` token 新增
 - [x] Elvis `?:` 二元运算（最低优先级）与 not-null 断言 `!!` 后缀运算（T0212）
 - [x] 类型判断/转换操作符：`is`/`!is`/`as`/`as?`（与比较运算符同优先级，RHS 为 TypeRef）（T0213）
 - [x] 声明处泛型参数列表：`fun id<T>(...)` / `struct Box<T> { ... }` — AST `TypeParam` 节点 + `type_params` 字段 + `parse_type_param_list`（T0218）

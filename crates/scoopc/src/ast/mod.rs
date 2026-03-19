@@ -456,6 +456,16 @@ pub enum BinaryOp {
     Elvis,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOp {
+    /// `!expr`
+    Not,
+    /// `-expr`
+    Neg,
+    /// `~expr`
+    BitNot,
+}
+
 /// 类型相关的表达式操作符：运行期类型判断。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeCheckOp {
@@ -607,6 +617,12 @@ pub enum ExprKind {
     NotNullAssert {
         expr: Box<Expr>,
         op_span: Span,
+    },
+    /// 前缀一元运算：`!expr` / `-expr` / `~expr`（spec §2.3.4 / Appendix B.8）。
+    Unary {
+        op: UnaryOp,
+        op_span: Span,
+        expr: Box<Expr>,
     },
     /// 二元运算表达式：`lhs op rhs`。
     ///

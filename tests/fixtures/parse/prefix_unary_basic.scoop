@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: prefix_unary_basic.ast
+// 目标：验证 prefix unary 运算符 `!`/`-`/`~` 的解析与优先级。
+
+package fixtures.parse
+
+val x = ~a
+val y = -(1 + 2)
+val z = !flag
+
+fun main() {}
+

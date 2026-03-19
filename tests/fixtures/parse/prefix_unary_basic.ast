@@ -1,0 +1,125 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 134..156,
+            path: [
+                Ident {
+                    span: 142..150,
+                },
+                Ident {
+                    span: 151..156,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 158..168,
+                kind: Val,
+                name: Ident {
+                    span: 162..163,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 166..168,
+                        kind: Unary {
+                            op: BitNot,
+                            op_span: 166..167,
+                            expr: Expr {
+                                span: 167..168,
+                                kind: Ident(
+                                    Ident {
+                                        span: 167..168,
+                                    },
+                                ),
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 169..185,
+                kind: Val,
+                name: Ident {
+                    span: 173..174,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 177..185,
+                        kind: Unary {
+                            op: Neg,
+                            op_span: 177..178,
+                            expr: Expr {
+                                span: 178..185,
+                                kind: Binary {
+                                    lhs: Expr {
+                                        span: 179..180,
+                                        kind: IntLit,
+                                    },
+                                    op: Add,
+                                    op_span: 181..182,
+                                    rhs: Expr {
+                                        span: 183..184,
+                                        kind: IntLit,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 186..199,
+                kind: Val,
+                name: Ident {
+                    span: 190..191,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 194..199,
+                        kind: Unary {
+                            op: Not,
+                            op_span: 194..195,
+                            expr: Expr {
+                                span: 195..199,
+                                kind: Ident(
+                                    Ident {
+                                        span: 195..199,
+                                    },
+                                ),
+                            },
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 201..214,
+                receiver: None,
+                name: Ident {
+                    span: 205..209,
+                },
+                type_params: [],
+                params_span: 209..211,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 212..214,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}
