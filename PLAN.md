@@ -83,7 +83,7 @@
    - [x] `return` 语句：`return` / `return expr`（仅 block 内；顶层 `return` 直接报 parse 错误）
    - [x] 赋值语句/表达式：`lhs = rhs`（lhs 限标识符/成员访问；不支持复合赋值与解构赋值）
    - [x] `while`/`break`/`continue`：语法解析（当前仅支持 `while (cond) { ... }`；位置合法性留到 typecheck）
-   - [x] postfix 调用表达式：`callee(args...)`（支持位置参数；支持命名参数 `name = expr`；trailing lambda 后续补齐）
+   - [x] postfix 调用表达式：`callee(args...)`（支持位置参数；支持命名参数 `name = expr`；支持 trailing lambda：`callee { ... }` / `callee(args) { ... }`）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
    - [x] postfix safe-call：`receiver?.member` / `receiver?.call(...)`（Appendix B.3.1；当前仅语法建模）
    - [x] postfix 非空断言：`expr!!`

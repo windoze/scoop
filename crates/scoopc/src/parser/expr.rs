@@ -129,36 +129,48 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
+        // Kotlin 风格的 trailing lambda 只能“就近”绑定到一个 call 上。
+        // 为避免把 `f() { ... } { ... }` 解析成“同一个 call 追加多个尾随 lambda”，
+        // 这里记录上一轮 postfix 是否刚消费过 trailing lambda。
+        let mut last_postfix_was_trailing_lambda = false;
+
         loop {
             if self.peek_keyword(Keyword::With) {
+                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_with_update_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::Dot) {
+                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_member_access_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::QuestionDot) {
+                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_safe_member_access_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::LParen) {
+                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_call_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::LBrace) {
                 // Kotlin 风格 trailing lambda：`callee { ... }`（spec §12 / Appendix B.5.4）。
-                //
-                // 注意：当前仅处理“无括号参数列表”的形态（例如 `list.map { it }`）。
-                // `callee(args) { ... }` 需要把 lambda 追加到现有 `Call.args`，放在后续任务（T0232）实现，
-                // 避免把 `f(1) { ... }` 错误解析为“调用返回值再调用”。
-                if matches!(expr.kind, ast::ExprKind::Call { .. }) {
+                if last_postfix_was_trailing_lambda {
                     break;
                 }
-                expr = self.parse_trailing_lambda_call_expr(expr)?;
+
+                expr = if matches!(expr.kind, ast::ExprKind::Call { .. }) {
+                    self.parse_trailing_lambda_append_call_expr(expr)?
+                } else {
+                    self.parse_trailing_lambda_call_expr(expr)?
+                };
+                last_postfix_was_trailing_lambda = true;
                 continue;
             }
             if self.peek_symbol(Symbol::BangBang) {
+                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_not_null_assert_expr(expr)?;
                 continue;
             }
@@ -502,6 +514,25 @@ impl<'a> Parser<'a> {
                 callee: Box::new(callee),
                 args: vec![lambda],
             },
+        })
+    }
+
+    fn parse_trailing_lambda_append_call_expr(
+        &mut self,
+        call_expr: ast::Expr,
+    ) -> Result<ast::Expr, ParseError> {
+        let start = call_expr.span.start;
+        let lambda = self.parse_lambda_expr()?;
+
+        let ast::ExprKind::Call { callee, mut args } = call_expr.kind else {
+            unreachable!("parse_trailing_lambda_append_call_expr 仅用于 Call 表达式");
+        };
+
+        let end = lambda.span.end;
+        args.push(lambda);
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::Call { callee, args },
         })
     }
 

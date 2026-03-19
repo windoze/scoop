@@ -380,7 +380,7 @@
 - 验收：新增 parse fixture：`f(x = 1, y = 2)`；并确保不与赋值表达式混淆（仅在参数列表内）。
 - 依赖：T0209、T0227
 
-### T0232 [TODO] Parser：trailing lambda（Appendix B.5.4）
+### T0232 [DONE] Parser：trailing lambda（Appendix B.5.4）
 - 描述：支持 `f(a, b) { ... }` 形式，把尾随 lambda 作为最后一个实参。
 - 目标：先不支持同时存在多个尾随 lambda。
 - 验收：新增 parse fixture：`list.map { it }`；`f(1) { x -> x }`；AST args 最后一个为 lambda。

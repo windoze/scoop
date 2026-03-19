@@ -1,0 +1,145 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 313..335,
+            path: [
+                Ident {
+                    span: 321..329,
+                },
+                Ident {
+                    span: 330..335,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 337..360,
+                kind: Val,
+                name: Ident {
+                    span: 341..342,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 345..360,
+                        kind: Call {
+                            callee: Expr {
+                                span: 345..353,
+                                kind: MemberAccess {
+                                    receiver: Expr {
+                                        span: 345..349,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 345..349,
+                                            },
+                                        ),
+                                    },
+                                    member: Ident {
+                                        span: 350..353,
+                                    },
+                                },
+                            },
+                            args: [
+                                Expr {
+                                    span: 354..360,
+                                    kind: Lambda(
+                                        LambdaExpr {
+                                            params: [],
+                                            arrow_span: None,
+                                            body: Expr {
+                                                span: 356..358,
+                                                kind: Ident(
+                                                    Ident {
+                                                        span: 356..358,
+                                                    },
+                                                ),
+                                            },
+                                        },
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 361..384,
+                kind: Val,
+                name: Ident {
+                    span: 365..366,
+                },
+                ty: None,
+                init: Some(
+                    Expr {
+                        span: 369..384,
+                        kind: Call {
+                            callee: Expr {
+                                span: 369..370,
+                                kind: Ident(
+                                    Ident {
+                                        span: 369..370,
+                                    },
+                                ),
+                            },
+                            args: [
+                                Expr {
+                                    span: 371..372,
+                                    kind: IntLit,
+                                },
+                                Expr {
+                                    span: 374..384,
+                                    kind: Lambda(
+                                        LambdaExpr {
+                                            params: [
+                                                Param {
+                                                    name: Ident {
+                                                        span: 376..377,
+                                                    },
+                                                    ty: None,
+                                                },
+                                            ],
+                                            arrow_span: Some(
+                                                378..380,
+                                            ),
+                                            body: Expr {
+                                                span: 381..382,
+                                                kind: Ident(
+                                                    Ident {
+                                                        span: 381..382,
+                                                    },
+                                                ),
+                                            },
+                                        },
+                                    ),
+                                },
+                            ],
+                        },
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 386..399,
+                name: Ident {
+                    span: 390..394,
+                },
+                type_params: [],
+                params_span: 394..396,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 397..399,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

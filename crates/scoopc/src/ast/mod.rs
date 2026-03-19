@@ -310,7 +310,7 @@ pub enum ExprKind {
     /// 当前阶段：
     /// - （T0209）支持位置参数与逗号分隔参数列表；
     /// - （T0231）支持命名参数实参：`name = expr`（仅在参数列表中生效）；
-    /// - trailing lambda 等语法后续再补齐（T0232）。
+    /// - （T0232）支持 Kotlin 风格 trailing lambda：`callee { ... }` 与 `callee(args) { ... }`（作为最后一个实参）。
     Call {
         callee: Box<Expr>,
         args: Vec<Expr>,
