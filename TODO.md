@@ -354,7 +354,7 @@
 
 ### T0226 [DONE] Parser：语句 `return`（spec §7.1/§7.3）
 - 描述：在 block 语句中支持 `return` 与 `return expr`。
-- 目标：先不支持 label/non-local return（后续在 inline 语义里处理）。
+- 目标：不支持 label；不支持 non-local return（Scoop 设计上不支持 non-local return，即使是 inline 函数的 lambda 参数也不例外）。
 - 验收：新增 parse fixture：`fun f(): Any { return x }`；`return` 在顶层报错（或解析后由 typecheck 报错，需明确策略）。
 - 依赖：T0207
 
@@ -726,7 +726,7 @@
 
 ### T0417 [TODO] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。
-- 目标：先不支持 non-local return（spec §7.3）；只支持普通函数。
+- 目标：只支持普通函数的 return；不支持 non-local return（Scoop 设计上不支持，见 spec §7.3）。
 - 验收：typecheck fixture：返回类型不匹配时报错；`return` 在非函数体报错（若 parser 允许则 typecheck 报）。
 - 依赖：T0226、T0404、T0405
 
@@ -890,10 +890,10 @@
 - 验收：typecheck fixture：给 val 赋值报错；给 var 赋值但类型不匹配报错（指向 rhs span）。
 - 依赖：T0227、T0416、T0406
 
-### T0444 [TODO] `inline` 与 non-local return 的语义门禁（spec §7.2/§7.3）
-- 描述：实现最小检查：只有 inline 函数的 lambda 参数允许 non-local return；其余场景报错。
-- 目标：先只做静态限制，不做实际 inlining 优化。
-- 验收：typecheck fixture：非 inline lambda 中 `return` 报错；inline 场景允许（具体语法按设计）。
+### T0444 [TODO] `inline` 语义门禁（spec §7.2/§7.3）
+- 描述：实现最小检查：Scoop 不支持 non-local return，lambda 中的 `return` 始终是 local return（返回 lambda 本身）；`inline` 只影响性能优化，不改变 return 语义。
+- 目标：先只做静态限制，不做实际 inlining 优化；确保 lambda 中 `return` 不会被误解为 non-local return。
+- 验收：typecheck fixture：lambda 中 `return` 合法但只从 lambda 返回；明确禁止任何形式的 non-local return。
 - 依赖：T0245、T0226、T0222
 
 ### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
