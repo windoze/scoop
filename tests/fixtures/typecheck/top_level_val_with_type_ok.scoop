@@ -5,5 +5,4 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-val x: Any = 1
-
+val x: Int = 1

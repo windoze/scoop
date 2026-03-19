@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 11:14
+// 目标：T0405 表达式类型检查 v0：字面量类型应与声明类型匹配。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = "oops"

@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0405 表达式类型检查 v0：字面量（Int/String/Bool/Unit）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val i: Int = 1
+val s: String = "hi"
+val b: Bool = true
+val u: Unit = ()
+

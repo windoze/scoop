@@ -3,7 +3,7 @@
 //! 目标（T0401）：
 //! - 在编译器内部引入稳定的 `TypeId`/`TypeKind` 结构，作为 typecheck 的基础设施
 //! - 显式区分引用类型（GC-managed）与值类型（copy 语义）
-//! - 支持最小 builtin：`Any`/`Nothing`/`Unit`/`Option<T>` 与整数族 `Int/UInt/IntN/UIntN`
+//! - 支持最小 builtin：`Any`/`String`/`Nothing`/`Unit`/`Bool`/`Option<T>` 与整数族 `Int/UInt/IntN/UIntN`
 //!
 //! 当前阶段只提供数据结构与格式化输出；类型推断/求解、subtyping 等语义在后续任务实现。
 
@@ -52,6 +52,11 @@ pub enum RefTypeKind {
     /// 说明：值类型装箱到 `Any` 属于后续任务（PLAN §4.3）。
     Any,
 
+    /// `String`：内建字符串类型（引用类型，GC-managed）。
+    ///
+    /// 说明：该类型在源级可由 sysroot 声明，但其布局/语义由编译器与运行时固定。
+    String,
+
     /// 名义引用类型（class/interface/effect 等）。
     Nominal(NominalType),
 }
@@ -74,6 +79,11 @@ pub enum ValueTypeKind {
     Unit,
     /// `Nothing`：bottom / uninhabited（例如 `Raise.raise` 的返回类型）。
     Nothing,
+
+    /// `Bool`：内建布尔类型（值类型）。
+    ///
+    /// 说明：该类型在源级可由 sysroot 声明，但其布局/语义由编译器与运行时固定。
+    Bool,
 
     /// word-sized 整数（随 target 指针宽度变化，spec §2.3.4）。
     Int,
@@ -133,8 +143,10 @@ impl TypeStore {
     pub fn intern_builtins(&mut self) -> BuiltinTypes {
         BuiltinTypes {
             any: self.intern(TypeKind::Ref(RefTypeKind::Any)),
+            string: self.intern(TypeKind::Ref(RefTypeKind::String)),
             unit: self.intern(TypeKind::Value(ValueTypeKind::Unit)),
             nothing: self.intern(TypeKind::Value(ValueTypeKind::Nothing)),
+            bool_: self.intern(TypeKind::Value(ValueTypeKind::Bool)),
             int: self.intern(TypeKind::Value(ValueTypeKind::Int)),
             uint: self.intern(TypeKind::Value(ValueTypeKind::UInt)),
         }
@@ -161,8 +173,10 @@ impl TypeStore {
 #[derive(Debug, Clone, Copy)]
 pub struct BuiltinTypes {
     pub any: TypeId,
+    pub string: TypeId,
     pub unit: TypeId,
     pub nothing: TypeId,
+    pub bool_: TypeId,
     pub int: TypeId,
     pub uint: TypeId,
 }
@@ -187,9 +201,11 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
 
     match store.kind(id) {
         TypeKind::Ref(RefTypeKind::Any) => write!(f, "Any"),
+        TypeKind::Ref(RefTypeKind::String) => write!(f, "String"),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
+        TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),
         TypeKind::Value(ValueTypeKind::Int) => write!(f, "Int"),
         TypeKind::Value(ValueTypeKind::UInt) => write!(f, "UInt"),
         TypeKind::Value(ValueTypeKind::IntN(bits)) => write!(f, "Int{bits}"),
@@ -247,8 +263,10 @@ mod tests {
         let builtins = tys.intern_builtins();
 
         assert_eq!(tys.display(builtins.any).to_string(), "Any");
+        assert_eq!(tys.display(builtins.string).to_string(), "String");
         assert_eq!(tys.display(builtins.unit).to_string(), "Unit");
         assert_eq!(tys.display(builtins.nothing).to_string(), "Nothing");
+        assert_eq!(tys.display(builtins.bool_).to_string(), "Bool");
         assert_eq!(tys.display(builtins.int).to_string(), "Int");
         assert_eq!(tys.display(builtins.uint).to_string(), "UInt");
 
@@ -272,6 +290,12 @@ mod tests {
 
         assert!(tys.is_ref(builtins.any));
         assert!(!tys.is_value(builtins.any));
+
+        assert!(tys.is_ref(builtins.string));
+        assert!(!tys.is_value(builtins.string));
+
+        assert!(tys.is_value(builtins.bool_));
+        assert!(!tys.is_ref(builtins.bool_));
 
         assert!(tys.is_value(builtins.int));
         assert!(!tys.is_ref(builtins.int));

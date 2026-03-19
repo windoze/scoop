@@ -661,11 +661,12 @@
 - 依赖：T0101、T0403
 - 完成：新增 `scoopc::typecheck::check_file_headers`（`TypeHeaderError`，错误码 `scoop::typecheck::missing_type_annotation` / `unsupported_pattern_binding`），并在 `crates/scoop/src/fixtures/mod.rs` 的 typecheck phase 中接入；新增 fixtures：`typecheck/top_level_val_with_type_ok.scoop`（pass）与 `typecheck/top_level_val_missing_type_is_error.scoop`（fail，断言 `missing_type_annotation` 与位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0405 [TODO] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
+### T0405 [DONE] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
 - 描述：为 `Expr::IntLit/StringLit/...` 推导类型。
 - 目标：先把 builtin 类型补到 sysroot（或在 compiler 内建）；不做数值提升。
 - 验收：新增 typecheck fixture：`val x = 1` 推导为 Int（若支持推断）；或要求注解 `val x: Int = 1`。
 - 依赖：T0206、T0401、T0418
+- 完成：`scoopc::ty` 补齐 builtin `Bool/String`；parser 将 `()` 解析为 `ExprKind::UnitLit`；resolve/type lowering 对 `Int/UInt/Bool/String/Unit/Nothing` 做 builtin 兜底并在 type lowering 中映射到 builtin `TypeId`；新增 `scoopc::typecheck::check_file_exprs` 对顶层 `val/var` initializer 做字面量类型检查并给出错误码 `scoop::typecheck::initializer_type_mismatch`；新增 fixtures：`typecheck/literals_ok.scoop`（pass）与 `typecheck/literal_type_mismatch_is_error.scoop`（fail），并更新 `top_level_val_with_type_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 均通过。
 
 ### T0406 [TODO] 表达式类型检查 v0：变量引用（局部/参数/顶层）
 - 描述：对 resolve 后的 ident 引用给出类型。

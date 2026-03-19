@@ -618,6 +618,8 @@ pub enum ExprKind {
     Ident(ValueIdent),
     IntLit,
     StringLit,
+    /// `()`：Unit 字面量（spec §2.3.3）。
+    UnitLit,
     /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
     ///
     /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。

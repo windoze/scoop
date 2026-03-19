@@ -907,10 +907,34 @@ fn resolve_type_path(
         });
     }
 
+    // 内建标量类型：允许在 sysroot 尚未显式声明时也能被解析。
+    // 说明：这些类型的布局/语义由编译器固定；sysroot 仅提供“可见声明”用于 IDE/文档一致性。
+    if is_implicit_builtin_type_name(&local) {
+        return Ok(());
+    }
+
     Err(ResolveError::UnresolvedType {
         name: local,
         span: path.span.into(),
     })
+}
+
+fn is_implicit_builtin_type_name(local_or_fqn: &str) -> bool {
+    matches!(
+        local_or_fqn,
+        "Unit"
+            | "Nothing"
+            | "Bool"
+            | "String"
+            | "Int"
+            | "UInt"
+            | "scoop.core.Unit"
+            | "scoop.core.Nothing"
+            | "scoop.core.Bool"
+            | "scoop.core.String"
+            | "scoop.core.Int"
+            | "scoop.core.UInt"
+    )
 }
 
 #[cfg(test)]

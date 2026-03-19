@@ -339,7 +339,10 @@ impl<'a> BlockScopeChecker<'a> {
 
     fn check_expr(&mut self, expr: &mut ast::Expr) -> Result<(), ResolveError> {
         match &mut expr.kind {
-            ast::ExprKind::Missing | ast::ExprKind::IntLit | ast::ExprKind::StringLit => {}
+            ast::ExprKind::Missing
+            | ast::ExprKind::IntLit
+            | ast::ExprKind::StringLit
+            | ast::ExprKind::UnitLit => {}
             ast::ExprKind::Ident(id) => self.resolve_value_ident(id)?,
             ast::ExprKind::InterpolatedString { parts, .. } => {
                 for p in parts {

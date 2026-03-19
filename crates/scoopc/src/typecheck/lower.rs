@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
+use crate::span::Span;
 use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::{TypeEnv, TypeSymbolKind};
@@ -66,16 +67,7 @@ pub fn check_file_type_refs(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), TypeLowerError> {
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let mut ctx = TypeLowering {
-        source,
-        index,
-        imports,
-        env,
-        types,
-        builtins,
-        pkg_prefix,
-    };
+    let mut ctx = TypeLowering::new(source, file, index, imports, env, types, builtins);
 
     for item in &file.items {
         match item {
@@ -109,7 +101,7 @@ pub fn check_file_type_refs(
     Ok(())
 }
 
-struct TypeLowering<'a> {
+pub(super) struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
     imports: &'a ImportTable,
@@ -120,7 +112,28 @@ struct TypeLowering<'a> {
 }
 
 impl<'a> TypeLowering<'a> {
-    fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
+    pub(super) fn new(
+        source: &'a SourceFile,
+        file: &'a ast::File,
+        index: &'a Index,
+        imports: &'a ImportTable,
+        env: &'a TypeEnv,
+        types: &'a mut TypeStore,
+        builtins: BuiltinTypes,
+    ) -> Self {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        Self {
+            source,
+            index,
+            imports,
+            env,
+            types,
+            builtins,
+            pkg_prefix,
+        }
+    }
+
+    pub(super) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),
             ast::TypeRef::Tuple(t) => {
@@ -148,8 +161,66 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
+    pub(super) fn fmt_type(&self, id: TypeId) -> String {
+        self.types.display(id).to_string()
+    }
+
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
-        let fqn = self.resolve_type_path_fqn(path)?;
+        let fqn = match self.resolve_type_path_fqn(path) {
+            Ok(fqn) => fqn,
+            Err(TypeLowerError::UnresolvedType { name, span }) => {
+                let Some(builtin_fqn) = implicit_builtin_type_fqn(&name) else {
+                    return Err(TypeLowerError::UnresolvedType { name, span });
+                };
+                builtin_fqn.to_string()
+            }
+            Err(other) => return Err(other),
+        };
+
+        // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
+        match fqn.as_str() {
+            // `Any`：引用类型的顶层 supertype。
+            "scoop.core.Any" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.any);
+            }
+            // `String`：内建字符串类型。
+            "scoop.core.String" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.string);
+            }
+            // `Unit`：0 元 tuple。
+            "scoop.core.Unit" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.unit);
+            }
+            // `Nothing`：bottom type。
+            "scoop.core.Nothing" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.nothing);
+            }
+            // `Bool`：内建布尔类型。
+            "scoop.core.Bool" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.bool_);
+            }
+            // `Int/UInt`：word-sized 整数。
+            "scoop.core.Int" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.int);
+            }
+            "scoop.core.UInt" => {
+                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                return Ok(self.builtins.uint);
+            }
+            // `Option<T>`：值类型；同时也是 `T?` 的 desugar 目标。
+            "scoop.core.Option" => {
+                check_arity(&fqn, 1, path.args.len(), path.span)?;
+                let inner = self.lower_type_ref(&path.args[0])?;
+                return Ok(self.types.ty_option(inner));
+            }
+            _ => {}
+        }
 
         let expected = self
             .env
@@ -166,18 +237,6 @@ impl<'a> TypeLowering<'a> {
                 found,
                 span: path.span.into(),
             });
-        }
-
-        // 先对少数 builtin/special-case 做 lowering。
-        match fqn.as_str() {
-            // `Any`：引用类型的顶层 supertype。
-            "scoop.core.Any" => return Ok(self.builtins.any),
-            // `Option<T>`：值类型；同时也是 `T?` 的 desugar 目标。
-            "scoop.core.Option" => {
-                let inner = self.lower_type_ref(&path.args[0])?;
-                return Ok(self.types.ty_option(inner));
-            }
-            _ => {}
         }
 
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
@@ -331,4 +390,31 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
+    match local_or_fqn {
+        // allow both `Int` and `scoop.core.Int` spellings
+        "Any" | "scoop.core.Any" => Some("scoop.core.Any"),
+        "String" | "scoop.core.String" => Some("scoop.core.String"),
+        "Unit" | "scoop.core.Unit" => Some("scoop.core.Unit"),
+        "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
+        "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
+        "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
+        "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
+        "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
+        _ => None,
+    }
+}
+
+fn check_arity(fqn: &str, expected: usize, found: usize, span: Span) -> Result<(), TypeLowerError> {
+    if expected == found {
+        return Ok(());
+    }
+    Err(TypeLowerError::TypeArityMismatch {
+        name: fqn.to_string(),
+        expected,
+        found,
+        span: span.into(),
+    })
 }

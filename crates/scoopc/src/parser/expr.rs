@@ -1413,10 +1413,13 @@ impl<'a> Parser<'a> {
         let open = self.expect_symbol(Symbol::LParen)?;
         let start = open.span.start;
 
-        // 先允许空 `()`：当前没有 Unit 字面量节点，先用 Missing 占位。
+        // 先允许空 `()`：Unit 字面量。
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
-            return Ok(Some(ast::Expr::missing(Span::new(start, close.span.end))));
+            return Ok(Some(ast::Expr {
+                span: Span::new(start, close.span.end),
+                kind: ast::ExprKind::UnitLit,
+            }));
         }
 
         // 仅当括号内也是“当前已支持的表达式子集”时才保留其 kind；否则整体降级为 Missing。

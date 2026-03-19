@@ -245,6 +245,17 @@ fn typecheck_fixture(
     )
     .map_err(box_diagnostic)?;
 
+    scoopc::typecheck::check_file_exprs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .map_err(box_diagnostic)?;
+
     Ok(())
 }
 
