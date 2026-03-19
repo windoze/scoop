@@ -374,7 +374,7 @@
 - 验收：新增 parse fixture：`fun f(x: Any = default()) {}`；默认值缺失表达式时报错。
 - 依赖：T0205
 
-### T0231 [TODO] Parser：命名参数调用（Appendix B.5.3）
+### T0231 [DONE] Parser：命名参数调用（Appendix B.5.3）
 - 描述：在调用实参中支持 `name = expr` 作为命名参数（只在 call-arg 位置生效）。
 - 目标：先只做解析；不做“命名参数重排/默认值补齐”。
 - 验收：新增 parse fixture：`f(x = 1, y = 2)`；并确保不与赋值表达式混淆（仅在参数列表内）。

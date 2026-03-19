@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: call_named_args.ast
+
+package fixtures.parse
+
+fun f(x: Any, y: Any) {}
+
+fun main() {
+    f(x = 1, y = 2)
+}

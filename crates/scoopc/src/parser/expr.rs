@@ -1138,12 +1138,37 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            let tok = *self.peek();
-            let arg = self.try_parse_expr()?.ok_or(ParseError::Expected {
-                expected: "表达式（参数）",
-                found: tok.kind,
-                span: tok.span.into(),
-            })?;
+            // 命名参数实参（Appendix B.5.3）：仅在调用参数列表中把 `name = expr`
+            // 解析为 `ExprKind::NamedArg`，避免与赋值表达式混淆。
+            let arg = if self.peek_kind(TokenKind::Ident)
+                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Eq)
+            {
+                let name_tok = self.bump();
+                let eq = self.expect_symbol(Symbol::Eq)?;
+
+                let tok = *self.peek();
+                let value = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（命名参数值）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?;
+
+                ast::Expr {
+                    span: Span::new(name_tok.span.start, value.span.end),
+                    kind: ast::ExprKind::NamedArg {
+                        name: ast::Ident { span: name_tok.span },
+                        eq_span: eq.span,
+                        value: Box::new(value),
+                    },
+                }
+            } else {
+                let tok = *self.peek();
+                self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（参数）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?
+            };
             args.push(arg);
 
             if self.eat_symbol(Symbol::Comma) {

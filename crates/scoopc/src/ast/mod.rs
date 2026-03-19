@@ -307,10 +307,23 @@ pub enum ExprKind {
     },
     /// 调用表达式：`callee(args...)`（postfix）。
     ///
-    /// 当前阶段（T0209）仅支持位置参数与逗号分隔参数列表；命名参数/trailing lambda 等语法后续再补齐。
+    /// 当前阶段：
+    /// - （T0209）支持位置参数与逗号分隔参数列表；
+    /// - （T0231）支持命名参数实参：`name = expr`（仅在参数列表中生效）；
+    /// - trailing lambda 等语法后续再补齐（T0232）。
     Call {
         callee: Box<Expr>,
         args: Vec<Expr>,
+    },
+    /// 命名参数实参：`name = expr`（Appendix B.5.3）。
+    ///
+    /// 说明：
+    /// - 该节点**仅**应由调用参数列表解析产生（T0231），用于与赋值表达式 `ExprKind::Assign` 区分；
+    /// - 参数重排、默认值补齐等调用语义留到后续阶段（typecheck/lowering）处理。
+    NamedArg {
+        name: Ident,
+        eq_span: Span,
+        value: Box<Expr>,
     },
     /// 非空断言：`expr!!`（postfix）。
     ///

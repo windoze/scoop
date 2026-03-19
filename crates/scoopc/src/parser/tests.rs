@@ -81,6 +81,36 @@ fn parse_top_level_val_var() {
     assert_eq!(ast.items.len(), 3);
 }
 
+#[test]
+fn parse_call_named_args() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nval v = f(x = 1, y = 2)\n");
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(v) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为 val 声明");
+    };
+    let init = v.init.as_ref().expect("val 应当包含 initializer");
+
+    let ast::ExprKind::Call { args, .. } = &init.kind else {
+        panic!("期望 initializer 为调用表达式");
+    };
+    assert_eq!(args.len(), 2);
+
+    let ast::ExprKind::NamedArg { name, eq_span, value } = &args[0].kind else {
+        panic!("期望第一个实参为命名参数");
+    };
+    assert_eq!(src.slice(name.span), "x");
+    assert_eq!(src.slice(*eq_span), "=");
+    assert!(matches!(&value.kind, ast::ExprKind::IntLit));
+
+    let ast::ExprKind::NamedArg { name, eq_span, value } = &args[1].kind else {
+        panic!("期望第二个实参为命名参数");
+    };
+    assert_eq!(src.slice(name.span), "y");
+    assert_eq!(src.slice(*eq_span), "=");
+    assert!(matches!(&value.kind, ast::ExprKind::IntLit));
+}
+
 /// 崩溃防线：确保 parser 对“任意输入”都不会 panic。
 ///
 /// 由于 parser 内部大量逻辑依赖 token cursor 的边界行为，这类测试能尽早发现
