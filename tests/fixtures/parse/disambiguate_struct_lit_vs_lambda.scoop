@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: disambiguate_struct_lit_vs_lambda.ast
+// 目标：spec §12：struct literal 与 lambda 的 `{}` 歧义消解。
+
+package fixtures.parse
+
+val p = Point { x: 1 }
+val y = list.map { it }
+
+fun main() {}
+

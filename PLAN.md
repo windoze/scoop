@@ -88,12 +88,12 @@
    - [ ] struct literal 表达式：`TypeName { field: expr, ... }`（spec §12）
      - [x] AST 节点：`ExprKind::StructLit`
      - [x] 解析：postfix/primary 识别 `TypeName { ... }`（当前仅单段 `TypeName`）
-     - [ ] `{}` 歧义消解：struct literal vs lambda
+     - [x] `{}` 歧义消解：struct literal vs lambda
    - [x] `if` 表达式：`if (cond) thenExpr else elseExpr?`（括号条件；`else` 允许缺省）
    - [x] `when` 表达式骨架：`when (subject) { pat -> expr; ... }`（最小 pattern：`is T`/`else`/字面量；缺少 `else` 允许通过）
 - [x] 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）
 - [x] 运算符优先级（Pratt 或 precedence climbing）
-- [ ] 关键歧义：struct literal vs lambda（对应 spec §12）
+- [x] 关键歧义：struct literal vs lambda（对应 spec §12）
 - [x] 错误恢复：尽量产出更多诊断而不是第一个错误就退出（用于 IDE 与 fixtures）
 
 ### 2.3 语法树表示（AST/Parse Tree）

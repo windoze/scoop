@@ -338,7 +338,7 @@
 - 验收：新增 parse fixture：`val p = Point { x: 1, y: 2 }`；字段缺少冒号时报 parse error。
 - 依赖：T0223、T0216
 
-### T0225 [TODO] Parser：消解 `{}` 歧义（struct literal vs lambda）（spec §12）
+### T0225 [DONE] Parser：消解 `{}` 歧义（struct literal vs lambda）（spec §12）
 - 描述：当遇到 `{ ... }` 时，根据是否出现 `->` 或 `name: expr` 结构决定解析为 lambda 或 struct literal。
 - 目标：歧义消解只发生在 parser；不把“不确定”留给后续阶段。
 - 验收：新增 parse fixture：`Point { x: 1 }` 解析为 struct lit；`list.map { it }` 解析为 lambda；两者都能通过。

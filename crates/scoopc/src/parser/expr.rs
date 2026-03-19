@@ -68,6 +68,18 @@ impl<'a> Parser<'a> {
                 expr = self.parse_call_expr(expr)?;
                 continue;
             }
+            if self.peek_symbol(Symbol::LBrace) {
+                // Kotlin 风格 trailing lambda：`callee { ... }`（spec §12 / Appendix B.5.4）。
+                //
+                // 注意：当前仅处理“无括号参数列表”的形态（例如 `list.map { it }`）。
+                // `callee(args) { ... }` 需要把 lambda 追加到现有 `Call.args`，放在后续任务（T0232）实现，
+                // 避免把 `f(1) { ... }` 错误解析为“调用返回值再调用”。
+                if matches!(expr.kind, ast::ExprKind::Call { .. }) {
+                    break;
+                }
+                expr = self.parse_trailing_lambda_call_expr(expr)?;
+                continue;
+            }
             if self.peek_symbol(Symbol::BangBang) {
                 expr = self.parse_not_null_assert_expr(expr)?;
                 continue;
@@ -337,11 +349,16 @@ impl<'a> Parser<'a> {
     /// - 为避免在表达式尚未完全实现时“误报语法错误”，未知起始 token 会交由上层做 fallback 跳过。
     pub(super) fn try_parse_expr_atom(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         if self.peek_kind(TokenKind::Ident) {
-            // struct literal：`TypeName { field: expr, ... }`
+            // struct literal / trailing lambda 的 `{}` 歧义消解（spec §12）：
+            // - `TypeName { x: 1 }`：struct literal
+            // - `callee { it }`：trailing lambda（Kotlin 风格）
             //
-            // 注意：当前阶段（T0224）仅在 `Ident` 后紧跟 `{` 时触发，
-            // 以避免把 `list.map { it }` 之类“尚未实现 trailing lambda”的源码误解析并报错。
-            if self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace) {
+            // 解析策略：
+            // - 若 `{ ... }` 形态“更像 struct literal fields”，在这里把它吃成 struct literal；
+            // - 否则把当前 `Ident` 先解析为普通表达式，留给 postfix 的 trailing lambda 逻辑消费 `{ ... }`。
+            if self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
+                && self.disambiguate_ident_lbrace_group() == BraceGroupKind::StructLit
+            {
                 return Ok(Some(self.parse_struct_lit_expr()?));
             }
 
@@ -393,6 +410,19 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    fn parse_trailing_lambda_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError>
+    {
+        let start = callee.span.start;
+        let lambda = self.parse_lambda_expr()?;
+        Ok(ast::Expr {
+            span: Span::new(start, lambda.span.end),
+            kind: ast::ExprKind::Call {
+                callee: Box::new(callee),
+                args: vec![lambda],
+            },
+        })
     }
 
     /// 解析 struct literal：`TypeName { field: expr, ... }`（spec §12）。
@@ -1217,6 +1247,101 @@ impl<'a> Parser<'a> {
             span: Span::new(start, self.peek().span.end).into(),
         })
     }
+
+    fn disambiguate_ident_lbrace_group(&self) -> BraceGroupKind {
+        debug_assert_eq!(self.peek().kind, TokenKind::Ident);
+        debug_assert_eq!(self.peek_n(1).kind, TokenKind::Symbol(Symbol::LBrace));
+
+        // spec §12：通过 `{ ... }` 内容形态区分：
+        // - Struct literal：包含 `name: expr`，且不含顶层 `->`
+        // - Lambda：包含顶层 `->` 或普通表达式 body
+        //
+        // 另外，为了保留 “struct literal 字段缺少 `:`” 的精准诊断，
+        // 在形态不明确时（例如 `Point { x 1 }`），倾向先按 struct literal 解析并在缺少 `:` 时报错。
+        let first = self.peek_n(2);
+        match first.kind {
+            TokenKind::Symbol(Symbol::RBrace) | TokenKind::Symbol(Symbol::Arrow) => {
+                return BraceGroupKind::Lambda;
+            }
+            TokenKind::Ident => {}
+            _ => return BraceGroupKind::Lambda,
+        }
+
+        let second = self.peek_n(3);
+        match second.kind {
+            TokenKind::Symbol(Symbol::Arrow) | TokenKind::Symbol(Symbol::Comma) => {
+                BraceGroupKind::Lambda
+            }
+            TokenKind::Symbol(Symbol::RBrace) => BraceGroupKind::Lambda,
+            TokenKind::Symbol(Symbol::Colon) => {
+                if self.brace_group_has_top_level_arrow(self.i + 1) {
+                    BraceGroupKind::Lambda
+                } else {
+                    BraceGroupKind::StructLit
+                }
+            }
+            // `it * 2` / `it.foo` / `it(...)` 等都属于“普通表达式 body”的 lambda。
+            TokenKind::Symbol(_) | TokenKind::Keyword(_) => BraceGroupKind::Lambda,
+            // `Point { x 1 }` / `Point { x y }` 等形态在没有分隔符时更像 struct literal 缺少 `:`。
+            _ => BraceGroupKind::StructLit,
+        }
+    }
+
+    fn brace_group_has_top_level_arrow(&self, open_brace_index: usize) -> bool {
+        debug_assert_eq!(
+            self.tokens
+                .get(open_brace_index)
+                .unwrap_or_else(|| self.tokens.last().expect("lexer must produce EOF"))
+                .kind,
+            TokenKind::Symbol(Symbol::LBrace)
+        );
+
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+
+        let mut idx = open_brace_index + 1;
+        while idx < self.tokens.len() {
+            let tok = self.tokens.get(idx).unwrap_or_else(|| {
+                self.tokens
+                    .last()
+                    .expect("lexer must produce at least EOF token")
+            });
+
+            match tok.kind {
+                TokenKind::Symbol(Symbol::Arrow)
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                {
+                    return true;
+                }
+                TokenKind::Symbol(Symbol::LParen) => depth_paren += 1,
+                TokenKind::Symbol(Symbol::RParen) => depth_paren = depth_paren.saturating_sub(1),
+                TokenKind::Symbol(Symbol::LBracket) => depth_bracket += 1,
+                TokenKind::Symbol(Symbol::RBracket) => {
+                    depth_bracket = depth_bracket.saturating_sub(1);
+                }
+                TokenKind::Symbol(Symbol::LBrace) => depth_brace += 1,
+                TokenKind::Symbol(Symbol::RBrace) => {
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                        return false;
+                    }
+                    depth_brace = depth_brace.saturating_sub(1);
+                }
+                TokenKind::Eof => return false,
+                _ => {}
+            }
+
+            idx += 1;
+        }
+
+        false
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BraceGroupKind {
+    StructLit,
+    Lambda,
 }
 
 fn scan_type_ref_end(tokens: &[crate::syntax::token::Token], start: usize) -> Option<usize> {
