@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: assign_stmt_basic.ast
+// 目标：验证赋值语句/表达式：`x = b` 与 `p.x = 1`。
+
+package fixtures.parse
+
+fun f() {
+    var x: Any = a
+    x = b
+    p.x = 1
+}
+

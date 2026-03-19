@@ -350,7 +350,7 @@
 - 验收：新增 parse fixture：`fun f(): Any { return x }`；`return` 在顶层报错（或解析后由 typecheck 报错，需明确策略）。
 - 依赖：T0207
 
-### T0227 [TODO] Parser：赋值语句/表达式（`lhs = rhs`）
+### T0227 [DONE] Parser：赋值语句/表达式（`lhs = rhs`）
 - 描述：支持 `x = expr` 与 `a.b = expr`（lhs 先限 ident/member）。
 - 目标：先不支持复合赋值（`+=` 等）；不支持解构赋值。
 - 验收：新增 parse fixture：`fun f(){ var x: Any = a; x = b }`；以及 `p.x = 1`（语法层先允许）。

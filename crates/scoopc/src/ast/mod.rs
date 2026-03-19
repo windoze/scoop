@@ -322,6 +322,16 @@ pub enum ExprKind {
         op_span: Span,
         rhs: Box<Expr>,
     },
+    /// 赋值表达式：`lhs = rhs`。
+    ///
+    /// 说明：
+    /// - 当前阶段（T0227）仅在语法层支持最小 lhs：标识符与成员访问（`a.b`）；
+    /// - 复合赋值（`+=` 等）与解构赋值留到后续任务实现。
+    Assign {
+        lhs: Box<Expr>,
+        eq_span: Span,
+        rhs: Box<Expr>,
+    },
     /// 运行期类型判断：`expr is Type` / `expr !is Type`。
     ///
     /// 说明：
@@ -445,7 +455,10 @@ pub enum TypeRef {
     Tuple(TypeTuple),
     /// 函数类型（spec §7.5）：`(A, B) -> C / R` 或 `T.(A, B) -> C / R`
     Function(TypeFunction),
-    Nullable { span: Span, inner: Box<TypeRef> },
+    Nullable {
+        span: Span,
+        inner: Box<TypeRef>,
+    },
 }
 
 /// 函数类型（type position）。
@@ -519,7 +532,9 @@ mod tests {
             span: Span::new(0, 6),
             kind: ExprKind::Lambda(LambdaExpr {
                 params: vec![Param {
-                    name: Ident { span: Span::new(1, 2) },
+                    name: Ident {
+                        span: Span::new(1, 2),
+                    },
                     ty: None,
                 }],
                 arrow_span: Some(arrow_span),

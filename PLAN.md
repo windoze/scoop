@@ -80,6 +80,7 @@
    - [x] block（函数体 / 控制结构 body）：`{ ... }` → `Block { stmts }`（语句先支持空语句与表达式语句；其余降级为 `Missing`）
    - [x] block 内局部 `val/var` 绑定语句（`val x = expr` / `val x: T = expr`）
    - [x] `return` 语句：`return` / `return expr`（仅 block 内；顶层 `return` 直接报 parse 错误）
+   - [x] 赋值语句/表达式：`lhs = rhs`（lhs 限标识符/成员访问；不支持复合赋值与解构赋值）
    - [x] postfix 调用表达式：`callee(args...)`（当前仅支持位置参数与逗号分隔参数列表）
    - [x] postfix 成员访问表达式：`receiver.member`（支持与调用链式组合，如 `a.b.c(1)`）
    - [x] postfix 非空断言：`expr!!`

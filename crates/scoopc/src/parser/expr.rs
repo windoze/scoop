@@ -16,6 +16,7 @@
 //! - 类型判断/转换（T0213）：`is`/`!is`/`as`/`as?`
 //! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
 //! - `when` 表达式（T0215）：`when (expr) { ... }`（最小分支子集）
+//! - 赋值表达式（T0227）：`lhs = rhs`（lhs 先限 ident/member）
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -34,7 +35,7 @@ impl<'a> Parser<'a> {
     /// - 若当前位置不是表达式的起始 token，则返回 `Ok(None)` 且不消费 token。
     /// - 若能解析出表达式，则返回 `Ok(Some(expr))`。
     pub(super) fn try_parse_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        self.parse_expr_bp(0)
+        self.parse_assign_expr()
     }
 
     /// `when` 分支 body 的表达式解析（带 arm 边界规则）。
@@ -43,7 +44,79 @@ impl<'a> Parser<'a> {
     /// - 若看到 `is <TypeRef> ->`，优先将其解释为“下一个 arm 的 pattern 起始”，
     ///   而不是把 `is` 当成当前表达式的中缀类型判断运算符。
     fn try_parse_expr_in_when_arm(&mut self) -> Result<Option<ast::Expr>, ParseError> {
-        self.parse_expr_bp_in_when_arm(0)
+        self.parse_assign_expr_in_when_arm()
+    }
+
+    fn parse_assign_expr(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(lhs) = self.parse_expr_bp(0)? else {
+            return Ok(None);
+        };
+
+        if !self.peek_symbol(Symbol::Eq) {
+            return Ok(Some(lhs));
+        }
+
+        if !is_assignable_lhs(&lhs) {
+            return Err(ParseError::Expected {
+                expected: "可赋值的左值（标识符或成员访问）",
+                found: self.peek().kind,
+                span: lhs.span.into(),
+            });
+        }
+
+        let eq = self.expect_symbol(Symbol::Eq)?;
+        let tok = *self.peek();
+        let rhs = self.parse_assign_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（赋值右侧）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
+
+        Ok(Some(ast::Expr {
+            span: Span::new(lhs.span.start, rhs.span.end),
+            kind: ast::ExprKind::Assign {
+                lhs: Box::new(lhs),
+                eq_span: eq.span,
+                rhs: Box::new(rhs),
+            },
+        }))
+    }
+
+    fn parse_assign_expr_in_when_arm(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        let Some(lhs) = self.parse_expr_bp_in_when_arm(0)? else {
+            return Ok(None);
+        };
+
+        if !self.peek_symbol(Symbol::Eq) {
+            return Ok(Some(lhs));
+        }
+
+        if !is_assignable_lhs(&lhs) {
+            return Err(ParseError::Expected {
+                expected: "可赋值的左值（标识符或成员访问）",
+                found: self.peek().kind,
+                span: lhs.span.into(),
+            });
+        }
+
+        let eq = self.expect_symbol(Symbol::Eq)?;
+        let tok = *self.peek();
+        let rhs = self
+            .parse_assign_expr_in_when_arm()?
+            .ok_or(ParseError::Expected {
+                expected: "表达式（赋值右侧）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+
+        Ok(Some(ast::Expr {
+            span: Span::new(lhs.span.start, rhs.span.end),
+            kind: ast::ExprKind::Assign {
+                lhs: Box::new(lhs),
+                eq_span: eq.span,
+                rhs: Box::new(rhs),
+            },
+        }))
     }
 
     /// 尝试解析一个“postfix 表达式”（当前支持成员访问与函数调用）。
@@ -412,8 +485,10 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn parse_trailing_lambda_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError>
-    {
+    fn parse_trailing_lambda_call_expr(
+        &mut self,
+        callee: ast::Expr,
+    ) -> Result<ast::Expr, ParseError> {
         let start = callee.span.start;
         let lambda = self.parse_lambda_expr()?;
         Ok(ast::Expr {
@@ -794,10 +869,12 @@ impl<'a> Parser<'a> {
         // - 单表达式 body：直接用该表达式
         // - block body：用 `ExprKind::Block`（包含语句列表）
         let body = match block.stmts.as_slice() {
-            [ast::Stmt {
-                kind: ast::StmtKind::Expr(expr),
-                ..
-            }] => expr.clone(),
+            [
+                ast::Stmt {
+                    kind: ast::StmtKind::Expr(expr),
+                    ..
+                },
+            ] => expr.clone(),
             _ => ast::Expr {
                 span: block.span,
                 kind: ast::ExprKind::Block(block),
@@ -1336,6 +1413,13 @@ impl<'a> Parser<'a> {
 
         false
     }
+}
+
+fn is_assignable_lhs(expr: &ast::Expr) -> bool {
+    matches!(
+        expr.kind,
+        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. }
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
