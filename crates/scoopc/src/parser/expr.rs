@@ -1301,9 +1301,7 @@ impl<'a> Parser<'a> {
             span: Span::new(receiver.span.start, member_tok.span.end),
             kind: ast::ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
-                member: ast::Ident {
-                    span: member_tok.span,
-                },
+                member: ast::MemberIdent::new(member_tok.span),
             },
         })
     }
@@ -1320,9 +1318,7 @@ impl<'a> Parser<'a> {
             kind: ast::ExprKind::SafeMemberAccess {
                 receiver: Box::new(receiver),
                 op_span: op.span,
-                member: ast::Ident {
-                    span: member_tok.span,
-                },
+                member: ast::MemberIdent::new(member_tok.span),
             },
         })
     }

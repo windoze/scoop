@@ -594,11 +594,12 @@
 - 依赖：T0218、T0308
 - 完成：在 `scoopc::resolve` 增加声明级 type params 作用域栈；解析 `TypePath` 时若为单段路径且命中当前作用域的 type param，则视为已解析（并允许 shadow 顶层同名 type）；同时递归解析 `TypePath` 的类型实参以支持 `Option<T>` 等形态；新增 resolve fixtures：`generic_type_param_ok`（pass）与 `unresolved_type_param_in_signature`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0310 [TODO] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
+### T0310 [DONE] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
 - 描述：把 `a.b` 的 `b` 绑定到 struct 字段或 class/interface 成员（先做存在性）。
 - 目标：先只处理“静态可确定”的情况；动态分发/override 后续。
 - 验收：resolve fixture：`p.x` 解析到字段；`p.m()` 解析到方法；不存在时报错并指向成员名 span。
 - 依赖：T0302、T0210
+- 完成：AST 新增 `MemberIdent`/`ResolvedMemberRef`（解析前 Debug 输出保持与旧 `Ident` 一致）；resolver 在 block scopes 中记录局部绑定的声明类型，并对 `ExprKind::MemberAccess`/`SafeMemberAccess` 在 receiver 类型可静态确定时解析成员到 `value/fun` 并写回；新增错误码 `scoop::resolve::unresolved_member` 并精确标注成员名 span；新增 resolve fixtures `member_access_ok`（pass）与 `unresolved_member_access`（fail）；新增单测 `resolve::scopes::tests::member_access_resolution_is_written_back`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0311 [TODO] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
 - 描述：把 `f(...)` 的 callee 从“裸 ident”解析为某个 fun symbol（先要求唯一匹配）。

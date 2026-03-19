@@ -119,6 +119,14 @@ pub enum ResolveError {
         span: miette::SourceSpan,
     },
 
+    #[error("未解析的成员：{name}")]
+    #[diagnostic(code(scoop::resolve::unresolved_member))]
+    UnresolvedMember {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("符号不可见：{name}（{visibility}）")]
     #[diagnostic(code(scoop::resolve::not_visible))]
     NotVisible {

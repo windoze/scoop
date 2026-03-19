@@ -35,7 +35,13 @@ struct BlockScopeChecker<'a> {
     index: &'a Index,
     imports: &'a ImportTable,
     pkg_prefix: String,
-    scopes: Vec<HashMap<String, Span>>,
+    scopes: Vec<HashMap<String, LocalBinding>>,
+}
+
+#[derive(Clone)]
+struct LocalBinding {
+    decl_span: Span,
+    ty: Option<ast::TypeRef>,
 }
 
 impl<'a> BlockScopeChecker<'a> {
@@ -99,7 +105,7 @@ impl<'a> BlockScopeChecker<'a> {
         // 函数级作用域：先放入参数（允许 block 内部遮蔽参数名）。
         self.push_scope();
         for p in &mut fun.params {
-            self.declare_ident(&p.name)?;
+            self.declare_ident_typed(&p.name, p.ty.clone())?;
             if let Some(default) = &mut p.default_value {
                 self.check_expr(default)?;
             }
@@ -183,8 +189,15 @@ impl<'a> BlockScopeChecker<'a> {
             self.check_expr(init)?;
         }
 
-        for b in bound_idents(&v.binding) {
-            self.declare_ident(&b)?;
+        match &v.binding {
+            ast::ValBinding::Name(id) => {
+                self.declare_ident_typed(id, v.ty.clone())?;
+            }
+            ast::ValBinding::Pattern(_) => {
+                for b in bound_idents(&v.binding) {
+                    self.declare_ident(&b)?;
+                }
+            }
         }
 
         Ok(())
@@ -236,10 +249,13 @@ impl<'a> BlockScopeChecker<'a> {
                     self.check_expr(&mut arm.body)?;
                 }
             }
-            ast::ExprKind::MemberAccess { receiver, .. }
-            | ast::ExprKind::SafeMemberAccess { receiver, .. } => {
-                // 仅解析 receiver；member 本身的解析留到 T0310。
+            ast::ExprKind::MemberAccess { receiver, member } => {
                 self.check_expr(receiver.as_mut())?;
+                self.resolve_member_access(receiver.as_ref(), member)?;
+            }
+            ast::ExprKind::SafeMemberAccess { receiver, member, .. } => {
+                self.check_expr(receiver.as_mut())?;
+                self.resolve_member_access(receiver.as_ref(), member)?;
             }
             ast::ExprKind::SpliceField { receiver, field } => {
                 self.check_expr(receiver.as_mut())?;
@@ -283,10 +299,10 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        if let Some(decl_span) = self.local_decl_span(name) {
+        if let Some(binding) = self.local_binding(name) {
             id.resolved = Some(ast::ResolvedValueRef::Local {
                 name: name.to_string(),
-                decl_span,
+                decl_span: binding.decl_span,
             });
             return Ok(());
         }
@@ -305,11 +321,11 @@ impl<'a> BlockScopeChecker<'a> {
         })
     }
 
-    fn local_decl_span(&self, name: &str) -> Option<Span> {
+    fn local_binding(&self, name: &str) -> Option<&LocalBinding> {
         self.scopes
             .iter()
             .rev()
-            .find_map(|frame| frame.get(name).copied())
+            .find_map(|frame| frame.get(name))
     }
 
     fn top_level_value_fqn(
@@ -381,25 +397,45 @@ impl<'a> BlockScopeChecker<'a> {
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
         let name = self.source.slice(id.span).to_string();
-        self.declare_name(name, id.span)
+        self.declare_name(name, id.span, None)
     }
 
-    fn declare_name(&mut self, name: String, span: Span) -> Result<(), ResolveError> {
+    fn declare_ident_typed(
+        &mut self,
+        id: &ast::Ident,
+        ty: Option<ast::TypeRef>,
+    ) -> Result<(), ResolveError> {
+        let name = self.source.slice(id.span).to_string();
+        self.declare_name(name, id.span, ty)
+    }
+
+    fn declare_name(
+        &mut self,
+        name: String,
+        span: Span,
+        ty: Option<ast::TypeRef>,
+    ) -> Result<(), ResolveError> {
         let Some(cur) = self.scopes.last_mut() else {
             // 作为防御性兜底：理论上任何 declare 都应该发生在 push_scope 之后。
             self.scopes.push(HashMap::new());
-            return self.declare_name(name, span);
+            return self.declare_name(name, span, ty);
         };
 
         if let Some(prev) = cur.get(&name) {
             return Err(ResolveError::DuplicateDefinition {
                 name,
-                first: (*prev).into(),
+                first: prev.decl_span.into(),
                 second: span.into(),
             });
         }
 
-        cur.insert(name, span);
+        cur.insert(
+            name,
+            LocalBinding {
+                decl_span: span,
+                ty,
+            },
+        );
         Ok(())
     }
 
@@ -409,6 +445,140 @@ impl<'a> BlockScopeChecker<'a> {
 
     fn pop_scope(&mut self) {
         let _ = self.scopes.pop();
+    }
+
+    fn resolve_member_access(
+        &self,
+        receiver: &ast::Expr,
+        member: &mut ast::MemberIdent,
+    ) -> Result<(), ResolveError> {
+        if member.resolved.is_some() {
+            return Ok(());
+        }
+
+        let Some(receiver_ty_fqn) = self.infer_expr_type_fqn(receiver) else {
+            // 当前阶段（T0310）只处理“静态可确定”的 receiver 类型；
+            // 无法确定时保持保守：不做解析也不报错（避免对泛型/推断场景产生误报）。
+            return Ok(());
+        };
+
+        let member_name = self.source.slice(member.span);
+        let member_fqn = format!("{receiver_ty_fqn}.{member_name}");
+
+        let Some(syms) = self.index.by_fqn.get(&member_fqn) else {
+            return Err(ResolveError::UnresolvedMember {
+                name: member_fqn,
+                span: member.span.into(),
+            });
+        };
+
+        // 与调用解析（T0311）解耦：这里只做存在性与最小“绑定写回”。
+        // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        if let Some(sym) = syms.get(SymbolKind::Fun) {
+            if is_symbol_visible_from(self.source, sym) {
+                member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
+                return Ok(());
+            }
+            not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
+        }
+
+        if let Some(sym) = syms.get(SymbolKind::Value) {
+            if is_symbol_visible_from(self.source, sym) {
+                member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: member_fqn });
+                return Ok(());
+            }
+            if not_visible.is_none() {
+                not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
+            }
+        }
+
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: member.span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Err(ResolveError::UnresolvedMember {
+            name: member_fqn,
+            span: member.span.into(),
+        })
+    }
+
+    fn infer_expr_type_fqn(&self, expr: &ast::Expr) -> Option<String> {
+        match &expr.kind {
+            ast::ExprKind::Ident(id) => {
+                let name = self.source.slice(id.span);
+                if name == "this" {
+                    return None;
+                }
+
+                let binding = self.local_binding(name)?;
+                self.type_ref_to_fqn(binding.ty.as_ref()?)
+            }
+            ast::ExprKind::StructLit { ty, .. } => self.type_path_to_fqn(ty),
+            _ => None,
+        }
+    }
+
+    fn type_ref_to_fqn(&self, ty: &ast::TypeRef) -> Option<String> {
+        match ty {
+            ast::TypeRef::Path(p) => self.type_path_to_fqn(p),
+            _ => None,
+        }
+    }
+
+    fn type_path_to_fqn(&self, path: &ast::TypePath) -> Option<String> {
+        let segments = path
+            .segments
+            .iter()
+            .map(|id| self.source.slice(id.span))
+            .collect::<Vec<_>>();
+        let local = segments.join(".");
+
+        let mut candidates: Vec<String> = Vec::new();
+
+        // 1) 同包优先：pkg + local
+        if !self.pkg_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.pkg_prefix, local));
+        }
+
+        // 2) 直接使用 local（允许显式写 FQN：`scoop.core.Any`）
+        candidates.push(local.clone());
+
+        // 3) 对单段名字，应用 import 规则（显式 import / star import）
+        if segments.len() == 1 {
+            let name = segments[0];
+
+            if let Some(fqns) = self.imports.ty.explicit.get(name) {
+                candidates.extend(fqns.iter().cloned());
+            }
+
+            for prefix in &self.imports.star {
+                candidates.push(format!("{prefix}.{name}"));
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        for fqn in candidates {
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                continue;
+            };
+            if is_symbol_visible_from(self.source, sym) {
+                return Some(fqn);
+            }
+        }
+
+        None
     }
 }
 
@@ -530,6 +700,62 @@ mod tests {
                 fqn: "a.top".to_string()
             })
         );
+    }
+
+    #[test]
+    fn member_access_resolution_is_written_back() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Int {}\nstruct Point { val x: Int\nfun m() {} }\nfun use(p: Point) { p.x\np.m() }",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
+
+        let fun_use = file
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if src.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let stmts = block
+            .stmts
+            .iter()
+            .filter_map(|s| match &s.kind {
+                ast::StmtKind::Expr(e) => Some(e),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(stmts.len(), 2);
+
+        // `p.x` 解析到 value member。
+        let ast::ExprKind::MemberAccess { member, .. } = &stmts[0].kind else {
+            panic!("expected member access");
+        };
+        assert!(matches!(
+            member.resolved,
+            Some(ast::ResolvedMemberRef::Value { ref fqn }) if fqn == "a.Point.x"
+        ));
+
+        // `p.m()` 的 callee（`p.m`）解析到 fun member。
+        let ast::ExprKind::Call { callee, .. } = &stmts[1].kind else {
+            panic!("expected call");
+        };
+        let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            panic!("expected member access callee");
+        };
+        assert!(matches!(
+            member.resolved,
+            Some(ast::ResolvedMemberRef::Fun { ref fqn }) if fqn == "a.Point.m"
+        ));
     }
 
     #[test]

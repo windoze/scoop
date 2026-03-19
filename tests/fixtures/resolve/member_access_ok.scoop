@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：验证 resolver 能把 `p.x`/`p.m()` 解析到类型成员（T0310）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+struct Point {
+    val x: Any
+    fun m() {}
+}
+
+fun use(p: Point) {
+    p.x
+    p.m()
+}
+

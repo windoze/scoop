@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的成员
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_member
+// EXPECT-ERROR-AT: 16:7
+// 目标：验证不存在成员时能精确指到成员名 span（T0310）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+struct Point {
+    val x: Any
+}
+
+fun use(p: Point) {
+    p.y
+}
+
