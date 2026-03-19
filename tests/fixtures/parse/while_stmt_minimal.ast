@@ -1,0 +1,68 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 135..157,
+            path: [
+                Ident {
+                    span: 143..151,
+                },
+                Ident {
+                    span: 152..157,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 159..226,
+                name: Ident {
+                    span: 163..164,
+                },
+                type_params: [],
+                params_span: 164..166,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 167..226,
+                        stmts: [
+                            Stmt {
+                                span: 173..224,
+                                kind: While {
+                                    while_span: 173..178,
+                                    cond: Expr {
+                                        span: 180..184,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 180..184,
+                                            },
+                                        ),
+                                    },
+                                    body: Block {
+                                        span: 186..224,
+                                        stmts: [
+                                            Stmt {
+                                                span: 196..204,
+                                                kind: Continue {
+                                                    continue_span: 196..204,
+                                                },
+                                            },
+                                            Stmt {
+                                                span: 213..218,
+                                                kind: Break {
+                                                    break_span: 213..218,
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -192,6 +192,9 @@ impl<'a> Lexer<'a> {
             "if" => Some(Keyword::If),
             "else" => Some(Keyword::Else),
             "when" => Some(Keyword::When),
+            "while" => Some(Keyword::While),
+            "break" => Some(Keyword::Break),
+            "continue" => Some(Keyword::Continue),
             "is" => Some(Keyword::Is),
             "as" => {
                 // `as?` safe cast：要求 `?` 紧跟在 as 后面。

@@ -356,10 +356,10 @@
 - 验收：新增 parse fixture：`fun f(){ var x: Any = a; x = b }`；以及 `p.x = 1`（语法层先允许）。
 - 依赖：T0210、T0207
 
-### T0228 [TODO] Parser：循环语句（`while`/`break`/`continue`）（PLAN §4.6）
+### T0228 [DONE] Parser：循环语句（`while`/`break`/`continue`）（PLAN §4.6）
 - 描述：解析 `while (cond) { ... }` 与 `break/continue`。
-- 目标：先不支持 `for`；先不支持带 label 的 break/continue。
-- 验收：新增 parse fixture：最小 while；`break` 在非循环内的错误策略明确（parse 或 typecheck）。
+- 目标：先不支持 `for`；先不支持带 label 的 break/continue；`break/continue` 的位置合法性检查留到 typecheck 阶段。
+- 验收：新增 parse fixture：最小 while；`break` 在非循环内的错误策略明确（本阶段选择 typecheck）。
 - 依赖：T0214、T0207
 
 ### T0229 [TODO] Parser：safe-call `?.`（Appendix B.3.1）

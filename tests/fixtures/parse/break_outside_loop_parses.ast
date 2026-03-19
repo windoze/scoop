@@ -1,0 +1,49 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 189..211,
+            path: [
+                Ident {
+                    span: 197..205,
+                },
+                Ident {
+                    span: 206..211,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 213..247,
+                name: Ident {
+                    span: 217..218,
+                },
+                type_params: [],
+                params_span: 218..220,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 221..247,
+                        stmts: [
+                            Stmt {
+                                span: 227..232,
+                                kind: Break {
+                                    break_span: 227..232,
+                                },
+                            },
+                            Stmt {
+                                span: 237..245,
+                                kind: Continue {
+                                    continue_span: 237..245,
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

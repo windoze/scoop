@@ -424,6 +424,19 @@ pub enum StmtKind {
         return_span: Span,
         value: Option<Expr>,
     },
+    /// `while (cond) { ... }`（PLAN §4.6）。
+    ///
+    /// 说明：
+    /// - 当前阶段只做语法解析；不在 parser 中检查 `break/continue` 的位置合法性。
+    While {
+        while_span: Span,
+        cond: Expr,
+        body: Block,
+    },
+    /// `break`（PLAN §4.6）。
+    Break { break_span: Span },
+    /// `continue`（PLAN §4.6）。
+    Continue { continue_span: Span },
     Missing,
 }
 

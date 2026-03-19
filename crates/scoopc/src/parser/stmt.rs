@@ -133,6 +133,77 @@ impl<'a> Parser<'a> {
             });
         }
 
+        // `while` 循环语句（T0228）：`while (cond) { ... }`
+        if self.peek_keyword(Keyword::While) {
+            let kw = self.bump();
+            let while_span = kw.span;
+
+            self.expect_symbol(Symbol::LParen)?;
+            let cond = match self.try_parse_expr()? {
+                Some(expr) => expr,
+                None => {
+                    let tok = *self.peek();
+                    return Err(ParseError::Expected {
+                        expected: "表达式（while 条件）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+                }
+            };
+            self.expect_symbol(Symbol::RParen)?;
+
+            // 当前阶段仅支持 block body：`{ ... }`。
+            let body = self.parse_block()?;
+
+            let mut span = Span::new(while_span.start, body.span.end);
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::While {
+                    while_span,
+                    cond,
+                    body,
+                },
+            });
+        }
+
+        // `break` 语句（T0228）。
+        if self.peek_keyword(Keyword::Break) {
+            let kw = self.bump();
+            let break_span = kw.span;
+            let mut span = break_span;
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::Break { break_span },
+            });
+        }
+
+        // `continue` 语句（T0228）。
+        if self.peek_keyword(Keyword::Continue) {
+            let kw = self.bump();
+            let continue_span = kw.span;
+            let mut span = continue_span;
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::Continue { continue_span },
+            });
+        }
+
         // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（postfix + 常见二元优先级），
         // 因此语句边界也就天然落在该表达式结束处。
         if let Some(expr) = self.try_parse_expr()? {

@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: break_outside_loop_parses.ast
+// 目标：明确策略：`break`/`continue` 的“必须在循环内”属于语义约束，留到 typecheck 阶段检查。
+
+package fixtures.parse
+
+fun f() {
+    break
+    continue
+}
+

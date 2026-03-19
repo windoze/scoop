@@ -66,6 +66,9 @@ pub enum Keyword {
     If,
     Else,
     When,
+    While,
+    Break,
+    Continue,
     Is,
 
     // casts

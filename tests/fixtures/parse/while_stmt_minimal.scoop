@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-AST: while_stmt_minimal.ast
+// 目标：验证 `while`/`break`/`continue` 语句解析（仅语法层）。
+
+package fixtures.parse
+
+fun f() {
+    while (cond) {
+        continue
+        break
+    }
+}
+

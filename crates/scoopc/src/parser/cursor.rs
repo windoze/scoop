@@ -178,6 +178,9 @@ impl<'a> Parser<'a> {
                     | Keyword::Return
                     | Keyword::If
                     | Keyword::When
+                    | Keyword::While
+                    | Keyword::Break
+                    | Keyword::Continue
                     | Keyword::Try
                     | Keyword::Handle
                     | Keyword::Perform
@@ -218,6 +221,9 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::If => "`if`",
         Keyword::Else => "`else`",
         Keyword::When => "`when`",
+        Keyword::While => "`while`",
+        Keyword::Break => "`break`",
+        Keyword::Continue => "`continue`",
         Keyword::Is => "`is`",
         Keyword::As => "`as`",
         Keyword::AsQ => "`as?`",
