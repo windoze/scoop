@@ -1,0 +1,92 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 59..81,
+            path: [
+                Ident {
+                    span: 67..75,
+                },
+                Ident {
+                    span: 76..81,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 83..130,
+                kind: Class,
+                name: Ident {
+                    span: 89..92,
+                },
+                type_params: [],
+                primary_ctor: Some(
+                    PrimaryCtorDecl {
+                        params_span: 92..106,
+                        params: [
+                            Param {
+                                name: Ident {
+                                    span: 93..97,
+                                },
+                                ty: Some(
+                                    Path(
+                                        TypePath {
+                                            span: 99..105,
+                                            segments: [
+                                                Ident {
+                                                    span: 99..105,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                    ),
+                                ),
+                            },
+                        ],
+                    },
+                ),
+                supertypes: [
+                    SuperType {
+                        span: 109..121,
+                        ty: Path(
+                            TypePath {
+                                span: 109..115,
+                                segments: [
+                                    Ident {
+                                        span: 109..115,
+                                    },
+                                ],
+                                args: [],
+                            },
+                        ),
+                        ctor_args_span: Some(
+                            115..121,
+                        ),
+                    },
+                    SuperType {
+                        span: 123..127,
+                        ty: Path(
+                            TypePath {
+                                span: 123..127,
+                                segments: [
+                                    Ident {
+                                        span: 123..127,
+                                    },
+                                ],
+                                args: [],
+                            },
+                        ),
+                    },
+                ],
+                body: Some(
+                    TypeBody {
+                        span: 128..130,
+                        members: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -522,6 +522,110 @@ impl<'a> Parser<'a> {
         Ok((Span::new(start, close.span.end), params))
     }
 
+    /// 解析 class 的主构造参数列表：`class Name(val x: T, y: U = 1)`。
+    ///
+    /// 当前阶段（T0248）：
+    /// - 允许参数前缀 `val/var`，但暂不在 AST 中表达（仅忽略该 token 并继续解析）；
+    /// - 参数类型与默认值复用函数参数的解析逻辑；
+    /// - 仅做语法层解析与结构化存储，不做语义检查。
+    fn parse_primary_ctor_param_list(&mut self) -> Result<(Span, Vec<ast::Param>), ParseError> {
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = open.span.start;
+
+        let mut params = Vec::new();
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok((Span::new(start, close.span.end), params));
+        }
+
+        loop {
+            // Kotlin 风格：`class C(val x: Int)` / `class C(var x: Int)`
+            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+                self.bump();
+            }
+
+            let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
+            let name = ast::Ident {
+                span: name_tok.span,
+            };
+
+            let ty = if self.eat_symbol(Symbol::Colon) {
+                Some(self.parse_type_ref()?)
+            } else {
+                None
+            };
+
+            // Appendix B.5.2：参数默认值：`param: T = expr`
+            let default_value = if self.eat_symbol(Symbol::Eq) {
+                let tok = *self.peek();
+                Some(self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（参数默认值）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?)
+            } else {
+                None
+            };
+
+            params.push(ast::Param {
+                name,
+                ty,
+                default_value,
+            });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // trailing comma
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        let close = self.expect_symbol(Symbol::RParen)?;
+        Ok((Span::new(start, close.span.end), params))
+    }
+
+    fn parse_supertype_list(&mut self) -> Result<Vec<ast::SuperType>, ParseError> {
+        let mut supertypes = Vec::new();
+
+        loop {
+            let ty = self.parse_type_ref()?;
+            let start = ty.span().start;
+            let mut end = ty.span().end;
+
+            // `BaseType(...)`：当前阶段只保留括号 span，不解析参数表达式。
+            let ctor_args_span = if self.peek_symbol(Symbol::LParen) {
+                let span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+                end = span.end;
+                Some(span)
+            } else {
+                None
+            };
+
+            supertypes.push(ast::SuperType {
+                span: Span::new(start, end),
+                ty,
+                ctor_args_span,
+            });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma before `{` / EOF / `}`
+                if self.peek_symbol(Symbol::LBrace)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.peek_kind(TokenKind::Eof)
+                {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        Ok(supertypes)
+    }
+
     pub(super) fn parse_type_decl(&mut self) -> Result<ast::TypeDecl, ParseError> {
         let start = self.peek().span.start;
 
@@ -558,11 +662,33 @@ impl<'a> Parser<'a> {
             last_end = last_end.max(span.end);
         }
 
-        // optional primary ctor params: `( ... )`
-        if self.peek_symbol(Symbol::LParen) {
-            let span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
-            last_end = last_end.max(span.end);
-        }
+        let primary_ctor = if self.peek_symbol(Symbol::LParen) {
+            let (params_span, params) = self.parse_primary_ctor_param_list()?;
+            last_end = last_end.max(params_span.end);
+            Some(ast::PrimaryCtorDecl { params_span, params })
+        } else {
+            None
+        };
+
+        let supertypes = if self.eat_symbol(Symbol::Colon) {
+            let list = self.parse_supertype_list()?;
+            if let Some(last) = list.last() {
+                last_end = last_end.max(last.span.end);
+            }
+            list
+        } else if matches!(kind, ast::TypeKind::Class | ast::TypeKind::Interface)
+            && self.peek_kind(TokenKind::Ident)
+        {
+            // `class C Base`：缺少 `:` 但出现了 supertype，按语法应报错（T0248）。
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`:`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        } else {
+            Vec::new()
+        };
 
         // header tail（继承/实现等）：消耗到 `{` 或下一个顶层 item 开始
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
@@ -592,6 +718,8 @@ impl<'a> Parser<'a> {
             kind,
             name,
             type_params,
+            primary_ctor,
+            supertypes,
             body,
         })
     }

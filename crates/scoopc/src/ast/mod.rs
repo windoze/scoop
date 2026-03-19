@@ -75,6 +75,40 @@ pub struct TypeParam {
     pub name: Ident,
 }
 
+/// 类型声明的主构造头（primary constructor header）。
+///
+/// 语法形态（Kotlin 风格，简化版）：
+/// - `class Name(param: T, ...)`
+///
+/// 说明：当前阶段（T0248）只做解析与结构化存储；
+/// `val/var` 参数、参数默认值等更完整的语义会在后续阶段逐步补齐。
+#[derive(Debug, Clone)]
+pub struct PrimaryCtorDecl {
+    pub params_span: Span,
+    pub params: Vec<Param>,
+}
+
+/// 超类型（supertype）条目：`BaseType(...)` / `IInterface`。
+#[derive(Clone)]
+pub struct SuperType {
+    pub span: Span,
+    pub ty: TypeRef,
+    /// 基类构造调用参数列表的 span（仅保留括号范围，不解析其中表达式）。
+    pub ctor_args_span: Option<Span>,
+}
+
+impl std::fmt::Debug for SuperType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("SuperType");
+        s.field("span", &self.span);
+        s.field("ty", &self.ty);
+        if self.ctor_args_span.is_some() {
+            s.field("ctor_args_span", &self.ctor_args_span);
+        }
+        s.finish()
+    }
+}
+
 #[derive(Clone)]
 pub struct TypeDecl {
     pub span: Span,
@@ -82,6 +116,10 @@ pub struct TypeDecl {
     pub kind: TypeKind,
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
+    /// 主构造头参数列表：`class Name(...)`。
+    pub primary_ctor: Option<PrimaryCtorDecl>,
+    /// 继承/实现列表：`class Dog(...) : Animal(...), IFoo`。
+    pub supertypes: Vec<SuperType>,
     /// 类型体（`{ ... }`）。
     ///
     /// 当前阶段：
@@ -100,6 +138,12 @@ impl std::fmt::Debug for TypeDecl {
         s.field("kind", &self.kind);
         s.field("name", &self.name);
         s.field("type_params", &self.type_params);
+        if self.primary_ctor.is_some() {
+            s.field("primary_ctor", &self.primary_ctor);
+        }
+        if !self.supertypes.is_empty() {
+            s.field("supertypes", &self.supertypes);
+        }
         s.field("body", &self.body);
         s.finish()
     }

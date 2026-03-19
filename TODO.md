@@ -492,11 +492,12 @@
 - 依赖：T0245
 - 完成：lexer 新增关键字 `annotation`；AST 新增 `Modifier::Annotation`；parser 将 `annotation` 作为 modifier 解析并允许 `annotation class`；新增 parse fixture `tests/fixtures/parse/annotation_class_basic.scoop`（含 AST golden；注解使用语法将由 T1001 进一步接入到 AST）
 
-### T0248 [TODO] Parser：class/interface 的继承列表与主构造头（简化版）（spec §2.2 / Appendix B.2）
+### T0248 [DONE] Parser：class/interface 的继承列表与主构造头（简化版）（spec §2.2 / Appendix B.2）
 - 描述：支持 `class Dog(name: String) : Animal(name), IFoo` 的最小语法：构造参数列表 + `:` 后基类/接口列表。
 - 目标：先不解析基类构造调用参数（可只保留 span）；不解析 supertype 泛型实参（可先保留 TypeRef）。
 - 验收：新增 parse fixture：class 继承与实现接口；缺少 `:` 但有 supertype 时 parse-fail。
 - 依赖：T0218、T0201
+- 完成：AST `TypeDecl` 新增 `primary_ctor` 与 `supertypes`；parser 在 type decl header 解析主构造参数列表与 `:` 后 supertype 列表（基类构造调用参数仅保留括号 span）；新增 `type_inheritance_basic` pass + `type_inheritance_missing_colon_fail` fail fixtures；更新相关 AST goldens；`cargo test --all` 与 `scoop test` 通过。
 
 ### T0249 [TODO] Parser：star projection `*` 与变型 `in/out` 的语法支持（spec §3.2~§3.3）
 - 描述：在类型实参位置支持 `*`；在 type param 声明位置支持 `in T`/`out T`。

@@ -25,6 +25,31 @@ File {
                     span: 100..106,
                 },
                 type_params: [],
+                primary_ctor: Some(
+                    PrimaryCtorDecl {
+                        params_span: 106..123,
+                        params: [
+                            Param {
+                                name: Ident {
+                                    span: 111..114,
+                                },
+                                ty: Some(
+                                    Path(
+                                        TypePath {
+                                            span: 116..122,
+                                            segments: [
+                                                Ident {
+                                                    span: 116..122,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                    ),
+                                ),
+                            },
+                        ],
+                    },
+                ),
                 body: None,
             },
         ),

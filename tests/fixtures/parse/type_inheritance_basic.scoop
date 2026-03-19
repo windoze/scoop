@@ -1,0 +1,7 @@
+// EXPECT: pass
+// EXPECT-AST: type_inheritance_basic.ast
+
+package fixtures.parse
+
+class Dog(name: String) : Animal(name), IFoo {}
+
