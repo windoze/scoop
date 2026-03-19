@@ -91,6 +91,11 @@ pub enum TypeKind {
 #[derive(Debug, Clone)]
 pub struct FunDecl {
     pub span: Span,
+    /// 扩展函数 receiver（`fun T.name(...)` 中的 `T`）。
+    ///
+    /// 当前阶段（T0233）仅在 parser 中解析并保留该 TypeRef；
+    /// 分发规则与 codegen 会在后续任务中补齐。
+    pub receiver: Option<TypeRef>,
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
     pub params_span: Span,
@@ -455,9 +460,13 @@ pub enum StmtKind {
         body: Block,
     },
     /// `break`（PLAN §4.6）。
-    Break { break_span: Span },
+    Break {
+        break_span: Span,
+    },
     /// `continue`（PLAN §4.6）。
-    Continue { continue_span: Span },
+    Continue {
+        continue_span: Span,
+    },
     Missing,
 }
 

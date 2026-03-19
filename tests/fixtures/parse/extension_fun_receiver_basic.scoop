@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: extension_fun_receiver_basic.ast
+// 目标：验证扩展函数 receiver（`fun T.name(...)`）在 AST 中可见。
+
+package fixtures.parse
+
+fun Any.id(): Any { this }
+

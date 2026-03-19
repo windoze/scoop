@@ -1,0 +1,75 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 148..170,
+            path: [
+                Ident {
+                    span: 156..164,
+                },
+                Ident {
+                    span: 165..170,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 172..198,
+                receiver: Some(
+                    Path(
+                        TypePath {
+                            span: 176..179,
+                            segments: [
+                                Ident {
+                                    span: 176..179,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                name: Ident {
+                    span: 180..182,
+                },
+                type_params: [],
+                params_span: 182..184,
+                params: [],
+                return_ty: Some(
+                    Path(
+                        TypePath {
+                            span: 186..189,
+                            segments: [
+                                Ident {
+                                    span: 186..189,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                body: Block(
+                    Block {
+                        span: 190..198,
+                        stmts: [
+                            Stmt {
+                                span: 192..196,
+                                kind: Expr(
+                                    Expr {
+                                        span: 192..196,
+                                        kind: Ident(
+                                            Ident {
+                                                span: 192..196,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

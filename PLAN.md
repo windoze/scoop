@@ -214,8 +214,9 @@
 
 - [ ] `inline`：仅作为优化提示（不改变语义）
 - [ ] 扩展函数：
-  - 解析与分发规则（静态分发、member 优先）
-  - codegen：receiver 作为第一个参数的普通函数
+  - [x] receiver 语法解析：`fun T.name(...)`（仅 AST；分发/codegen 后续补齐）
+  - [ ] 解析与分发规则（静态分发、member 优先）
+  - [ ] codegen：receiver 作为第一个参数的普通函数
 
 **本阶段 DoD**
 - `scoopc` 能对一批无泛型/少量泛型的示例做类型检查（含 struct/enum/Option/when/is/as）。

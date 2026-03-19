@@ -157,6 +157,9 @@ pub fn check_file_bindings(
     for item in &file.items {
         match item {
             ast::Item::Fun(fun) => {
+                if let Some(receiver) = &fun.receiver {
+                    resolve_type_ref(source, file, index, receiver)?;
+                }
                 for p in &fun.params {
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, ty)?;
@@ -178,7 +181,11 @@ pub fn check_file_bindings(
     Ok(())
 }
 
-fn check_imports_exist(source: &SourceFile, file: &ast::File, index: &Index) -> Result<(), ResolveError> {
+fn check_imports_exist(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+) -> Result<(), ResolveError> {
     for import in &file.imports {
         let path = import
             .path
@@ -300,10 +307,11 @@ fn resolve_type_path(
 
     for fqn in candidates {
         if let Some(sym) = index.by_fqn.get(&fqn)
-            && sym.kind == SymbolKind::Type {
-                // TODO: 在后续阶段把解析结果写回 AST/HIR
-                return Ok(());
-            }
+            && sym.kind == SymbolKind::Type
+        {
+            // TODO: 在后续阶段把解析结果写回 AST/HIR
+            return Ok(());
+        }
     }
 
     Err(ResolveError::UnresolvedType {

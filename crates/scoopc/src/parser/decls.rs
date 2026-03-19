@@ -2,7 +2,7 @@
 
 use crate::ast;
 use crate::span::Span;
-use crate::syntax::token::{Keyword, Symbol, TokenKind};
+use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 
 use super::{ParseError, Parser};
 
@@ -47,6 +47,155 @@ impl<'a> Parser<'a> {
         }
         let (span, params) = self.parse_type_param_list()?;
         Ok((Some(span), params))
+    }
+
+    /// 解析函数声明头中的“可选 receiver + name”：
+    ///
+    /// - 普通函数：`fun name(...)`
+    /// - 扩展函数：`fun ReceiverType.name(...)`
+    ///
+    /// 说明：
+    /// - receiver 的 TypeRef 解析复用 `parse_type_ref`，但为了避免把 `name` 误吞为路径段，
+    ///   这里先用 token 扫描确定 `.` 的边界，然后用一个“子 parser”在切片上解析 receiver TypeRef。
+    fn parse_fun_receiver_and_name(
+        &mut self,
+    ) -> Result<(Option<ast::TypeRef>, ast::Ident), ParseError> {
+        let start_idx = self.i;
+
+        let Some((dot_idx, _name_idx)) = self.detect_extension_receiver_dot(start_idx) else {
+            let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
+            return Ok((
+                None,
+                ast::Ident {
+                    span: name_tok.span,
+                },
+            ));
+        };
+
+        let mut receiver_tokens: Vec<Token> = self.tokens[start_idx..dot_idx].to_vec();
+        let eof_pos = receiver_tokens
+            .last()
+            .map(|t| t.span.end)
+            .unwrap_or_else(|| self.tokens[dot_idx].span.start);
+        receiver_tokens.push(Token {
+            kind: TokenKind::Eof,
+            span: Span::new(eof_pos, eof_pos),
+        });
+
+        let mut sub = Parser::new(self.source_text, receiver_tokens);
+        let receiver = sub.parse_type_ref()?;
+        if !sub.peek_kind(TokenKind::Eof) {
+            let tok = *sub.peek();
+            return Err(ParseError::Expected {
+                expected: "receiver 类型结束",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        // fast-forward：跳过 receiver tokens，继续在主 parser 中消费 `. name`
+        self.i = dot_idx;
+        self.expect_symbol(Symbol::Dot)?;
+        let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
+        Ok((
+            Some(receiver),
+            ast::Ident {
+                span: name_tok.span,
+            },
+        ))
+    }
+
+    /// 若当前位置开始是扩展函数 receiver 形式，则返回 `(dot_idx, name_idx)`：
+    /// - `dot_idx`：receiver 与 name 之间的 `.` 的 token index
+    /// - `name_idx`：name 的 token index
+    ///
+    /// 该检测仅做“语法形态”的判断，不做语义解析。
+    fn detect_extension_receiver_dot(&self, start_idx: usize) -> Option<(usize, usize)> {
+        // 1) 在 top-level 找到参数列表的 `(`：要求其前一个 token 是 ident 或 `>`
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+        let mut depth_angle = 0usize;
+
+        let mut params_lparen_idx: Option<usize> = None;
+
+        for idx in start_idx..self.tokens.len() {
+            let tok = self.tokens.get(idx)?;
+            match tok.kind {
+                TokenKind::Eof => break,
+                TokenKind::Symbol(sym) => match sym {
+                    Symbol::Lt => depth_angle += 1,
+                    Symbol::Gt => depth_angle = depth_angle.saturating_sub(1),
+                    Symbol::GtGt => depth_angle = depth_angle.saturating_sub(2),
+                    Symbol::LParen => {
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                        {
+                            let prev = self.tokens.get(idx.saturating_sub(1))?;
+                            if matches!(prev.kind, TokenKind::Ident)
+                                || matches!(prev.kind, TokenKind::Symbol(Symbol::Gt | Symbol::GtGt))
+                            {
+                                params_lparen_idx = Some(idx);
+                                break;
+                            }
+                        }
+                        depth_paren += 1;
+                    }
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
+        let lparen_idx = params_lparen_idx?;
+        let before_lparen = lparen_idx.checked_sub(1)?;
+
+        // 2) 从 `(` 向左回溯，找出 name 的 ident（可能带 `<T>` type params）
+        let name_idx = match self.tokens.get(before_lparen)?.kind {
+            TokenKind::Ident => before_lparen,
+            TokenKind::Symbol(Symbol::Gt | Symbol::GtGt) => {
+                let mut depth = 0usize;
+                let mut found_name: Option<usize> = None;
+                for j in (start_idx..=before_lparen).rev() {
+                    match self.tokens.get(j)?.kind {
+                        TokenKind::Symbol(Symbol::Gt) => depth += 1,
+                        TokenKind::Symbol(Symbol::GtGt) => depth += 2,
+                        TokenKind::Symbol(Symbol::Lt) => {
+                            depth = depth.saturating_sub(1);
+                            if depth == 0 {
+                                let name = j.checked_sub(1)?;
+                                if self.tokens.get(name)?.kind != TokenKind::Ident {
+                                    return None;
+                                }
+                                found_name = Some(name);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                found_name?
+            }
+            _ => return None,
+        };
+
+        // 3) 语法形态 `ReceiverType . name`
+        let dot_idx = name_idx.checked_sub(1)?;
+        if dot_idx < start_idx {
+            return None;
+        }
+        if self.tokens.get(dot_idx)?.kind != TokenKind::Symbol(Symbol::Dot) {
+            return None;
+        }
+
+        Some((dot_idx, name_idx))
     }
 
     pub(super) fn parse_package_decl(&mut self) -> Result<ast::PackageDecl, ParseError> {
@@ -95,10 +244,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Fun)?;
-        let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let (receiver, name) = self.parse_fun_receiver_and_name()?;
 
         let (_type_params_span, type_params) = self.parse_type_params_opt()?;
 
@@ -132,6 +278,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::FunDecl {
             span: Span::new(kw.span.start, last_end),
+            receiver,
             name,
             type_params,
             params_span,
@@ -593,10 +740,7 @@ impl<'a> Parser<'a> {
     fn parse_type_member_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         // 目标：只解析函数声明头（name/params/return type），函数体仍只保留 span。
         let kw = self.expect_keyword(Keyword::Fun)?;
-        let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let (receiver, name) = self.parse_fun_receiver_and_name()?;
 
         let (_type_params_span, type_params) = self.parse_type_params_opt()?;
 
@@ -633,6 +777,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::FunDecl {
             span: Span::new(kw.span.start, last_end),
+            receiver,
             name,
             type_params,
             params_span,

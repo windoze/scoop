@@ -386,7 +386,7 @@
 - 验收：新增 parse fixture：`list.map { it }`；`f(1) { x -> x }`；AST args 最后一个为 lambda。
 - 依赖：T0222、T0209
 
-### T0233 [TODO] Parser：扩展函数 receiver（spec §7.4）
+### T0233 [DONE] Parser：扩展函数 receiver（spec §7.4）
 - 描述：支持 `fun T.name(...)` 与 `fun T.() -> R` 这类 receiver 语法（声明处）。
 - 目标：先只解析 receiver TypeRef；不做分发规则。
 - 验收：新增 parse fixture：`fun Any.id(): Any { this }`（按语言关键字）；AST 中 receiver 可见。

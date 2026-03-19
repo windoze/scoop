@@ -17,6 +17,7 @@ File {
         Fun(
             FunDecl {
                 span: 146..198,
+                receiver: None,
                 name: Ident {
                     span: 150..151,
                 },
