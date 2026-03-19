@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：验证 class 成员函数体/属性 init 中 `this` 与主构造参数可解析（T0313）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+class Box(x: Any) {
+    val y: Any = x
+
+    fun f() {
+        this
+        x
+    }
+}

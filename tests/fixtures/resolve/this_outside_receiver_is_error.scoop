@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的值
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_value
+// EXPECT-ERROR-AT: 10:5
+// 目标：验证在无 receiver/无类型体语境的函数体里使用 `this` 会报错（T0313）。
+
+package fixtures.resolve
+
+fun f() {
+    this
+}
+

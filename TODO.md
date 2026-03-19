@@ -615,11 +615,12 @@
 - 依赖：T0233、T0310
 - 完成：`Index` 在 build 后收集同包扩展函数（记录 receiver 类型 FQN），成员访问解析在无同名 member 时按 receiver 类型匹配 extension 并写回 `ResolvedMemberRef::ExtensionFun`（`scoop.core.Any` 作为通配）；新增单测 `resolve::scopes::{extension_fun_is_resolved_when_no_member, member_still_wins_over_extension_with_same_name}` 与 resolve fixtures `extension_member_only_extension_ok`/`extension_member_prefers_member`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0313 [TODO] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
+### T0313 [DONE] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
 - 描述：为 class 主构造参数、属性初始化表达式、成员函数体建立正确作用域（含 `this`）。
 - 目标：先不实现 `super`；先不处理 capture/闭包。
 - 验收：resolve fixture：class 成员函数可引用 `this` 与构造参数；未定义时报错。
 - 依赖：T0248、T0308
+- 完成：`scoopc::resolve::scopes` 引入 `this` 上下文（类型体成员/扩展函数）并补齐主构造参数在 property init/accessor 与 member fun 体内的可见性；`this` 在无 receiver 语境下会按未定义值报错；新增 resolve fixtures `class_member_this_and_ctor_param_ok`（pass）与 `this_outside_receiver_is_error`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0314 [TODO] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
 - 描述：把 `typealias Name = Type` 作为一种 type-level symbol 纳入索引与 import 环境，使得 `Byte/UIntPtr` 等别名能被当作类型引用。

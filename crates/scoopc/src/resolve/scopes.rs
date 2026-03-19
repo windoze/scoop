@@ -9,7 +9,7 @@
 //!
 //! 非目标（后续任务处理）：
 //! - 不解析成员访问（`.`）的目标（T0310）
-//! - 不实现 `this`/构造参数/成员初始化的特殊作用域规则（T0313）
+//! - 不实现 `super`、capture/闭包等更复杂的语义（T0313 之后再补）
 
 use std::collections::HashMap;
 
@@ -36,12 +36,24 @@ struct BlockScopeChecker<'a> {
     imports: &'a ImportTable,
     pkg_prefix: String,
     scopes: Vec<HashMap<String, LocalBinding>>,
+    /// `this` 允许出现的上下文栈：
+    /// - 类型体成员（property init/accessor、member fun）里：`this` 指向当前类型实例
+    /// - 扩展函数体里：`this` 指向 extension receiver
+    this_context: Vec<ThisContext>,
 }
 
 #[derive(Clone)]
 struct LocalBinding {
     decl_span: Span,
     ty: Option<ast::TypeRef>,
+}
+
+#[derive(Debug, Clone)]
+struct ThisContext {
+    /// 用作 `ResolvedValueRef::Local { decl_span }` 的最小“身份标识”。
+    decl_span: Span,
+    /// `this` 的类型 FQN（用于 `this.member` 的成员解析）；若无法静态确定则为 None。
+    ty_fqn: Option<String>,
 }
 
 impl<'a> BlockScopeChecker<'a> {
@@ -58,14 +70,18 @@ impl<'a> BlockScopeChecker<'a> {
             imports,
             pkg_prefix,
             scopes: Vec::new(),
+            this_context: Vec::new(),
         }
     }
 
     fn check_file(&mut self, file: &mut ast::File) -> Result<(), ResolveError> {
+        // 这里先拷贝一份，避免在可变借用 `self` 时同时借用 `self.pkg_prefix` 导致借用冲突。
+        let pkg_prefix = self.pkg_prefix.clone();
+
         for item in &mut file.items {
             match item {
                 ast::Item::Fun(fun) => self.check_fun(fun)?,
-                ast::Item::Type(ty) => self.check_type_decl(ty)?,
+                ast::Item::Type(ty) => self.check_type_decl(ty, &pkg_prefix)?,
                 ast::Item::Val(v) => self.check_top_level_val(v)?,
                 ast::Item::TypeAlias(_) => {}
             }
@@ -82,19 +98,42 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_type_decl(&mut self, ty: &mut ast::TypeDecl) -> Result<(), ResolveError> {
+    fn check_type_decl(&mut self, ty: &mut ast::TypeDecl, prefix: &str) -> Result<(), ResolveError> {
+        // T0313：主构造参数默认值属于“初始化语境”，但不引入 `this`；
+        // 这里先做最小值名字解析（可引用同一 ctor 中更早声明的参数）。
+        if let Some(primary_ctor) = &mut ty.primary_ctor {
+            self.check_primary_ctor_defaults(primary_ctor)?;
+        }
+
         let Some(body) = &mut ty.body else {
             return Ok(());
         };
 
+        let type_name = self.source.slice(ty.name.span);
+        let type_fqn = if prefix.is_empty() {
+            type_name.to_string()
+        } else {
+            format!("{prefix}.{type_name}")
+        };
+
+        let ctor_params: &[ast::Param] = ty
+            .primary_ctor
+            .as_ref()
+            .map(|c| c.params.as_slice())
+            .unwrap_or(&[]);
+
+        let this_ctx = ThisContext {
+            decl_span: ty.name.span,
+            ty_fqn: Some(type_fqn.clone()),
+        };
+
         for member in &mut body.members {
             match member {
-                ast::TypeMember::Property(_) => {
-                    // T0313 会引入 `this`/构造参数/成员初始化作用域等规则。
-                    // 在那之前，避免对属性 init/accessor body 做值解析，以免产生大量误报。
+                ast::TypeMember::Property(p) => {
+                    self.check_type_member_property(p, &this_ctx, ctor_params)?
                 }
-                ast::TypeMember::Fun(fun) => self.check_fun(fun)?,
-                ast::TypeMember::Type(nested) => self.check_type_decl(nested)?,
+                ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
+                ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
             }
         }
 
@@ -102,6 +141,19 @@ impl<'a> BlockScopeChecker<'a> {
     }
 
     fn check_fun(&mut self, fun: &mut ast::FunDecl) -> Result<(), ResolveError> {
+        // 扩展函数：`this` 指向 receiver（与类型体 member 的 `this` 语义并行存在）。
+        if let Some(receiver) = &fun.receiver {
+            let ctx = ThisContext {
+                decl_span: receiver.span(),
+                ty_fqn: self.type_ref_to_fqn(receiver),
+            };
+            return self.with_this_context(ctx, |this| this.check_fun_body(fun));
+        }
+
+        self.check_fun_body(fun)
+    }
+
+    fn check_fun_body(&mut self, fun: &mut ast::FunDecl) -> Result<(), ResolveError> {
         // 函数级作用域：先放入参数（允许 block 内部遮蔽参数名）。
         self.push_scope();
         for p in &mut fun.params {
@@ -117,6 +169,88 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         self.pop_scope();
+        Ok(())
+    }
+
+    fn check_primary_ctor_defaults(
+        &mut self,
+        ctor: &mut ast::PrimaryCtorDecl,
+    ) -> Result<(), ResolveError> {
+        // 说明：
+        // - 该作用域仅覆盖主构造头参数默认值（非类型体）；不引入 `this`。
+        // - 与函数参数默认值一致：更早声明的参数可被后续默认值引用。
+        self.push_scope();
+        for p in &mut ctor.params {
+            self.declare_ident_typed(&p.name, p.ty.clone())?;
+            if let Some(default) = &mut p.default_value {
+                self.check_expr(default)?;
+            }
+        }
+        self.pop_scope();
+        Ok(())
+    }
+
+    fn check_type_member_fun(
+        &mut self,
+        fun: &mut ast::FunDecl,
+        this_ctx: &ThisContext,
+        ctor_params: &[ast::Param],
+    ) -> Result<(), ResolveError> {
+        self.with_this_context(this_ctx.clone(), |this| {
+            // 类型体成员：主构造参数在 member fun 内可见（T0313）。
+            this.with_ctor_params_scope(ctor_params, |this| this.check_fun(fun))
+        })?;
+        Ok(())
+    }
+
+    fn check_type_member_property(
+        &mut self,
+        p: &mut ast::PropertyDecl,
+        this_ctx: &ThisContext,
+        ctor_params: &[ast::Param],
+    ) -> Result<(), ResolveError> {
+        self.with_this_context(this_ctx.clone(), |this| {
+            // 属性初始化表达式：允许引用主构造参数（T0313）。
+            if let Some(init) = &mut p.init {
+                this.with_ctor_params_scope(ctor_params, |this| this.check_expr(init))?;
+            }
+
+            if let Some(getter) = &mut p.getter {
+                this.check_accessor_in_type(getter, ctor_params)?;
+            }
+            if let Some(setter) = &mut p.setter {
+                this.check_accessor_in_type(setter, ctor_params)?;
+            }
+
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    fn check_accessor_in_type(
+        &mut self,
+        acc: &mut ast::AccessorDecl,
+        ctor_params: &[ast::Param],
+    ) -> Result<(), ResolveError> {
+        // accessor 是“函数体”语境：可见 `this`（由调用者提供 this context），并引入：
+        // - 主构造参数（外层 frame）
+        // - setter 形参（内层 frame）
+        self.with_ctor_params_scope(ctor_params, |this| {
+            this.push_scope();
+
+            if let Some(param) = acc.param {
+                this.declare_ident(&param)?;
+            }
+
+            match &mut acc.body {
+                ast::AccessorBody::Block(b) => this.check_block(b)?,
+                ast::AccessorBody::Expr(e) => this.check_expr(e)?,
+                ast::AccessorBody::Missing => {}
+            }
+
+            this.pop_scope();
+            Ok(())
+        })?;
         Ok(())
     }
 
@@ -329,9 +463,19 @@ impl<'a> BlockScopeChecker<'a> {
     fn resolve_value_ident(&mut self, id: &mut ast::ValueIdent) -> Result<(), ResolveError> {
         let name = self.source.slice(id.span);
 
-        // `this` 的精确作用域规则在 T0313；此处先作为保守放行，避免误报。
         if name == "this" {
-            return Ok(());
+            if let Some(ctx) = self.this_context.last() {
+                id.resolved = Some(ast::ResolvedValueRef::Local {
+                    name: name.to_string(),
+                    decl_span: ctx.decl_span,
+                });
+                return Ok(());
+            }
+
+            return Err(ResolveError::UnresolvedValue {
+                name: name.to_string(),
+                span: id.span.into(),
+            });
         }
 
         if let Some(binding) = self.local_binding(name) {
@@ -615,7 +759,7 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::Ident(id) => {
                 let name = self.source.slice(id.span);
                 if name == "this" {
-                    return None;
+                    return self.this_context.last().and_then(|ctx| ctx.ty_fqn.clone());
                 }
 
                 let binding = self.local_binding(name)?;
@@ -680,6 +824,37 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         None
+    }
+
+    fn with_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T, ResolveError>) -> Result<T, ResolveError> {
+        self.push_scope();
+        let result = f(self);
+        self.pop_scope();
+        result
+    }
+
+    fn with_this_context<T>(
+        &mut self,
+        ctx: ThisContext,
+        f: impl FnOnce(&mut Self) -> Result<T, ResolveError>,
+    ) -> Result<T, ResolveError> {
+        self.this_context.push(ctx);
+        let result = f(self);
+        let _ = self.this_context.pop();
+        result
+    }
+
+    fn with_ctor_params_scope<T>(
+        &mut self,
+        ctor_params: &[ast::Param],
+        f: impl FnOnce(&mut Self) -> Result<T, ResolveError>,
+    ) -> Result<T, ResolveError> {
+        self.with_scope(|this| {
+            for p in ctor_params {
+                this.declare_ident_typed(&p.name, p.ty.clone())?;
+            }
+            f(this)
+        })
     }
 }
 

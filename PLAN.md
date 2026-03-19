@@ -152,6 +152,7 @@
 - [x] 调用解析：把 `Call(Ident)` 的 callee 绑定到顶层 fun；多个候选时报 `ambiguous_call`（T0311）
 - [ ] 作用域：类型体/泛型参数/扩展 receiver（逐步补齐）
   - [x] 泛型参数：签名中的 `TypeRef` 支持解析声明处 type params（T0309）
+  - [x] `this`/主构造参数：type body member fun、属性 init/accessor 的值名字解析（T0313）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
   - [x] 扩展函数/扩展属性：member 优先；无同名 member 时按 receiver 类型匹配 extension（T0312）
 
