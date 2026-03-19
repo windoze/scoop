@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_type_mismatch
+// EXPECT-ERROR-AT: 14:17
+// EXPECT-ERROR: 参数类型不匹配
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun id(x: Int): Int {
+    return x
+}
+
+val a: Int = id("x")
+

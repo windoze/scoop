@@ -10,6 +10,10 @@
 //!   - 局部 `val/var`（通过 resolver 写回的 `ResolvedValueRef::Local`）
 //!   - 函数参数（同样视作 `Local` 绑定）
 //!   - 顶层 `val/var`（`ResolvedValueRef::TopLevel`，当前仅支持当前文件内可查询的顶层变量）
+//! - （T0407）函数调用（`callee(args...)`）：
+//!   - 参数数量检查
+//!   - 参数类型匹配
+//!   - 当前仅支持“当前文件内”的顶层函数（无重载/无默认参数/无命名参数）
 //!
 //! 说明：该模块以“可回归、可扩展”为目标，逐步把更多 `ExprKind`/`StmtKind` 纳入 typecheck。
 
@@ -72,6 +76,41 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("不可调用：{callee}")]
+    #[diagnostic(code(scoop::typecheck::callee_not_callable))]
+    CalleeNotCallable {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
+    CallArityMismatch {
+        callee: String,
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用参数类型不匹配：{callee} 第 {index} 个参数期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::call_arg_type_mismatch))]
+    CallArgTypeMismatch {
+        callee: String,
+        index: usize,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+}
+
+#[derive(Debug, Clone)]
+struct FunSigOwned {
+    params: Vec<TypeId>,
+    return_ty: TypeId,
 }
 
 /// 对一个文件的表达式（当前阶段：顶层 `val/var` initializer）做最小类型检查。
@@ -96,6 +135,7 @@ pub fn check_file_exprs(
     // - 只支持“当前文件内”的顶层变量（因为 typecheck phase 目前只解析单文件 AST）；
     // - 顶层变量必须有显式类型注解（由 `typecheck::check_file_headers` 保证）。
     let top_level_types = collect_top_level_value_types(source, file, &mut lower)?;
+    let top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
 
     for item in &file.items {
         match item {
@@ -105,6 +145,7 @@ pub fn check_file_exprs(
                 &mut lower,
                 builtins,
                 &top_level_types,
+                &top_level_funs,
             )?,
             ast::Item::Fun(fun) => check_fun_body_exprs(
                 source,
@@ -112,6 +153,7 @@ pub fn check_file_exprs(
                 &mut lower,
                 builtins,
                 &top_level_types,
+                &top_level_funs,
             )?,
             ast::Item::Type(_) | ast::Item::TypeAlias(_) => {}
         }
@@ -126,6 +168,7 @@ fn check_top_level_val_initializer(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<(), ExprTypeError> {
     let Some(init) = &v.init else {
         return Ok(());
@@ -137,7 +180,15 @@ fn check_top_level_val_initializer(
     };
 
     let expected = lower.lower_type_ref(ty_ref)?;
-    let found = infer_expr_type(source, init, lower, builtins, &HashMap::new(), top_level_types)?;
+    let found = infer_expr_type(
+        source,
+        init,
+        lower,
+        builtins,
+        &HashMap::new(),
+        top_level_types,
+        top_level_funs,
+    )?;
 
     if expected == found {
         return Ok(());
@@ -157,12 +208,26 @@ fn infer_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<TypeId, ExprTypeError> {
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
-        ast::ExprKind::Ident(id) => infer_value_ident_type(source, id, lower, builtins, locals, top_level_types),
+        ast::ExprKind::Ident(id) => {
+            infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
+        }
+        ast::ExprKind::Call { callee, args } => infer_call_expr_type(
+            source,
+            expr,
+            callee,
+            args,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+        ),
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -213,6 +278,90 @@ fn infer_value_ident_type(
     }
 }
 
+fn infer_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+) -> Result<TypeId, ExprTypeError> {
+    let (callee_fqn, callee_span) = match &callee.kind {
+        ast::ExprKind::Ident(id) => {
+            let callee_name = source.slice(id.span);
+            let Some(resolved) = &id.resolved else {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: callee_name.to_string(),
+                    span: id.span.into(),
+                });
+            };
+
+            match resolved {
+                ast::ResolvedValueRef::TopLevel { fqn } => (fqn.clone(), id.span),
+                ast::ResolvedValueRef::Local { .. } => {
+                    // 当前阶段（T0407）只支持直接调用“顶层 fun symbol”，
+                    // 不支持通过值调用（函数值/闭包等）。
+                    return Err(ExprTypeError::CalleeNotCallable {
+                        callee: callee_name.to_string(),
+                        span: id.span.into(),
+                    });
+                }
+            }
+        }
+        other => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: expr_kind_name(other),
+                span: callee.span.into(),
+            });
+        }
+    };
+
+    // 当前阶段（T0407）仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
+    let Some(sig) = top_level_funs.get(&callee_fqn) else {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_fqn,
+            span: callee_span.into(),
+        });
+    };
+
+    if args.len() != sig.params.len() {
+        return Err(ExprTypeError::CallArityMismatch {
+            callee: callee_fqn,
+            expected: sig.params.len(),
+            found: args.len(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    for (idx, (arg, expected_ty)) in args.iter().zip(sig.params.iter().copied()).enumerate() {
+        // 先做表达式类型推导，再对比参数类型。
+        let found_ty = infer_expr_type(
+            source,
+            arg,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+        )?;
+
+        if found_ty != expected_ty {
+            return Err(ExprTypeError::CallArgTypeMismatch {
+                callee: callee_fqn,
+                index: idx + 1,
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg.span.into(),
+            });
+        }
+    }
+
+    Ok(sig.return_ty)
+}
+
 /// 收集“当前文件内”的顶层 `val/var` 声明类型（FQN → TypeId）。
 ///
 /// 说明：
@@ -254,12 +403,70 @@ fn collect_top_level_value_types(
     Ok(map)
 }
 
+/// 收集“当前文件内”的顶层 `fun` 声明签名（FQN → FunSig）。
+///
+/// 当前阶段（T0407）限制：
+/// - 仅收集“非 receiver”的普通顶层函数（排除扩展函数）；
+/// - 不处理 type param / overload / default param；
+/// - 未显式标注 return type 的函数，暂视为 `Unit`。
+fn collect_top_level_fun_signatures(
+    source: &SourceFile,
+    file: &ast::File,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<HashMap<String, FunSigOwned>, ExprTypeError> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut map: HashMap<String, FunSigOwned> = HashMap::new();
+
+    for item in &file.items {
+        let ast::Item::Fun(fun) = item else {
+            continue;
+        };
+
+        if fun.receiver.is_some() {
+            continue;
+        }
+
+        let local_name = source.slice(fun.name.span);
+        let fqn = if pkg_prefix.is_empty() {
+            local_name.to_string()
+        } else {
+            format!("{pkg_prefix}.{local_name}")
+        };
+
+        let mut params = Vec::with_capacity(fun.params.len());
+        for p in &fun.params {
+            let Some(ty_ref) = &p.ty else {
+                // headers check 已保证参数类型注解存在；这里保持健壮性。
+                continue;
+            };
+            params.push(lower.lower_type_ref(ty_ref)?);
+        }
+
+        let return_ty = match &fun.return_ty {
+            Some(ret) => lower.lower_type_ref(ret)?,
+            None => builtins.unit,
+        };
+
+        map.insert(
+            fqn,
+            FunSigOwned {
+                params,
+                return_ty,
+            },
+        );
+    }
+
+    Ok(map)
+}
+
 fn check_fun_body_exprs(
     source: &SourceFile,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<(), ExprTypeError> {
     // 函数级的“局部值类型表”（binder decl span → TypeId）。
     //
@@ -280,7 +487,15 @@ fn check_fun_body_exprs(
     }
 
     match &fun.body {
-        ast::FunBody::Block(b) => check_block_exprs(source, b, lower, builtins, &mut locals, top_level_types)?,
+        ast::FunBody::Block(b) => check_block_exprs(
+            source,
+            b,
+            lower,
+            builtins,
+            &mut locals,
+            top_level_types,
+            top_level_funs,
+        )?,
         ast::FunBody::Missing => {}
     }
 
@@ -294,9 +509,10 @@ fn check_block_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<(), ExprTypeError> {
     for stmt in &block.stmts {
-        check_stmt_exprs(source, stmt, lower, builtins, locals, top_level_types)?;
+        check_stmt_exprs(source, stmt, lower, builtins, locals, top_level_types, top_level_funs)?;
     }
     Ok(())
 }
@@ -308,6 +524,7 @@ fn check_stmt_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
         ast::StmtKind::Val(v) => check_local_val_decl_exprs(
@@ -317,20 +534,53 @@ fn check_stmt_exprs(
             builtins,
             locals,
             top_level_types,
+            top_level_funs,
         )?,
         ast::StmtKind::While { body, .. } => {
             // 当前阶段仅递归进入 body，以支持其中局部绑定的类型推导。
-            check_block_exprs(source, body, lower, builtins, locals, top_level_types)?;
+            check_block_exprs(
+                source,
+                body,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+            )?;
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
-            check_block_exprs(source, body, lower, builtins, locals, top_level_types)?;
+            check_block_exprs(
+                source,
+                body,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+            )?;
         }
         ast::StmtKind::ComptimeIf(ci) => {
-            check_block_exprs(source, &ci.then_branch, lower, builtins, locals, top_level_types)?;
+            check_block_exprs(
+                source,
+                &ci.then_branch,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+            )?;
             if let Some(else_branch) = &ci.else_branch {
                 match &**else_branch {
                     ast::ComptimeIfElse::Block(b) => {
-                        check_block_exprs(source, b, lower, builtins, locals, top_level_types)?
+                        check_block_exprs(
+                            source,
+                            b,
+                            lower,
+                            builtins,
+                            locals,
+                            top_level_types,
+                            top_level_funs,
+                        )?
                     }
                     ast::ComptimeIfElse::If(next) => {
                         // 递归跟进 else-if 链。
@@ -343,6 +593,7 @@ fn check_stmt_exprs(
                                 builtins,
                                 locals,
                                 top_level_types,
+                                top_level_funs,
                             )?;
                             match &cur.else_branch {
                                 Some(e) => match &**e {
@@ -354,6 +605,7 @@ fn check_stmt_exprs(
                                             builtins,
                                             locals,
                                             top_level_types,
+                                            top_level_funs,
                                         )?;
                                         break;
                                     }
@@ -367,7 +619,15 @@ fn check_stmt_exprs(
             }
         }
         ast::StmtKind::ComptimeFor(cf) => {
-            check_block_exprs(source, &cf.body, lower, builtins, locals, top_level_types)?;
+            check_block_exprs(
+                source,
+                &cf.body,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+            )?;
         }
         ast::StmtKind::Empty
         | ast::StmtKind::Expr(_)
@@ -387,10 +647,19 @@ fn check_local_val_decl_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
 ) -> Result<(), ExprTypeError> {
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
-        Some(init) => Some(infer_expr_type(source, init, lower, builtins, locals, top_level_types)?),
+        Some(init) => Some(infer_expr_type(
+            source,
+            init,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+        )?),
         None => None,
     };
 

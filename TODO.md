@@ -675,11 +675,12 @@
 - 依赖：T0305、T0405
 - 完成：typecheck phase 先运行 `resolve::check_file_bodies` 写回 `ValueIdent.resolved`，并在 resolver 中对 `true/false` 做字面量 special-case；`scoopc::typecheck::expr` 增加对 `ExprKind::Ident` 的类型推导（Local/TopLevel），并在函数体内对局部 `val/var` initializer 做最小推导与注册；新增 fixture `tests/fixtures/typecheck/value_ident_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0407 [TODO] 表达式类型检查：函数调用（无重载、按名称唯一解析）
+### T0407 [DONE] 表达式类型检查：函数调用（无重载、按名称唯一解析）
 - 描述：对 `Call(callee, args)` 做参数数量检查与类型匹配。
 - 目标：先只支持调用“已解析到的 fun symbol”；不支持默认参数/命名参数。
 - 验收：typecheck fixture：调用参数个数不匹配时报错（含错误码）；参数类型不匹配时报错并指出 arg span。
 - 依赖：T0209、T0305、T0406
+- 完成：`scoopc::typecheck::expr` 支持 `ExprKind::Call` 的类型推导：按 resolver 写回的 `ValueIdent.resolved` 查找当前文件内的顶层函数签名并校验参数个数与类型；新增错误码 `scoop::typecheck::call_arity_mismatch` / `scoop::typecheck::call_arg_type_mismatch`（并提供 `callee_not_callable` 兜底）；新增 typecheck fixtures：`call_ok`（pass）、`call_arity_mismatch_is_error`（fail，断言错误码与位置）、`call_arg_type_mismatch_is_error`（fail，断言错误码与 arg 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0408 [TODO] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
 - 描述：先实现 value type `struct` 的字段访问类型检查（spec §2.3.1）。

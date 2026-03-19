@@ -181,6 +181,7 @@
 - [x] 顶层声明头签名检查（不进入函数体/initializer）：`scoopc::typecheck::check_file_headers`（T0404）
 - [x] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）：顶层 initializer 的最小校验（T0405）
 - [x] 表达式类型检查 v0：变量引用（局部/参数/顶层）：支持 ident 类型推导并进入函数体推导局部绑定（T0406）
+- [x] 表达式类型检查：函数调用（参数数量/类型匹配；仅顶层函数、无重载/默认参数/命名参数）（T0407）
 - [ ] 区分引用类型 vs 值类型（spec §2）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - `Int/UInt` 的 bit width = target pointer size

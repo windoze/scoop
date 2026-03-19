@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T0407 表达式类型检查：函数调用（参数数量/类型匹配）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun id(x: Int): Int {
+    return x
+}
+
+val a: Int = id(1)
+
+fun g(y: Int) {
+    val z: Int = id(y)
+}
+
