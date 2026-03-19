@@ -12,7 +12,7 @@ For the first incomplete task (or subtask) in `TODO.md`:
 3. **Document** the progress:
    - Mark the task as completed in `TODO.md` (e.g., by checking it off or moving it to a "Done" section).
    - Update `PLAN.md` to reflect the current state and any adjustments to the plan.
-4. **Commit** the changes to Git with a clear, descriptive commit message (e.g., "Implement user authentication" or "Fix test for login edge case").
+4. **Commit** the changes to Git with a clear, descriptive commit message (e.g., "[T1234]: Implement user authentication" or "[T1234] Fix test for login edge case").
 5. **Stop.** Do not proceed to the next task. The caller will invoke you again for the next iteration.
 
 **Handling Roadblocks:**
@@ -24,7 +24,6 @@ For the first incomplete task (or subtask) in `TODO.md`:
   5. Commit these changes and stop — the next invocation will pick up from there.
 
 **Code Organization & Quality:**
-- **Workspace:** Transform the project into a workspace (e.g., using Cargo workspaces, npm workspaces, or similar) early to facilitate modular development.
 - **Modularity:** Break long source files into smaller, focused modules to improve readability and maintainability.
 - **Tests:** If test files grow too large, split them into separate test modules or files.
 - **Documentation:**
@@ -43,3 +42,4 @@ For the first incomplete task (or subtask) in `TODO.md`:
 - Always read `TODO.md` first to identify the first incomplete task.
 - Complete exactly one task per invocation, then stop.
 - Use Git commits after every logical step (including plan updates or task decomposition) to maintain a clear history.
+- If `PROMPT.md` is changed unexpectedly, include it in your commit as well, do not ignore or revert changes to it.
