@@ -7,6 +7,7 @@
 //! 当前阶段支持：
 //! - parse fixtures（调用 `scoopc::parser::parse_file`）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
+//! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - run-pass fixtures：当前仅提供 stdout golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
 //!
 //! 目录路由（phase）：
@@ -14,7 +15,7 @@
 //! - `tests/fixtures/resolve/**` → resolve
 //! - `tests/fixtures/resolve_multi/<case>/**` → resolve（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
-//! - 其它一级目录（如 `typecheck/`、`infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
+//! - 其它一级目录（如 `infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
 mod run_pass;
@@ -82,6 +83,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         None => FixturePhase::Parse,
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
         Some(name) if name == "resolve" => FixturePhase::Resolve,
+        Some(name) if name == "typecheck" => FixturePhase::Typecheck,
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
@@ -89,6 +91,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
+        FixturePhase::Typecheck => typecheck_fixture(session, &source),
         FixturePhase::RunPass => run_pass::run_fixture_unimplemented(rel, path, &exp),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -111,6 +114,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
 enum FixturePhase {
     Parse,
     Resolve,
+    Typecheck,
     RunPass,
     Unimplemented(String),
 }
@@ -200,6 +204,45 @@ fn resolve_fixture(
 
     let index = scoopc::resolve::Index::build(&pairs).map_err(box_diagnostic)?;
     scoopc::resolve::check_file_bindings(source, &mut ast, &index).map_err(box_diagnostic)?;
+    Ok(())
+}
+
+fn typecheck_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+
+    let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    pairs.push((source, &ast));
+
+    let index = scoopc::resolve::Index::build(&pairs).map_err(box_diagnostic)?;
+
+    // typecheck phase 的前置条件：签名中的类型引用应当已 resolve（至少保证存在性/可见性）。
+    let headers =
+        scoopc::resolve::check_file_headers(source, &ast, &index).map_err(box_diagnostic)?;
+
+    // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(box_diagnostic)?;
+    env.extend_from_file(source, &ast).map_err(box_diagnostic)?;
+
+    let mut types = scoopc::ty::TypeStore::new();
+    let builtins = types.intern_builtins();
+
+    scoopc::typecheck::check_file_type_refs(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .map_err(box_diagnostic)?;
+
     Ok(())
 }
 

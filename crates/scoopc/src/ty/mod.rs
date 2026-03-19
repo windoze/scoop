@@ -51,6 +51,20 @@ pub enum RefTypeKind {
     ///
     /// 说明：值类型装箱到 `Any` 属于后续任务（PLAN §4.3）。
     Any,
+
+    /// 名义引用类型（class/interface/effect 等）。
+    Nominal(NominalType),
+}
+
+/// 名义类型（nominal type）的最小表示。
+///
+/// 说明：
+/// - 早期阶段（T0403）仅需要 “FQN + type args” 来完成 TypeRef lowering 与 arity 检查；
+/// - 更丰富的信息（字段/方法、布局、vtable 等）会在后续阶段逐步接入。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NominalType {
+    pub fqn: String,
+    pub args: Vec<TypeId>,
 }
 
 /// 值类型（copy 语义）。
@@ -75,6 +89,9 @@ pub enum ValueTypeKind {
 
     /// Tuple 类型（为后续 tuple/Unit 表达式类型检查做准备）。
     Tuple(Vec<TypeId>),
+
+    /// 名义值类型（struct/enum 等）。
+    Nominal(NominalType),
 }
 
 /// 类型表：负责分配 `TypeId` 并存储 `TypeKind`。
@@ -170,6 +187,7 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
 
     match store.kind(id) {
         TypeKind::Ref(RefTypeKind::Any) => write!(f, "Any"),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Int) => write!(f, "Int"),
@@ -195,7 +213,28 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
             }
             write!(f, ")")
         }
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
     }
+}
+
+fn format_nominal(
+    store: &TypeStore,
+    nominal: &NominalType,
+    f: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    write!(f, "{}", nominal.fqn)?;
+    if !nominal.args.is_empty() {
+        write!(f, "<")?;
+        for (idx, arg) in nominal.args.iter().copied().enumerate() {
+            if idx != 0 {
+                write!(f, ", ")?;
+            }
+            format_type(store, arg, f, depth + 1)?;
+        }
+        write!(f, ">")?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -240,4 +279,3 @@ mod tests {
         assert!(tys.is_value(opt_int));
     }
 }
-

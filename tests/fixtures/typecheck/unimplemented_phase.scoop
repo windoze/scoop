@@ -1,4 +1,4 @@
-// EXPECT: fail
-// EXPECT-ERROR: 未实现（fixture: typecheck/unimplemented_phase.scoop）
+// EXPECT: pass
+// 目标：typecheck phase 的最小 smoke（T0403：TypeRef lowering）。
 
 fun main() {}

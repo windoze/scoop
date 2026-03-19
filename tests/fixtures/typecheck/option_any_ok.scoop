@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：TypeRef → Type lowering：`Option<Any>` 通过（T0403）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Option<Any>): Any {}
+

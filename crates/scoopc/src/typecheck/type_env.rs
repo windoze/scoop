@@ -70,6 +70,21 @@ impl TypeEnv {
         Ok(env)
     }
 
+    /// 将一个普通源文件的类型声明头信息合并进当前环境。
+    ///
+    /// 说明：
+    /// - 该方法用于把“当前编译单元的用户代码”纳入 type env，从而支持后续阶段：
+    ///   - TypeRef lowering 的泛型 arity 检查（T0403）
+    ///   - 顶层签名检查（T0404）
+    /// - 目前依旧只收集声明头（kind + arity），不进入函数体/方法体。
+    pub fn extend_from_file(
+        &mut self,
+        source: &SourceFile,
+        file: &ast::File,
+    ) -> Result<(), TypeEnvError> {
+        self.collect_from_file(source, file)
+    }
+
     /// 按 FQN 查询类型符号。
     pub fn type_symbol(&self, fqn: &str) -> Option<&TypeSymbol> {
         self.by_fqn.get(fqn)

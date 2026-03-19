@@ -8,5 +8,7 @@
 //! 提供起点。
 
 mod type_env;
+mod lower;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
+pub use lower::{check_file_type_refs, TypeLowerError};
