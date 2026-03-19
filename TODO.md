@@ -538,11 +538,12 @@
 - 依赖：T0011
 - 完成：`scoopc::resolve::Index` 的 `by_fqn` 升级为 `FQN → NamespacedSymbols(type/fun/value)`，允许同一 FQN 下 type 与 fun/value 并存；同命名空间内重复定义仍报 `scoop::resolve::duplicate_definition`；新增 resolve fixture `tests/fixtures/resolve/type_and_fun_same_name_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0302 [TODO] Resolver：把 type body 的成员也纳入索引（成员级符号）
+### T0302 [DONE] Resolver：把 type body 的成员也纳入索引（成员级符号）
 - 描述：基于 T0201 的 AST，把成员（fields/methods/nested types）加入索引并检测重复。
 - 目标：先只检测同一类型体内重复；不做继承/override。
 - 验收：新增 resolve fixture：类内重复字段/方法名能报错并给出两个 span label。
 - 依赖：T0201、T0301
+- 完成：`scoopc::resolve::Index` 递归把类型体成员（property/fun/nested type）纳入索引并复用 `duplicate_definition` 诊断；新增 resolve fixture `tests/fixtures/resolve/duplicate_member_definition_in_type_body.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0303 [TODO] Resolver：import 解析扩展为“类型与值”两套规则
 - 描述：当前 import 只用于 type path；扩展为后续表达式里的值解析准备。

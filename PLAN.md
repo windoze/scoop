@@ -139,6 +139,7 @@
 ### 3.2 符号表与解析
 
 - [x] 顶层符号索引（最小子集）：基于 `package + 顶层声明名` 构建 FQN 索引并检测重复定义；索引区分 type/fun/value 命名空间（见 `scoopc::resolve`）
+- [x] 类型体成员索引：把 type body 的 fields/methods/nested types 纳入索引并检测同一类型体内重复定义（T0302）
 - [ ] 两阶段/多阶段解析：
   - 先收集声明头（type/function/field signatures）
   - 再解析函数体与初始化表达式

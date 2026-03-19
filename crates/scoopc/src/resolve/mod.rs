@@ -119,13 +119,56 @@ impl Index {
                     self.insert_symbol(source, &pkg, SymbolKind::Fun, fun.name.span)?;
                 }
                 ast::Item::Type(ty) => {
-                    self.insert_symbol(source, &pkg, SymbolKind::Type, ty.name.span)?;
+                    self.add_type_decl(source, &pkg, ty)?;
                 }
                 ast::Item::Val(v) => {
                     // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
                     if let Some(name) = v.name() {
                         self.insert_symbol(source, &pkg, SymbolKind::Value, name.span)?;
                     }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// 把一个类型声明（顶层或嵌套）加入索引，并递归纳入其类型体成员（T0302）。
+    ///
+    /// `prefix` 表示该类型所在的容器前缀：
+    /// - 顶层类型：prefix = package 前缀（可能为空）
+    /// - 嵌套类型：prefix = 外层类型的 FQN（例如 `a.Outer`）
+    fn add_type_decl(
+        &mut self,
+        source: &SourceFile,
+        prefix: &str,
+        ty: &ast::TypeDecl,
+    ) -> Result<(), ResolveError> {
+        // 1) 先插入类型自身（type namespace）。
+        self.insert_symbol(source, prefix, SymbolKind::Type, ty.name.span)?;
+
+        // 2) 递归处理类型体成员：fields/methods/nested types。
+        let type_name = source.slice(ty.name.span);
+        let type_prefix = if prefix.is_empty() {
+            type_name.to_string()
+        } else {
+            format!("{prefix}.{type_name}")
+        };
+
+        let Some(body) = &ty.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) => {
+                    self.insert_symbol(source, &type_prefix, SymbolKind::Value, p.name.span)?;
+                }
+                ast::TypeMember::Fun(f) => {
+                    self.insert_symbol(source, &type_prefix, SymbolKind::Fun, f.name.span)?;
+                }
+                ast::TypeMember::Type(nested) => {
+                    self.add_type_decl(source, &type_prefix, nested)?;
                 }
             }
         }
