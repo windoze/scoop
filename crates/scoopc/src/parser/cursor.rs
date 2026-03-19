@@ -118,6 +118,15 @@ impl<'a> Parser<'a> {
         self.peek().kind == kind
     }
 
+    /// 判断当前 token 是否为指定文本的标识符（用于上下文关键字等场景）。
+    pub(super) fn peek_ident_text(&self, text: &str) -> bool {
+        if !self.peek_kind(TokenKind::Ident) {
+            return false;
+        }
+        let tok = self.peek();
+        self.source_text.get(tok.span.start..tok.span.end) == Some(text)
+    }
+
     pub(super) fn peek_keyword(&self, kw: Keyword) -> bool {
         self.peek().kind == TokenKind::Keyword(kw)
     }

@@ -506,11 +506,12 @@
 - 依赖：T0218
 - 完成：lexer 新增关键字 `out`；AST 新增 `TypeParamVariance` 与 `TypeParam.variance`、`TypeRef::Star`；parser 支持 type param 列表内的 `in/out` 与 type args 内的 `*`；新增 parse fixture `tests/fixtures/parse/type_args_star_and_variance.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0250 [TODO] Parser：effect row 参数 `eff`（spec §3.4 / §5.8）
+### T0250 [DONE] Parser：effect row 参数 `eff`（spec §3.4 / §5.8）
 - 描述：在泛型参数列表中支持 `eff E = Pure`，并在函数/函数类型上使用 `/ E`。
 - 目标：先只解析 `eff` 参数；复杂 row 约束后续。
 - 验收：新增 parse fixture：`fun <eff E = Pure> f(): Int / E { ... }`（body 可省略）；AST 中能看到 eff 参数。
 - 依赖：T0249、T0219
+- 完成：AST 新增 `EffectRowParam`，并在 `FunDecl`/`TypeDecl` 上挂载 `eff_param`；`FunDecl` 新增 `effects: Option<EffectRowExpr>`；parser 支持 `<eff E (= RowExpr)?>` 并解析函数签名的 `/ RowExpr`；函数泛型列表支持 `fun <...> name` 与 `fun name<...>` 两种位置（兼容历史 fixtures）；新增 parse fixture `tests/fixtures/parse/effect_row_param_basic.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0251 [TODO] Parser：`typealias` 声明语法（为 sysroot 标准别名铺路）（Appendix B.10）
 - 描述：支持顶层 `typealias Name = Type` 的解析，并把它纳入 AST（含 span）。

@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
         Ok((args, gt.span.end))
     }
 
-    fn parse_effect_row_expr(&mut self) -> Result<ast::EffectRowExpr, ParseError> {
+    pub(super) fn parse_effect_row_expr(&mut self) -> Result<ast::EffectRowExpr, ParseError> {
         // 支持括号：`/ (Async + Raise<IOError>)`
         if self.peek_symbol(Symbol::LParen) {
             let open = self.bump();

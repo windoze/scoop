@@ -1,0 +1,7 @@
+// EXPECT: pass
+// EXPECT-AST: effect_row_param_basic.ast
+
+package fixtures.parse
+
+fun <eff E = Pure> f(): Int / E {}
+

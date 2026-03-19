@@ -100,6 +100,31 @@ impl std::fmt::Debug for TypeParam {
     }
 }
 
+/// effect row 参数（`eff E = Pure`）（spec §3.4 / §5.8）。
+///
+/// 说明：
+/// - `eff` 是上下文关键字：只在 `<...>` 泛型参数/实参列表内部被当作关键字处理；
+/// - 当前阶段（T0250）仅做语法层解析与存储：记录参数名与可选默认值；
+/// - 复杂 row 约束、推断与实例化由后续阶段实现。
+#[derive(Clone)]
+pub struct EffectRowParam {
+    pub span: Span,
+    pub name: Ident,
+    pub default: Option<EffectRowExpr>,
+}
+
+impl std::fmt::Debug for EffectRowParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("EffectRowParam");
+        s.field("span", &self.span);
+        s.field("name", &self.name);
+        if self.default.is_some() {
+            s.field("default", &self.default);
+        }
+        s.finish()
+    }
+}
+
 /// 类型声明的主构造头（primary constructor header）。
 ///
 /// 语法形态（Kotlin 风格，简化版）：
@@ -141,6 +166,7 @@ pub struct TypeDecl {
     pub kind: TypeKind,
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
+    pub eff_param: Option<EffectRowParam>,
     /// 主构造头参数列表：`class Name(...)`。
     pub primary_ctor: Option<PrimaryCtorDecl>,
     /// 继承/实现列表：`class Dog(...) : Animal(...), IFoo`。
@@ -163,6 +189,9 @@ impl std::fmt::Debug for TypeDecl {
         s.field("kind", &self.kind);
         s.field("name", &self.name);
         s.field("type_params", &self.type_params);
+        if self.eff_param.is_some() {
+            s.field("eff_param", &self.eff_param);
+        }
         if self.primary_ctor.is_some() {
             s.field("primary_ctor", &self.primary_ctor);
         }
@@ -276,9 +305,12 @@ pub struct FunDecl {
     pub receiver: Option<TypeRef>,
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
+    pub eff_param: Option<EffectRowParam>,
     pub params_span: Span,
     pub params: Vec<Param>,
     pub return_ty: Option<TypeRef>,
+    /// 函数声明处的 effect row 标注：`/ Pure` / `/ E` / `/ (E1 + E2)`（spec §5.8）。
+    pub effects: Option<EffectRowExpr>,
     pub body: FunBody,
 }
 
@@ -292,9 +324,15 @@ impl std::fmt::Debug for FunDecl {
         s.field("receiver", &self.receiver);
         s.field("name", &self.name);
         s.field("type_params", &self.type_params);
+        if self.eff_param.is_some() {
+            s.field("eff_param", &self.eff_param);
+        }
         s.field("params_span", &self.params_span);
         s.field("params", &self.params);
         s.field("return_ty", &self.return_ty);
+        if self.effects.is_some() {
+            s.field("effects", &self.effects);
+        }
         s.field("body", &self.body);
         s.finish()
     }

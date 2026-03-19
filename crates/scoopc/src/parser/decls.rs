@@ -35,17 +35,70 @@ impl<'a> Parser<'a> {
         modifiers
     }
 
-    fn parse_type_param_list(&mut self) -> Result<(Span, Vec<ast::TypeParam>), ParseError> {
+    fn parse_type_param_list(
+        &mut self,
+    ) -> Result<(Span, Vec<ast::TypeParam>, Option<ast::EffectRowParam>), ParseError> {
         let lt = self.expect_symbol(Symbol::Lt)?;
         let start = lt.span.start;
 
         let mut params = Vec::new();
+        let mut eff_param: Option<ast::EffectRowParam> = None;
         if self.peek_symbol(Symbol::Gt) {
             let gt = self.bump();
-            return Ok((Span::new(start, gt.span.end), params));
+            return Ok((Span::new(start, gt.span.end), params, eff_param));
         }
 
         loop {
+            // T0250：effect row 参数 `eff E = Pure`（spec §3.4）。
+            //
+            // 说明：
+            // - `eff` 是上下文关键字：仅在 `<...>` 内被当作关键字处理；
+            // - 按 spec 约束：`eff` 子句至多一个，且必须位于泛型列表末尾。
+            if self.peek_ident_text("eff") {
+                let eff_kw = self.bump(); // ident("eff")
+                if eff_param.is_some() {
+                    let tok = *self.peek();
+                    return Err(ParseError::Expected {
+                        expected: "泛型参数名（`eff` 只能出现一次）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+                }
+
+                let name_tok = self.expect_kind(TokenKind::Ident, "effect row 参数名（标识符）")?;
+                let name = ast::Ident {
+                    span: name_tok.span,
+                };
+
+                let mut default = None;
+                let mut end = name_tok.span.end;
+                if self.eat_symbol(Symbol::Eq) {
+                    let row = self.parse_effect_row_expr()?;
+                    end = row.span.end;
+                    default = Some(row);
+                }
+
+                eff_param = Some(ast::EffectRowParam {
+                    span: Span::new(eff_kw.span.start, end),
+                    name,
+                    default,
+                });
+
+                // allow trailing comma, but `eff` 必须是最后一个条目。
+                if self.eat_symbol(Symbol::Comma) {
+                    if !self.peek_symbol(Symbol::Gt) {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "`>`（`eff` 参数必须位于泛型列表末尾）",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    }
+                }
+
+                break;
+            }
+
             // T0249：支持声明处变型：`in T` / `out T`。
             let (variance, variance_start) = match self.peek().kind {
                 TokenKind::Keyword(Keyword::In) => {
@@ -80,15 +133,17 @@ impl<'a> Parser<'a> {
         }
 
         let gt = self.expect_symbol(Symbol::Gt)?;
-        Ok((Span::new(start, gt.span.end), params))
+        Ok((Span::new(start, gt.span.end), params, eff_param))
     }
 
-    fn parse_type_params_opt(&mut self) -> Result<(Option<Span>, Vec<ast::TypeParam>), ParseError> {
+    fn parse_type_params_opt(
+        &mut self,
+    ) -> Result<(Option<Span>, Vec<ast::TypeParam>, Option<ast::EffectRowParam>), ParseError> {
         if !self.peek_symbol(Symbol::Lt) {
-            return Ok((None, Vec::new()));
+            return Ok((None, Vec::new(), None));
         }
-        let (span, params) = self.parse_type_param_list()?;
-        Ok((Some(span), params))
+        let (span, params, eff_param) = self.parse_type_param_list()?;
+        Ok((Some(span), params, eff_param))
     }
 
     /// 解析函数声明头中的“可选 receiver + name”：
@@ -289,9 +344,19 @@ impl<'a> Parser<'a> {
         let modifiers = self.parse_modifiers();
 
         let _kw = self.expect_keyword(Keyword::Fun)?;
+        // Scoop 支持两种泛型参数列表位置：
+        // - `fun <T> name(...)`（Kotlin 风格；spec 示例广泛使用）
+        // - `fun name<T>(...)`（历史 fixtures 兼容）
+        //
+        // 规则：若 `fun` 后立即出现 `<...>`，则优先解析为“前置泛型列表”，且函数名后不再解析第二个泛型列表。
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
-
-        let (_type_params_span, type_params) = self.parse_type_params_opt()?;
+        let (type_params, eff_param) = if _pre_type_params_span.is_some() {
+            (pre_type_params, pre_eff_param)
+        } else {
+            let (_post_type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
+            (type_params, eff_param)
+        };
 
         let (params_span, params) = self.parse_param_list()?;
 
@@ -301,10 +366,17 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // TODO: effect rows / where clause（当前先粗暴跳过，避免阻塞后续顶层解析）
-        let mut last_end = return_ty
+        let effects = if self.eat_symbol(Symbol::Slash) {
+            Some(self.parse_effect_row_expr()?)
+        } else {
+            None
+        };
+
+        // TODO: where clause 等其它 header tail（当前先粗暴跳过，避免阻塞后续顶层解析）
+        let mut last_end = effects
             .as_ref()
-            .map(|t| t.span().end)
+            .map(|r| r.span.end)
+            .or_else(|| return_ty.as_ref().map(|t| t.span().end))
             .unwrap_or(params_span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
             if self.is_top_level_item_start() {
@@ -327,9 +399,11 @@ impl<'a> Parser<'a> {
             receiver,
             name,
             type_params,
+            eff_param,
             params_span,
             params,
             return_ty,
+            effects,
             body,
         })
     }
@@ -671,7 +745,7 @@ impl<'a> Parser<'a> {
 
         let mut last_end = name_tok.span.end.max(kind_kw.span.end);
 
-        let (type_params_span, type_params) = self.parse_type_params_opt()?;
+        let (type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
         if let Some(span) = type_params_span {
             last_end = last_end.max(span.end);
         }
@@ -732,6 +806,7 @@ impl<'a> Parser<'a> {
             kind,
             name,
             type_params,
+            eff_param,
             primary_ctor,
             supertypes,
             body,
@@ -1106,9 +1181,14 @@ impl<'a> Parser<'a> {
         let modifiers = self.parse_modifiers();
 
         let _kw = self.expect_keyword(Keyword::Fun)?;
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
-
-        let (_type_params_span, type_params) = self.parse_type_params_opt()?;
+        let (type_params, eff_param) = if _pre_type_params_span.is_some() {
+            (pre_type_params, pre_eff_param)
+        } else {
+            let (_post_type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
+            (type_params, eff_param)
+        };
 
         let (params_span, params) = self.parse_param_list()?;
 
@@ -1118,10 +1198,17 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // TODO: effect rows / where clause（当前先粗暴跳过，避免阻塞后续 type body 解析）
-        let mut last_end = return_ty
+        let effects = if self.eat_symbol(Symbol::Slash) {
+            Some(self.parse_effect_row_expr()?)
+        } else {
+            None
+        };
+
+        // TODO: where clause 等其它 header tail（当前先粗暴跳过，避免阻塞后续 type body 解析）
+        let mut last_end = effects
             .as_ref()
-            .map(|t| t.span().end)
+            .map(|r| r.span.end)
+            .or_else(|| return_ty.as_ref().map(|t| t.span().end))
             .unwrap_or(params_span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
             if self.peek_symbol(Symbol::Semicolon)
@@ -1147,9 +1234,11 @@ impl<'a> Parser<'a> {
             receiver,
             name,
             type_params,
+            eff_param,
             params_span,
             params,
             return_ty,
+            effects,
             body,
         })
     }

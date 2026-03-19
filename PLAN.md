@@ -257,9 +257,9 @@
 ### 6.1 静态层：effect row + 多态 + 推断
 
 - [ ] 语法：
-  - 函数/函数类型的 `/ RowExpr`
-  - `eff` 作为上下文关键字：`<eff E = Pure>`、`eff E1+E2`（按当前 spec）
-  - `+` 并集、`Pure` 空行
+  - [x] 函数/函数类型的 `/ RowExpr`
+  - [ ] `eff` 作为上下文关键字：`<eff E = Pure>`、`eff E1+E2`（parser 已支持声明处 `<eff E = Pure>`；use-site `Type<eff Row>` 待补）
+  - [x] `+` 并集、`Pure` 空行
 - [ ] 规则：
   - required effects（未处理效果检测，spec §14.7.1）
   - public 默认 `/ Pure` 的强制约束
