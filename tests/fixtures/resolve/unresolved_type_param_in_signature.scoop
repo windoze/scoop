@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的类型
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 9:10
+// 目标：未声明的类型参数（如 `T`）在签名中应报错（T0309）。
+
+package fixtures.resolve
+
+fun f(x: T) {}
+

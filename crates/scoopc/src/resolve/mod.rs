@@ -34,6 +34,55 @@ pub struct FileHeaders {
     pub imports: ImportTable,
 }
 
+/// type params 的作用域栈（用于 resolve 阶段解析 `TypeRef`）。
+///
+/// 说明：
+/// - 目前仅用于“类型引用存在性解析”（T0309）：当 `TypeRef` 是单段路径且命中某个 type param 时视为可解析；
+/// - 嵌套声明允许 shadowing（类似 block scope），但同一声明的 type param 列表内不允许重名；
+/// - 解析结果暂不写回 AST（后续 typecheck/HIR lowering 可能会需要更丰富的表示）。
+#[derive(Debug, Default)]
+struct TypeParamScopes {
+    frames: Vec<HashMap<String, Span>>,
+}
+
+impl TypeParamScopes {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn contains(&self, name: &str) -> bool {
+        self.frames.iter().rev().any(|frame| frame.contains_key(name))
+    }
+
+    /// 压入一个“声明级” type param 作用域帧。
+    ///
+    /// 当前约束：同一帧内不允许重复定义（例如 `fun f<T, T>()`）。
+    fn push_decl(
+        &mut self,
+        source: &SourceFile,
+        params: &[ast::TypeParam],
+    ) -> Result<(), ResolveError> {
+        let mut frame: HashMap<String, Span> = HashMap::new();
+        for p in params {
+            let name = source.slice(p.name.span).to_string();
+            if let Some(prev) = frame.get(&name).copied() {
+                return Err(ResolveError::DuplicateDefinition {
+                    name,
+                    first: prev.into(),
+                    second: p.name.span.into(),
+                });
+            }
+            frame.insert(name, p.name.span);
+        }
+        self.frames.push(frame);
+        Ok(())
+    }
+
+    fn pop_decl(&mut self) {
+        let _ = self.frames.pop();
+    }
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum ResolveError {
     #[error("重复定义：{name}")]
@@ -380,18 +429,26 @@ pub fn check_file_headers(
     // T0303：构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
     let imports = ImportTable::build(source, file, index)?;
 
+    // T0309：声明级 type params 作用域（用于签名中的 TypeRef 解析）。
+    let mut type_params = TypeParamScopes::new();
+
     // 解析签名里的类型引用（type/function/field signatures）。
     // 说明：当前阶段仍以“存在性解析”为主；更深层的泛型/alias 语义交给 typecheck。
     for item in &file.items {
         match item {
-            ast::Item::TypeAlias(ta) => resolve_type_ref(source, file, index, &ta.ty)?,
-            ast::Item::Fun(fun) => resolve_fun_header(source, file, index, fun)?,
+            ast::Item::TypeAlias(ta) => resolve_type_ref(source, file, index, &type_params, &ta.ty)?,
+            ast::Item::Fun(fun) => {
+                type_params.push_decl(source, &fun.type_params)?;
+                let result = (|| resolve_fun_header(source, file, index, &type_params, fun))();
+                type_params.pop_decl();
+                result?;
+            }
             ast::Item::Val(v) => {
                 if let Some(ty) = &v.ty {
-                    resolve_type_ref(source, file, index, ty)?;
+                    resolve_type_ref(source, file, index, &type_params, ty)?;
                 }
             }
-            ast::Item::Type(ty) => resolve_type_decl_headers(source, file, index, ty)?,
+            ast::Item::Type(ty) => resolve_type_decl_headers(source, file, index, ty, &mut type_params)?,
         }
     }
 
@@ -415,18 +472,19 @@ fn resolve_fun_header(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    type_params: &TypeParamScopes,
     fun: &ast::FunDecl,
 ) -> Result<(), ResolveError> {
     if let Some(receiver) = &fun.receiver {
-        resolve_type_ref(source, file, index, receiver)?;
+        resolve_type_ref(source, file, index, type_params, receiver)?;
     }
     for p in &fun.params {
         if let Some(ty) = &p.ty {
-            resolve_type_ref(source, file, index, ty)?;
+            resolve_type_ref(source, file, index, type_params, ty)?;
         }
     }
     if let Some(ret) = &fun.return_ty {
-        resolve_type_ref(source, file, index, ret)?;
+        resolve_type_ref(source, file, index, type_params, ret)?;
     }
     Ok(())
 }
@@ -436,52 +494,72 @@ fn resolve_type_decl_headers(
     file: &ast::File,
     index: &Index,
     ty: &ast::TypeDecl,
+    type_params: &mut TypeParamScopes,
 ) -> Result<(), ResolveError> {
-    // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
-    if let Some(primary_ctor) = &ty.primary_ctor {
-        for p in &primary_ctor.params {
-            if let Some(ty) = &p.ty {
-                resolve_type_ref(source, file, index, ty)?;
-            }
-        }
-    }
+    // T0309：在该类型声明的 header/body 范围内，type params 作为 type namespace 的“局部符号”可见。
+    type_params.push_decl(source, &ty.type_params)?;
 
-    // 继承/实现列表：解析 supertype 的类型引用。
-    for st in &ty.supertypes {
-        resolve_type_ref(source, file, index, &st.ty)?;
-    }
-
-    // 类型体成员签名：property/fun/nested type。
-    let Some(body) = &ty.body else {
-        return Ok(());
-    };
-
-    for member in &body.members {
-        match member {
-            ast::TypeMember::Property(p) => {
+    let result = (|| {
+        // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
+        if let Some(primary_ctor) = &ty.primary_ctor {
+            for p in &primary_ctor.params {
                 if let Some(ty) = &p.ty {
-                    resolve_type_ref(source, file, index, ty)?;
+                    resolve_type_ref(source, file, index, type_params, ty)?;
                 }
             }
-            ast::TypeMember::Fun(f) => resolve_fun_header(source, file, index, f)?,
-            ast::TypeMember::Type(nested) => resolve_type_decl_headers(source, file, index, nested)?,
         }
-    }
 
-    Ok(())
+        // 继承/实现列表：解析 supertype 的类型引用。
+        for st in &ty.supertypes {
+            resolve_type_ref(source, file, index, type_params, &st.ty)?;
+        }
+
+        // 类型体成员签名：property/fun/nested type。
+        let Some(body) = &ty.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) => {
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, type_params, ty)?;
+                    }
+                }
+                ast::TypeMember::Fun(f) => {
+                    type_params.push_decl(source, &f.type_params)?;
+                    let result = (|| resolve_fun_header(source, file, index, type_params, f))();
+                    type_params.pop_decl();
+                    result?;
+                }
+                ast::TypeMember::Type(nested) => {
+                    // Kotlin 风格：嵌套类型默认**不捕获**外层类型参数。
+                    // 若未来引入 `inner` 等语义，可在此处再决定是否继承外层作用域。
+                    let mut nested_type_params = TypeParamScopes::new();
+                    resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
+                }
+            }
+        }
+
+        Ok(())
+    })();
+
+    type_params.pop_decl();
+    result
 }
 
 fn resolve_type_ref(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    type_params: &TypeParamScopes,
     ty: &ast::TypeRef,
 ) -> Result<(), ResolveError> {
     match ty {
-        ast::TypeRef::Path(p) => resolve_type_path(source, file, index, p),
+        ast::TypeRef::Path(p) => resolve_type_path(source, file, index, type_params, p),
         ast::TypeRef::Tuple(t) => {
             for e in &t.elements {
-                resolve_type_ref(source, file, index, e)?;
+                resolve_type_ref(source, file, index, type_params, e)?;
             }
             Ok(())
         }
@@ -489,22 +567,22 @@ fn resolve_type_ref(
         ast::TypeRef::Star { .. } => Ok(()),
         ast::TypeRef::Function(f) => {
             if let Some(receiver) = &f.receiver {
-                resolve_type_ref(source, file, index, receiver)?;
+                resolve_type_ref(source, file, index, type_params, receiver)?;
             }
             for p in &f.params {
-                resolve_type_ref(source, file, index, p)?;
+                resolve_type_ref(source, file, index, type_params, p)?;
             }
-            resolve_type_ref(source, file, index, &f.return_ty)?;
+            resolve_type_ref(source, file, index, type_params, &f.return_ty)?;
 
             if let Some(effects) = &f.effects {
                 for term in &effects.terms {
-                    resolve_type_path(source, file, index, term)?;
+                    resolve_type_path(source, file, index, type_params, term)?;
                 }
             }
 
             Ok(())
         }
-        ast::TypeRef::Nullable { inner, .. } => resolve_type_ref(source, file, index, inner),
+        ast::TypeRef::Nullable { inner, .. } => resolve_type_ref(source, file, index, type_params, inner),
     }
 }
 
@@ -512,14 +590,25 @@ fn resolve_type_path(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    type_params: &TypeParamScopes,
     path: &ast::TypePath,
 ) -> Result<(), ResolveError> {
+    // 先解析类型实参（如 `Option<T>`），确保其中的 TypeRef 也会被递归解析。
+    for arg in &path.args {
+        resolve_type_ref(source, file, index, type_params, arg)?;
+    }
+
     let segments = path
         .segments
         .iter()
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>();
     let local = segments.join(".");
+
+    // T0309：单段路径优先解析为当前声明的 type param（type param 会 shadow 顶层同名 type）。
+    if segments.len() == 1 && type_params.contains(segments[0]) {
+        return Ok(());
+    }
 
     let pkg = package_prefix(source, file.package.as_ref());
     let mut candidates = Vec::new();

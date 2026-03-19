@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：验证声明处 type params 在签名内可解析（T0309）。
+
+package fixtures.resolve
+
+fun id<T>(x: T): T {
+    x
+}
+
