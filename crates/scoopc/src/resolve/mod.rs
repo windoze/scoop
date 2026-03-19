@@ -60,11 +60,41 @@ pub struct Symbol {
     pub span: Span,
 }
 
+/// 同一个 FQN 下按命名空间（type/value/fun）分组的符号集合。
+///
+/// 说明：
+/// - 语言层面允许 **同名 type 与 fun/value 并存**（它们属于不同命名空间）。
+/// - 同一命名空间内仍保持“当前阶段不支持重载”的约束：重复定义直接报错。
+#[derive(Debug, Default, Clone)]
+pub struct NamespacedSymbols {
+    pub ty: Option<Symbol>,
+    pub fun: Option<Symbol>,
+    pub value: Option<Symbol>,
+}
+
+impl NamespacedSymbols {
+    fn slot_mut(&mut self, kind: SymbolKind) -> &mut Option<Symbol> {
+        match kind {
+            SymbolKind::Type => &mut self.ty,
+            SymbolKind::Fun => &mut self.fun,
+            SymbolKind::Value => &mut self.value,
+        }
+    }
+
+    fn get(&self, kind: SymbolKind) -> Option<&Symbol> {
+        match kind {
+            SymbolKind::Type => self.ty.as_ref(),
+            SymbolKind::Fun => self.fun.as_ref(),
+            SymbolKind::Value => self.value.as_ref(),
+        }
+    }
+}
+
 /// 一个编译单元（多个文件）的顶层符号索引。
 #[derive(Debug, Default)]
 pub struct Index {
-    /// FQN（例如 `scoop.core.Option`）→ Symbol
-    pub by_fqn: HashMap<String, Symbol>,
+    /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
+    pub by_fqn: HashMap<String, NamespacedSymbols>,
 }
 
 impl Index {
@@ -123,7 +153,8 @@ impl Index {
             span: name_span,
         };
 
-        if let Some(prev) = self.by_fqn.get(&fqn) {
+        let entry = self.by_fqn.entry(fqn.clone()).or_default();
+        if let Some(prev) = entry.get(kind) {
             return Err(ResolveError::DuplicateDefinition {
                 name: fqn,
                 first: prev.span.into(),
@@ -131,7 +162,7 @@ impl Index {
             });
         }
 
-        self.by_fqn.insert(fqn, symbol);
+        *entry.slot_mut(kind) = Some(symbol);
         Ok(())
     }
 }
@@ -318,8 +349,10 @@ fn resolve_type_path(
     candidates.dedup();
 
     for fqn in candidates {
-        if let Some(sym) = index.by_fqn.get(&fqn)
-            && sym.kind == SymbolKind::Type
+        if index
+            .by_fqn
+            .get(&fqn)
+            .is_some_and(|syms| syms.get(SymbolKind::Type).is_some())
         {
             // TODO: 在后续阶段把解析结果写回 AST/HIR
             return Ok(());

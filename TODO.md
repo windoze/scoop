@@ -531,11 +531,12 @@
 
 ## T03：名字解析（阶段 2：从“顶层存在性”走向“作用域/多命名空间”）
 
-### T0301 [TODO] Resolver：区分 type/value 命名空间（但共享同一套 FQN）
+### T0301 [DONE] Resolver：区分 type/value 命名空间（但共享同一套 FQN）
 - 描述：把 `Index` 从 “by_fqn → Symbol” 扩展为按 namespace 分类（type/value/fun）。
 - 目标：仍先只覆盖顶层；不实现重载解析。
 - 验收：新增 resolve fixture：同名 type 与 fun 是否允许（按设计决定）；冲突规则有诊断。
 - 依赖：T0011
+- 完成：`scoopc::resolve::Index` 的 `by_fqn` 升级为 `FQN → NamespacedSymbols(type/fun/value)`，允许同一 FQN 下 type 与 fun/value 并存；同命名空间内重复定义仍报 `scoop::resolve::duplicate_definition`；新增 resolve fixture `tests/fixtures/resolve/type_and_fun_same_name_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0302 [TODO] Resolver：把 type body 的成员也纳入索引（成员级符号）
 - 描述：基于 T0201 的 AST，把成员（fields/methods/nested types）加入索引并检测重复。

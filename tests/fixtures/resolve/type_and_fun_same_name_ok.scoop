@@ -1,0 +1,7 @@
+// EXPECT: pass
+package fixtures.resolve
+
+class Foo {}
+
+fun Foo(x: Foo): Foo {}
+
