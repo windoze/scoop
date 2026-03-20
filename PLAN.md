@@ -202,6 +202,7 @@
 - [x] 表达式类型检查：成员访问（仅 struct 字段，`p.x`）（T0408）
 - [x] struct 声明最小语义检查：字段重复/`var`/默认值约束（T0409）
 - [x] tuple/Unit（0 元 tuple）：tuple 类型与 tuple 字面量 typecheck（T0410）
+- [x] 最小子类型规则：`Nothing <: T`（用于 `return`/不可达分支/后续 `Raise.raise`）（T0420）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size

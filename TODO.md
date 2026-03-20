@@ -847,11 +847,12 @@
 - 依赖：T0418、T0402
 - 完成：`sysroot/core.scoop` 已定义 `enum RuntimeError { NullAssertionFailed, ClassCastFailed }`；fixtures 覆盖 `RuntimeError.NullAssertionFailed`（`tests/fixtures/resolve/sysroot_runtime_error_value_ref_ok.scoop`）与 `Raise<RuntimeError>`（`tests/fixtures/typecheck/raise_runtime_error_type_ok.scoop`）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0420 [TODO] 类型关系：`Nothing` 作为 bottom type（spec §2.1/§5.7）
+### T0420 [DONE] 类型关系：`Nothing` 作为 bottom type（spec §2.1/§5.7）
 - 描述：在类型系统中实现 `Nothing <: T`（对任意 T），用于 `Raise.raise`、`return`、不可达分支等。
 - 目标：先只实现 `Nothing` 子类型规则；不实现完整子类型系统。
-- 验收：typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 Nothing 兼容 Any 返回。
-- 依赖：T0419、T0602
+- 验收：typecheck fixture：`fun f(): Any { return fail() }`（其中 `fail(): Nothing`）允许 `Nothing` 兼容 `Any` 返回；并覆盖 `Nothing` 作为调用实参可赋值给任意参数类型。
+- 依赖：T0419
+- 完成：`crates/scoopc/src/typecheck/expr.rs` 的 `is_type_assignable` 已支持 `Nothing <: T`；新增 typecheck fixture `tests/fixtures/typecheck/nothing_is_bottom_type_ok.scoop` 覆盖 `return` 与 call arg；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
 - 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。

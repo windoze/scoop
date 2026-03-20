@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T0420 `Nothing` 作为 bottom type：`Nothing <: T`（用于 return / call arg 等）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun fail(): Nothing {
+    return fail()
+}
+
+fun takesInt(x: Int) {
+}
+
+fun f(): Any {
+    return fail()
+}
+
+fun g() {
+    return takesInt(fail())
+}
+
