@@ -671,6 +671,12 @@ pub struct LambdaExpr {
 pub struct ValueIdent {
     pub span: Span,
     pub resolved: Option<ResolvedValueRef>,
+    /// 调用点解析信息（T0319）。
+    ///
+    /// 说明：
+    /// - 仅当该 ident 出现在 `ExprKind::Call { callee: Ident(..) }` 的 callee 位置时才会被 resolver 写回；
+    /// - 普通值引用解析仍使用 `resolved` 字段。
+    pub call: Option<ResolvedCall>,
 }
 
 impl ValueIdent {
@@ -678,6 +684,7 @@ impl ValueIdent {
         Self {
             span,
             resolved: None,
+            call: None,
         }
     }
 }
@@ -691,6 +698,9 @@ impl std::fmt::Debug for ValueIdent {
         s.field("span", &self.span);
         if self.resolved.is_some() {
             s.field("resolved", &self.resolved);
+        }
+        if self.call.is_some() {
+            s.field("call", &self.call);
         }
         s.finish()
     }
@@ -709,6 +719,43 @@ pub enum ResolvedValueRef {
     TopLevel { fqn: String },
 }
 
+/// Resolver 写回到 AST 的“调用点”解析结果（T0319）。
+///
+/// 说明：resolve 阶段不做最终 overload 决议，只负责收集候选集合与记录调用形状；
+/// 真正的 most-specific/歧义诊断由后续 typecheck/inference 完成。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedCall {
+    /// 候选集合（可能为空；为空表示 resolver 无法在 name resolution 层面给出任何候选）。
+    pub candidates: Vec<CallCandidate>,
+    /// 调用形状：参数的“位置/命名”结构（不关心表达式内容）。
+    pub shape: CallShape,
+}
+
+/// 调用候选（T0319）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallCandidate {
+    /// 一个函数候选集合（FQN 指向 overload set）。
+    Fun { fqn: String },
+    /// 一个构造函数候选集合（type FQN 指向 constructors overload set）。
+    Constructor { ty_fqn: String },
+}
+
+/// 调用形状（T0319）：记录实参的“位置参数/命名参数”结构。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallShape {
+    pub args: Vec<CallArgShape>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallArgShape {
+    Positional { span: Span },
+    Named {
+        name: String,
+        name_span: Span,
+        value_span: Span,
+    },
+}
+
 /// 成员访问中的标识符（`receiver.member` / `receiver?.member`）。
 ///
 /// 说明：
@@ -718,6 +765,10 @@ pub enum ResolvedValueRef {
 pub struct MemberIdent {
     pub span: Span,
     pub resolved: Option<ResolvedMemberRef>,
+    /// 调用点解析信息（T0319）。
+    ///
+    /// 说明：仅当 `receiver.member` 出现在 `Call` 的 callee 位置时写回。
+    pub call: Option<ResolvedCall>,
 }
 
 impl MemberIdent {
@@ -725,6 +776,7 @@ impl MemberIdent {
         Self {
             span,
             resolved: None,
+            call: None,
         }
     }
 }
@@ -738,6 +790,9 @@ impl std::fmt::Debug for MemberIdent {
         s.field("span", &self.span);
         if self.resolved.is_some() {
             s.field("resolved", &self.resolved);
+        }
+        if self.call.is_some() {
+            s.field("call", &self.call);
         }
         s.finish()
     }

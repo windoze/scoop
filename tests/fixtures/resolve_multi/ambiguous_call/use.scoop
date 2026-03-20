@@ -1,8 +1,5 @@
-// EXPECT: fail
-// EXPECT-ERROR: 调用解析歧义
-// EXPECT-ERROR-CODE: scoop::resolve::ambiguous_call
-// EXPECT-ERROR-AT: 13:5
-// 目标：当同名多个顶层函数同时可见时，`foo()` 应报 `ambiguous_call`。
+// EXPECT: pass
+// 目标：T0319：当同名多个顶层函数同时可见时，resolve 阶段不提前报歧义，而是保留候选集合交给后续 typecheck 决议。
 
 package fixtures.resolve_multi.ambiguous_call.use
 
@@ -12,4 +9,3 @@ import fixtures.resolve_multi.ambiguous_call.p2.foo
 fun test() {
     foo()
 }
-

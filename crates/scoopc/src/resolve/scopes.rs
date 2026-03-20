@@ -602,10 +602,10 @@ impl<'a> BlockScopeChecker<'a> {
                     },
                     _ => self.check_expr(callee.as_mut())?,
                 }
-                for a in args {
+                for a in args.iter_mut() {
                     self.check_expr(a)?;
                 }
-                self.resolve_call_callee(callee.as_mut())?;
+                self.resolve_call_site(callee.as_mut(), args)?;
             }
             ast::ExprKind::NamedArg { value, .. } => self.check_expr(value.as_mut())?,
             ast::ExprKind::NotNullAssert { expr, .. } => self.check_expr(expr.as_mut())?,
@@ -667,36 +667,128 @@ impl<'a> BlockScopeChecker<'a> {
         }
     }
 
-    /// 解析调用表达式的 callee（T0311：`Call(Ident)` → 顶层 fun symbol）。
+    /// 解析调用点（T0319）：收集候选集合 + 调用形状，并写回到 AST。
     ///
-    /// 当前策略（最小子集）：
-    /// - 仅处理 `callee` 是裸标识符（`ExprKind::Ident`）的情况；
-    /// - 若该标识符解析为局部绑定（参数/局部 val），则认为是“通过值调用”（例如函数值），此处不介入；
-    /// - 否则尝试按 fun 命名空间解析到顶层函数：
-    ///   - 唯一匹配：写回到 `ValueIdent.resolved = TopLevel { fqn }`
-    ///   - 多个匹配：报 `scoop::resolve::ambiguous_call`
-    /// - 若没有任何函数候选（例如只有同名顶层 value），则保持现状交给后续 typecheck 诊断“不可调用”。
-    fn resolve_call_callee(&self, callee: &mut ast::Expr) -> Result<(), ResolveError> {
-        let ast::ExprKind::Ident(id) = &mut callee.kind else {
-            return Ok(());
-        };
+    /// 说明：
+    /// - resolve 阶段不做 overload 决议，不在“多候选”时报错；
+    /// - 若候选集合为空，则保持现状（让 typecheck 给出“不可调用/enum variant ctor”等更贴近语义的诊断）。
+    fn resolve_call_site(
+        &self,
+        callee: &mut ast::Expr,
+        args: &[ast::Expr],
+    ) -> Result<(), ResolveError> {
+        match &mut callee.kind {
+            ast::ExprKind::Ident(id) => self.resolve_call_ident_callee(id, args),
+            ast::ExprKind::MemberAccess { member, .. }
+            | ast::ExprKind::SafeMemberAccess { member, .. } => {
+                self.resolve_call_member_callee(member, args)
+            }
+            _ => Ok(()),
+        }
+    }
 
-        // `this(...)` 的构造调用/委托构造语义留给 T0313/后续 class 语义处理。
-        if self.source.slice(id.span) == "this" {
+    fn resolve_call_ident_callee(
+        &self,
+        id: &mut ast::ValueIdent,
+        args: &[ast::Expr],
+    ) -> Result<(), ResolveError> {
+        if id.call.is_some() {
             return Ok(());
         }
 
-        // 局部绑定：不做顶层函数解析（保守放行）。
+        // `this(...)` 的构造调用/委托构造语义留给 T0313/后续 class 语义处理。
+        let name = self.source.slice(id.span);
+        if name == "this" {
+            return Ok(());
+        }
+
+        // 局部绑定：不做顶层候选收集（保守放行；例如函数值/闭包调用）。
         if matches!(id.resolved, Some(ast::ResolvedValueRef::Local { .. })) {
             return Ok(());
         }
 
-        let name = self.source.slice(id.span);
-        if let Some(fqn) = self.top_level_fun_fqn(name, id.span)? {
+        let mut candidates: Vec<ast::CallCandidate> = Vec::new();
+
+        for fqn in self.top_level_fun_candidates(name, id.span)? {
+            candidates.push(ast::CallCandidate::Fun { fqn });
+        }
+        for ty_fqn in self.top_level_constructor_candidates(name, id.span)? {
+            candidates.push(ast::CallCandidate::Constructor { ty_fqn });
+        }
+
+        if candidates.is_empty() {
+            return Ok(());
+        }
+
+        candidates.sort_by(|a, b| call_candidate_sort_key(a).cmp(&call_candidate_sort_key(b)));
+        candidates.dedup();
+
+        // 保持现有 typecheck（T0407）的最小子集可用：
+        // - 若调用点只有一个顶层函数候选，则沿用旧写回：把 callee 的 ident 绑定到该 fqn。
+        //
+        // 当存在多个候选（或存在构造候选）时，resolve 阶段不做最终决议：留给后续 typecheck。
+        let resolved_single_fun_fqn = (candidates.len() == 1)
+            .then(|| match &candidates[0] {
+                ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                ast::CallCandidate::Constructor { .. } => None,
+            })
+            .flatten();
+
+        id.call = Some(ast::ResolvedCall {
+            candidates,
+            shape: self.call_shape(args),
+        });
+
+        if let Some(fqn) = resolved_single_fun_fqn {
             id.resolved = Some(ast::ResolvedValueRef::TopLevel { fqn });
         }
 
         Ok(())
+    }
+
+    fn resolve_call_member_callee(
+        &self,
+        member: &mut ast::MemberIdent,
+        args: &[ast::Expr],
+    ) -> Result<(), ResolveError> {
+        if member.call.is_some() {
+            return Ok(());
+        }
+
+        let Some(resolved) = &member.resolved else {
+            return Ok(());
+        };
+
+        let fqn = match resolved {
+            ast::ResolvedMemberRef::Fun { fqn }
+            | ast::ResolvedMemberRef::ExtensionFun { fqn } => fqn.clone(),
+            ast::ResolvedMemberRef::Value { .. } | ast::ResolvedMemberRef::ExtensionValue { .. } => {
+                // `p.x()`：此时 callee 是一个 value member，是否可调用取决于其类型（留给 typecheck）。
+                return Ok(());
+            }
+        };
+
+        member.call = Some(ast::ResolvedCall {
+            candidates: vec![ast::CallCandidate::Fun { fqn }],
+            shape: self.call_shape(args),
+        });
+
+        Ok(())
+    }
+
+    fn call_shape(&self, args: &[ast::Expr]) -> ast::CallShape {
+        let mut out: Vec<ast::CallArgShape> = Vec::with_capacity(args.len());
+        for a in args {
+            match &a.kind {
+                ast::ExprKind::NamedArg { name, value, .. } => out.push(ast::CallArgShape::Named {
+                    name: self.source.slice(name.span).to_string(),
+                    name_span: name.span,
+                    value_span: value.span,
+                }),
+                _ => out.push(ast::CallArgShape::Positional { span: a.span }),
+            }
+        }
+        ast::CallShape { args: out }
     }
 
     fn resolve_value_ident(&mut self, id: &mut ast::ValueIdent) -> Result<(), ResolveError> {
@@ -822,11 +914,11 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(None)
     }
 
-    fn top_level_fun_fqn(
+    fn top_level_fun_candidates(
         &self,
         name: &str,
         use_span: Span,
-    ) -> Result<Option<String>, ResolveError> {
+    ) -> Result<Vec<String>, ResolveError> {
         let mut candidates: Vec<String> = Vec::new();
 
         if !self.pkg_prefix.is_empty() {
@@ -862,24 +954,93 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
-        match matches.len() {
-            0 => {
-                if let Some((name, visibility, def_span)) = not_visible {
-                    return Err(ResolveError::NotVisible {
-                        name,
-                        visibility,
-                        use_span: use_span.into(),
-                        def_span: def_span.into(),
-                    });
-                }
-                Ok(None)
+        if matches.is_empty() {
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: use_span.into(),
+                    def_span: def_span.into(),
+                });
             }
-            1 => Ok(matches.into_iter().next()),
-            _ => Err(ResolveError::AmbiguousCall {
-                name: name.to_string(),
-                span: use_span.into(),
-            }),
+            return Ok(Vec::new());
         }
+
+        matches.sort();
+        matches.dedup();
+        Ok(matches)
+    }
+
+    fn top_level_constructor_candidates(
+        &self,
+        name: &str,
+        use_span: Span,
+    ) -> Result<Vec<String>, ResolveError> {
+        // 1) 先按 type 命名空间解析“同名类型”候选（同包 / import / star import），保留全部可见项。
+        let mut candidates: Vec<String> = Vec::new();
+
+        if !self.pkg_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.pkg_prefix, name));
+        }
+        candidates.push(name.to_string());
+
+        if let Some(fqns) = self.imports.ty.explicit.get(name) {
+            candidates.extend(fqns.iter().cloned());
+        }
+        for prefix in &self.imports.star {
+            candidates.push(format!("{prefix}.{name}"));
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        let mut matches: Vec<String> = Vec::new();
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        for ty_fqn in candidates {
+            let Some(syms) = self.index.by_fqn.get(&ty_fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                continue;
+            };
+            if !is_symbol_visible_from(self.source, sym) {
+                if not_visible.is_none() {
+                    not_visible = Some((ty_fqn.clone(), sym.visibility, sym.span));
+                }
+                continue;
+            }
+
+            let Some(ctors) = self.index.constructors.get(&ty_fqn) else {
+                // 当前阶段（T0319）只把“显式收集到 constructors overload set” 的类型纳入构造候选；
+                // 隐式默认构造器规则留给后续 typecheck/语义任务补齐。
+                continue;
+            };
+
+            if ctors.iter().any(|c| is_ctor_visible_from(self.source, c)) {
+                matches.push(ty_fqn);
+            } else if not_visible.is_none() {
+                if let Some(first) = ctors.first() {
+                    not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
+                }
+            }
+        }
+
+        if matches.is_empty() {
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: use_span.into(),
+                    def_span: def_span.into(),
+                });
+            }
+            return Ok(Vec::new());
+        }
+
+        matches.sort();
+        matches.dedup();
+        Ok(matches)
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -1360,6 +1521,20 @@ impl<'a> BlockScopeChecker<'a> {
     }
 }
 
+fn call_candidate_sort_key(c: &ast::CallCandidate) -> (u8, &str) {
+    match c {
+        ast::CallCandidate::Fun { fqn } => (0, fqn.as_str()),
+        ast::CallCandidate::Constructor { ty_fqn } => (1, ty_fqn.as_str()),
+    }
+}
+
+fn is_ctor_visible_from(source: &SourceFile, ctor: &super::ConstructorOverload) -> bool {
+    match ctor.visibility {
+        Visibility::Public | Visibility::Internal => true,
+        Visibility::Private => ctor.decl_file == source.path(),
+    }
+}
+
 fn bound_idents(binding: &ast::ValBinding) -> Vec<ast::Ident> {
     match binding {
         ast::ValBinding::Name(id) => vec![*id],
@@ -1534,6 +1709,15 @@ mod tests {
             member.resolved,
             Some(ast::ResolvedMemberRef::Fun { ref fqn }) if fqn == "a.Point.m"
         ));
+        assert_eq!(
+            member.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![ast::CallCandidate::Fun {
+                    fqn: "a.Point.m".to_string()
+                }],
+                shape: ast::CallShape { args: Vec::new() },
+            })
+        );
     }
 
     #[test]
@@ -1580,6 +1764,15 @@ mod tests {
             member.resolved,
             Some(ast::ResolvedMemberRef::ExtensionFun { ref fqn }) if fqn == "a.ext"
         ));
+        assert_eq!(
+            member.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![ast::CallCandidate::Fun {
+                    fqn: "a.ext".to_string()
+                }],
+                shape: ast::CallShape { args: Vec::new() },
+            })
+        );
     }
 
     #[test]
@@ -1626,6 +1819,15 @@ mod tests {
             member.resolved,
             Some(ast::ResolvedMemberRef::Fun { ref fqn }) if fqn == "a.Point.ext"
         ));
+        assert_eq!(
+            member.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![ast::CallCandidate::Fun {
+                    fqn: "a.Point.ext".to_string()
+                }],
+                shape: ast::CallShape { args: Vec::new() },
+            })
+        );
     }
 
     #[test]
@@ -1666,6 +1868,15 @@ mod tests {
         };
 
         assert_eq!(
+            id.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![ast::CallCandidate::Fun {
+                    fqn: "a.top".to_string()
+                }],
+                shape: ast::CallShape { args: Vec::new() },
+            })
+        );
+        assert_eq!(
             id.resolved,
             Some(ast::ResolvedValueRef::TopLevel {
                 fqn: "a.top".to_string()
@@ -1674,7 +1885,7 @@ mod tests {
     }
 
     #[test]
-    fn ambiguous_call_is_error() {
+    fn ambiguous_call_is_kept_as_candidates() {
         let s1 = SourceFile::new_virtual("<p1>", "package p1\nfun foo() {}");
         let s2 = SourceFile::new_virtual("<p2>", "package p2\nfun foo() {}");
         let s3 = SourceFile::new_virtual(
@@ -1687,8 +1898,115 @@ mod tests {
         let mut f3 = parse_file(&s3).unwrap();
 
         let index = Index::build(&[(&s1, &f1), (&s2, &f2), (&s3, &f3)]).unwrap();
-        let err = super::super::check_file_bindings(&s3, &mut f3, &index).unwrap_err();
-        assert!(matches!(err, ResolveError::AmbiguousCall { .. }));
+        super::super::check_file_bindings(&s3, &mut f3, &index).unwrap();
+
+        let fun_use = f3
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if s3.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, .. } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            panic!("expected ident callee");
+        };
+
+        assert_eq!(
+            id.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![
+                    ast::CallCandidate::Fun {
+                        fqn: "p1.foo".to_string()
+                    },
+                    ast::CallCandidate::Fun {
+                        fqn: "p2.foo".to_string()
+                    },
+                ],
+                shape: ast::CallShape { args: Vec::new() },
+            })
+        );
+    }
+
+    #[test]
+    fn constructor_call_is_collected_as_candidates() {
+        let s1 = SourceFile::new_virtual("<p1>", "package p1\nstruct Any {}\nclass C(x: Any) {}");
+        let s2 = SourceFile::new_virtual("<p2>", "package p2\nstruct Any {}\nclass C(x: Any) {}");
+        let s3 = SourceFile::new_virtual(
+            "<use>",
+            "package use\nimport p1.C\nimport p2.C\nfun use() { C(1) }",
+        );
+
+        let f1 = parse_file(&s1).unwrap();
+        let f2 = parse_file(&s2).unwrap();
+        let mut f3 = parse_file(&s3).unwrap();
+
+        let index = Index::build(&[(&s1, &f1), (&s2, &f2), (&s3, &f3)]).unwrap();
+        super::super::check_file_bindings(&s3, &mut f3, &index).unwrap();
+
+        let fun_use = f3
+            .items
+            .iter()
+            .find_map(|it| match it {
+                ast::Item::Fun(f) if s3.slice(f.name.span) == "use" => Some(f),
+                _ => None,
+            })
+            .expect("missing fun use");
+
+        let ast::FunBody::Block(block) = &fun_use.body else {
+            panic!("expected block body");
+        };
+
+        let Some(ast::Stmt {
+            kind: ast::StmtKind::Expr(call),
+            ..
+        }) = block.stmts.first()
+        else {
+            panic!("expected first stmt to be an expr");
+        };
+
+        let ast::ExprKind::Call { callee, args } = &call.kind else {
+            panic!("expected call expr");
+        };
+
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            panic!("expected ident callee");
+        };
+
+        assert_eq!(args.len(), 1);
+        assert_eq!(
+            id.call,
+            Some(ast::ResolvedCall {
+                candidates: vec![
+                    ast::CallCandidate::Constructor {
+                        ty_fqn: "p1.C".to_string()
+                    },
+                    ast::CallCandidate::Constructor {
+                        ty_fqn: "p2.C".to_string()
+                    },
+                ],
+                shape: ast::CallShape {
+                    args: vec![ast::CallArgShape::Positional { span: args[0].span }],
+                },
+            })
+        );
     }
 
     #[test]

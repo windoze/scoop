@@ -699,11 +699,12 @@
 - 依赖：T0301、T0302、T0248、T0257
 - 完成：`scoopc::resolve::Index` 的 fun 命名空间从单一 `Symbol` 升级为 `Vec<FunOverload>`（保留 receiver/params/return/effects 等声明头）；新增 `constructors` overload set（primary + secondary）；`resolve::scopes`/`resolve::imports` 按“任一 overload 可见即匹配”适配；新增 resolve fixtures `tests/fixtures/resolve/overload_*` 与单测覆盖；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0319 [TODO] Resolver：调用点/构造点候选收集，替代“唯一 callee”假设
+### T0319 [DONE] Resolver：调用点/构造点候选收集，替代“唯一 callee”假设
 - 描述：把 `Call(Ident)`、成员调用、构造调用从“直接绑定到唯一 fun symbol”升级为“绑定到候选集合 + 调用形状（args/names/receiver）”。
 - 目标：先不做 most-specific；同一调用点只要存在多个候选就保留到 typecheck，再由后续任务决议。
 - 验收：新增 resolve fixture：同名两个函数在调用点保留候选集合而不是提前报歧义；构造调用同理。
 - 依赖：T0318、T0311、T0310、T0209
+- 完成：在 `scoopc::ast` 为 `ValueIdent/MemberIdent` 增加 `call: Option<ResolvedCall>`，引入 `ResolvedCall/CallCandidate/CallShape/CallArgShape` 用于记录候选集合与调用形状；在 `scoopc::resolve::scopes` 中实现 `resolve_call_site`，为 `Call(Ident)` 收集顶层函数候选与构造候选（不再在多候选时报 `ambiguous_call`，留给后续 typecheck），并为成员调用写回候选与调用形状；更新 resolve multi fixture `tests/fixtures/resolve_multi/ambiguous_call/use.scoop` 为 pass；新增 resolver 单测覆盖“多 fun 候选保留/多 ctor 候选保留”；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ---
 

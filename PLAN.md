@@ -156,7 +156,7 @@
 - [x] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
 - [x] 作用域：块级（函数体/表达式块内局部 `val/var`，含遮蔽）（T0304）
 - [x] 表达式裸标识符绑定写回：为 `ExprKind::Ident` 记录其解析到的局部/顶层引用（T0305）
-- [x] 调用解析：把 `Call(Ident)` 绑定到顶层 fun；同名多候选时报 `ambiguous_call`（T0311）
+- [x] 调用点候选收集：`Call(Ident)`/成员调用/构造调用写回候选集合 + 调用形状；多候选留给后续 typecheck 决议（T0319）
 - [x] 成员访问解析（`.`）：把 `receiver.member` 绑定到类型体字段/方法并写回 `MemberIdent.resolved`（T0310）
 - [x] 扩展成员 fallback：member 优先于 extension（同包）且 receiver 类型可匹配（T0312）
 - [x] 作用域：泛型参数（声明处 type params 在签名内可解析）（T0309）
@@ -167,7 +167,7 @@
 - [x] `object` / `companion object` 的名字解析与成员可见性（T0317：支持 `Obj.member` 与 `ClassName.member`）
 - [ ] overload set 建模：
   - [x] 索引侧：顶层/成员/扩展函数与构造函数收集为候选集合（T0318）
-  - [ ] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
+  - [x] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
   - [ ] typecheck + inference：决议 most-specific 与冲突诊断
 
 ### 3.3 sysroot 注入
