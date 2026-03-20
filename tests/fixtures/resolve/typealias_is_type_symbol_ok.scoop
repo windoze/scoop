@@ -1,13 +1,11 @@
 // EXPECT: pass
-// 目标：验证 `typealias` 会被纳入 type 命名空间（T0314）。
+// 目标：typealias 作为 type-level symbol 应能在签名 TypeRef 中被解析（T0314）。
 
 package fixtures.resolve
 
-struct UInt8 {}
+import scoop.core.*
 
 typealias Byte = UInt8
 
-fun id(x: Byte): Byte {
-    x
-}
+fun f(x: Byte): Byte {}
 

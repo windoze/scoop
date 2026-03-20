@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::duplicate_definition
+// EXPECT-ERROR-AT: 9:11
+// EXPECT-ERROR: fixtures.resolve.Foo
+// 目标：typealias 与 struct/class 同名时应在 type 命名空间冲突并报错（T0314）。
+
+package fixtures.resolve
+
+typealias Foo = Int
+
+struct Foo

@@ -664,11 +664,12 @@
 - 依赖：T0248、T0308
 - 完成：`scoopc::resolve::scopes` 引入 `ThisContext` 栈并在类型体成员/扩展函数体内解析 `this`；member fun/属性 init/accessor 解析时额外注入主构造参数作用域；新增 resolve fixtures `tests/fixtures/resolve/class_member_this_and_ctor_param_ok.scoop`（pass）与 `tests/fixtures/resolve/this_outside_receiver_is_error.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0314 [TODO] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
+### T0314 [DONE] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
 - 描述：把 `typealias Name = Type` 作为一种 type-level symbol 纳入索引与 import 环境，使得 `Byte/UIntPtr` 等别名能被当作类型引用。
 - 目标：resolve 阶段只做“名字可见性/冲突检测”；不做 alias 展开与循环检测（交给 typecheck）。
 - 验收：新增 resolve fixture：`typealias Byte = UInt8; fun f(x: Byte): Byte { x }` 可解析；同名 typealias 与 struct/class 冲突时报错并定位两个声明。
 - 依赖：T0251、T0301、T0308
+- 完成：补齐/更新 resolve fixtures：`typealias_is_type_symbol_ok.scoop`（pass）与 `typealias_conflicts_with_nominal_type_is_error.scoop`（duplicate_definition）；`cargo run -p scoop -- test` 与 `cargo test --all` 通过。
 
 ### T0315 [TODO] Resolver：import alias 绑定与冲突规则（Appendix B.7）
 - 描述：把 `import foo.bar.Baz as Qux` 引入的 alias 纳入 import table，并参与 type/value 名字解析与冲突检查。
