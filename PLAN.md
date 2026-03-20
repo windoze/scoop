@@ -180,6 +180,7 @@
   - 标准别名：`Byte/Short/UShort/Long/ULong`，以及 `UIntPtr = UInt`
   - 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供
   - fixtures：`tests/fixtures/resolve/sysroot_scalar_types_ok.scoop`
+- [x] sysroot：运行时错误枚举 `RuntimeError`（`NullAssertionFailed`/`ClassCastFailed`），用于 `Raise<RuntimeError>`（T0419）
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
@@ -230,7 +231,7 @@
 - [ ] `when` 表达式（穷尽性检查可分阶段做）
   - [x] 分支结果类型（最小 LUB）：一致 → 该类型；不一致 → `Any`（T0414）
 - [x] `is` / `!is` + smart cast（T0413：最小子集，仅 `if (x is T)`/`if (x !is T)`；仅参数 + `val`）
-- [x] `as` / `as?`：基础类型规则已实现（T0412）；按 spec 的运行时失败路径（`Raise.raise(RuntimeError.ClassCastFailed)`）待 `RuntimeError` 与 effect 系统补齐后接入
+- [x] `as` / `as?`：基础类型规则已实现（T0412）；按 spec 的运行时失败路径（`Raise.raise(RuntimeError.ClassCastFailed)`）待 effect 系统（required effect row/try-catch）补齐后接入
 
 ### 4.5 值类型更新（`with` 表达式）（spec §2.6）
 
