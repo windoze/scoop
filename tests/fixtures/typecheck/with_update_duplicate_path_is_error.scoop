@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_duplicate_path
+// EXPECT-ERROR: 字段路径重复
+// EXPECT-ERROR-AT: 15:47
+// 目标：T0424 `with` 并行语义下，同一字段路径重复更新应报错并指向第二处。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+struct Line(val start: Point, val end: Point)
+
+fun use(line: Line) {
+    val line2: Line = line with { start.x: 1, start.x: 2 }
+}

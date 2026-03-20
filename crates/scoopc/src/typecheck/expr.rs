@@ -184,6 +184,37 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`with` 更新字段路径重复：{path}")]
+    #[diagnostic(code(scoop::typecheck::with_update_duplicate_path))]
+    WithUpdateDuplicatePath {
+        path: String,
+        #[label("重复写在这里")]
+        second: miette::SourceSpan,
+        #[label("第一次写在这里")]
+        first: miette::SourceSpan,
+    },
+
+    #[error("`with` 更新字段路径冲突：{parent} 与 {child}（并行语义不允许一条路径包含另一条）")]
+    #[diagnostic(code(scoop::typecheck::with_update_overlapping_paths))]
+    WithUpdateOverlappingPaths {
+        parent: String,
+        child: String,
+        #[label("冲突写在这里")]
+        second: miette::SourceSpan,
+        #[label("已在这里更新过")]
+        first: miette::SourceSpan,
+    },
+
+    #[error("`with` 嵌套字段路径不可继续：`{struct_name}.{field}` 的类型必须是 struct，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::with_update_nested_path_not_struct))]
+    WithUpdateNestedPathNotStruct {
+        struct_name: String,
+        field: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`{struct_name}` 不存在字段：{field}")]
     #[diagnostic(code(scoop::typecheck::with_update_unknown_field))]
     WithUpdateUnknownField {
@@ -759,8 +790,7 @@ fn infer_with_update_expr_type(
 
     // 当前阶段（T0415）仅支持 struct 字段更新：
     // - base 必须是名义值类型，并且其声明 kind 为 `struct`
-    // - update path 仅允许单段字段名（不支持 `a.b.c`）
-    let (struct_fqn, struct_name) = match lower.type_kind(base_ty) {
+    let (base_struct_fqn, base_struct_name) = match lower.type_kind(base_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (nominal.fqn, lower.fmt_type(base_ty)),
         _ => {
             return Err(ExprTypeError::WithUpdateBaseNotSupported {
@@ -771,61 +801,154 @@ fn infer_with_update_expr_type(
     };
 
     if !matches!(
-        lower.nominal_decl_kind(&struct_fqn),
+        lower.nominal_decl_kind(&base_struct_fqn),
         Some(ast::TypeKind::Struct)
     ) {
         return Err(ExprTypeError::WithUpdateBaseNotSupported {
-            found: struct_name,
+            found: base_struct_name,
             span: base.span.into(),
         });
     }
 
+    // `with` 的并行语义：update 之间没有顺序依赖，因此要求：
+    // - 完全相同的 path 不能重复出现（否则“谁覆盖谁”会引入顺序）
+    // - 一条 path 不能包含另一条 path（例如 `start` 与 `start.x`），否则更新含义不明确
+    let mut seen_exact: HashMap<String, Span> = HashMap::new();
+    let mut seen_paths: Vec<(Vec<String>, String, Span)> = Vec::new();
+
+    let is_strict_prefix = |a: &[String], b: &[String]| -> bool {
+        if a.len() >= b.len() {
+            return false;
+        }
+        a.iter().zip(b.iter()).all(|(x, y)| x == y)
+    };
+
     for u in updates {
-        // 嵌套 path 语义（并行求值 + 多层拷贝）留到后续任务；当前只支持 `x: value`。
-        if u.path.segments.len() != 1 {
-            let path = u
-                .path
-                .segments
-                .iter()
-                .map(|seg| source.slice(seg.span))
-                .collect::<Vec<_>>()
-                .join(".");
-            return Err(ExprTypeError::WithUpdateNestedPathNotSupported {
+        let segments: Vec<String> = u
+            .path
+            .segments
+            .iter()
+            .map(|seg| source.slice(seg.span).to_string())
+            .collect();
+        let path = segments.join(".");
+
+        if let Some(first) = seen_exact.get(&path).copied() {
+            return Err(ExprTypeError::WithUpdateDuplicatePath {
                 path,
+                first: first.into(),
+                second: u.path.span.into(),
+            });
+        }
+
+        for (prev_segments, prev_path, prev_span) in &seen_paths {
+            if is_strict_prefix(prev_segments, &segments) || is_strict_prefix(&segments, prev_segments)
+            {
+                // `prev` 与当前 `u` 存在包含关系：报冲突并定位到“第二次出现的那一条”。
+                let (parent, child) = if is_strict_prefix(prev_segments, &segments) {
+                    (prev_path.clone(), path.clone())
+                } else {
+                    (path.clone(), prev_path.clone())
+                };
+                return Err(ExprTypeError::WithUpdateOverlappingPaths {
+                    parent,
+                    child,
+                    first: (*prev_span).into(),
+                    second: u.path.span.into(),
+                });
+            }
+        }
+
+        seen_exact.insert(path.clone(), u.path.span);
+        seen_paths.push((segments, path, u.path.span));
+    }
+
+    for u in updates {
+        // 路径可以多段：`a.b.c: value`。
+        //
+        // 当前阶段限制：
+        // - 每一段都必须是 struct 字段
+        // - 中间段字段类型必须是 struct（才能继续向下更新）
+        let mut current_struct_fqn = base_struct_fqn.clone();
+        let mut current_struct_name = lower.fmt_type(base_ty);
+
+        if u.path.segments.is_empty() {
+            // parser 不会产生空路径；这里仅保持健壮性。
+            return Err(ExprTypeError::WithUpdateNestedPathNotSupported {
+                path: "<empty>".to_string(),
                 span: u.path.span.into(),
             });
         }
 
-        let field = source.slice(u.path.segments[0].span).to_string();
-        let field_fqn = format!("{struct_fqn}.{field}");
-        let Some(expected_ty) = struct_field_types.get(&field_fqn).copied() else {
-            return Err(ExprTypeError::WithUpdateUnknownField {
-                struct_name: struct_name.clone(),
-                field,
-                span: u.path.span.into(),
-            });
-        };
+        for (i, seg) in u.path.segments.iter().enumerate() {
+            let field = source.slice(seg.span).to_string();
+            let field_fqn = format!("{current_struct_fqn}.{field}");
+            let Some(field_ty) = struct_field_types.get(&field_fqn).copied() else {
+                return Err(ExprTypeError::WithUpdateUnknownField {
+                    struct_name: current_struct_name.clone(),
+                    field,
+                    span: seg.span.into(),
+                });
+            };
 
-        let found_ty = infer_expr_type(
-            source,
-            &u.value,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+            let is_last = i + 1 == u.path.segments.len();
+            if is_last {
+                let expected_ty = field_ty;
+                let found_ty = infer_expr_type(
+                    source,
+                    &u.value,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
 
-        if found_ty != expected_ty {
-            return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
-                struct_name: struct_name.clone(),
-                field,
-                expected: lower.fmt_type(expected_ty),
-                found: lower.fmt_type(found_ty),
-                span: u.value.span.into(),
-            });
+                if found_ty != expected_ty {
+                    return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
+                        struct_name: current_struct_name.clone(),
+                        field,
+                        expected: lower.fmt_type(expected_ty),
+                        found: lower.fmt_type(found_ty),
+                        span: u.value.span.into(),
+                    });
+                }
+
+                break;
+            }
+
+            // 中间段：必须是 struct 才能继续向下。
+            let (next_fqn, next_name) = match lower.type_kind(field_ty) {
+                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    (nominal.fqn, lower.fmt_type(field_ty))
+                }
+                _ => {
+                    return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
+                        struct_name: current_struct_name.clone(),
+                        field,
+                        found: lower.fmt_type(field_ty),
+                        span: seg.span.into(),
+                    });
+                }
+            };
+
+            if !matches!(
+                lower.nominal_decl_kind(&next_fqn),
+                Some(ast::TypeKind::Struct)
+            ) {
+                return Err(ExprTypeError::WithUpdateNestedPathNotStruct {
+                    struct_name: current_struct_name.clone(),
+                    field,
+                    found: next_name,
+                    span: seg.span.into(),
+                });
+            }
+
+            current_struct_fqn = next_fqn;
+            current_struct_name = next_name;
         }
+
+        // loop 中在最后一段已完成 value typecheck；这里无需额外动作。
     }
 
     Ok(base_ty)

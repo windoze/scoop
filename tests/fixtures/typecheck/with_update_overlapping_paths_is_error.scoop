@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_overlapping_paths
+// EXPECT-ERROR: 字段路径冲突
+// EXPECT-ERROR-AT: 15:64
+// 目标：T0424 `with` 并行语义下，禁止一条 path 包含另一条（例如 `start` 与 `start.x`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+struct Line(val start: Point, val end: Point)
+
+fun use(line: Line) {
+    val line2: Line = line with { start: Point { x: 1, y: 2 }, start.x: 3 }
+}

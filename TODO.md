@@ -791,11 +791,12 @@
 - 依赖：T0224、T0409、T0405
 - 完成：typecheck 增加 `ExprKind::StructLit` 支持：`TypeName` 必须解析为 nominal `struct`；字段名做去重；不存在字段报新错误码 `scoop::typecheck::struct_lit_unknown_field`；字段值类型用最小 assignable 规则校验并报 `struct_lit_field_type_mismatch`；当前阶段要求显式提供所有字段（缺字段报 `struct_lit_missing_fields`，定位到 `}`）；并新增 `struct_lit_duplicate_field`/`struct_lit_not_struct`；新增 fixtures：`typecheck/struct_lit_ok`（pass）、以及 unknown/duplicate/type_mismatch/missing/not_struct（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0424 [TODO] `with`：嵌套 path 与并行求值语义（spec §2.6）
+### T0424 [DONE] `with`：嵌套 path 与并行求值语义（spec §2.6）
 - 描述：支持 `p with { a.b: v }` 的嵌套更新，并保证 RHS 基于“原值并行求值”（无顺序依赖）。
 - 目标：先只实现 typecheck 侧的规则与必要诊断；真正 lowering 放到 IR 阶段单独任务。
 - 验收：typecheck fixture：嵌套字段类型不匹配时报错；同一字段多次更新报错或明确覆盖规则（需决定）。
 - 依赖：T0415
+- 完成：typecheck 的 `with` 更新 path 支持多段字段路径 `a.b.c`（每段必须是 struct 字段且中间段类型也必须是 struct）；并按并行语义新增冲突校验：禁止重复 path（新错误码 `scoop::typecheck::with_update_duplicate_path`），禁止一条 path 包含另一条（`with_update_overlapping_paths`）；新增错误码 `with_update_nested_path_not_struct` 用于中间段不可继续；新增 fixtures：`typecheck/with_update_nested_path_ok`（pass）、`typecheck/with_update_nested_path_type_mismatch_is_error`（fail）、`typecheck/with_update_duplicate_path_is_error`（fail）、`typecheck/with_update_overlapping_paths_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0425 [TODO] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
 - 描述：在 type env 中加入 enum variant 信息（tag + payload types），并检查重复 variant/字段。

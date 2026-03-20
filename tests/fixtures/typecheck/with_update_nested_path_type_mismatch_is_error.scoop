@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_field_type_mismatch
+// EXPECT-ERROR: 更新值类型不匹配
+// EXPECT-ERROR-AT: 15:44
+// 目标：T0424 `with` 支持嵌套 path，并在嵌套字段类型不匹配时报错并指向 value。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+struct Line(val start: Point, val end: Point)
+
+fun use(line: Line) {
+    val line2: Line = line with { start.x: "oops" }
+}
