@@ -174,11 +174,12 @@
 
 - [x] sysroot 文件与 loader 骨架：可发现并解析 `sysroot/*.scoop`（当前实现见 `scoopc::sysroot`）
 - [x] 编译流程注入：通过 `scoopc::session::Session` 默认加载 sysroot，并在 `build_top_level_index` 中纳入名字解析环境
-- [ ] sysroot：补齐内建标量类型的“可见声明”（spec §2.3.4 / runtime §3）
+- [x] sysroot：补齐内建标量类型的“可见声明”（spec §2.3.4 / runtime §3）
   - `Int/UInt`：word-sized（随 target 指针宽度变化，Swift 约定）
   - 固定位宽整数：`Int8/16/32/64`、`UInt8/16/32/64`
   - 标准别名：`Byte/Short/UShort/Long/ULong`，以及 `UIntPtr = UInt`
   - 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供
+  - fixtures：`tests/fixtures/resolve/sysroot_scalar_types_ok.scoop`
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
