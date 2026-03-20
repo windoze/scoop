@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_missing_else
+// EXPECT-ERROR-AT: 10:14
+// EXPECT-ERROR: 必须包含 `else`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = when (1) {
+  1 -> 1
+}
+

@@ -819,11 +819,12 @@
 - 依赖：T0243、T0426、T0410
 - 完成：扩展 `WhenPat` 支持 `Wildcard/Bind/Tuple/Variant/BoolLit` 并补齐 parser；resolver 为每个 when arm 建立独立作用域并声明 pattern binder；typecheck 对 tuple/variant pattern 做最小类型约束并把 binder 类型注入 arm locals；新增错误码 `scoop::typecheck::when_variant_pat_not_enum`/`when_tuple_pat_not_tuple` 等；新增 fixtures：`typecheck/when_variant_pattern_binds_ok`（pass）、`typecheck/when_variant_pattern_not_enum_is_error`（fail）、`typecheck/when_tuple_pattern_binds_ok`（pass）、`typecheck/when_tuple_pattern_not_tuple_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0428 [TODO] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
+### T0428 [DONE] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
 - 描述：对可穷尽类型要求覆盖所有 variant（或允许 else）；非穷尽类型必须有 else/_。
 - 目标：先只支持 enum 与 Bool 与 Option<T>；嵌套组合后续。
 - 验收：typecheck fixture：缺少 None 分支时报错；覆盖完整且仍写 else 时产生 warning（先可仅记录 warning，不必 fixtures 断言）。
 - 依赖：T0427
+- 完成：typecheck 为 `when` 增加穷尽性检查：对 `Bool`/`Option<T>`/nominal `enum` 在无 catch-all（`else`/`_`/绑定 arm）时要求覆盖全部分支；对非穷尽类型强制要求 catch-all；新增错误码 `scoop::typecheck::when_non_exhaustive_missing_variants` 与 `when_missing_else`；当 enum/Bool/Option 已覆盖完整却仍写 `else` 时通过 `tracing::warn!` 记录冗余提示；新增 fixtures：`tests/fixtures/typecheck/when_option_missing_none_is_error.scoop`、`tests/fixtures/typecheck/when_int_missing_else_is_error.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0429 [TODO] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
 - 描述：当某个分支带 guard 时，穷尽性检查应要求 else/_（或把该分支不计入覆盖）。

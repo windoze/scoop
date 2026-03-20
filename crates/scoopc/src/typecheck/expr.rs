@@ -31,6 +31,7 @@ use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
 use super::when_pat;
+use tracing::warn;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
@@ -186,6 +187,23 @@ pub enum ExprTypeError {
         variant_fqn: String,
         expected: usize,
         found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 分支不穷尽：缺少 {subject} 的 {missing}")]
+    #[diagnostic(code(scoop::typecheck::when_non_exhaustive_missing_variants))]
+    WhenNonExhaustiveMissingVariants {
+        subject: String,
+        missing: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 在 {subject} 上不是穷尽的：必须包含 `else` 或 `_`")]
+    #[diagnostic(code(scoop::typecheck::when_missing_else))]
+    WhenMissingElse {
+        subject: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -684,6 +702,8 @@ fn infer_expr_type(
                     Some(_) => return Ok(builtins.any),
                 }
             }
+
+            check_when_exhaustiveness(source, expr, subject_ty, arms, lower, builtins)?;
 
             // 若所有分支都是 `Nothing`，则 `when` 整体也是不可达的。
             Ok(result.unwrap_or(builtins.nothing))
@@ -2235,6 +2255,10 @@ fn check_expr_stmt(
             )
             .ok();
 
+            if let Some(subject_ty) = subject_ty {
+                check_when_exhaustiveness(source, expr, subject_ty, arms, lower, builtins)?;
+            }
+
             for arm in arms {
                 let mut arm_locals = locals.clone();
                 let mut arm_stable = stable_bindings.clone();
@@ -2302,6 +2326,155 @@ fn check_expr_stmt(
             struct_field_types,
         ),
         _ => Ok(()),
+    }
+}
+
+fn check_when_exhaustiveness(
+    source: &SourceFile,
+    when_expr: &ast::Expr,
+    subject_ty: TypeId,
+    arms: &[ast::WhenArm],
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    let has_catch_all = arms.iter().any(|arm| {
+        matches!(
+            &arm.pat,
+            ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Bind { .. }
+        )
+    });
+    let has_else_keyword = arms
+        .iter()
+        .any(|arm| matches!(&arm.pat, ast::WhenPat::Else { .. }));
+
+    // Bool：虽然在 sysroot 中声明为 `struct Bool`，但语义上是穷尽的（true/false）。
+    if subject_ty == builtins.bool_ {
+        let mut seen_true = false;
+        let mut seen_false = false;
+
+        for arm in arms {
+            if let ast::WhenPat::BoolLit { span } = &arm.pat {
+                match source.slice(*span) {
+                    "true" => seen_true = true,
+                    "false" => seen_false = true,
+                    _ => {}
+                }
+            }
+        }
+
+        let fully_covered = seen_true && seen_false;
+        if !has_catch_all && !fully_covered {
+            let mut missing = Vec::new();
+            if !seen_true {
+                missing.push("true");
+            }
+            if !seen_false {
+                missing.push("false");
+            }
+            return Err(ExprTypeError::WhenNonExhaustiveMissingVariants {
+                subject: lower.fmt_type(subject_ty),
+                missing: missing.join(", "),
+                span: when_expr.span.into(),
+            });
+        }
+
+        if has_else_keyword && fully_covered {
+            warn!("`when` on Bool is already exhaustive; `else` arm is redundant");
+        }
+
+        return Ok(());
+    }
+
+    match lower.type_kind(subject_ty) {
+        TypeKind::Value(ValueTypeKind::Option(_)) => {
+            let mut seen_some = false;
+            let mut seen_none = false;
+
+            for arm in arms {
+                if let ast::WhenPat::Variant { name, .. } = &arm.pat {
+                    match source.slice(name.span) {
+                        "Some" => seen_some = true,
+                        "None" => seen_none = true,
+                        _ => {}
+                    }
+                }
+            }
+
+            let fully_covered = seen_some && seen_none;
+            if !has_catch_all && !fully_covered {
+                let mut missing = Vec::new();
+                if !seen_some {
+                    missing.push("Some");
+                }
+                if !seen_none {
+                    missing.push("None");
+                }
+                return Err(ExprTypeError::WhenNonExhaustiveMissingVariants {
+                    subject: lower.fmt_type(subject_ty),
+                    missing: missing.join(", "),
+                    span: when_expr.span.into(),
+                });
+            }
+
+            if has_else_keyword && fully_covered {
+                warn!("`when` on Option is already exhaustive; `else` arm is redundant");
+            }
+
+            Ok(())
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if matches!(
+                lower.nominal_decl_kind(&nominal.fqn),
+                Some(ast::TypeKind::Enum)
+            ) =>
+        {
+            let decl = lower
+                .env()
+                .enum_decl(&nominal.fqn)
+                .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                    kind: "when exhaustiveness（缺少 enum 声明信息）",
+                    span: when_expr.span.into(),
+                })?;
+
+            let all_variants: HashSet<&str> = decl.variants.iter().map(|v| v.name.as_str()).collect();
+            let mut covered: HashSet<&str> = HashSet::new();
+
+            for arm in arms {
+                if let ast::WhenPat::Variant { name, .. } = &arm.pat {
+                    let variant_name = source.slice(name.span);
+                    if all_variants.contains(variant_name) {
+                        covered.insert(variant_name);
+                    }
+                }
+            }
+
+            let fully_covered = all_variants.is_subset(&covered);
+            if !has_catch_all && !fully_covered {
+                let mut missing: Vec<&str> = all_variants.difference(&covered).copied().collect();
+                missing.sort();
+                return Err(ExprTypeError::WhenNonExhaustiveMissingVariants {
+                    subject: nominal.fqn.clone(),
+                    missing: missing.join(", "),
+                    span: when_expr.span.into(),
+                });
+            }
+
+            if has_else_keyword && fully_covered {
+                warn!("`when` on enum is already exhaustive; `else` arm is redundant");
+            }
+
+            Ok(())
+        }
+        _ => {
+            if has_catch_all {
+                Ok(())
+            } else {
+                Err(ExprTypeError::WhenMissingElse {
+                    subject: lower.fmt_type(subject_ty),
+                    span: when_expr.span.into(),
+                })
+            }
+        }
     }
 }
 
