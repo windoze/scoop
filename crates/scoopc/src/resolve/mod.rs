@@ -130,6 +130,16 @@ pub enum ResolveError {
         span: miette::SourceSpan,
     },
 
+    #[error("初始化阶段非法前向引用：{name}")]
+    #[diagnostic(code(scoop::resolve::forward_reference))]
+    ForwardReference {
+        name: String,
+        #[label("这里引用了尚未初始化的成员")]
+        use_span: miette::SourceSpan,
+        #[label("该成员定义在这里")]
+        def_span: miette::SourceSpan,
+    },
+
     #[error("调用解析歧义：{name}")]
     #[diagnostic(code(scoop::resolve::ambiguous_call))]
     AmbiguousCall {

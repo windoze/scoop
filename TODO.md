@@ -678,11 +678,12 @@
 - 依赖：T0254、T0303、T0308
 - 完成：`ImportTable::build` 增加 alias 冲突检查（与顶层声明/其它 import）；新增 resolve fixtures（alias ok + alias conflict）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0316 [TODO] Resolver：class 初始化阶段作用域（property initializer / `init` / secondary constructor）
+### T0316 [DONE] Resolver：class 初始化阶段作用域（property initializer / `init` / secondary constructor）
 - 描述：为属性初始化表达式、`init` block、secondary constructor 建立正确作用域，固定 `this`、主构造参数、已声明成员的可见性边界。
 - 目标：先只做名字解析与作用域；初始化顺序与必经 delegation 规则留给 typecheck。
 - 验收：新增 resolve fixture：`init` 中可引用 `this` 与构造参数；非法前向引用报错并定位。
 - 依赖：T0256、T0257、T0313
+- 完成：`scoopc::resolve::scopes` 补齐 class `init { ... }` 与 secondary constructor 的值名字解析（`this` + 主构造参数 + 次构造参数）；在 property initializer / init block 中引入初始化阶段“可见 value members”约束并新增诊断 `scoop::resolve::forward_reference`；新增 resolve fixtures `tests/fixtures/resolve/class_init_block_this_and_ctor_param_ok.scoop`、`tests/fixtures/resolve/class_init_block_forward_ref_is_error.scoop`、`tests/fixtures/resolve/class_secondary_ctor_this_and_params_ok.scoop` 与单测覆盖；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0317 [TODO] Resolver：`object` / `companion object` 的名字解析与成员访问（Appendix B.9）
 - 描述：把 `object` / `companion object` 纳入符号表，并支持 `Obj.member`、`ClassName.member`（经 companion）这类最小解析规则。

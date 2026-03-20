@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：验证 secondary constructor body 中 `this`、主构造参数与次构造参数可解析（T0316）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+class Pair(a: Any) {
+    constructor(b: Any) {
+        this
+        a
+        b
+    }
+}
+

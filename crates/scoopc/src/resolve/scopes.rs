@@ -11,7 +11,7 @@
 //! - 不解析成员访问（`.`）的目标（T0310）
 //! - 不实现 `super`、capture/闭包等更复杂的语义（T0313 之后再补）
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{ast, source::SourceFile, span::Span};
 
@@ -40,6 +40,11 @@ struct BlockScopeChecker<'a> {
     /// - 类型体成员（property init/accessor、member fun）里：`this` 指向当前类型实例
     /// - 扩展函数体里：`this` 指向 extension receiver
     this_context: Vec<ThisContext>,
+    /// class 初始化阶段的“可见成员集合”栈（T0316）。
+    ///
+    /// 用途：在 property initializer / `init { ... }` 中禁止访问“尚未初始化”的后置属性，
+    /// 并给出稳定诊断（`scoop::resolve::forward_reference`）。
+    init_value_members: Vec<InitValueMembersContext>,
 }
 
 #[derive(Clone)]
@@ -54,6 +59,18 @@ struct ThisContext {
     decl_span: Span,
     /// `this` 的类型 FQN（用于 `this.member` 的成员解析）；若无法静态确定则为 None。
     ty_fqn: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct InitValueMembersContext {
+    /// `this` 的静态类型 FQN。
+    this_ty_fqn: String,
+    /// 在当前初始化点之前，已经完成初始化（或至少已声明）的 value members（属性/字段）集合。
+    ///
+    /// 说明：这里刻意只追踪 value namespace。
+    /// - methods（fun namespace）在 Kotlin 语义下不受“前向引用”限制；
+    /// - 具体的初始化顺序与更深语义由 typecheck 处理（见 TODO T0316 目标）。
+    visible_value_members: HashSet<String>,
 }
 
 impl<'a> BlockScopeChecker<'a> {
@@ -71,6 +88,7 @@ impl<'a> BlockScopeChecker<'a> {
             pkg_prefix,
             scopes: Vec::new(),
             this_context: Vec::new(),
+            init_value_members: Vec::new(),
         }
     }
 
@@ -128,22 +146,36 @@ impl<'a> BlockScopeChecker<'a> {
             ty_fqn: Some(type_fqn.clone()),
         };
 
+        // T0316：class 初始化阶段的“前向引用”规则需要按成员声明顺序推进：
+        // - property initializer / init block 只能访问在其之前已完成初始化的属性；
+        // - method（fun namespace）不受该限制（Kotlin-like）。
+        let mut init_visible_value_members: HashSet<String> = HashSet::new();
+
         for member in &mut body.members {
             match member {
                 ast::TypeMember::EnumVariant(_v) => {
                     // enum variants 不引入值名字解析语境（无 initializer/body）。
                 }
                 ast::TypeMember::Property(p) => {
-                    self.check_type_member_property(p, &this_ctx, ctor_params)?
+                    let init_scope = matches!(ty.kind, ast::TypeKind::Class)
+                        .then_some(&init_visible_value_members);
+                    self.check_type_member_property(p, &this_ctx, ctor_params, init_scope)?;
+
+                    // 当前属性的 initializer 已解析完成：后续 init block / property initializer 可见。
+                    if matches!(ty.kind, ast::TypeKind::Class) {
+                        init_visible_value_members
+                            .insert(self.source.slice(p.name.span).to_string());
+                    }
                 }
-                ast::TypeMember::InitBlock(_b) => {
-                    // init block 的值名字解析与 `this` 语义依赖完整的 class 初始化规则（T0313），
-                    // 目前先跳过，避免在早期阶段过早固化语义。
+                ast::TypeMember::InitBlock(b) => {
+                    if matches!(ty.kind, ast::TypeKind::Class) {
+                        self.check_type_member_init_block(b, &this_ctx, ctor_params, &init_visible_value_members)?;
+                    }
                 }
-                ast::TypeMember::SecondaryCtor(_ctor) => {
-                    // 次构造器属于 class 初始化语境（Appendix B.2.2）。
-                    // 其 `this` 语义、参数默认值与 delegation call 的解析规则依赖完整的构造/初始化模型，
-                    // 当前阶段（T0257/T0313 之前）先跳过值名字解析，避免过早固化语义。
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    if matches!(ty.kind, ast::TypeKind::Class) {
+                        self.check_type_member_secondary_ctor(ctor, &this_ctx, ctor_params)?;
+                    }
                 }
                 ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
@@ -190,7 +222,7 @@ impl<'a> BlockScopeChecker<'a> {
             match member {
                 ast::TypeMember::EnumVariant(_v) => {}
                 ast::TypeMember::Property(p) => {
-                    self.check_type_member_property(p, &this_ctx, ctor_params)?
+                    self.check_type_member_property(p, &this_ctx, ctor_params, None)?
                 }
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(_ctor) => {}
@@ -271,11 +303,26 @@ impl<'a> BlockScopeChecker<'a> {
         p: &mut ast::PropertyDecl,
         this_ctx: &ThisContext,
         ctor_params: &[ast::Param],
+        init_visible_value_members: Option<&HashSet<String>>,
     ) -> Result<(), ResolveError> {
         self.with_this_context(this_ctx.clone(), |this| {
             // 属性初始化表达式：允许引用主构造参数（T0313）。
             if let Some(init) = &mut p.init {
-                this.with_ctor_params_scope(ctor_params, |this| this.check_expr(init))?;
+                this.with_ctor_params_scope(ctor_params, |this| {
+                    // T0316：property initializer 属于 class 初始化阶段，禁止访问“后置属性”（前向引用）。
+                    //
+                    // 说明：这里只对 value namespace 做限制；method 仍可通过 `this.m()` 访问。
+                    if let Some(visible) = init_visible_value_members {
+                        this.with_init_value_members_context(
+                            this_ctx.ty_fqn.as_deref(),
+                            visible,
+                            |this| this.check_expr(init),
+                        )?;
+                        return Ok(());
+                    }
+
+                    this.check_expr(init)
+                })?;
             }
 
             if let Some(getter) = &mut p.getter {
@@ -287,6 +334,60 @@ impl<'a> BlockScopeChecker<'a> {
 
             Ok(())
         })?;
+        Ok(())
+    }
+
+    fn check_type_member_init_block(
+        &mut self,
+        b: &mut ast::InitBlockDecl,
+        this_ctx: &ThisContext,
+        ctor_params: &[ast::Param],
+        init_visible_value_members: &HashSet<String>,
+    ) -> Result<(), ResolveError> {
+        // `init { ... }` 属于 class 初始化阶段：可见 `this` + 主构造参数，
+        // 且禁止访问尚未初始化的后置属性（前向引用）。
+        self.with_this_context(this_ctx.clone(), |this| {
+            this.with_ctor_params_scope(ctor_params, |this| {
+                this.with_init_value_members_context(
+                    this_ctx.ty_fqn.as_deref(),
+                    init_visible_value_members,
+                    |this| this.check_block(&mut b.body),
+                )
+            })
+        })?;
+        Ok(())
+    }
+
+    fn check_type_member_secondary_ctor(
+        &mut self,
+        ctor: &mut ast::SecondaryCtorDecl,
+        this_ctx: &ThisContext,
+        primary_ctor_params: &[ast::Param],
+    ) -> Result<(), ResolveError> {
+        // 1) 参数默认值：Kotlin-like 语义下不引入 `this`（在调用点求值），但允许引用更早声明的参数。
+        self.push_scope();
+        for p in &mut ctor.params {
+            self.declare_ident_typed(&p.name, p.ty.clone())?;
+            if let Some(default) = &mut p.default_value {
+                self.check_expr(default)?;
+            }
+        }
+        self.pop_scope();
+
+        // 2) 构造器 body：拥有 `this`，并且主构造参数在该初始化语境内可见（与 member fun 保持一致，T0313）。
+        self.with_this_context(this_ctx.clone(), |this| {
+            this.with_ctor_params_scope(primary_ctor_params, |this| {
+                // 构造器级作用域：参数在 body 内可见，且允许 block 内部遮蔽。
+                this.push_scope();
+                for p in &ctor.params {
+                    this.declare_ident_typed(&p.name, p.ty.clone())?;
+                }
+                this.check_block(&mut ctor.body)?;
+                this.pop_scope();
+                Ok(())
+            })
+        })?;
+
         Ok(())
     }
 
@@ -842,6 +943,19 @@ impl<'a> BlockScopeChecker<'a> {
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
                 if is_symbol_visible_from(self.source, sym) {
+                    // T0316：class 初始化阶段禁止访问“后置属性”（前向引用）。
+                    if let Some(init_ctx) = self.init_value_members.last() {
+                        if init_ctx.this_ty_fqn == receiver_ty_fqn
+                            && self.is_receiver_this(receiver)
+                            && !init_ctx.visible_value_members.contains(member_name)
+                        {
+                            return Err(ResolveError::ForwardReference {
+                                name: member_fqn.clone(),
+                                use_span: member.span.into(),
+                                def_span: sym.span.into(),
+                            });
+                        }
+                    }
                     member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: member_fqn });
                     return Ok(());
                 }
@@ -877,6 +991,13 @@ impl<'a> BlockScopeChecker<'a> {
             name: member_fqn,
             span: member.span.into(),
         })
+    }
+
+    fn is_receiver_this(&self, receiver: &ast::Expr) -> bool {
+        matches!(
+            &receiver.kind,
+            ast::ExprKind::Ident(id) if self.source.slice(id.span) == "this"
+        )
     }
 
     fn infer_expr_type_fqn(&self, expr: &ast::Expr) -> Option<String> {
@@ -966,6 +1087,25 @@ impl<'a> BlockScopeChecker<'a> {
         self.this_context.push(ctx);
         let result = f(self);
         let _ = self.this_context.pop();
+        result
+    }
+
+    fn with_init_value_members_context<T>(
+        &mut self,
+        this_ty_fqn: Option<&str>,
+        visible_value_members: &HashSet<String>,
+        f: impl FnOnce(&mut Self) -> Result<T, ResolveError>,
+    ) -> Result<T, ResolveError> {
+        let Some(this_ty_fqn) = this_ty_fqn else {
+            return f(self);
+        };
+
+        self.init_value_members.push(InitValueMembersContext {
+            this_ty_fqn: this_ty_fqn.to_string(),
+            visible_value_members: visible_value_members.clone(),
+        });
+        let result = f(self);
+        let _ = self.init_value_members.pop();
         result
     }
 
@@ -1325,5 +1465,30 @@ mod tests {
         let index = Index::build(&[(&s1, &file1), (&s2, &file2)]).unwrap();
         let err = super::super::check_file_bindings(&s2, &mut file2, &index).unwrap_err();
         assert!(matches!(err, ResolveError::NotVisible { .. }));
+    }
+
+    #[test]
+    fn forward_reference_in_init_block_is_error() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Any {}\nclass Box(x: Any) {\ninit { this.y }\nval y: Any = x\n}",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        let err = super::super::check_file_bindings(&src, &mut file, &index).unwrap_err();
+        assert!(matches!(err, ResolveError::ForwardReference { .. }));
+    }
+
+    #[test]
+    fn secondary_ctor_body_sees_this_and_params() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nstruct Any {}\nclass Pair(a: Any) { constructor(b: Any) { this\na\nb } }",
+        );
+        let mut file = parse_file(&src).unwrap();
+        let index = build_index(&[(&src, &file)]);
+
+        super::super::check_file_bindings(&src, &mut file, &index).unwrap();
     }
 }

@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR: 初始化阶段非法前向引用
+// EXPECT-ERROR-CODE: scoop::resolve::forward_reference
+// EXPECT-ERROR-AT: 13:14
+// 目标：验证 init block 中禁止引用后置属性（前向引用，T0316）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+class Box(x: Any) {
+    init {
+        this.y
+    }
+
+    val y: Any = x
+}
+
