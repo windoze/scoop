@@ -710,11 +710,12 @@
 - 依赖：T0010、T0401
 - 完成：新增 `scoopc::typecheck::TypeEnv`（`from_sysroot/extend_from_file/type_param_count` 等）并在构建时从 sysroot AST 收集所有类型符号（含 effect）；单测 `typecheck::type_env::tests::sysroot_type_env_contains_option_arity` 覆盖 `scoop.core.Option` 的 arity=1；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0403 [TODO] `TypeRef` → `Type` lowering（支持 Path/Tuple/Nullable）
+### T0403 [DONE] `TypeRef` → `Type` lowering（支持 Path/Tuple/Nullable）
 - 描述：把 AST 的 `TypeRef` 解析到内部类型（已 resolve 的前提下）。
 - 目标：先做“存在性 + arity 检查”；不做 variance/star projection。
 - 验收：新增 typecheck fixture：`fun f(x: Option<Any>): Any {}` 通过；`Option<Any, Any>` 报 arity 错误（新错误码）。
 - 依赖：T0011、T0402
+- 完成：实现 `crates/scoopc/src/typecheck/lower.rs` 的 `TypeRef` lowering（`Path`/`Tuple`/`Nullable`）与泛型 arity 检查，新增稳定诊断 `scoop::typecheck::type_arity_mismatch`；新增 typecheck fixtures `tests/fixtures/typecheck/option_any_ok.scoop`、`tests/fixtures/typecheck/option_arity_mismatch.scoop` 回归；`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0404 [TODO] 类型检查 pass：仅检查顶层声明头（fun/val/type）签名合法
 - 描述：实现 `typecheck::check_file_headers`，不进入函数体。
