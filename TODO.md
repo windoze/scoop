@@ -636,11 +636,12 @@
 - 依赖：T0218、T0308
 - 完成：`scoopc::resolve` 引入声明级 `TypeParamScopes` 并在 `check_file_headers`/`resolve_type_decl_headers` 推入/弹出 type params；`resolve_type_path` 对单段路径优先命中当前作用域的 type param；新增 resolve fixtures：`tests/fixtures/resolve/generic_type_param_ok.scoop`（pass）与 `tests/fixtures/resolve/unresolved_type_param_in_signature.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0310 [TODO] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
+### T0310 [DONE] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
 - 描述：把 `a.b` 的 `b` 绑定到 struct 字段或 class/interface 成员（先做存在性）。
 - 目标：先只处理“静态可确定”的情况；动态分发/override 后续。
 - 验收：resolve fixture：`p.x` 解析到字段；`p.m()` 解析到方法；不存在时报错并指向成员名 span。
 - 依赖：T0302、T0210
+- 完成：在 `scoopc::resolve::scopes` 中实现 `resolve_member_access`，基于 receiver 的“静态可确定类型”（局部带类型注解 / `this` / `StructLit`）将 `receiver.member` 解析到成员符号并写回 `MemberIdent.resolved`（fun/value 命名空间）；新增 resolve fixtures：`tests/fixtures/resolve/member_access_ok.scoop`、`tests/fixtures/resolve/unresolved_member_access.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0311 [TODO] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
 - 描述：把 `f(...)` 的 callee 从“裸 ident”解析为某个 fun symbol（先要求唯一匹配）。

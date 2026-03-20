@@ -156,6 +156,7 @@
 - [ ] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
 - [x] 作用域：块级（函数体/表达式块内局部 `val/var`，含遮蔽）（T0304）
 - [x] 表达式裸标识符绑定写回：为 `ExprKind::Ident` 记录其解析到的局部/顶层引用（T0305）
+- [x] 成员访问解析（`.`）：把 `receiver.member` 绑定到类型体字段/方法并写回 `MemberIdent.resolved`（T0310）
 - [x] 作用域：泛型参数（声明处 type params 在签名内可解析）（T0309）
 - [ ] 作用域：类型体/扩展 receiver（逐步补齐）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
