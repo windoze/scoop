@@ -122,6 +122,13 @@
   - `AST`（更语义化的节点，利于后续分析）
 - [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
 - [x] Pattern AST 节点（T0244）：新增 `Pattern`（Wildcard/Bind/Tuple/Struct）与 `ValBinding`，用于 block 内 `val` 解构绑定；`when` 分支模式仍使用 `WhenPat`（后续再统一迁移）
+- [ ] Parser 收尾补齐：
+  - `import foo.bar.Baz as Qux`（Appendix B.7）
+  - use-site effect row 实参：`Type<eff Row>`（spec §3.4）
+  - pattern rest：`..`（spec §4.2）
+- [ ] Kotlin-like 声明补齐：
+  - `init { ... }` blocks 与 secondary constructors（Appendix B.2.2）
+  - `object` / `companion object` 声明（Appendix B.9）
 
 **本阶段 DoD**
 - `scoopc` 能解析大部分 spec 示例，不做类型检查也能 `dump-ast`。
@@ -145,28 +152,24 @@
   - 再解析函数体与初始化表达式
 - [x] import 解析与名字绑定（最小子集）：对 fun/val 顶层签名里的 `TypeRef::Path` 做存在性解析（含 star import）
 - [x] import 表（T0303）：显式 import 按 type/value 命名空间拆分，并保留 `*` import 前缀（为 expr 解析准备）
-- [x] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
+- [ ] `typealias` 名字解析：alias 作为 type-level symbol 纳入索引；冲突与可见性诊断
 - [x] 作用域：块级（函数体/表达式块内局部 `val/var`，含遮蔽）（T0304）
 - [x] 表达式裸标识符绑定写回：为 `ExprKind::Ident` 记录其解析到的局部/顶层引用（T0305）
-- [x] 成员访问解析（`.`）：对 `receiver.member`/`receiver?.member` 在 receiver 类型可静态确定时解析并写回（T0310）
-- [x] 调用解析：把 `Call(Ident)` 的 callee 绑定到顶层 fun；多个候选时报 `ambiguous_call`（T0311）
 - [ ] 作用域：类型体/泛型参数/扩展 receiver（逐步补齐）
-  - [x] 泛型参数：签名中的 `TypeRef` 支持解析声明处 type params（T0309）
-  - [x] `this`/主构造参数：type body member fun、属性 init/accessor 的值名字解析（T0313）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
-  - [x] 扩展函数/扩展属性：member 优先；无同名 member 时按 receiver 类型匹配 extension（T0312）
+- [ ] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
+- [ ] class 初始化阶段作用域：property initializer / `init` / secondary constructor
+- [ ] `object` / `companion object` 的名字解析与成员可见性
 
 ### 3.3 sysroot 注入
 
 - [x] sysroot 文件与 loader 骨架：可发现并解析 `sysroot/*.scoop`（当前实现见 `scoopc::sysroot`）
 - [x] 编译流程注入：通过 `scoopc::session::Session` 默认加载 sysroot，并在 `build_top_level_index` 中纳入名字解析环境
-- [x] sysroot：补齐内建标量类型的“可见声明”（spec §2.3.4 / runtime §3）
+- [ ] sysroot：补齐内建标量类型的“可见声明”（spec §2.3.4 / runtime §3）
   - `Int/UInt`：word-sized（随 target 指针宽度变化，Swift 约定）
   - 固定位宽整数：`Int8/16/32/64`、`UInt8/16/32/64`
   - 标准别名：`Byte/Short/UShort/Long/ULong`，以及 `UIntPtr = UInt`
   - 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供
-- [x] sysroot：补齐 `RuntimeError` 的“可见声明”（spec §5.7）
-  - `NullAssertionFailed`、`ClassCastFailed`（用于 `!!` / `as` 的失败语义建模）
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
@@ -177,18 +180,6 @@
 
 ### 4.1 类型表示（核心）
 
-- [x] `scoopc::ty`：引入 `TypeId/TypeKind`（Ref/Value）与最小 builtin（T0401）
-- [x] sysroot 类型环境：收集内建类型/效果声明头（T0402）
-- [x] `TypeRef` → `Type` lowering：支持 Path/Tuple/Nullable + 泛型 arity 检查（T0403）
-- [x] 顶层声明头签名检查（不进入函数体/initializer）：`scoopc::typecheck::check_file_headers`（T0404）
-- [x] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）：顶层 initializer 的最小校验（T0405）
-- [x] 表达式类型检查 v0：变量引用（局部/参数/顶层）：支持 ident 类型推导并进入函数体推导局部绑定（T0406）
-- [x] 表达式类型检查：函数调用（参数数量/类型匹配；仅顶层函数、无重载/默认参数/命名参数）（T0407）
-- [x] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）（T0408）
-- [x] 表达式类型检查：struct literal `Point { x: 1, y: 2 }`（字段存在性/去重/类型匹配/缺字段）（T0423）
-- [x] struct 声明：字段规则（重复字段/禁止 `var`/不支持默认值）（T0409）
-- [x] enum 声明：在 `TypeEnv` 收集 variants（tag + payload types），并检查重复 variant/字段（T0425）
-- [x] enum variant 构造表达式：`Some(x)`（同名唯一；参数数量/类型检查）（T0426）
 - [ ] 区分引用类型 vs 值类型（spec §2）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - `Int/UInt` 的 bit width = target pointer size
@@ -196,13 +187,6 @@
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
 - [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
 - [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
-  - [x] tuple 类型与 tuple 字面量（`(a, b)`），`Unit` 视为 0 元 tuple（T0410）
-  - [x] `T?` 语法糖：在 type lowering 阶段 desugar 为 `Option<T>`（T0411）
-  - [x] `?.` safe-call 与 `?:` Elvis：nullable sugar 的最小类型规则（仅 Option<T>，不引入 null）（T0422）
-- [ ] `Nothing` bottom type：`Nothing <: T`（用于不可达分支 / `return` / `Raise.raise`）
-  - [x] v0：赋值兼容/返回类型检查（T0420a）
-  - [ ] fixtures 验收：`Raise.raise` 返回 `Nothing` 兼容任意返回类型（T0420b，依赖 T0602）
-  - 注：由于该验收依赖 effect operation 的解析/类型规则（T0602），`TODO.md` 已将 T0420b 移动到 T0602 之后，避免优先级/依赖顺序错位。
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
 - [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
@@ -223,30 +207,24 @@
 ### 4.4 模式匹配与 smart cast（spec §4）
 
 - [ ] `when` 表达式（穷尽性检查可分阶段做）
-  - [x] 分支 LUB v0：分支类型相同则返回该类型，否则 fallback `Any`（T0414）
-  - [x] pattern v0：tuple/variant pattern 的最小类型约束 + arm binder 注入局部作用域（T0427）
-  - [x] 穷尽性检查 v0：enum/Bool/Option 在无 catch-all 时必须覆盖全部分支；非穷尽类型要求 `else`/`_`（T0428）
-  - [x] pattern guard：带 guard 的分支不计入穷尽覆盖（要求 `else`/`_`）（T0429）
-- [x] `is` / `!is` + smart cast（至少覆盖 `val` 的流敏感类型收窄）
-- [x] `as` / `as?`（typecheck v0：`as` 返回 `T`、`as?` 返回 `T?`；运行期失败语义后续接入 effect/RuntimeError）
+- [ ] `is` / `!is` + smart cast（至少覆盖 `val` 的流敏感类型收窄）
+- [ ] `as` / `as?`（按 spec：`as` 失败走 `Raise.raise(RuntimeError.ClassCastFailed)`）
 
 ### 4.5 值类型更新（`with` 表达式）（spec §2.6）
 
 - [ ] 语义：并行更新（RHS 都基于原值求值，无顺序依赖）
-- [x] path 解析 v0：`x: value`（仅 struct 字段；字段必须存在且类型匹配）
-- [x] path 解析 v1：`a.b.c: value`（嵌套字段路径必须存在且类型匹配；禁止重复/重叠 path 以避免顺序依赖）
+- [ ] path 解析：`a.b.c: value`（字段路径必须存在且类型匹配）
 - [ ] lowering：生成“拷贝 + 覆盖字段”的构造逻辑（对嵌套 path 生成中间拷贝）
 
 ### 4.6 变量绑定与解构（spec §9 + Kotlin-like）
 
 - [ ] `val`/`var`：
-  - [x] 不可变/可变规则（仅允许对局部 `var` 赋值；`val`/参数赋值报错）（T0416）
+  - 不可变/可变规则
   - `var` 的赋值类型检查
 - [ ] 解构绑定（destructuring）：
   - tuple/enum/struct 的 `val (a, b) = expr`
   - `when` 分支中的解构 pattern
 - [ ] 控制流基础：`if/while/for/return/break/continue`（非局部 return 不支持）
-  - [x] `return`：函数体内类型检查与诊断（T0417）
 
 ### 4.7 属性系统（spec §10）
 
@@ -268,6 +246,11 @@
 - [ ] 扩展函数：
   - 解析与分发规则（静态分发、member 优先）
   - codegen：receiver 作为第一个参数的普通函数
+- [ ] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
+- [ ] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
+- [ ] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
+- [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
+- [ ] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
 
 **本阶段 DoD**
 - `scoopc` 能对一批无泛型/少量泛型的示例做类型检查（含 struct/enum/Option/when/is/as）。
@@ -305,7 +288,6 @@
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
   - `!!`、`as` 失败 → `Raise.raise(RuntimeError.…)`
-  - 注：`!!` 的类型与效果验收（T0421）依赖 required effects + try/catch lowering（T0604/T0607），`TODO.md` 已将 T0421 放在 T0607 之后。
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 
@@ -330,6 +312,13 @@
    - [ ] continuation 捕获 handler stack（fiber-local 语义）
    - [ ] 支持跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（见 spec §5.5）
    - [ ] one-shot：原子状态位保证并发下只能成功一次
+
+- [ ] use-site effect row 实参：`Type<eff Row>` 的解析/类型检查/推断（spec §3.4）
+- [ ] `Task<T>` 与 `async fun` 语义：
+  - `async fun foo(): T` desugar 为 `fun foo(): Task<T>`
+  - 调用者签名不携带 `/ Async`
+  - `Task<T>` 懒执行，直到 `await` 或显式启动
+- [ ] Appendix A 一致性：嵌套 handler 必须支持“最近匹配 handler”分发，不能停留在单层 handler 模型
 
 **本阶段 DoD**
 - compile-pass + run-pass 覆盖 `Raise`、`try/catch/finally`、自定义 effect + handle，以及一个最小 async/await demo。
@@ -385,6 +374,12 @@
 
 > 优点：实现难度低、语义清晰、可逐步演进到移动 GC；缺点：需要编译器插桩，性能一般，但足够 bootstrap。
 
+- [ ] `when` lowering：补齐 or-pattern / guard（spec §4.2）
+- [ ] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）
+- [ ] enum layout/codegen：补齐 niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
+- [ ] `object` / `companion object` codegen：单例存储、一次初始化、静态成员访问（Appendix B.9）
+- [ ] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
+
 **本阶段 DoD**
 - 生成的二进制可运行（至少支持整数运算、函数调用、打印、Option/enum 基本构造）。
 
@@ -414,6 +409,9 @@
 - [ ] `runtime/c` 用 clang 编译成静态库/对象
 - [ ] `scoopc` 链接时自动把 runtime 拉进来
 - [ ] fixtures 中提供 `--emit-llvm`/`--emit-obj`/`--emit-asm` 选项方便排查
+- [ ] effect runtime 必须支持多层 handler stack（最近匹配分发 + arm body 在 dispatch scope 外；Appendix A）
+- [ ] `Task<T>` / executor 最小 runtime 原语：任务状态、入队/恢复、可选 start（spec §5.7）
+- [ ] `object` / `companion object` 的 once/init 支持（Appendix B.9）
 
 **本阶段 DoD**
 - 有一个“运行期回归套件”（见 §10）能持续压测 GC 与 effect。
@@ -530,6 +528,12 @@ tests/
 - [ ] `@Extern`：
   - 默认视为 `@NoGC`
   - 是否默认 `@Unsafe`：建议 **调用点要求 unsafe context**（更符合“外部世界不可信”）
+- [ ] 注解系统补齐：
+  - 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
+  - `AnnotationTarget` enum 与 target 合法性检查
+  - meta-annotations 与 `.cone` 导出策略
+- [ ] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
+- [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 
 fixtures：
 - `tests/fixtures/unsafe_nogc/*` 覆盖所有违规路径（必须 compile-fail）
@@ -564,6 +568,10 @@ fixtures：
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）
+- [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
+- [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
+- [ ] `trimIndent()`：编译期求值 + 运行期 fallback（spec §8.4）
+- [ ] sysroot/stdlib：补齐 scope functions 与标准 delegated property API surface（spec §10.4 / §11）
 
 fixtures：
 - `tests/fixtures/comptime/*`：覆盖常量折叠、生成代码（若支持）、错误诊断
@@ -582,6 +590,10 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 - [ ] `typealias`（纯类型层语法糖；基础实现已因 sysroot 标准别名前置）
 - [ ] Ranges/progressions 与 `for` 迭代协议
 - [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）
+- [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
+- [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
+- [ ] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
+- [ ] 标准 delegated properties：`lazy`/`observable`/`vetoable`/map-backed（spec §10.4）
 
 fixtures：
 - `tests/fixtures/language/*` 下为每个特性提供 compile-pass/compile-fail + 必要的 run-pass

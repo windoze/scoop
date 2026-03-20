@@ -354,7 +354,7 @@
 
 ### T0226 [DONE] Parser：语句 `return`（spec §7.1/§7.3）
 - 描述：在 block 语句中支持 `return` 与 `return expr`。
-- 目标：不支持 label；不支持 non-local return（Scoop 设计上不支持 non-local return，即使是 inline 函数的 lambda 参数也不例外）。
+- 目标：先不支持 label/non-local return（后续在 inline 语义里处理）。
 - 验收：新增 parse fixture：`fun f(): Any { return x }`；`return` 在顶层报错（或解析后由 typecheck 报错，需明确策略）。
 - 依赖：T0207
 
@@ -527,6 +527,42 @@
 - 依赖：T0206、T0209、T0210
 - 完成：AST 新增 `UnaryOp` 与 `ExprKind::Unary`；parser 引入 `try_parse_expr_prefix()`，支持 `!`/`-`/`~` 并确保 postfix 优先级更高；新增 parse fixture `tests/fixtures/parse/prefix_unary_basic.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
+### T0253 [TODO] Parser：use-site effect row 实参 `Type<eff Row>`（spec §3.4 / §5.8）
+- 描述：在类型实参列表中支持 `Disposable<eff Async>`、`Disposable<eff (Async + Raise<IOError>)>` 这类 use-site effect row 参数写法。
+- 目标：先只支持单个 `eff` clause，且必须出现在泛型实参列表最后；合法性检查留给 typecheck。
+- 验收：新增 parse fixture：`Disposable<eff Pure>`、`Disposable<eff (Async + Raise<IOError>)>` 可解析；`<eff E, Int>` 之类非法顺序报错。
+- 依赖：T0250、T0219
+
+### T0254 [TODO] Parser：import alias `import foo.bar.Baz as Qux`（Appendix B.7）
+- 描述：扩展 import 语法，支持 Kotlin 风格 alias import，并把 alias 名记录到 AST。
+- 目标：先只支持顶层 import；不支持在表达式/局部作用域中出现 import。
+- 验收：新增 parse fixture：普通 import、`*` import、alias import 混用可解析；缺 alias 名时报错。
+- 依赖：T0009
+
+### T0255 [TODO] Parser：pattern rest `..`（spec §4.2）
+- 描述：在 pattern 语法中支持 `..`，用于忽略剩余字段/元素。
+- 目标：先只把 `..` 解析进 AST；类型规则与“只能出现一次”等约束留给 typecheck。
+- 验收：新增 parse fixture：tuple/struct pattern 中的 `..` 可解析；重复 `..` 或非法位置报错。
+- 依赖：T0239、T0241、T0240
+
+### T0256 [TODO] Parser：class `init { ... }` blocks（Appendix B.2.2）
+- 描述：在 class body 中解析 `init { ... }` 初始化块，并把它作为成员节点纳入 AST。
+- 目标：先只支持 class；初始化顺序与语义留给 resolver/typecheck。
+- 验收：新增 parse fixture：含多个 `init` block 的 class 可解析；`init` 缺 block 报错。
+- 依赖：T0207、T0201、T0248
+
+### T0257 [TODO] Parser：secondary constructors（Appendix B.2.2）
+- 描述：支持 class 内 `constructor(...) { ... }` 的最小语法，并保留可选 delegation call（如 `: this(...)` / `: super(...)`）的 span/AST。
+- 目标：先只解析签名、delegation 头和 body；初始化顺序与调用合法性留给 typecheck。
+- 验收：新增 parse fixture：含 secondary constructor 的 class 可解析；缺参数列表或缺 body 报错。
+- 依赖：T0248、T0207
+
+### T0258 [TODO] Parser：`object` / `companion object` 声明（Appendix B.9）
+- 描述：支持 top-level / nested `object Name { ... }`，以及 class 内 `companion object { ... }` / `companion object Name { ... }`。
+- 目标：先只做语法与 AST；单例语义、成员访问和初始化留给后续阶段。
+- 验收：新增 parse fixture：top-level object、nested object、named/unnamed companion object 可解析；非法 companion 位置报错。
+- 依赖：T0201、T0248
+
 ---
 
 ## T03：名字解析（阶段 2：从“顶层存在性”走向“作用域/多命名空间”）
@@ -587,172 +623,167 @@
 - 依赖：T0307
 - 完成：将 `check_file_bindings` 拆分为 `check_file_headers`（构建 import 表 + 解析声明头里的 TypeRef）与 `check_file_bodies`（块级作用域 + 值解析）；新增 `FileHeaders` 作为 phase 间数据载体；type decl headers（主构造参数类型、supertype、成员签名）也纳入 type 引用解析；将值解析扩展到顶层 `val/var` initializer；新增 resolve fixtures：`forward_ref_top_level_symbol_ok`（pass）与 `unresolved_value_in_top_level_init`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0309 [DONE] Resolver：泛型参数作用域与解析（type params 是符号）
+### T0309 [TODO] Resolver：泛型参数作用域与解析（type params 是符号）
 - 描述：在 resolve 阶段把声明处 type params 纳入作用域，使 `TypeRef` 中的 `T` 可解析到泛型参数。
 - 目标：先只支持同一声明内引用；不支持 where 约束。
 - 验收：resolve fixture：`fun id<T>(x: T): T { x }` 通过；`fun f(x: T) {}` 报未定义类型参数。
 - 依赖：T0218、T0308
-- 完成：在 `scoopc::resolve` 增加声明级 type params 作用域栈；解析 `TypePath` 时若为单段路径且命中当前作用域的 type param，则视为已解析（并允许 shadow 顶层同名 type）；同时递归解析 `TypePath` 的类型实参以支持 `Option<T>` 等形态；新增 resolve fixtures：`generic_type_param_ok`（pass）与 `unresolved_type_param_in_signature`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0310 [DONE] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
+### T0310 [TODO] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
 - 描述：把 `a.b` 的 `b` 绑定到 struct 字段或 class/interface 成员（先做存在性）。
 - 目标：先只处理“静态可确定”的情况；动态分发/override 后续。
 - 验收：resolve fixture：`p.x` 解析到字段；`p.m()` 解析到方法；不存在时报错并指向成员名 span。
 - 依赖：T0302、T0210
-- 完成：AST 新增 `MemberIdent`/`ResolvedMemberRef`（解析前 Debug 输出保持与旧 `Ident` 一致）；resolver 在 block scopes 中记录局部绑定的声明类型，并对 `ExprKind::MemberAccess`/`SafeMemberAccess` 在 receiver 类型可静态确定时解析成员到 `value/fun` 并写回；新增错误码 `scoop::resolve::unresolved_member` 并精确标注成员名 span；新增 resolve fixtures `member_access_ok`（pass）与 `unresolved_member_access`（fail）；新增单测 `resolve::scopes::tests::member_access_resolution_is_written_back`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0311 [DONE] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
+### T0311 [TODO] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
 - 描述：把 `f(...)` 的 callee 从“裸 ident”解析为某个 fun symbol（先要求唯一匹配）。
 - 目标：先不支持重载；若同名多个定义则报歧义错误。
 - 验收：resolve fixture：调用顶层函数成功；同名多个函数时报 `ambiguous_call`（新错误码）。
 - 依赖：T0305、T0209
-- 完成：在 `resolve::scopes` 为 `ExprKind::Call` 增加 `Call(Ident)` 的 fun 命名空间解析：唯一匹配写回 `ValueIdent.resolved`；多个可见候选时报新错误码 `scoop::resolve::ambiguous_call`；新增单测 `ambiguous_call_is_error`；新增 fixtures：`resolve/call_top_level_fun_ok`（pass）与 `resolve_multi/ambiguous_call`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0312 [DONE] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
+### T0312 [TODO] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
 - 描述：实现最小规则：member 优先于 extension；extension 需要 receiver 类型可匹配。
 - 目标：先只在同包/同文件找 extension；跨包 import 扩展后续。
 - 验收：resolve fixture：同名 member 与 extension 并存时解析到 member；只有 extension 时解析到 extension。
 - 依赖：T0233、T0310
-- 完成：`Index` 在 build 后收集同包扩展函数（记录 receiver 类型 FQN），成员访问解析在无同名 member 时按 receiver 类型匹配 extension 并写回 `ResolvedMemberRef::ExtensionFun`（`scoop.core.Any` 作为通配）；新增单测 `resolve::scopes::{extension_fun_is_resolved_when_no_member, member_still_wins_over_extension_with_same_name}` 与 resolve fixtures `extension_member_only_extension_ok`/`extension_member_prefers_member`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0313 [DONE] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
+### T0313 [TODO] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
 - 描述：为 class 主构造参数、属性初始化表达式、成员函数体建立正确作用域（含 `this`）。
 - 目标：先不实现 `super`；先不处理 capture/闭包。
 - 验收：resolve fixture：class 成员函数可引用 `this` 与构造参数；未定义时报错。
 - 依赖：T0248、T0308
-- 完成：`scoopc::resolve::scopes` 引入 `this` 上下文（类型体成员/扩展函数）并补齐主构造参数在 property init/accessor 与 member fun 体内的可见性；`this` 在无 receiver 语境下会按未定义值报错；新增 resolve fixtures `class_member_this_and_ctor_param_ok`（pass）与 `this_outside_receiver_is_error`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0314 [DONE] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
+### T0314 [TODO] Resolver：收集 `typealias` 并纳入 type 命名空间（为 sysroot 标准别名铺路）
 - 描述：把 `typealias Name = Type` 作为一种 type-level symbol 纳入索引与 import 环境，使得 `Byte/UIntPtr` 等别名能被当作类型引用。
 - 目标：resolve 阶段只做“名字可见性/冲突检测”；不做 alias 展开与循环检测（交给 typecheck）。
 - 验收：新增 resolve fixture：`typealias Byte = UInt8; fun f(x: Byte): Byte { x }` 可解析；同名 typealias 与 struct/class 冲突时报错并定位两个声明。
 - 依赖：T0251、T0301、T0308
-- 完成：补齐 resolve fixtures：`resolve/typealias_is_type_symbol_ok.scoop`（pass）与 `resolve/typealias_conflicts_with_struct.scoop`（fail，断言 `duplicate_definition` 及位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+
+### T0315 [TODO] Resolver：import alias 绑定与冲突规则（Appendix B.7）
+- 描述：把 `import foo.bar.Baz as Qux` 引入的 alias 纳入 import table，并参与 type/value 名字解析与冲突检查。
+- 目标：先只支持文件级 alias；同名 alias 与本地顶层声明/其他 import 冲突时报错。
+- 验收：新增 resolve fixture：通过 alias 成功引用类型/函数；alias 冲突时报稳定错误码。
+- 依赖：T0254、T0303、T0308
+
+### T0316 [TODO] Resolver：class 初始化阶段作用域（property initializer / `init` / secondary constructor）
+- 描述：为属性初始化表达式、`init` block、secondary constructor 建立正确作用域，固定 `this`、主构造参数、已声明成员的可见性边界。
+- 目标：先只做名字解析与作用域；初始化顺序与必经 delegation 规则留给 typecheck。
+- 验收：新增 resolve fixture：`init` 中可引用 `this` 与构造参数；非法前向引用报错并定位。
+- 依赖：T0256、T0257、T0313
+
+### T0317 [TODO] Resolver：`object` / `companion object` 的名字解析与成员访问（Appendix B.9）
+- 描述：把 `object` / `companion object` 纳入符号表，并支持 `Obj.member`、`ClassName.member`（经 companion）这类最小解析规则。
+- 目标：先只做 name resolution；单例初始化与 codegen 留给后续。
+- 验收：新增 resolve fixture：top-level object 成员可解析；class companion 成员可通过 `ClassName.member` 解析；缺 companion 时给出清晰错误。
+- 依赖：T0258、T0302、T0301
 
 ---
 
 ## T04：类型系统（阶段 3：先类型检查再优化）
 
-### T0401 [DONE] Type 表示：建立 `scoopc::ty` 模块（TypeId/TypeKind）
+### T0401 [TODO] Type 表示：建立 `scoopc::ty` 模块（TypeId/TypeKind）
 - 描述：引入内部类型表示（区分引用/值类型），并支持 builtin（Any/Option/Nothing/Unit 以及内建整数族 Int/UInt/IntN/UIntN 等）。
 - 目标：先只建数据结构与打印；不做推断/求解。
 - 验收：新增单测：构造若干 Type 并格式化输出；`cargo test -p scoopc` 通过。
 - 依赖：T0010
-- 完成：新增 `scoopc::ty`（`TypeId`/`TypeKind`/`TypeStore` + `Display`），支持 `Any/Unit/Nothing/Int/UInt/IntN/UIntN/Option<T>`（含 tuple 预留）；新增单测覆盖格式化输出与 ref/value 分类；`cargo test --all` 通过。
 
-### T0402 [DONE] 从 sysroot 收集“内建类型/效果”的类型信息
+### T0402 [TODO] 从 sysroot 收集“内建类型/效果”的类型信息
 - 描述：基于 sysroot AST 建立 type env（Any/Option/Raise），为后续 typecheck 提供起点。
 - 目标：先只读取声明头（名字 + kind + 泛型参数个数），不做方法体。
 - 验收：新增单测：加载 sysroot 后能查询到 `scoop.core.Option` 的泛型参数数量为 1。
 - 依赖：T0010、T0401
-- 完成：新增 `scoopc::typecheck::TypeEnv`，从 sysroot AST 收集 type/typealias 声明头信息（kind + arity）；新增单测 `sysroot_type_env_contains_option_arity`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0403 [DONE] `TypeRef` → `Type` lowering（支持 Path/Tuple/Nullable）
+### T0403 [TODO] `TypeRef` → `Type` lowering（支持 Path/Tuple/Nullable）
 - 描述：把 AST 的 `TypeRef` 解析到内部类型（已 resolve 的前提下）。
 - 目标：先做“存在性 + arity 检查”；不做 variance/star projection。
 - 验收：新增 typecheck fixture：`fun f(x: Option<Any>): Any {}` 通过；`Option<Any, Any>` 报 arity 错误（新错误码）。
 - 依赖：T0011、T0402
-- 完成：新增 `scoopc::typecheck::lower`（`check_file_type_refs` + `TypeLowerError`），实现 `TypeRef::{Path,Tuple,Nullable}` lowering 并新增错误码 `scoop::typecheck::type_arity_mismatch`；`scoopc::ty` 增加名义类型表示（nominal types）以承载非 builtin 的 `Path` lowering；fixtures runner 接入 `typecheck` phase 并新增 `tests/fixtures/typecheck/{option_any_ok,option_arity_mismatch}.scoop`（同时把 `unimplemented_phase.scoop` 升级为 smoke）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0404 [DONE] 类型检查 pass：仅检查顶层声明头（fun/val/type）签名合法
+### T0404 [TODO] 类型检查 pass：仅检查顶层声明头（fun/val/type）签名合法
 - 描述：实现 `typecheck::check_file_headers`，不进入函数体。
 - 目标：先把“类型环境 + 错误诊断”跑通；不要求表达式 AST 完整。
 - 验收：新增 `tests/fixtures/typecheck/`：至少 2 个 pass + 2 个 fail；在 `scoop test` typecheck phase 下回归。
 - 依赖：T0101、T0403
-- 完成：新增 `scoopc::typecheck::check_file_headers`（`TypeHeaderError`，错误码 `scoop::typecheck::missing_type_annotation` / `unsupported_pattern_binding`），并在 `crates/scoop/src/fixtures/mod.rs` 的 typecheck phase 中接入；新增 fixtures：`typecheck/top_level_val_with_type_ok.scoop`（pass）与 `typecheck/top_level_val_missing_type_is_error.scoop`（fail，断言 `missing_type_annotation` 与位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0405 [DONE] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
+### T0405 [TODO] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
 - 描述：为 `Expr::IntLit/StringLit/...` 推导类型。
 - 目标：先把 builtin 类型补到 sysroot（或在 compiler 内建）；不做数值提升。
 - 验收：新增 typecheck fixture：`val x = 1` 推导为 Int（若支持推断）；或要求注解 `val x: Int = 1`。
 - 依赖：T0206、T0401、T0418
-- 完成：`scoopc::ty` 补齐 builtin `Bool/String`；parser 将 `()` 解析为 `ExprKind::UnitLit`；resolve/type lowering 对 `Int/UInt/Bool/String/Unit/Nothing` 做 builtin 兜底并在 type lowering 中映射到 builtin `TypeId`；新增 `scoopc::typecheck::check_file_exprs` 对顶层 `val/var` initializer 做字面量类型检查并给出错误码 `scoop::typecheck::initializer_type_mismatch`；新增 fixtures：`typecheck/literals_ok.scoop`（pass）与 `typecheck/literal_type_mismatch_is_error.scoop`（fail），并更新 `top_level_val_with_type_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 均通过。
 
-### T0406 [DONE] 表达式类型检查 v0：变量引用（局部/参数/顶层）
+### T0406 [TODO] 表达式类型检查 v0：变量引用（局部/参数/顶层）
 - 描述：对 resolve 后的 ident 引用给出类型。
 - 目标：先不支持 forward reference（或明确规则）；错误信息指向引用处。
 - 验收：typecheck fixture：`fun f(x: Any) { val y = x }` 通过；`val y = missing` 报未定义符号（若 resolve 已报则这里不重复/或只报一次）。
 - 依赖：T0305、T0405
-- 完成：typecheck phase 先运行 `resolve::check_file_bodies` 写回 `ValueIdent.resolved`，并在 resolver 中对 `true/false` 做字面量 special-case；`scoopc::typecheck::expr` 增加对 `ExprKind::Ident` 的类型推导（Local/TopLevel），并在函数体内对局部 `val/var` initializer 做最小推导与注册；新增 fixture `tests/fixtures/typecheck/value_ident_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0407 [DONE] 表达式类型检查：函数调用（无重载、按名称唯一解析）
+### T0407 [TODO] 表达式类型检查：函数调用（无重载、按名称唯一解析）
 - 描述：对 `Call(callee, args)` 做参数数量检查与类型匹配。
 - 目标：先只支持调用“已解析到的 fun symbol”；不支持默认参数/命名参数。
 - 验收：typecheck fixture：调用参数个数不匹配时报错（含错误码）；参数类型不匹配时报错并指出 arg span。
 - 依赖：T0209、T0305、T0406
-- 完成：`scoopc::typecheck::expr` 支持 `ExprKind::Call` 的类型推导：按 resolver 写回的 `ValueIdent.resolved` 查找当前文件内的顶层函数签名并校验参数个数与类型；新增错误码 `scoop::typecheck::call_arity_mismatch` / `scoop::typecheck::call_arg_type_mismatch`（并提供 `callee_not_callable` 兜底）；新增 typecheck fixtures：`call_ok`（pass）、`call_arity_mismatch_is_error`（fail，断言错误码与位置）、`call_arg_type_mismatch_is_error`（fail，断言错误码与 arg 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0408 [DONE] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
+### T0408 [TODO] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
 - 描述：先实现 value type `struct` 的字段访问类型检查（spec §2.3.1）。
 - 目标：不支持 class/interface vtable；只支持直接字段。
 - 验收：新增 typecheck fixture：定义 struct `Point(val x: Int)` 并访问 `p.x` 通过；访问不存在字段报错。
 - 依赖：T0210、T0401、T0404
-- 完成：resolver 的索引构建将 `struct` 主构造参数纳入 value namespace（视作字段），从而 `p.x` 可在 resolve 写回到 `MemberIdent.resolved`；typecheck 表达式推导支持 `ExprKind::MemberAccess` 并在当前文件内查找 struct 字段类型；新增 fixtures：`typecheck/member_access_struct_field_ok.scoop`（pass）、`typecheck/member_access_missing_field_is_error.scoop`（fail，resolve `unresolved_member`）、`typecheck/member_access_non_field_is_error.scoop`（fail，typecheck `unsupported_member_access`）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0409 [DONE] 声明类型：struct（仅字段，不含方法）
+### T0409 [TODO] 声明类型：struct（仅字段，不含方法）
 - 描述：typecheck 阶段收集 struct 字段列表、检查重复字段、类型合法。
 - 目标：先限制字段全是 `val` 且需要类型注解；不支持默认值。
 - 验收：typecheck fixture：struct 字段重复时报错；字段类型未解析时报错。
 - 依赖：T0202、T0404
-- 完成：新增 `scoopc::typecheck::check_file_struct_decls`（错误码 `scoop::typecheck::duplicate_struct_field` / `struct_field_must_be_val` / `struct_field_default_value_not_supported`），在 typecheck fixtures 流程中接入并新增 4 个回归 fixture（重复字段、`var` 字段、字段默认值、字段类型未解析）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0410 [DONE] 值类型：tuple 与 Unit（spec §2.3.3）
+### T0410 [TODO] 值类型：tuple 与 Unit（spec §2.3.3）
 - 描述：把 tuple 类型与 tuple 表达式加入类型系统；`Unit` 视为 0 元 tuple。
 - 目标：先只支持 `(A, B)` 类型与 `(a, b)` 表达式；不支持解构。
 - 验收：typecheck fixture：`val t: (Int, Int) = (1, 2)` 通过；元素类型不匹配报错。
 - 依赖：T0211、T0405
-- 完成：AST 新增 `ExprKind::TupleLit`；parser 支持 `(a, b, ...)`（含 trailing comma 与单元素 `(x,)`）；resolve/typecheck 递归遍历 tuple 元素并完成类型推导；`TypeStore::intern` 增加去重以保证复合类型相等比较稳定；新增 typecheck fixtures `tuple_literal_ok`/`tuple_literal_type_mismatch_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0411 [DONE] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
+### T0411 [TODO] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
 - 描述：在 lowering 阶段把 `Nullable(TypeRef)` 映射到 `Option<...>`。
 - 目标：先只做类型层映射；运行期表示后续 codegen 决定。
 - 验收：typecheck fixture：`val x: Int?` 等价于 `Option<Int>`；`val y: Any?` 也可。
 - 依赖：T0403、T0402
-- 完成：`scoopc::typecheck::lower::TypeLowering::lower_type_ref` 将 `TypeRef::Nullable` desugar 为 `TypeStore::ty_option`；新增 typecheck fixture `tests/fixtures/typecheck/nullable_sugar_to_option_ok.scoop` 覆盖 `Int?`/`Any?` 与 `Option<T>` 的等价性；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0412 [DONE] Cast 语义：`as`/`as?` 的类型规则（spec §4.4）
+### T0412 [TODO] Cast 语义：`as`/`as?` 的类型规则（spec §4.4）
 - 描述：实现 `as`/`as?` 的类型检查规则；运行期失败行为由 effect/RuntimeError 后续落地。
 - 目标：先只做静态规则（可 cast/不可 cast）；不做 smart cast。
 - 验收：typecheck fixture：`x as T` 类型为 `T`；`x as? T` 类型为 `T?`（即 Option<T>）。
 - 依赖：T0213、T0411
-- 完成：typecheck 表达式推导支持 `ExprKind::Cast`，规则为：`as` 返回目标类型、`as?` 返回 `Option<T>`；当前阶段仅允许 ref↔ref（或同类型）显式转换，value↔ref 直接报错（`scoop::typecheck::invalid_cast`）；新增 fixtures `typecheck/cast_as_and_asq_ok.scoop`（pass）与 `typecheck/cast_value_to_ref_is_error.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0413 [DONE] `is`/`!is` + smart cast（val 场景）（spec §4.3）
+### T0413 [TODO] `is`/`!is` + smart cast（val 场景）（spec §4.3）
 - 描述：实现 flow-sensitive 类型收窄：`if (x is T) { x /* as T */ }`。
 - 目标：先只支持不可变 `val` 与参数；不支持 `var` 与复杂控制流合流。
 - 验收：typecheck fixture：在 `if` then 分支内使用 `x` 视为 `T`；在 else 分支保持原类型。
 - 依赖：T0213、T0214、T0406
-- 完成：`scoopc::typecheck::expr` 为 `ExprKind::TypeCheck`（`is`/`!is`）补齐最小类型规则（结果为 `Bool`）；并在函数体的表达式语句中识别 `if (x is T)` / `if (x !is T)`，对参数与 `val`（稳定绑定）在对应分支内做类型收窄（smart cast），`var` 不触发；新增 typecheck fixtures：`smart_cast_is_and_notis_ok`（pass）、`smart_cast_is_else_branch_not_narrowed_is_error`（fail）、`smart_cast_var_not_allowed_is_error`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0414 [DONE] `when` 类型规则：分支 LUB（spec §14.6）
+### T0414 [TODO] `when` 类型规则：分支 LUB（spec §14.6）
 - 描述：为 `when` 表达式计算结果类型（各分支类型的 LUB）。
 - 目标：先只支持简单类型：相同类型则返回该类型，否则 fallback 到 `Any`（后续再做真正 LUB）。
 - 验收：typecheck fixture：`when { ... }` 各分支 Int/Int → Int；Int/String → Any（或报错，按设计）。
 - 依赖：T0215、T0405
-- 完成：typecheck 推导支持 `ExprKind::When`，按“分支类型全相同则返回该类型，否则 fallback `Any`”的最小 LUB 规则计算结果类型；新增 typecheck fixtures `when_lub_same_type_ok`/`when_lub_mixed_to_any_ok`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0415 [DONE] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
+### T0415 [TODO] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
 - 描述：检查 `with` 的 base 必须是 struct/tuple/enum（按设计）；path 必须存在且 RHS 类型匹配。
 - 目标：先只支持 struct 字段更新；嵌套 path 可分后续任务。
 - 验收：typecheck fixture：`p with { x: 1 }` OK；`p with { missing: 1 }` 报错并指向 path。
 - 依赖：T0216、T0409、T0408
-- 完成：typecheck 表达式推导支持 `ExprKind::WithUpdate`：base 当前仅允许 `struct` 值类型；update path 仅支持单段字段名；检查字段存在性与 RHS 类型匹配；新增错误码 `scoop::typecheck::with_update_base_not_supported` / `with_update_nested_path_not_supported` / `with_update_unknown_field` / `with_update_field_type_mismatch`；新增 fixtures：`with_update_struct_field_ok`（pass）、`with_update_unknown_field_is_error`（fail，断言 path 位置）、`with_update_field_type_mismatch_is_error`（fail，断言 value 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0416 [DONE] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
+### T0416 [TODO] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
 - 描述：typecheck 阶段检查 `var` 可赋值、`val` 不可再次赋值；同一作用域重复定义报错。
 - 目标：先只覆盖 block 内；不涉及闭包捕获与跨块。
 - 验收：typecheck fixture：`val x = 1; x = 2` 报错；`var x = 1; x = 2` 通过。
 - 依赖：T0227、T0304、T0405
-- 完成：typecheck 在函数体语句层支持 `lhs = rhs` 的最小检查：仅允许对局部 `var` 赋值，`val`/参数赋值报新错误码 `scoop::typecheck::assignment_target_not_mutable`；同时 `block` typecheck 以“进入快照 + 退出回滚”实现最小作用域（避免局部声明泄漏到外层）；新增 fixtures `typecheck/val_reassign_is_error`（fail）与 `typecheck/var_reassign_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0417 [DONE] 基础控制流语句：`return`（函数内）
+### T0417 [TODO] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。
-- 目标：只支持普通函数的 return；不支持 non-local return（Scoop 设计上不支持，见 spec §7.3）。
+- 目标：先不支持 non-local return（spec §7.3）；只支持普通函数。
 - 验收：typecheck fixture：返回类型不匹配时报错；`return` 在非函数体报错（若 parser 允许则 typecheck 报）。
 - 依赖：T0226、T0404、T0405
-- 完成：typecheck 覆盖 `StmtKind::Return`：`return expr` 校验表达式类型可赋值给函数返回类型；`return` 无返回值仅允许 `Unit`；lambda body 内出现 `return` 报错（non-local return 不支持）；补齐 `when` 作为语句时的递归进入以覆盖分支中的控制流；新增错误码 `scoop::typecheck::return_type_mismatch` / `return_value_required` / `return_not_in_function_body`；新增 fixtures `typecheck/return_type_mismatch_is_error`、`typecheck/return_value_required_is_error`、`typecheck/return_in_lambda_is_error`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0418 [DONE] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
+### T0418 [TODO] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
 - 描述：在 sysroot 中提供“内建标量类型的可见声明”，包括：
   - word-sized：`Int` / `UInt`（随 target 指针宽度变化）
   - fixed-width：`Int8/16/32/64`、`UInt8/16/32/64`
@@ -761,77 +792,72 @@
 - 目标：只做“声明层”：类型名/可见成员最小化；不要求标准库实现齐全；不引入任何运行期行为。
 - 验收：新增 resolve fixture：`import scoop.core.*` 后引用上述类型与别名都可解析；`scoop test` 通过。
 - 依赖：T0010、T0011、T0251、T0314
-- 完成：在 `sysroot/core.scoop` 增加 `Bool/String/Unit/Nothing`、`Int/UInt`、`Int8..64`/`UInt8..64` 以及 `Byte/Short/UShort/Long/ULong/UIntPtr` 的声明与 `typealias`；新增 resolve fixture `tests/fixtures/resolve/sysroot_scalar_types_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0419 [DONE] sysroot：补齐 `RuntimeError` 与相关枚举值（spec §5.7 / §4.4 / Appendix B.3.3）
+### T0419 [TODO] sysroot：补齐 `RuntimeError` 与相关枚举值（spec §5.7 / §4.4 / Appendix B.3.3）
 - 描述：新增 `enum RuntimeError { ClassCastFailed, NullAssertionFailed, ... }`（按 spec）并确保可在 Raise<RuntimeError> 中使用。
 - 目标：先只定义错误枚举；不实现打印/堆栈。
 - 验收：新增 resolve fixture：引用 `RuntimeError.NullAssertionFailed` 可解析；typecheck fixture：`Raise<RuntimeError>` 类型合法。
 - 依赖：T0418、T0402
-- 完成：在 `sysroot/core.scoop` 增加 `enum RuntimeError { NullAssertionFailed, ClassCastFailed }`；resolver 的 `Index::build` 对 enum 额外注入同名 value symbol（允许 `RuntimeError.NullAssertionFailed` 这类限定名在 resolve 阶段通过）；新增 fixtures：`resolve/sysroot_runtime_error_value_ref_ok`（pass）、`typecheck/raise_runtime_error_type_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0420a [DONE] 类型关系：`Nothing` 作为 bottom type（赋值兼容 v0）（spec §2.1/§5.7）
-- 描述：在 typecheck 的“赋值兼容/返回类型检查”里实现 `Nothing <: T`（对任意 T），用于 `return`、不可达分支、以及后续 `Raise.raise`（T0420b）。
-- 目标：先只覆盖 `is_type_assignable` 的最小规则；不实现完整子类型系统；不引入 boxing/unboxing。
-- 验收：新增 Rust 单测：`Nothing` 可赋给 `Any`/`Unit`/`Bool`（以及反例），`cargo test -p scoopc typecheck::expr::*` 通过。
-- 依赖：T0418
-- 完成：`typecheck::expr::is_type_assignable` 新增 `Nothing <: T` 规则（对任意目标类型成立）；`when` 表达式结果类型推导忽略 `Nothing` 分支并在全 `Nothing` 时返回 `Nothing`；新增单测 `typecheck::expr::tests::nothing_is_assignable_to_any_type`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
+### T0420 [TODO] 类型关系：`Nothing` 作为 bottom type（spec §2.1/§5.7）
+- 描述：在类型系统中实现 `Nothing <: T`（对任意 T），用于 `Raise.raise`、`return`、不可达分支等。
+- 目标：先只实现 `Nothing` 子类型规则；不实现完整子类型系统。
+- 验收：typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 Nothing 兼容 Any 返回。
+- 依赖：T0419、T0602
 
-### T0422 [DONE] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
+### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
+- 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
+- 目标：先只实现静态规则；运行期行为后续由 effect/runtime 落地。
+- 验收：typecheck/effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
+- 依赖：T0212、T0419、T0604、T0607
+
+### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
 - 目标：先只覆盖 Option<T>（nullable sugar）；不引入真正的 null 值。
 - 验收：typecheck fixture：`val y: Int? = x?.len()` 合法；`val z: Int = x ?: 0` 合法。
 - 依赖：T0229、T0411、T0407
-- 完成：typecheck 支持（1）Elvis `?:`：`Option<T> ?: T -> T`（rhs 用最小 assignable 规则校验）；（2）safe-call：`Call(SafeMemberAccess)` 对 receiver fun（扩展函数）返回 `Option<R>`；并补齐 `receiver.member()` 的扩展函数调用类型检查（复用同一签名表）；新增错误码 `scoop::typecheck::safe_access_receiver_not_nullable` / `call_receiver_type_mismatch` / `elvis_lhs_not_nullable` / `elvis_rhs_type_mismatch`；新增 fixture `tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0423 [DONE] struct literal 的类型检查（字段存在性/类型匹配）
+### T0423 [TODO] struct literal 的类型检查（字段存在性/类型匹配）
 - 描述：检查 `Point { x: 1, y: 2 }`：字段必须存在、不可重复、类型匹配、必填字段覆盖规则（按设计）。
 - 目标：先只支持所有字段都必须提供的模式；默认值/可选字段后置。
 - 验收：typecheck fixture：缺字段/多字段/重复字段都报错并定位到字段名或逗号位置。
 - 依赖：T0224、T0409、T0405
-- 完成：typecheck 增加 `ExprKind::StructLit` 支持：`TypeName` 必须解析为 nominal `struct`；字段名做去重；不存在字段报新错误码 `scoop::typecheck::struct_lit_unknown_field`；字段值类型用最小 assignable 规则校验并报 `struct_lit_field_type_mismatch`；当前阶段要求显式提供所有字段（缺字段报 `struct_lit_missing_fields`，定位到 `}`）；并新增 `struct_lit_duplicate_field`/`struct_lit_not_struct`；新增 fixtures：`typecheck/struct_lit_ok`（pass）、以及 unknown/duplicate/type_mismatch/missing/not_struct（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0424 [DONE] `with`：嵌套 path 与并行求值语义（spec §2.6）
+### T0424 [TODO] `with`：嵌套 path 与并行求值语义（spec §2.6）
 - 描述：支持 `p with { a.b: v }` 的嵌套更新，并保证 RHS 基于“原值并行求值”（无顺序依赖）。
 - 目标：先只实现 typecheck 侧的规则与必要诊断；真正 lowering 放到 IR 阶段单独任务。
 - 验收：typecheck fixture：嵌套字段类型不匹配时报错；同一字段多次更新报错或明确覆盖规则（需决定）。
 - 依赖：T0415
-- 完成：typecheck 的 `with` 更新 path 支持多段字段路径 `a.b.c`（每段必须是 struct 字段且中间段类型也必须是 struct）；并按并行语义新增冲突校验：禁止重复 path（新错误码 `scoop::typecheck::with_update_duplicate_path`），禁止一条 path 包含另一条（`with_update_overlapping_paths`）；新增错误码 `with_update_nested_path_not_struct` 用于中间段不可继续；新增 fixtures：`typecheck/with_update_nested_path_ok`（pass）、`typecheck/with_update_nested_path_type_mismatch_is_error`（fail）、`typecheck/with_update_duplicate_path_is_error`（fail）、`typecheck/with_update_overlapping_paths_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0425 [DONE] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
+### T0425 [TODO] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
 - 描述：在 type env 中加入 enum variant 信息（tag + payload types），并检查重复 variant/字段。
 - 目标：先只支持 enum variant（无方法/属性）；niche 优化后置。
 - 验收：typecheck fixture：enum 重复 variant 名报错；variant 字段类型未解析报错。
 - 依赖：T0236、T0404
-- 完成：AST 新增 `TypeMember::EnumVariant` + `EnumVariantDecl`；parser 在 enum body 解析 `Name`/`Name(val field: T, ...)` 变体并要求 `val`+类型；resolver headers 解析 variant 字段类型引用；type env 收集 enum variants（tag 顺序分配）并检查重复 variant/字段（新错误码 `scoop::typecheck::duplicate_enum_variant` / `duplicate_enum_variant_field`）；type lowering 覆盖 variant 字段类型；新增 fixtures：`typecheck/enum_duplicate_variant_is_error`、`typecheck/enum_variant_duplicate_field_is_error`、`typecheck/enum_variant_field_unresolved_type_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0426 [DONE] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
+### T0426 [TODO] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
 - 描述：把 `Some(x)` 解析/绑定为某个 enum variant 构造，并检查参数数量与类型。
 - 目标：先只支持同名唯一的 variant；重名/重载后续处理。
 - 验收：typecheck fixture：`val o: Option<Int> = Some(1)` 通过；`Some()` 参数数不对时报错。
 - 依赖：T0240、T0311、T0425
-- 完成：resolve 阶段对 `callee(args...)` 的裸标识符允许“未解析”穿透到 typecheck（避免提前报 `unresolved_value`）；typecheck 支持按同名唯一 enum variant 绑定 `Some(x)` 并做 arity/参数类型检查（新增错误码 `scoop::typecheck::enum_variant_ctor_*`）；`TypeEnv` 记录 enum 声明源文件以支持跨文件（sysroot）variant 字段类型解析；新增 fixtures：`typecheck/enum_variant_ctor_some_ok`（pass）、`typecheck/enum_variant_ctor_arity_mismatch_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0427 [DONE] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
+### T0427 [TODO] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
 - 描述：对 pattern 进行类型约束：variant pattern 仅用于 enum；tuple pattern 仅用于 tuple；绑定变量进入分支作用域。
 - 目标：先不做穷尽性；先只做“每个分支内部类型正确”。
 - 验收：typecheck fixture：`when(opt){ Some(x)->x; None->0 }` 通过；把 Some 用在非 enum 上时报错。
 - 依赖：T0243、T0426、T0410
-- 完成：扩展 `WhenPat` 支持 `Wildcard/Bind/Tuple/Variant/BoolLit` 并补齐 parser；resolver 为每个 when arm 建立独立作用域并声明 pattern binder；typecheck 对 tuple/variant pattern 做最小类型约束并把 binder 类型注入 arm locals；新增错误码 `scoop::typecheck::when_variant_pat_not_enum`/`when_tuple_pat_not_tuple` 等；新增 fixtures：`typecheck/when_variant_pattern_binds_ok`（pass）、`typecheck/when_variant_pattern_not_enum_is_error`（fail）、`typecheck/when_tuple_pattern_binds_ok`（pass）、`typecheck/when_tuple_pattern_not_tuple_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0428 [DONE] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
+### T0428 [TODO] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
 - 描述：对可穷尽类型要求覆盖所有 variant（或允许 else）；非穷尽类型必须有 else/_。
 - 目标：先只支持 enum 与 Bool 与 Option<T>；嵌套组合后续。
 - 验收：typecheck fixture：缺少 None 分支时报错；覆盖完整且仍写 else 时产生 warning（先可仅记录 warning，不必 fixtures 断言）。
 - 依赖：T0427
-- 完成：typecheck 为 `when` 增加穷尽性检查：对 `Bool`/`Option<T>`/nominal `enum` 在无 catch-all（`else`/`_`/绑定 arm）时要求覆盖全部分支；对非穷尽类型强制要求 catch-all；新增错误码 `scoop::typecheck::when_non_exhaustive_missing_variants` 与 `when_missing_else`；当 enum/Bool/Option 已覆盖完整却仍写 `else` 时通过 `tracing::warn!` 记录冗余提示；新增 fixtures：`tests/fixtures/typecheck/when_option_missing_none_is_error.scoop`、`tests/fixtures/typecheck/when_int_missing_else_is_error.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0429 [DONE] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
+### T0429 [TODO] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
 - 描述：当某个分支带 guard 时，穷尽性检查应要求 else/_（或把该分支不计入覆盖）。
 - 目标：先只实现规则；不做路径敏感分析。
 - 验收：typecheck fixture：`Some(x) if x>0 -> ...` 场景缺 else 时报错。
 - 依赖：T0428
-- 完成：`WhenArm` 增加 `guard: Option<Expr>` 并在 parser 支持 `pat if <expr> -> body`；resolve 阶段在每个 arm 的作用域内解析 guard；typecheck 穷尽性检查忽略带 guard 的分支（它们既不计入覆盖集合，也不算 catch-all），从而在缺少 `else`/`_` 时稳定报 `when_non_exhaustive_missing_variants`；新增 fixture `tests/fixtures/typecheck/when_guard_missing_else_is_error.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0430 [TODO] destructuring `val`：tuple/struct pattern 绑定（spec §4.2、§9）
 - 描述：实现 `val (a,b)=expr`、`val Point { x, y } = expr` 的类型检查与绑定，并强制 `var` 不允许。
@@ -917,10 +943,10 @@
 - 验收：typecheck fixture：给 val 赋值报错；给 var 赋值但类型不匹配报错（指向 rhs span）。
 - 依赖：T0227、T0416、T0406
 
-### T0444 [TODO] `inline` 语义门禁（spec §7.2/§7.3）
-- 描述：实现最小检查：Scoop 不支持 non-local return，lambda 中的 `return` 始终是 local return（返回 lambda 本身）；`inline` 只影响性能优化，不改变 return 语义。
-- 目标：先只做静态限制，不做实际 inlining 优化；确保 lambda 中 `return` 不会被误解为 non-local return。
-- 验收：typecheck fixture：lambda 中 `return` 合法但只从 lambda 返回；明确禁止任何形式的 non-local return。
+### T0444 [TODO] `inline` 与 non-local return 的语义门禁（spec §7.2/§7.3）
+- 描述：实现最小检查：只有 inline 函数的 lambda 参数允许 non-local return；其余场景报错。
+- 目标：先只做静态限制，不做实际 inlining 优化。
+- 验收：typecheck fixture：非 inline lambda 中 `return` 报错；inline 场景允许（具体语法按设计）。
 - 依赖：T0245、T0226、T0222
 
 ### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
@@ -944,6 +970,36 @@
 - 目标：先只支持“同类型输入→同类型输出”的规则（不做数值提升/混合宽度运算）；不引入溢出检查（运行期语义留给 codegen 按 spec wrap-around/shift mask 落地）。
 - 验收：typecheck fixture：`val x: UInt8 = 1; val y = x << 3` 通过；`val z = true << 1` 报错并定位到操作符。
 - 依赖：T0252、T0211、T0405、T0407、T0418
+
+### T0448 [TODO] class 初始化模型：property initializer / `init` / secondary constructor 规则（Appendix B.2.2）
+- 描述：实现 class 初始化相关的静态规则：属性初始化表达式、多个 `init` block、secondary constructor body 的类型检查与顺序约束。
+- 目标：先固定 Kotlin-like 初始化顺序与最小限制；复杂继承链与 effect 细节后续补齐。
+- 验收：typecheck fixture：`init` 中引用未就绪成员时报错；secondary constructor 非法 delegation 报错；合法初始化顺序通过。
+- 依赖：T0256、T0257、T0316、T0406
+
+### T0449 [TODO] enum 完整布局语义：niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
+- 描述：在类型系统层固定 rich enum 的布局选择规则：何时使用 niche optimization、何时对 oversized variant 自动 boxing、何时发出 size disparity lint。
+- 目标：先把规则、诊断与 type metadata 固定下来；具体低层布局由 codegen 落地。
+- 验收：typecheck fixture：`Option<RefType>` 命中 niche 优化路径；oversized variant 触发 boxing/lint（warning 可先记录不强制 golden）。
+- 依赖：T0425、T0418
+
+### T0450 [TODO] pattern rest `..`：类型检查与绑定规则（spec §4.2）
+- 描述：实现 `..` 的静态规则：出现位置、只能出现一次、与 tuple/struct/variant pattern 的匹配关系，以及 rest 不引入绑定。
+- 目标：先只支持 tuple/struct；variant positional rest 若语法允许则一并纳入，否则后续扩展。
+- 验收：typecheck fixture：`val (x, ..) = t` 通过；多个 `..`、非法位置、对非解构类型使用 `..` 报错。
+- 依赖：T0255、T0427、T0430
+
+### T0451 [TODO] 委托属性：标准接口与标准 delegates 表面（spec §10.4）
+- 描述：补齐 delegated property 的静态表面：`ReadOnlyProperty` / `ReadWriteProperty` 接口规则，以及 `scoop.delegates` 中 `lazy` / `observable` / `vetoable` / map-backed delegate 的最小声明面。
+- 目标：先只固定签名与类型规则；具体库行为与线程安全语义后续任务补齐。
+- 验收：resolve/typecheck fixture：`val x by lazy { ... }`、`var x by observable(...)`、map-backed delegate 均能过签名检查；缺少 `getValue/setValue` 报错。
+- 依赖：T0434、T1208
+
+### T0452 [TODO] `object` / `companion object`：类型规则与单例语义（Appendix B.9）
+- 描述：实现 `object` / `companion object` 的类型检查规则：单例不可构造、成员访问类型正确、companion 可通过宿主类名访问。
+- 目标：先只固定静态语义；初始化时机与 storage 留给 codegen/runtime。
+- 验收：typecheck fixture：`object Foo` 不能像 class 一样调用构造；`ClassName.member` 在 companion 存在时通过；无 companion 时报错。
+- 依赖：T0258、T0317、T0404
 
 ---
 
@@ -1009,6 +1065,12 @@
 - 验收：新增 infer-fail fixtures：每个错误都断言错误码 + 关键提示子串。
 - 依赖：T0005、T0501
 
+### T0511 [TODO] use-site `eff` row 参数：默认值与显式实参推断（spec §3.4 / §14.7.3）
+- 描述：当类型或调用点使用 `Type<eff Row>` 时，支持 effect row 默认值、显式实参和由上下文/lambda body 反推的 row 参数实例化。
+- 目标：先覆盖“单个 row 参数 + 默认值 + 简单并集”的场景；高阶 row 约束后续。
+- 验收：effects/infer fixture：`Disposable` 省略 use-site row 时默认到 `Pure`；显式 `Disposable<eff Async>` 可参与调用检查。
+- 依赖：T0253、T0509、T0603
+
 ---
 
 ## T06：效果系统（阶段 5：先静态，再逐步落地运行时）
@@ -1024,12 +1086,6 @@
 - 目标：先只支持 sysroot 的 `Raise`；不做 effect polymorphism。
 - 验收：typecheck fixture：`Raise.raise(e)`（按语法）能通过（或暂以 `perform Raise.raise(e)` 为准，按 spec）。
 - 依赖：T0601、T0404
-
-### T0420b [TODO] 验收补齐：`Raise.raise` 返回 `Nothing` 可兼容任意返回类型
-- 描述：补齐一个 effects/typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 `Nothing` 兼容 `Any` 返回。
-- 目标：只做 fixtures 验收；不在此任务实现 effect operation 的解析/类型规则。
-- 验收：新增 typecheck/effects fixture：`Raise.raise(e)`（按语法）在 `fun f(): Any` 中通过；`cargo run -p scoop -- test` 通过。
-- 依赖：T0419、T0602、T0420a
 
 ### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
@@ -1060,12 +1116,6 @@
 - 目标：先只支持单个 catch；finally 可选；不支持多 catch。
 - 验收：parse fixture：try/catch/finally 可解析并 lowering；typecheck fixture：对应的 Raise 处理不触发 required effects。
 - 依赖：T0605、T0606
-
-### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
-- 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
-- 目标：先只实现静态规则；运行期行为后续由 effect/runtime 落地。
-- 验收：typecheck/effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
-- 依赖：T0212、T0419、T0604、T0607
 
 ### T0608 [TODO] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
 - 描述：实现 effect row 的语义：并集、空行 `Pure`、默认 effect 规则、以及 `R1 ⊆ R2`（subeffecting）的最小判定。
@@ -1150,6 +1200,30 @@
 - 目标：先只作为库/fixtures 验证，不强依赖语法。
 - 验收：新增 run-pass fixture：生成器 yield 多次并消费；输出正确。
 - 依赖：T0617
+
+### T0622 [TODO] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
+- 描述：在 sysroot/type system 中引入 `Task<T>` 的最小模型，固定“懒执行直到 `await` 或显式启动”的语义，并为 `spawn/async` 共享同一任务抽象。
+- 目标：先只固定类型面与基础语义；取消/结构化并发细节后续。
+- 验收：effects/typecheck fixture：`val t: Task<Int> = ...` 合法；`await` 仅接受 `Task<T>`；未启动任务不要求立即执行。
+- 依赖：T0611、T0820
+
+### T0623 [TODO] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
+- 描述：实现 `async fun foo(): T` 的签名与 lowering 规则：对外暴露 `Task<T>`，而不是 `T / Async`；`/ Async` 只存在于 Task 的计算上下文。
+- 目标：先只覆盖函数声明与调用点；与 executor 的交互后续由 runtime 任务补齐。
+- 验收：effects fixture：`async fun fetch(): Int` 的调用点类型为 `Task<Int>`；把它当作 `Int / Async` 使用时报错。
+- 依赖：T0619、T0622
+
+### T0624 [TODO] effect rows：use-site `Type<eff Row>` 的实例化与检查（spec §3.4 / §5.8）
+- 描述：在类型检查阶段支持 `Type<eff Row>` 的显式实参与默认化，并与 overriding、required effects、subeffecting 联动。
+- 目标：先只支持单个 row 参数；语法合法性由 parser 先行保证。
+- 验收：effects fixture：`Disposable<eff Async>` 调用需要 Async；`Disposable` 省略时默认 `Pure`；非法多 `eff` clause 报错。
+- 依赖：T0253、T0609、T0511
+
+### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
+- 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循“最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
+- 目标：先只覆盖 `Raise` 与最小自定义 effect；实际 runtime 支持由 T0916 补齐。
+- 验收：effects + run-pass fixture：嵌套 handler 的最近匹配规则成立；arm 内 re-perform 不会自捕获。
+- 依赖：T0615、T0916
 
 ---
 
@@ -1392,6 +1466,36 @@
 - 验收：新增 run-pass fixture：`val s = f\"hi {name}\"; println(s)` 输出正确。
 - 依赖：T0217、T0822、T0809
 
+### T0824 [TODO] tuple 字段访问语法对齐 spec：`._0` / `._1`（spec §2.3.3）
+- 描述：补齐 tuple 字段访问的 lowering/codegen，并把相关 fixtures 与文档样例统一到 spec 语法 `t._0` / `t._1`。
+- 目标：不修改既有任务定义；通过新增任务把语法差异显式收口。
+- 验收：新增 run-pass fixture：`val t = (1,2); print(t._0 + t._1)` 输出 `3`；`t.0` 不作为合法 tuple 访问被接受。
+- 依赖：T0812、T0210、T0410
+
+### T0825 [TODO] codegen：`when` lowering 补齐 or-pattern / guard（spec §4.2）
+- 描述：在已有 `when` lowering 基础上补齐 or-pattern 与 guard 的代码生成：or-pattern 共享后继块，guard 在匹配成功后再判定条件。
+- 目标：先不追求最优 CFG；先保证语义正确与诊断稳定。
+- 验收：新增 run-pass fixture：`A | B` 分支与 `pattern if cond` 分支都能得到正确结果。
+- 依赖：T0814、T0429、T0450
+
+### T0826 [TODO] codegen：enum niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
+- 描述：为 rich enum 落实完整布局策略：能使用 niche 时消除显式 tag；oversized variant 自动 boxing；size disparity 明显时发出 lint warning。
+- 目标：先覆盖 `Option<RefType>` 等高价值场景；更复杂嵌套 niche 后续可继续扩展。
+- 验收：新增 codegen/run-pass fixture：`Option<RefType>` 正常工作；oversized variant case 通过并伴随 lint（warning 可先文本断言）。
+- 依赖：T0449、T0813
+
+### T0827 [TODO] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
+- 描述：当 `trimIndent()` 的接收者不是编译期常量时，生成普通运行期调用并接到最小字符串 API。
+- 目标：先只支持最常见的 raw string 场景；不做额外格式化 API。
+- 验收：新增 run-pass fixture：raw string 调用 `trimIndent()` 后输出去缩进结果；非 raw string 也可走同一路径。
+- 依赖：T0822、T1216
+
+### T0828 [TODO] codegen：`object` / `companion object` 单例存储与成员访问（Appendix B.9）
+- 描述：实现 `object` / `companion object` 的最小 codegen：单例存储、一次初始化、静态成员访问 lowering。
+- 目标：先只覆盖单线程；线程安全初始化后续可由 runtime 原语增强。
+- 验收：新增 run-pass fixture：多次访问同一 object 获得同一实例语义；`ClassName.member` 可访问 companion 成员。
+- 依赖：T0452、T0918
+
 ---
 
 ## T09：早期运行时（C + clang）（阶段 8：可执行与可观测）
@@ -1486,6 +1590,24 @@
 - 验收：新增 run-pass fixture：在新线程 resume continuation，结果与单线程一致。
 - 依赖：T0914、T0911
 
+### T0916 [TODO] effect runtime：多层 handler stack 嵌套 dispatch（修正 T0913 的单层目标，Appendix A）
+- 描述：在已有 handler stack 原语之上补齐多层嵌套 handler：按“最近匹配 handler”分发，并保证 arm body 在自身 handler 的 dispatch scope 外执行。
+- 目标：保持与 T0913 兼容，不修改既有任务；本任务专门补齐“多层嵌套”能力。
+- 验收：新增 run-pass fixture：三层嵌套 handler 下最近匹配规则成立；arm 内 re-perform 命中外层 handler。
+- 依赖：T0913
+
+### T0917 [TODO] runtime：`Task<T>` / executor 最小原语（spec §5.7）
+- 描述：提供支撑 `Task<T>` / `async` / `spawn` 的最小 runtime 原语：任务状态、入队/恢复、完成回调、可选显式 start。
+- 目标：先只实现 cooperative、最小可观测版本；取消与复杂调度后续。
+- 验收：新增运行期测试：创建 task、入队、完成后恢复 continuation；状态转换与回调顺序稳定。
+- 依赖：T0906、T0914、T0622
+
+### T0918 [TODO] runtime：`object` / `companion object` 的 once 初始化原语（Appendix B.9）
+- 描述：若 codegen 采用 runtime 辅助初始化，则提供 once/guard 原语以支持 `object` / `companion object` 的一次初始化。
+- 目标：先只支持单进程内初始化一次；跨 DLL / 动态链接细节后续。
+- 验收：新增 run-pass fixture：多次并发前的重复访问不会重复初始化；初始化副作用只出现一次。
+- 依赖：T0901
+
 ---
 
 ## T10：注解系统与系统编程通道（阶段 9）
@@ -1564,6 +1686,30 @@
 - 目标：先只做静态门禁与错误信息；不做 codegen（lowering 到 LLVM 留给后续任务）。
 - 验收：unsafe_nogc fixture：在非 unsafe context 调用 `ptrToUIntPtr` 报错；在 `@Unsafe { ... }` 内通过；`p as UIntPtr` 不被当作合法指针转换（按普通 cast 规则处理并产生对应诊断/required effects）。
 - 依赖：T1010、T1004、T0412
+
+### T1013 [TODO] 注解系统：补齐内建注解与 `AnnotationTarget`（spec §15.5）
+- 描述：在 sysroot/typecheck 中补齐内建注解集合：`@TailRec`、`@AllowIntrinsic`、`@Suppress`、`@CLayout`、`@Target`、`@Retention`，并引入 `AnnotationTarget` enum。
+- 目标：先固定声明面与最小合法性检查；复杂行为（如真正 TCO）后续由各子系统消费。
+- 验收：新增 parse/typecheck fixture：这些注解可被声明/使用；非法 target 名报错。
+- 依赖：T1002、T0418
+
+### T1014 [TODO] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
+- 描述：支持 use-site target 前缀语法，并在注解附着时区分实际目标元素。
+- 目标：先只覆盖 property / param / field / file；getter/setter 的细化可在同任务内保留占位实现。
+- 验收：新增 parse/typecheck fixture：`@property:Rename`、`@param:Validated`、`@file:AllowIntrinsic` 可解析并附着到正确目标。
+- 依赖：T1001、T1013
+
+### T1015 [TODO] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
+- 描述：支持命名空间注解的解析与绑定：例如 `@Serialization.Rename("x")`。
+- 目标：先只支持以 path 形式引用注解类；命名空间对象本身的完整语义可与 object 任务联动。
+- 验收：新增 parse+resolve fixture：namespaced annotation 可解析并绑定；未定义路径时报错。
+- 依赖：T1001、T0258、T0317
+
+### T1016 [TODO] meta-annotations：`@Target/@Retention` 合法性与导出策略（spec §15.5）
+- 描述：实现 meta-annotations 的最小规则：`@Target` 限制注解可应用位置，`@Retention` 决定是否仅编译期可见或保留到 `.cone` 元数据。
+- 目标：先只支持 comptime-only 与 cone-preserved 两档；更细粒度 policy 后续再补。
+- 验收：新增 typecheck + cone fixture：被 `@Target` 禁止的位置报错；保留到 `.cone` 的注解在下游可见。
+- 依赖：T1013、T1103、T1209
 
 ---
 
@@ -1699,6 +1845,30 @@
 - 验收：typecheck fixture：调用 `x.run { ... }` 的 effect row 会传播（在推断/required effects 上可观测）。
 - 依赖：T0509、T0219
 
+### T1214 [TODO] 反射 intrinsics 完整化：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
+- 描述：在 sysroot + comptime evaluator 中补齐缺失的反射 intrinsic：`variantsOf<T>()`、`alignOf<T>()`、`superTypesOf<T>()`、`annotationsOf<T>()`、`paramsOf(fn)`。
+- 目标：先只覆盖 language spec 已列出的最小集合；复杂跨包元数据后续与 Cone 联动。
+- 验收：新增 comptime fixture：读取 enum variants、alignment、super types、函数参数与注解列表；输出稳定。
+- 依赖：T1204、T1209、T0418
+
+### T1215 [TODO] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
+- 描述：补齐反射所需的元数据结构，并让它们可在 comptime 中被访问和迭代。
+- 目标：先只支持只读 metadata；不支持运行期动态修改。
+- 验收：comptime fixture：`variantsOf<T>()` 返回 `VariantMeta`；`paramsOf(fn)` 返回 `ParamMeta`；注解参数可通过 `AnnotationArgMeta` 读取。
+- 依赖：T1208、T1214
+
+### T1216 [TODO] `trimIndent()`：编译期求值 + 普通运行期回退约定（spec §8.4 / §6.2）
+- 描述：把 `trimIndent()` 纳入 `String` 的 `const fun` 语义：接收者是编译期常量时在编译期求值，否则保留为普通运行期调用。
+- 目标：先只覆盖 raw string 与普通 string 的常见路径；不做额外字符串 API 扩展。
+- 验收：新增 comptime fixture：raw string `.trimIndent()` 在编译期折叠；运行期 fixture 由 T0827 验证 fallback 路径。
+- 依赖：T1202、T1211
+
+### T1217 [TODO] sysroot/stdlib：标准 delegated properties API surface（spec §10.4）
+- 描述：在 sysroot 或标准库层补齐 delegated properties 的 API surface：`scoop.delegates.lazy`、`observable`、`vetoable`，以及 map-backed delegate 所需接口。
+- 目标：先只固定声明面与最小文档/fixture；行为实现与线程安全语义后续补齐。
+- 验收：新增 resolve/typecheck fixture：引用 `scoop.delegates.lazy` 等 API 可通过；缺失导入时报错。
+- 依赖：T0451、T1210
+
 ---
 
 ## T13：Kotlin 语义兼容项（阶段 11+，按需补齐）
@@ -1756,6 +1926,30 @@
 - 目标：只做“绑定规则”补齐；不引入新的优先级（优先级在 parser 已固定）；不处理复合赋值（如 `shlAssign`）除非 spec 明确要求。
 - 验收：language fixture：自定义 `and`/`shl`/`inv` 后 `a & b`/`a << 1`/`~a` 可通过；缺少方法时报错并指向操作符。
 - 依赖：T1301、T0211、T0252
+
+### T1310 [TODO] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
+- 描述：在 Kotlin 兼容层补齐 alias import 的完整语义：可见性、shadowing、与普通 import / wildcard import 的交互。
+- 目标：在 parser/resolve 子任务基础上补齐语言级规则；不改变既有 import 语义。
+- 验收：language fixture：alias import 与普通 import 混用时解析正确；冲突时报清晰诊断。
+- 依赖：T0254、T0315
+
+### T1311 [TODO] `object` / `companion object`：补齐类型检查、静态访问与初始化语义（Appendix B.9）
+- 描述：在已有 parse/resolve 任务基础上，补齐 `object` / `companion object` 的语言级行为：单例语义、通过类名访问 companion 成员、初始化时机与可见性。
+- 目标：不修改既有 T1303；本任务专门把它从“语法/解析”推进到“完整语言语义”。
+- 验收：language fixture：top-level object、nested object、named/unnamed companion object 的成员访问和初始化行为符合预期。
+- 依赖：T1303、T0452、T0828
+
+### T1312 [TODO] 类初始化语义：property initializer / `init` / secondary constructor 顺序（Appendix B.2.2）
+- 描述：补齐 Kotlin-like 类初始化顺序与规则：属性初始化、多个 `init` block、secondary constructor body 的执行顺序和可见性边界。
+- 目标：先覆盖单类/单继承常见情况；复杂继承链细节后续扩展。
+- 验收：language fixture：初始化顺序输出稳定；非法在初始化早期访问未就绪成员时报错。
+- 依赖：T0256、T0257、T0448
+
+### T1313 [TODO] 标准 delegated properties：`lazy` / `observable` / `vetoable` / map-backed（spec §10.4）
+- 描述：在语言兼容层补齐标准 delegated properties 的行为与示例，确保 `by` 不只停留在语法和最小接口层。
+- 目标：先覆盖最常见的行为：lazy 首次访问缓存、observable/vetoable 回调、map-backed 属性读取；更复杂线程安全语义后续。
+- 验收：language/run-pass fixture：`lazy` 只初始化一次；`observable` / `vetoable` 回调按预期触发；map-backed delegate 可读取字段。
+- 依赖：T1217、T0434
 
 ---
 
