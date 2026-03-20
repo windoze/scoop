@@ -49,6 +49,12 @@ enum Option<T> {
     None
 }
 
+// Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
+enum RuntimeError {
+    NullAssertionFailed,
+    ClassCastFailed,
+}
+
 // Built-in effect: Raise
 effect Raise<E> {
     fun raise(error: E): Nothing

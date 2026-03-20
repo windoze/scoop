@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：sysroot `RuntimeError` 在 resolve 阶段可作为 value namespace 引用，
+// 并允许通过限定名引用枚举值（`RuntimeError.NullAssertionFailed`）（T0419）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+val e = RuntimeError.NullAssertionFailed
+

@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：`Raise<RuntimeError>` 的类型实参合法（T0419）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val eff: Raise<RuntimeError>
+

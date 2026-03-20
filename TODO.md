@@ -763,11 +763,12 @@
 - 依赖：T0010、T0011、T0251、T0314
 - 完成：在 `sysroot/core.scoop` 增加 `Bool/String/Unit/Nothing`、`Int/UInt`、`Int8..64`/`UInt8..64` 以及 `Byte/Short/UShort/Long/ULong/UIntPtr` 的声明与 `typealias`；新增 resolve fixture `tests/fixtures/resolve/sysroot_scalar_types_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0419 [TODO] sysroot：补齐 `RuntimeError` 与相关枚举值（spec §5.7 / §4.4 / Appendix B.3.3）
+### T0419 [DONE] sysroot：补齐 `RuntimeError` 与相关枚举值（spec §5.7 / §4.4 / Appendix B.3.3）
 - 描述：新增 `enum RuntimeError { ClassCastFailed, NullAssertionFailed, ... }`（按 spec）并确保可在 Raise<RuntimeError> 中使用。
 - 目标：先只定义错误枚举；不实现打印/堆栈。
 - 验收：新增 resolve fixture：引用 `RuntimeError.NullAssertionFailed` 可解析；typecheck fixture：`Raise<RuntimeError>` 类型合法。
 - 依赖：T0418、T0402
+- 完成：在 `sysroot/core.scoop` 增加 `enum RuntimeError { NullAssertionFailed, ClassCastFailed }`；resolver 的 `Index::build` 对 enum 额外注入同名 value symbol（允许 `RuntimeError.NullAssertionFailed` 这类限定名在 resolve 阶段通过）；新增 fixtures：`resolve/sysroot_runtime_error_value_ref_ok`（pass）、`typecheck/raise_runtime_error_type_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0420 [TODO] 类型关系：`Nothing` 作为 bottom type（spec §2.1/§5.7）
 - 描述：在类型系统中实现 `Nothing <: T`（对任意 T），用于 `Raise.raise`、`return`、不可达分支等。

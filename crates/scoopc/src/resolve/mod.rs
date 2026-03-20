@@ -482,6 +482,15 @@ impl Index {
         let visibility = visibility_from_modifiers(&ty.modifiers, ty.span)?;
         self.insert_symbol(source, prefix, SymbolKind::Type, ty.name.span, visibility)?;
 
+        // enum 在语义上需要暴露一个“类型名同名的 value”（类似 Kotlin 的 `EnumClass` 作为命名空间），
+        // 以支持 `RuntimeError.NullAssertionFailed` 这类对枚举值的限定引用（spec §5.7）。
+        //
+        // 当前阶段我们仅把这个符号放入 value namespace 以解锁名字解析；更完整的 enum/variant 语义
+        // 会在后续 rich enum 任务中补齐（T0425+）。
+        if matches!(ty.kind, ast::TypeKind::Enum) {
+            self.insert_symbol(source, prefix, SymbolKind::Value, ty.name.span, visibility)?;
+        }
+
         // 2) 递归处理类型体成员：fields/methods/nested types。
         let type_name = source.slice(ty.name.span);
         let type_prefix = if prefix.is_empty() {

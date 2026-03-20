@@ -165,6 +165,8 @@
   - 固定位宽整数：`Int8/16/32/64`、`UInt8/16/32/64`
   - 标准别名：`Byte/Short/UShort/Long/ULong`，以及 `UIntPtr = UInt`
   - 说明：这些类型是语言 builtin（布局/语义由编译器固定），但它们的可见声明由 sysroot 提供
+- [x] sysroot：补齐 `RuntimeError` 的“可见声明”（spec §5.7）
+  - `NullAssertionFailed`、`ClassCastFailed`（用于 `!!` / `as` 的失败语义建模）
 
 **本阶段 DoD**
 - 能在无类型检查情况下做 name resolution，并对未定义符号给出准确 span 的错误。
