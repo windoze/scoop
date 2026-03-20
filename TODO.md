@@ -738,11 +738,12 @@
 - 依赖：T0216、T0409、T0408
 - 完成：typecheck 表达式推导支持 `ExprKind::WithUpdate`：base 当前仅允许 `struct` 值类型；update path 仅支持单段字段名；检查字段存在性与 RHS 类型匹配；新增错误码 `scoop::typecheck::with_update_base_not_supported` / `with_update_nested_path_not_supported` / `with_update_unknown_field` / `with_update_field_type_mismatch`；新增 fixtures：`with_update_struct_field_ok`（pass）、`with_update_unknown_field_is_error`（fail，断言 path 位置）、`with_update_field_type_mismatch_is_error`（fail，断言 value 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0416 [TODO] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
+### T0416 [DONE] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
 - 描述：typecheck 阶段检查 `var` 可赋值、`val` 不可再次赋值；同一作用域重复定义报错。
 - 目标：先只覆盖 block 内；不涉及闭包捕获与跨块。
 - 验收：typecheck fixture：`val x = 1; x = 2` 报错；`var x = 1; x = 2` 通过。
 - 依赖：T0227、T0304、T0405
+- 完成：typecheck 在函数体语句层支持 `lhs = rhs` 的最小检查：仅允许对局部 `var` 赋值，`val`/参数赋值报新错误码 `scoop::typecheck::assignment_target_not_mutable`；同时 `block` typecheck 以“进入快照 + 退出回滚”实现最小作用域（避免局部声明泄漏到外层）；新增 fixtures `typecheck/val_reassign_is_error`（fail）与 `typecheck/var_reassign_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0417 [TODO] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。

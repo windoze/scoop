@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::assignment_target_not_mutable
+// EXPECT-ERROR: 不可赋值
+// EXPECT-ERROR-AT: 13:5
+// 目标：T0416 `val` 不可再次赋值（`val x = 1; x = 2` 应报错）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    val x = 1
+    x = 2
+}
+

@@ -227,7 +227,7 @@
 ### 4.6 变量绑定与解构（spec §9 + Kotlin-like）
 
 - [ ] `val`/`var`：
-  - 不可变/可变规则
+  - [x] 不可变/可变规则（仅允许对局部 `var` 赋值；`val`/参数赋值报错）（T0416）
   - `var` 的赋值类型检查
 - [ ] 解构绑定（destructuring）：
   - tuple/enum/struct 的 `val (a, b) = expr`

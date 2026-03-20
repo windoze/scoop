@@ -123,6 +123,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("不可赋值：`{name}` 不是可变变量（必须声明为 `var`）")]
+    #[diagnostic(code(scoop::typecheck::assignment_target_not_mutable))]
+    AssignmentTargetNotMutable {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error(
         "`with` 的 base 必须是值类型（struct/tuple/enum），当前实现仅支持 struct；但得到 {found}"
     )]
@@ -785,6 +793,8 @@ fn check_fun_body_exprs(
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     // 可用于 smart cast 的“稳定绑定”（当前阶段仅覆盖：参数 + `val`）。
     let mut stable_bindings: HashSet<Span> = HashSet::new();
+    // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
+    let mut mutable_bindings: HashSet<Span> = HashSet::new();
 
     for p in &fun.params {
         let Some(ty_ref) = &p.ty else {
@@ -803,6 +813,7 @@ fn check_fun_body_exprs(
             builtins,
             &mut locals,
             &mut stable_bindings,
+            &mut mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -820,10 +831,17 @@ fn check_block_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
+    mutable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
+    // 这里用“进入时快照 + 退出时回滚”的方式实现最小作用域，不引入额外的数据结构。
+    let saved_locals = locals.clone();
+    let saved_stable = stable_bindings.clone();
+    let saved_mutable = mutable_bindings.clone();
+
     for stmt in &block.stmts {
         check_stmt_exprs(
             source,
@@ -832,11 +850,17 @@ fn check_block_exprs(
             builtins,
             locals,
             stable_bindings,
+            mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
         )?;
     }
+
+    *locals = saved_locals;
+    *stable_bindings = saved_stable;
+    *mutable_bindings = saved_mutable;
+
     Ok(())
 }
 
@@ -847,6 +871,7 @@ fn check_stmt_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
+    mutable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -859,6 +884,7 @@ fn check_stmt_exprs(
             builtins,
             locals,
             stable_bindings,
+            mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -870,6 +896,7 @@ fn check_stmt_exprs(
             builtins,
             locals,
             stable_bindings,
+            mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -883,6 +910,7 @@ fn check_stmt_exprs(
                 builtins,
                 locals,
                 stable_bindings,
+                mutable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -896,6 +924,7 @@ fn check_stmt_exprs(
                 builtins,
                 locals,
                 stable_bindings,
+                mutable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -909,6 +938,7 @@ fn check_stmt_exprs(
                 builtins,
                 locals,
                 stable_bindings,
+                mutable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -922,6 +952,7 @@ fn check_stmt_exprs(
                         builtins,
                         locals,
                         stable_bindings,
+                        mutable_bindings,
                         top_level_types,
                         top_level_funs,
                         struct_field_types,
@@ -937,6 +968,7 @@ fn check_stmt_exprs(
                                 builtins,
                                 locals,
                                 stable_bindings,
+                                mutable_bindings,
                                 top_level_types,
                                 top_level_funs,
                                 struct_field_types,
@@ -951,6 +983,7 @@ fn check_stmt_exprs(
                                             builtins,
                                             locals,
                                             stable_bindings,
+                                            mutable_bindings,
                                             top_level_types,
                                             top_level_funs,
                                             struct_field_types,
@@ -974,6 +1007,7 @@ fn check_stmt_exprs(
                 builtins,
                 locals,
                 stable_bindings,
+                mutable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -996,6 +1030,7 @@ fn check_local_val_decl_exprs(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
+    mutable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -1044,8 +1079,13 @@ fn check_local_val_decl_exprs(
                 });
             };
             locals.insert(name.span, ty);
-            if matches!(v.kind, ast::ValKind::Val) {
-                stable_bindings.insert(name.span);
+            match v.kind {
+                ast::ValKind::Val => {
+                    stable_bindings.insert(name.span);
+                }
+                ast::ValKind::Var => {
+                    mutable_bindings.insert(name.span);
+                }
             }
         }
         ast::ValBinding::Pattern(pat) => {
@@ -1065,6 +1105,7 @@ fn check_expr_stmt(
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
+    mutable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -1082,6 +1123,7 @@ fn check_expr_stmt(
             builtins,
             locals,
             stable_bindings,
+            mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -1099,6 +1141,20 @@ fn check_expr_stmt(
             builtins,
             locals,
             stable_bindings,
+            mutable_bindings,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::Assign { lhs, rhs, .. } => check_assign_expr_stmt(
+            source,
+            lhs,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            stable_bindings,
+            mutable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -1116,6 +1172,7 @@ fn check_if_expr_stmt(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     stable_bindings: &HashSet<Span>,
+    mutable_bindings: &HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -1127,6 +1184,7 @@ fn check_if_expr_stmt(
     // then 分支：在 `x is T` 时收窄；在 `x !is T` 时保持原类型。
     let mut then_locals = locals.clone();
     let mut then_stable = stable_bindings.clone();
+    let mut then_mutable = mutable_bindings.clone();
     if let Some(smart_cast) = smart_cast {
         if smart_cast.narrow_in_then {
             then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
@@ -1139,6 +1197,7 @@ fn check_if_expr_stmt(
         builtins,
         &mut then_locals,
         &mut then_stable,
+        &mut then_mutable,
         top_level_types,
         top_level_funs,
         struct_field_types,
@@ -1148,6 +1207,7 @@ fn check_if_expr_stmt(
     if let Some(else_branch) = else_branch {
         let mut else_locals = locals.clone();
         let mut else_stable = stable_bindings.clone();
+        let mut else_mutable = mutable_bindings.clone();
         if let Some(smart_cast) = smart_cast {
             if !smart_cast.narrow_in_then {
                 else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
@@ -1161,11 +1221,87 @@ fn check_if_expr_stmt(
             builtins,
             &mut else_locals,
             &mut else_stable,
+            &mut else_mutable,
             top_level_types,
             top_level_funs,
             struct_field_types,
         )?;
     }
+
+    Ok(())
+}
+
+fn check_assign_expr_stmt(
+    source: &SourceFile,
+    lhs: &ast::Expr,
+    rhs: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    stable_bindings: &HashSet<Span>,
+    mutable_bindings: &HashSet<Span>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // T0416：局部赋值规则最小子集：
+    // - 仅允许对局部 `var` 进行赋值
+    // - `val` 与参数均不可再次赋值
+    // - 先不处理成员赋值（`a.b = ...`）与更复杂的 lhs（留给后续任务）
+    match &lhs.kind {
+        ast::ExprKind::Ident(id) => {
+            let Some(resolved) = id.resolved.as_ref() else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "assignment lhs（unresolved ident）",
+                    span: id.span.into(),
+                });
+            };
+
+            match resolved {
+                ast::ResolvedValueRef::Local { name, decl_span } => {
+                    if stable_bindings.contains(decl_span) || !mutable_bindings.contains(decl_span)
+                    {
+                        return Err(ExprTypeError::AssignmentTargetNotMutable {
+                            name: name.clone(),
+                            span: id.span.into(),
+                        });
+                    }
+
+                    // 防御性：var 绑定应当在 locals 类型表中可查询。
+                    if !locals.contains_key(decl_span) {
+                        return Err(ExprTypeError::UnknownLocalValueType {
+                            name: name.clone(),
+                            span: id.span.into(),
+                        });
+                    }
+                }
+                ast::ResolvedValueRef::TopLevel { .. } => {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "assignment lhs（top-level value）",
+                        span: id.span.into(),
+                    });
+                }
+            }
+        }
+        _ => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "assignment lhs（仅支持标识符）",
+                span: lhs.span.into(),
+            });
+        }
+    }
+
+    // 递归 typecheck rhs：保证 `x = f()` 这类语句也会覆盖 rhs 中的表达式。
+    let _ = infer_expr_type(
+        source,
+        rhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
 
     Ok(())
 }

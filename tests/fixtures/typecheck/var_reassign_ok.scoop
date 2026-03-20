@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0416 `var` 可再次赋值（`var x = 1; x = 2` 应通过）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    var x = 1
+    x = 2
+}
+
