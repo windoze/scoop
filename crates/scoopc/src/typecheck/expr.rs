@@ -1542,6 +1542,11 @@ pub(super) fn lower_type_ref_with_enum_subst(
             span: use_span.into(),
         }
         .into()),
+        ast::TypeRef::EffectRowArg { .. } => Err(TypeLowerError::UnsupportedTypeRef {
+            kind: "use-site effect row arg (`eff ...`)",
+            span: use_span.into(),
+        }
+        .into()),
         ast::TypeRef::Function(_) => Err(TypeLowerError::UnsupportedTypeRef {
             kind: "function type",
             span: use_span.into(),

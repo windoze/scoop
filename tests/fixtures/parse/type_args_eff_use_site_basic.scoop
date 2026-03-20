@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: type_args_eff_use_site_basic.ast
+
+package fixtures.parse
+
+// use-site effect row type args：`Type<eff Row>`
+val a: Disposable<eff Pure> = 0
+val b: Disposable<eff (Async + Raise<IOError>)> = 0
+val c: Disposable<Int, eff (Async + Raise<IOError>)> = 0
+

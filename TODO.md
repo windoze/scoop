@@ -527,11 +527,12 @@
 - 依赖：T0206、T0209、T0210
 - 完成：AST 新增 `UnaryOp` 与 `ExprKind::Unary`；parser 引入 `try_parse_expr_prefix()`，支持 `!`/`-`/`~` 并确保 postfix 优先级更高；新增 parse fixture `tests/fixtures/parse/prefix_unary_basic.scoop`（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0253 [TODO] Parser：use-site effect row 实参 `Type<eff Row>`（spec §3.4 / §5.8）
+### T0253 [DONE] Parser：use-site effect row 实参 `Type<eff Row>`（spec §3.4 / §5.8）
 - 描述：在类型实参列表中支持 `Disposable<eff Async>`、`Disposable<eff (Async + Raise<IOError>)>` 这类 use-site effect row 参数写法。
 - 目标：先只支持单个 `eff` clause，且必须出现在泛型实参列表最后；合法性检查留给 typecheck。
 - 验收：新增 parse fixture：`Disposable<eff Pure>`、`Disposable<eff (Async + Raise<IOError>)>` 可解析；`<eff E, Int>` 之类非法顺序报错。
 - 依赖：T0250、T0219
+ - 完成：AST 新增 `TypeRef::EffectRowArg`；parser 在类型实参列表 `<...>` 内把 `eff` 作为上下文关键字解析为 row expr，并强制其必须位于列表末尾；resolve/typecheck 对该节点做最小兼容处理；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0254 [TODO] Parser：import alias `import foo.bar.Baz as Qux`（Appendix B.7）
 - 描述：扩展 import 语法，支持 Kotlin 风格 alias import，并把 alias 名记录到 AST。

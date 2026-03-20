@@ -1,0 +1,199 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 65..87,
+            path: [
+                Ident {
+                    span: 73..81,
+                },
+                Ident {
+                    span: 82..87,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Val(
+            ValDecl {
+                span: 140..171,
+                kind: Val,
+                name: Ident {
+                    span: 144..145,
+                },
+                ty: Some(
+                    Path(
+                        TypePath {
+                            span: 147..167,
+                            segments: [
+                                Ident {
+                                    span: 147..157,
+                                },
+                            ],
+                            args: [
+                                EffectRowArg {
+                                    span: 158..166,
+                                    row: EffectRowExpr {
+                                        span: 162..166,
+                                        terms: [],
+                                    },
+                                },
+                            ],
+                        },
+                    ),
+                ),
+                init: Some(
+                    Expr {
+                        span: 170..171,
+                        kind: IntLit,
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 172..223,
+                kind: Val,
+                name: Ident {
+                    span: 176..177,
+                },
+                ty: Some(
+                    Path(
+                        TypePath {
+                            span: 179..219,
+                            segments: [
+                                Ident {
+                                    span: 179..189,
+                                },
+                            ],
+                            args: [
+                                EffectRowArg {
+                                    span: 190..218,
+                                    row: EffectRowExpr {
+                                        span: 194..218,
+                                        terms: [
+                                            TypePath {
+                                                span: 195..200,
+                                                segments: [
+                                                    Ident {
+                                                        span: 195..200,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                            TypePath {
+                                                span: 203..217,
+                                                segments: [
+                                                    Ident {
+                                                        span: 203..208,
+                                                    },
+                                                ],
+                                                args: [
+                                                    Path(
+                                                        TypePath {
+                                                            span: 209..216,
+                                                            segments: [
+                                                                Ident {
+                                                                    span: 209..216,
+                                                                },
+                                                            ],
+                                                            args: [],
+                                                        },
+                                                    ),
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                    ),
+                ),
+                init: Some(
+                    Expr {
+                        span: 222..223,
+                        kind: IntLit,
+                    },
+                ),
+            },
+        ),
+        Val(
+            ValDecl {
+                span: 224..280,
+                kind: Val,
+                name: Ident {
+                    span: 228..229,
+                },
+                ty: Some(
+                    Path(
+                        TypePath {
+                            span: 231..276,
+                            segments: [
+                                Ident {
+                                    span: 231..241,
+                                },
+                            ],
+                            args: [
+                                Path(
+                                    TypePath {
+                                        span: 242..245,
+                                        segments: [
+                                            Ident {
+                                                span: 242..245,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                                EffectRowArg {
+                                    span: 247..275,
+                                    row: EffectRowExpr {
+                                        span: 251..275,
+                                        terms: [
+                                            TypePath {
+                                                span: 252..257,
+                                                segments: [
+                                                    Ident {
+                                                        span: 252..257,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                            TypePath {
+                                                span: 260..274,
+                                                segments: [
+                                                    Ident {
+                                                        span: 260..265,
+                                                    },
+                                                ],
+                                                args: [
+                                                    Path(
+                                                        TypePath {
+                                                            span: 266..273,
+                                                            segments: [
+                                                                Ident {
+                                                                    span: 266..273,
+                                                                },
+                                                            ],
+                                                            args: [],
+                                                        },
+                                                    ),
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                    ),
+                ),
+                init: Some(
+                    Expr {
+                        span: 279..280,
+                        kind: IntLit,
+                    },
+                ),
+            },
+        ),
+    ],
+}

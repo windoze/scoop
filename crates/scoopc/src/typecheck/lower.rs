@@ -164,6 +164,10 @@ impl<'a> TypeLowering<'a> {
                 kind: "star projection (*)",
                 span: (*span).into(),
             }),
+            ast::TypeRef::EffectRowArg { span, .. } => Err(TypeLowerError::UnsupportedTypeRef {
+                kind: "use-site effect row arg (`eff ...`)",
+                span: (*span).into(),
+            }),
             ast::TypeRef::Function(f) => Err(TypeLowerError::UnsupportedTypeRef {
                 kind: "function type",
                 span: f.span.into(),
@@ -313,46 +317,55 @@ impl<'a> TypeLowering<'a> {
             Err(other) => return Err(other),
         };
 
+        // 说明（T0253）：
+        // - use-site effect row 实参（`eff ...`）在 AST 中被建模为 `TypeRef::EffectRowArg`；
+        // - 它不属于“类型参数”（arity）的一部分，因此在 typecheck 的 type args lowering 中暂时忽略。
+        let type_args = path
+            .args
+            .iter()
+            .filter(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. }))
+            .collect::<Vec<_>>();
+
         // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
         match fqn.as_str() {
             // `Any`：引用类型的顶层 supertype。
             "scoop.core.Any" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.any);
             }
             // `String`：内建字符串类型。
             "scoop.core.String" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.string);
             }
             // `Unit`：0 元 tuple。
             "scoop.core.Unit" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.unit);
             }
             // `Nothing`：bottom type。
             "scoop.core.Nothing" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.nothing);
             }
             // `Bool`：内建布尔类型。
             "scoop.core.Bool" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.bool_);
             }
             // `Int/UInt`：word-sized 整数。
             "scoop.core.Int" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.int);
             }
             "scoop.core.UInt" => {
-                check_arity(&fqn, 0, path.args.len(), path.span)?;
+                check_arity(&fqn, 0, type_args.len(), path.span)?;
                 return Ok(self.builtins.uint);
             }
             // `Option<T>`：值类型；同时也是 `T?` 的 desugar 目标。
             "scoop.core.Option" => {
-                check_arity(&fqn, 1, path.args.len(), path.span)?;
-                let inner = self.lower_type_ref(&path.args[0])?;
+                check_arity(&fqn, 1, type_args.len(), path.span)?;
+                let inner = self.lower_type_ref(type_args[0])?;
                 return Ok(self.types.ty_option(inner));
             }
             _ => {}
@@ -364,7 +377,7 @@ impl<'a> TypeLowering<'a> {
                 span: path.span.into(),
             }
         })?;
-        let found = path.args.len();
+        let found = type_args.len();
         if expected != found {
             return Err(TypeLowerError::TypeArityMismatch {
                 name: fqn,
@@ -382,8 +395,7 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
-        let args = path
-            .args
+        let args = type_args
             .iter()
             .map(|a| self.lower_type_ref(a))
             .collect::<Result<Vec<_>, _>>()?;

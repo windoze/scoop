@@ -1082,6 +1082,15 @@ pub enum TypeRef {
     Star {
         span: Span,
     },
+    /// use-site effect row 实参：仅允许出现在类型实参列表末尾，例如 `Disposable<eff Pure>`。
+    ///
+    /// 说明：
+    /// - `eff` 是上下文关键字：仅在类型实参列表 `<...>` 内被当作关键字处理；
+    /// - 当前阶段（T0253）仅做语法层解析与存储；与声明处 `eff` 参数的匹配与合法性检查留给 typecheck。
+    EffectRowArg {
+        span: Span,
+        row: EffectRowExpr,
+    },
     /// 函数类型（spec §7.5）：`(A, B) -> C / R` 或 `T.(A, B) -> C / R`
     Function(TypeFunction),
     Nullable {
@@ -1136,6 +1145,7 @@ impl TypeRef {
             TypeRef::Path(p) => p.span,
             TypeRef::Tuple(t) => t.span,
             TypeRef::Star { span } => *span,
+            TypeRef::EffectRowArg { span, .. } => *span,
             TypeRef::Function(f) => f.span,
             TypeRef::Nullable { span, .. } => *span,
         }

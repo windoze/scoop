@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR: `eff` 实参必须位于类型实参列表末尾
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 8:29
+
+package fixtures.parse
+
+val x: Disposable<eff Pure, Int> = 0

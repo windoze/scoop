@@ -831,6 +831,14 @@ fn resolve_type_ref(
         }
         // 星投影不引入可解析的符号引用：`List<*>` 中的 `*` 由 typecheck 决定具体含义。
         ast::TypeRef::Star { .. } => Ok(()),
+        ast::TypeRef::EffectRowArg { row, .. } => {
+            // use-site effect row 语法本身不引入 type position 的引用，但 row expr 的项
+            // 与函数类型上的 `/ RowExpr` 一样需要做存在性解析（effect 名 / row 变量等）。
+            for term in &row.terms {
+                resolve_type_path(source, file, index, type_params, term)?;
+            }
+            Ok(())
+        }
         ast::TypeRef::Function(f) => {
             if let Some(receiver) = &f.receiver {
                 resolve_type_ref(source, file, index, type_params, receiver)?;

@@ -192,6 +192,34 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            // T0253：use-site effect row 实参 `Type<eff Row>`（spec §3.4 / §5.8）。
+            //
+            // 说明：
+            // - `eff` 是上下文关键字：仅在 `<...>` 内被当作关键字处理；
+            // - 按 spec 约束：`eff` 子句至多一个，且必须位于类型实参列表末尾。
+            if self.peek_ident_text("eff") {
+                let eff_kw = self.bump(); // ident("eff")
+                let row = self.parse_effect_row_expr()?;
+                args.push(ast::TypeRef::EffectRowArg {
+                    span: Span::new(eff_kw.span.start, row.span.end),
+                    row,
+                });
+
+                // allow trailing comma, but `eff` 必须是最后一个条目。
+                if self.eat_symbol(Symbol::Comma) {
+                    if !self.peek_symbol(Symbol::Gt) {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "`>`（`eff` 实参必须位于类型实参列表末尾）",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    }
+                }
+
+                break;
+            }
+
             // T0249：支持 star projection `*`（仅允许出现在类型实参位置，例如 `List<*>`）。
             if self.peek_symbol(Symbol::Star) {
                 let star = self.bump();
