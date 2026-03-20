@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: class 内的 `companion object`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:5
+
+package fixtures.parse
+
+interface I {
+    companion object { }
+}
+

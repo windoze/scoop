@@ -34,6 +34,7 @@ pub enum Item {
     TypeAlias(TypeAliasDecl),
     Fun(FunDecl),
     Type(TypeDecl),
+    Object(ObjectDecl),
     Val(ValDecl),
 }
 
@@ -232,6 +233,51 @@ impl std::fmt::Debug for TypeDecl {
     }
 }
 
+/// object 声明（Appendix B.9）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectKind {
+    /// `object Name { ... }`
+    Object,
+    /// `companion object { ... }` / `companion object Name { ... }`
+    Companion,
+}
+
+/// Kotlin-like 单例 object 声明。
+///
+/// 说明：当前阶段（T0258）仅做语法解析与结构化存储：
+/// - 单例语义、成员访问与初始化时机留给后续 resolver/typecheck/codegen。
+#[derive(Clone)]
+pub struct ObjectDecl {
+    pub span: Span,
+    pub modifiers: Vec<Modifier>,
+    pub kind: ObjectKind,
+    /// 对于 `companion object { ... }`，name 允许缺省。
+    pub name: Option<Ident>,
+    /// `object Name : IFoo { ... }` 的超类型列表（可选）。
+    pub supertypes: Vec<SuperType>,
+    /// object body（`{ ... }`）。
+    pub body: Option<TypeBody>,
+}
+
+impl std::fmt::Debug for ObjectDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("ObjectDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("kind", &self.kind);
+        if self.name.is_some() {
+            s.field("name", &self.name);
+        }
+        if !self.supertypes.is_empty() {
+            s.field("supertypes", &self.supertypes);
+        }
+        s.field("body", &self.body);
+        s.finish()
+    }
+}
+
 /// 类型体（`{ ... }`）——可包含成员列表。
 ///
 /// 注意：这里与 `Block` 不同：
@@ -287,6 +333,7 @@ pub enum TypeMember {
     SecondaryCtor(SecondaryCtorDecl),
     Fun(FunDecl),
     Type(TypeDecl),
+    Object(ObjectDecl),
 }
 
 /// class 初始化块：`init { ... }`（Appendix B.2.2）。

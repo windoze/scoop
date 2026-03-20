@@ -188,6 +188,8 @@ impl<'a> Lexer<'a> {
             "struct" => Some(Keyword::Struct),
             "enum" => Some(Keyword::Enum),
             "effect" => Some(Keyword::Effect),
+            "object" => Some(Keyword::Object),
+            "companion" => Some(Keyword::Companion),
             "handle" => Some(Keyword::Handle),
             "with" => Some(Keyword::With),
             "perform" => Some(Keyword::Perform),

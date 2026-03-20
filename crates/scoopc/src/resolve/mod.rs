@@ -455,6 +455,9 @@ impl Index {
                 ast::Item::Type(ty) => {
                     self.add_type_decl(source, &pkg, ty)?;
                 }
+                ast::Item::Object(obj) => {
+                    self.add_object_decl(source, &pkg, obj)?;
+                }
                 ast::Item::Val(v) => {
                     // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
                     if let Some(name) = v.name() {
@@ -560,6 +563,63 @@ impl Index {
                 }
                 ast::TypeMember::Type(nested) => {
                     self.add_type_decl(source, &type_prefix, nested)?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    self.add_object_decl(source, &type_prefix, obj)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn add_object_decl(
+        &mut self,
+        source: &SourceFile,
+        prefix: &str,
+        obj: &ast::ObjectDecl,
+    ) -> Result<(), ResolveError> {
+        let Some(name) = &obj.name else {
+            // `companion object { ... }`（未命名）在当前阶段先不引入可索引的命名符号；
+            // 后续会在专门的 companion 规则中决定它的可见性与成员访问语义（T0317/T1311）。
+            return Ok(());
+        };
+
+        let visibility = visibility_from_modifiers(&obj.modifiers, obj.span)?;
+
+        // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
+        self.insert_symbol(source, prefix, SymbolKind::Type, name.span, visibility)?;
+        self.insert_symbol(source, prefix, SymbolKind::Value, name.span, visibility)?;
+
+        let obj_name = source.slice(name.span);
+        let obj_prefix = if prefix.is_empty() {
+            obj_name.to_string()
+        } else {
+            format!("{prefix}.{obj_name}")
+        };
+
+        let Some(body) = &obj.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::EnumVariant(_v) => {}
+                ast::TypeMember::Property(p) => {
+                    let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
+                    self.insert_symbol(source, &obj_prefix, SymbolKind::Value, p.name.span, visibility)?;
+                }
+                ast::TypeMember::InitBlock(_b) => {}
+                ast::TypeMember::SecondaryCtor(_ctor) => {}
+                ast::TypeMember::Fun(f) => {
+                    let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
+                    self.insert_symbol(source, &obj_prefix, SymbolKind::Fun, f.name.span, visibility)?;
+                }
+                ast::TypeMember::Type(nested) => {
+                    self.add_type_decl(source, &obj_prefix, nested)?;
+                }
+                ast::TypeMember::Object(nested) => {
+                    self.add_object_decl(source, &obj_prefix, nested)?;
                 }
             }
         }
@@ -708,6 +768,7 @@ pub fn check_file_headers(
             ast::Item::Type(ty) => {
                 resolve_type_decl_headers(source, file, index, ty, &mut type_params)?
             }
+            ast::Item::Object(obj) => resolve_object_decl_headers(source, file, index, obj)?,
         }
     }
 
@@ -824,6 +885,9 @@ fn resolve_type_decl_headers(
                         &mut nested_type_params,
                     )?;
                 }
+                ast::TypeMember::Object(obj) => {
+                    resolve_object_decl_headers(source, file, index, obj)?;
+                }
             }
         }
 
@@ -832,6 +896,65 @@ fn resolve_type_decl_headers(
 
     type_params.pop_decl();
     result
+}
+
+fn resolve_object_decl_headers(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    obj: &ast::ObjectDecl,
+) -> Result<(), ResolveError> {
+    // object 自身不引入类型参数作用域（当前语法不支持 object 的 `<T>`）；成员可各自声明 type params。
+    let mut type_params = TypeParamScopes::new();
+
+    // 超类型列表：解析类型引用（若存在）。
+    for st in &obj.supertypes {
+        resolve_type_ref(source, file, index, &type_params, &st.ty)?;
+    }
+
+    let Some(body) = &obj.body else {
+        return Ok(());
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::EnumVariant(v) => {
+                for p in &v.params {
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                    }
+                }
+            }
+            ast::TypeMember::Property(p) => {
+                if let Some(ty) = &p.ty {
+                    resolve_type_ref(source, file, index, &type_params, ty)?;
+                }
+            }
+            ast::TypeMember::InitBlock(_b) => {}
+            ast::TypeMember::SecondaryCtor(ctor) => {
+                for p in &ctor.params {
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                    }
+                }
+            }
+            ast::TypeMember::Fun(f) => {
+                type_params.push_decl(source, &f.type_params)?;
+                let result = (|| resolve_fun_header(source, file, index, &type_params, f))();
+                type_params.pop_decl();
+                result?;
+            }
+            ast::TypeMember::Type(nested) => {
+                let mut nested_type_params = TypeParamScopes::new();
+                resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
+            }
+            ast::TypeMember::Object(nested) => {
+                resolve_object_decl_headers(source, file, index, nested)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn resolve_type_ref(

@@ -63,6 +63,8 @@ pub enum Keyword {
     Struct,
     Enum,
     Effect,
+    Object,
+    Companion,
 
     // effects
     Handle,

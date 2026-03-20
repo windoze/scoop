@@ -97,6 +97,9 @@ pub fn check_file_type_refs(
             ast::Item::Type(ty) => {
                 ctx.check_type_decl_headers(ty)?;
             }
+            ast::Item::Object(obj) => {
+                ctx.check_object_decl_headers(obj)?;
+            }
         }
     }
 
@@ -480,6 +483,66 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::Type(nested) => {
                     self.check_type_decl_headers(nested)?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    self.check_object_decl_headers(obj)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_object_decl_headers(&mut self, obj: &ast::ObjectDecl) -> Result<(), TypeLowerError> {
+        // 继承/实现列表类型
+        for st in &obj.supertypes {
+            let _ = self.lower_type_ref(&st.ty)?;
+        }
+
+        let Some(body) = &obj.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::EnumVariant(v) => {
+                    for p in &v.params {
+                        if let Some(ty) = &p.ty {
+                            let _ = self.lower_type_ref(ty)?;
+                        }
+                    }
+                }
+                ast::TypeMember::Property(p) => {
+                    if let Some(ty) = &p.ty {
+                        let _ = self.lower_type_ref(ty)?;
+                    }
+                }
+                ast::TypeMember::InitBlock(_b) => {}
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    for p in &ctor.params {
+                        if let Some(ty) = &p.ty {
+                            let _ = self.lower_type_ref(ty)?;
+                        }
+                    }
+                }
+                ast::TypeMember::Fun(f) => {
+                    if let Some(receiver) = &f.receiver {
+                        let _ = self.lower_type_ref(receiver)?;
+                    }
+                    for p in &f.params {
+                        if let Some(ty) = &p.ty {
+                            let _ = self.lower_type_ref(ty)?;
+                        }
+                    }
+                    if let Some(ret) = &f.return_ty {
+                        let _ = self.lower_type_ref(ret)?;
+                    }
+                }
+                ast::TypeMember::Type(nested) => {
+                    self.check_type_decl_headers(nested)?;
+                }
+                ast::TypeMember::Object(nested) => {
+                    self.check_object_decl_headers(nested)?;
                 }
             }
         }

@@ -47,6 +47,7 @@ pub fn check_file_headers(source: &SourceFile, file: &ast::File) -> Result<(), T
             ast::Item::Fun(fun) => check_fun_header(source, fun)?,
             ast::Item::Val(v) => check_top_level_val_header(source, v)?,
             ast::Item::Type(ty) => check_type_decl_headers(source, ty)?,
+            ast::Item::Object(obj) => check_object_decl_headers(source, obj)?,
         }
     }
     Ok(())
@@ -143,6 +144,50 @@ fn check_type_decl_headers(source: &SourceFile, ty: &ast::TypeDecl) -> Result<()
             }
             ast::TypeMember::Fun(f) => check_fun_header(source, f)?,
             ast::TypeMember::Type(nested) => check_type_decl_headers(source, nested)?,
+            ast::TypeMember::Object(obj) => check_object_decl_headers(source, obj)?,
+        }
+    }
+
+    Ok(())
+}
+
+fn check_object_decl_headers(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+) -> Result<(), TypeHeaderError> {
+    let Some(body) = &obj.body else {
+        return Ok(());
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::EnumVariant(_v) => {}
+            ast::TypeMember::Property(p) => {
+                if p.ty.is_none() {
+                    let name = source.slice(p.name.span).to_string();
+                    return Err(TypeHeaderError::MissingTypeAnnotation {
+                        kind: "属性",
+                        name,
+                        span: p.name.span.into(),
+                    });
+                }
+            }
+            ast::TypeMember::InitBlock(_b) => {}
+            ast::TypeMember::SecondaryCtor(ctor) => {
+                for p in &ctor.params {
+                    if p.ty.is_none() {
+                        let name = source.slice(p.name.span).to_string();
+                        return Err(TypeHeaderError::MissingTypeAnnotation {
+                            kind: "构造参数",
+                            name,
+                            span: p.name.span.into(),
+                        });
+                    }
+                }
+            }
+            ast::TypeMember::Fun(f) => check_fun_header(source, f)?,
+            ast::TypeMember::Type(nested) => check_type_decl_headers(source, nested)?,
+            ast::TypeMember::Object(nested) => check_object_decl_headers(source, nested)?,
         }
     }
 

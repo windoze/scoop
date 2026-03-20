@@ -218,6 +218,8 @@ impl<'a> Parser<'a> {
                     | Keyword::Struct
                     | Keyword::Enum
                     | Keyword::Effect
+                    | Keyword::Object
+                    | Keyword::Companion
             )
         )
     }
@@ -246,6 +248,8 @@ impl<'a> Parser<'a> {
                     | Keyword::Struct
                     | Keyword::Enum
                     | Keyword::Effect
+                    | Keyword::Object
+                    | Keyword::Companion
             )
         )
     }
@@ -303,6 +307,8 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Struct => "`struct`",
         Keyword::Enum => "`enum`",
         Keyword::Effect => "`effect`",
+        Keyword::Object => "`object`",
+        Keyword::Companion => "`companion`",
         Keyword::Handle => "`handle`",
         Keyword::With => "`with`",
         Keyword::Perform => "`perform`",

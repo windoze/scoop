@@ -82,6 +82,7 @@ impl<'a> BlockScopeChecker<'a> {
             match item {
                 ast::Item::Fun(fun) => self.check_fun(fun)?,
                 ast::Item::Type(ty) => self.check_type_decl(ty, &pkg_prefix)?,
+                ast::Item::Object(obj) => self.check_object_decl(obj, &pkg_prefix)?,
                 ast::Item::Val(v) => self.check_top_level_val(v)?,
                 ast::Item::TypeAlias(_) => {}
             }
@@ -146,6 +147,56 @@ impl<'a> BlockScopeChecker<'a> {
                 }
                 ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
+                ast::TypeMember::Object(obj) => self.check_object_decl(obj, &type_fqn)?,
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_object_decl(
+        &mut self,
+        obj: &mut ast::ObjectDecl,
+        prefix: &str,
+    ) -> Result<(), ResolveError> {
+        let Some(body) = &mut obj.body else {
+            return Ok(());
+        };
+
+        let obj_fqn = obj.name.as_ref().map(|name| {
+            let obj_name = self.source.slice(name.span);
+            if prefix.is_empty() {
+                obj_name.to_string()
+            } else {
+                format!("{prefix}.{obj_name}")
+            }
+        });
+
+        let this_ctx = ThisContext {
+            decl_span: obj
+                .name
+                .as_ref()
+                .map(|n| n.span)
+                .unwrap_or(obj.span),
+            ty_fqn: obj_fqn.clone(),
+        };
+
+        // object 没有主构造参数；成员解析时 ctor params 为空即可。
+        let ctor_params: &[ast::Param] = &[];
+
+        let nested_prefix = obj_fqn.as_deref().unwrap_or(prefix);
+
+        for member in &mut body.members {
+            match member {
+                ast::TypeMember::EnumVariant(_v) => {}
+                ast::TypeMember::Property(p) => {
+                    self.check_type_member_property(p, &this_ctx, ctor_params)?
+                }
+                ast::TypeMember::InitBlock(_b) => {}
+                ast::TypeMember::SecondaryCtor(_ctor) => {}
+                ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
+                ast::TypeMember::Type(nested) => self.check_type_decl(nested, nested_prefix)?,
+                ast::TypeMember::Object(nested) => self.check_object_decl(nested, nested_prefix)?,
             }
         }
 

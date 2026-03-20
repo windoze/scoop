@@ -1,0 +1,28 @@
+// EXPECT: pass
+// EXPECT-AST: object_and_companion_object_basic.ast
+// 目标：验证 Kotlin-like `object`/`companion object` 声明的最小语法解析：
+// - top-level `object Name { ... }`
+// - nested `object Name { ... }`
+// - `companion object { ... }` / `companion object Name { ... }`
+
+package fixtures.parse
+
+object Top {
+    val x: Int
+    fun f(): Int { return 1 }
+}
+
+class C {
+    object Nested {
+        val y: Int
+    }
+
+    companion object {
+        val z: Int
+    }
+
+    companion object Named {
+        val w: Int
+    }
+}
+

@@ -462,7 +462,7 @@ pub fn check_file_exprs(
                 &top_level_funs,
                 &struct_field_types,
             )?,
-            ast::Item::Type(_) | ast::Item::TypeAlias(_) => {}
+            ast::Item::Type(_) | ast::Item::Object(_) | ast::Item::TypeAlias(_) => {}
         }
     }
 

@@ -6,6 +6,58 @@ use crate::syntax::token::{Keyword, Symbol, Token, TokenKind};
 
 use super::{ParseError, Parser};
 
+#[derive(Debug, Clone, Copy)]
+struct TypeBodyContext {
+    allow_enum_variants: bool,
+    allow_init_blocks: bool,
+    allow_secondary_ctors: bool,
+    allow_companion_object: bool,
+}
+
+impl TypeBodyContext {
+    fn for_type_kind(kind: ast::TypeKind) -> Self {
+        match kind {
+            ast::TypeKind::Class => Self {
+                allow_enum_variants: false,
+                allow_init_blocks: true,
+                allow_secondary_ctors: true,
+                allow_companion_object: true,
+            },
+            ast::TypeKind::Interface => Self {
+                allow_enum_variants: false,
+                allow_init_blocks: false,
+                allow_secondary_ctors: false,
+                allow_companion_object: false,
+            },
+            ast::TypeKind::Struct => Self {
+                allow_enum_variants: false,
+                allow_init_blocks: false,
+                allow_secondary_ctors: false,
+                allow_companion_object: false,
+            },
+            ast::TypeKind::Enum => Self {
+                allow_enum_variants: true,
+                allow_init_blocks: false,
+                allow_secondary_ctors: false,
+                allow_companion_object: false,
+            },
+            ast::TypeKind::Effect => Self {
+                allow_enum_variants: false,
+                allow_init_blocks: false,
+                allow_secondary_ctors: false,
+                allow_companion_object: false,
+            },
+        }
+    }
+
+    const OBJECT: Self = Self {
+        allow_enum_variants: false,
+        allow_init_blocks: true,
+        allow_secondary_ctors: false,
+        allow_companion_object: false,
+    };
+}
+
 impl<'a> Parser<'a> {
     fn parse_modifiers(&mut self) -> Vec<ast::Modifier> {
         let mut modifiers = Vec::new();
@@ -835,7 +887,7 @@ impl<'a> Parser<'a> {
         }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
-            let body = self.parse_type_body(kind)?;
+            let body = self.parse_type_body(TypeBodyContext::for_type_kind(kind))?;
             last_end = body.span.end;
             Some(body)
         } else {
@@ -855,7 +907,97 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_type_body(&mut self, type_kind: ast::TypeKind) -> Result<ast::TypeBody, ParseError> {
+    pub(super) fn parse_object_decl(&mut self) -> Result<ast::ObjectDecl, ParseError> {
+        self.parse_object_decl_inner(ast::ObjectKind::Object)
+    }
+
+    fn parse_companion_object_decl(&mut self) -> Result<ast::ObjectDecl, ParseError> {
+        self.parse_object_decl_inner(ast::ObjectKind::Companion)
+    }
+
+    fn parse_object_decl_inner(&mut self, kind: ast::ObjectKind) -> Result<ast::ObjectDecl, ParseError> {
+        let start = self.peek().span.start;
+
+        let modifiers = self.parse_modifiers();
+
+        let (kind, name, mut last_end) = match kind {
+            ast::ObjectKind::Object => {
+                let object_kw = self.expect_keyword(Keyword::Object)?;
+                let name_tok = self.expect_kind(TokenKind::Ident, "object 名（标识符）")?;
+                let name = ast::Ident {
+                    span: name_tok.span,
+                };
+                (
+                    ast::ObjectKind::Object,
+                    Some(name),
+                    name_tok.span.end.max(object_kw.span.end),
+                )
+            }
+            ast::ObjectKind::Companion => {
+                let companion_kw = self.expect_keyword(Keyword::Companion)?;
+                let object_kw = self.expect_keyword(Keyword::Object)?;
+
+                let name = if self.peek_kind(TokenKind::Ident) {
+                    let name_tok = self.bump();
+                    Some(ast::Ident {
+                        span: name_tok.span,
+                    })
+                } else {
+                    None
+                };
+
+                let last_end = name
+                    .as_ref()
+                    .map(|n| n.span.end)
+                    .unwrap_or_else(|| object_kw.span.end)
+                    .max(companion_kw.span.end);
+
+                (ast::ObjectKind::Companion, name, last_end)
+            }
+        };
+
+        let supertypes = if self.eat_symbol(Symbol::Colon) {
+            let list = self.parse_supertype_list()?;
+            if let Some(last) = list.last() {
+                last_end = last_end.max(last.span.end);
+            }
+            list
+        } else {
+            Vec::new()
+        };
+
+        // header tail（例如未来的 where clause / annotation use-site targets 等）：
+        // 消耗到 `{` 或下一个 member 起始，以保持 cursor 前进并避免级联错误。
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
+            if self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+                || self.is_top_level_item_start()
+            {
+                break;
+            }
+            last_end = self.bump().span.end;
+        }
+
+        let body = if self.peek_symbol(Symbol::LBrace) {
+            let body = self.parse_type_body(TypeBodyContext::OBJECT)?;
+            last_end = body.span.end;
+            Some(body)
+        } else {
+            None
+        };
+
+        Ok(ast::ObjectDecl {
+            span: Span::new(start, last_end),
+            modifiers,
+            kind,
+            name,
+            supertypes,
+            body,
+        })
+    }
+
+    fn parse_type_body(&mut self, ctx: TypeBodyContext) -> Result<ast::TypeBody, ParseError> {
         let open = self.expect_symbol(Symbol::LBrace)?;
         let start = open.span.start;
 
@@ -872,7 +1014,7 @@ impl<'a> Parser<'a> {
             // Appendix B.2.2：class 初始化块：`init { ... }`（T0256）。
             //
             // 注意：`init` 是上下文关键字（lexer 仍产出 Ident），仅在 class body 中被识别为初始化块。
-            if matches!(type_kind, ast::TypeKind::Class)
+            if ctx.allow_init_blocks
                 && head == TokenKind::Ident
                 && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("init")
             {
@@ -890,7 +1032,7 @@ impl<'a> Parser<'a> {
             //
             // 注意：`constructor` / `this` / `super` 当前都是上下文关键字（lexer 仍产出 Ident），
             // 仅在 class body 中被识别为次构造器语法。
-            if matches!(type_kind, ast::TypeKind::Class)
+            if ctx.allow_secondary_ctors
                 && head == TokenKind::Ident
                 && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("constructor")
             {
@@ -908,7 +1050,7 @@ impl<'a> Parser<'a> {
             // - `Name`
             // - `Name(val field: T, ...)`
             // 变体之间用 `,` 分隔；允许 trailing comma。
-            if matches!(type_kind, ast::TypeKind::Enum) && head == TokenKind::Ident {
+            if ctx.allow_enum_variants && head == TokenKind::Ident {
                 match self.parse_enum_variant_decl() {
                     Ok(variant) => members.push(ast::TypeMember::EnumVariant(variant)),
                     Err(e) => {
@@ -919,6 +1061,47 @@ impl<'a> Parser<'a> {
 
                 // enum variants 默认使用 `,` 分隔。
                 let _ = self.eat_symbol(Symbol::Comma);
+                continue;
+            }
+
+            // Appendix B.9：`companion object { ... }` / `companion object Name { ... }`（T0258）。
+            if head == TokenKind::Keyword(Keyword::Companion) {
+                if !ctx.allow_companion_object {
+                    let tok = *self.peek_after_modifiers();
+                    self.record_error(ParseError::Expected {
+                        expected: "class 内的 `companion object`",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+
+                    // 仍按 companion object 的语法形态消费 token，避免后续把 `object` 当作一个新的 member
+                    // 再报一次“object 名缺失”的级联错误（保持单一错误回归更稳定）。
+                    if let Err(e) = self.parse_companion_object_decl() {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                    continue;
+                }
+
+                match self.parse_companion_object_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Object(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
+                continue;
+            }
+
+            // Appendix B.9：`object Name { ... }`（T0258）。
+            if head == TokenKind::Keyword(Keyword::Object) {
+                match self.parse_object_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::Object(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
                 continue;
             }
 

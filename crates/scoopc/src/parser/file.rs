@@ -68,6 +68,16 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
+            if head == TokenKind::Keyword(Keyword::Object) {
+                match self.parse_object_decl() {
+                    Ok(decl) => items.push(ast::Item::Object(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.recover_to_top_level_sync();
+                    }
+                }
+                continue;
+            }
             if self.is_type_decl_start() {
                 match self.parse_type_decl() {
                     Ok(decl) => items.push(ast::Item::Type(decl)),

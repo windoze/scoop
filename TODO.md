@@ -562,11 +562,12 @@
 - 依赖：T0248、T0207
 - 完成：AST 新增 `SecondaryCtorDecl`/`CtorDelegationCall` 与 `TypeMember::SecondaryCtor`；parser 在 class body 识别上下文关键字 `constructor` 并解析参数列表、可选 `: this(...)`/`: super(...)` delegation call（仅保留括号 span）、以及必需的 `{ ... }` body；新增 parse pass fixture `class_secondary_ctor_basic`（含 AST golden）与两个 fail fixtures（缺参数列表/缺 body）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0258 [TODO] Parser：`object` / `companion object` 声明（Appendix B.9）
+### T0258 [DONE] Parser：`object` / `companion object` 声明（Appendix B.9）
 - 描述：支持 top-level / nested `object Name { ... }`，以及 class 内 `companion object { ... }` / `companion object Name { ... }`。
 - 目标：先只做语法与 AST；单例语义、成员访问和初始化留给后续阶段。
 - 验收：新增 parse fixture：top-level object、nested object、named/unnamed companion object 可解析；非法 companion 位置报错。
 - 依赖：T0201、T0248
+- 完成：lexer 新增 `object`/`companion` 关键字；AST 新增 `ObjectDecl/ObjectKind` 并在 `Item/TypeMember` 接入；parser 支持 top-level/nested object 与 class body 内 companion object（非法位置给出稳定 `scoop::parse::expected` 且避免级联错误）；新增 parse pass fixture `object_and_companion_object_basic`（含 AST golden）与 fail fixture `companion_object_illegal_position_fail`；`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 通过。
 
 ---
 
