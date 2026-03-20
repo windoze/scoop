@@ -650,11 +650,12 @@
 - 依赖：T0305、T0209
 - 完成：在 `scoopc::resolve::scopes` 中为 `ExprKind::Call` 的裸标识符 callee 增加顶层 fun 命名空间解析：唯一匹配写回 `ValueIdent.resolved = TopLevel { fqn }`，多候选时报 `scoop::resolve::ambiguous_call`；新增/补齐 resolve fixtures `tests/fixtures/resolve/call_top_level_fun_ok.scoop` 与 `tests/fixtures/resolve_multi/ambiguous_call/`，并加入单测覆盖；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0312 [TODO] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
+### T0312 [DONE] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
 - 描述：实现最小规则：member 优先于 extension；extension 需要 receiver 类型可匹配。
 - 目标：先只在同包/同文件找 extension；跨包 import 扩展后续。
 - 验收：resolve fixture：同名 member 与 extension 并存时解析到 member；只有 extension 时解析到 extension。
 - 依赖：T0233、T0310
+- 完成：`scoopc::resolve::Index` 收集同包扩展函数并记录 receiver 类型 FQN；`ScopeChecker::resolve_member_access` 实现 member 优先、无 member 时按 receiver 匹配 extension fun；补齐 resolve fixtures `tests/fixtures/resolve/extension_member_prefers_member.scoop` 与 `tests/fixtures/resolve/extension_member_only_extension_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0313 [TODO] Resolver：`this`/构造参数/成员初始化作用域（class 场景）
 - 描述：为 class 主构造参数、属性初始化表达式、成员函数体建立正确作用域（含 `this`）。
