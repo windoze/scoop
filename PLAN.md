@@ -203,6 +203,7 @@
 - [x] struct 声明最小语义检查：字段重复/`var`/默认值约束（T0409）
 - [x] tuple/Unit（0 元 tuple）：tuple 类型与 tuple 字面量 typecheck（T0410）
 - [x] 最小子类型规则：`Nothing <: T`（用于 `return`/不可达分支/后续 `Raise.raise`）（T0420）
+- [ ] `!!` 非空断言：`Option<T>` → `T` 的静态类型规则（T0421a）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size
@@ -319,7 +320,8 @@
   - entry point 必须 `Pure`
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
-  - `!!`、`as` 失败 → `Raise.raise(RuntimeError.…)`
+  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b）
+  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 

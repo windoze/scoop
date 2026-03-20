@@ -854,11 +854,19 @@
 - 依赖：T0419
 - 完成：`crates/scoopc/src/typecheck/expr.rs` 的 `is_type_assignable` 已支持 `Nothing <: T`；新增 typecheck fixture `tests/fixtures/typecheck/nothing_is_bottom_type_ok.scoop` 覆盖 `return` 与 call arg；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
-- 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
-- 目标：先只实现静态规则；运行期行为后续由 effect/runtime 落地。
-- 验收：typecheck/effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
-- 依赖：T0212、T0419、T0604、T0607
+### T0421a [TODO] `!!`：not-null assertion 的类型规则（Appendix B.3.3）
+- 描述：`x!!`：若 `x: T?`（即 `Option<T>`），则结果类型为 `T`；若 `x` 非 nullable 则报错。
+- 目标：先只实现 typecheck 的静态类型规则；不引入 required effects 检查；不实现运行期语义。
+- 验收：typecheck fixtures：
+  - `val x: Int?; val y: Int = x!!` 通过
+  - `val x: Int; val y: Int = x!!` 报错（错误码稳定）
+- 依赖：T0212、T0411、T0406
+
+### T0421b [TODO] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
+- 描述：`x!!`：触发运行期 null assertion，要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
+- 目标：先只实现静态 required effects；运行期行为后续由 effect/runtime 落地。
+- 验收：effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
+- 依赖：T0421a、T0419、T0604、T0607
 
 ### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
