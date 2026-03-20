@@ -335,6 +335,49 @@ fn infer_expr_type(
             let _ = lower.lower_type_ref(ty)?;
             Ok(builtins.bool_)
         }
+        ast::ExprKind::When { subject, arms } => {
+            // `when` 表达式结果类型：当前阶段（T0414）只实现最小规则：
+            // - 递归类型检查 subject 与每个 arm body（保证覆盖其中的表达式）；
+            // - 若所有分支 body 的类型相同，则结果为该类型；
+            // - 否则 fallback 为 `Any`（真正的 LUB 规则留到后续任务实现）。
+            let _ = infer_expr_type(
+                source,
+                subject,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let mut result: Option<TypeId> = None;
+            for arm in arms {
+                // 先确保 pattern 内的 TypeRef 可 lowering（为后续类型规则做铺垫）。
+                if let ast::WhenPat::Is { ty, .. } = &arm.pat {
+                    let _ = lower.lower_type_ref(ty)?;
+                }
+
+                let arm_ty = infer_expr_type(
+                    source,
+                    &arm.body,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+
+                match result {
+                    None => result = Some(arm_ty),
+                    Some(prev) if prev == arm_ty => {}
+                    Some(_) => return Ok(builtins.any),
+                }
+            }
+
+            Ok(result.unwrap_or(builtins.any))
+        }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),

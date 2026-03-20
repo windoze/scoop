@@ -724,11 +724,12 @@
 - 依赖：T0213、T0214、T0406
 - 完成：`scoopc::typecheck::expr` 为 `ExprKind::TypeCheck`（`is`/`!is`）补齐最小类型规则（结果为 `Bool`）；并在函数体的表达式语句中识别 `if (x is T)` / `if (x !is T)`，对参数与 `val`（稳定绑定）在对应分支内做类型收窄（smart cast），`var` 不触发；新增 typecheck fixtures：`smart_cast_is_and_notis_ok`（pass）、`smart_cast_is_else_branch_not_narrowed_is_error`（fail）、`smart_cast_var_not_allowed_is_error`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0414 [TODO] `when` 类型规则：分支 LUB（spec §14.6）
+### T0414 [DONE] `when` 类型规则：分支 LUB（spec §14.6）
 - 描述：为 `when` 表达式计算结果类型（各分支类型的 LUB）。
 - 目标：先只支持简单类型：相同类型则返回该类型，否则 fallback 到 `Any`（后续再做真正 LUB）。
 - 验收：typecheck fixture：`when { ... }` 各分支 Int/Int → Int；Int/String → Any（或报错，按设计）。
 - 依赖：T0215、T0405
+- 完成：typecheck 推导支持 `ExprKind::When`，按“分支类型全相同则返回该类型，否则 fallback `Any`”的最小 LUB 规则计算结果类型；新增 typecheck fixtures `when_lub_same_type_ok`/`when_lub_mixed_to_any_ok`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0415 [TODO] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
 - 描述：检查 `with` 的 base 必须是 struct/tuple/enum（按设计）；path 必须存在且 RHS 类型匹配。

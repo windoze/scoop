@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0414 `when` 类型规则：分支类型相同则结果为该类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = when (1) {
+  1 -> 1
+  else -> 2
+}
+

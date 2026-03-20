@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0414 `when` 类型规则：分支类型不一致时 fallback 到 Any（当前最小实现）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Any = when (1) {
+  1 -> 1
+  else -> "hi"
+}
+
