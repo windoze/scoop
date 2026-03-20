@@ -773,11 +773,12 @@
 - 依赖：T0202、T0404
 - 完成：实现 `crates/scoopc/src/typecheck/structs.rs` 的 `check_file_struct_decls`（递归处理 nested struct；检查重复字段名；禁止 `var` 字段与默认值）；并在 typecheck fixtures runner（`crates/scoop/src/fixtures/mod.rs`）中作为 typecheck phase 的前置检查执行；新增/补齐 fixtures：`tests/fixtures/typecheck/struct_duplicate_field_is_error.scoop`、`tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`、`tests/fixtures/typecheck/struct_field_default_value_not_supported_is_error.scoop`、`tests/fixtures/typecheck/struct_field_unresolved_type_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0410 [TODO] 值类型：tuple 与 Unit（spec §2.3.3）
+### T0410 [DONE] 值类型：tuple 与 Unit（spec §2.3.3）
 - 描述：把 tuple 类型与 tuple 表达式加入类型系统；`Unit` 视为 0 元 tuple。
 - 目标：先只支持 `(A, B)` 类型与 `(a, b)` 表达式；不支持解构。
 - 验收：typecheck fixture：`val t: (Int, Int) = (1, 2)` 通过；元素类型不匹配报错。
 - 依赖：T0211、T0405
+- 完成：已支持 `()`/`(a, b)` 表达式与 `(A, B)`/`()` 类型注解；空 tuple 统一映射到 builtin `Unit`；新增 fixtures `tests/fixtures/typecheck/tuple_literal_ok.scoop`、`tests/fixtures/typecheck/tuple_literal_type_mismatch_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0411 [TODO] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
 - 描述：在 lowering 阶段把 `Nullable(TypeRef)` 映射到 `Option<...>`。
