@@ -787,11 +787,12 @@
 - 依赖：T0403、T0402
 - 完成：parser 在 `crates/scoopc/src/parser/types.rs` 解析 `T?` 为 `ast::TypeRef::Nullable`；typecheck lowering 在 `crates/scoopc/src/typecheck/lower.rs` 将 `TypeRef::Nullable` desugar 为 `Option<T>`（`TypeStore::ty_option`）；新增 fixtures `tests/fixtures/typecheck/nullable_sugar_to_option_ok.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0412 [TODO] Cast 语义：`as`/`as?` 的类型规则（spec §4.4）
+### T0412 [DONE] Cast 语义：`as`/`as?` 的类型规则（spec §4.4）
 - 描述：实现 `as`/`as?` 的类型检查规则；运行期失败行为由 effect/RuntimeError 后续落地。
 - 目标：先只做静态规则（可 cast/不可 cast）；不做 smart cast。
 - 验收：typecheck fixture：`x as T` 类型为 `T`；`x as? T` 类型为 `T?`（即 Option<T>）。
 - 依赖：T0213、T0411
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::Cast` 实现类型推导（`as`→`T`、`as?`→`Option<T>`），并通过 `is_cast_allowed` 限制当前阶段仅允许引用类型之间的 cast；新增 fixtures `tests/fixtures/typecheck/cast_as_and_asq_ok.scoop`（pass）与 `tests/fixtures/typecheck/cast_value_to_ref_is_error.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0413 [TODO] `is`/`!is` + smart cast（val 场景）（spec §4.3）
 - 描述：实现 flow-sensitive 类型收窄：`if (x is T) { x /* as T */ }`。
