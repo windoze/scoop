@@ -193,6 +193,7 @@
 - [x] 从 sysroot 收集内建类型/效果的声明头（`TypeEnv`：kind + arity），为后续 lowering/typecheck 提供环境起点（T0402）
 - [x] `TypeRef` → `Type` lowering：支持 `Path`/`Tuple`/`Nullable` + 泛型 arity 检查（T0403）
 - [x] 顶层声明头检查：`fun/val/type` 的签名最小约束（类型注解等）（T0404）
+- [x] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）（T0405）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size

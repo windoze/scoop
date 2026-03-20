@@ -738,11 +738,12 @@
 - 依赖：T0101、T0403
 - 完成：新增 `crates/scoopc/src/typecheck/headers.rs` 实现顶层/类型体成员声明头的最小约束（参数/属性/构造参数/顶层 val/var 的类型注解检查，pattern binding 暂报错），并在 `crates/scoop/src/fixtures/mod.rs` 的 typecheck phase 中作为前置检查执行；新增 fixtures `tests/fixtures/typecheck/top_level_val_with_type_ok.scoop`、`tests/fixtures/typecheck/top_level_val_missing_type_is_error.scoop`、`tests/fixtures/typecheck/fun_param_with_type_ok.scoop`、`tests/fixtures/typecheck/fun_param_missing_type_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0405 [TODO] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
+### T0405 [DONE] 表达式类型检查 v0：字面量（Int/String/Bool/Unit）
 - 描述：为 `Expr::IntLit/StringLit/...` 推导类型。
 - 目标：先把 builtin 类型补到 sysroot（或在 compiler 内建）；不做数值提升。
 - 验收：新增 typecheck fixture：`val x = 1` 推导为 Int（若支持推断）；或要求注解 `val x: Int = 1`。
 - 依赖：T0206、T0401、T0418
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 中为 `Int`/`String`/`Unit` 字面量与 `true/false`（Bool）推导 builtin 类型，并新增 typecheck fixture `tests/fixtures/typecheck/literals_ok.scoop` 覆盖；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0406 [TODO] 表达式类型检查 v0：变量引用（局部/参数/顶层）
 - 描述：对 resolve 后的 ident 引用给出类型。
