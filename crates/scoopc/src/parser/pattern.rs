@@ -78,6 +78,7 @@ impl<'a> Parser<'a> {
         let start = open.span.start;
 
         let mut elements = Vec::new();
+        let mut rest_span: Option<Span> = None;
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
             return Ok(ast::Pattern {
@@ -87,7 +88,42 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            elements.push(self.parse_pattern()?);
+            // `..` rest：仅允许出现一次，并且必须是最后一个元素。
+            if rest_span.is_some() {
+                let tok = *self.peek();
+                if self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                {
+                    let err = ParseError::Expected {
+                        expected: "tuple pattern：`..` 只能出现一次",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    };
+                    let _ = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start);
+                    return Err(err);
+                }
+                let err = ParseError::Expected {
+                    expected: "`)`（`..` 必须是最后一个元素）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                };
+                let _ = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start);
+                return Err(err);
+            }
+
+            if self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            {
+                let dot1 = self.bump();
+                let dot2 = self.bump();
+                let span = Span::new(dot1.span.start, dot2.span.end);
+                rest_span = Some(span);
+                elements.push(ast::Pattern {
+                    span,
+                    kind: ast::PatternKind::Rest,
+                });
+            } else {
+                elements.push(self.parse_pattern()?);
+            }
 
             if self.eat_symbol(Symbol::Comma) {
                 // allow trailing comma
@@ -111,15 +147,61 @@ impl<'a> Parser<'a> {
         let open = self.expect_symbol(Symbol::LBrace)?;
 
         let mut fields = Vec::new();
+        let mut rest_span: Option<Span> = None;
         if self.peek_symbol(Symbol::RBrace) {
             let close = self.bump();
             return Ok(ast::Pattern {
                 span: Span::new(path.span.start, close.span.end),
-                kind: ast::PatternKind::Struct { path, fields },
+                kind: ast::PatternKind::Struct {
+                    path,
+                    fields,
+                    rest: rest_span,
+                },
             });
         }
 
         loop {
+            // `..` rest：仅允许出现一次，并且必须是最后一个字段。
+            if rest_span.is_some() {
+                let tok = *self.peek();
+                if self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                {
+                    let err = ParseError::Expected {
+                        expected: "struct pattern：`..` 只能出现一次",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    };
+                    let _ =
+                        self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start);
+                    return Err(err);
+                }
+                let err = ParseError::Expected {
+                    expected: "`}`（`..` 必须是最后一个字段）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                };
+                let _ =
+                    self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start);
+                return Err(err);
+            }
+
+            if self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            {
+                let dot1 = self.bump();
+                let dot2 = self.bump();
+                rest_span = Some(Span::new(dot1.span.start, dot2.span.end));
+
+                if self.eat_symbol(Symbol::Comma) {
+                    // allow trailing comma
+                    if self.peek_symbol(Symbol::RBrace) {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+
             let name_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
             let name = ast::Ident { span: name_tok.span };
 
@@ -159,7 +241,11 @@ impl<'a> Parser<'a> {
         let close = self.expect_symbol(Symbol::RBrace)?;
         Ok(ast::Pattern {
             span: Span::new(path.span.start, close.span.end),
-            kind: ast::PatternKind::Struct { path, fields },
+            kind: ast::PatternKind::Struct {
+                path,
+                fields,
+                rest: rest_span,
+            },
         })
     }
 
@@ -182,4 +268,3 @@ impl<'a> Parser<'a> {
         })
     }
 }
-

@@ -938,7 +938,7 @@ fn bound_idents_in_pattern(p: &ast::Pattern) -> Vec<ast::Ident> {
 
 fn collect_bound_idents_in_pattern(p: &ast::Pattern, out: &mut Vec<ast::Ident>) {
     match &p.kind {
-        ast::PatternKind::Wildcard | ast::PatternKind::Missing => {}
+        ast::PatternKind::Wildcard | ast::PatternKind::Rest | ast::PatternKind::Missing => {}
         ast::PatternKind::Bind(id) => out.push(*id),
         ast::PatternKind::Tuple(parts) => {
             for part in parts {

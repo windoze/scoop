@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: `..` 只能出现一次
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 10:21
+// 目标：struct pattern 中禁止重复 `..` rest（T0255）。
+
+package fixtures.parse
+
+fun f() {
+    val Point { .., .. } = p
+}

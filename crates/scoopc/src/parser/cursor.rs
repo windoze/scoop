@@ -37,6 +37,37 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// 在已经消费了 `open` 的前提下，继续消费直到与之匹配的 `close`（含 close）。
+    ///
+    /// 该函数用于“当前语法形态不支持/出现错误，但仍需保持 token cursor 与括号平衡正确”的场景，
+    /// 避免上层错误恢复把内部的 `)`/`}` 误当作外层 block 的结束符号而引发级联错误。
+    pub(super) fn consume_balanced_after_open(
+        &mut self,
+        open: Symbol,
+        close: Symbol,
+        start: usize,
+    ) -> Result<Span, ParseError> {
+        let mut depth = 1usize;
+        while !self.peek_kind(TokenKind::Eof) {
+            let tok = self.bump();
+            if let TokenKind::Symbol(sym) = tok.kind {
+                if sym == open {
+                    depth += 1;
+                } else if sym == close {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Ok(Span::new(start, tok.span.end));
+                    }
+                }
+            }
+        }
+
+        Err(ParseError::UnterminatedGroup {
+            close,
+            span: Span::new(start, self.peek().span.end).into(),
+        })
+    }
+
     pub(super) fn expect_keyword(&mut self, kw: Keyword) -> Result<Token, ParseError> {
         if self.peek_keyword(kw) {
             Ok(self.bump())

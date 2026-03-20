@@ -125,7 +125,7 @@
 - [ ] Parser 收尾补齐：
   - [x] `import foo.bar.Baz as Qux`（Appendix B.7）
   - [x] use-site effect row 实参：`Type<eff Row>`（spec §3.4）
-  - [ ] pattern rest：`..`（spec §4.2）
+  - [x] pattern rest：`..`（spec §4.2）
 - [ ] Kotlin-like 声明补齐：
   - `init { ... }` blocks 与 secondary constructors（Appendix B.2.2）
   - `object` / `companion object` 声明（Appendix B.9）

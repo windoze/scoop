@@ -1613,36 +1613,6 @@ impl<'a> Parser<'a> {
         Ok(Some(ast::Expr::missing(span)))
     }
 
-    /// 在已经消费了 `open` 的前提下，继续消费直到与之匹配的 `close`（含 close）。
-    ///
-    /// 该函数用于“表达式不支持但需要保持 token cursor 正确”的场景。
-    fn consume_balanced_after_open(
-        &mut self,
-        open: Symbol,
-        close: Symbol,
-        start: usize,
-    ) -> Result<Span, ParseError> {
-        let mut depth = 1usize;
-        while !self.peek_kind(TokenKind::Eof) {
-            let tok = self.bump();
-            if let TokenKind::Symbol(sym) = tok.kind {
-                if sym == open {
-                    depth += 1;
-                } else if sym == close {
-                    depth -= 1;
-                    if depth == 0 {
-                        return Ok(Span::new(start, tok.span.end));
-                    }
-                }
-            }
-        }
-
-        Err(ParseError::UnterminatedGroup {
-            close,
-            span: Span::new(start, self.peek().span.end).into(),
-        })
-    }
-
     fn disambiguate_ident_lbrace_group(&self) -> BraceGroupKind {
         debug_assert_eq!(self.peek().kind, TokenKind::Ident);
         debug_assert_eq!(self.peek_n(1).kind, TokenKind::Symbol(Symbol::LBrace));

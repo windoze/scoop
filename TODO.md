@@ -541,11 +541,12 @@
 - 依赖：T0009
 - 完成：AST `ImportDecl` 新增 `alias: Option<Ident>`；parser 在 import 末尾解析 `as <Ident>` 并更新 span；resolver/typecheck 的 import 规则与 `ImportTable` 构建使用 alias 作为 local 名；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0255 [TODO] Parser：pattern rest `..`（spec §4.2）
+### T0255 [DONE] Parser：pattern rest `..`（spec §4.2）
 - 描述：在 pattern 语法中支持 `..`，用于忽略剩余字段/元素。
 - 目标：先只把 `..` 解析进 AST；类型规则与“只能出现一次”等约束留给 typecheck。
 - 验收：新增 parse fixture：tuple/struct pattern 中的 `..` 可解析；重复 `..` 或非法位置报错。
 - 依赖：T0239、T0241、T0240
+- 完成：AST `PatternKind` 新增 `Rest`，struct pattern 记录 `rest: Option<Span>`；parser 支持 tuple/struct pattern 中的 `..` 并在重复/非法位置时给出稳定 `scoop::parse::expected`；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0256 [TODO] Parser：class `init { ... }` blocks（Appendix B.2.2）
 - 描述：在 class body 中解析 `init { ... }` 初始化块，并把它作为成员节点纳入 AST。

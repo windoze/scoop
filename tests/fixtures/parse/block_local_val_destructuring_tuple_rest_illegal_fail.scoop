@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: 必须是最后一个元素
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 10:17
+// 目标：tuple pattern 中 `..` 只能出现在末尾（T0255）。
+
+package fixtures.parse
+
+fun f() {
+    val (a, .., b) = pair
+}

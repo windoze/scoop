@@ -1,0 +1,12 @@
+// EXPECT: pass
+// EXPECT-AST: block_local_val_destructuring_rest.ast
+// 目标：验证 `val` 解构 pattern 支持 rest `..`（T0255）。
+
+package fixtures.parse
+
+fun f() {
+    val (a, ..) = pair
+    val Point { x, .. } = p
+    a
+}
+

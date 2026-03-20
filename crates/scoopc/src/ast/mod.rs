@@ -881,9 +881,10 @@ impl WhenPat {
 ///
 /// 注意：当前阶段只实现解构绑定所需的最小子集（T0244）：
 /// - `_` wildcard
+/// - `..` rest（忽略剩余字段/元素；仅允许出现在 tuple/struct pattern 内）
 /// - 绑定标识符（bind）
 /// - tuple pattern：`(p1, p2, ...)`
-/// - struct pattern：`TypeName { field, field: pat, ... }`
+/// - struct pattern：`TypeName { field, field: pat, .. }`
 #[derive(Debug, Clone)]
 pub struct Pattern {
     pub span: Span,
@@ -893,11 +894,15 @@ pub struct Pattern {
 #[derive(Debug, Clone)]
 pub enum PatternKind {
     Wildcard,
+    /// rest：`..`（仅用于 tuple/struct pattern 内的占位，表示忽略剩余元素/字段）。
+    Rest,
     Bind(Ident),
     Tuple(Vec<Pattern>),
     Struct {
         path: TypePath,
         fields: Vec<StructPatternField>,
+        /// `Some(..)` 表示出现了 `..` rest（并记录其 span，便于诊断）。
+        rest: Option<Span>,
     },
     Missing,
 }
