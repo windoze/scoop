@@ -692,6 +692,18 @@
 - 依赖：T0258、T0302、T0301
 - 完成：`Index` 记录 `companion_objects` 与 `object_types`；未命名 `companion object` 使用隐式名 `Companion` 并纳入索引与成员表；member access 解析扩展支持 `Obj.member` 与 `TypeName.member`（经 companion）并在缺 companion 时给出稳定诊断 `scoop::resolve::missing_companion_object`；新增 resolve fixtures（object ok / companion ok / missing companion fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
+### T0318 [TODO] Resolver：overload set 收集（顶层 / 成员 / 扩展 / 构造函数）
+- 描述：把当前“同名函数唯一”模型升级为候选集合模型：允许同名可重载函数、成员函数、扩展函数、secondary constructors 共存，并为后续 typecheck 决议保留声明头信息。
+- 目标：resolve 阶段只负责“收集候选，不做最终决议”；真正冲突留给签名比较与 typecheck。
+- 验收：新增 resolve fixture：两个同名不同参数列表的函数可共存；同名不同参数的 constructors / extensions 可被收集为 overload set。
+- 依赖：T0301、T0302、T0248、T0257
+
+### T0319 [TODO] Resolver：调用点/构造点候选收集，替代“唯一 callee”假设
+- 描述：把 `Call(Ident)`、成员调用、构造调用从“直接绑定到唯一 fun symbol”升级为“绑定到候选集合 + 调用形状（args/names/receiver）”。
+- 目标：先不做 most-specific；同一调用点只要存在多个候选就保留到 typecheck，再由后续任务决议。
+- 验收：新增 resolve fixture：同名两个函数在调用点保留候选集合而不是提前报歧义；构造调用同理。
+- 依赖：T0318、T0311、T0310、T0209
+
 ---
 
 ## T04：类型系统（阶段 3：先类型检查再优化）
@@ -1020,6 +1032,36 @@
 - 验收：typecheck fixture：`object Foo` 不能像 class 一样调用构造；`ClassName.member` 在 companion 存在时通过；无 companion 时报错。
 - 依赖：T0258、T0317、T0404
 
+### T0453 [TODO] 通用函数重载解析 v1：按候选集合做决议
+- 描述：对普通函数调用实现最小 overload resolution：按参数个数、位置/命名参数、可见性、形参可赋值关系筛选候选，并在唯一候选时完成绑定。
+- 目标：先不做 most-specific 的复杂 tie-break；先覆盖“过滤后唯一”与“明确歧义”两类结果。
+- 验收：typecheck fixture：`f(Int)` / `f(String)` 根据实参选中不同 overload；无匹配时报错；多候选同等匹配时报 `ambiguous_overload`。
+- 依赖：T0319、T0407
+
+### T0454 [TODO] 构造函数重载解析：primary / secondary constructors
+- 描述：为 class 构造调用实现 overload resolution：primary constructor 与多个 secondary constructors 共同形成候选集合，按参数匹配与默认参数规则做决议。
+- 目标：先只覆盖 class constructors；struct literal 命名字段构造仍走独立规则。
+- 验收：typecheck fixture：同一 class 上多个 constructors 可按参数选中；无匹配和歧义都有稳定诊断。
+- 依赖：T0257、T0318、T0453
+
+### T0455 [TODO] 扩展函数重载解析：member 优先 + receiver specificity
+- 描述：在已有 extension 静态分发基础上，支持同名多个 extension overload，并固定优先级：member 胜出，其次按 receiver/参数更具体者胜出。
+- 目标：先只覆盖同包/已导入 extension；跨包导入优先级与可见性复用现有规则。
+- 验收：typecheck fixture：多个 extension overload 可按 receiver/参数类型选中；member 与 extension 同名时选 member；无唯一候选时报歧义。
+- 依赖：T0436、T0453、T0312
+
+### T0456 [TODO] enum variant 构造与 pattern 消歧：摆脱“同名唯一 variant”假设
+- 描述：当不同 enum 存在同名 variant（如多个 `None` / `Some` 风格命名）时，variant 构造与 pattern 匹配应按期望类型或 `when` subject type 解析，而不是要求全局同名唯一。
+- 目标：先只覆盖“存在明确期望类型/subject type”的场景；无足够上下文时允许保留歧义诊断。
+- 验收：typecheck fixture：两个 enum 都有 `None` 时，在 `when (opt)` 中能正确解析到 `Option.None`；缺少上下文时给出歧义错误。
+- 依赖：T0426、T0427、T0318
+
+### T0457 [TODO] 重载冲突诊断：重复签名、不可区分签名、默认参数导致的冲突
+- 描述：在声明检查阶段诊断非法 overload：完全相同签名、仅返回类型不同、默认参数展开后不可区分等情况。
+- 目标：先覆盖函数与 constructors；extension / effects 的细化规则后续复用。
+- 验收：typecheck fixture：两条仅返回类型不同的函数声明报错；默认参数导致调用点永远歧义的 overload 报错。
+- 依赖：T0318、T0453、T1305
+
 ---
 
 ## T05：类型推断（阶段 4：约束生成与求解，逐步扩展）
@@ -1089,6 +1131,18 @@
 - 目标：先覆盖“单个 row 参数 + 默认值 + 简单并集”的场景；高阶 row 约束后续。
 - 验收：effects/infer fixture：`Disposable` 省略 use-site row 时默认到 `Pure`；显式 `Disposable<eff Async>` 可参与调用检查。
 - 依赖：T0253、T0509、T0603
+
+### T0512 [TODO] overload resolution 与泛型/默认参数/命名参数/row 推断联动
+- 描述：让 overload resolution 不只依赖显式类型，还能与泛型实参推断、默认参数、命名参数、effect row 参数、receiver function type 一起求解候选。
+- 目标：先覆盖“先过滤候选，再对剩余候选尝试推断”的两阶段策略；更激进的联合求解后续再优化。
+- 验收：infer fixture：泛型 overload 能按实参推断出正确候选；默认参数与命名参数参与后可消除歧义；effect row 也能影响候选选择。
+- 依赖：T0453、T0454、T0455、T0505、T0509
+
+### T0513 [TODO] 最具体候选（most specific candidate）与歧义诊断
+- 描述：在多个候选都可行时，实现 Kotlin-like most-specific candidate 规则，并给出稳定、可解释的歧义诊断。
+- 目标：先覆盖参数更具体、receiver 更具体、非默认参数优先等常见规则；完全等价时保留歧义错误。
+- 验收：infer fixture：`f(1)` 在 `f(Int)` / `f(Any)` 中选 `f(Int)`；无明显更具体候选时报 `ambiguous_overload`，错误信息列出候选签名。
+- 依赖：T0512、T0457
 
 ---
 
@@ -1730,6 +1784,18 @@
 - 验收：新增 typecheck + cone fixture：被 `@Target` 禁止的位置报错；保留到 `.cone` 的注解在下游可见。
 - 依赖：T1013、T1103、T1209
 
+### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
+- 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
+- 目标：默认结论应是“无新增 intrinsic”；只有审计证明无法表达时，才允许进入 T1018。
+- 验收：输出一份分层清单：`pure_scoop_ok` / `needs_runtime_lib` / `needs_new_intrinsic`；每个 `needs_new_intrinsic` 都必须附带无法用现有机制实现的理由。
+- 依赖：T1217、T1314
+
+### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
+- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
+- 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
+- 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
+- 依赖：T1017
+
 ---
 
 ## T11：Cone（包/稳定 IR/分发）（阶段 10）
@@ -1970,6 +2036,60 @@
 - 验收：language/run-pass fixture：`lazy` 只初始化一次；`observable` / `vetoable` 回调按预期触发；map-backed delegate 可读取字段。
 - 依赖：T1217、T0434
 
+### T1314 [TODO] Kotlin runtime / Scoop core runtime gap 审计（when applicable）
+- 描述：盘点 Scoop core runtime / stdlib 与 Kotlin runtime 之间“语义上值得补齐、且与 JVM 绑定无关”的缺口，并按“纯 Scoop 可实现 / 需要 runtime libs / 需要新 intrinsic”三类归档。
+- 目标：不盲目追求 1:1 复制 Kotlin/JVM runtime；只补对 Scoop 语言模型成立、且对用户价值高的部分。
+- 验收：产出一份 capability matrix，列出候选模块、优先级、是否纯 Scoop 可实现，以及是否需要走 T1017/T1018 通道。
+- 依赖：T1311、T1312、T1217
+
+### T1315 [TODO] 纯 Scoop 补齐 Kotlin runtime 适用缺口（不新增 intrinsic）
+- 描述：根据 T1314 的审计结果，用纯 Scoop 实现可补齐的核心 runtime 库能力，例如文本/集合辅助、ranges/progressions helpers、sequence-like utilities、常见 runtime support APIs 等。
+- 目标：默认不得新增 intrinsic；若遇到底层 blocker，必须回流到 T1017/T1018，而不是在本任务里偷偷扩 intrinsic。
+- 验收：新增 language/run-pass fixtures：至少一组来自 Kotlin 运行库常见能力的用法可直接在 Scoop 上工作，且实现主体为 Scoop 代码。
+- 依赖：T1314、T1017
+
+### T1316 [TODO] 全量 `std` 设计：分层、稳定性、能力矩阵（目标对标 Rust std）
+- 描述：设计 Scoop 的标准库分层与包边界，目标是能力与 Rust `std` 同量级、可比较，但不要求 API 相同。建议至少区分 `core` / `alloc` / `std` / 平台适配层。
+- 目标：固定模块边界、稳定性策略、目标平台 capability matrix（desktop / server / embedded / wasm）。
+- 验收：产出 `std` 模块树与 capability matrix；说明各模块依赖于哪些 runtime / platform backends。
+- 依赖：T1314、T1406
+
+### T1317 [TODO] `std` v1：collections / iterators / text / algorithms
+- 描述：实现全量 `std` 的第一层基础模块：动态数组、哈希表/有序映射、字符串/文本工具、迭代器、切片/视图、常见算法与 builder API。
+- 目标：以纯 Scoop 为主；性能优化与 specialized backend 后续可渐进增强。
+- 验收：新增 std fixtures：常见集合操作、iterator pipeline、文本处理、排序/查找等能力可运行，覆盖面接近“可替代日常业务开发中的第三方基础库”。
+- 依赖：T1316、T1315
+
+### T1318 [TODO] `std` v2：io / fs / path / process / env / time
+- 描述：实现标准库的系统接口层：文件系统、路径、进程、环境变量、时钟/时间、基础 I/O 抽象。
+- 目标：保持跨平台抽象；对不支持的平台通过 capability gating 或 no_std-like 降级。
+- 验收：新增 std/run-pass fixtures：文件读写、路径操作、环境变量、时间 API 等在 host 平台可通过；不支持的平台有明确 gating/诊断。
+- 依赖：T1316、T1410
+
+### T1319 [TODO] `std` v3：sync / thread / channels / task support
+- 描述：实现标准库中的并发与同步层：线程 API、锁、条件变量、channel、thread-local、任务/调度辅助接口。
+- 目标：桌面/服务端优先；embedded / wasm 通过 capability matrix 进行裁剪或适配。
+- 验收：新增 std/run-pass fixtures：线程创建、锁、channel、thread-local 行为正确；平台不支持时有稳定诊断。
+- 依赖：T1316、T1407、T1410
+
+### T1320 [TODO] `std` v4：net / async adapters / testing & support utilities
+- 描述：补齐标准库的高阶能力：网络抽象、与 `Task`/executor 的 async adapters、测试支持工具、日志/诊断/配置等公共 utilities。
+- 目标：保持与 runtime backend 解耦；WASM/embedded 环境通过 adapter 或 capability gating 处理。
+- 验收：新增 std/run-pass fixtures：基础 TCP/HTTP-like adapter、async task utility、test helper 能在受支持平台工作；不支持平台有 capability matrix 覆盖。
+- 依赖：T1316、T0917、T1409
+
+### T1321 [TODO] Kotlin 风格重载决议：most specific candidate 规则收口
+- 描述：把通用 overload resolution 收口为 Kotlin 风格的用户可感知规则：最具体候选优先、member/extension/constructor 的优先级固定、歧义行为稳定。
+- 目标：不要求与 Kotlin 每个边角完全一致，但要把 Scoop 采用的差异点写清楚并通过 fixtures 固化。
+- 验收：language fixture：`Int` vs `Any`、member vs extension、constructor overload 的最具体候选行为稳定；文档中列出与 Kotlin 不同处。
+- 依赖：T0513、T0454、T0455
+
+### T1322 [TODO] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
+- 描述：把 T1305/T1306/T1307 与 overload sets 联动：调用时允许这些特性参与候选筛选与 tie-break，而不是只在“唯一目标”前提下工作。
+- 目标：先覆盖最常见组合；varargs 与重载的复杂交互后续再细化。
+- 验收：language fixture：多个 overload 中，命名参数和 trailing lambda 能帮助选中正确候选；真正无法区分时仍报歧义。
+- 依赖：T1305、T1306、T1307、T0512
+
 ---
 
 ## T14：GC 迁移到 Scoop（阶段 12：自举路线，先铺垫再替换）
@@ -2003,3 +2123,39 @@
 - 目标：以“可回退”为原则，分步骤替换；每一步都有 run-pass 回归。
 - 验收：在 Scoop GC 模式下，GC fixtures 与 effect fixtures 均可通过；C runtime 中不再包含 GC 核心算法。
 - 依赖：T1404、T0911、T1009
+
+### T1406 [TODO] GC backend 抽象：编译期可替换 GC（baseline / Immix / embedded / adapter）
+- 描述：为 GC 引入稳定抽象边界，使 runtime/allocator/roots 扫描与具体 GC 算法解耦，并支持编译期选择不同 backend。
+- 目标：至少支持 baseline GC、后续 Immix、高裁剪 embedded/minimal backend，以及 hosted/adapter backend（如 WASM GC adapter）的插拔。
+- 验收：构建系统可通过 feature/config 选择不同 GC backend；同一套核心 GC fixtures 可在至少两种 backend 下运行。
+- 依赖：T1405
+
+### T1407 [TODO] Scoop GC：多线程支持（self-hosted 之后的正确性阶段）
+- 描述：在 GC 已迁移到 Scoop 之后，补齐多线程支持：线程注册、stop-the-world / 协调协议、跨线程 roots 扫描、线程局部分配路径、并发安全元数据。
+- 目标：先保证正确性与可回归性；性能优化（并行标记、局部缓存）后续渐进增强。
+- 验收：新增多线程 GC fixtures：多线程分配/回收/跨线程引用/pin-unpin 在 Scoop GC 模式下稳定通过。
+- 依赖：T1406、T0911
+
+### T1408 [TODO] Scoop GC：引入 Immix 作为高性能改进 backend
+- 描述：在 baseline GC 之外实现 Immix（或等价 line/block allocator）backend，作为桌面/服务端场景的高性能选项。
+- 目标：与 baseline backend 并存；不要求第一版就替换默认 GC。
+- 验收：构建时可切换到 Immix backend；同一套 GC fixtures 通过，并有至少一组分配/碎片化基准显示优于 baseline。
+- 依赖：T1406、T1407
+
+### T1409 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配
+- 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。
+- 目标：先实现 backend 形状与 capability matrix；不要求一次覆盖所有宿主。
+- 验收：至少一条 hosted/adapter 路径可编译并通过受限能力测试；WASM target 下的 capability matrix 明确哪些模块可用/不可用。
+- 依赖：T1406、T1316
+
+### T1410 [TODO] runtime 去 C 化：启动 / effect / GC / 线程 runtime 全量迁移到 Scoop
+- 描述：逐步把 runtime 核心逻辑从 C 迁移到 Scoop：启动层、effect runtime、GC runtime、线程/同步/调度 glue。允许继续直接调用 libc/OS ABI，但不再依赖 C 语言实现 runtime 逻辑。
+- 目标：最终形成“pure Scoop runtime + libc/OS ABI hooks”的结构；保留回退路径直到回归稳定。
+- 验收：在 pure-Scoop runtime 模式下，语言/GC/effects/std fixtures 可通过；仓库中 C runtime 只剩极薄兼容层或完全可选。
+- 依赖：T1407、T0916、T0917、T0918
+
+### T1411 [TODO] non-resuming effect / unwind backend：评估并接入 `libunwind`
+- 描述：为 non-resuming effect（以及其他需要栈展开的路径）评估并接入 `libunwind` 或等价后端，避免继续依赖 C runtime 自带异常/展开机制。
+- 目标：先支持 host 平台；Windows / embedded / wasm 可按 backend 分层处理。
+- 验收：新增 run-pass / runtime fixture：非恢复 effect 在 pure-Scoop runtime 模式下可正确展开、执行 cleanup、并生成稳定回溯/诊断（若启用）。
+- 依赖：T1410、T0614、T0707

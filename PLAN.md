@@ -165,6 +165,10 @@
 - [x] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [x] class 初始化阶段作用域：property initializer / `init` / secondary constructor（T0316）
 - [x] `object` / `companion object` 的名字解析与成员可见性（T0317：支持 `Obj.member` 与 `ClassName.member`）
+- [ ] overload set 建模：
+  - 顶层函数、成员函数、扩展函数、构造函数从“唯一符号”升级为“候选集合”
+  - 同名但可重载的声明允许共存；真正冲突放到签名/重载规则阶段诊断
+  - 调用点/构造点先收集候选，再交由 typecheck + inference 做决议
 
 ### 3.3 sysroot 注入
 
@@ -260,6 +264,10 @@
 - [ ] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
 - [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
 - [ ] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
+- [ ] 通用重载解析（函数 / 构造函数 / 扩展）：
+  - 候选筛选：arity、receiver、可见性、命名参数、默认参数
+  - 决议规则：最具体候选（most specific candidate）与稳定歧义诊断
+  - enum variant / pattern 在同名跨 enum 时按期望类型或 subject type 消歧
 
 **本阶段 DoD**
 - `scoopc` 能对一批无泛型/少量泛型的示例做类型检查（含 struct/enum/Option/when/is/as）。
@@ -274,6 +282,9 @@
 - [ ] LUB（if/when 分支）
 - [ ] lambda 推断：参数类型下推、返回类型与 effect row 推断（见 spec §14.7.2）
 - [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释
+- [ ] overload resolution 与推断联动：
+  - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议
+  - effect rows / `eff` 参数也必须能参与重载筛选与歧义诊断
 
 **本阶段 DoD**
 - 能跑 `tests/fixtures/infer/**`：涵盖 if/when/lambda/泛型调用推断的 compile-pass/compile-fail。
@@ -543,6 +554,9 @@ tests/
   - meta-annotations 与 `.cone` 导出策略
 - [ ] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
 - [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
+- [ ] 后期 runtime / std 阶段的 intrinsic 预算规则：
+  - 默认不再新增 intrinsic，优先用纯 Scoop 库补 runtime/stdlib 缺口
+  - 若审计证明缺少底层 primitive，则单独立项增加最小 intrinsic，并与上层库任务拆开推进
 
 fixtures：
 - `tests/fixtures/unsafe_nogc/*` 覆盖所有违规路径（必须 compile-fail）
@@ -603,6 +617,17 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 - [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
 - [ ] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
 - [ ] 标准 delegated properties：`lazy`/`observable`/`vetoable`/map-backed（spec §10.4）
+- [ ] Kotlin runtime gap closure（when applicable）：
+  - 先审计 Scoop core runtime / stdlib 与 Kotlin runtime 语义缺口
+  - 优先用纯 Scoop 补齐；只在审计证明无法表达时回流到 §11 的最小 intrinsic 通道
+- [ ] 全量 `std` 库工程：
+  - 目标能力与 Rust `std` 同量级、可比较，但不要求 API 一致
+  - 建议分层：`core` / `alloc` / `std` / 平台适配层
+  - 覆盖 collections、text/regex、iterators、io/fs/path/process/env、time、sync/thread/channels、net、async adapters、test/support utilities 等
+- [ ] Kotlin 风格重载决议兼容：
+  - most specific candidate 规则
+  - 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
+  - 扩展函数、成员函数、构造函数之间的优先级与歧义处理
 
 fixtures：
 - `tests/fixtures/language/*` 下为每个特性提供 compile-pass/compile-fail + 必要的 run-pass
@@ -629,8 +654,26 @@ fixtures：
 3) **最终替换 C GC**
    - C runtime 仅保留极薄的启动层，甚至可以被 Scoop runtime 取代
 
+4) **Scoop GC 进入多线程阶段**
+   - 线程注册、stop-the-world / 协调协议、跨线程 root 扫描、线程本地分配策略都由 Scoop GC 接管
+   - 单线程 mark-sweep 只作为 baseline；多线程正确性与可回归性必须先固定
+
+5) **引入更高性能 GC 变体（如 Immix）**
+   - 在 baseline GC 可用后，引入 Immix 或类似 line/block allocator 作为改进路径
+   - 保持与 baseline GC 共存，避免把算法升级和 runtime 自举耦死
+
+6) **GC 后端可替换 / 可编译期选择**
+   - 编译期可选择 mark-sweep、Immix、embedded/minimal、WASM GC adapter 等不同实现
+   - 通过稳定的 GC runtime ABI / trait 边界隔离上层 runtime 与具体 GC 算法
+
+7) **runtime 去 C 化**
+   - 逐步把启动、effect runtime、GC runtime、线程/调度 glue 从 C 迁移到 Scoop
+   - 允许继续直接调用 libc / OS ABI，但 runtime 核心逻辑不再依赖 C
+   - 对 non-resuming effect / unwind 路径，可评估引入 `libunwind` 作为底层依赖，而不是继续依赖 C runtime 自带异常/展开机制
+
 fixtures：
 - 运行期 GC fixtures 必须在“C GC”和“Scoop GC”两套实现下都能跑（同一套测试，不同 runtime 实现）。
+- 迁移后，运行期 fixtures 应至少在两类 GC backend 下可回归：baseline GC 与高性能 GC（如 Immix）；若提供 WASM/embedded 适配器，还应维护 capability matrix 与分层禁用测试。
 
 ---
 
