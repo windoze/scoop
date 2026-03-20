@@ -629,11 +629,12 @@
 - 依赖：T0307
 - 完成：将 `check_file_bindings` 拆分为 `check_file_headers`（构建 import 表 + 解析声明头里的 TypeRef）与 `check_file_bodies`（块级作用域 + 值解析）；新增 `FileHeaders` 作为 phase 间数据载体；type decl headers（主构造参数类型、supertype、成员签名）也纳入 type 引用解析；将值解析扩展到顶层 `val/var` initializer；新增 resolve fixtures：`forward_ref_top_level_symbol_ok`（pass）与 `unresolved_value_in_top_level_init`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0309 [TODO] Resolver：泛型参数作用域与解析（type params 是符号）
+### T0309 [DONE] Resolver：泛型参数作用域与解析（type params 是符号）
 - 描述：在 resolve 阶段把声明处 type params 纳入作用域，使 `TypeRef` 中的 `T` 可解析到泛型参数。
 - 目标：先只支持同一声明内引用；不支持 where 约束。
 - 验收：resolve fixture：`fun id<T>(x: T): T { x }` 通过；`fun f(x: T) {}` 报未定义类型参数。
 - 依赖：T0218、T0308
+- 完成：`scoopc::resolve` 引入声明级 `TypeParamScopes` 并在 `check_file_headers`/`resolve_type_decl_headers` 推入/弹出 type params；`resolve_type_path` 对单段路径优先命中当前作用域的 type param；新增 resolve fixtures：`tests/fixtures/resolve/generic_type_param_ok.scoop`（pass）与 `tests/fixtures/resolve/unresolved_type_param_in_signature.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0310 [TODO] Resolver：成员访问解析（`.`）绑定到字段/方法/属性
 - 描述：把 `a.b` 的 `b` 绑定到 struct 字段或 class/interface 成员（先做存在性）。
