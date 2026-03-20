@@ -51,6 +51,7 @@ File {
                                             },
                                         ),
                                     },
+                                    guard: None,
                                     arrow_span: 203..205,
                                     body: Expr {
                                         span: 206..219,
@@ -80,6 +81,7 @@ File {
                                     pat: IntLit {
                                         span: 224..225,
                                     },
+                                    guard: None,
                                     arrow_span: 226..228,
                                     body: Expr {
                                         span: 229..230,
@@ -91,6 +93,7 @@ File {
                                     pat: Else {
                                         span: 235..239,
                                     },
+                                    guard: None,
                                     arrow_span: 240..242,
                                     body: Expr {
                                         span: 243..244,

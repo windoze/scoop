@@ -2337,22 +2337,28 @@ fn check_when_exhaustiveness(
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
+    // 带 guard 的分支（`pat if cond -> ...`）在穷尽性检查中视为“不可覆盖”：
+    // - 它们不计入 variant 覆盖集合；
+    // - 也不应被视为 catch-all（因为 guard 可能为 false）。
     let has_catch_all = arms.iter().any(|arm| {
-        matches!(
-            &arm.pat,
-            ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Bind { .. }
-        )
+        arm.guard.is_none()
+            && matches!(
+                &arm.pat,
+                ast::WhenPat::Else { .. }
+                    | ast::WhenPat::Wildcard { .. }
+                    | ast::WhenPat::Bind { .. }
+            )
     });
     let has_else_keyword = arms
         .iter()
-        .any(|arm| matches!(&arm.pat, ast::WhenPat::Else { .. }));
+        .any(|arm| arm.guard.is_none() && matches!(&arm.pat, ast::WhenPat::Else { .. }));
 
     // Bool：虽然在 sysroot 中声明为 `struct Bool`，但语义上是穷尽的（true/false）。
     if subject_ty == builtins.bool_ {
         let mut seen_true = false;
         let mut seen_false = false;
 
-        for arm in arms {
+        for arm in arms.iter().filter(|a| a.guard.is_none()) {
             if let ast::WhenPat::BoolLit { span } = &arm.pat {
                 match source.slice(*span) {
                     "true" => seen_true = true,
@@ -2390,7 +2396,7 @@ fn check_when_exhaustiveness(
             let mut seen_some = false;
             let mut seen_none = false;
 
-            for arm in arms {
+            for arm in arms.iter().filter(|a| a.guard.is_none()) {
                 if let ast::WhenPat::Variant { name, .. } = &arm.pat {
                     match source.slice(name.span) {
                         "Some" => seen_some = true,
@@ -2439,7 +2445,7 @@ fn check_when_exhaustiveness(
             let all_variants: HashSet<&str> = decl.variants.iter().map(|v| v.name.as_str()).collect();
             let mut covered: HashSet<&str> = HashSet::new();
 
-            for arm in arms {
+            for arm in arms.iter().filter(|a| a.guard.is_none()) {
                 if let ast::WhenPat::Variant { name, .. } = &arm.pat {
                     let variant_name = source.slice(name.span);
                     if all_variants.contains(variant_name) {

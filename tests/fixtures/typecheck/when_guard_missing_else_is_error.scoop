@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_non_exhaustive_missing_variants
+// EXPECT-ERROR-AT: 12:14
+// EXPECT-ERROR: Some
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+
+val x: Int = when (opt) {
+  Some(v) if v > 0 -> v
+  None -> 0
+}
+

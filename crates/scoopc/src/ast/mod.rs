@@ -825,6 +825,8 @@ impl Expr {
 pub struct WhenArm {
     pub span: Span,
     pub pat: WhenPat,
+    /// 可选 guard：`pat if <expr> -> body`。
+    pub guard: Option<Expr>,
     pub arrow_span: Span,
     pub body: Expr,
 }

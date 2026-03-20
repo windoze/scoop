@@ -394,6 +394,9 @@ impl<'a> BlockScopeChecker<'a> {
                     // spec §4：pattern binder 仅在该分支 body 内可见。
                     self.push_scope();
                     self.declare_when_pat_binders(&arm.pat)?;
+                    if let Some(guard) = &mut arm.guard {
+                        self.check_expr(guard)?;
+                    }
                     self.check_expr(&mut arm.body)?;
                     self.pop_scope();
                 }

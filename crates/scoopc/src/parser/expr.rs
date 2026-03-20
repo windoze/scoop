@@ -1105,6 +1105,21 @@ impl<'a> Parser<'a> {
 
             let pat = self.parse_when_pat()?;
             let pat_span = pat.span();
+
+            let guard = if self.peek_keyword(Keyword::If) {
+                self.bump();
+                let tok = *self.peek();
+                Some(
+                    self.try_parse_expr()?.ok_or(ParseError::Expected {
+                        expected: "表达式（when 分支 guard）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?,
+                )
+            } else {
+                None
+            };
+
             let arrow = self.expect_symbol(Symbol::Arrow)?;
 
             let body = if self.peek_symbol(Symbol::LBrace) {
@@ -1126,6 +1141,7 @@ impl<'a> Parser<'a> {
             arms.push(ast::WhenArm {
                 span: Span::new(pat_span.start, body.span.end),
                 pat,
+                guard,
                 arrow_span: arrow.span,
                 body,
             });

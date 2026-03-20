@@ -826,11 +826,12 @@
 - 依赖：T0427
 - 完成：typecheck 为 `when` 增加穷尽性检查：对 `Bool`/`Option<T>`/nominal `enum` 在无 catch-all（`else`/`_`/绑定 arm）时要求覆盖全部分支；对非穷尽类型强制要求 catch-all；新增错误码 `scoop::typecheck::when_non_exhaustive_missing_variants` 与 `when_missing_else`；当 enum/Bool/Option 已覆盖完整却仍写 `else` 时通过 `tracing::warn!` 记录冗余提示；新增 fixtures：`tests/fixtures/typecheck/when_option_missing_none_is_error.scoop`、`tests/fixtures/typecheck/when_int_missing_else_is_error.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0429 [TODO] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
+### T0429 [DONE] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
 - 描述：当某个分支带 guard 时，穷尽性检查应要求 else/_（或把该分支不计入覆盖）。
 - 目标：先只实现规则；不做路径敏感分析。
 - 验收：typecheck fixture：`Some(x) if x>0 -> ...` 场景缺 else 时报错。
 - 依赖：T0428
+- 完成：`WhenArm` 增加 `guard: Option<Expr>` 并在 parser 支持 `pat if <expr> -> body`；resolve 阶段在每个 arm 的作用域内解析 guard；typecheck 穷尽性检查忽略带 guard 的分支（它们既不计入覆盖集合，也不算 catch-all），从而在缺少 `else`/`_` 时稳定报 `when_non_exhaustive_missing_variants`；新增 fixture `tests/fixtures/typecheck/when_guard_missing_else_is_error.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0430 [TODO] destructuring `val`：tuple/struct pattern 绑定（spec §4.2、§9）
 - 描述：实现 `val (a,b)=expr`、`val Point { x, y } = expr` 的类型检查与绑定，并强制 `var` 不允许。
