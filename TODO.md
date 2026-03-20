@@ -643,11 +643,12 @@
 - 依赖：T0302、T0210
 - 完成：在 `scoopc::resolve::scopes` 中实现 `resolve_member_access`，基于 receiver 的“静态可确定类型”（局部带类型注解 / `this` / `StructLit`）将 `receiver.member` 解析到成员符号并写回 `MemberIdent.resolved`（fun/value 命名空间）；新增 resolve fixtures：`tests/fixtures/resolve/member_access_ok.scoop`、`tests/fixtures/resolve/unresolved_member_access.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0311 [TODO] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
+### T0311 [DONE] Resolver：调用解析（把 `Call(Ident)` 绑定到具体函数）
 - 描述：把 `f(...)` 的 callee 从“裸 ident”解析为某个 fun symbol（先要求唯一匹配）。
 - 目标：先不支持重载；若同名多个定义则报歧义错误。
 - 验收：resolve fixture：调用顶层函数成功；同名多个函数时报 `ambiguous_call`（新错误码）。
 - 依赖：T0305、T0209
+- 完成：在 `scoopc::resolve::scopes` 中为 `ExprKind::Call` 的裸标识符 callee 增加顶层 fun 命名空间解析：唯一匹配写回 `ValueIdent.resolved = TopLevel { fqn }`，多候选时报 `scoop::resolve::ambiguous_call`；新增/补齐 resolve fixtures `tests/fixtures/resolve/call_top_level_fun_ok.scoop` 与 `tests/fixtures/resolve_multi/ambiguous_call/`，并加入单测覆盖；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0312 [TODO] Resolver：扩展函数/扩展属性的分发优先级（spec §7.4 / §10.3）
 - 描述：实现最小规则：member 优先于 extension；extension 需要 receiver 类型可匹配。
