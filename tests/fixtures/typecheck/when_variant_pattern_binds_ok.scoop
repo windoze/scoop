@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0427 `when` variant pattern：对 enum（Option<T>）做约束，并把 binder 引入分支作用域。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+
+val x: Int = when (opt) {
+  Some(v) -> v
+  None -> 0
+}
+

@@ -812,11 +812,12 @@
 - 依赖：T0240、T0311、T0425
 - 完成：resolve 阶段对 `callee(args...)` 的裸标识符允许“未解析”穿透到 typecheck（避免提前报 `unresolved_value`）；typecheck 支持按同名唯一 enum variant 绑定 `Some(x)` 并做 arity/参数类型检查（新增错误码 `scoop::typecheck::enum_variant_ctor_*`）；`TypeEnv` 记录 enum 声明源文件以支持跨文件（sysroot）variant 字段类型解析；新增 fixtures：`typecheck/enum_variant_ctor_some_ok`（pass）、`typecheck/enum_variant_ctor_arity_mismatch_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0427 [TODO] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
+### T0427 [DONE] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
 - 描述：对 pattern 进行类型约束：variant pattern 仅用于 enum；tuple pattern 仅用于 tuple；绑定变量进入分支作用域。
 - 目标：先不做穷尽性；先只做“每个分支内部类型正确”。
 - 验收：typecheck fixture：`when(opt){ Some(x)->x; None->0 }` 通过；把 Some 用在非 enum 上时报错。
 - 依赖：T0243、T0426、T0410
+- 完成：扩展 `WhenPat` 支持 `Wildcard/Bind/Tuple/Variant/BoolLit` 并补齐 parser；resolver 为每个 when arm 建立独立作用域并声明 pattern binder；typecheck 对 tuple/variant pattern 做最小类型约束并把 binder 类型注入 arm locals；新增错误码 `scoop::typecheck::when_variant_pat_not_enum`/`when_tuple_pat_not_tuple` 等；新增 fixtures：`typecheck/when_variant_pattern_binds_ok`（pass）、`typecheck/when_variant_pattern_not_enum_is_error`（fail）、`typecheck/when_tuple_pattern_binds_ok`（pass）、`typecheck/when_tuple_pattern_not_tuple_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0428 [TODO] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
 - 描述：对可穷尽类型要求覆盖所有 variant（或允许 else）；非穷尽类型必须有 else/_。

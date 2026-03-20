@@ -834,8 +834,28 @@ pub struct WhenArm {
 pub enum WhenPat {
     Else { span: Span },
     Is { is_span: Span, ty: TypeRef },
+    /// `_`：通配符模式（匹配任意值）。
+    Wildcard { span: Span },
+    /// 绑定变量模式：`x`（把匹配到的值绑定到变量 `x`）。
+    ///
+    /// 说明：该绑定仅在当前 when arm 的 body 作用域内可见（由 resolver 建立作用域）。
+    Bind { ident: Ident },
+    /// tuple 模式：`(p1, p2, ...)`。
+    Tuple { span: Span, elements: Vec<WhenPat> },
+    /// enum variant 模式：`Some(x)` / `None`（0 参数 variant）。
+    ///
+    /// 说明：
+    /// - 早期阶段仅支持“位置参数”的 variant pattern；
+    /// - `name` 目前不做解析写回，由 typecheck 基于 subject 的 enum 类型做约束与匹配。
+    Variant {
+        span: Span,
+        name: Ident,
+        args: Vec<WhenPat>,
+    },
     IntLit { span: Span },
     StringLit { span: Span },
+    /// `true` / `false`（当前阶段 lexer 仍以 ident token 承载）。
+    BoolLit { span: Span },
 }
 
 impl WhenPat {
@@ -843,8 +863,13 @@ impl WhenPat {
         match self {
             WhenPat::Else { span } => *span,
             WhenPat::Is { is_span, ty } => Span::new(is_span.start, ty.span().end),
+            WhenPat::Wildcard { span } => *span,
+            WhenPat::Bind { ident } => ident.span,
+            WhenPat::Tuple { span, .. } => *span,
+            WhenPat::Variant { span, .. } => *span,
             WhenPat::IntLit { span } => *span,
             WhenPat::StringLit { span } => *span,
+            WhenPat::BoolLit { span } => *span,
         }
     }
 }

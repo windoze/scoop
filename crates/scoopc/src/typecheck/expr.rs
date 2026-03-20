@@ -30,6 +30,7 @@ use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
+use super::when_pat;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
@@ -141,6 +142,50 @@ pub enum ExprTypeError {
     EnumVariantCtorTypeArgNotInferred {
         enum_fqn: String,
         param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 tuple pattern 只能用于 tuple/Unit，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_tuple_pat_not_tuple))]
+    WhenTuplePatNotTuple {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 tuple pattern 长度不匹配：期望 {expected} 个元素，但得到 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::when_tuple_pat_arity_mismatch))]
+    WhenTuplePatArityMismatch {
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 variant pattern 只能用于 enum，但 subject 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_variant_pat_not_enum))]
+    WhenVariantPatNotEnum {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 variant pattern 未找到匹配的 variant：{enum_fqn}.{variant}")]
+    #[diagnostic(code(scoop::typecheck::when_variant_pat_unknown_variant))]
+    WhenVariantPatUnknownVariant {
+        enum_fqn: String,
+        variant: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`when` 的 variant pattern 参数数量不匹配：{variant_fqn} 期望 {expected} 个，但得到 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::when_variant_pat_arity_mismatch))]
+    WhenVariantPatArityMismatch {
+        variant_fqn: String,
+        expected: usize,
+        found: usize,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -596,7 +641,7 @@ fn infer_expr_type(
             // 额外：`Nothing` 是 bottom type（T0420a），因此：
             // - `Nothing` 与任意 `T` 的 LUB 至少应为 `T`；
             // - 这里先做一个最小 special-case：忽略 `Nothing` 分支参与比较。
-            let _ = infer_expr_type(
+            let subject_ty = infer_expr_type(
                 source,
                 subject,
                 lower,
@@ -609,9 +654,12 @@ fn infer_expr_type(
 
             let mut result: Option<TypeId> = None;
             for arm in arms {
-                // 先确保 pattern 内的 TypeRef 可 lowering（为后续类型规则做铺垫）。
-                if let ast::WhenPat::Is { ty, .. } = &arm.pat {
-                    let _ = lower.lower_type_ref(ty)?;
+                // T0427：对 pattern 做最小类型约束，并把 binder 注入到该 arm 的局部环境中。
+                let mut arm_locals: HashMap<Span, TypeId> = locals.clone();
+                for (decl_span, ty) in
+                    when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
+                {
+                    arm_locals.insert(decl_span, ty);
                 }
 
                 let arm_ty = infer_expr_type(
@@ -619,7 +667,7 @@ fn infer_expr_type(
                     &arm.body,
                     lower,
                     builtins,
-                    locals,
+                    &arm_locals,
                     top_level_types,
                     top_level_funs,
                     struct_field_types,
@@ -1378,7 +1426,7 @@ fn infer_enum_variant_ctor_call_expr_type(
     Ok(Some(enum_ty))
 }
 
-fn lower_type_ref_with_enum_subst(
+pub(super) fn lower_type_ref_with_enum_subst(
     enum_source: &SourceFile,
     use_span: Span,
     enum_fqn: &str,
@@ -2158,7 +2206,9 @@ fn check_expr_stmt(
             struct_field_types,
         ),
         ast::ExprKind::When { subject, arms } => {
-            // `when` 表达式作为语句时：递归进入分支 body，以覆盖其中的局部绑定/控制流。
+            // `when` 表达式作为语句时：
+            // - 递归进入分支 body，以覆盖其中的局部绑定/控制流；
+            // - T0427：为每个 arm 建立独立的“局部类型表”快照，并注入 pattern binder 的类型。
             check_expr_stmt(
                 source,
                 subject.as_ref(),
@@ -2172,15 +2222,41 @@ fn check_expr_stmt(
                 top_level_funs,
                 struct_field_types,
             )?;
+
+            let subject_ty = infer_expr_type(
+                source,
+                subject.as_ref(),
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )
+            .ok();
+
             for arm in arms {
+                let mut arm_locals = locals.clone();
+                let mut arm_stable = stable_bindings.clone();
+                let mut arm_mutable = mutable_bindings.clone();
+
+                if let Some(subject_ty) = subject_ty {
+                    for (decl_span, ty) in
+                        when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
+                    {
+                        arm_locals.insert(decl_span, ty);
+                        arm_stable.insert(decl_span);
+                    }
+                }
+
                 check_expr_stmt(
                     source,
                     &arm.body,
                     lower,
                     builtins,
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
+                    &mut arm_locals,
+                    &mut arm_stable,
+                    &mut arm_mutable,
                     expected_return_ty,
                     top_level_types,
                     top_level_funs,

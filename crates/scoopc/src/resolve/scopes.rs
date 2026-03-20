@@ -391,7 +391,11 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::When { subject, arms } => {
                 self.check_expr(subject.as_mut())?;
                 for arm in arms {
+                    // spec §4：pattern binder 仅在该分支 body 内可见。
+                    self.push_scope();
+                    self.declare_when_pat_binders(&arm.pat)?;
                     self.check_expr(&mut arm.body)?;
+                    self.pop_scope();
                 }
             }
             ast::ExprKind::MemberAccess { receiver, member } => {
@@ -450,6 +454,30 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         Ok(())
+    }
+
+    fn declare_when_pat_binders(&mut self, pat: &ast::WhenPat) -> Result<(), ResolveError> {
+        match pat {
+            ast::WhenPat::Else { .. }
+            | ast::WhenPat::Is { .. }
+            | ast::WhenPat::Wildcard { .. }
+            | ast::WhenPat::IntLit { .. }
+            | ast::WhenPat::StringLit { .. }
+            | ast::WhenPat::BoolLit { .. } => Ok(()),
+            ast::WhenPat::Bind { ident } => self.declare_ident(ident),
+            ast::WhenPat::Tuple { elements, .. } => {
+                for e in elements {
+                    self.declare_when_pat_binders(e)?;
+                }
+                Ok(())
+            }
+            ast::WhenPat::Variant { args, .. } => {
+                for a in args {
+                    self.declare_when_pat_binders(a)?;
+                }
+                Ok(())
+            }
+        }
     }
 
     /// 解析调用表达式的 callee（T0311：`Call(Ident)` → 顶层 fun symbol）。

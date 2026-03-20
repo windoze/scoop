@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_tuple_pat_not_tuple
+// EXPECT-ERROR-AT: 11:3
+// EXPECT-ERROR: tuple pattern 只能用于 tuple
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = when (1) {
+  (a, b) -> a
+  else -> 0
+}

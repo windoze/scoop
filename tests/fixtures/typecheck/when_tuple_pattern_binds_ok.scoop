@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0427 `when` tuple pattern：仅允许匹配 tuple，并把 binder 引入分支作用域。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val pair: (Int, Int) = (1, 2)
+
+val x: Int = when (pair) {
+  (a, b) -> a
+  else -> 0
+}
+

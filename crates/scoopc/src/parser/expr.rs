@@ -1151,7 +1151,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_when_pat(&mut self) -> Result<ast::WhenPat, ParseError> {
-        if self.peek_keyword(Keyword::Else) {
+        self.parse_when_pat_internal(true)
+    }
+
+    fn parse_when_pat_internal(&mut self, allow_else: bool) -> Result<ast::WhenPat, ParseError> {
+        if allow_else && self.peek_keyword(Keyword::Else) {
             let tok = self.bump();
             return Ok(ast::WhenPat::Else { span: tok.span });
         }
@@ -1165,6 +1169,10 @@ impl<'a> Parser<'a> {
             });
         }
 
+        if self.peek_symbol(Symbol::LParen) {
+            return self.parse_when_tuple_pat();
+        }
+
         if self.peek_kind(TokenKind::IntLiteral) {
             let tok = self.bump();
             return Ok(ast::WhenPat::IntLit { span: tok.span });
@@ -1175,11 +1183,125 @@ impl<'a> Parser<'a> {
             return Ok(ast::WhenPat::StringLit { span: tok.span });
         }
 
+        if self.peek_kind(TokenKind::Ident) {
+            let tok = self.bump();
+            let ident = ast::Ident { span: tok.span };
+            let name = self
+                .source_text
+                .get(ident.span.start..ident.span.end)
+                .unwrap_or("");
+
+            if name == "_" {
+                return Ok(ast::WhenPat::Wildcard { span: tok.span });
+            }
+            if name == "true" || name == "false" {
+                return Ok(ast::WhenPat::BoolLit { span: tok.span });
+            }
+
+            // `Name(...)`：variant pattern（位置参数）。
+            if self.peek_symbol(Symbol::LParen) {
+                let open = self.expect_symbol(Symbol::LParen)?;
+                let start = tok.span.start;
+
+                let mut args = Vec::new();
+                if self.peek_symbol(Symbol::RParen) {
+                    let close = self.bump();
+                    return Ok(ast::WhenPat::Variant {
+                        span: Span::new(start, close.span.end),
+                        name: ident,
+                        args,
+                    });
+                }
+
+                loop {
+                    args.push(self.parse_when_pat_internal(false)?);
+                    if self.eat_symbol(Symbol::Comma) {
+                        // allow trailing comma
+                        if self.peek_symbol(Symbol::RParen) {
+                            break;
+                        }
+                        continue;
+                    }
+                    break;
+                }
+
+                if self.peek_kind(TokenKind::Eof) {
+                    return Err(ParseError::UnterminatedGroup {
+                        close: Symbol::RParen,
+                        span: Span::new(open.span.start, self.peek().span.end).into(),
+                    });
+                }
+                let close = self.expect_symbol(Symbol::RParen)?;
+                return Ok(ast::WhenPat::Variant {
+                    span: Span::new(start, close.span.end),
+                    name: ident,
+                    args,
+                });
+            }
+
+            // `Name`（无括号）：当前阶段用一个启发式消歧：
+            // - 首字符为大写：视为 0-arg enum variant；
+            // - 否则视为 bind（并在该 arm body 内引入局部绑定）。
+            if name
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false)
+            {
+                return Ok(ast::WhenPat::Variant {
+                    span: tok.span,
+                    name: ident,
+                    args: Vec::new(),
+                });
+            }
+
+            return Ok(ast::WhenPat::Bind { ident });
+        }
+
         let tok = *self.peek();
         Err(ParseError::Expected {
-            expected: "when 分支模式（`else` / `is T` / 字面量）",
+            expected: "when 分支模式（`else` / `is T` / 字面量 / 绑定 / tuple / variant）",
             found: tok.kind,
             span: tok.span.into(),
+        })
+    }
+
+    fn parse_when_tuple_pat(&mut self) -> Result<ast::WhenPat, ParseError> {
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = open.span.start;
+
+        let mut elements = Vec::new();
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok(ast::WhenPat::Tuple {
+                span: Span::new(start, close.span.end),
+                elements,
+            });
+        }
+
+        loop {
+            elements.push(self.parse_when_pat_internal(false)?);
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RParen)?;
+
+        Ok(ast::WhenPat::Tuple {
+            span: Span::new(start, close.span.end),
+            elements,
         })
     }
 

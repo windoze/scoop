@@ -224,6 +224,7 @@
 
 - [ ] `when` 表达式（穷尽性检查可分阶段做）
   - [x] 分支 LUB v0：分支类型相同则返回该类型，否则 fallback `Any`（T0414）
+  - [x] pattern v0：tuple/variant pattern 的最小类型约束 + arm binder 注入局部作用域（T0427）
 - [x] `is` / `!is` + smart cast（至少覆盖 `val` 的流敏感类型收窄）
 - [x] `as` / `as?`（typecheck v0：`as` 返回 `T`、`as?` 返回 `T?`；运行期失败语义后续接入 effect/RuntimeError）
 

@@ -12,6 +12,7 @@ mod lower;
 mod headers;
 mod expr;
 mod structs;
+mod when_pat;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};
