@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_lit_field_type_mismatch
+// EXPECT-ERROR: 初始化值类型不匹配
+// EXPECT-ERROR-AT: 14:31
+// 目标：T0423 struct literal 字段类型不匹配应报错并指向值表达式。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use() {
+    val p: Point = Point { x: "oops", y: 2 }
+}

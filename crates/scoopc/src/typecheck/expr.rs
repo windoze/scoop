@@ -204,6 +204,54 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("struct literal 的类型必须是 struct，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::struct_lit_not_struct))]
+    StructLitNotStruct {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`{struct_name}` 不存在字段：{field}")]
+    #[diagnostic(code(scoop::typecheck::struct_lit_unknown_field))]
+    StructLitUnknownField {
+        struct_name: String,
+        field: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("struct literal 字段重复：{struct_name}.{field}")]
+    #[diagnostic(code(scoop::typecheck::struct_lit_duplicate_field))]
+    StructLitDuplicateField {
+        struct_name: String,
+        field: String,
+        #[label("重复写在这里")]
+        second: miette::SourceSpan,
+        #[label("第一次写在这里")]
+        first: miette::SourceSpan,
+    },
+
+    #[error("`{struct_name}.{field}` 初始化值类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::struct_lit_field_type_mismatch))]
+    StructLitFieldTypeMismatch {
+        struct_name: String,
+        field: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("struct literal 缺少字段：{struct_name} 还需要 {fields}")]
+    #[diagnostic(code(scoop::typecheck::struct_lit_missing_fields))]
+    StructLitMissingFields {
+        struct_name: String,
+        fields: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("返回类型不匹配：期望 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::return_type_mismatch))]
     ReturnTypeMismatch {
@@ -364,6 +412,18 @@ fn infer_expr_type(
 
             Ok(lower.ty_tuple(element_types))
         }
+        ast::ExprKind::StructLit { ty, fields } => infer_struct_lit_expr_type(
+            source,
+            expr,
+            ty,
+            fields,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Ident(id) => {
             infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
         }
@@ -547,6 +607,131 @@ fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn infer_struct_lit_expr_type(
+    source: &SourceFile,
+    struct_lit_expr: &ast::Expr,
+    ty: &ast::TypePath,
+    fields: &[ast::StructLitField],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 先把 TypeName lowering 为一个 nominal value type（struct/enum）；并进一步约束必须是 struct。
+    let struct_ty = lower.lower_type_ref(&ast::TypeRef::Path(ty.clone()))?;
+
+    let (struct_fqn, struct_name) = match lower.type_kind(struct_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (nominal.fqn, lower.fmt_type(struct_ty)),
+        _ => {
+            return Err(ExprTypeError::StructLitNotStruct {
+                found: lower.fmt_type(struct_ty),
+                span: ty.span.into(),
+            });
+        }
+    };
+
+    if !matches!(
+        lower.nominal_decl_kind(&struct_fqn),
+        Some(ast::TypeKind::Struct)
+    ) {
+        return Err(ExprTypeError::StructLitNotStruct {
+            found: struct_name,
+            span: ty.span.into(),
+        });
+    }
+
+    // 收集该 struct 的“直接字段”（不包含 nested type 的字段）。
+    //
+    // 说明：`collect_struct_field_types` 会为 nested struct 生成形如：
+    //   `Outer.Inner.x`
+    // 对于 `Outer { ... }` 的 struct literal，我们只接受 `Outer.<field>` 这一层。
+    let prefix = format!("{struct_fqn}.");
+    let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
+    for (field_fqn, field_ty) in struct_field_types {
+        let Some(rest) = field_fqn.strip_prefix(&prefix) else {
+            continue;
+        };
+        if rest.contains('.') {
+            continue;
+        }
+        expected_fields.insert(rest.to_string(), *field_ty);
+    }
+
+    // 逐项检查：
+    // - 字段名不可重复
+    // - 字段必须存在于 struct 声明中
+    // - 字段初始化表达式类型必须可赋值给字段类型（最小 assignable 规则）
+    let mut seen: HashMap<String, Span> = HashMap::new();
+    for f in fields {
+        let field_name = source.slice(f.name.span).to_string();
+
+        if let Some(prev) = seen.get(&field_name).copied() {
+            return Err(ExprTypeError::StructLitDuplicateField {
+                struct_name: struct_name.clone(),
+                field: field_name,
+                first: prev.into(),
+                second: f.name.span.into(),
+            });
+        }
+        seen.insert(field_name.clone(), f.name.span);
+
+        let Some(expected_ty) = expected_fields.get(&field_name).copied() else {
+            return Err(ExprTypeError::StructLitUnknownField {
+                struct_name: struct_name.clone(),
+                field: field_name,
+                span: f.name.span.into(),
+            });
+        };
+
+        let found_ty = infer_expr_type(
+            source,
+            &f.value,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            return Err(ExprTypeError::StructLitFieldTypeMismatch {
+                struct_name: struct_name.clone(),
+                field: field_name,
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: f.value.span.into(),
+            });
+        }
+    }
+
+    // 当前阶段（T0423）约束：struct literal 必须显式提供所有字段（不支持默认值/可选字段）。
+    let mut missing: Vec<String> = expected_fields
+        .keys()
+        .filter(|name| !seen.contains_key(*name))
+        .cloned()
+        .collect();
+    missing.sort();
+    if !missing.is_empty() {
+        // 尽量把错误定位到右花括号 `}`（缺字段通常发生在结尾）。
+        let close_brace = if struct_lit_expr.span.end > 0 {
+            Span::new(struct_lit_expr.span.end - 1, struct_lit_expr.span.end)
+        } else {
+            struct_lit_expr.span
+        };
+
+        return Err(ExprTypeError::StructLitMissingFields {
+            struct_name,
+            fields: missing.join(", "),
+            span: close_brace.into(),
+        });
+    }
+
+    Ok(struct_ty)
 }
 
 fn infer_with_update_expr_type(

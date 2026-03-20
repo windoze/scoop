@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_lit_duplicate_field
+// EXPECT-ERROR: 字段重复
+// EXPECT-ERROR-AT: 14:34
+// 目标：T0423 struct literal 重复字段应报错并指向第二次出现。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use() {
+    val p: Point = Point { x: 1, x: 2, y: 3 }
+}

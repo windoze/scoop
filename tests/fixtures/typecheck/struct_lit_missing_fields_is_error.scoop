@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_lit_missing_fields
+// EXPECT-ERROR: 缺少字段
+// EXPECT-ERROR-AT: 14:33
+// 目标：T0423 struct literal 缺字段应报错并尽量指向 `}`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use() {
+    val p: Point = Point { x: 1 }
+}

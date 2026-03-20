@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_lit_not_struct
+// EXPECT-ERROR: 必须是 struct
+// EXPECT-ERROR-AT: 12:21
+// 目标：T0423 struct literal 的类型名必须是 struct。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use() {
+    val s: String = String { x: 1 }
+}

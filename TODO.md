@@ -784,11 +784,12 @@
 - 依赖：T0229、T0411、T0407
 - 完成：typecheck 支持（1）Elvis `?:`：`Option<T> ?: T -> T`（rhs 用最小 assignable 规则校验）；（2）safe-call：`Call(SafeMemberAccess)` 对 receiver fun（扩展函数）返回 `Option<R>`；并补齐 `receiver.member()` 的扩展函数调用类型检查（复用同一签名表）；新增错误码 `scoop::typecheck::safe_access_receiver_not_nullable` / `call_receiver_type_mismatch` / `elvis_lhs_not_nullable` / `elvis_rhs_type_mismatch`；新增 fixture `tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0423 [TODO] struct literal 的类型检查（字段存在性/类型匹配）
+### T0423 [DONE] struct literal 的类型检查（字段存在性/类型匹配）
 - 描述：检查 `Point { x: 1, y: 2 }`：字段必须存在、不可重复、类型匹配、必填字段覆盖规则（按设计）。
 - 目标：先只支持所有字段都必须提供的模式；默认值/可选字段后置。
 - 验收：typecheck fixture：缺字段/多字段/重复字段都报错并定位到字段名或逗号位置。
 - 依赖：T0224、T0409、T0405
+- 完成：typecheck 增加 `ExprKind::StructLit` 支持：`TypeName` 必须解析为 nominal `struct`；字段名做去重；不存在字段报新错误码 `scoop::typecheck::struct_lit_unknown_field`；字段值类型用最小 assignable 规则校验并报 `struct_lit_field_type_mismatch`；当前阶段要求显式提供所有字段（缺字段报 `struct_lit_missing_fields`，定位到 `}`）；并新增 `struct_lit_duplicate_field`/`struct_lit_not_struct`；新增 fixtures：`typecheck/struct_lit_ok`（pass）、以及 unknown/duplicate/type_mismatch/missing/not_struct（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0424 [TODO] `with`：嵌套 path 与并行求值语义（spec §2.6）
 - 描述：支持 `p with { a.b: v }` 的嵌套更新，并保证 RHS 基于“原值并行求值”（无顺序依赖）。

@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0423 struct literal：字段存在性/类型匹配/必填字段覆盖。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use() {
+    val p: Point = Point { y: 2, x: 1 }
+}
