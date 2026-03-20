@@ -794,11 +794,12 @@
 - 依赖：T0213、T0411
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::Cast` 实现类型推导（`as`→`T`、`as?`→`Option<T>`），并通过 `is_cast_allowed` 限制当前阶段仅允许引用类型之间的 cast；新增 fixtures `tests/fixtures/typecheck/cast_as_and_asq_ok.scoop`（pass）与 `tests/fixtures/typecheck/cast_value_to_ref_is_error.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0413 [TODO] `is`/`!is` + smart cast（val 场景）（spec §4.3）
+### T0413 [DONE] `is`/`!is` + smart cast（val 场景）（spec §4.3）
 - 描述：实现 flow-sensitive 类型收窄：`if (x is T) { x /* as T */ }`。
 - 目标：先只支持不可变 `val` 与参数；不支持 `var` 与复杂控制流合流。
 - 验收：typecheck fixture：在 `if` then 分支内使用 `x` 视为 `T`；在 else 分支保持原类型。
 - 依赖：T0213、T0214、T0406
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 中实现最小 smart cast：识别 `if (x is T)` / `if (x !is T)` 条件，并仅对“稳定绑定”（参数 + `val`）在对应分支内把 `locals[decl_span]` 收窄为目标类型；`ExprKind::TypeCheck` 自身类型为 `Bool`；fixtures 回归：`tests/fixtures/typecheck/smart_cast_is_and_notis_ok.scoop`（pass）、`smart_cast_is_else_branch_not_narrowed_is_error.scoop`（fail）、`smart_cast_var_not_allowed_is_error.scoop`（fail）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0414 [TODO] `when` 类型规则：分支 LUB（spec §14.6）
 - 描述：为 `when` 表达式计算结果类型（各分支类型的 LUB）。
