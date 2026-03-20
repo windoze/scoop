@@ -2,6 +2,8 @@
 //!
 //! T0402：基于 sysroot AST 建立 type env（Any/Option/Raise），
 //! 为后续 typecheck 提供“类型符号的声明头（kind + arity）”查询能力。
+//!
+//! T0425：扩展 type env 以收集 enum variants（tag + payload types），为 rich enum 的类型检查打底。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -37,6 +39,29 @@ pub struct TypeSymbol {
     pub decl_file: PathBuf,
 }
 
+/// enum variant 的字段信息（payload field）。
+#[derive(Debug, Clone)]
+pub struct EnumVariantField {
+    pub name: String,
+    pub span: Span,
+    pub ty: ast::TypeRef,
+}
+
+/// enum variant 信息（tag + payload types）。
+#[derive(Debug, Clone)]
+pub struct EnumVariantInfo {
+    pub tag: u32,
+    pub name: String,
+    pub span: Span,
+    pub fields: Vec<EnumVariantField>,
+}
+
+/// enum 声明的语义信息（当前阶段仅 variants）。
+#[derive(Debug, Clone)]
+pub struct EnumDecl {
+    pub variants: Vec<EnumVariantInfo>,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeEnvError {
     #[error("重复的类型符号：{fqn}")]
@@ -48,12 +73,36 @@ pub enum TypeEnvError {
         #[label("重复定义在这里")]
         second: miette::SourceSpan,
     },
+
+    #[error("enum variant 重复定义：{enum_fqn}.{variant}")]
+    #[diagnostic(code(scoop::typecheck::duplicate_enum_variant))]
+    DuplicateEnumVariant {
+        enum_fqn: String,
+        variant: String,
+        #[label("重复定义在这里")]
+        second: miette::SourceSpan,
+        #[label("第一次定义在这里")]
+        first: miette::SourceSpan,
+    },
+
+    #[error("enum variant 字段重复定义：{enum_fqn}.{variant}.{field}")]
+    #[diagnostic(code(scoop::typecheck::duplicate_enum_variant_field))]
+    DuplicateEnumVariantField {
+        enum_fqn: String,
+        variant: String,
+        field: String,
+        #[label("重复定义在这里")]
+        second: miette::SourceSpan,
+        #[label("第一次定义在这里")]
+        first: miette::SourceSpan,
+    },
 }
 
 /// 类型环境：通过 FQN 查询类型符号信息。
 #[derive(Debug, Default, Clone)]
 pub struct TypeEnv {
     by_fqn: HashMap<String, TypeSymbol>,
+    enums: HashMap<String, EnumDecl>,
 }
 
 impl TypeEnv {
@@ -93,6 +142,11 @@ impl TypeEnv {
     /// 返回给定 FQN 的 type params 数量（arity）。
     pub fn type_param_count(&self, fqn: &str) -> Option<usize> {
         self.type_symbol(fqn).map(|s| s.type_param_count)
+    }
+
+    /// 按 FQN 查询 enum 的 variant 信息（若该类型不是 enum 或未收集到则为 None）。
+    pub fn enum_decl(&self, fqn: &str) -> Option<&EnumDecl> {
+        self.enums.get(fqn)
     }
 
     fn collect_from_file(
@@ -147,8 +201,67 @@ impl TypeEnv {
         )?;
 
         let Some(body) = &decl.body else {
+            if matches!(decl.kind, ast::TypeKind::Enum) {
+                self.enums.insert(fqn.clone(), EnumDecl { variants: Vec::new() });
+            }
             return Ok(());
         };
+
+        if matches!(decl.kind, ast::TypeKind::Enum) {
+            let mut variants: Vec<EnumVariantInfo> = Vec::new();
+            let mut seen_variants: HashMap<String, Span> = HashMap::new();
+
+            for member in &body.members {
+                let ast::TypeMember::EnumVariant(v) = member else {
+                    continue;
+                };
+
+                let variant_name = source.slice(v.name.span).to_string();
+                if let Some(prev) = seen_variants.get(&variant_name).copied() {
+                    return Err(TypeEnvError::DuplicateEnumVariant {
+                        enum_fqn: fqn.clone(),
+                        variant: variant_name,
+                        first: prev.into(),
+                        second: v.name.span.into(),
+                    });
+                }
+                seen_variants.insert(variant_name.clone(), v.name.span);
+
+                let mut fields: Vec<EnumVariantField> = Vec::new();
+                let mut seen_fields: HashMap<String, Span> = HashMap::new();
+                for p in &v.params {
+                    let field_name = source.slice(p.name.span).to_string();
+                    if let Some(prev) = seen_fields.get(&field_name).copied() {
+                        return Err(TypeEnvError::DuplicateEnumVariantField {
+                            enum_fqn: fqn.clone(),
+                            variant: variant_name.clone(),
+                            field: field_name,
+                            first: prev.into(),
+                            second: p.name.span.into(),
+                        });
+                    }
+                    seen_fields.insert(field_name.clone(), p.name.span);
+
+                    let Some(ty) = &p.ty else {
+                        continue;
+                    };
+                    fields.push(EnumVariantField {
+                        name: field_name,
+                        span: p.name.span,
+                        ty: ty.clone(),
+                    });
+                }
+
+                variants.push(EnumVariantInfo {
+                    tag: u32::try_from(variants.len()).unwrap_or(u32::MAX),
+                    name: variant_name,
+                    span: v.span,
+                    fields,
+                });
+            }
+
+            self.enums.insert(fqn.clone(), EnumDecl { variants });
+        }
 
         for member in &body.members {
             let ast::TypeMember::Type(nested) = member else {

@@ -798,11 +798,12 @@
 - 依赖：T0415
 - 完成：typecheck 的 `with` 更新 path 支持多段字段路径 `a.b.c`（每段必须是 struct 字段且中间段类型也必须是 struct）；并按并行语义新增冲突校验：禁止重复 path（新错误码 `scoop::typecheck::with_update_duplicate_path`），禁止一条 path 包含另一条（`with_update_overlapping_paths`）；新增错误码 `with_update_nested_path_not_struct` 用于中间段不可继续；新增 fixtures：`typecheck/with_update_nested_path_ok`（pass）、`typecheck/with_update_nested_path_type_mismatch_is_error`（fail）、`typecheck/with_update_duplicate_path_is_error`（fail）、`typecheck/with_update_overlapping_paths_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0425 [TODO] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
+### T0425 [DONE] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
 - 描述：在 type env 中加入 enum variant 信息（tag + payload types），并检查重复 variant/字段。
 - 目标：先只支持 enum variant（无方法/属性）；niche 优化后置。
 - 验收：typecheck fixture：enum 重复 variant 名报错；variant 字段类型未解析报错。
 - 依赖：T0236、T0404
+- 完成：AST 新增 `TypeMember::EnumVariant` + `EnumVariantDecl`；parser 在 enum body 解析 `Name`/`Name(val field: T, ...)` 变体并要求 `val`+类型；resolver headers 解析 variant 字段类型引用；type env 收集 enum variants（tag 顺序分配）并检查重复 variant/字段（新错误码 `scoop::typecheck::duplicate_enum_variant` / `duplicate_enum_variant_field`）；type lowering 覆盖 variant 字段类型；新增 fixtures：`typecheck/enum_duplicate_variant_is_error`、`typecheck/enum_variant_duplicate_field_is_error`、`typecheck/enum_variant_field_unresolved_type_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0426 [TODO] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
 - 描述：把 `Some(x)` 解析/绑定为某个 enum variant 构造，并检查参数数量与类型。

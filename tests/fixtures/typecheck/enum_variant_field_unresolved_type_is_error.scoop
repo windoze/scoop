@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 9:14
+// EXPECT-ERROR: 未解析的类型
+package fixtures.typecheck
+import scoop.core.*
+
+enum Bad {
+    A(val x: NotAType)
+}
+

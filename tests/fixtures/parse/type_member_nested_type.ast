@@ -122,7 +122,24 @@ File {
                                     body: Some(
                                         TypeBody {
                                             span: 299..327,
-                                            members: [],
+                                            members: [
+                                                EnumVariant(
+                                                    EnumVariantDecl {
+                                                        span: 309..310,
+                                                        name: Ident {
+                                                            span: 309..310,
+                                                        },
+                                                    },
+                                                ),
+                                                EnumVariant(
+                                                    EnumVariantDecl {
+                                                        span: 320..321,
+                                                        name: Ident {
+                                                            span: 320..321,
+                                                        },
+                                                    },
+                                                ),
+                                            ],
                                         },
                                     ),
                                 },

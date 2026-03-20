@@ -129,6 +129,9 @@ impl<'a> BlockScopeChecker<'a> {
 
         for member in &mut body.members {
             match member {
+                ast::TypeMember::EnumVariant(_v) => {
+                    // enum variants 不引入值名字解析语境（无 initializer/body）。
+                }
                 ast::TypeMember::Property(p) => {
                     self.check_type_member_property(p, &this_ctx, ctor_params)?
                 }

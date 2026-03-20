@@ -818,7 +818,7 @@ impl<'a> Parser<'a> {
         }
 
         let body = if self.peek_symbol(Symbol::LBrace) {
-            let body = self.parse_type_body()?;
+            let body = self.parse_type_body(kind)?;
             last_end = body.span.end;
             Some(body)
         } else {
@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_type_body(&mut self) -> Result<ast::TypeBody, ParseError> {
+    fn parse_type_body(&mut self, type_kind: ast::TypeKind) -> Result<ast::TypeBody, ParseError> {
         let open = self.expect_symbol(Symbol::LBrace)?;
         let start = open.span.start;
 
@@ -848,6 +848,24 @@ impl<'a> Parser<'a> {
 
             // 允许多余的分号（例如 Kotlin 风格的 `;` 作为 member 分隔符）。
             if self.eat_symbol(Symbol::Semicolon) {
+                continue;
+            }
+
+            // spec §2.3.2：enum body 里的 variant 列表：
+            // - `Name`
+            // - `Name(val field: T, ...)`
+            // 变体之间用 `,` 分隔；允许 trailing comma。
+            if matches!(type_kind, ast::TypeKind::Enum) && head == TokenKind::Ident {
+                match self.parse_enum_variant_decl() {
+                    Ok(variant) => members.push(ast::TypeMember::EnumVariant(variant)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
+
+                // enum variants 默认使用 `,` 分隔。
+                let _ = self.eat_symbol(Symbol::Comma);
                 continue;
             }
 
@@ -898,6 +916,77 @@ impl<'a> Parser<'a> {
         Ok(ast::TypeBody {
             span: Span::new(start, close.span.end),
             members,
+        })
+    }
+
+    fn parse_enum_variant_decl(&mut self) -> Result<ast::EnumVariantDecl, ParseError> {
+        let name_tok = self.expect_kind(TokenKind::Ident, "enum variant 名（标识符）")?;
+        let name = ast::Ident {
+            span: name_tok.span,
+        };
+
+        let start = name.span.start;
+        let mut last_end = name.span.end;
+        let mut params: Vec<ast::Param> = Vec::new();
+
+        if self.peek_symbol(Symbol::LParen) {
+            self.bump(); // '('
+
+            if !self.peek_symbol(Symbol::RParen) {
+                loop {
+                    // spec §2.3.2：variant 字段要求 `val field: T`。
+                    if !self.peek_keyword(Keyword::Val) {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "`val`",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    }
+                    self.bump(); // `val`
+
+                    let field_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
+                    let field_name = ast::Ident {
+                        span: field_tok.span,
+                    };
+
+                    if !self.eat_symbol(Symbol::Colon) {
+                        let tok = *self.peek();
+                        return Err(ParseError::Expected {
+                            expected: "`:`",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        });
+                    }
+
+                    let ty = self.parse_type_ref()?;
+
+                    params.push(ast::Param {
+                        name: field_name,
+                        ty: Some(ty),
+                        default_value: None,
+                    });
+
+                    if self.eat_symbol(Symbol::Comma) {
+                        // trailing comma
+                        if self.peek_symbol(Symbol::RParen) {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+
+            let close = self.expect_symbol(Symbol::RParen)?;
+            last_end = close.span.end;
+        }
+
+        Ok(ast::EnumVariantDecl {
+            span: Span::new(start, last_end),
+            name,
+            params,
         })
     }
 

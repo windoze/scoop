@@ -333,6 +333,13 @@ impl<'a> TypeLowering<'a> {
 
         for member in &body.members {
             match member {
+                ast::TypeMember::EnumVariant(v) => {
+                    for p in &v.params {
+                        if let Some(ty) = &p.ty {
+                            let _ = self.lower_type_ref(ty)?;
+                        }
+                    }
+                }
                 ast::TypeMember::Property(p) => {
                     if let Some(ty) = &p.ty {
                         let _ = self.lower_type_ref(ty)?;

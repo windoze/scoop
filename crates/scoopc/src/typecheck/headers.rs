@@ -110,6 +110,10 @@ fn check_type_decl_headers(source: &SourceFile, ty: &ast::TypeDecl) -> Result<()
 
     for member in &body.members {
         match member {
+            ast::TypeMember::EnumVariant(_v) => {
+                // enum variant 字段的 `: Type` 约束由 parser 保证；
+                // 更完整的 enum 语义检查留给 rich enum 任务（T0425+）。
+            }
             ast::TypeMember::Property(p) => {
                 if p.ty.is_none() {
                     let name = source.slice(p.name.span).to_string();

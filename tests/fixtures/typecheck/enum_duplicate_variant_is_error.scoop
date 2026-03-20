@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::duplicate_enum_variant
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: enum variant 重复定义
+package fixtures.typecheck
+import scoop.core.*
+
+enum E {
+    A,
+    A,
+}
+

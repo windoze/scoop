@@ -242,9 +242,37 @@ pub struct TypeBody {
     pub members: Vec<TypeMember>,
 }
 
+/// enum variant 声明（spec §2.3.2）。
+///
+/// 说明：
+/// - variant 语法形态：`Name` / `Name(val field: T, ...)`
+/// - 当前阶段仅做语法建模与结构化存储；更完整的 enum 语义由 typecheck/lowering 补齐（见 TODO T0425+）。
+#[derive(Clone)]
+pub struct EnumVariantDecl {
+    pub span: Span,
+    pub name: Ident,
+    /// variant 携带的字段列表（用 `Param` 复用 `name + ty + default_value` 的结构）。
+    ///
+    /// 注意：语法上要求 `val field: T`；parser 会消费 `val` 关键字但目前不在 AST 中表达它。
+    pub params: Vec<Param>,
+}
+
+impl std::fmt::Debug for EnumVariantDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("EnumVariantDecl");
+        s.field("span", &self.span);
+        s.field("name", &self.name);
+        if !self.params.is_empty() {
+            s.field("params", &self.params);
+        }
+        s.finish()
+    }
+}
+
 /// 类型体中的成员声明（最小骨架）。
 #[derive(Debug, Clone)]
 pub enum TypeMember {
+    EnumVariant(EnumVariantDecl),
     Property(PropertyDecl),
     Fun(FunDecl),
     Type(TypeDecl),

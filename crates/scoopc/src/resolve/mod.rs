@@ -526,6 +526,10 @@ impl Index {
 
         for member in &body.members {
             match member {
+                ast::TypeMember::EnumVariant(_v) => {
+                    // enum variant 在当前阶段仅做解析与结构化存储；
+                    // 其符号注入与更完整的语义由后续 rich enum 任务补齐（T0425+）。
+                }
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
                     self.insert_symbol(
@@ -768,6 +772,15 @@ fn resolve_type_decl_headers(
 
         for member in &body.members {
             match member {
+                ast::TypeMember::EnumVariant(v) => {
+                    // enum variant payload 字段类型也属于 “签名里的类型引用” 范畴；
+                    // 这里复用 TypeRef 的存在性解析规则（包含 type params）。
+                    for p in &v.params {
+                        if let Some(ty) = &p.ty {
+                            resolve_type_ref(source, file, index, type_params, ty)?;
+                        }
+                    }
+                }
                 ast::TypeMember::Property(p) => {
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, type_params, ty)?;
