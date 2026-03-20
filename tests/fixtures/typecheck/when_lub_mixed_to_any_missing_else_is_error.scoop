@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_missing_else
+// EXPECT-ERROR-AT: 11:14
+// EXPECT-ERROR: 必须包含 `else`
+// 目标：T0414 `when` LUB 推导不应短路穷尽性检查：即使分支类型不一致（fallback Any），也必须满足 `else`/`_`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Any = when (1) {
+  1 -> 1
+  2 -> "hi"
+}

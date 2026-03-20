@@ -670,6 +670,10 @@ fn infer_expr_type(
                 struct_field_types,
             )?;
 
+            // 说明：这里必须遍历所有 arm（即使我们已经确定结果会是 `Any`），
+            // 以保证：
+            // - 分支 body 内的类型错误不会被“短路”吞掉；
+            // - 后续的穷尽性检查始终生效。
             let mut result: Option<TypeId> = None;
             for arm in arms {
                 // T0427：对 pattern 做最小类型约束，并把 binder 注入到该 arm 的局部环境中。
@@ -699,7 +703,7 @@ fn infer_expr_type(
                 match result {
                     None => result = Some(arm_ty),
                     Some(prev) if prev == arm_ty => {}
-                    Some(_) => return Ok(builtins.any),
+                    Some(_) => result = Some(builtins.any),
                 }
             }
 
