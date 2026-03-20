@@ -815,11 +815,12 @@
 - 依赖：T0216、T0409、T0408
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 中实现 `infer_with_update_expr_type`：递归 typecheck base；限制 base 必须是 `struct` 名义值类型；校验更新项 path 不重复且不存在包含关系；校验字段存在性与 RHS 类型匹配；并支持嵌套路径（中间段字段类型必须为 `struct`）。新增 fixtures：`tests/fixtures/typecheck/with_update_struct_field_ok.scoop`、`with_update_unknown_field_is_error.scoop`、`with_update_field_type_mismatch_is_error.scoop`、`with_update_duplicate_path_is_error.scoop`、`with_update_overlapping_paths_is_error.scoop`、`with_update_nested_path_ok.scoop`、`with_update_nested_path_type_mismatch_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0416 [TODO] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
+### T0416 [DONE] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
 - 描述：typecheck 阶段检查 `var` 可赋值、`val` 不可再次赋值；同一作用域重复定义报错。
 - 目标：先只覆盖 block 内；不涉及闭包捕获与跨块。
 - 验收：typecheck fixture：`val x = 1; x = 2` 报错；`var x = 1; x = 2` 通过。
 - 依赖：T0227、T0304、T0405
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 增加语句层赋值检查：仅允许对 resolver 写回的局部 `var` 赋值（`ExprKind::Assign` + `ResolvedValueRef::Local` 且 decl span 位于 `mutable_bindings`）；对 `val`/参数赋值报 `scoop::typecheck::assignment_target_not_mutable`。同一作用域重复定义由 resolver 的 block scope 统一报 `scoop::resolve::duplicate_definition`。新增/补齐 fixtures `tests/fixtures/typecheck/val_reassign_is_error.scoop`、`tests/fixtures/typecheck/var_reassign_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0417 [TODO] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。
