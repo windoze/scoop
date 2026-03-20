@@ -411,7 +411,12 @@ fn infer_expr_type(
             // `when` 表达式结果类型：当前阶段（T0414）只实现最小规则：
             // - 递归类型检查 subject 与每个 arm body（保证覆盖其中的表达式）；
             // - 若所有分支 body 的类型相同，则结果为该类型；
-            // - 否则 fallback 为 `Any`（真正的 LUB 规则留到后续任务实现）。
+            // - 若存在多个非 `Nothing` 的分支且类型不一致，则 fallback 为 `Any`（真正的 LUB 规则留到后续任务实现）。
+            // - 若所有分支都是 `Nothing`（不可达），则整体结果为 `Nothing`。
+            //
+            // 额外：`Nothing` 是 bottom type（T0420a），因此：
+            // - `Nothing` 与任意 `T` 的 LUB 至少应为 `T`；
+            // - 这里先做一个最小 special-case：忽略 `Nothing` 分支参与比较。
             let _ = infer_expr_type(
                 source,
                 subject,
@@ -441,6 +446,11 @@ fn infer_expr_type(
                     struct_field_types,
                 )?;
 
+                // `Nothing`：不可达分支（例如后续 `Raise.raise`），不影响最小 LUB 推导。
+                if arm_ty == builtins.nothing {
+                    continue;
+                }
+
                 match result {
                     None => result = Some(arm_ty),
                     Some(prev) if prev == arm_ty => {}
@@ -448,7 +458,8 @@ fn infer_expr_type(
                 }
             }
 
-            Ok(result.unwrap_or(builtins.any))
+            // 若所有分支都是 `Nothing`，则 `when` 整体也是不可达的。
+            Ok(result.unwrap_or(builtins.nothing))
         }
         ast::ExprKind::WithUpdate { base, updates, .. } => infer_with_update_expr_type(
             source,
@@ -581,10 +592,11 @@ fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>) -> bool {
 
 /// 检查“found 是否可赋值给 expected”（最小子集）。
 ///
-/// 当前阶段仅实现一条最小子类型规则（用于 T0417 `return`）：
+/// 当前阶段仅实现两条最小子类型规则（用于 `return`/不可达分支等）：
+/// - `Nothing <: T`（对任意 T，bottom type）
 /// - 任意引用类型 `R` 都可赋值给 `Any`（`R <: Any`）。
 ///
-/// 其余更完整的子类型系统（接口、类继承、值类型装箱、Nothing bottom type 等）
+/// 其余更完整的子类型系统（接口、类继承、值类型装箱等）
 /// 会在后续任务中逐步补齐。
 fn is_type_assignable(
     found: TypeId,
@@ -593,6 +605,14 @@ fn is_type_assignable(
     builtins: BuiltinTypes,
 ) -> bool {
     if found == expected {
+        return true;
+    }
+
+    // `Nothing`：不可达/空类型，可以视为任意类型的子类型。
+    //
+    // 说明：即使 `Nothing` 是值类型，也允许“赋值到引用类型”，因为这种赋值在运行时不会发生：
+    // 表达式求值不会返回一个 `Nothing` 的值（它只能通过 `raise/return` 等控制流中止）。
+    if found == builtins.nothing {
         return true;
     }
 
@@ -1687,4 +1707,52 @@ fn collect_struct_field_types_in_type_decl(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse_file;
+
+    #[test]
+    fn nothing_is_assignable_to_any_type() {
+        // 该测试不依赖 sysroot 或 resolver 的完整能力；
+        // 只验证 typecheck 的“赋值兼容”最小规则：`Nothing <: T`。
+        let source = SourceFile::new_virtual("<mem>", "package a\nfun f(): Unit { return }");
+        let file = parse_file(&source).unwrap();
+        let index = Index::build(&[(&source, &file)]).unwrap();
+        let imports = ImportTable::build(&source, &file, &index).unwrap();
+
+        let env = TypeEnv::default();
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let lower = TypeLowering::new(&source, &file, &index, &imports, &env, &mut types, builtins);
+
+        assert!(is_type_assignable(
+            builtins.nothing,
+            builtins.any,
+            &lower,
+            builtins
+        ));
+        assert!(is_type_assignable(
+            builtins.nothing,
+            builtins.unit,
+            &lower,
+            builtins
+        ));
+        assert!(is_type_assignable(
+            builtins.nothing,
+            builtins.bool_,
+            &lower,
+            builtins
+        ));
+
+        // 反例：普通值类型不应在 v0 阶段隐式互转。
+        assert!(!is_type_assignable(
+            builtins.unit,
+            builtins.bool_,
+            &lower,
+            builtins
+        ));
+    }
 }
