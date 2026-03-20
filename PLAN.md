@@ -166,9 +166,9 @@
 - [x] class 初始化阶段作用域：property initializer / `init` / secondary constructor（T0316）
 - [x] `object` / `companion object` 的名字解析与成员可见性（T0317：支持 `Obj.member` 与 `ClassName.member`）
 - [ ] overload set 建模：
-  - 顶层函数、成员函数、扩展函数、构造函数从“唯一符号”升级为“候选集合”
-  - 同名但可重载的声明允许共存；真正冲突放到签名/重载规则阶段诊断
-  - 调用点/构造点先收集候选，再交由 typecheck + inference 做决议
+  - [x] 索引侧：顶层/成员/扩展函数与构造函数收集为候选集合（T0318）
+  - [ ] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
+  - [ ] typecheck + inference：决议 most-specific 与冲突诊断
 
 ### 3.3 sysroot 注入
 

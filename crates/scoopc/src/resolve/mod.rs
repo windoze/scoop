@@ -215,6 +215,53 @@ pub struct Symbol {
     pub visibility: Visibility,
 }
 
+/// 用于 overload resolution 的“参数签名信息”（仅声明头）。
+///
+/// 说明：
+/// - 这里刻意不保留 `default_value: Expr`，避免把表达式树复制进索引；
+/// - `has_default` 足以支持后续“默认值参与候选可用性”的规则（PLAN §3.2 / TODO T03xx）。
+#[derive(Debug, Clone)]
+pub struct ParamSig {
+    pub name: String,
+    pub name_span: Span,
+    pub ty: Option<ast::TypeRef>,
+    pub has_default: bool,
+}
+
+/// 一个函数声明的“可用于重载决议”的签名信息（仅声明头）。
+#[derive(Debug, Clone)]
+pub struct FunSig {
+    pub receiver: Option<ast::TypeRef>,
+    pub type_params_len: usize,
+    pub eff_param: Option<ast::EffectRowParam>,
+    pub params: Vec<ParamSig>,
+    pub return_ty: Option<ast::TypeRef>,
+    pub effects: Option<ast::EffectRowExpr>,
+}
+
+/// fun 命名空间中的一个 overload 候选。
+#[derive(Debug, Clone)]
+pub struct FunOverload {
+    pub symbol: Symbol,
+    pub sig: FunSig,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstructorKind {
+    Primary,
+    Secondary,
+}
+
+/// 构造函数 overload 候选（primary + secondary）。
+#[derive(Debug, Clone)]
+pub struct ConstructorOverload {
+    pub kind: ConstructorKind,
+    pub decl_file: PathBuf,
+    pub visibility: Visibility,
+    pub span: Span,
+    pub params: Vec<ParamSig>,
+}
+
 /// Index 侧记录的扩展函数信息（T0312）。
 ///
 /// 说明：
@@ -238,11 +285,12 @@ pub struct ExtensionFunSymbol {
 ///
 /// 说明：
 /// - 语言层面允许 **同名 type 与 fun/value 并存**（它们属于不同命名空间）。
-/// - 同一命名空间内仍保持“当前阶段不支持重载”的约束：重复定义直接报错。
+/// - type/value 命名空间内：同名符号仍视为重复定义并报错；
+/// - fun 命名空间内：同名函数允许作为 overload set 共存（T0318），真正冲突留给后续签名比较与 typecheck。
 #[derive(Debug, Default, Clone)]
 pub struct NamespacedSymbols {
     pub ty: Option<Symbol>,
-    pub fun: Option<Symbol>,
+    pub fun: Vec<FunOverload>,
     pub value: Option<Symbol>,
 }
 
@@ -250,17 +298,31 @@ impl NamespacedSymbols {
     fn slot_mut(&mut self, kind: SymbolKind) -> &mut Option<Symbol> {
         match kind {
             SymbolKind::Type => &mut self.ty,
-            SymbolKind::Fun => &mut self.fun,
             SymbolKind::Value => &mut self.value,
+            SymbolKind::Fun => unreachable!("fun 命名空间使用 overload set（Vec<FunOverload>）存储"),
         }
     }
 
     fn get(&self, kind: SymbolKind) -> Option<&Symbol> {
         match kind {
             SymbolKind::Type => self.ty.as_ref(),
-            SymbolKind::Fun => self.fun.as_ref(),
             SymbolKind::Value => self.value.as_ref(),
+            SymbolKind::Fun => self.fun.first().map(|o| &o.symbol),
         }
+    }
+
+    fn has_fun(&self) -> bool {
+        !self.fun.is_empty()
+    }
+
+    fn any_visible_fun(&self, use_source: &SourceFile) -> Option<&FunOverload> {
+        self.fun
+            .iter()
+            .find(|o| is_symbol_visible_from(use_source, &o.symbol))
+    }
+
+    fn first_fun(&self) -> Option<&FunOverload> {
+        self.fun.first()
     }
 }
 
@@ -269,6 +331,8 @@ impl NamespacedSymbols {
 pub struct Index {
     /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
     pub by_fqn: HashMap<String, NamespacedSymbols>,
+    /// 构造函数 overload set：type FQN → primary/secondary constructors（T0318）。
+    pub constructors: HashMap<String, Vec<ConstructorOverload>>,
     /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
     pub extension_funs: Vec<ExtensionFunSymbol>,
     /// 类型（class/struct/...）的 companion object FQN 列表（T0317）。
@@ -363,15 +427,18 @@ impl Index {
             let Some(syms) = self.by_fqn.get(&ext.fqn) else {
                 continue;
             };
-            let Some(sym) = syms.get(SymbolKind::Fun) else {
+            let Some(fun) = syms.any_visible_fun(use_source) else {
+                if let Some(first) = syms.first_fun() {
+                    not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                }
                 continue;
             };
 
-            if is_symbol_visible_from(use_source, sym) {
+            if is_symbol_visible_from(use_source, &fun.symbol) {
                 return Ok(Some(ext.fqn.clone()));
             }
 
-            not_visible = Some((ext.fqn.clone(), sym.visibility, sym.span));
+            not_visible = Some((ext.fqn.clone(), fun.symbol.visibility, fun.symbol.span));
         }
 
         if let Some((name, visibility, def_span)) = not_visible {
@@ -479,7 +546,7 @@ impl Index {
                 }
                 ast::Item::Fun(fun) => {
                     let visibility = visibility_from_modifiers(&fun.modifiers, fun.span)?;
-                    self.insert_symbol(source, &pkg, SymbolKind::Fun, fun.name.span, visibility)?;
+                    self.insert_fun_overload(source, &pkg, fun, visibility)?;
                 }
                 ast::Item::Type(ty) => {
                     self.add_type_decl(source, &pkg, ty)?;
@@ -532,6 +599,18 @@ impl Index {
             format!("{prefix}.{type_name}")
         };
 
+        // T0318：构造函数 overload set（primary + secondary）。
+        if let Some(primary_ctor) = &ty.primary_ctor {
+            self.insert_constructor_overload(
+                &type_prefix,
+                source,
+                ConstructorKind::Primary,
+                visibility,
+                primary_ctor.params_span,
+                &primary_ctor.params,
+            );
+        }
+
         // struct 的主构造参数在语义上等价于字段（spec §2.3.1），
         // 允许通过 `p.x` 的成员访问读取；因此需要把它们纳入 value namespace 索引。
         //
@@ -577,18 +656,21 @@ impl Index {
                     // init block 不引入命名空间符号；它属于初始化执行体（Appendix B.2.2）。
                 }
                 ast::TypeMember::SecondaryCtor(_ctor) => {
-                    // 次构造器在当前阶段（T0257）仅做语法建模；
-                    // 其符号形式（是否可重载、是否进入 fun namespace 等）留给后续阶段决定。
+                    // T0318：secondary constructor 进入该 type 的 constructors overload set。
+                    let ctor = _ctor;
+                    let ctor_visibility = visibility_from_modifiers(&ctor.modifiers, ctor.span)?;
+                    self.insert_constructor_overload(
+                        &type_prefix,
+                        source,
+                        ConstructorKind::Secondary,
+                        ctor_visibility,
+                        ctor.span,
+                        &ctor.params,
+                    );
                 }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
-                    self.insert_symbol(
-                        source,
-                        &type_prefix,
-                        SymbolKind::Fun,
-                        f.name.span,
-                        visibility,
-                    )?;
+                    self.insert_fun_overload(source, &type_prefix, f, visibility)?;
                 }
                 ast::TypeMember::Type(nested) => {
                     self.add_type_decl(source, &type_prefix, nested)?;
@@ -664,10 +746,12 @@ impl Index {
                     self.insert_symbol(source, &obj_prefix, SymbolKind::Value, p.name.span, visibility)?;
                 }
                 ast::TypeMember::InitBlock(_b) => {}
-                ast::TypeMember::SecondaryCtor(_ctor) => {}
+                ast::TypeMember::SecondaryCtor(_ctor) => {
+                    // object 不应有构造器；这里作为防御性兜底忽略。
+                }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
-                    self.insert_symbol(source, &obj_prefix, SymbolKind::Fun, f.name.span, visibility)?;
+                    self.insert_fun_overload(source, &obj_prefix, f, visibility)?;
                 }
                 ast::TypeMember::Type(nested) => {
                     self.add_type_decl(source, &obj_prefix, nested)?;
@@ -690,6 +774,10 @@ impl Index {
         decl_span: Span,
         visibility: Visibility,
     ) -> Result<(), ResolveError> {
+        debug_assert!(
+            kind != SymbolKind::Fun,
+            "fun 命名空间必须使用 insert_fun_overload"
+        );
         let fqn = if pkg_prefix.is_empty() {
             local.to_string()
         } else {
@@ -717,6 +805,85 @@ impl Index {
         Ok(())
     }
 
+    fn insert_constructor_overload(
+        &mut self,
+        type_fqn: &str,
+        source: &SourceFile,
+        kind: ConstructorKind,
+        visibility: Visibility,
+        span: Span,
+        params: &[ast::Param],
+    ) {
+        let decl_file = source.path().to_path_buf();
+        let params = params
+            .iter()
+            .map(|p| ParamSig {
+                name: source.slice(p.name.span).to_string(),
+                name_span: p.name.span,
+                ty: p.ty.clone(),
+                has_default: p.default_value.is_some(),
+            })
+            .collect::<Vec<_>>();
+
+        self.constructors
+            .entry(type_fqn.to_string())
+            .or_default()
+            .push(ConstructorOverload {
+                kind,
+                decl_file,
+                visibility,
+                span,
+                params,
+            });
+    }
+
+    fn insert_fun_overload(
+        &mut self,
+        source: &SourceFile,
+        pkg_prefix: &str,
+        fun: &ast::FunDecl,
+        visibility: Visibility,
+    ) -> Result<(), ResolveError> {
+        let local = source.slice(fun.name.span).to_string();
+        let fqn = if pkg_prefix.is_empty() {
+            local.clone()
+        } else {
+            format!("{pkg_prefix}.{local}")
+        };
+
+        let symbol = Symbol {
+            kind: SymbolKind::Fun,
+            name: local,
+            span: fun.name.span,
+            decl_file: source.path().to_path_buf(),
+            visibility,
+        };
+
+        let params = fun
+            .params
+            .iter()
+            .map(|p| ParamSig {
+                name: source.slice(p.name.span).to_string(),
+                name_span: p.name.span,
+                ty: p.ty.clone(),
+                has_default: p.default_value.is_some(),
+            })
+            .collect::<Vec<_>>();
+
+        let sig = FunSig {
+            receiver: fun.receiver.clone(),
+            type_params_len: fun.type_params.len(),
+            eff_param: fun.eff_param.clone(),
+            params,
+            return_ty: fun.return_ty.clone(),
+            effects: fun.effects.clone(),
+        };
+
+        let entry = self.by_fqn.entry(fqn).or_default();
+        entry.fun.push(FunOverload { symbol, sig });
+        Ok(())
+    }
+
     fn insert_symbol(
         &mut self,
         source: &SourceFile,
@@ -725,6 +892,10 @@ impl Index {
         name_span: Span,
         visibility: Visibility,
     ) -> Result<(), ResolveError> {
+        debug_assert!(
+            kind != SymbolKind::Fun,
+            "fun 命名空间必须使用 insert_fun_overload"
+        );
         let local = source.slice(name_span).to_string();
         let fqn = if pkg_prefix.is_empty() {
             local.clone()
@@ -1229,15 +1400,50 @@ mod tests {
     use crate::session::Session;
 
     #[test]
-    fn duplicate_top_level_is_error() {
-        let s1 = SourceFile::new_virtual("<mem1>", "package a\nfun f() {}");
-        let s2 = SourceFile::new_virtual("<mem2>", "package a\nfun f() {}");
+    fn duplicate_top_level_type_is_error() {
+        let s1 = SourceFile::new_virtual("<mem1>", "package a\nstruct S {}");
+        let s2 = SourceFile::new_virtual("<mem2>", "package a\nstruct S {}");
         let a1 = parse_file(&s1).unwrap();
         let a2 = parse_file(&s2).unwrap();
 
         let err = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("重复定义"));
+    }
+
+    #[test]
+    fn overloaded_top_level_funs_are_collected() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nfun f(x: Any): Any {}\nfun f(x: String): Any {}",
+        );
+        let ast = parse_file(&src).unwrap();
+
+        let index = Index::build(&[(&src, &ast)]).unwrap();
+        let syms = index.by_fqn.get("a.f").unwrap();
+        assert_eq!(syms.fun.len(), 2);
+    }
+
+    #[test]
+    fn constructors_are_collected_in_overload_set() {
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nimport scoop.core.*\nclass C(x: Any) { constructor(y: Any) {} }",
+        );
+        let ast = parse_file(&src).unwrap();
+
+        let sess = Session::new().unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            pairs.push((&f.source, &f.ast));
+        }
+        pairs.push((&src, &ast));
+
+        let index = Index::build(&pairs).unwrap();
+        let ctors = index.constructors.get("a.C").unwrap();
+        assert_eq!(ctors.len(), 2);
+        assert!(ctors.iter().any(|c| c.kind == ConstructorKind::Primary));
+        assert!(ctors.iter().any(|c| c.kind == ConstructorKind::Secondary));
     }
 
     #[test]

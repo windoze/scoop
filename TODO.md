@@ -692,11 +692,12 @@
 - 依赖：T0258、T0302、T0301
 - 完成：`Index` 记录 `companion_objects` 与 `object_types`；未命名 `companion object` 使用隐式名 `Companion` 并纳入索引与成员表；member access 解析扩展支持 `Obj.member` 与 `TypeName.member`（经 companion）并在缺 companion 时给出稳定诊断 `scoop::resolve::missing_companion_object`；新增 resolve fixtures（object ok / companion ok / missing companion fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0318 [TODO] Resolver：overload set 收集（顶层 / 成员 / 扩展 / 构造函数）
+### T0318 [DONE] Resolver：overload set 收集（顶层 / 成员 / 扩展 / 构造函数）
 - 描述：把当前“同名函数唯一”模型升级为候选集合模型：允许同名可重载函数、成员函数、扩展函数、secondary constructors 共存，并为后续 typecheck 决议保留声明头信息。
 - 目标：resolve 阶段只负责“收集候选，不做最终决议”；真正冲突留给签名比较与 typecheck。
 - 验收：新增 resolve fixture：两个同名不同参数列表的函数可共存；同名不同参数的 constructors / extensions 可被收集为 overload set。
 - 依赖：T0301、T0302、T0248、T0257
+- 完成：`scoopc::resolve::Index` 的 fun 命名空间从单一 `Symbol` 升级为 `Vec<FunOverload>`（保留 receiver/params/return/effects 等声明头）；新增 `constructors` overload set（primary + secondary）；`resolve::scopes`/`resolve::imports` 按“任一 overload 可见即匹配”适配；新增 resolve fixtures `tests/fixtures/resolve/overload_*` 与单测覆盖；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0319 [TODO] Resolver：调用点/构造点候选收集，替代“唯一 callee”假设
 - 描述：把 `Call(Ident)`、成员调用、构造调用从“直接绑定到唯一 fun symbol”升级为“绑定到候选集合 + 调用形状（args/names/receiver）”。

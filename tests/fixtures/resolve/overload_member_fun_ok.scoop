@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0318：允许同名成员函数以 overload set 共存（不同参数列表）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+struct Point {
+    fun m(x: Any): Any { x }
+    fun m(x: String): Any { x }
+}
+
+fun use(p: Point): Any {
+    p.m("hi")
+}
+

@@ -783,18 +783,20 @@ impl<'a> BlockScopeChecker<'a> {
             };
 
             // value namespace：fun/value 任一存在即匹配（与 T0304/T0305 旧逻辑保持一致）。
-            let sym_fun = syms.get(SymbolKind::Fun);
             let sym_val = syms.get(SymbolKind::Value);
-            if sym_fun.is_none() && sym_val.is_none() {
+            if !syms.has_fun() && sym_val.is_none() {
                 continue;
             }
 
-            if let Some(sym) = sym_fun {
-                if is_symbol_visible_from(self.source, sym) {
-                    return Ok(Some(fqn));
-                }
-                if not_visible.is_none() {
-                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+            if let Some(_fun) = syms.any_visible_fun(self.source) {
+                // fun overload set：任一 overload 可见即可匹配该 FQN。
+                return Ok(Some(fqn));
+            } else if syms.has_fun() {
+                // 记录“只有不可见候选”的情况，用于在最终无匹配时给出 NotVisible（优先于 UnresolvedValue）。
+                if let Some(first) = syms.first_fun() {
+                    if not_visible.is_none() {
+                        not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    }
                 }
             }
 
@@ -850,14 +852,13 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(syms) = self.index.by_fqn.get(&fqn) else {
                 continue;
             };
-            let Some(sym) = syms.get(SymbolKind::Fun) else {
-                continue;
-            };
 
-            if is_symbol_visible_from(self.source, sym) {
+            if let Some(_fun) = syms.any_visible_fun(self.source) {
                 matches.push(fqn);
-            } else if not_visible.is_none() {
-                not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+            } else if syms.has_fun() && not_visible.is_none() {
+                if let Some(first) = syms.first_fun() {
+                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+                }
             }
         }
 
@@ -975,12 +976,13 @@ impl<'a> BlockScopeChecker<'a> {
             // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
             let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-            if let Some(sym) = syms.get(SymbolKind::Fun) {
-                if is_symbol_visible_from(self.source, sym) {
-                    member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
-                    return Ok(());
+            if let Some(_fun) = syms.any_visible_fun(self.source) {
+                member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
+                return Ok(());
+            } else if syms.has_fun() {
+                if let Some(first) = syms.first_fun() {
+                    not_visible = Some((member_fqn.clone(), first.symbol.visibility, first.symbol.span));
                 }
-                not_visible = Some((member_fqn.clone(), sym.visibility, sym.span));
             }
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
@@ -1089,11 +1091,11 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             };
 
-            if let Some(sym) = syms.get(SymbolKind::Fun) {
-                if is_symbol_visible_from(self.source, sym) {
-                    fun_matches.push((fqn.clone(), sym.visibility, sym.span));
-                } else if not_visible.is_none() {
-                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+            if let Some(fun) = syms.any_visible_fun(self.source) {
+                fun_matches.push((fqn.clone(), fun.symbol.visibility, fun.symbol.span));
+            } else if syms.has_fun() && not_visible.is_none() {
+                if let Some(first) = syms.first_fun() {
+                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
                 }
             }
 

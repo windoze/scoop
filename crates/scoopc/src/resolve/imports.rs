@@ -104,7 +104,7 @@ impl ImportTable {
             }
 
             // value namespace：fun/value 任一存在即认为该 import 对 value 解析有意义。
-            if syms.get(SymbolKind::Fun).is_some() || syms.get(SymbolKind::Value).is_some() {
+            if syms.has_fun() || syms.get(SymbolKind::Value).is_some() {
                 if is_alias {
                     if let Some(prev) = top_level.value.get(local).copied() {
                         return Err(ResolveError::DuplicateDefinition {

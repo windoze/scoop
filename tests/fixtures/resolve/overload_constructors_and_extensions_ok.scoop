@@ -1,0 +1,30 @@
+// EXPECT: pass
+// 目标：T0318：同名扩展函数允许重载；secondary constructors 也应可收集为 overload set。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+class C(x: Any) {
+    constructor(y: Any) {
+        this
+        x
+        y
+    }
+
+    constructor(y: String) {
+        this
+        x
+        y
+    }
+}
+
+struct Point {}
+
+fun Point.ext(x: Any): Any { x }
+fun Point.ext(x: String): Any { x }
+
+fun use(p: Point): Any {
+    p.ext("hi")
+}
+

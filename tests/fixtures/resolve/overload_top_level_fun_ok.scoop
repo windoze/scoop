@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0318：允许同名顶层函数以 overload set 共存（不同参数列表）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+fun id(x: Any): Any { x }
+fun id(x: String): Any { x }
+
+fun use(): Any {
+    id("hi")
+}
+
