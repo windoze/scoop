@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::return_type_mismatch
+// EXPECT-ERROR: 返回类型不匹配
+// EXPECT-ERROR-AT: 12:12
+// 目标：T0417 `return expr` 的返回类型应与函数返回类型一致。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(): Int {
+    return "oops"
+}
+

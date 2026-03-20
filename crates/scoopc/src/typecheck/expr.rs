@@ -168,6 +168,30 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("返回类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::return_type_mismatch))]
+    ReturnTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("缺少返回值：函数返回类型为 {expected}")]
+    #[diagnostic(code(scoop::typecheck::return_value_required))]
+    ReturnValueRequired {
+        expected: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`return` 只能出现在普通函数体内（lambda 的 non-local return 不支持）")]
+    #[diagnostic(code(scoop::typecheck::return_not_in_function_body))]
+    ReturnNotInFunctionBody {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -555,6 +579,31 @@ fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>) -> bool {
     lower.is_ref(from) && lower.is_ref(to)
 }
 
+/// 检查“found 是否可赋值给 expected”（最小子集）。
+///
+/// 当前阶段仅实现一条最小子类型规则（用于 T0417 `return`）：
+/// - 任意引用类型 `R` 都可赋值给 `Any`（`R <: Any`）。
+///
+/// 其余更完整的子类型系统（接口、类继承、值类型装箱、Nothing bottom type 等）
+/// 会在后续任务中逐步补齐。
+fn is_type_assignable(
+    found: TypeId,
+    expected: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    if found == expected {
+        return true;
+    }
+
+    // spec §2：`Any` 是所有引用类型的顶类型。
+    if expected == builtins.any && lower.is_ref(found) {
+        return true;
+    }
+
+    false
+}
+
 fn infer_value_ident_type(
     source: &SourceFile,
     id: &ast::ValueIdent,
@@ -805,6 +854,12 @@ fn check_fun_body_exprs(
         stable_bindings.insert(p.name.span);
     }
 
+    // 该函数的期望返回类型（T0417）：用于 `return expr?` 的类型检查。
+    let expected_return_ty = match &fun.return_ty {
+        Some(ret) => lower.lower_type_ref(ret)?,
+        None => builtins.unit,
+    };
+
     match &fun.body {
         ast::FunBody::Block(b) => check_block_exprs(
             source,
@@ -814,6 +869,7 @@ fn check_fun_body_exprs(
             &mut locals,
             &mut stable_bindings,
             &mut mutable_bindings,
+            Some(expected_return_ty),
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -832,6 +888,7 @@ fn check_block_exprs(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -851,6 +908,7 @@ fn check_block_exprs(
             locals,
             stable_bindings,
             mutable_bindings,
+            expected_return_ty,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -872,6 +930,7 @@ fn check_stmt_exprs(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -897,10 +956,49 @@ fn check_stmt_exprs(
             locals,
             stable_bindings,
             mutable_bindings,
+            expected_return_ty,
             top_level_types,
             top_level_funs,
             struct_field_types,
         )?,
+        ast::StmtKind::Return { return_span, value } => {
+            let Some(expected) = expected_return_ty else {
+                return Err(ExprTypeError::ReturnNotInFunctionBody {
+                    span: (*return_span).into(),
+                });
+            };
+
+            match value {
+                Some(v) => {
+                    let found = infer_expr_type(
+                        source,
+                        v,
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?;
+                    if !is_type_assignable(found, expected, lower, builtins) {
+                        return Err(ExprTypeError::ReturnTypeMismatch {
+                            expected: lower.fmt_type(expected),
+                            found: lower.fmt_type(found),
+                            span: v.span.into(),
+                        });
+                    }
+                }
+                None => {
+                    // `return` 不带返回值：等价于返回 `Unit`。
+                    if expected != builtins.unit {
+                        return Err(ExprTypeError::ReturnValueRequired {
+                            expected: lower.fmt_type(expected),
+                            span: (*return_span).into(),
+                        });
+                    }
+                }
+            }
+        }
         ast::StmtKind::While { body, .. } => {
             // 当前阶段仅递归进入 body，以支持其中局部绑定的类型推导。
             check_block_exprs(
@@ -911,6 +1009,7 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -925,6 +1024,7 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -939,6 +1039,7 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -953,6 +1054,7 @@ fn check_stmt_exprs(
                         locals,
                         stable_bindings,
                         mutable_bindings,
+                        expected_return_ty,
                         top_level_types,
                         top_level_funs,
                         struct_field_types,
@@ -969,6 +1071,7 @@ fn check_stmt_exprs(
                                 locals,
                                 stable_bindings,
                                 mutable_bindings,
+                                expected_return_ty,
                                 top_level_types,
                                 top_level_funs,
                                 struct_field_types,
@@ -984,6 +1087,7 @@ fn check_stmt_exprs(
                                             locals,
                                             stable_bindings,
                                             mutable_bindings,
+                                            expected_return_ty,
                                             top_level_types,
                                             top_level_funs,
                                             struct_field_types,
@@ -1008,13 +1112,13 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
             )?;
         }
         ast::StmtKind::Empty
-        | ast::StmtKind::Return { .. }
         | ast::StmtKind::Break { .. }
         | ast::StmtKind::Continue { .. }
         | ast::StmtKind::Missing => {}
@@ -1106,6 +1210,7 @@ fn check_expr_stmt(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -1124,6 +1229,7 @@ fn check_expr_stmt(
             locals,
             stable_bindings,
             mutable_bindings,
+            expected_return_ty,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -1142,10 +1248,66 @@ fn check_expr_stmt(
             locals,
             stable_bindings,
             mutable_bindings,
+            expected_return_ty,
             top_level_types,
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::When { subject, arms } => {
+            // `when` 表达式作为语句时：递归进入分支 body，以覆盖其中的局部绑定/控制流。
+            check_expr_stmt(
+                source,
+                subject.as_ref(),
+                lower,
+                builtins,
+                locals,
+                stable_bindings,
+                mutable_bindings,
+                expected_return_ty,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            for arm in arms {
+                check_expr_stmt(
+                    source,
+                    &arm.body,
+                    lower,
+                    builtins,
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                    expected_return_ty,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+            Ok(())
+        }
+        ast::ExprKind::Lambda(lam) => {
+            // spec §7.3：Scoop 不支持 non-local return，因此 lambda body 内出现 `return`
+            // 需要报错。
+            //
+            // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”
+            // 逻辑来捕获非法 `return`，并保证它不会污染外层局部作用域。
+            let mut lambda_locals = locals.clone();
+            let mut lambda_stable = stable_bindings.clone();
+            let mut lambda_mutable = mutable_bindings.clone();
+            check_expr_stmt(
+                source,
+                lam.body.as_ref(),
+                lower,
+                builtins,
+                &mut lambda_locals,
+                &mut lambda_stable,
+                &mut lambda_mutable,
+                None,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )
+        }
         ast::ExprKind::Assign { lhs, rhs, .. } => check_assign_expr_stmt(
             source,
             lhs,
@@ -1173,6 +1335,7 @@ fn check_if_expr_stmt(
     locals: &HashMap<Span, TypeId>,
     stable_bindings: &HashSet<Span>,
     mutable_bindings: &HashSet<Span>,
+    expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -1198,6 +1361,7 @@ fn check_if_expr_stmt(
         &mut then_locals,
         &mut then_stable,
         &mut then_mutable,
+        expected_return_ty,
         top_level_types,
         top_level_funs,
         struct_field_types,
@@ -1222,6 +1386,7 @@ fn check_if_expr_stmt(
             &mut else_locals,
             &mut else_stable,
             &mut else_mutable,
+            expected_return_ty,
             top_level_types,
             top_level_funs,
             struct_field_types,

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::return_not_in_function_body
+// EXPECT-ERROR: 只能出现在普通函数体内
+// EXPECT-ERROR-AT: 12:7
+// 目标：T0417 Scoop 不支持 non-local return；lambda body 内出现 `return` 应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    { return 1 }
+}
+

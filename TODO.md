@@ -745,11 +745,12 @@
 - 依赖：T0227、T0304、T0405
 - 完成：typecheck 在函数体语句层支持 `lhs = rhs` 的最小检查：仅允许对局部 `var` 赋值，`val`/参数赋值报新错误码 `scoop::typecheck::assignment_target_not_mutable`；同时 `block` typecheck 以“进入快照 + 退出回滚”实现最小作用域（避免局部声明泄漏到外层）；新增 fixtures `typecheck/val_reassign_is_error`（fail）与 `typecheck/var_reassign_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0417 [TODO] 基础控制流语句：`return`（函数内）
+### T0417 [DONE] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。
 - 目标：只支持普通函数的 return；不支持 non-local return（Scoop 设计上不支持，见 spec §7.3）。
 - 验收：typecheck fixture：返回类型不匹配时报错；`return` 在非函数体报错（若 parser 允许则 typecheck 报）。
 - 依赖：T0226、T0404、T0405
+- 完成：typecheck 覆盖 `StmtKind::Return`：`return expr` 校验表达式类型可赋值给函数返回类型；`return` 无返回值仅允许 `Unit`；lambda body 内出现 `return` 报错（non-local return 不支持）；补齐 `when` 作为语句时的递归进入以覆盖分支中的控制流；新增错误码 `scoop::typecheck::return_type_mismatch` / `return_value_required` / `return_not_in_function_body`；新增 fixtures `typecheck/return_type_mismatch_is_error`、`typecheck/return_value_required_is_error`、`typecheck/return_in_lambda_is_error`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0418 [TODO] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
 - 描述：在 sysroot 中提供“内建标量类型的可见声明”，包括：
