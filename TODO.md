@@ -696,11 +696,12 @@
 
 ## T04：类型系统（阶段 3：先类型检查再优化）
 
-### T0401 [TODO] Type 表示：建立 `scoopc::ty` 模块（TypeId/TypeKind）
+### T0401 [DONE] Type 表示：建立 `scoopc::ty` 模块（TypeId/TypeKind）
 - 描述：引入内部类型表示（区分引用/值类型），并支持 builtin（Any/Option/Nothing/Unit 以及内建整数族 Int/UInt/IntN/UIntN 等）。
 - 目标：先只建数据结构与打印；不做推断/求解。
 - 验收：新增单测：构造若干 Type 并格式化输出；`cargo test -p scoopc` 通过。
 - 依赖：T0010
+- 完成：新增 `crates/scoopc/src/ty/mod.rs`（`TypeId`/`TypeKind`/`TypeStore` + builtin 与 `Display`）；单测覆盖 builtin/组合类型格式化与 ref/value 分类；`cargo test -p scoopc` 通过。
 
 ### T0402 [TODO] 从 sysroot 收集“内建类型/效果”的类型信息
 - 描述：基于 sysroot AST 建立 type env（Any/Option/Raise），为后续 typecheck 提供起点。

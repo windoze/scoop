@@ -185,13 +185,14 @@
 
 ### 4.1 类型表示（核心）
 
-- [ ] 区分引用类型 vs 值类型（spec §2）
+- [x] 区分引用类型 vs 值类型（spec §2）：内部 `TypeKind::{Ref, Value}` 已落地（T0401）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
+  - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size
   - 固定位宽整数类型与类型大小/对齐（为 FFI/序列化提供稳定布局）
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
 - [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
-- [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
+- [x] `Unit`、tuple、`Option<T>`（`T?` sugar）：类型表示与格式化输出已完成（语义/typecheck 后续）（T0401）
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
 - [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
