@@ -770,11 +770,17 @@
 - 依赖：T0418、T0402
 - 完成：在 `sysroot/core.scoop` 增加 `enum RuntimeError { NullAssertionFailed, ClassCastFailed }`；resolver 的 `Index::build` 对 enum 额外注入同名 value symbol（允许 `RuntimeError.NullAssertionFailed` 这类限定名在 resolve 阶段通过）；新增 fixtures：`resolve/sysroot_runtime_error_value_ref_ok`（pass）、`typecheck/raise_runtime_error_type_ok`（pass）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0420 [TODO] 类型关系：`Nothing` 作为 bottom type（spec §2.1/§5.7）
-- 描述：在类型系统中实现 `Nothing <: T`（对任意 T），用于 `Raise.raise`、`return`、不可达分支等。
-- 目标：先只实现 `Nothing` 子类型规则；不实现完整子类型系统。
-- 验收：typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 Nothing 兼容 Any 返回。
-- 依赖：T0419、T0602
+### T0420a [TODO] 类型关系：`Nothing` 作为 bottom type（赋值兼容 v0）（spec §2.1/§5.7）
+- 描述：在 typecheck 的“赋值兼容/返回类型检查”里实现 `Nothing <: T`（对任意 T），用于 `return`、不可达分支、以及后续 `Raise.raise`（T0420b）。
+- 目标：先只覆盖 `is_type_assignable` 的最小规则；不实现完整子类型系统；不引入 boxing/unboxing。
+- 验收：新增 Rust 单测：`Nothing` 可赋给 `Any`/`Unit`/`Bool`（以及反例），`cargo test -p scoopc typecheck::expr::*` 通过。
+- 依赖：T0418
+
+### T0420b [TODO] 验收补齐：`Raise.raise` 返回 `Nothing` 可兼容任意返回类型
+- 描述：补齐一个 effects/typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 `Nothing` 兼容 `Any` 返回。
+- 目标：只做 fixtures 验收；不在此任务实现 effect operation 的解析/类型规则。
+- 验收：新增 typecheck/effects fixture：`Raise.raise(e)`（按语法）在 `fun f(): Any` 中通过；`cargo run -p scoop -- test` 通过。
+- 依赖：T0419、T0602、T0420a
 
 ### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
 - 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
