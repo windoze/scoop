@@ -343,6 +343,11 @@ impl<'a> BlockScopeChecker<'a> {
             | ast::ExprKind::IntLit
             | ast::ExprKind::StringLit
             | ast::ExprKind::UnitLit => {}
+            ast::ExprKind::TupleLit { elements } => {
+                for e in elements {
+                    self.check_expr(e)?;
+                }
+            }
             ast::ExprKind::Ident(id) => self.resolve_value_ident(id)?,
             ast::ExprKind::InterpolatedString { parts, .. } => {
                 for p in parts {

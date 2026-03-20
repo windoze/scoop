@@ -620,6 +620,12 @@ pub enum ExprKind {
     StringLit,
     /// `()`：Unit 字面量（spec §2.3.3）。
     UnitLit,
+    /// tuple 字面量：`(a, b, ...)`（spec §2.3.3）。
+    ///
+    /// 说明：
+    /// - 空 `()` 由 `ExprKind::UnitLit` 表示；
+    /// - 单元素 tuple 需写 trailing comma：`(x,)`。
+    TupleLit { elements: Vec<Expr> },
     /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
     ///
     /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。

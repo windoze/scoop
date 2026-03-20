@@ -191,6 +191,8 @@
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
 - [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
 - [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
+  - [x] tuple 类型与 tuple 字面量（`(a, b)`），`Unit` 视为 0 元 tuple（T0410）
+  - [ ] `T?` 语法糖与相关规则（见 TODO T0411/T0422 等）
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
 - [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）

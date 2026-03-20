@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T0410 值类型：tuple 与 Unit（Unit 视为 0 元 tuple）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val t: (Int, Int) = (1, 2)
+val u: () = ()
+

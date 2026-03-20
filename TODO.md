@@ -696,11 +696,12 @@
 - 依赖：T0202、T0404
 - 完成：新增 `scoopc::typecheck::check_file_struct_decls`（错误码 `scoop::typecheck::duplicate_struct_field` / `struct_field_must_be_val` / `struct_field_default_value_not_supported`），在 typecheck fixtures 流程中接入并新增 4 个回归 fixture（重复字段、`var` 字段、字段默认值、字段类型未解析）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0410 [TODO] 值类型：tuple 与 Unit（spec §2.3.3）
+### T0410 [DONE] 值类型：tuple 与 Unit（spec §2.3.3）
 - 描述：把 tuple 类型与 tuple 表达式加入类型系统；`Unit` 视为 0 元 tuple。
 - 目标：先只支持 `(A, B)` 类型与 `(a, b)` 表达式；不支持解构。
 - 验收：typecheck fixture：`val t: (Int, Int) = (1, 2)` 通过；元素类型不匹配报错。
 - 依赖：T0211、T0405
+- 完成：AST 新增 `ExprKind::TupleLit`；parser 支持 `(a, b, ...)`（含 trailing comma 与单元素 `(x,)`）；resolve/typecheck 递归遍历 tuple 元素并完成类型推导；`TypeStore::intern` 增加去重以保证复合类型相等比较稳定；新增 typecheck fixtures `tuple_literal_ok`/`tuple_literal_type_mismatch_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0411 [TODO] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
 - 描述：在 lowering 阶段把 `Nullable(TypeRef)` 映射到 `Option<...>`。

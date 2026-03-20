@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 11:21
+// 目标：T0410 tuple 字面量的元素类型不匹配时应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val t: (Int, Int) = (1, "oops")

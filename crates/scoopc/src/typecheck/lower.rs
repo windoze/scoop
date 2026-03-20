@@ -165,6 +165,10 @@ impl<'a> TypeLowering<'a> {
         self.types.display(id).to_string()
     }
 
+    pub(super) fn ty_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
+        self.types.ty_tuple(elements)
+    }
+
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
         let fqn = match self.resolve_type_path_fqn(path) {
             Ok(fqn) => fqn,

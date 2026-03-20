@@ -7,6 +7,7 @@
 //!
 //! 当前阶段只提供数据结构与格式化输出；类型推断/求解、subtyping 等语义在后续任务实现。
 
+use std::collections::HashMap;
 use std::fmt;
 
 /// `TypeStore` 内部类型表的索引。
@@ -110,11 +111,15 @@ pub enum ValueTypeKind {
 #[derive(Debug, Default)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
+    index: HashMap<TypeKind, TypeId>,
 }
 
 impl TypeStore {
     pub fn new() -> Self {
-        Self { kinds: Vec::new() }
+        Self {
+            kinds: Vec::new(),
+            index: HashMap::new(),
+        }
     }
 
     pub fn kind(&self, id: TypeId) -> &TypeKind {
@@ -122,8 +127,13 @@ impl TypeStore {
     }
 
     pub fn intern(&mut self, kind: TypeKind) -> TypeId {
+        if let Some(id) = self.index.get(&kind).copied() {
+            return id;
+        }
+
         let id = TypeId(u32::try_from(self.kinds.len()).expect("too many types"));
-        self.kinds.push(kind);
+        self.kinds.push(kind.clone());
+        self.index.insert(kind, id);
         id
     }
 

@@ -1422,20 +1422,54 @@ impl<'a> Parser<'a> {
             }));
         }
 
-        // 仅当括号内也是“当前已支持的表达式子集”时才保留其 kind；否则整体降级为 Missing。
-        let inner = self.try_parse_expr()?;
-        let Some(mut inner) = inner else {
+        // 解析第一个元素：`(expr)` / `(expr, ...)`。
+        //
+        // 若括号内不是表达式起始，则整体降级为 Missing（吞掉平衡括号，保持 cursor 正确）。
+        let first = self.try_parse_expr()?;
+        let Some(first) = first else {
             let span = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start)?;
             return Ok(Some(ast::Expr::missing(span)));
         };
 
+        // tuple literal：`(a, b, ...)` / `(a,)`
+        if self.eat_symbol(Symbol::Comma) {
+            let mut elements = vec![first];
+
+            while !self.peek_symbol(Symbol::RParen) && !self.peek_kind(TokenKind::Eof) {
+                let tok = *self.peek();
+                let expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（tuple 元素）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?;
+                elements.push(expr);
+
+                if self.eat_symbol(Symbol::Comma) {
+                    // allow trailing comma
+                    if self.peek_symbol(Symbol::RParen) {
+                        break;
+                    }
+                    continue;
+                }
+                break;
+            }
+
+            let close = self.expect_symbol(Symbol::RParen)?;
+            return Ok(Some(ast::Expr {
+                span: Span::new(start, close.span.end),
+                kind: ast::ExprKind::TupleLit { elements },
+            }));
+        }
+
+        // grouping expr：`(expr)`
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
+            let mut inner = first;
             inner.span = Span::new(start, close.span.end);
             return Ok(Some(inner));
         }
 
-        // 括号内存在额外 token（例如 `(1, 2)` / `(1; 2)`）：
+        // 括号内存在额外 token（例如 `(1; 2)`）：
         // 当前阶段不支持，吞掉整段并降级为 Missing。
         let span = self.consume_balanced_after_open(Symbol::LParen, Symbol::RParen, start)?;
         Ok(Some(ast::Expr::missing(span)))

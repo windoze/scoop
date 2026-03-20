@@ -228,6 +228,27 @@ fn infer_expr_type(
         ast::ExprKind::IntLit => Ok(builtins.int),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
+        ast::ExprKind::TupleLit { elements } => {
+            if elements.is_empty() {
+                return Ok(builtins.unit);
+            }
+
+            let mut element_types = Vec::with_capacity(elements.len());
+            for e in elements {
+                element_types.push(infer_expr_type(
+                    source,
+                    e,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?);
+            }
+
+            Ok(lower.ty_tuple(element_types))
+        }
         ast::ExprKind::Ident(id) => {
             infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
         }
@@ -761,6 +782,7 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::IntLit => "int literal",
         ast::ExprKind::StringLit => "string literal",
         ast::ExprKind::UnitLit => "unit literal",
+        ast::ExprKind::TupleLit { .. } => "tuple literal",
         ast::ExprKind::InterpolatedString { .. } => "interpolated string",
         ast::ExprKind::Block(_) => "block",
         ast::ExprKind::Lambda(_) => "lambda",
