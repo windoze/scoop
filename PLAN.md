@@ -188,6 +188,7 @@
 - [x] 表达式类型检查：struct literal `Point { x: 1, y: 2 }`（字段存在性/去重/类型匹配/缺字段）（T0423）
 - [x] struct 声明：字段规则（重复字段/禁止 `var`/不支持默认值）（T0409）
 - [x] enum 声明：在 `TypeEnv` 收集 variants（tag + payload types），并检查重复 variant/字段（T0425）
+- [x] enum variant 构造表达式：`Some(x)`（同名唯一；参数数量/类型检查）（T0426）
 - [ ] 区分引用类型 vs 值类型（spec §2）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - `Int/UInt` 的 bit width = target pointer size

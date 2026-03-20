@@ -805,11 +805,12 @@
 - 依赖：T0236、T0404
 - 完成：AST 新增 `TypeMember::EnumVariant` + `EnumVariantDecl`；parser 在 enum body 解析 `Name`/`Name(val field: T, ...)` 变体并要求 `val`+类型；resolver headers 解析 variant 字段类型引用；type env 收集 enum variants（tag 顺序分配）并检查重复 variant/字段（新错误码 `scoop::typecheck::duplicate_enum_variant` / `duplicate_enum_variant_field`）；type lowering 覆盖 variant 字段类型；新增 fixtures：`typecheck/enum_duplicate_variant_is_error`、`typecheck/enum_variant_duplicate_field_is_error`、`typecheck/enum_variant_field_unresolved_type_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0426 [TODO] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
+### T0426 [DONE] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
 - 描述：把 `Some(x)` 解析/绑定为某个 enum variant 构造，并检查参数数量与类型。
 - 目标：先只支持同名唯一的 variant；重名/重载后续处理。
 - 验收：typecheck fixture：`val o: Option<Int> = Some(1)` 通过；`Some()` 参数数不对时报错。
 - 依赖：T0240、T0311、T0425
+- 完成：resolve 阶段对 `callee(args...)` 的裸标识符允许“未解析”穿透到 typecheck（避免提前报 `unresolved_value`）；typecheck 支持按同名唯一 enum variant 绑定 `Some(x)` 并做 arity/参数类型检查（新增错误码 `scoop::typecheck::enum_variant_ctor_*`）；`TypeEnv` 记录 enum 声明源文件以支持跨文件（sysroot）variant 字段类型解析；新增 fixtures：`typecheck/enum_variant_ctor_some_ok`（pass）、`typecheck/enum_variant_ctor_arity_mismatch_is_error`（fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0427 [TODO] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
 - 描述：对 pattern 进行类型约束：variant pattern 仅用于 enum；tuple pattern 仅用于 tuple；绑定变量进入分支作用域。

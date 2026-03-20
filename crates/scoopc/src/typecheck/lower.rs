@@ -139,6 +139,10 @@ impl<'a> TypeLowering<'a> {
         &self.pkg_prefix
     }
 
+    pub(super) fn env(&self) -> &TypeEnv {
+        self.env
+    }
+
     pub(super) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),
@@ -202,6 +206,99 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn ty_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
         self.types.ty_tuple(elements)
+    }
+
+    /// 将“已解析出的类型 FQN + 已 lowering 的 type args”构造成 `TypeId`。
+    ///
+    /// 说明：
+    /// - `lower_type_ref`/`lower_type_path` 以 AST 为入口，会递归 lowering type args；
+    /// - enum variant 构造等场景（T0426）需要先对 type args 做 substitution/推断，
+    ///   再把结果组装回一个 `TypeId`，因此提供该辅助方法。
+    pub(super) fn lower_type_fqn_with_args(
+        &mut self,
+        fqn: String,
+        args: Vec<TypeId>,
+        span: Span,
+    ) -> Result<TypeId, TypeLowerError> {
+        // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
+        match fqn.as_str() {
+            "scoop.core.Any" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.any);
+            }
+            "scoop.core.String" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.string);
+            }
+            "scoop.core.Unit" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.unit);
+            }
+            "scoop.core.Nothing" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.nothing);
+            }
+            "scoop.core.Bool" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.bool_);
+            }
+            "scoop.core.Int" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.int);
+            }
+            "scoop.core.UInt" => {
+                check_arity(&fqn, 0, args.len(), span)?;
+                return Ok(self.builtins.uint);
+            }
+            "scoop.core.Option" => {
+                check_arity(&fqn, 1, args.len(), span)?;
+                return Ok(self.types.ty_option(args[0]));
+            }
+            _ => {}
+        }
+
+        let expected = self.env.type_param_count(&fqn).ok_or_else(|| {
+            TypeLowerError::MissingTypeSymbolInEnv {
+                fqn: fqn.clone(),
+                span: span.into(),
+            }
+        })?;
+        let found = args.len();
+        if expected != found {
+            return Err(TypeLowerError::TypeArityMismatch {
+                name: fqn,
+                expected,
+                found,
+                span: span.into(),
+            });
+        }
+
+        // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
+        let Some(sym) = self.env.type_symbol(&fqn) else {
+            return Err(TypeLowerError::MissingTypeSymbolInEnv {
+                fqn,
+                span: span.into(),
+            });
+        };
+
+        match sym.kind {
+            TypeSymbolKind::TypeAlias => Err(TypeLowerError::UnsupportedTypeRef {
+                kind: "typealias (type-level alias)",
+                span: span.into(),
+            }),
+            TypeSymbolKind::Nominal(kind) => {
+                let nominal = NominalType { fqn, args };
+                let id = match kind {
+                    ast::TypeKind::Struct | ast::TypeKind::Enum => self
+                        .types
+                        .intern(TypeKind::Value(ValueTypeKind::Nominal(nominal))),
+                    ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect => self
+                        .types
+                        .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
+                };
+                Ok(id)
+            }
+        }
     }
 
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
@@ -367,7 +464,7 @@ impl<'a> TypeLowering<'a> {
         Ok(())
     }
 
-    fn resolve_type_path_fqn(&self, path: &ast::TypePath) -> Result<String, TypeLowerError> {
+    pub(super) fn resolve_type_path_fqn(&self, path: &ast::TypePath) -> Result<String, TypeLowerError> {
         let segments = path
             .segments
             .iter()
@@ -413,6 +510,61 @@ impl<'a> TypeLowering<'a> {
         Err(TypeLowerError::UnresolvedType {
             name: local,
             span: path.span.into(),
+        })
+    }
+
+    /// 在 typecheck 阶段按“路径段名”解析 type path 对应的 FQN。
+    ///
+    /// 说明：
+    /// - `resolve_type_path_fqn` 依赖 `TypePath` 里的 `Ident.span` 从 `self.source` 切片；
+    /// - 但某些场景（例如 sysroot enum variant 的字段类型，T0426）持有的是“来自其它源文件”的
+    ///   `TypeRef`/`TypePath`，其 span 不能再用于当前文件切片；
+    /// - 因此提供该按字符串段名解析的辅助入口（仍复用当前使用点的 package/import/可见性规则）。
+    pub(super) fn resolve_type_path_fqn_by_name(
+        &self,
+        segments: &[String],
+        use_span: Span,
+    ) -> Result<String, TypeLowerError> {
+        let local = segments.join(".");
+
+        let mut candidates = Vec::new();
+        if !self.pkg_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.pkg_prefix, local));
+        }
+        // 允许显式写 FQN：`scoop.core.Any`
+        candidates.push(local.clone());
+
+        // 单段名字才走 import 规则（与 resolve 阶段保持一致）。
+        if segments.len() == 1 {
+            let name = segments[0].as_str();
+
+            if let Some(fqns) = self.imports.ty.explicit.get(name) {
+                candidates.extend(fqns.iter().cloned());
+            }
+
+            for prefix in &self.imports.star {
+                candidates.push(format!("{prefix}.{name}"));
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        for fqn in candidates {
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.ty.as_ref() else {
+                continue;
+            };
+            if is_symbol_visible_from(self.source, sym) {
+                return Ok(fqn);
+            }
+        }
+
+        Err(TypeLowerError::UnresolvedType {
+            name: local,
+            span: use_span.into(),
         })
     }
 }

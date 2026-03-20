@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：T0426 枚举构造表达式（enum variant ctor）：`Some(x)`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val o: Option<Int> = Some(1)
+

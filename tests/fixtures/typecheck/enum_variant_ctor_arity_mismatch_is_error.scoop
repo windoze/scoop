@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::enum_variant_ctor_arity_mismatch
+// EXPECT-ERROR-AT: 10:22
+// EXPECT-ERROR: 参数数量不匹配
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val o: Option<Int> = Some()
+

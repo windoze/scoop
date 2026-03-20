@@ -106,6 +106,45 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("enum variant 构造歧义：{name} 同时匹配 {candidates}")]
+    #[diagnostic(code(scoop::typecheck::ambiguous_enum_variant_ctor))]
+    AmbiguousEnumVariantCtor {
+        name: String,
+        candidates: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("enum variant 构造参数数量不匹配：{variant} 期望 {expected} 个，但提供了 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::enum_variant_ctor_arity_mismatch))]
+    EnumVariantCtorArityMismatch {
+        variant: String,
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("enum variant 构造参数类型不匹配：{variant} 第 {index} 个参数期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::enum_variant_ctor_arg_type_mismatch))]
+    EnumVariantCtorArgTypeMismatch {
+        variant: String,
+        index: usize,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("无法推断 enum 类型参数：{enum_fqn} 的 `{param}`")]
+    #[diagnostic(code(scoop::typecheck::enum_variant_ctor_type_arg_not_inferred))]
+    EnumVariantCtorTypeArgNotInferred {
+        enum_fqn: String,
+        param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 receiver 类型不匹配：{callee} 期望 receiver 为 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::call_receiver_type_mismatch))]
     CallReceiverTypeMismatch {
@@ -1054,6 +1093,24 @@ fn infer_call_expr_type(
         ast::ExprKind::Ident(id) => {
             let callee_name = source.slice(id.span);
             let Some(resolved) = &id.resolved else {
+                // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
+                // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在“未 resolve 的 ident”
+                // 情况下尝试按 enum variant ctor 处理。
+                if let Some(ctor_ty) = infer_enum_variant_ctor_call_expr_type(
+                    source,
+                    call_expr,
+                    id,
+                    args,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )? {
+                    return Ok(ctor_ty);
+                }
+
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_name.to_string(),
                     span: id.span.into(),
@@ -1158,6 +1215,285 @@ fn infer_call_expr_type(
             kind: expr_kind_name(other),
             span: callee.span.into(),
         }),
+    }
+}
+
+fn infer_enum_variant_ctor_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee: &ast::ValueIdent,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let variant_name = source.slice(callee.span);
+    let candidates = lower.env().find_enum_variants_named(variant_name);
+
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    if candidates.len() != 1 {
+        let mut names: Vec<String> = candidates
+            .iter()
+            .map(|(enum_fqn, _)| format!("{enum_fqn}.{variant_name}"))
+            .collect();
+        names.sort();
+        names.dedup();
+
+        return Err(ExprTypeError::AmbiguousEnumVariantCtor {
+            name: variant_name.to_string(),
+            candidates: names.join(" | "),
+            span: callee.span.into(),
+        });
+    }
+
+    let (enum_fqn, variant) = candidates.into_iter().next().expect("len == 1");
+    let Some((type_params, enum_source)) = lower.env().enum_decl(&enum_fqn).map(|d| {
+        let type_params = d.type_params.clone();
+        let source = lower
+            .env()
+            .source(&d.decl_file)
+            .cloned()
+            .unwrap_or_else(|| source.clone());
+        (type_params, source)
+    }) else {
+        // 防御性：`candidates` 来源于 `TypeEnv.enums`，理论上一定存在。
+        return Ok(None);
+    };
+
+    let variant_fqn = format!("{enum_fqn}.{variant_name}");
+
+    let expected = variant.fields.len();
+    let found = args.len();
+    if expected != found {
+        return Err(ExprTypeError::EnumVariantCtorArityMismatch {
+            variant: variant_fqn,
+            expected,
+            found,
+            span: call_expr.span.into(),
+        });
+    }
+
+    // 先推导所有实参类型，保证子表达式（如 `Some(f())`）也会被覆盖。
+    let mut arg_types: Vec<TypeId> = Vec::with_capacity(args.len());
+    for arg in args {
+        arg_types.push(infer_expr_type(
+            source,
+            arg,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?);
+    }
+
+    // enum 的类型参数名集合（用于识别 `T` 这类 type param 引用）。
+    let type_param_set: HashSet<&str> = type_params.iter().map(|s| s.as_str()).collect();
+
+    // 早期最小泛型推断（T0426）：
+    // - 只从 “payload 字段类型为直接 type param（例如 `T`）” 的位置推断；
+    // - 若同一 type param 被多次约束，要求相等（或其中一个为 `Nothing`）。
+    let mut subst: HashMap<String, TypeId> = HashMap::new();
+    for (idx, (field, found_ty)) in variant.fields.iter().zip(arg_types.iter().copied()).enumerate()
+    {
+        let ast::TypeRef::Path(p) = &field.ty else {
+            continue;
+        };
+        if !p.args.is_empty() || p.segments.len() != 1 {
+            continue;
+        }
+        let name = enum_source.slice(p.segments[0].span);
+        if !type_param_set.contains(name) {
+            continue;
+        }
+
+        match subst.get(name).copied() {
+            None => {
+                subst.insert(name.to_string(), found_ty);
+            }
+            Some(prev) if prev == found_ty => {}
+            Some(prev) if prev == builtins.nothing => {
+                subst.insert(name.to_string(), found_ty);
+            }
+            Some(_prev) if found_ty == builtins.nothing => {
+                // `Nothing` 不增加额外约束：保留已有推断结果。
+            }
+            Some(prev) => {
+                return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
+                    variant: format!("{enum_fqn}.{variant_name}"),
+                    index: idx + 1,
+                    expected: lower.fmt_type(prev),
+                    found: lower.fmt_type(found_ty),
+                    span: args[idx].span.into(),
+                });
+            }
+        }
+    }
+
+    // 逐个检查实参与字段声明类型是否匹配（字段类型允许引用 enum type params）。
+    for (idx, (field, found_ty)) in variant.fields.iter().zip(arg_types.iter().copied()).enumerate()
+    {
+        let expected_ty = lower_type_ref_with_enum_subst(
+            &enum_source,
+            call_expr.span,
+            &enum_fqn,
+            &field.ty,
+            lower,
+            builtins,
+            &type_param_set,
+            &subst,
+        )?;
+
+        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
+                variant: format!("{enum_fqn}.{variant_name}"),
+                index: idx + 1,
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: args[idx].span.into(),
+            });
+        }
+    }
+
+    // 将推断结果转回 enum 实例类型。
+    let mut enum_args: Vec<TypeId> = Vec::with_capacity(type_params.len());
+    for name in &type_params {
+        let Some(id) = subst.get(name).copied() else {
+            return Err(ExprTypeError::EnumVariantCtorTypeArgNotInferred {
+                enum_fqn: enum_fqn.clone(),
+                param: name.clone(),
+                span: callee.span.into(),
+            });
+        };
+        enum_args.push(id);
+    }
+
+    let enum_ty = lower.lower_type_fqn_with_args(enum_fqn, enum_args, call_expr.span)?;
+    Ok(Some(enum_ty))
+}
+
+fn lower_type_ref_with_enum_subst(
+    enum_source: &SourceFile,
+    use_span: Span,
+    enum_fqn: &str,
+    ty: &ast::TypeRef,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    type_param_set: &HashSet<&str>,
+    subst: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    match ty {
+        ast::TypeRef::Path(p) => {
+            // 单段名且无 type args：可能是对 enum type param 的引用（例如 `T`）。
+            if p.segments.len() == 1 && p.args.is_empty() {
+                let name = enum_source.slice(p.segments[0].span);
+                if type_param_set.contains(name) {
+                    return subst.get(name).copied().ok_or_else(|| {
+                        ExprTypeError::EnumVariantCtorTypeArgNotInferred {
+                            enum_fqn: enum_fqn.to_string(),
+                            param: name.to_string(),
+                            span: use_span.into(),
+                        }
+                    });
+                }
+            }
+
+            let segments: Vec<String> = p
+                .segments
+                .iter()
+                .map(|id| enum_source.slice(id.span).to_string())
+                .collect();
+
+            let fqn = match lower.resolve_type_path_fqn_by_name(&segments, use_span) {
+                Ok(fqn) => fqn,
+                Err(TypeLowerError::UnresolvedType { name, span }) => {
+                    let Some(builtin_fqn) = implicit_builtin_type_fqn(&name) else {
+                        return Err(TypeLowerError::UnresolvedType { name, span }.into());
+                    };
+                    builtin_fqn.to_string()
+                }
+                Err(other) => return Err(other.into()),
+            };
+
+            let mut args: Vec<TypeId> = Vec::with_capacity(p.args.len());
+            for a in &p.args {
+                args.push(lower_type_ref_with_enum_subst(
+                    enum_source,
+                    use_span,
+                    enum_fqn,
+                    a,
+                    lower,
+                    builtins,
+                    type_param_set,
+                    subst,
+                )?);
+            }
+
+            Ok(lower.lower_type_fqn_with_args(fqn, args, use_span)?)
+        }
+        ast::TypeRef::Tuple(t) => {
+            if t.elements.is_empty() {
+                return Ok(builtins.unit);
+            }
+            let mut elements: Vec<TypeId> = Vec::with_capacity(t.elements.len());
+            for e in &t.elements {
+                elements.push(lower_type_ref_with_enum_subst(
+                    enum_source,
+                    use_span,
+                    enum_fqn,
+                    e,
+                    lower,
+                    builtins,
+                    type_param_set,
+                    subst,
+                )?);
+            }
+            Ok(lower.ty_tuple(elements))
+        }
+        ast::TypeRef::Nullable { inner, .. } => {
+            let inner = lower_type_ref_with_enum_subst(
+                enum_source,
+                use_span,
+                enum_fqn,
+                inner,
+                lower,
+                builtins,
+                type_param_set,
+                subst,
+            )?;
+            Ok(lower.ty_option(inner))
+        }
+        ast::TypeRef::Star { .. } => Err(TypeLowerError::UnsupportedTypeRef {
+            kind: "star projection (*)",
+            span: use_span.into(),
+        }
+        .into()),
+        ast::TypeRef::Function(_) => Err(TypeLowerError::UnsupportedTypeRef {
+            kind: "function type",
+            span: use_span.into(),
+        }
+        .into()),
+    }
+}
+
+fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
+    match local_or_fqn {
+        // allow both `Int` and `scoop.core.Int` spellings
+        "Any" | "scoop.core.Any" => Some("scoop.core.Any"),
+        "String" | "scoop.core.String" => Some("scoop.core.String"),
+        "Unit" | "scoop.core.Unit" => Some("scoop.core.Unit"),
+        "Nothing" | "scoop.core.Nothing" => Some("scoop.core.Nothing"),
+        "Bool" | "scoop.core.Bool" => Some("scoop.core.Bool"),
+        "Int" | "scoop.core.Int" => Some("scoop.core.Int"),
+        "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
+        "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
+        _ => None,
     }
 }
 

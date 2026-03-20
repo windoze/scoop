@@ -6,6 +6,7 @@
 //! T0425：扩展 type env 以收集 enum variants（tag + payload types），为 rich enum 的类型检查打底。
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::path::PathBuf;
 
 use miette::Diagnostic;
@@ -59,6 +60,14 @@ pub struct EnumVariantInfo {
 /// enum 声明的语义信息（当前阶段仅 variants）。
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
+    /// enum 声明所在的源文件（用于在 typecheck 阶段按 span 取回原始标识符文本）。
+    pub decl_file: PathBuf,
+    /// enum 的类型参数名（按声明顺序）。
+    ///
+    /// 说明：
+    /// - 目前主要用于 enum variant 构造表达式的最小泛型实例化（T0426）；
+    /// - 未来若引入更完整的泛型推断/约束系统，这里仍可作为声明信息来源。
+    pub type_params: Vec<String>,
     pub variants: Vec<EnumVariantInfo>,
 }
 
@@ -103,6 +112,7 @@ pub enum TypeEnvError {
 pub struct TypeEnv {
     by_fqn: HashMap<String, TypeSymbol>,
     enums: HashMap<String, EnumDecl>,
+    sources: HashMap<PathBuf, SourceFile>,
 }
 
 impl TypeEnv {
@@ -149,11 +159,43 @@ impl TypeEnv {
         self.enums.get(fqn)
     }
 
+    /// 通过文件路径获取对应的 `SourceFile`（若该文件在构建 env 时被收集过）。
+    pub fn source(&self, path: &Path) -> Option<&SourceFile> {
+        self.sources.get(path)
+    }
+
+    /// 返回所有名字为 `variant_name` 的 enum variant 候选（跨所有已收集的 enum）。
+    ///
+    /// 说明（T0426）：
+    /// - 早期阶段我们允许通过 `Some(1)` 这种“不带 enum 前缀”的写法构造 variant；
+    /// - 为避免引入完整的作用域/导入规则，本方法仅提供候选集合，
+    ///   由 typecheck 决定“同名唯一”约束与报错策略。
+    pub fn find_enum_variants_named(
+        &self,
+        variant_name: &str,
+    ) -> Vec<(String, EnumVariantInfo)> {
+        let mut out = Vec::new();
+        for (enum_fqn, decl) in &self.enums {
+            for v in &decl.variants {
+                if v.name == variant_name {
+                    out.push((enum_fqn.clone(), v.clone()));
+                }
+            }
+        }
+        out
+    }
+
     fn collect_from_file(
         &mut self,
         source: &SourceFile,
         file: &ast::File,
     ) -> Result<(), TypeEnvError> {
+        // 记录源文件内容，供后续 typecheck 在跨文件引用（例如 sysroot enum variants）时
+        // 通过 span 反查标识符文本。
+        self.sources
+            .entry(source.path().to_path_buf())
+            .or_insert_with(|| source.clone());
+
         let pkg_prefix = package_prefix(source, file.package.as_ref());
 
         for item in &file.items {
@@ -189,6 +231,11 @@ impl TypeEnv {
     ) -> Result<(), TypeEnvError> {
         let name = source.slice(decl.name.span).to_string();
         let fqn = join_prefix(prefix, &name);
+        let type_params: Vec<String> = decl
+            .type_params
+            .iter()
+            .map(|p| source.slice(p.name.span).to_string())
+            .collect();
 
         self.insert_symbol(
             fqn.clone(),
@@ -202,7 +249,14 @@ impl TypeEnv {
 
         let Some(body) = &decl.body else {
             if matches!(decl.kind, ast::TypeKind::Enum) {
-                self.enums.insert(fqn.clone(), EnumDecl { variants: Vec::new() });
+                self.enums.insert(
+                    fqn.clone(),
+                    EnumDecl {
+                        decl_file: source.path().to_path_buf(),
+                        type_params,
+                        variants: Vec::new(),
+                    },
+                );
             }
             return Ok(());
         };
@@ -260,7 +314,14 @@ impl TypeEnv {
                 });
             }
 
-            self.enums.insert(fqn.clone(), EnumDecl { variants });
+            self.enums.insert(
+                fqn.clone(),
+                EnumDecl {
+                    decl_file: source.path().to_path_buf(),
+                    type_params,
+                    variants,
+                },
+            );
         }
 
         for member in &body.members {

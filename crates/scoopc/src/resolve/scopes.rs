@@ -409,7 +409,20 @@ impl<'a> BlockScopeChecker<'a> {
                 self.check_expr(field.as_mut())?;
             }
             ast::ExprKind::Call { callee, args } => {
-                self.check_expr(callee.as_mut())?;
+                // 调用 callee 的特殊处理：
+                //
+                // - 对于裸标识符 `callee(args...)`，若该名字无法在 resolve 阶段解析到
+                //   局部/顶层符号，我们**不**在此处报 `unresolved_value`，而是留给 typecheck
+                //   给出“不可调用/enum variant ctor”等更贴近语义的诊断（T0311/T0426）。
+                // - 对于非裸标识符（member access / lambda / 其它表达式），仍按普通表达式递归检查。
+                match &mut callee.kind {
+                    ast::ExprKind::Ident(id) => match self.resolve_value_ident(id) {
+                        Ok(()) => {}
+                        Err(ResolveError::UnresolvedValue { .. }) => {}
+                        Err(other) => return Err(other),
+                    },
+                    _ => self.check_expr(callee.as_mut())?,
+                }
                 for a in args {
                     self.check_expr(a)?;
                 }
