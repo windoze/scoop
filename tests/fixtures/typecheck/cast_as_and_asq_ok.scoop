@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0412 Cast 语义：`as`/`as?` 的类型规则（spec §4.4）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val a: Any
+
+// `as`：表达式类型为目标类型本身。
+val s: String = a as String
+
+// `as?`：表达式类型为 `T?`（即 `Option<T>`）。
+val t: String? = a as? String
+

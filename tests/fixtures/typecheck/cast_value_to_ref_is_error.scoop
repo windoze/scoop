@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::invalid_cast
+// EXPECT-ERROR: 不允许的显式类型转换
+// EXPECT-ERROR-AT: 12:19
+// 目标：T0412 cast 不做值类型转换；value ↔ ref 的转换在当前阶段应直接拒绝。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val i: Int
+val s: String = i as String
+

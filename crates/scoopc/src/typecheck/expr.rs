@@ -113,6 +113,15 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("不允许的显式类型转换：{from} -> {to}")]
+    #[diagnostic(code(scoop::typecheck::invalid_cast))]
+    InvalidCast {
+        from: String,
+        to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -275,6 +284,37 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::Cast {
+            expr: inner,
+            op,
+            op_span,
+            ty,
+        } => {
+            let from_ty = infer_expr_type(
+                source,
+                inner,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            let target_ty = lower.lower_type_ref(ty)?;
+
+            if !is_cast_allowed(from_ty, target_ty, lower) {
+                return Err(ExprTypeError::InvalidCast {
+                    from: lower.fmt_type(from_ty),
+                    to: lower.fmt_type(target_ty),
+                    span: (*op_span).into(),
+                });
+            }
+
+            match op {
+                ast::CastOp::As => Ok(target_ty),
+                ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
+            }
+        }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -284,6 +324,16 @@ fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>) -> bool {
+    if from == to {
+        return true;
+    }
+
+    // spec §4.4：`as`/`as?` 不做值类型转换；当前阶段也不实现 boxing/unboxing，
+    // 因此只允许在引用类型之间做运行期检查式转换。
+    lower.is_ref(from) && lower.is_ref(to)
 }
 
 fn infer_value_ident_type(

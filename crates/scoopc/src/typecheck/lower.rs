@@ -165,6 +165,14 @@ impl<'a> TypeLowering<'a> {
         self.types.display(id).to_string()
     }
 
+    pub(super) fn is_ref(&self, id: TypeId) -> bool {
+        self.types.is_ref(id)
+    }
+
+    pub(super) fn ty_option(&mut self, inner: TypeId) -> TypeId {
+        self.types.ty_option(inner)
+    }
+
     pub(super) fn ty_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
         self.types.ty_tuple(elements)
     }
