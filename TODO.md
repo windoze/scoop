@@ -822,11 +822,12 @@
 - 依赖：T0227、T0304、T0405
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 增加语句层赋值检查：仅允许对 resolver 写回的局部 `var` 赋值（`ExprKind::Assign` + `ResolvedValueRef::Local` 且 decl span 位于 `mutable_bindings`）；对 `val`/参数赋值报 `scoop::typecheck::assignment_target_not_mutable`。同一作用域重复定义由 resolver 的 block scope 统一报 `scoop::resolve::duplicate_definition`。新增/补齐 fixtures `tests/fixtures/typecheck/val_reassign_is_error.scoop`、`tests/fixtures/typecheck/var_reassign_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0417 [TODO] 基础控制流语句：`return`（函数内）
+### T0417 [DONE] 基础控制流语句：`return`（函数内）
 - 描述：解析并类型检查 `return expr?`，并校验返回类型。
 - 目标：先不支持 non-local return（spec §7.3）；只支持普通函数。
 - 验收：typecheck fixture：返回类型不匹配时报错；`return` 在非函数体报错（若 parser 允许则 typecheck 报）。
 - 依赖：T0226、T0404、T0405
+- 完成：parser 在 `crates/scoopc/src/parser/stmt.rs` 支持 `return`/`return expr`；typecheck 在 `crates/scoopc/src/typecheck/expr.rs` 校验返回值类型、`Unit` 返回与“非函数体 return”诊断；fixtures 覆盖 `return_type_mismatch_is_error`、`return_value_required_is_error`、`return_in_lambda_is_error`、`return_unit_no_value_ok`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0418 [TODO] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
 - 描述：在 sysroot 中提供“内建标量类型的可见声明”，包括：

@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0417 `return` 不带返回值时，函数返回类型必须为 `Unit`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f1(): Unit {
+    return
+}
+
+fun f2() {
+    return;
+}
+
