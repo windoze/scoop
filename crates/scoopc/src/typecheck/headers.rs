@@ -124,6 +124,10 @@ fn check_type_decl_headers(source: &SourceFile, ty: &ast::TypeDecl) -> Result<()
                     });
                 }
             }
+            ast::TypeMember::InitBlock(_b) => {
+                // init block 不引入新的“签名层”类型需求（它属于初始化执行体），
+                // 后续由更完整的 class 初始化语义任务处理（T0313+）。
+            }
             ast::TypeMember::Fun(f) => check_fun_header(source, f)?,
             ast::TypeMember::Type(nested) => check_type_decl_headers(source, nested)?,
         }

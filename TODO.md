@@ -548,11 +548,12 @@
 - 依赖：T0239、T0241、T0240
 - 完成：AST `PatternKind` 新增 `Rest`，struct pattern 记录 `rest: Option<Span>`；parser 支持 tuple/struct pattern 中的 `..` 并在重复/非法位置时给出稳定 `scoop::parse::expected`；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0256 [TODO] Parser：class `init { ... }` blocks（Appendix B.2.2）
+### T0256 [DONE] Parser：class `init { ... }` blocks（Appendix B.2.2）
 - 描述：在 class body 中解析 `init { ... }` 初始化块，并把它作为成员节点纳入 AST。
 - 目标：先只支持 class；初始化顺序与语义留给 resolver/typecheck。
 - 验收：新增 parse fixture：含多个 `init` block 的 class 可解析；`init` 缺 block 报错。
 - 依赖：T0207、T0201、T0248
+- 完成：AST `TypeMember` 新增 `InitBlock(InitBlockDecl)`；parser 在 class type body 识别上下文关键字 `init` 并解析其 `{ ... }` 为 `Block`；`is_type_member_start` 将 `init` 视为 member 起始以避免 property initializer 吞掉后续 init；新增 parse pass fixture `class_init_blocks_basic`（含 AST golden）与 fail fixture `class_init_missing_block_fail`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0257 [TODO] Parser：secondary constructors（Appendix B.2.2）
 - 描述：支持 class 内 `constructor(...) { ... }` 的最小语法，并保留可选 delegation call（如 `: this(...)` / `: super(...)`）的 span/AST。

@@ -135,6 +135,10 @@ impl<'a> BlockScopeChecker<'a> {
                 ast::TypeMember::Property(p) => {
                     self.check_type_member_property(p, &this_ctx, ctor_params)?
                 }
+                ast::TypeMember::InitBlock(_b) => {
+                    // init block 的值名字解析与 `this` 语义依赖完整的 class 初始化规则（T0313），
+                    // 目前先跳过，避免在早期阶段过早固化语义。
+                }
                 ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
             }

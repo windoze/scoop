@@ -861,10 +861,28 @@ impl<'a> Parser<'a> {
 
         let mut members = Vec::new();
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
-            let head = self.peek_after_modifiers().kind;
+            let head_tok = *self.peek_after_modifiers();
+            let head = head_tok.kind;
 
             // 允许多余的分号（例如 Kotlin 风格的 `;` 作为 member 分隔符）。
             if self.eat_symbol(Symbol::Semicolon) {
+                continue;
+            }
+
+            // Appendix B.2.2：class 初始化块：`init { ... }`（T0256）。
+            //
+            // 注意：`init` 是上下文关键字（lexer 仍产出 Ident），仅在 class body 中被识别为初始化块。
+            if matches!(type_kind, ast::TypeKind::Class)
+                && head == TokenKind::Ident
+                && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("init")
+            {
+                match self.parse_type_member_init_block_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::InitBlock(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
                 continue;
             }
 
@@ -933,6 +951,27 @@ impl<'a> Parser<'a> {
         Ok(ast::TypeBody {
             span: Span::new(start, close.span.end),
             members,
+        })
+    }
+
+    fn parse_type_member_init_block_decl(&mut self) -> Result<ast::InitBlockDecl, ParseError> {
+        // `init` 不支持 modifiers，但为了保持 parser cursor 前进与错误恢复，仍先消费掉它们。
+        let _modifiers = self.parse_modifiers();
+
+        if !self.peek_ident_text("init") {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`init`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let init_kw = self.bump(); // ident("init")
+        let body = self.parse_block()?;
+        Ok(ast::InitBlockDecl {
+            span: Span::new(init_kw.span.start, body.span.end),
+            body,
         })
     }
 

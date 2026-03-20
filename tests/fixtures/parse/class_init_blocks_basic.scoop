@@ -1,0 +1,18 @@
+// EXPECT: pass
+// EXPECT-AST: class_init_blocks_basic.ast
+// 目标：验证 class body 内的 `init { ... }` 块能被解析为成员节点，并保留出现顺序。
+
+package fixtures.parse
+
+class C(x: Int) {
+    val y: Int = x
+
+    init { ; }
+    init {
+        val z = y
+        z
+    }
+
+    fun f(): Int { return y }
+}
+

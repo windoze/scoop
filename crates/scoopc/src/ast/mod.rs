@@ -275,8 +275,20 @@ impl std::fmt::Debug for EnumVariantDecl {
 pub enum TypeMember {
     EnumVariant(EnumVariantDecl),
     Property(PropertyDecl),
+    /// class 初始化块：`init { ... }`（Appendix B.2.2）。
+    ///
+    /// 说明：当前阶段（T0256）仅做语法解析与结构化存储；
+    /// 初始化顺序、`this` 语义与与构造器交互由后续 resolver/typecheck 决定。
+    InitBlock(InitBlockDecl),
     Fun(FunDecl),
     Type(TypeDecl),
+}
+
+/// class 初始化块：`init { ... }`（Appendix B.2.2）。
+#[derive(Debug, Clone)]
+pub struct InitBlockDecl {
+    pub span: Span,
+    pub body: Block,
 }
 
 /// 属性声明（spec §10.1）。

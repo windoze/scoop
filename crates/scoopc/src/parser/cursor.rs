@@ -223,8 +223,17 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn is_type_member_start(&self) -> bool {
+        // Appendix B.2.2：`init { ... }` 初始化块（T0256）在 lexer 层仍是 Ident，
+        // 但在 type body 中应被视为 member 起始（用于 initializer 边界判断与错误恢复）。
+        let head = self.peek_after_modifiers();
+        if head.kind == TokenKind::Ident
+            && self.source_text.get(head.span.start..head.span.end) == Some("init")
+        {
+            return true;
+        }
+
         matches!(
-            self.peek_after_modifiers().kind,
+            head.kind,
             TokenKind::Keyword(
                 Keyword::Val
                     | Keyword::Var

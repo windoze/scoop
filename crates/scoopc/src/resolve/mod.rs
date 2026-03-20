@@ -541,6 +541,9 @@ impl Index {
                         visibility,
                     )?;
                 }
+                ast::TypeMember::InitBlock(_b) => {
+                    // init block 不引入命名空间符号；它属于初始化执行体（Appendix B.2.2）。
+                }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
                     self.insert_symbol(
@@ -786,6 +789,9 @@ fn resolve_type_decl_headers(
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, type_params, ty)?;
                     }
+                }
+                ast::TypeMember::InitBlock(_b) => {
+                    // init block 的类型/值解析属于初始化执行体语境（T0313），当前阶段先跳过。
                 }
                 ast::TypeMember::Fun(f) => {
                     type_params.push_decl(source, &f.type_params)?;
