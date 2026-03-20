@@ -759,11 +759,12 @@
 - 依赖：T0209、T0305、T0406
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 中实现 `infer_call_expr_type`（仅支持顶层 fun ident 调用；检查 arity 与逐参数类型可赋值）；新增诊断 `scoop::typecheck::call_arity_mismatch` / `scoop::typecheck::call_arg_type_mismatch`；新增 fixtures `tests/fixtures/typecheck/call_ok.scoop`、`tests/fixtures/typecheck/call_arity_mismatch_is_error.scoop`、`tests/fixtures/typecheck/call_arg_type_mismatch_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0408 [TODO] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
+### T0408 [DONE] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
 - 描述：先实现 value type `struct` 的字段访问类型检查（spec §2.3.1）。
 - 目标：不支持 class/interface vtable；只支持直接字段。
 - 验收：新增 typecheck fixture：定义 struct `Point(val x: Int)` 并访问 `p.x` 通过；访问不存在字段报错。
 - 依赖：T0210、T0401、T0404
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `ExprKind::MemberAccess` 的类型推导：依赖 resolver 写回的 `MemberIdent.resolved`（仅支持 `ResolvedMemberRef::Value`）并通过 `collect_struct_field_types`（主构造参数 + type body property）收集字段类型；新增 fixtures `tests/fixtures/typecheck/member_access_struct_field_ok.scoop`、`tests/fixtures/typecheck/member_access_missing_field_is_error.scoop`、`tests/fixtures/typecheck/member_access_non_field_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0409 [TODO] 声明类型：struct（仅字段，不含方法）
 - 描述：typecheck 阶段收集 struct 字段列表、检查重复字段、类型合法。
