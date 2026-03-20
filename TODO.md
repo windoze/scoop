@@ -808,11 +808,12 @@
 - 依赖：T0215、T0405
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现/补齐 `ExprKind::When` 的最小 LUB：分支类型一致→该类型；不一致→`Any`；忽略 `Nothing` 分支；并避免在推导为 `Any` 时短路（保证后续分支与穷尽性检查仍会执行）；新增回归 fixture `tests/fixtures/typecheck/when_lub_mixed_to_any_missing_else_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0415 [TODO] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
+### T0415 [DONE] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
 - 描述：检查 `with` 的 base 必须是 struct/tuple/enum（按设计）；path 必须存在且 RHS 类型匹配。
 - 目标：先只支持 struct 字段更新；嵌套 path 可分后续任务。
 - 验收：typecheck fixture：`p with { x: 1 }` OK；`p with { missing: 1 }` 报错并指向 path。
 - 依赖：T0216、T0409、T0408
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 中实现 `infer_with_update_expr_type`：递归 typecheck base；限制 base 必须是 `struct` 名义值类型；校验更新项 path 不重复且不存在包含关系；校验字段存在性与 RHS 类型匹配；并支持嵌套路径（中间段字段类型必须为 `struct`）。新增 fixtures：`tests/fixtures/typecheck/with_update_struct_field_ok.scoop`、`with_update_unknown_field_is_error.scoop`、`with_update_field_type_mismatch_is_error.scoop`、`with_update_duplicate_path_is_error.scoop`、`with_update_overlapping_paths_is_error.scoop`、`with_update_nested_path_ok.scoop`、`with_update_nested_path_type_mismatch_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0416 [TODO] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
 - 描述：typecheck 阶段检查 `var` 可赋值、`val` 不可再次赋值；同一作用域重复定义报错。

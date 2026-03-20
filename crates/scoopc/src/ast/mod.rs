@@ -979,8 +979,9 @@ pub enum ExprKind {
     /// 值类型更新表达式：`expr with { path: value, ... }`（spec §2.6）。
     ///
     /// 说明：
-    /// - 当前阶段仅做语法建模；
-    /// - 字段存在性、类型检查与 lowering 会在后续阶段实现（见 PLAN §4.5）。
+    /// - 语法建模见 T0216；
+    /// - 字段存在性与类型检查已在 typecheck 阶段实现（T0415）；
+    /// - lowering 仍待实现（见 PLAN §4.5）。
     WithUpdate {
         base: Box<Expr>,
         with_span: Span,
