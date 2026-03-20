@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::duplicate_struct_field
+// EXPECT-ERROR-AT: 8:30
+// EXPECT-ERROR: struct 字段重复定义
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point(val x: Int, val x: Int)

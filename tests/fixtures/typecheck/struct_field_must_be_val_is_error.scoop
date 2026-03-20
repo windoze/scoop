@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_field_must_be_val
+// EXPECT-ERROR-AT: 9:9
+// EXPECT-ERROR: struct 字段暂不支持 `var`
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point {
+    var x: Int
+}

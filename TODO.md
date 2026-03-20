@@ -689,11 +689,12 @@
 - 依赖：T0210、T0401、T0404
 - 完成：resolver 的索引构建将 `struct` 主构造参数纳入 value namespace（视作字段），从而 `p.x` 可在 resolve 写回到 `MemberIdent.resolved`；typecheck 表达式推导支持 `ExprKind::MemberAccess` 并在当前文件内查找 struct 字段类型；新增 fixtures：`typecheck/member_access_struct_field_ok.scoop`（pass）、`typecheck/member_access_missing_field_is_error.scoop`（fail，resolve `unresolved_member`）、`typecheck/member_access_non_field_is_error.scoop`（fail，typecheck `unsupported_member_access`）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0409 [TODO] 声明类型：struct（仅字段，不含方法）
+### T0409 [DONE] 声明类型：struct（仅字段，不含方法）
 - 描述：typecheck 阶段收集 struct 字段列表、检查重复字段、类型合法。
 - 目标：先限制字段全是 `val` 且需要类型注解；不支持默认值。
 - 验收：typecheck fixture：struct 字段重复时报错；字段类型未解析时报错。
 - 依赖：T0202、T0404
+- 完成：新增 `scoopc::typecheck::check_file_struct_decls`（错误码 `scoop::typecheck::duplicate_struct_field` / `struct_field_must_be_val` / `struct_field_default_value_not_supported`），在 typecheck fixtures 流程中接入并新增 4 个回归 fixture（重复字段、`var` 字段、字段默认值、字段类型未解析）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0410 [TODO] 值类型：tuple 与 Unit（spec §2.3.3）
 - 描述：把 tuple 类型与 tuple 表达式加入类型系统；`Unit` 视为 0 元 tuple。

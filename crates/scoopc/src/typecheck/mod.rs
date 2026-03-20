@@ -11,8 +11,10 @@ mod type_env;
 mod lower;
 mod headers;
 mod expr;
+mod structs;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};
 pub use headers::{check_file_headers, TypeHeaderError};
 pub use expr::{check_file_exprs, ExprTypeError};
+pub use structs::{check_file_struct_decls, StructDeclError};

@@ -213,6 +213,12 @@ fn typecheck_fixture(
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
 
+    // 先运行不依赖 resolver/index 的 typecheck 预检查：
+    // - T0404：声明头类型注解的最小约束
+    // - T0409：struct 字段声明的最小约束（重复字段、`var`、默认值）
+    scoopc::typecheck::check_file_headers(source, &ast).map_err(box_diagnostic)?;
+    scoopc::typecheck::check_file_struct_decls(source, &ast).map_err(box_diagnostic)?;
+
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         pairs.push((&f.source, &f.ast));
@@ -239,8 +245,6 @@ fn typecheck_fixture(
 
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
-
-    scoopc::typecheck::check_file_headers(source, &ast).map_err(box_diagnostic)?;
 
     scoopc::typecheck::check_file_type_refs(
         source,
