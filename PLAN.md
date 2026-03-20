@@ -186,6 +186,7 @@
 ### 4.1 类型表示（核心）
 
 - [x] 区分引用类型 vs 值类型（spec §2）：内部 `TypeKind::{Ref, Value}` 已落地（T0401）
+- [x] 从 sysroot 收集内建类型/效果的声明头（`TypeEnv`：kind + arity），为后续 lowering/typecheck 提供环境起点（T0402）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size
