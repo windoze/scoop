@@ -9,6 +9,40 @@ package scoop.core
 // Root types
 interface Any
 
+// Built-in scalar types（声明层）。
+//
+// 说明：
+// - 这些类型的布局/语义由编译器与运行时固定；
+// - sysroot 只提供“可见声明”，用于名字解析与工具链展示。
+struct Bool
+class String
+struct Unit
+enum Nothing
+
+// Integers（spec §2.3.4 / runtime §3）
+//
+// word-sized：随 target 指针宽度变化（Swift 约定）。
+struct Int
+struct UInt
+
+// fixed-width：用于 FFI/序列化等稳定布局场景。
+struct Int8
+struct Int16
+struct Int32
+struct Int64
+struct UInt8
+struct UInt16
+struct UInt32
+struct UInt64
+
+// 标准别名（Kotlin/Swift 风格）。
+typealias Byte = UInt8
+typealias Short = Int16
+typealias UShort = UInt16
+typealias Long = Int64
+typealias ULong = UInt64
+typealias UIntPtr = UInt
+
 // Option / nullable sugar
 enum Option<T> {
     Some(val value: T),
@@ -19,4 +53,3 @@ enum Option<T> {
 effect Raise<E> {
     fun raise(error: E): Nothing
 }
-

@@ -1,0 +1,30 @@
+// EXPECT: pass
+// 目标：sysroot 内建标量类型（含标准别名）在 resolve 阶段可通过 `import scoop.core.*` 被解析（T0418）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+fun use_scalars(
+    a: Int,
+    b: UInt,
+    c: Int8,
+    d: Int16,
+    e: Int32,
+    f: Int64,
+    g: UInt8,
+    h: UInt16,
+    i: UInt32,
+    j: UInt64,
+    k: Byte,
+    l: Short,
+    m: UShort,
+    n: Long,
+    o: ULong,
+    p: UIntPtr,
+    q: Bool,
+    r: String,
+    s: Unit,
+    t: Nothing
+): Any {}
+

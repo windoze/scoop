@@ -752,7 +752,7 @@
 - 依赖：T0226、T0404、T0405
 - 完成：typecheck 覆盖 `StmtKind::Return`：`return expr` 校验表达式类型可赋值给函数返回类型；`return` 无返回值仅允许 `Unit`；lambda body 内出现 `return` 报错（non-local return 不支持）；补齐 `when` 作为语句时的递归进入以覆盖分支中的控制流；新增错误码 `scoop::typecheck::return_type_mismatch` / `return_value_required` / `return_not_in_function_body`；新增 fixtures `typecheck/return_type_mismatch_is_error`、`typecheck/return_value_required_is_error`、`typecheck/return_in_lambda_is_error`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0418 [TODO] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
+### T0418 [DONE] sysroot：补齐内建标量类型（整数体系 + 标准别名 + Bool/String/Unit/Nothing）（spec §2.3.4 / runtime §3）
 - 描述：在 sysroot 中提供“内建标量类型的可见声明”，包括：
   - word-sized：`Int` / `UInt`（随 target 指针宽度变化）
   - fixed-width：`Int8/16/32/64`、`UInt8/16/32/64`
@@ -761,6 +761,7 @@
 - 目标：只做“声明层”：类型名/可见成员最小化；不要求标准库实现齐全；不引入任何运行期行为。
 - 验收：新增 resolve fixture：`import scoop.core.*` 后引用上述类型与别名都可解析；`scoop test` 通过。
 - 依赖：T0010、T0011、T0251、T0314
+- 完成：在 `sysroot/core.scoop` 增加 `Bool/String/Unit/Nothing`、`Int/UInt`、`Int8..64`/`UInt8..64` 以及 `Byte/Short/UShort/Long/ULong/UIntPtr` 的声明与 `typealias`；新增 resolve fixture `tests/fixtures/resolve/sysroot_scalar_types_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0419 [TODO] sysroot：补齐 `RuntimeError` 与相关枚举值（spec §5.7 / §4.4 / Appendix B.3.3）
 - 描述：新增 `enum RuntimeError { ClassCastFailed, NullAssertionFailed, ... }`（按 spec）并确保可在 Raise<RuntimeError> 中使用。
