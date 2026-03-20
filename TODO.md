@@ -777,18 +777,6 @@
 - 依赖：T0418
 - 完成：`typecheck::expr::is_type_assignable` 新增 `Nothing <: T` 规则（对任意目标类型成立）；`when` 表达式结果类型推导忽略 `Nothing` 分支并在全 `Nothing` 时返回 `Nothing`；新增单测 `typecheck::expr::tests::nothing_is_assignable_to_any_type`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0420b [TODO] 验收补齐：`Raise.raise` 返回 `Nothing` 可兼容任意返回类型
-- 描述：补齐一个 effects/typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 `Nothing` 兼容 `Any` 返回。
-- 目标：只做 fixtures 验收；不在此任务实现 effect operation 的解析/类型规则。
-- 验收：新增 typecheck/effects fixture：`Raise.raise(e)`（按语法）在 `fun f(): Any` 中通过；`cargo run -p scoop -- test` 通过。
-- 依赖：T0419、T0602、T0420a
-
-### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
-- 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
-- 目标：先只实现静态规则；运行期行为后续由 effect/runtime 落地。
-- 验收：typecheck/effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
-- 依赖：T0212、T0419、T0604、T0607
-
 ### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
 - 目标：先只覆盖 Option<T>（nullable sugar）；不引入真正的 null 值。
@@ -1029,6 +1017,12 @@
 - 验收：typecheck fixture：`Raise.raise(e)`（按语法）能通过（或暂以 `perform Raise.raise(e)` 为准，按 spec）。
 - 依赖：T0601、T0404
 
+### T0420b [TODO] 验收补齐：`Raise.raise` 返回 `Nothing` 可兼容任意返回类型
+- 描述：补齐一个 effects/typecheck fixture：`fun f(): Any { Raise.raise(e) }` 允许 body 类型为 `Nothing` 兼容 `Any` 返回。
+- 目标：只做 fixtures 验收；不在此任务实现 effect operation 的解析/类型规则。
+- 验收：新增 typecheck/effects fixture：`Raise.raise(e)`（按语法）在 `fun f(): Any` 中通过；`cargo run -p scoop -- test` 通过。
+- 依赖：T0419、T0602、T0420a
+
 ### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
 - 目标：RowExpr 先只支持 `Pure`、单个 effect 名、`+` 并集。
@@ -1058,6 +1052,12 @@
 - 目标：先只支持单个 catch；finally 可选；不支持多 catch。
 - 验收：parse fixture：try/catch/finally 可解析并 lowering；typecheck fixture：对应的 Raise 处理不触发 required effects。
 - 依赖：T0605、T0606
+
+### T0421 [TODO] `!!`：not-null assertion 的类型与效果要求（Appendix B.3.3）
+- 描述：`x!!`：若 `x: T?`，则结果为 `T`，并要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
+- 目标：先只实现静态规则；运行期行为后续由 effect/runtime 落地。
+- 验收：typecheck/effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
+- 依赖：T0212、T0419、T0604、T0607
 
 ### T0608 [TODO] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
 - 描述：实现 effect row 的语义：并集、空行 `Pure`、默认 effect 规则、以及 `R1 ⊆ R2`（subeffecting）的最小判定。

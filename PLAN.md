@@ -198,6 +198,7 @@
 - [ ] `Nothing` bottom type：`Nothing <: T`（用于不可达分支 / `return` / `Raise.raise`）
   - [x] v0：赋值兼容/返回类型检查（T0420a）
   - [ ] fixtures 验收：`Raise.raise` 返回 `Nothing` 兼容任意返回类型（T0420b，依赖 T0602）
+  - 注：由于该验收依赖 effect operation 的解析/类型规则（T0602），`TODO.md` 已将 T0420b 移动到 T0602 之后，避免优先级/依赖顺序错位。
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
 - [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
@@ -297,6 +298,7 @@
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
   - `!!`、`as` 失败 → `Raise.raise(RuntimeError.…)`
+  - 注：`!!` 的类型与效果验收（T0421）依赖 required effects + try/catch lowering（T0604/T0607），`TODO.md` 已将 T0421 放在 T0607 之后。
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 
