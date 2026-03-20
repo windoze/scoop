@@ -685,11 +685,12 @@
 - 依赖：T0256、T0257、T0313
 - 完成：`scoopc::resolve::scopes` 补齐 class `init { ... }` 与 secondary constructor 的值名字解析（`this` + 主构造参数 + 次构造参数）；在 property initializer / init block 中引入初始化阶段“可见 value members”约束并新增诊断 `scoop::resolve::forward_reference`；新增 resolve fixtures `tests/fixtures/resolve/class_init_block_this_and_ctor_param_ok.scoop`、`tests/fixtures/resolve/class_init_block_forward_ref_is_error.scoop`、`tests/fixtures/resolve/class_secondary_ctor_this_and_params_ok.scoop` 与单测覆盖；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0317 [TODO] Resolver：`object` / `companion object` 的名字解析与成员访问（Appendix B.9）
+### T0317 [DONE] Resolver：`object` / `companion object` 的名字解析与成员访问（Appendix B.9）
 - 描述：把 `object` / `companion object` 纳入符号表，并支持 `Obj.member`、`ClassName.member`（经 companion）这类最小解析规则。
 - 目标：先只做 name resolution；单例初始化与 codegen 留给后续。
 - 验收：新增 resolve fixture：top-level object 成员可解析；class companion 成员可通过 `ClassName.member` 解析；缺 companion 时给出清晰错误。
 - 依赖：T0258、T0302、T0301
+- 完成：`Index` 记录 `companion_objects` 与 `object_types`；未命名 `companion object` 使用隐式名 `Companion` 并纳入索引与成员表；member access 解析扩展支持 `Obj.member` 与 `TypeName.member`（经 companion）并在缺 companion 时给出稳定诊断 `scoop::resolve::missing_companion_object`；新增 resolve fixtures（object ok / companion ok / missing companion fail）；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ---
 

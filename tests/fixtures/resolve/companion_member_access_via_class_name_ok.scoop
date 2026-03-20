@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：验证 class 的 companion object 成员可通过 `ClassName.member` 解析（T0317）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+class C {
+    companion object {
+        val z: Any
+        fun f() {}
+    }
+}
+
+fun use() {
+    C.z
+    C.f()
+}
+

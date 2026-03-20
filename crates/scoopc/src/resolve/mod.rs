@@ -13,7 +13,7 @@
 mod imports;
 mod scopes;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use miette::Diagnostic;
@@ -127,6 +127,14 @@ pub enum ResolveError {
     UnresolvedMember {
         name: String,
         #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("类型没有 companion object：{ty}")]
+    #[diagnostic(code(scoop::resolve::missing_companion_object))]
+    MissingCompanionObject {
+        ty: String,
+        #[label("这里的类型没有 companion object，无法通过 `TypeName.member` 访问")]
         span: miette::SourceSpan,
     },
 
@@ -263,6 +271,17 @@ pub struct Index {
     pub by_fqn: HashMap<String, NamespacedSymbols>,
     /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
     pub extension_funs: Vec<ExtensionFunSymbol>,
+    /// 类型（class/struct/...）的 companion object FQN 列表（T0317）。
+    ///
+    /// key：宿主类型的 FQN（例如 `a.C`）
+    /// value：该类型声明中的 companion object 的 FQN（例如 `a.C.Companion` / `a.C.Named`）
+    pub companion_objects: HashMap<String, Vec<String>>,
+    /// 全部 `object`（含 companion object）的类型 FQN 集合（T0317）。
+    ///
+    /// 用途：在成员访问解析时区分：
+    /// - object 单例值：`Obj.member`
+    /// - enum 作为 value namespace：`Enum.Variant`（其符号注入留给后续任务）
+    pub object_types: HashSet<String>,
 }
 
 impl Index {
@@ -575,6 +594,18 @@ impl Index {
                     self.add_type_decl(source, &type_prefix, nested)?;
                 }
                 ast::TypeMember::Object(obj) => {
+                    if matches!(obj.kind, ast::ObjectKind::Companion) {
+                        let companion_name = obj
+                            .name
+                            .as_ref()
+                            .map(|id| source.slice(id.span).to_string())
+                            .unwrap_or_else(|| "Companion".to_string());
+                        let companion_fqn = format!("{type_prefix}.{companion_name}");
+                        self.companion_objects
+                            .entry(type_prefix.clone())
+                            .or_default()
+                            .push(companion_fqn);
+                    }
                     self.add_object_decl(source, &type_prefix, obj)?;
                 }
             }
@@ -589,24 +620,37 @@ impl Index {
         prefix: &str,
         obj: &ast::ObjectDecl,
     ) -> Result<(), ResolveError> {
-        let Some(name) = &obj.name else {
-            // `companion object { ... }`（未命名）在当前阶段先不引入可索引的命名符号；
-            // 后续会在专门的 companion 规则中决定它的可见性与成员访问语义（T0317/T1311）。
-            return Ok(());
-        };
-
         let visibility = visibility_from_modifiers(&obj.modifiers, obj.span)?;
 
-        // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
-        self.insert_symbol(source, prefix, SymbolKind::Type, name.span, visibility)?;
-        self.insert_symbol(source, prefix, SymbolKind::Value, name.span, visibility)?;
+        let (obj_name, obj_name_span) = match &obj.name {
+            Some(name) => (source.slice(name.span).to_string(), Some(name.span)),
+            None => {
+                if !matches!(obj.kind, ast::ObjectKind::Companion) {
+                    // parser 会拒绝 `object { ... }` 这类非法语法；这里作为防御性兜底。
+                    return Ok(());
+                }
+                // Kotlin-like：未命名 companion object 具有隐式名字 `Companion`，用于索引与成员访问（T0317）。
+                ("Companion".to_string(), None)
+            }
+        };
 
-        let obj_name = source.slice(name.span);
+        // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
+        if let Some(name_span) = obj_name_span {
+            self.insert_symbol(source, prefix, SymbolKind::Type, name_span, visibility)?;
+            self.insert_symbol(source, prefix, SymbolKind::Value, name_span, visibility)?;
+        } else {
+            self.insert_synth_symbol(source, prefix, SymbolKind::Type, &obj_name, obj.span, visibility)?;
+            self.insert_synth_symbol(source, prefix, SymbolKind::Value, &obj_name, obj.span, visibility)?;
+        }
+
         let obj_prefix = if prefix.is_empty() {
-            obj_name.to_string()
+            obj_name.clone()
         } else {
             format!("{prefix}.{obj_name}")
         };
+
+        // 记录 object 的“类型身份”，用于成员访问时判断该值是否为 object 单例（T0317）。
+        self.object_types.insert(obj_prefix.clone());
 
         let Some(body) = &obj.body else {
             return Ok(());
@@ -634,6 +678,42 @@ impl Index {
             }
         }
 
+        Ok(())
+    }
+
+    fn insert_synth_symbol(
+        &mut self,
+        source: &SourceFile,
+        pkg_prefix: &str,
+        kind: SymbolKind,
+        local: &str,
+        decl_span: Span,
+        visibility: Visibility,
+    ) -> Result<(), ResolveError> {
+        let fqn = if pkg_prefix.is_empty() {
+            local.to_string()
+        } else {
+            format!("{pkg_prefix}.{local}")
+        };
+
+        let symbol = Symbol {
+            kind,
+            name: local.to_string(),
+            span: decl_span,
+            decl_file: source.path().to_path_buf(),
+            visibility,
+        };
+
+        let entry = self.by_fqn.entry(fqn.clone()).or_default();
+        if let Some(prev) = entry.get(kind) {
+            return Err(ResolveError::DuplicateDefinition {
+                name: fqn,
+                first: prev.span.into(),
+                second: decl_span.into(),
+            });
+        }
+
+        *entry.slot_mut(kind) = Some(symbol);
         Ok(())
     }
 

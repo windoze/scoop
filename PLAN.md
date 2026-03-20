@@ -164,7 +164,7 @@
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
 - [x] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [x] class 初始化阶段作用域：property initializer / `init` / secondary constructor（T0316）
-- [ ] `object` / `companion object` 的名字解析与成员可见性
+- [x] `object` / `companion object` 的名字解析与成员可见性（T0317：支持 `Obj.member` 与 `ClassName.member`）
 
 ### 3.3 sysroot 注入
 

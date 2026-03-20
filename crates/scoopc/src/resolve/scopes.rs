@@ -73,6 +73,14 @@ struct InitValueMembersContext {
     visible_value_members: HashSet<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MemberReceiverKind {
+    /// receiver 是一个值表达式，且其静态类型（FQN）可确定。
+    Value { ty_fqn: String },
+    /// receiver 是一个类型名（例如 `C.member` 中的 `C`）。
+    Type { ty_fqn: String },
+}
+
 impl<'a> BlockScopeChecker<'a> {
     fn new(
         source: &'a SourceFile,
@@ -563,13 +571,16 @@ impl<'a> BlockScopeChecker<'a> {
                 }
             }
             ast::ExprKind::MemberAccess { receiver, member } => {
-                self.check_expr(receiver.as_mut())?;
+                // `TypeName.member` 允许作为 companion member access：
+                // receiver 可能不是一个 value ident（例如 class 名称），因此这里对
+                // `UnresolvedValue` 做特判，让后续的 `resolve_member_access` 决定是否能解析。
+                self.check_member_receiver_expr(receiver.as_mut())?;
                 self.resolve_member_access(receiver.as_ref(), member)?;
             }
             ast::ExprKind::SafeMemberAccess {
                 receiver, member, ..
             } => {
-                self.check_expr(receiver.as_mut())?;
+                self.check_member_receiver_expr(receiver.as_mut())?;
                 self.resolve_member_access(receiver.as_ref(), member)?;
             }
             ast::ExprKind::SpliceField { receiver, field } => {
@@ -618,6 +629,18 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         Ok(())
+    }
+
+    fn check_member_receiver_expr(&mut self, receiver: &mut ast::Expr) -> Result<(), ResolveError> {
+        match &mut receiver.kind {
+            ast::ExprKind::Ident(id) => match self.resolve_value_ident(id) {
+                Ok(()) => Ok(()),
+                // 允许把 receiver 当作类型名（例如 `C.member`）。
+                Err(ResolveError::UnresolvedValue { .. }) => Ok(()),
+                Err(other) => Err(other),
+            },
+            _ => self.check_expr(receiver),
+        }
     }
 
     fn declare_when_pat_binders(&mut self, pat: &ast::WhenPat) -> Result<(), ResolveError> {
@@ -919,12 +942,31 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        let Some(receiver_ty_fqn) = self.infer_expr_type_fqn(receiver) else {
-            // 当前阶段（T0310）只处理“静态可确定”的 receiver 类型；
+        let Some(receiver_kind) = self.infer_member_receiver_kind(receiver) else {
+            // 当前阶段（T0310/T0317）只处理“静态可确定”的 receiver：
+            // - value receiver：可确定类型（局部类型注解 / this / struct literal / object 单例）
+            // - type receiver：可解析为一个类型 FQN（用于 companion member access）
+            //
             // 无法确定时保持保守：不做解析也不报错（避免对泛型/推断场景产生误报）。
             return Ok(());
         };
 
+        match receiver_kind {
+            MemberReceiverKind::Value { ty_fqn: receiver_ty_fqn } => {
+                return self.resolve_member_access_on_value_receiver(&receiver_ty_fqn, receiver, member);
+            }
+            MemberReceiverKind::Type { ty_fqn: receiver_ty_fqn } => {
+                return self.resolve_member_access_on_type_receiver(&receiver_ty_fqn, receiver, member);
+            }
+        }
+    }
+
+    fn resolve_member_access_on_value_receiver(
+        &self,
+        receiver_ty_fqn: &str,
+        receiver: &ast::Expr,
+        member: &mut ast::MemberIdent,
+    ) -> Result<(), ResolveError> {
         let member_name = self.source.slice(member.span);
         let member_fqn = format!("{receiver_ty_fqn}.{member_name}");
 
@@ -979,7 +1021,7 @@ impl<'a> BlockScopeChecker<'a> {
         if let Some(fqn) = self.index.find_extension_fun_fqn(
             self.source,
             &self.pkg_prefix,
-            &receiver_ty_fqn,
+            receiver_ty_fqn,
             member_name,
             member.span,
         )? {
@@ -993,6 +1035,126 @@ impl<'a> BlockScopeChecker<'a> {
         })
     }
 
+    fn resolve_member_access_on_type_receiver(
+        &self,
+        receiver_ty_fqn: &str,
+        receiver: &ast::Expr,
+        member: &mut ast::MemberIdent,
+    ) -> Result<(), ResolveError> {
+        let member_name = self.source.slice(member.span);
+        let direct_fqn = format!("{receiver_ty_fqn}.{member_name}");
+
+        // 1) `TypeName.NestedObject`：若该成员本身是一个 object（同时存在 type+value 符号），直接解析到该 object 值。
+        if let Some(syms) = self.index.by_fqn.get(&direct_fqn) {
+            if syms.get(SymbolKind::Type).is_some() {
+                let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+                if let Some(sym) = syms.get(SymbolKind::Value) {
+                    if is_symbol_visible_from(self.source, sym) {
+                        member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: direct_fqn });
+                        return Ok(());
+                    }
+                    not_visible = Some((direct_fqn.clone(), sym.visibility, sym.span));
+                }
+
+                if let Some((name, visibility, def_span)) = not_visible {
+                    return Err(ResolveError::NotVisible {
+                        name,
+                        visibility,
+                        use_span: member.span.into(),
+                        def_span: def_span.into(),
+                    });
+                }
+            }
+        }
+
+        // 2) `TypeName.member`：尝试经 companion object 解析（spec Appendix B.9 / TODO T0317）。
+        let Some(companions) = self.index.companion_objects.get(receiver_ty_fqn) else {
+            return Err(ResolveError::MissingCompanionObject {
+                ty: receiver_ty_fqn.to_string(),
+                span: receiver.span.into(),
+            });
+        };
+
+        // 规则（最小落地）：
+        // - 优先在 companion 的 fun namespace 查找；若无任何 fun 候选，再查 value namespace。
+        // - 若多个 companion 同时定义同名成员，则报错（避免解析结果依赖声明顺序）。
+        let mut fun_matches: Vec<(String, Visibility, Span)> = Vec::new();
+        let mut value_matches: Vec<(String, Visibility, Span)> = Vec::new();
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        for c in companions {
+            let fqn = format!("{c}.{member_name}");
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+
+            if let Some(sym) = syms.get(SymbolKind::Fun) {
+                if is_symbol_visible_from(self.source, sym) {
+                    fun_matches.push((fqn.clone(), sym.visibility, sym.span));
+                } else if not_visible.is_none() {
+                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+                }
+            }
+
+            if let Some(sym) = syms.get(SymbolKind::Value) {
+                if is_symbol_visible_from(self.source, sym) {
+                    value_matches.push((fqn.clone(), sym.visibility, sym.span));
+                } else if not_visible.is_none() {
+                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+                }
+            }
+        }
+
+        match fun_matches.len() {
+            1 => {
+                member.resolved = Some(ast::ResolvedMemberRef::Fun {
+                    fqn: fun_matches[0].0.clone(),
+                });
+                return Ok(());
+            }
+            n if n > 1 => {
+                // 复用 `unresolved_member` 以保持错误码数量最小；
+                // 更细粒度的歧义诊断留给后续（如 T04 typecheck）。
+                return Err(ResolveError::UnresolvedMember {
+                    name: format!("{receiver_ty_fqn}.{member_name}"),
+                    span: member.span.into(),
+                });
+            }
+            _ => {}
+        }
+
+        match value_matches.len() {
+            1 => {
+                member.resolved = Some(ast::ResolvedMemberRef::Value {
+                    fqn: value_matches[0].0.clone(),
+                });
+                return Ok(());
+            }
+            n if n > 1 => {
+                return Err(ResolveError::UnresolvedMember {
+                    name: format!("{receiver_ty_fqn}.{member_name}"),
+                    span: member.span.into(),
+                });
+            }
+            _ => {}
+        }
+
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: member.span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Err(ResolveError::UnresolvedMember {
+            name: format!("{receiver_ty_fqn}.{member_name}"),
+            span: member.span.into(),
+        })
+    }
+
     fn is_receiver_this(&self, receiver: &ast::Expr) -> bool {
         matches!(
             &receiver.kind,
@@ -1000,20 +1162,93 @@ impl<'a> BlockScopeChecker<'a> {
         )
     }
 
-    fn infer_expr_type_fqn(&self, expr: &ast::Expr) -> Option<String> {
+    fn infer_member_receiver_kind(&self, expr: &ast::Expr) -> Option<MemberReceiverKind> {
         match &expr.kind {
             ast::ExprKind::Ident(id) => {
                 let name = self.source.slice(id.span);
+
                 if name == "this" {
-                    return self.this_context.last().and_then(|ctx| ctx.ty_fqn.clone());
+                    return self
+                        .this_context
+                        .last()
+                        .and_then(|ctx| ctx.ty_fqn.clone())
+                        .map(|ty_fqn| MemberReceiverKind::Value { ty_fqn });
                 }
 
-                let binding = self.local_binding(name)?;
-                self.type_ref_to_fqn(binding.ty.as_ref()?)
+                if let Some(binding) = self.local_binding(name) {
+                    return self
+                        .type_ref_to_fqn(binding.ty.as_ref()?)
+                        .map(|ty_fqn| MemberReceiverKind::Value { ty_fqn });
+                }
+
+                // 顶层 object / enum（值名与类型名同名）：当 receiver 是该顶层值时，可把其类型视为同名类型。
+                if let Some(ast::ResolvedValueRef::TopLevel { fqn }) = &id.resolved {
+                    if self.index.object_types.contains(fqn) {
+                        return Some(MemberReceiverKind::Value { ty_fqn: fqn.clone() });
+                    }
+                    return None;
+                }
+
+                // `TypeName.member`：若 receiver 解析不到 value，但能解析到 type，则按“类型接收者”处理。
+                //
+                // 注意：这里刻意不把 type receiver 写回到 `ValueIdent.resolved`，避免把类型名误当成值名
+                //（例如 `val x = C`）在其它语境里被放行。
+                if id.resolved.is_none() {
+                    return self.type_name_to_fqn(name).map(|ty_fqn| MemberReceiverKind::Type { ty_fqn });
+                }
+
+                None
             }
-            ast::ExprKind::StructLit { ty, .. } => self.type_path_to_fqn(ty),
+            ast::ExprKind::StructLit { ty, .. } => self
+                .type_path_to_fqn(ty)
+                .map(|ty_fqn| MemberReceiverKind::Value { ty_fqn }),
+            ast::ExprKind::MemberAccess { member, .. }
+            | ast::ExprKind::SafeMemberAccess { member, .. } => {
+                // 链式成员访问：若 `a.b` 解析到一个 object 值（同时存在 type symbol），则它也可作为后续 receiver。
+                let Some(ast::ResolvedMemberRef::Value { fqn }) = &member.resolved else {
+                    return None;
+                };
+                if self.index.object_types.contains(fqn) {
+                    return Some(MemberReceiverKind::Value { ty_fqn: fqn.clone() });
+                }
+                None
+            }
             _ => None,
         }
+    }
+
+    fn type_name_to_fqn(&self, name: &str) -> Option<String> {
+        let mut candidates: Vec<String> = Vec::new();
+
+        if !self.pkg_prefix.is_empty() {
+            candidates.push(format!("{}.{}", self.pkg_prefix, name));
+        }
+        // 允许用户引用 root package 下的符号（无 package 声明时也可匹配）。
+        candidates.push(name.to_string());
+
+        if let Some(fqns) = self.imports.ty.explicit.get(name) {
+            candidates.extend(fqns.iter().cloned());
+        }
+        for prefix in &self.imports.star {
+            candidates.push(format!("{prefix}.{name}"));
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        for fqn in candidates {
+            let Some(syms) = self.index.by_fqn.get(&fqn) else {
+                continue;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                continue;
+            };
+            if is_symbol_visible_from(self.source, sym) {
+                return Some(fqn);
+            }
+        }
+
+        None
     }
 
     fn type_ref_to_fqn(&self, ty: &ast::TypeRef) -> Option<String> {

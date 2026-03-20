@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：验证 top-level `object` 的成员可通过 `Obj.member` 解析（T0317）。
+
+package fixtures.resolve
+
+import scoop.core.*
+
+object Obj {
+    val x: Any
+    fun f() {}
+}
+
+fun use() {
+    Obj.x
+    Obj.f()
+}
+
