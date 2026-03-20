@@ -123,7 +123,7 @@
 - [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
 - [x] Pattern AST 节点（T0244）：新增 `Pattern`（Wildcard/Bind/Tuple/Struct）与 `ValBinding`，用于 block 内 `val` 解构绑定；`when` 分支模式仍使用 `WhenPat`（后续再统一迁移）
 - [ ] Parser 收尾补齐：
-  - [ ] `import foo.bar.Baz as Qux`（Appendix B.7）
+  - [x] `import foo.bar.Baz as Qux`（Appendix B.7）
   - [x] use-site effect row 实参：`Type<eff Row>`（spec §3.4）
   - [ ] pattern rest：`..`（spec §4.2）
 - [ ] Kotlin-like 声明补齐：

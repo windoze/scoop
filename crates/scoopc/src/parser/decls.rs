@@ -312,6 +312,7 @@ impl<'a> Parser<'a> {
         let first = self.expect_kind(TokenKind::Ident, "标识符")?;
         let mut path = vec![ast::Ident { span: first.span }];
         let mut has_star = false;
+        let mut alias = None;
         let mut end = first.span.end;
 
         while self.peek_symbol(Symbol::Dot) {
@@ -330,12 +331,28 @@ impl<'a> Parser<'a> {
             path.push(ast::Ident { span: seg.span });
         }
 
+        if self.peek_keyword(Keyword::As) {
+            if has_star {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "通配 import 不支持 alias",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+            self.bump(); // `as`
+            let name = self.expect_kind(TokenKind::Ident, "标识符")?;
+            end = name.span.end;
+            alias = Some(ast::Ident { span: name.span });
+        }
+
         self.eat_symbol(Symbol::Semicolon);
 
         Ok(ast::ImportDecl {
             span: Span::new(kw.span.start, end),
             path,
             has_star,
+            alias,
         })
     }
 

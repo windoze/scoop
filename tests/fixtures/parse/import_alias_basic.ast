@@ -1,0 +1,87 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 55..77,
+            path: [
+                Ident {
+                    span: 63..71,
+                },
+                Ident {
+                    span: 72..77,
+                },
+            ],
+        },
+    ),
+    imports: [
+        ImportDecl {
+            span: 79..97,
+            path: [
+                Ident {
+                    span: 86..89,
+                },
+                Ident {
+                    span: 90..93,
+                },
+                Ident {
+                    span: 94..97,
+                },
+            ],
+            has_star: false,
+            alias: None,
+        },
+        ImportDecl {
+            span: 98..114,
+            path: [
+                Ident {
+                    span: 105..108,
+                },
+                Ident {
+                    span: 109..112,
+                },
+            ],
+            has_star: true,
+            alias: None,
+        },
+        ImportDecl {
+            span: 115..141,
+            path: [
+                Ident {
+                    span: 122..125,
+                },
+                Ident {
+                    span: 126..129,
+                },
+                Ident {
+                    span: 130..134,
+                },
+            ],
+            has_star: false,
+            alias: Some(
+                Ident {
+                    span: 138..141,
+                },
+            ),
+        },
+    ],
+    items: [
+        Fun(
+            FunDecl {
+                span: 143..156,
+                receiver: None,
+                name: Ident {
+                    span: 147..151,
+                },
+                type_params: [],
+                params_span: 151..153,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 154..156,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

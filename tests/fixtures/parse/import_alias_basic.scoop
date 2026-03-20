@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: import_alias_basic.ast
+
+package fixtures.parse
+
+import foo.bar.Baz
+import foo.bar.*
+import foo.bar.Quux as Qux
+
+fun main() {}

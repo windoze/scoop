@@ -62,6 +62,23 @@ fn parse_minimal_file() {
 }
 
 #[test]
+fn parse_import_alias_decl() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nimport foo.bar.Baz as Qux\nfun main() {}",
+    );
+    let ast = parse_file(&src).unwrap();
+    assert_eq!(ast.imports.len(), 1);
+
+    let import = &ast.imports[0];
+    assert_eq!(import.path.len(), 3);
+    assert!(!import.has_star);
+
+    let alias = import.alias.as_ref().expect("alias import 应当记录 alias 名");
+    assert_eq!(src.slice(alias.span), "Qux");
+}
+
+#[test]
 fn parse_type_decls() {
     let src = SourceFile::new_virtual(
         "<mem>",

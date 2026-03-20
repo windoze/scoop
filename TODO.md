@@ -534,11 +534,12 @@
 - 依赖：T0250、T0219
  - 完成：AST 新增 `TypeRef::EffectRowArg`；parser 在类型实参列表 `<...>` 内把 `eff` 作为上下文关键字解析为 row expr，并强制其必须位于列表末尾；resolve/typecheck 对该节点做最小兼容处理；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0254 [TODO] Parser：import alias `import foo.bar.Baz as Qux`（Appendix B.7）
+### T0254 [DONE] Parser：import alias `import foo.bar.Baz as Qux`（Appendix B.7）
 - 描述：扩展 import 语法，支持 Kotlin 风格 alias import，并把 alias 名记录到 AST。
 - 目标：先只支持顶层 import；不支持在表达式/局部作用域中出现 import。
 - 验收：新增 parse fixture：普通 import、`*` import、alias import 混用可解析；缺 alias 名时报错。
 - 依赖：T0009
+- 完成：AST `ImportDecl` 新增 `alias: Option<Ident>`；parser 在 import 末尾解析 `as <Ident>` 并更新 span；resolver/typecheck 的 import 规则与 `ImportTable` 构建使用 alias 作为 local 名；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0255 [TODO] Parser：pattern rest `..`（spec §4.2）
 - 描述：在 pattern 语法中支持 `..`，用于忽略剩余字段/元素。

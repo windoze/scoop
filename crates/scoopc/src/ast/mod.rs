@@ -26,6 +26,7 @@ pub struct ImportDecl {
     pub span: Span,
     pub path: Vec<Ident>,
     pub has_star: bool,
+    pub alias: Option<Ident>,
 }
 
 #[derive(Debug, Clone)]

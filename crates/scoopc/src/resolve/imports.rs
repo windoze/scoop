@@ -67,9 +67,14 @@ impl ImportTable {
                 });
             };
 
-            let Some(local) = last_segment(source, &import.path) else {
-                // parser 保证 import 至少有一个 segment；这里作为防御性兜底。
-                continue;
+            let local = if let Some(alias) = &import.alias {
+                source.slice(alias.span)
+            } else {
+                let Some(local) = last_segment(source, &import.path) else {
+                    // parser 保证 import 至少有一个 segment；这里作为防御性兜底。
+                    continue;
+                };
+                local
             };
 
             if syms.get(SymbolKind::Type).is_some() {
@@ -157,5 +162,31 @@ mod tests {
         assert!(dbg.contains("Foo"));
         assert!(dbg.contains("bar"));
         assert!(dbg.contains("Both"));
+    }
+
+    #[test]
+    fn import_table_uses_alias_as_local_name() {
+        let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}\nfun bar() {}");
+        let s2 = SourceFile::new_virtual(
+            "<b>",
+            "package b\nimport a.Foo as Qux\nimport a.bar as baz\nfun use() {}",
+        );
+        let a1 = parse_file(&s1).unwrap();
+        let a2 = parse_file(&s2).unwrap();
+
+        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let table = ImportTable::build(&s2, &a2, &index).unwrap();
+
+        assert_eq!(
+            table.ty.explicit.get("Qux").unwrap(),
+            &vec!["a.Foo".to_string()]
+        );
+        assert!(table.ty.explicit.get("Foo").is_none());
+
+        assert_eq!(
+            table.value.explicit.get("baz").unwrap(),
+            &vec!["a.bar".to_string()]
+        );
+        assert!(table.value.explicit.get("bar").is_none());
     }
 }

@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR: 期望 标识符
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:1
+
+package fixtures.parse
+
+import foo.bar.Baz as
+fun main() {}

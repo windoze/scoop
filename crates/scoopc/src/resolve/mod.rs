@@ -407,12 +407,13 @@ impl Index {
                 if import.has_star {
                     candidates.push(format!("{import_path}.{name}"));
                 } else {
-                    let last = import
-                        .path
-                        .last()
+                    let local = import
+                        .alias
+                        .as_ref()
                         .map(|id| source.slice(id.span))
+                        .or_else(|| import.path.last().map(|id| source.slice(id.span)))
                         .unwrap_or("");
-                    if last == name {
+                    if local == name {
                         candidates.push(import_path);
                     }
                 }
@@ -911,12 +912,13 @@ fn resolve_type_path(
             if import.has_star {
                 candidates.push(format!("{import_path}.{name}"));
             } else {
-                let last = import
-                    .path
-                    .last()
+                let local = import
+                    .alias
+                    .as_ref()
                     .map(|id| source.slice(id.span))
+                    .or_else(|| import.path.last().map(|id| source.slice(id.span)))
                     .unwrap_or("");
-                if last == name {
+                if local == name {
                     candidates.push(import_path);
                 }
             }
