@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T0404 顶层声明头检查：函数参数需要显式类型注解。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun id(x: Int): Int {
+    return x
+}
+

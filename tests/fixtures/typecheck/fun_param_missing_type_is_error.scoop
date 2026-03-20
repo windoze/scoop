@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::missing_type_annotation
+// EXPECT-ERROR: 缺少类型注解
+// EXPECT-ERROR-AT: 9:7
+// 目标：T0404 顶层声明头检查：函数参数缺少类型注解应报错。
+
+package fixtures.typecheck
+
+fun f(x): Int {
+    return 1
+}
+
