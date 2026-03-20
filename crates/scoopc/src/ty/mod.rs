@@ -107,7 +107,9 @@ pub enum ValueTypeKind {
 
 /// 类型表：负责分配 `TypeId` 并存储 `TypeKind`。
 ///
-/// 当前阶段采用最简单的“push-only arena”。去重/哈希化 interning 可在后续需要时再引入。
+/// 当前阶段采用“push-only arena + 简单去重（hash-cons）”：
+/// - 对同构 `TypeKind` 复用同一个 `TypeId`，让早期 typecheck 可以直接用 `TypeId` 做相等比较；
+/// - 更复杂的跨 session/增量 interning 可在后续需要时再演进。
 #[derive(Debug, Default)]
 pub struct TypeStore {
     kinds: Vec<TypeKind>,
