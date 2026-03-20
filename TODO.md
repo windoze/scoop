@@ -682,11 +682,12 @@
 - 依赖：T0209、T0305、T0406
 - 完成：`scoopc::typecheck::expr` 支持 `ExprKind::Call` 的类型推导：按 resolver 写回的 `ValueIdent.resolved` 查找当前文件内的顶层函数签名并校验参数个数与类型；新增错误码 `scoop::typecheck::call_arity_mismatch` / `scoop::typecheck::call_arg_type_mismatch`（并提供 `callee_not_callable` 兜底）；新增 typecheck fixtures：`call_ok`（pass）、`call_arity_mismatch_is_error`（fail，断言错误码与位置）、`call_arg_type_mismatch_is_error`（fail，断言错误码与 arg 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0408 [TODO] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
+### T0408 [DONE] 表达式类型检查：成员访问 `a.b`（仅 struct 字段）
 - 描述：先实现 value type `struct` 的字段访问类型检查（spec §2.3.1）。
 - 目标：不支持 class/interface vtable；只支持直接字段。
 - 验收：新增 typecheck fixture：定义 struct `Point(val x: Int)` 并访问 `p.x` 通过；访问不存在字段报错。
 - 依赖：T0210、T0401、T0404
+- 完成：resolver 的索引构建将 `struct` 主构造参数纳入 value namespace（视作字段），从而 `p.x` 可在 resolve 写回到 `MemberIdent.resolved`；typecheck 表达式推导支持 `ExprKind::MemberAccess` 并在当前文件内查找 struct 字段类型；新增 fixtures：`typecheck/member_access_struct_field_ok.scoop`（pass）、`typecheck/member_access_missing_field_is_error.scoop`（fail，resolve `unresolved_member`）、`typecheck/member_access_non_field_is_error.scoop`（fail，typecheck `unsupported_member_access`）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0409 [TODO] 声明类型：struct（仅字段，不含方法）
 - 描述：typecheck 阶段收集 struct 字段列表、检查重复字段、类型合法。

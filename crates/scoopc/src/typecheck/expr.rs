@@ -105,6 +105,14 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("暂不支持的成员访问：{fqn}")]
+    #[diagnostic(code(scoop::typecheck::unsupported_member_access))]
+    UnsupportedMemberAccess {
+        fqn: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +144,7 @@ pub fn check_file_exprs(
     // - 顶层变量必须有显式类型注解（由 `typecheck::check_file_headers` 保证）。
     let top_level_types = collect_top_level_value_types(source, file, &mut lower)?;
     let top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
+    let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
 
     for item in &file.items {
         match item {
@@ -146,6 +155,7 @@ pub fn check_file_exprs(
                 builtins,
                 &top_level_types,
                 &top_level_funs,
+                &struct_field_types,
             )?,
             ast::Item::Fun(fun) => check_fun_body_exprs(
                 source,
@@ -154,6 +164,7 @@ pub fn check_file_exprs(
                 builtins,
                 &top_level_types,
                 &top_level_funs,
+                &struct_field_types,
             )?,
             ast::Item::Type(_) | ast::Item::TypeAlias(_) => {}
         }
@@ -169,6 +180,7 @@ fn check_top_level_val_initializer(
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     let Some(init) = &v.init else {
         return Ok(());
@@ -188,6 +200,7 @@ fn check_top_level_val_initializer(
         &HashMap::new(),
         top_level_types,
         top_level_funs,
+        struct_field_types,
     )?;
 
     if expected == found {
@@ -209,6 +222,7 @@ fn infer_expr_type(
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
@@ -217,6 +231,17 @@ fn infer_expr_type(
         ast::ExprKind::Ident(id) => {
             infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
         }
+        ast::ExprKind::MemberAccess { receiver, member } => infer_member_access_expr_type(
+            source,
+            receiver.as_ref(),
+            member,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Call { callee, args } => infer_call_expr_type(
             source,
             expr,
@@ -227,6 +252,7 @@ fn infer_expr_type(
             locals,
             top_level_types,
             top_level_funs,
+            struct_field_types,
         ),
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
@@ -288,6 +314,7 @@ fn infer_call_expr_type(
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     let (callee_fqn, callee_span) = match &callee.kind {
         ast::ExprKind::Ident(id) => {
@@ -346,6 +373,7 @@ fn infer_call_expr_type(
             locals,
             top_level_types,
             top_level_funs,
+            struct_field_types,
         )?;
 
         if found_ty != expected_ty {
@@ -467,6 +495,7 @@ fn check_fun_body_exprs(
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 函数级的“局部值类型表”（binder decl span → TypeId）。
     //
@@ -495,6 +524,7 @@ fn check_fun_body_exprs(
             &mut locals,
             top_level_types,
             top_level_funs,
+            struct_field_types,
         )?,
         ast::FunBody::Missing => {}
     }
@@ -510,9 +540,19 @@ fn check_block_exprs(
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     for stmt in &block.stmts {
-        check_stmt_exprs(source, stmt, lower, builtins, locals, top_level_types, top_level_funs)?;
+        check_stmt_exprs(
+            source,
+            stmt,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
     }
     Ok(())
 }
@@ -525,6 +565,7 @@ fn check_stmt_exprs(
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
         ast::StmtKind::Val(v) => check_local_val_decl_exprs(
@@ -535,6 +576,7 @@ fn check_stmt_exprs(
             locals,
             top_level_types,
             top_level_funs,
+            struct_field_types,
         )?,
         ast::StmtKind::While { body, .. } => {
             // 当前阶段仅递归进入 body，以支持其中局部绑定的类型推导。
@@ -546,6 +588,7 @@ fn check_stmt_exprs(
                 locals,
                 top_level_types,
                 top_level_funs,
+                struct_field_types,
             )?;
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
@@ -557,6 +600,7 @@ fn check_stmt_exprs(
                 locals,
                 top_level_types,
                 top_level_funs,
+                struct_field_types,
             )?;
         }
         ast::StmtKind::ComptimeIf(ci) => {
@@ -568,6 +612,7 @@ fn check_stmt_exprs(
                 locals,
                 top_level_types,
                 top_level_funs,
+                struct_field_types,
             )?;
             if let Some(else_branch) = &ci.else_branch {
                 match &**else_branch {
@@ -580,6 +625,7 @@ fn check_stmt_exprs(
                             locals,
                             top_level_types,
                             top_level_funs,
+                            struct_field_types,
                         )?
                     }
                     ast::ComptimeIfElse::If(next) => {
@@ -594,6 +640,7 @@ fn check_stmt_exprs(
                                 locals,
                                 top_level_types,
                                 top_level_funs,
+                                struct_field_types,
                             )?;
                             match &cur.else_branch {
                                 Some(e) => match &**e {
@@ -606,6 +653,7 @@ fn check_stmt_exprs(
                                             locals,
                                             top_level_types,
                                             top_level_funs,
+                                            struct_field_types,
                                         )?;
                                         break;
                                     }
@@ -627,6 +675,7 @@ fn check_stmt_exprs(
                 locals,
                 top_level_types,
                 top_level_funs,
+                struct_field_types,
             )?;
         }
         ast::StmtKind::Empty
@@ -648,6 +697,7 @@ fn check_local_val_decl_exprs(
     locals: &mut HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
@@ -659,6 +709,7 @@ fn check_local_val_decl_exprs(
             locals,
             top_level_types,
             top_level_funs,
+            struct_field_types,
         )?),
         None => None,
     };
@@ -731,6 +782,55 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
     }
 }
 
+fn infer_member_access_expr_type(
+    source: &SourceFile,
+    receiver: &ast::Expr,
+    member: &ast::MemberIdent,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖。
+    let _ = infer_expr_type(
+        source,
+        receiver,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // 当前阶段（T0408）仅支持 “struct 字段” 的成员访问：依赖 resolver 写回 `member.resolved`
+    // 并以 FQN 在当前文件内查找字段类型。
+    let Some(resolved) = member.resolved.as_ref() else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "member access（未 resolve）",
+            span: member.span.into(),
+        });
+    };
+
+    match resolved {
+        ast::ResolvedMemberRef::Value { fqn } => struct_field_types
+            .get(fqn)
+            .copied()
+            .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
+                fqn: fqn.clone(),
+                span: member.span.into(),
+            }),
+        ast::ResolvedMemberRef::Fun { fqn }
+        | ast::ResolvedMemberRef::ExtensionValue { fqn }
+        | ast::ResolvedMemberRef::ExtensionFun { fqn } => Err(ExprTypeError::UnsupportedMemberAccess {
+            fqn: fqn.clone(),
+            span: member.span.into(),
+        }),
+    }
+}
+
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {
     let Some(pkg) = pkg else {
         return String::new();
@@ -740,4 +840,83 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+/// 收集当前文件内所有 struct 字段的声明类型（member FQN → TypeId）。
+///
+/// 说明：
+/// - 仅收集 `struct`（值类型）的字段，匹配 T0408 的最小目标；
+/// - 字段来源：
+///   - 主构造参数（`struct Point(val x: Int)`）：在语义上等价于字段
+///   - type body 内的 `val/var` property（`struct Point { val x: Int }`）
+/// - 当前阶段只在单文件内查找（typecheck fixtures 的编译单元即“sysroot + 单文件”）。
+fn collect_struct_field_types(
+    source: &SourceFile,
+    file: &ast::File,
+    lower: &mut TypeLowering<'_>,
+) -> Result<HashMap<String, TypeId>, ExprTypeError> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut map: HashMap<String, TypeId> = HashMap::new();
+
+    for item in &file.items {
+        let ast::Item::Type(ty) = item else {
+            continue;
+        };
+        collect_struct_field_types_in_type_decl(source, ty, &pkg_prefix, lower, &mut map)?;
+    }
+
+    Ok(map)
+}
+
+fn collect_struct_field_types_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    if matches!(decl.kind, ast::TypeKind::Struct) {
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                let Some(ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, lower.lower_type_ref(ty_ref)?);
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                if let ast::TypeMember::Property(p) = member {
+                    let Some(ty_ref) = &p.ty else {
+                        continue;
+                    };
+                    let field_name = source.slice(p.name.span);
+                    let field_fqn = format!("{type_fqn}.{field_name}");
+                    out.insert(field_fqn, lower.lower_type_ref(ty_ref)?);
+                }
+            }
+        }
+    }
+
+    // 无论外层是否 struct，都递归收集 nested type（可能存在 nested struct）。
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            let ast::TypeMember::Type(nested) = member else {
+                continue;
+            };
+            collect_struct_field_types_in_type_decl(source, nested, &type_fqn, lower, out)?;
+        }
+    }
+
+    Ok(())
 }

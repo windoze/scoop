@@ -490,6 +490,27 @@ impl Index {
             format!("{prefix}.{type_name}")
         };
 
+        // struct 的主构造参数在语义上等价于字段（spec §2.3.1），
+        // 允许通过 `p.x` 的成员访问读取；因此需要把它们纳入 value namespace 索引。
+        //
+        // 说明：
+        // - 当前 parser 允许但不在 AST 中表达 `val/var` ctor param；对 struct 而言我们先保守地把
+        //   所有 ctor params 视为字段（后续若扩展 class 语义再细化规则）。
+        // - ctor params 暂不支持显式可见性修饰符，因此默认 public（与无修饰的成员一致）。
+        if matches!(ty.kind, ast::TypeKind::Struct) {
+            if let Some(primary_ctor) = &ty.primary_ctor {
+                for p in &primary_ctor.params {
+                    self.insert_symbol(
+                        source,
+                        &type_prefix,
+                        SymbolKind::Value,
+                        p.name.span,
+                        Visibility::Public,
+                    )?;
+                }
+            }
+        }
+
         let Some(body) = &ty.body else {
             return Ok(());
         };

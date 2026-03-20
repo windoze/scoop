@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0408 表达式类型检查：struct 字段成员访问（`p.x`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun use(p: Point) {
+    val y: Int = p.x
+}
+

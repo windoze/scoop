@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_member
+// EXPECT-ERROR-AT: 14:20
+// EXPECT-ERROR: 未解析的成员
+// 目标：T0408 访问不存在字段应报错（当前阶段由 resolve 报 `unresolved_member`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun use(p: Point) {
+    val y: Int = p.y
+}

@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-AT: 16:20
+// EXPECT-ERROR: 暂不支持的成员访问
+// 目标：T0408 当前仅支持 struct 字段；方法成员访问（`p.m`）应在 typecheck 报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int) {
+    fun m() {}
+}
+
+fun use(p: Point) {
+    val y: Int = p.m
+}
