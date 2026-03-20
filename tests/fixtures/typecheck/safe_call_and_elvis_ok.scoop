@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：T0422 `?.` safe-call 与 `?:` Elvis 的类型规则（nullable sugar = `Option<T>`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// 用 extension fun 来模拟 `x?.len()` 形式的 safe-call：
+// - `x` 为 `String?`（即 `Option<String>`）
+// - `len()` 返回 `Int`
+fun String.len(): Int {
+    return 0
+}
+
+val x: String?
+val y: Int? = x?.len()
+
+val n: Int?
+val z: Int = n ?: 0
+
