@@ -731,11 +731,12 @@
 - 依赖：T0215、T0405
 - 完成：typecheck 推导支持 `ExprKind::When`，按“分支类型全相同则返回该类型，否则 fallback `Any`”的最小 LUB 规则计算结果类型；新增 typecheck fixtures `when_lub_same_type_ok`/`when_lub_mixed_to_any_ok`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0415 [TODO] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
+### T0415 [DONE] 值类型更新：`with` 表达式类型检查与 path 校验（spec §2.6）
 - 描述：检查 `with` 的 base 必须是 struct/tuple/enum（按设计）；path 必须存在且 RHS 类型匹配。
 - 目标：先只支持 struct 字段更新；嵌套 path 可分后续任务。
 - 验收：typecheck fixture：`p with { x: 1 }` OK；`p with { missing: 1 }` 报错并指向 path。
 - 依赖：T0216、T0409、T0408
+- 完成：typecheck 表达式推导支持 `ExprKind::WithUpdate`：base 当前仅允许 `struct` 值类型；update path 仅支持单段字段名；检查字段存在性与 RHS 类型匹配；新增错误码 `scoop::typecheck::with_update_base_not_supported` / `with_update_nested_path_not_supported` / `with_update_unknown_field` / `with_update_field_type_mismatch`；新增 fixtures：`with_update_struct_field_ok`（pass）、`with_update_unknown_field_is_error`（fail，断言 path 位置）、`with_update_field_type_mismatch_is_error`（fail，断言 value 位置）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0416 [TODO] 变量绑定规则：`val/var` 赋值与重定义检查（spec §9）
 - 描述：typecheck 阶段检查 `var` 可赋值、`val` 不可再次赋值；同一作用域重复定义报错。

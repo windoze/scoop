@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0415 值类型更新：struct 字段 `with` 更新。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use(p: Point) {
+    val q: Point = p with { x: 1 }
+}
+

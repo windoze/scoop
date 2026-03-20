@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::with_update_unknown_field
+// EXPECT-ERROR: 不存在字段
+// EXPECT-ERROR-AT: 14:29
+// 目标：T0415 `with` 更新不存在字段应报错并指向 path。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun use(p: Point) {
+    val q: Point = p with { y: 1 }
+}
+

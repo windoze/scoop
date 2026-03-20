@@ -12,7 +12,9 @@ use crate::ast;
 use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::{TypeEnv, TypeSymbolKind};
 
@@ -165,6 +167,27 @@ impl<'a> TypeLowering<'a> {
         self.types.display(id).to_string()
     }
 
+    /// 返回给定 `TypeId` 在 `TypeStore` 中的具体 kind（clone）。
+    ///
+    /// 说明：typecheck 的某些表达式语义（例如 `with` 更新）需要区分：
+    /// - 是否为值类型/引用类型
+    /// - 是否为名义值类型（struct/enum）
+    pub(super) fn type_kind(&self, id: TypeId) -> TypeKind {
+        self.types.kind(id).clone()
+    }
+
+    /// 若给定 FQN 对应 nominal type，返回其声明的 `TypeKind`（struct/enum/class/interface/effect）。
+    ///
+    /// 用途：对“语义上只对某类 nominal type 生效”的规则做最小判定，例如：
+    /// - `with` 更新当前阶段仅支持 `struct`
+    pub(super) fn nominal_decl_kind(&self, fqn: &str) -> Option<ast::TypeKind> {
+        let sym = self.env.type_symbol(fqn)?;
+        match sym.kind {
+            TypeSymbolKind::Nominal(kind) => Some(kind),
+            TypeSymbolKind::TypeAlias => None,
+        }
+    }
+
     pub(super) fn is_ref(&self, id: TypeId) -> bool {
         self.types.is_ref(id)
     }
@@ -234,13 +257,12 @@ impl<'a> TypeLowering<'a> {
             _ => {}
         }
 
-        let expected = self
-            .env
-            .type_param_count(&fqn)
-            .ok_or_else(|| TypeLowerError::MissingTypeSymbolInEnv {
+        let expected = self.env.type_param_count(&fqn).ok_or_else(|| {
+            TypeLowerError::MissingTypeSymbolInEnv {
                 fqn: fqn.clone(),
                 span: path.span.into(),
-            })?;
+            }
+        })?;
         let found = path.args.len();
         if expected != found {
             return Err(TypeLowerError::TypeArityMismatch {
@@ -273,14 +295,12 @@ impl<'a> TypeLowering<'a> {
             TypeSymbolKind::Nominal(kind) => {
                 let nominal = NominalType { fqn, args };
                 let id = match kind {
-                    ast::TypeKind::Struct | ast::TypeKind::Enum => self.types.intern(TypeKind::Value(
-                        ValueTypeKind::Nominal(nominal),
-                    )),
-                    ast::TypeKind::Class
-                    | ast::TypeKind::Interface
-                    | ast::TypeKind::Effect => self.types.intern(TypeKind::Ref(RefTypeKind::Nominal(
-                        nominal,
-                    ))),
+                    ast::TypeKind::Struct | ast::TypeKind::Enum => self
+                        .types
+                        .intern(TypeKind::Value(ValueTypeKind::Nominal(nominal))),
+                    ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect => self
+                        .types
+                        .intern(TypeKind::Ref(RefTypeKind::Nominal(nominal))),
                 };
                 Ok(id)
             }

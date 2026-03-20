@@ -26,10 +26,10 @@ use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, TypeId, TypeStore};
+use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::lower::{TypeLowerError, TypeLowering};
 use super::TypeEnv;
+use super::lower::{TypeLowerError, TypeLowering};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
@@ -119,6 +119,44 @@ pub enum ExprTypeError {
     InvalidCast {
         from: String,
         to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`with` 的 base 必须是值类型（struct/tuple/enum），当前实现仅支持 struct；但得到 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::with_update_base_not_supported))]
+    WithUpdateBaseNotSupported {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("暂不支持嵌套字段路径更新：{path}（当前仅支持单段字段名）")]
+    #[diagnostic(code(scoop::typecheck::with_update_nested_path_not_supported))]
+    WithUpdateNestedPathNotSupported {
+        path: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`{struct_name}` 不存在字段：{field}")]
+    #[diagnostic(code(scoop::typecheck::with_update_unknown_field))]
+    WithUpdateUnknownField {
+        struct_name: String,
+        field: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`{struct_name}.{field}` 更新值类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::with_update_field_type_mismatch))]
+    WithUpdateFieldTypeMismatch {
+        struct_name: String,
+        field: String,
+        expected: String,
+        found: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -315,7 +353,9 @@ fn infer_expr_type(
                 ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
             }
         }
-        ast::ExprKind::TypeCheck { expr: inner, ty, .. } => {
+        ast::ExprKind::TypeCheck {
+            expr: inner, ty, ..
+        } => {
             // `is`/`!is` 本身是一个表达式：结果类型为 `Bool`。
             //
             // 当前阶段只做最小检查：
@@ -378,6 +418,17 @@ fn infer_expr_type(
 
             Ok(result.unwrap_or(builtins.any))
         }
+        ast::ExprKind::WithUpdate { base, updates, .. } => infer_with_update_expr_type(
+            source,
+            base,
+            updates,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -387,6 +438,103 @@ fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn infer_with_update_expr_type(
+    source: &SourceFile,
+    base: &ast::Expr,
+    updates: &[ast::WithUpdateField],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 先递归类型检查 base：保证 `p with { ... }` 中的 `p` 自身也会被覆盖。
+    let base_ty = infer_expr_type(
+        source,
+        base,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // 当前阶段（T0415）仅支持 struct 字段更新：
+    // - base 必须是名义值类型，并且其声明 kind 为 `struct`
+    // - update path 仅允许单段字段名（不支持 `a.b.c`）
+    let (struct_fqn, struct_name) = match lower.type_kind(base_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (nominal.fqn, lower.fmt_type(base_ty)),
+        _ => {
+            return Err(ExprTypeError::WithUpdateBaseNotSupported {
+                found: lower.fmt_type(base_ty),
+                span: base.span.into(),
+            });
+        }
+    };
+
+    if !matches!(
+        lower.nominal_decl_kind(&struct_fqn),
+        Some(ast::TypeKind::Struct)
+    ) {
+        return Err(ExprTypeError::WithUpdateBaseNotSupported {
+            found: struct_name,
+            span: base.span.into(),
+        });
+    }
+
+    for u in updates {
+        // 嵌套 path 语义（并行求值 + 多层拷贝）留到后续任务；当前只支持 `x: value`。
+        if u.path.segments.len() != 1 {
+            let path = u
+                .path
+                .segments
+                .iter()
+                .map(|seg| source.slice(seg.span))
+                .collect::<Vec<_>>()
+                .join(".");
+            return Err(ExprTypeError::WithUpdateNestedPathNotSupported {
+                path,
+                span: u.path.span.into(),
+            });
+        }
+
+        let field = source.slice(u.path.segments[0].span).to_string();
+        let field_fqn = format!("{struct_fqn}.{field}");
+        let Some(expected_ty) = struct_field_types.get(&field_fqn).copied() else {
+            return Err(ExprTypeError::WithUpdateUnknownField {
+                struct_name: struct_name.clone(),
+                field,
+                span: u.path.span.into(),
+            });
+        };
+
+        let found_ty = infer_expr_type(
+            source,
+            &u.value,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if found_ty != expected_ty {
+            return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
+                struct_name: struct_name.clone(),
+                field,
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: u.value.span.into(),
+            });
+        }
+    }
+
+    Ok(base_ty)
 }
 
 fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>) -> bool {
@@ -428,13 +576,14 @@ fn infer_value_ident_type(
                 name: name.to_string(),
                 span: id.span.into(),
             }),
-        ast::ResolvedValueRef::TopLevel { fqn } => top_level_types
-            .get(fqn)
-            .copied()
-            .ok_or_else(|| ExprTypeError::UnsupportedTopLevelValueType {
-                fqn: fqn.clone(),
-                span: id.span.into(),
-            }),
+        ast::ResolvedValueRef::TopLevel { fqn } => {
+            top_level_types.get(fqn).copied().ok_or_else(|| {
+                ExprTypeError::UnsupportedTopLevelValueType {
+                    fqn: fqn.clone(),
+                    span: id.span.into(),
+                }
+            })
+        }
     }
 }
 
@@ -610,13 +759,7 @@ fn collect_top_level_fun_signatures(
             None => builtins.unit,
         };
 
-        map.insert(
-            fqn,
-            FunSigOwned {
-                params,
-                return_ty,
-            },
-        );
+        map.insert(fqn, FunSigOwned { params, return_ty });
     }
 
     Ok(map)
@@ -772,19 +915,17 @@ fn check_stmt_exprs(
             )?;
             if let Some(else_branch) = &ci.else_branch {
                 match &**else_branch {
-                    ast::ComptimeIfElse::Block(b) => {
-                        check_block_exprs(
-                            source,
-                            b,
-                            lower,
-                            builtins,
-                            locals,
-                            stable_bindings,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        )?
-                    }
+                    ast::ComptimeIfElse::Block(b) => check_block_exprs(
+                        source,
+                        b,
+                        lower,
+                        builtins,
+                        locals,
+                        stable_bindings,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?,
                     ast::ComptimeIfElse::If(next) => {
                         // 递归跟进 else-if 链。
                         let mut cur: &ast::ComptimeIf = next;
@@ -1138,19 +1279,22 @@ fn infer_member_access_expr_type(
     };
 
     match resolved {
-        ast::ResolvedMemberRef::Value { fqn } => struct_field_types
-            .get(fqn)
-            .copied()
-            .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
-                fqn: fqn.clone(),
-                span: member.span.into(),
-            }),
+        ast::ResolvedMemberRef::Value { fqn } => {
+            struct_field_types.get(fqn).copied().ok_or_else(|| {
+                ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                }
+            })
+        }
         ast::ResolvedMemberRef::Fun { fqn }
         | ast::ResolvedMemberRef::ExtensionValue { fqn }
-        | ast::ResolvedMemberRef::ExtensionFun { fqn } => Err(ExprTypeError::UnsupportedMemberAccess {
-            fqn: fqn.clone(),
-            span: member.span.into(),
-        }),
+        | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+            Err(ExprTypeError::UnsupportedMemberAccess {
+                fqn: fqn.clone(),
+                span: member.span.into(),
+            })
+        }
     }
 }
 
