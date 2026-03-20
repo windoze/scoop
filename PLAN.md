@@ -197,6 +197,7 @@
 - [x] 表达式类型检查 v0：变量引用（局部/参数/顶层）（T0406）
 - [x] 表达式类型检查 v0：函数调用（参数数量/类型匹配；无重载/无默认参数）（T0407）
 - [x] 表达式类型检查：成员访问（仅 struct 字段，`p.x`）（T0408）
+- [x] struct 声明最小语义检查：字段重复/`var`/默认值约束（T0409）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size

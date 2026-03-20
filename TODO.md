@@ -766,11 +766,12 @@
 - 依赖：T0210、T0401、T0404
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `ExprKind::MemberAccess` 的类型推导：依赖 resolver 写回的 `MemberIdent.resolved`（仅支持 `ResolvedMemberRef::Value`）并通过 `collect_struct_field_types`（主构造参数 + type body property）收集字段类型；新增 fixtures `tests/fixtures/typecheck/member_access_struct_field_ok.scoop`、`tests/fixtures/typecheck/member_access_missing_field_is_error.scoop`、`tests/fixtures/typecheck/member_access_non_field_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0409 [TODO] 声明类型：struct（仅字段，不含方法）
+### T0409 [DONE] 声明类型：struct（仅字段，不含方法）
 - 描述：typecheck 阶段收集 struct 字段列表、检查重复字段、类型合法。
 - 目标：先限制字段全是 `val` 且需要类型注解；不支持默认值。
 - 验收：typecheck fixture：struct 字段重复时报错；字段类型未解析时报错。
 - 依赖：T0202、T0404
+- 完成：实现 `crates/scoopc/src/typecheck/structs.rs` 的 `check_file_struct_decls`（递归处理 nested struct；检查重复字段名；禁止 `var` 字段与默认值）；并在 typecheck fixtures runner（`crates/scoop/src/fixtures/mod.rs`）中作为 typecheck phase 的前置检查执行；新增/补齐 fixtures：`tests/fixtures/typecheck/struct_duplicate_field_is_error.scoop`、`tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop`、`tests/fixtures/typecheck/struct_field_default_value_not_supported_is_error.scoop`、`tests/fixtures/typecheck/struct_field_unresolved_type_is_error.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0410 [TODO] 值类型：tuple 与 Unit（spec §2.3.3）
 - 描述：把 tuple 类型与 tuple 表达式加入类型系统；`Unit` 视为 0 元 tuple。
