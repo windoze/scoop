@@ -160,7 +160,7 @@
 - [x] 成员访问解析（`.`）：把 `receiver.member` 绑定到类型体字段/方法并写回 `MemberIdent.resolved`（T0310）
 - [x] 扩展成员 fallback：member 优先于 extension（同包）且 receiver 类型可匹配（T0312）
 - [x] 作用域：泛型参数（声明处 type params 在签名内可解析）（T0309）
-- [ ] 作用域：类型体/扩展 receiver（逐步补齐）
+- [x] 作用域：`this`（类型体成员/扩展函数体）与主构造参数在成员里可见（T0313）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
 - [ ] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] class 初始化阶段作用域：property initializer / `init` / secondary constructor
