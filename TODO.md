@@ -854,13 +854,14 @@
 - 依赖：T0419
 - 完成：`crates/scoopc/src/typecheck/expr.rs` 的 `is_type_assignable` 已支持 `Nothing <: T`；新增 typecheck fixture `tests/fixtures/typecheck/nothing_is_bottom_type_ok.scoop` 覆盖 `return` 与 call arg；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0421a [TODO] `!!`：not-null assertion 的类型规则（Appendix B.3.3）
+### T0421a [DONE] `!!`：not-null assertion 的类型规则（Appendix B.3.3）
 - 描述：`x!!`：若 `x: T?`（即 `Option<T>`），则结果类型为 `T`；若 `x` 非 nullable 则报错。
 - 目标：先只实现 typecheck 的静态类型规则；不引入 required effects 检查；不实现运行期语义。
 - 验收：typecheck fixtures：
   - `val x: Int?; val y: Int = x!!` 通过
   - `val x: Int; val y: Int = x!!` 报错（错误码稳定）
 - 依赖：T0212、T0411、T0406
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::NotNullAssert` 增加类型推导：要求操作数为 `Option<T>` 并返回 `T`；新增诊断 `scoop::typecheck::not_null_assert_operand_not_nullable`；新增 fixtures `tests/fixtures/typecheck/not_null_assert_ok.scoop` 与 `tests/fixtures/typecheck/not_null_assert_operand_not_nullable_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0421b [TODO] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
 - 描述：`x!!`：触发运行期 null assertion，要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。

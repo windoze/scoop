@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::not_null_assert_operand_not_nullable
+// EXPECT-ERROR-AT: 11:14
+// EXPECT-ERROR: `!!` 的操作数必须是 nullable
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = 1
+val y: Int = x!!
+

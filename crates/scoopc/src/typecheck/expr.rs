@@ -243,6 +243,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`!!` 的操作数必须是 nullable（`T?` / `Option<T>`），但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::not_null_assert_operand_not_nullable))]
+    NotNullAssertOperandNotNullable {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的成员访问：{fqn}")]
     #[diagnostic(code(scoop::typecheck::unsupported_member_access))]
     UnsupportedMemberAccess {
@@ -577,6 +585,16 @@ fn infer_expr_type(
             source,
             receiver.as_ref(),
             member,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::NotNullAssert { expr: inner, .. } => infer_not_null_assert_expr_type(
+            source,
+            inner.as_ref(),
             lower,
             builtins,
             locals,
@@ -2849,6 +2867,39 @@ fn infer_elvis_expr_type(
     }
 
     Ok(inner_ty)
+}
+
+fn infer_not_null_assert_expr_type(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // T0421a：最小规则：
+    // - `x!!` 的操作数必须是 nullable（`T?` / `Option<T>`）
+    // - 结果类型为去掉 nullable 后的 inner type：`Option<T>` → `T`
+    let ty = infer_expr_type(
+        source,
+        expr,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(inner),
+        _ => Err(ExprTypeError::NotNullAssertOperandNotNullable {
+            found: lower.fmt_type(ty),
+            span: expr.span.into(),
+        }),
+    }
 }
 
 fn infer_member_access_expr_type(

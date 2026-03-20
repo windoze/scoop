@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T0421a `!!` not-null assertion 的类型规则（`Option<T>` → `T`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int?
+val y: Int = x!!
+
