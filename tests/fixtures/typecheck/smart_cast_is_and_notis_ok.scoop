@@ -1,0 +1,34 @@
+// EXPECT: pass
+// 目标：T0413 `is`/`!is` + smart cast（仅稳定绑定：参数 + `val`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun any_string(): Any {
+    return "hi"
+}
+
+fun use_is(x: Any) {
+    if (x is String) {
+        val y: String = x
+    } else {
+        val z: Any = x
+    }
+}
+
+fun use_not_is(x: Any) {
+    if (x !is String) {
+        val y: Any = x
+    } else {
+        val z: String = x
+    }
+}
+
+fun use_local_val(): String {
+    val x: Any = any_string()
+    if (x is String) {
+        val y: String = x
+    }
+    return "ok"
+}

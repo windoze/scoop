@@ -213,7 +213,7 @@
 ### 4.4 模式匹配与 smart cast（spec §4）
 
 - [ ] `when` 表达式（穷尽性检查可分阶段做）
-- [ ] `is` / `!is` + smart cast（至少覆盖 `val` 的流敏感类型收窄）
+- [x] `is` / `!is` + smart cast（至少覆盖 `val` 的流敏感类型收窄）
 - [x] `as` / `as?`（typecheck v0：`as` 返回 `T`、`as?` 返回 `T?`；运行期失败语义后续接入 effect/RuntimeError）
 
 ### 4.5 值类型更新（`with` 表达式）（spec §2.6）

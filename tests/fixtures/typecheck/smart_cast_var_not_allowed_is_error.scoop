@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 18:25
+// 目标：T0413 smart cast：`var` 不是稳定绑定，不应触发收窄（当前阶段只支持参数与 `val`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun any_string(): Any {
+    return "hi"
+}
+
+fun f() {
+    var x: Any = any_string()
+    if (x is String) {
+        val y: String = x
+    }
+}
+

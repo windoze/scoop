@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 15:25
+// 目标：T0413 smart cast：`if (x is T)` 仅在 then 分支收窄；else 分支保持原类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Any) {
+    if (x is String) {
+        val y: String = x
+    } else {
+        val z: String = x
+    }
+}
+

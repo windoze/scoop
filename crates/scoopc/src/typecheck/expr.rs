@@ -20,7 +20,7 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ast;
 use crate::resolve::{ImportTable, Index};
@@ -315,6 +315,26 @@ fn infer_expr_type(
                 ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
             }
         }
+        ast::ExprKind::TypeCheck { expr: inner, ty, .. } => {
+            // `is`/`!is` 本身是一个表达式：结果类型为 `Bool`。
+            //
+            // 当前阶段只做最小检查：
+            // - 确保被检查的表达式可推导类型（用于回归覆盖）；
+            // - 确保目标类型引用可 lowering（否则应报 type lowering 错误）；
+            // - 运行期语义与更强的类型关系约束留到后续阶段（PLAN §4.4 / TODO T0413+）。
+            let _ = infer_expr_type(
+                source,
+                inner,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            let _ = lower.lower_type_ref(ty)?;
+            Ok(builtins.bool_)
+        }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -577,6 +597,8 @@ fn check_fun_body_exprs(
     //   - 否则若有 initializer，则以 initializer 类型推导；
     //   - 都没有则当前阶段无法推导（后续任务再补齐规则）。
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    // 可用于 smart cast 的“稳定绑定”（当前阶段仅覆盖：参数 + `val`）。
+    let mut stable_bindings: HashSet<Span> = HashSet::new();
 
     for p in &fun.params {
         let Some(ty_ref) = &p.ty else {
@@ -584,6 +606,7 @@ fn check_fun_body_exprs(
         };
         let ty = lower.lower_type_ref(ty_ref)?;
         locals.insert(p.name.span, ty);
+        stable_bindings.insert(p.name.span);
     }
 
     match &fun.body {
@@ -593,6 +616,7 @@ fn check_fun_body_exprs(
             lower,
             builtins,
             &mut locals,
+            &mut stable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -609,6 +633,7 @@ fn check_block_exprs(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
+    stable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -620,6 +645,7 @@ fn check_block_exprs(
             lower,
             builtins,
             locals,
+            stable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -634,6 +660,7 @@ fn check_stmt_exprs(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
+    stable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -645,6 +672,18 @@ fn check_stmt_exprs(
             lower,
             builtins,
             locals,
+            stable_bindings,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?,
+        ast::StmtKind::Expr(e) => check_expr_stmt(
+            source,
+            e,
+            lower,
+            builtins,
+            locals,
+            stable_bindings,
             top_level_types,
             top_level_funs,
             struct_field_types,
@@ -657,6 +696,7 @@ fn check_stmt_exprs(
                 lower,
                 builtins,
                 locals,
+                stable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -669,6 +709,7 @@ fn check_stmt_exprs(
                 lower,
                 builtins,
                 locals,
+                stable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -681,6 +722,7 @@ fn check_stmt_exprs(
                 lower,
                 builtins,
                 locals,
+                stable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
@@ -694,6 +736,7 @@ fn check_stmt_exprs(
                             lower,
                             builtins,
                             locals,
+                            stable_bindings,
                             top_level_types,
                             top_level_funs,
                             struct_field_types,
@@ -709,6 +752,7 @@ fn check_stmt_exprs(
                                 lower,
                                 builtins,
                                 locals,
+                                stable_bindings,
                                 top_level_types,
                                 top_level_funs,
                                 struct_field_types,
@@ -722,6 +766,7 @@ fn check_stmt_exprs(
                                             lower,
                                             builtins,
                                             locals,
+                                            stable_bindings,
                                             top_level_types,
                                             top_level_funs,
                                             struct_field_types,
@@ -744,13 +789,13 @@ fn check_stmt_exprs(
                 lower,
                 builtins,
                 locals,
+                stable_bindings,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
             )?;
         }
         ast::StmtKind::Empty
-        | ast::StmtKind::Expr(_)
         | ast::StmtKind::Return { .. }
         | ast::StmtKind::Break { .. }
         | ast::StmtKind::Continue { .. }
@@ -766,6 +811,7 @@ fn check_local_val_decl_exprs(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &mut HashMap<Span, TypeId>,
+    stable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
@@ -814,6 +860,9 @@ fn check_local_val_decl_exprs(
                 });
             };
             locals.insert(name.span, ty);
+            if matches!(v.kind, ast::ValKind::Val) {
+                stable_bindings.insert(name.span);
+            }
         }
         ast::ValBinding::Pattern(pat) => {
             return Err(ExprTypeError::UnsupportedPatternBinding {
@@ -823,6 +872,165 @@ fn check_local_val_decl_exprs(
     }
 
     Ok(())
+}
+
+fn check_expr_stmt(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &mut HashMap<Span, TypeId>,
+    stable_bindings: &mut HashSet<Span>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
+    // - `if (...) { val ... } else { ... }`
+    //
+    // 其他表达式语句（例如单独的调用）暂不强制 typecheck，以避免在未实现更多 ExprKind
+    // 的阶段引入大量不相关的回归失败。
+    match &expr.kind {
+        ast::ExprKind::Block(b) => check_block_exprs(
+            source,
+            b,
+            lower,
+            builtins,
+            locals,
+            stable_bindings,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => check_if_expr_stmt(
+            source,
+            cond.as_ref(),
+            then_branch.as_ref(),
+            else_branch.as_deref(),
+            lower,
+            builtins,
+            locals,
+            stable_bindings,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        _ => Ok(()),
+    }
+}
+
+fn check_if_expr_stmt(
+    source: &SourceFile,
+    cond: &ast::Expr,
+    then_branch: &ast::Expr,
+    else_branch: Option<&ast::Expr>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    stable_bindings: &HashSet<Span>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
+    // 并且只对“稳定绑定”（参数 + `val`）在对应分支内做类型收窄。
+    let smart_cast = detect_smart_cast_for_if_condition(cond, lower, locals, stable_bindings)?;
+
+    // then 分支：在 `x is T` 时收窄；在 `x !is T` 时保持原类型。
+    let mut then_locals = locals.clone();
+    let mut then_stable = stable_bindings.clone();
+    if let Some(smart_cast) = smart_cast {
+        if smart_cast.narrow_in_then {
+            then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
+        }
+    }
+    check_expr_stmt(
+        source,
+        then_branch,
+        lower,
+        builtins,
+        &mut then_locals,
+        &mut then_stable,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // else 分支：在 `x !is T` 且存在 else 时收窄；否则保持原类型。
+    if let Some(else_branch) = else_branch {
+        let mut else_locals = locals.clone();
+        let mut else_stable = stable_bindings.clone();
+        if let Some(smart_cast) = smart_cast {
+            if !smart_cast.narrow_in_then {
+                else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
+            }
+        }
+
+        check_expr_stmt(
+            source,
+            else_branch,
+            lower,
+            builtins,
+            &mut else_locals,
+            &mut else_stable,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SmartCastHint {
+    decl_span: Span,
+    target_ty: TypeId,
+    narrow_in_then: bool,
+}
+
+fn detect_smart_cast_for_if_condition(
+    cond: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    locals: &HashMap<Span, TypeId>,
+    stable_bindings: &HashSet<Span>,
+) -> Result<Option<SmartCastHint>, ExprTypeError> {
+    let ast::ExprKind::TypeCheck { expr, op, ty, .. } = &cond.kind else {
+        return Ok(None);
+    };
+
+    let ast::ExprKind::Ident(id) = &expr.kind else {
+        return Ok(None);
+    };
+
+    let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = id.resolved.as_ref() else {
+        return Ok(None);
+    };
+
+    if !stable_bindings.contains(decl_span) {
+        return Ok(None);
+    }
+
+    let Some(from_ty) = locals.get(decl_span).copied() else {
+        return Ok(None);
+    };
+
+    let target_ty = lower.lower_type_ref(ty)?;
+
+    // 与 `as/as?` 保持一致：当前阶段只对引用类型做运行期类型检查式收窄。
+    if !is_cast_allowed(from_ty, target_ty, lower) {
+        return Ok(None);
+    }
+
+    Ok(Some(SmartCastHint {
+        decl_span: *decl_span,
+        target_ty,
+        narrow_in_then: matches!(op, ast::TypeCheckOp::Is),
+    }))
 }
 
 fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
