@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：为 import alias 的解析提供跨包的类型/函数定义（T0315）。
+
+package fixtures.resolve_multi.import_alias_ok.a
+
+struct Quux {}
+
+fun ping() {}
+

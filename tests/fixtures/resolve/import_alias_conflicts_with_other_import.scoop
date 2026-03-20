@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::duplicate_definition
+// EXPECT-ERROR: X
+// 目标：import alias 的 local 名必须唯一；与其它 import 冲突时报错（T0315）。
+
+package fixtures.resolve
+
+import scoop.core.Any as X
+import scoop.core.Option as X
+
+fun f(x: X): X {}
+

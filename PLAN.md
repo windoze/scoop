@@ -162,7 +162,7 @@
 - [x] 作用域：泛型参数（声明处 type params 在签名内可解析）（T0309）
 - [x] 作用域：`this`（类型体成员/扩展函数体）与主构造参数在成员里可见（T0313）
 - [ ] 同名优先级：成员/顶层/扩展（逐步补齐）
-- [ ] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
+- [x] import alias 绑定与冲突规则：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] class 初始化阶段作用域：property initializer / `init` / secondary constructor
 - [ ] `object` / `companion object` 的名字解析与成员可见性
 

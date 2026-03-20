@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：通过 alias 引用类型与函数应当可解析（T0315）。
+
+package fixtures.resolve_multi.import_alias_ok.b
+
+import fixtures.resolve_multi.import_alias_ok.a.Quux as Qux
+import fixtures.resolve_multi.import_alias_ok.a.ping as pong
+
+fun use(x: Qux) {
+    pong()
+}
+

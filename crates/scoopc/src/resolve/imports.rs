@@ -6,9 +6,9 @@
 //! - 当前阶段（T0303）仅构建 import 表：显式 import 与通配 `*` import；
 //!   不在这里执行表达式中的标识符解析（后续任务再接入）。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
-use crate::{ast, source::SourceFile};
+use crate::{ast, source::SourceFile, span::Span};
 
 use super::{Index, ResolveError, SymbolKind};
 
@@ -42,6 +42,14 @@ impl ImportTable {
     ) -> Result<Self, ResolveError> {
         let mut table = ImportTable::default();
 
+        // T0315：import alias 需要参与冲突检查。
+        // 规则（当前阶段最小落地）：
+        // - alias 名字在对应命名空间下必须唯一（不能与其它 import 的 local 名冲突）
+        // - alias 名字不能与当前文件的顶层声明同名（避免“看起来可用但实际被 shadow”的困惑）
+        let top_level = collect_top_level_decl_names(source, file);
+        let mut import_locals_ty: HashMap<String, ImportLocalInfo> = HashMap::new();
+        let mut import_locals_value: HashMap<String, ImportLocalInfo> = HashMap::new();
+
         for import in &file.imports {
             let path = join_import_path(source, &import.path);
 
@@ -67,17 +75,26 @@ impl ImportTable {
                 });
             };
 
-            let local = if let Some(alias) = &import.alias {
-                source.slice(alias.span)
-            } else {
-                let Some(local) = last_segment(source, &import.path) else {
-                    // parser 保证 import 至少有一个 segment；这里作为防御性兜底。
-                    continue;
-                };
-                local
-            };
+            let (local, local_span, is_alias) = local_name_and_span(source, import);
 
             if syms.get(SymbolKind::Type).is_some() {
+                if is_alias {
+                    if let Some(prev) = top_level.ty.get(local).copied() {
+                        return Err(ResolveError::DuplicateDefinition {
+                            name: local.to_string(),
+                            first: prev.into(),
+                            second: local_span.into(),
+                        });
+                    }
+                }
+
+                check_import_alias_conflicts(
+                    &mut import_locals_ty,
+                    local,
+                    local_span,
+                    is_alias,
+                )?;
+
                 table
                     .ty
                     .explicit
@@ -88,6 +105,23 @@ impl ImportTable {
 
             // value namespace：fun/value 任一存在即认为该 import 对 value 解析有意义。
             if syms.get(SymbolKind::Fun).is_some() || syms.get(SymbolKind::Value).is_some() {
+                if is_alias {
+                    if let Some(prev) = top_level.value.get(local).copied() {
+                        return Err(ResolveError::DuplicateDefinition {
+                            name: local.to_string(),
+                            first: prev.into(),
+                            second: local_span.into(),
+                        });
+                    }
+                }
+
+                check_import_alias_conflicts(
+                    &mut import_locals_value,
+                    local,
+                    local_span,
+                    is_alias,
+                )?;
+
                 table
                     .value
                     .explicit
@@ -101,15 +135,112 @@ impl ImportTable {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ImportLocalInfo {
+    first_span: Span,
+    has_alias: bool,
+}
+
+#[derive(Debug, Default)]
+struct TopLevelDeclNames {
+    ty: HashMap<String, Span>,
+    value: HashMap<String, Span>,
+}
+
+fn collect_top_level_decl_names(source: &SourceFile, file: &ast::File) -> TopLevelDeclNames {
+    let mut names = TopLevelDeclNames::default();
+
+    for item in &file.items {
+        match item {
+            ast::Item::TypeAlias(ta) => {
+                let name = source.slice(ta.name.span).to_string();
+                names.ty.insert(name, ta.name.span);
+            }
+            ast::Item::Fun(fun) => {
+                let name = source.slice(fun.name.span).to_string();
+                names.value.insert(name, fun.name.span);
+            }
+            ast::Item::Type(ty) => {
+                let name = source.slice(ty.name.span).to_string();
+                names.ty.insert(name.clone(), ty.name.span);
+
+                // 与 `Index::add_type_decl` 保持一致：enum 也会引入同名 value 符号（便于限定名访问）。
+                if matches!(ty.kind, ast::TypeKind::Enum) {
+                    names.value.insert(name, ty.name.span);
+                }
+            }
+            ast::Item::Object(obj) => {
+                let Some(name) = &obj.name else {
+                    // 未命名 companion object 不会引入顶层可引用符号（T0317 再定义语义）。
+                    continue;
+                };
+                let local = source.slice(name.span).to_string();
+                // Kotlin-like：object 同时引入 type 与 value 名字。
+                names.ty.insert(local.clone(), name.span);
+                names.value.insert(local, name.span);
+            }
+            ast::Item::Val(v) => {
+                if let Some(name) = v.name() {
+                    let local = source.slice(name.span).to_string();
+                    names.value.insert(local, name.span);
+                }
+            }
+        }
+    }
+
+    names
+}
+
+fn local_name_and_span<'a>(source: &'a SourceFile, import: &'a ast::ImportDecl) -> (&'a str, Span, bool) {
+    if let Some(alias) = &import.alias {
+        return (source.slice(alias.span), alias.span, true);
+    }
+
+    let Some(local) = import.path.last() else {
+        // parser 保证 import 至少有一个 segment；这里作为防御性兜底。
+        return ("", import.span, false);
+    };
+    (source.slice(local.span), local.span, false)
+}
+
+/// 检查“alias 与其它 import 的 local 名字冲突”。
+///
+/// 允许多个 **非 alias** 的显式 import 同名（后续在使用点产生歧义诊断或要求用户显式 alias）。
+/// 但只要其中任意一个使用了 alias，则认为用户“显式指定了 local 名字”，必须保证唯一性。
+fn check_import_alias_conflicts(
+    locals: &mut HashMap<String, ImportLocalInfo>,
+    local: &str,
+    local_span: Span,
+    is_alias: bool,
+) -> Result<(), ResolveError> {
+    let Some(prev) = locals.get(local).copied() else {
+        locals.insert(
+            local.to_string(),
+            ImportLocalInfo {
+                first_span: local_span,
+                has_alias: is_alias,
+            },
+        );
+        return Ok(());
+    };
+
+    // 同名显式 import：只有当 alias 参与时才报错（T0315）。
+    if prev.has_alias || is_alias {
+        return Err(ResolveError::DuplicateDefinition {
+            name: local.to_string(),
+            first: prev.first_span.into(),
+            second: local_span.into(),
+        });
+    }
+
+    Ok(())
+}
+
 fn join_import_path(source: &SourceFile, path: &[ast::Ident]) -> String {
     path.iter()
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
-}
-
-fn last_segment<'a>(source: &'a SourceFile, path: &'a [ast::Ident]) -> Option<&'a str> {
-    path.last().map(|id| source.slice(id.span))
 }
 
 #[cfg(test)]
@@ -188,5 +319,35 @@ mod tests {
             &vec!["a.bar".to_string()]
         );
         assert!(table.value.explicit.get("bar").is_none());
+    }
+
+    #[test]
+    fn import_alias_conflicts_with_another_import_is_error() {
+        let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}\nstruct Bar {}");
+        let s2 = SourceFile::new_virtual(
+            "<b>",
+            "package b\nimport a.Foo as X\nimport a.Bar as X\nfun use(x: X) {}",
+        );
+        let a1 = parse_file(&s1).unwrap();
+        let a2 = parse_file(&s2).unwrap();
+
+        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let err = ImportTable::build(&s2, &a2, &index).unwrap_err();
+
+        assert!(matches!(err, ResolveError::DuplicateDefinition { .. }));
+    }
+
+    #[test]
+    fn import_alias_conflicts_with_local_top_level_is_error() {
+        let s = SourceFile::new_virtual(
+            "<b>",
+            "package b\nimport b.X as X\nstruct X {}\nfun use(x: X) {}",
+        );
+        let ast = parse_file(&s).unwrap();
+
+        let index = Index::build(&[(&s, &ast)]).unwrap();
+        let err = ImportTable::build(&s, &ast, &index).unwrap_err();
+
+        assert!(matches!(err, ResolveError::DuplicateDefinition { .. }));
     }
 }

@@ -671,11 +671,12 @@
 - 依赖：T0251、T0301、T0308
 - 完成：补齐/更新 resolve fixtures：`typealias_is_type_symbol_ok.scoop`（pass）与 `typealias_conflicts_with_nominal_type_is_error.scoop`（duplicate_definition）；`cargo run -p scoop -- test` 与 `cargo test --all` 通过。
 
-### T0315 [TODO] Resolver：import alias 绑定与冲突规则（Appendix B.7）
+### T0315 [DONE] Resolver：import alias 绑定与冲突规则（Appendix B.7）
 - 描述：把 `import foo.bar.Baz as Qux` 引入的 alias 纳入 import table，并参与 type/value 名字解析与冲突检查。
 - 目标：先只支持文件级 alias；同名 alias 与本地顶层声明/其他 import 冲突时报错。
 - 验收：新增 resolve fixture：通过 alias 成功引用类型/函数；alias 冲突时报稳定错误码。
 - 依赖：T0254、T0303、T0308
+- 完成：`ImportTable::build` 增加 alias 冲突检查（与顶层声明/其它 import）；新增 resolve fixtures（alias ok + alias conflict）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0316 [TODO] Resolver：class 初始化阶段作用域（property initializer / `init` / secondary constructor）
 - 描述：为属性初始化表达式、`init` block、secondary constructor 建立正确作用域，固定 `this`、主构造参数、已声明成员的可见性边界。
