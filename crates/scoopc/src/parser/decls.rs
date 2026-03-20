@@ -886,6 +886,24 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
+            // Appendix B.2.2：class 次构造器：`constructor(...) [: this(...)|super(...)] { ... }`（T0257）。
+            //
+            // 注意：`constructor` / `this` / `super` 当前都是上下文关键字（lexer 仍产出 Ident），
+            // 仅在 class body 中被识别为次构造器语法。
+            if matches!(type_kind, ast::TypeKind::Class)
+                && head == TokenKind::Ident
+                && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("constructor")
+            {
+                match self.parse_type_member_secondary_ctor_decl() {
+                    Ok(decl) => members.push(ast::TypeMember::SecondaryCtor(decl)),
+                    Err(e) => {
+                        self.record_error(e);
+                        self.skip_type_member_fallback();
+                    }
+                }
+                continue;
+            }
+
             // spec §2.3.2：enum body 里的 variant 列表：
             // - `Name`
             // - `Name(val field: T, ...)`
@@ -972,6 +990,84 @@ impl<'a> Parser<'a> {
         Ok(ast::InitBlockDecl {
             span: Span::new(init_kw.span.start, body.span.end),
             body,
+        })
+    }
+
+    fn parse_type_member_secondary_ctor_decl(
+        &mut self,
+    ) -> Result<ast::SecondaryCtorDecl, ParseError> {
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        if !self.peek_ident_text("constructor") {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`constructor`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let ctor_kw = self.bump(); // ident("constructor")
+        let (params_span, params) = self.parse_param_list()?;
+
+        let delegation_call = if self.peek_symbol(Symbol::Colon) {
+            Some(self.parse_ctor_delegation_call()?)
+        } else {
+            None
+        };
+
+        // 次构造器必须有 body：`{ ... }`（Appendix B.2.2）。
+        let body = self.parse_block()?;
+
+        Ok(ast::SecondaryCtorDecl {
+            span: Span::new(start, body.span.end.max(ctor_kw.span.end)),
+            modifiers,
+            params_span,
+            params,
+            delegation_call,
+            body,
+        })
+    }
+
+    fn parse_ctor_delegation_call(&mut self) -> Result<ast::CtorDelegationCall, ParseError> {
+        let colon_tok = self.expect_symbol(Symbol::Colon)?;
+        let colon_span = colon_tok.span;
+
+        // `this` / `super` 作为上下文关键字：lexer 仍产出 Ident。
+        let tok = *self.peek();
+        if tok.kind != TokenKind::Ident {
+            return Err(ParseError::Expected {
+                expected: "`this` / `super`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let target_tok = self.bump(); // ident("this"/"super"/其它)
+        let kind = match self
+            .source_text
+            .get(target_tok.span.start..target_tok.span.end)
+        {
+            Some("this") => ast::CtorDelegationKind::This,
+            Some("super") => ast::CtorDelegationKind::Super,
+            _ => {
+                return Err(ParseError::Expected {
+                    expected: "`this` / `super`",
+                    found: target_tok.kind,
+                    span: target_tok.span.into(),
+                });
+            }
+        };
+
+        let args_span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+
+        Ok(ast::CtorDelegationCall {
+            span: Span::new(colon_span.start, args_span.end),
+            colon_span,
+            kind,
+            target_span: target_tok.span,
+            args_span,
         })
     }
 

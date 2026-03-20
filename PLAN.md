@@ -128,7 +128,7 @@
   - [x] pattern rest：`..`（spec §4.2）
 - [ ] Kotlin-like 声明补齐：
   - [x] `init { ... }` blocks（Appendix B.2.2）
-  - [ ] secondary constructors（Appendix B.2.2）
+  - [x] secondary constructors（Appendix B.2.2）
   - [ ] `object` / `companion object` 声明（Appendix B.9）
 
 **本阶段 DoD**

@@ -1,0 +1,219 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 250..272,
+            path: [
+                Ident {
+                    span: 258..266,
+                },
+                Ident {
+                    span: 267..272,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 274..356,
+                kind: Class,
+                name: Ident {
+                    span: 280..281,
+                },
+                type_params: [],
+                body: Some(
+                    TypeBody {
+                        span: 282..356,
+                        members: [
+                            SecondaryCtor(
+                                SecondaryCtorDecl {
+                                    span: 288..307,
+                                    params_span: 299..301,
+                                    params: [],
+                                    body: Block {
+                                        span: 302..307,
+                                        stmts: [
+                                            Stmt {
+                                                span: 304..305,
+                                                kind: Empty,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                            SecondaryCtor(
+                                SecondaryCtorDecl {
+                                    span: 312..354,
+                                    modifiers: [
+                                        Private,
+                                    ],
+                                    params_span: 331..339,
+                                    params: [
+                                        Param {
+                                            name: Ident {
+                                                span: 332..333,
+                                            },
+                                            ty: Some(
+                                                Path(
+                                                    TypePath {
+                                                        span: 335..338,
+                                                        segments: [
+                                                            Ident {
+                                                                span: 335..338,
+                                                            },
+                                                        ],
+                                                        args: [],
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                    delegation_call: Some(
+                                        CtorDelegationCall {
+                                            span: 340..348,
+                                            colon_span: 340..341,
+                                            kind: This,
+                                            target_span: 342..346,
+                                            args_span: 346..348,
+                                        },
+                                    ),
+                                    body: Block {
+                                        span: 349..354,
+                                        stmts: [
+                                            Stmt {
+                                                span: 351..352,
+                                                kind: Empty,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 358..380,
+                kind: Class,
+                name: Ident {
+                    span: 364..368,
+                },
+                type_params: [],
+                primary_ctor: Some(
+                    PrimaryCtorDecl {
+                        params_span: 368..376,
+                        params: [
+                            Param {
+                                name: Ident {
+                                    span: 369..370,
+                                },
+                                ty: Some(
+                                    Path(
+                                        TypePath {
+                                            span: 372..375,
+                                            segments: [
+                                                Ident {
+                                                    span: 372..375,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                    ),
+                                ),
+                            },
+                        ],
+                    },
+                ),
+                body: Some(
+                    TypeBody {
+                        span: 377..380,
+                        members: [],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 382..444,
+                kind: Class,
+                name: Ident {
+                    span: 388..389,
+                },
+                type_params: [],
+                supertypes: [
+                    SuperType {
+                        span: 392..399,
+                        ty: Path(
+                            TypePath {
+                                span: 392..396,
+                                segments: [
+                                    Ident {
+                                        span: 392..396,
+                                    },
+                                ],
+                                args: [],
+                            },
+                        ),
+                        ctor_args_span: Some(
+                            396..399,
+                        ),
+                    },
+                ],
+                body: Some(
+                    TypeBody {
+                        span: 400..444,
+                        members: [
+                            SecondaryCtor(
+                                SecondaryCtorDecl {
+                                    span: 406..442,
+                                    params_span: 417..425,
+                                    params: [
+                                        Param {
+                                            name: Ident {
+                                                span: 418..419,
+                                            },
+                                            ty: Some(
+                                                Path(
+                                                    TypePath {
+                                                        span: 421..424,
+                                                        segments: [
+                                                            Ident {
+                                                                span: 421..424,
+                                                            },
+                                                        ],
+                                                        args: [],
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                    delegation_call: Some(
+                                        CtorDelegationCall {
+                                            span: 426..436,
+                                            colon_span: 426..427,
+                                            kind: Super,
+                                            target_span: 428..433,
+                                            args_span: 433..436,
+                                        },
+                                    ),
+                                    body: Block {
+                                        span: 437..442,
+                                        stmts: [
+                                            Stmt {
+                                                span: 439..440,
+                                                kind: Empty,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

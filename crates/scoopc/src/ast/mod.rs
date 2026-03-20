@@ -280,6 +280,11 @@ pub enum TypeMember {
     /// 说明：当前阶段（T0256）仅做语法解析与结构化存储；
     /// 初始化顺序、`this` 语义与与构造器交互由后续 resolver/typecheck 决定。
     InitBlock(InitBlockDecl),
+    /// class 次构造器（secondary constructor）：`constructor(...) { ... }`（Appendix B.2.2）。
+    ///
+    /// 说明：当前阶段（T0257）仅做语法解析与结构化存储；
+    /// 初始化顺序、delegation call 合法性与重载规则由后续 resolver/typecheck 决定。
+    SecondaryCtor(SecondaryCtorDecl),
     Fun(FunDecl),
     Type(TypeDecl),
 }
@@ -289,6 +294,63 @@ pub enum TypeMember {
 pub struct InitBlockDecl {
     pub span: Span,
     pub body: Block,
+}
+
+/// 次构造器 delegation call：`constructor(...) : this(...) { ... }` / `constructor(...) : super(...) { ... }`。
+///
+/// 说明：
+/// - `constructor` / `this` / `super` 在 lexer 层当前仍是 `Ident`；
+/// - 当前阶段（T0257）只保留目标（this/super）与参数括号的 span，不解析其中表达式；
+/// - 更完整的调用解析与语义检查交给后续阶段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CtorDelegationKind {
+    This,
+    Super,
+}
+
+/// 次构造器 delegation call（`:` + 目标 + 参数括号）。
+#[derive(Debug, Clone)]
+pub struct CtorDelegationCall {
+    pub span: Span,
+    pub colon_span: Span,
+    pub kind: CtorDelegationKind,
+    /// `this` / `super` token 的 span（当前为上下文关键字，仍按 Ident 处理）。
+    pub target_span: Span,
+    /// 调用参数列表的括号 span（仅保留括号范围，不解析其中表达式）。
+    pub args_span: Span,
+}
+
+/// class 次构造器（secondary constructor）：`constructor(params) [: this(...)|super(...)] { ... }`。
+///
+/// 说明：当前阶段（T0257）只解析并结构化存储：
+/// - 参数列表（复用 `Param`）
+/// - 可选 delegation call（仅 span）
+/// - body block
+#[derive(Clone)]
+pub struct SecondaryCtorDecl {
+    pub span: Span,
+    pub modifiers: Vec<Modifier>,
+    pub params_span: Span,
+    pub params: Vec<Param>,
+    pub delegation_call: Option<CtorDelegationCall>,
+    pub body: Block,
+}
+
+impl std::fmt::Debug for SecondaryCtorDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("SecondaryCtorDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("params_span", &self.params_span);
+        s.field("params", &self.params);
+        if self.delegation_call.is_some() {
+            s.field("delegation_call", &self.delegation_call);
+        }
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// 属性声明（spec §10.1）。

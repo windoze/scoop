@@ -1,0 +1,18 @@
+// EXPECT: pass
+// EXPECT-AST: class_secondary_ctor_basic.ast
+// 目标：验证 class body 内的次构造器 `constructor(...) { ... }` 能被解析为成员节点，
+// 并保留可选 delegation call（`: this(...)` / `: super(...)`）信息。
+
+package fixtures.parse
+
+class C {
+    constructor() { ; }
+    private constructor(x: Int) : this() { ; }
+}
+
+class Base(x: Int) { }
+
+class D : Base(0) {
+    constructor(x: Int) : super(x) { ; }
+}
+

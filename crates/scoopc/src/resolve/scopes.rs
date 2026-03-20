@@ -139,6 +139,11 @@ impl<'a> BlockScopeChecker<'a> {
                     // init block 的值名字解析与 `this` 语义依赖完整的 class 初始化规则（T0313），
                     // 目前先跳过，避免在早期阶段过早固化语义。
                 }
+                ast::TypeMember::SecondaryCtor(_ctor) => {
+                    // 次构造器属于 class 初始化语境（Appendix B.2.2）。
+                    // 其 `this` 语义、参数默认值与 delegation call 的解析规则依赖完整的构造/初始化模型，
+                    // 当前阶段（T0257/T0313 之前）先跳过值名字解析，避免过早固化语义。
+                }
                 ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
             }

@@ -544,6 +544,10 @@ impl Index {
                 ast::TypeMember::InitBlock(_b) => {
                     // init block 不引入命名空间符号；它属于初始化执行体（Appendix B.2.2）。
                 }
+                ast::TypeMember::SecondaryCtor(_ctor) => {
+                    // 次构造器在当前阶段（T0257）仅做语法建模；
+                    // 其符号形式（是否可重载、是否进入 fun namespace 等）留给后续阶段决定。
+                }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
                     self.insert_symbol(
@@ -792,6 +796,15 @@ fn resolve_type_decl_headers(
                 }
                 ast::TypeMember::InitBlock(_b) => {
                     // init block 的类型/值解析属于初始化执行体语境（T0313），当前阶段先跳过。
+                }
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    // 次构造器参数类型也属于“签名里的类型引用”范畴；
+                    // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
+                    for p in &ctor.params {
+                        if let Some(ty) = &p.ty {
+                            resolve_type_ref(source, file, index, type_params, ty)?;
+                        }
+                    }
                 }
                 ast::TypeMember::Fun(f) => {
                     type_params.push_decl(source, &f.type_params)?;

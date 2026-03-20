@@ -555,11 +555,12 @@
 - 依赖：T0207、T0201、T0248
 - 完成：AST `TypeMember` 新增 `InitBlock(InitBlockDecl)`；parser 在 class type body 识别上下文关键字 `init` 并解析其 `{ ... }` 为 `Block`；`is_type_member_start` 将 `init` 视为 member 起始以避免 property initializer 吞掉后续 init；新增 parse pass fixture `class_init_blocks_basic`（含 AST golden）与 fail fixture `class_init_missing_block_fail`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0257 [TODO] Parser：secondary constructors（Appendix B.2.2）
+### T0257 [DONE] Parser：secondary constructors（Appendix B.2.2）
 - 描述：支持 class 内 `constructor(...) { ... }` 的最小语法，并保留可选 delegation call（如 `: this(...)` / `: super(...)`）的 span/AST。
 - 目标：先只解析签名、delegation 头和 body；初始化顺序与调用合法性留给 typecheck。
 - 验收：新增 parse fixture：含 secondary constructor 的 class 可解析；缺参数列表或缺 body 报错。
 - 依赖：T0248、T0207
+- 完成：AST 新增 `SecondaryCtorDecl`/`CtorDelegationCall` 与 `TypeMember::SecondaryCtor`；parser 在 class body 识别上下文关键字 `constructor` 并解析参数列表、可选 `: this(...)`/`: super(...)` delegation call（仅保留括号 span）、以及必需的 `{ ... }` body；新增 parse pass fixture `class_secondary_ctor_basic`（含 AST golden）与两个 fail fixtures（缺参数列表/缺 body）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0258 [TODO] Parser：`object` / `companion object` 声明（Appendix B.9）
 - 描述：支持 top-level / nested `object Name { ... }`，以及 class 内 `companion object { ... }` / `companion object Name { ... }`。

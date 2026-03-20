@@ -226,10 +226,13 @@ impl<'a> Parser<'a> {
         // Appendix B.2.2：`init { ... }` 初始化块（T0256）在 lexer 层仍是 Ident，
         // 但在 type body 中应被视为 member 起始（用于 initializer 边界判断与错误恢复）。
         let head = self.peek_after_modifiers();
-        if head.kind == TokenKind::Ident
-            && self.source_text.get(head.span.start..head.span.end) == Some("init")
-        {
-            return true;
+        if head.kind == TokenKind::Ident {
+            match self.source_text.get(head.span.start..head.span.end) {
+                Some("init") => return true,
+                // Appendix B.2.2：`constructor(...) { ... }` 次构造器（T0257）当前同样是上下文关键字。
+                Some("constructor") => return true,
+                _ => {}
+            }
         }
 
         matches!(

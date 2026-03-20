@@ -457,6 +457,14 @@ impl<'a> TypeLowering<'a> {
                 ast::TypeMember::InitBlock(_b) => {
                     // init block 属于初始化执行体；当前阶段 type lowering 仅处理声明头与成员签名。
                 }
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    // 次构造器参数类型同样属于成员签名类型（T0257）。
+                    for p in &ctor.params {
+                        if let Some(ty) = &p.ty {
+                            let _ = self.lower_type_ref(ty)?;
+                        }
+                    }
+                }
                 ast::TypeMember::Fun(f) => {
                     if let Some(receiver) = &f.receiver {
                         let _ = self.lower_type_ref(receiver)?;
