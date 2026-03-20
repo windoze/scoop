@@ -135,6 +135,10 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
+    pub(super) fn pkg_prefix(&self) -> &str {
+        &self.pkg_prefix
+    }
+
     pub(super) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),

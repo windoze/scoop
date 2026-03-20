@@ -195,6 +195,7 @@
 - [ ] `Unit`、tuple、`Option<T>`（`T?` sugar）
   - [x] tuple 类型与 tuple 字面量（`(a, b)`），`Unit` 视为 0 元 tuple（T0410）
   - [x] `T?` 语法糖：在 type lowering 阶段 desugar 为 `Option<T>`（T0411）
+  - [x] `?.` safe-call 与 `?:` Elvis：nullable sugar 的最小类型规则（仅 Option<T>，不引入 null）（T0422）
 - [ ] `Nothing` bottom type：`Nothing <: T`（用于不可达分支 / `return` / `Raise.raise`）
   - [x] v0：赋值兼容/返回类型检查（T0420a）
   - [ ] fixtures 验收：`Raise.raise` 返回 `Nothing` 兼容任意返回类型（T0420b，依赖 T0602）

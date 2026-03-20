@@ -106,6 +106,41 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用 receiver 类型不匹配：{callee} 期望 receiver 为 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::call_receiver_type_mismatch))]
+    CallReceiverTypeMismatch {
+        callee: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`?.` 的 receiver 必须是 nullable（`T?` / `Option<T>`），但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::safe_access_receiver_not_nullable))]
+    SafeAccessReceiverNotNullable {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("Elvis `?:` 左操作数必须是 nullable（`T?` / `Option<T>`），但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::elvis_lhs_not_nullable))]
+    ElvisLhsNotNullable {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("Elvis `?:` 右操作数类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::elvis_rhs_type_mismatch))]
+    ElvisRhsTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的成员访问：{fqn}")]
     #[diagnostic(code(scoop::typecheck::unsupported_member_access))]
     UnsupportedMemberAccess {
@@ -196,6 +231,7 @@ pub enum ExprTypeError {
 
 #[derive(Debug, Clone)]
 struct FunSigOwned {
+    receiver: Option<TypeId>,
     params: Vec<TypeId>,
     return_ty: TypeId,
 }
@@ -342,6 +378,19 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::SafeMemberAccess {
+            receiver, member, ..
+        } => infer_safe_member_access_expr_type(
+            source,
+            receiver.as_ref(),
+            member,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Call { callee, args } => infer_call_expr_type(
             source,
             expr,
@@ -472,6 +521,23 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::Binary { lhs, op, rhs, .. } => match op {
+            ast::BinaryOp::Elvis => infer_elvis_expr_type(
+                source,
+                lhs,
+                rhs,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            ),
+            _ => Err(ExprTypeError::UnsupportedExpr {
+                kind: "binary expression",
+                span: expr.span.into(),
+            }),
+        },
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -676,7 +742,7 @@ fn infer_call_expr_type(
     top_level_funs: &HashMap<String, FunSigOwned>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let (callee_fqn, callee_span) = match &callee.kind {
+    match &callee.kind {
         ast::ExprKind::Ident(id) => {
             let callee_name = source.slice(id.span);
             let Some(resolved) = &id.resolved else {
@@ -686,7 +752,7 @@ fn infer_call_expr_type(
                 });
             };
 
-            match resolved {
+            let (callee_fqn, callee_span) = match resolved {
                 ast::ResolvedValueRef::TopLevel { fqn } => (fqn.clone(), id.span),
                 ast::ResolvedValueRef::Local { .. } => {
                     // 当前阶段（T0407）只支持直接调用“顶层 fun symbol”，
@@ -696,23 +762,184 @@ fn infer_call_expr_type(
                         span: id.span.into(),
                     });
                 }
+            };
+
+            // 当前阶段仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
+            let Some(sig) = top_level_funs.get(&callee_fqn) else {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: callee_fqn,
+                    span: callee_span.into(),
+                });
+            };
+
+            // receiver fun（扩展函数）不能以 `f(args...)` 的形式被直接调用。
+            if sig.receiver.is_some() {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: callee_fqn,
+                    span: callee_span.into(),
+                });
+            }
+
+            if args.len() != sig.params.len() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: callee_fqn,
+                    expected: sig.params.len(),
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            for (idx, (arg, expected_ty)) in args.iter().zip(sig.params.iter().copied()).enumerate()
+            {
+                // 先做表达式类型推导，再对比参数类型。
+                let found_ty = infer_expr_type(
+                    source,
+                    arg,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+
+                if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                    return Err(ExprTypeError::CallArgTypeMismatch {
+                        callee: callee_fqn,
+                        index: idx + 1,
+                        expected: lower.fmt_type(expected_ty),
+                        found: lower.fmt_type(found_ty),
+                        span: arg.span.into(),
+                    });
+                }
+            }
+
+            Ok(sig.return_ty)
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => infer_member_call_expr_type(
+            source,
+            call_expr,
+            receiver.as_ref(),
+            member,
+            args,
+            false,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::SafeMemberAccess {
+            receiver, member, ..
+        } => infer_member_call_expr_type(
+            source,
+            call_expr,
+            receiver.as_ref(),
+            member,
+            args,
+            true,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        other => Err(ExprTypeError::UnsupportedExpr {
+            kind: expr_kind_name(other),
+            span: callee.span.into(),
+        }),
+    }
+}
+
+fn infer_member_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    receiver: &ast::Expr,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    safe: bool,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 先递归类型检查 receiver：保证 `a?.b()` 中的 `a` 自身也会被覆盖。
+    let receiver_ty = infer_expr_type(
+        source,
+        receiver,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let actual_receiver_ty = if safe {
+        match lower.type_kind(receiver_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+            _ => {
+                return Err(ExprTypeError::SafeAccessReceiverNotNullable {
+                    found: lower.fmt_type(receiver_ty),
+                    span: receiver.span.into(),
+                });
             }
         }
-        other => {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: expr_kind_name(other),
-                span: callee.span.into(),
+    } else {
+        receiver_ty
+    };
+
+    // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
+    // - 若 resolver 已写回 `ExtensionFun`，优先使用；
+    // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
+    //   尝试在“当前包”内按同名顶层 fun 查找 receiver fun。
+    let callee_fqn = match member.resolved.as_ref() {
+        Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
+        Some(ast::ResolvedMemberRef::Fun { fqn })
+        | Some(ast::ResolvedMemberRef::Value { fqn })
+        | Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee: fqn.clone(),
+                span: member.span.into(),
             });
+        }
+        None => {
+            let name = source.slice(member.span);
+            if lower.pkg_prefix().is_empty() {
+                name.to_string()
+            } else {
+                format!("{}.{}", lower.pkg_prefix(), name)
+            }
         }
     };
 
-    // 当前阶段（T0407）仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
     let Some(sig) = top_level_funs.get(&callee_fqn) else {
         return Err(ExprTypeError::CalleeNotCallable {
             callee: callee_fqn,
-            span: callee_span.into(),
+            span: member.span.into(),
         });
     };
+
+    let Some(expected_receiver_ty) = sig.receiver else {
+        // 不是扩展函数：`receiver.member()` 形式不应绑定到普通顶层函数。
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_fqn,
+            span: member.span.into(),
+        });
+    };
+
+    if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+        return Err(ExprTypeError::CallReceiverTypeMismatch {
+            callee: callee_fqn,
+            expected: lower.fmt_type(expected_receiver_ty),
+            found: lower.fmt_type(actual_receiver_ty),
+            span: receiver.span.into(),
+        });
+    }
 
     if args.len() != sig.params.len() {
         return Err(ExprTypeError::CallArityMismatch {
@@ -724,7 +951,6 @@ fn infer_call_expr_type(
     }
 
     for (idx, (arg, expected_ty)) in args.iter().zip(sig.params.iter().copied()).enumerate() {
-        // 先做表达式类型推导，再对比参数类型。
         let found_ty = infer_expr_type(
             source,
             arg,
@@ -736,7 +962,7 @@ fn infer_call_expr_type(
             struct_field_types,
         )?;
 
-        if found_ty != expected_ty {
+        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
             return Err(ExprTypeError::CallArgTypeMismatch {
                 callee: callee_fqn,
                 index: idx + 1,
@@ -747,7 +973,13 @@ fn infer_call_expr_type(
         }
     }
 
-    Ok(sig.return_ty)
+    let ret = if safe {
+        lower.ty_option(sig.return_ty)
+    } else {
+        sig.return_ty
+    };
+
+    Ok(ret)
 }
 
 /// 收集“当前文件内”的顶层 `val/var` 声明类型（FQN → TypeId）。
@@ -793,10 +1025,10 @@ fn collect_top_level_value_types(
 
 /// 收集“当前文件内”的顶层 `fun` 声明签名（FQN → FunSig）。
 ///
-/// 当前阶段（T0407）限制：
-/// - 仅收集“非 receiver”的普通顶层函数（排除扩展函数）；
+/// 当前阶段（最小子集）：
 /// - 不处理 type param / overload / default param；
-/// - 未显式标注 return type 的函数，暂视为 `Unit`。
+/// - 未显式标注 return type 的函数，暂视为 `Unit`；
+/// - 扩展函数（receiver fun）会被收集，用于 `receiver.member()` 与 `receiver?.member()` 调用的类型检查。
 fn collect_top_level_fun_signatures(
     source: &SourceFile,
     file: &ast::File,
@@ -810,10 +1042,6 @@ fn collect_top_level_fun_signatures(
         let ast::Item::Fun(fun) = item else {
             continue;
         };
-
-        if fun.receiver.is_some() {
-            continue;
-        }
 
         let local_name = source.slice(fun.name.span);
         let fqn = if pkg_prefix.is_empty() {
@@ -831,12 +1059,24 @@ fn collect_top_level_fun_signatures(
             params.push(lower.lower_type_ref(ty_ref)?);
         }
 
+        let receiver = match &fun.receiver {
+            Some(r) => Some(lower.lower_type_ref(r)?),
+            None => None,
+        };
+
         let return_ty = match &fun.return_ty {
             Some(ret) => lower.lower_type_ref(ret)?,
             None => builtins.unit,
         };
 
-        map.insert(fqn, FunSigOwned { params, return_ty });
+        map.insert(
+            fqn,
+            FunSigOwned {
+                receiver,
+                params,
+                return_ty,
+            },
+        );
     }
 
     Ok(map)
@@ -1565,6 +1805,142 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::Cast { .. } => "cast (`as`/`as?`)",
         ast::ExprKind::WithUpdate { .. } => "with-update",
     }
+}
+
+fn infer_safe_member_access_expr_type(
+    source: &SourceFile,
+    receiver: &ast::Expr,
+    member: &ast::MemberIdent,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 先递归类型检查 receiver：保证其中的表达式也会被覆盖。
+    let receiver_ty = infer_expr_type(
+        source,
+        receiver,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let inner_ty = match lower.type_kind(receiver_ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+        _ => {
+            return Err(ExprTypeError::SafeAccessReceiverNotNullable {
+                found: lower.fmt_type(receiver_ty),
+                span: receiver.span.into(),
+            });
+        }
+    };
+
+    // 当前阶段最小规则：
+    // - 仅支持 safe-call 的字段访问：`receiver?.field`，并且 field 必须是 struct 字段（T0408）。
+    // - extension property / method 的语义留给后续任务；safe-call 的“调用”形式在 `Call(SafeMemberAccess)`
+    //   分支中处理。
+    let field_ty = match member.resolved.as_ref() {
+        Some(ast::ResolvedMemberRef::Value { fqn }) => struct_field_types.get(fqn).copied().ok_or_else(|| {
+            ExprTypeError::UnsupportedMemberAccess {
+                fqn: fqn.clone(),
+                span: member.span.into(),
+            }
+        })?,
+        Some(ast::ResolvedMemberRef::Fun { fqn })
+        | Some(ast::ResolvedMemberRef::ExtensionValue { fqn })
+        | Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => {
+            return Err(ExprTypeError::UnsupportedMemberAccess {
+                fqn: fqn.clone(),
+                span: member.span.into(),
+            });
+        }
+        None => {
+            // resolver 无法静态确定 receiver 类型（例如 receiver 为 `T?`）时不会写回 resolved；
+            // 这里用“已推导出的 inner_ty”尝试补上最小字段查找。
+            let name = source.slice(member.span);
+            match lower.type_kind(inner_ty) {
+                TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                    let fqn = format!("{}.{}", nominal.fqn, name);
+                    struct_field_types.get(&fqn).copied().ok_or_else(|| {
+                        ExprTypeError::UnsupportedMemberAccess {
+                            fqn,
+                            span: member.span.into(),
+                        }
+                    })?
+                }
+                other => {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: match other {
+                            TypeKind::Value(_) => "safe member access（非 struct 字段）",
+                            TypeKind::Ref(_) => "safe member access（引用类型成员尚未支持）",
+                        },
+                        span: member.span.into(),
+                    });
+                }
+            }
+        }
+    };
+
+    Ok(lower.ty_option(field_ty))
+}
+
+fn infer_elvis_expr_type(
+    source: &SourceFile,
+    lhs: &ast::Expr,
+    rhs: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, FunSigOwned>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let lhs_ty = infer_expr_type(
+        source,
+        lhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let inner_ty = match lower.type_kind(lhs_ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+        _ => {
+            return Err(ExprTypeError::ElvisLhsNotNullable {
+                found: lower.fmt_type(lhs_ty),
+                span: lhs.span.into(),
+            });
+        }
+    };
+
+    let rhs_ty = infer_expr_type(
+        source,
+        rhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if !is_type_assignable(rhs_ty, inner_ty, lower, builtins) {
+        return Err(ExprTypeError::ElvisRhsTypeMismatch {
+            expected: lower.fmt_type(inner_ty),
+            found: lower.fmt_type(rhs_ty),
+            span: rhs.span.into(),
+        });
+    }
+
+    Ok(inner_ty)
 }
 
 fn infer_member_access_expr_type(

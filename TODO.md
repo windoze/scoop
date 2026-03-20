@@ -777,11 +777,12 @@
 - 依赖：T0418
 - 完成：`typecheck::expr::is_type_assignable` 新增 `Nothing <: T` 规则（对任意目标类型成立）；`when` 表达式结果类型推导忽略 `Nothing` 分支并在全 `Nothing` 时返回 `Nothing`；新增单测 `typecheck::expr::tests::nothing_is_assignable_to_any_type`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
+### T0422 [DONE] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
 - 目标：先只覆盖 Option<T>（nullable sugar）；不引入真正的 null 值。
 - 验收：typecheck fixture：`val y: Int? = x?.len()` 合法；`val z: Int = x ?: 0` 合法。
 - 依赖：T0229、T0411、T0407
+- 完成：typecheck 支持（1）Elvis `?:`：`Option<T> ?: T -> T`（rhs 用最小 assignable 规则校验）；（2）safe-call：`Call(SafeMemberAccess)` 对 receiver fun（扩展函数）返回 `Option<R>`；并补齐 `receiver.member()` 的扩展函数调用类型检查（复用同一签名表）；新增错误码 `scoop::typecheck::safe_access_receiver_not_nullable` / `call_receiver_type_mismatch` / `elvis_lhs_not_nullable` / `elvis_rhs_type_mismatch`；新增 fixture `tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0423 [TODO] struct literal 的类型检查（字段存在性/类型匹配）
 - 描述：检查 `Point { x: 1, y: 2 }`：字段必须存在、不可重复、类型匹配、必填字段覆盖规则（按设计）。
