@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0411 Nullability：`T?` 作为 `Option<T>` 的语法糖（lowering 阶段 desugar）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// `Int?` 应被 lowering 为 `Option<Int>`：因此把 `x` 赋给 `Option<Int>` 变量应当通过。
+val x: Int?
+val y: Option<Int> = x
+
+// `Any?` 也同理：`Any?` → `Option<Any>`。
+val a: Any?
+val b: Option<Any> = a
+

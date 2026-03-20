@@ -703,11 +703,12 @@
 - 依赖：T0211、T0405
 - 完成：AST 新增 `ExprKind::TupleLit`；parser 支持 `(a, b, ...)`（含 trailing comma 与单元素 `(x,)`）；resolve/typecheck 递归遍历 tuple 元素并完成类型推导；`TypeStore::intern` 增加去重以保证复合类型相等比较稳定；新增 typecheck fixtures `tuple_literal_ok`/`tuple_literal_type_mismatch_is_error`；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0411 [TODO] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
+### T0411 [DONE] Nullability：`T?` 作为 `Option<T>` 语法糖（spec §2.4）
 - 描述：在 lowering 阶段把 `Nullable(TypeRef)` 映射到 `Option<...>`。
 - 目标：先只做类型层映射；运行期表示后续 codegen 决定。
 - 验收：typecheck fixture：`val x: Int?` 等价于 `Option<Int>`；`val y: Any?` 也可。
 - 依赖：T0403、T0402
+- 完成：`scoopc::typecheck::lower::TypeLowering::lower_type_ref` 将 `TypeRef::Nullable` desugar 为 `TypeStore::ty_option`；新增 typecheck fixture `tests/fixtures/typecheck/nullable_sugar_to_option_ok.scoop` 覆盖 `Int?`/`Any?` 与 `Option<T>` 的等价性；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0412 [TODO] Cast 语义：`as`/`as?` 的类型规则（spec §4.4）
 - 描述：实现 `as`/`as?` 的类型检查规则；运行期失败行为由 effect/RuntimeError 后续落地。
