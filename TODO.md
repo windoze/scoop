@@ -753,17 +753,7 @@
 - 依赖：T0306、T0307
 - 完成：`scoopc::resolve` 引入 `ConeId` 并在可见性判定中将 `internal` 收敛为“仅 cone 内可见”；新增 `Index::build_with_cones`/`IndexedFile` 以支持多 cone index 构建；`scoop test` 新增 `resolve_cone` runner（按 `<case>/<cone>/` 目录模拟依赖边界）；新增 fixtures `tests/fixtures/resolve_cone/cross_cone_visibility/*` 覆盖 public pass / internal+private fail；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0321b [TODO] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
-- 描述：当依赖来自 `.cone` 时，下游只能看到依赖 cone 的 `public` API；`internal/private` 必须在 resolver/typecheck 阶段一致地被拒绝。
-- 目标：只打通“加载依赖 API → resolve 可见性过滤 → 稳定诊断”主路径；friend module 等高级规则不做。
-- 验收：新增 cone fixture：B 依赖 A（`.cone`），可引用 A 的 `public` 类型/函数；引用 A 的 `internal/private` 报 `not_visible` 且定位稳定。
-- 依赖：T0321a、T1105
-
-### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
-- 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。
-- 目标：先固定“能否发现某个 imported extension”的规则；最终 overload 决议与 receiver specificity 仍交给 typecheck/infer。
-- 验收：新增多包 fixtures：显式导入的 extension 可被发现，未导入时不可见；star import 与本地成员同名时仍遵守 member 优先。
-- 依赖：T0312、T0319、T0321
+> 注：T0321b/T0322 依赖 `.cone` 读取（T1105），已移动到 T1105 之后以保持依赖顺序。
 
 ---
 
@@ -2046,6 +2036,20 @@
 - 目标：先只支持同平台/同版本；版本兼容后续任务。
 - 验收：新增 cone fixture：A 包导出一个类型/函数，B 包依赖 A 并能通过 typecheck。
 - 依赖：T1104、T0402
+
+> 注：以下 resolver 任务原位于 T03（包与名字解析）章节；因依赖 `.cone` 读取（T1105），已移动至此处以保持依赖顺序。
+
+### T0321b [TODO] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
+- 描述：当依赖来自 `.cone` 时，下游只能看到依赖 cone 的 `public` API；`internal/private` 必须在 resolver/typecheck 阶段一致地被拒绝。
+- 目标：只打通“加载依赖 API → resolve 可见性过滤 → 稳定诊断”主路径；friend module 等高级规则不做。
+- 验收：新增 cone fixture：B 依赖 A（`.cone`），可引用 A 的 `public` 类型/函数；引用 A 的 `internal/private` 报 `not_visible` 且定位稳定。
+- 依赖：T0321a、T1105
+
+### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
+- 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。
+- 目标：先固定“能否发现某个 imported extension”的规则；最终 overload 决议与 receiver specificity 仍交给 typecheck/infer。
+- 验收：新增多包 fixtures：显式导入的 extension 可被发现，未导入时不可见；star import 与本地成员同名时仍遵守 member 优先。
+- 依赖：T0312、T0319、T0321
 
 ### T1106 [TODO] IR 稳定性与版本协商（spec §13.4）
 - 描述：为 scoopir 增加显式版本号，并实现“旧版本可读/不兼容报错”的策略。
