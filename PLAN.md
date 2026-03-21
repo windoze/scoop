@@ -271,6 +271,7 @@
   - [ ] `when` 分支中的解构 pattern
 - [ ] 控制流基础：`if/while/for/return/break/continue`（非局部 return 不支持）
   - [x] `return`：函数内 `return expr?` 返回类型检查与诊断（T0417）
+  - [x] `while`：条件必须为 Bool；`break/continue` 仅允许在循环体内（T0442）
 
 ### 4.7 属性系统（spec §10）
 

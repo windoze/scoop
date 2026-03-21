@@ -1,0 +1,12 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    while (true) {
+        break
+    }
+}
+

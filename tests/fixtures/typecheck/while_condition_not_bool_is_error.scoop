@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::while_condition_not_bool
+// EXPECT-ERROR-AT: 11:12
+// EXPECT-ERROR: 条件类型必须是 Bool
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    while (1) { }
+}

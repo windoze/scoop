@@ -504,6 +504,28 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("`while` 条件类型必须是 Bool，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::while_condition_not_bool))]
+    WhileConditionNotBool {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`break` 只能出现在循环体内")]
+    #[diagnostic(code(scoop::typecheck::break_not_in_loop))]
+    BreakNotInLoop {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`continue` 只能出现在循环体内")]
+    #[diagnostic(code(scoop::typecheck::continue_not_in_loop))]
+    ContinueNotInLoop {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -729,6 +751,7 @@ fn check_class_member_fun_body_exprs(
             &mut locals,
             &mut stable_bindings,
             &mut mutable_bindings,
+            0,
             Some(expected_return_ty),
             top_level_types,
             top_level_funs,
@@ -2511,6 +2534,7 @@ fn check_fun_body_exprs(
             &mut locals,
             &mut stable_bindings,
             &mut mutable_bindings,
+            0,
             Some(expected_return_ty),
             top_level_types,
             top_level_funs,
@@ -2530,6 +2554,7 @@ fn check_block_exprs(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    loop_depth: usize,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
@@ -2550,6 +2575,7 @@ fn check_block_exprs(
             locals,
             stable_bindings,
             mutable_bindings,
+            loop_depth,
             expected_return_ty,
             top_level_types,
             top_level_funs,
@@ -2572,6 +2598,7 @@ fn check_stmt_exprs(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    loop_depth: usize,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
@@ -2598,6 +2625,7 @@ fn check_stmt_exprs(
             locals,
             stable_bindings,
             mutable_bindings,
+            loop_depth,
             expected_return_ty,
             top_level_types,
             top_level_funs,
@@ -2641,8 +2669,25 @@ fn check_stmt_exprs(
                 }
             }
         }
-        ast::StmtKind::While { body, .. } => {
-            // 当前阶段仅递归进入 body，以支持其中局部绑定的类型推导。
+        ast::StmtKind::While { cond, body, .. } => {
+            let cond_ty = infer_expr_type(
+                source,
+                cond,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            if !is_type_assignable(cond_ty, builtins.bool_, lower, builtins) {
+                return Err(ExprTypeError::WhileConditionNotBool {
+                    found: lower.fmt_type(cond_ty),
+                    span: cond.span.into(),
+                });
+            }
+
             check_block_exprs(
                 source,
                 body,
@@ -2651,11 +2696,26 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                loop_depth + 1,
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
             )?;
+        }
+        ast::StmtKind::Break { break_span } => {
+            if loop_depth == 0 {
+                return Err(ExprTypeError::BreakNotInLoop {
+                    span: (*break_span).into(),
+                });
+            }
+        }
+        ast::StmtKind::Continue { continue_span } => {
+            if loop_depth == 0 {
+                return Err(ExprTypeError::ContinueNotInLoop {
+                    span: (*continue_span).into(),
+                });
+            }
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
             check_block_exprs(
@@ -2666,6 +2726,7 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                loop_depth,
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
@@ -2681,6 +2742,7 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                loop_depth,
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
@@ -2696,6 +2758,7 @@ fn check_stmt_exprs(
                         locals,
                         stable_bindings,
                         mutable_bindings,
+                        loop_depth,
                         expected_return_ty,
                         top_level_types,
                         top_level_funs,
@@ -2713,6 +2776,7 @@ fn check_stmt_exprs(
                                 locals,
                                 stable_bindings,
                                 mutable_bindings,
+                                loop_depth,
                                 expected_return_ty,
                                 top_level_types,
                                 top_level_funs,
@@ -2729,6 +2793,7 @@ fn check_stmt_exprs(
                                             locals,
                                             stable_bindings,
                                             mutable_bindings,
+                                            loop_depth,
                                             expected_return_ty,
                                             top_level_types,
                                             top_level_funs,
@@ -2754,16 +2819,14 @@ fn check_stmt_exprs(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                loop_depth + 1,
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
             )?;
         }
-        ast::StmtKind::Empty
-        | ast::StmtKind::Break { .. }
-        | ast::StmtKind::Continue { .. }
-        | ast::StmtKind::Missing => {}
+        ast::StmtKind::Empty | ast::StmtKind::Missing => {}
     }
 
     Ok(())
@@ -2880,6 +2943,7 @@ fn check_expr_stmt(
     locals: &mut HashMap<Span, TypeId>,
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
+    loop_depth: usize,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
@@ -2899,6 +2963,7 @@ fn check_expr_stmt(
             locals,
             stable_bindings,
             mutable_bindings,
+            loop_depth,
             expected_return_ty,
             top_level_types,
             top_level_funs,
@@ -2918,6 +2983,7 @@ fn check_expr_stmt(
             locals,
             stable_bindings,
             mutable_bindings,
+            loop_depth,
             expected_return_ty,
             top_level_types,
             top_level_funs,
@@ -2935,6 +3001,7 @@ fn check_expr_stmt(
                 locals,
                 stable_bindings,
                 mutable_bindings,
+                loop_depth,
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
@@ -2979,6 +3046,7 @@ fn check_expr_stmt(
                     &mut arm_locals,
                     &mut arm_stable,
                     &mut arm_mutable,
+                    loop_depth,
                     expected_return_ty,
                     top_level_types,
                     top_level_funs,
@@ -3004,6 +3072,7 @@ fn check_expr_stmt(
                 &mut lambda_locals,
                 &mut lambda_stable,
                 &mut lambda_mutable,
+                0,
                 None,
                 top_level_types,
                 top_level_funs,
@@ -3192,6 +3261,7 @@ fn check_if_expr_stmt(
     locals: &HashMap<Span, TypeId>,
     stable_bindings: &HashSet<Span>,
     mutable_bindings: &HashSet<Span>,
+    loop_depth: usize,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
@@ -3218,6 +3288,7 @@ fn check_if_expr_stmt(
         &mut then_locals,
         &mut then_stable,
         &mut then_mutable,
+        loop_depth,
         expected_return_ty,
         top_level_types,
         top_level_funs,
@@ -3243,6 +3314,7 @@ fn check_if_expr_stmt(
             &mut else_locals,
             &mut else_stable,
             &mut else_mutable,
+            loop_depth,
             expected_return_ty,
             top_level_types,
             top_level_funs,

@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::break_not_in_loop
+// EXPECT-ERROR-AT: 11:5
+// EXPECT-ERROR: `break` 只能出现在循环体内
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    break
+}
+

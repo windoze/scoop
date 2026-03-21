@@ -1075,11 +1075,12 @@
    - nominal value types 在目标为 interface 时允许 boxing。
    同时把顶层/局部 `val` initializer 的检查从“严格相等”升级为 `is_type_assignable`，并让 `as/as?` 支持 value → Any/interface 的显式 boxing。新增 fixtures：`tests/fixtures/typecheck/boxing_value_to_any_ok.scoop`、`boxing_value_to_interface_ok.scoop` 与 fail case `boxing_value_to_interface_missing_impl_is_error.scoop`。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0442 [TODO] 语句/循环的类型检查：`while`/`break`/`continue`
+### T0442 [DONE] 语句/循环的类型检查：`while`/`break`/`continue`
 - 描述：检查 while 条件为 Bool；break/continue 必须在循环内；循环体类型规则明确（Unit）。
 - 目标：先不支持 label；不支持 for。
 - 验收：typecheck fixture：`while(1){}` 报错；`break` 在函数顶层报错；合法 while 通过。
 - 依赖：T0228、T0405
+ - 完成：typecheck 增加 loop depth 上下文：`while` 条件必须可赋给 `Bool`（新错误码 `scoop::typecheck::while_condition_not_bool`）；`break/continue` 必须位于循环体内（新错误码 `scoop::typecheck::break_not_in_loop` / `scoop::typecheck::continue_not_in_loop`）。新增 fixtures：`tests/fixtures/typecheck/while_condition_not_bool_is_error.scoop`、`break_not_in_loop_is_error.scoop`、`continue_not_in_loop_is_error.scoop`、`while_break_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0443 [TODO] 赋值类型检查：lhs 可写性（var）与类型匹配（spec §9）
 - 描述：实现 `x = y`：x 必须是 var 绑定或可写属性；y 类型必须可赋给 x。
