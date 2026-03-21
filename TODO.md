@@ -884,11 +884,12 @@
 - 依赖：T0415
 - 完成：该任务内容已在 T0415 的实现中覆盖：`infer_with_update_expr_type` 支持 `a.b.c` 嵌套 path，并以“禁止重复/包含 path”的静态约束来保持并行语义；fixtures：`tests/fixtures/typecheck/with_update_nested_path_ok.scoop`、`with_update_nested_path_type_mismatch_is_error.scoop`、`with_update_duplicate_path_is_error.scoop`、`with_update_overlapping_paths_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0425 [TODO] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
+### T0425 [DONE] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
 - 描述：在 type env 中加入 enum variant 信息（tag + payload types），并检查重复 variant/字段。
 - 目标：先只支持 enum variant（无方法/属性）；niche 优化后置。
 - 验收：typecheck fixture：enum 重复 variant 名报错；variant 字段类型未解析报错。
 - 依赖：T0236、T0404
+- 完成：在 `crates/scoopc/src/typecheck/type_env.rs` 中收集 enum variants（tag + payload fields），并在构建 type env 阶段检测重复 variant/字段；fixtures 覆盖重复 variant（`tests/fixtures/typecheck/enum_duplicate_variant_is_error.scoop`）、重复字段（`tests/fixtures/typecheck/enum_variant_duplicate_field_is_error.scoop`）与字段类型未解析（`tests/fixtures/typecheck/enum_variant_field_unresolved_type_is_error.scoop`）；新增单测 `typecheck::type_env::tests::sysroot_type_env_collects_option_variants`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0426 [TODO] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
 - 描述：把 `Some(x)` 解析/绑定为某个 enum variant 构造，并检查参数数量与类型。

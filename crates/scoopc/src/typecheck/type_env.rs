@@ -369,6 +369,7 @@ fn join_prefix(prefix: &str, name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast;
     use crate::session::Session;
 
     #[test]
@@ -377,5 +378,37 @@ mod tests {
         let env = TypeEnv::from_sysroot(sess.sysroot()).unwrap();
 
         assert_eq!(env.type_param_count("scoop.core.Option"), Some(1));
+    }
+
+    #[test]
+    fn sysroot_type_env_collects_option_variants() {
+        let sess = Session::new().unwrap();
+        let env = TypeEnv::from_sysroot(sess.sysroot()).unwrap();
+
+        let decl = env.enum_decl("scoop.core.Option").expect("Option 应当是 enum");
+        let source = env
+            .source(&decl.decl_file)
+            .expect("sysroot source 应当已被收集进 TypeEnv");
+
+        assert_eq!(decl.type_params, vec!["T".to_string()]);
+        assert_eq!(decl.variants.len(), 2);
+
+        let some = &decl.variants[0];
+        assert_eq!(some.name, "Some");
+        assert_eq!(some.tag, 0);
+        assert_eq!(some.fields.len(), 1);
+        assert_eq!(some.fields[0].name, "value");
+        match &some.fields[0].ty {
+            ast::TypeRef::Path(p) => {
+                assert_eq!(p.segments.len(), 1);
+                assert_eq!(source.slice(p.segments[0].span), "T");
+            }
+            other => panic!("Option.Some.value: 期望 TypeRef::Path，但得到 {other:?}"),
+        }
+
+        let none = &decl.variants[1];
+        assert_eq!(none.name, "None");
+        assert_eq!(none.tag, 1);
+        assert!(none.fields.is_empty());
     }
 }
