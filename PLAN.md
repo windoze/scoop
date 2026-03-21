@@ -264,7 +264,7 @@
 
 - [x] `val`/`var`：
   - 不可变/可变规则（`val` 不可再次赋值；`var` 可）（T0416）
-  - `var` 的赋值类型检查（当前仅支持局部 ident lhs）（T0416）
+  - `var` 的赋值类型检查：lhs 可写性（局部 `var` / class `var` 属性）+ rhs 可赋值（T0416/T0443）
 - [ ] 解构绑定（destructuring）：
   - [x] tuple/struct 的 `val (a, b) = expr` / `val Point { x, y } = expr`（T0430）
   - [ ] enum 的 `val Some(x) = expr`（可复用 `when` pattern，后续补齐）

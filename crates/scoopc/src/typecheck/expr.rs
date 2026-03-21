@@ -364,6 +364,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("赋值类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::assignment_type_mismatch))]
+    AssignmentTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error(
         "`with` 的 base 必须是值类型（struct/tuple/enum），当前实现仅支持 struct；但得到 {found}"
     )]
@@ -568,6 +577,7 @@ pub fn check_file_exprs(
     let top_level_types = collect_top_level_value_types(source, file, &mut lower)?;
     let top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
     let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
+    let member_mutabilities = collect_member_mutabilities(source, file);
 
     for item in &file.items {
         match item {
@@ -587,6 +597,7 @@ pub fn check_file_exprs(
                 builtins,
                 &top_level_types,
                 &top_level_funs,
+                &member_mutabilities,
                 &struct_field_types,
             )?,
             ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
@@ -597,6 +608,7 @@ pub fn check_file_exprs(
                 builtins,
                 &top_level_types,
                 &top_level_funs,
+                &member_mutabilities,
                 &struct_field_types,
             )?,
             ast::Item::ExtensionProperty(_)
@@ -616,6 +628,7 @@ fn check_class_member_fun_bodies_in_type_decl(
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     let local_name = source.slice(decl.name.span);
@@ -660,6 +673,7 @@ fn check_class_member_fun_bodies_in_type_decl(
                     builtins,
                     top_level_types,
                     top_level_funs,
+                    member_mutabilities,
                     struct_field_types,
                 )?;
             }
@@ -680,6 +694,7 @@ fn check_class_member_fun_bodies_in_type_decl(
                 builtins,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
         }
@@ -698,6 +713,7 @@ fn check_class_member_fun_body_exprs(
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
@@ -755,6 +771,7 @@ fn check_class_member_fun_body_exprs(
             Some(expected_return_ty),
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         )?,
         ast::FunBody::Missing => {}
@@ -2487,6 +2504,7 @@ fn check_fun_body_exprs(
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 函数级的“局部值类型表”（binder decl span → TypeId）。
@@ -2538,6 +2556,7 @@ fn check_fun_body_exprs(
             Some(expected_return_ty),
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         )?,
         ast::FunBody::Missing => {}
@@ -2558,6 +2577,7 @@ fn check_block_exprs(
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
@@ -2579,6 +2599,7 @@ fn check_block_exprs(
             expected_return_ty,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         )?;
     }
@@ -2602,6 +2623,7 @@ fn check_stmt_exprs(
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
@@ -2629,6 +2651,7 @@ fn check_stmt_exprs(
             expected_return_ty,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         )?,
         ast::StmtKind::Return { return_span, value } => {
@@ -2700,6 +2723,7 @@ fn check_stmt_exprs(
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
         }
@@ -2730,6 +2754,7 @@ fn check_stmt_exprs(
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
         }
@@ -2746,6 +2771,7 @@ fn check_stmt_exprs(
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
             if let Some(else_branch) = &ci.else_branch {
@@ -2762,6 +2788,7 @@ fn check_stmt_exprs(
                         expected_return_ty,
                         top_level_types,
                         top_level_funs,
+                        member_mutabilities,
                         struct_field_types,
                     )?,
                     ast::ComptimeIfElse::If(next) => {
@@ -2780,6 +2807,7 @@ fn check_stmt_exprs(
                                 expected_return_ty,
                                 top_level_types,
                                 top_level_funs,
+                                member_mutabilities,
                                 struct_field_types,
                             )?;
                             match &cur.else_branch {
@@ -2797,6 +2825,7 @@ fn check_stmt_exprs(
                                             expected_return_ty,
                                             top_level_types,
                                             top_level_funs,
+                                            member_mutabilities,
                                             struct_field_types,
                                         )?;
                                         break;
@@ -2823,6 +2852,7 @@ fn check_stmt_exprs(
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
         }
@@ -2947,6 +2977,7 @@ fn check_expr_stmt(
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
@@ -2967,6 +2998,7 @@ fn check_expr_stmt(
             expected_return_ty,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         ),
         ast::ExprKind::If {
@@ -2987,6 +3019,7 @@ fn check_expr_stmt(
             expected_return_ty,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         ),
         ast::ExprKind::When { subject, arms } => {
@@ -3005,6 +3038,7 @@ fn check_expr_stmt(
                 expected_return_ty,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )?;
 
@@ -3050,6 +3084,7 @@ fn check_expr_stmt(
                     expected_return_ty,
                     top_level_types,
                     top_level_funs,
+                    member_mutabilities,
                     struct_field_types,
                 )?;
             }
@@ -3076,6 +3111,7 @@ fn check_expr_stmt(
                 None,
                 top_level_types,
                 top_level_funs,
+                member_mutabilities,
                 struct_field_types,
             )
         }
@@ -3090,6 +3126,7 @@ fn check_expr_stmt(
             mutable_bindings,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         ),
         _ => Ok(()),
@@ -3265,6 +3302,7 @@ fn check_if_expr_stmt(
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
@@ -3292,6 +3330,7 @@ fn check_if_expr_stmt(
         expected_return_ty,
         top_level_types,
         top_level_funs,
+        member_mutabilities,
         struct_field_types,
     )?;
 
@@ -3318,6 +3357,7 @@ fn check_if_expr_stmt(
             expected_return_ty,
             top_level_types,
             top_level_funs,
+            member_mutabilities,
             struct_field_types,
         )?;
     }
@@ -3336,13 +3376,13 @@ fn check_assign_expr_stmt(
     mutable_bindings: &HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
-    // T0416：局部赋值规则最小子集：
-    // - 仅允许对局部 `var` 进行赋值
-    // - `val` 与参数均不可再次赋值
-    // - 先不处理成员赋值（`a.b = ...`）与更复杂的 lhs（留给后续任务）
-    match &lhs.kind {
+    // T0443：赋值语句 `lhs = rhs` 最小规则：
+    // - lhs 必须是可写目标：局部 `var` 绑定 或 可写属性（`var` property / ctor `var` param）
+    // - rhs 类型必须可赋给 lhs（复用 `is_type_assignable` 的最小子类型/boxing 规则）
+    let expected_ty = match &lhs.kind {
         ast::ExprKind::Ident(id) => {
             let Some(resolved) = id.resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
@@ -3361,15 +3401,17 @@ fn check_assign_expr_stmt(
                         });
                     }
 
-                    // 防御性：var 绑定应当在 locals 类型表中可查询。
-                    if !locals.contains_key(decl_span) {
-                        return Err(ExprTypeError::UnknownLocalValueType {
+                    let expected_ty = locals.get(decl_span).copied().ok_or_else(|| {
+                        ExprTypeError::UnknownLocalValueType {
                             name: name.clone(),
                             span: id.span.into(),
-                        });
-                    }
+                        }
+                    })?;
+
+                    expected_ty
                 }
                 ast::ResolvedValueRef::TopLevel { .. } => {
+                    // 目标（T0443）：先只支持局部 var（顶层 var 赋值后续再补齐）。
                     return Err(ExprTypeError::UnsupportedExpr {
                         kind: "assignment lhs（top-level value）",
                         span: id.span.into(),
@@ -3377,16 +3419,64 @@ fn check_assign_expr_stmt(
                 }
             }
         }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            // 先递归 typecheck receiver：保证 `a().b = rhs` 能覆盖 `a()`。
+            let _ = infer_expr_type(
+                source,
+                receiver,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let Some(resolved) = member.resolved.as_ref() else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "assignment lhs（member 未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            let fqn = match resolved {
+                ast::ResolvedMemberRef::Value { fqn } => fqn,
+                ast::ResolvedMemberRef::Fun { fqn }
+                | ast::ResolvedMemberRef::ExtensionValue { fqn }
+                | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+                    return Err(ExprTypeError::UnsupportedMemberAccess {
+                        fqn: fqn.clone(),
+                        span: member.span.into(),
+                    });
+                }
+            };
+
+            if !member_mutabilities.get(fqn).copied().unwrap_or(false) {
+                return Err(ExprTypeError::AssignmentTargetNotMutable {
+                    name: source.slice(member.span).to_string(),
+                    span: member.span.into(),
+                });
+            }
+
+            let expected_ty = struct_field_types.get(fqn).copied().ok_or_else(|| {
+                ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                }
+            })?;
+
+            expected_ty
+        }
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {
-                kind: "assignment lhs（仅支持标识符）",
+                kind: "assignment lhs（仅支持标识符或成员访问）",
                 span: lhs.span.into(),
             });
         }
-    }
+    };
 
     // 递归 typecheck rhs：保证 `x = f()` 这类语句也会覆盖 rhs 中的表达式。
-    let _ = infer_expr_type(
+    let found_ty = infer_expr_type(
         source,
         rhs,
         lower,
@@ -3396,6 +3486,14 @@ fn check_assign_expr_stmt(
         top_level_funs,
         struct_field_types,
     )?;
+
+    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        return Err(ExprTypeError::AssignmentTypeMismatch {
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: rhs.span.into(),
+        });
+    }
 
     Ok(())
 }
@@ -3707,6 +3805,108 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+/// 收集当前文件内“可通过成员访问写入”的 value members 可变性（member FQN → is_var）。
+///
+/// 说明：
+/// - 该表用于赋值语句 `lhs = rhs` 的 lhs 可写性检查（T0443）；
+/// - 目前我们只在单文件内收集（typecheck fixtures 的编译单元即“sysroot + 单文件”）；
+/// - 仅覆盖 struct/class 的字段/属性声明（与 `collect_struct_field_types` 的 key 集合保持一致）。
+fn collect_member_mutabilities(source: &SourceFile, file: &ast::File) -> HashMap<String, bool> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut map: HashMap<String, bool> = HashMap::new();
+
+    for item in &file.items {
+        let ast::Item::Type(ty) = item else {
+            continue;
+        };
+        collect_member_mutabilities_in_type_decl(source, ty, &pkg_prefix, &mut map);
+    }
+
+    map
+}
+
+fn collect_member_mutabilities_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    out: &mut HashMap<String, bool>,
+) {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    if matches!(decl.kind, ast::TypeKind::Struct) {
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                let Some(_ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, matches!(p.kind, Some(ast::ValKind::Var)));
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(p) = member else {
+                    continue;
+                };
+                let Some(_ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, matches!(p.kind, ast::ValKind::Var));
+            }
+        }
+    }
+
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 表。
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                let Some(kind) = p.kind else {
+                    continue;
+                };
+                let Some(_ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, matches!(kind, ast::ValKind::Var));
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(p) = member else {
+                    continue;
+                };
+                let Some(_ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, matches!(p.kind, ast::ValKind::Var));
+            }
+        }
+    }
+
+    // 无论外层是否 struct/class，都递归收集 nested type（可能存在 nested struct/class）。
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            let ast::TypeMember::Type(nested) = member else {
+                continue;
+            };
+            collect_member_mutabilities_in_type_decl(source, nested, &type_fqn, out);
+        }
+    }
 }
 
 /// 收集当前文件内“可通过成员访问读取”的 value members 声明类型（member FQN → TypeId）。

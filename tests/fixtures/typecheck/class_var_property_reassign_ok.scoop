@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0443 赋值语句：支持对 class 的 `var` 属性赋值（`this.x = ...`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Counter(var value: Int) {
+    fun set(v: Int) {
+        this.value = v
+    }
+}
+

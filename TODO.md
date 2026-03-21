@@ -1082,11 +1082,15 @@
 - 依赖：T0228、T0405
  - 完成：typecheck 增加 loop depth 上下文：`while` 条件必须可赋给 `Bool`（新错误码 `scoop::typecheck::while_condition_not_bool`）；`break/continue` 必须位于循环体内（新错误码 `scoop::typecheck::break_not_in_loop` / `scoop::typecheck::continue_not_in_loop`）。新增 fixtures：`tests/fixtures/typecheck/while_condition_not_bool_is_error.scoop`、`break_not_in_loop_is_error.scoop`、`continue_not_in_loop_is_error.scoop`、`while_break_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0443 [TODO] 赋值类型检查：lhs 可写性（var）与类型匹配（spec §9）
+### T0443 [DONE] 赋值类型检查：lhs 可写性（var）与类型匹配（spec §9）
 - 描述：实现 `x = y`：x 必须是 var 绑定或可写属性；y 类型必须可赋给 x。
 - 目标：先只支持局部 var 与字段/属性（若已实现）；复合赋值后置。
 - 验收：typecheck fixture：给 val 赋值报错；给 var 赋值但类型不匹配报错（指向 rhs span）。
 - 依赖：T0227、T0416、T0406
+ - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 扩展 `ExprKind::Assign` 的语句层检查：
+   - lhs：支持局部 `var` 绑定（复用 `mutable_bindings`）与成员访问 `this.x`（class ctor `var` 参数 / `var` 属性）；
+   - rhs：使用 `is_type_assignable` 检查 `rhs <: lhs`，不匹配时报新错误码 `scoop::typecheck::assignment_type_mismatch` 并定位到 rhs span。
+   新增 fixtures：`tests/fixtures/typecheck/var_reassign_type_mismatch_is_error.scoop`、`tests/fixtures/typecheck/class_var_property_reassign_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0444 [TODO] `inline` 与 non-local return 的语义门禁（spec §7.2/§7.3）
 - 描述：实现最小检查：只有 inline 函数的 lambda 参数允许 non-local return；其余场景报错。
