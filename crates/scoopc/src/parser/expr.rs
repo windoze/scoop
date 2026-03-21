@@ -989,6 +989,7 @@ impl<'a> Parser<'a> {
                 None
             };
             params.push(ast::Param {
+                kind: None,
                 name,
                 ty,
                 default_value: None,

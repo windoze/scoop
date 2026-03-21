@@ -519,11 +519,12 @@ struct FunSigOwned {
     return_ty: TypeId,
 }
 
-/// 对一个文件的表达式（当前阶段：顶层 `val/var` initializer）做最小类型检查。
+/// 对一个文件的表达式做最小类型检查。
 ///
 /// 说明：
 /// - 当前只覆盖能明确推导的字面量；
-/// - 暂不进入函数体（后续任务会逐步接入 block/stmt/局部作用域等）。
+/// - 会进入函数体与 class 成员方法体，但对“普通表达式语句”的覆盖仍是增量推进：
+///   只在需要时递归进入 block/if/when 等结构，以避免在语法/类型系统尚未齐全时引入大面积回归。
 pub fn check_file_exprs(
     source: &SourceFile,
     file: &ast::File,
@@ -534,6 +535,8 @@ pub fn check_file_exprs(
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
 
     // 顶层 `val/var` 的类型表：用于在表达式里引用顶层变量时查询其声明类型。
     //
@@ -564,11 +567,174 @@ pub fn check_file_exprs(
                 &top_level_funs,
                 &struct_field_types,
             )?,
+            ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
+                source,
+                ty,
+                &pkg_prefix,
+                &mut lower,
+                builtins,
+                &top_level_types,
+                &top_level_funs,
+                &struct_field_types,
+            )?,
             ast::Item::ExtensionProperty(_)
-            | ast::Item::Type(_)
             | ast::Item::Object(_)
             | ast::Item::TypeAlias(_) => {}
         }
+    }
+
+    Ok(())
+}
+
+fn check_class_member_fun_bodies_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    // 仅在 class 内启用 member fun body typecheck（T0438）。
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        let ctor_params: &[ast::Param] = decl
+            .primary_ctor
+            .as_ref()
+            .map(|c| c.params.as_slice())
+            .unwrap_or(&[]);
+
+        // `this` 在 class 成员体中可见：resolver 会把 `this` 解析到 `decl.name.span`（T0313）。
+        //
+        // 这里用 `Any` + type params 数量占位来构造 `this` 的类型：
+        // - 避免在当前阶段过早引入“class 类型实参推断/实例化”；
+        // - 同时保证泛型 class 不会因 arity mismatch 直接炸掉 member body typecheck。
+        let this_ty_args = (0..decl.type_params.len()).map(|_| builtins.any).collect::<Vec<_>>();
+        let this_ty = lower.lower_type_fqn_with_args(
+            type_fqn.clone(),
+            this_ty_args,
+            decl.name.span,
+        )?;
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Fun(fun) = member else {
+                    continue;
+                };
+                check_class_member_fun_body_exprs(
+                    source,
+                    decl.name.span,
+                    this_ty,
+                    ctor_params,
+                    fun,
+                    lower,
+                    builtins,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+        }
+    }
+
+    // 递归处理 nested types（可能存在 nested class）。
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            let ast::TypeMember::Type(nested) = member else {
+                continue;
+            };
+            check_class_member_fun_bodies_in_type_decl(
+                source,
+                nested,
+                &type_fqn,
+                lower,
+                builtins,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+        }
+    }
+
+    Ok(())
+}
+
+fn check_class_member_fun_body_exprs(
+    source: &SourceFile,
+    this_decl_span: Span,
+    this_ty: TypeId,
+    ctor_params: &[ast::Param],
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    let mut stable_bindings: HashSet<Span> = HashSet::new();
+    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+
+    // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
+    locals.insert(this_decl_span, this_ty);
+    stable_bindings.insert(this_decl_span);
+
+    // 若该 member fun 本身是扩展函数（member extension），resolver 会把 `this` 解析到 receiver 的 span；
+    // 这里沿用顶层扩展函数的处理方式：receiver 作为一个隐式稳定绑定。
+    if let Some(receiver) = &fun.receiver {
+        let receiver_ty = lower.lower_type_ref(receiver)?;
+        locals.insert(receiver.span(), receiver_ty);
+        stable_bindings.insert(receiver.span());
+    }
+
+    // 主构造参数：resolver 在 member fun 内把 ctor params 当作外层局部绑定（T0313）。
+    for p in ctor_params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+        stable_bindings.insert(p.name.span);
+    }
+
+    // member fun 自身的参数（与顶层 fun 保持一致）。
+    for p in &fun.params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+        stable_bindings.insert(p.name.span);
+    }
+
+    // 函数的期望返回类型：用于 `return expr?` 的检查。
+    let expected_return_ty = match &fun.return_ty {
+        Some(ret) => lower.lower_type_ref(ret)?,
+        None => builtins.unit,
+    };
+
+    match &fun.body {
+        ast::FunBody::Block(b) => check_block_exprs(
+            source,
+            b,
+            lower,
+            builtins,
+            &mut locals,
+            &mut stable_bindings,
+            &mut mutable_bindings,
+            Some(expected_return_ty),
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?,
+        ast::FunBody::Missing => {}
     }
 
     Ok(())
@@ -3337,10 +3503,11 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .join(".")
 }
 
-/// 收集当前文件内所有 struct 字段的声明类型（member FQN → TypeId）。
+/// 收集当前文件内“可通过成员访问读取”的 value members 声明类型（member FQN → TypeId）。
 ///
 /// 说明：
-/// - 仅收集 `struct`（值类型）的字段，匹配 T0408 的最小目标；
+/// - 初始版本（T0408）仅收集 `struct`（值类型）的字段；
+/// - T0438 起额外收集 class 的 ctor `val/var` 参数与 type body 属性，用于最小 member access typecheck；
 /// - 字段来源：
 ///   - 主构造参数（`struct Point(val x: Int)`）：在语义上等价于字段
 ///   - type body 内的 `val/var` property（`struct Point { val x: Int }`）
@@ -3380,6 +3547,36 @@ fn collect_struct_field_types_in_type_decl(
     if matches!(decl.kind, ast::TypeKind::Struct) {
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
+                let Some(ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{type_fqn}.{field_name}");
+                out.insert(field_fqn, lower.lower_type_ref(ty_ref)?);
+            }
+        }
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                if let ast::TypeMember::Property(p) = member {
+                    let Some(ty_ref) = &p.ty else {
+                        continue;
+                    };
+                    let field_name = source.slice(p.name.span);
+                    let field_fqn = format!("{type_fqn}.{field_name}");
+                    out.insert(field_fqn, lower.lower_type_ref(ty_ref)?);
+                }
+            }
+        }
+    }
+
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 类型表。
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                if p.kind.is_none() {
+                    continue;
+                }
                 let Some(ty_ref) = &p.ty else {
                     continue;
                 };

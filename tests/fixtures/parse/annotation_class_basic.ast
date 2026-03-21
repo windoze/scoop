@@ -33,6 +33,9 @@ File {
                                 name: Ident {
                                     span: 111..114,
                                 },
+                                kind: Some(
+                                    Val,
+                                ),
                                 ty: Some(
                                     Path(
                                         TypePath {

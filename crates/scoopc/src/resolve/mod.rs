@@ -636,6 +636,29 @@ impl Index {
             }
         }
 
+        // class 的主构造参数仅在带 `val/var` 前缀时才声明字段/属性：
+        // - `class C(x: Int)`：`x` 只是构造参数，不应可通过 `this.x` 成员访问读取
+        // - `class C(val x: Int)`：`x` 作为字段/属性，需进入 value namespace 索引
+        //
+        // 说明：
+        // - 当前阶段暂不处理 ctor param 上的可见性修饰符（语法也未支持），因此默认 public。
+        if matches!(ty.kind, ast::TypeKind::Class) {
+            if let Some(primary_ctor) = &ty.primary_ctor {
+                for p in &primary_ctor.params {
+                    if p.kind.is_none() {
+                        continue;
+                    }
+                    self.insert_symbol(
+                        source,
+                        &type_prefix,
+                        SymbolKind::Value,
+                        p.name.span,
+                        Visibility::Public,
+                    )?;
+                }
+            }
+        }
+
         let Some(body) = &ty.body else {
             return Ok(());
         };

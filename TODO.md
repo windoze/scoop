@@ -990,11 +990,12 @@
 - 依赖：T0249、T0401
  - 完成：`ty::TypeKind` 新增 `Param` 用于表示 type parameter；`TypeEnv` 记录每个类型符号的 `type_param_variances`；`TypeLowering` 支持 lowering `T` 与 `*`（`*` 暂 lowering 为 `Any`），并在 type decl 上实现 Kotlin-like 的最小变型位置检查（新错误码 `scoop::typecheck::variance_position_violation`）；`ExprTypeError::is_type_assignable` 支持名义类型的声明处变型子类型（仅当对应 type args 都是引用类型时生效）。新增 fixtures：`tests/fixtures/typecheck/variance_read_only_property_ok.scoop`、`variance_out_param_used_in_param_position_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0438 [TODO] 声明类型：class 的最小类型检查（字段/构造参数/方法头）
+### T0438 [DONE] 声明类型：class 的最小类型检查（字段/构造参数/方法头）
 - 描述：实现 class：主构造参数作为字段（`val/var`）与成员方法头解析后的类型收集。
 - 目标：先不实现继承/override；先把“类有成员”这件事跑通。
 - 验收：typecheck fixture：`class User(val name: String) { fun get(): String { name } }`（按语法）通过。
 - 依赖：T0248、T0203、T0404
+ - 完成：AST `Param` 新增 `kind: Option<ValKind>` 并在 parser 主构造参数列表记录 ctor param 的 `val/var` 前缀；resolver `Index` 将 class ctor 的 `val/var` 参数注入 value namespace（支持 `this.x` 成员访问）；typecheck `expr` phase 递归进入 class 成员方法体，注入 `this` 与 ctor params 的局部类型表并把 class 字段纳入 member value 类型表；新增 fixture `tests/fixtures/typecheck/class_ctor_param_field_and_member_fun_ok.scoop`；更新 parse AST goldens：`tests/fixtures/parse/annotation_class_basic.ast`、`tests/fixtures/parse/type_member_nested_type.ast`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0439 [TODO] 继承与 override：open/abstract/sealed + override 检查（Appendix B.2）
 - 描述：实现最小规则：class 单继承；override 必须显式；被覆盖成员需 open/abstract；sealed 限制同编译单元。

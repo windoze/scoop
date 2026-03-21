@@ -222,6 +222,9 @@ File {
                                                     name: Ident {
                                                         span: 521..526,
                                                     },
+                                                    kind: Some(
+                                                        Val,
+                                                    ),
                                                     ty: Some(
                                                         Path(
                                                             TypePath {

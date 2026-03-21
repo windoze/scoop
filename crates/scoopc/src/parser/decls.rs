@@ -953,6 +953,7 @@ impl<'a> Parser<'a> {
             };
 
             params.push(ast::Param {
+                kind: None,
                 name,
                 ty,
                 default_value,
@@ -974,8 +975,8 @@ impl<'a> Parser<'a> {
 
     /// 解析 class 的主构造参数列表：`class Name(val x: T, y: U = 1)`。
     ///
-    /// 当前阶段（T0248）：
-    /// - 允许参数前缀 `val/var`，但暂不在 AST 中表达（仅忽略该 token 并继续解析）；
+    /// 当前阶段（T0248/T0438）：
+    /// - 允许参数前缀 `val/var`，并写入 `ast::Param.kind`（用于后续把 ctor param 降为字段/属性）；
     /// - 参数类型与默认值复用函数参数的解析逻辑；
     /// - 仅做语法层解析与结构化存储，不做语义检查。
     fn parse_primary_ctor_param_list(&mut self) -> Result<(Span, Vec<ast::Param>), ParseError> {
@@ -990,9 +991,15 @@ impl<'a> Parser<'a> {
 
         loop {
             // Kotlin 风格：`class C(val x: Int)` / `class C(var x: Int)`
-            if self.peek_keyword(Keyword::Val) || self.peek_keyword(Keyword::Var) {
+            let kind = if self.peek_keyword(Keyword::Val) {
                 self.bump();
-            }
+                Some(ast::ValKind::Val)
+            } else if self.peek_keyword(Keyword::Var) {
+                self.bump();
+                Some(ast::ValKind::Var)
+            } else {
+                None
+            };
 
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
             let name = ast::Ident {
@@ -1018,6 +1025,7 @@ impl<'a> Parser<'a> {
             };
 
             params.push(ast::Param {
+                kind,
                 name,
                 ty,
                 default_value,
@@ -1565,6 +1573,7 @@ impl<'a> Parser<'a> {
                     let ty = self.parse_type_ref()?;
 
                     params.push(ast::Param {
+                        kind: Some(ast::ValKind::Val),
                         name: field_name,
                         ty: Some(ty),
                         default_value: None,

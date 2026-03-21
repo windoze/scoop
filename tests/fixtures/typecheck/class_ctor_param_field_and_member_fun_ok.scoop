@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0438 class：主构造 `val/var` 参数应成为字段/属性，可被 `this.x` 访问；
+// 同时 class 成员方法体应参与最小 typecheck（至少覆盖 `return`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class User(val name: String) {
+    fun get(): String { return this.name }
+}
+

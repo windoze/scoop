@@ -171,7 +171,7 @@ impl std::fmt::Debug for EffectRowParam {
 /// - `class Name(param: T, ...)`
 ///
 /// 说明：当前阶段（T0248）只做解析与结构化存储；
-/// `val/var` 参数、参数默认值等更完整的语义会在后续阶段逐步补齐。
+/// `val/var` 参数是否“同时声明字段/属性”会在后续阶段逐步补齐（T0438 起在 `Param.kind` 中保留语法信息）。
 #[derive(Debug, Clone)]
 pub struct PrimaryCtorDecl {
     pub params_span: Span,
@@ -310,7 +310,7 @@ pub struct EnumVariantDecl {
     pub name: Ident,
     /// variant 携带的字段列表（用 `Param` 复用 `name + ty + default_value` 的结构）。
     ///
-    /// 注意：语法上要求 `val field: T`；parser 会消费 `val` 关键字但目前不在 AST 中表达它。
+    /// 注意：语法上要求 `val field: T`；当前 parser 会消费 `val` 关键字并写入 `Param.kind = Some(Val)`。
     pub params: Vec<Param>,
 }
 
@@ -1252,6 +1252,13 @@ pub enum StmtKind {
 
 #[derive(Clone)]
 pub struct Param {
+    /// 主构造参数中的 `val/var` 前缀（Kotlin-like）。
+    ///
+    /// 说明：
+    /// - 普通函数参数与 lambda 参数不支持 `val/var`，因此为 `None`；
+    /// - 对于 `class C(val x: Int)`，`kind = Some(Val)` 表示该参数同时声明一个同名字段/属性；
+    /// - 对于 `class C(x: Int)`，`kind = None` 表示它只是构造参数（仅在初始化语境与成员体内可见）。
+    pub kind: Option<ValKind>,
     pub name: Ident,
     pub ty: Option<TypeRef>,
     pub default_value: Option<Expr>,
@@ -1261,6 +1268,9 @@ impl std::fmt::Debug for Param {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("Param");
         s.field("name", &self.name);
+        if self.kind.is_some() {
+            s.field("kind", &self.kind);
+        }
         s.field("ty", &self.ty);
         if self.default_value.is_some() {
             s.field("default_value", &self.default_value);
@@ -1419,6 +1429,7 @@ mod tests {
             span: Span::new(0, 6),
             kind: ExprKind::Lambda(LambdaExpr {
                 params: vec![Param {
+                    kind: None,
                     name: Ident {
                         span: Span::new(1, 2),
                     },
