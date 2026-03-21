@@ -126,6 +126,7 @@
   - [x] `import foo.bar.Baz as Qux`（Appendix B.7）
   - [x] use-site effect row 实参：`Type<eff Row>`（spec §3.4）
   - [x] pattern rest：`..`（spec §4.2）
+  - 泛型 `where` 子句（spec §3 / Appendix B）
 - [ ] Kotlin-like 声明补齐：
   - [x] `init { ... }` blocks（Appendix B.2.2）
   - [x] secondary constructors（Appendix B.2.2）
@@ -169,6 +170,8 @@
   - [x] 索引侧：顶层/成员/扩展函数与构造函数收集为候选集合（T0318）
   - [x] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
   - [ ] typecheck + inference：决议 most-specific 与冲突诊断
+- [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断
+- [ ] 跨包扩展导入：extension 在显式 import / star import / 成员候选之间的可见性、shadowing 与候选收集
 
 ### 3.3 sysroot 注入
 
@@ -316,6 +319,8 @@
 - [ ] overload resolution 与推断联动：
   - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议
   - effect rows / `eff` 参数也必须能参与重载筛选与歧义诊断
+- [ ] 真正的分支合并类型：LUB / 受限 union 的构造、比较与化简（替代简单 `Any` fallback）
+- [ ] effect row 高级推断：高阶 row 约束、泛型 row 变量、归一化参与候选决议
 
 **本阶段 DoD**
 - 能跑 `tests/fixtures/infer/**`：涵盖 if/when/lambda/泛型调用推断的 compile-pass/compile-fail。
@@ -338,10 +343,12 @@
   - overriding：`R_over ⊆ R_base`
   - entry point 必须 `Pure`（等价于 `Pure!`，闭合语义）
   - 闭合行额外约束：所有来源的 effect（含 callback 透传）都不能逃逸出函数边界（spec §5.8.4）
+  - 高级 row 语义：高级归一化、泛型 row 变量、必要的高阶 row 运算
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
   - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 required effects + try/catch lowering：T0604/T0607）
   - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0604/T0607）
+  - 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 
@@ -373,6 +380,8 @@
   - 调用者签名不携带 `/ Async`
   - `Task<T>` 懒执行，直到 `await` 或显式启动
 - [ ] Appendix A 一致性：嵌套 handler 必须支持“最近匹配 handler”分发，不能停留在单层 handler 模型
+- [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则
+- [ ] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示
 
 **本阶段 DoD**
 - compile-pass + run-pass 覆盖 `Raise`、`try/catch/finally`、自定义 effect + handle，以及一个最小 async/await demo。
@@ -397,6 +406,7 @@
 - [ ] lambda → `{ env_struct, fn_ptr }` 形式
 - [ ] 捕获变量布局与 GC trace 信息生成
 - [ ] effectful function type 的调用约定统一化
+- [ ] 可变捕获：捕获 `var` 时的 box/lift 策略、别名与写回语义
 
 **本阶段 DoD**
 - 纯子集（无 class 虚分发也可）能 lowering 到 MIR，并能生成可链接 `.o`（下一阶段）。
@@ -452,6 +462,7 @@
   - pointer bitmap 或 trace 回调
   - 用于扫描对象内的引用字段（struct/enum/closure env）
 - [ ] 线程注册：新线程必须注册到 runtime 以便 GC stop-the-world 扫描其 shadow stack
+- [ ] `object` / `companion object`：跨 DLL / 动态链接的一次初始化与全局可见性策略
 
 ### 9.2 effect runtime（C 或编译器插桩）
 
@@ -542,6 +553,7 @@ tests/
 - [x] T0106a：fixtures runner 识别 `codegen/`（或 `run-pass/`）phase，并实现 stdout golden 比对（对比逻辑可单测独立验证）
 - [ ] T0106b：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout（stderr 后续补齐）
 - [ ] 支持超时、退出码断言（fixtures 指令：`TIMEOUT`/`EXPECT-EXIT`）
+- [ ] 支持 stderr golden 断言，并把 stdout/stderr/退出状态的 mismatch 诊断稳定化
 - [ ] 对 GC 压测类测试，支持 `SCOOP_GC_STRESS=1` 之类的环境变量切换（让 CI 可控）
 
 ### 10.5 Fuzz/性质测试（可选但很有价值）
@@ -587,6 +599,7 @@ tests/
   - 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
   - `AnnotationTarget` enum 与 target 合法性检查
   - meta-annotations 与 `.cone` 导出策略
+- [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
 - [ ] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
 - [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 - [ ] 后期 runtime / std 阶段的 intrinsic 预算规则：
@@ -611,6 +624,7 @@ fixtures：
 - [ ] archive（可先用 zip/tar，后续换自定义格式）
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
 - [ ] 预编译实例（pre-specialize）：cache key 与选择规则
+- [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
 fixtures：
 - `tests/fixtures/cone/*`：
@@ -628,6 +642,7 @@ fixtures：
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）
 - [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
+- [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [ ] `trimIndent()`：编译期求值 + 运行期 fallback（spec §8.4）
 - [ ] sysroot/stdlib：补齐 scope functions 与标准 delegated property API surface（spec §10.4 / §11）
 
@@ -663,6 +678,11 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - most specific candidate 规则
   - 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
   - 扩展函数、成员函数、构造函数之间的优先级与歧义处理
+- [ ] 默认参数：中间参数省略与命名参数联动
+- [ ] 多 trailing lambda：语法、expected type 与重载决议联动
+- [ ] varargs spread：集合/序列到 vararg 的桥接规则
+- [ ] delegated properties：`lazy`/`observable`/`vetoable` 的线程安全语义与平台 policy
+- [ ] 类初始化兼容：复杂继承链与 effect 细节
 
 fixtures：
 - `tests/fixtures/language/*` 下为每个特性提供 compile-pass/compile-fail + 必要的 run-pass

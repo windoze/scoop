@@ -184,6 +184,18 @@
 - 验收：`cargo run -p scoop_tools -- fixtures-matrix check` 输出报告；并有单测覆盖”缺口检测”。
 - 依赖：T0012、T0003
 
+### T0111 [TODO] run-pass fixtures：`RUN-STDERR` golden 与 stderr mismatch 诊断
+- 描述：在 run-pass fixtures 中增加 stderr 捕获与 golden 比对能力，支持“仅 stdout”、“仅 stderr”或“两者同时断言”的场景，并保证 mismatch 诊断能区分 stdout/stderr 差异。
+- 目标：不改变现有 `RUN-STDOUT` 语义；先只做文本 stderr golden，不做流间时序重建。
+- 验收：新增 run-pass fixtures：一个断言 stderr 输出正确，一个断言 stdout/stderr 同时输出且 stderr mismatch 时能给出稳定错误信息。
+- 依赖：T0106b2、T0107
+
+### T0112 [TODO] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
+- 描述：让 fixtures runner 对运行进程执行退出码断言与超时控制，并在超时、信号终止、非预期退出码时生成稳定诊断。
+- 目标：先只覆盖单进程执行模型；不做沙箱与资源限额。
+- 验收：新增 run-pass fixtures：一个断言非零退出码，一个断言超时失败；`scoop test` 能稳定区分“程序失败”和“fixture 断言失败”。
+- 依赖：T0106b2、T0107
+
 ---
 
 ## T02：Parser/AST（阶段 1：从“可解析声明”走向“可解析表达式”）
@@ -569,6 +581,18 @@
 - 依赖：T0201、T0248
 - 完成：lexer 新增 `object`/`companion` 关键字；AST 新增 `ObjectDecl/ObjectKind` 并在 `Item/TypeMember` 接入；parser 支持 top-level/nested object 与 class body 内 companion object（非法位置给出稳定 `scoop::parse::expected` 且避免级联错误）；新增 parse pass fixture `object_and_companion_object_basic`（含 AST golden）与 fail fixture `companion_object_illegal_position_fail`；`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 通过。
 
+### T0259 [TODO] Parser：receiver function type 语法 `T.(A, B) -> C / R`（spec §7.5）
+- 描述：在类型语法中补齐 receiver function type：支持 `T.() -> R`、`T.(A, B) -> C` 以及带 effect row 的 `T.(A, B) -> C / E`。
+- 目标：先只做语法与 AST 建模；子类型、推断、codegen 继续复用/依赖 T0435 等后续任务。
+- 验收：新增 parse fixture：`val f: String.() -> Int`、`val g: List<Int>.(Int) -> Bool / Pure` 可解析；非法写法（如缺 `->` 或 receiver 后不是函数类型）报错。
+- 依赖：T0219、T0233
+
+### T0260 [TODO] Parser：泛型 `where` 子句（spec §3 / Appendix B）
+- 描述：为 `fun` / `class` / `struct` / `interface` / `enum` / `effect` 的声明头补齐 `where` 子句语法，支持在声明处泛型参数列表之后附加约束列表。
+- 目标：先固定 AST 形状与解析顺序；约束语义、约束满足性与冲突诊断交给 resolve/typecheck。
+- 验收：新增 parse fixtures：`fun <T> f(x: T): T where T: Show`、`class Box<T> where T: Clone` 可解析；语法损坏时给出稳定 parse error。
+- 依赖：T0218、T0249
+
 ---
 
 ## T03：名字解析（阶段 2：从“顶层存在性”走向“作用域/多命名空间”）
@@ -705,6 +729,24 @@
 - 验收：新增 resolve fixture：同名两个函数在调用点保留候选集合而不是提前报歧义；构造调用同理。
 - 依赖：T0318、T0311、T0310、T0209
 - 完成：在 `scoopc::ast` 为 `ValueIdent/MemberIdent` 增加 `call: Option<ResolvedCall>`，引入 `ResolvedCall/CallCandidate/CallShape/CallArgShape` 用于记录候选集合与调用形状；在 `scoopc::resolve::scopes` 中实现 `resolve_call_site`，为 `Call(Ident)` 收集顶层函数候选与构造候选（不再在多候选时报 `ambiguous_call`，留给后续 typecheck），并为成员调用写回候选与调用形状；更新 resolve multi fixture `tests/fixtures/resolve_multi/ambiguous_call/use.scoop` 为 pass；新增 resolver 单测覆盖“多 fun 候选保留/多 ctor 候选保留”；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
+
+### T0320 [TODO] Resolver：`where` 子句中的类型参数与约束引用解析
+- 描述：把 `where` 子句纳入 resolve 流程：约束左侧的类型参数要绑定到当前声明的泛型参数，约束右侧的类型引用要按现有 type/import 规则解析。
+- 目标：先只支持“当前声明上的 type params + 普通 TypeRef”这一层；约束满足性、冲突与循环诊断留给 typecheck。
+- 验收：新增 resolve fixture：`fun <T> f(x: T): T where T: Show` 中 `T` 与 `Show` 都能正确解析；未声明的类型参数名或未导入的约束类型报错。
+- 依赖：T0260、T0309、T0308
+
+### T0321 [TODO] Resolver：跨包可见性规则（`public/internal/private`）
+- 描述：在 package / `.cone` 依赖边界上固定可见性规则：同包、跨包、下游依赖分别能看到哪些声明，并把诊断统一到稳定错误码。
+- 目标：先只支持 Scoop package 与 `.cone` 依赖的主路径；不引入 friend module 或自定义可见性层级。
+- 验收：新增多包 fixtures：`public` 可被下游引用，`internal/private` 在跨包场景下被拒绝；错误信息能指出声明所在包。
+- 依赖：T0306、T1105
+
+### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
+- 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。
+- 目标：先固定“能否发现某个 imported extension”的规则；最终 overload 决议与 receiver specificity 仍交给 typecheck/infer。
+- 验收：新增多包 fixtures：显式导入的 extension 可被发现，未导入时不可见；star import 与本地成员同名时仍遵守 member 优先。
+- 依赖：T0312、T0319、T0321
 
 ---
 
@@ -1110,6 +1152,24 @@
 - 验收：typecheck fixture：两条仅返回类型不同的函数声明报错；默认参数导致调用点永远歧义的 overload 报错。
 - 依赖：T0318、T0453、T1305
 
+### T0458 [TODO] 泛型约束：`where` 子句的语义检查与满足性
+- 描述：在类型检查阶段实现 `where` 子句：验证约束目标必须是当前声明的类型参数，约束本身合法，并在实例化/调用时检查实参是否满足约束。
+- 目标：覆盖 spec 已定义的约束形式；不再把 `where` 仅当作语法占位。
+- 验收：typecheck fixtures：满足约束的泛型调用通过，不满足时报清晰错误；冲突或重复约束能被诊断。
+- 依赖：T0260、T0320、T0404、T0437
+
+### T0459 [TODO] `when`：穷尽性检查补齐嵌套组合覆盖
+- 描述：把穷尽性检查从“单层 enum/Bool/Option”推进到嵌套组合：tuple of enums、enum payload 中再含 enum/Bool/Option、以及多维组合覆盖。
+- 目标：先覆盖有限且可枚举的组合；不做无限域或路径敏感分析。
+- 验收：typecheck fixtures：`when ((opt, flag))`、嵌套 `Some((x, None))` 等场景在完整覆盖时通过，缺失某一组合时报错。
+- 依赖：T0428、T0429、T0410
+
+### T0460 [TODO] destructuring `val`：enum/variant payload 解构绑定
+- 描述：把 variant pattern 复用到 `val` 解构绑定位置，允许对 enum payload 做绑定与类型检查，而不只支持 tuple/struct。
+- 目标：先覆盖与 `when` pattern 同构的 variant payload 解构；不新增第二套独立语义。
+- 验收：typecheck fixtures：在允许的绑定语法下对 `Some(x)` / `Result.Ok(v)` 形式解构成功；对非匹配 variant 或非法位置给出稳定诊断。
+- 依赖：T0430、T0427、T0456
+
 ---
 
 ## T05：类型推断（阶段 4：约束生成与求解，逐步扩展）
@@ -1191,6 +1251,18 @@
 - 目标：先覆盖参数更具体、receiver 更具体、非默认参数优先等常见规则；完全等价时保留歧义错误。
 - 验收：infer fixture：`f(1)` 在 `f(Int)` / `f(Any)` 中选 `f(Int)`；无明显更具体候选时报 `ambiguous_overload`，错误信息列出候选签名。
 - 依赖：T0512、T0457
+
+### T0514 [TODO] 分支类型合并：真正的 LUB / 受限 union 构造与化简
+- 描述：替换当前 `if/when` 的 “相同类型否则回退到 Any” 规则，引入真正的最小上界计算，并在必要时构造受限 union/公共超类型结果。
+- 目标：先覆盖最常见层级：继承关系、nullability、`Nothing`、enum/tuple/函数类型的可比较情况；保证结果稳定可解释。
+- 验收：infer fixtures：`if (c) child else parent` 推断为 `Parent`；`if (c) Int else String` 不再无脑退化，按既定 union/LUB 规则给出结果或稳定诊断。
+- 依赖：T0414、T0503、T0506
+
+### T0515 [TODO] effect row 推断 v1：高阶 row 约束、泛型 row 变量与归一化
+- 描述：把 effect row 推断从“默认值 + 简单并集”推进到更完整的求解：支持泛型 row 变量参与约束、必要的高阶 row 运算，以及规范化后的等价比较。
+- 目标：让 row 推断可稳定服务于 overload resolution、receiver function type 与 higher-order APIs，而不是停留在简单集合拼接。
+- 验收：effects/infer fixtures：高阶函数把 row 变量透传给返回函数类型时仍可推断；等价但书写顺序不同的 row 表达式不会导致误判。
+- 依赖：T0509、T0511、T0608
 
 ---
 
@@ -1372,6 +1444,30 @@
 - 验收：effects fixture：`fun main(): Unit / Pure!` 内未处理的 `Raise` 报错；使用 `try/catch` 包裹后通过；open row `/ Pure` 在相同情况下报错信息不同（提示”需要闭合 row”）。
 - 依赖：T0626、T0608、T0610
 
+### T0628 [TODO] RowExpr 高级语义：高级归一化、泛型 row 变量与高阶 row 运算
+- 描述：补齐 row 语义层而不只靠推断兜底：定义 row 表达式的规范化、等价判定、泛型 row 变量的合法出现位置，以及 spec 允许的高阶 row 运算。
+- 目标：给 typecheck / infer / overload resolution 一个统一的 row 代数基础；不再把复杂 row 视为“字符串相等”或简单集合并。
+- 验收：effects fixtures：等价 row 表达式经过规范化后可互相赋值；非法的 row 变量逃逸或不良组合会在 typecheck 阶段报错。
+- 依赖：T0608、T0609、T0515
+
+### T0629 [TODO] Program boundary：多 entry point / library boundary 规则
+- 描述：把 program boundary 从“仅检查 `main` 必须 `Pure`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure`。
+- 目标：先覆盖可静态识别的入口面；不引入运行时动态扫描。
+- 验收：新增 effects + cone fixtures：库导出的公开入口若含未处理 effect 会被拒绝；多个 entry point 共存时规则稳定。
+- 依赖：T0610、T1107
+
+### T0630 [TODO] runtime ABI：perform slot 从单值扩展到复杂 payload
+- 描述：把 effect runtime ABI 从“单个指针/整型 slot”扩展到可承载复杂 payload：多字字段、结构体/union 风格载荷、必要的对齐与判别信息。
+- 目标：保持 non-resuming 路径的实现简单；先固定 ABI 形状，再让 lowering/codegen/runtime 共同接入。
+- 验收：新增 IR/codegen/runtime fixtures：携带复合 payload 的 effect 可被正确写入、传播和读取；ABI 在同一 target 上稳定。
+- 依赖：T0613、T0818、T0906
+
+### T0631 [TODO] 语法糖：多 `catch` arms 与匹配顺序
+- 描述：把 `try/catch/finally` 从单个 `catch` 扩展到多个 `catch` arm，并固定匹配顺序、不可达分支诊断与 lowering 结果。
+- 目标：先覆盖异常/错误类型匹配顺序；不做复杂模式匹配。
+- 验收：新增 parse/typecheck fixtures：多个 `catch` 可解析且按书写顺序匹配；被前面更宽类型吞掉的 `catch` 会报不可达。
+- 依赖：T0607、T0606、T0419
+
 ---
 
 ## T07：IR 与单态化（阶段 6：为 LLVM 做准备）
@@ -1453,6 +1549,12 @@
 - 目标：先只覆盖 Raise 与 try/catch；resume/continuation 后置。
 - 验收：dump-mir 能看到 perform/handler 相关 terminator；无 panic。
 - 依赖：T0612、T0703
+
+### T0714 [TODO] 捕获闭包：`var` 可变捕获的 boxing / aliasing / 写回
+- 描述：在已有 capture set / env struct 基础上，支持捕获可变局部：为 `var` 引入 box 或等价可变单元，并固定读写别名与生命周期语义。
+- 目标：先保证语义正确与 GC 可追踪；不急于优化为栈提升或逃逸分析。
+- 验收：新增 IR/run-pass fixtures：lambda 内外都修改同一个 `var` 时结果一致；多个闭包共享同一捕获盒时行为稳定。
+- 依赖：T0711、T0443
 
 ---
 
@@ -1755,6 +1857,12 @@
 - 验收：新增 run-pass fixture：多次并发前的重复访问不会重复初始化；初始化副作用只出现一次。
 - 依赖：T0901
 
+### T0919 [TODO] runtime：`object` / `companion object` 的跨 DLL / 动态链接一次初始化
+- 描述：补齐单例 once 初始化在动态链接场景下的语义：同一逻辑单例跨动态库加载边界的身份、初始化竞争、以及导出/导入侧的可见性策略。
+- 目标：先覆盖主机平台支持的动态链接模型；静态链接路径保持与 T0918 一致。
+- 验收：新增运行期测试或平台 fixture：跨动态库重复访问不会导致重复初始化，且可观测副作用只发生一次。
+- 依赖：T0918
+
 ---
 
 ## T10：注解系统与系统编程通道（阶段 9）
@@ -1870,6 +1978,12 @@
 - 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
 - 依赖：T1017
 
+### T1019 [TODO] 注解参数：支持常量表达式 / 数组 / enum / class-literal 参数
+- 描述：把注解参数从“仅无参或字面量”扩展到更完整的常量参数模型：常量表达式、数组字面量、enum 值、类字面量等，并在 typecheck 中验证参数类型与可求值性。
+- 目标：先只接受编译期可确定的参数；不允许运行期依赖值混入注解参数。
+- 验收：新增 parse/typecheck fixtures：`@Anno(1 + 2)`、`@Anno([A, B])`、`@Anno(Color.Red)`、`@Anno(String::class)` 可通过；非常量参数报错。
+- 依赖：T1001、T1002、T1202
+
 ---
 
 ## T11：Cone（包/稳定 IR/分发）（阶段 10）
@@ -1921,6 +2035,12 @@
 - 目标：先只支持函数实例；类型实例后续。
 - 验收：新增 cone fixture：指定 `id<Int>` 预编译；下游消费时无需再次单态化（可用 dump 日志/计数验证）。
 - 依赖：T0712、T1104
+
+### T1109 [TODO] pre-specialize：类型实例的导出与消费
+- 描述：把 pre-specialize 从“仅函数实例”扩展到类型实例：泛型 struct/class/enum 的常用实例可被预编译、打包进 `.cone`，并被下游直接复用。
+- 目标：先覆盖无递归或有限递归的常见类型实例；不要求一次处理所有互递归图。
+- 验收：新增 cone fixtures：预编译 `Vec<Int>` 或等价类型实例后，下游消费不再重新生成相同实例；dump 日志或计数可证明命中缓存。
+- 依赖：T1108、T0712
 
 ---
 
@@ -2027,6 +2147,12 @@
 - 目标：先只固定声明面与最小文档/fixture；行为实现与线程安全语义后续补齐。
 - 验收：新增 resolve/typecheck fixture：引用 `scoop.delegates.lazy` 等 API 可通过；缺失导入时报错。
 - 依赖：T0451、T1210
+
+### T1218 [TODO] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal
+- 描述：在 comptime/reflection API 中补齐对复杂注解参数的读取：不仅能拿到字面量，还能读取常量表达式求值结果、数组参数、enum 值与类字面量。
+- 目标：读取结果应与 T1019 的注解参数语义保持一致；不暴露未归一化的 parser 细节。
+- 验收：新增 comptime fixtures：读取 `@Anno(1 + 2, [Color.Red], String::class)` 得到稳定元数据；输出与下游 `.cone` 元数据一致。
+- 依赖：T1019、T1209、T1215
 
 ---
 
@@ -2163,6 +2289,36 @@
 - 目标：先覆盖最常见组合；varargs 与重载的复杂交互后续再细化。
 - 验收：language fixture：多个 overload 中，命名参数和 trailing lambda 能帮助选中正确候选；真正无法区分时仍报歧义。
 - 依赖：T1305、T1306、T1307、T0512
+
+### T1323 [TODO] 默认参数：中间参数省略与命名参数联合规则
+- 描述：把默认参数从“只省略尾部参数”推进到 Kotlin 风格的中间参数省略，只要调用点使用命名参数并满足规则，就允许跳过中间带默认值的形参。
+- 目标：不改变 T1305 的基础行为；本任务专门补齐“中间省略 + 命名参数”的语言规则与诊断。
+- 验收：language fixtures：`f(a = 1, c = 3)` 会用默认值补上 `b`；非法跳过非默认参数或与位置参数混用时报错。
+- 依赖：T1305、T1306、T1322
+
+### T1324 [TODO] 多 trailing lambda：语法、expected type 与重载联动
+- 描述：在已有单 trailing lambda 基础上，支持多个 trailing lambda（若采用 Kotlin-like 语法），并让 expected type、命名参数与 overload resolution 一起参与决议。
+- 目标：先固定语法与候选选择规则；不要求所有 DSL 风格写法一次覆盖。
+- 验收：language fixtures：多个 lambda 参数的调用可在 trailing 形式下通过；歧义或位置非法时报清晰错误。
+- 依赖：T1307、T1322
+
+### T1325 [TODO] varargs spread：集合/迭代器桥接与调用规则
+- 描述：把 `vararg` spread 从“数组/tuple 的最小形式”扩展到更完整的桥接规则：允许标准集合/可迭代视图在明确转换或约定 API 下参与 spread。
+- 目标：先固定语言层/stdlib 层边界；避免隐式、不可控的大规模分配。
+- 验收：language + std fixtures：集合经约定桥接后可用于 `vararg` 调用；不满足桥接条件时报错并指出所需转换。
+- 依赖：T1308、T1317
+
+### T1326 [TODO] delegated properties：线程安全语义与平台 policy
+- 描述：补齐标准 delegated properties 的线程安全语义：`lazy` 的同步/发布/无锁策略，`observable`/`vetoable` 在并发场景下的可见性与回调规则，以及不同平台的 policy。
+- 目标：让 `lazy` 等 API 不只“能跑”，还要在 desktop/server/embedded/WASM 等环境下有明确行为约定。
+- 验收：language/std fixtures：支持的平台上线程安全语义可回归验证；不支持的平台有 capability matrix 或降级策略说明。
+- 依赖：T1313、T1319
+
+### T1327 [TODO] 类初始化兼容：复杂继承链与 effect 细节
+- 描述：在已有类初始化顺序实现基础上，补齐复杂继承链、父类初始化交错、以及初始化期间 effect/异常传播的 Kotlin-like 细节。
+- 目标：不改写 T1312 的基础顺序规则；本任务专门收敛复杂继承与异常/effect 交互的边角行为。
+- 验收：language fixtures：多层继承中的属性初始化、`init` 链与 secondary constructor 行为稳定；初始化期 effect 违规或异常路径有明确诊断。
+- 依赖：T1312、T0439、T0609
 
 ---
 
