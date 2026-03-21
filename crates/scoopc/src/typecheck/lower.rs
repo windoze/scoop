@@ -3,7 +3,7 @@
 //! 当前阶段的目标：
 //! - 把 parser 产出的 AST `TypeRef` 转换为编译器内部类型表示（`ty::TypeId`）
 //! - 在 lowering 过程中做最小语义校验：类型存在性（应由 resolve 保证）与泛型 arity 检查
-//! - 先覆盖 `Path` / `Tuple` / `Nullable`，其它类型语法在后续任务逐步补齐
+//! - 覆盖 `Path` / `Tuple` / `Nullable` / `Function`，其它类型语法在后续任务逐步补齐
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -13,7 +13,7 @@ use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
 };
 
 use super::{TypeEnv, TypeSymbolKind};
@@ -50,6 +50,15 @@ pub enum TypeLowerError {
     #[diagnostic(code(scoop::typecheck::missing_type_symbol_in_env))]
     MissingTypeSymbolInEnv {
         fqn: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("effect row 项必须是 effect 类型：{item}（得到 {found}）")]
+    #[diagnostic(code(scoop::typecheck::effect_row_item_not_effect))]
+    EffectRowItemNotEffect {
+        item: String,
+        found: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -177,11 +186,59 @@ impl<'a> TypeLowering<'a> {
                 kind: "use-site effect row arg (`eff ...`)",
                 span: (*span).into(),
             }),
-            ast::TypeRef::Function(f) => Err(TypeLowerError::UnsupportedTypeRef {
-                kind: "function type",
-                span: f.span.into(),
-            }),
+            ast::TypeRef::Function(f) => {
+                let receiver = match &f.receiver {
+                    Some(r) => Some(self.lower_type_ref(r)?),
+                    None => None,
+                };
+                let mut params = Vec::with_capacity(f.params.len());
+                for p in &f.params {
+                    params.push(self.lower_type_ref(p)?);
+                }
+                let return_ty = self.lower_type_ref(&f.return_ty)?;
+                let effects = self.lower_effect_row_expr(f.effects.as_ref())?;
+                Ok(self
+                    .types
+                    .ty_function(receiver, params, return_ty, effects))
+            }
         }
+    }
+
+    fn lower_effect_row_expr(
+        &mut self,
+        expr: Option<&ast::EffectRowExpr>,
+    ) -> Result<EffectRow, TypeLowerError> {
+        let Some(expr) = expr else {
+            // spec §5.8.2：缺省效果为 Pure。
+            return Ok(EffectRow::pure());
+        };
+        if expr.terms.is_empty() {
+            return Ok(EffectRow::pure());
+        }
+
+        let mut terms: Vec<TypeId> = Vec::with_capacity(expr.terms.len());
+        for term in &expr.terms {
+            // effect item 的语法复用 `TypePath`；这里复用 TypeRef lowering，再做 kind 检查。
+            let ty = self.lower_type_ref(&ast::TypeRef::Path(term.clone()))?;
+            let ok = match self.type_kind(ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                    matches!(self.nominal_decl_kind(&nominal.fqn), Some(ast::TypeKind::Effect))
+                }
+                _ => false,
+            };
+
+            if !ok {
+                return Err(TypeLowerError::EffectRowItemNotEffect {
+                    item: self.source.slice(term.span).to_string(),
+                    found: self.fmt_type(ty),
+                    span: term.span.into(),
+                });
+            }
+
+            terms.push(ty);
+        }
+
+        Ok(EffectRow::new(terms))
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {
@@ -219,6 +276,16 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn ty_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
         self.types.ty_tuple(elements)
+    }
+
+    pub(super) fn ty_function(
+        &mut self,
+        receiver: Option<TypeId>,
+        params: Vec<TypeId>,
+        return_ty: TypeId,
+        effects: EffectRow,
+    ) -> TypeId {
+        self.types.ty_function(receiver, params, return_ty, effects)
     }
 
     /// 将“已解析出的类型 FQN + 已 lowering 的 type args”构造成 `TypeId`。

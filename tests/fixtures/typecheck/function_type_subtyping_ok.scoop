@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T0435 函数类型（含 receiver + effect row）的类型表示与最小子类型规则：
+// - 参数逆变
+// - 返回协变
+// - effect row containment（Pure ⊆ R）
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun effect_subtyping_ok(f: () -> Int / Pure): () -> Int / (Raise<RuntimeError>) {
+    return f
+}
+
+fun param_contravariance_ok(f: (Any) -> Any / Pure): (String) -> Any / Pure {
+    return f
+}
+
+fun receiver_contravariance_ok(f: Any.(Int) -> Int / Pure): String.(Int) -> Int / Pure {
+    return f
+}
+

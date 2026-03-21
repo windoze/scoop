@@ -26,7 +26,7 @@ use crate::ast;
 use crate::resolve::{ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
@@ -1207,7 +1207,66 @@ fn is_type_assignable(
         return true;
     }
 
-    false
+    // T0435：函数类型的最小子类型关系。
+    //
+    // 规则（常见的函数子类型规则）：
+    // - 参数逆变：expected.param <: found.param
+    // - 返回协变：found.ret <: expected.ret
+    // - effect row：found.effects ⊆ expected.effects（requires no more effects than）
+    //
+    // 注意：当前阶段类型系统仍不完整（名义继承/泛型/row 变量等），因此这里的判断只基于已有的
+    // `is_type_assignable` 能力做递归。
+    match (lower.type_kind(found), lower.type_kind(expected)) {
+        (
+            TypeKind::Ref(RefTypeKind::Function(found_fun)),
+            TypeKind::Ref(RefTypeKind::Function(expected_fun)),
+        ) => {
+            if !found_fun.effects.is_subset_of(&expected_fun.effects) {
+                return false;
+            }
+
+            if !is_type_assignable(
+                found_fun.return_ty,
+                expected_fun.return_ty,
+                lower,
+                builtins,
+            ) {
+                return false;
+            }
+
+            // receiver function type：把 receiver 当作第一个参数参与逆变比较。
+            let found_arity = found_fun.params.len() + found_fun.receiver.is_some() as usize;
+            let expected_arity = expected_fun.params.len() + expected_fun.receiver.is_some() as usize;
+            if found_arity != expected_arity {
+                return false;
+            }
+
+            let mut found_params: Vec<TypeId> = Vec::with_capacity(found_arity);
+            if let Some(r) = found_fun.receiver {
+                found_params.push(r);
+            }
+            found_params.extend(found_fun.params.iter().copied());
+
+            let mut expected_params: Vec<TypeId> = Vec::with_capacity(expected_arity);
+            if let Some(r) = expected_fun.receiver {
+                expected_params.push(r);
+            }
+            expected_params.extend(expected_fun.params.iter().copied());
+
+            for (expected_param, found_param) in expected_params
+                .iter()
+                .copied()
+                .zip(found_params.iter().copied())
+            {
+                if !is_type_assignable(expected_param, found_param, lower, builtins) {
+                    return false;
+                }
+            }
+
+            true
+        }
+        _ => false,
+    }
 }
 
 fn infer_value_ident_type(
@@ -1652,11 +1711,88 @@ pub(super) fn lower_type_ref_with_enum_subst(
             span: use_span.into(),
         }
         .into()),
-        ast::TypeRef::Function(_) => Err(TypeLowerError::UnsupportedTypeRef {
-            kind: "function type",
-            span: use_span.into(),
+        ast::TypeRef::Function(f) => {
+            let receiver = match &f.receiver {
+                Some(r) => Some(lower_type_ref_with_enum_subst(
+                    enum_source,
+                    use_span,
+                    enum_fqn,
+                    r,
+                    lower,
+                    builtins,
+                    type_param_set,
+                    subst,
+                )?),
+                None => None,
+            };
+
+            let mut params = Vec::with_capacity(f.params.len());
+            for p in &f.params {
+                params.push(lower_type_ref_with_enum_subst(
+                    enum_source,
+                    use_span,
+                    enum_fqn,
+                    p,
+                    lower,
+                    builtins,
+                    type_param_set,
+                    subst,
+                )?);
+            }
+
+            let return_ty = lower_type_ref_with_enum_subst(
+                enum_source,
+                use_span,
+                enum_fqn,
+                &f.return_ty,
+                lower,
+                builtins,
+                type_param_set,
+                subst,
+            )?;
+
+            let effects = match &f.effects {
+                None => EffectRow::pure(),
+                Some(e) if e.terms.is_empty() => EffectRow::pure(),
+                Some(e) => {
+                    let mut terms: Vec<TypeId> = Vec::with_capacity(e.terms.len());
+                    for term in &e.terms {
+                        let term_ref = ast::TypeRef::Path(term.clone());
+                        let ty = lower_type_ref_with_enum_subst(
+                            enum_source,
+                            use_span,
+                            enum_fqn,
+                            &term_ref,
+                            lower,
+                            builtins,
+                            type_param_set,
+                            subst,
+                        )?;
+
+                        let ok = match lower.type_kind(ty) {
+                            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => matches!(
+                                lower.nominal_decl_kind(&nominal.fqn),
+                                Some(ast::TypeKind::Effect)
+                            ),
+                            _ => false,
+                        };
+                        if !ok {
+                            return Err(TypeLowerError::EffectRowItemNotEffect {
+                                item: enum_source.slice(term.span).to_string(),
+                                found: lower.fmt_type(ty),
+                                span: term.span.into(),
+                            }
+                            .into());
+                        }
+
+                        terms.push(ty);
+                    }
+                    EffectRow::new(terms)
+                }
+            };
+
+            Ok(lower.ty_function(receiver, params, return_ty, effects))
         }
-        .into()),
     }
 }
 

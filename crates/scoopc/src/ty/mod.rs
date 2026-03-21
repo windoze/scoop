@@ -4,6 +4,7 @@
 //! - 在编译器内部引入稳定的 `TypeId`/`TypeKind` 结构，作为 typecheck 的基础设施
 //! - 显式区分引用类型（GC-managed）与值类型（copy 语义）
 //! - 支持最小 builtin：`Any`/`String`/`Nothing`/`Unit`/`Bool`/`Option<T>` 与整数族 `Int/UInt/IntN/UIntN`
+//! - （T0435）支持函数类型：`(A, B) -> C / R` 与 receiver function type `T.(...) -> ... / R`
 //!
 //! 当前阶段只提供数据结构与格式化输出；类型推断/求解、subtyping 等语义在后续任务实现。
 
@@ -60,6 +61,14 @@ pub enum RefTypeKind {
 
     /// 名义引用类型（class/interface/effect 等）。
     Nominal(NominalType),
+
+    /// 函数类型（spec §7.5）。
+    ///
+    /// 说明：
+    /// - 函数值在运行期以闭包/对象的形式存在，因此在内部类型表示中视为引用类型；
+    /// - receiver function type（`T.(...) -> ...`）被建模为“带 receiver 的函数类型”，其子类型规则
+    ///   与参数一致（逆变）。
+    Function(FunctionType),
 }
 
 /// 名义类型（nominal type）的最小表示。
@@ -71,6 +80,74 @@ pub enum RefTypeKind {
 pub struct NominalType {
     pub fqn: String,
     pub args: Vec<TypeId>,
+}
+
+/// effect row（spec §5.8）的内部表示。
+///
+/// 当前阶段（T0435）先把 row expression 限制为“显式项的并集”（集合语义）：
+/// - `Pure` 由 `terms.is_empty()` 表示
+/// - `A + B + A` 会被 canonicalize 为去重后的集合
+///
+/// 注意：更完整的 effect polymorphism（row 变量、推断、约束求解）留给后续任务（PLAN §6）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EffectRow {
+    /// 规范化后的集合（排序 + 去重）。
+    pub terms: Vec<TypeId>,
+}
+
+impl EffectRow {
+    pub fn pure() -> Self {
+        Self { terms: Vec::new() }
+    }
+
+    pub fn new(mut terms: Vec<TypeId>) -> Self {
+        terms.sort();
+        terms.dedup();
+        Self { terms }
+    }
+
+    pub fn is_pure(&self) -> bool {
+        self.terms.is_empty()
+    }
+
+    /// `self ⊆ other`：是否“需要不多于 other 的效果”。
+    pub fn is_subset_of(&self, other: &EffectRow) -> bool {
+        if self.terms.is_empty() {
+            return true;
+        }
+        if other.terms.is_empty() {
+            return false;
+        }
+
+        // `terms` 已排序；用双指针做线性子集判断。
+        let mut i = 0;
+        let mut j = 0;
+        while i < self.terms.len() && j < other.terms.len() {
+            let a = self.terms[i];
+            let b = other.terms[j];
+            if a == b {
+                i += 1;
+                j += 1;
+                continue;
+            }
+            if a > b {
+                j += 1;
+                continue;
+            }
+            // a < b：说明 other 中缺少 a
+            return false;
+        }
+        i == self.terms.len()
+    }
+}
+
+/// 函数类型（spec §7.5）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FunctionType {
+    pub receiver: Option<TypeId>,
+    pub params: Vec<TypeId>,
+    pub return_ty: TypeId,
+    pub effects: EffectRow,
 }
 
 /// 值类型（copy 语义）。
@@ -179,6 +256,21 @@ impl TypeStore {
     pub fn ty_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
         self.intern(TypeKind::Value(ValueTypeKind::Tuple(elements)))
     }
+
+    pub fn ty_function(
+        &mut self,
+        receiver: Option<TypeId>,
+        params: Vec<TypeId>,
+        return_ty: TypeId,
+        effects: EffectRow,
+    ) -> TypeId {
+        self.intern(TypeKind::Ref(RefTypeKind::Function(FunctionType {
+            receiver,
+            params,
+            return_ty,
+            effects,
+        })))
+    }
 }
 
 /// `TypeStore` 中 builtin 类型的 ID 集合。
@@ -215,6 +307,7 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
         TypeKind::Ref(RefTypeKind::Any) => write!(f, "Any"),
         TypeKind::Ref(RefTypeKind::String) => write!(f, "String"),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
+        TypeKind::Ref(RefTypeKind::Function(fun)) => format_function_type(store, fun, f, depth),
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),
@@ -243,6 +336,56 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
         }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
     }
+}
+
+fn format_function_type(
+    store: &TypeStore,
+    fun: &FunctionType,
+    f: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    if let Some(receiver) = fun.receiver {
+        format_type(store, receiver, f, depth + 1)?;
+        write!(f, ".")?;
+    }
+
+    write!(f, "(")?;
+    for (idx, param) in fun.params.iter().copied().enumerate() {
+        if idx != 0 {
+            write!(f, ", ")?;
+        }
+        format_type(store, param, f, depth + 1)?;
+    }
+    write!(f, ") -> ")?;
+    format_type(store, fun.return_ty, f, depth + 1)?;
+
+    // 当前阶段统一显示 effect row（即使是 Pure），避免在诊断中丢失信息。
+    write!(f, " / ")?;
+    format_effect_row(store, &fun.effects, f, depth + 1)
+}
+
+fn format_effect_row(
+    store: &TypeStore,
+    row: &EffectRow,
+    f: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    if row.is_pure() {
+        return write!(f, "Pure");
+    }
+
+    if row.terms.len() == 1 {
+        return format_type(store, row.terms[0], f, depth + 1);
+    }
+
+    write!(f, "(")?;
+    for (idx, term) in row.terms.iter().copied().enumerate() {
+        if idx != 0 {
+            write!(f, " + ")?;
+        }
+        format_type(store, term, f, depth + 1)?;
+    }
+    write!(f, ")")
 }
 
 fn format_nominal(
@@ -292,6 +435,30 @@ mod tests {
 
         let tuple = tys.ty_tuple(vec![builtins.int, builtins.uint]);
         assert_eq!(tys.display(tuple).to_string(), "(Int, UInt)");
+    }
+
+    #[test]
+    fn type_display_formats_function_types_with_effects() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        let pure = tys.ty_function(None, vec![builtins.any], builtins.any, EffectRow::pure());
+        assert_eq!(tys.display(pure).to_string(), "(Any) -> Any / Pure");
+
+        let raise_any = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "scoop.core.Raise".to_string(),
+            args: vec![builtins.any],
+        })));
+        let effectful = tys.ty_function(
+            Some(builtins.string),
+            vec![builtins.any],
+            builtins.any,
+            EffectRow::new(vec![raise_any]),
+        );
+        assert_eq!(
+            tys.display(effectful).to_string(),
+            "String.(Any) -> Any / scoop.core.Raise<Any>"
+        );
     }
 
     #[test]

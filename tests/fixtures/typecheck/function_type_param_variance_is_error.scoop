@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::return_type_mismatch
+// EXPECT-ERROR: 返回类型不匹配
+// EXPECT-ERROR-AT: 12:12
+// 目标：T0435 参数逆变：不能把 `(String) -> Any` 当作 `(Any) -> Any`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad_param(f: (String) -> Any / Pure): (Any) -> Any / Pure {
+    return f
+}
+

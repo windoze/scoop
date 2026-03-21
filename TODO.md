@@ -969,11 +969,12 @@
 - 依赖：T0434a
 - 完成：sysroot 新增 `scoop.core.PropertyMeta`（当前阶段仅占位字段）；typecheck 委托属性升级为签名检查：`getValue/setValue` 需匹配 `PropertyMeta` 与属性类型（`thisRef` 允许 `Any`），并新增 mismatch fixtures；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0435 [TODO] 函数类型（含 receiver + effects）的类型表示与子类型规则（spec §7.5、§5.8）
+### T0435 [DONE] 函数类型（含 receiver + effects）的类型表示与子类型规则（spec §7.5、§5.8）
 - 描述：在 `ty` 中加入 FunctionType：参数/返回/receiver/effect row，并定义最小子类型关系（参数逆变/返回协变 + effect row containment）。
 - 目标：先只支持无泛型的函数类型；完整子类型与推断后续补齐。
-- 验收：typecheck fixture：`val f: (Any)->Any / Pure = ...`；effect row 不满足时报错（或 defer 到 T06）。
+- 验收：新增 typecheck fixtures：`tests/fixtures/typecheck/function_type_subtyping_ok.scoop` 通过；`function_type_effect_row_not_contained_is_error.scoop` 与 `function_type_param_variance_is_error.scoop` 产生稳定错误码 `scoop::typecheck::return_type_mismatch`。
 - 依赖：T0219、T0401、T0608
+- 完成：`crates/scoopc/src/ty/mod.rs` 新增 `EffectRow`/`FunctionType` 与显示格式；`crates/scoopc/src/typecheck/lower.rs` 支持 `TypeRef::Function` lowering（含 effect row 项必须为 `effect` 的最小静态检查，缺省 effect 为 `Pure`）；`crates/scoopc/src/typecheck/expr.rs` 的 `is_type_assignable` 增加函数子类型规则（参数逆变、返回协变、effects containment）。fixtures：新增 `tests/fixtures/typecheck/function_type_*`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0436 [TODO] 扩展函数：静态分发与 receiver 作为第一个参数（spec §7.4）
 - 描述：typecheck 阶段将 extension fun 视为普通函数（receiver 第一个参数），并实现最小分发规则（member 优先）。

@@ -216,7 +216,8 @@
 - [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
 - [x] `Unit`、tuple、`Option<T>`（`T?` sugar）：类型表示与格式化输出已完成（语义/typecheck 后续）（T0401）
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
-- [ ] receiver function type：`T.(A, B) -> C / R`（spec §7.5）（待后续补齐）
+- [x] 函数类型（Type 表示 + lowering + 最小子类型规则）：参数逆变/返回协变 + effect row containment（T0435）
+- [x] receiver function type：`T.(A, B) -> C / R`（Type 表示 + lowering；receiver 按第一个参数参与逆变比较）（T0435）
 - [ ] 类型参数、约束（上界/下界）、声明处变型（spec §3、Appendix B）
 
 ### 4.2 声明类型：class/interface/struct/enum/effect
