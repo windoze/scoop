@@ -356,6 +356,27 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("一元运算符 `{op}` 的操作数类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::unary_op_operand_type_mismatch))]
+    UnaryOpOperandTypeMismatch {
+        op: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("二元运算符 `{op}` 的操作数类型不匹配：期望 {expected}，但 lhs 为 {lhs}、rhs 为 {rhs}")]
+    #[diagnostic(code(scoop::typecheck::binary_op_operand_type_mismatch))]
+    BinaryOpOperandTypeMismatch {
+        op: String,
+        expected: String,
+        lhs: String,
+        rhs: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不可赋值：`{name}` 不是可变变量（必须声明为 `var`）")]
     #[diagnostic(code(scoop::typecheck::assignment_target_not_mutable))]
     AssignmentTargetNotMutable {
@@ -819,11 +840,251 @@ fn check_top_level_val_initializer(
         return Ok(());
     }
 
+    // 整数字面量（`1`）在静态语义上是“可被上下文整数类型吸收”的常量：
+    // - 允许 `val x: UInt8 = 1` 这类写法（后续可在此加入 range check）。
+    if matches!(init.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
+        return Ok(());
+    }
+
     Err(ExprTypeError::InitializerTypeMismatch {
         expected: lower.fmt_type(expected),
         found: lower.fmt_type(found),
         span: init.span.into(),
     })
+}
+
+fn unary_op_text(op: ast::UnaryOp) -> &'static str {
+    match op {
+        ast::UnaryOp::Not => "!",
+        ast::UnaryOp::Neg => "-",
+        ast::UnaryOp::BitNot => "~",
+    }
+}
+
+fn binary_op_text(op: ast::BinaryOp) -> &'static str {
+    match op {
+        ast::BinaryOp::Add => "+",
+        ast::BinaryOp::Sub => "-",
+        ast::BinaryOp::Mul => "*",
+        ast::BinaryOp::Div => "/",
+        ast::BinaryOp::Rem => "%",
+        ast::BinaryOp::Shl => "<<",
+        ast::BinaryOp::Shr => ">>",
+        ast::BinaryOp::BitAnd => "&",
+        ast::BinaryOp::BitXor => "^",
+        ast::BinaryOp::BitOr => "|",
+        ast::BinaryOp::Lt => "<",
+        ast::BinaryOp::Le => "<=",
+        ast::BinaryOp::Gt => ">",
+        ast::BinaryOp::Ge => ">=",
+        ast::BinaryOp::Eq => "==",
+        ast::BinaryOp::Ne => "!=",
+        ast::BinaryOp::LogAnd => "&&",
+        ast::BinaryOp::LogOr => "||",
+        ast::BinaryOp::Elvis => "?:",
+    }
+}
+
+fn is_integer_type(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+    if ty == builtins.int || ty == builtins.uint {
+        return true;
+    }
+
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::IntN(_) | ValueTypeKind::UIntN(_)) => true,
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Int8"
+                | "scoop.core.Int16"
+                | "scoop.core.Int32"
+                | "scoop.core.Int64"
+                | "scoop.core.UInt8"
+                | "scoop.core.UInt16"
+                | "scoop.core.UInt32"
+                | "scoop.core.UInt64"
+        ),
+        _ => false,
+    }
+}
+
+fn unify_integer_operands_for_same_type_rule(
+    lhs: &ast::Expr,
+    lhs_ty: TypeId,
+    rhs: &ast::Expr,
+    rhs_ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Option<TypeId> {
+    if lhs_ty == rhs_ty && is_integer_type(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    if matches!(lhs.kind, ast::ExprKind::IntLit) && is_integer_type(rhs_ty, lower, builtins) {
+        return Some(rhs_ty);
+    }
+
+    if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    None
+}
+
+fn infer_unary_expr_type(
+    source: &SourceFile,
+    op: ast::UnaryOp,
+    op_span: Span,
+    operand: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let operand_ty = infer_expr_type(
+        source,
+        operand,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    match op {
+        ast::UnaryOp::Not => {
+            if operand_ty == builtins.bool_ {
+                return Ok(builtins.bool_);
+            }
+
+            Err(ExprTypeError::UnaryOpOperandTypeMismatch {
+                op: unary_op_text(op).to_string(),
+                expected: "Bool".to_string(),
+                found: lower.fmt_type(operand_ty),
+                span: op_span.into(),
+            })
+        }
+        ast::UnaryOp::Neg | ast::UnaryOp::BitNot => {
+            if is_integer_type(operand_ty, lower, builtins) {
+                return Ok(operand_ty);
+            }
+
+            Err(ExprTypeError::UnaryOpOperandTypeMismatch {
+                op: unary_op_text(op).to_string(),
+                expected: "整数".to_string(),
+                found: lower.fmt_type(operand_ty),
+                span: op_span.into(),
+            })
+        }
+    }
+}
+
+fn infer_builtin_scalar_binary_expr_type(
+    source: &SourceFile,
+    lhs: &ast::Expr,
+    op: ast::BinaryOp,
+    op_span: Span,
+    rhs: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let lhs_ty = infer_expr_type(
+        source,
+        lhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+    let rhs_ty = infer_expr_type(
+        source,
+        rhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let mismatch = |expected: &'static str| {
+        ExprTypeError::BinaryOpOperandTypeMismatch {
+            op: binary_op_text(op).to_string(),
+            expected: expected.to_string(),
+            lhs: lower.fmt_type(lhs_ty),
+            rhs: lower.fmt_type(rhs_ty),
+            span: op_span.into(),
+        }
+    };
+
+    match op {
+        // arithmetic: T op T -> T
+        ast::BinaryOp::Add
+        | ast::BinaryOp::Sub
+        | ast::BinaryOp::Mul
+        | ast::BinaryOp::Div
+        | ast::BinaryOp::Rem
+        // bitwise: T op T -> T
+        | ast::BinaryOp::BitAnd
+        | ast::BinaryOp::BitXor
+        | ast::BinaryOp::BitOr => {
+            let Some(ty) =
+                unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+            else {
+                return Err(mismatch("相同的整数类型"));
+            };
+            Ok(ty)
+        }
+        // shifts: T << Int -> T
+        ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+            if is_integer_type(lhs_ty, lower, builtins) && rhs_ty == builtins.int {
+                return Ok(lhs_ty);
+            }
+            Err(mismatch("lhs 为整数且 rhs 为 Int"))
+        }
+        // comparisons: T < T -> Bool
+        ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+            if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+                .is_some()
+            {
+                return Ok(builtins.bool_);
+            }
+            Err(mismatch("相同的整数类型"))
+        }
+        // equality: (T == T) -> Bool; (Bool == Bool) -> Bool
+        ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+            if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
+                return Ok(builtins.bool_);
+            }
+            if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+                .is_some()
+            {
+                return Ok(builtins.bool_);
+            }
+            Err(mismatch("相同的整数类型或 Bool"))
+        }
+        // boolean logic: Bool op Bool -> Bool
+        ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+            if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
+                return Ok(builtins.bool_);
+            }
+            Err(mismatch("Bool"))
+        }
+
+        // elvis handled by caller
+        ast::BinaryOp::Elvis => Err(ExprTypeError::UnsupportedExpr {
+            kind: "elvis expression（internal）",
+            span: op_span.into(),
+        }),
+    }
 }
 
 fn infer_expr_type(
@@ -953,6 +1214,22 @@ fn infer_expr_type(
                 ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
             }
         }
+        ast::ExprKind::Unary {
+            op,
+            op_span,
+            expr: inner,
+        } => infer_unary_expr_type(
+            source,
+            *op,
+            *op_span,
+            inner.as_ref(),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::TypeCheck {
             expr: inner, ty, ..
         } => {
@@ -1049,7 +1326,12 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
-        ast::ExprKind::Binary { lhs, op, rhs, .. } => match op {
+        ast::ExprKind::Binary {
+            lhs,
+            op,
+            op_span,
+            rhs,
+        } => match op {
             ast::BinaryOp::Elvis => infer_elvis_expr_type(
                 source,
                 lhs,
@@ -1061,10 +1343,19 @@ fn infer_expr_type(
                 top_level_funs,
                 struct_field_types,
             ),
-            _ => Err(ExprTypeError::UnsupportedExpr {
-                kind: "binary expression",
-                span: expr.span.into(),
-            }),
+            _ => infer_builtin_scalar_binary_expr_type(
+                source,
+                lhs.as_ref(),
+                *op,
+                *op_span,
+                rhs.as_ref(),
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            ),
         },
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
@@ -1837,6 +2128,12 @@ fn infer_call_expr_type(
                 )?;
 
                 if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                    // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
+                    if matches!(arg.kind, ast::ExprKind::IntLit)
+                        && is_integer_type(expected_ty, lower, builtins)
+                    {
+                        continue;
+                    }
                     return Err(ExprTypeError::CallArgTypeMismatch {
                         callee: callee_fqn,
                         index: idx + 1,
@@ -2380,6 +2677,10 @@ fn infer_member_call_expr_type(
         )?;
 
         if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
+            if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins) {
+                continue;
+            }
             return Err(ExprTypeError::CallArgTypeMismatch {
                 callee: callee_fqn,
                 index: idx + 1,
@@ -3019,13 +3320,20 @@ fn check_local_val_decl_exprs(
 
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
         if !is_type_assignable(found, expected, lower, builtins) {
-            // 复用顶层 initializer 的错误码与文本（保持 fixtures 断言稳定）。
-            let init = v.init.as_ref().unwrap();
-            return Err(ExprTypeError::InitializerTypeMismatch {
-                expected: lower.fmt_type(expected),
-                found: lower.fmt_type(found),
-                span: init.span.into(),
-            });
+            // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
+            if matches!(v.init.as_ref().unwrap().kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected, lower, builtins)
+            {
+                // ok
+            } else {
+                // 复用顶层 initializer 的错误码与文本（保持 fixtures 断言稳定）。
+                let init = v.init.as_ref().unwrap();
+                return Err(ExprTypeError::InitializerTypeMismatch {
+                    expected: lower.fmt_type(expected),
+                    found: lower.fmt_type(found),
+                    span: init.span.into(),
+                });
+            }
         }
     }
 
@@ -3683,6 +3991,10 @@ fn check_assign_expr_stmt(
     )?;
 
     if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
+        if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins) {
+            return Ok(());
+        }
         return Err(ExprTypeError::AssignmentTypeMismatch {
             expected: lower.fmt_type(expected_ty),
             found: lower.fmt_type(found_ty),

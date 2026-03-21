@@ -1112,7 +1112,7 @@
    - 引入循环检测与缓存，新增错误码 `scoop::typecheck::cyclic_type_alias`，诊断至少标注两个别名声明点。
    新增 fixtures：`tests/fixtures/typecheck/typealias_byte_ok.scoop`、`tests/fixtures/typecheck/typealias_cycle_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0447 [TODO] 整数/布尔：一元与二元运算的类型规则（含位运算与移位）（spec §2.3.4）
+### T0447 [DONE] 整数/布尔：一元与二元运算的类型规则（含位运算与移位）（spec §2.3.4）
 - 描述：为内建整数类型实现运算符的静态规则：
   - 算术：`+ - * / %`
   - 比较：`== != < <= > >=`
@@ -1121,6 +1121,7 @@
 - 目标：先只支持“同类型输入→同类型输出”的规则（不做数值提升/混合宽度运算）；不引入溢出检查（运行期语义留给 codegen 按 spec wrap-around/shift mask 落地）。
 - 验收：typecheck fixture：`val x: UInt8 = 1; val y = x << 3` 通过；`val z = true << 1` 报错并定位到操作符。
 - 依赖：T0252、T0211、T0405、T0407、T0418
+ - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::Unary/Binary` 实现 Bool/整数运算符类型规则：算术/比较/位运算与移位（shift count 固定为 `Int`）、以及 `&&/||`；并允许整数字面量被上下文整数类型吸收（initializer/call args/赋值/二元同型规则）。新增错误码 `scoop::typecheck::unary_op_operand_type_mismatch` 与 `scoop::typecheck::binary_op_operand_type_mismatch`（均定位到操作符 span）。新增 fixtures：`tests/fixtures/typecheck/int_bool_ops_ok.scoop`、`bool_shift_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0448 [TODO] class 初始化模型：property initializer / `init` / secondary constructor 规则（Appendix B.2.2）
 - 描述：实现 class 初始化相关的静态规则：属性初始化表达式、多个 `init` block、secondary constructor body 的类型检查与顺序约束。

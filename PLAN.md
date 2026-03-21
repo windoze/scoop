@@ -217,6 +217,7 @@
 - [x] `?.` safe-call 与 Elvis `?:`：`Option<T>` 语法糖的类型规则（`x?.m()` 返回 `R?`；`x ?: y` 返回 `T`）（T0422）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
+  - [x] 整数/布尔运算符类型规则：一元 `! - ~`；二元算术/比较/位运算/移位（shift count 固定为 `Int`）与 `&&/||`（T0447）
   - `Int/UInt` 的 bit width = target pointer size
   - 固定位宽整数类型与类型大小/对齐（为 FFI/序列化提供稳定布局）
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）

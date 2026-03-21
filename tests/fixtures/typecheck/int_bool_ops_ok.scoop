@@ -1,0 +1,43 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    val a: UInt8 = 1
+    val b: UInt8 = 2
+
+    val add: UInt8 = a + b
+    val sub: UInt8 = a - b
+    val mul: UInt8 = a * b
+    val div: UInt8 = a / b
+    val rem: UInt8 = a % b
+
+    val and_: UInt8 = a & b
+    val or_: UInt8 = a | b
+    val xor_: UInt8 = a ^ b
+    val inv: UInt8 = ~a
+
+    val shl: UInt8 = a << 3
+    val shr: UInt8 = a >> 1
+
+    val neg: UInt8 = -a
+
+    val eq: Bool = a == b
+    val ne: Bool = a != b
+    val lt: Bool = a < b
+    val le: Bool = a <= b
+    val gt: Bool = a > b
+    val ge: Bool = a >= b
+
+    val not_: Bool = !false
+    val land: Bool = true && false
+    val lor: Bool = true || false
+
+    // 整数字面量可被上下文整数类型吸收：避免必须手写显式转换。
+    val add_lit: UInt8 = a + 1
+    var v: UInt8 = 0
+    v = 1
+}
+
