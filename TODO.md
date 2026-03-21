@@ -877,11 +877,12 @@
 - 依赖：T0224、T0409、T0405
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `infer_struct_lit_expr_type`：校验 struct 类型、字段存在性/重复、初始化值类型可赋值，并强制必须显式提供所有字段（缺字段尽量指向 `}`）。新增/补齐 fixtures：`tests/fixtures/typecheck/struct_lit_ok.scoop`、`tests/fixtures/typecheck/struct_lit_unknown_field_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_duplicate_field_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_missing_fields_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_field_type_mismatch_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_not_struct_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0424 [TODO] `with`：嵌套 path 与并行求值语义（spec §2.6）
+### T0424 [DONE] `with`：嵌套 path 与并行求值语义（spec §2.6）
 - 描述：支持 `p with { a.b: v }` 的嵌套更新，并保证 RHS 基于“原值并行求值”（无顺序依赖）。
 - 目标：先只实现 typecheck 侧的规则与必要诊断；真正 lowering 放到 IR 阶段单独任务。
 - 验收：typecheck fixture：嵌套字段类型不匹配时报错；同一字段多次更新报错或明确覆盖规则（需决定）。
 - 依赖：T0415
+- 完成：该任务内容已在 T0415 的实现中覆盖：`infer_with_update_expr_type` 支持 `a.b.c` 嵌套 path，并以“禁止重复/包含 path”的静态约束来保持并行语义；fixtures：`tests/fixtures/typecheck/with_update_nested_path_ok.scoop`、`with_update_nested_path_type_mismatch_is_error.scoop`、`with_update_duplicate_path_is_error.scoop`、`with_update_overlapping_paths_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0425 [TODO] 声明类型：enum（rich enum）类型表示与收集（spec §2.3.2）
 - 描述：在 type env 中加入 enum variant 信息（tag + payload types），并检查重复 variant/字段。
