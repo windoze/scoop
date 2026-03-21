@@ -9,6 +9,7 @@
 //! - `// ARGS: <args...>`（按空白分割，原样传递给 driver/编译器阶段）
 //! - `// EXPECT-AST: <file>`（parse fixtures：将 AST dump 与 golden 文件做全文比对）
 //! - `// RUN-STDOUT: <file>`（run-pass fixtures：stdout golden）
+//! - `// RUN-STDERR: <file>`（run-pass fixtures：stderr golden）
 //! - `// EXPECT-EXIT: <code>`（run-pass fixtures：期望退出码）
 //! - `// TIMEOUT: <ms>`（run-pass fixtures：超时毫秒）
 
@@ -27,6 +28,7 @@ pub struct FixtureExpectation<'a> {
     pub args: Vec<String>,
     pub ast_golden: Option<&'a str>,
     pub run_stdout: Option<&'a str>,
+    pub run_stderr: Option<&'a str>,
     pub expect_exit: Option<i32>,
     pub timeout_ms: Option<u64>,
 }
@@ -41,6 +43,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut args = Vec::new();
         let mut ast_golden = None;
         let mut run_stdout = None;
+        let mut run_stderr = None;
         let mut expect_exit = None;
         let mut timeout_ms = None;
 
@@ -88,6 +91,10 @@ impl<'a> FixtureExpectation<'a> {
                 run_stdout = Some(rest.trim());
             }
 
+            if let Some(rest) = directive.strip_prefix("RUN-STDERR:") {
+                run_stderr = Some(rest.trim());
+            }
+
             if let Some(rest) = directive.strip_prefix("EXPECT-EXIT:") {
                 expect_exit = rest.trim().parse::<i32>().ok();
             }
@@ -105,6 +112,7 @@ impl<'a> FixtureExpectation<'a> {
             args,
             ast_golden,
             run_stdout,
+            run_stderr,
             expect_exit,
             timeout_ms,
         }
@@ -132,6 +140,7 @@ mod tests {
         assert!(exp.args.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
     }
@@ -148,6 +157,7 @@ mod tests {
         assert!(exp.args.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
     }
@@ -163,6 +173,7 @@ mod tests {
         );
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
+        assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
     }
@@ -176,9 +187,10 @@ mod tests {
     #[test]
     fn parse_run_directives() {
         let exp = FixtureExpectation::from_source(
-            "// RUN-STDOUT: out.txt\n// EXPECT-EXIT: 42\n// TIMEOUT: 1500\nfun main() {}\n",
+            "// RUN-STDOUT: out.txt\n// RUN-STDERR: err.txt\n// EXPECT-EXIT: 42\n// TIMEOUT: 1500\nfun main() {}\n",
         );
         assert_eq!(exp.run_stdout, Some("out.txt"));
+        assert_eq!(exp.run_stderr, Some("err.txt"));
         assert_eq!(exp.expect_exit, Some(42));
         assert_eq!(exp.timeout_ms, Some(1500));
     }

@@ -1,7 +1,7 @@
 //! run-pass fixtures（运行期）支持。
 //!
 //! 说明：
-//! - 本模块当前只落地“stdout golden 对比”与诊断类型（T0106a）
+//! - 本模块当前只落地“stdout/stderr golden 对比”与诊断类型（T0106a/T0111a）
 //! - “执行外部命令并捕获 stdout”的接口由 T0106b1 提供
 //! - 真正的 `scoop run <fixture>` 接入与可执行 fixture 由后续任务（T0106b2 / T0807）完成
 
@@ -35,6 +35,24 @@ struct RunStdoutReadFailed {
 #[error("stdout 与 golden 不一致：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::run_stdout_mismatch))]
 struct RunStdoutMismatch {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 stderr golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_stderr_read_failed))]
+struct RunStderrReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("stderr 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_stderr_mismatch))]
+struct RunStderrMismatch {
     path: String,
     fixture: String,
 }
@@ -93,6 +111,27 @@ pub(crate) fn run_fixture_unimplemented(
         assert_stdout_matches(fixture_path, exp, &expected)?;
     }
 
+    // 先验证 stderr golden 文件可读（若提供）。
+    if let Some(golden_rel) = exp.run_stderr {
+        let golden_path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(golden_rel);
+
+        let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+            super::box_diagnostic(RunStderrReadFailed {
+                path: golden_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+
+        // 用“golden 自身作为 stderr”跑一遍对比逻辑，确保：
+        // - 换行归一化逻辑正确
+        // - 诊断类型在非 test build 下也会被编译进来（避免 dead_code 警告）
+        assert_stderr_matches(fixture_path, exp, &expected)?;
+    }
+
     Err(super::box_diagnostic(RunPassUnimplemented {
         fixture: rel_fixture.display().to_string(),
         reason: "需要先实现 `scoop run`（T0807），并在 fixtures runner 中接入真实执行（T0106b2）"
@@ -105,7 +144,7 @@ pub(crate) fn run_fixture_unimplemented(
 /// 说明：
 /// - 该函数是 run-pass phase 的“真实执行接口”（T0106b1）；
 /// - 真正的 `scoop run <fixture>` 接入由后续任务（T0106b2/T0807）完成；
-/// - 当前阶段只做 stdout 捕获 + `RUN-STDOUT` golden 比对（不做 stderr/超时/退出码断言）。
+/// - 当前阶段只做 stdout/stderr 捕获 + golden 比对（不做超时/退出码断言）。
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn run_fixture_command(
     rel_fixture: &Path,
@@ -129,7 +168,9 @@ pub(crate) fn run_fixture_command(
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
     assert_stdout_matches(fixture_path, exp, &stdout)?;
+    assert_stderr_matches(fixture_path, exp, &stderr)?;
     Ok(())
 }
 
@@ -164,6 +205,45 @@ pub(crate) fn assert_stdout_matches(
 
     if expected != actual {
         return Err(super::box_diagnostic(RunStdoutMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+/// 断言 stderr 与 golden 文件一致（按 `RUN-STDERR` 指令）。
+///
+/// - 若 fixture 未提供 `RUN-STDERR`，则不做断言直接通过（保留“仅验证能跑”的用例空间）。
+/// - 比对时会做换行归一化（`\r\n` → `\n`），避免跨平台差异。
+pub(crate) fn assert_stderr_matches(
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+    actual_stderr: &str,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let Some(golden_rel) = exp.run_stderr else {
+        return Ok(());
+    };
+
+    let golden_path = fixture_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(golden_rel);
+
+    let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+        super::box_diagnostic(RunStderrReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+
+    let expected = super::normalize_newlines(&expected);
+    let actual = super::normalize_newlines(actual_stderr);
+
+    if expected != actual {
+        return Err(super::box_diagnostic(RunStderrMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));
@@ -208,6 +288,21 @@ mod tests {
     }
 
     #[test]
+    fn stderr_golden_matches_ok() {
+        let dir = make_temp_dir("stderr_golden_matches_ok");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("err.txt");
+
+        std::fs::write(&fixture_path, "// RUN-STDERR: err.txt\nfun main() {}\n").unwrap();
+        std::fs::write(&golden_path, "hello\r\nworld\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDERR: err.txt\n");
+        assert_stderr_matches(&fixture_path, &exp, "hello\nworld\n").unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn stdout_golden_mismatch_has_stable_code() {
         let dir = make_temp_dir("stdout_golden_mismatch_has_stable_code");
         let fixture_path = dir.join("hello.scoop");
@@ -221,6 +316,25 @@ mod tests {
         assert_eq!(
             err.code().unwrap().to_string(),
             "scoop::fixtures::run_stdout_mismatch"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn stderr_golden_mismatch_has_stable_code() {
+        let dir = make_temp_dir("stderr_golden_mismatch_has_stable_code");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("err.txt");
+
+        std::fs::write(&fixture_path, "// RUN-STDERR: err.txt\nfun main() {}\n").unwrap();
+        std::fs::write(&golden_path, "expected\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDERR: err.txt\n");
+        let err = assert_stderr_matches(&fixture_path, &exp, "actual\n").unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_stderr_mismatch"
         );
 
         std::fs::remove_dir_all(&dir).unwrap();
@@ -244,6 +358,60 @@ mod tests {
         };
 
         run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_captures_stderr_and_compares_golden() {
+        let dir = make_temp_dir("run_fixture_command_captures_stderr_and_compares_golden");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("err.txt");
+
+        std::fs::write(&fixture_path, "// RUN-STDERR: err.txt\nfun main() {}\n").unwrap();
+        std::fs::write(&golden_path, "hello\r\nworld\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDERR: err.txt\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("printf 'hello\\nworld\\n' 1>&2");
+            cmd
+        };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_both_streams_stderr_mismatch_is_distinguishable() {
+        let dir = make_temp_dir("run_fixture_command_both_streams_stderr_mismatch");
+        let fixture_path = dir.join("hello.scoop");
+        let stdout_golden_path = dir.join("out.txt");
+        let stderr_golden_path = dir.join("err.txt");
+
+        std::fs::write(
+            &fixture_path,
+            "// RUN-STDOUT: out.txt\n// RUN-STDERR: err.txt\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(&stdout_golden_path, "ok\n").unwrap();
+        std::fs::write(&stderr_golden_path, "expected\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n// RUN-STDERR: err.txt\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("printf 'ok\\n'; printf 'actual\\n' 1>&2");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_stderr_mismatch"
+        );
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

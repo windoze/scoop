@@ -8,7 +8,7 @@
 //! - parse fixtures（调用 `scoopc::parser::parse_file`）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
-//! - run-pass fixtures：当前仅提供 stdout golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
+//! - run-pass fixtures：当前仅提供 stdout/stderr golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
 //!
 //! 目录路由（phase）：
 //! - `tests/fixtures/parse/**` → parse
@@ -84,6 +84,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
     // 后续 phase/runner 再真正消费这些参数。
     let _ = exp.args.len();
     let _ = exp.run_stdout;
+    let _ = exp.run_stderr;
     let _ = exp.expect_exit;
     let _ = exp.timeout_ms;
 

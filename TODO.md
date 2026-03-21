@@ -184,17 +184,14 @@
 - 验收：`cargo run -p scoop_tools -- fixtures-matrix check` 输出报告；并有单测覆盖”缺口检测”。
 - 依赖：T0012、T0003
 
-### T0111 [TODO] run-pass fixtures：`RUN-STDERR` golden 与 stderr mismatch 诊断
+### T0111a [DONE] run-pass fixtures：`RUN-STDERR` golden（核心逻辑，可单测）
 - 描述：在 run-pass fixtures 中增加 stderr 捕获与 golden 比对能力，支持“仅 stdout”、“仅 stderr”或“两者同时断言”的场景，并保证 mismatch 诊断能区分 stdout/stderr 差异。
-- 目标：不改变现有 `RUN-STDOUT` 语义；先只做文本 stderr golden，不做流间时序重建。
-- 验收：新增 run-pass fixtures：一个断言 stderr 输出正确，一个断言 stdout/stderr 同时输出且 stderr mismatch 时能给出稳定错误信息。
-- 依赖：T0106b2、T0107
-
-### T0112 [TODO] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
-- 描述：让 fixtures runner 对运行进程执行退出码断言与超时控制，并在超时、信号终止、非预期退出码时生成稳定诊断。
-- 目标：先只覆盖单进程执行模型；不做沙箱与资源限额。
-- 验收：新增 run-pass fixtures：一个断言非零退出码，一个断言超时失败；`scoop test` 能稳定区分“程序失败”和“fixture 断言失败”。
-- 依赖：T0106b2、T0107
+- 目标：不改变现有 `RUN-STDOUT` 语义；先只做文本 stderr golden，不做流间时序重建；不要求 `scoop test` 真实执行（留给 T0106b2）。
+- 验收：新增单测覆盖：
+  - `RUN-STDERR` golden 匹配通过；
+  - stderr mismatch 返回稳定错误码（可断言 `err.code()`）；
+  - 同时断言 stdout/stderr 时，stderr mismatch 仍能给出 stderr 的稳定错误码（而不是 stdout 的）。
+- 依赖：T0106b1、T0107
 
 ---
 
@@ -1608,6 +1605,18 @@
 - 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
 - 备注：该任务本身属于测试体系，但其验收依赖完整执行链路（`scoop run` + link/runtime/codegen），因此放在这里以便按依赖顺序推进。
 - 依赖：T0106b1、T0807
+
+### T0111b [TODO] run-pass fixtures：`RUN-STDERR` golden（真实 fixtures 覆盖）
+- 描述：在 `tests/fixtures/run-pass/**` 增加 fixtures 覆盖 `RUN-STDERR`：一个断言 stderr 输出正确，一个断言 stdout/stderr 同时输出且 stderr mismatch 时 runner 报错码稳定。
+- 目标：保证 run-pass 的 stdout/stderr mismatch 诊断可稳定区分（便于长期回归）。
+- 验收：新增 2 个 run-pass fixtures（1 pass + 1 fail）；`cargo run -p scoop -- test` 能稳定通过且在 fail case 下给出 `scoop::fixtures::run_stderr_mismatch`（或同等稳定错误码）。
+- 依赖：T0106b2、T0111a、T0107
+
+### T0112 [TODO] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
+- 描述：让 fixtures runner 对运行进程执行退出码断言与超时控制，并在超时、信号终止、非预期退出码时生成稳定诊断。
+- 目标：先只覆盖单进程执行模型；不做沙箱与资源限额。
+- 验收：新增 run-pass fixtures：一个断言非零退出码，一个断言超时失败；`scoop test` 能稳定区分“程序失败”和“fixture 断言失败”。
+- 依赖：T0106b2、T0107
 
 ### T0108 [TODO] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
 - 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
