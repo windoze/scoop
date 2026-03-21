@@ -1064,11 +1064,16 @@
    - 误用（implements 非 interface / 对非 class 做 ctor call）会报错（新错误码：`scoop::typecheck::supertype_not_interface`、`scoop::typecheck::supertype_ctor_call_not_class`）。
    新增 fixtures：`tests/fixtures/typecheck/interface_impl_ok.scoop`、`interface_missing_member_is_error.scoop`、`interface_default_method_not_required_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0441 [TODO] Boxing：值类型装箱到 `Any`/interface（spec §2.5）
+### T0441 [DONE] Boxing：值类型装箱到 `Any`/interface（spec §2.5）
 - 描述：实现“语义正确”的 boxing：当值类型被当作 `Any`/interface 使用时生成 box（类型系统层先建模）。
 - 目标：先只在 typecheck 允许/禁止；真正分配与布局留给 codegen/runtime。
 - 验收：typecheck fixture：`val a: Any = 1`（若 Int 是值类型）通过；`val i: IFoo = Point(...)`（若实现）按规则通过/报错。
 - 依赖：T0418、T0405、T0440
+ - 完成：`TypeEnv` 额外收集 nominal type 的 direct supertypes（FQN），`ExprTypeError::is_type_assignable` 扩展：
+   - `T <: Any`（value types 通过 boxing，上转到 `Any`）；
+   - nominal ref types 支持沿 supertypes 的最小上转（class 继承 / interface 实现与继承）；
+   - nominal value types 在目标为 interface 时允许 boxing。
+   同时把顶层/局部 `val` initializer 的检查从“严格相等”升级为 `is_type_assignable`，并让 `as/as?` 支持 value → Any/interface 的显式 boxing。新增 fixtures：`tests/fixtures/typecheck/boxing_value_to_any_ok.scoop`、`boxing_value_to_interface_ok.scoop` 与 fail case `boxing_value_to_interface_missing_impl_is_error.scoop`。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0442 [TODO] 语句/循环的类型检查：`while`/`break`/`continue`
 - 描述：检查 while 条件为 Bool；break/continue 必须在循环内；循环体类型规则明确（Unit）。

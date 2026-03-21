@@ -13,6 +13,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
@@ -119,6 +120,7 @@ pub struct TypeEnv {
     by_fqn: HashMap<String, TypeSymbol>,
     enums: HashMap<String, EnumDecl>,
     sources: HashMap<PathBuf, SourceFile>,
+    supertypes: HashMap<String, Vec<String>>,
 }
 
 impl TypeEnv {
@@ -127,10 +129,10 @@ impl TypeEnv {
     /// 说明：
     /// - sysroot 是编译器“内建 API 的声明源”，因此 typecheck 的起点应由 sysroot 决定；
     /// - 当前阶段仅收集声明头信息，不解析函数体/方法体。
-    pub fn from_sysroot(sysroot: &Sysroot) -> Result<Self, TypeEnvError> {
+    pub fn from_sysroot(sysroot: &Sysroot, index: &Index) -> Result<Self, TypeEnvError> {
         let mut env = Self::default();
         for f in &sysroot.files {
-            env.collect_from_file(&f.source, &f.ast)?;
+            env.collect_from_file(&f.source, &f.ast, index)?;
         }
         Ok(env)
     }
@@ -146,8 +148,9 @@ impl TypeEnv {
         &mut self,
         source: &SourceFile,
         file: &ast::File,
+        index: &Index,
     ) -> Result<(), TypeEnvError> {
-        self.collect_from_file(source, file)
+        self.collect_from_file(source, file, index)
     }
 
     /// 按 FQN 查询类型符号。
@@ -178,6 +181,11 @@ impl TypeEnv {
         self.sources.get(path)
     }
 
+    /// 返回给定 nominal type 的 direct supertypes（以 FQN 形式；不包含隐式 `Any`）。
+    pub fn direct_supertypes(&self, fqn: &str) -> Option<&[String]> {
+        self.supertypes.get(fqn).map(|v| v.as_slice())
+    }
+
     /// 返回所有名字为 `variant_name` 的 enum variant 候选（跨所有已收集的 enum）。
     ///
     /// 说明（T0426）：
@@ -203,6 +211,7 @@ impl TypeEnv {
         &mut self,
         source: &SourceFile,
         file: &ast::File,
+        index: &Index,
     ) -> Result<(), TypeEnvError> {
         // 记录源文件内容，供后续 typecheck 在跨文件引用（例如 sysroot enum variants）时
         // 通过 span 反查标识符文本。
@@ -229,7 +238,7 @@ impl TypeEnv {
                     )?;
                 }
                 ast::Item::Type(ty) => {
-                    self.collect_type_decl(source, &pkg_prefix, ty)?;
+                    self.collect_type_decl(source, file, &pkg_prefix, ty, index)?;
                 }
                 ast::Item::Object(_)
                 | ast::Item::Fun(_)
@@ -244,8 +253,10 @@ impl TypeEnv {
     fn collect_type_decl(
         &mut self,
         source: &SourceFile,
+        file: &ast::File,
         prefix: &str,
         decl: &ast::TypeDecl,
+        index: &Index,
     ) -> Result<(), TypeEnvError> {
         let name = source.slice(decl.name.span).to_string();
         let fqn = join_prefix(prefix, &name);
@@ -267,6 +278,23 @@ impl TypeEnv {
                 decl_file: source.path().to_path_buf(),
             },
         )?;
+
+        // 记录 direct supertypes（用于后续最小子类型/boxing 判断）。
+        //
+        // 注意：
+        // - 当前只存储 “解析后的 FQN”，不存储 type args（更完整的泛型超类型实例化留给后续任务）。
+        // - 不包含隐式 `Any`；`Any` 的顶类型语义由 typecheck 单独处理。
+        let mut supers: Vec<String> = Vec::new();
+        for st in &decl.supertypes {
+            if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
+                supers.push(st_fqn);
+            }
+        }
+        supers.sort();
+        supers.dedup();
+        if !supers.is_empty() {
+            self.supertypes.insert(fqn.clone(), supers);
+        }
 
         let Some(body) = &decl.body else {
             if matches!(decl.kind, ast::TypeKind::Enum) {
@@ -349,7 +377,7 @@ impl TypeEnv {
             let ast::TypeMember::Type(nested) = member else {
                 continue;
             };
-            self.collect_type_decl(source, &fqn, nested)?;
+            self.collect_type_decl(source, file, &fqn, nested, index)?;
         }
 
         Ok(())
@@ -396,7 +424,12 @@ mod tests {
     #[test]
     fn sysroot_type_env_contains_option_arity() {
         let sess = Session::new().unwrap();
-        let env = TypeEnv::from_sysroot(sess.sysroot()).unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            pairs.push((&f.source, &f.ast));
+        }
+        let index = Index::build(&pairs).unwrap();
+        let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
 
         assert_eq!(env.type_param_count("scoop.core.Option"), Some(1));
     }
@@ -404,7 +437,12 @@ mod tests {
     #[test]
     fn sysroot_type_env_collects_option_variants() {
         let sess = Session::new().unwrap();
-        let env = TypeEnv::from_sysroot(sess.sysroot()).unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            pairs.push((&f.source, &f.ast));
+        }
+        let index = Index::build(&pairs).unwrap();
+        let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
 
         let decl = env.enum_decl("scoop.core.Option").expect("Option 应当是 enum");
         let source = env

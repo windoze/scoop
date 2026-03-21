@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T0441 Boxing：值类型在需要时可隐式装箱到 `Any`（spec §2.5）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// 顶层 initializer：Int（value）→ Any（ref）
+val a: Any = 1
+
+fun id(x: Any): Any { x }
+
+fun f(): Any {
+    // call arg：Int（value）→ Any（ref）
+    id(1)
+    // return：Int（value）→ Any（ref）
+    return 1
+}
+

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// EXPECT-ERROR-AT: 14:15
+// 目标：T0441 Boxing：值类型只有在声明实现该 interface 时才允许装箱到该 interface。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface IFoo
+struct Point(val x: Int)
+
+val i: IFoo = Point { x: 1 }

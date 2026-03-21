@@ -240,7 +240,7 @@
 
 ### 4.3 Boxing 与 Any
 
-- [ ] 值类型装箱到 interface/`Any`（spec §2.5）
+- [x] 值类型装箱到 interface/`Any`（spec §2.5）
 - [ ] 先实现“语义正确”，性能优化（如 O(n) 显式转换）后置
 
 ### 4.4 模式匹配与 smart cast（spec §4）

@@ -770,7 +770,7 @@ fn check_top_level_val_initializer(
         struct_field_types,
     )?;
 
-    if expected == found {
+    if is_type_assignable(found, expected, lower, builtins) {
         return Ok(());
     }
 
@@ -895,7 +895,7 @@ fn infer_expr_type(
             )?;
             let target_ty = lower.lower_type_ref(ty)?;
 
-            if !is_cast_allowed(from_ty, target_ty, lower) {
+            if !is_cast_allowed(from_ty, target_ty, lower, builtins) {
                 return Err(ExprTypeError::InvalidCast {
                     from: lower.fmt_type(from_ty),
                     to: lower.fmt_type(target_ty),
@@ -1346,21 +1346,80 @@ fn infer_with_update_expr_type(
     Ok(base_ty)
 }
 
-fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>) -> bool {
+fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
     if from == to {
         return true;
     }
 
-    // spec §4.4：`as`/`as?` 不做值类型转换；当前阶段也不实现 boxing/unboxing，
-    // 因此只允许在引用类型之间做运行期检查式转换。
-    lower.is_ref(from) && lower.is_ref(to)
+    // spec §4.4：`as`/`as?` 不做值类型之间的“数值转换”；
+    // 但 spec §2.5 允许 value → interface/Any 的显式转换（boxing）。
+    //
+    // 当前阶段策略：
+    // - ref → ref：允许（运行期检查式转换）
+    // - value → Any / interface：允许（boxing）
+    // - ref → value：不允许（unboxing 需要运行期支持，后续任务补齐）
+    if lower.is_ref(from) && lower.is_ref(to) {
+        return true;
+    }
+
+    // value → Any：允许（boxing）。
+    if to == builtins.any && matches!(lower.type_kind(from), TypeKind::Value(_)) {
+        return true;
+    }
+
+    // value → interface：允许（boxing）。
+    match (lower.type_kind(from), lower.type_kind(to)) {
+        (
+            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && nominal_is_subtype_by_fqn(
+                    &found_nominal.fqn,
+                    &expected_nominal.fqn,
+                    lower.env(),
+                )
+        }
+        _ => false,
+    }
+}
+
+fn nominal_is_subtype_by_fqn(found_fqn: &str, expected_fqn: &str, env: &TypeEnv) -> bool {
+    if found_fqn == expected_fqn {
+        return true;
+    }
+
+    // DFS（防循环）。
+    let mut stack: Vec<&str> = vec![found_fqn];
+    let mut seen: HashSet<&str> = HashSet::new();
+
+    while let Some(cur) = stack.pop() {
+        if !seen.insert(cur) {
+            continue;
+        }
+
+        if cur == expected_fqn {
+            return true;
+        }
+
+        let Some(supers) = env.direct_supertypes(cur) else {
+            continue;
+        };
+        for st in supers {
+            stack.push(st.as_str());
+        }
+    }
+
+    false
 }
 
 /// 检查“found 是否可赋值给 expected”（最小子集）。
 ///
-/// 当前阶段仅实现两条最小子类型规则（用于 `return`/不可达分支等）：
+/// 当前阶段实现的最小规则（用于 `val` initializer / call args / `return` 等）：
 /// - `Nothing <: T`（对任意 T，bottom type）
-/// - 任意引用类型 `R` 都可赋值给 `Any`（`R <: Any`）。
+/// - `T <: Any`（对任意 T；ref 直接上转，value 通过 boxing 上转）
+/// - nominal ref types：沿 direct supertypes 做最小上转（class 继承 / interface 实现与继承）
+/// - nominal value types：当目标是 interface 时允许 boxing（同上）
 ///
 /// 其余更完整的子类型系统（接口、类继承、值类型装箱等）
 /// 会在后续任务中逐步补齐。
@@ -1382,9 +1441,14 @@ fn is_type_assignable(
         return true;
     }
 
-    // spec §2：`Any` 是所有引用类型的顶类型。
-    if expected == builtins.any && lower.is_ref(found) {
-        return true;
+    // spec §2 / §2.5：
+    // - `Any` 是所有引用类型的顶类型；
+    // - 值类型可在需要时装箱（boxing）为 `Any`。
+    if expected == builtins.any {
+        return matches!(
+            lower.type_kind(found),
+            TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Param(_)
+        );
     }
 
     // T0437：声明处变型（declaration-site variance）的最小子类型规则（spec §3.2）。
@@ -1413,7 +1477,65 @@ fn is_type_assignable(
             TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         )
-        | (
+        => {
+            if found_nominal.fqn == expected_nominal.fqn {
+                if found_nominal.args.len() != expected_nominal.args.len() {
+                    return false;
+                }
+
+                let variances = lower.env().type_param_variances(&found_nominal.fqn);
+
+                for (idx, (found_arg, expected_arg)) in found_nominal
+                    .args
+                    .iter()
+                    .copied()
+                    .zip(expected_nominal.args.iter().copied())
+                    .enumerate()
+                {
+                    let declared = variances
+                        .and_then(|v| v.get(idx).copied())
+                        .unwrap_or(None);
+
+                    // 默认：invariant（或者因为 value type 而禁用 variance）
+                    let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
+
+                    match declared {
+                        None => {
+                            if found_arg != expected_arg {
+                                return false;
+                            }
+                        }
+                        Some(ast::TypeParamVariance::Out) if both_ref => {
+                            if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
+                                return false;
+                            }
+                        }
+                        Some(ast::TypeParamVariance::In) if both_ref => {
+                            if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
+                                return false;
+                            }
+                        }
+                        Some(_) => {
+                            // value types（或 unknown kind，例如 type param）占位：variance 不生效。
+                            if found_arg != expected_arg {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            // 当前阶段的最小继承/实现规则：只在目标类型“未带实参”时做上转，
+            // 避免过早引入“泛型超类型实例化”的复杂语义。
+            if !expected_nominal.args.is_empty() {
+                return false;
+            }
+
+            nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
+        }
+        (
             TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
             TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
         ) => {
@@ -1437,7 +1559,8 @@ fn is_type_assignable(
                     .and_then(|v| v.get(idx).copied())
                     .unwrap_or(None);
 
-                // 默认：invariant（或者因为 value type 而禁用 variance）
+                // Kotlin-like restriction（spec §3.2）：
+                // variance 只对引用类型实参生效（值类型布局不同，需显式转换）。
                 let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
 
                 match declared {
@@ -1457,7 +1580,6 @@ fn is_type_assignable(
                         }
                     }
                     Some(_) => {
-                        // value types（或 unknown kind，例如 type param）占位：variance 不生效。
                         if found_arg != expected_arg {
                             return false;
                         }
@@ -1466,6 +1588,18 @@ fn is_type_assignable(
             }
 
             true
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            // value → interface：允许 boxing；同样限制目标不带 type args。
+            expected_nominal.args.is_empty()
+                && nominal_is_subtype_by_fqn(
+                    &found_nominal.fqn,
+                    &expected_nominal.fqn,
+                    lower.env(),
+                )
         }
         (
             TypeKind::Ref(RefTypeKind::Function(found_fun)),
@@ -2668,7 +2802,7 @@ fn check_local_val_decl_exprs(
     };
 
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
-        if expected != found {
+        if !is_type_assignable(found, expected, lower, builtins) {
             // 复用顶层 initializer 的错误码与文本（保持 fixtures 断言稳定）。
             let init = v.init.as_ref().unwrap();
             return Err(ExprTypeError::InitializerTypeMismatch {
@@ -3229,8 +3363,8 @@ fn detect_smart_cast_for_if_condition(
 
     let target_ty = lower.lower_type_ref(ty)?;
 
-    // 与 `as/as?` 保持一致：当前阶段只对引用类型做运行期类型检查式收窄。
-    if !is_cast_allowed(from_ty, target_ty, lower) {
+    // spec §4.3：smart cast 只对引用类型生效（值类型使用 enum/pattern 进行收窄）。
+    if !(lower.is_ref(from_ty) && lower.is_ref(target_ty)) {
         return Ok(None);
     }
 

@@ -1,0 +1,21 @@
+// EXPECT: pass
+// 目标：T0441 Boxing：值类型在赋值到 interface 时可隐式装箱（spec §2.5）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface IFoo
+struct Point(val x: Int) : IFoo
+
+// initializer：Point（value）→ IFoo（ref）通过 boxing
+val i: IFoo = Point { x: 1 }
+
+fun take(x: IFoo): Unit { () }
+
+fun use() {
+    // call arg：Point（value）→ IFoo（ref）通过 boxing
+    take(Point { x: 1 })
+    // local val initializer：同样走 assignable + boxing
+    val j: IFoo = Point { x: 1 }
+}

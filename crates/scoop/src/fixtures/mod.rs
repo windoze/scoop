@@ -289,8 +289,10 @@ fn typecheck_fixture(
     scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(box_diagnostic)?;
 
     // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
-    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(box_diagnostic)?;
-    env.extend_from_file(source, &ast).map_err(box_diagnostic)?;
+    let mut env =
+        scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).map_err(box_diagnostic)?;
+    env.extend_from_file(source, &ast, &index)
+        .map_err(box_diagnostic)?;
 
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
@@ -540,10 +542,11 @@ fn run_typecheck_multi_case(
     let index = scoopc::resolve::Index::build(&pairs).map_err(miette::Report::new)?;
 
     // type env：sysroot + case 全部文件（用于跨文件 TypeRef lowering）。
-    let mut env =
-        scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(miette::Report::new)?;
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(miette::Report::new)?;
     for (source, ast) in sources.iter().zip(asts.iter()) {
-        env.extend_from_file(source, ast).map_err(miette::Report::new)?;
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::new)?;
     }
 
     let mut types = scoopc::ty::TypeStore::new();
