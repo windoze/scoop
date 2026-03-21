@@ -31,6 +31,7 @@ use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
 use super::when_pat;
+use super::val_pat;
 use tracing::warn;
 
 #[derive(Debug, Error, Diagnostic)]
@@ -50,6 +51,85 @@ pub enum ExprTypeError {
     #[error("暂不支持的模式绑定（pattern binding）")]
     #[diagnostic(code(scoop::typecheck::unsupported_pattern_binding))]
     UnsupportedPatternBinding {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("解构绑定仅允许 `val`，不允许 `var`")]
+    #[diagnostic(code(scoop::typecheck::destructuring_var_not_allowed))]
+    DestructuringVarNotAllowed {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 tuple pattern 只能用于 tuple/Unit，但 initializer 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::val_tuple_pat_not_tuple))]
+    ValTuplePatNotTuple {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 tuple pattern 长度不匹配：期望 {expected} 个元素，但得到 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::val_tuple_pat_arity_mismatch))]
+    ValTuplePatArityMismatch {
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 tuple pattern 需要至少 {expected_at_least} 个元素，但 initializer 只有 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::val_tuple_pat_too_short))]
+    ValTuplePatTooShort {
+        expected_at_least: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 struct pattern 类型必须是 struct，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::val_struct_pat_not_struct))]
+    ValStructPatNotStruct {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 struct pattern 类型不匹配：期望 {expected}，但 initializer 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::val_struct_pat_type_mismatch))]
+    ValStructPatTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 struct pattern 字段重复：{struct_name}.{field}")]
+    #[diagnostic(code(scoop::typecheck::val_struct_pat_duplicate_field))]
+    ValStructPatDuplicateField {
+        struct_name: String,
+        field: String,
+        #[label("重复写在这里")]
+        second: miette::SourceSpan,
+        #[label("第一次写在这里")]
+        first: miette::SourceSpan,
+    },
+
+    #[error("`{struct_name}` 不存在字段：{field}")]
+    #[diagnostic(code(scoop::typecheck::val_struct_pat_unknown_field))]
+    ValStructPatUnknownField {
+        struct_name: String,
+        field: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 struct pattern 缺少字段：{struct_name} 还需要 {fields}")]
+    #[diagnostic(code(scoop::typecheck::val_struct_pat_missing_fields))]
+    ValStructPatMissingFields {
+        struct_name: String,
+        fields: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -2192,9 +2272,37 @@ fn check_local_val_decl_exprs(
             }
         }
         ast::ValBinding::Pattern(pat) => {
-            return Err(ExprTypeError::UnsupportedPatternBinding {
-                span: pat.span.into(),
-            });
+            // spec §4.2：`var` 不支持 destructuring patterns（只允许简单绑定）。
+            if matches!(v.kind, ast::ValKind::Var) {
+                return Err(ExprTypeError::DestructuringVarNotAllowed {
+                    span: pat.span.into(),
+                });
+            }
+
+            let Some(init_ty) = init_ty else {
+                // parser 已强制 pattern binding 必须有 initializer；这里仅做健壮性兜底。
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "解构绑定（缺少 initializer）",
+                    span: pat.span.into(),
+                });
+            };
+
+            let bindings = val_pat::infer_val_pat_bindings(
+                source,
+                pat,
+                init_ty,
+                lower,
+                builtins,
+                struct_field_types,
+            )?;
+
+            // `val` 解构引入的绑定与普通 `val x = ...` 一样：
+            // - 在其声明之后可见（resolver 已建立作用域）
+            // - 属于稳定绑定，可用于 smart cast（当前阶段仅记录）
+            for (decl_span, ty) in bindings {
+                locals.insert(decl_span, ty);
+                stable_bindings.insert(decl_span);
+            }
         }
     }
 

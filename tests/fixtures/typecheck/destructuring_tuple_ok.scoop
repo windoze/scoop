@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0430 `val (a, b) = expr`：tuple 解构绑定引入的变量类型正确。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use() {
+    val (a, b) = (1, "x")
+    val x: Int = a
+    val y: String = b
+}
+

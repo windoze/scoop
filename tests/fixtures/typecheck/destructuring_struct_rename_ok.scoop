@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0430 `val Point { x: px, y: py } = expr`：struct 字段重命名后变量类型正确。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use(p: Point) {
+    val Point { x: px, y: py } = p
+    val a: Int = px
+    val b: Int = py
+}
+

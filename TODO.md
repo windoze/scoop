@@ -919,11 +919,12 @@
 - 依赖：T0428
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 的 `check_when_exhaustiveness` 中过滤带 guard 的分支：不计入 variant 覆盖集合，也不视为 catch-all；fixtures：`tests/fixtures/typecheck/when_guard_missing_else_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0430 [TODO] destructuring `val`：tuple/struct pattern 绑定（spec §4.2、§9）
+### T0430 [DONE] destructuring `val`：tuple/struct pattern 绑定（spec §4.2、§9）
 - 描述：实现 `val (a,b)=expr`、`val Point { x, y } = expr` 的类型检查与绑定，并强制 `var` 不允许。
 - 目标：先只支持 tuple/struct；enum destructuring 可复用 when pattern 后续再补。
 - 验收：typecheck fixture：`var (a,b)=...` 报错；绑定变量类型正确；字段重命名后变量名类型正确。
 - 依赖：T0244、T0410、T0409
+- 完成：新增 `crates/scoopc/src/typecheck/val_pat.rs` 实现 `val` 解构 pattern 的最小类型检查（tuple/struct，支持 tuple `..` rest、struct 字段重命名与缺字段诊断），并在 `crates/scoopc/src/typecheck/expr.rs` 的 `check_local_val_decl_exprs` 接入 bindings 注入局部类型表；新增 fixtures `tests/fixtures/typecheck/destructuring_tuple_ok.scoop` 与 `tests/fixtures/typecheck/destructuring_struct_rename_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0431 [TODO] 属性 v0：class 属性声明头与 backing field 规则（spec §10.1）
 - 描述：实现 class 属性的类型检查：默认 getter/setter、`field` 可见性、是否生成 backing field 的判定。
