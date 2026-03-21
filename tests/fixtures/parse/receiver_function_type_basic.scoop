@@ -1,0 +1,8 @@
+// EXPECT: pass
+// EXPECT-AST: receiver_function_type_basic.ast
+
+package fixtures.parse
+
+val f: String.() -> Int
+val g: List<Int>.(Int) -> Bool / Pure
+

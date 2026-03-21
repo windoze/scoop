@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR: `->`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:18
+// 目标：spec §7.5 receiver function type 必须包含 `->` 返回类型。
+
+package fixtures.parse
+
+val f: String.() Int

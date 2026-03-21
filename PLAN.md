@@ -126,6 +126,7 @@
   - [x] `import foo.bar.Baz as Qux`（Appendix B.7）
   - [x] use-site effect row 实参：`Type<eff Row>`（spec §3.4）
   - [x] pattern rest：`..`（spec §4.2）
+  - [x] receiver function type：`T.(A, B) -> R / E`（spec §7.5）
   - 泛型 `where` 子句（spec §3 / Appendix B）
 - [ ] Kotlin-like 声明补齐：
   - [x] `init { ... }` blocks（Appendix B.2.2）

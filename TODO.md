@@ -578,11 +578,12 @@
 - 依赖：T0201、T0248
 - 完成：lexer 新增 `object`/`companion` 关键字；AST 新增 `ObjectDecl/ObjectKind` 并在 `Item/TypeMember` 接入；parser 支持 top-level/nested object 与 class body 内 companion object（非法位置给出稳定 `scoop::parse::expected` 且避免级联错误）；新增 parse pass fixture `object_and_companion_object_basic`（含 AST golden）与 fail fixture `companion_object_illegal_position_fail`；`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 通过。
 
-### T0259 [TODO] Parser：receiver function type 语法 `T.(A, B) -> C / R`（spec §7.5）
+### T0259 [DONE] Parser：receiver function type 语法 `T.(A, B) -> C / R`（spec §7.5）
 - 描述：在类型语法中补齐 receiver function type：支持 `T.() -> R`、`T.(A, B) -> C` 以及带 effect row 的 `T.(A, B) -> C / E`。
 - 目标：先只做语法与 AST 建模；子类型、推断、codegen 继续复用/依赖 T0435 等后续任务。
 - 验收：新增 parse fixture：`val f: String.() -> Int`、`val g: List<Int>.(Int) -> Bool / Pure` 可解析；非法写法（如缺 `->` 或 receiver 后不是函数类型）报错。
 - 依赖：T0219、T0233
+- 完成：parser `TypeRef` 解析已支持 receiver function type（`T.(...) -> ... / E`）；新增 parse pass fixture `receiver_function_type_basic`（含 AST golden）与 fail fixture `receiver_function_type_missing_arrow_fail`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0260 [TODO] Parser：泛型 `where` 子句（spec §3 / Appendix B）
 - 描述：为 `fun` / `class` / `struct` / `interface` / `enum` / `effect` 的声明头补齐 `where` 子句语法，支持在声明处泛型参数列表之后附加约束列表。
