@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::superclass_not_open
+// EXPECT-ERROR-AT: 11:19
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Base()
+
+class Derived() : Base()

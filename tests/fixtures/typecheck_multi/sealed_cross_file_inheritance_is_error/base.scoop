@@ -1,0 +1,6 @@
+// EXPECT: pass
+
+package fixtures.typecheck_multi
+
+sealed class Base()
+

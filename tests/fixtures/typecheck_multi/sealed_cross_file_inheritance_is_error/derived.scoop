@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::sealed_inheritance_outside_compilation_unit
+// EXPECT-ERROR-AT: 7:19
+
+package fixtures.typecheck_multi
+
+class Derived() : Base()
+

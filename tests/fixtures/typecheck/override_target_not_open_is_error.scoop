@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::cannot_override_final_member
+// EXPECT-ERROR-AT: 14:18
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    fun ping(): Unit { return }
+}
+
+class Derived() : Base() {
+    override fun ping(): Unit { return }
+}
+

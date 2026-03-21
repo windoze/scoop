@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::missing_override
+// EXPECT-ERROR-AT: 16:9
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Unit {
+        return
+    }
+}
+
+class Derived() : Base() {
+    fun ping(): Unit {
+        return
+    }
+}
+
