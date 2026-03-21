@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::forward_reference
+// EXPECT-ERROR-AT: 12:17
+// EXPECT-ERROR: 初始化阶段非法前向引用
+// 目标：T0448 class 初始化顺序：init block 不允许引用尚未初始化的后置属性（由 resolver 报错）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(x: Int) {
+    init { this.y }
+    val y: Int = x
+}

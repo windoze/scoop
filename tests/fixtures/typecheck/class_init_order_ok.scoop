@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T0448 class 初始化：property initializer / init block / secondary ctor body 进入最小 typecheck，
+// 且初始化顺序合法时通过（可见 `this` + 主构造参数；secondary ctor 需要 `: this(...)`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(x: Int) {
+    var y: Int = x
+
+    init {
+        this.y = x
+        val z: Int = this.y
+    }
+
+    constructor(other: Int) : this(other) {
+        val t: Int = other
+        val u: Int = this.y
+    }
+}
+

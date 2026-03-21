@@ -30,8 +30,8 @@ use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStor
 
 use super::TypeEnv;
 use super::lower::{TypeLowerError, TypeLowering};
-use super::when_pat;
 use super::val_pat;
+use super::when_pat;
 use tracing::warn;
 
 #[derive(Debug, Error, Diagnostic)]
@@ -79,7 +79,9 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`val` 解构的 tuple pattern 需要至少 {expected_at_least} 个元素，但 initializer 只有 {found} 个")]
+    #[error(
+        "`val` 解构的 tuple pattern 需要至少 {expected_at_least} 个元素，但 initializer 只有 {found} 个"
+    )]
     #[diagnostic(code(scoop::typecheck::val_tuple_pat_too_short))]
     ValTuplePatTooShort {
         expected_at_least: usize,
@@ -215,7 +217,9 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("enum variant 构造参数类型不匹配：{variant} 第 {index} 个参数期望 {expected}，但得到 {found}")]
+    #[error(
+        "enum variant 构造参数类型不匹配：{variant} 第 {index} 个参数期望 {expected}，但得到 {found}"
+    )]
     #[diagnostic(code(scoop::typecheck::enum_variant_ctor_arg_type_mismatch))]
     EnumVariantCtorArgTypeMismatch {
         variant: String,
@@ -223,6 +227,22 @@ pub enum ExprTypeError {
         expected: String,
         found: String,
         #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("次构造器缺少 delegation call：{class_fqn} 的 `constructor(...)` 必须写 `: this(...)`")]
+    #[diagnostic(code(scoop::typecheck::secondary_ctor_delegation_required))]
+    SecondaryCtorDelegationRequired {
+        class_fqn: String,
+        #[label("这里需要写 `: this(...)`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("次构造器 delegation 非法：{class_fqn} 有主构造器时只能委托到 `this(...)`")]
+    #[diagnostic(code(scoop::typecheck::secondary_ctor_delegation_must_be_this))]
+    SecondaryCtorDelegationMustBeThis {
+        class_fqn: String,
+        #[label("这里必须是 `this(...)`")]
         span: miette::SourceSpan,
     },
 
@@ -269,7 +289,9 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`when` 的 variant pattern 参数数量不匹配：{variant_fqn} 期望 {expected} 个，但得到 {found} 个")]
+    #[error(
+        "`when` 的 variant pattern 参数数量不匹配：{variant_fqn} 期望 {expected} 个，但得到 {found} 个"
+    )]
     #[diagnostic(code(scoop::typecheck::when_variant_pat_arity_mismatch))]
     WhenVariantPatArityMismatch {
         variant_fqn: String,
@@ -433,7 +455,9 @@ pub enum ExprTypeError {
         first: miette::SourceSpan,
     },
 
-    #[error("`with` 嵌套字段路径不可继续：`{struct_name}.{field}` 的类型必须是 struct，但得到 {found}")]
+    #[error(
+        "`with` 嵌套字段路径不可继续：`{struct_name}.{field}` 的类型必须是 struct，但得到 {found}"
+    )]
     #[diagnostic(code(scoop::typecheck::with_update_nested_path_not_struct))]
     WithUpdateNestedPathNotStruct {
         struct_name: String,
@@ -528,7 +552,9 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`return` 只能出现在普通函数体内（lambda 的 non-local return 仅允许出现在 inline 函数的 lambda 实参中）")]
+    #[error(
+        "`return` 只能出现在普通函数体内（lambda 的 non-local return 仅允许出现在 inline 函数的 lambda 实参中）"
+    )]
     #[diagnostic(code(scoop::typecheck::return_not_in_function_body))]
     ReturnNotInFunctionBody {
         #[label("这里")]
@@ -637,9 +663,7 @@ pub fn check_file_exprs(
                 &member_mutabilities,
                 &struct_field_types,
             )?,
-            ast::Item::ExtensionProperty(_)
-            | ast::Item::Object(_)
-            | ast::Item::TypeAlias(_) => {}
+            ast::Item::ExtensionProperty(_) | ast::Item::Object(_) | ast::Item::TypeAlias(_) => {}
         }
     }
 
@@ -677,31 +701,80 @@ fn check_class_member_fun_bodies_in_type_decl(
         // 这里用 `Any` + type params 数量占位来构造 `this` 的类型：
         // - 避免在当前阶段过早引入“class 类型实参推断/实例化”；
         // - 同时保证泛型 class 不会因 arity mismatch 直接炸掉 member body typecheck。
-        let this_ty_args = (0..decl.type_params.len()).map(|_| builtins.any).collect::<Vec<_>>();
-        let this_ty = lower.lower_type_fqn_with_args(
-            type_fqn.clone(),
-            this_ty_args,
-            decl.name.span,
-        )?;
+        let this_ty_args = (0..decl.type_params.len())
+            .map(|_| builtins.any)
+            .collect::<Vec<_>>();
+        let this_ty =
+            lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)?;
 
         if let Some(body) = &decl.body {
             for member in &body.members {
-                let ast::TypeMember::Fun(fun) = member else {
-                    continue;
-                };
-                check_class_member_fun_body_exprs(
-                    source,
-                    decl.name.span,
-                    this_ty,
-                    ctor_params,
-                    fun,
-                    lower,
-                    builtins,
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                )?;
+                match member {
+                    ast::TypeMember::Fun(fun) => {
+                        check_class_member_fun_body_exprs(
+                            source,
+                            decl.name.span,
+                            this_ty,
+                            ctor_params,
+                            fun,
+                            lower,
+                            builtins,
+                            top_level_types,
+                            top_level_funs,
+                            member_mutabilities,
+                            struct_field_types,
+                        )?;
+                    }
+                    ast::TypeMember::Property(p) => {
+                        check_class_property_initializer_exprs(
+                            source,
+                            decl.name.span,
+                            this_ty,
+                            ctor_params,
+                            p,
+                            lower,
+                            builtins,
+                            top_level_types,
+                            top_level_funs,
+                            struct_field_types,
+                        )?;
+                    }
+                    ast::TypeMember::InitBlock(b) => {
+                        check_class_init_block_exprs(
+                            source,
+                            decl.name.span,
+                            this_ty,
+                            ctor_params,
+                            b,
+                            lower,
+                            builtins,
+                            top_level_types,
+                            top_level_funs,
+                            member_mutabilities,
+                            struct_field_types,
+                        )?;
+                    }
+                    ast::TypeMember::SecondaryCtor(ctor) => {
+                        check_class_secondary_ctor_exprs(
+                            source,
+                            decl.name.span,
+                            &type_fqn,
+                            decl.primary_ctor.is_some(),
+                            this_ty,
+                            ctor_params,
+                            ctor,
+                            lower,
+                            builtins,
+                            top_level_types,
+                            top_level_funs,
+                            member_mutabilities,
+                            struct_field_types,
+                        )?;
+                    }
+                    ast::TypeMember::EnumVariant(_)
+                    | ast::TypeMember::Type(_)
+                    | ast::TypeMember::Object(_) => {}
+                }
             }
         }
     }
@@ -804,6 +877,213 @@ fn check_class_member_fun_body_exprs(
     }
 
     Ok(())
+}
+
+/// 检查 class 属性 initializer 的最小表达式类型（T0448）。
+///
+/// 说明：
+/// - 仅覆盖 `= expr` initializer（delegate `by expr` 的表达式类型检查留给 delegated property lowering 任务）。
+/// - initializer 处于 class 初始化语境：可见 `this` 与主构造参数（resolver 已写回 Local decl_span）。
+fn check_class_property_initializer_exprs(
+    source: &SourceFile,
+    this_decl_span: Span,
+    this_ty: TypeId,
+    ctor_params: &[ast::Param],
+    p: &ast::PropertyDecl,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // delegated property 的语义由 `typecheck::properties` 覆盖；这里避免引入不完整的 delegate expr typecheck。
+    if p.delegate.is_some() {
+        return Ok(());
+    }
+
+    let Some(init) = &p.init else {
+        return Ok(());
+    };
+    let Some(ty_ref) = &p.ty else {
+        // `check_file_headers` 已保证类型注解存在；这里仅做健壮性兜底。
+        return Ok(());
+    };
+
+    let expected = lower.lower_type_ref(ty_ref)?;
+
+    // initializer 语境的 locals：`this` + 主构造参数。
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    locals.insert(this_decl_span, this_ty);
+    for p in ctor_params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+    }
+
+    let found = infer_expr_type(
+        source,
+        init,
+        lower,
+        builtins,
+        &locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if is_type_assignable(found, expected, lower, builtins) {
+        return Ok(());
+    }
+
+    // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
+    if matches!(init.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::InitializerTypeMismatch {
+        expected: lower.fmt_type(expected),
+        found: lower.fmt_type(found),
+        span: init.span.into(),
+    })
+}
+
+/// 检查 class `init { ... }` 初始化块的最小表达式类型（T0448）。
+fn check_class_init_block_exprs(
+    source: &SourceFile,
+    this_decl_span: Span,
+    this_ty: TypeId,
+    ctor_params: &[ast::Param],
+    b: &ast::InitBlockDecl,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let (mut locals, mut stable_bindings, mut mutable_bindings) =
+        class_init_locals(this_decl_span, this_ty, ctor_params, lower)?;
+
+    // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
+    check_block_exprs(
+        source,
+        &b.body,
+        lower,
+        builtins,
+        &mut locals,
+        &mut stable_bindings,
+        &mut mutable_bindings,
+        0,
+        None,
+        top_level_types,
+        top_level_funs,
+        member_mutabilities,
+        struct_field_types,
+    )?;
+
+    Ok(())
+}
+
+/// 检查 class 次构造器 body 的最小表达式类型（T0448）。
+fn check_class_secondary_ctor_exprs(
+    source: &SourceFile,
+    this_decl_span: Span,
+    class_fqn: &str,
+    has_primary_ctor: bool,
+    this_ty: TypeId,
+    primary_ctor_params: &[ast::Param],
+    ctor: &ast::SecondaryCtorDecl,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // Kotlin-like 语义：当 class 有主构造器时，secondary constructor 必须显式委托到 `this(...)`。
+    if has_primary_ctor {
+        match ctor.delegation_call.as_ref() {
+            None => {
+                return Err(ExprTypeError::SecondaryCtorDelegationRequired {
+                    class_fqn: class_fqn.to_string(),
+                    span: ctor.span.into(),
+                });
+            }
+            Some(call) if call.kind != ast::CtorDelegationKind::This => {
+                return Err(ExprTypeError::SecondaryCtorDelegationMustBeThis {
+                    class_fqn: class_fqn.to_string(),
+                    span: call.target_span.into(),
+                });
+            }
+            Some(_) => {}
+        }
+    }
+
+    let (mut locals, mut stable_bindings, mut mutable_bindings) =
+        class_init_locals(this_decl_span, this_ty, primary_ctor_params, lower)?;
+
+    // 次构造器参数：作为函数参数语义处理（稳定绑定；不可赋值）。
+    for p in &ctor.params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+        stable_bindings.insert(p.name.span);
+    }
+
+    // secondary ctor body 不是函数体：不允许 `return`。
+    check_block_exprs(
+        source,
+        &ctor.body,
+        lower,
+        builtins,
+        &mut locals,
+        &mut stable_bindings,
+        &mut mutable_bindings,
+        0,
+        None,
+        top_level_types,
+        top_level_funs,
+        member_mutabilities,
+        struct_field_types,
+    )?;
+
+    Ok(())
+}
+
+/// 构造 class 初始化语境（property initializer / `init {}` / ctor body）所需的 locals 集合。
+///
+/// 说明：
+/// - `this` 与主构造参数在 resolver 阶段会被写回为 `ResolvedValueRef::Local { decl_span }`；
+/// - 这里把这些 decl_span 映射到 TypeId，供后续 type inference 查询。
+fn class_init_locals(
+    this_decl_span: Span,
+    this_ty: TypeId,
+    ctor_params: &[ast::Param],
+    lower: &mut TypeLowering<'_>,
+) -> Result<(HashMap<Span, TypeId>, HashSet<Span>, HashSet<Span>), ExprTypeError> {
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    let mut stable_bindings: HashSet<Span> = HashSet::new();
+    let mutable_bindings: HashSet<Span> = HashSet::new();
+
+    // `this`：resolver 使用 class name 的 span 作为 decl_span。
+    locals.insert(this_decl_span, this_ty);
+    stable_bindings.insert(this_decl_span);
+
+    // 主构造参数：在初始化语境内可见（T0313）。
+    for p in ctor_params {
+        let Some(ty_ref) = &p.ty else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+        stable_bindings.insert(p.name.span);
+    }
+
+    Ok((locals, stable_bindings, mutable_bindings))
 }
 
 fn check_top_level_val_initializer(
@@ -1015,14 +1295,12 @@ fn infer_builtin_scalar_binary_expr_type(
         struct_field_types,
     )?;
 
-    let mismatch = |expected: &'static str| {
-        ExprTypeError::BinaryOpOperandTypeMismatch {
-            op: binary_op_text(op).to_string(),
-            expected: expected.to_string(),
-            lhs: lower.fmt_type(lhs_ty),
-            rhs: lower.fmt_type(rhs_ty),
-            span: op_span.into(),
-        }
+    let mismatch = |expected: &'static str| ExprTypeError::BinaryOpOperandTypeMismatch {
+        op: binary_op_text(op).to_string(),
+        expected: expected.to_string(),
+        lhs: lower.fmt_type(lhs_ty),
+        rhs: lower.fmt_type(rhs_ty),
+        span: op_span.into(),
     };
 
     match op {
@@ -1281,9 +1559,9 @@ fn infer_expr_type(
             for arm in arms {
                 // T0427：对 pattern 做最小类型约束，并把 binder 注入到该 arm 的局部环境中。
                 let mut arm_locals: HashMap<Span, TypeId> = locals.clone();
-                for (decl_span, ty) in
-                    when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
-                {
+                for (decl_span, ty) in when_pat::infer_when_pat_bindings(
+                    source, &arm.pat, subject_ty, lower, builtins,
+                )? {
                     arm_locals.insert(decl_span, ty);
                 }
 
@@ -1384,7 +1662,9 @@ fn infer_struct_lit_expr_type(
     let struct_ty = lower.lower_type_ref(&ast::TypeRef::Path(ty.clone()))?;
 
     let (struct_fqn, struct_name) = match lower.type_kind(struct_ty) {
-        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => (nominal.fqn, lower.fmt_type(struct_ty)),
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            (nominal.fqn, lower.fmt_type(struct_ty))
+        }
         _ => {
             return Err(ExprTypeError::StructLitNotStruct {
                 found: lower.fmt_type(struct_ty),
@@ -1569,7 +1849,8 @@ fn infer_with_update_expr_type(
         }
 
         for (prev_segments, prev_path, prev_span) in &seen_paths {
-            if is_strict_prefix(prev_segments, &segments) || is_strict_prefix(&segments, prev_segments)
+            if is_strict_prefix(prev_segments, &segments)
+                || is_strict_prefix(&segments, prev_segments)
             {
                 // `prev` 与当前 `u` 存在包含关系：报冲突并定位到“第二次出现的那一条”。
                 let (parent, child) = if is_strict_prefix(prev_segments, &segments) {
@@ -1682,7 +1963,12 @@ fn infer_with_update_expr_type(
     Ok(base_ty)
 }
 
-fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+fn is_cast_allowed(
+    from: TypeId,
+    to: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
     if from == to {
         return true;
     }
@@ -1710,11 +1996,7 @@ fn is_cast_allowed(from: TypeId, to: TypeId, lower: &TypeLowering<'_>, builtins:
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         ) => {
             expected_nominal.args.is_empty()
-                && nominal_is_subtype_by_fqn(
-                    &found_nominal.fqn,
-                    &expected_nominal.fqn,
-                    lower.env(),
-                )
+                && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
         }
         _ => false,
     }
@@ -1812,8 +2094,7 @@ fn is_type_assignable(
         (
             TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
-        )
-        => {
+        ) => {
             if found_nominal.fqn == expected_nominal.fqn {
                 if found_nominal.args.len() != expected_nominal.args.len() {
                     return false;
@@ -1828,9 +2109,7 @@ fn is_type_assignable(
                     .zip(expected_nominal.args.iter().copied())
                     .enumerate()
                 {
-                    let declared = variances
-                        .and_then(|v| v.get(idx).copied())
-                        .unwrap_or(None);
+                    let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
 
                     // 默认：invariant（或者因为 value type 而禁用 variance）
                     let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
@@ -1891,9 +2170,7 @@ fn is_type_assignable(
                 .zip(expected_nominal.args.iter().copied())
                 .enumerate()
             {
-                let declared = variances
-                    .and_then(|v| v.get(idx).copied())
-                    .unwrap_or(None);
+                let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
 
                 // Kotlin-like restriction（spec §3.2）：
                 // variance 只对引用类型实参生效（值类型布局不同，需显式转换）。
@@ -1931,11 +2208,7 @@ fn is_type_assignable(
         ) => {
             // value → interface：允许 boxing；同样限制目标不带 type args。
             expected_nominal.args.is_empty()
-                && nominal_is_subtype_by_fqn(
-                    &found_nominal.fqn,
-                    &expected_nominal.fqn,
-                    lower.env(),
-                )
+                && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
         }
         (
             TypeKind::Ref(RefTypeKind::Function(found_fun)),
@@ -1945,18 +2218,14 @@ fn is_type_assignable(
                 return false;
             }
 
-            if !is_type_assignable(
-                found_fun.return_ty,
-                expected_fun.return_ty,
-                lower,
-                builtins,
-            ) {
+            if !is_type_assignable(found_fun.return_ty, expected_fun.return_ty, lower, builtins) {
                 return false;
             }
 
             // receiver function type：把 receiver 当作第一个参数参与逆变比较。
             let found_arity = found_fun.params.len() + found_fun.receiver.is_some() as usize;
-            let expected_arity = expected_fun.params.len() + expected_fun.receiver.is_some() as usize;
+            let expected_arity =
+                expected_fun.params.len() + expected_fun.receiver.is_some() as usize;
             if found_arity != expected_arity {
                 return false;
             }
@@ -2265,7 +2534,11 @@ fn infer_enum_variant_ctor_call_expr_type(
     // - 只从 “payload 字段类型为直接 type param（例如 `T`）” 的位置推断；
     // - 若同一 type param 被多次约束，要求相等（或其中一个为 `Nothing`）。
     let mut subst: HashMap<String, TypeId> = HashMap::new();
-    for (idx, (field, found_ty)) in variant.fields.iter().zip(arg_types.iter().copied()).enumerate()
+    for (idx, (field, found_ty)) in variant
+        .fields
+        .iter()
+        .zip(arg_types.iter().copied())
+        .enumerate()
     {
         let ast::TypeRef::Path(p) = &field.ty else {
             continue;
@@ -2302,7 +2575,11 @@ fn infer_enum_variant_ctor_call_expr_type(
     }
 
     // 逐个检查实参与字段声明类型是否匹配（字段类型允许引用 enum type params）。
-    for (idx, (field, found_ty)) in variant.fields.iter().zip(arg_types.iter().copied()).enumerate()
+    for (idx, (field, found_ty)) in variant
+        .fields
+        .iter()
+        .zip(arg_types.iter().copied())
+        .enumerate()
     {
         let expected_ty = lower_type_ref_with_enum_subst(
             &enum_source,
@@ -2664,7 +2941,11 @@ fn infer_member_call_expr_type(
         });
     };
 
-    for (idx, (arg, expected_ty)) in args.iter().zip(expected_param_tys.iter().copied()).enumerate() {
+    for (idx, (arg, expected_ty)) in args
+        .iter()
+        .zip(expected_param_tys.iter().copied())
+        .enumerate()
+    {
         let found_ty = infer_expr_type(
             source,
             arg,
@@ -2678,7 +2959,9 @@ fn infer_member_call_expr_type(
 
         if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
             // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-            if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins) {
+            if matches!(arg.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_ty, lower, builtins)
+            {
                 continue;
             }
             return Err(ExprTypeError::CallArgTypeMismatch {
@@ -2792,14 +3075,12 @@ fn collect_top_level_fun_signatures(
             None => builtins.unit,
         };
 
-        map.entry(fqn)
-            .or_default()
-            .push(FunSigOwned {
-                is_extension,
-                is_inline,
-                params,
-                return_ty,
-            });
+        map.entry(fqn).or_default().push(FunSigOwned {
+            is_extension,
+            is_inline,
+            params,
+            return_ty,
+        });
     }
 
     Ok(map)
@@ -3496,9 +3777,9 @@ fn check_expr_stmt(
                 let mut arm_mutable = mutable_bindings.clone();
 
                 if let Some(subject_ty) = subject_ty {
-                    for (decl_span, ty) in
-                        when_pat::infer_when_pat_bindings(source, &arm.pat, subject_ty, lower, builtins)?
-                    {
+                    for (decl_span, ty) in when_pat::infer_when_pat_bindings(
+                        source, &arm.pat, subject_ty, lower, builtins,
+                    )? {
                         arm_locals.insert(decl_span, ty);
                         arm_stable.insert(decl_span);
                     }
@@ -3529,7 +3810,8 @@ fn check_expr_stmt(
             //
             // 注意：当前阶段不做完整的调用类型检查（包括 lambda 类型推导），这里只做结构化递归与门禁，
             // 以便在不引入更多 type inference 复杂度的前提下先把语义边界钉死。
-            let target = resolve_call_target_for_expr_stmt(source, callee.as_ref(), lower, top_level_funs);
+            let target =
+                resolve_call_target_for_expr_stmt(source, callee.as_ref(), lower, top_level_funs);
 
             // 递归进入 callee 与 args：保证 `f({ return ... })` 这类结构也能被覆盖。
             check_expr_stmt(
@@ -3741,15 +4023,15 @@ fn check_when_exhaustiveness(
                 Some(ast::TypeKind::Enum)
             ) =>
         {
-            let decl = lower
-                .env()
-                .enum_decl(&nominal.fqn)
-                .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+            let decl = lower.env().enum_decl(&nominal.fqn).ok_or_else(|| {
+                ExprTypeError::UnsupportedExpr {
                     kind: "when exhaustiveness（缺少 enum 声明信息）",
                     span: when_expr.span.into(),
-                })?;
+                }
+            })?;
 
-            let all_variants: HashSet<&str> = decl.variants.iter().map(|v| v.name.as_str()).collect();
+            let all_variants: HashSet<&str> =
+                decl.variants.iter().map(|v| v.name.as_str()).collect();
             let mut covered: HashSet<&str> = HashSet::new();
 
             for arm in arms.iter().filter(|a| a.guard.is_none()) {
@@ -3992,7 +4274,9 @@ fn check_assign_expr_stmt(
 
     if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
         // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-        if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins) {
+        if matches!(rhs.kind, ast::ExprKind::IntLit)
+            && is_integer_type(expected_ty, lower, builtins)
+        {
             return Ok(());
         }
         return Err(ExprTypeError::AssignmentTypeMismatch {
@@ -4119,12 +4403,13 @@ fn infer_safe_member_access_expr_type(
     // - extension property / method 的语义留给后续任务；safe-call 的“调用”形式在 `Call(SafeMemberAccess)`
     //   分支中处理。
     let field_ty = match member.resolved.as_ref() {
-        Some(ast::ResolvedMemberRef::Value { fqn }) => struct_field_types.get(fqn).copied().ok_or_else(|| {
-            ExprTypeError::UnsupportedMemberAccess {
+        Some(ast::ResolvedMemberRef::Value { fqn }) => struct_field_types
+            .get(fqn)
+            .copied()
+            .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
                 fqn: fqn.clone(),
                 span: member.span.into(),
-            }
-        })?,
+            })?,
         Some(ast::ResolvedMemberRef::Fun { fqn })
         | Some(ast::ResolvedMemberRef::ExtensionValue { fqn })
         | Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => {

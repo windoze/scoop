@@ -1123,11 +1123,23 @@
 - 依赖：T0252、T0211、T0405、T0407、T0418
  - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::Unary/Binary` 实现 Bool/整数运算符类型规则：算术/比较/位运算与移位（shift count 固定为 `Int`）、以及 `&&/||`；并允许整数字面量被上下文整数类型吸收（initializer/call args/赋值/二元同型规则）。新增错误码 `scoop::typecheck::unary_op_operand_type_mismatch` 与 `scoop::typecheck::binary_op_operand_type_mismatch`（均定位到操作符 span）。新增 fixtures：`tests/fixtures/typecheck/int_bool_ops_ok.scoop`、`bool_shift_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0448 [TODO] class 初始化模型：property initializer / `init` / secondary constructor 规则（Appendix B.2.2）
+### T0448 [DONE] class 初始化模型：property initializer / `init` / secondary constructor 规则（Appendix B.2.2）
 - 描述：实现 class 初始化相关的静态规则：属性初始化表达式、多个 `init` block、secondary constructor body 的类型检查与顺序约束。
 - 目标：先固定 Kotlin-like 初始化顺序与最小限制；复杂继承链与 effect 细节后续补齐。
 - 验收：typecheck fixture：`init` 中引用未就绪成员时报错；secondary constructor 非法 delegation 报错；合法初始化顺序通过。
 - 依赖：T0256、T0257、T0316、T0406
+ - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 扩展 class 初始化相关的表达式检查：
+   - class 属性 initializer（`= expr`）进入最小 typecheck，并复用 `initializer_type_mismatch` 错误码；
+   - `init { ... }` 与 secondary ctor body 进入 block/stmt 递归 typecheck（禁止 `return`）；
+   - 当 class 存在主构造器时，secondary ctor 必须显式 `: this(...)`，否则报新错误码：
+     - `scoop::typecheck::secondary_ctor_delegation_required`
+     - `scoop::typecheck::secondary_ctor_delegation_must_be_this`
+   新增 fixtures：
+   - `tests/fixtures/typecheck/class_init_order_ok.scoop`
+   - `tests/fixtures/typecheck/class_init_forward_reference_is_error.scoop`（由 resolver 报 `scoop::resolve::forward_reference`）
+   - `tests/fixtures/typecheck/class_secondary_ctor_delegation_missing_is_error.scoop`
+   - `tests/fixtures/typecheck/class_secondary_ctor_delegation_super_is_error.scoop`
+   `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0449 [TODO] enum 完整布局语义：niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
 - 描述：在类型系统层固定 rich enum 的布局选择规则：何时使用 niche optimization、何时对 oversized variant 自动 boxing、何时发出 size disparity lint。

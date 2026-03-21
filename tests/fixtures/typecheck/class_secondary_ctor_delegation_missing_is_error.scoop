@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::secondary_ctor_delegation_required
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 必须写 `: this(...)`
+// 目标：T0448 Kotlin-like：当 class 有主构造器时，secondary ctor 必须显式 `: this(...)` 委托。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(x: Int) {
+    constructor(y: Int) { ; }
+}

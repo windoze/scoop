@@ -302,7 +302,7 @@
   - [ ] codegen：receiver 作为第一个参数的普通函数
 - [ ] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
 - [ ] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
-- [ ] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
+- [x] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小 typecheck + delegation 门禁）
 - [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
 - [ ] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
 - [ ] 通用重载解析（函数 / 构造函数 / 扩展）：
@@ -674,7 +674,7 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 - [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）
 - [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
-- [ ] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）
+- [x] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小落地）
 - [ ] 标准 delegated properties：`lazy`/`observable`/`vetoable`/map-backed（spec §10.4）
 - [ ] Kotlin runtime gap closure（when applicable）：
   - 先审计 Scoop core runtime / stdlib 与 Kotlin runtime 语义缺口
