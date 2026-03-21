@@ -8,6 +8,8 @@
 //!
 //! 当前阶段只提供数据结构与格式化输出；类型推断/求解、subtyping 等语义在后续任务实现。
 
+pub mod layout;
+
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
@@ -219,6 +221,18 @@ impl TypeStore {
             kinds: Vec::new(),
             index: HashMap::new(),
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.kinds.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.kinds.is_empty()
+    }
+
+    pub fn iter_ids(&self) -> impl Iterator<Item = TypeId> + '_ {
+        (0..self.kinds.len()).map(|idx| TypeId(idx as u32))
     }
 
     pub fn kind(&self, id: TypeId) -> &TypeKind {

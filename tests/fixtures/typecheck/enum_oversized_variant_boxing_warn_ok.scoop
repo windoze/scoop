@@ -1,0 +1,32 @@
+// EXPECT: pass
+// 目标：T0449 enum layout：oversized variant 自动 boxing + size disparity lint（warning）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Big {
+  Small(val x: Int),
+  Huge(
+    val a0: Int,
+    val a1: Int,
+    val a2: Int,
+    val a3: Int,
+    val a4: Int,
+    val a5: Int,
+    val a6: Int,
+    val a7: Int,
+    val a8: Int,
+    val a9: Int,
+    val a10: Int,
+    val a11: Int,
+    val a12: Int,
+    val a13: Int,
+    val a14: Int,
+    val a15: Int,
+    val a16: Int
+  )
+}
+
+val v: Big = Small(1)
+

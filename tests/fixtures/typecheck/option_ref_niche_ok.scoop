@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：T0449 enum layout：`Option<RefType>` 命中 niche 优化路径（spec §2.3.2）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val o: String? = Some("hello")
+

@@ -1141,11 +1141,21 @@
    - `tests/fixtures/typecheck/class_secondary_ctor_delegation_super_is_error.scoop`
    `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0449 [TODO] enum 完整布局语义：niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
+### T0449 [DONE] enum 完整布局语义：niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
 - 描述：在类型系统层固定 rich enum 的布局选择规则：何时使用 niche optimization、何时对 oversized variant 自动 boxing、何时发出 size disparity lint。
 - 目标：先把规则、诊断与 type metadata 固定下来；具体低层布局由 codegen 落地。
 - 验收：typecheck fixture：`Option<RefType>` 命中 niche 优化路径；oversized variant 触发 boxing/lint（warning 可先记录不强制 golden）。
 - 依赖：T0425、T0418
+- 完成：
+  - 新增 `crates/scoopc/src/ty/layout.rs`：定义 `TargetLayout`/`TypeLayout`/`EnumLayout` 等布局元数据形状（含 niche domain、tag type、variant boxing 标记）。
+  - 新增 `crates/scoopc/src/typecheck/layout.rs`：实现 best-effort 布局计算与策略选择：
+    - `Option<RefType>` / `Option<Bool>` niche 优化（支持 nested niche：外层使用 `0x1` 等非法值）；
+    - rich enum：tag 类型按 variant 数量选择；当 size disparity 显著时对最大 variant 自动 boxing，并通过 `tracing::warn!` 发出 lint warning。
+  - 在 typecheck pipeline 末尾接入 `check_file_type_layouts`，让 `scoop test` 会计算元数据并输出 lint（不影响 pass/fail）。
+  - 新增 fixtures：
+    - `tests/fixtures/typecheck/option_ref_niche_ok.scoop`
+    - `tests/fixtures/typecheck/enum_oversized_variant_boxing_warn_ok.scoop`
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过（`scoop test` 会对 oversized enum 输出一条 warning）。
 
 ### T0450 [TODO] pattern rest `..`：类型检查与绑定规则（spec §4.2）
 - 描述：实现 `..` 的静态规则：出现位置、只能出现一次、与 tuple/struct/variant pattern 的匹配关系，以及 rest 不引入绑定。

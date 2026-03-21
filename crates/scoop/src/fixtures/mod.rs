@@ -322,6 +322,10 @@ fn typecheck_fixture(
     )
     .map_err(box_diagnostic)?;
 
+    // T0449：计算 enum/Option 的布局元数据（niche/boxing/lint）。
+    scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
+        .map_err(box_diagnostic)?;
+
     Ok(())
 }
 
@@ -603,6 +607,10 @@ fn run_typecheck_multi_case(
             }
         }
     }
+
+    // T0449：对整个编译单元中出现过的类型做一次 layout/metadata 计算。
+    scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
+        .map_err(miette::Report::new)?;
 
     Ok(paths.len())
 }

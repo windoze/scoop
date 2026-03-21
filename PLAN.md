@@ -236,7 +236,7 @@
 - [ ] class：虚表/方法分发与 codegen（先单继承）
 - [x] interface：多实现、默认方法（可先限制默认方法 codegen）（T0440）
 - [ ] struct：布局（字段顺序/对齐），不可变，值语义
-- [ ] enum（rich enum）：tag + union 布局（先不做 niche 优化，后续再加）
+- [x] enum（rich enum）：tag + union 布局 + niche/boxing/lint 元数据（T0449；codegen 另见 §8.2）
 - [ ] effect：像 interface 一样声明操作签名
 
 ### 4.3 Boxing 与 Any
@@ -300,7 +300,7 @@
 - [ ] 扩展函数：
   - [x] 解析与分发规则（静态分发、member 优先；typecheck 降糖为 receiver 第一个参数）
   - [ ] codegen：receiver 作为第一个参数的普通函数
-- [ ] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
+- [x] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）（T0449：前端固定元数据；后端待落地）
 - [ ] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
 - [x] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小 typecheck + delegation 门禁）
 - [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
