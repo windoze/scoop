@@ -194,6 +194,7 @@
 - [x] 区分引用类型 vs 值类型（spec §2）：内部 `TypeKind::{Ref, Value}` 已落地（T0401）
 - [x] 从 sysroot 收集内建类型/效果的声明头（`TypeEnv`：kind + arity），为后续 lowering/typecheck 提供环境起点（T0402）
 - [x] TypeEnv：收集 enum variants（tag + payload fields），并检测重复 variant/字段（T0425）
+- [x] enum variant ctor：支持 `Some(x)` 风格构造并做参数/类型检查（T0426）
 - [x] `TypeRef` → `Type` lowering：支持 `Path`/`Tuple`/`Nullable` + 泛型 arity 检查（T0403）
 - [x] Nullability 语法糖：`T?` → `Option<T>`（lowering 阶段 desugar）（T0411）
 - [x] 顶层声明头检查：`fun/val/type` 的签名最小约束（类型注解等）（T0404）

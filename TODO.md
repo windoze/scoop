@@ -891,11 +891,12 @@
 - 依赖：T0236、T0404
 - 完成：在 `crates/scoopc/src/typecheck/type_env.rs` 中收集 enum variants（tag + payload fields），并在构建 type env 阶段检测重复 variant/字段；fixtures 覆盖重复 variant（`tests/fixtures/typecheck/enum_duplicate_variant_is_error.scoop`）、重复字段（`tests/fixtures/typecheck/enum_variant_duplicate_field_is_error.scoop`）与字段类型未解析（`tests/fixtures/typecheck/enum_variant_field_unresolved_type_is_error.scoop`）；新增单测 `typecheck::type_env::tests::sysroot_type_env_collects_option_variants`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0426 [TODO] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
+### T0426 [DONE] 枚举构造表达式：`Some(x)` 的类型检查（spec §4）
 - 描述：把 `Some(x)` 解析/绑定为某个 enum variant 构造，并检查参数数量与类型。
 - 目标：先只支持同名唯一的 variant；重名/重载后续处理。
 - 验收：typecheck fixture：`val o: Option<Int> = Some(1)` 通过；`Some()` 参数数不对时报错。
 - 依赖：T0240、T0311、T0425
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 的 `infer_call_expr_type` 中把“未 resolve 的 `Call(Ident)`”当作 enum variant ctor 候选处理；通过 `TypeEnv::find_enum_variants_named` 要求同名唯一，否则报 `scoop::typecheck::ambiguous_enum_variant_ctor`；对唯一候选检查参数数量（`scoop::typecheck::enum_variant_ctor_arity_mismatch`）与参数类型（`scoop::typecheck::enum_variant_ctor_arg_type_mismatch`），并做最小泛型推断（从 payload 字段为直接 type param 的位置推断 `T`，缺失时报 `scoop::typecheck::enum_variant_ctor_type_arg_not_inferred`）。fixtures：`tests/fixtures/typecheck/enum_variant_ctor_some_ok.scoop`、`tests/fixtures/typecheck/enum_variant_ctor_arity_mismatch_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0427 [TODO] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
 - 描述：对 pattern 进行类型约束：variant pattern 仅用于 enum；tuple pattern 仅用于 tuple；绑定变量进入分支作用域。
