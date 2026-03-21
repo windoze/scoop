@@ -1,0 +1,9 @@
+// EXPECT: pass
+// EXPECT-AST: where_clause_basic.ast
+
+package fixtures.parse
+
+fun <T> f(x: T): T where T: Show {}
+
+class Box<T> where T: Clone {}
+

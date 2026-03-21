@@ -585,11 +585,12 @@
 - 依赖：T0219、T0233
 - 完成：parser `TypeRef` 解析已支持 receiver function type（`T.(...) -> ... / E`）；新增 parse pass fixture `receiver_function_type_basic`（含 AST golden）与 fail fixture `receiver_function_type_missing_arrow_fail`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0260 [TODO] Parser：泛型 `where` 子句（spec §3 / Appendix B）
+### T0260 [DONE] Parser：泛型 `where` 子句（spec §3 / Appendix B）
 - 描述：为 `fun` / `class` / `struct` / `interface` / `enum` / `effect` 的声明头补齐 `where` 子句语法，支持在声明处泛型参数列表之后附加约束列表。
 - 目标：先固定 AST 形状与解析顺序；约束语义、约束满足性与冲突诊断交给 resolve/typecheck。
 - 验收：新增 parse fixtures：`fun <T> f(x: T): T where T: Show`、`class Box<T> where T: Clone` 可解析；语法损坏时给出稳定 parse error。
 - 依赖：T0218、T0249
+- 完成：lexer 新增 `where` 关键字；AST 新增 `WhereClause/WhereConstraint` 并在 `FunDecl/TypeDecl` 上记录；parser 在 fun/type 声明头解析 `where T: Bound(, ...)` 约束列表（允许与 effect `/ ...` 交换顺序）；新增 parse pass+fail fixtures（含 AST golden）；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ---
 

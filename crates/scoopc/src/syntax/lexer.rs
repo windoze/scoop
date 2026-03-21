@@ -206,6 +206,7 @@ impl<'a> Lexer<'a> {
             "for" => Some(Keyword::For),
             "in" => Some(Keyword::In),
             "out" => Some(Keyword::Out),
+            "where" => Some(Keyword::Where),
             "while" => Some(Keyword::While),
             "break" => Some(Keyword::Break),
             "continue" => Some(Keyword::Continue),

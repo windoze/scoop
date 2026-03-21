@@ -140,6 +140,48 @@ impl std::fmt::Debug for TypeParam {
     }
 }
 
+/// 泛型 `where` 子句（spec §3 / Appendix B）。
+///
+/// 语法形态（Kotlin 风格）：
+/// - `fun <T> f(x: T): T where T: Show`
+/// - `class Box<T> where T: Clone`
+///
+/// 说明：
+/// - 当前阶段（T0260）仅做语法层解析与结构化存储；
+/// - 约束语义、满足性与冲突诊断留给 resolver/typecheck（见 TODO T0320+）。
+#[derive(Clone)]
+pub struct WhereClause {
+    pub span: Span,
+    pub constraints: Vec<WhereConstraint>,
+}
+
+impl std::fmt::Debug for WhereClause {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("WhereClause");
+        s.field("span", &self.span);
+        s.field("constraints", &self.constraints);
+        s.finish()
+    }
+}
+
+/// `where T: Bound` 中的一条约束。
+#[derive(Clone)]
+pub struct WhereConstraint {
+    pub span: Span,
+    pub ty_param: Ident,
+    pub bound: TypeRef,
+}
+
+impl std::fmt::Debug for WhereConstraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("WhereConstraint");
+        s.field("span", &self.span);
+        s.field("ty_param", &self.ty_param);
+        s.field("bound", &self.bound);
+        s.finish()
+    }
+}
+
 /// effect row 参数（`eff E = Pure`）（spec §3.4 / §5.8）。
 ///
 /// 说明：
@@ -207,6 +249,7 @@ pub struct TypeDecl {
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
     pub eff_param: Option<EffectRowParam>,
+    pub where_clause: Option<WhereClause>,
     /// 主构造头参数列表：`class Name(...)`。
     pub primary_ctor: Option<PrimaryCtorDecl>,
     /// 继承/实现列表：`class Dog(...) : Animal(...), IFoo`。
@@ -231,6 +274,9 @@ impl std::fmt::Debug for TypeDecl {
         s.field("type_params", &self.type_params);
         if self.eff_param.is_some() {
             s.field("eff_param", &self.eff_param);
+        }
+        if self.where_clause.is_some() {
+            s.field("where_clause", &self.where_clause);
         }
         if self.primary_ctor.is_some() {
             s.field("primary_ctor", &self.primary_ctor);
@@ -503,6 +549,7 @@ pub struct FunDecl {
     pub name: Ident,
     pub type_params: Vec<TypeParam>,
     pub eff_param: Option<EffectRowParam>,
+    pub where_clause: Option<WhereClause>,
     pub params_span: Span,
     pub params: Vec<Param>,
     pub return_ty: Option<TypeRef>,
@@ -523,6 +570,9 @@ impl std::fmt::Debug for FunDecl {
         s.field("type_params", &self.type_params);
         if self.eff_param.is_some() {
             s.field("eff_param", &self.eff_param);
+        }
+        if self.where_clause.is_some() {
+            s.field("where_clause", &self.where_clause);
         }
         s.field("params_span", &self.params_span);
         s.field("params", &self.params);

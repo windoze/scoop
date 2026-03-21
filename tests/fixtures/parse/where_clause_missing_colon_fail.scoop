@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR: `:`
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 8:28
+
+package fixtures.parse
+
+fun <T> f(x: T): T where T Show {}
+

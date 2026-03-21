@@ -1,0 +1,146 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 55..77,
+            path: [
+                Ident {
+                    span: 63..71,
+                },
+                Ident {
+                    span: 72..77,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 79..114,
+                receiver: None,
+                name: Ident {
+                    span: 87..88,
+                },
+                type_params: [
+                    TypeParam {
+                        span: 84..85,
+                        name: Ident {
+                            span: 84..85,
+                        },
+                    },
+                ],
+                where_clause: Some(
+                    WhereClause {
+                        span: 98..111,
+                        constraints: [
+                            WhereConstraint {
+                                span: 104..111,
+                                ty_param: Ident {
+                                    span: 104..105,
+                                },
+                                bound: Path(
+                                    TypePath {
+                                        span: 107..111,
+                                        segments: [
+                                            Ident {
+                                                span: 107..111,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+                params_span: 88..94,
+                params: [
+                    Param {
+                        name: Ident {
+                            span: 89..90,
+                        },
+                        ty: Some(
+                            Path(
+                                TypePath {
+                                    span: 92..93,
+                                    segments: [
+                                        Ident {
+                                            span: 92..93,
+                                        },
+                                    ],
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    },
+                ],
+                return_ty: Some(
+                    Path(
+                        TypePath {
+                            span: 96..97,
+                            segments: [
+                                Ident {
+                                    span: 96..97,
+                                },
+                            ],
+                            args: [],
+                        },
+                    ),
+                ),
+                body: Block(
+                    Block {
+                        span: 112..114,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 116..146,
+                kind: Class,
+                name: Ident {
+                    span: 122..125,
+                },
+                type_params: [
+                    TypeParam {
+                        span: 126..127,
+                        name: Ident {
+                            span: 126..127,
+                        },
+                    },
+                ],
+                where_clause: Some(
+                    WhereClause {
+                        span: 129..143,
+                        constraints: [
+                            WhereConstraint {
+                                span: 135..143,
+                                ty_param: Ident {
+                                    span: 135..136,
+                                },
+                                bound: Path(
+                                    TypePath {
+                                        span: 138..143,
+                                        segments: [
+                                            Ident {
+                                                span: 138..143,
+                                            },
+                                        ],
+                                        args: [],
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+                body: Some(
+                    TypeBody {
+                        span: 144..146,
+                        members: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

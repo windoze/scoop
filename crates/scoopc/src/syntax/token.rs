@@ -86,6 +86,8 @@ pub enum Keyword {
     In,
     /// `out`（声明处变型/星投影相关语法的一部分，spec §3）。
     Out,
+    /// `where`（泛型约束子句，spec §3 / Appendix B）。
+    Where,
     While,
     Break,
     Continue,

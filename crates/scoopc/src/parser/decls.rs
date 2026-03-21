@@ -198,6 +198,57 @@ impl<'a> Parser<'a> {
         Ok((Some(span), params, eff_param))
     }
 
+    /// 解析声明头尾部的可选 `where` 子句（泛型约束列表）。
+    fn parse_where_clause_opt(&mut self) -> Result<Option<ast::WhereClause>, ParseError> {
+        if !self.peek_keyword(Keyword::Where) {
+            return Ok(None);
+        }
+
+        let where_kw = self.bump();
+        let start = where_kw.span.start;
+
+        let mut constraints = Vec::new();
+        loop {
+            let ty_param_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
+            let ty_param = ast::Ident {
+                span: ty_param_tok.span,
+            };
+
+            self.expect_symbol(Symbol::Colon)?;
+            let bound = self.parse_type_ref()?;
+
+            let span = Span::new(ty_param_tok.span.start, bound.span().end);
+            constraints.push(ast::WhereConstraint {
+                span,
+                ty_param,
+                bound,
+            });
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma before `{` / `;` / `}` / EOF
+                if self.peek_symbol(Symbol::LBrace)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.peek_kind(TokenKind::Eof)
+                {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        let end = constraints
+            .last()
+            .map(|c| c.span.end)
+            .unwrap_or(where_kw.span.end);
+
+        Ok(Some(ast::WhereClause {
+            span: Span::new(start, end),
+            constraints,
+        }))
+    }
+
     /// 解析函数声明头中的“可选 receiver + name”：
     ///
     /// - 普通函数：`fun name(...)`
@@ -435,16 +486,27 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let effects = if self.eat_symbol(Symbol::Slash) {
-            Some(self.parse_effect_row_expr()?)
-        } else {
-            None
-        };
+        let mut effects = None;
+        let mut where_clause = None;
+        loop {
+            if effects.is_none() && self.eat_symbol(Symbol::Slash) {
+                effects = Some(self.parse_effect_row_expr()?);
+                continue;
+            }
+            if where_clause.is_none() {
+                where_clause = self.parse_where_clause_opt()?;
+                if where_clause.is_some() {
+                    continue;
+                }
+            }
+            break;
+        }
 
-        // TODO: where clause 等其它 header tail（当前先粗暴跳过，避免阻塞后续顶层解析）
-        let mut last_end = effects
+        // header tail：消耗到 `{` 或下一个顶层 item 开始（用于错误恢复）
+        let mut last_end = where_clause
             .as_ref()
-            .map(|r| r.span.end)
+            .map(|w| w.span.end)
+            .or_else(|| effects.as_ref().map(|r| r.span.end))
             .or_else(|| return_ty.as_ref().map(|t| t.span().end))
             .unwrap_or(params_span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
@@ -469,6 +531,7 @@ impl<'a> Parser<'a> {
             name,
             type_params,
             eff_param,
+            where_clause,
             params_span,
             params,
             return_ty,
@@ -1148,6 +1211,11 @@ impl<'a> Parser<'a> {
             Vec::new()
         };
 
+        let where_clause = self.parse_where_clause_opt()?;
+        if let Some(w) = &where_clause {
+            last_end = last_end.max(w.span.end);
+        }
+
         // header tail（继承/实现等）：消耗到 `{` 或下一个顶层 item 开始
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
             // 注意：该函数既用于顶层，也用于 type body 内的 nested type。
@@ -1177,6 +1245,7 @@ impl<'a> Parser<'a> {
             name,
             type_params,
             eff_param,
+            where_clause,
             primary_ctor,
             supertypes,
             body,
@@ -1995,16 +2064,27 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let effects = if self.eat_symbol(Symbol::Slash) {
-            Some(self.parse_effect_row_expr()?)
-        } else {
-            None
-        };
+        let mut effects = None;
+        let mut where_clause = None;
+        loop {
+            if effects.is_none() && self.eat_symbol(Symbol::Slash) {
+                effects = Some(self.parse_effect_row_expr()?);
+                continue;
+            }
+            if where_clause.is_none() {
+                where_clause = self.parse_where_clause_opt()?;
+                if where_clause.is_some() {
+                    continue;
+                }
+            }
+            break;
+        }
 
-        // TODO: where clause 等其它 header tail（当前先粗暴跳过，避免阻塞后续 type body 解析）
-        let mut last_end = effects
+        // header tail：消耗到 `{` 或下一个 member 起始（用于错误恢复）
+        let mut last_end = where_clause
             .as_ref()
-            .map(|r| r.span.end)
+            .map(|w| w.span.end)
+            .or_else(|| effects.as_ref().map(|r| r.span.end))
             .or_else(|| return_ty.as_ref().map(|t| t.span().end))
             .unwrap_or(params_span.end);
         while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::LBrace) {
@@ -2032,6 +2112,7 @@ impl<'a> Parser<'a> {
             name,
             type_params,
             eff_param,
+            where_clause,
             params_span,
             params,
             return_ty,
