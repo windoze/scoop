@@ -1354,10 +1354,22 @@
 - 依赖：T0253、T0609、T0511
 
 ### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
-- 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循“最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
+- 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循”最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
 - 目标：先只覆盖 `Raise` 与最小自定义 effect；实际 runtime 支持由 T0916 补齐。
 - 验收：effects + run-pass fixture：嵌套 handler 的最近匹配规则成立；arm 内 re-perform 不会自捕获。
 - 依赖：T0615、T0916
+
+### T0626 [TODO] 闭合 effect row 语法解析：`/ R!`（spec §5.8.4）
+- 描述：在 lexer/parser 中支持 effect row 的 `!` 后缀，将其解析为 `RowExpr::Closed(inner)`（或在现有 `RowExpr` 上加 `closed: bool` 字段）。`!` 的优先级低于 `+`，作用于整个 row，不与最后一个 effect 单独绑定。
+- 目标：只做解析与 AST 表示；类型检查语义留给 T0627。不修改现有 open row 的解析行为。
+- 验收：新增 parse pass fixtures：`fun f(): Unit / Pure!`、`fun f(): Unit / IO+State!`、`fun f(): Unit / (IO)!`；新增 parse fail fixture：`fun f(): Unit / !IO`（前缀形式不支持）。`scoop test` 通过。
+- 依赖：T0219
+
+### T0627 [TODO] 闭合 effect row 类型检查语义（spec §5.8.4）
+- 描述：实现闭合行的额外约束：对于 `fun f(...): R / E!`，编译器需确认所有来源的 effect（包括 callback 参数透传的 effect）不能逃逸函数边界——即 body 内所有路径的 effect 必须被 handle 或满足 `⊆ E`，且不存在自由 row 变量使 effect 集合扩大。
+- 目标：先只覆盖 `Pure!`（最常见情况，等价”无任何 effect 逃逸”）；泛型 row 变量与闭合行的交互（`E!` 与 `<eff E>` 组合）后续任务补齐。
+- 验收：effects fixture：`fun main(): Unit / Pure!` 内未处理的 `Raise` 报错；使用 `try/catch` 包裹后通过；open row `/ Pure` 在相同情况下报错信息不同（提示”需要闭合 row”）。
+- 依赖：T0626、T0608、T0610
 
 ---
 

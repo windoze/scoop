@@ -942,6 +942,40 @@ Type checking rule:
 
 This is a static check; effect rows do not exist at runtime.
 
+#### 5.8.4 Open vs closed rows
+
+By default, a declared effect row is **open** (additive): the annotation is a **lower bound**, stating which effects this function itself may perform. It does not restrict transitive effects introduced by higher-order function parameters. This avoids the Java checked-exception mistake, where callers must enumerate all effects propagated through callbacks.
+
+```kotlin
+// open row: map itself performs no effects, but the mapper may perform anything
+fun <T, R, eff E = Pure> map(xs: List<T>, f: (T) -> R / E): List<R> / E
+```
+
+A **closed** effect row is written with a `!` suffix on the row expression. It is an **upper bound**, guaranteeing that no effects beyond those listed are observable at the call site. Closed rows are rare and appear primarily at system boundaries.
+
+```kotlin
+// closed row: main promises to the OS that no effects escape
+fun main(): Unit / Pure!
+
+// FFI wrapper: closed row prevents unsafe effects from leaking into the type system
+extern fun ffi_read_file(path: String): Bytes / IO!
+```
+
+Syntax:
+
+```
+effectRow = effectList '!'?
+effectList = effect ('+' effect)*
+```
+
+The `!` suffix applies to the entire row expression, not to the last effect item. For a single effect, parentheses are not needed: `/ IO!`. For multiple effects: `/ IO+State!`.
+
+Semantics:
+
+- An open row `/ R` means: the body's required effects `R_body` must satisfy `R_body ⊆ R` (lower-bound check; transitive effects from callbacks are not constrained at the declaration).
+- A closed row `/ R!` means: **additionally**, any effect observable from outside this function must be a member of `R`. The compiler checks that no unhandled effects from any source (including callbacks) can escape the function boundary without being handled.
+- `Pure!` is the most common closed row and is equivalent to: "this function is total and performs no observable effects". Entry points (§5.10) are implicitly `/ Pure!`.
+
 ### 5.9 Effect Polymorphism
 
 Generic declarations may quantify over effect rows using `<eff E>` (see §3.4). Effect row variables may appear anywhere an effect row expression is expected (after `/`).
