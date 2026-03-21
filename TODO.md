@@ -912,11 +912,12 @@
 - 依赖：T0427
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `check_when_exhaustiveness`：支持 enum/Bool/Option 的穷尽性检查与缺失分支诊断；对非穷尽类型强制 `else`/`_`/bind catch-all；穷尽时仍写 `else` 记录 warning。fixtures：`tests/fixtures/typecheck/when_option_missing_none_is_error.scoop`、`when_int_missing_else_is_error.scoop`、`when_bool_missing_false_is_error.scoop`、`when_enum_missing_variant_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0429 [TODO] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
+### T0429 [DONE] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
 - 描述：当某个分支带 guard 时，穷尽性检查应要求 else/_（或把该分支不计入覆盖）。
 - 目标：先只实现规则；不做路径敏感分析。
 - 验收：typecheck fixture：`Some(x) if x>0 -> ...` 场景缺 else 时报错。
 - 依赖：T0428
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 的 `check_when_exhaustiveness` 中过滤带 guard 的分支：不计入 variant 覆盖集合，也不视为 catch-all；fixtures：`tests/fixtures/typecheck/when_guard_missing_else_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0430 [TODO] destructuring `val`：tuple/struct pattern 绑定（spec §4.2、§9）
 - 描述：实现 `val (a,b)=expr`、`val Point { x, y } = expr` 的类型检查与绑定，并强制 `var` 不允许。
