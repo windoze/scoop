@@ -269,7 +269,7 @@
   - [x] tuple/struct 的 `val (a, b) = expr` / `val Point { x, y } = expr`（T0430）
   - [ ] enum 的 `val Some(x) = expr`（可复用 `when` pattern，后续补齐）
   - [ ] `when` 分支中的解构 pattern
-- [ ] 控制流基础：`if/while/for/return/break/continue`（非局部 return 不支持）
+- [ ] 控制流基础：`if/while/for/return/break/continue`（非局部 return 仅允许 inline lambda 实参）
   - [x] `return`：函数内 `return expr?` 返回类型检查与诊断（T0417）
   - [x] `while`：条件必须为 Bool；`break/continue` 仅允许在循环体内（T0442）
 
@@ -294,7 +294,8 @@
 
 ### 4.8 函数声明细节（spec §7）
 
-- [ ] `inline`：仅作为优化提示（不改变语义）
+- [x] `inline`：non-local return 门禁（lambda 中 `return` 仅允许出现在 inline 调用的 lambda 实参内；T0444）
+- [ ] `inline`：实际 inlining/闭包消除等优化（IR/后端阶段）
 - [ ] 扩展函数：
   - [x] 解析与分发规则（静态分发、member 优先；typecheck 降糖为 receiver 第一个参数）
   - [ ] codegen：receiver 作为第一个参数的普通函数

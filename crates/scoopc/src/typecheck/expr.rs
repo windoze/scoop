@@ -507,7 +507,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`return` 只能出现在普通函数体内（lambda 的 non-local return 不支持）")]
+    #[error("`return` 只能出现在普通函数体内（lambda 的 non-local return 仅允许出现在 inline 函数的 lambda 实参中）")]
     #[diagnostic(code(scoop::typecheck::return_not_in_function_body))]
     ReturnNotInFunctionBody {
         #[label("这里")]
@@ -546,6 +546,11 @@ struct FunSigOwned {
     /// - 该标记仅用于限制语法层的可调用性：扩展函数不能以 `f(args...)` 形式直接调用，
     ///   只能通过 `receiver.f(args...)` / `receiver?.f(args...)` 调用（当前阶段最小子集）。
     is_extension: bool,
+    /// 是否为 `inline` 函数（spec §7.2/§7.3；TODO T0444）。
+    ///
+    /// 说明：当前阶段不做任何 inlining 优化，该标记仅用于：
+    /// - lambda non-local return 的静态门禁（只有 inline lambda 实参允许 `return`）
+    is_inline: bool,
     params: Vec<TypeId>,
     return_ty: TypeId,
 }
@@ -2468,6 +2473,7 @@ fn collect_top_level_fun_signatures(
         // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
         // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
         let is_extension = fun.receiver.is_some();
+        let is_inline = fun.modifiers.contains(&ast::Modifier::Inline);
         if let Some(receiver) = &fun.receiver {
             params.push(lower.lower_type_ref(receiver)?);
         }
@@ -2489,12 +2495,129 @@ fn collect_top_level_fun_signatures(
             .or_default()
             .push(FunSigOwned {
                 is_extension,
+                is_inline,
                 params,
                 return_ty,
             });
     }
 
     Ok(map)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CallTargetSig<'a> {
+    sig: &'a FunSigOwned,
+    /// `args[i]` 对应到 `sig.params[i + arg_param_offset]`。
+    arg_param_offset: usize,
+}
+
+fn is_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
+    matches!(lower.type_kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
+}
+
+fn resolve_call_target_for_expr_stmt<'a>(
+    source: &SourceFile,
+    callee: &ast::Expr,
+    lower: &TypeLowering<'_>,
+    top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
+) -> Option<CallTargetSig<'a>> {
+    match &callee.kind {
+        ast::ExprKind::Ident(id) => {
+            let resolved = id.resolved.as_ref()?;
+            let ast::ResolvedValueRef::TopLevel { fqn } = resolved else {
+                return None;
+            };
+
+            let sigs = top_level_funs.get(fqn)?;
+
+            // 扩展函数不能以 `f(args...)` 的形式被直接调用：这里只考虑普通顶层函数候选。
+            let mut direct_call_candidates = sigs.iter().filter(|s| !s.is_extension);
+            let sig = direct_call_candidates.next()?;
+            if direct_call_candidates.next().is_some() {
+                return None;
+            }
+
+            Some(CallTargetSig {
+                sig,
+                arg_param_offset: 0,
+            })
+        }
+        ast::ExprKind::MemberAccess { member, .. }
+        | ast::ExprKind::SafeMemberAccess { member, .. } => {
+            let callee_fqn = match member.resolved.as_ref() {
+                Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
+                Some(ast::ResolvedMemberRef::Fun { .. })
+                | Some(ast::ResolvedMemberRef::Value { .. })
+                | Some(ast::ResolvedMemberRef::ExtensionValue { .. }) => return None,
+                None => {
+                    let name = source.slice(member.span);
+                    if lower.pkg_prefix().is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", lower.pkg_prefix(), name)
+                    }
+                }
+            };
+
+            let sigs = top_level_funs.get(&callee_fqn)?;
+            let mut ext_candidates = sigs.iter().filter(|s| s.is_extension);
+            let sig = ext_candidates.next()?;
+            if ext_candidates.next().is_some() {
+                return None;
+            }
+
+            Some(CallTargetSig {
+                sig,
+                // 扩展调用：`receiver.member(args...)` 的第一个参数是 receiver。
+                arg_param_offset: 1,
+            })
+        }
+        _ => None,
+    }
+}
+
+fn check_lambda_expr_stmt_body(
+    source: &SourceFile,
+    lam: &ast::LambdaExpr,
+    allow_non_local_return: bool,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    stable_bindings: &HashSet<Span>,
+    mutable_bindings: &HashSet<Span>,
+    expected_return_ty: Option<TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”逻辑来：
+    // - 捕获非法 `return`（non-local return 门禁，T0444）
+    // - 避免 lambda 内的局部声明污染外层作用域（clone 快照）
+    let mut lambda_locals = locals.clone();
+    let mut lambda_stable = stable_bindings.clone();
+    let mut lambda_mutable = mutable_bindings.clone();
+    let nested_expected_return_ty = if allow_non_local_return {
+        expected_return_ty
+    } else {
+        None
+    };
+
+    check_expr_stmt(
+        source,
+        lam.body.as_ref(),
+        lower,
+        builtins,
+        &mut lambda_locals,
+        &mut lambda_stable,
+        &mut lambda_mutable,
+        0,
+        nested_expected_return_ty,
+        top_level_types,
+        top_level_funs,
+        member_mutabilities,
+        struct_field_types,
+    )
 }
 
 fn check_fun_body_exprs(
@@ -2982,6 +3105,7 @@ fn check_expr_stmt(
 ) -> Result<(), ExprTypeError> {
     // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
     // - `if (...) { val ... } else { ... }`
+    // - `call { ... }`：递归进入 lambda body 捕获非法 `return`（T0444）
     //
     // 其他表达式语句（例如单独的调用）暂不强制 typecheck，以避免在未实现更多 ExprKind
     // 的阶段引入大量不相关的回归失败。
@@ -3090,25 +3214,96 @@ fn check_expr_stmt(
             }
             Ok(())
         }
-        ast::ExprKind::Lambda(lam) => {
-            // spec §7.3：Scoop 不支持 non-local return，因此 lambda body 内出现 `return`
-            // 需要报错。
+        ast::ExprKind::Call { callee, args } => {
+            // T0444：`inline` 与 non-local return 的最小语义门禁：
+            // - 默认：lambda body 内出现 `return` 一律报错
+            // - 例外：当该 lambda 是 inline 函数的“lambda 参数实参”时，允许 non-local return
             //
-            // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”
-            // 逻辑来捕获非法 `return`，并保证它不会污染外层局部作用域。
-            let mut lambda_locals = locals.clone();
-            let mut lambda_stable = stable_bindings.clone();
-            let mut lambda_mutable = mutable_bindings.clone();
+            // 注意：当前阶段不做完整的调用类型检查（包括 lambda 类型推导），这里只做结构化递归与门禁，
+            // 以便在不引入更多 type inference 复杂度的前提下先把语义边界钉死。
+            let target = resolve_call_target_for_expr_stmt(source, callee.as_ref(), lower, top_level_funs);
+
+            // 递归进入 callee 与 args：保证 `f({ return ... })` 这类结构也能被覆盖。
             check_expr_stmt(
                 source,
-                lam.body.as_ref(),
+                callee.as_ref(),
                 lower,
                 builtins,
-                &mut lambda_locals,
-                &mut lambda_stable,
-                &mut lambda_mutable,
-                0,
-                None,
+                locals,
+                stable_bindings,
+                mutable_bindings,
+                loop_depth,
+                expected_return_ty,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            )?;
+
+            for (idx, arg) in args.iter().enumerate() {
+                let ast::ExprKind::Lambda(lam) = &arg.kind else {
+                    check_expr_stmt(
+                        source,
+                        arg,
+                        lower,
+                        builtins,
+                        locals,
+                        stable_bindings,
+                        mutable_bindings,
+                        loop_depth,
+                        expected_return_ty,
+                        top_level_types,
+                        top_level_funs,
+                        member_mutabilities,
+                        struct_field_types,
+                    )?;
+                    continue;
+                };
+
+                let allow_non_local_return = match target {
+                    Some(t) if t.sig.is_inline => {
+                        let param_idx = idx + t.arg_param_offset;
+                        match t.sig.params.get(param_idx).copied() {
+                            Some(ty) => is_function_type(ty, lower),
+                            None => false,
+                        }
+                    }
+                    _ => false,
+                };
+
+                check_lambda_expr_stmt_body(
+                    source,
+                    lam,
+                    allow_non_local_return,
+                    lower,
+                    builtins,
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                    expected_return_ty,
+                    top_level_types,
+                    top_level_funs,
+                    member_mutabilities,
+                    struct_field_types,
+                )?;
+            }
+
+            Ok(())
+        }
+        ast::ExprKind::Lambda(lam) => {
+            // spec §7.3：默认不允许 lambda non-local return。
+            //
+            // 例外：当 lambda 作为 inline 函数调用的 lambda 实参时允许（见 `ExprKind::Call` 分支）。
+            check_lambda_expr_stmt_body(
+                source,
+                lam,
+                false,
+                lower,
+                builtins,
+                locals,
+                stable_bindings,
+                mutable_bindings,
+                expected_return_ty,
                 top_level_types,
                 top_level_funs,
                 member_mutabilities,

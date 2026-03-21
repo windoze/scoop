@@ -1092,11 +1092,15 @@
    - rhs：使用 `is_type_assignable` 检查 `rhs <: lhs`，不匹配时报新错误码 `scoop::typecheck::assignment_type_mismatch` 并定位到 rhs span。
    新增 fixtures：`tests/fixtures/typecheck/var_reassign_type_mismatch_is_error.scoop`、`tests/fixtures/typecheck/class_var_property_reassign_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0444 [TODO] `inline` 与 non-local return 的语义门禁（spec §7.2/§7.3）
+### T0444 [DONE] `inline` 与 non-local return 的语义门禁（spec §7.2/§7.3）
 - 描述：实现最小检查：只有 inline 函数的 lambda 参数允许 non-local return；其余场景报错。
 - 目标：先只做静态限制，不做实际 inlining 优化。
 - 验收：typecheck fixture：非 inline lambda 中 `return` 报错；inline 场景允许（具体语法按设计）。
 - 依赖：T0245、T0226、T0222
+ - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为顶层函数签名记录 `is_inline`，并在表达式语句递归中新增 call/lambda 的 non-local return 门禁：
+   - 默认：lambda body 中 `return` 仍报错（错误码保持 `scoop::typecheck::return_not_in_function_body`）；
+   - 例外：当 lambda 作为 inline 函数调用的“函数类型参数实参”时，允许其 body 内出现 `return`（按外层函数返回类型做检查）。
+   新增 fixtures：`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop`、`tests/fixtures/typecheck/return_in_non_inline_lambda_arg_is_error.scoop`；并更新 `return_in_lambda_is_error.scoop` 的说明。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0446 [TODO] typealias：别名展开与循环检测（最小实现，支撑 sysroot 标准别名）（Appendix B.10）
 - 描述：在 typecheck 的 `TypeRef → Type` lowering 阶段支持 `typealias`：把别名引用展开为其底层类型，并检测循环别名（直接/间接）。
