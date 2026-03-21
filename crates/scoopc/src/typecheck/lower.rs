@@ -5,6 +5,8 @@
 //! - 在 lowering 过程中做最小语义校验：类型存在性（应由 resolve 保证）与泛型 arity 检查
 //! - 覆盖 `Path` / `Tuple` / `Nullable` / `Function`，其它类型语法在后续任务逐步补齐
 
+use std::collections::HashMap;
+
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -13,7 +15,8 @@ use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
+    ValueTypeKind,
 };
 
 use super::{TypeEnv, TypeSymbolKind};
@@ -62,6 +65,17 @@ pub enum TypeLowerError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    /// 声明处变型（`in`/`out`）位置规则违规（spec §3.2 / Appendix B.4）。
+    #[error("变型位置不合法：类型参数 {param} 声明为 {declared}，但在 {position} 位置使用")]
+    #[diagnostic(code(scoop::typecheck::variance_position_violation))]
+    VariancePositionViolation {
+        param: String,
+        declared: &'static str,
+        position: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 对一个文件内出现的所有 “type position” 的 `TypeRef` 执行 lowering 并做最小校验。
@@ -86,6 +100,7 @@ pub fn check_file_type_refs(
                 let _ = ctx.lower_type_ref(&ta.ty)?;
             }
             ast::Item::Fun(fun) => {
+                ctx.push_type_params(&fun.type_params);
                 if let Some(receiver) = &fun.receiver {
                     let _ = ctx.lower_type_ref(receiver)?;
                 }
@@ -97,12 +112,15 @@ pub fn check_file_type_refs(
                 if let Some(ret) = &fun.return_ty {
                     let _ = ctx.lower_type_ref(ret)?;
                 }
+                ctx.pop_type_params(&fun.type_params);
             }
             ast::Item::ExtensionProperty(p) => {
+                ctx.push_type_params(&p.type_params);
                 let _ = ctx.lower_type_ref(&p.receiver)?;
                 if let Some(ty) = &p.ty {
                     let _ = ctx.lower_type_ref(ty)?;
                 }
+                ctx.pop_type_params(&p.type_params);
             }
             ast::Item::Val(v) => {
                 if let Some(ty) = &v.ty {
@@ -129,6 +147,8 @@ pub(super) struct TypeLowering<'a> {
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
     pkg_prefix: String,
+    /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
+    type_param_scopes: Vec<HashMap<String, TypeId>>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -150,6 +170,7 @@ impl<'a> TypeLowering<'a> {
             types,
             builtins,
             pkg_prefix,
+            type_param_scopes: Vec::new(),
         }
     }
 
@@ -178,10 +199,14 @@ impl<'a> TypeLowering<'a> {
                 let inner = self.lower_type_ref(inner)?;
                 Ok(self.types.ty_option(inner))
             }
-            ast::TypeRef::Star { span } => Err(TypeLowerError::UnsupportedTypeRef {
-                kind: "star projection (*)",
-                span: (*span).into(),
-            }),
+            ast::TypeRef::Star { .. } => {
+                // spec §3.3：`*` 表示“未知类型实参（boxed ref view）”。
+                //
+                // 当前阶段（T0437）先把它 lowering 为 `Any`：
+                // - 让 `List<*>` 这类类型在签名里可通过 lowering；
+                // - 更精确的 read-only/装箱语义留给后续任务（与 codegen/boxing 联动）。
+                Ok(self.builtins.any)
+            }
             ast::TypeRef::EffectRowArg { span, .. } => Err(TypeLowerError::UnsupportedTypeRef {
                 kind: "use-site effect row arg (`eff ...`)",
                 span: (*span).into(),
@@ -288,6 +313,40 @@ impl<'a> TypeLowering<'a> {
         self.types.ty_function(receiver, params, return_ty, effects)
     }
 
+    fn push_type_params(&mut self, params: &[ast::TypeParam]) {
+        if params.is_empty() {
+            return;
+        }
+
+        let mut scope: HashMap<String, TypeId> = HashMap::new();
+        for p in params {
+            let name = self.source.slice(p.name.span).to_string();
+            let id = self.types.ty_param(TypeParamType {
+                name: name.clone(),
+                decl_file: self.source.path().to_path_buf(),
+                decl_span: p.name.span,
+            });
+            scope.insert(name, id);
+        }
+        self.type_param_scopes.push(scope);
+    }
+
+    fn pop_type_params(&mut self, params: &[ast::TypeParam]) {
+        if params.is_empty() {
+            return;
+        }
+        let _ = self.type_param_scopes.pop();
+    }
+
+    fn lookup_type_param(&self, name: &str) -> Option<TypeId> {
+        for scope in self.type_param_scopes.iter().rev() {
+            if let Some(id) = scope.get(name).copied() {
+                return Some(id);
+            }
+        }
+        None
+    }
+
     /// 将“已解析出的类型 FQN + 已 lowering 的 type args”构造成 `TypeId`。
     ///
     /// 说明：
@@ -382,6 +441,14 @@ impl<'a> TypeLowering<'a> {
     }
 
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
+        // 单段名且无实参：优先解析为当前作用域的 type parameter（它会 shadow 顶层同名 type）。
+        if path.segments.len() == 1 && path.args.is_empty() {
+            let name = self.source.slice(path.segments[0].span);
+            if let Some(id) = self.lookup_type_param(name) {
+                return Ok(id);
+            }
+        }
+
         let fqn = match self.resolve_type_path_fqn(path) {
             Ok(fqn) => fqn,
             Err(TypeLowerError::UnresolvedType { name, span }) => {
@@ -497,6 +564,12 @@ impl<'a> TypeLowering<'a> {
     }
 
     fn check_type_decl_headers(&mut self, ty: &ast::TypeDecl) -> Result<(), TypeLowerError> {
+        // `TypeDecl` 的 type params 在其 header/body 的所有 type position 内可见。
+        self.push_type_params(&ty.type_params);
+
+        // 变型位置规则（Appendix B.4）：在 lowering 过程中做最小静态校验。
+        self.check_type_decl_variance_rules(ty)?;
+
         // 主构造头参数类型
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
@@ -513,6 +586,7 @@ impl<'a> TypeLowering<'a> {
 
         // 成员签名类型（property/fun/nested type）
         let Some(body) = &ty.body else {
+            self.pop_type_params(&ty.type_params);
             return Ok(());
         };
 
@@ -542,6 +616,7 @@ impl<'a> TypeLowering<'a> {
                     }
                 }
                 ast::TypeMember::Fun(f) => {
+                    self.push_type_params(&f.type_params);
                     if let Some(receiver) = &f.receiver {
                         let _ = self.lower_type_ref(receiver)?;
                     }
@@ -553,6 +628,7 @@ impl<'a> TypeLowering<'a> {
                     if let Some(ret) = &f.return_ty {
                         let _ = self.lower_type_ref(ret)?;
                     }
+                    self.pop_type_params(&f.type_params);
                 }
                 ast::TypeMember::Type(nested) => {
                     self.check_type_decl_headers(nested)?;
@@ -563,6 +639,7 @@ impl<'a> TypeLowering<'a> {
             }
         }
 
+        self.pop_type_params(&ty.type_params);
         Ok(())
     }
 
@@ -599,6 +676,7 @@ impl<'a> TypeLowering<'a> {
                     }
                 }
                 ast::TypeMember::Fun(f) => {
+                    self.push_type_params(&f.type_params);
                     if let Some(receiver) = &f.receiver {
                         let _ = self.lower_type_ref(receiver)?;
                     }
@@ -610,6 +688,7 @@ impl<'a> TypeLowering<'a> {
                     if let Some(ret) = &f.return_ty {
                         let _ = self.lower_type_ref(ret)?;
                     }
+                    self.pop_type_params(&f.type_params);
                 }
                 ast::TypeMember::Type(nested) => {
                     self.check_type_decl_headers(nested)?;
@@ -621,6 +700,196 @@ impl<'a> TypeLowering<'a> {
         }
 
         Ok(())
+    }
+
+    /// 检查声明处变型（`in`/`out`）的最小位置规则（Appendix B.4）。
+    ///
+    /// 当前阶段只覆盖 type body 的“公开签名”层：
+    /// - member fun：参数为 in-position，返回值为 out-position（receiver 视作第一个参数）
+    /// - member property：`val` 为 out-position，`var` 视为 in+out（invariant）
+    fn check_type_decl_variance_rules(
+        &mut self,
+        ty: &ast::TypeDecl,
+    ) -> Result<(), TypeLowerError> {
+        // 无需为“全 invariant”声明做额外遍历。
+        if ty.type_params.iter().all(|p| p.variance.is_none()) {
+            return Ok(());
+        }
+
+        // 只关心显式标注了 `in/out` 的参数；invariant 参数不参与位置限制。
+        let mut variance_params: HashMap<String, ast::TypeParamVariance> = HashMap::new();
+        for p in &ty.type_params {
+            let Some(v) = p.variance else {
+                continue;
+            };
+            let name = self.source.slice(p.name.span).to_string();
+            variance_params.insert(name, v);
+        }
+        if variance_params.is_empty() {
+            return Ok(());
+        }
+
+        let Some(body) = &ty.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::EnumVariant(v) => {
+                    // enum variant 的 payload 字段类型会出现在构造器参数位置（in-position）。
+                    for p in &v.params {
+                        let Some(ty) = &p.ty else {
+                            continue;
+                        };
+                        self.check_type_ref_variance(ty, VariancePos::In, &variance_params)?;
+                    }
+                }
+                ast::TypeMember::Property(p) => {
+                    let Some(ty) = &p.ty else {
+                        continue;
+                    };
+                    let pos = match p.kind {
+                        ast::ValKind::Val => VariancePos::Out,
+                        ast::ValKind::Var => VariancePos::Invariant,
+                    };
+                    self.check_type_ref_variance(ty, pos, &variance_params)?;
+                }
+                ast::TypeMember::InitBlock(_b) => {}
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    for p in &ctor.params {
+                        let Some(ty) = &p.ty else {
+                            continue;
+                        };
+                        self.check_type_ref_variance(ty, VariancePos::In, &variance_params)?;
+                    }
+                }
+                ast::TypeMember::Fun(f) => {
+                    // receiver 视作第一个参数：in-position。
+                    if let Some(receiver) = &f.receiver {
+                        self.check_type_ref_variance(receiver, VariancePos::In, &variance_params)?;
+                    }
+                    for p in &f.params {
+                        let Some(ty) = &p.ty else {
+                            continue;
+                        };
+                        self.check_type_ref_variance(ty, VariancePos::In, &variance_params)?;
+                    }
+                    if let Some(ret) = &f.return_ty {
+                        self.check_type_ref_variance(ret, VariancePos::Out, &variance_params)?;
+                    }
+                }
+                ast::TypeMember::Type(_) | ast::TypeMember::Object(_) => {
+                    // nested 声明会在其自身的 check 中处理；
+                    // object 声明不引入新的声明处变型信息，且其成员是否属于“public API”有待
+                    // 更完整的可见性/inner 规则确定，因此当前阶段不做递归检查。
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_type_ref_variance(
+        &self,
+        ty: &ast::TypeRef,
+        pos: VariancePos,
+        variance_params: &HashMap<String, ast::TypeParamVariance>,
+    ) -> Result<(), TypeLowerError> {
+        match ty {
+            ast::TypeRef::Path(p) => {
+                // 1) 直接引用当前声明的 type param（`T`）。
+                if p.segments.len() == 1 && p.args.is_empty() {
+                    let name = self.source.slice(p.segments[0].span);
+                    if let Some(declared) = variance_params.get(name).copied() {
+                        let ok = match (declared, pos) {
+                            (ast::TypeParamVariance::Out, VariancePos::Out) => true,
+                            (ast::TypeParamVariance::In, VariancePos::In) => true,
+                            // invariant position 同时要求 in/out 都可用，因此对 in/out 均不合法
+                            // （例如 `var x: T` 会同时把 T 用于 getter/setter）。
+                            _ => false,
+                        };
+                        if !ok {
+                            let declared = match declared {
+                                ast::TypeParamVariance::Out => "out",
+                                ast::TypeParamVariance::In => "in",
+                            };
+                            return Err(TypeLowerError::VariancePositionViolation {
+                                param: name.to_string(),
+                                declared,
+                                position: pos.as_str(),
+                                span: p.span.into(),
+                            });
+                        }
+                    }
+                    return Ok(());
+                }
+
+                // 2) 递归检查 type args：按被引用类型的声明处 variance 组合位置（Kotlin-like）。
+                //
+                // 说明：
+                // - use-site effect row args 不属于 type args（arity），因此在这里忽略；
+                // - `*` 不引入 type param 引用（但作为 `Any` view 会在 lowering 时处理）。
+                let type_args = p
+                    .args
+                    .iter()
+                    .filter(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. }))
+                    .collect::<Vec<_>>();
+
+                if type_args.is_empty() {
+                    return Ok(());
+                }
+
+                let fqn = match self.resolve_type_path_fqn(p) {
+                    Ok(fqn) => fqn,
+                    Err(TypeLowerError::UnresolvedType { name, .. }) => {
+                        implicit_builtin_type_fqn(&name)
+                            .unwrap_or(name.as_str())
+                            .to_string()
+                    }
+                    Err(other) => return Err(other),
+                };
+
+                let declared_variances = self.env.type_param_variances(&fqn);
+
+                for (idx, arg) in type_args.iter().copied().enumerate() {
+                    let param_variance = declared_variances
+                        .and_then(|v| v.get(idx).copied())
+                        .unwrap_or(None);
+                    let composed = pos.compose(param_variance);
+                    self.check_type_ref_variance(arg, composed, variance_params)?;
+                }
+
+                Ok(())
+            }
+            ast::TypeRef::Tuple(t) => {
+                for e in &t.elements {
+                    self.check_type_ref_variance(e, pos, variance_params)?;
+                }
+                Ok(())
+            }
+            ast::TypeRef::Star { .. } => Ok(()),
+            ast::TypeRef::EffectRowArg { row, .. } => {
+                // effect row expr 的项复用 type path 语法；它们不是 type param，因此忽略。
+                // 未来若引入 `eff` 的 row 变量/约束系统，再在对应任务中处理。
+                let _ = row;
+                Ok(())
+            }
+            ast::TypeRef::Function(f) => {
+                // 函数类型：参数（含 receiver）逆变，返回值协变。
+                let param_pos = pos.flip();
+                if let Some(r) = &f.receiver {
+                    self.check_type_ref_variance(r, param_pos, variance_params)?;
+                }
+                for p in &f.params {
+                    self.check_type_ref_variance(p, param_pos, variance_params)?;
+                }
+                self.check_type_ref_variance(&f.return_ty, pos, variance_params)?;
+                Ok(())
+            }
+            ast::TypeRef::Nullable { inner, .. } => {
+                self.check_type_ref_variance(inner, pos, variance_params)
+            }
+        }
     }
 
     pub(super) fn resolve_type_path_fqn(&self, path: &ast::TypePath) -> Result<String, TypeLowerError> {
@@ -758,6 +1027,50 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
         _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariancePos {
+    /// out-position（协变位置）：例如返回类型、`val` 属性类型。
+    Out,
+    /// in-position（逆变位置）：例如参数类型、receiver 类型。
+    In,
+    /// in+out（不变位置）：例如 `var` 属性类型。
+    Invariant,
+}
+
+impl VariancePos {
+    fn as_str(self) -> &'static str {
+        match self {
+            VariancePos::Out => "out",
+            VariancePos::In => "in",
+            VariancePos::Invariant => "invariant",
+        }
+    }
+
+    fn flip(self) -> Self {
+        match self {
+            VariancePos::Out => VariancePos::In,
+            VariancePos::In => VariancePos::Out,
+            VariancePos::Invariant => VariancePos::Invariant,
+        }
+    }
+
+    fn compose(self, declared: Option<ast::TypeParamVariance>) -> Self {
+        let Some(declared) = declared else {
+            // invariant type parameter：无论外部位置如何，都会把内部位置“压扁”为 invariant。
+            return VariancePos::Invariant;
+        };
+
+        // Kotlin-like variance composition：
+        // - out(+1) / in(-1)；组合是乘法；invariant(0) 会使整体变 invariant。
+        match (self, declared) {
+            (VariancePos::Invariant, _) => VariancePos::Invariant,
+            (_, ast::TypeParamVariance::Out) => self,
+            (VariancePos::Out, ast::TypeParamVariance::In) => VariancePos::In,
+            (VariancePos::In, ast::TypeParamVariance::In) => VariancePos::Out,
+        }
     }
 }
 

@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::variance_position_violation
+// EXPECT-ERROR: 变型位置不合法
+// EXPECT-ERROR-AT: 12:24
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// 目标：T0437 `out T` 只能出现在 out-position（例如返回值）。
+interface Producer<out T> {
+    fun consume(value: T): Unit
+}

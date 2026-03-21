@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// 目标：T0437 声明处变型（in/out）在 interface 声明中可用，并能通过最小位置规则检查。
+interface ReadOnlyProperty<in T, out V> {
+    fun getValue(thisRef: T, property: PropertyMeta): V
+}
+

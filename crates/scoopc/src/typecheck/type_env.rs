@@ -36,6 +36,12 @@ pub enum TypeSymbolKind {
 pub struct TypeSymbol {
     pub kind: TypeSymbolKind,
     pub type_param_count: usize,
+    /// 声明处变型（declaration-site variance）：与 `type_param_count` 对齐的按位信息。
+    ///
+    /// 说明：
+    /// - `None` 表示 invariant；
+    /// - `Some(In|Out)` 对应 `in`/`out`。
+    pub type_param_variances: Vec<Option<ast::TypeParamVariance>>,
     pub span: Span,
     pub decl_file: PathBuf,
 }
@@ -154,6 +160,14 @@ impl TypeEnv {
         self.type_symbol(fqn).map(|s| s.type_param_count)
     }
 
+    /// 返回给定 FQN 的声明处 type param variances（若不是 nominal/typealias 或未收集则为 None）。
+    pub fn type_param_variances(
+        &self,
+        fqn: &str,
+    ) -> Option<&[Option<ast::TypeParamVariance>]> {
+        self.type_symbol(fqn).map(|s| s.type_param_variances.as_slice())
+    }
+
     /// 按 FQN 查询 enum 的 variant 信息（若该类型不是 enum 或未收集到则为 None）。
     pub fn enum_decl(&self, fqn: &str) -> Option<&EnumDecl> {
         self.enums.get(fqn)
@@ -208,6 +222,7 @@ impl TypeEnv {
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             type_param_count: 0,
+                            type_param_variances: Vec::new(),
                             span: ta.name.span,
                             decl_file: source.path().to_path_buf(),
                         },
@@ -239,12 +254,15 @@ impl TypeEnv {
             .iter()
             .map(|p| source.slice(p.name.span).to_string())
             .collect();
+        let type_param_variances: Vec<Option<ast::TypeParamVariance>> =
+            decl.type_params.iter().map(|p| p.variance).collect();
 
         self.insert_symbol(
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
                 type_param_count: decl.type_params.len(),
+                type_param_variances,
                 span: decl.name.span,
                 decl_file: source.path().to_path_buf(),
             },

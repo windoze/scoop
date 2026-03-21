@@ -1221,6 +1221,18 @@ fn is_type_assignable(
         return true;
     }
 
+    // T0437：声明处变型（declaration-site variance）的最小子类型规则（spec §3.2）。
+    //
+    // 规则（Kotlin-like）：
+    // - invariant：要求 type args 全等
+    // - out：covariant（found_arg <: expected_arg）
+    // - in：contravariant（expected_arg <: found_arg）
+    //
+    // Scoop-specific restriction：
+    // - 只有当该 type argument 是引用类型时，variance 才参与子类型（值类型布局不同，需显式转换）。
+    let found_kind = lower.type_kind(found);
+    let expected_kind = lower.type_kind(expected);
+
     // T0435：函数类型的最小子类型关系。
     //
     // 规则（常见的函数子类型规则）：
@@ -1230,7 +1242,65 @@ fn is_type_assignable(
     //
     // 注意：当前阶段类型系统仍不完整（名义继承/泛型/row 变量等），因此这里的判断只基于已有的
     // `is_type_assignable` 能力做递归。
-    match (lower.type_kind(found), lower.type_kind(expected)) {
+    match (found_kind, expected_kind) {
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
+            TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
+        ) => {
+            if found_nominal.fqn != expected_nominal.fqn {
+                return false;
+            }
+            if found_nominal.args.len() != expected_nominal.args.len() {
+                return false;
+            }
+
+            let variances = lower.env().type_param_variances(&found_nominal.fqn);
+
+            for (idx, (found_arg, expected_arg)) in found_nominal
+                .args
+                .iter()
+                .copied()
+                .zip(expected_nominal.args.iter().copied())
+                .enumerate()
+            {
+                let declared = variances
+                    .and_then(|v| v.get(idx).copied())
+                    .unwrap_or(None);
+
+                // 默认：invariant（或者因为 value type 而禁用 variance）
+                let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
+
+                match declared {
+                    None => {
+                        if found_arg != expected_arg {
+                            return false;
+                        }
+                    }
+                    Some(ast::TypeParamVariance::Out) if both_ref => {
+                        if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
+                            return false;
+                        }
+                    }
+                    Some(ast::TypeParamVariance::In) if both_ref => {
+                        if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
+                            return false;
+                        }
+                    }
+                    Some(_) => {
+                        // value types（或 unknown kind，例如 type param）占位：variance 不生效。
+                        if found_arg != expected_arg {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            true
+        }
         (
             TypeKind::Ref(RefTypeKind::Function(found_fun)),
             TypeKind::Ref(RefTypeKind::Function(expected_fun)),
@@ -3105,6 +3175,7 @@ fn infer_safe_member_access_expr_type(
                         kind: match other {
                             TypeKind::Value(_) => "safe member access（非 struct 字段）",
                             TypeKind::Ref(_) => "safe member access（引用类型成员尚未支持）",
+                            TypeKind::Param(_) => "safe member access（type param 暂不支持）",
                         },
                         span: member.span.into(),
                     });

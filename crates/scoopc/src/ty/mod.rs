@@ -10,6 +10,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 
 /// `TypeStore` 内部类型表的索引。
 ///
@@ -34,6 +35,14 @@ impl TypeId {
 pub enum TypeKind {
     Ref(RefTypeKind),
     Value(ValueTypeKind),
+    /// 类型参数（generic type parameter）。
+    ///
+    /// 说明：
+    /// - 该节点用于在 typecheck 阶段表示 `T`/`U` 这类“尚未实例化”的抽象类型；
+    /// - 与 Rust 类似，类型参数可能被实例化为值类型或引用类型，因此在当前阶段我们把它视为
+    ///   “kind 未知”的类型：既不是 ref 也不是 value；
+    /// - 需要具体 kind 的语义（例如 `Any` 顶类型、装箱、布局）应当在后续通过约束/实例化后处理。
+    Param(TypeParamType),
 }
 
 impl TypeKind {
@@ -80,6 +89,17 @@ pub enum RefTypeKind {
 pub struct NominalType {
     pub fqn: String,
     pub args: Vec<TypeId>,
+}
+
+/// 类型参数类型（`T`）。
+///
+/// 注意：同名的 `T` 在不同声明里应当视为不同的类型参数，因此这里用
+/// `(decl_file, decl_span)` 来唯一标识其来源（用于 Hash/Eq 与 interning）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeParamType {
+    pub name: String,
+    pub decl_file: PathBuf,
+    pub decl_span: crate::span::Span,
 }
 
 /// effect row（spec §5.8）的内部表示。
@@ -271,6 +291,11 @@ impl TypeStore {
             effects,
         })))
     }
+
+    /// 构造一个类型参数 `TypeId`（例如 `T`）。
+    pub fn ty_param(&mut self, param: TypeParamType) -> TypeId {
+        self.intern(TypeKind::Param(param))
+    }
 }
 
 /// `TypeStore` 中 builtin 类型的 ID 集合。
@@ -335,6 +360,7 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
             write!(f, ")")
         }
         TypeKind::Value(ValueTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
+        TypeKind::Param(p) => write!(f, "{}", p.name),
     }
 }
 

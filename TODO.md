@@ -983,11 +983,12 @@
 - 依赖：T0233、T0312、T0407
 - 完成：typecheck 阶段将扩展函数降糖为“receiver 作为第一个参数”的普通顶层函数签名（`crates/scoopc/src/typecheck/expr.rs`），并在函数体内为扩展 receiver 注入隐式 `this` 绑定（resolver 将 `this` 解析到 receiver 的 decl span）；`receiver.member()` / `receiver?.member()` 调用按扩展候选进行类型检查，且当同名扩展函数存在多个候选时在 typecheck 报歧义（新错误码 `scoop::typecheck::ambiguous_call`）。新增 fixture：`tests/fixtures/typecheck/extension_fun_receiver_this_ok.scoop`。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0437 [TODO] 泛型：声明处变型 `in/out` + star projection（spec §3.2~§3.3 / Appendix B.4）
+### T0437 [DONE] 泛型：声明处变型 `in/out` + star projection（spec §3.2~§3.3 / Appendix B.4）
 - 描述：在 parser/type system 中支持 `in T`/`out T` 与 `*`，并实现最小合法性检查。
 - 目标：先只解析并存储 variance/star；子类型规则可先限制为“只对引用类型参数生效”（按 spec）。
 - 验收：typecheck fixture：`interface ReadOnlyProperty<in T, out V>` 可解析并 typecheck；非法 variance 位置报错。
 - 依赖：T0249、T0401
+ - 完成：`ty::TypeKind` 新增 `Param` 用于表示 type parameter；`TypeEnv` 记录每个类型符号的 `type_param_variances`；`TypeLowering` 支持 lowering `T` 与 `*`（`*` 暂 lowering 为 `Any`），并在 type decl 上实现 Kotlin-like 的最小变型位置检查（新错误码 `scoop::typecheck::variance_position_violation`）；`ExprTypeError::is_type_assignable` 支持名义类型的声明处变型子类型（仅当对应 type args 都是引用类型时生效）。新增 fixtures：`tests/fixtures/typecheck/variance_read_only_property_ok.scoop`、`variance_out_param_used_in_param_position_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0438 [TODO] 声明类型：class 的最小类型检查（字段/构造参数/方法头）
 - 描述：实现 class：主构造参数作为字段（`val/var`）与成员方法头解析后的类型收集。
