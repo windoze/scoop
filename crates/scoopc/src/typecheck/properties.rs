@@ -14,7 +14,10 @@
 //!   - 必须显式声明 getter；`var` 还必须显式声明 setter
 //! - delegated property（spec §10.4）：
 //!   - 仅允许出现在 class（struct/enum 禁止）
-//!   - delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（当前阶段仅检查方法名存在性）
+//!   - delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`
+//!   - 对 `getValue/setValue` 做最小签名检查（T0434b）：
+//!     - `getValue(thisRef: T|Any, property: PropertyMeta): V`
+//!     - `setValue(thisRef: T|Any, property: PropertyMeta, value: V): Unit`（仅 `var`）
 //!
 //! 说明：
 //! - 该模块不做 codegen，也不展开 property → getter/setter 调用的 lowering；
@@ -24,9 +27,13 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::Index;
+use crate::resolve::{FunOverload, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
+
+const ANY_FQN: &str = "scoop.core.Any";
+const PROPERTY_META_FQN: &str = "scoop.core.PropertyMeta";
+const UNIT_FQN: &str = "scoop.core.Unit";
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum PropertyDeclError {
@@ -139,6 +146,30 @@ pub enum PropertyDeclError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("委托属性的 delegate 未找到匹配的 `getValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）")]
+    #[diagnostic(code(scoop::typecheck::delegated_property_get_value_signature_mismatch))]
+    DelegatedPropertyGetValueSignatureMismatch {
+        class_fqn: String,
+        property: String,
+        delegate_ty: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("委托属性的 delegate 未找到匹配的 `setValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）")]
+    #[diagnostic(code(scoop::typecheck::delegated_property_set_value_signature_mismatch))]
+    DelegatedPropertySetValueSignatureMismatch {
+        class_fqn: String,
+        property: String,
+        delegate_ty: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
@@ -152,7 +183,9 @@ pub fn check_file_properties(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
-            ast::Item::Type(ty) => check_type_decl_properties(source, ty, &pkg_prefix, index)?,
+            ast::Item::Type(ty) => {
+                check_type_decl_properties(source, file, ty, &pkg_prefix, index)?
+            }
             ast::Item::ExtensionProperty(p) => check_one_extension_property(source, p)?,
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
@@ -165,6 +198,7 @@ pub fn check_file_properties(
 
 fn check_type_decl_properties(
     source: &SourceFile,
+    file: &ast::File,
     decl: &ast::TypeDecl,
     prefix: &str,
     index: &Index,
@@ -181,7 +215,7 @@ fn check_type_decl_properties(
             if let Some(body) = &decl.body {
                 for member in &body.members {
                     if let ast::TypeMember::Property(p) = member {
-                        check_one_class_property(source, &type_fqn, p, index)?;
+                        check_one_class_property(source, file, &type_fqn, p, index)?;
                     }
                 }
             }
@@ -206,7 +240,7 @@ fn check_type_decl_properties(
         let ast::TypeMember::Type(nested) = member else {
             continue;
         };
-        check_type_decl_properties(source, nested, &type_fqn, index)?;
+        check_type_decl_properties(source, file, nested, &type_fqn, index)?;
     }
 
     Ok(())
@@ -214,6 +248,7 @@ fn check_type_decl_properties(
 
 fn check_one_class_property(
     source: &SourceFile,
+    file: &ast::File,
     class_fqn: &str,
     p: &ast::PropertyDecl,
     index: &Index,
@@ -221,12 +256,17 @@ fn check_one_class_property(
     let property = source.slice(p.name.span).to_string();
 
     if let Some(delegate) = &p.delegate {
-        // 最小规则：delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（spec §10.4）。
+        // delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（spec §10.4）。
         //
-        // 注意：当前阶段仅做“方法名存在性”检查：
-        // - `PropertyMeta` 与签名匹配留到 T0434b/T1208；
+        // 注意：
+        // - 当前阶段仅做最小签名检查（T0434b），不生成 `$delegate` 字段/转发函数（见 T1210）；
         // - 若无法从 delegate expr 推导出 delegate nominal type，则保守放行（避免误伤未覆盖的表达式形态）。
         if let Some(delegate_ty) = delegate_expr_constructor_type_fqn(delegate) {
+            // 属性声明头检查（T0404）已保证 type annotation 存在；这里仍保持健壮性。
+            let property_ty_ref = p.ty.as_ref();
+            let property_ty_fqn =
+                property_ty_ref.and_then(|t| type_ref_to_fqn_in_file(source, file, index, t));
+
             if !type_has_method_named(index, &delegate_ty, "getValue") {
                 return Err(PropertyDeclError::DelegatedPropertyMissingGetValue {
                     class_fqn: class_fqn.to_string(),
@@ -236,15 +276,37 @@ fn check_one_class_property(
                 });
             }
 
-            if matches!(p.kind, ast::ValKind::Var)
-                && !type_has_method_named(index, &delegate_ty, "setValue")
-            {
-                return Err(PropertyDeclError::DelegatedPropertyMissingSetValue {
-                    class_fqn: class_fqn.to_string(),
-                    property,
-                    delegate_ty,
-                    span: delegate.span.into(),
-                });
+            check_delegated_property_get_value_signature(
+                source,
+                file,
+                index,
+                class_fqn,
+                &property,
+                &delegate_ty,
+                property_ty_fqn.as_deref(),
+                delegate.span,
+            )?;
+
+            if matches!(p.kind, ast::ValKind::Var) {
+                if !type_has_method_named(index, &delegate_ty, "setValue") {
+                    return Err(PropertyDeclError::DelegatedPropertyMissingSetValue {
+                        class_fqn: class_fqn.to_string(),
+                        property,
+                        delegate_ty,
+                        span: delegate.span.into(),
+                    });
+                }
+
+                check_delegated_property_set_value_signature(
+                    source,
+                    file,
+                    index,
+                    class_fqn,
+                    &property,
+                    &delegate_ty,
+                    property_ty_fqn.as_deref(),
+                    delegate.span,
+                )?;
             }
         }
     }
@@ -616,4 +678,323 @@ fn type_has_method_named(index: &Index, ty_fqn: &str, method: &str) -> bool {
         .by_fqn
         .get(&fqn)
         .is_some_and(|symbols| !symbols.fun.is_empty())
+}
+
+fn check_delegated_property_get_value_signature(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    class_fqn: &str,
+    property: &str,
+    delegate_ty: &str,
+    property_ty_fqn: Option<&str>,
+    use_span: Span,
+) -> Result<(), PropertyDeclError> {
+    let Some(property_ty_fqn) = property_ty_fqn else {
+        // 解析/类型引用校验应当能确保 property type 可解析；这里避免 panic，保守放行。
+        return Ok(());
+    };
+
+    let fqn = format!("{delegate_ty}.getValue");
+    let overloads = index
+        .by_fqn
+        .get(&fqn)
+        .map(|syms| syms.fun.as_slice())
+        .unwrap_or_default();
+
+    let mut found_sig = None;
+    for o in overloads {
+        found_sig.get_or_insert_with(|| fmt_fun_sig(source, file, index, "getValue", o));
+        if delegated_get_value_overload_matches(
+            source,
+            file,
+            index,
+            o,
+            class_fqn,
+            property_ty_fqn,
+        ) {
+            return Ok(());
+        }
+    }
+
+    Err(PropertyDeclError::DelegatedPropertyGetValueSignatureMismatch {
+        class_fqn: class_fqn.to_string(),
+        property: property.to_string(),
+        delegate_ty: delegate_ty.to_string(),
+        expected: format!(
+            "getValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}): {property_ty_fqn}"
+        ),
+        found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
+        span: use_span.into(),
+    })
+}
+
+fn check_delegated_property_set_value_signature(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    class_fqn: &str,
+    property: &str,
+    delegate_ty: &str,
+    property_ty_fqn: Option<&str>,
+    use_span: Span,
+) -> Result<(), PropertyDeclError> {
+    let Some(property_ty_fqn) = property_ty_fqn else {
+        return Ok(());
+    };
+
+    let fqn = format!("{delegate_ty}.setValue");
+    let overloads = index
+        .by_fqn
+        .get(&fqn)
+        .map(|syms| syms.fun.as_slice())
+        .unwrap_or_default();
+
+    let mut found_sig = None;
+    for o in overloads {
+        found_sig.get_or_insert_with(|| fmt_fun_sig(source, file, index, "setValue", o));
+        if delegated_set_value_overload_matches(
+            source,
+            file,
+            index,
+            o,
+            class_fqn,
+            property_ty_fqn,
+        ) {
+            return Ok(());
+        }
+    }
+
+    Err(PropertyDeclError::DelegatedPropertySetValueSignatureMismatch {
+        class_fqn: class_fqn.to_string(),
+        property: property.to_string(),
+        delegate_ty: delegate_ty.to_string(),
+        expected: format!(
+            "setValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}, value: {property_ty_fqn}): {UNIT_FQN}"
+        ),
+        found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
+        span: use_span.into(),
+    })
+}
+
+fn delegated_get_value_overload_matches(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    overload: &FunOverload,
+    owner_ty_fqn: &str,
+    value_ty_fqn: &str,
+) -> bool {
+    if overload.sig.params.len() != 2 {
+        return false;
+    }
+
+    let Some(this_ref) = overload
+        .sig
+        .params
+        .first()
+        .and_then(|p| p.ty.as_ref())
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+    else {
+        return false;
+    };
+
+    if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+        return false;
+    }
+
+    let Some(prop) = overload
+        .sig
+        .params
+        .get(1)
+        .and_then(|p| p.ty.as_ref())
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+    else {
+        return false;
+    };
+    if prop != PROPERTY_META_FQN {
+        return false;
+    }
+
+    let ret = overload.sig.return_ty.as_ref();
+    let ret_fqn = ret
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .unwrap_or_else(|| UNIT_FQN.to_string());
+    ret_fqn == value_ty_fqn
+}
+
+fn delegated_set_value_overload_matches(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    overload: &FunOverload,
+    owner_ty_fqn: &str,
+    value_ty_fqn: &str,
+) -> bool {
+    if overload.sig.params.len() != 3 {
+        return false;
+    }
+
+    let Some(this_ref) = overload
+        .sig
+        .params
+        .first()
+        .and_then(|p| p.ty.as_ref())
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+    else {
+        return false;
+    };
+    if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+        return false;
+    }
+
+    let Some(prop) = overload
+        .sig
+        .params
+        .get(1)
+        .and_then(|p| p.ty.as_ref())
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+    else {
+        return false;
+    };
+    if prop != PROPERTY_META_FQN {
+        return false;
+    }
+
+    let Some(value) = overload
+        .sig
+        .params
+        .get(2)
+        .and_then(|p| p.ty.as_ref())
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+    else {
+        return false;
+    };
+    if value != value_ty_fqn {
+        return false;
+    }
+
+    let ret = overload.sig.return_ty.as_ref();
+    let ret_fqn = ret
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .unwrap_or_else(|| UNIT_FQN.to_string());
+    ret_fqn == UNIT_FQN
+}
+
+fn fmt_fun_sig(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    name: &str,
+    overload: &FunOverload,
+) -> String {
+    let mut params = Vec::with_capacity(overload.sig.params.len());
+    for p in &overload.sig.params {
+        let ty = p
+            .ty
+            .as_ref()
+            .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+            .unwrap_or_else(|| "_".to_string());
+        params.push(format!("{ty}"));
+    }
+
+    let ret = overload
+        .sig
+        .return_ty
+        .as_ref()
+        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .unwrap_or_else(|| UNIT_FQN.to_string());
+
+    format!("{name}({}): {ret}", params.join(", "))
+}
+
+fn type_ref_to_fqn_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ty: &ast::TypeRef,
+) -> Option<String> {
+    match ty {
+        ast::TypeRef::Path(p) => type_path_to_fqn_in_file(source, file, index, p),
+        ast::TypeRef::Nullable { .. } => {
+            // `T?` lowering 会变成 `Option<T>`；这里做最小等价映射，避免在签名检查中误报。
+            let fqn = "scoop.core.Option";
+            index
+                .by_fqn
+                .get(fqn)
+                .is_some_and(|syms| syms.ty.is_some())
+                .then(|| fqn.to_string())
+        }
+        ast::TypeRef::Tuple(t) if t.elements.is_empty() => Some(UNIT_FQN.to_string()),
+        ast::TypeRef::Tuple(_)
+        | ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+fn type_path_to_fqn_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    path: &ast::TypePath,
+) -> Option<String> {
+    let segments = path
+        .segments
+        .iter()
+        .map(|id| source.slice(id.span))
+        .collect::<Vec<_>>();
+    let local = segments.join(".");
+
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut candidates: Vec<String> = Vec::new();
+
+    // 1) 同包优先：pkg + local
+    if !pkg_prefix.is_empty() {
+        candidates.push(format!("{pkg_prefix}.{local}"));
+    }
+
+    // 2) 直接使用 local（允许显式写 FQN：`scoop.core.Any`）
+    candidates.push(local.clone());
+
+    // 3) 对单段名字，应用 import 规则（显式 import / star import）
+    if segments.len() == 1 {
+        let name = segments[0];
+        for import in &file.imports {
+            let import_path = import
+                .path
+                .iter()
+                .map(|id| source.slice(id.span))
+                .collect::<Vec<_>>()
+                .join(".");
+
+            if import.has_star {
+                candidates.push(format!("{import_path}.{name}"));
+            } else {
+                let local = import
+                    .alias
+                    .as_ref()
+                    .map(|id| source.slice(id.span))
+                    .or_else(|| import.path.last().map(|id| source.slice(id.span)))
+                    .unwrap_or("");
+                if local == name {
+                    candidates.push(import_path);
+                }
+            }
+        }
+    }
+
+    candidates.sort();
+    candidates.dedup();
+
+    for fqn in candidates {
+        let Some(syms) = index.by_fqn.get(&fqn) else {
+            continue;
+        };
+        if syms.ty.is_some() {
+            return Some(fqn);
+        }
+    }
+
+    None
 }

@@ -5,8 +5,8 @@ package fixtures.typecheck
 import scoop.core.*
 
 class TrimDelegate() {
-    fun getValue(thisRef: Any, property: Any): String { "" }
-    fun setValue(thisRef: Any, property: Any, value: String) { () }
+    fun getValue(thisRef: Any, property: PropertyMeta): String { "" }
+    fun setValue(thisRef: Any, property: PropertyMeta, value: String) { () }
 }
 
 class Example {

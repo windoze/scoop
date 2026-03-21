@@ -19,6 +19,15 @@ class String
 struct Unit
 enum Nothing
 
+// Delegated property metadata（spec §10.4）。
+//
+// 说明：
+// - `PropertyMeta` 未来会在 comptime/反射（spec §6.4）中变得更完整（见 TODO T1208）；
+// - 当前阶段仅需要它作为 delegated property 的 `getValue/setValue` 签名中的占位类型（T0434b）。
+struct PropertyMeta {
+    val name: String
+}
+
 // Integers（spec §2.3.4 / runtime §3）
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。

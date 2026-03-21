@@ -277,7 +277,7 @@
   - [ ] lowering：编译为静态 getter/setter（receiver 作为第一个参数）
 - [ ] 委托属性（delegated properties）：
   - [x] T0434a：`by` 语法 + 最小静态规则（仅 class；检查 `getValue/setValue` 名称存在性）
-  - [ ] T0434b：对接 `PropertyMeta` 并升级为签名检查（与 §13 comptime/反射联动）
+  - [x] T0434b：对接 `PropertyMeta` 并升级为签名检查（与 §13 comptime/反射联动）
   - [ ] lowering：生成 `$delegate` 字段 + getter/setter 转发到 `getValue/setValue`（T1210）
 
 ### 4.8 函数声明细节（spec §7）

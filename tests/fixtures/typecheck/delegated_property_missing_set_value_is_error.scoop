@@ -8,7 +8,7 @@ package fixtures.typecheck
 import scoop.core.*
 
 class ReadOnlyDelegate() {
-    fun getValue(thisRef: Any, property: Any): String { "" }
+    fun getValue(thisRef: Any, property: PropertyMeta): String { "" }
 }
 
 class Example {

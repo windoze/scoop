@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::delegated_property_set_value_signature_mismatch
+// EXPECT-ERROR-AT: 16:25
+// EXPECT-ERROR: value: scoop.core.String
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class BadDelegate() {
+    fun getValue(thisRef: Any, property: PropertyMeta): String { "" }
+    fun setValue(thisRef: Any, property: PropertyMeta, value: Int) { () }
+}
+
+class Example {
+    var text: String by BadDelegate()
+}
+

@@ -959,14 +959,15 @@
 - 依赖：T0234、T0431
 - 完成：AST `PropertyDecl` 新增 `delegate: Option<Expr>` 字段；parser 支持 `val/var name: T by expr`（把 `by` 作为上下文关键字识别，且与 initializer/accessors 语法互斥）；resolver 在属性初始化语境内解析 delegate expr（并对 delegated property 不注入 `field`）；typecheck 增加 delegated property 静态规则：struct/enum 禁止、class 要求 delegate 类型存在 `getValue`，`var` 还要求 `setValue`（当前仅检查方法名存在性，`PropertyMeta`/签名检查留给 T0434b/T1208）。fixtures：`tests/fixtures/typecheck/delegated_property_*`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0434b [TODO] 委托属性：对接 `PropertyMeta` 并升级为签名检查（spec §10.4）
+### T0434b [DONE] 委托属性：对接 `PropertyMeta` 并升级为签名检查（spec §10.4）
 - 描述：在 typecheck 中把 delegated property 的规则升级为“签名检查”：
   - `getValue(thisRef: T, property: PropertyMeta): V`
   - `setValue(thisRef: T, property: PropertyMeta, value: V)`（仅 `var`）
   - 并为后续 lowering 记录必要信息（但不在本任务生成 `$delegate` 字段与转发函数）。
 - 目标：仍以静态检查为主；完整 lowering 见 T1210。
 - 验收：typecheck fixture：`getValue` 第二参不是 `PropertyMeta` 报错；`var` 缺 `setValue` 或参数不匹配报错。
-- 依赖：T0434a、T1208
+- 依赖：T0434a
+- 完成：sysroot 新增 `scoop.core.PropertyMeta`（当前阶段仅占位字段）；typecheck 委托属性升级为签名检查：`getValue/setValue` 需匹配 `PropertyMeta` 与属性类型（`thisRef` 允许 `Any`），并新增 mismatch fixtures；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0435 [TODO] 函数类型（含 receiver + effects）的类型表示与子类型规则（spec §7.5、§5.8）
 - 描述：在 `ty` 中加入 FunctionType：参数/返回/receiver/effect row，并定义最小子类型关系（参数逆变/返回协变 + effect row containment）。
