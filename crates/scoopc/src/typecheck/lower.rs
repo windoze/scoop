@@ -89,6 +89,12 @@ pub fn check_file_type_refs(
                     let _ = ctx.lower_type_ref(ret)?;
                 }
             }
+            ast::Item::ExtensionProperty(p) => {
+                let _ = ctx.lower_type_ref(&p.receiver)?;
+                if let Some(ty) = &p.ty {
+                    let _ = ctx.lower_type_ref(ty)?;
+                }
+            }
             ast::Item::Val(v) => {
                 if let Some(ty) = &v.ty {
                     let _ = ctx.lower_type_ref(ty)?;

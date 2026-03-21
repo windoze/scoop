@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：T0433 扩展属性必须 computed（getter-only）。
+package fixtures.typecheck
+
+import scoop.core.*
+
+val String.lastIndex: Int
+    get() = 0
+

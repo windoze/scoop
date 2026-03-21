@@ -650,6 +650,274 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// 解析顶层扩展属性声明（spec §10.3）：
+    ///
+    /// 语法形态（Kotlin-like）：
+    /// - `val ReceiverType.name: Type get() = expr`
+    /// - `var ReceiverType.name: Type get() = expr set(value) { ... }`
+    ///
+    /// 说明：
+    /// - 扩展属性与顶层 `val/var` 的最大区别是：名字之前存在 receiver（并以 `.` 分隔）；
+    /// - 当前阶段仅做语法解析与结构化存储；合法性规则（computed/no backing field 等）由后续 typecheck 处理（TODO T0433）。
+    pub(super) fn parse_extension_property_decl(
+        &mut self,
+    ) -> Result<ast::ExtensionPropertyDecl, ParseError> {
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        let kw = if self.peek_keyword(Keyword::Val) {
+            self.bump()
+        } else if self.peek_keyword(Keyword::Var) {
+            self.bump()
+        } else {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`val` / `var`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let kind = match kw.kind {
+            TokenKind::Keyword(Keyword::Val) => ast::ValKind::Val,
+            TokenKind::Keyword(Keyword::Var) => ast::ValKind::Var,
+            _ => unreachable!("kw 已经被 peek_keyword 过滤"),
+        };
+
+        // 可选 type params：`val <T> Receiver.name: Type ...`
+        // 说明：当前阶段只做解析与存储；语义（变型/星投影等）由后续任务补齐。
+        let (_type_params_span, type_params, _eff_param) = self.parse_type_params_opt()?;
+
+        let (receiver, name) = self.parse_extension_property_receiver_and_name()?;
+
+        // 扩展属性当前阶段要求显式类型标注（与 type body property 一致，避免歧义）。
+        if !self.peek_symbol(Symbol::Colon) {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "`:`",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+        self.bump(); // ':'
+        let ty = Some(self.parse_type_ref()?);
+
+        let mut last_end = ty
+            .as_ref()
+            .map(|t| t.span().end)
+            .unwrap_or(name.span.end);
+
+        // initializer：语法上允许解析，但语义规则在 typecheck 中限制。
+        let init = if self.eat_symbol(Symbol::Eq) {
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.is_top_level_item_start()
+                || self.is_property_accessor_start()
+            {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（initializer）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let init_start = self.peek().span.start;
+            let expr = self.try_parse_expr()?;
+
+            if let Some(expr) = expr {
+                last_end = expr.span.end;
+                if self.peek_kind(TokenKind::Eof)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.is_top_level_item_start()
+                    || self.is_property_accessor_start()
+                {
+                    Some(expr)
+                } else {
+                    let span = self.skip_until_top_level_or_accessor_boundary(init_start, last_end);
+                    last_end = span.end;
+                    Some(ast::Expr::missing(span))
+                }
+            } else {
+                let span = self.skip_until_top_level_or_accessor_boundary(init_start, last_end);
+                last_end = span.end;
+                Some(ast::Expr::missing(span))
+            }
+        } else {
+            None
+        };
+
+        // accessors：`get()` / `set(value)`
+        let mut getter = None;
+        let mut setter = None;
+        while self.is_property_accessor_start() {
+            let acc = self.parse_property_accessor_decl()?;
+            last_end = last_end.max(acc.span.end);
+            match acc.kind {
+                ast::AccessorKind::Get => getter = Some(acc),
+                ast::AccessorKind::Set => setter = Some(acc),
+            }
+        }
+
+        self.eat_symbol(Symbol::Semicolon);
+
+        Ok(ast::ExtensionPropertyDecl {
+            span: Span::new(start, last_end),
+            modifiers,
+            kind,
+            type_params,
+            receiver,
+            name,
+            ty,
+            init,
+            getter,
+            setter,
+        })
+    }
+
+    fn parse_extension_property_receiver_and_name(
+        &mut self,
+    ) -> Result<(ast::TypeRef, ast::Ident), ParseError> {
+        let start_idx = self.i;
+        let Some((dot_idx, _name_idx)) = self.detect_extension_property_receiver_dot(start_idx) else {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "扩展属性 receiver（形如 `ReceiverType.name`）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        };
+
+        let mut receiver_tokens: Vec<Token> = self.tokens[start_idx..dot_idx].to_vec();
+        let eof_pos = receiver_tokens
+            .last()
+            .map(|t| t.span.end)
+            .unwrap_or_else(|| self.tokens[dot_idx].span.start);
+        receiver_tokens.push(Token {
+            kind: TokenKind::Eof,
+            span: Span::new(eof_pos, eof_pos),
+        });
+
+        let mut sub = Parser::new(self.source_text, receiver_tokens);
+        let receiver = sub.parse_type_ref()?;
+        if !sub.peek_kind(TokenKind::Eof) {
+            let tok = *sub.peek();
+            return Err(ParseError::Expected {
+                expected: "receiver 类型结束",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        // fast-forward：跳过 receiver tokens，继续在主 parser 中消费 `. name`
+        self.i = dot_idx;
+        self.expect_symbol(Symbol::Dot)?;
+        let name_tok = self.expect_kind(TokenKind::Ident, "属性名（标识符）")?;
+
+        Ok((
+            receiver,
+            ast::Ident {
+                span: name_tok.span,
+            },
+        ))
+    }
+
+    /// 若当前位置开始是扩展属性 receiver 形式，则返回 `(dot_idx, name_idx)`：
+    /// - `dot_idx`：receiver 与 name 之间的 `.` 的 token index
+    /// - `name_idx`：name 的 token index
+    ///
+    /// 该检测仅做“语法形态”的判断，不做语义解析。
+    fn detect_extension_property_receiver_dot(&self, start_idx: usize) -> Option<(usize, usize)> {
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+        let mut depth_angle = 0usize;
+
+        let mut colon_idx: Option<usize> = None;
+
+        for idx in start_idx..self.tokens.len() {
+            let tok = self.tokens.get(idx)?;
+            match tok.kind {
+                TokenKind::Eof => break,
+                TokenKind::Symbol(sym) => match sym {
+                    Symbol::Lt => depth_angle += 1,
+                    Symbol::Gt => depth_angle = depth_angle.saturating_sub(1),
+                    Symbol::GtGt => depth_angle = depth_angle.saturating_sub(2),
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    Symbol::Eq | Symbol::Semicolon => {
+                        // `=` 之后进入 initializer；extension property 的 receiver/name 必须出现在 `:` 之前。
+                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 && depth_angle == 0 {
+                            break;
+                        }
+                    }
+                    Symbol::Colon => {
+                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 && depth_angle == 0 {
+                            colon_idx = Some(idx);
+                            break;
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
+        let colon_idx = colon_idx?;
+        let name_idx = colon_idx.checked_sub(1)?;
+        if self.tokens.get(name_idx)?.kind != TokenKind::Ident {
+            return None;
+        }
+        let dot_idx = name_idx.checked_sub(1)?;
+        if self.tokens.get(dot_idx)?.kind != TokenKind::Symbol(Symbol::Dot) {
+            return None;
+        }
+
+        Some((dot_idx, name_idx))
+    }
+
+    fn skip_until_top_level_or_accessor_boundary(
+        &mut self,
+        start: usize,
+        mut last_end: usize,
+    ) -> Span {
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+
+        while !self.peek_kind(TokenKind::Eof) {
+            if depth_paren == 0
+                && depth_brace == 0
+                && depth_bracket == 0
+                && (self.peek_symbol(Symbol::Semicolon)
+                    || self.is_top_level_item_start()
+                    || self.is_property_accessor_start())
+            {
+                break;
+            }
+
+            let tok = self.bump();
+            if let TokenKind::Symbol(sym) = tok.kind {
+                match sym {
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    _ => {}
+                }
+            }
+            last_end = tok.span.end;
+        }
+
+        Span::new(start, last_end)
+    }
+
     pub(super) fn parse_param_list(&mut self) -> Result<(Span, Vec<ast::Param>), ParseError> {
         let open = self.expect_symbol(Symbol::LParen)?;
         let start = open.span.start;

@@ -224,6 +224,120 @@ impl<'a> Parser<'a> {
         )
     }
 
+    /// 轻量级 lookahead：判断当前位置是否形如“扩展属性声明”（spec §10.3）：
+    ///
+    /// - `val ReceiverType.name: Type ...`
+    /// - `var ReceiverType.name: Type ...`
+    ///
+    /// 说明：
+    /// - 该判断只用于顶层解析分流（`val/var` → 顶层变量 or 扩展属性）；
+    /// - 不做完整语法解析：仅在 header 中寻找 `ReceiverType . name :` 形态。
+    pub(super) fn is_extension_property_decl_start(&self) -> bool {
+        // 1) 跳过 modifiers，定位到 `val/var`
+        let mut idx = self.i;
+        loop {
+            let tok = self.tokens.get(idx).unwrap_or_else(|| {
+                self.tokens
+                    .last()
+                    .expect("lexer must produce at least EOF token")
+            });
+            match tok.kind {
+                TokenKind::Keyword(kw) if is_modifier_keyword(kw) => {
+                    idx = idx.saturating_add(1);
+                    continue;
+                }
+                _ => break,
+            }
+        }
+
+        let Some(tok) = self.tokens.get(idx) else {
+            return false;
+        };
+        match tok.kind {
+            TokenKind::Keyword(Keyword::Val | Keyword::Var) => {}
+            _ => return false,
+        }
+        idx = idx.saturating_add(1);
+
+        // 2) 可选 type params：`val <T> ...`
+        if matches!(
+            self.tokens.get(idx).map(|t| t.kind),
+            Some(TokenKind::Symbol(Symbol::Lt))
+        ) {
+            let mut depth_angle = 0usize;
+            while let Some(tok) = self.tokens.get(idx) {
+                match tok.kind {
+                    TokenKind::Eof => return false,
+                    TokenKind::Symbol(Symbol::Lt) => depth_angle += 1,
+                    TokenKind::Symbol(Symbol::Gt) => depth_angle = depth_angle.saturating_sub(1),
+                    TokenKind::Symbol(Symbol::GtGt) => depth_angle = depth_angle.saturating_sub(2),
+                    _ => {}
+                }
+                idx = idx.saturating_add(1);
+                if depth_angle == 0 {
+                    break;
+                }
+            }
+        }
+
+        // 3) 在 header 里寻找 `ReceiverType . name :`：
+        // - 停止点：遇到 `=`（进入 initializer）或 `;` 或 EOF
+        // - 只在括号/尖括号等深度为 0 时匹配 `:`
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+        let mut depth_angle = 0usize;
+
+        while let Some(tok) = self.tokens.get(idx) {
+            match tok.kind {
+                TokenKind::Eof => return false,
+                TokenKind::Symbol(sym) => match sym {
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    Symbol::Lt => depth_angle += 1,
+                    Symbol::Gt => depth_angle = depth_angle.saturating_sub(1),
+                    Symbol::GtGt => depth_angle = depth_angle.saturating_sub(2),
+                    Symbol::Eq | Symbol::Semicolon => {
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                        {
+                            return false;
+                        }
+                    }
+                    Symbol::Colon => {
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                        {
+                            // `... . name :`
+                            let Some(name_tok) = self.tokens.get(idx.saturating_sub(1)) else {
+                                return false;
+                            };
+                            let Some(dot_tok) = self.tokens.get(idx.saturating_sub(2)) else {
+                                return false;
+                            };
+                            return name_tok.kind == TokenKind::Ident
+                                && dot_tok.kind == TokenKind::Symbol(Symbol::Dot);
+                        }
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+
+            idx = idx.saturating_add(1);
+        }
+
+        false
+    }
+
     pub(super) fn is_type_member_start(&self) -> bool {
         // Appendix B.2.2：`init { ... }` 初始化块（T0256）在 lexer 层仍是 Ident，
         // 但在 type body 中应被视为 member 起始（用于 initializer 边界判断与错误恢复）。

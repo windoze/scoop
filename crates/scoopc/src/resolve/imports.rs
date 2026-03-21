@@ -185,6 +185,10 @@ fn collect_top_level_decl_names(source: &SourceFile, file: &ast::File) -> TopLev
                     names.value.insert(local, name.span);
                 }
             }
+            ast::Item::ExtensionProperty(_p) => {
+                // 顶层扩展属性不引入“顶层可引用 value 名字”，因此当前阶段不参与 import table 的 decl 收集。
+                // TODO：若未来支持 `import pkg.extProp` 形式的扩展导入，需要在这里扩展规则。
+            }
         }
     }
 

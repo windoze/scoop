@@ -45,6 +45,7 @@ pub fn check_file_headers(source: &SourceFile, file: &ast::File) -> Result<(), T
                 // 此处仅做“签名形态”的检查。
             }
             ast::Item::Fun(fun) => check_fun_header(source, fun)?,
+            ast::Item::ExtensionProperty(p) => check_extension_property_header(source, p)?,
             ast::Item::Val(v) => check_top_level_val_header(source, v)?,
             ast::Item::Type(ty) => check_type_decl_headers(source, ty)?,
             ast::Item::Object(obj) => check_object_decl_headers(source, obj)?,
@@ -63,6 +64,21 @@ fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeH
                 span: p.name.span.into(),
             });
         }
+    }
+    Ok(())
+}
+
+fn check_extension_property_header(
+    source: &SourceFile,
+    p: &ast::ExtensionPropertyDecl,
+) -> Result<(), TypeHeaderError> {
+    if p.ty.is_none() {
+        let name = source.slice(p.name.span).to_string();
+        return Err(TypeHeaderError::MissingTypeAnnotation {
+            kind: "扩展属性",
+            name,
+            span: p.name.span.into(),
+        });
     }
     Ok(())
 }

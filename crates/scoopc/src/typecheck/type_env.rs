@@ -216,7 +216,10 @@ impl TypeEnv {
                 ast::Item::Type(ty) => {
                     self.collect_type_decl(source, &pkg_prefix, ty)?;
                 }
-                ast::Item::Object(_) | ast::Item::Fun(_) | ast::Item::Val(_) => {}
+                ast::Item::Object(_)
+                | ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_) => {}
             }
         }
 

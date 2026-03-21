@@ -561,6 +561,10 @@ impl Index {
                         self.insert_symbol(source, &pkg, SymbolKind::Value, name.span, visibility)?;
                     }
                 }
+                ast::Item::ExtensionProperty(_p) => {
+                    // 顶层扩展属性本身不引入“顶层 value 名称”（它只能通过 member access 访问）。
+                    // extension fallback 与 lowering 规则由后续任务补齐（TODO T0433/T0436）。
+                }
             }
         }
 
@@ -1018,6 +1022,18 @@ pub fn check_file_headers(
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;
                 let result = (|| resolve_fun_header(source, file, index, &type_params, fun))();
+                type_params.pop_decl();
+                result?;
+            }
+            ast::Item::ExtensionProperty(p) => {
+                type_params.push_decl(source, &p.type_params)?;
+                let result = (|| {
+                    resolve_type_ref(source, file, index, &type_params, &p.receiver)?;
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                    }
+                    Ok(())
+                })();
                 type_params.pop_decl();
                 result?;
             }

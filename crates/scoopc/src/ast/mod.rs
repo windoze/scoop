@@ -33,6 +33,16 @@ pub struct ImportDecl {
 pub enum Item {
     TypeAlias(TypeAliasDecl),
     Fun(FunDecl),
+    /// 顶层扩展属性声明（spec §10.3）。
+    ///
+    /// 语法形态示例：
+    /// - `val String.lastIndex: Int get() = ...`
+    /// - `var StringBuilder.lastChar: Int get() = ... set(v) { ... }`
+    ///
+    /// 说明：
+    /// - 扩展属性不属于某个 `TypeDecl` 的 `TypeBody`，因此不是 `TypeMember::Property`；
+    /// - 它的语义检查（computed/无 backing field 等）由后续 typecheck 任务逐步补齐（见 TODO T0433）。
+    ExtensionProperty(ExtensionPropertyDecl),
     Type(TypeDecl),
     Object(ObjectDecl),
     Val(ValDecl),
@@ -520,6 +530,51 @@ impl std::fmt::Debug for FunDecl {
 pub enum FunBody {
     Block(Block),
     Missing,
+}
+
+/// 顶层扩展属性声明（spec §10.3）。
+///
+/// 扩展属性与扩展函数类似：
+/// - 声明处有 receiver（`val Receiver.name`）
+/// - 编译模型为静态 getter/setter（receiver 作为第一个参数）
+///
+/// 注意：
+/// - 当前阶段仅做语法建模与结构化存储；真正 lowering 留给 IR 阶段任务。
+#[derive(Clone)]
+pub struct ExtensionPropertyDecl {
+    pub span: Span,
+    pub modifiers: Vec<Modifier>,
+    pub kind: ValKind,
+    pub type_params: Vec<TypeParam>,
+    pub receiver: TypeRef,
+    pub name: Ident,
+    pub ty: Option<TypeRef>,
+    /// 语法上允许写 initializer，但扩展属性语义上不允许生成 backing field；
+    /// 因此是否允许 initializer 由 typecheck 阶段决定（TODO T0433）。
+    pub init: Option<Expr>,
+    pub getter: Option<AccessorDecl>,
+    pub setter: Option<AccessorDecl>,
+}
+
+impl std::fmt::Debug for ExtensionPropertyDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("ExtensionPropertyDecl");
+        s.field("span", &self.span);
+        if !self.modifiers.is_empty() {
+            s.field("modifiers", &self.modifiers);
+        }
+        s.field("kind", &self.kind);
+        if !self.type_params.is_empty() {
+            s.field("type_params", &self.type_params);
+        }
+        s.field("receiver", &self.receiver);
+        s.field("name", &self.name);
+        s.field("ty", &self.ty);
+        s.field("init", &self.init);
+        s.field("getter", &self.getter);
+        s.field("setter", &self.setter);
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]

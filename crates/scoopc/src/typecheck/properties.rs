@@ -7,6 +7,11 @@
 //! - value type（struct/enum）computed 属性（spec §10.2）：
 //!   - 不允许 `var` / setter
 //!   - computed 属性不允许 initializer（避免引入 backing field 语义）
+//! - extension property（spec §10.3）：
+//!   - 必须 computed（不生成 backing field）
+//!   - 不允许 initializer
+//!   - 不允许引用 `field`
+//!   - 必须显式声明 getter；`var` 还必须显式声明 setter
 //!
 //! 说明：
 //! - 该模块不做 codegen，也不展开 property → getter/setter 调用的 lowering；
@@ -56,6 +61,51 @@ pub enum PropertyDeclError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("扩展属性不允许 initializer（不会生成 backing field）：{receiver}.{property}")]
+    #[diagnostic(code(scoop::typecheck::extension_property_initializer_not_allowed))]
+    ExtensionPropertyInitializerNotAllowed {
+        receiver: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("扩展属性必须显式声明 getter（computed，无默认 accessor）：{receiver}.{property}")]
+    #[diagnostic(code(scoop::typecheck::extension_property_getter_required))]
+    ExtensionPropertyGetterRequired {
+        receiver: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`var` 扩展属性必须显式声明 setter（computed，无默认 accessor）：{receiver}.{property}")]
+    #[diagnostic(code(scoop::typecheck::extension_property_setter_required))]
+    ExtensionPropertySetterRequired {
+        receiver: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("扩展属性不生成 backing field：{receiver}.{property} 不能引用 `field`")]
+    #[diagnostic(code(scoop::typecheck::extension_property_field_not_allowed))]
+    ExtensionPropertyFieldNotAllowed {
+        receiver: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 扩展属性不允许自定义 setter：{receiver}.{property}")]
+    #[diagnostic(code(scoop::typecheck::extension_val_property_setter_not_allowed))]
+    ExtensionValPropertySetterNotAllowed {
+        receiver: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
@@ -67,10 +117,14 @@ pub fn check_file_properties(
 ) -> Result<(), PropertyDeclError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
-        let ast::Item::Type(ty) = item else {
-            continue;
-        };
-        check_type_decl_properties(source, ty, &pkg_prefix)?;
+        match item {
+            ast::Item::Type(ty) => check_type_decl_properties(source, ty, &pkg_prefix)?,
+            ast::Item::ExtensionProperty(p) => check_one_extension_property(source, p)?,
+            ast::Item::TypeAlias(_)
+            | ast::Item::Fun(_)
+            | ast::Item::Object(_)
+            | ast::Item::Val(_) => {}
+        }
     }
     Ok(())
 }
@@ -203,6 +257,64 @@ fn check_one_value_type_property(
                 span: init.span.into(),
             });
         }
+    }
+
+    Ok(())
+}
+
+fn check_one_extension_property(
+    source: &SourceFile,
+    p: &ast::ExtensionPropertyDecl,
+) -> Result<(), PropertyDeclError> {
+    let receiver = source.slice(p.receiver.span()).to_string();
+    let property = source.slice(p.name.span).to_string();
+
+    // `val` extension property 不应存在 setter（与 class 属性保持一致，但错误信息更明确）。
+    if matches!(p.kind, ast::ValKind::Val) {
+        if let Some(setter) = &p.setter {
+            return Err(PropertyDeclError::ExtensionValPropertySetterNotAllowed {
+                receiver,
+                property,
+                span: setter.span.into(),
+            });
+        }
+    }
+
+    // extension property 不允许 initializer（不生成 backing field）。
+    if let Some(init) = &p.init {
+        return Err(PropertyDeclError::ExtensionPropertyInitializerNotAllowed {
+            receiver,
+            property,
+            span: init.span.into(),
+        });
+    }
+
+    // 必须 computed：extension property 的 default getter/setter 需要 backing field，因此不允许省略。
+    if p.getter.is_none() {
+        return Err(PropertyDeclError::ExtensionPropertyGetterRequired {
+            receiver,
+            property,
+            span: p.name.span.into(),
+        });
+    }
+    if matches!(p.kind, ast::ValKind::Var) && p.setter.is_none() {
+        return Err(PropertyDeclError::ExtensionPropertySetterRequired {
+            receiver,
+            property,
+            span: p.name.span.into(),
+        });
+    }
+
+    // 无 backing field：禁止引用 `field`。
+    let backing_field_decl_span = p.name.span;
+    if let Some(span) = field_use_span_in_accessor(source, backing_field_decl_span, p.getter.as_ref())
+        .or_else(|| field_use_span_in_accessor(source, backing_field_decl_span, p.setter.as_ref()))
+    {
+        return Err(PropertyDeclError::ExtensionPropertyFieldNotAllowed {
+            receiver,
+            property,
+            span: span.into(),
+        });
     }
 
     Ok(())

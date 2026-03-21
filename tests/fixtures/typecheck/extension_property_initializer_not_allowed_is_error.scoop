@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extension_property_initializer_not_allowed
+// EXPECT-ERROR-AT: 10:23
+// EXPECT-ERROR: 不允许 initializer
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val String.bad: Int = 1
+

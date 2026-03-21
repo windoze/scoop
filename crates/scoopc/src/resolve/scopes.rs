@@ -113,6 +113,7 @@ impl<'a> BlockScopeChecker<'a> {
         for item in &mut file.items {
             match item {
                 ast::Item::Fun(fun) => self.check_fun(fun)?,
+                ast::Item::ExtensionProperty(p) => self.check_extension_property(p)?,
                 ast::Item::Type(ty) => self.check_type_decl(ty, &pkg_prefix)?,
                 ast::Item::Object(obj) => self.check_object_decl(obj, &pkg_prefix)?,
                 ast::Item::Val(v) => self.check_top_level_val(v)?,
@@ -266,6 +267,46 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         self.check_fun_body(fun)
+    }
+
+    fn check_extension_property(
+        &mut self,
+        p: &mut ast::ExtensionPropertyDecl,
+    ) -> Result<(), ResolveError> {
+        // 扩展属性：`this` 指向 receiver（与扩展函数保持一致）。
+        let this_ctx = ThisContext {
+            decl_span: p.receiver.span(),
+            ty_fqn: self.type_ref_to_fqn(&p.receiver),
+        };
+
+        // extension property 没有主构造参数。
+        let ctor_params: &[ast::Param] = &[];
+
+        self.with_this_context(this_ctx, |this| {
+            // initializer 语义上可能不被允许（由 typecheck 处理），但 resolver 仍需要在其中解析值引用，
+            // 以便保持错误定位稳定、避免后续阶段重复报错。
+            if let Some(init) = &mut p.init {
+                this.check_expr(init)?;
+            }
+
+            // 与 class 属性一致：为 `field` 注入一个隐式局部绑定，便于后续 typecheck 给出“无 backing field”
+            // 的专门诊断（而不是在 resolve 阶段提前报 UnresolvedValue）。
+            let backing_field = BackingFieldBinding {
+                decl_span: p.name.span,
+                ty: p.ty.clone(),
+            };
+
+            if let Some(getter) = &mut p.getter {
+                this.check_accessor_in_type(getter, ctor_params, Some(&backing_field))?;
+            }
+            if let Some(setter) = &mut p.setter {
+                this.check_accessor_in_type(setter, ctor_params, Some(&backing_field))?;
+            }
+
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     fn check_fun_body(&mut self, fun: &mut ast::FunDecl) -> Result<(), ResolveError> {

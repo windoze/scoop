@@ -940,11 +940,12 @@
 - 依赖：T0431、T0409、T0425
 - 完成：在 `crates/scoopc/src/typecheck/properties.rs` 增加值类型属性规则：struct/enum 中属性不允许 `var`（`scoop::typecheck::value_type_property_must_be_val`）；computed 属性（声明了 getter）不允许 initializer（`scoop::typecheck::value_type_property_initializer_not_allowed`）；同时沿用 `val_property_setter_not_allowed` 禁止 setter。并将入口统一为 `check_file_properties`（class + value type）。新增 fixtures：`tests/fixtures/typecheck/struct_computed_property_getter_only_ok.scoop`、`struct_property_setter_not_allowed_is_error.scoop`、`enum_computed_property_getter_only_ok.scoop`、`enum_computed_property_initializer_not_allowed_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0433 [TODO] 扩展属性：必须 computed（无 backing field）（spec §10.3）
+### T0433 [DONE] 扩展属性：必须 computed（无 backing field）（spec §10.3）
 - 描述：实现 extension property 的规则：不能有 initializer/field；编译模型为静态 getter/setter。
 - 目标：先只做静态检查；lowering 到函数在 IR 阶段做。
 - 验收：typecheck fixture：`val String.lastChar get() = ...` 通过；写 initializer 报错。
 - 依赖：T0233、T0234
+- 完成：新增顶层 AST `ExtensionPropertyDecl`（`ast::Item::ExtensionProperty`），并在 parser 中支持 `val/var ReceiverType.name: Type get()/set()` 语法；resolver phase 2 支持进入 extension property 的 initializer/accessor 并注入隐式 `field` 绑定以保持诊断一致；typecheck 增加扩展属性静态规则（必须 computed：要求 getter；`var` 需 setter；禁止 initializer；禁止 `field`），并新增错误码：`scoop::typecheck::extension_property_*`；fixtures：`tests/fixtures/typecheck/extension_property_getter_only_ok.scoop`、`extension_property_initializer_not_allowed_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0434 [TODO] 委托属性：解析后类型规则与最小 lowering 计划（spec §10.4）
 - 描述：检查 delegated property：只能用于 class；delegate 必须实现 `getValue/setValue`；生成 `PropertyMeta` 参数（编译期元数据）。

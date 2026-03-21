@@ -59,11 +59,21 @@ impl<'a> Parser<'a> {
                 head,
                 TokenKind::Keyword(Keyword::Val | Keyword::Var)
             ) {
-                match self.parse_val_decl() {
-                    Ok(decl) => items.push(ast::Item::Val(decl)),
-                    Err(e) => {
-                        self.record_error(e);
-                        self.recover_to_top_level_sync();
+                if self.is_extension_property_decl_start() {
+                    match self.parse_extension_property_decl() {
+                        Ok(decl) => items.push(ast::Item::ExtensionProperty(decl)),
+                        Err(e) => {
+                            self.record_error(e);
+                            self.recover_to_top_level_sync();
+                        }
+                    }
+                } else {
+                    match self.parse_val_decl() {
+                        Ok(decl) => items.push(ast::Item::Val(decl)),
+                        Err(e) => {
+                            self.record_error(e);
+                            self.recover_to_top_level_sync();
+                        }
                     }
                 }
                 continue;

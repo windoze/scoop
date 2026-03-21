@@ -271,8 +271,10 @@
   - [x] computed property 仅允许 getter-only（禁止 setter）
   - [x] computed property 不允许 initializer（避免 backing field）
   - [x] struct/enum 内属性不允许 `var`
-- [ ] 扩展属性：
-  - 编译为静态 getter/setter（receiver 作为第一个参数）
+- [x] 扩展属性（T0433：解析 + typecheck 侧门禁）：
+  - [x] 顶层语法：`val/var ReceiverType.name: Type get()/set()`
+  - [x] computed 约束：禁止 initializer / 禁止 `field` / getter 必需 / `var` 需 setter
+  - [ ] lowering：编译为静态 getter/setter（receiver 作为第一个参数）
 - [ ] 委托属性（delegated properties）：
   - `by` 语法解析与 lowering（生成 `$delegate` 字段 + 转发到 `getValue/setValue`）
   - `PropertyMeta` 生成（编译期常量/元数据；与 §13 comptime/反射联动）
