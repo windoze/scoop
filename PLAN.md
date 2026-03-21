@@ -236,6 +236,7 @@
 
 - [ ] `when` 表达式（穷尽性检查可分阶段做）
   - [x] 分支结果类型（最小 LUB）：一致 → 该类型；不一致 → `Any`（T0414）
+  - [x] 分支 pattern 最小类型检查：tuple/variant 限定 + binder 注入分支作用域（T0427）
 - [x] `is` / `!is` + smart cast（T0413：最小子集，仅 `if (x is T)`/`if (x !is T)`；仅参数 + `val`）
 - [x] `as` / `as?`：基础类型规则已实现（T0412）；按 spec 的运行时失败路径（`Raise.raise(RuntimeError.ClassCastFailed)`）待 effect 系统（required effect row/try-catch）补齐后接入
 

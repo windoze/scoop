@@ -898,11 +898,12 @@
 - 依赖：T0240、T0311、T0425
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 的 `infer_call_expr_type` 中把“未 resolve 的 `Call(Ident)`”当作 enum variant ctor 候选处理；通过 `TypeEnv::find_enum_variants_named` 要求同名唯一，否则报 `scoop::typecheck::ambiguous_enum_variant_ctor`；对唯一候选检查参数数量（`scoop::typecheck::enum_variant_ctor_arity_mismatch`）与参数类型（`scoop::typecheck::enum_variant_ctor_arg_type_mismatch`），并做最小泛型推断（从 payload 字段为直接 type param 的位置推断 `T`，缺失时报 `scoop::typecheck::enum_variant_ctor_type_arg_not_inferred`）。fixtures：`tests/fixtures/typecheck/enum_variant_ctor_some_ok.scoop`、`tests/fixtures/typecheck/enum_variant_ctor_arity_mismatch_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0427 [TODO] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
+### T0427 [DONE] `when`：variant pattern 与 tuple pattern 的类型检查（spec §4）
 - 描述：对 pattern 进行类型约束：variant pattern 仅用于 enum；tuple pattern 仅用于 tuple；绑定变量进入分支作用域。
 - 目标：先不做穷尽性；先只做“每个分支内部类型正确”。
 - 验收：typecheck fixture：`when(opt){ Some(x)->x; None->0 }` 通过；把 Some 用在非 enum 上时报错。
 - 依赖：T0243、T0426、T0410
+- 完成：新增 `crates/scoopc/src/typecheck/when_pat.rs` 的 `infer_when_pat_bindings`，为 tuple/variant pattern 做最小类型约束并收集 binder；并在 `crates/scoopc/src/typecheck/expr.rs` 的 `ExprKind::When` 中把 binder 注入 arm 局部环境；fixtures：`tests/fixtures/typecheck/when_variant_pattern_binds_ok.scoop`、`when_variant_pattern_not_enum_is_error.scoop`、`tests/fixtures/typecheck/when_tuple_pattern_binds_ok.scoop`、`when_tuple_pattern_not_tuple_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0428 [TODO] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
 - 描述：对可穷尽类型要求覆盖所有 variant（或允许 else）；非穷尽类型必须有 else/_。
