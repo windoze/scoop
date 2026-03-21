@@ -905,11 +905,12 @@
 - 依赖：T0243、T0426、T0410
 - 完成：新增 `crates/scoopc/src/typecheck/when_pat.rs` 的 `infer_when_pat_bindings`，为 tuple/variant pattern 做最小类型约束并收集 binder；并在 `crates/scoopc/src/typecheck/expr.rs` 的 `ExprKind::When` 中把 binder 注入 arm 局部环境；fixtures：`tests/fixtures/typecheck/when_variant_pattern_binds_ok.scoop`、`when_variant_pattern_not_enum_is_error.scoop`、`tests/fixtures/typecheck/when_tuple_pattern_binds_ok.scoop`、`when_tuple_pattern_not_tuple_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0428 [TODO] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
+### T0428 [DONE] `when`：穷尽性检查（enum/Bool/Option）与 else 规则（spec §4.1）
 - 描述：对可穷尽类型要求覆盖所有 variant（或允许 else）；非穷尽类型必须有 else/_。
 - 目标：先只支持 enum 与 Bool 与 Option<T>；嵌套组合后续。
 - 验收：typecheck fixture：缺少 None 分支时报错；覆盖完整且仍写 else 时产生 warning（先可仅记录 warning，不必 fixtures 断言）。
 - 依赖：T0427
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `check_when_exhaustiveness`：支持 enum/Bool/Option 的穷尽性检查与缺失分支诊断；对非穷尽类型强制 `else`/`_`/bind catch-all；穷尽时仍写 `else` 记录 warning。fixtures：`tests/fixtures/typecheck/when_option_missing_none_is_error.scoop`、`when_int_missing_else_is_error.scoop`、`when_bool_missing_false_is_error.scoop`、`when_enum_missing_variant_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0429 [TODO] pattern guard：带 `if` 的分支视为非穷尽（spec §4.1/§4）
 - 描述：当某个分支带 guard 时，穷尽性检查应要求 else/_（或把该分支不计入覆盖）。

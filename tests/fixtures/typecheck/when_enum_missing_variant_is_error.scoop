@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_non_exhaustive_missing_variants
+// EXPECT-ERROR-AT: 17:14
+// EXPECT-ERROR: B
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum E {
+  A,
+  B,
+}
+
+val e: E = A()
+
+val x: Int = when (e) {
+  A -> 1
+}
+

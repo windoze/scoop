@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_non_exhaustive_missing_variants
+// EXPECT-ERROR-AT: 10:14
+// EXPECT-ERROR: false
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val x: Int = when (true) {
+  true -> 1
+}
+
