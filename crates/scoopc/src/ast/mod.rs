@@ -425,6 +425,12 @@ pub struct PropertyDecl {
     ///
     /// 注意：属性也可以是“纯计算属性”（无 backing field），此时 `init` 可能为 None。
     pub init: Option<Expr>,
+    /// 委托表达式（delegated property）：`val/var x: T by expr`（spec §10.4）。
+    ///
+    /// 说明：
+    /// - 委托属性与 `init`/accessors 在语义上互斥：getter/setter 会在 lowering 中生成；
+    /// - 本字段只承载语法与后续 typecheck 所需信息，具体 `$delegate` 字段生成见 lowering 任务。
+    pub delegate: Option<Expr>,
     /// 自定义 getter（`get()`）。
     pub getter: Option<AccessorDecl>,
     /// 自定义 setter（`set(value)`）。
@@ -442,6 +448,9 @@ impl std::fmt::Debug for PropertyDecl {
         s.field("name", &self.name);
         s.field("ty", &self.ty);
         s.field("init", &self.init);
+        if self.delegate.is_some() {
+            s.field("delegate", &self.delegate);
+        }
         s.field("getter", &self.getter);
         s.field("setter", &self.setter);
         s.finish()

@@ -1,0 +1,14 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class TrimDelegate() {
+    fun getValue(thisRef: Any, property: Any): String { "" }
+    fun setValue(thisRef: Any, property: Any, value: String) { () }
+}
+
+class Example {
+    var text: String by TrimDelegate()
+}

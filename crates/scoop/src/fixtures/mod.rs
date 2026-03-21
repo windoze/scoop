@@ -240,7 +240,7 @@ fn typecheck_fixture(
     scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(box_diagnostic)?;
 
     // T0431/T0432：属性（class/value type）的最小语义检查。
-    scoopc::typecheck::check_file_properties(source, &ast).map_err(box_diagnostic)?;
+    scoopc::typecheck::check_file_properties(source, &ast, &index).map_err(box_diagnostic)?;
 
     // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(box_diagnostic)?;

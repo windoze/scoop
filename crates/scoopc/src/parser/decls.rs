@@ -1643,7 +1643,68 @@ impl<'a> Parser<'a> {
             .map(|t| t.span().end)
             .unwrap_or(name_tok.span.end);
 
-        let init = if self.eat_symbol(Symbol::Eq) {
+        // delegated property：`val/var x: T by expr`（spec §10.4）。
+        //
+        // 说明：
+        // - `by` 不是保留关键字，因此 lexer 仍会产出 `Ident`；
+        // - 这里以“上下文关键字”的方式识别；
+        // - delegated property 与 initializer/accessors 语法互斥（与 Kotlin-like 行为对齐，简化 early stage）。
+        let delegate = if self.peek_kind(TokenKind::Ident)
+            && self
+                .source_text
+                .get(self.peek().span.start..self.peek().span.end)
+                == Some("by")
+        {
+            // consume `by`
+            self.bump();
+
+            if self.peek_kind(TokenKind::Eof)
+                || self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+                || self.is_property_accessor_start()
+            {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "表达式（delegate）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            }
+
+            let delegate_start = self.peek().span.start;
+            let expr = self.try_parse_expr()?;
+
+            let delegate_expr = if let Some(expr) = expr {
+                last_end = expr.span.end;
+                if self.peek_kind(TokenKind::Eof)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.peek_symbol(Symbol::RBrace)
+                    || self.is_type_member_start()
+                    || self.is_property_accessor_start()
+                {
+                    expr
+                } else {
+                    let span = self.skip_until_type_member_or_accessor_boundary(
+                        delegate_start,
+                        last_end,
+                    );
+                    last_end = span.end;
+                    ast::Expr::missing(span)
+                }
+            } else {
+                let span =
+                    self.skip_until_type_member_or_accessor_boundary(delegate_start, last_end);
+                last_end = span.end;
+                ast::Expr::missing(span)
+            };
+
+            Some(delegate_expr)
+        } else {
+            None
+        };
+
+        let init = if delegate.is_none() && self.eat_symbol(Symbol::Eq) {
             if self.peek_kind(TokenKind::Eof)
                 || self.peek_symbol(Symbol::Semicolon)
                 || self.peek_symbol(Symbol::RBrace)
@@ -1690,7 +1751,16 @@ impl<'a> Parser<'a> {
         // accessors：`get()` / `set(value)`
         let mut getter = None;
         let mut setter = None;
-        while self.is_property_accessor_start() {
+        if delegate.is_some() && self.is_property_accessor_start() {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "委托属性不支持 accessors（请移除 `get/set`）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        while delegate.is_none() && self.is_property_accessor_start() {
             let acc = self.parse_property_accessor_decl()?;
             last_end = last_end.max(acc.span.end);
             match acc.kind {
@@ -1708,6 +1778,7 @@ impl<'a> Parser<'a> {
             name,
             ty,
             init,
+            delegate,
             getter,
             setter,
         })

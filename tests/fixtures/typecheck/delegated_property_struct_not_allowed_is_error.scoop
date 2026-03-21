@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::delegated_property_not_allowed_in_value_type
+// EXPECT-ERROR-AT: 11:9
+// EXPECT-ERROR: 不允许委托属性
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct S {
+    val x: String by D()
+}
+
+class D {
+    fun getValue(thisRef: Any, property: Any): String { "" }
+}
+

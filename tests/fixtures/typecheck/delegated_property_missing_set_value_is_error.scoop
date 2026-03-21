@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::delegated_property_missing_set_value
+// EXPECT-ERROR-AT: 15:25
+// EXPECT-ERROR: 缺少 `setValue`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class ReadOnlyDelegate() {
+    fun getValue(thisRef: Any, property: Any): String { "" }
+}
+
+class Example {
+    var text: String by ReadOnlyDelegate()
+}

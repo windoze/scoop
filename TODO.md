@@ -947,7 +947,7 @@
 - 依赖：T0233、T0234
 - 完成：新增顶层 AST `ExtensionPropertyDecl`（`ast::Item::ExtensionProperty`），并在 parser 中支持 `val/var ReceiverType.name: Type get()/set()` 语法；resolver phase 2 支持进入 extension property 的 initializer/accessor 并注入隐式 `field` 绑定以保持诊断一致；typecheck 增加扩展属性静态规则（必须 computed：要求 getter；`var` 需 setter；禁止 initializer；禁止 `field`），并新增错误码：`scoop::typecheck::extension_property_*`；fixtures：`tests/fixtures/typecheck/extension_property_getter_only_ok.scoop`、`extension_property_initializer_not_allowed_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0434a [TODO] 委托属性：语法 + 最小静态规则（spec §10.4）
+### T0434a [DONE] 委托属性：语法 + 最小静态规则（spec §10.4）
 - 描述：在属性声明中支持 `val/var name: T by expr`，并在 typecheck 中检查 delegated property：
   - 仅允许出现在 class（struct/enum 禁止）
   - delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（可先只检查方法名存在性）
@@ -957,6 +957,7 @@
   - class 里写 `by` 且 delegate 定义 `getValue/setValue` 通过
   - 缺少 `getValue`/`setValue` 报错
 - 依赖：T0234、T0431
+- 完成：AST `PropertyDecl` 新增 `delegate: Option<Expr>` 字段；parser 支持 `val/var name: T by expr`（把 `by` 作为上下文关键字识别，且与 initializer/accessors 语法互斥）；resolver 在属性初始化语境内解析 delegate expr（并对 delegated property 不注入 `field`）；typecheck 增加 delegated property 静态规则：struct/enum 禁止、class 要求 delegate 类型存在 `getValue`，`var` 还要求 `setValue`（当前仅检查方法名存在性，`PropertyMeta`/签名检查留给 T0434b/T1208）。fixtures：`tests/fixtures/typecheck/delegated_property_*`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0434b [TODO] 委托属性：对接 `PropertyMeta` 并升级为签名检查（spec §10.4）
 - 描述：在 typecheck 中把 delegated property 的规则升级为“签名检查”：

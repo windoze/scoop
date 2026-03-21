@@ -12,6 +12,9 @@
 //!   - 不允许 initializer
 //!   - 不允许引用 `field`
 //!   - 必须显式声明 getter；`var` 还必须显式声明 setter
+//! - delegated property（spec §10.4）：
+//!   - 仅允许出现在 class（struct/enum 禁止）
+//!   - delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（当前阶段仅检查方法名存在性）
 //!
 //! 说明：
 //! - 该模块不做 codegen，也不展开 property → getter/setter 调用的 lowering；
@@ -21,6 +24,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 
@@ -106,6 +110,35 @@ pub enum PropertyDeclError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("值类型（struct/enum）不允许委托属性（`by`）：{type_fqn}.{property}")]
+    #[diagnostic(code(scoop::typecheck::delegated_property_not_allowed_in_value_type))]
+    DelegatedPropertyNotAllowedInValueType {
+        type_fqn: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("委托属性的 delegate 缺少 `getValue`：{class_fqn}.{property}（delegate: {delegate_ty}）")]
+    #[diagnostic(code(scoop::typecheck::delegated_property_missing_get_value))]
+    DelegatedPropertyMissingGetValue {
+        class_fqn: String,
+        property: String,
+        delegate_ty: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`var` 委托属性的 delegate 缺少 `setValue`：{class_fqn}.{property}（delegate: {delegate_ty}）")]
+    #[diagnostic(code(scoop::typecheck::delegated_property_missing_set_value))]
+    DelegatedPropertyMissingSetValue {
+        class_fqn: String,
+        property: String,
+        delegate_ty: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
@@ -114,11 +147,12 @@ pub enum PropertyDeclError {
 pub fn check_file_properties(
     source: &SourceFile,
     file: &ast::File,
+    index: &Index,
 ) -> Result<(), PropertyDeclError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
-            ast::Item::Type(ty) => check_type_decl_properties(source, ty, &pkg_prefix)?,
+            ast::Item::Type(ty) => check_type_decl_properties(source, ty, &pkg_prefix, index)?,
             ast::Item::ExtensionProperty(p) => check_one_extension_property(source, p)?,
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
@@ -133,6 +167,7 @@ fn check_type_decl_properties(
     source: &SourceFile,
     decl: &ast::TypeDecl,
     prefix: &str,
+    index: &Index,
 ) -> Result<(), PropertyDeclError> {
     let local_name = source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
@@ -146,7 +181,7 @@ fn check_type_decl_properties(
             if let Some(body) = &decl.body {
                 for member in &body.members {
                     if let ast::TypeMember::Property(p) = member {
-                        check_one_class_property(source, &type_fqn, p)?;
+                        check_one_class_property(source, &type_fqn, p, index)?;
                     }
                 }
             }
@@ -171,7 +206,7 @@ fn check_type_decl_properties(
         let ast::TypeMember::Type(nested) = member else {
             continue;
         };
-        check_type_decl_properties(source, nested, &type_fqn)?;
+        check_type_decl_properties(source, nested, &type_fqn, index)?;
     }
 
     Ok(())
@@ -181,8 +216,38 @@ fn check_one_class_property(
     source: &SourceFile,
     class_fqn: &str,
     p: &ast::PropertyDecl,
+    index: &Index,
 ) -> Result<(), PropertyDeclError> {
     let property = source.slice(p.name.span).to_string();
+
+    if let Some(delegate) = &p.delegate {
+        // 最小规则：delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（spec §10.4）。
+        //
+        // 注意：当前阶段仅做“方法名存在性”检查：
+        // - `PropertyMeta` 与签名匹配留到 T0434b/T1208；
+        // - 若无法从 delegate expr 推导出 delegate nominal type，则保守放行（避免误伤未覆盖的表达式形态）。
+        if let Some(delegate_ty) = delegate_expr_constructor_type_fqn(delegate) {
+            if !type_has_method_named(index, &delegate_ty, "getValue") {
+                return Err(PropertyDeclError::DelegatedPropertyMissingGetValue {
+                    class_fqn: class_fqn.to_string(),
+                    property,
+                    delegate_ty,
+                    span: delegate.span.into(),
+                });
+            }
+
+            if matches!(p.kind, ast::ValKind::Var)
+                && !type_has_method_named(index, &delegate_ty, "setValue")
+            {
+                return Err(PropertyDeclError::DelegatedPropertyMissingSetValue {
+                    class_fqn: class_fqn.to_string(),
+                    property,
+                    delegate_ty,
+                    span: delegate.span.into(),
+                });
+            }
+        }
+    }
 
     // `val` 是只读属性：不应存在 setter。
     if matches!(p.kind, ast::ValKind::Val) {
@@ -204,7 +269,8 @@ fn check_one_class_property(
     //   该语义与初始化模型/loweing 更深度耦合，当前阶段仅做“禁止在 computed 属性中使用 `field`”的门禁。
     let has_default_getter = p.getter.is_none();
     let has_default_setter = matches!(p.kind, ast::ValKind::Var) && p.setter.is_none();
-    let has_backing_field = p.init.is_some() || has_default_getter || has_default_setter;
+    let has_backing_field =
+        p.delegate.is_none() && (p.init.is_some() || has_default_getter || has_default_setter);
 
     if !has_backing_field {
         let decl_span = p.name.span;
@@ -228,6 +294,15 @@ fn check_one_value_type_property(
     p: &ast::PropertyDecl,
 ) -> Result<(), PropertyDeclError> {
     let property = source.slice(p.name.span).to_string();
+
+    // 委托属性仅允许出现在 class（spec §10.4）。
+    if p.delegate.is_some() {
+        return Err(PropertyDeclError::DelegatedPropertyNotAllowedInValueType {
+            type_fqn: type_fqn.to_string(),
+            property,
+            span: p.name.span.into(),
+        });
+    }
 
     // 值类型不可变：属性不允许 `var`（即使语法上能解析）。
     if matches!(p.kind, ast::ValKind::Var) {
@@ -505,4 +580,40 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn delegate_expr_constructor_type_fqn(delegate: &ast::Expr) -> Option<String> {
+    let ast::ExprKind::Call { callee, .. } = &delegate.kind else {
+        return None;
+    };
+
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+
+    let call = id.call.as_ref()?;
+    let mut ctors: Vec<String> = call
+        .candidates
+        .iter()
+        .filter_map(|c| match c {
+            ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+            ast::CallCandidate::Fun { .. } => None,
+        })
+        .collect();
+    ctors.sort();
+    ctors.dedup();
+
+    if ctors.len() == 1 {
+        return Some(ctors.remove(0));
+    }
+
+    None
+}
+
+fn type_has_method_named(index: &Index, ty_fqn: &str, method: &str) -> bool {
+    let fqn = format!("{ty_fqn}.{method}");
+    index
+        .by_fqn
+        .get(&fqn)
+        .is_some_and(|symbols| !symbols.fun.is_empty())
 }

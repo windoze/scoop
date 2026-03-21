@@ -387,6 +387,25 @@ impl<'a> BlockScopeChecker<'a> {
                 })?;
             }
 
+            // 委托属性：delegate 表达式属于初始化语境，同样允许引用主构造参数（T0313）
+            // 且遵循初始化阶段的前向引用限制（T0316）。
+            if let Some(delegate) = &mut p.delegate {
+                this.with_ctor_params_scope(ctor_params, |this| {
+                    if let Some(visible) = init_visible_value_members {
+                        this.with_init_value_members_context(
+                            this_ctx.ty_fqn.as_deref(),
+                            visible,
+                            |this| this.check_expr(delegate),
+                        )?;
+                        return Ok(());
+                    }
+                    this.check_expr(delegate)
+                })?;
+            }
+
+            // delegated property 不生成 backing field：因此不注入 `field`。
+            let inject_backing_field_ident = inject_backing_field_ident && p.delegate.is_none();
+
             let backing_field = inject_backing_field_ident.then_some(BackingFieldBinding {
                 decl_span: p.name.span,
                 ty: p.ty.clone(),

@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::delegated_property_missing_get_value
+// EXPECT-ERROR-AT: 16:25
+// EXPECT-ERROR: 缺少 `getValue`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class BadDelegate() {
+    // 缺少 `getValue`：应该触发 delegated property 的静态检查错误。
+    fun setValue(thisRef: Any, property: Any, value: String) { () }
+}
+
+class Example {
+    val text: String by BadDelegate()
+}
