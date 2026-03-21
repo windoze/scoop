@@ -870,11 +870,12 @@
 - 依赖：T0229、T0411、T0407
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 safe-call 的 receiver 检查与返回值 `Option` 包装（`Call(SafeMemberAccess)` → `infer_member_call_expr_type(..., safe=true)` 返回 `Option<Ret>`；字段访问 `receiver?.field` 返回 `Option<FieldTy>`），并实现 Elvis `?:` 的类型规则（`Option<T> ?: T` → `T`，rhs 需可赋值给 T）；新增 fixture `tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop` 覆盖 `x?.len()` 与 `n ?: 0`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0423 [TODO] struct literal 的类型检查（字段存在性/类型匹配）
+### T0423 [DONE] struct literal 的类型检查（字段存在性/类型匹配）
 - 描述：检查 `Point { x: 1, y: 2 }`：字段必须存在、不可重复、类型匹配、必填字段覆盖规则（按设计）。
 - 目标：先只支持所有字段都必须提供的模式；默认值/可选字段后置。
 - 验收：typecheck fixture：缺字段/多字段/重复字段都报错并定位到字段名或逗号位置。
 - 依赖：T0224、T0409、T0405
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 `infer_struct_lit_expr_type`：校验 struct 类型、字段存在性/重复、初始化值类型可赋值，并强制必须显式提供所有字段（缺字段尽量指向 `}`）。新增/补齐 fixtures：`tests/fixtures/typecheck/struct_lit_ok.scoop`、`tests/fixtures/typecheck/struct_lit_unknown_field_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_duplicate_field_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_missing_fields_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_field_type_mismatch_is_error.scoop`、`tests/fixtures/typecheck/struct_lit_not_struct_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0424 [TODO] `with`：嵌套 path 与并行求值语义（spec §2.6）
 - 描述：支持 `p with { a.b: v }` 的嵌套更新，并保证 RHS 基于“原值并行求值”（无顺序依赖）。
