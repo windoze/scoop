@@ -1110,13 +1110,11 @@ impl<'a> Parser<'a> {
             let guard = if self.peek_keyword(Keyword::If) {
                 self.bump();
                 let tok = *self.peek();
-                Some(
-                    self.try_parse_expr()?.ok_or(ParseError::Expected {
-                        expected: "表达式（when 分支 guard）",
-                        found: tok.kind,
-                        span: tok.span.into(),
-                    })?,
-                )
+                Some(self.try_parse_expr()?.ok_or(ParseError::Expected {
+                    expected: "表达式（when 分支 guard）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                })?)
             } else {
                 None
             };
@@ -1221,6 +1219,7 @@ impl<'a> Parser<'a> {
                 let start = tok.span.start;
 
                 let mut args = Vec::new();
+                let mut rest_span: Option<Span> = None;
                 if self.peek_symbol(Symbol::RParen) {
                     let close = self.bump();
                     return Ok(ast::WhenPat::Variant {
@@ -1231,7 +1230,48 @@ impl<'a> Parser<'a> {
                 }
 
                 loop {
-                    args.push(self.parse_when_pat_internal(false)?);
+                    // `..` rest：仅允许出现一次，并且必须是最后一个参数。
+                    if rest_span.is_some() {
+                        let tok = *self.peek();
+                        if self.peek_symbol(Symbol::Dot)
+                            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                        {
+                            let err = ParseError::Expected {
+                                expected: "when variant pattern：`..` 只能出现一次",
+                                found: tok.kind,
+                                span: tok.span.into(),
+                            };
+                            let _ = self.consume_balanced_after_open(
+                                Symbol::LParen,
+                                Symbol::RParen,
+                                open.span.start,
+                            );
+                            return Err(err);
+                        }
+                        let err = ParseError::Expected {
+                            expected: "`)`（`..` 必须是最后一个参数）",
+                            found: tok.kind,
+                            span: tok.span.into(),
+                        };
+                        let _ = self.consume_balanced_after_open(
+                            Symbol::LParen,
+                            Symbol::RParen,
+                            open.span.start,
+                        );
+                        return Err(err);
+                    }
+
+                    if self.peek_symbol(Symbol::Dot)
+                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                    {
+                        let dot1 = self.bump();
+                        let dot2 = self.bump();
+                        let span = Span::new(dot1.span.start, dot2.span.end);
+                        rest_span = Some(span);
+                        args.push(ast::WhenPat::Rest { span });
+                    } else {
+                        args.push(self.parse_when_pat_internal(false)?);
+                    }
                     if self.eat_symbol(Symbol::Comma) {
                         // allow trailing comma
                         if self.peek_symbol(Symbol::RParen) {
@@ -1288,6 +1328,7 @@ impl<'a> Parser<'a> {
         let start = open.span.start;
 
         let mut elements = Vec::new();
+        let mut rest_span: Option<Span> = None;
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
             return Ok(ast::WhenPat::Tuple {
@@ -1297,7 +1338,48 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            elements.push(self.parse_when_pat_internal(false)?);
+            // `..` rest：仅允许出现一次，并且必须是最后一个元素。
+            if rest_span.is_some() {
+                let tok = *self.peek();
+                if self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                {
+                    let err = ParseError::Expected {
+                        expected: "when tuple pattern：`..` 只能出现一次",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    };
+                    let _ = self.consume_balanced_after_open(
+                        Symbol::LParen,
+                        Symbol::RParen,
+                        open.span.start,
+                    );
+                    return Err(err);
+                }
+                let err = ParseError::Expected {
+                    expected: "`)`（`..` 必须是最后一个元素）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                };
+                let _ = self.consume_balanced_after_open(
+                    Symbol::LParen,
+                    Symbol::RParen,
+                    open.span.start,
+                );
+                return Err(err);
+            }
+
+            if self.peek_symbol(Symbol::Dot)
+                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            {
+                let dot1 = self.bump();
+                let dot2 = self.bump();
+                let span = Span::new(dot1.span.start, dot2.span.end);
+                rest_span = Some(span);
+                elements.push(ast::WhenPat::Rest { span });
+            } else {
+                elements.push(self.parse_when_pat_internal(false)?);
+            }
             if self.eat_symbol(Symbol::Comma) {
                 // allow trailing comma
                 if self.peek_symbol(Symbol::RParen) {
@@ -1357,7 +1439,9 @@ impl<'a> Parser<'a> {
                 ast::Expr {
                     span: Span::new(name_tok.span.start, value.span.end),
                     kind: ast::ExprKind::NamedArg {
-                        name: ast::Ident { span: name_tok.span },
+                        name: ast::Ident {
+                            span: name_tok.span,
+                        },
                         eq_span: eq.span,
                         value: Box::new(value),
                     },

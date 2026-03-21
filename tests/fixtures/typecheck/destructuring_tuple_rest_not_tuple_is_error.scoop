@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::val_tuple_pat_not_tuple
+// EXPECT-ERROR-AT: 12:9
+// EXPECT-ERROR: tuple pattern 只能用于 tuple/Unit
+// 目标：T0450 对非解构类型使用 `..`（tuple pattern）应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    val (x, ..) = 1
+}

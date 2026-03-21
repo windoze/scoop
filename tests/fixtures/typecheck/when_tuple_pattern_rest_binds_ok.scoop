@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0450 `when` tuple pattern：支持 rest `..` 忽略剩余元素，并把 binder 引入分支作用域。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val t: (Int, String, Bool) = (1, "x", true)
+
+val x: Int = when (t) {
+  (a, ..) -> a
+  else -> 0
+}
+

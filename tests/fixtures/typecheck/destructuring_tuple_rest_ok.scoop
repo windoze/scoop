@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0450 pattern rest `..`：`val (x, ..) = t` 允许忽略剩余元素且不引入额外绑定。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun use(t: (Int, String, Bool)) {
+    val (x, ..) = t
+    val a: Int = x
+}
+

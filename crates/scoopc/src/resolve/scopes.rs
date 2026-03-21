@@ -135,7 +135,11 @@ impl<'a> BlockScopeChecker<'a> {
         Ok(())
     }
 
-    fn check_type_decl(&mut self, ty: &mut ast::TypeDecl, prefix: &str) -> Result<(), ResolveError> {
+    fn check_type_decl(
+        &mut self,
+        ty: &mut ast::TypeDecl,
+        prefix: &str,
+    ) -> Result<(), ResolveError> {
         // T0313：主构造参数默认值属于“初始化语境”，但不引入 `this`；
         // 这里先做最小值名字解析（可引用同一 ctor 中更早声明的参数）。
         if let Some(primary_ctor) = &mut ty.primary_ctor {
@@ -193,7 +197,12 @@ impl<'a> BlockScopeChecker<'a> {
                 }
                 ast::TypeMember::InitBlock(b) => {
                     if matches!(ty.kind, ast::TypeKind::Class) {
-                        self.check_type_member_init_block(b, &this_ctx, ctor_params, &init_visible_value_members)?;
+                        self.check_type_member_init_block(
+                            b,
+                            &this_ctx,
+                            ctor_params,
+                            &init_visible_value_members,
+                        )?;
                     }
                 }
                 ast::TypeMember::SecondaryCtor(ctor) => {
@@ -201,7 +210,9 @@ impl<'a> BlockScopeChecker<'a> {
                         self.check_type_member_secondary_ctor(ctor, &this_ctx, ctor_params)?;
                     }
                 }
-                ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
+                ast::TypeMember::Fun(fun) => {
+                    self.check_type_member_fun(fun, &this_ctx, ctor_params)?
+                }
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, &type_fqn)?,
                 ast::TypeMember::Object(obj) => self.check_object_decl(obj, &type_fqn)?,
             }
@@ -229,11 +240,7 @@ impl<'a> BlockScopeChecker<'a> {
         });
 
         let this_ctx = ThisContext {
-            decl_span: obj
-                .name
-                .as_ref()
-                .map(|n| n.span)
-                .unwrap_or(obj.span),
+            decl_span: obj.name.as_ref().map(|n| n.span).unwrap_or(obj.span),
             ty_fqn: obj_fqn.clone(),
         };
 
@@ -250,7 +257,9 @@ impl<'a> BlockScopeChecker<'a> {
                 }
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(_ctor) => {}
-                ast::TypeMember::Fun(fun) => self.check_type_member_fun(fun, &this_ctx, ctor_params)?,
+                ast::TypeMember::Fun(fun) => {
+                    self.check_type_member_fun(fun, &this_ctx, ctor_params)?
+                }
                 ast::TypeMember::Type(nested) => self.check_type_decl(nested, nested_prefix)?,
                 ast::TypeMember::Object(nested) => self.check_object_decl(nested, nested_prefix)?,
             }
@@ -740,6 +749,7 @@ impl<'a> BlockScopeChecker<'a> {
             ast::WhenPat::Else { .. }
             | ast::WhenPat::Is { .. }
             | ast::WhenPat::Wildcard { .. }
+            | ast::WhenPat::Rest { .. }
             | ast::WhenPat::IntLit { .. }
             | ast::WhenPat::StringLit { .. }
             | ast::WhenPat::BoolLit { .. } => Ok(()),
@@ -852,9 +862,11 @@ impl<'a> BlockScopeChecker<'a> {
         };
 
         let fqn = match resolved {
-            ast::ResolvedMemberRef::Fun { fqn }
-            | ast::ResolvedMemberRef::ExtensionFun { fqn } => fqn.clone(),
-            ast::ResolvedMemberRef::Value { .. } | ast::ResolvedMemberRef::ExtensionValue { .. } => {
+            ast::ResolvedMemberRef::Fun { fqn } | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+                fqn.clone()
+            }
+            ast::ResolvedMemberRef::Value { .. }
+            | ast::ResolvedMemberRef::ExtensionValue { .. } => {
                 // `p.x()`：此时 callee 是一个 value member，是否可调用取决于其类型（留给 typecheck）。
                 return Ok(());
             }
@@ -979,7 +991,8 @@ impl<'a> BlockScopeChecker<'a> {
                 // 记录“只有不可见候选”的情况，用于在最终无匹配时给出 NotVisible（优先于 UnresolvedValue）。
                 if let Some(first) = syms.first_fun() {
                     if not_visible.is_none() {
-                        not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+                        not_visible =
+                            Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
                     }
                 }
             }
@@ -1209,11 +1222,23 @@ impl<'a> BlockScopeChecker<'a> {
         };
 
         match receiver_kind {
-            MemberReceiverKind::Value { ty_fqn: receiver_ty_fqn } => {
-                return self.resolve_member_access_on_value_receiver(&receiver_ty_fqn, receiver, member);
+            MemberReceiverKind::Value {
+                ty_fqn: receiver_ty_fqn,
+            } => {
+                return self.resolve_member_access_on_value_receiver(
+                    &receiver_ty_fqn,
+                    receiver,
+                    member,
+                );
             }
-            MemberReceiverKind::Type { ty_fqn: receiver_ty_fqn } => {
-                return self.resolve_member_access_on_type_receiver(&receiver_ty_fqn, receiver, member);
+            MemberReceiverKind::Type {
+                ty_fqn: receiver_ty_fqn,
+            } => {
+                return self.resolve_member_access_on_type_receiver(
+                    &receiver_ty_fqn,
+                    receiver,
+                    member,
+                );
             }
         }
     }
@@ -1237,7 +1262,11 @@ impl<'a> BlockScopeChecker<'a> {
                 return Ok(());
             } else if syms.has_fun() {
                 if let Some(first) = syms.first_fun() {
-                    not_visible = Some((member_fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    not_visible = Some((
+                        member_fqn.clone(),
+                        first.symbol.visibility,
+                        first.symbol.span,
+                    ));
                 }
             }
 
@@ -1442,7 +1471,9 @@ impl<'a> BlockScopeChecker<'a> {
                 // 顶层 object / enum（值名与类型名同名）：当 receiver 是该顶层值时，可把其类型视为同名类型。
                 if let Some(ast::ResolvedValueRef::TopLevel { fqn }) = &id.resolved {
                     if self.index.object_types.contains(fqn) {
-                        return Some(MemberReceiverKind::Value { ty_fqn: fqn.clone() });
+                        return Some(MemberReceiverKind::Value {
+                            ty_fqn: fqn.clone(),
+                        });
                     }
                     return None;
                 }
@@ -1452,7 +1483,9 @@ impl<'a> BlockScopeChecker<'a> {
                 // 注意：这里刻意不把 type receiver 写回到 `ValueIdent.resolved`，避免把类型名误当成值名
                 //（例如 `val x = C`）在其它语境里被放行。
                 if id.resolved.is_none() {
-                    return self.type_name_to_fqn(name).map(|ty_fqn| MemberReceiverKind::Type { ty_fqn });
+                    return self
+                        .type_name_to_fqn(name)
+                        .map(|ty_fqn| MemberReceiverKind::Type { ty_fqn });
                 }
 
                 None
@@ -1467,7 +1500,9 @@ impl<'a> BlockScopeChecker<'a> {
                     return None;
                 };
                 if self.index.object_types.contains(fqn) {
-                    return Some(MemberReceiverKind::Value { ty_fqn: fqn.clone() });
+                    return Some(MemberReceiverKind::Value {
+                        ty_fqn: fqn.clone(),
+                    });
                 }
                 None
             }
@@ -1565,7 +1600,10 @@ impl<'a> BlockScopeChecker<'a> {
         None
     }
 
-    fn with_scope<T>(&mut self, f: impl FnOnce(&mut Self) -> Result<T, ResolveError>) -> Result<T, ResolveError> {
+    fn with_scope<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, ResolveError>,
+    ) -> Result<T, ResolveError> {
         self.push_scope();
         let result = f(self);
         self.pop_scope();
@@ -1623,7 +1661,11 @@ fn call_candidate_sort_key(c: &ast::CallCandidate) -> (u8, &str) {
     }
 }
 
-fn is_ctor_visible_from(use_cone: ConeId, source: &SourceFile, ctor: &super::ConstructorOverload) -> bool {
+fn is_ctor_visible_from(
+    use_cone: ConeId,
+    source: &SourceFile,
+    ctor: &super::ConstructorOverload,
+) -> bool {
     match ctor.visibility {
         Visibility::Public => true,
         Visibility::Internal => ctor.decl_cone == use_cone,

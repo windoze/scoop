@@ -1157,11 +1157,22 @@
     - `tests/fixtures/typecheck/enum_oversized_variant_boxing_warn_ok.scoop`
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过（`scoop test` 会对 oversized enum 输出一条 warning）。
 
-### T0450 [TODO] pattern rest `..`：类型检查与绑定规则（spec §4.2）
+### T0450 [DONE] pattern rest `..`：类型检查与绑定规则（spec §4.2）
 - 描述：实现 `..` 的静态规则：出现位置、只能出现一次、与 tuple/struct/variant pattern 的匹配关系，以及 rest 不引入绑定。
 - 目标：先只支持 tuple/struct；variant positional rest 若语法允许则一并纳入，否则后续扩展。
 - 验收：typecheck fixture：`val (x, ..) = t` 通过；多个 `..`、非法位置、对非解构类型使用 `..` 报错。
 - 依赖：T0255、T0427、T0430
+- 完成：
+  - `when` pattern：新增 `ast::WhenPat::Rest`，parser 支持 tuple/variant pattern 内的 `..`（仅一次且必须为最后一个元素/参数）。
+  - typecheck：tuple/variant rest 允许“前缀匹配 + 忽略剩余元素/字段”；新增错误码：
+    - `scoop::typecheck::when_tuple_pat_too_short`
+    - `scoop::typecheck::when_variant_pat_too_short`
+  - resolver：`..` 不引入绑定。
+  - fixtures：新增 typecheck fixtures 覆盖：
+    - `val (x, ..) = t` 通过（tuple rest）
+    - `val (x, ..) = 1` 报 `val_tuple_pat_not_tuple`
+    - `when` tuple/variant rest 的 pass 与 too-short fail
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0451 [TODO] 委托属性：标准接口与标准 delegates 表面（spec §10.4）
 - 描述：补齐 delegated property 的静态表面：`ReadOnlyProperty` / `ReadWriteProperty` 接口规则，以及 `scoop.delegates` 中 `lazy` / `observable` / `vetoable` / map-backed delegate 的最小声明面。

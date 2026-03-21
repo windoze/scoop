@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T0450 `when` variant pattern：支持 positional rest `..` 忽略剩余 payload 字段。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Triple {
+  T(val a: Int, val b: String, val c: Bool),
+  N,
+}
+
+val t: Triple = T(1, "x", true)
+
+val x: Int = when (t) {
+  T(a, ..) -> a
+  N -> 0
+}
+

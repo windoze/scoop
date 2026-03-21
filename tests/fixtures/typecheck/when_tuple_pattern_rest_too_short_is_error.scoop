@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_tuple_pat_too_short
+// EXPECT-ERROR-AT: 14:3
+// EXPECT-ERROR: 需要至少 3 个元素
+// 目标：T0450 `when` tuple pattern：当 `..` 存在且 pattern 前缀超过 tuple 长度时应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val pair: (Int, Int) = (1, 2)
+
+val x: Int = when (pair) {
+  (a, b, c, ..) -> a
+  else -> 0
+}

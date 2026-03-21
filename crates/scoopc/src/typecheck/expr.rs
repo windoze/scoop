@@ -272,6 +272,17 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "`when` 的 tuple pattern 需要至少 {expected_at_least} 个元素，但 subject 只有 {found} 个"
+    )]
+    #[diagnostic(code(scoop::typecheck::when_tuple_pat_too_short))]
+    WhenTuplePatTooShort {
+        expected_at_least: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`when` 的 variant pattern 只能用于 enum，但 subject 为 {found}")]
     #[diagnostic(code(scoop::typecheck::when_variant_pat_not_enum))]
     WhenVariantPatNotEnum {
@@ -296,6 +307,18 @@ pub enum ExprTypeError {
     WhenVariantPatArityMismatch {
         variant_fqn: String,
         expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`when` 的 variant pattern 参数不足：{variant_fqn} 需要至少 {expected_at_least} 个，但该 variant 只有 {found} 个"
+    )]
+    #[diagnostic(code(scoop::typecheck::when_variant_pat_too_short))]
+    WhenVariantPatTooShort {
+        variant_fqn: String,
+        expected_at_least: usize,
         found: usize,
         #[label("这里")]
         span: miette::SourceSpan,

@@ -862,7 +862,9 @@ pub struct CallShape {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CallArgShape {
-    Positional { span: Span },
+    Positional {
+        span: Span,
+    },
     Named {
         name: String,
         name_span: Span,
@@ -944,7 +946,9 @@ pub enum ExprKind {
     /// 说明：
     /// - 空 `()` 由 `ExprKind::UnitLit` 表示；
     /// - 单元素 tuple 需写 trailing comma：`(x,)`。
-    TupleLit { elements: Vec<Expr> },
+    TupleLit {
+        elements: Vec<Expr>,
+    },
     /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
     ///
     /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。
@@ -1126,16 +1130,32 @@ pub struct WhenArm {
 /// `when` 分支的模式（早期最小子集）。
 #[derive(Debug, Clone)]
 pub enum WhenPat {
-    Else { span: Span },
-    Is { is_span: Span, ty: TypeRef },
+    Else {
+        span: Span,
+    },
+    Is {
+        is_span: Span,
+        ty: TypeRef,
+    },
     /// `_`：通配符模式（匹配任意值）。
-    Wildcard { span: Span },
+    Wildcard {
+        span: Span,
+    },
+    /// rest：`..`（忽略剩余字段/元素；仅允许出现在 tuple/variant pattern 内）。
+    Rest {
+        span: Span,
+    },
     /// 绑定变量模式：`x`（把匹配到的值绑定到变量 `x`）。
     ///
     /// 说明：该绑定仅在当前 when arm 的 body 作用域内可见（由 resolver 建立作用域）。
-    Bind { ident: Ident },
+    Bind {
+        ident: Ident,
+    },
     /// tuple 模式：`(p1, p2, ...)`。
-    Tuple { span: Span, elements: Vec<WhenPat> },
+    Tuple {
+        span: Span,
+        elements: Vec<WhenPat>,
+    },
     /// enum variant 模式：`Some(x)` / `None`（0 参数 variant）。
     ///
     /// 说明：
@@ -1146,10 +1166,16 @@ pub enum WhenPat {
         name: Ident,
         args: Vec<WhenPat>,
     },
-    IntLit { span: Span },
-    StringLit { span: Span },
+    IntLit {
+        span: Span,
+    },
+    StringLit {
+        span: Span,
+    },
     /// `true` / `false`（当前阶段 lexer 仍以 ident token 承载）。
-    BoolLit { span: Span },
+    BoolLit {
+        span: Span,
+    },
 }
 
 impl WhenPat {
@@ -1158,6 +1184,7 @@ impl WhenPat {
             WhenPat::Else { span } => *span,
             WhenPat::Is { is_span, ty } => Span::new(is_span.start, ty.span().end),
             WhenPat::Wildcard { span } => *span,
+            WhenPat::Rest { span } => *span,
             WhenPat::Bind { ident } => ident.span,
             WhenPat::Tuple { span, .. } => *span,
             WhenPat::Variant { span, .. } => *span,

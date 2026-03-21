@@ -30,14 +30,7 @@ pub(super) fn infer_when_pat_bindings(
     builtins: BuiltinTypes,
 ) -> Result<HashMap<Span, TypeId>, ExprTypeError> {
     let mut bindings = HashMap::new();
-    check_when_pat(
-        source,
-        pat,
-        subject_ty,
-        lower,
-        builtins,
-        &mut bindings,
-    )?;
+    check_when_pat(source, pat, subject_ty, lower, builtins, &mut bindings)?;
     Ok(bindings)
 }
 
@@ -52,6 +45,7 @@ fn check_when_pat(
     match pat {
         ast::WhenPat::Else { .. }
         | ast::WhenPat::Wildcard { .. }
+        | ast::WhenPat::Rest { .. }
         | ast::WhenPat::IntLit { .. }
         | ast::WhenPat::StringLit { .. }
         | ast::WhenPat::BoolLit { .. } => Ok(()),
@@ -73,6 +67,30 @@ fn check_when_pat(
 
             match lower.type_kind(expected_ty) {
                 TypeKind::Value(ValueTypeKind::Tuple(expected_elements)) => {
+                    // 解析 `..`：parser 已保证它最多出现一次且必须出现在最后一个位置。
+                    let (prefix_pats, has_rest) = match elements.last() {
+                        Some(ast::WhenPat::Rest { .. }) => {
+                            (&elements[..elements.len().saturating_sub(1)], true)
+                        }
+                        _ => (elements.as_slice(), false),
+                    };
+
+                    if has_rest {
+                        if expected_elements.len() < prefix_pats.len() {
+                            return Err(ExprTypeError::WhenTuplePatTooShort {
+                                expected_at_least: prefix_pats.len(),
+                                found: expected_elements.len(),
+                                span: (*span).into(),
+                            });
+                        }
+
+                        for (p, ty) in prefix_pats.iter().zip(expected_elements.iter().copied()) {
+                            check_when_pat(source, p, ty, lower, builtins, bindings)?;
+                        }
+
+                        return Ok(());
+                    }
+
                     if expected_elements.len() != elements.len() {
                         return Err(ExprTypeError::WhenTuplePatArityMismatch {
                             expected: expected_elements.len(),
@@ -99,14 +117,12 @@ fn check_when_pat(
             let (enum_fqn, enum_args, enum_source) =
                 enum_instance_from_type(source, expected_ty, lower, name.span)?;
 
-            let decl = lower
-                .env()
-                .enum_decl(&enum_fqn)
-                .cloned()
-                .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+            let decl = lower.env().enum_decl(&enum_fqn).cloned().ok_or_else(|| {
+                ExprTypeError::UnsupportedExpr {
                     kind: "when variant pattern（缺少 enum 声明信息）",
                     span: (*span).into(),
-                })?;
+                }
+            })?;
 
             let variant = decl
                 .variants
@@ -119,11 +135,28 @@ fn check_when_pat(
                     span: name.span.into(),
                 })?;
 
+            let variant_fqn = format!("{enum_fqn}.{variant_name}");
+
+            // 解析 `..`：parser 已保证它最多出现一次且必须出现在最后一个位置。
+            let (prefix_pats, has_rest) = match args.last() {
+                Some(ast::WhenPat::Rest { .. }) => (&args[..args.len().saturating_sub(1)], true),
+                _ => (args.as_slice(), false),
+            };
+
             let expected_arity = variant.fields.len();
-            let found_arity = args.len();
-            if expected_arity != found_arity {
+            let found_arity = prefix_pats.len();
+            if has_rest {
+                if expected_arity < found_arity {
+                    return Err(ExprTypeError::WhenVariantPatTooShort {
+                        variant_fqn,
+                        expected_at_least: found_arity,
+                        found: expected_arity,
+                        span: (*span).into(),
+                    });
+                }
+            } else if expected_arity != found_arity {
                 return Err(ExprTypeError::WhenVariantPatArityMismatch {
-                    variant_fqn: format!("{enum_fqn}.{variant_name}"),
+                    variant_fqn,
                     expected: expected_arity,
                     found: found_arity,
                     span: (*span).into(),
@@ -138,7 +171,8 @@ fn check_when_pat(
                 });
             }
 
-            let type_param_set: HashSet<&str> = decl.type_params.iter().map(|s| s.as_str()).collect();
+            let type_param_set: HashSet<&str> =
+                decl.type_params.iter().map(|s| s.as_str()).collect();
             let subst: HashMap<String, TypeId> = decl
                 .type_params
                 .iter()
@@ -146,7 +180,7 @@ fn check_when_pat(
                 .zip(enum_args.into_iter())
                 .collect();
 
-            for (arg_pat, field) in args.iter().zip(variant.fields.iter()) {
+            for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
                 let expected_field_ty = lower_type_ref_with_enum_subst(
                     &enum_source,
                     *span,
@@ -157,7 +191,14 @@ fn check_when_pat(
                     &type_param_set,
                     &subst,
                 )?;
-                check_when_pat(source, arg_pat, expected_field_ty, lower, builtins, bindings)?;
+                check_when_pat(
+                    source,
+                    arg_pat,
+                    expected_field_ty,
+                    lower,
+                    builtins,
+                    bindings,
+                )?;
             }
 
             Ok(())
@@ -185,7 +226,10 @@ fn enum_instance_from_type(
         }
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
             let enum_fqn = nominal.fqn.clone();
-            if !matches!(lower.nominal_decl_kind(&enum_fqn), Some(ast::TypeKind::Enum)) {
+            if !matches!(
+                lower.nominal_decl_kind(&enum_fqn),
+                Some(ast::TypeKind::Enum)
+            ) {
                 return Err(ExprTypeError::WhenVariantPatNotEnum {
                     found: lower.fmt_type(ty),
                     span: use_span.into(),

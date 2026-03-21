@@ -301,7 +301,7 @@
   - [x] 解析与分发规则（静态分发、member 优先；typecheck 降糖为 receiver 第一个参数）
   - [ ] codegen：receiver 作为第一个参数的普通函数
 - [x] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）（T0449：前端固定元数据；后端待落地）
-- [ ] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
+- [x] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
 - [x] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小 typecheck + delegation 门禁）
 - [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
 - [ ] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）

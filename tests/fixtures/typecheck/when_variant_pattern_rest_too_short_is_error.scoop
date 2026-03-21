@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_variant_pat_too_short
+// EXPECT-ERROR-AT: 14:3
+// EXPECT-ERROR: 参数不足
+// 目标：T0450 `when` variant pattern：当 `..` 存在且 pattern 前缀超过 variant payload 字段数时应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+
+val x: Int = when (opt) {
+  Some(a, b, ..) -> a
+  None -> 0
+}
