@@ -114,6 +114,14 @@ pub enum ResolveError {
         span: miette::SourceSpan,
     },
 
+    #[error("未解析的类型参数：{name}")]
+    #[diagnostic(code(scoop::resolve::unresolved_type_param))]
+    UnresolvedTypeParam {
+        name: String,
+        #[label("这里的类型参数不在当前声明的泛型参数列表中")]
+        span: miette::SourceSpan,
+    },
+
     #[error("未解析的值：{name}")]
     #[diagnostic(code(scoop::resolve::unresolved_value))]
     UnresolvedValue {
@@ -1220,6 +1228,9 @@ fn resolve_fun_header(
     if let Some(ret) = &fun.return_ty {
         resolve_type_ref(source, file, index, type_params, ret)?;
     }
+    if let Some(w) = &fun.where_clause {
+        resolve_where_clause(source, file, index, type_params, w)?;
+    }
     Ok(())
 }
 
@@ -1234,6 +1245,10 @@ fn resolve_type_decl_headers(
     type_params.push_decl(source, &ty.type_params)?;
 
     let result = (|| {
+        if let Some(w) = &ty.where_clause {
+            resolve_where_clause(source, file, index, type_params, w)?;
+        }
+
         // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
@@ -1310,6 +1325,30 @@ fn resolve_type_decl_headers(
 
     type_params.pop_decl();
     result
+}
+
+/// 解析 `where` 子句：
+///
+/// - 约束左侧必须是当前可见的类型参数名（type param scope）；
+/// - 约束右侧的 `TypeRef` 复用现有的类型引用解析规则（包前缀 + import + 可见性）。
+fn resolve_where_clause(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_params: &TypeParamScopes,
+    where_clause: &ast::WhereClause,
+) -> Result<(), ResolveError> {
+    for c in &where_clause.constraints {
+        let name = source.slice(c.ty_param.span);
+        if !type_params.contains(name) {
+            return Err(ResolveError::UnresolvedTypeParam {
+                name: name.to_string(),
+                span: c.ty_param.span.into(),
+            });
+        }
+        resolve_type_ref(source, file, index, type_params, &c.bound)?;
+    }
+    Ok(())
 }
 
 fn resolve_object_decl_headers(

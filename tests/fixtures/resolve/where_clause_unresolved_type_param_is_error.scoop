@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的类型参数
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type_param
+// EXPECT-ERROR-AT: 11:26
+// 目标：where 子句约束左侧必须引用当前声明可见的类型参数（T0320）。
+
+package fixtures.resolve
+
+interface Show {}
+
+fun <T> f(x: T): T where U: Show {}

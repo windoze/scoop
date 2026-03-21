@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：验证 where 子句中约束左侧 `T` 解析为类型参数，右侧 `Show` 可按类型引用规则解析（T0320）。
+
+package fixtures.resolve
+
+interface Show {}
+
+fun <T> f(x: T): T where T: Show {}
+

@@ -729,11 +729,12 @@
 - 依赖：T0318、T0311、T0310、T0209
 - 完成：在 `scoopc::ast` 为 `ValueIdent/MemberIdent` 增加 `call: Option<ResolvedCall>`，引入 `ResolvedCall/CallCandidate/CallShape/CallArgShape` 用于记录候选集合与调用形状；在 `scoopc::resolve::scopes` 中实现 `resolve_call_site`，为 `Call(Ident)` 收集顶层函数候选与构造候选（不再在多候选时报 `ambiguous_call`，留给后续 typecheck），并为成员调用写回候选与调用形状；更新 resolve multi fixture `tests/fixtures/resolve_multi/ambiguous_call/use.scoop` 为 pass；新增 resolver 单测覆盖“多 fun 候选保留/多 ctor 候选保留”；`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0320 [TODO] Resolver：`where` 子句中的类型参数与约束引用解析
+### T0320 [DONE] Resolver：`where` 子句中的类型参数与约束引用解析
 - 描述：把 `where` 子句纳入 resolve 流程：约束左侧的类型参数要绑定到当前声明的泛型参数，约束右侧的类型引用要按现有 type/import 规则解析。
 - 目标：先只支持“当前声明上的 type params + 普通 TypeRef”这一层；约束满足性、冲突与循环诊断留给 typecheck。
 - 验收：新增 resolve fixture：`fun <T> f(x: T): T where T: Show` 中 `T` 与 `Show` 都能正确解析；未声明的类型参数名或未导入的约束类型报错。
 - 依赖：T0260、T0309、T0308
+- 完成：`check_file_headers` 阶段补齐 `FunDecl/TypeDecl` 的 `where_clause` 解析：约束左侧校验 type param scope，右侧复用 `TypeRef` 解析；新增稳定诊断 `scoop::resolve::unresolved_type_param`；新增 resolve fixtures `tests/fixtures/resolve/where_clause_*` 覆盖 pass/未声明类型参数/未解析约束类型；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0321 [TODO] Resolver：跨包可见性规则（`public/internal/private`）
 - 描述：在 package / `.cone` 依赖边界上固定可见性规则：同包、跨包、下游依赖分别能看到哪些声明，并把诊断统一到稳定错误码。
