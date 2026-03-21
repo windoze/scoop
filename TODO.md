@@ -863,12 +863,6 @@
 - 依赖：T0212、T0411、T0406
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::NotNullAssert` 增加类型推导：要求操作数为 `Option<T>` 并返回 `T`；新增诊断 `scoop::typecheck::not_null_assert_operand_not_nullable`；新增 fixtures `tests/fixtures/typecheck/not_null_assert_ok.scoop` 与 `tests/fixtures/typecheck/not_null_assert_operand_not_nullable_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0421b [TODO] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
-- 描述：`x!!`：触发运行期 null assertion，要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
-- 目标：先只实现静态 required effects；运行期行为后续由 effect/runtime 落地。
-- 验收：effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
-- 依赖：T0421a、T0419、T0604、T0607
-
 ### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
 - 目标：先只覆盖 Option<T>（nullable sugar）；不引入真正的 null 值。
@@ -1006,12 +1000,6 @@
 - 目标：先只做静态限制，不做实际 inlining 优化。
 - 验收：typecheck fixture：非 inline lambda 中 `return` 报错；inline 场景允许（具体语法按设计）。
 - 依赖：T0245、T0226、T0222
-
-### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
-- 描述：当使用不安全 cast `x as T` 时，编译器应把其失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，因此要求 `Raise<RuntimeError>` 除非被 handle/try 捕获。
-- 目标：先只做静态 required-effects 检查；运行期失败触发 raise 的 codegen 后置（与 T0614/T0818 联动）。
-- 验收：effects fixture：在 `/ Pure` 函数中使用 `as` 报 required effect；在 try/catch 内通过。
-- 依赖：T0412、T0419、T0604、T0607
 
 ### T0446 [TODO] typealias：别名展开与循环检测（最小实现，支撑 sysroot 标准别名）（Appendix B.10）
 - 描述：在 typecheck 的 `TypeRef → Type` lowering 阶段支持 `typealias`：把别名引用展开为其底层类型，并检测循环别名（直接/间接）。
@@ -1216,6 +1204,20 @@
 - 目标：先只支持单个 catch；finally 可选；不支持多 catch。
 - 验收：parse fixture：try/catch/finally 可解析并 lowering；typecheck fixture：对应的 Raise 处理不触发 required effects。
 - 依赖：T0605、T0606
+
+> 注：以下两项编号属于 T04（类型系统/类型检查），但依赖效果系统的 required effects + try/catch lowering（T0604/T0607），因此放在此处以保证 TODO 的依赖顺序（避免在 effect 体系落地前被选中执行）。
+
+### T0421b [TODO] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
+- 描述：`x!!`：触发运行期 null assertion，要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
+- 目标：先只实现静态 required effects；运行期行为后续由 effect/runtime 落地。
+- 验收：effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
+- 依赖：T0421a、T0419、T0604、T0607
+
+### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
+- 描述：当使用不安全 cast `x as T` 时，编译器应把其失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，因此要求 `Raise<RuntimeError>` 除非被 handle/try 捕获。
+- 目标：先只做静态 required-effects 检查；运行期失败触发 raise 的 codegen 后置（与 T0614/T0818 联动）。
+- 验收：effects fixture：在 `/ Pure` 函数中使用 `as` 报 required effect；在 try/catch 内通过。
+- 依赖：T0412、T0419、T0604、T0607
 
 ### T0608 [TODO] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
 - 描述：实现 effect row 的语义：并集、空行 `Pure`、默认 effect 规则、以及 `R1 ⊆ R2`（subeffecting）的最小判定。

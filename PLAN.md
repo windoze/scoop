@@ -320,8 +320,8 @@
   - entry point 必须 `Pure`
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
-  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b）
-  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`
+  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 required effects + try/catch lowering：T0604/T0607）
+  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0604/T0607）
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 
