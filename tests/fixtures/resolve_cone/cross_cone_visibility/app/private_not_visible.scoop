@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR: lib.Priv
+// EXPECT-ERROR-AT: 9:20
+package app
+
+import lib.Priv
+
+fun use_private(x: Priv) {}

@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR: lib.Intern
+// EXPECT-ERROR-AT: 9:21
+package app
+
+import lib.Intern
+
+fun use_internal(x: Intern) {}

@@ -14,6 +14,7 @@
 //! - `tests/fixtures/parse/**` → parse
 //! - `tests/fixtures/resolve/**` → resolve
 //! - `tests/fixtures/resolve_multi/<case>/**` → resolve（多文件编译单元：按目录为单位）
+//! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - 其它一级目录（如 `infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
@@ -35,6 +36,9 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
     let resolve_multi_root = fixtures_root.join("resolve_multi");
     let resolve_multi_cases = collect_resolve_multi_cases(&resolve_multi_root)?;
+    // T0321a：`resolve_cone/<case>/<cone>/` 用于模拟“多个 cone（包/依赖边界）”。
+    let resolve_cone_root = fixtures_root.join("resolve_cone");
+    let resolve_cone_cases = collect_resolve_cone_cases(&resolve_cone_root)?;
     let typecheck_multi_root = fixtures_root.join("typecheck_multi");
     let typecheck_multi_cases = collect_typecheck_multi_cases(&typecheck_multi_root)?;
 
@@ -42,6 +46,9 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     let mut skip_dirs: Vec<&Path> = Vec::new();
     if resolve_multi_root.is_dir() {
         skip_dirs.push(resolve_multi_root.as_path());
+    }
+    if resolve_cone_root.is_dir() {
+        skip_dirs.push(resolve_cone_root.as_path());
     }
     if typecheck_multi_root.is_dir() {
         skip_dirs.push(typecheck_multi_root.as_path());
@@ -67,6 +74,11 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     for case_dir in resolve_multi_cases {
         ok += run_resolve_multi_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("resolve_multi case 失败：{}", case_dir.display()))?;
+    }
+
+    for case_dir in resolve_cone_cases {
+        ok += run_resolve_cone_case(&session, fixtures_root, &case_dir)
+            .wrap_err_with(|| format!("resolve_cone case 失败：{}", case_dir.display()))?;
     }
 
     for case_dir in typecheck_multi_cases {
@@ -134,6 +146,21 @@ enum FixturePhase {
 #[diagnostic(code(scoop::fixtures::resolve_multi_case_too_small))]
 struct ResolveMultiCaseTooSmall {
     fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("resolve_cone case 需要至少 2 个 cone 子目录（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::resolve_cone_case_too_small))]
+struct ResolveConeCaseTooSmall {
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("resolve_cone case 的 cone 子目录 `{cone}` 下未发现任何 `.scoop` 文件（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::resolve_cone_cone_empty))]
+struct ResolveConeConeEmpty {
+    fixture: String,
+    cone: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -352,6 +379,118 @@ fn run_resolve_multi_case(
     }
 
     Ok(paths.len())
+}
+
+/// 运行一个 `tests/fixtures/resolve_cone/<case>/<cone>/` 的“多 cone”用例。
+///
+/// 规则（当前阶段，T0321a）：
+/// - case 目录下必须有 2+ 个 cone 子目录（每个子目录代表一个 cone/依赖边界）
+/// - 每个 cone 子目录下至少有 1 个 `.scoop` 文件
+/// - 将所有 cone 的文件 + sysroot 一起构建 `Index`（但每个文件携带不同的 cone id）
+/// - 对 cone 内每个文件分别运行 `check_file_bindings`，并按各自文件头注释断言 pass/fail
+fn run_resolve_cone_case(
+    session: &scoopc::session::Session,
+    fixtures_root: &Path,
+    case_dir: &Path,
+) -> Result<usize> {
+    let mut cone_dirs = Vec::new();
+    for entry in std::fs::read_dir(case_dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", case_dir.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            cone_dirs.push(entry.path());
+        }
+    }
+
+    cone_dirs.sort();
+    if cone_dirs.len() < 2 {
+        let rel = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+        return Err(ResolveConeCaseTooSmall {
+            fixture: rel.display().to_string(),
+        }
+        .into());
+    }
+
+    struct ConeFile {
+        cone: scoopc::resolve::ConeId,
+        source: scoopc::source::SourceFile,
+        ast: scoopc::ast::File,
+    }
+
+    let mut files: Vec<ConeFile> = Vec::new();
+    let mut ok = 0usize;
+
+    for (idx, cone_dir) in cone_dirs.iter().enumerate() {
+        let mut paths = Vec::new();
+        collect_scoop_files(cone_dir, &mut paths, &[])?;
+        paths.sort();
+
+        if paths.is_empty() {
+            let rel = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+            let cone = cone_dir
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("<unknown>")
+                .to_string();
+            return Err(ResolveConeConeEmpty {
+                fixture: rel.display().to_string(),
+                cone,
+            }
+            .into());
+        }
+
+        // cone id 0 保留给 sysroot；fixture 的 cone 从 1 开始稳定分配（按目录名排序）。
+        let cone_id = scoopc::resolve::ConeId::new((idx as u32) + 1);
+
+        for path in paths {
+            let source = scoopc::source::SourceFile::load(&path)?;
+            let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            files.push(ConeFile {
+                cone: cone_id,
+                source,
+                ast,
+            });
+            ok += 1;
+        }
+    }
+
+    let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
+    for f in &session.sysroot().files {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: scoopc::resolve::ConeId::new(0),
+            source: &f.source,
+            file: &f.ast,
+        });
+    }
+    for f in &files {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: f.cone,
+            source: &f.source,
+            file: &f.ast,
+        });
+    }
+
+    let index = scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::new)?;
+
+    for f in files.iter_mut() {
+        let exp = FixtureExpectation::from_source(f.source.text());
+
+        let result: std::result::Result<(), Box<dyn miette::Diagnostic>> =
+            scoopc::resolve::check_file_bindings(&f.source, &mut f.ast, &index).map_err(box_diagnostic);
+
+        match (exp.expect, result) {
+            (Expect::Pass, Ok(())) => {}
+            (Expect::Pass, Err(e)) => return Err(miette!("期望通过，但执行失败：{e}")),
+            (Expect::Fail, Ok(())) => return Err(miette!("期望失败，但执行成功")),
+            (Expect::Fail, Err(e)) => {
+                assert_diagnostic_matches(&f.source, &exp, &*e)?;
+            }
+        }
+    }
+
+    Ok(ok)
 }
 
 /// 运行一个 `tests/fixtures/typecheck_multi/<case>/` 的多文件编译单元。
@@ -577,6 +716,27 @@ fn collect_resolve_multi_cases(resolve_multi_root: &Path) -> Result<Vec<PathBuf>
     }
 
     // 稳定排序（便于定位错误）。
+    cases.sort();
+    Ok(cases)
+}
+
+fn collect_resolve_cone_cases(resolve_cone_root: &Path) -> Result<Vec<PathBuf>> {
+    if !resolve_cone_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut cases = Vec::new();
+    for entry in std::fs::read_dir(resolve_cone_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", resolve_cone_root.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            cases.push(path);
+        }
+    }
+
     cases.sort();
     Ok(cases)
 }

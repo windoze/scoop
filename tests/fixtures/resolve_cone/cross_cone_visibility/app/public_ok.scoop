@@ -1,0 +1,6 @@
+package app
+
+import lib.Pub
+
+fun use_pub(x: Pub) {}
+

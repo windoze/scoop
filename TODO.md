@@ -742,7 +742,7 @@
 - 验收：见子任务（T0321a/T0321b）。
 - 依赖：T0306
 
-### T0321a [TODO] Resolver：引入 cone 边界并实现 internal 跨 cone 不可见（source-only fixtures）
+### T0321a [DONE] Resolver：引入 cone 边界并实现 internal 跨 cone 不可见（source-only fixtures）
 - 描述：在 resolver 的可见性判断里引入“cone（编译包）”边界：`internal` 仅 cone 内可见，`public` 可跨 cone，`private` 文件内可见；并在 fixtures 中新增可模拟依赖 cone 的 runner 与用例。
 - 目标：只实现 resolver/fixtures 侧 cone 边界；不实现 `.cone` 归档读取与 API 注入（留给 T1105/T0321b）。
 - 验收：新增 `tests/fixtures/resolve_cone/<case>/`（每个 case 含 2 个 cone 子目录），下游 cone 引用上游 cone：
@@ -751,6 +751,7 @@
   - 错误信息能指出声明所在包（例如包含 `lib.` 前缀）
   - `cargo test --all` 与 `cargo run -p scoop -- test` 通过
 - 依赖：T0306、T0307
+- 完成：`scoopc::resolve` 引入 `ConeId` 并在可见性判定中将 `internal` 收敛为“仅 cone 内可见”；新增 `Index::build_with_cones`/`IndexedFile` 以支持多 cone index 构建；`scoop test` 新增 `resolve_cone` runner（按 `<case>/<cone>/` 目录模拟依赖边界）；新增 fixtures `tests/fixtures/resolve_cone/cross_cone_visibility/*` 覆盖 public pass / internal+private fail；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0321b [TODO] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
 - 描述：当依赖来自 `.cone` 时，下游只能看到依赖 cone 的 `public` API；`internal/private` 必须在 resolver/typecheck 阶段一致地被拒绝。

@@ -190,12 +190,29 @@ pub enum SymbolKind {
     Value,
 }
 
+/// Cone（编译包/分发单元）标识。
+///
+/// 说明：
+/// - 该概念用于实现 `internal` 的“仅 cone 内可见”语义（spec §13.6）。
+/// - 当前阶段 cone 仍是一个轻量概念：在同一次编译/resolve 构建的 `Index` 中，
+///   不同 cone 只是用于可见性过滤与 fixtures 模拟依赖边界。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConeId(u32);
+
+impl ConeId {
+    pub const DEFAULT: ConeId = ConeId(0);
+
+    pub fn new(raw: u32) -> ConeId {
+        ConeId(raw)
+    }
+}
+
 /// 可见性（visibility）。
 ///
-/// 当前阶段（T0306）：
-/// - `public` 默认可见；
-/// - `private` 对顶层声明按“文件内可见”处理：跨文件引用将报错；
-/// - `internal` 的 cone/module 语义留给后续任务，这里先等同于可见。
+/// 当前阶段（T0321a）：
+/// - `public`：跨 cone 可见（公共 API）；
+/// - `internal`：仅 cone 内可见（实现细节，不导出）；
+/// - `private`：文件内可见（最小规则：顶层按 file-private 处理）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Public,
@@ -260,6 +277,7 @@ pub struct Symbol {
     pub name: String,
     pub span: Span,
     pub decl_file: PathBuf,
+    pub decl_cone: ConeId,
     pub visibility: Visibility,
     pub modifiers: ModifierSet,
 }
@@ -306,6 +324,7 @@ pub enum ConstructorKind {
 pub struct ConstructorOverload {
     pub kind: ConstructorKind,
     pub decl_file: PathBuf,
+    pub decl_cone: ConeId,
     pub visibility: Visibility,
     pub span: Span,
     pub params: Vec<ParamSig>,
@@ -324,6 +343,8 @@ pub struct ExtensionFunSymbol {
     pub fqn: String,
     /// 该扩展函数声明所在文件的 package 前缀（例如 `a`；无 package 时为空）。
     pub pkg_prefix: String,
+    /// 该扩展函数所在 cone（用于 `internal` 过滤与同包扩展查找的 cone 边界）。
+    pub decl_cone: ConeId,
     /// member 名称（即扩展函数的声明名，例如 `ext`）。
     pub name: String,
     /// receiver 的类型 FQN（例如 `a.Point` / `scoop.core.Any`）；无法解析时为 None。
@@ -364,10 +385,10 @@ impl NamespacedSymbols {
         !self.fun.is_empty()
     }
 
-    fn any_visible_fun(&self, use_source: &SourceFile) -> Option<&FunOverload> {
+    fn any_visible_fun(&self, use_cone: ConeId, use_source: &SourceFile) -> Option<&FunOverload> {
         self.fun
             .iter()
-            .find(|o| is_symbol_visible_from(use_source, &o.symbol))
+            .find(|o| is_symbol_visible_from(use_cone, use_source, &o.symbol))
     }
 
     fn first_fun(&self) -> Option<&FunOverload> {
@@ -380,6 +401,8 @@ impl NamespacedSymbols {
 pub struct Index {
     /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
     pub by_fqn: HashMap<String, NamespacedSymbols>,
+    /// 每个源文件所属的 cone（用于可见性过滤）。
+    file_cones: HashMap<PathBuf, ConeId>,
     /// 构造函数 overload set：type FQN → primary/secondary constructors（T0318）。
     pub constructors: HashMap<String, Vec<ConstructorOverload>>,
     /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
@@ -397,23 +420,44 @@ pub struct Index {
     pub object_types: HashSet<String>,
 }
 
+/// `Index` 构建输入：一个源文件 + AST，以及它所属的 cone。
+#[derive(Debug, Clone, Copy)]
+pub struct IndexedFile<'a> {
+    pub cone: ConeId,
+    pub source: &'a SourceFile,
+    pub file: &'a ast::File,
+}
+
 impl Index {
     pub fn build(files: &[(&SourceFile, &ast::File)]) -> Result<Self, ResolveError> {
+        let owned = files
+            .iter()
+            .map(|(source, file)| IndexedFile {
+                cone: ConeId::DEFAULT,
+                source,
+                file,
+            })
+            .collect::<Vec<_>>();
+        Index::build_with_cones(&owned)
+    }
+
+    pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
         let mut index = Index::default();
-        for (source, file) in files {
-            index.add_file(source, file)?;
+        for f in files {
+            index.file_cones.insert(f.source.path().to_path_buf(), f.cone);
+            index.add_file_in_cone(f.cone, f.source, f.file)?;
         }
         index.collect_extension_funs(files);
         Ok(index)
     }
 
-    fn collect_extension_funs(&mut self, files: &[(&SourceFile, &ast::File)]) {
+    fn collect_extension_funs(&mut self, files: &[IndexedFile<'_>]) {
         self.extension_funs.clear();
 
-        for (source, file) in files {
-            let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for f in files {
+            let pkg_prefix = package_prefix(f.source, f.file.package.as_ref());
 
-            for item in &file.items {
+            for item in &f.file.items {
                 let ast::Item::Fun(fun) = item else {
                     continue;
                 };
@@ -422,23 +466,31 @@ impl Index {
                     continue;
                 };
 
-                let name = source.slice(fun.name.span).to_string();
+                let name = f.source.slice(fun.name.span).to_string();
                 let fqn = if pkg_prefix.is_empty() {
                     name.clone()
                 } else {
                     format!("{pkg_prefix}.{name}")
                 };
 
-                let receiver_ty_fqn = self.type_ref_to_fqn_in_file(source, file, receiver);
+                let receiver_ty_fqn = self.type_ref_to_fqn_in_file(f.source, f.file, receiver);
 
                 self.extension_funs.push(ExtensionFunSymbol {
                     fqn,
                     pkg_prefix: pkg_prefix.clone(),
+                    decl_cone: f.cone,
                     name,
                     receiver_ty_fqn,
                 });
             }
         }
+    }
+
+    fn cone_of_source(&self, source: &SourceFile) -> ConeId {
+        self.file_cones
+            .get(source.path())
+            .copied()
+            .unwrap_or(ConeId::DEFAULT)
     }
 
     /// 在“同包扩展函数”里查找一个可用于 `receiver.member` 的候选（T0312）。
@@ -455,9 +507,13 @@ impl Index {
         member_name: &str,
         use_span: Span,
     ) -> Result<Option<String>, ResolveError> {
+        let use_cone = self.cone_of_source(use_source);
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
         for ext in &self.extension_funs {
+            if ext.decl_cone != use_cone {
+                continue;
+            }
             if ext.pkg_prefix != pkg_prefix {
                 continue;
             }
@@ -476,14 +532,14 @@ impl Index {
             let Some(syms) = self.by_fqn.get(&ext.fqn) else {
                 continue;
             };
-            let Some(fun) = syms.any_visible_fun(use_source) else {
+            let Some(fun) = syms.any_visible_fun(use_cone, use_source) else {
                 if let Some(first) = syms.first_fun() {
                     not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
                 }
                 continue;
             };
 
-            if is_symbol_visible_from(use_source, &fun.symbol) {
+            if is_symbol_visible_from(use_cone, use_source, &fun.symbol) {
                 return Ok(Some(ext.fqn.clone()));
             }
 
@@ -568,6 +624,7 @@ impl Index {
         candidates.sort();
         candidates.dedup();
 
+        let use_cone = self.cone_of_source(source);
         for fqn in candidates {
             let Some(syms) = self.by_fqn.get(&fqn) else {
                 continue;
@@ -575,7 +632,7 @@ impl Index {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 continue;
             };
-            if is_symbol_visible_from(source, sym) {
+            if is_symbol_visible_from(use_cone, source, sym) {
                 return Some(fqn);
             }
         }
@@ -583,7 +640,12 @@ impl Index {
         None
     }
 
-    fn add_file(&mut self, source: &SourceFile, file: &ast::File) -> Result<(), ResolveError> {
+    fn add_file_in_cone(
+        &mut self,
+        cone: ConeId,
+        source: &SourceFile,
+        file: &ast::File,
+    ) -> Result<(), ResolveError> {
         let pkg = package_prefix(source, file.package.as_ref());
 
         for item in &file.items {
@@ -592,6 +654,7 @@ impl Index {
                     // typealias 是类型命名空间的顶层符号（T0251）。
                     let visibility = visibility_from_modifiers(&ta.modifiers, ta.span)?;
                     self.insert_symbol(
+                        cone,
                         source,
                         &pkg,
                         SymbolKind::Type,
@@ -602,19 +665,20 @@ impl Index {
                 }
                 ast::Item::Fun(fun) => {
                     let visibility = visibility_from_modifiers(&fun.modifiers, fun.span)?;
-                    self.insert_fun_overload(source, &pkg, fun, visibility)?;
+                    self.insert_fun_overload(cone, source, &pkg, fun, visibility)?;
                 }
                 ast::Item::Type(ty) => {
-                    self.add_type_decl(source, &pkg, ty)?;
+                    self.add_type_decl(cone, source, &pkg, ty)?;
                 }
                 ast::Item::Object(obj) => {
-                    self.add_object_decl(source, &pkg, obj)?;
+                    self.add_object_decl(cone, source, &pkg, obj)?;
                 }
                 ast::Item::Val(v) => {
                     // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
                     if let Some(name) = v.name() {
                         let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
                         self.insert_symbol(
+                            cone,
                             source,
                             &pkg,
                             SymbolKind::Value,
@@ -641,6 +705,7 @@ impl Index {
     /// - 嵌套类型：prefix = 外层类型的 FQN（例如 `a.Outer`）
     fn add_type_decl(
         &mut self,
+        cone: ConeId,
         source: &SourceFile,
         prefix: &str,
         ty: &ast::TypeDecl,
@@ -648,6 +713,7 @@ impl Index {
         // 1) 先插入类型自身（type namespace）。
         let visibility = visibility_from_modifiers(&ty.modifiers, ty.span)?;
         self.insert_symbol(
+            cone,
             source,
             prefix,
             SymbolKind::Type,
@@ -663,6 +729,7 @@ impl Index {
         // 会在后续 rich enum 任务中补齐（T0425+）。
         if matches!(ty.kind, ast::TypeKind::Enum) {
             self.insert_symbol(
+                cone,
                 source,
                 prefix,
                 SymbolKind::Value,
@@ -684,6 +751,7 @@ impl Index {
         if let Some(primary_ctor) = &ty.primary_ctor {
             self.insert_constructor_overload(
                 &type_prefix,
+                cone,
                 source,
                 ConstructorKind::Primary,
                 visibility,
@@ -703,6 +771,7 @@ impl Index {
             if let Some(primary_ctor) = &ty.primary_ctor {
                 for p in &primary_ctor.params {
                     self.insert_symbol(
+                        cone,
                         source,
                         &type_prefix,
                         SymbolKind::Value,
@@ -727,6 +796,7 @@ impl Index {
                         continue;
                     }
                     self.insert_symbol(
+                        cone,
                         source,
                         &type_prefix,
                         SymbolKind::Value,
@@ -751,6 +821,7 @@ impl Index {
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
                     self.insert_symbol(
+                        cone,
                         source,
                         &type_prefix,
                         SymbolKind::Value,
@@ -768,6 +839,7 @@ impl Index {
                     let ctor_visibility = visibility_from_modifiers(&ctor.modifiers, ctor.span)?;
                     self.insert_constructor_overload(
                         &type_prefix,
+                        cone,
                         source,
                         ConstructorKind::Secondary,
                         ctor_visibility,
@@ -777,10 +849,10 @@ impl Index {
                 }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
-                    self.insert_fun_overload(source, &type_prefix, f, visibility)?;
+                    self.insert_fun_overload(cone, source, &type_prefix, f, visibility)?;
                 }
                 ast::TypeMember::Type(nested) => {
-                    self.add_type_decl(source, &type_prefix, nested)?;
+                    self.add_type_decl(cone, source, &type_prefix, nested)?;
                 }
                 ast::TypeMember::Object(obj) => {
                     if matches!(obj.kind, ast::ObjectKind::Companion) {
@@ -795,7 +867,7 @@ impl Index {
                             .or_default()
                             .push(companion_fqn);
                     }
-                    self.add_object_decl(source, &type_prefix, obj)?;
+                    self.add_object_decl(cone, source, &type_prefix, obj)?;
                 }
             }
         }
@@ -805,6 +877,7 @@ impl Index {
 
     fn add_object_decl(
         &mut self,
+        cone: ConeId,
         source: &SourceFile,
         prefix: &str,
         obj: &ast::ObjectDecl,
@@ -826,6 +899,7 @@ impl Index {
         // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
         if let Some(name_span) = obj_name_span {
             self.insert_symbol(
+                cone,
                 source,
                 prefix,
                 SymbolKind::Type,
@@ -834,6 +908,7 @@ impl Index {
                 &obj.modifiers,
             )?;
             self.insert_symbol(
+                cone,
                 source,
                 prefix,
                 SymbolKind::Value,
@@ -843,6 +918,7 @@ impl Index {
             )?;
         } else {
             self.insert_synth_symbol(
+                cone,
                 source,
                 prefix,
                 SymbolKind::Type,
@@ -852,6 +928,7 @@ impl Index {
                 &obj.modifiers,
             )?;
             self.insert_synth_symbol(
+                cone,
                 source,
                 prefix,
                 SymbolKind::Value,
@@ -881,6 +958,7 @@ impl Index {
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
                     self.insert_symbol(
+                        cone,
                         source,
                         &obj_prefix,
                         SymbolKind::Value,
@@ -895,13 +973,13 @@ impl Index {
                 }
                 ast::TypeMember::Fun(f) => {
                     let visibility = visibility_from_modifiers(&f.modifiers, f.span)?;
-                    self.insert_fun_overload(source, &obj_prefix, f, visibility)?;
+                    self.insert_fun_overload(cone, source, &obj_prefix, f, visibility)?;
                 }
                 ast::TypeMember::Type(nested) => {
-                    self.add_type_decl(source, &obj_prefix, nested)?;
+                    self.add_type_decl(cone, source, &obj_prefix, nested)?;
                 }
                 ast::TypeMember::Object(nested) => {
-                    self.add_object_decl(source, &obj_prefix, nested)?;
+                    self.add_object_decl(cone, source, &obj_prefix, nested)?;
                 }
             }
         }
@@ -911,6 +989,7 @@ impl Index {
 
     fn insert_synth_symbol(
         &mut self,
+        cone: ConeId,
         source: &SourceFile,
         pkg_prefix: &str,
         kind: SymbolKind,
@@ -934,6 +1013,7 @@ impl Index {
             name: local.to_string(),
             span: decl_span,
             decl_file: source.path().to_path_buf(),
+            decl_cone: cone,
             visibility,
             modifiers: ModifierSet::from_modifiers(modifiers),
         };
@@ -954,6 +1034,7 @@ impl Index {
     fn insert_constructor_overload(
         &mut self,
         type_fqn: &str,
+        cone: ConeId,
         source: &SourceFile,
         kind: ConstructorKind,
         visibility: Visibility,
@@ -977,6 +1058,7 @@ impl Index {
             .push(ConstructorOverload {
                 kind,
                 decl_file,
+                decl_cone: cone,
                 visibility,
                 span,
                 params,
@@ -985,6 +1067,7 @@ impl Index {
 
     fn insert_fun_overload(
         &mut self,
+        cone: ConeId,
         source: &SourceFile,
         pkg_prefix: &str,
         fun: &ast::FunDecl,
@@ -1002,6 +1085,7 @@ impl Index {
             name: local,
             span: fun.name.span,
             decl_file: source.path().to_path_buf(),
+            decl_cone: cone,
             visibility,
             modifiers: ModifierSet::from_modifiers(&fun.modifiers),
         };
@@ -1033,6 +1117,7 @@ impl Index {
 
     fn insert_symbol(
         &mut self,
+        cone: ConeId,
         source: &SourceFile,
         pkg_prefix: &str,
         kind: SymbolKind,
@@ -1056,6 +1141,7 @@ impl Index {
             name: local,
             span: name_span,
             decl_file: source.path().to_path_buf(),
+            decl_cone: cone,
             visibility,
             modifiers: ModifierSet::from_modifiers(modifiers),
         };
@@ -1105,10 +1191,11 @@ fn visibility_from_modifiers(
     Ok(found.unwrap_or(Visibility::Public))
 }
 
-fn is_symbol_visible_from(source: &SourceFile, symbol: &Symbol) -> bool {
+fn is_symbol_visible_from(use_cone: ConeId, use_source: &SourceFile, symbol: &Symbol) -> bool {
     match symbol.visibility {
-        Visibility::Public | Visibility::Internal => true,
-        Visibility::Private => symbol.decl_file == source.path(),
+        Visibility::Public => true,
+        Visibility::Internal => symbol.decl_cone == use_cone,
+        Visibility::Private => symbol.decl_file == use_source.path(),
     }
 }
 
@@ -1525,6 +1612,7 @@ fn resolve_type_path(
     candidates.dedup();
 
     let mut not_visible: Option<(String, Visibility, Span)> = None;
+    let use_cone = index.cone_of_source(source);
     for fqn in candidates {
         let Some(syms) = index.by_fqn.get(&fqn) else {
             continue;
@@ -1534,7 +1622,7 @@ fn resolve_type_path(
             continue;
         };
 
-        if is_symbol_visible_from(source, sym) {
+        if is_symbol_visible_from(use_cone, source, sym) {
             // TODO: 在后续阶段把解析结果写回 AST/HIR
             return Ok(());
         }

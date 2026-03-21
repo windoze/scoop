@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{ast, source::SourceFile, span::Span};
 
 use super::{
-    ImportTable, Index, ResolveError, SymbolKind, Visibility, is_symbol_visible_from,
+    ConeId, ImportTable, Index, ResolveError, SymbolKind, Visibility, is_symbol_visible_from,
     package_prefix,
 };
 
@@ -34,6 +34,7 @@ struct BlockScopeChecker<'a> {
     source: &'a SourceFile,
     index: &'a Index,
     imports: &'a ImportTable,
+    use_cone: ConeId,
     pkg_prefix: String,
     scopes: Vec<HashMap<String, LocalBinding>>,
     /// `this` 允许出现的上下文栈：
@@ -95,10 +96,12 @@ impl<'a> BlockScopeChecker<'a> {
         imports: &'a ImportTable,
     ) -> Self {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
+        let use_cone = index.cone_of_source(source);
         Self {
             source,
             index,
             imports,
+            use_cone,
             pkg_prefix,
             scopes: Vec::new(),
             this_context: Vec::new(),
@@ -969,7 +972,7 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             }
 
-            if let Some(_fun) = syms.any_visible_fun(self.source) {
+            if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 // fun overload set：任一 overload 可见即可匹配该 FQN。
                 return Ok(Some(fqn));
             } else if syms.has_fun() {
@@ -982,7 +985,7 @@ impl<'a> BlockScopeChecker<'a> {
             }
 
             if let Some(sym) = sym_val {
-                if is_symbol_visible_from(self.source, sym) {
+                if is_symbol_visible_from(self.use_cone, self.source, sym) {
                     return Ok(Some(fqn));
                 }
                 if not_visible.is_none() {
@@ -1034,7 +1037,7 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             };
 
-            if let Some(_fun) = syms.any_visible_fun(self.source) {
+            if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 matches.push(fqn);
             } else if syms.has_fun() && not_visible.is_none() {
                 if let Some(first) = syms.first_fun() {
@@ -1093,7 +1096,7 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 continue;
             };
-            if !is_symbol_visible_from(self.source, sym) {
+            if !is_symbol_visible_from(self.use_cone, self.source, sym) {
                 if not_visible.is_none() {
                     not_visible = Some((ty_fqn.clone(), sym.visibility, sym.span));
                 }
@@ -1106,7 +1109,10 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             };
 
-            if ctors.iter().any(|c| is_ctor_visible_from(self.source, c)) {
+            if ctors
+                .iter()
+                .any(|c| is_ctor_visible_from(self.use_cone, self.source, c))
+            {
                 matches.push(ty_fqn);
             } else if not_visible.is_none() {
                 if let Some(first) = ctors.first() {
@@ -1226,7 +1232,7 @@ impl<'a> BlockScopeChecker<'a> {
             // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
             let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-            if let Some(_fun) = syms.any_visible_fun(self.source) {
+            if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: member_fqn });
                 return Ok(());
             } else if syms.has_fun() {
@@ -1236,7 +1242,7 @@ impl<'a> BlockScopeChecker<'a> {
             }
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
-                if is_symbol_visible_from(self.source, sym) {
+                if is_symbol_visible_from(self.use_cone, self.source, sym) {
                     // T0316：class 初始化阶段禁止访问“后置属性”（前向引用）。
                     if let Some(init_ctx) = self.init_value_members.last() {
                         if init_ctx.this_ty_fqn == receiver_ty_fqn
@@ -1302,7 +1308,7 @@ impl<'a> BlockScopeChecker<'a> {
                 let mut not_visible: Option<(String, Visibility, Span)> = None;
 
                 if let Some(sym) = syms.get(SymbolKind::Value) {
-                    if is_symbol_visible_from(self.source, sym) {
+                    if is_symbol_visible_from(self.use_cone, self.source, sym) {
                         member.resolved = Some(ast::ResolvedMemberRef::Value { fqn: direct_fqn });
                         return Ok(());
                     }
@@ -1341,7 +1347,7 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             };
 
-            if let Some(fun) = syms.any_visible_fun(self.source) {
+            if let Some(fun) = syms.any_visible_fun(self.use_cone, self.source) {
                 fun_matches.push((fqn.clone(), fun.symbol.visibility, fun.symbol.span));
             } else if syms.has_fun() && not_visible.is_none() {
                 if let Some(first) = syms.first_fun() {
@@ -1350,7 +1356,7 @@ impl<'a> BlockScopeChecker<'a> {
             }
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
-                if is_symbol_visible_from(self.source, sym) {
+                if is_symbol_visible_from(self.use_cone, self.source, sym) {
                     value_matches.push((fqn.clone(), sym.visibility, sym.span));
                 } else if not_visible.is_none() {
                     not_visible = Some((fqn.clone(), sym.visibility, sym.span));
@@ -1495,7 +1501,7 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 continue;
             };
-            if is_symbol_visible_from(self.source, sym) {
+            if is_symbol_visible_from(self.use_cone, self.source, sym) {
                 return Some(fqn);
             }
         }
@@ -1551,7 +1557,7 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 continue;
             };
-            if is_symbol_visible_from(self.source, sym) {
+            if is_symbol_visible_from(self.use_cone, self.source, sym) {
                 return Some(fqn);
             }
         }
@@ -1617,9 +1623,10 @@ fn call_candidate_sort_key(c: &ast::CallCandidate) -> (u8, &str) {
     }
 }
 
-fn is_ctor_visible_from(source: &SourceFile, ctor: &super::ConstructorOverload) -> bool {
+fn is_ctor_visible_from(use_cone: ConeId, source: &SourceFile, ctor: &super::ConstructorOverload) -> bool {
     match ctor.visibility {
-        Visibility::Public | Visibility::Internal => true,
+        Visibility::Public => true,
+        Visibility::Internal => ctor.decl_cone == use_cone,
         Visibility::Private => ctor.decl_file == source.path(),
     }
 }
