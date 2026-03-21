@@ -933,11 +933,12 @@
 - 依赖：T0234、T0404
 - 完成：resolver 在 class 属性 accessor scope 内注入隐式局部绑定 `field`（只在 accessor 内可见，便于后续语义检查）；typecheck 新增 `properties` 检查：`val` 属性禁止 setter、computed 属性（无 initializer 且无默认 accessor）引用 `field` 报错（`scoop::typecheck::field_used_without_backing_field`）；fixtures：`tests/fixtures/typecheck/class_property_field_in_setter_ok.scoop`、`tests/fixtures/typecheck/class_property_computed_field_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0432 [TODO] 属性 v1：value type（struct/enum）仅允许 getter-only computed（spec §10.2）
+### T0432 [DONE] 属性 v1：value type（struct/enum）仅允许 getter-only computed（spec §10.2）
 - 描述：对 struct/enum 中的属性限制：禁止 setter；禁止 backing field。
 - 目标：先只在 typecheck enforce；parser 仍可解析。
 - 验收：typecheck fixture：struct 内 `var` 属性或 setter 报错；getter-only 通过。
 - 依赖：T0431、T0409、T0425
+- 完成：在 `crates/scoopc/src/typecheck/properties.rs` 增加值类型属性规则：struct/enum 中属性不允许 `var`（`scoop::typecheck::value_type_property_must_be_val`）；computed 属性（声明了 getter）不允许 initializer（`scoop::typecheck::value_type_property_initializer_not_allowed`）；同时沿用 `val_property_setter_not_allowed` 禁止 setter。并将入口统一为 `check_file_properties`（class + value type）。新增 fixtures：`tests/fixtures/typecheck/struct_computed_property_getter_only_ok.scoop`、`struct_property_setter_not_allowed_is_error.scoop`、`enum_computed_property_getter_only_ok.scoop`、`enum_computed_property_initializer_not_allowed_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0433 [TODO] 扩展属性：必须 computed（无 backing field）（spec §10.3）
 - 描述：实现 extension property 的规则：不能有 initializer/field；编译模型为静态 getter/setter。

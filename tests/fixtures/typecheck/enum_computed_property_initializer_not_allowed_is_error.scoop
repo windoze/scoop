@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::value_type_property_initializer_not_allowed
+// EXPECT-ERROR-AT: 11:18
+// EXPECT-ERROR: computed 属性不允许 initializer
+package fixtures.typecheck
+import scoop.core.*
+
+enum E {
+    A
+
+    val x: Int = 1
+        get() = 1
+}
+

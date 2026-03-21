@@ -267,8 +267,10 @@
   - [x] 默认 getter/setter 视为存在（因此可能生成 backing field）
   - [x] `field` 仅在 accessor 内可见；computed 属性引用 `field` 报错
   - [x] backing field 判定 v0：initializer 或默认 accessor
-- [ ] 值类型属性：
-  - 仅允许 getter-only computed property
+- [x] 值类型属性：
+  - [x] computed property 仅允许 getter-only（禁止 setter）
+  - [x] computed property 不允许 initializer（避免 backing field）
+  - [x] struct/enum 内属性不允许 `var`
 - [ ] 扩展属性：
   - 编译为静态 getter/setter（receiver 作为第一个参数）
 - [ ] 委托属性（delegated properties）：

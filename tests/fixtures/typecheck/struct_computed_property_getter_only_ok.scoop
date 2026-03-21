@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0432 值类型（struct）computed 属性：getter-only 允许。
+package fixtures.typecheck
+import scoop.core.*
+
+struct Point {
+    val doubled: Int
+        get() = 2
+}
+
+fun use(p: Point) {
+    val y: Int = p.doubled
+}
+

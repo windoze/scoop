@@ -1,8 +1,12 @@
-//! 属性声明的最小语义检查（T0431）。
+//! 属性声明的最小语义检查（T0431/T0432）。
 //!
-//! 当前阶段只覆盖 class 属性：
+//! 当前阶段覆盖：
+//! - class 属性（spec §10.1）：
 //! - 默认 getter/setter 视为存在（因此可能生成 backing field）
 //! - `field` 仅允许在“有 backing field”的属性 accessor 内使用
+//! - value type（struct/enum）computed 属性（spec §10.2）：
+//!   - 不允许 `var` / setter
+//!   - computed 属性不允许 initializer（避免引入 backing field 语义）
 //!
 //! 说明：
 //! - 该模块不做 codegen，也不展开 property → getter/setter 调用的 lowering；
@@ -26,6 +30,24 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
+    #[error("值类型（struct/enum）属性不允许 `var`：{type_fqn}.{property}")]
+    #[diagnostic(code(scoop::typecheck::value_type_property_must_be_val))]
+    ValueTypePropertyMustBeVal {
+        type_fqn: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("值类型（struct/enum）computed 属性不允许 initializer（会生成 backing field）：{type_fqn}.{property}")]
+    #[diagnostic(code(scoop::typecheck::value_type_property_initializer_not_allowed))]
+    ValueTypePropertyInitializerNotAllowed {
+        type_fqn: String,
+        property: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("computed 属性不生成 backing field：{class_fqn}.{property} 不能引用 `field`")]
     #[diagnostic(code(scoop::typecheck::field_used_without_backing_field))]
     FieldUsedWithoutBackingField {
@@ -36,8 +58,10 @@ pub enum PropertyDeclError {
     },
 }
 
-/// 检查一个文件内所有 class 声明的属性规则（含嵌套类型）。
-pub fn check_file_class_properties(
+/// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
+/// - class（§10.1）
+/// - value type：struct/enum（§10.2）
+pub fn check_file_properties(
     source: &SourceFile,
     file: &ast::File,
 ) -> Result<(), PropertyDeclError> {
@@ -46,12 +70,12 @@ pub fn check_file_class_properties(
         let ast::Item::Type(ty) = item else {
             continue;
         };
-        check_type_decl_class_properties(source, ty, &pkg_prefix)?;
+        check_type_decl_properties(source, ty, &pkg_prefix)?;
     }
     Ok(())
 }
 
-fn check_type_decl_class_properties(
+fn check_type_decl_properties(
     source: &SourceFile,
     decl: &ast::TypeDecl,
     prefix: &str,
@@ -63,15 +87,27 @@ fn check_type_decl_class_properties(
         format!("{prefix}.{local_name}")
     };
 
-    if matches!(decl.kind, ast::TypeKind::Class) {
-        if let Some(body) = &decl.body {
-            for member in &body.members {
-                if let ast::TypeMember::Property(p) = member {
-                    check_one_class_property(source, &type_fqn, p)?;
+    match decl.kind {
+        ast::TypeKind::Class => {
+            if let Some(body) = &decl.body {
+                for member in &body.members {
+                    if let ast::TypeMember::Property(p) = member {
+                        check_one_class_property(source, &type_fqn, p)?;
+                    }
                 }
             }
         }
-    }
+        ast::TypeKind::Struct | ast::TypeKind::Enum => {
+            if let Some(body) = &decl.body {
+                for member in &body.members {
+                    if let ast::TypeMember::Property(p) = member {
+                        check_one_value_type_property(source, &type_fqn, p)?;
+                    }
+                }
+            }
+        }
+        ast::TypeKind::Interface | ast::TypeKind::Effect => {}
+    };
 
     // 递归处理 nested type（可能存在 nested class）。
     let Some(body) = &decl.body else {
@@ -81,7 +117,7 @@ fn check_type_decl_class_properties(
         let ast::TypeMember::Type(nested) = member else {
             continue;
         };
-        check_type_decl_class_properties(source, nested, &type_fqn)?;
+        check_type_decl_properties(source, nested, &type_fqn)?;
     }
 
     Ok(())
@@ -125,6 +161,46 @@ fn check_one_class_property(
                 class_fqn: class_fqn.to_string(),
                 property,
                 span: span.into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn check_one_value_type_property(
+    source: &SourceFile,
+    type_fqn: &str,
+    p: &ast::PropertyDecl,
+) -> Result<(), PropertyDeclError> {
+    let property = source.slice(p.name.span).to_string();
+
+    // 值类型不可变：属性不允许 `var`（即使语法上能解析）。
+    if matches!(p.kind, ast::ValKind::Var) {
+        return Err(PropertyDeclError::ValueTypePropertyMustBeVal {
+            type_fqn: type_fqn.to_string(),
+            property,
+            span: p.name.span.into(),
+        });
+    }
+
+    // 值类型 computed property：只允许 getter-only（setter 禁止）。
+    if let Some(setter) = &p.setter {
+        return Err(PropertyDeclError::ValPropertySetterNotAllowed {
+            class_fqn: type_fqn.to_string(),
+            property,
+            span: setter.span.into(),
+        });
+    }
+
+    // 仅当声明了 accessor（当前只可能是 getter）时，视为 computed property：
+    // - computed 不应引入 backing field，因此不允许 initializer。
+    if p.getter.is_some() {
+        if let Some(init) = &p.init {
+            return Err(PropertyDeclError::ValueTypePropertyInitializerNotAllowed {
+                type_fqn: type_fqn.to_string(),
+                property,
+                span: init.span.into(),
             });
         }
     }

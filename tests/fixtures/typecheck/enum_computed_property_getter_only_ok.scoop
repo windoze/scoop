@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0432 值类型（enum）computed 属性：getter-only 允许。
+package fixtures.typecheck
+import scoop.core.*
+
+enum Shape {
+    Circle(val r: Int),
+    Rect(val w: Int, val h: Int)
+
+    val area: Int
+        get() = 0
+}
+
