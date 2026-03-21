@@ -263,10 +263,10 @@
 
 ### 4.7 属性系统（spec §10）
 
-- [ ] 类属性：
-  - 默认 getter/setter（生成 backing field）
-  - 自定义 accessor + `field` 关键字规则
-  - 如果 accessor 不引用 `field` → 不生成 backing field
+- [x] 类属性（T0431：typecheck 侧最小规则）：
+  - [x] 默认 getter/setter 视为存在（因此可能生成 backing field）
+  - [x] `field` 仅在 accessor 内可见；computed 属性引用 `field` 报错
+  - [x] backing field 判定 v0：initializer 或默认 accessor
 - [ ] 值类型属性：
   - 仅允许 getter-only computed property
 - [ ] 扩展属性：

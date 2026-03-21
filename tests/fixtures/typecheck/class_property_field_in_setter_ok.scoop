@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0431 class 属性：setter 内可引用 `field`（有 backing field）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Counter {
+    var counter: Int = 0
+        set(value) {
+            field = value
+        }
+}
+

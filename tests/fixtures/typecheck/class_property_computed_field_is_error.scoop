@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::field_used_without_backing_field
+// EXPECT-ERROR-AT: 12:17
+// EXPECT-ERROR: 不能引用 `field`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class User {
+    val name: String
+        get() = field
+}

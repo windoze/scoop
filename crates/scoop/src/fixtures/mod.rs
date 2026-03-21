@@ -239,6 +239,9 @@ fn typecheck_fixture(
     // - 若 bodies 中存在未定义值引用，将以 resolve 错误提前失败（避免后续 typecheck 重复报错）。
     scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(box_diagnostic)?;
 
+    // T0431：class 属性（backing field / `field`）的最小语义检查。
+    scoopc::typecheck::check_file_class_properties(source, &ast).map_err(box_diagnostic)?;
+
     // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot()).map_err(box_diagnostic)?;
     env.extend_from_file(source, &ast).map_err(box_diagnostic)?;

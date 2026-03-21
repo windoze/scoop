@@ -926,11 +926,12 @@
 - 依赖：T0244、T0410、T0409
 - 完成：新增 `crates/scoopc/src/typecheck/val_pat.rs` 实现 `val` 解构 pattern 的最小类型检查（tuple/struct，支持 tuple `..` rest、struct 字段重命名与缺字段诊断），并在 `crates/scoopc/src/typecheck/expr.rs` 的 `check_local_val_decl_exprs` 接入 bindings 注入局部类型表；新增 fixtures `tests/fixtures/typecheck/destructuring_tuple_ok.scoop` 与 `tests/fixtures/typecheck/destructuring_struct_rename_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0431 [TODO] 属性 v0：class 属性声明头与 backing field 规则（spec §10.1）
+### T0431 [DONE] 属性 v0：class 属性声明头与 backing field 规则（spec §10.1）
 - 描述：实现 class 属性的类型检查：默认 getter/setter、`field` 可见性、是否生成 backing field 的判定。
 - 目标：先只做静态规则与诊断；不做 codegen。
 - 验收：typecheck fixture：setter 中引用 `field` 合法；未生成 backing field 的 computed property 禁止引用 `field`。
 - 依赖：T0234、T0404
+- 完成：resolver 在 class 属性 accessor scope 内注入隐式局部绑定 `field`（只在 accessor 内可见，便于后续语义检查）；typecheck 新增 `properties` 检查：`val` 属性禁止 setter、computed 属性（无 initializer 且无默认 accessor）引用 `field` 报错（`scoop::typecheck::field_used_without_backing_field`）；fixtures：`tests/fixtures/typecheck/class_property_field_in_setter_ok.scoop`、`tests/fixtures/typecheck/class_property_computed_field_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0432 [TODO] 属性 v1：value type（struct/enum）仅允许 getter-only computed（spec §10.2）
 - 描述：对 struct/enum 中的属性限制：禁止 setter；禁止 backing field。

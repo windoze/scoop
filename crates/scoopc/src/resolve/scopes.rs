@@ -73,6 +73,12 @@ struct InitValueMembersContext {
     visible_value_members: HashSet<String>,
 }
 
+#[derive(Debug, Clone)]
+struct BackingFieldBinding {
+    decl_span: Span,
+    ty: Option<ast::TypeRef>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MemberReceiverKind {
     /// receiver 是一个值表达式，且其静态类型（FQN）可确定。
@@ -167,7 +173,13 @@ impl<'a> BlockScopeChecker<'a> {
                 ast::TypeMember::Property(p) => {
                     let init_scope = matches!(ty.kind, ast::TypeKind::Class)
                         .then_some(&init_visible_value_members);
-                    self.check_type_member_property(p, &this_ctx, ctor_params, init_scope)?;
+                    self.check_type_member_property(
+                        p,
+                        &this_ctx,
+                        ctor_params,
+                        init_scope,
+                        matches!(ty.kind, ast::TypeKind::Class),
+                    )?;
 
                     // 当前属性的 initializer 已解析完成：后续 init block / property initializer 可见。
                     if matches!(ty.kind, ast::TypeKind::Class) {
@@ -230,7 +242,7 @@ impl<'a> BlockScopeChecker<'a> {
             match member {
                 ast::TypeMember::EnumVariant(_v) => {}
                 ast::TypeMember::Property(p) => {
-                    self.check_type_member_property(p, &this_ctx, ctor_params, None)?
+                    self.check_type_member_property(p, &this_ctx, ctor_params, None, false)?
                 }
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(_ctor) => {}
@@ -312,6 +324,7 @@ impl<'a> BlockScopeChecker<'a> {
         this_ctx: &ThisContext,
         ctor_params: &[ast::Param],
         init_visible_value_members: Option<&HashSet<String>>,
+        inject_backing_field_ident: bool,
     ) -> Result<(), ResolveError> {
         self.with_this_context(this_ctx.clone(), |this| {
             // 属性初始化表达式：允许引用主构造参数（T0313）。
@@ -333,11 +346,16 @@ impl<'a> BlockScopeChecker<'a> {
                 })?;
             }
 
+            let backing_field = inject_backing_field_ident.then_some(BackingFieldBinding {
+                decl_span: p.name.span,
+                ty: p.ty.clone(),
+            });
+
             if let Some(getter) = &mut p.getter {
-                this.check_accessor_in_type(getter, ctor_params)?;
+                this.check_accessor_in_type(getter, ctor_params, backing_field.as_ref())?;
             }
             if let Some(setter) = &mut p.setter {
-                this.check_accessor_in_type(setter, ctor_params)?;
+                this.check_accessor_in_type(setter, ctor_params, backing_field.as_ref())?;
             }
 
             Ok(())
@@ -403,12 +421,23 @@ impl<'a> BlockScopeChecker<'a> {
         &mut self,
         acc: &mut ast::AccessorDecl,
         ctor_params: &[ast::Param],
+        backing_field: Option<&BackingFieldBinding>,
     ) -> Result<(), ResolveError> {
         // accessor 是“函数体”语境：可见 `this`（由调用者提供 this context），并引入：
         // - 主构造参数（外层 frame）
         // - setter 形参（内层 frame）
         self.with_ctor_params_scope(ctor_params, |this| {
             this.push_scope();
+
+            // spec §10.1：`field` 仅在属性 accessor 内可用，用作 backing field 的引用。
+            //
+            // 说明：
+            // - 当前阶段我们把 `field` 作为一个“隐式局部绑定”注入 accessor scope，
+            //   使 resolver 能为其写回 `ResolvedValueRef::Local`；
+            // - 是否允许在该属性中使用 `field`（以及是否真的生成 backing field）由后续 typecheck（T0431）决定。
+            if let Some(field) = backing_field {
+                this.declare_name("field".to_string(), field.decl_span, field.ty.clone())?;
+            }
 
             if let Some(param) = acc.param {
                 this.declare_ident(&param)?;
