@@ -285,8 +285,8 @@
 
 - [ ] `inline`：仅作为优化提示（不改变语义）
 - [ ] 扩展函数：
-  - 解析与分发规则（静态分发、member 优先）
-  - codegen：receiver 作为第一个参数的普通函数
+  - [x] 解析与分发规则（静态分发、member 优先；typecheck 降糖为 receiver 第一个参数）
+  - [ ] codegen：receiver 作为第一个参数的普通函数
 - [ ] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
 - [ ] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
 - [ ] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）

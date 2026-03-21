@@ -976,11 +976,12 @@
 - 依赖：T0219、T0401、T0608
 - 完成：`crates/scoopc/src/ty/mod.rs` 新增 `EffectRow`/`FunctionType` 与显示格式；`crates/scoopc/src/typecheck/lower.rs` 支持 `TypeRef::Function` lowering（含 effect row 项必须为 `effect` 的最小静态检查，缺省 effect 为 `Pure`）；`crates/scoopc/src/typecheck/expr.rs` 的 `is_type_assignable` 增加函数子类型规则（参数逆变、返回协变、effects containment）。fixtures：新增 `tests/fixtures/typecheck/function_type_*`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0436 [TODO] 扩展函数：静态分发与 receiver 作为第一个参数（spec §7.4）
+### T0436 [DONE] 扩展函数：静态分发与 receiver 作为第一个参数（spec §7.4）
 - 描述：typecheck 阶段将 extension fun 视为普通函数（receiver 第一个参数），并实现最小分发规则（member 优先）。
 - 目标：先不支持同名多个 extension 的重载；歧义时报错。
 - 验收：typecheck fixture：`fun Any.id(): Any { this }` 可被调用 `x.id()`；解析到 extension。
 - 依赖：T0233、T0312、T0407
+- 完成：typecheck 阶段将扩展函数降糖为“receiver 作为第一个参数”的普通顶层函数签名（`crates/scoopc/src/typecheck/expr.rs`），并在函数体内为扩展 receiver 注入隐式 `this` 绑定（resolver 将 `this` 解析到 receiver 的 decl span）；`receiver.member()` / `receiver?.member()` 调用按扩展候选进行类型检查，且当同名扩展函数存在多个候选时在 typecheck 报歧义（新错误码 `scoop::typecheck::ambiguous_call`）。新增 fixture：`tests/fixtures/typecheck/extension_fun_receiver_this_ok.scoop`。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0437 [TODO] 泛型：声明处变型 `in/out` + star projection（spec §3.2~§3.3 / Appendix B.4）
 - 描述：在 parser/type system 中支持 `in T`/`out T` 与 `*`，并实现最小合法性检查。

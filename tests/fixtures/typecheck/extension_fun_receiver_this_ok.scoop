@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0436 扩展函数：静态分发（member 优先）+ receiver 作为第一个参数 + `this` 绑定可用。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun Any.id(): Any {
+    return this
+}
+
+val x: Any
+val y: Any = x.id()

@@ -167,6 +167,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用解析歧义：{callee}")]
+    #[diagnostic(code(scoop::typecheck::ambiguous_call))]
+    AmbiguousCall {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {
@@ -500,7 +508,13 @@ pub enum ExprTypeError {
 
 #[derive(Debug, Clone)]
 struct FunSigOwned {
-    receiver: Option<TypeId>,
+    /// 是否为扩展函数（`fun Receiver.name(...)`）。
+    ///
+    /// 说明：
+    /// - 在 typecheck 阶段我们把扩展函数“降糖”为普通顶层函数：receiver 作为第一个参数（spec §7.4）；
+    /// - 该标记仅用于限制语法层的可调用性：扩展函数不能以 `f(args...)` 形式直接调用，
+    ///   只能通过 `receiver.f(args...)` / `receiver?.f(args...)` 调用（当前阶段最小子集）。
+    is_extension: bool,
     params: Vec<TypeId>,
     return_ty: TypeId,
 }
@@ -566,7 +580,7 @@ fn check_top_level_val_initializer(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     let Some(init) = &v.init else {
@@ -608,7 +622,7 @@ fn infer_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     match &expr.kind {
@@ -861,7 +875,7 @@ fn infer_struct_lit_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先把 TypeName lowering 为一个 nominal value type（struct/enum）；并进一步约束必须是 struct。
@@ -985,7 +999,7 @@ fn infer_with_update_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先递归类型检查 base：保证 `p with { ... }` 中的 `p` 自身也会被覆盖。
@@ -1318,7 +1332,7 @@ fn infer_call_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     match &callee.kind {
@@ -1362,16 +1376,23 @@ fn infer_call_expr_type(
             };
 
             // 当前阶段仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
-            let Some(sig) = top_level_funs.get(&callee_fqn) else {
+            let Some(sigs) = top_level_funs.get(&callee_fqn) else {
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_fqn,
                     span: callee_span.into(),
                 });
             };
 
-            // receiver fun（扩展函数）不能以 `f(args...)` 的形式被直接调用。
-            if sig.receiver.is_some() {
+            // 扩展函数不能以 `f(args...)` 的形式被直接调用，因此这里只选择普通顶层函数候选。
+            let mut direct_call_candidates = sigs.iter().filter(|s| !s.is_extension);
+            let Some(sig) = direct_call_candidates.next() else {
                 return Err(ExprTypeError::CalleeNotCallable {
+                    callee: callee_fqn,
+                    span: callee_span.into(),
+                });
+            };
+            if direct_call_candidates.next().is_some() {
+                return Err(ExprTypeError::AmbiguousCall {
                     callee: callee_fqn,
                     span: callee_span.into(),
                 });
@@ -1459,7 +1480,7 @@ fn infer_enum_variant_ctor_call_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let variant_name = source.slice(callee.span);
@@ -1822,7 +1843,7 @@ fn infer_member_call_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先递归类型检查 receiver：保证 `a?.b()` 中的 `a` 自身也会被覆盖。
@@ -1875,15 +1896,30 @@ fn infer_member_call_expr_type(
         }
     };
 
-    let Some(sig) = top_level_funs.get(&callee_fqn) else {
+    let Some(sigs) = top_level_funs.get(&callee_fqn) else {
         return Err(ExprTypeError::CalleeNotCallable {
             callee: callee_fqn,
             span: member.span.into(),
         });
     };
 
-    let Some(expected_receiver_ty) = sig.receiver else {
-        // 不是扩展函数：`receiver.member()` 形式不应绑定到普通顶层函数。
+    // 只选择扩展函数候选（同名顶层普通函数不参与 `receiver.member()`）。
+    let mut ext_candidates = sigs.iter().filter(|s| s.is_extension);
+    let Some(sig) = ext_candidates.next() else {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_fqn,
+            span: member.span.into(),
+        });
+    };
+    if ext_candidates.next().is_some() {
+        return Err(ExprTypeError::AmbiguousCall {
+            callee: callee_fqn,
+            span: member.span.into(),
+        });
+    }
+
+    let Some(expected_receiver_ty) = sig.params.first().copied() else {
+        // 健壮性：扩展函数至少应该包含 receiver 这一参数。
         return Err(ExprTypeError::CalleeNotCallable {
             callee: callee_fqn,
             span: member.span.into(),
@@ -1899,16 +1935,24 @@ fn infer_member_call_expr_type(
         });
     }
 
-    if args.len() != sig.params.len() {
+    let expected_args = sig.params.len().saturating_sub(1);
+    if args.len() != expected_args {
         return Err(ExprTypeError::CallArityMismatch {
             callee: callee_fqn,
-            expected: sig.params.len(),
+            expected: expected_args,
             found: args.len(),
             span: call_expr.span.into(),
         });
     }
 
-    for (idx, (arg, expected_ty)) in args.iter().zip(sig.params.iter().copied()).enumerate() {
+    let Some(expected_param_tys) = sig.params.get(1..) else {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_fqn,
+            span: member.span.into(),
+        });
+    };
+
+    for (idx, (arg, expected_ty)) in args.iter().zip(expected_param_tys.iter().copied()).enumerate() {
         let found_ty = infer_expr_type(
             source,
             arg,
@@ -1986,15 +2030,16 @@ fn collect_top_level_value_types(
 /// 当前阶段（最小子集）：
 /// - 不处理 type param / overload / default param；
 /// - 未显式标注 return type 的函数，暂视为 `Unit`；
-/// - 扩展函数（receiver fun）会被收集，用于 `receiver.member()` 与 `receiver?.member()` 调用的类型检查。
+/// - 扩展函数会被降糖为“receiver 作为第一个参数”的普通顶层函数，用于 `receiver.member()` 与 `receiver?.member()`
+///   调用的类型检查（spec §7.4）。
 fn collect_top_level_fun_signatures(
     source: &SourceFile,
     file: &ast::File,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
-) -> Result<HashMap<String, FunSigOwned>, ExprTypeError> {
+) -> Result<HashMap<String, Vec<FunSigOwned>>, ExprTypeError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let mut map: HashMap<String, FunSigOwned> = HashMap::new();
+    let mut map: HashMap<String, Vec<FunSigOwned>> = HashMap::new();
 
     for item in &file.items {
         let ast::Item::Fun(fun) = item else {
@@ -2008,7 +2053,15 @@ fn collect_top_level_fun_signatures(
             format!("{pkg_prefix}.{local_name}")
         };
 
-        let mut params = Vec::with_capacity(fun.params.len());
+        let mut params = Vec::with_capacity(fun.params.len() + 1);
+
+        // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
+        // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
+        let is_extension = fun.receiver.is_some();
+        if let Some(receiver) = &fun.receiver {
+            params.push(lower.lower_type_ref(receiver)?);
+        }
+
         for p in &fun.params {
             let Some(ty_ref) = &p.ty else {
                 // headers check 已保证参数类型注解存在；这里保持健壮性。
@@ -2017,24 +2070,18 @@ fn collect_top_level_fun_signatures(
             params.push(lower.lower_type_ref(ty_ref)?);
         }
 
-        let receiver = match &fun.receiver {
-            Some(r) => Some(lower.lower_type_ref(r)?),
-            None => None,
-        };
-
         let return_ty = match &fun.return_ty {
             Some(ret) => lower.lower_type_ref(ret)?,
             None => builtins.unit,
         };
 
-        map.insert(
-            fqn,
-            FunSigOwned {
-                receiver,
+        map.entry(fqn)
+            .or_default()
+            .push(FunSigOwned {
+                is_extension,
                 params,
                 return_ty,
-            },
-        );
+            });
     }
 
     Ok(map)
@@ -2046,7 +2093,7 @@ fn check_fun_body_exprs(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 函数级的“局部值类型表”（binder decl span → TypeId）。
@@ -2062,6 +2109,13 @@ fn check_fun_body_exprs(
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
+
+    // 扩展函数：为 `this` 注入隐式绑定（resolver 将 `this` 解析到 receiver 的 decl_span）。
+    if let Some(receiver) = &fun.receiver {
+        let receiver_ty = lower.lower_type_ref(receiver)?;
+        locals.insert(receiver.span(), receiver_ty);
+        stable_bindings.insert(receiver.span());
+    }
 
     for p in &fun.params {
         let Some(ty_ref) = &p.ty else {
@@ -2108,7 +2162,7 @@ fn check_block_exprs(
     mutable_bindings: &mut HashSet<Span>,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
@@ -2150,7 +2204,7 @@ fn check_stmt_exprs(
     mutable_bindings: &mut HashSet<Span>,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
@@ -2354,7 +2408,7 @@ fn check_local_val_decl_exprs(
     stable_bindings: &mut HashSet<Span>,
     mutable_bindings: &mut HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
@@ -2458,7 +2512,7 @@ fn check_expr_stmt(
     mutable_bindings: &mut HashSet<Span>,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
@@ -2770,7 +2824,7 @@ fn check_if_expr_stmt(
     mutable_bindings: &HashSet<Span>,
     expected_return_ty: Option<TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
@@ -2839,7 +2893,7 @@ fn check_assign_expr_stmt(
     stable_bindings: &HashSet<Span>,
     mutable_bindings: &HashSet<Span>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // T0416：局部赋值规则最小子集：
@@ -2988,7 +3042,7 @@ fn infer_safe_member_access_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先递归类型检查 receiver：保证其中的表达式也会被覆盖。
@@ -3070,7 +3124,7 @@ fn infer_elvis_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     let lhs_ty = infer_expr_type(
@@ -3123,7 +3177,7 @@ fn infer_not_null_assert_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // T0421a：最小规则：
@@ -3157,7 +3211,7 @@ fn infer_member_access_expr_type(
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, FunSigOwned>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖。
