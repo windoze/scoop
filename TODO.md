@@ -736,11 +736,27 @@
 - 依赖：T0260、T0309、T0308
 - 完成：`check_file_headers` 阶段补齐 `FunDecl/TypeDecl` 的 `where_clause` 解析：约束左侧校验 type param scope，右侧复用 `TypeRef` 解析；新增稳定诊断 `scoop::resolve::unresolved_type_param`；新增 resolve fixtures `tests/fixtures/resolve/where_clause_*` 覆盖 pass/未声明类型参数/未解析约束类型；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0321 [TODO] Resolver：跨包可见性规则（`public/internal/private`）
-- 描述：在 package / `.cone` 依赖边界上固定可见性规则：同包、跨包、下游依赖分别能看到哪些声明，并把诊断统一到稳定错误码。
-- 目标：先只支持 Scoop package 与 `.cone` 依赖的主路径；不引入 friend module 或自定义可见性层级。
-- 验收：新增多包 fixtures：`public` 可被下游引用，`internal/private` 在跨包场景下被拒绝；错误信息能指出声明所在包。
-- 依赖：T0306、T1105
+### T0321 Resolver：跨包可见性规则（`public/internal/private`）（拆分为子任务）
+- 描述：在 source package / `.cone` 依赖边界上固定可见性规则：同 cone、跨 cone、下游依赖分别能看到哪些声明，并把诊断统一到稳定错误码。
+- 目标：优先把 resolver 的“可见性判定”做成可接入 `.cone` 的形态；不引入 friend module 或自定义可见性层级。
+- 验收：见子任务（T0321a/T0321b）。
+- 依赖：T0306
+
+### T0321a [TODO] Resolver：引入 cone 边界并实现 internal 跨 cone 不可见（source-only fixtures）
+- 描述：在 resolver 的可见性判断里引入“cone（编译包）”边界：`internal` 仅 cone 内可见，`public` 可跨 cone，`private` 文件内可见；并在 fixtures 中新增可模拟依赖 cone 的 runner 与用例。
+- 目标：只实现 resolver/fixtures 侧 cone 边界；不实现 `.cone` 归档读取与 API 注入（留给 T1105/T0321b）。
+- 验收：新增 `tests/fixtures/resolve_cone/<case>/`（每个 case 含 2 个 cone 子目录），下游 cone 引用上游 cone：
+  - `public` 声明可见（pass）
+  - `internal/private` 在跨 cone 场景下被拒绝（fail，稳定错误码 `scoop::resolve::not_visible`）
+  - 错误信息能指出声明所在包（例如包含 `lib.` 前缀）
+  - `cargo test --all` 与 `cargo run -p scoop -- test` 通过
+- 依赖：T0306、T0307
+
+### T0321b [TODO] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
+- 描述：当依赖来自 `.cone` 时，下游只能看到依赖 cone 的 `public` API；`internal/private` 必须在 resolver/typecheck 阶段一致地被拒绝。
+- 目标：只打通“加载依赖 API → resolve 可见性过滤 → 稳定诊断”主路径；friend module 等高级规则不做。
+- 验收：新增 cone fixture：B 依赖 A（`.cone`），可引用 A 的 `public` 类型/函数；引用 A 的 `internal/private` 报 `not_visible` 且定位稳定。
+- 依赖：T0321a、T1105
 
 ### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
 - 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。

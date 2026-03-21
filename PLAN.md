@@ -172,7 +172,9 @@
   - [x] 索引侧：顶层/成员/扩展函数与构造函数收集为候选集合（T0318）
   - [x] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
   - [ ] typecheck + inference：决议 most-specific 与冲突诊断
-- [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断
+- [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务）
+  - [ ] T0321a：resolver 引入 cone 边界 + source-only 多 cone fixtures
+  - [ ] T0321b：接入真实 `.cone` 依赖后的可见性过滤
 - [ ] 跨包扩展导入：extension 在显式 import / star import / 成员候选之间的可见性、shadowing 与候选收集
 
 ### 3.3 sysroot 注入
