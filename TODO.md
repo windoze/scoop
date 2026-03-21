@@ -863,11 +863,12 @@
 - 依赖：T0212、T0411、T0406
 - 完成：在 `crates/scoopc/src/typecheck/expr.rs` 为 `ExprKind::NotNullAssert` 增加类型推导：要求操作数为 `Option<T>` 并返回 `T`；新增诊断 `scoop::typecheck::not_null_assert_operand_not_nullable`；新增 fixtures `tests/fixtures/typecheck/not_null_assert_ok.scoop` 与 `tests/fixtures/typecheck/not_null_assert_operand_not_nullable_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0422 [TODO] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
+### T0422 [DONE] `?.` safe-call 与 `?:` Elvis 的类型规则（Appendix B.3.1/3.2）
 - 描述：`x?.m()` 返回 `R?`；`x ?: y` 的结果类型为 `T`（若 y: T）。
 - 目标：先只覆盖 Option<T>（nullable sugar）；不引入真正的 null 值。
 - 验收：typecheck fixture：`val y: Int? = x?.len()` 合法；`val z: Int = x ?: 0` 合法。
 - 依赖：T0229、T0411、T0407
+- 完成：在 `crates/scoopc/src/typecheck/expr.rs` 实现 safe-call 的 receiver 检查与返回值 `Option` 包装（`Call(SafeMemberAccess)` → `infer_member_call_expr_type(..., safe=true)` 返回 `Option<Ret>`；字段访问 `receiver?.field` 返回 `Option<FieldTy>`），并实现 Elvis `?:` 的类型规则（`Option<T> ?: T` → `T`，rhs 需可赋值给 T）；新增 fixture `tests/fixtures/typecheck/safe_call_and_elvis_ok.scoop` 覆盖 `x?.len()` 与 `n ?: 0`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0423 [TODO] struct literal 的类型检查（字段存在性/类型匹配）
 - 描述：检查 `Point { x: 1, y: 2 }`：字段必须存在、不可重复、类型匹配、必填字段覆盖规则（按设计）。

@@ -204,6 +204,7 @@
 - [x] tuple/Unit（0 元 tuple）：tuple 类型与 tuple 字面量 typecheck（T0410）
 - [x] 最小子类型规则：`Nothing <: T`（用于 `return`/不可达分支/后续 `Raise.raise`）（T0420）
 - [x] `!!` 非空断言：`Option<T>` → `T` 的静态类型规则（T0421a）
+- [x] `?.` safe-call 与 Elvis `?:`：`Option<T>` 语法糖的类型规则（`x?.m()` 返回 `R?`；`x ?: y` 返回 `T`）（T0422）
 - [ ] 内建整数模型（spec §2.3.4 / runtime §3）
   - （已在 `scoopc::ty` 中建模 `Int/UInt/IntN/UIntN`；运算/布局语义后续补齐）
   - `Int/UInt` 的 bit width = target pointer size
