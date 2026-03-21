@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0451 标准 delegates 表面：`observable` 可用于 `var` delegated property。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Example {
+    var score: Int by observable(0) { old, new ->
+        ()
+    }
+}
+

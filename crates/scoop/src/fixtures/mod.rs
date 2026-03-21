@@ -283,16 +283,16 @@ fn typecheck_fixture(
     // - 若 bodies 中存在未定义值引用，将以 resolve 错误提前失败（避免后续 typecheck 重复报错）。
     scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(box_diagnostic)?;
 
-    // T0431/T0432：属性（class/value type）的最小语义检查。
-    scoopc::typecheck::check_file_properties(source, &ast, &index).map_err(box_diagnostic)?;
-    // T0439：class 继承与 override 的最小语义检查。
-    scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(box_diagnostic)?;
-
-    // 构建 type env：sysroot + 当前文件（用于 arity 检查与 nominal kind 判定）。
+    // 构建 type env：sysroot + 当前文件（用于跨文件 type position 查询）。
     let mut env =
         scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).map_err(box_diagnostic)?;
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
+
+    // T0431/T0432：属性（class/value type）的最小语义检查。
+    scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(box_diagnostic)?;
+    // T0439：class 继承与 override 的最小语义检查。
+    scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(box_diagnostic)?;
 
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
@@ -571,7 +571,7 @@ fn run_typecheck_multi_case(
                 .map_err(box_diagnostic)?;
 
             // typecheck phase。
-            scoopc::typecheck::check_file_properties(source, ast, &index).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_properties(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(

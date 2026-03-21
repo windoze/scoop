@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0451 标准 delegates 表面：`lazy` 可用于 delegated property。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Example {
+    val text: String by lazy { "" }
+}
+

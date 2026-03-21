@@ -1174,11 +1174,29 @@
     - `when` tuple/variant rest 的 pass 与 too-short fail
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0451 [TODO] 委托属性：标准接口与标准 delegates 表面（spec §10.4）
+### T0451 [DONE] 委托属性：标准接口与标准 delegates 表面（spec §10.4）
 - 描述：补齐 delegated property 的静态表面：`ReadOnlyProperty` / `ReadWriteProperty` 接口规则，以及 `scoop.delegates` 中 `lazy` / `observable` / `vetoable` / map-backed delegate 的最小声明面。
 - 目标：先只固定签名与类型规则；具体库行为与线程安全语义后续任务补齐。
 - 验收：resolve/typecheck fixture：`val x by lazy { ... }`、`var x by observable(...)`、map-backed delegate 均能过签名检查；缺少 `getValue/setValue` 报错。
 - 依赖：T0434、T1208
+- 完成：
+  - sysroot：
+    - 新增 `sysroot/delegates.scoop`：声明 `ReadOnlyProperty`/`ReadWriteProperty`、`LazyThreadSafetyMode`，以及 `lazy/observable/vetoable` 的最小签名表面。
+    - 新增 `sysroot/collections.scoop`：声明最小 `Map<K, V>` 表面，并提供 `getValue`（用于 map-backed delegate）。
+  - typecheck：
+    - delegated property 的签名检查升级为“可跨文件解析”：通过 `TypeEnv` 获取声明处 `SourceFile` 与 import 上下文，避免用 use-site source slice 导致的误判。
+    - 推导 delegate nominal type 的覆盖面扩展：
+      - 构造调用 `Foo()`（原逻辑保持）
+      - 顶层函数调用 `lazy { ... }` / `observable(...)`：使用返回类型的名义类型作为 delegate type
+      - 标识符 `by data`：从 class 字段/ctor `val` 参数的类型注解推导 delegate type（用于 map-backed）
+    - `getValue/setValue` 可来自 supertypes（例如 `ReadWriteProperty` 继承 `ReadOnlyProperty.getValue`）。
+    - 对类型参数（如 `T`/`V`）做保守“通配”匹配，以支持标准泛型 delegates 的签名表面。
+  - fixtures：新增 typecheck fixtures 覆盖标准 delegates：
+    - `tests/fixtures/typecheck/delegated_property_lazy_ok.scoop`
+    - `tests/fixtures/typecheck/delegated_property_observable_ok.scoop`
+    - `tests/fixtures/typecheck/delegated_property_vetoable_ok.scoop`
+    - `tests/fixtures/typecheck/delegated_property_map_backed_ok.scoop`
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0452 [TODO] `object` / `companion object`：类型规则与单例语义（Appendix B.9）
 - 描述：实现 `object` / `companion object` 的类型检查规则：单例不可构造、成员访问类型正确、companion 可通过宿主类名访问。

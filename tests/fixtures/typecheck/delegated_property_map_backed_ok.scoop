@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0451 map-backed delegate：`val x: T by data` 通过签名检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.collections.*
+
+class JsonObject(val data: Map<String, Any>) {
+    val name: String by data
+    val age: Int by data
+}

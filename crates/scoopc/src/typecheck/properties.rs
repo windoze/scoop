@@ -26,6 +26,10 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
+use std::collections::{HashMap, HashSet};
+
+use super::type_env::FileTypeContext;
+use super::TypeEnv;
 use crate::ast;
 use crate::resolve::{FunOverload, Index};
 use crate::source::SourceFile;
@@ -179,12 +183,13 @@ pub fn check_file_properties(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    env: &TypeEnv,
 ) -> Result<(), PropertyDeclError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
             ast::Item::Type(ty) => {
-                check_type_decl_properties(source, file, ty, &pkg_prefix, index)?
+                check_type_decl_properties(source, file, ty, &pkg_prefix, index, env)?
             }
             ast::Item::ExtensionProperty(p) => check_one_extension_property(source, p)?,
             ast::Item::TypeAlias(_)
@@ -202,6 +207,7 @@ fn check_type_decl_properties(
     decl: &ast::TypeDecl,
     prefix: &str,
     index: &Index,
+    env: &TypeEnv,
 ) -> Result<(), PropertyDeclError> {
     let local_name = source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
@@ -213,9 +219,18 @@ fn check_type_decl_properties(
     match decl.kind {
         ast::TypeKind::Class => {
             if let Some(body) = &decl.body {
+                let value_types = collect_class_value_decl_types(decl);
                 for member in &body.members {
                     if let ast::TypeMember::Property(p) = member {
-                        check_one_class_property(source, file, &type_fqn, p, index)?;
+                        check_one_class_property(
+                            source,
+                            file,
+                            &type_fqn,
+                            p,
+                            &value_types,
+                            index,
+                            env,
+                        )?;
                     }
                 }
             }
@@ -240,10 +255,42 @@ fn check_type_decl_properties(
         let ast::TypeMember::Type(nested) = member else {
             continue;
         };
-        check_type_decl_properties(source, file, nested, &type_fqn, index)?;
+        check_type_decl_properties(source, file, nested, &type_fqn, index, env)?;
     }
 
     Ok(())
+}
+
+fn collect_class_value_decl_types(decl: &ast::TypeDecl) -> HashMap<Span, &ast::TypeRef> {
+    let mut out: HashMap<Span, &ast::TypeRef> = HashMap::new();
+
+    // 主构造参数中的 `val/var` 字段（T0438）。
+    if let Some(primary_ctor) = &decl.primary_ctor {
+        for p in &primary_ctor.params {
+            if p.kind.is_none() {
+                continue;
+            }
+            let Some(ty) = p.ty.as_ref() else {
+                continue;
+            };
+            out.insert(p.name.span, ty);
+        }
+    }
+
+    // class body 内的属性声明。
+    if let Some(body) = &decl.body {
+        for m in &body.members {
+            let ast::TypeMember::Property(p) = m else {
+                continue;
+            };
+            let Some(ty) = p.ty.as_ref() else {
+                continue;
+            };
+            out.insert(p.name.span, ty);
+        }
+    }
+
+    out
 }
 
 fn check_one_class_property(
@@ -251,7 +298,9 @@ fn check_one_class_property(
     file: &ast::File,
     class_fqn: &str,
     p: &ast::PropertyDecl,
+    value_types: &HashMap<Span, &ast::TypeRef>,
     index: &Index,
+    env: &TypeEnv,
 ) -> Result<(), PropertyDeclError> {
     let property = source.slice(p.name.span).to_string();
 
@@ -261,13 +310,15 @@ fn check_one_class_property(
         // 注意：
         // - 当前阶段仅做最小签名检查（T0434b），不生成 `$delegate` 字段/转发函数（见 T1210）；
         // - 若无法从 delegate expr 推导出 delegate nominal type，则保守放行（避免误伤未覆盖的表达式形态）。
-        if let Some(delegate_ty) = delegate_expr_constructor_type_fqn(delegate) {
+        if let Some(delegate_ty) =
+            delegate_expr_nominal_type_fqn(source, file, index, env, value_types, delegate)
+        {
             // 属性声明头检查（T0404）已保证 type annotation 存在；这里仍保持健壮性。
             let property_ty_ref = p.ty.as_ref();
             let property_ty_fqn =
                 property_ty_ref.and_then(|t| type_ref_to_fqn_in_file(source, file, index, t));
 
-            if !type_has_method_named(index, &delegate_ty, "getValue") {
+            if !type_has_method_named(index, env, &delegate_ty, "getValue") {
                 return Err(PropertyDeclError::DelegatedPropertyMissingGetValue {
                     class_fqn: class_fqn.to_string(),
                     property,
@@ -280,6 +331,7 @@ fn check_one_class_property(
                 source,
                 file,
                 index,
+                env,
                 class_fqn,
                 &property,
                 &delegate_ty,
@@ -288,7 +340,7 @@ fn check_one_class_property(
             )?;
 
             if matches!(p.kind, ast::ValKind::Var) {
-                if !type_has_method_named(index, &delegate_ty, "setValue") {
+                if !type_has_method_named(index, env, &delegate_ty, "setValue") {
                     return Err(PropertyDeclError::DelegatedPropertyMissingSetValue {
                         class_fqn: class_fqn.to_string(),
                         property,
@@ -301,6 +353,7 @@ fn check_one_class_property(
                     source,
                     file,
                     index,
+                    env,
                     class_fqn,
                     &property,
                     &delegate_ty,
@@ -672,18 +725,94 @@ fn delegate_expr_constructor_type_fqn(delegate: &ast::Expr) -> Option<String> {
     None
 }
 
-fn type_has_method_named(index: &Index, ty_fqn: &str, method: &str) -> bool {
-    let fqn = format!("{ty_fqn}.{method}");
-    index
-        .by_fqn
-        .get(&fqn)
-        .is_some_and(|symbols| !symbols.fun.is_empty())
-}
-
-fn check_delegated_property_get_value_signature(
+fn delegate_expr_nominal_type_fqn(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    env: &TypeEnv,
+    value_types: &HashMap<Span, &ast::TypeRef>,
+    delegate: &ast::Expr,
+) -> Option<String> {
+    match &delegate.kind {
+        ast::ExprKind::Call { callee, .. } => {
+            // 1) 优先走旧逻辑：构造调用 → delegate nominal type（T0434b）。
+            if let Some(ty) = delegate_expr_constructor_type_fqn(delegate) {
+                return Some(ty);
+            }
+
+            // 2) 顶层函数调用：使用“返回类型的名义类型”作为 delegate nominal type。
+            //
+            // 说明：
+            // - 该策略主要用于标准 delegates（`lazy/observable/vetoable`）；
+            // - 当前阶段不做 overload resolution：只在候选集合可唯一确定一个顶层函数时才尝试推导。
+            let ast::ExprKind::Ident(id) = &callee.kind else {
+                return None;
+            };
+
+            // 2.1) 优先使用 resolver 写回的候选集合（比 `resolved` 更稳健）。
+            if let Some(call) = id.call.as_ref() {
+                let mut funs: Vec<String> = call
+                    .candidates
+                    .iter()
+                    .filter_map(|c| match c {
+                        ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                        ast::CallCandidate::Constructor { .. } => None,
+                    })
+                    .collect();
+                funs.sort();
+                funs.dedup();
+
+                if funs.len() == 1 {
+                    return top_level_fun_return_type_fqn(index, env, &funs[0]);
+                }
+            }
+
+            // 2.2) fallback：若 resolver 已把 callee 绑定为唯一顶层函数，同样可用。
+            let Some(ast::ResolvedValueRef::TopLevel { fqn }) = &id.resolved else {
+                return None;
+            };
+            top_level_fun_return_type_fqn(index, env, fqn)
+        }
+
+        // 3) `val x: T by data`：从 `data` 的声明类型推导 delegate nominal type。
+        //
+        // 说明：
+        // - 当前只覆盖 class 初始化语境内的“字段/属性引用”（其 binder span 可通过 `resolved` 的
+        //   `decl_span` 定位到 ctor param 或同一 class 的属性声明）。
+        ast::ExprKind::Ident(id) => {
+            let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = &id.resolved else {
+                return None;
+            };
+            let ty = value_types.get(decl_span)?;
+            type_ref_to_fqn_in_file(source, file, index, ty)
+        }
+
+        _ => None,
+    }
+}
+
+fn top_level_fun_return_type_fqn(index: &Index, env: &TypeEnv, fun_fqn: &str) -> Option<String> {
+    let overloads = index.by_fqn.get(fun_fqn).map(|syms| syms.fun.as_slice())?;
+    if overloads.len() != 1 {
+        return None;
+    }
+    let overload = &overloads[0];
+    let ret = overload.sig.return_ty.as_ref()?;
+    let (decl_source, decl_ctx) = overload_decl_source_and_ctx(env, overload)?;
+    type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, ret)
+}
+
+fn type_has_method_named(index: &Index, env: &TypeEnv, ty_fqn: &str, method: &str) -> bool {
+    // NOTE: delegated property 的 `getValue/setValue` 可以来自 supertypes
+    // （例如 `ReadWriteProperty` 继承 `ReadOnlyProperty` 的 `getValue`）。
+    !method_overloads_in_type_hierarchy(index, env, ty_fqn, method).is_empty()
+}
+
+fn check_delegated_property_get_value_signature(
+    _source: &SourceFile,
+    _file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
     class_fqn: &str,
     property: &str,
     delegate_ty: &str,
@@ -695,24 +824,12 @@ fn check_delegated_property_get_value_signature(
         return Ok(());
     };
 
-    let fqn = format!("{delegate_ty}.getValue");
-    let overloads = index
-        .by_fqn
-        .get(&fqn)
-        .map(|syms| syms.fun.as_slice())
-        .unwrap_or_default();
+    let overloads = method_overloads_in_type_hierarchy(index, env, delegate_ty, "getValue");
 
     let mut found_sig = None;
-    for o in overloads {
-        found_sig.get_or_insert_with(|| fmt_fun_sig(source, file, index, "getValue", o));
-        if delegated_get_value_overload_matches(
-            source,
-            file,
-            index,
-            o,
-            class_fqn,
-            property_ty_fqn,
-        ) {
+    for o in &overloads {
+        found_sig.get_or_insert_with(|| fmt_fun_sig(env, index, "getValue", o));
+        if delegated_get_value_overload_matches(env, index, o, class_fqn, property_ty_fqn) {
             return Ok(());
         }
     }
@@ -730,9 +847,10 @@ fn check_delegated_property_get_value_signature(
 }
 
 fn check_delegated_property_set_value_signature(
-    source: &SourceFile,
-    file: &ast::File,
+    _source: &SourceFile,
+    _file: &ast::File,
     index: &Index,
+    env: &TypeEnv,
     class_fqn: &str,
     property: &str,
     delegate_ty: &str,
@@ -743,24 +861,12 @@ fn check_delegated_property_set_value_signature(
         return Ok(());
     };
 
-    let fqn = format!("{delegate_ty}.setValue");
-    let overloads = index
-        .by_fqn
-        .get(&fqn)
-        .map(|syms| syms.fun.as_slice())
-        .unwrap_or_default();
+    let overloads = method_overloads_in_type_hierarchy(index, env, delegate_ty, "setValue");
 
     let mut found_sig = None;
-    for o in overloads {
-        found_sig.get_or_insert_with(|| fmt_fun_sig(source, file, index, "setValue", o));
-        if delegated_set_value_overload_matches(
-            source,
-            file,
-            index,
-            o,
-            class_fqn,
-            property_ty_fqn,
-        ) {
+    for o in &overloads {
+        found_sig.get_or_insert_with(|| fmt_fun_sig(env, index, "setValue", o));
+        if delegated_set_value_overload_matches(env, index, o, class_fqn, property_ty_fqn) {
             return Ok(());
         }
     }
@@ -778,29 +884,31 @@ fn check_delegated_property_set_value_signature(
 }
 
 fn delegated_get_value_overload_matches(
-    source: &SourceFile,
-    file: &ast::File,
+    env: &TypeEnv,
     index: &Index,
     overload: &FunOverload,
     owner_ty_fqn: &str,
     value_ty_fqn: &str,
 ) -> bool {
+    let Some((decl_source, decl_ctx)) = overload_decl_source_and_ctx(env, overload) else {
+        return false;
+    };
+
     if overload.sig.params.len() != 2 {
         return false;
     }
 
-    let Some(this_ref) = overload
+    let this_ref_ty_fqn = overload
         .sig
         .params
         .first()
         .and_then(|p| p.ty.as_ref())
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
-    else {
-        return false;
-    };
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
 
-    if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
-        return false;
+    if let Some(this_ref) = this_ref_ty_fqn.as_deref() {
+        if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+            return false;
+        }
     }
 
     let Some(prop) = overload
@@ -808,7 +916,7 @@ fn delegated_get_value_overload_matches(
         .params
         .get(1)
         .and_then(|p| p.ty.as_ref())
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
     else {
         return false;
     };
@@ -816,36 +924,44 @@ fn delegated_get_value_overload_matches(
         return false;
     }
 
-    let ret = overload.sig.return_ty.as_ref();
-    let ret_fqn = ret
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
-        .unwrap_or_else(|| UNIT_FQN.to_string());
-    ret_fqn == value_ty_fqn
+    let Some(ret) = overload.sig.return_ty.as_ref() else {
+        // 无显式返回类型：按语言默认 `Unit` 处理，此时不可能匹配大多数属性类型。
+        return value_ty_fqn == UNIT_FQN;
+    };
+
+    match type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, ret) {
+        Some(fqn) => fqn == value_ty_fqn,
+        // 返回类型也可能是类型参数（例如 `V`）：视为可匹配属性类型。
+        None => true,
+    }
 }
 
 fn delegated_set_value_overload_matches(
-    source: &SourceFile,
-    file: &ast::File,
+    env: &TypeEnv,
     index: &Index,
     overload: &FunOverload,
     owner_ty_fqn: &str,
     value_ty_fqn: &str,
 ) -> bool {
+    let Some((decl_source, decl_ctx)) = overload_decl_source_and_ctx(env, overload) else {
+        return false;
+    };
+
     if overload.sig.params.len() != 3 {
         return false;
     }
 
-    let Some(this_ref) = overload
+    let this_ref_ty_fqn = overload
         .sig
         .params
         .first()
         .and_then(|p| p.ty.as_ref())
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
-    else {
-        return false;
-    };
-    if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
-        return false;
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
+
+    if let Some(this_ref) = this_ref_ty_fqn.as_deref() {
+        if this_ref != owner_ty_fqn && this_ref != ANY_FQN {
+            return false;
+        }
     }
 
     let Some(prop) = overload
@@ -853,7 +969,7 @@ fn delegated_set_value_overload_matches(
         .params
         .get(1)
         .and_then(|p| p.ty.as_ref())
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
     else {
         return false;
     };
@@ -861,39 +977,43 @@ fn delegated_set_value_overload_matches(
         return false;
     }
 
-    let Some(value) = overload
+    let value_ty = overload
         .sig
         .params
         .get(2)
         .and_then(|p| p.ty.as_ref())
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
-    else {
-        return false;
-    };
-    if value != value_ty_fqn {
-        return false;
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t));
+
+    if let Some(value) = value_ty.as_deref() {
+        if value != value_ty_fqn {
+            return false;
+        }
     }
 
-    let ret = overload.sig.return_ty.as_ref();
-    let ret_fqn = ret
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
-        .unwrap_or_else(|| UNIT_FQN.to_string());
-    ret_fqn == UNIT_FQN
+    // `setValue` 返回类型必须是 `Unit`（或省略返回类型）。
+    match overload.sig.return_ty.as_ref() {
+        None => true,
+        Some(ret) => type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, ret)
+            .is_some_and(|fqn| fqn == UNIT_FQN),
+    }
 }
 
 fn fmt_fun_sig(
-    source: &SourceFile,
-    file: &ast::File,
+    env: &TypeEnv,
     index: &Index,
     name: &str,
     overload: &FunOverload,
 ) -> String {
+    let Some((decl_source, decl_ctx)) = overload_decl_source_and_ctx(env, overload) else {
+        return format!("{name}(<unknown decl>): {UNIT_FQN}");
+    };
+
     let mut params = Vec::with_capacity(overload.sig.params.len());
     for p in &overload.sig.params {
         let ty = p
             .ty
             .as_ref()
-            .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+            .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
             .unwrap_or_else(|| "_".to_string());
         params.push(format!("{ty}"));
     }
@@ -902,10 +1022,125 @@ fn fmt_fun_sig(
         .sig
         .return_ty
         .as_ref()
-        .and_then(|t| type_ref_to_fqn_in_file(source, file, index, t))
+        .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
         .unwrap_or_else(|| UNIT_FQN.to_string());
 
     format!("{name}({}): {ret}", params.join(", "))
+}
+
+fn method_overloads_in_type_hierarchy<'a>(
+    index: &'a Index,
+    env: &TypeEnv,
+    ty_fqn: &str,
+    method: &str,
+) -> Vec<&'a FunOverload> {
+    let mut out: Vec<&'a FunOverload> = Vec::new();
+    let mut worklist: Vec<String> = vec![ty_fqn.to_string()];
+    let mut visited: HashSet<String> = HashSet::new();
+
+    while let Some(ty) = worklist.pop() {
+        if !visited.insert(ty.clone()) {
+            continue;
+        }
+
+        let fqn = format!("{ty}.{method}");
+        if let Some(syms) = index.by_fqn.get(&fqn) {
+            out.extend(syms.fun.iter());
+        }
+
+        if let Some(supers) = env.direct_supertypes(&ty) {
+            worklist.extend(supers.iter().cloned());
+        }
+    }
+
+    out
+}
+
+fn overload_decl_source_and_ctx<'a>(
+    env: &'a TypeEnv,
+    overload: &'a FunOverload,
+) -> Option<(&'a SourceFile, &'a FileTypeContext)> {
+    let source = env.source(&overload.symbol.decl_file)?;
+    let ctx = env.file_type_context(&overload.symbol.decl_file)?;
+    Some((source, ctx))
+}
+
+fn type_ref_to_fqn_in_ctx(
+    source: &SourceFile,
+    ctx: &FileTypeContext,
+    index: &Index,
+    ty: &ast::TypeRef,
+) -> Option<String> {
+    match ty {
+        ast::TypeRef::Path(p) => type_path_to_fqn_in_ctx(source, ctx, index, p),
+        ast::TypeRef::Nullable { .. } => {
+            // `T?` lowering 会变成 `Option<T>`；这里做最小等价映射，避免在签名检查中误报。
+            let fqn = "scoop.core.Option";
+            index
+                .by_fqn
+                .get(fqn)
+                .is_some_and(|syms| syms.ty.is_some())
+                .then(|| fqn.to_string())
+        }
+        ast::TypeRef::Tuple(t) if t.elements.is_empty() => Some(UNIT_FQN.to_string()),
+        ast::TypeRef::Tuple(_)
+        | ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+fn type_path_to_fqn_in_ctx(
+    source: &SourceFile,
+    ctx: &FileTypeContext,
+    index: &Index,
+    path: &ast::TypePath,
+) -> Option<String> {
+    let segments = path
+        .segments
+        .iter()
+        .map(|id| source.slice(id.span))
+        .collect::<Vec<_>>();
+    let local = segments.join(".");
+
+    let mut candidates: Vec<String> = Vec::new();
+
+    // 1) 同包优先：pkg + local
+    if !ctx.pkg_prefix.is_empty() {
+        candidates.push(format!("{}.{}", ctx.pkg_prefix, local));
+    }
+
+    // 2) 直接使用 local（允许显式写 FQN：`scoop.core.Any`）
+    candidates.push(local.clone());
+
+    // 3) 对单段名字，应用 import 规则（显式 import / star import）
+    if segments.len() == 1 {
+        let name = segments[0];
+
+        // 显式 type import。
+        if let Some(list) = ctx.imports.ty.explicit.get(name) {
+            candidates.extend(list.iter().cloned());
+        }
+
+        // 通配 import：`import foo.bar.*`
+        for prefix in &ctx.imports.star {
+            candidates.push(format!("{prefix}.{name}"));
+        }
+    }
+
+    candidates.sort();
+    candidates.dedup();
+
+    for fqn in candidates {
+        let Some(syms) = index.by_fqn.get(&fqn) else {
+            continue;
+        };
+        if syms.ty.is_some() {
+            return Some(fqn);
+        }
+    }
+
+    None
 }
 
 fn type_ref_to_fqn_in_file(

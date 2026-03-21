@@ -24,7 +24,7 @@
 - [x] `crates/scoop/`：CLI（`scoop build/run/test`），负责调用 `scoopc`、链接、跑测试（已建立骨架）
 - [x] `crates/scoop_runtime/`：早期运行时构建 glue（clang + C runtime）（已建立骨架）
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
-- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前仅 `core.scoop` 最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
+- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前已包含 `core.scoop` + `delegates.scoop` + `collections.scoop` 的最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
 - [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
 
@@ -304,7 +304,7 @@
 - [x] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
 - [x] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小 typecheck + delegation 门禁）
 - [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
-- [ ] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
+- [x] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
 - [ ] 通用重载解析（函数 / 构造函数 / 扩展）：
   - 候选筛选：arity、receiver、可见性、命名参数、默认参数
   - 决议规则：最具体候选（most specific candidate）与稳定歧义诊断
@@ -653,7 +653,7 @@ fixtures：
 - [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [ ] `trimIndent()`：编译期求值 + 运行期 fallback（spec §8.4）
-- [ ] sysroot/stdlib：补齐 scope functions 与标准 delegated property API surface（spec §10.4 / §11）
+- [ ] sysroot/stdlib：补齐 scope functions（§11）；delegated property API surface 已在 sysroot 落地（spec §10.4）
 
 fixtures：
 - `tests/fixtures/comptime/*`：覆盖常量折叠、生成代码（若支持）、错误诊断
@@ -675,7 +675,7 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 - [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
 - [x] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小落地）
-- [ ] 标准 delegated properties：`lazy`/`observable`/`vetoable`/map-backed（spec §10.4）
+- [ ] 标准 delegated properties：`lazy`/`observable`/`vetoable`/map-backed（spec §10.4；运行期语义待补齐）
 - [ ] Kotlin runtime gap closure（when applicable）：
   - 先审计 Scoop core runtime / stdlib 与 Kotlin runtime 语义缺口
   - 优先用纯 Scoop 补齐；只在审计证明无法表达时回流到 §11 的最小 intrinsic 通道

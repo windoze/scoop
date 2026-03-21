@@ -1,0 +1,19 @@
+// Scoop sysroot: collections surface (early stage)
+//
+// 说明：
+// - 当前只提供 delegated property（spec §10.4）中 map-backed delegate 所需的最小 `Map` 表面；
+// - 真实的数据结构与算法由后续标准库任务补齐。
+
+package scoop.collections
+
+import scoop.core.*
+
+/// 最小 `Map` 声明（spec §10.4 示例）。
+///
+/// 说明：
+/// - Kotlin 的 map-backed delegate 通过扩展 `getValue` 实现；
+/// - 当前阶段为简化 delegated property 的签名检查，我们把 `getValue` 作为 `Map` 的成员声明表面。
+interface Map<K, V> {
+    fun <T> getValue(thisRef: Any, property: PropertyMeta): T
+}
+
