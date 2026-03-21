@@ -947,11 +947,25 @@
 - 依赖：T0233、T0234
 - 完成：新增顶层 AST `ExtensionPropertyDecl`（`ast::Item::ExtensionProperty`），并在 parser 中支持 `val/var ReceiverType.name: Type get()/set()` 语法；resolver phase 2 支持进入 extension property 的 initializer/accessor 并注入隐式 `field` 绑定以保持诊断一致；typecheck 增加扩展属性静态规则（必须 computed：要求 getter；`var` 需 setter；禁止 initializer；禁止 `field`），并新增错误码：`scoop::typecheck::extension_property_*`；fixtures：`tests/fixtures/typecheck/extension_property_getter_only_ok.scoop`、`extension_property_initializer_not_allowed_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0434 [TODO] 委托属性：解析后类型规则与最小 lowering 计划（spec §10.4）
-- 描述：检查 delegated property：只能用于 class；delegate 必须实现 `getValue/setValue`；生成 `PropertyMeta` 参数（编译期元数据）。
-- 目标：先只做静态规则与诊断；真正生成 `$delegate` 字段与转发函数留给 lowering。
-- 验收：typecheck fixture：struct/enum 里写 `by` 报错；class 里写 `by` 需要满足接口（可先只检查方法名存在性）。
-- 依赖：T0235、T0431、T1208
+### T0434a [TODO] 委托属性：语法 + 最小静态规则（spec §10.4）
+- 描述：在属性声明中支持 `val/var name: T by expr`，并在 typecheck 中检查 delegated property：
+  - 仅允许出现在 class（struct/enum 禁止）
+  - delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（可先只检查方法名存在性）
+- 目标：只做静态规则与诊断；不生成 `$delegate` 字段；不检查 `PropertyMeta` 参数类型（留给后续任务）。
+- 验收：typecheck fixtures：
+  - struct/enum 里写 `by` 报错
+  - class 里写 `by` 且 delegate 定义 `getValue/setValue` 通过
+  - 缺少 `getValue`/`setValue` 报错
+- 依赖：T0234、T0431
+
+### T0434b [TODO] 委托属性：对接 `PropertyMeta` 并升级为签名检查（spec §10.4）
+- 描述：在 typecheck 中把 delegated property 的规则升级为“签名检查”：
+  - `getValue(thisRef: T, property: PropertyMeta): V`
+  - `setValue(thisRef: T, property: PropertyMeta, value: V)`（仅 `var`）
+  - 并为后续 lowering 记录必要信息（但不在本任务生成 `$delegate` 字段与转发函数）。
+- 目标：仍以静态检查为主；完整 lowering 见 T1210。
+- 验收：typecheck fixture：`getValue` 第二参不是 `PropertyMeta` 报错；`var` 缺 `setValue` 或参数不匹配报错。
+- 依赖：T0434a、T1208
 
 ### T0435 [TODO] 函数类型（含 receiver + effects）的类型表示与子类型规则（spec §7.5、§5.8）
 - 描述：在 `ty` 中加入 FunctionType：参数/返回/receiver/effect row，并定义最小子类型关系（参数逆变/返回协变 + effect row containment）。
