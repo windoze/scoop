@@ -15,6 +15,7 @@ mod structs;
 mod properties;
 mod when_pat;
 mod val_pat;
+mod inheritance;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};
@@ -22,3 +23,4 @@ pub use headers::{check_file_headers, TypeHeaderError};
 pub use expr::{check_file_exprs, ExprTypeError};
 pub use structs::{check_file_struct_decls, StructDeclError};
 pub use properties::{check_file_properties, PropertyDeclError};
+pub use inheritance::{check_file_inheritance, InheritanceError};

@@ -997,11 +997,12 @@
 - 依赖：T0248、T0203、T0404
  - 完成：AST `Param` 新增 `kind: Option<ValKind>` 并在 parser 主构造参数列表记录 ctor param 的 `val/var` 前缀；resolver `Index` 将 class ctor 的 `val/var` 参数注入 value namespace（支持 `this.x` 成员访问）；typecheck `expr` phase 递归进入 class 成员方法体，注入 `this` 与 ctor params 的局部类型表并把 class 字段纳入 member value 类型表；新增 fixture `tests/fixtures/typecheck/class_ctor_param_field_and_member_fun_ok.scoop`；更新 parse AST goldens：`tests/fixtures/parse/annotation_class_basic.ast`、`tests/fixtures/parse/type_member_nested_type.ast`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0439 [TODO] 继承与 override：open/abstract/sealed + override 检查（Appendix B.2）
+### T0439 [DONE] 继承与 override：open/abstract/sealed + override 检查（Appendix B.2）
 - 描述：实现最小规则：class 单继承；override 必须显式；被覆盖成员需 open/abstract；sealed 限制同编译单元。
 - 目标：先只做静态检查；vtable/codegen 后置。
 - 验收：typecheck fixture：override 缺失时报错；override 目标不是 open时报错；sealed 跨文件继承时报错（需多文件单元，见 T0307）。
 - 依赖：T0438、T0245、T0307
+ - 完成：resolver `Index::Symbol` 增加 `ModifierSet`（open/abstract/sealed/override）以支持跨文件的继承语义查询；typecheck 新增 `inheritance` pass：class 单继承检查（多个基类构造调用报错）、继承 final class 报错（需 `open/abstract/sealed`）、sealed 跨文件直接继承报错、override 必须显式、只能 override `open/abstract` 成员（member fun 做按参数个数的最小匹配以避免把重载误判为 override）；fixtures runner 新增 `tests/fixtures/typecheck_multi/<case>/` 支持，并新增 fixtures：`tests/fixtures/typecheck/override_missing_is_error.scoop`、`override_target_not_open_is_error.scoop`、`superclass_not_open_is_error.scoop` 与多文件 `tests/fixtures/typecheck_multi/sealed_cross_file_inheritance_is_error/`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0440 [TODO] interface：多实现与默认方法的限制策略（spec §2.2.2）
 - 描述：实现 interface 声明收集与实现列表检查；默认方法可先允许但不要求 codegen。

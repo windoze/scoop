@@ -206,6 +206,46 @@ impl std::fmt::Display for Visibility {
     }
 }
 
+/// 用于继承/override 语义检查的最小 modifiers 集合（T0439）。
+///
+/// 说明：
+/// - `ast::Modifier` 在 parser 阶段仅做“解析并存储”，不带 span 信息；
+/// - resolver 的 `Index` 需要在不依赖 AST 的情况下支持后续阶段查询（例如：override 目标是否 `open`）；
+/// - 因此这里把少数关键修饰符降维为布尔标记，并存入 `Symbol`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ModifierSet {
+    pub open: bool,
+    pub abstract_: bool,
+    pub sealed: bool,
+    pub override_: bool,
+}
+
+impl ModifierSet {
+    pub fn from_modifiers(modifiers: &[ast::Modifier]) -> Self {
+        let mut out = ModifierSet::default();
+        for m in modifiers {
+            match m {
+                ast::Modifier::Open => out.open = true,
+                ast::Modifier::Abstract => out.abstract_ = true,
+                ast::Modifier::Sealed => out.sealed = true,
+                ast::Modifier::Override => out.override_ = true,
+                _ => {}
+            }
+        }
+        out
+    }
+
+    /// 该符号是否允许被继承（class 语义）。
+    pub fn is_inheritable(&self) -> bool {
+        self.open || self.abstract_ || self.sealed
+    }
+
+    /// 该符号是否允许被 override（member 语义）。
+    pub fn is_overridable(&self) -> bool {
+        self.open || self.abstract_
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Symbol {
     pub kind: SymbolKind,
@@ -213,6 +253,7 @@ pub struct Symbol {
     pub span: Span,
     pub decl_file: PathBuf,
     pub visibility: Visibility,
+    pub modifiers: ModifierSet,
 }
 
 /// 用于 overload resolution 的“参数签名信息”（仅声明头）。
@@ -453,7 +494,7 @@ impl Index {
         Ok(None)
     }
 
-    fn type_ref_to_fqn_in_file(
+    pub(crate) fn type_ref_to_fqn_in_file(
         &self,
         source: &SourceFile,
         file: &ast::File,
@@ -542,7 +583,14 @@ impl Index {
                 ast::Item::TypeAlias(ta) => {
                     // typealias 是类型命名空间的顶层符号（T0251）。
                     let visibility = visibility_from_modifiers(&ta.modifiers, ta.span)?;
-                    self.insert_symbol(source, &pkg, SymbolKind::Type, ta.name.span, visibility)?;
+                    self.insert_symbol(
+                        source,
+                        &pkg,
+                        SymbolKind::Type,
+                        ta.name.span,
+                        visibility,
+                        &ta.modifiers,
+                    )?;
                 }
                 ast::Item::Fun(fun) => {
                     let visibility = visibility_from_modifiers(&fun.modifiers, fun.span)?;
@@ -558,7 +606,14 @@ impl Index {
                     // 顶层 `val/var` 必须有名字；解构绑定仅在 block 内作为语句出现（T0244）。
                     if let Some(name) = v.name() {
                         let visibility = visibility_from_modifiers(&v.modifiers, v.span)?;
-                        self.insert_symbol(source, &pkg, SymbolKind::Value, name.span, visibility)?;
+                        self.insert_symbol(
+                            source,
+                            &pkg,
+                            SymbolKind::Value,
+                            name.span,
+                            visibility,
+                            &v.modifiers,
+                        )?;
                     }
                 }
                 ast::Item::ExtensionProperty(_p) => {
@@ -584,7 +639,14 @@ impl Index {
     ) -> Result<(), ResolveError> {
         // 1) 先插入类型自身（type namespace）。
         let visibility = visibility_from_modifiers(&ty.modifiers, ty.span)?;
-        self.insert_symbol(source, prefix, SymbolKind::Type, ty.name.span, visibility)?;
+        self.insert_symbol(
+            source,
+            prefix,
+            SymbolKind::Type,
+            ty.name.span,
+            visibility,
+            &ty.modifiers,
+        )?;
 
         // enum 在语义上需要暴露一个“类型名同名的 value”（类似 Kotlin 的 `EnumClass` 作为命名空间），
         // 以支持 `RuntimeError.NullAssertionFailed` 这类对枚举值的限定引用（spec §5.7）。
@@ -592,7 +654,14 @@ impl Index {
         // 当前阶段我们仅把这个符号放入 value namespace 以解锁名字解析；更完整的 enum/variant 语义
         // 会在后续 rich enum 任务中补齐（T0425+）。
         if matches!(ty.kind, ast::TypeKind::Enum) {
-            self.insert_symbol(source, prefix, SymbolKind::Value, ty.name.span, visibility)?;
+            self.insert_symbol(
+                source,
+                prefix,
+                SymbolKind::Value,
+                ty.name.span,
+                visibility,
+                &ty.modifiers,
+            )?;
         }
 
         // 2) 递归处理类型体成员：fields/methods/nested types。
@@ -631,6 +700,7 @@ impl Index {
                         SymbolKind::Value,
                         p.name.span,
                         Visibility::Public,
+                        &[],
                     )?;
                 }
             }
@@ -654,6 +724,7 @@ impl Index {
                         SymbolKind::Value,
                         p.name.span,
                         Visibility::Public,
+                        &[],
                     )?;
                 }
             }
@@ -677,6 +748,7 @@ impl Index {
                         SymbolKind::Value,
                         p.name.span,
                         visibility,
+                        &p.modifiers,
                     )?;
                 }
                 ast::TypeMember::InitBlock(_b) => {
@@ -745,11 +817,41 @@ impl Index {
 
         // Kotlin-like：object 声明同时引入一个“类型名”与一个“单例值名”。
         if let Some(name_span) = obj_name_span {
-            self.insert_symbol(source, prefix, SymbolKind::Type, name_span, visibility)?;
-            self.insert_symbol(source, prefix, SymbolKind::Value, name_span, visibility)?;
+            self.insert_symbol(
+                source,
+                prefix,
+                SymbolKind::Type,
+                name_span,
+                visibility,
+                &obj.modifiers,
+            )?;
+            self.insert_symbol(
+                source,
+                prefix,
+                SymbolKind::Value,
+                name_span,
+                visibility,
+                &obj.modifiers,
+            )?;
         } else {
-            self.insert_synth_symbol(source, prefix, SymbolKind::Type, &obj_name, obj.span, visibility)?;
-            self.insert_synth_symbol(source, prefix, SymbolKind::Value, &obj_name, obj.span, visibility)?;
+            self.insert_synth_symbol(
+                source,
+                prefix,
+                SymbolKind::Type,
+                &obj_name,
+                obj.span,
+                visibility,
+                &obj.modifiers,
+            )?;
+            self.insert_synth_symbol(
+                source,
+                prefix,
+                SymbolKind::Value,
+                &obj_name,
+                obj.span,
+                visibility,
+                &obj.modifiers,
+            )?;
         }
 
         let obj_prefix = if prefix.is_empty() {
@@ -770,7 +872,14 @@ impl Index {
                 ast::TypeMember::EnumVariant(_v) => {}
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;
-                    self.insert_symbol(source, &obj_prefix, SymbolKind::Value, p.name.span, visibility)?;
+                    self.insert_symbol(
+                        source,
+                        &obj_prefix,
+                        SymbolKind::Value,
+                        p.name.span,
+                        visibility,
+                        &p.modifiers,
+                    )?;
                 }
                 ast::TypeMember::InitBlock(_b) => {}
                 ast::TypeMember::SecondaryCtor(_ctor) => {
@@ -800,6 +909,7 @@ impl Index {
         local: &str,
         decl_span: Span,
         visibility: Visibility,
+        modifiers: &[ast::Modifier],
     ) -> Result<(), ResolveError> {
         debug_assert!(
             kind != SymbolKind::Fun,
@@ -817,6 +927,7 @@ impl Index {
             span: decl_span,
             decl_file: source.path().to_path_buf(),
             visibility,
+            modifiers: ModifierSet::from_modifiers(modifiers),
         };
 
         let entry = self.by_fqn.entry(fqn.clone()).or_default();
@@ -884,6 +995,7 @@ impl Index {
             span: fun.name.span,
             decl_file: source.path().to_path_buf(),
             visibility,
+            modifiers: ModifierSet::from_modifiers(&fun.modifiers),
         };
 
         let params = fun
@@ -918,6 +1030,7 @@ impl Index {
         kind: SymbolKind,
         name_span: Span,
         visibility: Visibility,
+        modifiers: &[ast::Modifier],
     ) -> Result<(), ResolveError> {
         debug_assert!(
             kind != SymbolKind::Fun,
@@ -936,6 +1049,7 @@ impl Index {
             span: name_span,
             decl_file: source.path().to_path_buf(),
             visibility,
+            modifiers: ModifierSet::from_modifiers(modifiers),
         };
 
         let entry = self.by_fqn.entry(fqn.clone()).or_default();

@@ -224,7 +224,8 @@
 ### 4.2 声明类型：class/interface/struct/enum/effect
 
 - [x] class：主构造 `val/var` 参数作为字段/属性 + 成员方法体最小 typecheck（T0438）
-- [ ] class：继承、虚表/方法分发（先单继承）
+- [x] class：继承/override 的最小静态规则（final/open/abstract/sealed + override 检查）（T0439）
+- [ ] class：虚表/方法分发与 codegen（先单继承）
 - [ ] interface：多实现、默认方法（可先限制默认方法 codegen）
 - [ ] struct：布局（字段顺序/对齐），不可变，值语义
 - [ ] enum（rich enum）：tag + union 布局（先不做 niche 优化，后续再加）
@@ -487,6 +488,7 @@ tests/
     resolve/             # 名字解析：import/visibility
     resolve_multi/        # 名字解析：多文件编译单元（目录为 case）
     typecheck/           # 类型检查：compile-pass / compile-fail
+    typecheck_multi/      # 类型检查：多文件编译单元（目录为 case）
     infer/               # 推断专项
     effects/             # effect rows / handle / required effects / entrypoint Pure
     codegen/             # 运行输出对比
@@ -502,9 +504,9 @@ tests/
 - [x] phase 路由：按 `tests/fixtures/<phase>/**` 目录名决定执行阶段（未实现 phase 返回“未实现”诊断）
 
 默认每个 fixture 采用“单文件 + 注释指令”的形式（类似 LLVM lit 或 Rust compiletest）。
-对于需要跨文件验证的规则（例如 `private` 可见性、跨文件引用等），额外提供 `resolve_multi/<case>/`：
+对于需要跨文件验证的规则（例如 `private` 可见性、跨文件引用、sealed 继承等），额外提供 `<phase>_multi/<case>/`：
 - `<case>/` 目录内包含 2+ 个 `.scoop` 文件
-- runner 先把同一 case 的所有文件作为一个编译单元构建索引，再逐文件执行 resolve 并按各自文件头注释断言 pass/fail
+- runner 先把同一 case 的所有文件作为一个编译单元构建索引，再逐文件执行 `<phase>` 并按各自文件头注释断言 pass/fail
 
 - [x] `// EXPECT: pass|fail`
 - [x] `// EXPECT-ERROR: <substring>`（当前为子串匹配；后续可升级为 regex）
