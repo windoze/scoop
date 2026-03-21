@@ -295,6 +295,9 @@ fn typecheck_fixture(
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
+    // T0440：interface 实现列表 + 抽象成员实现检查（默认方法不要求实现）。
+    scoopc::typecheck::check_file_interfaces(source, &ast, &index, &env).map_err(box_diagnostic)?;
+
     scoopc::typecheck::check_file_type_refs(
         source,
         &ast,
@@ -563,6 +566,7 @@ fn run_typecheck_multi_case(
             // typecheck phase。
             scoopc::typecheck::check_file_properties(source, ast, &index).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(
                 source,
                 ast,

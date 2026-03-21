@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0440 interface：默认方法（带 body）可不在实现方显式实现（先不要求 codegen）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface I {
+    fun ping(): Int {
+        return 1
+    }
+}
+
+class C() : I {
+}
+

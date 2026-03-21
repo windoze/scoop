@@ -233,7 +233,7 @@
 - [x] class：主构造 `val/var` 参数作为字段/属性 + 成员方法体最小 typecheck（T0438）
 - [x] class：继承/override 的最小静态规则（final/open/abstract/sealed + override 检查）（T0439）
 - [ ] class：虚表/方法分发与 codegen（先单继承）
-- [ ] interface：多实现、默认方法（可先限制默认方法 codegen）
+- [x] interface：多实现、默认方法（可先限制默认方法 codegen）（T0440）
 - [ ] struct：布局（字段顺序/对齐），不可变，值语义
 - [ ] enum（rich enum）：tag + union 布局（先不做 niche 优化，后续再加）
 - [ ] effect：像 interface 一样声明操作签名

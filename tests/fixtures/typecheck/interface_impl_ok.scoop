@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T0440 interface：class 实现 interface 时，抽象方法必须被实现。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface I {
+    fun ping(): Int
+}
+
+class C() : I {
+    fun ping(): Int {
+        return 1
+    }
+}
+

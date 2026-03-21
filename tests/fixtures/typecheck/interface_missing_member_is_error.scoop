@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::missing_interface_member
+// EXPECT-ERROR-AT: 13:13
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface I {
+    fun ping(): Int
+}
+
+class C() : I {
+}
+

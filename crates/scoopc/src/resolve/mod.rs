@@ -311,6 +311,13 @@ pub struct FunSig {
 pub struct FunOverload {
     pub symbol: Symbol,
     pub sig: FunSig,
+    /// 该函数是否带有 body（`{ ... }` / `= expr`）。
+    ///
+    /// 用途：
+    /// - interface 的默认方法 vs 抽象方法区分（T0440）：
+    ///   - `has_body = false` → 需要实现（抽象成员）
+    ///   - `has_body = true` → 可不实现（默认实现）
+    pub has_body: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1111,7 +1118,12 @@ impl Index {
         };
 
         let entry = self.by_fqn.entry(fqn).or_default();
-        entry.fun.push(FunOverload { symbol, sig });
+        let has_body = !matches!(fun.body, ast::FunBody::Missing);
+        entry.fun.push(FunOverload {
+            symbol,
+            sig,
+            has_body,
+        });
         Ok(())
     }
 

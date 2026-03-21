@@ -1053,11 +1053,16 @@
 - 依赖：T0438、T0245、T0307
  - 完成：resolver `Index::Symbol` 增加 `ModifierSet`（open/abstract/sealed/override）以支持跨文件的继承语义查询；typecheck 新增 `inheritance` pass：class 单继承检查（多个基类构造调用报错）、继承 final class 报错（需 `open/abstract/sealed`）、sealed 跨文件直接继承报错、override 必须显式、只能 override `open/abstract` 成员（member fun 做按参数个数的最小匹配以避免把重载误判为 override）；fixtures runner 新增 `tests/fixtures/typecheck_multi/<case>/` 支持，并新增 fixtures：`tests/fixtures/typecheck/override_missing_is_error.scoop`、`override_target_not_open_is_error.scoop`、`superclass_not_open_is_error.scoop` 与多文件 `tests/fixtures/typecheck_multi/sealed_cross_file_inheritance_is_error/`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0440 [TODO] interface：多实现与默认方法的限制策略（spec §2.2.2）
+### T0440 [DONE] interface：多实现与默认方法的限制策略（spec §2.2.2）
 - 描述：实现 interface 声明收集与实现列表检查；默认方法可先允许但不要求 codegen。
 - 目标：先只在 typecheck 检查签名一致性；冲突规则后续。
 - 验收：typecheck fixture：class 实现 interface 并提供方法通过；缺少方法时报错。
 - 依赖：T0438、T0439
+ - 完成：resolver `FunOverload` 记录 `has_body`（区分 interface 抽象方法 vs 默认方法）；typecheck 新增 `interfaces` pass：
+   - class/object：实现列表中允许多个 interface；并检查 interface 的抽象方法必须被实现；
+   - 默认方法（带 body）不要求实现（先不要求 codegen）；
+   - 误用（implements 非 interface / 对非 class 做 ctor call）会报错（新错误码：`scoop::typecheck::supertype_not_interface`、`scoop::typecheck::supertype_ctor_call_not_class`）。
+   新增 fixtures：`tests/fixtures/typecheck/interface_impl_ok.scoop`、`interface_missing_member_is_error.scoop`、`interface_default_method_not_required_ok.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0441 [TODO] Boxing：值类型装箱到 `Any`/interface（spec §2.5）
 - 描述：实现“语义正确”的 boxing：当值类型被当作 `Any`/interface 使用时生成 box（类型系统层先建模）。
