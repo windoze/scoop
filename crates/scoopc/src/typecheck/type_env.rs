@@ -13,7 +13,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::Index;
+use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
@@ -45,6 +45,25 @@ pub struct TypeSymbol {
     pub type_param_variances: Vec<Option<ast::TypeParamVariance>>,
     pub span: Span,
     pub decl_file: PathBuf,
+}
+
+/// 单个源文件在 typecheck lowering 阶段需要的最小上下文信息。
+///
+/// 用途：
+/// - typealias 展开（T0446）：需要在“声明处文件”的 package/import 规则下解析 RHS 类型引用；
+/// - 其它跨文件 type position lowering（例如 sysroot enum variant 字段，T0426）也可复用。
+#[derive(Debug, Clone)]
+pub struct FileTypeContext {
+    pub pkg_prefix: String,
+    pub imports: ImportTable,
+}
+
+/// `typealias` 的声明信息（用于 typecheck 阶段展开别名）。
+#[derive(Debug, Clone)]
+pub struct TypeAliasInfo {
+    pub decl_file: PathBuf,
+    pub name_span: Span,
+    pub ty: ast::TypeRef,
 }
 
 /// enum variant 的字段信息（payload field）。
@@ -121,6 +140,8 @@ pub struct TypeEnv {
     enums: HashMap<String, EnumDecl>,
     sources: HashMap<PathBuf, SourceFile>,
     supertypes: HashMap<String, Vec<String>>,
+    file_ctx: HashMap<PathBuf, FileTypeContext>,
+    type_aliases: HashMap<String, TypeAliasInfo>,
 }
 
 impl TypeEnv {
@@ -181,6 +202,16 @@ impl TypeEnv {
         self.sources.get(path)
     }
 
+    /// 返回给定源文件的 type lowering 上下文（package/import）。
+    pub fn file_type_context(&self, path: &Path) -> Option<&FileTypeContext> {
+        self.file_ctx.get(path)
+    }
+
+    /// 按 FQN 查询 typealias 的声明信息（用于别名展开与循环检测）。
+    pub fn type_alias(&self, fqn: &str) -> Option<&TypeAliasInfo> {
+        self.type_aliases.get(fqn)
+    }
+
     /// 返回给定 nominal type 的 direct supertypes（以 FQN 形式；不包含隐式 `Any`）。
     pub fn direct_supertypes(&self, fqn: &str) -> Option<&[String]> {
         self.supertypes.get(fqn).map(|v| v.as_slice())
@@ -220,6 +251,12 @@ impl TypeEnv {
             .or_insert_with(|| source.clone());
 
         let pkg_prefix = package_prefix(source, file.package.as_ref());
+        self.file_ctx
+            .entry(source.path().to_path_buf())
+            .or_insert_with(|| FileTypeContext {
+                pkg_prefix: pkg_prefix.clone(),
+                imports: build_import_table_best_effort(source, file, index),
+            });
 
         for item in &file.items {
             match item {
@@ -227,7 +264,7 @@ impl TypeEnv {
                     let name = source.slice(ta.name.span).to_string();
                     let fqn = join_prefix(&pkg_prefix, &name);
                     self.insert_symbol(
-                        fqn,
+                        fqn.clone(),
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             type_param_count: 0,
@@ -236,6 +273,16 @@ impl TypeEnv {
                             decl_file: source.path().to_path_buf(),
                         },
                     )?;
+
+                    // 记录别名声明：用于 TypeRef lowering 阶段展开 alias（T0446）。
+                    self.type_aliases.insert(
+                        fqn,
+                        TypeAliasInfo {
+                            decl_file: source.path().to_path_buf(),
+                            name_span: ta.name.span,
+                            ty: ta.ty.clone(),
+                        },
+                    );
                 }
                 ast::Item::Type(ty) => {
                     self.collect_type_decl(source, file, &pkg_prefix, ty, index)?;
@@ -412,6 +459,58 @@ fn join_prefix(prefix: &str, name: &str) -> String {
         name.to_string()
     } else {
         format!("{prefix}.{name}")
+    }
+}
+
+fn build_import_table_best_effort(source: &SourceFile, file: &ast::File, index: &Index) -> ImportTable {
+    let mut table = ImportTable::default();
+
+    for import in &file.imports {
+        let path = import
+            .path
+            .iter()
+            .map(|id| source.slice(id.span))
+            .collect::<Vec<_>>()
+            .join(".");
+
+        if import.has_star {
+            table.star.push(path);
+            continue;
+        }
+
+        let local = import
+            .alias
+            .as_ref()
+            .map(|id| source.slice(id.span))
+            .or_else(|| import.path.last().map(|id| source.slice(id.span)))
+            .unwrap_or("")
+            .to_string();
+
+        // 只把确实存在且在当前文件可见的 type symbol 写入 type 命名空间的显式 import 表。
+        if let Some(syms) = index.by_fqn.get(&path) {
+            if let Some(sym) = syms.ty.as_ref() {
+                if is_symbol_visible_from(source, sym) {
+                    table.ty.explicit.entry(local).or_default().push(path);
+                }
+            }
+        }
+    }
+
+    // 稳定化（便于 Debug/测试 & 未来可能的缓存命中）。
+    table.star.sort();
+    table.star.dedup();
+    for v in table.ty.explicit.values_mut() {
+        v.sort();
+        v.dedup();
+    }
+
+    table
+}
+
+fn is_symbol_visible_from(source: &SourceFile, symbol: &crate::resolve::Symbol) -> bool {
+    match symbol.visibility {
+        Visibility::Public | Visibility::Internal => true,
+        Visibility::Private => symbol.decl_file == source.path(),
     }
 }
 

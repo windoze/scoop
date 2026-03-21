@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::cyclic_type_alias
+// EXPECT-ERROR-AT: 9:11
+// EXPECT-ERROR: 循环的类型别名
+
+package fixtures.typecheck
+
+typealias A = B
+typealias B = A
+
+val x: A
+

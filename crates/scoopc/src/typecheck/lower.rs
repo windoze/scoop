@@ -66,6 +66,17 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    /// 循环 typealias（直接或间接）：例如 `typealias A = B; typealias B = A`。
+    #[error("循环的类型别名：{cycle}")]
+    #[diagnostic(code(scoop::typecheck::cyclic_type_alias))]
+    CyclicTypeAlias {
+        cycle: String,
+        #[label("别名声明在这里")]
+        first: miette::SourceSpan,
+        #[label("并且通过其它别名又回到这里")]
+        second: miette::SourceSpan,
+    },
+
     /// 声明处变型（`in`/`out`）位置规则违规（spec §3.2 / Appendix B.4）。
     #[error("变型位置不合法：类型参数 {param} 声明为 {declared}，但在 {position} 位置使用")]
     #[diagnostic(code(scoop::typecheck::variance_position_violation))]
@@ -142,13 +153,17 @@ pub fn check_file_type_refs(
 pub(super) struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
-    imports: &'a ImportTable,
+    imports: ImportTable,
     env: &'a TypeEnv,
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
     pkg_prefix: String,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
+    /// typealias 展开栈（用于循环检测；存储 alias FQN）。
+    type_alias_stack: Vec<String>,
+    /// 已展开 typealias 的缓存（alias FQN → lowered TypeId）。
+    type_alias_cache: HashMap<String, TypeId>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -165,12 +180,14 @@ impl<'a> TypeLowering<'a> {
         Self {
             source,
             index,
-            imports,
+            imports: imports.clone(),
             env,
             types,
             builtins,
             pkg_prefix,
             type_param_scopes: Vec::new(),
+            type_alias_stack: Vec::new(),
+            type_alias_cache: HashMap::new(),
         }
     }
 
@@ -421,10 +438,7 @@ impl<'a> TypeLowering<'a> {
         };
 
         match sym.kind {
-            TypeSymbolKind::TypeAlias => Err(TypeLowerError::UnsupportedTypeRef {
-                kind: "typealias (type-level alias)",
-                span: span.into(),
-            }),
+            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, span),
             TypeSymbolKind::Nominal(kind) => {
                 let nominal = NominalType { fqn, args };
                 let id = match kind {
@@ -544,10 +558,7 @@ impl<'a> TypeLowering<'a> {
             .collect::<Result<Vec<_>, _>>()?;
 
         match sym.kind {
-            TypeSymbolKind::TypeAlias => Err(TypeLowerError::UnsupportedTypeRef {
-                kind: "typealias (type-level alias)",
-                span: path.span.into(),
-            }),
+            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, path.span),
             TypeSymbolKind::Nominal(kind) => {
                 let nominal = NominalType { fqn, args };
                 let id = match kind {
@@ -561,6 +572,96 @@ impl<'a> TypeLowering<'a> {
                 Ok(id)
             }
         }
+    }
+
+    fn lower_type_alias_fqn(&mut self, fqn: &str, use_span: Span) -> Result<TypeId, TypeLowerError> {
+        if let Some(id) = self.type_alias_cache.get(fqn).copied() {
+            return Ok(id);
+        }
+
+        if let Some(pos) = self.type_alias_stack.iter().position(|x| x == fqn) {
+            // 构造 cycle chain：A -> B -> ... -> A
+            let mut chain = self.type_alias_stack[pos..]
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
+            chain.push(fqn.to_string());
+            let cycle = chain.join(" -> ");
+
+            // 至少指出两个声明点：cycle 起点 + 当前栈顶（即“把我们带回去”的别名）。
+            let first_fqn = chain.first().map(|s| s.as_str()).unwrap_or(fqn);
+            let second_fqn = self
+                .type_alias_stack
+                .last()
+                .map(|s| s.as_str())
+                .unwrap_or(fqn);
+
+            let first = self
+                .env
+                .type_alias(first_fqn)
+                .map(|i| i.name_span)
+                .unwrap_or(use_span);
+            let second = self
+                .env
+                .type_alias(second_fqn)
+                .map(|i| i.name_span)
+                .unwrap_or(use_span);
+
+            return Err(TypeLowerError::CyclicTypeAlias {
+                cycle,
+                first: first.into(),
+                second: second.into(),
+            });
+        }
+
+        let Some(info) = self.env.type_alias(fqn) else {
+            return Err(TypeLowerError::MissingTypeSymbolInEnv {
+                fqn: fqn.to_string(),
+                span: use_span.into(),
+            });
+        };
+
+        let Some(decl_source) = self.env.source(&info.decl_file) else {
+            return Err(TypeLowerError::MissingTypeSymbolInEnv {
+                fqn: fqn.to_string(),
+                span: use_span.into(),
+            });
+        };
+
+        let Some(decl_ctx) = self.env.file_type_context(&info.decl_file) else {
+            return Err(TypeLowerError::MissingTypeSymbolInEnv {
+                fqn: fqn.to_string(),
+                span: use_span.into(),
+            });
+        };
+
+        self.type_alias_stack.push(fqn.to_string());
+
+        // 在“别名声明处文件”的 package/import 规则下展开 RHS。
+        //
+        // 注意：typealias 当前阶段（T0251）是顶层且非泛型，因此不应捕获使用点的 type param scope。
+        let saved_source = self.source;
+        let saved_pkg_prefix = std::mem::take(&mut self.pkg_prefix);
+        let saved_imports = std::mem::take(&mut self.imports);
+        let saved_scopes = std::mem::take(&mut self.type_param_scopes);
+
+        self.source = decl_source;
+        self.pkg_prefix = decl_ctx.pkg_prefix.clone();
+        self.imports = decl_ctx.imports.clone();
+
+        let lowered_rhs = self.lower_type_ref(&info.ty);
+
+        // 恢复 use-site 上下文（无论 RHS lowering 成功与否）。
+        self.source = saved_source;
+        self.pkg_prefix = saved_pkg_prefix;
+        self.imports = saved_imports;
+        self.type_param_scopes = saved_scopes;
+
+        let _ = self.type_alias_stack.pop();
+
+        let rhs_id = lowered_rhs?;
+        self.type_alias_cache.insert(fqn.to_string(), rhs_id);
+        Ok(rhs_id)
     }
 
     fn check_type_decl_headers(&mut self, ty: &ast::TypeDecl) -> Result<(), TypeLowerError> {

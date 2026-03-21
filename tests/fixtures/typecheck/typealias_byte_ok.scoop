@@ -1,0 +1,16 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// sysroot 标准别名：Byte = UInt8
+typealias MyByte = Byte
+
+// 直接别名到名义类型（sysroot 声明的 fixed-width int）
+typealias MyU8 = UInt8
+
+val a: Byte
+val b: MyByte
+val c: MyU8
+

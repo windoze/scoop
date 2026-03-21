@@ -220,7 +220,7 @@
   - `Int/UInt` 的 bit width = target pointer size
   - 固定位宽整数类型与类型大小/对齐（为 FFI/序列化提供稳定布局）
   - 整数运算语义：wrap-around、算术/逻辑右移、shift count mask（避免 target 相关 UB）
-- [ ] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）
+- [x] `typealias` 语义：类型层展开（用于 `Byte/UIntPtr` 等 sysroot 标准别名；循环 alias 报错）（T0446）
 - [x] `Unit`、tuple、`Option<T>`（`T?` sugar）：类型表示与格式化输出已完成（语义/typecheck 后续）（T0401）
 - [x] 函数类型（含 effect row）：`(A, B) -> T / E`（spec §7.5）— AST `TypeFun`/`RowExpr` + `parse_paren_type`/`parse_row_expr` + pass/fail fixtures（T0219）
 - [x] 函数类型（Type 表示 + lowering + 最小子类型规则）：参数逆变/返回协变 + effect row containment（T0435）
@@ -668,7 +668,7 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - 补齐位运算与移位：`and/or/xor/inv/shl/shr`（Appendix B.8）
   - 运行期与值类型/引用类型的 codegen 覆盖
 - [ ] `object` 与 companion object（如需要）
-- [ ] `typealias`（纯类型层语法糖；基础实现已因 sysroot 标准别名前置）
+- [x] `typealias`（纯类型层语法糖；当前仅非泛型别名 + 展开 + 循环检测，T0446）
 - [ ] Ranges/progressions 与 `for` 迭代协议
 - [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）
 - [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）

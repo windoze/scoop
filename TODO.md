@@ -1102,11 +1102,15 @@
    - 例外：当 lambda 作为 inline 函数调用的“函数类型参数实参”时，允许其 body 内出现 `return`（按外层函数返回类型做检查）。
    新增 fixtures：`tests/fixtures/typecheck/return_in_inline_lambda_ok.scoop`、`tests/fixtures/typecheck/return_in_non_inline_lambda_arg_is_error.scoop`；并更新 `return_in_lambda_is_error.scoop` 的说明。`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0446 [TODO] typealias：别名展开与循环检测（最小实现，支撑 sysroot 标准别名）（Appendix B.10）
+### T0446 [DONE] typealias：别名展开与循环检测（最小实现，支撑 sysroot 标准别名）（Appendix B.10）
 - 描述：在 typecheck 的 `TypeRef → Type` lowering 阶段支持 `typealias`：把别名引用展开为其底层类型，并检测循环别名（直接/间接）。
 - 目标：先只支持同包/同编译单元内的别名；跨包可见性与导出规则后续与 Cone 联动；错误信息需指出循环链路中的至少两个声明点。
 - 验收：typecheck fixture：`typealias Byte = UInt8; val b: Byte = 1` 通过（或至少到签名检查通过）；构造 `typealias A=B; typealias B=A` 报循环别名错误（新错误码）。
 - 依赖：T0314、T0403、T0404
+ - 完成：在 `crates/scoopc/src/typecheck/lower.rs` 支持 `TypeSymbolKind::TypeAlias`：
+   - lowering 时在别名声明处文件的 package/import 规则下展开 RHS（支持 sysroot 标准别名）；
+   - 引入循环检测与缓存，新增错误码 `scoop::typecheck::cyclic_type_alias`，诊断至少标注两个别名声明点。
+   新增 fixtures：`tests/fixtures/typecheck/typealias_byte_ok.scoop`、`tests/fixtures/typecheck/typealias_cycle_is_error.scoop`；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0447 [TODO] 整数/布尔：一元与二元运算的类型规则（含位运算与移位）（spec §2.3.4）
 - 描述：为内建整数类型实现运算符的静态规则：
