@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 仅返回类型不同
+
+package fixtures.typecheck
+
+fun f(x: Int): Int {
+    return 1
+}
+
+fun f(x: Int): String {
+    return "s"
+}
+

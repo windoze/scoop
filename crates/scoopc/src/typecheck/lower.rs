@@ -415,7 +415,7 @@ impl<'a> TypeLowering<'a> {
         self.types.ty_function(receiver, params, return_ty, effects)
     }
 
-    fn push_type_params(&mut self, params: &[ast::TypeParam]) {
+    pub(super) fn push_type_params(&mut self, params: &[ast::TypeParam]) {
         if params.is_empty() {
             return;
         }
@@ -433,7 +433,7 @@ impl<'a> TypeLowering<'a> {
         self.type_param_scopes.push(scope);
     }
 
-    fn pop_type_params(&mut self, params: &[ast::TypeParam]) {
+    pub(super) fn pop_type_params(&mut self, params: &[ast::TypeParam]) {
         if params.is_empty() {
             return;
         }

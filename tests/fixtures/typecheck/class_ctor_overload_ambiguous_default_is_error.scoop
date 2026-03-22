@@ -1,8 +1,8 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
-// EXPECT-ERROR-AT: 15:12
-// EXPECT-ERROR: 重载决议歧义
-// 目标：T0454 构造函数重载解析：默认参数参与匹配时若出现多候选，应报歧义。
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 默认参数
+// 目标：T0457 重载冲突诊断：默认参数导致调用点永远歧义时，应在声明处报错。
 
 package fixtures.typecheck
 

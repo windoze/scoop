@@ -311,6 +311,17 @@ fn typecheck_fixture(
     )
     .map_err(box_diagnostic)?;
 
+    scoopc::typecheck::check_file_overload_conflicts(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .map_err(box_diagnostic)?;
+
     scoopc::typecheck::check_file_exprs(
         source,
         &ast,
@@ -584,6 +595,18 @@ fn run_typecheck_multi_case(
                 builtins,
             )
             .map_err(box_diagnostic)?;
+
+            scoopc::typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+
             scoopc::typecheck::check_file_exprs(
                 source,
                 ast,

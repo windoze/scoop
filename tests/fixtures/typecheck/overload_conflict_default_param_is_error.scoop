@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::overload_conflict
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 默认参数
+
+package fixtures.typecheck
+
+fun g(x: Int): Int {
+    return 1
+}
+
+fun g(x: Int, y: Int = 0): Int {
+    return 1
+}
+

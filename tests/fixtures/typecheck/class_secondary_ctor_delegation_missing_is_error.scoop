@@ -9,5 +9,5 @@ package fixtures.typecheck
 import scoop.core.*
 
 class Box(x: Int) {
-    constructor(y: Int) { ; }
+    constructor(y: String) { ; }
 }

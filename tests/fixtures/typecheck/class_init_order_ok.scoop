@@ -14,9 +14,8 @@ class Box(x: Int) {
         val z: Int = this.y
     }
 
-    constructor(other: Int) : this(other) {
-        val t: Int = other
+    constructor(other: String) : this(0) {
+        val t: String = other
         val u: Int = this.y
     }
 }
-

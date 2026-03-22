@@ -1282,11 +1282,26 @@
      - `tests/fixtures/typecheck/enum_variant_ctor_ambiguous_without_context_is_error.scoop`：覆盖“缺少期望类型时保留歧义诊断”。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0457 [TODO] 重载冲突诊断：重复签名、不可区分签名、默认参数导致的冲突
+### T0457 [DONE] 重载冲突诊断：重复签名、不可区分签名、默认参数导致的冲突
 - 描述：在声明检查阶段诊断非法 overload：完全相同签名、仅返回类型不同、默认参数展开后不可区分等情况。
 - 目标：先覆盖函数与 constructors；extension / effects 的细化规则后续复用。
 - 验收：typecheck fixture：两条仅返回类型不同的函数声明报错；默认参数导致调用点永远歧义的 overload 报错。
 - 依赖：T0318、T0453、T1305
+- 完成：
+  - typecheck：新增 `check_file_overload_conflicts` pass，在 `check_file_type_refs` 之后、`check_file_exprs` 之前执行。
+  - 诊断：新增稳定错误码 `scoop::typecheck::overload_conflict`，覆盖：
+    - 同签名重复/不可区分（返回类型不参与重载决议）；
+    - 仅返回类型不同；
+    - 默认参数导致在“位置调用 + 尾部 default 省略”下出现不可消歧的 arity 重叠（先做最小分析）。
+  - fixtures：
+    - 新增 `tests/fixtures/typecheck/overload_conflict_return_type_only_is_error.scoop`
+    - 新增 `tests/fixtures/typecheck/overload_conflict_default_param_is_error.scoop`
+    - 更新 `tests/fixtures/typecheck/class_ctor_overload_ambiguous_default_is_error.scoop`：从调用点歧义升级为声明处冲突
+    - 调整 ctor 相关 fixtures，避免“主构造器与次构造器同签名”导致的 now-illegal 声明（保持原测试目标不变）：
+      - `tests/fixtures/typecheck/class_init_order_ok.scoop`
+      - `tests/fixtures/typecheck/class_secondary_ctor_delegation_missing_is_error.scoop`
+      - `tests/fixtures/typecheck/class_secondary_ctor_delegation_super_is_error.scoop`
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0458 [TODO] 泛型约束：`where` 子句的语义检查与满足性
 - 描述：在类型检查阶段实现 `where` 子句：验证约束目标必须是当前声明的类型参数，约束本身合法，并在实例化/调用时检查实参是否满足约束。
