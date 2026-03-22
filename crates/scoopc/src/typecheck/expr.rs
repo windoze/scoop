@@ -268,10 +268,11 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("重载决议歧义：{callee}")]
+    #[error("重载决议歧义：{callee}（候选：{candidates}）")]
     #[diagnostic(code(scoop::typecheck::ambiguous_overload))]
     AmbiguousOverload {
         callee: String,
+        candidates: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -3524,6 +3525,70 @@ fn infer_call_expr_type(
                 sig: &'a FunSigOwned,
                 instantiated: InstantiatedFunSig,
                 eff_arg: EffectRow,
+                /// `call_args[arg_idx]` 对应的“期望类型”。
+                expected_arg_tys: Vec<TypeId>,
+                /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+                defaults_used: usize,
+            }
+
+            fn is_strictly_more_specific_fun_overload(
+                a: &MatchedFunOverload<'_>,
+                b: &MatchedFunOverload<'_>,
+                lower: &TypeLowering<'_>,
+                builtins: BuiltinTypes,
+            ) -> bool {
+                let a_le_b = a
+                    .expected_arg_tys
+                    .iter()
+                    .zip(b.expected_arg_tys.iter())
+                    .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
+                let b_le_a = b
+                    .expected_arg_tys
+                    .iter()
+                    .zip(a.expected_arg_tys.iter())
+                    .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
+
+                a_le_b && !b_le_a
+            }
+
+            fn pick_most_specific_fun_overload(
+                candidates: &[MatchedFunOverload<'_>],
+                lower: &TypeLowering<'_>,
+                builtins: BuiltinTypes,
+            ) -> Option<usize> {
+                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都“更具体”（可赋值到 B 的形参类型），
+                //    且至少有一个位置严格更具体，则认为 A 严格更具体。
+                for (idx, cand) in candidates.iter().enumerate() {
+                    let mut ok = true;
+                    for (other_idx, other) in candidates.iter().enumerate() {
+                        if idx == other_idx {
+                            continue;
+                        }
+                        if !is_strictly_more_specific_fun_overload(cand, other, lower, builtins) {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok {
+                        return Some(idx);
+                    }
+                }
+
+                // 2) tie-break：默认参数更少者优先（“非默认参数优先”）。
+                let min_defaults = candidates
+                    .iter()
+                    .map(|c| c.defaults_used)
+                    .min()
+                    .unwrap_or(0);
+                let mut it = candidates
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.defaults_used == min_defaults);
+                let (idx, _) = it.next()?;
+                if it.next().is_some() {
+                    return None;
+                }
+                Some(idx)
             }
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
@@ -3695,58 +3760,86 @@ fn infer_call_expr_type(
                 }
 
                 if ok {
+                    let defaults_used = mapping.iter().filter(|x| x.is_none()).count();
+                    let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else {
+                            continue;
+                        };
+                        expected_arg_tys[arg_idx] = instantiated.params[param_idx];
+                    }
+
                     matched.push(MatchedFunOverload {
                         sig: cand,
                         instantiated,
                         eff_arg,
+                        expected_arg_tys,
+                        defaults_used,
                     });
                 }
             }
 
-            match matched.len() {
-                0 => Err(ExprTypeError::NoMatchingOverload {
-                    callee: callee_fqn,
-                    span: call_expr.span.into(),
-                }),
-                1 => {
-                    let chosen = matched.pop().expect("len == 1");
-
-                    // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
-                    let type_param_bindings =
-                        type_param_bindings_from_sig(&chosen.sig.type_params, lower);
-                    lower.push_type_param_bindings(type_param_bindings);
-                    let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
-                        lower.push_effect_row_param_binding(
-                            eff_param.name.clone(),
-                            chosen.eff_arg.clone(),
-                        );
-                        true
-                    } else {
-                        false
-                    };
-                    let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
-                    if eff_binding_pushed {
-                        lower.pop_effect_row_param_binding();
-                    }
-                    lower.pop_type_param_bindings();
-                    let call_effects = substitute_type_args_in_effect_row(
-                        lowered_effects?,
-                        &chosen.sig.type_params,
-                        &chosen.instantiated.type_args,
-                        lower,
-                        call_expr.span,
-                    )?;
-                    for effect in call_effects.terms.iter().copied() {
-                        lower.record_performed_effect(effect, call_expr.span);
-                    }
-
-                    Ok(chosen.instantiated.return_ty)
+            let chosen = match matched.len() {
+                0 => {
+                    return Err(ExprTypeError::NoMatchingOverload {
+                        callee: callee_fqn,
+                        span: call_expr.span.into(),
+                    });
                 }
-                _ => Err(ExprTypeError::AmbiguousOverload {
-                    callee: callee_fqn,
-                    span: call_expr.span.into(),
-                }),
+                1 => matched.pop().expect("len == 1"),
+                _ => {
+                    let Some(idx) = pick_most_specific_fun_overload(&matched, lower, builtins)
+                    else {
+                        let name = short_name_from_fqn(&callee_fqn).to_string();
+                        let candidates = join_overload_signatures(
+                            matched
+                                .iter()
+                                .map(|c| {
+                                    fmt_overload_signature(
+                                        &name,
+                                        None,
+                                        &c.instantiated.params,
+                                        lower,
+                                    )
+                                })
+                                .collect(),
+                        );
+                        return Err(ExprTypeError::AmbiguousOverload {
+                            callee: callee_fqn,
+                            candidates,
+                            span: call_expr.span.into(),
+                        });
+                    };
+                    matched.swap_remove(idx)
+                }
+            };
+
+            // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+            let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
+            lower.push_type_param_bindings(type_param_bindings);
+            let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
+                lower.push_effect_row_param_binding(eff_param.name.clone(), chosen.eff_arg.clone());
+                true
+            } else {
+                false
+            };
+            let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
+            if eff_binding_pushed {
+                lower.pop_effect_row_param_binding();
             }
+            lower.pop_type_param_bindings();
+            let call_effects = substitute_type_args_in_effect_row(
+                lowered_effects?,
+                &chosen.sig.type_params,
+                &chosen.instantiated.type_args,
+                lower,
+                call_expr.span,
+            )?;
+            for effect in call_effects.terms.iter().copied() {
+                lower.record_performed_effect(effect, call_expr.span);
+            }
+
+            Ok(chosen.instantiated.return_ty)
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
             if let Some(ty) = infer_effect_op_call_expr_type(
@@ -3870,8 +3963,7 @@ fn infer_class_constructor_call_expr_type(
     let use_cone = lower.index().cone_of_source(source);
     let callee_name = source.slice(callee.span).to_string();
 
-    let mut matched_ctor_count = 0usize;
-    let mut matched_type_fqn: Option<String> = None;
+    let mut matched: Vec<(String, String)> = Vec::new(); // (type fqn, ctor signature)
 
     for ty_fqn in ctor_types {
         let Some(ctors) = lower.index().constructors.get(&ty_fqn).cloned() else {
@@ -3921,33 +4013,41 @@ fn infer_class_constructor_call_expr_type(
             }
 
             if ok {
-                matched_ctor_count += 1;
-                matched_type_fqn = Some(ty_fqn.clone());
-                if matched_ctor_count > 1 {
-                    break;
+                let mut param_tys: Vec<String> = Vec::with_capacity(ctor.params.len());
+                for p in &ctor.params {
+                    let ty = p
+                        .ty
+                        .as_ref()
+                        .map(|t| lower.lower_type_ref_in_decl_file(&ctor.decl_file, t))
+                        .transpose()?
+                        .map(|ty| lower.fmt_type(ty))
+                        .unwrap_or_else(|| "_".to_string());
+                    param_tys.push(ty);
                 }
-            }
-        }
 
-        if matched_ctor_count > 1 {
-            break;
+                matched.push((ty_fqn.clone(), format!("{ty_fqn}({})", param_tys.join(", "))));
+            }
         }
     }
 
-    match matched_ctor_count {
+    match matched.len() {
         0 => Err(ExprTypeError::NoMatchingOverload {
             callee: callee_name,
             span: call_expr.span.into(),
         }),
         1 => {
-            let ty_fqn = matched_type_fqn.expect("matched_ctor_count == 1");
+            let (ty_fqn, _) = matched.pop().expect("len == 1");
             let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
             Ok(Some(ty))
         }
-        _ => Err(ExprTypeError::AmbiguousOverload {
-            callee: callee_name,
-            span: call_expr.span.into(),
-        }),
+        _ => {
+            let candidates = join_overload_signatures(matched.into_iter().map(|(_, s)| s).collect());
+            Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_name,
+                candidates,
+                span: call_expr.span.into(),
+            })
+        }
     }
 }
 
@@ -4891,6 +4991,8 @@ fn infer_member_call_expr_type(
         receiver_ty: TypeId,
         /// `call_args[arg_idx]` 对应的“期望类型”（排除了 receiver 参数）。
         expected_arg_tys: Vec<TypeId>,
+        /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+        defaults_used: usize,
     }
 
     fn is_strictly_more_specific_extension_overload(
@@ -4933,7 +5035,22 @@ fn infer_member_call_expr_type(
                 return Some(idx);
             }
         }
-        None
+
+        // tie-break：默认参数更少者优先（“非默认参数优先”）。
+        let min_defaults = candidates
+            .iter()
+            .map(|c| c.defaults_used)
+            .min()
+            .unwrap_or(0);
+        let mut it = candidates
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.defaults_used == min_defaults);
+        let (idx, _) = it.next()?;
+        if it.next().is_some() {
+            return None;
+        }
+        Some(idx)
     }
 
     // 多候选：先按 receiver/参数匹配筛选，再用 receiver/参数 specificity 选出 most-specific（T0455）。
@@ -5122,6 +5239,7 @@ fn infer_member_call_expr_type(
         }
 
         if ok {
+            let defaults_used = mapping.iter().filter(|x| x.is_none()).count();
             let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                 let Some(arg_idx) = arg_idx else {
@@ -5136,6 +5254,7 @@ fn infer_member_call_expr_type(
                 expected_arg_tys,
                 instantiated,
                 eff_arg,
+                defaults_used,
             });
         }
     }
@@ -5149,12 +5268,27 @@ fn infer_member_call_expr_type(
         }
         1 => matched.pop().expect("len == 1"),
         _ => {
-            let idx = pick_most_specific_extension_overload(&matched, lower, builtins).ok_or_else(
-                || ExprTypeError::AmbiguousOverload {
+            let Some(idx) = pick_most_specific_extension_overload(&matched, lower, builtins) else {
+                let name = short_name_from_fqn(&callee_fqn).to_string();
+                let candidates = join_overload_signatures(
+                    matched
+                        .iter()
+                        .map(|c| {
+                            fmt_overload_signature(
+                                &name,
+                                Some(c.receiver_ty),
+                                c.instantiated.params.get(1..).unwrap_or_default(),
+                                lower,
+                            )
+                        })
+                        .collect(),
+                );
+                return Err(ExprTypeError::AmbiguousOverload {
                     callee: callee_fqn,
+                    candidates,
                     span: call_expr.span.into(),
-                },
-            )?;
+                });
+            };
             matched.swap_remove(idx)
         }
     };
@@ -5983,6 +6117,35 @@ fn fmt_effect_row(row: &EffectRow, lower: &TypeLowering<'_>) -> String {
         .map(|e| lower.fmt_type(e))
         .collect::<Vec<_>>()
         .join(" + ")
+}
+
+fn short_name_from_fqn(fqn: &str) -> &str {
+    fqn.rsplit('.').next().unwrap_or(fqn)
+}
+
+fn fmt_overload_signature(
+    name: &str,
+    receiver_ty: Option<TypeId>,
+    params: &[TypeId],
+    lower: &TypeLowering<'_>,
+) -> String {
+    let params = params
+        .iter()
+        .copied()
+        .map(|ty| lower.fmt_type(ty))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    match receiver_ty {
+        Some(recv) => format!("{}.{}({})", lower.fmt_type(recv), name, params),
+        None => format!("{name}({params})"),
+    }
+}
+
+fn join_overload_signatures(mut sigs: Vec<String>) -> String {
+    sigs.sort();
+    sigs.dedup();
+    sigs.join(" | ")
 }
 
 fn visibility_from_modifiers(modifiers: &[ast::Modifier]) -> Visibility {

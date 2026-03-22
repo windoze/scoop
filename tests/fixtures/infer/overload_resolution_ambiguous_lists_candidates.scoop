@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: g(Any, Int) | g(Int, Any)
+// EXPECT-ERROR-AT: 17:18
+// 目标：T0513 most-specific candidate：
+// - 无明显更具体候选时报 `ambiguous_overload`；
+// - 错误信息应列出候选签名（稳定顺序）。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun g(a: Int, b: Any): Int { return 0 }
+fun g(a: Any, b: Int): Int { return 0 }
+
+fun bad() {
+    val x: Int = g(1, 1)
+}

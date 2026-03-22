@@ -1572,11 +1572,19 @@
      - `eff` row 推断可影响候选筛选（lambda effects 与固定 effect row 的可赋值关系）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0513 [TODO] 最具体候选（most specific candidate）与歧义诊断
+### T0513 [DONE] 最具体候选（most specific candidate）与歧义诊断
 - 描述：在多个候选都可行时，实现 Kotlin-like most-specific candidate 规则，并给出稳定、可解释的歧义诊断。
 - 目标：先覆盖参数更具体、receiver 更具体、非默认参数优先等常见规则；完全等价时保留歧义错误。
 - 验收：infer fixture：`f(1)` 在 `f(Int)` / `f(Any)` 中选 `f(Int)`；无明显更具体候选时报 `ambiguous_overload`，错误信息列出候选签名。
 - 依赖：T0512、T0457
+ - 完成：
+   - typecheck/expr：direct call 的多候选重载决议引入 most-specific 选择：
+     - 参数类型按 `is_type_assignable` 做 strict-more-specific 判定；
+     - tie-break：默认参数使用更少者优先（“非默认参数优先”）。
+   - typecheck/expr：扩展函数（`receiver.member(...)`）多候选同样接入默认参数 tie-break。
+   - diagnostics：`ambiguous_overload` 错误信息附带候选签名列表（稳定排序）。
+   - fixtures：新增 infer pass/fail 用例覆盖 most-specific 与歧义候选列表断言。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0514 [TODO] 分支类型合并：真正的 LUB / 受限 union 构造与化简
 - 描述：替换当前 `if/when` 的 “相同类型否则回退到 Any” 规则，引入真正的最小上界计算，并在必要时构造受限 union/公共超类型结果。
