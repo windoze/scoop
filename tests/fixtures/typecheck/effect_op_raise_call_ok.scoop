@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：effect operation 可以通过限定名调用（T0602）：`Raise.raise(e)`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    val x = Raise.raise(1)
+    val y = x
+}
+
