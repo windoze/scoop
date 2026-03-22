@@ -1971,7 +1971,22 @@ fn infer_expr_type(
             }
 
             match op {
-                ast::CastOp::As => Ok(target_ty),
+                ast::CastOp::As => {
+                    // T0445：`x as T` 的失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，
+                    // 因此在静态 required effects 层面要求 `Raise<RuntimeError>`（除非被 handle/try 捕获）。
+                    let runtime_error = lower.lower_type_fqn_with_args(
+                        "scoop.core.RuntimeError".to_string(),
+                        Vec::new(),
+                        *op_span,
+                    )?;
+                    let raise_runtime_error = lower.lower_type_fqn_with_args(
+                        "scoop.core.Raise".to_string(),
+                        vec![runtime_error],
+                        *op_span,
+                    )?;
+                    lower.record_performed_effect(raise_runtime_error, *op_span);
+                    Ok(target_ty)
+                }
                 ast::CastOp::AsQ => Ok(lower.ty_option(target_ty)),
             }
         }
@@ -7521,6 +7536,25 @@ fn check_expr_stmt(
                 struct_field_types,
             )?;
             Ok(())
+        }
+        ast::ExprKind::Cast { .. } => {
+            // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
+            // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与
+            // required-effects 收集；否则 `/ Pure` 函数体内的 `as` 会被错误放过。
+            match infer_expr_type(
+                source,
+                expr,
+                lower,
+                builtins,
+                &*locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            ) {
+                Ok(_) => Ok(()),
+                Err(ExprTypeError::UnsupportedExpr { .. }) => Ok(()),
+                Err(e) => Err(e),
+            }
         }
         ast::ExprKind::Call { callee, args } => {
             // T0444：`inline` 与 non-local return 的最小语义门禁：

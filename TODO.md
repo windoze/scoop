@@ -1670,11 +1670,18 @@
      - `tests/fixtures/typecheck/not_null_assert_required_effect_in_try_catch_ok.scoop`（try/catch 捕获后通过）
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
+### T0445 [DONE] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
 - 描述：当使用不安全 cast `x as T` 时，编译器应把其失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，因此要求 `Raise<RuntimeError>` 除非被 handle/try 捕获。
 - 目标：先只做静态 required-effects 检查；运行期失败触发 raise 的 codegen 后置（与 T0614/T0818 联动）。
 - 验收：effects fixture：在 `/ Pure` 函数中使用 `as` 报 required effect；在 try/catch 内通过。
 - 依赖：T0412、T0419、T0604、T0607
+ - 完成：
+   - typecheck/expr：`ExprKind::Cast` 在 `as` 分支记录 performed effect `Raise<RuntimeError>`（静态 required effects）。
+   - typecheck/expr：表达式语句位置同样会 typecheck `Cast`，避免 required-effects 收集遗漏。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/cast_as_required_effect_missing_is_error.scoop`（Pure 函数内使用 `as` 报错）
+     - `tests/fixtures/typecheck/cast_as_required_effect_in_try_catch_ok.scoop`（try/catch 捕获后通过）
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0608 [TODO] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
 - 描述：实现 effect row 的语义：并集、空行 `Pure`、默认 effect 规则、以及 `R1 ⊆ R2`（subeffecting）的最小判定。
