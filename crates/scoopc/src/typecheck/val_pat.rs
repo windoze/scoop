@@ -3,10 +3,9 @@
 //! 覆盖范围：
 //! - tuple pattern：`val (a, b) = expr`（支持 `..` 忽略剩余元素）
 //! - struct pattern：`val Point { x, y } = expr`（支持字段重命名与 `..`）
+//! - enum variant pattern：`val Some(x) = expr` / `val Result.Ok(v) = expr`（T0460）
 //!
-//! 非目标：
-//! - enum variant destructuring（可复用 `when` pattern 系统，后续任务补齐）
-//! - or-pattern / guard 等更完整 pattern 语义
+//! 非目标：or-pattern / guard 等更完整 pattern 语义
 
 use std::collections::{HashMap, HashSet};
 
@@ -15,7 +14,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
 
-use super::expr::ExprTypeError;
+use super::expr::{lower_type_ref_with_enum_subst, ExprTypeError};
 use super::lower::TypeLowering;
 
 /// 对一个 `val` 解构 pattern 进行最小类型检查，并返回该 pattern 引入的局部绑定类型表。
@@ -76,6 +75,17 @@ fn check_val_pat(
             path,
             fields,
             *rest,
+            expected_ty,
+            lower,
+            builtins,
+            struct_field_types,
+            bindings,
+        ),
+        ast::PatternKind::Variant { path, args } => check_variant_pat(
+            source,
+            pat,
+            path,
+            args,
             expected_ty,
             lower,
             builtins,
@@ -152,6 +162,144 @@ fn check_tuple_pat(
             source,
             p,
             ty,
+            lower,
+            builtins,
+            struct_field_types,
+            bindings,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn check_variant_pat(
+    source: &SourceFile,
+    pat: &ast::Pattern,
+    path: &ast::TypePath,
+    args: &[ast::Pattern],
+    subject_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    struct_field_types: &HashMap<String, TypeId>,
+    bindings: &mut HashMap<Span, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // 1) subject 类型必须是 enum（含 builtin `Option<T>`），以复用 `when` 的 variant destructuring 语义。
+    let (enum_fqn, enum_args, enum_source) =
+        enum_instance_from_type(source, subject_ty, &*lower, pat.span)?;
+
+    // 2) 若 pattern 写了 `Enum.Variant(...)` 形式，先校验 enum 前缀与 subject enum 一致（避免误写）。
+    if path.segments.len() >= 2 {
+        let prefix_segments = &path.segments[..path.segments.len() - 1];
+        let start = prefix_segments.first().unwrap().span.start;
+        let end = prefix_segments.last().unwrap().span.end;
+        let prefix_span = Span::new(start, end);
+        let prefix_path = ast::TypePath {
+            span: prefix_span,
+            segments: prefix_segments.to_vec(),
+            args: Vec::new(),
+        };
+
+        let prefix_ty = lower.lower_type_ref(&ast::TypeRef::Path(prefix_path))?;
+        let prefix_matches = match lower.type_kind(prefix_ty) {
+            TypeKind::Value(ValueTypeKind::Option(_)) => enum_fqn == "scoop.core.Option",
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn == enum_fqn,
+            _ => false,
+        };
+        if !prefix_matches {
+            return Err(ExprTypeError::ValVariantPatEnumMismatch {
+                expected: lower.fmt_type(subject_ty),
+                found: lower.fmt_type(prefix_ty),
+                span: prefix_span.into(),
+            });
+        }
+    }
+
+    // 3) 取 variant 名（最后一段），并在 enum 声明中查找匹配的 variant。
+    let Some(variant_ident) = path.segments.last().copied() else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "val variant pattern（空路径）",
+            span: pat.span.into(),
+        });
+    };
+    let variant_name = source.slice(variant_ident.span);
+
+    let decl = lower.env().enum_decl(&enum_fqn).cloned().ok_or_else(|| {
+        ExprTypeError::UnsupportedExpr {
+            kind: "val variant pattern（缺少 enum 声明信息）",
+            span: pat.span.into(),
+        }
+    })?;
+
+    let variant = decl
+        .variants
+        .iter()
+        .find(|v| v.name == variant_name)
+        .cloned()
+        .ok_or_else(|| ExprTypeError::ValVariantPatUnknownVariant {
+            enum_fqn: enum_fqn.clone(),
+            variant: variant_name.to_string(),
+            span: variant_ident.span.into(),
+        })?;
+
+    let variant_fqn = format!("{enum_fqn}.{variant_name}");
+
+    // 4) 参数数量检查：允许 `..` 作为“忽略剩余 payload”的占位符（parser 已保证最多一次且必须在末尾）。
+    let (prefix_pats, has_rest) = match args.last().map(|p| &p.kind) {
+        Some(ast::PatternKind::Rest) => (&args[..args.len().saturating_sub(1)], true),
+        _ => (args, false),
+    };
+
+    let expected_arity = variant.fields.len();
+    let found_arity = prefix_pats.len();
+    if has_rest {
+        if expected_arity < found_arity {
+            return Err(ExprTypeError::ValVariantPatTooShort {
+                variant_fqn,
+                expected_at_least: found_arity,
+                found: expected_arity,
+                span: pat.span.into(),
+            });
+        }
+    } else if expected_arity != found_arity {
+        return Err(ExprTypeError::ValVariantPatArityMismatch {
+            variant_fqn,
+            expected: expected_arity,
+            found: found_arity,
+            span: pat.span.into(),
+        });
+    }
+
+    // 5) 计算 enum type params → subject 实例化 type args 的替换表，并据此 lowering 每个 payload 字段的类型。
+    if decl.type_params.len() != enum_args.len() {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "val variant pattern（enum type args 数量异常）",
+            span: pat.span.into(),
+        });
+    }
+
+    let type_param_set: HashSet<&str> = decl.type_params.iter().map(|s| s.as_str()).collect();
+    let subst: HashMap<String, TypeId> = decl
+        .type_params
+        .iter()
+        .cloned()
+        .zip(enum_args.into_iter())
+        .collect();
+
+    for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
+        let expected_field_ty = lower_type_ref_with_enum_subst(
+            &enum_source,
+            pat.span,
+            &enum_fqn,
+            &field.ty,
+            lower,
+            builtins,
+            &type_param_set,
+            &subst,
+        )?;
+        check_val_pat(
+            source,
+            arg_pat,
+            expected_field_ty,
             lower,
             builtins,
             struct_field_types,
@@ -285,3 +433,47 @@ fn check_struct_pat(
     Ok(())
 }
 
+fn enum_instance_from_type(
+    source: &SourceFile,
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+    use_span: Span,
+) -> Result<(String, Vec<TypeId>, SourceFile), ExprTypeError> {
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            // builtin `Option<T>`：在内部类型系统里不是 nominal，但语义上是 enum。
+            let enum_fqn = "scoop.core.Option".to_string();
+            let enum_args = vec![inner];
+            let enum_source = lower
+                .env()
+                .enum_decl(&enum_fqn)
+                .and_then(|d| lower.env().source(&d.decl_file).cloned())
+                .unwrap_or_else(|| source.clone());
+            Ok((enum_fqn, enum_args, enum_source))
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let enum_fqn = nominal.fqn.clone();
+            if !matches!(
+                lower.nominal_decl_kind(&enum_fqn),
+                Some(ast::TypeKind::Enum)
+            ) {
+                return Err(ExprTypeError::ValVariantPatNotEnum {
+                    found: lower.fmt_type(ty),
+                    span: use_span.into(),
+                });
+            }
+
+            let enum_source = lower
+                .env()
+                .enum_decl(&enum_fqn)
+                .and_then(|d| lower.env().source(&d.decl_file).cloned())
+                .unwrap_or_else(|| source.clone());
+
+            Ok((enum_fqn, nominal.args.clone(), enum_source))
+        }
+        _ => Err(ExprTypeError::ValVariantPatNotEnum {
+            found: lower.fmt_type(ty),
+            span: use_span.into(),
+        }),
+    }
+}

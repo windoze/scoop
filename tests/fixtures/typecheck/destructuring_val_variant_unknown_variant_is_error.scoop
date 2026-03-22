@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_unknown_variant
+// EXPECT-ERROR-AT: 16:16
+// EXPECT-ERROR: 未找到匹配的 variant
+// 目标：T0460：对不存在的 variant 名应给出稳定诊断（unknown variant）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Result {
+    Ok(val value: Int),
+}
+
+fun f(r: Result) {
+    val Result.Foo(x) = r
+}

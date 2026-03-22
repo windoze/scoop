@@ -137,6 +137,56 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`val` 解构的 variant pattern 只能用于 enum，但 initializer 为 {found}")]
+    #[diagnostic(code(scoop::typecheck::val_variant_pat_not_enum))]
+    ValVariantPatNotEnum {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 variant pattern enum 前缀不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::val_variant_pat_enum_mismatch))]
+    ValVariantPatEnumMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`val` 解构的 variant pattern 未找到匹配的 variant：{enum_fqn}.{variant}")]
+    #[diagnostic(code(scoop::typecheck::val_variant_pat_unknown_variant))]
+    ValVariantPatUnknownVariant {
+        enum_fqn: String,
+        variant: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`val` 解构的 variant pattern 参数数量不匹配：{variant_fqn} 期望 {expected} 个，但得到 {found} 个"
+    )]
+    #[diagnostic(code(scoop::typecheck::val_variant_pat_arity_mismatch))]
+    ValVariantPatArityMismatch {
+        variant_fqn: String,
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`val` 解构的 variant pattern 参数不足：{variant_fqn} 需要至少 {expected_at_least} 个，但该 variant 只有 {found} 个"
+    )]
+    #[diagnostic(code(scoop::typecheck::val_variant_pat_too_short))]
+    ValVariantPatTooShort {
+        variant_fqn: String,
+        expected_at_least: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("无法获取局部绑定的类型：{name}")]
     #[diagnostic(code(scoop::typecheck::unknown_local_value_type))]
     UnknownLocalValueType {

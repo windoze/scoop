@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_enum_mismatch
+// EXPECT-ERROR-AT: 20:9
+// EXPECT-ERROR: enum 前缀不匹配
+// 目标：T0460：当写了 `Enum.Variant(...)` 形式时，enum 前缀应与 initializer 的 enum 类型一致。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Result {
+    Ok(val value: Int),
+}
+
+enum Other {
+    Ok(val value: Int),
+}
+
+fun f(r: Result) {
+    val Other.Ok(v) = r
+}

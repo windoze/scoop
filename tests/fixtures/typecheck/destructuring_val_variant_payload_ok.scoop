@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T0460：`val` 解构绑定支持 enum variant payload destructuring：
+// - `Some(x)`（builtin `Option<T>`）
+// - `Result.Ok(v)`（显式 enum 前缀消歧）
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Result {
+    Ok(val value: Int),
+    Err(val error: String),
+}
+
+fun use(opt: Option<Int>) {
+    val Some(x) = opt
+    val ix: Int = x
+
+    val r: Result = Ok(1)
+    val Result.Ok(v) = r
+    val iv: Int = v
+}
+

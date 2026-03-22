@@ -5,6 +5,7 @@
 //! - 标识符 bind
 //! - tuple pattern：`(p1, p2, ...)`
 //! - struct pattern：`TypeName { field, field: pat, ... }`
+//! - enum variant pattern：`Some(x)` / `Result.Ok(v)`（T0460）
 
 use crate::ast;
 use crate::span::Span;
@@ -33,6 +34,22 @@ impl<'a> Parser<'a> {
         self.peek_n(n).kind == TokenKind::Symbol(Symbol::LBrace)
     }
 
+    pub(super) fn looks_like_variant_pattern_ahead(&self) -> bool {
+        if !self.peek_kind(TokenKind::Ident) {
+            return false;
+        }
+
+        // 识别 `Ident(.Ident)* (` 的最小形式。
+        let mut n = 1usize; // 已消费第一个 ident
+        while self.peek_n(n).kind == TokenKind::Symbol(Symbol::Dot)
+            && self.peek_n(n + 1).kind == TokenKind::Ident
+        {
+            n += 2;
+        }
+
+        self.peek_n(n).kind == TokenKind::Symbol(Symbol::LParen)
+    }
+
     fn parse_pattern_atom(&mut self) -> Result<ast::Pattern, ParseError> {
         if self.peek_symbol(Symbol::LParen) {
             return self.parse_tuple_pattern();
@@ -41,6 +58,9 @@ impl<'a> Parser<'a> {
         if self.peek_kind(TokenKind::Ident) {
             if self.looks_like_struct_pattern_ahead() {
                 return self.parse_struct_pattern();
+            }
+            if self.looks_like_variant_pattern_ahead() {
+                return self.parse_variant_pattern();
             }
 
             let tok = self.bump();
@@ -60,7 +80,7 @@ impl<'a> Parser<'a> {
 
         let tok = *self.peek();
         Err(ParseError::Expected {
-            expected: "pattern（`_` / 标识符 / tuple `(...)` / struct `Type { ... }`）",
+            expected: "pattern（`_` / 标识符 / tuple `(...)` / struct `Type { ... }` / variant `Name(...)`）",
             found: tok.kind,
             span: tok.span.into(),
         })
@@ -246,6 +266,92 @@ impl<'a> Parser<'a> {
                 fields,
                 rest: rest_span,
             },
+        })
+    }
+
+    fn parse_variant_pattern(&mut self) -> Result<ast::Pattern, ParseError> {
+        let path = self.parse_pattern_type_path()?;
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let start = path.span.start;
+
+        let mut args = Vec::new();
+        let mut rest_span: Option<Span> = None;
+        if self.peek_symbol(Symbol::RParen) {
+            let close = self.bump();
+            return Ok(ast::Pattern {
+                span: Span::new(start, close.span.end),
+                kind: ast::PatternKind::Variant { path, args },
+            });
+        }
+
+        loop {
+            // `..` rest：仅允许出现一次，并且必须是最后一个参数。
+            if rest_span.is_some() {
+                let tok = *self.peek();
+                if self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                {
+                    let err = ParseError::Expected {
+                        expected: "variant pattern：`..` 只能出现一次",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    };
+                    let _ = self.consume_balanced_after_open(
+                        Symbol::LParen,
+                        Symbol::RParen,
+                        open.span.start,
+                    );
+                    return Err(err);
+                }
+                let err = ParseError::Expected {
+                    expected: "`)`（`..` 必须是最后一个参数）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                };
+                let _ = self.consume_balanced_after_open(
+                    Symbol::LParen,
+                    Symbol::RParen,
+                    open.span.start,
+                );
+                return Err(err);
+            }
+
+            if self.peek_symbol(Symbol::Dot)
+                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            {
+                let dot1 = self.bump();
+                let dot2 = self.bump();
+                let span = Span::new(dot1.span.start, dot2.span.end);
+                rest_span = Some(span);
+                args.push(ast::Pattern {
+                    span,
+                    kind: ast::PatternKind::Rest,
+                });
+            } else {
+                args.push(self.parse_pattern()?);
+            }
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma
+                if self.peek_symbol(Symbol::RParen) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+
+        let close = self.expect_symbol(Symbol::RParen)?;
+        Ok(ast::Pattern {
+            span: Span::new(start, close.span.end),
+            kind: ast::PatternKind::Variant { path, args },
         })
     }
 

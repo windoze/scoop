@@ -1337,11 +1337,28 @@
      - `tests/fixtures/typecheck/when_option_payload_nested_option_missing_combo_is_error.scoop`
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0460 [TODO] destructuring `val`：enum/variant payload 解构绑定
+### T0460 [DONE] destructuring `val`：enum/variant payload 解构绑定
 - 描述：把 variant pattern 复用到 `val` 解构绑定位置，允许对 enum payload 做绑定与类型检查，而不只支持 tuple/struct。
 - 目标：先覆盖与 `when` pattern 同构的 variant payload 解构；不新增第二套独立语义。
 - 验收：typecheck fixtures：在允许的绑定语法下对 `Some(x)` / `Result.Ok(v)` 形式解构成功；对非匹配 variant 或非法位置给出稳定诊断。
 - 依赖：T0430、T0427、T0456
+ - 完成：
+   - ast/parser：
+     - `Pattern` 增加 `Variant { path, args }`，并支持 `Name(...)`/`Enum.Variant(...)` 解析；
+     - `val` 声明解析新增 `looks_like_variant_pattern_ahead` 分支以消歧 `val Name(...) = ...`。
+   - resolve：`val` pattern 引入的局部绑定收集支持递归进入 variant args。
+   - typecheck：`val_pat` 复用 `when` 的 enum variant destructuring 规则，新增稳定诊断：
+     - `scoop::typecheck::val_variant_pat_not_enum`
+     - `scoop::typecheck::val_variant_pat_unknown_variant`
+     - `scoop::typecheck::val_variant_pat_arity_mismatch`
+     - `scoop::typecheck::val_variant_pat_too_short`
+     - `scoop::typecheck::val_variant_pat_enum_mismatch`
+   - fixtures：
+     - `tests/fixtures/typecheck/destructuring_val_variant_payload_ok.scoop`
+     - `tests/fixtures/typecheck/destructuring_val_variant_not_enum_is_error.scoop`
+     - `tests/fixtures/typecheck/destructuring_val_variant_unknown_variant_is_error.scoop`
+     - `tests/fixtures/typecheck/destructuring_val_variant_enum_mismatch_is_error.scoop`
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ---
 

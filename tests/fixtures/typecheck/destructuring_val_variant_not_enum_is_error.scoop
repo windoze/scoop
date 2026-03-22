@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::val_variant_pat_not_enum
+// EXPECT-ERROR-AT: 12:9
+// EXPECT-ERROR: variant pattern 只能用于 enum
+// 目标：T0460：对非 enum initializer 使用 variant pattern 应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    val Some(x) = 1
+}
+

@@ -121,7 +121,7 @@
   - `ParseTree`（保留所有 token/节点，利于错误恢复与格式化）
   - `AST`（更语义化的节点，利于后续分析）
 - [x] AST（最小骨架）：File/Package/Import/Fun/TypeDecl/Block/Ident/Param/TypeRef，节点带 span 并可回切源文本
-- [x] Pattern AST 节点（T0244）：新增 `Pattern`（Wildcard/Bind/Tuple/Struct）与 `ValBinding`，用于 block 内 `val` 解构绑定；`when` 分支模式仍使用 `WhenPat`（后续再统一迁移）
+- [x] Pattern AST 节点（T0244/T0460）：新增 `Pattern`（Wildcard/Bind/Tuple/Struct/Variant）与 `ValBinding`，用于 block 内 `val` 解构绑定；`when` 分支模式仍使用 `WhenPat`（后续再统一迁移）
 - [ ] Parser 收尾补齐：
   - [x] `import foo.bar.Baz as Qux`（Appendix B.7）
   - [x] use-site effect row 实参：`Type<eff Row>`（spec §3.4）
@@ -274,7 +274,7 @@
   - `var` 的赋值类型检查：lhs 可写性（局部 `var` / class `var` 属性）+ rhs 可赋值（T0416/T0443）
 - [ ] 解构绑定（destructuring）：
   - [x] tuple/struct 的 `val (a, b) = expr` / `val Point { x, y } = expr`（T0430）
-  - [ ] enum 的 `val Some(x) = expr`（可复用 `when` pattern，后续补齐）
+  - [x] enum 的 `val Some(x) = expr` / `val Result.Ok(v) = expr`（T0460）
   - [ ] `when` 分支中的解构 pattern
 - [ ] 控制流基础：`if/while/for/return/break/continue`（非局部 return 仅允许 inline lambda 实参）
   - [x] `return`：函数内 `return expr?` 返回类型检查与诊断（T0417）

@@ -430,13 +430,17 @@ impl<'a> Parser<'a> {
             });
         }
 
-        // T0244：`val` 支持解构绑定（tuple/struct pattern）；`var` 按 spec 不支持。
+        // T0244/T0460：`val` 支持解构绑定（tuple/struct/variant pattern）；`var` 按 spec 不支持。
         let (binding, binding_end) = if kind == ast::ValKind::Val && self.peek_symbol(Symbol::LParen)
         {
             let pat = self.parse_pattern()?;
             let end = pat.span.end;
             (ast::ValBinding::Pattern(pat), end)
         } else if kind == ast::ValKind::Val && self.looks_like_struct_pattern_ahead() {
+            let pat = self.parse_pattern()?;
+            let end = pat.span.end;
+            (ast::ValBinding::Pattern(pat), end)
+        } else if kind == ast::ValKind::Val && self.looks_like_variant_pattern_ahead() {
             let pat = self.parse_pattern()?;
             let end = pat.span.end;
             (ast::ValBinding::Pattern(pat), end)
