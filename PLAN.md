@@ -311,7 +311,7 @@
 - [ ] 通用重载解析（函数 / 构造函数 / 扩展）：
   - 候选筛选：arity、receiver、可见性、命名参数、默认参数
   - 决议规则：最具体候选（most specific candidate）与稳定歧义诊断
-  - enum variant / pattern 在同名跨 enum 时按期望类型或 subject type 消歧
+  - [x] enum variant / pattern 在同名跨 enum 时按期望类型或 subject type 消歧
 
 **本阶段 DoD**
 - `scoopc` 能对一批无泛型/少量泛型的示例做类型检查（含 struct/enum/Option/when/is/as）。

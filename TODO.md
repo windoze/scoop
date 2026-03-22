@@ -1269,11 +1269,18 @@
      - `tests/fixtures/typecheck/extension_overload_ambiguous_is_error.scoop`
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0456 [TODO] enum variant 构造与 pattern 消歧：摆脱“同名唯一 variant”假设
+### T0456 [DONE] enum variant 构造与 pattern 消歧：摆脱“同名唯一 variant”假设
 - 描述：当不同 enum 存在同名 variant（如多个 `None` / `Some` 风格命名）时，variant 构造与 pattern 匹配应按期望类型或 `when` subject type 解析，而不是要求全局同名唯一。
 - 目标：先只覆盖“存在明确期望类型/subject type”的场景；无足够上下文时允许保留歧义诊断。
 - 验收：typecheck fixture：两个 enum 都有 `None` 时，在 `when (opt)` 中能正确解析到 `Option.None`；缺少上下文时给出歧义错误。
 - 依赖：T0426、T0427、T0318
+ - 完成：
+   - typecheck：新增 `infer_expr_type_in_expected_context`，在存在期望类型时对同名 enum variant ctor 做消歧（仅在“全局同名候选 > 1”时生效，避免影响单候选语义）。
+   - typecheck：在 initializer/return/assignment 与 struct literal/with-update 字段值的推导路径中传入期望类型，从而允许 `val opt: Option<Int> = Some(1)` 在存在其它同名 `Some` enum 时仍能解析为 `Option.Some`。
+   - fixtures：
+     - `tests/fixtures/typecheck/enum_variant_disambiguate_by_expected_and_subject_ok.scoop`：覆盖“构造按期望类型消歧 + `when` pattern 按 subject type 消歧”。
+     - `tests/fixtures/typecheck/enum_variant_ctor_ambiguous_without_context_is_error.scoop`：覆盖“缺少期望类型时保留歧义诊断”。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0457 [TODO] 重载冲突诊断：重复签名、不可区分签名、默认参数导致的冲突
 - 描述：在声明检查阶段诊断非法 overload：完全相同签名、仅返回类型不同、默认参数展开后不可区分等情况。

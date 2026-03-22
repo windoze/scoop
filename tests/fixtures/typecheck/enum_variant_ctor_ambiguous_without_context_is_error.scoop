@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_enum_variant_ctor
+// EXPECT-ERROR-AT: 16:13
+// EXPECT-ERROR: enum variant 构造歧义
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Maybe<T> {
+    None,
+    Some(val value: T),
+}
+
+fun f() {
+    val x = Some(1)
+}

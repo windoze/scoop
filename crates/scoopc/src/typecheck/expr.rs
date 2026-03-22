@@ -28,7 +28,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::{TypeEnv, TypeSymbolKind};
+use super::{type_env::EnumVariantInfo, TypeEnv, TypeSymbolKind};
 use super::lower::{TypeLowerError, TypeLowering};
 use super::val_pat;
 use super::when_pat;
@@ -979,9 +979,10 @@ fn check_class_property_initializer_exprs(
         locals.insert(p.name.span, ty);
     }
 
-    let found = infer_expr_type(
+    let found = infer_expr_type_in_expected_context(
         source,
         init,
+        expected,
         lower,
         builtins,
         &locals,
@@ -1162,9 +1163,10 @@ fn check_top_level_val_initializer(
     };
 
     let expected = lower.lower_type_ref(ty_ref)?;
-    let found = infer_expr_type(
+    let found = infer_expr_type_in_expected_context(
         source,
         init,
+        expected,
         lower,
         builtins,
         &HashMap::new(),
@@ -1703,6 +1705,189 @@ fn infer_expr_type(
     }
 }
 
+/// 在“存在明确期望类型”的语境下推导表达式类型。
+///
+/// 目前该入口只做一件事（T0456）：
+/// - 当 `Some(x)` 这类 enum variant ctor 在全局存在多个同名候选时，
+///   尝试用期望类型（例如 `Option<Int>`）来消歧并继续类型检查；
+/// - 若无法消歧，则回退到常规推导逻辑，由原有路径给出稳定的歧义诊断。
+fn infer_expr_type_in_expected_context(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    if let ast::ExprKind::Call { callee, args } = &expr.kind {
+        if let ast::ExprKind::Ident(id) = &callee.kind {
+            if id.resolved.is_none() {
+                if let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
+                    source,
+                    expr,
+                    id,
+                    args,
+                    expected_ty,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )? {
+                    return Ok(ty);
+                }
+            }
+        }
+    }
+
+    infer_expr_type(
+        source,
+        expr,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )
+}
+
+fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee: &ast::ValueIdent,
+    args: &[ast::Expr],
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let variant_name = source.slice(callee.span);
+    let candidates = lower.env().find_enum_variants_named(variant_name);
+
+    // 只在“同名候选不唯一”的情况下尝试消歧，避免改变原有单候选/无候选的推导与诊断行为。
+    if candidates.len() <= 1 {
+        return Ok(None);
+    }
+
+    let Some((expected_enum_fqn, expected_enum_args)) =
+        enum_instance_fqn_and_args_from_type(expected_ty, lower)
+    else {
+        return Ok(None);
+    };
+
+    // 期望类型指向一个明确的 enum：从同名候选中选出“该 enum 的 variant”。
+    let mut matched: Vec<(String, EnumVariantInfo)> = candidates
+        .into_iter()
+        .filter(|(enum_fqn, _)| enum_fqn == &expected_enum_fqn)
+        .collect();
+    if matched.len() != 1 {
+        return Ok(None);
+    }
+    let (enum_fqn, variant) = matched.pop().expect("len == 1");
+
+    let Some((type_params, enum_source)) = lower.env().enum_decl(&enum_fqn).map(|d| {
+        let type_params = d.type_params.clone();
+        let source = lower
+            .env()
+            .source(&d.decl_file)
+            .cloned()
+            .unwrap_or_else(|| source.clone());
+        (type_params, source)
+    }) else {
+        // 防御性：`matched` 来源于 `TypeEnv.enums`，理论上一定存在。
+        return Ok(None);
+    };
+
+    if type_params.len() != expected_enum_args.len() {
+        // 期望类型与 enum 声明的 arity 不一致时，交给常规推导路径处理并给出诊断。
+        return Ok(None);
+    }
+
+    let variant_fqn = format!("{enum_fqn}.{variant_name}");
+    let expected_arity = variant.fields.len();
+    let found_arity = args.len();
+    if expected_arity != found_arity {
+        return Err(ExprTypeError::EnumVariantCtorArityMismatch {
+            variant: variant_fqn,
+            expected: expected_arity,
+            found: found_arity,
+            span: call_expr.span.into(),
+        });
+    }
+
+    let type_param_set: HashSet<&str> = type_params.iter().map(|s| s.as_str()).collect();
+    let subst: HashMap<String, TypeId> = type_params
+        .iter()
+        .cloned()
+        .zip(expected_enum_args.into_iter())
+        .collect();
+
+    for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {
+        let expected_field_ty = lower_type_ref_with_enum_subst(
+            &enum_source,
+            call_expr.span,
+            &enum_fqn,
+            &field.ty,
+            lower,
+            builtins,
+            &type_param_set,
+            &subst,
+        )?;
+
+        let found_ty = infer_expr_type_in_expected_context(
+            source,
+            arg_expr,
+            expected_field_ty,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if !is_type_assignable(found_ty, expected_field_ty, lower, builtins) {
+            return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
+                variant: format!("{enum_fqn}.{variant_name}"),
+                index: idx + 1,
+                expected: lower.fmt_type(expected_field_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg_expr.span.into(),
+            });
+        }
+    }
+
+    Ok(Some(expected_ty))
+}
+
+fn enum_instance_fqn_and_args_from_type(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> Option<(String, Vec<TypeId>)> {
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            Some(("scoop.core.Option".to_string(), vec![inner]))
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if matches!(
+                lower.nominal_decl_kind(&nominal.fqn),
+                Some(ast::TypeKind::Enum)
+            ) =>
+        {
+            Some((nominal.fqn.clone(), nominal.args.clone()))
+        }
+        _ => None,
+    }
+}
+
 fn infer_struct_lit_expr_type(
     source: &SourceFile,
     struct_lit_expr: &ast::Expr,
@@ -1783,9 +1968,10 @@ fn infer_struct_lit_expr_type(
             });
         };
 
-        let found_ty = infer_expr_type(
+        let found_ty = infer_expr_type_in_expected_context(
             source,
             &f.value,
+            expected_ty,
             lower,
             builtins,
             locals,
@@ -1959,9 +2145,10 @@ fn infer_with_update_expr_type(
             let is_last = i + 1 == u.path.segments.len();
             if is_last {
                 let expected_ty = field_ty;
-                let found_ty = infer_expr_type(
+                let found_ty = infer_expr_type_in_expected_context(
                     source,
                     &u.value,
+                    expected_ty,
                     lower,
                     builtins,
                     locals,
@@ -3989,9 +4176,10 @@ fn check_stmt_exprs(
 
             match value {
                 Some(v) => {
-                    let found = infer_expr_type(
+                    let found = infer_expr_type_in_expected_context(
                         source,
                         v,
+                        expected,
                         lower,
                         builtins,
                         locals,
@@ -4200,23 +4388,36 @@ fn check_local_val_decl_exprs(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
-    // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
-    let init_ty = match &v.init {
-        Some(init) => Some(infer_expr_type(
-            source,
-            init,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?),
+    let declared_ty = match &v.ty {
+        Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
         None => None,
     };
 
-    let declared_ty = match &v.ty {
-        Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
+    // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
+    let init_ty = match &v.init {
+        Some(init) => Some(match declared_ty {
+            Some(expected) => infer_expr_type_in_expected_context(
+                source,
+                init,
+                expected,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?,
+            None => infer_expr_type(
+                source,
+                init,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?,
+        }),
         None => None,
     };
 
@@ -4889,9 +5090,10 @@ fn check_assign_expr_stmt(
     };
 
     // 递归 typecheck rhs：保证 `x = f()` 这类语句也会覆盖 rhs 中的表达式。
-    let found_ty = infer_expr_type(
+    let found_ty = infer_expr_type_in_expected_context(
         source,
         rhs,
+        expected_ty,
         lower,
         builtins,
         locals,

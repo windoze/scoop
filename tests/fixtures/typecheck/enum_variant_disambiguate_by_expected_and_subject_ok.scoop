@@ -1,0 +1,21 @@
+// EXPECT: pass
+// 目标：T0456：当多个 enum 拥有同名 variant（例如 `Some/None`）时：
+// - 构造表达式按期望类型消歧（`val opt: Option<Int> = Some(1)` → `Option.Some`）
+// - `when` 的 variant pattern 按 subject type 消歧（`when (opt) { None -> ... }` → `Option.None`）
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Maybe<T> {
+    None,
+    Some(val value: T),
+}
+
+val opt: Option<Int> = Some(1)
+
+val x: Int = when (opt) {
+  Some(v) -> v
+  None -> 0
+}
+
