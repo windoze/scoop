@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0502 局部变量推断：`val x = if (...) 1 else 2` 推断为 Int。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f(cond: Bool) {
+    val x = if (cond) 1 else 2
+    val y: Int = x
+}
+

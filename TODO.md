@@ -1373,11 +1373,16 @@
    - 新增 `scoopc::infer` 模块：`InferVarId`/`InferTerm`/`Constraint`/`InferError` 与最小 `Solver`（union-find + concrete binding）。
    - 新增单测覆盖 “同一推断变量被绑定为两个不同 `TypeId` 时返回 `TypeConflict`”；`cargo test -p scoopc` 通过。
 
-### T0502 [TODO] 局部变量推断：`val x = expr` 推断 x 类型（spec §14.3）
+### T0502 [DONE] 局部变量推断：`val x = expr` 推断 x 类型（spec §14.3）
 - 描述：当缺少类型注解时，从 initializer 推断类型。
 - 目标：先只对字面量/简单表达式生效；复杂情况可要求注解并报“推断失败”。
 - 验收：infer fixture：`val x = 1` 推断为 Int；`val x = if (...) 1 else 2` 也可。
 - 依赖：T0405、T0501
+ - 完成：
+   - fixtures：实现 `infer` phase（当前复用 typecheck pipeline），使 `tests/fixtures/infer/**` 可回归。
+   - typecheck：补齐 `if` 表达式的最小结果类型推导（同类型分支；无 `else` → `Unit`；不一致暂 fallback 为 `Any`）。
+   - fixtures：新增 2 个 infer 用例覆盖 `val x = 1` 与 `val x = if (cond) 1 else 2` 的局部推断。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0503 [TODO] `if`/`when` 分支类型的 LUB 推断（spec §14.6）
 - 描述：在推断阶段计算分支合并类型（先简化规则）。

@@ -8,6 +8,7 @@
 //! - parse fixtures（调用 `scoopc::parser::parse_file`）
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
+//! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
 //! - run-pass fixtures：当前仅提供 stdout/stderr golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
 //!
 //! 目录路由（phase）：
@@ -17,7 +18,8 @@
 //! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
-//! - 其它一级目录（如 `infer/`）会被识别为 phase，但目前统一返回“未实现”的诊断。
+//! - `tests/fixtures/infer/**` → infer
+//! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
 mod run_pass;
@@ -106,6 +108,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
         Some(name) if name == "resolve" => FixturePhase::Resolve,
         Some(name) if name == "typecheck" => FixturePhase::Typecheck,
+        Some(name) if name == "infer" => FixturePhase::Infer,
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
@@ -114,6 +117,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source),
+        FixturePhase::Infer => infer_fixture(session, &source),
         FixturePhase::RunPass => run_pass::run_fixture_unimplemented(rel, path, &exp),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
@@ -137,6 +141,7 @@ enum FixturePhase {
     Parse,
     Resolve,
     Typecheck,
+    Infer,
     RunPass,
     Unimplemented(String),
 }
@@ -349,6 +354,18 @@ fn typecheck_fixture(
         .map_err(box_diagnostic)?;
 
     Ok(())
+}
+
+fn infer_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    // 当前阶段（T0502）先让 `infer` fixtures 走与 `typecheck` 相同的 pipeline：
+    // - 便于把“依赖推断的新用例”与既有 typecheck fixtures 逻辑隔离
+    // - 后续在这里逐步接入 constraint generation + solving
+    //
+    // 说明：这不是“重复执行”，而是为 T05 预留独立入口。
+    typecheck_fixture(session, source)
 }
 
 /// 运行一个 `tests/fixtures/resolve_multi/<case>/` 的多文件编译单元。

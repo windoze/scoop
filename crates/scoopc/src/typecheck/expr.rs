@@ -1536,6 +1536,22 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => infer_if_expr_type(
+            source,
+            cond.as_ref(),
+            then_branch.as_ref(),
+            else_branch.as_deref(),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Ident(id) => {
             infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
         }
@@ -1775,6 +1791,79 @@ fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn infer_if_expr_type(
+    source: &SourceFile,
+    cond: &ast::Expr,
+    then_branch: &ast::Expr,
+    else_branch: Option<&ast::Expr>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 当前阶段（T0502）仅把 `if` 当作“可推导结果类型”的表达式，
+    // 以支持 `val x = if (...) 1 else 2` 这类最小推断回归。
+    //
+    // 非目标（后续任务 T0503）：真正的 LUB / union 规则与更强的条件类型约束。
+
+    // 先 typecheck cond：保证其中的表达式也会被覆盖（错误不应被吞掉）。
+    let _ = infer_expr_type(
+        source,
+        cond,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let then_ty = infer_expr_type(
+        source,
+        then_branch,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let Some(else_branch) = else_branch else {
+        // `if` 没有 else：语义上更接近“语句形式”，结果类型视为 `Unit`。
+        // 仍然需要确保 then branch 内的表达式被覆盖（见上方 `then_ty`）。
+        return Ok(builtins.unit);
+    };
+
+    let else_ty = infer_expr_type(
+        source,
+        else_branch,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // `Nothing` 是 bottom type：与任意 `T` 合并时应选择 `T`（最小 special-case）。
+    if then_ty == builtins.nothing {
+        return Ok(else_ty);
+    }
+    if else_ty == builtins.nothing {
+        return Ok(then_ty);
+    }
+
+    if then_ty == else_ty {
+        return Ok(then_ty);
+    }
+
+    // TODO(T0503): 这里先用 `Any` 作为最小 fallback，后续用真正的 LUB/union 替换。
+    Ok(builtins.any)
 }
 
 /// 在“存在明确期望类型”的语境下推导表达式类型。

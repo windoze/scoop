@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T0502 局部变量推断：`val x = 1` 推断为 Int。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    val x = 1
+    val y: Int = x
+}
+
