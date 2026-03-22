@@ -802,6 +802,12 @@ struct FunSigOwned {
     ///
     /// 对齐约定：该数组与 `params` 对齐（扩展函数包含 receiver 的占位参数）。
     param_fn_effect_uses_eff: Vec<bool>,
+    /// 返回类型是否为 `(...)->T / E` 这类“effects 直接引用 `eff` 变量”的函数类型。
+    ///
+    /// 用途（T0515）：
+    /// - 当 `eff` row 参数在返回函数类型上透传时，调用点推断出 `E` 后，需要把该 row 实参回填到
+    ///   `return_ty` 上，否则高阶函数的返回类型会错误地停留在“声明处默认 row”。
+    return_fn_effect_uses_eff: bool,
     params: Vec<TypeId>,
     return_ty: TypeId,
     /// 函数声明处的 effect row 标注：`/ Pure` / `/ E` / `/ (E1 + E2)`（spec §5.8）。
@@ -3446,6 +3452,17 @@ fn infer_call_expr_type(
                         instantiated.params[param_idx] = patched;
                     }
                 }
+                if sig.return_fn_effect_uses_eff {
+                    let Some(patched) =
+                        replace_function_type_effects(instantiated.return_ty, eff_arg.clone(), lower)
+                    else {
+                        return Err(ExprTypeError::UnsupportedExpr {
+                            kind: "eff row substitution（return function type）",
+                            span: call_expr.span.into(),
+                        });
+                    };
+                    instantiated.return_ty = patched;
+                }
 
                 // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
@@ -3727,6 +3744,17 @@ fn infer_call_expr_type(
                             break;
                         };
                         instantiated.params[param_idx] = patched;
+                    }
+                }
+                if ok && cand.return_fn_effect_uses_eff {
+                    if let Some(patched) = replace_function_type_effects(
+                        instantiated.return_ty,
+                        eff_arg.clone(),
+                        lower,
+                    ) {
+                        instantiated.return_ty = patched;
+                    } else {
+                        ok = false;
                     }
                 }
                 if !ok {
@@ -4532,6 +4560,7 @@ fn infer_effect_op_call_expr_type(
         type_params,
         eff_param: None,
         param_fn_effect_uses_eff: vec![false; param_count],
+        return_fn_effect_uses_eff: false,
         params,
         return_ty,
         effects: None,
@@ -4912,6 +4941,17 @@ fn infer_member_call_expr_type(
                 instantiated.params[sig_param_idx] = patched;
             }
         }
+        if sig.return_fn_effect_uses_eff {
+            let Some(patched) =
+                replace_function_type_effects(instantiated.return_ty, eff_arg.clone(), lower)
+            else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "eff row substitution（return function type）",
+                    span: call_expr.span.into(),
+                });
+            };
+            instantiated.return_ty = patched;
+        }
 
         // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
@@ -5206,6 +5246,15 @@ fn infer_member_call_expr_type(
                 instantiated.params[sig_param_idx] = patched;
             }
         }
+        if ok && cand.return_fn_effect_uses_eff {
+            if let Some(patched) =
+                replace_function_type_effects(instantiated.return_ty, eff_arg.clone(), lower)
+            {
+                instantiated.return_ty = patched;
+            } else {
+                ok = false;
+            }
+        }
         if !ok {
             continue;
         }
@@ -5447,6 +5496,12 @@ fn collect_top_level_fun_signatures(
                 param_fn_effect_uses_eff.push(uses_eff);
             }
 
+            let return_fn_effect_uses_eff = eff_param_sig.as_ref().is_some_and(|e| {
+                fun.return_ty
+                    .as_ref()
+                    .is_some_and(|ret| type_ref_is_fn_effect_eff_var(ret, &e.name, source))
+            });
+
             let return_ty = match &fun.return_ty {
                 Some(ret) => lower.lower_type_ref(ret)?,
                 None => builtins.unit,
@@ -5461,6 +5516,7 @@ fn collect_top_level_fun_signatures(
                 type_params,
                 eff_param: eff_param_sig.clone(),
                 param_fn_effect_uses_eff,
+                return_fn_effect_uses_eff,
                 params,
                 return_ty,
                 effects: fun.effects.clone(),

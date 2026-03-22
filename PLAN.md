@@ -342,7 +342,7 @@
   - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议
   - effect rows / `eff` 参数也必须能参与重载筛选与歧义诊断
 - [x] 真正的分支合并类型：LUB / 受限 union 的构造、比较与化简（替代简单 `Any` fallback）（T0514）
-- [ ] effect row 高级推断：高阶 row 约束、泛型 row 变量、归一化参与候选决议
+- [x] effect row 高级推断 v1：高阶返回透传 + row 归一化（T0515）
 
 **本阶段 DoD**
 - 能跑 `tests/fixtures/infer/**`：涵盖 if/when/lambda/泛型调用推断的 compile-pass/compile-fail。

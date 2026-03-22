@@ -1603,11 +1603,16 @@
      - 新增 `infer/if_branch_lub_inheritance_ok.scoop` 覆盖 Child/Parent → Parent。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0515 [TODO] effect row 推断 v1：高阶 row 约束、泛型 row 变量与归一化
+### T0515 [DONE] effect row 推断 v1：高阶 row 约束、泛型 row 变量与归一化
 - 描述：把 effect row 推断从“默认值 + 简单并集”推进到更完整的求解：支持泛型 row 变量参与约束、必要的高阶 row 运算，以及规范化后的等价比较。
 - 目标：让 row 推断可稳定服务于 overload resolution、receiver function type 与 higher-order APIs，而不是停留在简单集合拼接。
 - 验收：effects/infer fixtures：高阶函数把 row 变量透传给返回函数类型时仍可推断；等价但书写顺序不同的 row 表达式不会导致误判。
 - 依赖：T0509、T0511、T0608
+ - 完成：
+   - typecheck/expr：当 `<eff E>` 被用于返回函数类型（`...: (...) -> T / E`）时，调用点推断出的 `E` 会回填到 call result 的 function type effects（直调与扩展调用均覆盖），避免返回类型停留在声明处默认 `/ Pure`。
+   - fixtures：新增 `tests/fixtures/infer/effects/eff_row_higher_order_return_infers_ok.scoop` 覆盖“高阶返回透传”。
+   - fixtures：新增 `tests/fixtures/infer/effects/eff_row_order_is_normalized_ok.scoop` 覆盖 row 表达式顺序归一化（`Foo+Bar` ≡ `Bar+Foo`）。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0605 [TODO] Parser：`handle { ... } with { ... }`（spec §5.4）
 - 描述：解析 handle 表达式与 handler arms（先支持 non-resuming `->` 一种 arm）。
