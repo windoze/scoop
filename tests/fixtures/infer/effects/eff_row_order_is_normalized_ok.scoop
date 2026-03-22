@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0515 effect row 归一化：等价但书写顺序不同的 row 表达式不应导致类型不相等。
+
+package fixtures.infer
+
+effect Foo
+effect Bar
+
+interface Disposable<eff E = Pure>
+
+fun takes(d: Disposable<eff Foo + Bar>): Unit
+
+fun ok(d: Disposable<eff Bar + Foo>) {
+    takes(d)
+}
+
