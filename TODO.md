@@ -1454,6 +1454,37 @@
    - fixtures：新增 `tests/fixtures/infer/fun_return_type_is_inferred_from_tail_expr.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
+> 注：T0508～T0515（effect row 推断/诊断/联动）依赖 T0604（required effects 检查）。
+> 为保证 TODO 顺序“首个 `[TODO]` 可直接实现”，已将这些任务移动到 T0604 之后。
+
+---
+
+## T06：效果系统（阶段 5：先静态，再逐步落地运行时）
+
+### T0601 [TODO] Parser：`effect` 声明体内的操作签名（spec §5.2）
+- 描述：在 effect type body 内解析 `fun op(args): Ret` 列表，并区分 effect operation 与普通方法。
+- 目标：先不解析实现体（operation 应无 body）；不支持默认实现。
+- 验收：parse fixture：`effect Raise<E> { fun raise(error: E): Nothing }` 能解析出 operation 列表。
+- 依赖：T0203、T0218
+
+### T0602 [TODO] Typecheck：effect operation 的类型规则与命名空间
+- 描述：把 effect 看作“可 perform 的接口”，operation 生成对应的 perform signature。
+- 目标：先只支持 sysroot 的 `Raise`；不做 effect polymorphism。
+- 验收：typecheck fixture：`Raise.raise(e)`（按语法）能通过（或暂以 `perform Raise.raise(e)` 为准，按 spec）。
+- 依赖：T0601、T0404
+
+### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
+- 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
+- 目标：RowExpr 先只支持 `Pure`、单个 effect 名、`+` 并集。
+- 验收：parse fixture：`fun f(): Int / Pure { ... }`（或无 body）能解析。
+- 依赖：T0219
+
+### T0604 [TODO] Typecheck：required effects 检查（spec §14.7.1）
+- 描述：当函数体 perform 了 effect，但未在函数签名 row 中声明，也未被 handle，则报错。
+- 目标：先只覆盖 `Raise`；先不实现 handler，允许“显式声明 row”。
+- 验收：effects fixture：`fun f() { Raise.raise(e) }` 在 `/ Pure` 下失败；在 `/ Raise<...>`（按语法）下通过。
+- 依赖：T0602、T0603
+
 ### T0508 [TODO] effect 推断 v0：private/internal 可推断 row，public 默认 Pure（PLAN §6.1）
 - 描述：实现 effect row 的推断入口：public 函数默认 `/ Pure`（强制），private/internal 可推断。
 - 目标：先只覆盖单文件；跨包 API 后续与 Cone 联动。
@@ -1501,34 +1532,6 @@
 - 目标：让 row 推断可稳定服务于 overload resolution、receiver function type 与 higher-order APIs，而不是停留在简单集合拼接。
 - 验收：effects/infer fixtures：高阶函数把 row 变量透传给返回函数类型时仍可推断；等价但书写顺序不同的 row 表达式不会导致误判。
 - 依赖：T0509、T0511、T0608
-
----
-
-## T06：效果系统（阶段 5：先静态，再逐步落地运行时）
-
-### T0601 [TODO] Parser：`effect` 声明体内的操作签名（spec §5.2）
-- 描述：在 effect type body 内解析 `fun op(args): Ret` 列表，并区分 effect operation 与普通方法。
-- 目标：先不解析实现体（operation 应无 body）；不支持默认实现。
-- 验收：parse fixture：`effect Raise<E> { fun raise(error: E): Nothing }` 能解析出 operation 列表。
-- 依赖：T0203、T0218
-
-### T0602 [TODO] Typecheck：effect operation 的类型规则与命名空间
-- 描述：把 effect 看作“可 perform 的接口”，operation 生成对应的 perform signature。
-- 目标：先只支持 sysroot 的 `Raise`；不做 effect polymorphism。
-- 验收：typecheck fixture：`Raise.raise(e)`（按语法）能通过（或暂以 `perform Raise.raise(e)` 为准，按 spec）。
-- 依赖：T0601、T0404
-
-### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
-- 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
-- 目标：RowExpr 先只支持 `Pure`、单个 effect 名、`+` 并集。
-- 验收：parse fixture：`fun f(): Int / Pure { ... }`（或无 body）能解析。
-- 依赖：T0219
-
-### T0604 [TODO] Typecheck：required effects 检查（spec §14.7.1）
-- 描述：当函数体 perform 了 effect，但未在函数签名 row 中声明，也未被 handle，则报错。
-- 目标：先只覆盖 `Raise`；先不实现 handler，允许“显式声明 row”。
-- 验收：effects fixture：`fun f() { Raise.raise(e) }` 在 `/ Pure` 下失败；在 `/ Raise<...>`（按语法）下通过。
-- 依赖：T0602、T0603
 
 ### T0605 [TODO] Parser：`handle { ... } with { ... }`（spec §5.4）
 - 描述：解析 handle 表达式与 handler arms（先支持 non-resuming `->` 一种 arm）。
