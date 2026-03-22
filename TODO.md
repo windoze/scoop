@@ -1323,11 +1323,19 @@
      - `tests/fixtures/typecheck/where_clause_target_not_in_current_decl_is_error.scoop`
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0459 [TODO] `when`：穷尽性检查补齐嵌套组合覆盖
+### T0459 [DONE] `when`：穷尽性检查补齐嵌套组合覆盖
 - 描述：把穷尽性检查从“单层 enum/Bool/Option”推进到嵌套组合：tuple of enums、enum payload 中再含 enum/Bool/Option、以及多维组合覆盖。
 - 目标：先覆盖有限且可枚举的组合；不做无限域或路径敏感分析。
 - 验收：typecheck fixtures：`when ((opt, flag))`、嵌套 `Some((x, None))` 等场景在完整覆盖时通过，缺失某一组合时报错。
 - 依赖：T0428、T0429、T0410
+ - 完成：
+   - typecheck：新增 `typecheck::when_exhaustiveness`，用“有限例子集合（example set）”递归枚举 Bool/Option/enum/tuple 的构造器组合，并用 arm patterns（忽略 guard）检查覆盖；对不可分析类型保持 `else/_/bind` 兜底规则。
+   - fixtures：
+     - `tests/fixtures/typecheck/when_tuple_exhaustive_option_bool_ok.scoop`
+     - `tests/fixtures/typecheck/when_tuple_non_exhaustive_option_bool_missing_combo_is_error.scoop`
+     - `tests/fixtures/typecheck/when_option_payload_nested_option_exhaustive_ok.scoop`
+     - `tests/fixtures/typecheck/when_option_payload_nested_option_missing_combo_is_error.scoop`
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0460 [TODO] destructuring `val`：enum/variant payload 解构绑定
 - 描述：把 variant pattern 复用到 `val` 解构绑定位置，允许对 enum payload 做绑定与类型检查，而不只支持 tuple/struct。

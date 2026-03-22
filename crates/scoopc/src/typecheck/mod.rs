@@ -15,6 +15,7 @@ mod expr;
 mod structs;
 mod properties;
 mod when_pat;
+mod when_exhaustiveness;
 mod val_pat;
 mod inheritance;
 mod interfaces;
