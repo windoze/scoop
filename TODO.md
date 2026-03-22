@@ -1384,11 +1384,18 @@
    - fixtures：新增 2 个 infer 用例覆盖 `val x = 1` 与 `val x = if (cond) 1 else 2` 的局部推断。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0503 [TODO] `if`/`when` 分支类型的 LUB 推断（spec §14.6）
+### T0503 [DONE] `if`/`when` 分支类型的 LUB 推断（spec §14.6）
 - 描述：在推断阶段计算分支合并类型（先简化规则）。
 - 目标：先支持相同类型与 Any fallback；后续再做真正 LUB/union。
 - 验收：infer fixture：`val x = if (c) 1 else 2` → Int；`if (c) 1 else "s"` → Any。
 - 依赖：T0414、T0502
+ - 完成：
+   - infer fixtures：补齐分支合并的回归用例（含 pass/fail）：
+     - `tests/fixtures/infer/local_val_if_mixed_types_falls_back_to_any.scoop`
+     - `tests/fixtures/infer/local_val_when_same_type_is_inferred.scoop`
+     - `tests/fixtures/infer/local_val_when_mixed_types_falls_back_to_any.scoop`
+   - typecheck：把 `Any` fallback 的 TODO 标号从 T0503 更新到 T0514（真正 LUB/union 任务）
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0504 [TODO] lambda 参数类型下推（spec §14.7.2）
 - 描述：在调用点已知函数类型时，把参数类型下推到 lambda 参数。

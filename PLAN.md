@@ -330,7 +330,7 @@
   - [ ] 子类型约束 `τ1 <: τ2` 的求解（T0506）
   - [ ] effects 行约束（T0508/T0509）
 - [x] 局部变量推断：`val x = expr`（T0502）
-- [ ] LUB（if/when 分支）
+- [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
 - [ ] lambda 推断：参数类型下推、返回类型与 effect row 推断（见 spec §14.7.2）
 - [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释
 - [ ] overload resolution 与推断联动：

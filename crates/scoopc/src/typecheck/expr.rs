@@ -1808,7 +1808,7 @@ fn infer_if_expr_type(
     // 当前阶段（T0502）仅把 `if` 当作“可推导结果类型”的表达式，
     // 以支持 `val x = if (...) 1 else 2` 这类最小推断回归。
     //
-    // 非目标（后续任务 T0503）：真正的 LUB / union 规则与更强的条件类型约束。
+    // 非目标（后续任务 T0514）：真正的 LUB / union 规则与更强的条件类型约束。
 
     // 先 typecheck cond：保证其中的表达式也会被覆盖（错误不应被吞掉）。
     let _ = infer_expr_type(
@@ -1862,7 +1862,7 @@ fn infer_if_expr_type(
         return Ok(then_ty);
     }
 
-    // TODO(T0503): 这里先用 `Any` 作为最小 fallback，后续用真正的 LUB/union 替换。
+    // TODO(T0514): 这里先用 `Any` 作为最小 fallback，后续用真正的 LUB/union 替换。
     Ok(builtins.any)
 }
 

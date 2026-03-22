@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR-AT: 16:18
+// EXPECT-ERROR: 得到 Any
+// 目标：T0503 `when` 分支类型合并：分支类型不一致时 fallback 到 Any。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    val x = when (1) {
+      1 -> 1
+      else -> "hi"
+    }
+    val y: Int = x
+}
+
