@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0421b：`x!!` 的失败语义要求 `Raise<RuntimeError>`，但在 try/catch lowering（`handle Raise.raise`）内应被捕获，不成为外层函数的 required effects。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int?): Int / Pure {
+    val y = try {
+        x!!
+    } catch (e: RuntimeError) {
+        0
+    }
+    y
+}
+

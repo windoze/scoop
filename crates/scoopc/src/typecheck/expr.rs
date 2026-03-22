@@ -1921,9 +1921,10 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
-        ast::ExprKind::NotNullAssert { expr: inner, .. } => infer_not_null_assert_expr_type(
+        ast::ExprKind::NotNullAssert { expr: inner, op_span } => infer_not_null_assert_expr_type(
             source,
             inner.as_ref(),
+            *op_span,
             lower,
             builtins,
             locals,
@@ -7505,6 +7506,22 @@ fn check_expr_stmt(
             )?;
             Ok(())
         }
+        ast::ExprKind::NotNullAssert { expr: inner, op_span } => {
+            // `!!` 的语义属于“立即执行的表达式”（会在运行期做 null assertion），
+            // 因此即使它出现在表达式语句位置，也必须参与 typecheck/required-effects 收集（T0421b）。
+            let _ = infer_not_null_assert_expr_type(
+                source,
+                inner.as_ref(),
+                *op_span,
+                lower,
+                builtins,
+                &*locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            Ok(())
+        }
         ast::ExprKind::Call { callee, args } => {
             // T0444：`inline` 与 non-local return 的最小语义门禁：
             // - 默认：lambda body 内出现 `return` 一律报错
@@ -8091,6 +8108,7 @@ fn infer_elvis_expr_type(
 fn infer_not_null_assert_expr_type(
     source: &SourceFile,
     expr: &ast::Expr,
+    op_span: Span,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
@@ -8101,6 +8119,8 @@ fn infer_not_null_assert_expr_type(
     // T0421a：最小规则：
     // - `x!!` 的操作数必须是 nullable（`T?` / `Option<T>`）
     // - 结果类型为去掉 nullable 后的 inner type：`Option<T>` → `T`
+    //
+    // T0421b：`x!!` 的失败语义要求 `Raise<RuntimeError>`（静态 required effects）。
     let ty = infer_expr_type(
         source,
         expr,
@@ -8113,7 +8133,20 @@ fn infer_not_null_assert_expr_type(
     )?;
 
     match lower.type_kind(ty) {
-        TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(inner),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let runtime_error = lower.lower_type_fqn_with_args(
+                "scoop.core.RuntimeError".to_string(),
+                Vec::new(),
+                op_span,
+            )?;
+            let raise_runtime_error = lower.lower_type_fqn_with_args(
+                "scoop.core.Raise".to_string(),
+                vec![runtime_error],
+                op_span,
+            )?;
+            lower.record_performed_effect(raise_runtime_error, op_span);
+            Ok(inner)
+        }
         _ => Err(ExprTypeError::NotNullAssertOperandNotNullable {
             found: lower.fmt_type(ty),
             span: expr.span.into(),

@@ -1658,11 +1658,17 @@
 
 > 注：以下两项编号属于 T04（类型系统/类型检查），但依赖效果系统的 required effects + try/catch lowering（T0604/T0607），因此放在此处以保证 TODO 的依赖顺序（避免在 effect 体系落地前被选中执行）。
 
-### T0421b [TODO] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
+### T0421b [DONE] `!!`：required effect `Raise<RuntimeError>`（Appendix B.3.3）
 - 描述：`x!!`：触发运行期 null assertion，要求 `Raise<RuntimeError>`（除非被 handle/try 处理）。
 - 目标：先只实现静态 required effects；运行期行为后续由 effect/runtime 落地。
 - 验收：effects fixture：在 `/ Pure` 的函数里使用 `x!!` 报 required effect；在 try/catch 内通过。
 - 依赖：T0421a、T0419、T0604、T0607
+ - 完成：
+   - typecheck/expr：`ExprKind::NotNullAssert` 记录 performed effect `Raise<RuntimeError>`（静态 required effects）；并在表达式语句位置同样触发（避免遗漏）。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/not_null_assert_required_effect_missing_is_error.scoop`（Pure 函数内使用 `!!` 报错）
+     - `tests/fixtures/typecheck/not_null_assert_required_effect_in_try_catch_ok.scoop`（try/catch 捕获后通过）
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0445 [TODO] `as` 失败语义：要求 `Raise<RuntimeError>`（spec §4.4）
 - 描述：当使用不安全 cast `x as T` 时，编译器应把其失败语义建模为 `Raise.raise(RuntimeError.ClassCastFailed)`，因此要求 `Raise<RuntimeError>` 除非被 handle/try 捕获。

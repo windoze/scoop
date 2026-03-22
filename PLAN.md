@@ -370,7 +370,7 @@
   - 高级 row 语义：高级归一化、泛型 row 变量、必要的高阶 row 运算
 - [ ] 语法糖：
   - [x] `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`（T0607）
-  - [ ] `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 try/catch lowering：T0607）
+  - [x] `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b：静态 required effects；依赖 try/catch lowering：T0607）
   - [ ] `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0607）
   - [ ] 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
 
