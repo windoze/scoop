@@ -4369,7 +4369,7 @@ fn instantiate_fun_sig_for_call(
         );
     }
 
-    match solver.solve() {
+    match solver.solve(lower.types(), builtins) {
         Ok(()) => {}
         Err(InferError::TypeConflict { left, right }) => {
             return Err(ExprTypeError::GenericTypeArgInferenceConflict {
@@ -4383,6 +4383,12 @@ fn instantiate_fun_sig_for_call(
         Err(InferError::UnsupportedConstraint { .. }) => {
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "generic inference constraint（internal）",
+                span: call_span.into(),
+            });
+        }
+        Err(InferError::SubtypeNotSatisfied { .. } | InferError::IncompatibleBounds { .. }) => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "generic inference constraint（subtype bounds）",
                 span: call_span.into(),
             });
         }

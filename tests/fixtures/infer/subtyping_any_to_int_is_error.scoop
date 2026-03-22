@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR-AT: 14:18
+// EXPECT-ERROR: 期望 Int
+// EXPECT-ERROR: 得到 Any
+// 目标：T0506 子类型约束：`Any` 不可赋给 `Int`（需要显式 cast）。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    val a: Any = 1
+    val b: Int = a
+}
+

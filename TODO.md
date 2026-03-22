@@ -1426,11 +1426,19 @@
    - infer fixtures：新增 `tests/fixtures/infer/generic_type_arg_is_inferred_from_call_arg.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0506 [TODO] 子类型约束与 subtype unification（spec §14.8）
+### T0506 [DONE] 子类型约束与 subtype unification（spec §14.8）
 - 描述：实现 `τ1 <: τ2` 约束的求解（先覆盖 Any/Option/tuple/function 的一小部分）。
 - 目标：先不追求完整 Kotlin 子类型；先服务推断与错误信息。
 - 验收：infer fixture：把 `Int` 赋给 `Any` 通过；把 `Any` 赋给 `Int` 失败并给出清晰诊断。
 - 依赖：T0501、T0418
+ - 完成：
+   - infer：`Solver` 支持 `Constraint::Subtype`，并为推断变量引入 lower/upper bounds（最小实现：无共同超类型时 lower bounds LUB 退化到 `Any`）。
+   - infer：实现最小 `is_subtype_of`（`Nothing <: T`、`T <: Any`、`Option/tuple/function` 的结构性递归，含函数参数逆变/返回协变与 effect subset）。
+   - tests：新增 infer 单测覆盖 Any upcast / Option / tuple / function 的子类型规则与 bounds 求解。
+   - fixtures：新增 infer fixtures：
+     - `tests/fixtures/infer/subtyping_int_to_any_is_ok.scoop`
+     - `tests/fixtures/infer/subtyping_any_to_int_is_error.scoop`
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0507 [TODO] 返回类型推断（spec §14.6）
 - 描述：当函数缺少返回类型注解时，从 `return`/最后表达式推断返回类型。

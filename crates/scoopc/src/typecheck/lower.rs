@@ -423,6 +423,10 @@ impl<'a> TypeLowering<'a> {
         self.types.display(id).to_string()
     }
 
+    pub(super) fn types(&self) -> &TypeStore {
+        self.types
+    }
+
     /// 返回给定 `TypeId` 在 `TypeStore` 中的具体 kind（clone）。
     ///
     /// 说明：typecheck 的某些表达式语义（例如 `with` 更新）需要区分：

@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T0506 子类型约束：`Int` 可赋给 `Any`（顶类型）。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    val a: Any = 1
+}
+
