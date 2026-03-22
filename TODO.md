@@ -1411,11 +1411,20 @@
    - fixtures：新增 `tests/fixtures/infer/lambda_param_type_is_propagated_from_expected.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0505 [TODO] 泛型实参推断 v0（spec §14.5）
+### T0505 [DONE] 泛型实参推断 v0（spec §14.5）
 - 描述：从调用参数推断泛型实参（例如 `id(1)` 推断 `T=Int`）。
 - 目标：先只做单个类型参数；不处理 variance 与 star projection。
 - 验收：infer fixture：`fun id<T>(x: T): T {}` + `val a = id(1)` 推断返回 Int。
 - 依赖：T0218、T0502
+ - 完成：
+   - typecheck：收集顶层函数签名时注入 `fun.type_params`（lowering 为 `TypeKind::Param`），并在签名中保留 type params 列表用于调用点实例化。
+   - typecheck：在“单候选调用路径”实现泛型实参推断与 substitution：
+     - 顶层普通调用：`f(args...)`
+     - 扩展调用：`receiver.f(args...)` / `receiver?.f(args...)`
+     - 推断策略：仅单一类型参数；按参数形状递归收集相等约束；lambda 预收集阶段的 `Any` 占位不参与推断。
+   - typecheck：函数体类型检查时 push/pop `fun.type_params`，使 `return x: T` 等位置可正常 lowering。
+   - infer fixtures：新增 `tests/fixtures/infer/generic_type_arg_is_inferred_from_call_arg.scoop` 回归用例。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0506 [TODO] 子类型约束与 subtype unification（spec §14.8）
 - 描述：实现 `τ1 <: τ2` 约束的求解（先覆盖 Any/Option/tuple/function 的一小部分）。

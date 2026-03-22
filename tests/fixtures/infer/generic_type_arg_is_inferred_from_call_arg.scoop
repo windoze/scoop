@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0505 泛型实参推断 v0：`id(1)` 推断 `T = Int`，返回类型为 Int。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun f() {
+    val a = id(1)
+    val b: Int = a
+}
+

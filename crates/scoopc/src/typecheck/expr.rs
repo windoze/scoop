@@ -23,17 +23,18 @@ use thiserror::Error;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
+use crate::infer::{InferError, InferTerm, Solver};
 use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
-use super::{type_env::EnumVariantInfo, TypeEnv, TypeSymbolKind};
 use super::lower::{TypeLowerError, TypeLowering};
 use super::val_pat;
 use super::when_exhaustiveness;
 use super::when_pat;
+use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
@@ -269,6 +270,26 @@ pub enum ExprTypeError {
         index: usize,
         expected: String,
         found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("无法推断泛型类型实参：{callee} 的 `{param}`")]
+    #[diagnostic(code(scoop::typecheck::generic_type_arg_not_inferred))]
+    GenericTypeArgNotInferred {
+        callee: String,
+        param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("泛型类型实参推断冲突：{callee} 的 `{param}` 同时被约束为 {left} 与 {right}")]
+    #[diagnostic(code(scoop::typecheck::generic_type_arg_inference_conflict))]
+    GenericTypeArgInferenceConflict {
+        callee: String,
+        param: String,
+        left: String,
+        right: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -706,6 +727,12 @@ struct FunSigOwned {
     /// - 对于扩展函数，`params[0]` 是 receiver 的类型占位；该位置的 `param_names[0]`
     ///   仅用于对齐，当前不会参与命名实参匹配（因为 receiver 不可被命名传入）。
     param_names: Vec<String>,
+    /// 函数级 type params（按声明顺序）。
+    ///
+    /// 用途（T0505）：
+    /// - 让调用点可以识别“哪些 TypeId 是该函数的类型参数”
+    /// - 在参数检查前做最小泛型实参推断，并对签名做 substitution（实例化）
+    type_params: Vec<TypeId>,
     params: Vec<TypeId>,
     return_ty: TypeId,
 }
@@ -937,68 +964,73 @@ fn check_class_member_fun_body_exprs(
     member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
-    let mut locals: HashMap<Span, TypeId> = HashMap::new();
-    let mut stable_bindings: HashSet<Span> = HashSet::new();
-    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    lower.push_type_params(&fun.type_params);
+    let result: Result<(), ExprTypeError> = (|| {
+        let mut locals: HashMap<Span, TypeId> = HashMap::new();
+        let mut stable_bindings: HashSet<Span> = HashSet::new();
+        let mut mutable_bindings: HashSet<Span> = HashSet::new();
 
-    // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
-    locals.insert(this_decl_span, this_ty);
-    stable_bindings.insert(this_decl_span);
+        // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
+        locals.insert(this_decl_span, this_ty);
+        stable_bindings.insert(this_decl_span);
 
-    // 若该 member fun 本身是扩展函数（member extension），resolver 会把 `this` 解析到 receiver 的 span；
-    // 这里沿用顶层扩展函数的处理方式：receiver 作为一个隐式稳定绑定。
-    if let Some(receiver) = &fun.receiver {
-        let receiver_ty = lower.lower_type_ref(receiver)?;
-        locals.insert(receiver.span(), receiver_ty);
-        stable_bindings.insert(receiver.span());
-    }
+        // 若该 member fun 本身是扩展函数（member extension），resolver 会把 `this` 解析到 receiver 的 span；
+        // 这里沿用顶层扩展函数的处理方式：receiver 作为一个隐式稳定绑定。
+        if let Some(receiver) = &fun.receiver {
+            let receiver_ty = lower.lower_type_ref(receiver)?;
+            locals.insert(receiver.span(), receiver_ty);
+            stable_bindings.insert(receiver.span());
+        }
 
-    // 主构造参数：resolver 在 member fun 内把 ctor params 当作外层局部绑定（T0313）。
-    for p in ctor_params {
-        let Some(ty_ref) = &p.ty else {
-            continue;
+        // 主构造参数：resolver 在 member fun 内把 ctor params 当作外层局部绑定（T0313）。
+        for p in ctor_params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref)?;
+            locals.insert(p.name.span, ty);
+            stable_bindings.insert(p.name.span);
+        }
+
+        // member fun 自身的参数（与顶层 fun 保持一致）。
+        for p in &fun.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref)?;
+            locals.insert(p.name.span, ty);
+            stable_bindings.insert(p.name.span);
+        }
+
+        // 函数的期望返回类型：用于 `return expr?` 的检查。
+        let expected_return_ty = match &fun.return_ty {
+            Some(ret) => lower.lower_type_ref(ret)?,
+            None => builtins.unit,
         };
-        let ty = lower.lower_type_ref(ty_ref)?;
-        locals.insert(p.name.span, ty);
-        stable_bindings.insert(p.name.span);
-    }
 
-    // member fun 自身的参数（与顶层 fun 保持一致）。
-    for p in &fun.params {
-        let Some(ty_ref) = &p.ty else {
-            continue;
-        };
-        let ty = lower.lower_type_ref(ty_ref)?;
-        locals.insert(p.name.span, ty);
-        stable_bindings.insert(p.name.span);
-    }
+        match &fun.body {
+            ast::FunBody::Block(b) => check_block_exprs(
+                source,
+                b,
+                lower,
+                builtins,
+                &mut locals,
+                &mut stable_bindings,
+                &mut mutable_bindings,
+                0,
+                Some(expected_return_ty),
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            )?,
+            ast::FunBody::Missing => {}
+        }
 
-    // 函数的期望返回类型：用于 `return expr?` 的检查。
-    let expected_return_ty = match &fun.return_ty {
-        Some(ret) => lower.lower_type_ref(ret)?,
-        None => builtins.unit,
-    };
-
-    match &fun.body {
-        ast::FunBody::Block(b) => check_block_exprs(
-            source,
-            b,
-            lower,
-            builtins,
-            &mut locals,
-            &mut stable_bindings,
-            &mut mutable_bindings,
-            0,
-            Some(expected_return_ty),
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )?,
-        ast::FunBody::Missing => {}
-    }
-
-    Ok(())
+        Ok(())
+    })();
+    lower.pop_type_params(&fun.type_params);
+    result
 }
 
 /// 检查 class 属性 initializer 的最小表达式类型（T0448）。
@@ -1729,12 +1761,7 @@ fn infer_expr_type(
             }
 
             when_exhaustiveness::check_when_exhaustiveness(
-                source,
-                expr,
-                subject_ty,
-                arms,
-                lower,
-                builtins,
+                source, expr, subject_ty, arms, lower, builtins,
             )?;
 
             // 若所有分支都是 `Nothing`，则 `when` 整体也是不可达的。
@@ -2851,9 +2878,32 @@ fn infer_call_expr_type(
                     });
                 };
 
+                let instantiated = instantiate_fun_sig_for_call(
+                    &callee_fqn,
+                    call_expr.span,
+                    sig,
+                    mapping
+                        .iter()
+                        .copied()
+                        .enumerate()
+                        .map(|(param_idx, arg_idx)| {
+                            let arg = &call_args[arg_idx];
+                            GenericArgConstraint {
+                                expected: sig.params[param_idx],
+                                found: arg.ty,
+                                found_is_placeholder: matches!(
+                                    arg.expr.kind,
+                                    ast::ExprKind::Lambda(_)
+                                ),
+                            }
+                        }),
+                    lower,
+                    builtins,
+                )?;
+
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                     let arg = &call_args[arg_idx];
-                    let expected_ty = sig.params[param_idx];
+                    let expected_ty = instantiated.params[param_idx];
                     let found_ty = infer_expr_type_in_expected_context(
                         source,
                         arg.expr,
@@ -2881,7 +2931,7 @@ fn infer_call_expr_type(
                     }
                 }
 
-                return Ok(sig.return_ty);
+                return Ok(instantiated.return_ty);
             }
 
             // 多候选：执行最小 overload resolution（T0453）。
@@ -2976,7 +3026,11 @@ fn infer_call_expr_type(
     }
 }
 
-fn is_ctor_visible_from(use_cone: ConeId, use_source: &SourceFile, ctor: &ConstructorOverload) -> bool {
+fn is_ctor_visible_from(
+    use_cone: ConeId,
+    use_source: &SourceFile,
+    ctor: &ConstructorOverload,
+) -> bool {
     match ctor.visibility {
         Visibility::Public => true,
         Visibility::Internal => ctor.decl_cone == use_cone,
@@ -3055,9 +3109,11 @@ fn infer_class_constructor_call_expr_type(
             let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
             let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
 
-            let Some(mapping) =
-                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
-            else {
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
                 continue;
             };
 
@@ -3591,15 +3647,6 @@ fn infer_member_call_expr_type(
 
     // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
     if ext_candidates.len() == 1 {
-        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
-            return Err(ExprTypeError::CallReceiverTypeMismatch {
-                callee: callee_fqn,
-                expected: lower.fmt_type(expected_receiver_ty),
-                found: lower.fmt_type(actual_receiver_ty),
-                span: receiver.span.into(),
-            });
-        }
-
         let expected_args = sig.params.len().saturating_sub(1);
         if call_args.len() != expected_args {
             return Err(ExprTypeError::CallArityMismatch {
@@ -3625,8 +3672,46 @@ fn infer_member_call_expr_type(
             });
         };
 
+        let instantiated =
+            instantiate_fun_sig_for_call(
+                &callee_fqn,
+                call_expr.span,
+                sig,
+                std::iter::once(GenericArgConstraint {
+                    expected: expected_receiver_ty,
+                    found: actual_receiver_ty,
+                    found_is_placeholder: false,
+                })
+                .chain(mapping.iter().copied().enumerate().map(
+                    |(param_idx, arg_idx)| {
+                        let arg = &call_args[arg_idx];
+                        GenericArgConstraint {
+                            expected: sig.params[param_idx + 1],
+                            found: arg.ty,
+                            found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        }
+                    },
+                )),
+                lower,
+                builtins,
+            )?;
+
+        let expected_receiver_ty = instantiated
+            .params
+            .first()
+            .copied()
+            .unwrap_or(expected_receiver_ty);
+        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+            return Err(ExprTypeError::CallReceiverTypeMismatch {
+                callee: callee_fqn,
+                expected: lower.fmt_type(expected_receiver_ty),
+                found: lower.fmt_type(actual_receiver_ty),
+                span: receiver.span.into(),
+            });
+        }
+
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let expected_ty = sig.params[param_idx + 1];
+            let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
             let found_ty = infer_expr_type_in_expected_context(
                 source,
@@ -3659,9 +3744,9 @@ fn infer_member_call_expr_type(
         }
 
         let ret = if safe {
-            lower.ty_option(sig.return_ty)
+            lower.ty_option(instantiated.return_ty)
         } else {
-            sig.return_ty
+            instantiated.return_ty
         };
 
         return Ok(ret);
@@ -3682,14 +3767,12 @@ fn infer_member_call_expr_type(
         builtins: BuiltinTypes,
     ) -> bool {
         let a_le_b = is_type_assignable(a.receiver_ty, b.receiver_ty, lower, builtins)
-            && a
-                .expected_arg_tys
+            && a.expected_arg_tys
                 .iter()
                 .zip(b.expected_arg_tys.iter())
                 .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
         let b_le_a = is_type_assignable(b.receiver_ty, a.receiver_ty, lower, builtins)
-            && b
-                .expected_arg_tys
+            && b.expected_arg_tys
                 .iter()
                 .zip(a.expected_arg_tys.iter())
                 .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
@@ -3842,7 +3925,9 @@ fn collect_top_level_value_types(
 /// 收集“当前文件内”的顶层 `fun` 声明签名（FQN → FunSig）。
 ///
 /// 当前阶段（最小子集）：
-/// - 不处理 type param / overload / default param；
+/// - 支持 `fun <T>`：在签名 lowering 时把 `T` 视为 `TypeKind::Param`；
+/// - 调用点的最小泛型实参推断见 T0505（当前仅支持单一类型参数）；
+/// - 不处理 overload / default param；
 /// - 未显式标注 return type 的函数，暂视为 `Unit`；
 /// - 扩展函数会被降糖为“receiver 作为第一个参数”的普通顶层函数，用于 `receiver.member()` 与 `receiver?.member()`
 ///   调用的类型检查（spec §7.4）。
@@ -3867,43 +3952,460 @@ fn collect_top_level_fun_signatures(
             format!("{pkg_prefix}.{local_name}")
         };
 
-        let mut param_names = Vec::with_capacity(fun.params.len() + 1);
-        let mut params = Vec::with_capacity(fun.params.len() + 1);
+        // fun 自身的 type params 在签名 lowering 语境内可见。
+        lower.push_type_params(&fun.type_params);
+        let result: Result<(), ExprTypeError> = (|| {
+            let type_params: Vec<TypeId> = fun
+                .type_params
+                .iter()
+                .map(|p| lower.ty_param_from_decl(p))
+                .collect();
 
-        // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
-        // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
-        let is_extension = fun.receiver.is_some();
-        let is_inline = fun.modifiers.contains(&ast::Modifier::Inline);
-        if let Some(receiver) = &fun.receiver {
-            // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
-            param_names.push("<receiver>".to_string());
-            params.push(lower.lower_type_ref(receiver)?);
-        }
+            let mut param_names = Vec::with_capacity(fun.params.len() + 1);
+            let mut params = Vec::with_capacity(fun.params.len() + 1);
 
-        for p in &fun.params {
-            let Some(ty_ref) = &p.ty else {
-                // headers check 已保证参数类型注解存在；这里保持健壮性。
-                continue;
+            // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
+            // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
+            let is_extension = fun.receiver.is_some();
+            let is_inline = fun.modifiers.contains(&ast::Modifier::Inline);
+            if let Some(receiver) = &fun.receiver {
+                // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
+                param_names.push("<receiver>".to_string());
+                params.push(lower.lower_type_ref(receiver)?);
+            }
+
+            for p in &fun.params {
+                let Some(ty_ref) = &p.ty else {
+                    // headers check 已保证参数类型注解存在；这里保持健壮性。
+                    continue;
+                };
+                param_names.push(source.slice(p.name.span).to_string());
+                params.push(lower.lower_type_ref(ty_ref)?);
+            }
+
+            let return_ty = match &fun.return_ty {
+                Some(ret) => lower.lower_type_ref(ret)?,
+                None => builtins.unit,
             };
-            param_names.push(source.slice(p.name.span).to_string());
-            params.push(lower.lower_type_ref(ty_ref)?);
-        }
 
-        let return_ty = match &fun.return_ty {
-            Some(ret) => lower.lower_type_ref(ret)?,
-            None => builtins.unit,
-        };
-
-        map.entry(fqn).or_default().push(FunSigOwned {
-            is_extension,
-            is_inline,
-            param_names,
-            params,
-            return_ty,
-        });
+            map.entry(fqn).or_default().push(FunSigOwned {
+                is_extension,
+                is_inline,
+                param_names,
+                type_params,
+                params,
+                return_ty,
+            });
+            Ok(())
+        })();
+        lower.pop_type_params(&fun.type_params);
+        result?;
     }
 
     Ok(map)
+}
+
+#[derive(Debug, Clone)]
+struct InstantiatedFunSig {
+    params: Vec<TypeId>,
+    return_ty: TypeId,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GenericArgConstraint {
+    expected: TypeId,
+    found: TypeId,
+    /// 若为 `true`，表示 `found` 只是“为了 overload 筛选占位”的类型（例如 lambda 在预收集阶段被记为 `Any`），
+    /// 不应当用于泛型推断。
+    found_is_placeholder: bool,
+}
+
+fn type_param_name(ty: TypeId, lower: &TypeLowering<'_>) -> String {
+    match lower.type_kind(ty) {
+        TypeKind::Param(p) => p.name,
+        _ => "<type param>".to_string(),
+    }
+}
+
+fn collect_eq_constraints_for_single_type_param(
+    expected: TypeId,
+    found: TypeId,
+    param_ty: TypeId,
+    infer_var: crate::infer::InferVarId,
+    solver: &mut Solver,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    found_is_placeholder: bool,
+) {
+    if expected == param_ty {
+        if found == builtins.nothing {
+            return;
+        }
+        if found_is_placeholder && found == builtins.any {
+            return;
+        }
+        solver.eq(InferTerm::Var(infer_var), InferTerm::Ty(found));
+        return;
+    }
+
+    let expected_kind = lower.type_kind(expected);
+    let found_kind = lower.type_kind(found);
+
+    match (expected_kind, found_kind) {
+        (
+            TypeKind::Value(ValueTypeKind::Option(expected_inner)),
+            TypeKind::Value(ValueTypeKind::Option(found_inner)),
+        ) => {
+            collect_eq_constraints_for_single_type_param(
+                expected_inner,
+                found_inner,
+                param_ty,
+                infer_var,
+                solver,
+                lower,
+                builtins,
+                found_is_placeholder,
+            );
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(expected_elems)),
+            TypeKind::Value(ValueTypeKind::Tuple(found_elems)),
+        ) => {
+            if expected_elems.len() != found_elems.len() {
+                return;
+            }
+            for (e, f) in expected_elems.into_iter().zip(found_elems.into_iter()) {
+                collect_eq_constraints_for_single_type_param(
+                    e,
+                    f,
+                    param_ty,
+                    infer_var,
+                    solver,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+            TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
+        ) => {
+            if expected_nominal.fqn != found_nominal.fqn {
+                return;
+            }
+            if expected_nominal.args.len() != found_nominal.args.len() {
+                return;
+            }
+            for (e, f) in expected_nominal
+                .args
+                .into_iter()
+                .zip(found_nominal.args.into_iter())
+            {
+                collect_eq_constraints_for_single_type_param(
+                    e,
+                    f,
+                    param_ty,
+                    infer_var,
+                    solver,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
+            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
+        ) => {
+            if expected_nominal.fqn != found_nominal.fqn {
+                return;
+            }
+            if expected_nominal.args.len() != found_nominal.args.len() {
+                return;
+            }
+            for (e, f) in expected_nominal
+                .args
+                .into_iter()
+                .zip(found_nominal.args.into_iter())
+            {
+                collect_eq_constraints_for_single_type_param(
+                    e,
+                    f,
+                    param_ty,
+                    infer_var,
+                    solver,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
+        }
+        (
+            TypeKind::Ref(RefTypeKind::Function(expected_fun)),
+            TypeKind::Ref(RefTypeKind::Function(found_fun)),
+        ) => {
+            if expected_fun.receiver.is_some() != found_fun.receiver.is_some() {
+                return;
+            }
+            if expected_fun.params.len() != found_fun.params.len() {
+                return;
+            }
+
+            if let (Some(e), Some(f)) = (expected_fun.receiver, found_fun.receiver) {
+                collect_eq_constraints_for_single_type_param(
+                    e,
+                    f,
+                    param_ty,
+                    infer_var,
+                    solver,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
+
+            for (e, f) in expected_fun
+                .params
+                .into_iter()
+                .zip(found_fun.params.into_iter())
+            {
+                collect_eq_constraints_for_single_type_param(
+                    e,
+                    f,
+                    param_ty,
+                    infer_var,
+                    solver,
+                    lower,
+                    builtins,
+                    found_is_placeholder,
+                );
+            }
+
+            collect_eq_constraints_for_single_type_param(
+                expected_fun.return_ty,
+                found_fun.return_ty,
+                param_ty,
+                infer_var,
+                solver,
+                lower,
+                builtins,
+                found_is_placeholder,
+            );
+        }
+        _ => {}
+    }
+}
+
+fn substitute_single_type_param(
+    ty: TypeId,
+    param_ty: TypeId,
+    arg_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<TypeId, ExprTypeError> {
+    if ty == param_ty {
+        return Ok(arg_ty);
+    }
+
+    match lower.type_kind(ty) {
+        TypeKind::Param(_) => Ok(ty),
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String) => Ok(ty),
+        TypeKind::Value(ValueTypeKind::Unit)
+        | TypeKind::Value(ValueTypeKind::Nothing)
+        | TypeKind::Value(ValueTypeKind::Bool)
+        | TypeKind::Value(ValueTypeKind::Int)
+        | TypeKind::Value(ValueTypeKind::UInt)
+        | TypeKind::Value(ValueTypeKind::IntN(_))
+        | TypeKind::Value(ValueTypeKind::UIntN(_)) => Ok(ty),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => {
+            let new_inner = substitute_single_type_param(inner, param_ty, arg_ty, lower, use_span)?;
+            if new_inner == inner {
+                return Ok(ty);
+            }
+            Ok(lower.ty_option(new_inner))
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
+            let mut changed = false;
+            let mut out: Vec<TypeId> = Vec::with_capacity(elements.len());
+            for e in elements {
+                let new_e = substitute_single_type_param(e, param_ty, arg_ty, lower, use_span)?;
+                if new_e != e {
+                    changed = true;
+                }
+                out.push(new_e);
+            }
+            if !changed {
+                return Ok(ty);
+            }
+            Ok(lower.ty_tuple(out))
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let mut args: Vec<TypeId> = Vec::with_capacity(nominal.args.len());
+            for a in nominal.args {
+                let new_a = substitute_single_type_param(a, param_ty, arg_ty, lower, use_span)?;
+                if new_a != a {
+                    changed = true;
+                }
+                args.push(new_a);
+            }
+            if !changed {
+                return Ok(ty);
+            }
+            Ok(lower.lower_type_fqn_with_args(nominal.fqn, args, use_span)?)
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            let mut changed = false;
+            let mut args: Vec<TypeId> = Vec::with_capacity(nominal.args.len());
+            for a in nominal.args {
+                let new_a = substitute_single_type_param(a, param_ty, arg_ty, lower, use_span)?;
+                if new_a != a {
+                    changed = true;
+                }
+                args.push(new_a);
+            }
+            if !changed {
+                return Ok(ty);
+            }
+            Ok(lower.lower_type_fqn_with_args(nominal.fqn, args, use_span)?)
+        }
+        TypeKind::Ref(RefTypeKind::Function(fun)) => {
+            let mut changed = false;
+
+            let receiver = match fun.receiver {
+                Some(r) => {
+                    let new_r = substitute_single_type_param(r, param_ty, arg_ty, lower, use_span)?;
+                    if new_r != r {
+                        changed = true;
+                    }
+                    Some(new_r)
+                }
+                None => None,
+            };
+
+            let mut params: Vec<TypeId> = Vec::with_capacity(fun.params.len());
+            for p in fun.params {
+                let new_p = substitute_single_type_param(p, param_ty, arg_ty, lower, use_span)?;
+                if new_p != p {
+                    changed = true;
+                }
+                params.push(new_p);
+            }
+
+            let return_ty =
+                substitute_single_type_param(fun.return_ty, param_ty, arg_ty, lower, use_span)?;
+            if return_ty != fun.return_ty {
+                changed = true;
+            }
+
+            let mut effects_changed = false;
+            let original_terms = fun.effects.terms;
+            let mut effect_terms: Vec<TypeId> = Vec::with_capacity(original_terms.len());
+            for e in original_terms {
+                let new_e = substitute_single_type_param(e, param_ty, arg_ty, lower, use_span)?;
+                if new_e != e {
+                    effects_changed = true;
+                }
+                effect_terms.push(new_e);
+            }
+            let effects = if effects_changed {
+                changed = true;
+                EffectRow::new(effect_terms)
+            } else {
+                EffectRow {
+                    terms: effect_terms,
+                }
+            };
+
+            if !changed {
+                return Ok(ty);
+            }
+
+            Ok(lower.ty_function(receiver, params, return_ty, effects))
+        }
+    }
+}
+
+fn instantiate_fun_sig_for_call(
+    callee: &str,
+    call_span: Span,
+    sig: &FunSigOwned,
+    constraints: impl IntoIterator<Item = GenericArgConstraint>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<InstantiatedFunSig, ExprTypeError> {
+    if sig.type_params.is_empty() {
+        return Ok(InstantiatedFunSig {
+            params: sig.params.clone(),
+            return_ty: sig.return_ty,
+        });
+    }
+
+    // T0505 v0：先只支持单一类型参数。
+    if sig.type_params.len() != 1 {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "generic call（multiple type params）",
+            span: call_span.into(),
+        });
+    }
+
+    let param_ty = sig.type_params[0];
+    let param_name = type_param_name(param_ty, lower);
+
+    let mut solver = Solver::new();
+    let var = solver.new_var();
+
+    for c in constraints {
+        collect_eq_constraints_for_single_type_param(
+            c.expected,
+            c.found,
+            param_ty,
+            var,
+            &mut solver,
+            lower,
+            builtins,
+            c.found_is_placeholder,
+        );
+    }
+
+    match solver.solve() {
+        Ok(()) => {}
+        Err(InferError::TypeConflict { left, right }) => {
+            return Err(ExprTypeError::GenericTypeArgInferenceConflict {
+                callee: callee.to_string(),
+                param: param_name,
+                left: lower.fmt_type(left),
+                right: lower.fmt_type(right),
+                span: call_span.into(),
+            });
+        }
+        Err(InferError::UnsupportedConstraint { .. }) => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "generic inference constraint（internal）",
+                span: call_span.into(),
+            });
+        }
+    }
+
+    let Some(binding) = solver.binding_of(var) else {
+        return Err(ExprTypeError::GenericTypeArgNotInferred {
+            callee: callee.to_string(),
+            param: param_name,
+            span: call_span.into(),
+        });
+    };
+
+    let mut params: Vec<TypeId> = Vec::with_capacity(sig.params.len());
+    for p in sig.params.iter().copied() {
+        params.push(substitute_single_type_param(
+            p, param_ty, binding, lower, call_span,
+        )?);
+    }
+    let return_ty =
+        substitute_single_type_param(sig.return_ty, param_ty, binding, lower, call_span)?;
+
+    Ok(InstantiatedFunSig { params, return_ty })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -4032,62 +4534,67 @@ fn check_fun_body_exprs(
     member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
-    // 函数级的“局部值类型表”（binder decl span → TypeId）。
-    //
-    // 当前阶段规则（最小子集）：
-    // - 参数：必须有类型注解（由 headers check 保证），因此可直接 lowering；
-    // - 局部 `val/var`：
-    //   - 若显式写了 `: Type`，则以该类型为准，并校验 initializer（若存在）类型匹配；
-    //   - 否则若有 initializer，则以 initializer 类型推导；
-    //   - 都没有则当前阶段无法推导（后续任务再补齐规则）。
-    let mut locals: HashMap<Span, TypeId> = HashMap::new();
-    // 可用于 smart cast 的“稳定绑定”（当前阶段仅覆盖：参数 + `val`）。
-    let mut stable_bindings: HashSet<Span> = HashSet::new();
-    // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
-    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    lower.push_type_params(&fun.type_params);
+    let result: Result<(), ExprTypeError> = (|| {
+        // 函数级的“局部值类型表”（binder decl span → TypeId）。
+        //
+        // 当前阶段规则（最小子集）：
+        // - 参数：必须有类型注解（由 headers check 保证），因此可直接 lowering；
+        // - 局部 `val/var`：
+        //   - 若显式写了 `: Type`，则以该类型为准，并校验 initializer（若存在）类型匹配；
+        //   - 否则若有 initializer，则以 initializer 类型推导；
+        //   - 都没有则当前阶段无法推导（后续任务再补齐规则）。
+        let mut locals: HashMap<Span, TypeId> = HashMap::new();
+        // 可用于 smart cast 的“稳定绑定”（当前阶段仅覆盖：参数 + `val`）。
+        let mut stable_bindings: HashSet<Span> = HashSet::new();
+        // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
+        let mut mutable_bindings: HashSet<Span> = HashSet::new();
 
-    // 扩展函数：为 `this` 注入隐式绑定（resolver 将 `this` 解析到 receiver 的 decl_span）。
-    if let Some(receiver) = &fun.receiver {
-        let receiver_ty = lower.lower_type_ref(receiver)?;
-        locals.insert(receiver.span(), receiver_ty);
-        stable_bindings.insert(receiver.span());
-    }
+        // 扩展函数：为 `this` 注入隐式绑定（resolver 将 `this` 解析到 receiver 的 decl_span）。
+        if let Some(receiver) = &fun.receiver {
+            let receiver_ty = lower.lower_type_ref(receiver)?;
+            locals.insert(receiver.span(), receiver_ty);
+            stable_bindings.insert(receiver.span());
+        }
 
-    for p in &fun.params {
-        let Some(ty_ref) = &p.ty else {
-            continue;
+        for p in &fun.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref)?;
+            locals.insert(p.name.span, ty);
+            stable_bindings.insert(p.name.span);
+        }
+
+        // 该函数的期望返回类型（T0417）：用于 `return expr?` 的类型检查。
+        let expected_return_ty = match &fun.return_ty {
+            Some(ret) => lower.lower_type_ref(ret)?,
+            None => builtins.unit,
         };
-        let ty = lower.lower_type_ref(ty_ref)?;
-        locals.insert(p.name.span, ty);
-        stable_bindings.insert(p.name.span);
-    }
 
-    // 该函数的期望返回类型（T0417）：用于 `return expr?` 的类型检查。
-    let expected_return_ty = match &fun.return_ty {
-        Some(ret) => lower.lower_type_ref(ret)?,
-        None => builtins.unit,
-    };
+        match &fun.body {
+            ast::FunBody::Block(b) => check_block_exprs(
+                source,
+                b,
+                lower,
+                builtins,
+                &mut locals,
+                &mut stable_bindings,
+                &mut mutable_bindings,
+                0,
+                Some(expected_return_ty),
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            )?,
+            ast::FunBody::Missing => {}
+        }
 
-    match &fun.body {
-        ast::FunBody::Block(b) => check_block_exprs(
-            source,
-            b,
-            lower,
-            builtins,
-            &mut locals,
-            &mut stable_bindings,
-            &mut mutable_bindings,
-            0,
-            Some(expected_return_ty),
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )?,
-        ast::FunBody::Missing => {}
-    }
-
-    Ok(())
+        Ok(())
+    })();
+    lower.pop_type_params(&fun.type_params);
+    result
 }
 
 fn check_block_exprs(
@@ -4603,12 +5110,7 @@ fn check_expr_stmt(
 
             if let Some(subject_ty) = subject_ty {
                 when_exhaustiveness::check_when_exhaustiveness(
-                    source,
-                    expr,
-                    subject_ty,
-                    arms,
-                    lower,
-                    builtins,
+                    source, expr, subject_ty, arms, lower, builtins,
                 )?;
             }
 

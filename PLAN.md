@@ -332,6 +332,7 @@
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
 - [x] lambda 推断 v0：参数类型下推（T0504，spec §14.7.2）
+- [x] 泛型实参推断 v0：从调用参数推断单一类型参数（T0505）
 - [ ] lambda 推断：更完整的返回类型合并与 effect row 推断（后续任务）
 - [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释
 - [ ] overload resolution 与推断联动：
