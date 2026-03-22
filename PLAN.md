@@ -336,7 +336,7 @@
 - [x] lambda 推断 v0：参数类型下推（T0504，spec §14.7.2）
 - [x] 泛型实参推断 v0：从调用参数推断单一类型参数（T0505）
 - [ ] lambda 推断：更完整的返回类型合并与 effect row 推断（后续任务）
-- [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释
+- [x] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释（T0510）
 - [ ] overload resolution 与推断联动：
   - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议
   - effect rows / `eff` 参数也必须能参与重载筛选与歧义诊断

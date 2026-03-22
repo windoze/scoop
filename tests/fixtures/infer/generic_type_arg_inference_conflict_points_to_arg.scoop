@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_type_arg_inference_conflict
+// EXPECT-ERROR: 约束来源
+// EXPECT-ERROR-AT: 16:21
+// 目标：T0510 推断失败诊断：泛型实参推断冲突应指向产生冲突的实参。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun same<T>(a: T, b: T): T {
+    return a
+}
+
+fun f() {
+    val x = same(1, "hi")
+}
+

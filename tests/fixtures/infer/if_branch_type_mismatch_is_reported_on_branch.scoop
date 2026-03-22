@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::if_branch_type_mismatch
+// EXPECT-ERROR: 约束来源
+// EXPECT-ERROR-AT: 12:35
+// 目标：T0510 推断失败诊断：`if` 在 expected type 语境下应把错误定位到具体分支，而不是整体退化为 Any。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f(cond: Bool) {
+    val x: Int = if (cond) 1 else "hi"
+}
+

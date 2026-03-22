@@ -1528,11 +1528,17 @@
    - fixtures：新增 `eff` 默认 Pure、从 lambda 推断、以及“推断后外层缺少效果声明”的 fail 用例覆盖。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0510 [TODO] 推断失败诊断：最小可读解释（spec §14.7.4）
+### T0510 [DONE] 推断失败诊断：最小可读解释（spec §14.7.4）
 - 描述：把“推断失败”映射到具体 span，并给出最小解释（期望类型/实际类型/约束来源）。
 - 目标：先覆盖常见：参数不匹配、分支类型不一致、lambda 参数推断失败。
 - 验收：新增 infer-fail fixtures：每个错误都断言错误码 + 关键提示子串。
 - 依赖：T0005、T0501
+ - 完成：
+   - diagnostics：泛型实参推断冲突 `generic_type_arg_inference_conflict` 增强为“带约束来源”，并把 primary span 定位到产生冲突的实参；
+   - diagnostics：`if` 在 expected type 语境下对 then/else 分支分别做可赋值检查，新增稳定错误码 `scoop::typecheck::if_branch_type_mismatch`；
+   - diagnostics：lambda 缺少 expected function type 且参数无类型注解时，新增稳定错误码 `scoop::typecheck::lambda_param_type_not_inferred`；
+   - fixtures：新增 3 个 infer-fail 用例断言错误码 + `约束来源` 子串 + 精确位置；
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0511 [TODO] use-site `eff` row 参数：默认值与显式实参推断（spec §3.4 / §14.7.3）
 - 描述：当类型或调用点使用 `Type<eff Row>` 时，支持 effect row 默认值、显式实参和由上下文/lambda body 反推的 row 参数实例化。

@@ -23,7 +23,6 @@ use thiserror::Error;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::infer::{InferError, InferTerm, Solver};
 use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -46,6 +45,16 @@ pub enum ExprTypeError {
     #[diagnostic(code(scoop::typecheck::unsupported_expr))]
     UnsupportedExpr {
         kind: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "无法推断 lambda 参数类型：参数 `{param}` 缺少类型注解，且当前语境没有期望的函数类型（约束来源：期望函数类型）"
+    )]
+    #[diagnostic(code(scoop::typecheck::lambda_param_type_not_inferred))]
+    LambdaParamTypeNotInferred {
+        param: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -222,6 +231,19 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "if 分支类型不匹配（{branch}）：期望 {expected}，但得到 {found}（约束来源：{expected_from}）"
+    )]
+    #[diagnostic(code(scoop::typecheck::if_branch_type_mismatch))]
+    IfBranchTypeMismatch {
+        branch: &'static str,
+        expected: String,
+        found: String,
+        expected_from: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不可调用：{callee}")]
     #[diagnostic(code(scoop::typecheck::callee_not_callable))]
     CalleeNotCallable {
@@ -283,7 +305,7 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("无法推断泛型类型实参：{callee} 的 `{param}`")]
+    #[error("无法推断泛型类型实参：{callee} 的 `{param}`（缺少可用于推断的调用点约束）")]
     #[diagnostic(code(scoop::typecheck::generic_type_arg_not_inferred))]
     GenericTypeArgNotInferred {
         callee: String,
@@ -292,15 +314,21 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("泛型类型实参推断冲突：{callee} 的 `{param}` 同时被约束为 {left} 与 {right}")]
+    #[error(
+        "泛型类型实参推断冲突：{callee} 的 `{param}` 同时被约束为 {left}（来自 {left_from}）与 {right}（来自 {right_from}）（约束来源：调用点实参）"
+    )]
     #[diagnostic(code(scoop::typecheck::generic_type_arg_inference_conflict))]
     GenericTypeArgInferenceConflict {
         callee: String,
         param: String,
         left: String,
         right: String,
-        #[label("这里")]
+        left_from: String,
+        right_from: String,
+        #[label("这里（产生冲突的约束）")]
         span: miette::SourceSpan,
+        #[label("这里（之前的约束）")]
+        previous: miette::SourceSpan,
     },
 
     #[error("enum variant 构造歧义：{name} 同时匹配 {candidates}")]
@@ -1313,6 +1341,10 @@ fn check_class_property_initializer_exprs(
         source,
         init,
         expected,
+        ExpectedTypeFrom::new(format!(
+            "property `{}` 的类型注解",
+            source.slice(p.name.span)
+        )),
         lower,
         builtins,
         &locals,
@@ -1493,10 +1525,17 @@ fn check_top_level_val_initializer(
     };
 
     let expected = lower.lower_type_ref(ty_ref)?;
+    let expected_from = match &v.binding {
+        ast::ValBinding::Name(name) => {
+            ExpectedTypeFrom::new(format!("顶层绑定 `{}` 的类型注解", source.slice(name.span)))
+        }
+        ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("顶层解构绑定的类型注解"),
+    };
     let found = infer_expr_type_in_expected_context(
         source,
         init,
         expected,
+        expected_from,
         lower,
         builtins,
         &HashMap::new(),
@@ -2042,6 +2081,25 @@ fn infer_expr_type(
                 struct_field_types,
             ),
         },
+        ast::ExprKind::Lambda(lam) => {
+            // T0510：lambda 参数推断失败诊断（最小可读解释）。
+            //
+            // 说明：
+            // - 当前实现只支持“期望函数类型向下传播”的 lambda 推断（T0504）；
+            // - 当 lambda 出现在缺少 expected type 的位置（例如 `val f = { x -> x }`）时，
+            //   我们给出更明确的错误，而不是笼统的 `unsupported_expr`。
+            let Some(param) = lam.params.iter().find(|p| p.ty.is_none()) else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "lambda（当前仅支持在期望函数类型语境下推导）",
+                    span: expr.span.into(),
+                });
+            };
+
+            Err(ExprTypeError::LambdaParamTypeNotInferred {
+                param: source.slice(param.name.span).to_string(),
+                span: param.name.span.into(),
+            })
+        }
         ast::ExprKind::Missing => Err(ExprTypeError::UnsupportedExpr {
             kind: "missing",
             span: expr.span.into(),
@@ -2126,6 +2184,22 @@ fn infer_if_expr_type(
     Ok(builtins.any)
 }
 
+/// “期望类型”的来源说明（用于推断失败诊断）。
+///
+/// 说明：
+/// - 该信息会被拼进错误信息的 `Display` 文本，便于 fixtures 用 `EXPECT-ERROR` 做子串断言；
+/// - 目前只要求“最小可读解释”，不追求穷尽的来源链路（TODO：后续可扩展为来源栈）。
+#[derive(Debug, Clone)]
+struct ExpectedTypeFrom {
+    desc: String,
+}
+
+impl ExpectedTypeFrom {
+    fn new(desc: impl Into<String>) -> Self {
+        Self { desc: desc.into() }
+    }
+}
+
 /// 在“存在明确期望类型”的语境下推导表达式类型。
 ///
 /// 目前该入口只做一件事（T0456）：
@@ -2136,6 +2210,7 @@ fn infer_expr_type_in_expected_context(
     source: &SourceFile,
     expr: &ast::Expr,
     expected_ty: TypeId,
+    expected_from: ExpectedTypeFrom,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
@@ -2162,6 +2237,92 @@ fn infer_expr_type_in_expected_context(
         )? {
             return Ok(ty);
         }
+    }
+
+    // T0510：分支类型不一致时，把推断失败精确映射到具体分支表达式。
+    //
+    // 说明：
+    // - 当前 `if` 表达式的“无 expected type”结果类型推导仍采用 T0503 的最小规则（相同类型否则 Any fallback）；
+    // - 但当 `if` 处于“存在明确 expected type”的语境下时，我们可以直接对每个分支做可赋值检查，
+    //   并把错误定位到具体分支，而不是让它先退化为 `Any` 再在外层报一个模糊的 mismatch。
+    if let ast::ExprKind::If {
+        cond,
+        then_branch,
+        else_branch,
+    } = &expr.kind
+    {
+        let expected_from_desc = expected_from.desc.clone();
+
+        // 先覆盖 cond（不在此处强制 Bool 规则；相关诊断留给控制流/语句层）。
+        let _ = infer_expr_type(
+            source,
+            cond.as_ref(),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        let then_ty = infer_expr_type_in_expected_context(
+            source,
+            then_branch.as_ref(),
+            expected_ty,
+            expected_from.clone(),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if !is_type_assignable(then_ty, expected_ty, lower, builtins)
+            && !(matches!(then_branch.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_ty, lower, builtins))
+        {
+            return Err(ExprTypeError::IfBranchTypeMismatch {
+                branch: "then",
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(then_ty),
+                expected_from: expected_from_desc.clone(),
+                span: then_branch.span.into(),
+            });
+        }
+
+        let Some(else_branch) = else_branch.as_deref() else {
+            return Ok(builtins.unit);
+        };
+
+        let else_ty = infer_expr_type_in_expected_context(
+            source,
+            else_branch,
+            expected_ty,
+            expected_from,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if !is_type_assignable(else_ty, expected_ty, lower, builtins)
+            && !(matches!(else_branch.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_ty, lower, builtins))
+        {
+            return Err(ExprTypeError::IfBranchTypeMismatch {
+                branch: "else",
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(else_ty),
+                expected_from: expected_from_desc,
+                span: else_branch.span.into(),
+            });
+        }
+
+        // 两个分支都可赋值给 expected type：直接把整个 `if` 视为该 expected type。
+        return Ok(expected_ty);
     }
 
     if let ast::ExprKind::Call { callee, args } = &expr.kind {
@@ -2368,6 +2529,10 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
             source,
             arg_expr,
             expected_field_ty,
+            ExpectedTypeFrom::new(format!(
+                "enum variant `{enum_fqn}.{variant_name}` 第 {} 个参数",
+                idx + 1
+            )),
             lower,
             builtins,
             locals,
@@ -2494,6 +2659,10 @@ fn infer_struct_lit_expr_type(
             source,
             &f.value,
             expected_ty,
+            ExpectedTypeFrom::new(format!(
+                "struct `{}` 字段 `{}` 的类型",
+                struct_name, field_name
+            )),
             lower,
             builtins,
             locals,
@@ -2671,6 +2840,10 @@ fn infer_with_update_expr_type(
                     source,
                     &u.value,
                     expected_ty,
+                    ExpectedTypeFrom::new(format!(
+                        "with-update `{}` 字段 `{}` 的类型",
+                        current_struct_name, field
+                    )),
                     lower,
                     builtins,
                     locals,
@@ -3150,6 +3323,8 @@ fn infer_call_expr_type(
                                     arg.expr.kind,
                                     ast::ExprKind::Lambda(_)
                                 ),
+                                from: format!("第 {} 个实参", arg_idx + 1),
+                                span: arg.expr.span,
                             }
                         }),
                     lower,
@@ -3165,6 +3340,12 @@ fn infer_call_expr_type(
                         source,
                         arg.expr,
                         expected_ty,
+                        ExpectedTypeFrom::new(format!(
+                            "`{}` 的第 {} 个形参 `{}`",
+                            callee_fqn,
+                            param_idx + 1,
+                            sig.param_names[param_idx]
+                        )),
                         lower,
                         builtins,
                         locals,
@@ -4080,6 +4261,8 @@ fn infer_effect_op_call_expr_type(
                     expected: sig.params[param_idx],
                     found: arg.ty,
                     found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                    from: format!("第 {} 个实参", arg_idx + 1),
+                    span: arg.expr.span,
                 }
             }),
         lower,
@@ -4093,6 +4276,12 @@ fn infer_effect_op_call_expr_type(
             source,
             arg.expr,
             expected_ty,
+            ExpectedTypeFrom::new(format!(
+                "`{}` 的第 {} 个形参 `{}`",
+                callee_fqn,
+                param_idx + 1,
+                sig.param_names[param_idx]
+            )),
             lower,
             builtins,
             locals,
@@ -4265,6 +4454,8 @@ fn infer_member_call_expr_type(
                     expected: expected_receiver_ty,
                     found: actual_receiver_ty,
                     found_is_placeholder: false,
+                    from: "接收者（receiver）".to_string(),
+                    span: receiver.span,
                 })
                 .chain(mapping.iter().copied().enumerate().map(
                     |(param_idx, arg_idx)| {
@@ -4273,6 +4464,8 @@ fn infer_member_call_expr_type(
                             expected: sig.params[param_idx + 1],
                             found: arg.ty,
                             found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                            from: format!("第 {} 个实参", arg_idx + 1),
+                            span: arg.expr.span,
                         }
                     },
                 )),
@@ -4303,6 +4496,12 @@ fn infer_member_call_expr_type(
                 source,
                 arg.expr,
                 expected_ty,
+                ExpectedTypeFrom::new(format!(
+                    "`{}` 的第 {} 个形参 `{}`",
+                    callee_fqn,
+                    param_idx + 2,
+                    sig.param_names[param_idx + 1]
+                )),
                 lower,
                 builtins,
                 locals,
@@ -4722,13 +4921,17 @@ struct InstantiatedFunSig {
     type_args: Vec<TypeId>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct GenericArgConstraint {
     expected: TypeId,
     found: TypeId,
     /// 若为 `true`，表示 `found` 只是“为了 overload 筛选占位”的类型（例如 lambda 在预收集阶段被记为 `Any`），
     /// 不应当用于泛型推断。
     found_is_placeholder: bool,
+    /// 该约束来自哪里（用于 diagnostics；例如“第 2 个实参”/“receiver”）。
+    from: String,
+    /// 约束来源对应的 span（用于把推断失败映射回具体位置）。
+    span: Span,
 }
 
 fn type_ref_is_fn_effect_eff_var(ty_ref: &ast::TypeRef, eff_name: &str, source: &SourceFile) -> bool {
@@ -4759,12 +4962,11 @@ fn type_param_name(ty: TypeId, lower: &TypeLowering<'_>) -> String {
     }
 }
 
-fn collect_eq_constraints_for_single_type_param(
+fn collect_type_arg_candidates_for_single_type_param(
     expected: TypeId,
     found: TypeId,
     param_ty: TypeId,
-    infer_var: crate::infer::InferVarId,
-    solver: &mut Solver,
+    out: &mut Vec<TypeId>,
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
     found_is_placeholder: bool,
@@ -4776,7 +4978,7 @@ fn collect_eq_constraints_for_single_type_param(
         if found_is_placeholder && found == builtins.any {
             return;
         }
-        solver.eq(InferTerm::Var(infer_var), InferTerm::Ty(found));
+        out.push(found);
         return;
     }
 
@@ -4788,12 +4990,11 @@ fn collect_eq_constraints_for_single_type_param(
             TypeKind::Value(ValueTypeKind::Option(expected_inner)),
             TypeKind::Value(ValueTypeKind::Option(found_inner)),
         ) => {
-            collect_eq_constraints_for_single_type_param(
+            collect_type_arg_candidates_for_single_type_param(
                 expected_inner,
                 found_inner,
                 param_ty,
-                infer_var,
-                solver,
+                out,
                 lower,
                 builtins,
                 found_is_placeholder,
@@ -4807,12 +5008,11 @@ fn collect_eq_constraints_for_single_type_param(
                 return;
             }
             for (e, f) in expected_elems.into_iter().zip(found_elems.into_iter()) {
-                collect_eq_constraints_for_single_type_param(
+                collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
                     param_ty,
-                    infer_var,
-                    solver,
+                    out,
                     lower,
                     builtins,
                     found_is_placeholder,
@@ -4834,12 +5034,11 @@ fn collect_eq_constraints_for_single_type_param(
                 .into_iter()
                 .zip(found_nominal.args.into_iter())
             {
-                collect_eq_constraints_for_single_type_param(
+                collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
                     param_ty,
-                    infer_var,
-                    solver,
+                    out,
                     lower,
                     builtins,
                     found_is_placeholder,
@@ -4861,12 +5060,11 @@ fn collect_eq_constraints_for_single_type_param(
                 .into_iter()
                 .zip(found_nominal.args.into_iter())
             {
-                collect_eq_constraints_for_single_type_param(
+                collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
                     param_ty,
-                    infer_var,
-                    solver,
+                    out,
                     lower,
                     builtins,
                     found_is_placeholder,
@@ -4885,12 +5083,11 @@ fn collect_eq_constraints_for_single_type_param(
             }
 
             if let (Some(e), Some(f)) = (expected_fun.receiver, found_fun.receiver) {
-                collect_eq_constraints_for_single_type_param(
+                collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
                     param_ty,
-                    infer_var,
-                    solver,
+                    out,
                     lower,
                     builtins,
                     found_is_placeholder,
@@ -4902,24 +5099,22 @@ fn collect_eq_constraints_for_single_type_param(
                 .into_iter()
                 .zip(found_fun.params.into_iter())
             {
-                collect_eq_constraints_for_single_type_param(
+                collect_type_arg_candidates_for_single_type_param(
                     e,
                     f,
                     param_ty,
-                    infer_var,
-                    solver,
+                    out,
                     lower,
                     builtins,
                     found_is_placeholder,
                 );
             }
 
-            collect_eq_constraints_for_single_type_param(
+            collect_type_arg_candidates_for_single_type_param(
                 expected_fun.return_ty,
                 found_fun.return_ty,
                 param_ty,
-                infer_var,
-                solver,
+                out,
                 lower,
                 builtins,
                 found_is_placeholder,
@@ -5138,48 +5333,57 @@ fn instantiate_fun_sig_for_call(
     let param_ty = sig.type_params[0];
     let param_name = type_param_name(param_ty, lower);
 
-    let mut solver = Solver::new();
-    let var = solver.new_var();
+    #[derive(Debug, Clone)]
+    struct InferredTypeArgSource {
+        from: String,
+        span: Span,
+    }
 
+    // T0510：推断失败诊断（最小可读解释）：
+    // - 当前阶段（T0505）仅支持单一类型参数，因此这里用“逐候选 unify + 记录来源”的方式，
+    //   以便在冲突时把推断失败精确映射到“产生冲突的那一条约束”的 span 上。
+    let mut inferred: Option<(TypeId, InferredTypeArgSource)> = None;
     for c in constraints {
-        collect_eq_constraints_for_single_type_param(
+        let mut candidates: Vec<TypeId> = Vec::new();
+        collect_type_arg_candidates_for_single_type_param(
             c.expected,
             c.found,
             param_ty,
-            var,
-            &mut solver,
+            &mut candidates,
             lower,
             builtins,
             c.found_is_placeholder,
         );
+
+        for candidate in candidates {
+            match &mut inferred {
+                None => {
+                    inferred = Some((
+                        candidate,
+                        InferredTypeArgSource {
+                            from: c.from.clone(),
+                            span: c.span,
+                        },
+                    ));
+                }
+                Some((bound, _)) if *bound == candidate => {}
+                Some((bound, src)) => {
+                    return Err(ExprTypeError::GenericTypeArgInferenceConflict {
+                        callee: callee.to_string(),
+                        param: param_name,
+                        left: lower.fmt_type(*bound),
+                        right: lower.fmt_type(candidate),
+                        left_from: src.from.clone(),
+                        right_from: c.from.clone(),
+                        span: c.span.into(),
+                        previous: src.span.into(),
+                    });
+                }
+            }
+        }
     }
 
-    match solver.solve(lower.types(), builtins) {
-        Ok(()) => {}
-        Err(InferError::TypeConflict { left, right }) => {
-            return Err(ExprTypeError::GenericTypeArgInferenceConflict {
-                callee: callee.to_string(),
-                param: param_name,
-                left: lower.fmt_type(left),
-                right: lower.fmt_type(right),
-                span: call_span.into(),
-            });
-        }
-        Err(InferError::UnsupportedConstraint { .. }) => {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: "generic inference constraint（internal）",
-                span: call_span.into(),
-            });
-        }
-        Err(InferError::SubtypeNotSatisfied { .. } | InferError::IncompatibleBounds { .. }) => {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: "generic inference constraint（subtype bounds）",
-                span: call_span.into(),
-            });
-        }
-    }
-
-    let Some(binding) = solver.binding_of(var) else {
+    let Some((binding, _)) = inferred else {
         return Err(ExprTypeError::GenericTypeArgNotInferred {
             callee: callee.to_string(),
             param: param_name,
@@ -5625,6 +5829,7 @@ fn check_stmt_exprs(
                         source,
                         v,
                         expected,
+                        ExpectedTypeFrom::new("函数返回类型"),
                         lower,
                         builtins,
                         locals,
@@ -5837,6 +6042,13 @@ fn check_local_val_decl_exprs(
         Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
         None => None,
     };
+    let expected_from = match &v.binding {
+        ast::ValBinding::Name(name) => ExpectedTypeFrom::new(format!(
+            "局部绑定 `{}` 的类型注解",
+            source.slice(name.span)
+        )),
+        ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("局部解构绑定的类型注解"),
+    };
 
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
@@ -5845,6 +6057,7 @@ fn check_local_val_decl_exprs(
                 source,
                 init,
                 expected,
+                expected_from.clone(),
                 lower,
                 builtins,
                 locals,
@@ -6400,10 +6613,21 @@ fn check_assign_expr_stmt(
     };
 
     // 递归 typecheck rhs：保证 `x = f()` 这类语句也会覆盖 rhs 中的表达式。
+    let expected_from = match &lhs.kind {
+        ast::ExprKind::Ident(id) => {
+            ExpectedTypeFrom::new(format!("赋值目标 `{}` 的类型", source.slice(id.span)))
+        }
+        ast::ExprKind::MemberAccess { member, .. } => ExpectedTypeFrom::new(format!(
+            "赋值目标 `{}` 的字段类型",
+            source.slice(member.span)
+        )),
+        _ => ExpectedTypeFrom::new("赋值目标的类型"),
+    };
     let found_ty = infer_expr_type_in_expected_context(
         source,
         rhs,
         expected_ty,
+        expected_from,
         lower,
         builtins,
         locals,
