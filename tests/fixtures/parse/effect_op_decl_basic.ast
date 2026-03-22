@@ -1,0 +1,88 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 145..167,
+            path: [
+                Ident {
+                    span: 153..161,
+                },
+                Ident {
+                    span: 162..167,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Type(
+            TypeDecl {
+                span: 169..221,
+                kind: Effect,
+                name: Ident {
+                    span: 176..181,
+                },
+                type_params: [
+                    TypeParam {
+                        span: 182..183,
+                        name: Ident {
+                            span: 182..183,
+                        },
+                    },
+                ],
+                body: Some(
+                    TypeBody {
+                        span: 185..221,
+                        members: [
+                            Fun(
+                                FunDecl {
+                                    span: 191..219,
+                                    kind: EffectOp,
+                                    receiver: None,
+                                    name: Ident {
+                                        span: 195..200,
+                                    },
+                                    type_params: [],
+                                    params_span: 200..210,
+                                    params: [
+                                        Param {
+                                            name: Ident {
+                                                span: 201..206,
+                                            },
+                                            ty: Some(
+                                                Path(
+                                                    TypePath {
+                                                        span: 208..209,
+                                                        segments: [
+                                                            Ident {
+                                                                span: 208..209,
+                                                            },
+                                                        ],
+                                                        args: [],
+                                                    },
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                    return_ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 212..219,
+                                                segments: [
+                                                    Ident {
+                                                        span: 212..219,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    body: Missing,
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

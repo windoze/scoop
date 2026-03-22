@@ -242,7 +242,7 @@
 - [x] interface：多实现、默认方法（可先限制默认方法 codegen）（T0440）
 - [ ] struct：布局（字段顺序/对齐），不可变，值语义
 - [x] enum（rich enum）：tag + union 布局 + niche/boxing/lint 元数据（T0449；codegen 另见 §8.2）
-- [ ] effect：像 interface 一样声明操作签名
+- [x] effect：像 interface 一样声明操作签名（T0601）
 
 ### 4.3 Boxing 与 Any
 

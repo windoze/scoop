@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: effect_op_decl_basic.ast
+//
+// 目标：effect 声明体内的 `fun` 被解析为 effect operation（T0601）。
+
+package fixtures.parse
+
+effect Raise<E> {
+    fun raise(error: E): Nothing
+}
+

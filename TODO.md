@@ -1461,11 +1461,16 @@
 
 ## T06：效果系统（阶段 5：先静态，再逐步落地运行时）
 
-### T0601 [TODO] Parser：`effect` 声明体内的操作签名（spec §5.2）
+### T0601 [DONE] Parser：`effect` 声明体内的操作签名（spec §5.2）
 - 描述：在 effect type body 内解析 `fun op(args): Ret` 列表，并区分 effect operation 与普通方法。
 - 目标：先不解析实现体（operation 应无 body）；不支持默认实现。
 - 验收：parse fixture：`effect Raise<E> { fun raise(error: E): Nothing }` 能解析出 operation 列表。
 - 依赖：T0203、T0218
+ - 完成：
+   - AST：为 `FunDecl` 增加 `kind: FunDeclKind`，并在 effect body 内将 `fun` 标记为 `EffectOp`（用于区分 operation 与普通方法）。
+   - parser：effect body 内解析 operation 签名；若意外出现 `{ ... }` body，则记录诊断并跳过该分组（不支持默认实现）。
+   - fixtures：新增 parse fixture `tests/fixtures/parse/effect_op_decl_basic.scoop` + AST golden；更新 `type_member_nested_type` golden 覆盖 effect nested type 场景。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0602 [TODO] Typecheck：effect operation 的类型规则与命名空间
 - 描述：把 effect 看作“可 perform 的接口”，operation 生成对应的 perform signature。

@@ -12,6 +12,7 @@ struct TypeBodyContext {
     allow_init_blocks: bool,
     allow_secondary_ctors: bool,
     allow_companion_object: bool,
+    is_effect: bool,
 }
 
 impl TypeBodyContext {
@@ -22,30 +23,35 @@ impl TypeBodyContext {
                 allow_init_blocks: true,
                 allow_secondary_ctors: true,
                 allow_companion_object: true,
+                is_effect: false,
             },
             ast::TypeKind::Interface => Self {
                 allow_enum_variants: false,
                 allow_init_blocks: false,
                 allow_secondary_ctors: false,
                 allow_companion_object: false,
+                is_effect: false,
             },
             ast::TypeKind::Struct => Self {
                 allow_enum_variants: false,
                 allow_init_blocks: false,
                 allow_secondary_ctors: false,
                 allow_companion_object: false,
+                is_effect: false,
             },
             ast::TypeKind::Enum => Self {
                 allow_enum_variants: true,
                 allow_init_blocks: false,
                 allow_secondary_ctors: false,
                 allow_companion_object: false,
+                is_effect: false,
             },
             ast::TypeKind::Effect => Self {
                 allow_enum_variants: false,
                 allow_init_blocks: false,
                 allow_secondary_ctors: false,
                 allow_companion_object: false,
+                is_effect: true,
             },
         }
     }
@@ -55,6 +61,7 @@ impl TypeBodyContext {
         allow_init_blocks: true,
         allow_secondary_ctors: false,
         allow_companion_object: false,
+        is_effect: false,
     };
 }
 
@@ -526,6 +533,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::FunDecl {
             span: Span::new(start, last_end),
+            kind: ast::FunDeclKind::Regular,
             modifiers,
             receiver,
             name,
@@ -1467,7 +1475,11 @@ impl<'a> Parser<'a> {
             }
 
             if head == TokenKind::Keyword(Keyword::Fun) {
-                match self.parse_type_member_fun_decl() {
+                match if ctx.is_effect {
+                    self.parse_type_member_effect_op_decl()
+                } else {
+                    self.parse_type_member_fun_decl()
+                } {
                     Ok(decl) => members.push(ast::TypeMember::Fun(decl)),
                     Err(e) => {
                         self.record_error(e);
@@ -2107,6 +2119,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::FunDecl {
             span: Span::new(start, last_end),
+            kind: ast::FunDeclKind::Regular,
             modifiers,
             receiver,
             name,
@@ -2118,6 +2131,96 @@ impl<'a> Parser<'a> {
             return_ty,
             effects,
             body,
+        })
+    }
+
+    fn parse_type_member_effect_op_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
+        // spec §5.2：effect type body 内的 `fun ...` 为 operation 签名。
+        //
+        // 当前阶段（TODO T0601）约束：
+        // - operation 不允许有函数体（不支持默认实现）；
+        // - 仅做语法解析与结构化存储，语义规则交给后续 typecheck（TODO T0602+）。
+        let start = self.peek().span.start;
+        let modifiers = self.parse_modifiers();
+
+        let _kw = self.expect_keyword(Keyword::Fun)?;
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
+        let (receiver, name) = self.parse_fun_receiver_and_name()?;
+        let (type_params, eff_param) = if _pre_type_params_span.is_some() {
+            (pre_type_params, pre_eff_param)
+        } else {
+            let (_post_type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
+            (type_params, eff_param)
+        };
+
+        let (params_span, params) = self.parse_param_list()?;
+
+        let return_ty = if self.eat_symbol(Symbol::Colon) {
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
+        let mut effects = None;
+        let mut where_clause = None;
+        loop {
+            if effects.is_none() && self.eat_symbol(Symbol::Slash) {
+                effects = Some(self.parse_effect_row_expr()?);
+                continue;
+            }
+            if where_clause.is_none() {
+                where_clause = self.parse_where_clause_opt()?;
+                if where_clause.is_some() {
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // header tail：消耗到 `{`（若出现，表示非法 body）或下一个 member 起始（用于错误恢复）
+        let mut last_end = where_clause
+            .as_ref()
+            .map(|w| w.span.end)
+            .or_else(|| effects.as_ref().map(|r| r.span.end))
+            .or_else(|| return_ty.as_ref().map(|t| t.span().end))
+            .unwrap_or(params_span.end);
+        while !self.peek_kind(TokenKind::Eof) {
+            if self.peek_symbol(Symbol::Semicolon)
+                || self.peek_symbol(Symbol::RBrace)
+                || self.is_type_member_start()
+                || self.peek_symbol(Symbol::LBrace)
+            {
+                break;
+            }
+            last_end = self.bump().span.end;
+        }
+
+        // operation 不允许有 `{ ... }` body；记录诊断并跳过该分组，避免级联错位。
+        if self.peek_symbol(Symbol::LBrace) {
+            let tok = *self.peek();
+            self.record_error(ParseError::Expected {
+                expected: "effect operation 的签名（不允许有函数体）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+            let span = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+            last_end = last_end.max(span.end);
+        }
+
+        Ok(ast::FunDecl {
+            span: Span::new(start, last_end),
+            kind: ast::FunDeclKind::EffectOp,
+            modifiers,
+            receiver,
+            name,
+            type_params,
+            eff_param,
+            where_clause,
+            params_span,
+            params,
+            return_ty,
+            effects,
+            body: ast::FunBody::Missing,
         })
     }
 

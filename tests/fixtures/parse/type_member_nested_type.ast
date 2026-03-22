@@ -159,6 +159,7 @@ File {
                                                 Fun(
                                                     FunDecl {
                                                         span: 354..384,
+                                                        kind: EffectOp,
                                                         receiver: None,
                                                         name: Ident {
                                                             span: 358..363,

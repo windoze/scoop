@@ -537,9 +537,23 @@ pub enum TypeKind {
     Effect,
 }
 
+/// 函数声明的语义分类。
+///
+/// 说明：
+/// - `Regular`：普通函数/方法（顶层或 type body 内的 `fun`）。
+/// - `EffectOp`：effect 声明体内的 operation 签名（spec §5.2）。
+///
+/// 当前阶段仅用于 parser 区分 operation 与普通方法；更完整的 typecheck 规则见 TODO T0602+。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunDeclKind {
+    Regular,
+    EffectOp,
+}
+
 #[derive(Clone)]
 pub struct FunDecl {
     pub span: Span,
+    pub kind: FunDeclKind,
     pub modifiers: Vec<Modifier>,
     /// 扩展函数 receiver（`fun T.name(...)` 中的 `T`）。
     ///
@@ -562,6 +576,9 @@ impl std::fmt::Debug for FunDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("FunDecl");
         s.field("span", &self.span);
+        if self.kind != FunDeclKind::Regular {
+            s.field("kind", &self.kind);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
