@@ -1484,11 +1484,14 @@
    - fixtures：新增 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
+### T0603 [DONE] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
 - 目标：RowExpr 先只支持 `Pure`、单个 effect 名、`+` 并集。
 - 验收：parse fixture：`fun f(): Int / Pure { ... }`（或无 body）能解析。
 - 依赖：T0219
+ - 完成：
+   - fixtures：新增 parse fixture `tests/fixtures/parse/fun_decl_effect_row_basic.scoop` + AST golden，覆盖函数声明上的 `/ Pure`、`/ E1+E2` 与括号形式。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0604 [TODO] Typecheck：required effects 检查（spec §14.7.1）
 - 描述：当函数体 perform 了 effect，但未在函数签名 row 中声明，也未被 handle，则报错。

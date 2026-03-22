@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: fun_decl_effect_row_basic.ast
+// 目标：验证声明位置的 effect row `/ RowExpr`（T0603）。
+
+package fixtures.parse
+
+fun f(): Int / Pure {}
+fun g(): Int / Async+Raise<IOError> {}
+fun h(): Int / (Async + Raise<IOError>) {}
+

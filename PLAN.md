@@ -352,7 +352,7 @@
 ### 6.1 静态层：effect row + 多态 + 推断
 
 - [ ] 语法：
-  - [x] 函数/函数类型的 `/ RowExpr`
+  - [x] 函数声明/函数类型的 `/ RowExpr`（T0603）
   - [ ] `eff` 作为上下文关键字：`<eff E = Pure>`、`eff E1+E2`（parser 已支持声明处 `<eff E = Pure>`；use-site `Type<eff Row>` 待补）
   - [x] `+` 并集、`Pure` 空行
   - [ ] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
