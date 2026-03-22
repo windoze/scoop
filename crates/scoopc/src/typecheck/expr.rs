@@ -705,6 +705,9 @@ pub enum ExprTypeError {
 
 #[derive(Debug, Clone)]
 struct FunSigOwned {
+    /// 声明处 name 的 span：用于把“某个具体 overload”与 AST 节点对应起来，
+    /// 以便在后续 pass 中回写（例如返回类型推断，T0507）。
+    decl_span: Span,
     /// 是否为扩展函数（`fun Receiver.name(...)`）。
     ///
     /// 说明：
@@ -762,7 +765,7 @@ pub fn check_file_exprs(
     // - 只支持“当前文件内”的顶层变量（因为 typecheck phase 目前只解析单文件 AST）；
     // - 顶层变量必须有显式类型注解（由 `typecheck::check_file_headers` 保证）。
     let top_level_types = collect_top_level_value_types(source, file, &mut lower)?;
-    let top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
+    let mut top_level_funs = collect_top_level_fun_signatures(source, file, &mut lower, builtins)?;
     let struct_field_types = collect_struct_field_types(source, file, &mut lower)?;
     let member_mutabilities = collect_member_mutabilities(source, file);
 
@@ -777,16 +780,26 @@ pub fn check_file_exprs(
                 &top_level_funs,
                 &struct_field_types,
             )?,
-            ast::Item::Fun(fun) => check_fun_body_exprs(
-                source,
-                fun,
-                &mut lower,
-                builtins,
-                &top_level_types,
-                &top_level_funs,
-                &member_mutabilities,
-                &struct_field_types,
-            )?,
+            ast::Item::Fun(fun) => {
+                let local_name = source.slice(fun.name.span);
+                let fun_fqn = if pkg_prefix.is_empty() {
+                    local_name.to_string()
+                } else {
+                    format!("{pkg_prefix}.{local_name}")
+                };
+
+                check_fun_body_exprs(
+                    source,
+                    &fun_fqn,
+                    fun,
+                    &mut lower,
+                    builtins,
+                    &top_level_types,
+                    &mut top_level_funs,
+                    &member_mutabilities,
+                    &struct_field_types,
+                )?;
+            }
             ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
                 source,
                 ty,
@@ -803,6 +816,152 @@ pub fn check_file_exprs(
     }
 
     Ok(())
+}
+
+fn try_infer_fun_return_ty_from_block(
+    source: &SourceFile,
+    body: &ast::Block,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &mut HashMap<Span, TypeId>,
+    stable_bindings: &mut HashSet<Span>,
+    mutable_bindings: &mut HashSet<Span>,
+    loop_depth: usize,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &HashMap<String, bool>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    // T0507：返回类型推断（最小实现）。
+    //
+    // 当前阶段只支持：
+    // - “无显式 return”且 block 以表达式语句结尾：以最后表达式类型作为返回类型；
+    // - “唯一的 return”且它是函数体最后一条语句：以该 return 的值类型作为返回类型；
+    //
+    // 其它情况（多 return、return 不在末尾、或最后表达式暂不可推导）先不推断，保持兼容旧行为：
+    // 返回类型仍视为 `Unit`，并由现有的 `return_type_mismatch` 等错误兜底。
+
+    // 注意：返回类型推断依赖“最后表达式 / return value”的类型推导，
+    // 而这些表达式往往会引用在函数体中声明的局部变量：
+    //
+    // ```
+    // fun f() {
+    //   val x: Any = ...
+    //   if (x is String) { ... }
+    // }
+    // ```
+    //
+    // 因此这里必须按语句顺序“先走一遍最小语句 typecheck”，把局部绑定写进 `locals`，
+    // 再去推导最后表达式/return 的类型；否则会出现 `unknown_local_value_type` 的假错误。
+
+    // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
+    // 这里与 `check_block_exprs` 一样用“进入时快照 + 退出时回滚”实现。
+    let saved_locals = locals.clone();
+    let saved_stable = stable_bindings.clone();
+    let saved_mutable = mutable_bindings.clone();
+
+    let mut top_level_return_count = 0usize;
+    let mut last_return_ty: Option<TypeId> = None;
+    let mut tail_expr_ty: Option<TypeId> = None;
+
+    for (idx, stmt) in body.stmts.iter().enumerate() {
+        let is_last = idx + 1 == body.stmts.len();
+
+        match &stmt.kind {
+            ast::StmtKind::Return { value, .. } => {
+                top_level_return_count += 1;
+                if is_last {
+                    last_return_ty = Some(match value {
+                        Some(v) => infer_expr_type(
+                            source,
+                            v,
+                            lower,
+                            builtins,
+                            locals,
+                            top_level_types,
+                            top_level_funs,
+                            struct_field_types,
+                        )?,
+                        None => builtins.unit,
+                    });
+                }
+                // 说明：这里刻意不做 `return` 的“类型匹配检查”，因为 expected return type 尚未确定。
+                // 真正的 `return` 校验由下方第二遍 `check_block_exprs` 完成。
+            }
+            ast::StmtKind::Expr(e) => {
+                // 先执行现有的“语句层递归”检查（smart cast / lambda return 门禁等）。
+                check_expr_stmt(
+                    source,
+                    e,
+                    lower,
+                    builtins,
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                    loop_depth,
+                    Some(builtins.unit),
+                    top_level_types,
+                    top_level_funs,
+                    member_mutabilities,
+                    struct_field_types,
+                )?;
+
+                if is_last {
+                    match infer_expr_type(
+                        source,
+                        e,
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    ) {
+                        Ok(ty) => tail_expr_ty = Some(ty),
+                        Err(ExprTypeError::UnsupportedExpr { .. }) => {
+                            // 兼容：statement position 的表达式当前并不总是完整 typecheck；
+                            // 若仅因为“未实现某个 ExprKind”而失败，则不启用返回类型推断。
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+            }
+            _ => {
+                // 其它语句：复用现有逻辑以便正确更新 locals/stable/mutable，并递归覆盖子结构。
+                check_stmt_exprs(
+                    source,
+                    stmt,
+                    lower,
+                    builtins,
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                    loop_depth,
+                    Some(builtins.unit),
+                    top_level_types,
+                    top_level_funs,
+                    member_mutabilities,
+                    struct_field_types,
+                )?;
+            }
+        }
+    }
+
+    *locals = saved_locals;
+    *stable_bindings = saved_stable;
+    *mutable_bindings = saved_mutable;
+
+    // 推断规则（最小子集）：
+    // - 唯一的 top-level return 且它是最后一条语句：返回该 return 的值类型
+    // - 没有 top-level return：返回最后表达式语句的类型
+    // - 其它情况暂不推断
+    if top_level_return_count == 1 {
+        Ok(last_return_ty)
+    } else if top_level_return_count == 0 {
+        Ok(tail_expr_ty)
+    } else {
+        Ok(None)
+    }
 }
 
 fn check_class_member_fun_bodies_in_type_decl(
@@ -1005,7 +1164,24 @@ fn check_class_member_fun_body_exprs(
         // 函数的期望返回类型：用于 `return expr?` 的检查。
         let expected_return_ty = match &fun.return_ty {
             Some(ret) => lower.lower_type_ref(ret)?,
-            None => builtins.unit,
+            None => match &fun.body {
+                ast::FunBody::Block(b) => try_infer_fun_return_ty_from_block(
+                    source,
+                    b,
+                    lower,
+                    builtins,
+                    &mut locals,
+                    &mut stable_bindings,
+                    &mut mutable_bindings,
+                    0,
+                    top_level_types,
+                    top_level_funs,
+                    member_mutabilities,
+                    struct_field_types,
+                )?
+                .unwrap_or(builtins.unit),
+                ast::FunBody::Missing => builtins.unit,
+            },
         };
 
         match &fun.body {
@@ -3951,6 +4127,7 @@ fn collect_top_level_fun_signatures(
         } else {
             format!("{pkg_prefix}.{local_name}")
         };
+        let decl_span = fun.name.span;
 
         // fun 自身的 type params 在签名 lowering 语境内可见。
         lower.push_type_params(&fun.type_params);
@@ -3989,6 +4166,7 @@ fn collect_top_level_fun_signatures(
             };
 
             map.entry(fqn).or_default().push(FunSigOwned {
+                decl_span,
                 is_extension,
                 is_inline,
                 param_names,
@@ -4532,11 +4710,12 @@ fn check_lambda_expr_stmt_body(
 
 fn check_fun_body_exprs(
     source: &SourceFile,
+    fun_fqn: &str,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    top_level_funs: &mut HashMap<String, Vec<FunSigOwned>>,
     member_mutabilities: &HashMap<String, bool>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
@@ -4575,7 +4754,35 @@ fn check_fun_body_exprs(
         // 该函数的期望返回类型（T0417）：用于 `return expr?` 的类型检查。
         let expected_return_ty = match &fun.return_ty {
             Some(ret) => lower.lower_type_ref(ret)?,
-            None => builtins.unit,
+            None => match &fun.body {
+                ast::FunBody::Block(b) => {
+                    let inferred = try_infer_fun_return_ty_from_block(
+                        source,
+                        b,
+                        lower,
+                        builtins,
+                        &mut locals,
+                        &mut stable_bindings,
+                        &mut mutable_bindings,
+                        0,
+                        top_level_types,
+                        &*top_level_funs,
+                        member_mutabilities,
+                        struct_field_types,
+                    )?
+                    .unwrap_or(builtins.unit);
+
+                    // 回写到顶层函数签名表：使得后续同文件的调用点能看到推断后的返回类型。
+                    if let Some(sigs) = top_level_funs.get_mut(fun_fqn) {
+                        if let Some(sig) = sigs.iter_mut().find(|s| s.decl_span == fun.name.span) {
+                            sig.return_ty = inferred;
+                        }
+                    }
+
+                    inferred
+                }
+                ast::FunBody::Missing => builtins.unit,
+            },
         };
 
         match &fun.body {
@@ -4590,7 +4797,7 @@ fn check_fun_body_exprs(
                 0,
                 Some(expected_return_ty),
                 top_level_types,
-                top_level_funs,
+                &*top_level_funs,
                 member_mutabilities,
                 struct_field_types,
             )?,

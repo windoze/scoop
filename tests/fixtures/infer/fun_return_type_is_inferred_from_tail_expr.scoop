@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0507 返回类型推断：缺省返回类型时，从函数体最后表达式推断返回类型。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    1
+}
+
+fun g() {
+    val x: Int = f()
+}
+

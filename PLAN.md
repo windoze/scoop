@@ -331,6 +331,7 @@
   - [ ] effects 行约束（T0508/T0509）
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
+- [x] 返回类型推断：缺省 return type 从函数体推断（T0507，spec §14.6）
 - [x] lambda 推断 v0：参数类型下推（T0504，spec §14.7.2）
 - [x] 泛型实参推断 v0：从调用参数推断单一类型参数（T0505）
 - [ ] lambda 推断：更完整的返回类型合并与 effect row 推断（后续任务）

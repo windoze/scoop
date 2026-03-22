@@ -1440,11 +1440,19 @@
      - `tests/fixtures/infer/subtyping_any_to_int_is_error.scoop`
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0507 [TODO] 返回类型推断（spec §14.6）
+### T0507 [DONE] 返回类型推断（spec §14.6）
 - 描述：当函数缺少返回类型注解时，从 `return`/最后表达式推断返回类型。
 - 目标：先只支持单一 return 路径；多路径合并后续。
 - 验收：infer fixture：`fun f(){ 1 }` 推断为 Int（或要求显式 `: Int`，需决定并固定规则）。
 - 依赖：T0226、T0502
+ - 完成：
+   - typecheck：为未标注 `return type` 的函数引入最小返回类型推断：
+     - 无 top-level `return`：尝试从函数体最后一条“表达式语句”的类型推断返回类型；
+     - 单一 top-level `return` 且位于函数体最后：从 `return` 的值推断返回类型；
+     - 其它情况暂不推断，保持旧行为（默认视为 `Unit`，多路径合并留到后续任务）。
+   - typecheck：推断成功后回写顶层函数签名表，使得同文件后续调用点能看到推断后的返回类型。
+   - fixtures：新增 `tests/fixtures/infer/fun_return_type_is_inferred_from_tail_expr.scoop` 回归用例。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0508 [TODO] effect 推断 v0：private/internal 可推断 row，public 默认 Pure（PLAN §6.1）
 - 描述：实现 effect row 的推断入口：public 函数默认 `/ Pure`（强制），private/internal 可推断。
