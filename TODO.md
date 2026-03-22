@@ -1234,11 +1234,23 @@
     - `tests/fixtures/typecheck/call_overload_ambiguous_is_error.scoop`
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0454 [TODO] 构造函数重载解析：primary / secondary constructors
+### T0454 [DONE] 构造函数重载解析：primary / secondary constructors
 - 描述：为 class 构造调用实现 overload resolution：primary constructor 与多个 secondary constructors 共同形成候选集合，按参数匹配与默认参数规则做决议。
 - 目标：先只覆盖 class constructors；struct literal 命名字段构造仍走独立规则。
 - 验收：typecheck fixture：同一 class 上多个 constructors 可按参数选中；无匹配和歧义都有稳定诊断。
 - 依赖：T0257、T0318、T0453
+- 完成：
+  - resolve/index：暴露 `Index::cone_of_source`（crate 内）用于后续可见性过滤复用。
+  - typecheck/lower：新增 `TypeLowering::lower_type_ref_in_decl_file`，按“声明处文件”的 package/import 规则 lowering ctor param `TypeRef`。
+  - typecheck/expr：
+    - 在 `Call(Ident)` 且 callee 未 resolve 时，使用 resolver 写回的 `CallCandidate::Constructor` 执行 class 构造调用的重载决议。
+    - 支持默认参数：允许省略带默认值的形参，并在候选筛选中复用“位置/命名实参 → 形参槽位”的映射逻辑。
+    - 仅覆盖 class constructors，并按 cone/file 规则过滤不可见构造器；无匹配/多匹配分别报 `no_matching_overload` / `ambiguous_overload`。
+  - fixtures：新增 typecheck fixtures 覆盖 pass/no-match/ambiguous：
+    - `tests/fixtures/typecheck/class_ctor_overload_select_ok.scoop`
+    - `tests/fixtures/typecheck/class_ctor_overload_no_match_is_error.scoop`
+    - `tests/fixtures/typecheck/class_ctor_overload_ambiguous_default_is_error.scoop`
+  - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0455 [TODO] 扩展函数重载解析：member 优先 + receiver specificity
 - 描述：在已有 extension 静态分发基础上，支持同名多个 extension overload，并固定优先级：member 胜出，其次按 receiver/参数更具体者胜出。

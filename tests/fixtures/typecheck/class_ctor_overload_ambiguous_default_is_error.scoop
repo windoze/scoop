@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR-AT: 15:12
+// EXPECT-ERROR: 重载决议歧义
+// 目标：T0454 构造函数重载解析：默认参数参与匹配时若出现多候选，应报歧义。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C(x: Int = 0) {
+    constructor() : this(0) {}
+}
+
+val a: C = C()

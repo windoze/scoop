@@ -493,7 +493,7 @@ impl Index {
         }
     }
 
-    fn cone_of_source(&self, source: &SourceFile) -> ConeId {
+    pub(crate) fn cone_of_source(&self, source: &SourceFile) -> ConeId {
         self.file_cones
             .get(source.path())
             .copied()

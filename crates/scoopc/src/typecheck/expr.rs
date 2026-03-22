@@ -23,12 +23,12 @@ use thiserror::Error;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::resolve::{ImportTable, Index};
+use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::TypeEnv;
+use super::{TypeEnv, TypeSymbolKind};
 use super::lower::{TypeLowerError, TypeLowering};
 use super::val_pat;
 use super::when_pat;
@@ -2487,6 +2487,70 @@ fn map_call_args_to_params(
     Some(mapping.into_iter().map(|x| x.expect("checked")).collect())
 }
 
+/// 将调用点的“位置/命名实参”映射到某个候选签名的形参槽位（支持默认参数）。
+///
+/// 当前阶段（T0454）最小规则：
+/// - 允许省略带默认值的形参；
+/// - 命名实参仅按“同名形参”匹配；
+/// - 位置实参按从左到右填充尚未被命名实参占用的槽位；
+/// - 若某个未填充的槽位没有默认值，则该候选不匹配。
+fn map_call_args_to_params_with_defaults(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+) -> Option<Vec<Option<usize>>> {
+    if param_names.len() != param_has_defaults.len() {
+        return None;
+    }
+
+    // 默认参数允许“少传”，但不能“多传”。
+    if call_args.len() > param_names.len() {
+        return None;
+    }
+
+    // 最少需要提供的实参数量：无默认值的形参个数。
+    let required = param_has_defaults.iter().filter(|d| !**d).count();
+    if call_args.len() < required {
+        return None;
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+    let mut next_positional = 0usize;
+
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        match &arg.kind {
+            CallArgKind::Positional => {
+                while next_positional < mapping.len() && mapping[next_positional].is_some() {
+                    next_positional += 1;
+                }
+                let slot = mapping.get_mut(next_positional)?;
+                *slot = Some(arg_idx);
+                next_positional += 1;
+            }
+            CallArgKind::Named { name } => {
+                let slot_idx = param_names.iter().position(|p| p == name)?;
+                let slot = mapping.get_mut(slot_idx)?;
+                if slot.is_some() {
+                    return None;
+                }
+                *slot = Some(arg_idx);
+            }
+        }
+    }
+
+    // 未填充的槽位必须有默认值。
+    for (idx, arg_idx) in mapping.iter().copied().enumerate() {
+        if arg_idx.is_some() {
+            continue;
+        }
+        if !param_has_defaults.get(idx).copied().unwrap_or(false) {
+            return None;
+        }
+    }
+
+    Some(mapping)
+}
+
 fn infer_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -2507,6 +2571,22 @@ fn infer_call_expr_type(
                 // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在“未 resolve 的 ident”
                 // 情况下尝试按 enum variant ctor 处理。
                 if let Some(ctor_ty) = infer_enum_variant_ctor_call_expr_type(
+                    source,
+                    call_expr,
+                    id,
+                    args,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )? {
+                    return Ok(ctor_ty);
+                }
+
+                // T0454：class 构造调用（primary + secondary constructors）重载决议。
+                if let Some(ctor_ty) = infer_class_constructor_call_expr_type(
                     source,
                     call_expr,
                     id,
@@ -2703,6 +2783,149 @@ fn infer_call_expr_type(
         other => Err(ExprTypeError::UnsupportedExpr {
             kind: expr_kind_name(other),
             span: callee.span.into(),
+        }),
+    }
+}
+
+fn is_ctor_visible_from(use_cone: ConeId, use_source: &SourceFile, ctor: &ConstructorOverload) -> bool {
+    match ctor.visibility {
+        Visibility::Public => true,
+        Visibility::Internal => ctor.decl_cone == use_cone,
+        Visibility::Private => ctor.decl_file.as_path() == use_source.path(),
+    }
+}
+
+fn infer_class_constructor_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee: &ast::ValueIdent,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some(call) = callee.call.as_ref() else {
+        return Ok(None);
+    };
+
+    let mut ctor_types: Vec<String> = call
+        .candidates
+        .iter()
+        .filter_map(|c| match c {
+            ast::CallCandidate::Constructor { ty_fqn } => Some(ty_fqn.clone()),
+            ast::CallCandidate::Fun { .. } => None,
+        })
+        .collect();
+    ctor_types.sort();
+    ctor_types.dedup();
+
+    if ctor_types.is_empty() {
+        return Ok(None);
+    }
+
+    // T0454 目标：先只覆盖 class constructors（struct literal 的规则独立）。
+    ctor_types.retain(|ty_fqn| {
+        matches!(
+            lower.env().type_symbol(ty_fqn).map(|s| s.kind),
+            Some(TypeSymbolKind::Nominal(ast::TypeKind::Class))
+        )
+    });
+    if ctor_types.is_empty() {
+        return Ok(None);
+    }
+
+    let call_args = collect_call_arg_infos(
+        source,
+        args,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let use_cone = lower.index().cone_of_source(source);
+    let callee_name = source.slice(callee.span).to_string();
+
+    let mut matched_ctor_count = 0usize;
+    let mut matched_type_fqn: Option<String> = None;
+
+    for ty_fqn in ctor_types {
+        let Some(ctors) = lower.index().constructors.get(&ty_fqn).cloned() else {
+            continue;
+        };
+
+        for ctor in ctors
+            .iter()
+            .filter(|c| is_ctor_visible_from(use_cone, source, c))
+        {
+            let param_names: Vec<String> = ctor.params.iter().map(|p| p.name.clone()).collect();
+            let param_has_defaults: Vec<bool> = ctor.params.iter().map(|p| p.has_default).collect();
+
+            let Some(mapping) =
+                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
+            else {
+                continue;
+            };
+
+            let mut ok = true;
+            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                let Some(arg_idx) = arg_idx else {
+                    continue;
+                };
+
+                let Some(expected_ty_ref) = ctor.params.get(param_idx).and_then(|p| p.ty.as_ref())
+                else {
+                    ok = false;
+                    break;
+                };
+                let expected_ty =
+                    lower.lower_type_ref_in_decl_file(&ctor.decl_file, expected_ty_ref)?;
+
+                let arg = &call_args[arg_idx];
+                let found_ty = arg.ty;
+
+                if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                    continue;
+                }
+                if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                    continue;
+                }
+                ok = false;
+                break;
+            }
+
+            if ok {
+                matched_ctor_count += 1;
+                matched_type_fqn = Some(ty_fqn.clone());
+                if matched_ctor_count > 1 {
+                    break;
+                }
+            }
+        }
+
+        if matched_ctor_count > 1 {
+            break;
+        }
+    }
+
+    match matched_ctor_count {
+        0 => Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name,
+            span: call_expr.span.into(),
+        }),
+        1 => {
+            let ty_fqn = matched_type_fqn.expect("matched_ctor_count == 1");
+            let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
+            Ok(Some(ty))
+        }
+        _ => Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_name,
+            span: call_expr.span.into(),
         }),
     }
 }

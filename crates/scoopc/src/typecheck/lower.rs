@@ -6,6 +6,7 @@
 //! - 覆盖 `Path` / `Tuple` / `Nullable` / `Function`，其它类型语法在后续任务逐步补齐
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -224,8 +225,41 @@ impl<'a> TypeLowering<'a> {
         self.env
     }
 
+    pub(super) fn index(&self) -> &Index {
+        self.index
+    }
+
     pub(super) fn is_object_type(&self, fqn: &str) -> bool {
         self.index.object_types.contains(fqn)
+    }
+
+    /// 在“声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`。
+    ///
+    /// 用途：
+    /// - 从 `Index` 侧的签名信息（如 ctor params）进行 typecheck 时，
+    ///   需要按声明处的解析规则（import/star import）来降低类型引用；
+    /// - 该方法会在缺少 env 上下文时回退到当前 `TypeLowering` 的上下文（保持健壮性）。
+    pub(super) fn lower_type_ref_in_decl_file(
+        &mut self,
+        decl_file: &Path,
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+        ctx.lower_type_ref(ty)
     }
 
     /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。

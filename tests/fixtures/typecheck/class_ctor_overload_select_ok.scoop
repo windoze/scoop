@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0454 构造函数重载解析：primary / secondary constructors + 默认参数（含命名实参）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(x: Int, y: Int = 0) {
+    constructor(s: String) : this(0, 0) {}
+}
+
+val a: Box = Box(1)
+val b: Box = Box(1, 2)
+val c: Box = Box(y = 2, x = 1)
+val d: Box = Box("hi")
+

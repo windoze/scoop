@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_matching_overload
+// EXPECT-ERROR-AT: 13:14
+// EXPECT-ERROR: 没有匹配的重载
+// 目标：T0454 构造函数重载解析：无匹配时应给出稳定诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(x: Int, y: Int = 0) {}
+
+val a: Box = Box(true)
+
