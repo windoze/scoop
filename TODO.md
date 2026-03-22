@@ -1627,11 +1627,20 @@
    - fixtures：新增 parse pass fixture + AST snapshot；新增 parse fail fixture 覆盖“两处错误但可恢复到第二个 arm”。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0606 [TODO] Typecheck：handler arms 的类型规则（non-resuming）
+### T0606 [DONE] Typecheck：handler arms 的类型规则（non-resuming）
 - 描述：校验 arm 的参数类型、返回类型、以及 handle 表达式整体类型。
 - 目标：先只实现 “处理 Raise” 的 try/catch 等价形式；不实现 continuation 类型。
 - 验收：effects fixture：`handle { ... } with { Raise.raise(e) -> ... }` 类型正确；错误 arm 返回类型不匹配时报错。
 - 依赖：T0605、T0604
+ - 完成：
+   - typecheck/expr：支持 `ExprKind::Handle` 的类型检查与结果类型推导（non-resuming `->`）。
+   - typecheck/expr：handler 捕获 required effects：handle body 内 performed 的 effect 若被匹配 arm 捕获，则不向外层传播（/ Pure 下可通过）。
+   - typecheck/expr：handler arm head 解析 effect op 签名并校验 binder arity/类型（对齐 effect op 形参类型）。
+   - diagnostics：新增稳定错误码 `scoop::typecheck::handle_arm_return_type_mismatch`（arm body 返回类型不一致）。
+   - fixtures：新增 typecheck pass/fail fixtures 覆盖：
+     - `Raise.raise` 在 handle 中被捕获后不再要求声明 effect；
+     - handler arm 返回类型不匹配时报错。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0607 [TODO] 语法糖：`try/catch/finally` → `handle`（spec §5.7）
 - 描述：在 parser 层支持 `try { } catch (e: T) { } finally { }` 并 lowering 到 handle AST。

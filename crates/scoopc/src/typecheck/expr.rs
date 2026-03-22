@@ -702,6 +702,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("handler arm 的返回类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::handle_arm_return_type_mismatch))]
+    HandleArmReturnTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("缺少返回值：函数返回类型为 {expected}")]
     #[diagnostic(code(scoop::typecheck::return_value_required))]
     ReturnValueRequired {
@@ -1826,6 +1835,16 @@ fn infer_expr_type(
         ast::ExprKind::IntLit => Ok(builtins.int),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
+        ast::ExprKind::Block(b) => infer_block_value_type(
+            source,
+            b,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::TupleLit { elements } => {
             if elements.is_empty() {
                 return Ok(builtins.unit);
@@ -2056,6 +2075,19 @@ fn infer_expr_type(
             // 若所有分支都是 `Nothing`，则 `when` 整体也是不可达的。
             Ok(result.unwrap_or(builtins.nothing))
         }
+        ast::ExprKind::Handle { body, arms, finally } => infer_handle_expr_type(
+            source,
+            expr,
+            body,
+            arms,
+            finally.as_ref(),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::WithUpdate { base, updates, .. } => infer_with_update_expr_type(
             source,
             base,
@@ -2128,6 +2160,485 @@ fn infer_expr_type(
     }
 }
 
+/// 推导 `block` 作为表达式时的结果类型。
+///
+/// 说明：
+/// - 该入口主要用于 `handle { ... }` 与 handler arm body 的类型检查（T0606）；
+/// - 当前实现只覆盖“表达式语境”的最小子集：
+///   - 顺序 `val/var` 声明（用于后续语句引用）；
+///   - 普通表达式语句（递归调用 `infer_expr_type`），以便记录 required effects；
+/// - `return/while/break/continue/comptime` 等语句暂不支持（后续可对齐 `check_block_exprs` 的能力）。
+fn infer_block_value_type(
+    source: &SourceFile,
+    block: &ast::Block,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
+    // 这里用“进入时克隆 + 本地更新”的方式实现最小作用域，不要求外层维护 stable/mutable 信息。
+    let mut block_locals = locals.clone();
+    let mut stable_bindings: HashSet<Span> = HashSet::new();
+    let mut mutable_bindings: HashSet<Span> = HashSet::new();
+
+    let mut tail_expr_ty: Option<TypeId> = None;
+    for (idx, stmt) in block.stmts.iter().enumerate() {
+        let is_last = idx + 1 == block.stmts.len();
+
+        match &stmt.kind {
+            ast::StmtKind::Empty => {
+                // no-op
+            }
+            ast::StmtKind::Val(v) => {
+                check_local_val_decl_exprs(
+                    source,
+                    v,
+                    lower,
+                    builtins,
+                    &mut block_locals,
+                    &mut stable_bindings,
+                    &mut mutable_bindings,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+            ast::StmtKind::Expr(e) => {
+                let ty = infer_expr_type(
+                    source,
+                    e,
+                    lower,
+                    builtins,
+                    &block_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                if is_last {
+                    tail_expr_ty = Some(ty);
+                }
+            }
+            ast::StmtKind::Missing => {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "block expression（missing stmt）",
+                    span: stmt.span.into(),
+                });
+            }
+            _ => {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "block expression（statement kinds other than val/expr）",
+                    span: stmt.span.into(),
+                });
+            }
+        }
+    }
+
+    Ok(tail_expr_ty.unwrap_or(builtins.unit))
+}
+
+/// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606）。
+///
+/// 当前阶段目标（与 TODO T0606 对齐）：
+/// - 只支持 non-resuming handler arm（AST 已保证只有 `->` 形态）；
+/// - handler arm head 只支持 effect operation（`Effect.op(...)`）；
+/// - effect type param 的推断只支持单一 type param（例如 sysroot 的 `Raise<E>`）；
+/// - required effects：body 内 perform 的 effect 若被某个 arm 捕获，则不向外层传播。
+fn infer_handle_expr_type(
+    source: &SourceFile,
+    _handle_expr: &ast::Expr,
+    body: &ast::Block,
+    arms: &[ast::HandleArm],
+    finally: Option<&ast::Block>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    #[derive(Debug, Clone)]
+    struct HandleArmLowered {
+        handled_effect: TypeId,
+        binder_tys: Vec<(Span, TypeId)>,
+    }
+
+    fn lower_handle_arm_effect_op_sig(
+        source: &SourceFile,
+        arm: &ast::HandleArm,
+        body_performed_effects: &[(TypeId, Span)],
+        lower: &mut TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> Result<HandleArmLowered, ExprTypeError> {
+        // 1) 解析 effect type 与 op FQN（例如 `scoop.core.Raise.raise`）。
+        let effect_fqn = lower.resolve_type_path_fqn(&arm.op.effect)?;
+        let op_name = source.slice(arm.op.op.span);
+        let callee_fqn = format!("{effect_fqn}.{op_name}");
+
+        // 2) 查找该 member 是否为 effect operation。
+        let op = lower.index().by_fqn.get(&callee_fqn).and_then(|syms| {
+            syms.fun
+                .iter()
+                .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+                .cloned()
+        });
+        let Some(op) = op else {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（callee is not an effect operation）",
+                span: arm.op.op.span.into(),
+            });
+        };
+
+        // 3) effect type 必须是 effect。
+        let Some(effect_sym) = lower.env().type_symbol(&effect_fqn).cloned() else {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（missing effect type symbol）",
+                span: arm.op.effect.span.into(),
+            });
+        };
+        let ok = matches!(
+            effect_sym.kind,
+            TypeSymbolKind::Nominal(ast::TypeKind::Effect)
+        );
+        if !ok {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（qualifier is not an effect type）",
+                span: arm.op.effect.span.into(),
+            });
+        }
+
+        // 当前阶段（T0606）只支持单一 type param（与 effect op call 的限制保持一致）。
+        if effect_sym.type_param_names.len() > 1 {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（multiple effect type params）",
+                span: arm.op.effect.span.into(),
+            });
+        }
+        if op.sig.receiver.is_some() {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（effect op receiver not supported）",
+                span: arm.op.op.span.into(),
+            });
+        }
+        if op.sig.type_params_len != 0 {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（generic effect op not supported）",
+                span: arm.op.op.span.into(),
+            });
+        }
+
+        // 4) 构造 effect op 的“可实例化签名”：其参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
+        let mut type_params: Vec<TypeId> = Vec::new();
+        let mut bindings: Vec<(String, TypeId)> = Vec::new();
+        if let Some(name) = effect_sym.type_param_names.first() {
+            let param_ty =
+                lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
+            type_params.push(param_ty);
+            bindings.push((name.clone(), param_ty));
+        }
+
+        let mut param_names: Vec<String> = Vec::with_capacity(op.sig.params.len());
+        let mut op_params: Vec<TypeId> = Vec::with_capacity(op.sig.params.len());
+        for p in &op.sig.params {
+            param_names.push(p.name.clone());
+
+            let Some(ty_ref) = p.ty.as_ref() else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "handle arm（effect op param missing type）",
+                    span: p.name_span.into(),
+                });
+            };
+
+            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+                &op.symbol.decl_file,
+                bindings.clone(),
+                ty_ref,
+            )?;
+            op_params.push(ty);
+        }
+
+        let op_return_ty = match &op.sig.return_ty {
+            Some(ret) => lower.lower_type_ref_in_decl_file_with_bindings(
+                &op.symbol.decl_file,
+                bindings.clone(),
+                ret,
+            )?,
+            None => builtins.unit,
+        };
+
+        let param_count = op_params.len();
+        let sig = FunSigOwned {
+            decl_span: op.symbol.span,
+            is_extension: false,
+            is_inline: false,
+            param_names,
+            param_has_defaults: vec![false; param_count],
+            type_params: type_params.clone(),
+            eff_param: None,
+            param_fn_effect_uses_eff: vec![false; param_count],
+            return_fn_effect_uses_eff: false,
+            params: op_params,
+            return_ty: op_return_ty,
+            effects: None,
+        };
+
+        // 5) 决定 effect type args：
+        // - 优先使用 handler head 上的显式 type args（`Effect<T>.op(...)`）；
+        // - 否则从 binder 的类型注解推断；
+        // - 再否则尝试从 handle body 内的 performed effects 反推（仅当唯一候选时）。
+        let explicit_args: Vec<TypeId> = arm
+            .op
+            .effect
+            .args
+            .iter()
+            .map(|a| lower.lower_type_ref(a))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let type_args: Vec<TypeId> = if !explicit_args.is_empty() {
+            explicit_args
+        } else if type_params.is_empty() {
+            Vec::new()
+        } else {
+            // 先尝试从 binder 的类型注解推断（try/catch lowering 会写回类型注解）。
+            let mut constraints: Vec<GenericArgConstraint> = Vec::new();
+            for (param_idx, binder) in arm.op.binders.iter().enumerate() {
+                let Some(ty_ref) = binder.ty.as_ref() else {
+                    continue;
+                };
+                let binder_ty = lower.lower_type_ref(ty_ref)?;
+                constraints.push(GenericArgConstraint {
+                    expected: sig.params.get(param_idx).copied().unwrap_or(builtins.unit),
+                    found: binder_ty,
+                    found_is_placeholder: false,
+                    from: format!("handler arm 第 {} 个 binder", param_idx + 1),
+                    span: binder.span,
+                });
+            }
+
+            if !constraints.is_empty() {
+                instantiate_fun_sig_for_call(&callee_fqn, arm.span, &sig, constraints, lower, builtins)?
+                    .type_args
+            } else {
+                // 没有 binder 类型：尝试从 body 的 performed effects 推断（仅支持“唯一候选”）。
+                let mut candidates: Vec<Vec<TypeId>> = Vec::new();
+                for (effect, _) in body_performed_effects.iter().copied() {
+                    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = lower.type_kind(effect)
+                    else {
+                        continue;
+                    };
+                    if nominal.fqn != effect_fqn {
+                        continue;
+                    }
+                    candidates.push(nominal.args);
+                }
+                candidates.sort();
+                candidates.dedup();
+
+                if candidates.len() == 1 {
+                    candidates.remove(0)
+                } else {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "handle arm（effect type args not inferred）",
+                        span: arm.op.effect.span.into(),
+                    });
+                }
+            }
+        };
+
+        // 6) 基于 type args 实例化 op 参数类型，并计算 handled effect 的实例类型。
+        let instantiated = if !type_params.is_empty() && type_args.len() == type_params.len() {
+            let mut params = sig.params.clone();
+            let mut return_ty = sig.return_ty;
+            for (param_ty, arg_ty) in type_params.iter().copied().zip(type_args.iter().copied()) {
+                for p in &mut params {
+                    *p = substitute_single_type_param(*p, param_ty, arg_ty, lower, arm.span)?;
+                }
+                return_ty = substitute_single_type_param(return_ty, param_ty, arg_ty, lower, arm.span)?;
+            }
+            InstantiatedFunSig {
+                params,
+                return_ty,
+                type_args,
+            }
+        } else {
+            // 无 type params 或者推断失败：退回到未实例化的签名。
+            InstantiatedFunSig {
+                params: sig.params.clone(),
+                return_ty: sig.return_ty,
+                type_args,
+            }
+        };
+
+        let handled_effect = lower.lower_type_fqn_with_args(effect_fqn, instantiated.type_args.clone(), arm.span)?;
+        let _ = instantiated.return_ty; // non-resuming arm 暂不使用 op return type（T0611）。
+
+        // 7) binder 数量校验。
+        if arm.op.binders.len() != instantiated.params.len() {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "handle arm（binder arity mismatch）",
+                span: arm.op.span.into(),
+            });
+        }
+
+        // 8) 校验 binder 类型注解（若存在），并计算 binder 在 arm body 内的类型。
+        let mut binder_tys: Vec<(Span, TypeId)> = Vec::with_capacity(arm.op.binders.len());
+        for (idx, binder) in arm.op.binders.iter().enumerate() {
+            let expected = instantiated.params[idx];
+
+            let binder_ty = match binder.ty.as_ref() {
+                Some(ty_ref) => {
+                    let binder_ty = lower.lower_type_ref(ty_ref)?;
+                    if !is_type_assignable(expected, binder_ty, lower, builtins) {
+                        return Err(ExprTypeError::CallArgTypeMismatch {
+                            callee: callee_fqn.clone(),
+                            index: idx + 1,
+                            expected: lower.fmt_type(expected),
+                            found: lower.fmt_type(binder_ty),
+                            span: binder.span.into(),
+                        });
+                    }
+                    binder_ty
+                }
+                None => expected,
+            };
+            binder_tys.push((binder.name.span, binder_ty));
+        }
+
+        Ok(HandleArmLowered {
+            handled_effect,
+            binder_tys,
+        })
+    }
+
+    // 1) 先在嵌套 effect collection 中 typecheck handle body，
+    //    以便：
+    //    - 推导 body 的结果类型（用于 handler arm 返回类型一致性检查）
+    //    - 收集 performed effects，并在后续根据 handler arms 做过滤（实现 handler 捕获）
+    let (body_ty, body_performed) = lower.with_nested_effect_collection(|lower| {
+        infer_block_value_type(
+            source,
+            body,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )
+    })?;
+
+    // 2) 处理 handler arms：lower effect op、计算 handled effect 实例、并 typecheck arm bodies。
+    let mut handled_effects: HashSet<TypeId> = HashSet::new();
+
+    // handle 表达式的“期望结果类型”：
+    // - 若 body 可正常返回（非 Nothing），则 arm body 必须可赋值到该类型；
+    // - 若 body 为 Nothing（不可达，例如以 `Raise.raise` 结尾），则以第一个 arm body 的类型作为结果类型。
+    let mut result_ty: Option<TypeId> = if body_ty != builtins.nothing {
+        Some(body_ty)
+    } else {
+        None
+    };
+
+    for arm in arms {
+        let lowered = lower_handle_arm_effect_op_sig(
+            source,
+            arm,
+            &body_performed,
+            lower,
+            builtins,
+        )?;
+
+        handled_effects.insert(lowered.handled_effect);
+
+        let mut arm_locals = locals.clone();
+        for (decl_span, ty) in lowered.binder_tys.iter().copied() {
+            arm_locals.insert(decl_span, ty);
+        }
+
+        // arm body 的类型必须与 handle 的结果类型一致（try/catch 等价语义）。
+        let arm_body_ty = match result_ty {
+            Some(expected) => {
+                let found = infer_expr_type_in_expected_context(
+                    source,
+                    &arm.body,
+                    expected,
+                    ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
+                    lower,
+                    builtins,
+                    &arm_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                if !is_type_assignable(found, expected, lower, builtins) {
+                    return Err(ExprTypeError::HandleArmReturnTypeMismatch {
+                        expected: lower.fmt_type(expected),
+                        found: lower.fmt_type(found),
+                        span: arm.body.span.into(),
+                    });
+                }
+                found
+            }
+            None => {
+                // body 不可达：用第一个 arm body 的类型作为结果类型。
+                let found = infer_expr_type(
+                    source,
+                    &arm.body,
+                    lower,
+                    builtins,
+                    &arm_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                result_ty = Some(found);
+                found
+            }
+        };
+
+        // 若 body 为 Nothing 且 result_ty 刚刚由该 arm 决定，后续 arms 仍需做一致性校验。
+        if let Some(expected) = result_ty {
+            if expected == arm_body_ty {
+                continue;
+            }
+            if is_type_assignable(arm_body_ty, expected, lower, builtins) {
+                continue;
+            }
+            return Err(ExprTypeError::HandleArmReturnTypeMismatch {
+                expected: lower.fmt_type(expected),
+                found: lower.fmt_type(arm_body_ty),
+                span: arm.body.span.into(),
+            });
+        }
+    }
+
+    // 3) finally block：当前阶段仅递归 typecheck（不参与结果类型），其 performed effects 向外传播。
+    if let Some(finally) = finally {
+        let _ = infer_block_value_type(
+            source,
+            finally,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+    }
+
+    // 4) required effects：body 内 performed 的 effects 若被 handler 捕获，则不向外层传播。
+    for (effect, span) in body_performed {
+        if handled_effects.contains(&effect) {
+            continue;
+        }
+        lower.record_performed_effect(effect, span);
+    }
+
+    Ok(result_ty.unwrap_or(builtins.nothing))
+}
+
 fn infer_if_expr_type(
     source: &SourceFile,
     cond: &ast::Expr,
@@ -2157,12 +2668,25 @@ fn infer_if_expr_type(
         struct_field_types,
     )?;
 
+    // smart cast（T0413）的表达式语境版本（最小实现）：
+    // - 与 `check_if_expr_stmt` 保持一致的语义：识别 `if (x is T)` / `if (x !is T)`；
+    // - 由于 `infer_expr_type` 当前不携带 stable/mutable bindings 信息，这里采用保守近似：
+    //   把当前 `locals` 中出现的绑定视为“可收窄”候选。
+    let stable_bindings: HashSet<Span> = locals.keys().copied().collect();
+    let smart_cast = detect_smart_cast_for_if_condition(cond, lower, locals, &stable_bindings)?;
+
+    let mut then_locals = locals.clone();
+    if let Some(sc) = smart_cast {
+        if sc.narrow_in_then {
+            then_locals.insert(sc.decl_span, sc.target_ty);
+        }
+    }
     let then_ty = infer_expr_type(
         source,
         then_branch,
         lower,
         builtins,
-        locals,
+        &then_locals,
         top_level_types,
         top_level_funs,
         struct_field_types,
@@ -2174,12 +2698,18 @@ fn infer_if_expr_type(
         return Ok(builtins.unit);
     };
 
+    let mut else_locals = locals.clone();
+    if let Some(sc) = smart_cast {
+        if !sc.narrow_in_then {
+            else_locals.insert(sc.decl_span, sc.target_ty);
+        }
+    }
     let else_ty = infer_expr_type(
         source,
         else_branch,
         lower,
         builtins,
-        locals,
+        &else_locals,
         top_level_types,
         top_level_funs,
         struct_field_types,
@@ -6954,6 +7484,25 @@ fn check_expr_stmt(
                     struct_field_types,
                 )?;
             }
+            Ok(())
+        }
+        ast::ExprKind::Handle { body, arms, finally } => {
+            // `handle` 在表达式语句位置仍需递归 typecheck：
+            // - 以便捕获 handler arms 内的类型错误
+            // - 以便正确记录 required effects（body 内被 handler 捕获的 effects 不应向外传播）
+            let _ = infer_handle_expr_type(
+                source,
+                expr,
+                body,
+                arms,
+                finally.as_ref(),
+                lower,
+                builtins,
+                &*locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
             Ok(())
         }
         ast::ExprKind::Call { callee, args } => {

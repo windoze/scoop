@@ -361,7 +361,7 @@
   - [ ] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
 - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
-  - required effects（T0604：已实现未声明的 effect 报错；暂不含 handler；spec §14.7.1）
+  - required effects（T0604/T0606：已实现未声明的 effect 报错；支持 non-resuming `handle` 捕获；spec §14.7.1）
   - [x] public 默认 `/ Pure` 的强制约束（T0508）
   - [x] private/internal 可推断 effect row（T0508）
   - overriding：`R_over ⊆ R_base`
