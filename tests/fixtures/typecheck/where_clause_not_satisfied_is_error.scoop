@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 16:10
+// EXPECT-ERROR: 泛型约束不满足
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+
+struct Bad {}
+
+class Box<T> where T: Show {}
+
+val bad: Box<Bad>

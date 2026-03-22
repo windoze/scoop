@@ -1303,11 +1303,25 @@
       - `tests/fixtures/typecheck/class_secondary_ctor_delegation_super_is_error.scoop`
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0458 [TODO] 泛型约束：`where` 子句的语义检查与满足性
+### T0458 [DONE] 泛型约束：`where` 子句的语义检查与满足性
 - 描述：在类型检查阶段实现 `where` 子句：验证约束目标必须是当前声明的类型参数，约束本身合法，并在实例化/调用时检查实参是否满足约束。
 - 目标：覆盖 spec 已定义的约束形式；不再把 `where` 仅当作语法占位。
 - 验收：typecheck fixtures：满足约束的泛型调用通过，不满足时报清晰错误；冲突或重复约束能被诊断。
 - 依赖：T0260、T0320、T0404、T0437
+ - 完成：
+   - typecheck：新增 `check_file_where_clauses` pass，对 `where` 子句做语义检查：
+     - 约束目标必须属于**当前声明**的 type params（禁止 member fun 借用外层 type params）。
+     - 重复约束诊断（稳定错误码 `scoop::typecheck::duplicate_where_constraint`）。
+     - 多重 class-like 上界冲突诊断（稳定错误码 `scoop::typecheck::conflicting_where_constraints`）。
+   - typecheck lowering：`TypeEnv` 收集类型声明的 `where` 约束；在 `TypeRef` lowering 的名义类型实例化处检查约束满足性（稳定错误码 `scoop::typecheck::where_constraint_not_satisfied`）。
+   - 兼容：当 type args 仍为 `TypeKind::Param`（例如泛型声明内部的 `Box<T>`）时，把约束视作假设并跳过满足性检查（更完整的约束传播留给推断阶段）。
+   - fixtures：
+     - `tests/fixtures/typecheck/where_clause_satisfies_bound_ok.scoop`
+     - `tests/fixtures/typecheck/where_clause_not_satisfied_is_error.scoop`
+     - `tests/fixtures/typecheck/where_clause_duplicate_constraint_is_error.scoop`
+     - `tests/fixtures/typecheck/where_clause_conflicting_class_bounds_is_error.scoop`
+     - `tests/fixtures/typecheck/where_clause_target_not_in_current_decl_is_error.scoop`
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0459 [TODO] `when`：穷尽性检查补齐嵌套组合覆盖
 - 描述：把穷尽性检查从“单层 enum/Bool/Option”推进到嵌套组合：tuple of enums、enum payload 中再含 enum/Bool/Option、以及多维组合覆盖。

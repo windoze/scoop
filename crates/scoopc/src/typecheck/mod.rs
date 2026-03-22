@@ -9,6 +9,7 @@
 
 mod type_env;
 mod lower;
+mod assignable;
 mod headers;
 mod expr;
 mod structs;
@@ -19,6 +20,7 @@ mod inheritance;
 mod interfaces;
 mod layout;
 mod overloads;
+mod where_clause;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};
@@ -30,3 +32,4 @@ pub use inheritance::{check_file_inheritance, InheritanceError};
 pub use interfaces::{check_file_interfaces, InterfaceError};
 pub use layout::{check_file_type_layouts, LayoutError};
 pub use overloads::{check_file_overload_conflicts, OverloadDeclError};
+pub use where_clause::{check_file_where_clauses, WhereClauseError};

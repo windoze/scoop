@@ -37,14 +37,36 @@ pub enum TypeSymbolKind {
 pub struct TypeSymbol {
     pub kind: TypeSymbolKind,
     pub type_param_count: usize,
+    /// 类型参数名（按声明顺序）。
+    ///
+    /// 说明：
+    /// - 早期阶段很多逻辑只需要 arity；但 `where` 约束满足性检查（T0458）需要把
+    ///   `where T: Bound` 的左侧映射到“第几个 type arg”。
+    pub type_param_names: Vec<String>,
     /// 声明处变型（declaration-site variance）：与 `type_param_count` 对齐的按位信息。
     ///
     /// 说明：
     /// - `None` 表示 invariant；
     /// - `Some(In|Out)` 对应 `in`/`out`。
     pub type_param_variances: Vec<Option<ast::TypeParamVariance>>,
+    /// `where` 子句的约束信息（T0458）。
+    ///
+    /// 说明：
+    /// - 这里保留 `TypeRef`（而不是提前 lowering 成 `TypeId`），以便在 use-site
+    ///   结合具体 type args 做 substitution 后再进行检查。
+    pub where_constraints: Vec<WhereConstraintInfo>,
     pub span: Span,
     pub decl_file: PathBuf,
+}
+
+/// `where` 子句的一条约束在 type env 中的最小表示。
+#[derive(Debug, Clone)]
+pub struct WhereConstraintInfo {
+    pub span: Span,
+    /// 约束目标在声明 type param 列表中的索引（0-based）。
+    pub param_index: usize,
+    /// 约束右侧的 bound TypeRef（在声明处文件上下文中解析/lower）。
+    pub bound: ast::TypeRef,
 }
 
 /// 单个源文件在 typecheck lowering 阶段需要的最小上下文信息。
@@ -263,7 +285,9 @@ impl TypeEnv {
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             type_param_count: 0,
+                            type_param_names: Vec::new(),
                             type_param_variances: Vec::new(),
+                            where_constraints: Vec::new(),
                             span: ta.name.span,
                             decl_file: source.path().to_path_buf(),
                         },
@@ -310,12 +334,36 @@ impl TypeEnv {
         let type_param_variances: Vec<Option<ast::TypeParamVariance>> =
             decl.type_params.iter().map(|p| p.variance).collect();
 
+        let mut where_constraints: Vec<WhereConstraintInfo> = Vec::new();
+        if let Some(w) = &decl.where_clause {
+            // type param name -> index
+            let mut idx_of: HashMap<&str, usize> = HashMap::new();
+            for (idx, name) in type_params.iter().enumerate() {
+                idx_of.insert(name.as_str(), idx);
+            }
+
+            for c in &w.constraints {
+                let name = source.slice(c.ty_param.span);
+                let Some(&param_index) = idx_of.get(name) else {
+                    // resolver/typecheck 会给出更精确的诊断；这里保持健壮性。
+                    continue;
+                };
+                where_constraints.push(WhereConstraintInfo {
+                    span: c.span,
+                    param_index,
+                    bound: c.bound.clone(),
+                });
+            }
+        }
+
         self.insert_symbol(
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
                 type_param_count: decl.type_params.len(),
+                type_param_names: type_params.clone(),
                 type_param_variances,
+                where_constraints,
                 span: decl.name.span,
                 decl_file: source.path().to_path_buf(),
             },
@@ -461,7 +509,9 @@ impl TypeEnv {
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
                 type_param_count: 0,
+                type_param_names: Vec::new(),
                 type_param_variances: Vec::new(),
+                where_constraints: Vec::new(),
                 span: name_span,
                 decl_file: source.path().to_path_buf(),
             },
@@ -647,5 +697,49 @@ mod tests {
         assert_eq!(none.name, "None");
         assert_eq!(none.tag, 1);
         assert!(none.fields.is_empty());
+    }
+
+    #[test]
+    fn type_env_collects_where_constraints_for_type_decl() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package fixtures.typecheck
+
+interface Show {}
+
+struct Bad {}
+
+class Box<T> where T: Show {}
+"#,
+        );
+        let ast = sess.parse(&src).unwrap();
+
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            pairs.push((&f.source, &f.ast));
+        }
+        pairs.push((&src, &ast));
+
+        let index = Index::build(&pairs).unwrap();
+
+        let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&src, &ast, &index).unwrap();
+
+        let sym = env
+            .type_symbol("fixtures.typecheck.Box")
+            .expect("Box 应当被收集进 TypeEnv");
+        assert_eq!(sym.type_param_names, vec!["T".to_string()]);
+        assert_eq!(sym.where_constraints.len(), 1);
+        assert_eq!(sym.where_constraints[0].param_index, 0);
+
+        match &sym.where_constraints[0].bound {
+            ast::TypeRef::Path(p) => {
+                assert_eq!(p.segments.len(), 1);
+                assert_eq!(src.slice(p.segments[0].span), "Show");
+            }
+            other => panic!("where bound: 期望 TypeRef::Path，但得到 {other:?}"),
+        }
     }
 }

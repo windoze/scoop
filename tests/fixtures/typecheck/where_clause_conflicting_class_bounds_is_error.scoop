@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::conflicting_where_constraints
+// EXPECT-ERROR-AT: 13:20
+// EXPECT-ERROR: where 约束冲突
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Base1 {}
+class Base2 {}
+
+class Box<T> where T: Base1, T: Base2 {}

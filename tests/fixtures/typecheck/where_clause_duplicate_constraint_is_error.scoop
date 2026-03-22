@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::duplicate_where_constraint
+// EXPECT-ERROR-AT: 12:20
+// EXPECT-ERROR: 重复的 where 约束
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface I {}
+
+class Box<T> where T: I, T: I {}

@@ -28,6 +28,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
+use super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::{type_env::EnumVariantInfo, TypeEnv, TypeSymbolKind};
 use super::lower::{TypeLowerError, TypeLowering};
 use super::val_pat;
@@ -755,85 +756,99 @@ fn check_class_member_fun_bodies_in_type_decl(
 
         // `this` 在 class 成员体中可见：resolver 会把 `this` 解析到 `decl.name.span`（T0313）。
         //
-        // 这里用 `Any` + type params 数量占位来构造 `this` 的类型：
-        // - 避免在当前阶段过早引入“class 类型实参推断/实例化”；
-        // - 同时保证泛型 class 不会因 arity mismatch 直接炸掉 member body typecheck。
-        let this_ty_args = (0..decl.type_params.len())
-            .map(|_| builtins.any)
-            .collect::<Vec<_>>();
-        let this_ty =
-            lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)?;
+        // class 的 type params 在成员体内可见：
+        // - 让 `this` 的类型可表示为 `C<T, ...>`（而不是 `C<Any, ...>` 占位）；
+        // - 让成员体内出现的 `as T` / `is T` 等 type position 能通过 lowering。
+        //
+        // 这同样避免了 `where` 约束满足性检查（T0458）对 “未知实参” 的误报：
+        // `this: C<T>` 中的 `T` 是 `TypeKind::Param`，约束在该层被视作假设而非此刻验证的条件。
+        lower.push_type_params(&decl.type_params);
 
-        if let Some(body) = &decl.body {
-            for member in &body.members {
-                match member {
-                    ast::TypeMember::Fun(fun) => {
-                        check_class_member_fun_body_exprs(
-                            source,
-                            decl.name.span,
-                            this_ty,
-                            ctor_params,
-                            fun,
-                            lower,
-                            builtins,
-                            top_level_types,
-                            top_level_funs,
-                            member_mutabilities,
-                            struct_field_types,
-                        )?;
+        let result: Result<(), ExprTypeError> = (|| {
+            let this_ty_args = decl
+                .type_params
+                .iter()
+                .map(|p| lower.ty_param_from_decl(p))
+                .collect::<Vec<_>>();
+            let this_ty =
+                lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)?;
+
+            if let Some(body) = &decl.body {
+                for member in &body.members {
+                    match member {
+                        ast::TypeMember::Fun(fun) => {
+                            check_class_member_fun_body_exprs(
+                                source,
+                                decl.name.span,
+                                this_ty,
+                                ctor_params,
+                                fun,
+                                lower,
+                                builtins,
+                                top_level_types,
+                                top_level_funs,
+                                member_mutabilities,
+                                struct_field_types,
+                            )?;
+                        }
+                        ast::TypeMember::Property(p) => {
+                            check_class_property_initializer_exprs(
+                                source,
+                                decl.name.span,
+                                this_ty,
+                                ctor_params,
+                                p,
+                                lower,
+                                builtins,
+                                top_level_types,
+                                top_level_funs,
+                                struct_field_types,
+                            )?;
+                        }
+                        ast::TypeMember::InitBlock(b) => {
+                            check_class_init_block_exprs(
+                                source,
+                                decl.name.span,
+                                this_ty,
+                                ctor_params,
+                                b,
+                                lower,
+                                builtins,
+                                top_level_types,
+                                top_level_funs,
+                                member_mutabilities,
+                                struct_field_types,
+                            )?;
+                        }
+                        ast::TypeMember::SecondaryCtor(ctor) => {
+                            check_class_secondary_ctor_exprs(
+                                source,
+                                decl.name.span,
+                                &type_fqn,
+                                decl.primary_ctor.is_some(),
+                                this_ty,
+                                ctor_params,
+                                ctor,
+                                lower,
+                                builtins,
+                                top_level_types,
+                                top_level_funs,
+                                member_mutabilities,
+                                struct_field_types,
+                            )?;
+                        }
+                        ast::TypeMember::EnumVariant(_)
+                        | ast::TypeMember::Type(_)
+                        | ast::TypeMember::Object(_) => {}
                     }
-                    ast::TypeMember::Property(p) => {
-                        check_class_property_initializer_exprs(
-                            source,
-                            decl.name.span,
-                            this_ty,
-                            ctor_params,
-                            p,
-                            lower,
-                            builtins,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        )?;
-                    }
-                    ast::TypeMember::InitBlock(b) => {
-                        check_class_init_block_exprs(
-                            source,
-                            decl.name.span,
-                            this_ty,
-                            ctor_params,
-                            b,
-                            lower,
-                            builtins,
-                            top_level_types,
-                            top_level_funs,
-                            member_mutabilities,
-                            struct_field_types,
-                        )?;
-                    }
-                    ast::TypeMember::SecondaryCtor(ctor) => {
-                        check_class_secondary_ctor_exprs(
-                            source,
-                            decl.name.span,
-                            &type_fqn,
-                            decl.primary_ctor.is_some(),
-                            this_ty,
-                            ctor_params,
-                            ctor,
-                            lower,
-                            builtins,
-                            top_level_types,
-                            top_level_funs,
-                            member_mutabilities,
-                            struct_field_types,
-                        )?;
-                    }
-                    ast::TypeMember::EnumVariant(_)
-                    | ast::TypeMember::Type(_)
-                    | ast::TypeMember::Object(_) => {}
                 }
             }
-        }
+
+            Ok(())
+        })();
+
+        lower.pop_type_params(&decl.type_params);
+        result?;
     }
 
     // 递归处理 nested types（可能存在 nested class）。
@@ -2241,262 +2256,6 @@ fn is_cast_allowed(
         ) => {
             expected_nominal.args.is_empty()
                 && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
-        }
-        _ => false,
-    }
-}
-
-fn nominal_is_subtype_by_fqn(found_fqn: &str, expected_fqn: &str, env: &TypeEnv) -> bool {
-    if found_fqn == expected_fqn {
-        return true;
-    }
-
-    // DFS（防循环）。
-    let mut stack: Vec<&str> = vec![found_fqn];
-    let mut seen: HashSet<&str> = HashSet::new();
-
-    while let Some(cur) = stack.pop() {
-        if !seen.insert(cur) {
-            continue;
-        }
-
-        if cur == expected_fqn {
-            return true;
-        }
-
-        let Some(supers) = env.direct_supertypes(cur) else {
-            continue;
-        };
-        for st in supers {
-            stack.push(st.as_str());
-        }
-    }
-
-    false
-}
-
-/// 检查“found 是否可赋值给 expected”（最小子集）。
-///
-/// 当前阶段实现的最小规则（用于 `val` initializer / call args / `return` 等）：
-/// - `Nothing <: T`（对任意 T，bottom type）
-/// - `T <: Any`（对任意 T；ref 直接上转，value 通过 boxing 上转）
-/// - nominal ref types：沿 direct supertypes 做最小上转（class 继承 / interface 实现与继承）
-/// - nominal value types：当目标是 interface 时允许 boxing（同上）
-///
-/// 其余更完整的子类型系统（接口、类继承、值类型装箱等）
-/// 会在后续任务中逐步补齐。
-fn is_type_assignable(
-    found: TypeId,
-    expected: TypeId,
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> bool {
-    if found == expected {
-        return true;
-    }
-
-    // `Nothing`：不可达/空类型，可以视为任意类型的子类型。
-    //
-    // 说明：即使 `Nothing` 是值类型，也允许“赋值到引用类型”，因为这种赋值在运行时不会发生：
-    // 表达式求值不会返回一个 `Nothing` 的值（它只能通过 `raise/return` 等控制流中止）。
-    if found == builtins.nothing {
-        return true;
-    }
-
-    // spec §2 / §2.5：
-    // - `Any` 是所有引用类型的顶类型；
-    // - 值类型可在需要时装箱（boxing）为 `Any`。
-    if expected == builtins.any {
-        return matches!(
-            lower.type_kind(found),
-            TypeKind::Ref(_) | TypeKind::Value(_) | TypeKind::Param(_)
-        );
-    }
-
-    // T0437：声明处变型（declaration-site variance）的最小子类型规则（spec §3.2）。
-    //
-    // 规则（Kotlin-like）：
-    // - invariant：要求 type args 全等
-    // - out：covariant（found_arg <: expected_arg）
-    // - in：contravariant（expected_arg <: found_arg）
-    //
-    // Scoop-specific restriction：
-    // - 只有当该 type argument 是引用类型时，variance 才参与子类型（值类型布局不同，需显式转换）。
-    let found_kind = lower.type_kind(found);
-    let expected_kind = lower.type_kind(expected);
-
-    // T0435：函数类型的最小子类型关系。
-    //
-    // 规则（常见的函数子类型规则）：
-    // - 参数逆变：expected.param <: found.param
-    // - 返回协变：found.ret <: expected.ret
-    // - effect row：found.effects ⊆ expected.effects（requires no more effects than）
-    //
-    // 注意：当前阶段类型系统仍不完整（名义继承/泛型/row 变量等），因此这里的判断只基于已有的
-    // `is_type_assignable` 能力做递归。
-    match (found_kind, expected_kind) {
-        (
-            TypeKind::Ref(RefTypeKind::Nominal(found_nominal)),
-            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
-        ) => {
-            if found_nominal.fqn == expected_nominal.fqn {
-                if found_nominal.args.len() != expected_nominal.args.len() {
-                    return false;
-                }
-
-                let variances = lower.env().type_param_variances(&found_nominal.fqn);
-
-                for (idx, (found_arg, expected_arg)) in found_nominal
-                    .args
-                    .iter()
-                    .copied()
-                    .zip(expected_nominal.args.iter().copied())
-                    .enumerate()
-                {
-                    let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
-
-                    // 默认：invariant（或者因为 value type 而禁用 variance）
-                    let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
-
-                    match declared {
-                        None => {
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::Out) if both_ref => {
-                            if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
-                                return false;
-                            }
-                        }
-                        Some(ast::TypeParamVariance::In) if both_ref => {
-                            if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
-                                return false;
-                            }
-                        }
-                        Some(_) => {
-                            // value types（或 unknown kind，例如 type param）占位：variance 不生效。
-                            if found_arg != expected_arg {
-                                return false;
-                            }
-                        }
-                    }
-                }
-
-                return true;
-            }
-
-            // 当前阶段的最小继承/实现规则：只在目标类型“未带实参”时做上转，
-            // 避免过早引入“泛型超类型实例化”的复杂语义。
-            if !expected_nominal.args.is_empty() {
-                return false;
-            }
-
-            nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
-        }
-        (
-            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
-            TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
-        ) => {
-            if found_nominal.fqn != expected_nominal.fqn {
-                return false;
-            }
-            if found_nominal.args.len() != expected_nominal.args.len() {
-                return false;
-            }
-
-            let variances = lower.env().type_param_variances(&found_nominal.fqn);
-
-            for (idx, (found_arg, expected_arg)) in found_nominal
-                .args
-                .iter()
-                .copied()
-                .zip(expected_nominal.args.iter().copied())
-                .enumerate()
-            {
-                let declared = variances.and_then(|v| v.get(idx).copied()).unwrap_or(None);
-
-                // Kotlin-like restriction（spec §3.2）：
-                // variance 只对引用类型实参生效（值类型布局不同，需显式转换）。
-                let both_ref = lower.is_ref(found_arg) && lower.is_ref(expected_arg);
-
-                match declared {
-                    None => {
-                        if found_arg != expected_arg {
-                            return false;
-                        }
-                    }
-                    Some(ast::TypeParamVariance::Out) if both_ref => {
-                        if !is_type_assignable(found_arg, expected_arg, lower, builtins) {
-                            return false;
-                        }
-                    }
-                    Some(ast::TypeParamVariance::In) if both_ref => {
-                        if !is_type_assignable(expected_arg, found_arg, lower, builtins) {
-                            return false;
-                        }
-                    }
-                    Some(_) => {
-                        if found_arg != expected_arg {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            true
-        }
-        (
-            TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
-            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
-        ) => {
-            // value → interface：允许 boxing；同样限制目标不带 type args。
-            expected_nominal.args.is_empty()
-                && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
-        }
-        (
-            TypeKind::Ref(RefTypeKind::Function(found_fun)),
-            TypeKind::Ref(RefTypeKind::Function(expected_fun)),
-        ) => {
-            if !found_fun.effects.is_subset_of(&expected_fun.effects) {
-                return false;
-            }
-
-            if !is_type_assignable(found_fun.return_ty, expected_fun.return_ty, lower, builtins) {
-                return false;
-            }
-
-            // receiver function type：把 receiver 当作第一个参数参与逆变比较。
-            let found_arity = found_fun.params.len() + found_fun.receiver.is_some() as usize;
-            let expected_arity =
-                expected_fun.params.len() + expected_fun.receiver.is_some() as usize;
-            if found_arity != expected_arity {
-                return false;
-            }
-
-            let mut found_params: Vec<TypeId> = Vec::with_capacity(found_arity);
-            if let Some(r) = found_fun.receiver {
-                found_params.push(r);
-            }
-            found_params.extend(found_fun.params.iter().copied());
-
-            let mut expected_params: Vec<TypeId> = Vec::with_capacity(expected_arity);
-            if let Some(r) = expected_fun.receiver {
-                expected_params.push(r);
-            }
-            expected_params.extend(expected_fun.params.iter().copied());
-
-            for (expected_param, found_param) in expected_params
-                .iter()
-                .copied()
-                .zip(found_params.iter().copied())
-            {
-                if !is_type_assignable(expected_param, found_param, lower, builtins) {
-                    return false;
-                }
-            }
-
-            true
         }
         _ => false,
     }

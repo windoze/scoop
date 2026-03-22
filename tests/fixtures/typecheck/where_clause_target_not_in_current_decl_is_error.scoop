@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_target_not_in_current_decl
+// EXPECT-ERROR-AT: 13:29
+// EXPECT-ERROR: where 约束目标必须是当前声明的类型参数
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {}
+
+class Outer<T> {
+    fun f(x: T): Unit where T: Show {}
+}

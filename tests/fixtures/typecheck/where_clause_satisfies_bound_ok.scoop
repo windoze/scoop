@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T0458 where 子句：满足约束的泛型实例化应通过。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Show {
+    fun show(): String
+}
+
+struct Good : Show {
+    fun show(): String {
+        return "ok"
+    }
+}
+
+struct Bad {}
+
+class Box<T> where T: Show {}
+
+val ok: Box<Good>
+

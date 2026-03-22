@@ -231,7 +231,8 @@
 - [x] 函数类型（Type 表示 + lowering + 最小子类型规则）：参数逆变/返回协变 + effect row containment（T0435）
 - [x] receiver function type：`T.(A, B) -> C / R`（Type 表示 + lowering；receiver 按第一个参数参与逆变比较）（T0435）
 - [x] 类型参数（`TypeKind::Param`）与声明处变型（`in/out` + 最小位置规则 + variance 子类型，仅 ref args 生效）（T0437）
-- [ ] 泛型约束：上界/下界、where 子句（spec §3 / Appendix B）
+- [x] 泛型约束（上界）：`where` 子句语义检查与实例化满足性（T0458）
+- [ ] 泛型约束（更复杂形式）：下界/更完整 bound 形式与约束传播（留给推断/求解阶段逐步补齐）
 
 ### 4.2 声明类型：class/interface/struct/enum/effect
 

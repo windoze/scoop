@@ -20,7 +20,8 @@ use crate::ty::{
     ValueTypeKind,
 };
 
-use super::{TypeEnv, TypeSymbolKind};
+use super::assignable::is_type_assignable;
+use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeLowerError {
@@ -88,6 +89,18 @@ pub enum TypeLowerError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    /// `where` 子句约束不满足（T0458）。
+    #[error("泛型约束不满足：{type_fqn} 的类型实参 {arg} 不满足 {param} : {bound}")]
+    #[diagnostic(code(scoop::typecheck::where_constraint_not_satisfied))]
+    WhereConstraintNotSatisfied {
+        type_fqn: String,
+        param: String,
+        arg: String,
+        bound: String,
+        #[label("这里的类型实参不满足 where 约束")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 对一个文件内出现的所有 “type position” 的 `TypeRef` 执行 lowering 并做最小校验。
@@ -123,6 +136,12 @@ pub fn check_file_type_refs(
                 }
                 if let Some(ret) = &fun.return_ty {
                     let _ = ctx.lower_type_ref(ret)?;
+                }
+                // T0458：`where` 子句中的 bound 同样属于 type position，需要参与 lowering。
+                if let Some(w) = &fun.where_clause {
+                    for c in &w.constraints {
+                        let _ = ctx.lower_type_ref(&c.bound)?;
+                    }
                 }
                 ctx.pop_type_params(&fun.type_params);
             }
@@ -260,6 +279,38 @@ impl<'a> TypeLowering<'a> {
             imports,
         );
         ctx.lower_type_ref(ty)
+    }
+
+    /// 在“声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`，并注入 use-site type args。
+    ///
+    /// 用途（T0458）：
+    /// - `where` 子句满足性检查需要把 bound 中出现的 `T` 等 type param 引用替换为具体实参类型；
+    /// - 这里用 `push_type_param_bindings` 直接把 name → TypeId 映射写入 lowering 作用域。
+    pub(super) fn lower_type_ref_in_decl_file_with_bindings(
+        &mut self,
+        decl_file: &Path,
+        bindings: impl IntoIterator<Item = (String, TypeId)>,
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+        ctx.push_type_param_bindings(bindings);
+        let out = ctx.lower_type_ref(ty);
+        ctx.pop_type_param_bindings();
+        out
     }
 
     /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。
@@ -415,6 +466,20 @@ impl<'a> TypeLowering<'a> {
         self.types.ty_function(receiver, params, return_ty, effects)
     }
 
+    /// 将一个声明处的 `TypeParam` 构造成 `TypeId`（`TypeKind::Param`）。
+    ///
+    /// 用途：
+    /// - 在 typecheck 阶段某些场景（例如 class member body）需要构造 `Box<T>` 这类 “仍未实例化的泛型类型”，
+    ///   此时 `T` 应当是 `TypeKind::Param` 而不是 `Any` 等占位。
+    pub(super) fn ty_param_from_decl(&mut self, p: &ast::TypeParam) -> TypeId {
+        let name = self.source.slice(p.name.span).to_string();
+        self.types.ty_param(TypeParamType {
+            name,
+            decl_file: self.source.path().to_path_buf(),
+            decl_span: p.name.span,
+        })
+    }
+
     pub(super) fn push_type_params(&mut self, params: &[ast::TypeParam]) {
         if params.is_empty() {
             return;
@@ -525,6 +590,7 @@ impl<'a> TypeLowering<'a> {
         match sym.kind {
             TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, span),
             TypeSymbolKind::Nominal(kind) => {
+                self.check_where_constraints_on_instantiation(&fqn, sym, &args, span)?;
                 let nominal = NominalType { fqn, args };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
@@ -537,6 +603,67 @@ impl<'a> TypeLowering<'a> {
                 Ok(id)
             }
         }
+    }
+
+    fn check_where_constraints_on_instantiation(
+        &mut self,
+        type_fqn: &str,
+        sym: &TypeSymbol,
+        args: &[TypeId],
+        use_span: Span,
+    ) -> Result<(), TypeLowerError> {
+        if sym.where_constraints.is_empty() {
+            return Ok(());
+        }
+
+        // name -> concrete type arg
+        let bindings = sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(args.iter().copied())
+            .collect::<Vec<_>>();
+
+        for c in &sym.where_constraints {
+            let Some(arg_ty) = args.get(c.param_index).copied() else {
+                continue;
+            };
+
+            // 当实参本身仍是“未知 kind 的 type param”（例如在泛型声明内部出现 `Box<T>`）时，
+            // 我们把 where 约束视为 **假设** 而不是 **需要此刻验证的条件**。
+            //
+            // 更完整的“约束传播/求解”（例如要求 `T` 也声明 `where T: Bound`）留给后续推断阶段（T05）。
+            if matches!(self.type_kind(arg_ty), TypeKind::Param(_)) {
+                continue;
+            }
+
+            // 在声明处文件上下文中 lowering bound，并用 use-site type args 对其中出现的 `T` 做 substitution。
+            let bound_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                &sym.decl_file,
+                bindings.iter().cloned(),
+                &c.bound,
+            )?;
+
+            if is_type_assignable(arg_ty, bound_ty, self, self.builtins) {
+                continue;
+            }
+
+            let param = sym
+                .type_param_names
+                .get(c.param_index)
+                .cloned()
+                .unwrap_or_else(|| format!("#{}", c.param_index + 1));
+
+            return Err(TypeLowerError::WhereConstraintNotSatisfied {
+                type_fqn: type_fqn.to_string(),
+                param,
+                arg: self.fmt_type(arg_ty),
+                bound: self.fmt_type(bound_ty),
+                span: use_span.into(),
+            });
+        }
+
+        Ok(())
     }
 
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
@@ -645,6 +772,7 @@ impl<'a> TypeLowering<'a> {
         match sym.kind {
             TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, path.span),
             TypeSymbolKind::Nominal(kind) => {
+                self.check_where_constraints_on_instantiation(&fqn, sym, &args, path.span)?;
                 let nominal = NominalType { fqn, args };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
@@ -760,6 +888,13 @@ impl<'a> TypeLowering<'a> {
         // 变型位置规则（Appendix B.4）：在 lowering 过程中做最小静态校验。
         self.check_type_decl_variance_rules(ty)?;
 
+        // T0458：`where` 子句中的 bound 也需要参与 lowering（arity/存在性等由 lowering 负责）。
+        if let Some(w) = &ty.where_clause {
+            for c in &w.constraints {
+                let _ = self.lower_type_ref(&c.bound)?;
+            }
+        }
+
         // 主构造头参数类型
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
@@ -817,6 +952,11 @@ impl<'a> TypeLowering<'a> {
                     }
                     if let Some(ret) = &f.return_ty {
                         let _ = self.lower_type_ref(ret)?;
+                    }
+                    if let Some(w) = &f.where_clause {
+                        for c in &w.constraints {
+                            let _ = self.lower_type_ref(&c.bound)?;
+                        }
                     }
                     self.pop_type_params(&f.type_params);
                 }
