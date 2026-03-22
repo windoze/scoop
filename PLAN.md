@@ -369,10 +369,10 @@
   - 闭合行额外约束：所有来源的 effect（含 callback 透传）都不能逃逸出函数边界（spec §5.8.4）
   - 高级 row 语义：高级归一化、泛型 row 变量、必要的高阶 row 运算
 - [ ] 语法糖：
-  - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
-  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 try/catch lowering：T0607）
-  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0607）
-  - 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
+  - [x] `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`（T0607）
+  - [ ] `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 try/catch lowering：T0607）
+  - [ ] `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0607）
+  - [ ] 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 

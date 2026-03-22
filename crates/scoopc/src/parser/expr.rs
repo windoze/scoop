@@ -526,6 +526,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_handle_expr()?));
         }
 
+        if self.peek_keyword(Keyword::Try) {
+            return Ok(Some(self.parse_try_expr()?));
+        }
+
         if self.peek_symbol(Symbol::LBrace) {
             return Ok(Some(self.parse_lambda_expr()?));
         }
@@ -600,6 +604,106 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// 解析 `try { ... } catch (e: T) { ... } finally { ... }`（spec §5.7），并在 parser
+    /// 层 desugar 为 `handle` 表达式（T0607）。
+    ///
+    /// 当前阶段约束：
+    /// - 仅支持单个 catch；
+    /// - finally 可选；
+    /// - 暂不支持多 catch / catch-only 表达式体（要求 block）。
+    fn parse_try_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let try_kw = self.expect_keyword(Keyword::Try)?;
+        let start = try_kw.span.start;
+
+        let body = self.parse_block()?;
+
+        let catch_kw = self.expect_keyword(Keyword::Catch)?;
+        let catch_kw_span = catch_kw.span;
+
+        let open_paren = self.expect_symbol(Symbol::LParen)?;
+        let binder_tok = self.expect_kind(TokenKind::Ident, "catch 变量名（标识符）")?;
+        let binder_name = ast::Ident::new(binder_tok.span);
+
+        let colon = self.expect_symbol(Symbol::Colon)?;
+        let binder_ty = self.parse_type_ref()?;
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open_paren.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close_paren = self.expect_symbol(Symbol::RParen)?;
+
+        let catch_block = self.parse_block()?;
+        let catch_body = ast::Expr {
+            span: catch_block.span,
+            kind: ast::ExprKind::Block(catch_block),
+        };
+        let catch_body_end = catch_body.span.end;
+
+        // spec §5.7：finally 可选。
+        let finally = if self.peek_keyword(Keyword::Finally) {
+            self.bump(); // `finally`
+            Some(self.parse_block()?)
+        } else {
+            None
+        };
+
+        // lowering：`try/catch` 等价于捕获 `scoop.core.Raise.raise` 的 handle。
+        //
+        // 注意：try/catch 语法本身不显式出现 `Raise.raise`，因此这里使用合成 Ident，
+        // 让后续 typecheck 能直接解析到 sysroot 中的 effect op。
+        let synth_span = catch_kw_span;
+        let dot_span = Span::new(synth_span.start, synth_span.start);
+
+        let effect = ast::TypePath {
+            span: synth_span,
+            segments: vec![
+                ast::Ident::synthetic(synth_span, "scoop"),
+                ast::Ident::synthetic(synth_span, "core"),
+                ast::Ident::synthetic(synth_span, "Raise"),
+            ],
+            args: Vec::new(),
+        };
+
+        let op = ast::HandleOp {
+            span: Span::new(catch_kw_span.start, close_paren.span.end),
+            effect,
+            dot_span,
+            op: ast::Ident::synthetic(synth_span, "raise"),
+            binders: vec![ast::HandleBinder {
+                span: Span::new(binder_tok.span.start, binder_ty.span().end),
+                name: binder_name,
+                colon_span: Some(colon.span),
+                ty: Some(binder_ty),
+            }],
+        };
+
+        let arm = ast::HandleArm {
+            span: Span::new(op.span.start, catch_body.span.end),
+            op,
+            // 语法糖并没有显式 `->`；这里用 `catch` 关键字 span 作为占位，
+            // 以便诊断（若有）能落在 try/catch 区域内。
+            arrow_span: catch_kw_span,
+            body: catch_body,
+        };
+
+        let end = finally
+            .as_ref()
+            .map(|b| b.span.end)
+            .unwrap_or(catch_body_end);
+
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::Handle {
+                body,
+                arms: vec![arm],
+                finally,
+            },
+        })
+    }
+
     fn parse_handle_arm(&mut self) -> Result<ast::HandleArm, ParseError> {
         let op = self.parse_handle_op()?;
         let arrow = self.expect_symbol(Symbol::Arrow)?;
@@ -633,14 +737,14 @@ impl<'a> Parser<'a> {
         let first = self.expect_kind(TokenKind::Ident, "effect operation 名（标识符）")?;
         let start = first.span.start;
 
-        let mut segments = vec![ast::Ident { span: first.span }];
+        let mut segments = vec![ast::Ident::new(first.span)];
         let mut dot_spans = Vec::new();
 
         while self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Ident {
             let dot = self.bump();
             let seg = self.bump();
             dot_spans.push(dot.span);
-            segments.push(ast::Ident { span: seg.span });
+            segments.push(ast::Ident::new(seg.span));
         }
 
         // 至少要有一个 `.`：`Effect.op(...)`
@@ -679,7 +783,7 @@ impl<'a> Parser<'a> {
         if !self.peek_symbol(Symbol::RParen) {
             loop {
                 let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
-                let name = ast::Ident { span: name_tok.span };
+                let name = ast::Ident::new(name_tok.span);
 
                 let (colon_span, ty, end) = if self.peek_symbol(Symbol::Colon) {
                     let colon = self.bump();
@@ -880,7 +984,7 @@ impl<'a> Parser<'a> {
         let ty_tok = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
         let start = ty_tok.span.start;
 
-        let ty_ident = ast::Ident { span: ty_tok.span };
+        let ty_ident = ast::Ident::new(ty_tok.span);
         let ty = ast::TypePath {
             span: ty_tok.span,
             segments: vec![ty_ident],
@@ -894,9 +998,7 @@ impl<'a> Parser<'a> {
         if !self.peek_symbol(Symbol::RBrace) {
             loop {
                 let name_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
-                let name = ast::Ident {
-                    span: name_tok.span,
-                };
+                let name = ast::Ident::new(name_tok.span);
 
                 let colon = self.expect_symbol(Symbol::Colon)?;
 
@@ -1283,9 +1385,7 @@ impl<'a> Parser<'a> {
             }
 
             let name_tok = self.bump();
-            let name = ast::Ident {
-                span: name_tok.span,
-            };
+            let name = ast::Ident::new(name_tok.span);
 
             let ty = if self.eat_symbol(Symbol::Colon) {
                 Some(self.parse_type_ref()?)
@@ -1504,7 +1604,7 @@ impl<'a> Parser<'a> {
 
         if self.peek_kind(TokenKind::Ident) {
             let tok = self.bump();
-            let ident = ast::Ident { span: tok.span };
+            let ident = ast::Ident::new(tok.span);
             let name = self
                 .source_text
                 .get(ident.span.start..ident.span.end)
@@ -1743,9 +1843,7 @@ impl<'a> Parser<'a> {
                 ast::Expr {
                     span: Span::new(name_tok.span.start, value.span.end),
                     kind: ast::ExprKind::NamedArg {
-                        name: ast::Ident {
-                            span: name_tok.span,
-                        },
+                        name: ast::Ident::new(name_tok.span),
                         eq_span: eq.span,
                         value: Box::new(value),
                     },
@@ -1919,10 +2017,10 @@ impl<'a> Parser<'a> {
         let first = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
         let start = first.span.start;
 
-        let mut segments = vec![ast::Ident { span: first.span }];
+        let mut segments = vec![ast::Ident::new(first.span)];
         while self.eat_symbol(Symbol::Dot) {
             let seg = self.expect_kind(TokenKind::Ident, "字段路径（标识符）")?;
-            segments.push(ast::Ident { span: seg.span });
+            segments.push(ast::Ident::new(seg.span));
         }
 
         let end = segments

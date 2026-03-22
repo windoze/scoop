@@ -125,9 +125,7 @@ impl<'a> Parser<'a> {
                 }
 
                 let name_tok = self.expect_kind(TokenKind::Ident, "effect row 参数名（标识符）")?;
-                let name = ast::Ident {
-                    span: name_tok.span,
-                };
+                let name = ast::Ident::new(name_tok.span);
 
                 let mut default = None;
                 let mut end = name_tok.span.end;
@@ -172,9 +170,7 @@ impl<'a> Parser<'a> {
             };
 
             let name_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
-            let name = ast::Ident {
-                span: name_tok.span,
-            };
+            let name = ast::Ident::new(name_tok.span);
             params.push(ast::TypeParam {
                 span: Span::new(variance_start.unwrap_or(name_tok.span.start), name_tok.span.end),
                 variance,
@@ -217,9 +213,7 @@ impl<'a> Parser<'a> {
         let mut constraints = Vec::new();
         loop {
             let ty_param_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
-            let ty_param = ast::Ident {
-                span: ty_param_tok.span,
-            };
+            let ty_param = ast::Ident::new(ty_param_tok.span);
 
             self.expect_symbol(Symbol::Colon)?;
             let bound = self.parse_type_ref()?;
@@ -273,9 +267,7 @@ impl<'a> Parser<'a> {
             let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
             return Ok((
                 None,
-                ast::Ident {
-                    span: name_tok.span,
-                },
+                ast::Ident::new(name_tok.span),
             ));
         };
 
@@ -306,9 +298,7 @@ impl<'a> Parser<'a> {
         let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
         Ok((
             Some(receiver),
-            ast::Ident {
-                span: name_tok.span,
-            },
+            ast::Ident::new(name_tok.span),
         ))
     }
 
@@ -420,7 +410,7 @@ impl<'a> Parser<'a> {
     pub(super) fn parse_import_decl(&mut self) -> Result<ast::ImportDecl, ParseError> {
         let kw = self.expect_keyword(Keyword::Import)?;
         let first = self.expect_kind(TokenKind::Ident, "标识符")?;
-        let mut path = vec![ast::Ident { span: first.span }];
+        let mut path = vec![ast::Ident::new(first.span)];
         let mut has_star = false;
         let mut alias = None;
         let mut end = first.span.end;
@@ -438,7 +428,7 @@ impl<'a> Parser<'a> {
 
             let seg = self.expect_kind(TokenKind::Ident, "标识符")?;
             end = seg.span.end;
-            path.push(ast::Ident { span: seg.span });
+            path.push(ast::Ident::new(seg.span));
         }
 
         if self.peek_keyword(Keyword::As) {
@@ -453,7 +443,7 @@ impl<'a> Parser<'a> {
             self.bump(); // `as`
             let name = self.expect_kind(TokenKind::Ident, "标识符")?;
             end = name.span.end;
-            alias = Some(ast::Ident { span: name.span });
+            alias = Some(ast::Ident::new(name.span));
         }
 
         self.eat_symbol(Symbol::Semicolon);
@@ -560,7 +550,7 @@ impl<'a> Parser<'a> {
         self.expect_keyword(Keyword::Typealias)?;
 
         let name_tok = self.expect_kind(TokenKind::Ident, "类型别名名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident::new(name_tok.span);
 
         self.expect_symbol(Symbol::Eq)?;
         let ty = self.parse_type_ref()?;
@@ -597,7 +587,7 @@ impl<'a> Parser<'a> {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident { span: name_tok.span };
+        let name = ast::Ident::new(name_tok.span);
         let binding = ast::ValBinding::Name(name);
 
         let ty = if self.eat_symbol(Symbol::Colon) {
@@ -887,9 +877,7 @@ impl<'a> Parser<'a> {
 
         Ok((
             receiver,
-            ast::Ident {
-                span: name_tok.span,
-            },
+            ast::Ident::new(name_tok.span),
         ))
     }
 
@@ -1001,9 +989,7 @@ impl<'a> Parser<'a> {
 
         loop {
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
-            let name = ast::Ident {
-                span: name_tok.span,
-            };
+            let name = ast::Ident::new(name_tok.span);
 
             let ty = if self.eat_symbol(Symbol::Colon) {
                 Some(self.parse_type_ref()?)
@@ -1073,9 +1059,7 @@ impl<'a> Parser<'a> {
             };
 
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
-            let name = ast::Ident {
-                span: name_tok.span,
-            };
+            let name = ast::Ident::new(name_tok.span);
 
             let ty = if self.eat_symbol(Symbol::Colon) {
                 Some(self.parse_type_ref()?)
@@ -1180,9 +1164,7 @@ impl<'a> Parser<'a> {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let name = ast::Ident::new(name_tok.span);
 
         let mut last_end = name_tok.span.end.max(kind_kw.span.end);
 
@@ -1277,9 +1259,7 @@ impl<'a> Parser<'a> {
             ast::ObjectKind::Object => {
                 let object_kw = self.expect_keyword(Keyword::Object)?;
                 let name_tok = self.expect_kind(TokenKind::Ident, "object 名（标识符）")?;
-                let name = ast::Ident {
-                    span: name_tok.span,
-                };
+                let name = ast::Ident::new(name_tok.span);
                 (
                     ast::ObjectKind::Object,
                     Some(name),
@@ -1292,9 +1272,7 @@ impl<'a> Parser<'a> {
 
                 let name = if self.peek_kind(TokenKind::Ident) {
                     let name_tok = self.bump();
-                    Some(ast::Ident {
-                        span: name_tok.span,
-                    })
+                    Some(ast::Ident::new(name_tok.span))
                 } else {
                     None
                 };
@@ -1613,9 +1591,7 @@ impl<'a> Parser<'a> {
 
     fn parse_enum_variant_decl(&mut self) -> Result<ast::EnumVariantDecl, ParseError> {
         let name_tok = self.expect_kind(TokenKind::Ident, "enum variant 名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let name = ast::Ident::new(name_tok.span);
 
         let start = name.span.start;
         let mut last_end = name.span.end;
@@ -1638,9 +1614,7 @@ impl<'a> Parser<'a> {
                     self.bump(); // `val`
 
                     let field_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
-                    let field_name = ast::Ident {
-                        span: field_tok.span,
-                    };
+                    let field_name = ast::Ident::new(field_tok.span);
 
                     if !self.eat_symbol(Symbol::Colon) {
                         let tok = *self.peek();
@@ -1707,9 +1681,7 @@ impl<'a> Parser<'a> {
         };
 
         let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-        let name = ast::Ident {
-            span: name_tok.span,
-        };
+        let name = ast::Ident::new(name_tok.span);
 
         // spec §10.1：属性声明在无 initializer 时必须显式标注类型；
         // 为避免把 `val x` 解析成“无类型属性并继续吞掉 accessors”，当前阶段（T0234）
@@ -1933,7 +1905,7 @@ impl<'a> Parser<'a> {
 
         let param = if kind == ast::AccessorKind::Set {
             let tok = self.expect_kind(TokenKind::Ident, "setter 参数名（标识符）")?;
-            let ident = ast::Ident { span: tok.span };
+            let ident = ast::Ident::new(tok.span);
             // 可选 `: Type`（未来补齐；当前先消费但不进入 AST）。
             if self.eat_symbol(Symbol::Colon) {
                 let _ = self.parse_type_ref()?;
@@ -2275,11 +2247,11 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_dotted_path(&mut self) -> Result<Vec<ast::Ident>, ParseError> {
         let first = self.expect_kind(TokenKind::Ident, "标识符")?;
-        let mut parts = vec![ast::Ident { span: first.span }];
+        let mut parts = vec![ast::Ident::new(first.span)];
         while self.peek_symbol(Symbol::Dot) {
             self.bump(); // '.'
             let ident = self.expect_kind(TokenKind::Ident, "标识符")?;
-            parts.push(ast::Ident { span: ident.span });
+            parts.push(ast::Ident::new(ident.span));
         }
         Ok(parts)
     }

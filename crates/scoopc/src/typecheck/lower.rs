@@ -1536,7 +1536,7 @@ impl<'a> TypeLowering<'a> {
         let segments = path
             .segments
             .iter()
-            .map(|id| self.source.slice(id.span))
+            .map(|id| id.text(self.source))
             .collect::<Vec<_>>();
         let local = segments.join(".");
 

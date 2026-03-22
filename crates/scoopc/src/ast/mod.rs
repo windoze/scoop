@@ -1552,9 +1552,48 @@ impl TypeRef {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Ident {
     pub span: Span,
+    /// 对于 parser 产生的“语法糖”节点（例如 try/catch lowering），某些标识符并不直接来自源文本。
+    ///
+    /// 当该字段为 `Some(...)` 时，后续 resolve/typecheck 应优先使用这里的字面文本，
+    /// 而不是通过 `span` 回切当前源文件。
+    pub text: Option<&'static str>,
+}
+
+impl Ident {
+    pub fn new(span: Span) -> Self {
+        Self { span, text: None }
+    }
+
+    pub fn synthetic(span: Span, text: &'static str) -> Self {
+        Self {
+            span,
+            text: Some(text),
+        }
+    }
+
+    pub fn text<'a>(&self, source: &'a crate::source::SourceFile) -> &'a str {
+        match self.text {
+            Some(t) => t,
+            None => source.slice(self.span),
+        }
+    }
+}
+
+impl std::fmt::Debug for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 为了保持 parse fixtures 的 AST snapshot 稳定回归：
+        // - 常规 Ident 只打印 span（与旧版完全一致）；
+        // - 仅当 parser 生成了合成标识符时才额外打印 text，用于调试/回归 try-catch lowering。
+        let mut s = f.debug_struct("Ident");
+        s.field("span", &self.span);
+        if let Some(text) = self.text {
+            s.field("text", &text);
+        }
+        s.finish()
+    }
 }
 
 #[cfg(test)]
@@ -1573,9 +1612,7 @@ mod tests {
             kind: ExprKind::Lambda(LambdaExpr {
                 params: vec![Param {
                     kind: None,
-                    name: Ident {
-                        span: Span::new(1, 2),
-                    },
+                    name: Ident::new(Span::new(1, 2)),
                     ty: None,
                     default_value: None,
                 }],
@@ -1597,15 +1634,11 @@ mod tests {
     fn struct_lit_ast_node_is_constructible() {
         let ty = TypePath {
             span: Span::new(0, 5),
-            segments: vec![Ident {
-                span: Span::new(0, 5),
-            }],
+            segments: vec![Ident::new(Span::new(0, 5))],
             args: vec![],
         };
 
-        let field_name = Ident {
-            span: Span::new(8, 9),
-        };
+        let field_name = Ident::new(Span::new(8, 9));
         let value = Expr {
             span: Span::new(11, 12),
             kind: ExprKind::IntLit,

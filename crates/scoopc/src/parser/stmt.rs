@@ -368,9 +368,7 @@ impl<'a> Parser<'a> {
 
         self.expect_symbol(Symbol::LParen)?;
         let binder_tok = self.expect_kind(TokenKind::Ident, "循环变量名（标识符）")?;
-        let binder = ast::Ident {
-            span: binder_tok.span,
-        };
+        let binder = ast::Ident::new(binder_tok.span);
 
         let in_tok = self.expect_keyword(Keyword::In)?;
         let in_span = in_tok.span;
@@ -446,7 +444,7 @@ impl<'a> Parser<'a> {
             (ast::ValBinding::Pattern(pat), end)
         } else {
             let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-            let name = ast::Ident { span: name_tok.span };
+            let name = ast::Ident::new(name_tok.span);
             // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
             if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
                 let tok = *self.peek();

@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T0607：`try/catch/finally` lowering 捕获 `Raise.raise` 后，body 内的 `Raise<T>` 不应成为外层函数的 required effects。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(): Int / Pure {
+    val x = try {
+        Raise.raise(1)
+        1
+    } catch (e: Int) {
+        e
+    } finally {
+        0
+    }
+    x
+}
+

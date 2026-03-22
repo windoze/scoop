@@ -2274,7 +2274,7 @@ fn infer_handle_expr_type(
     ) -> Result<HandleArmLowered, ExprTypeError> {
         // 1) 解析 effect type 与 op FQN（例如 `scoop.core.Raise.raise`）。
         let effect_fqn = lower.resolve_type_path_fqn(&arm.op.effect)?;
-        let op_name = source.slice(arm.op.op.span);
+        let op_name = arm.op.op.text(source);
         let callee_fqn = format!("{effect_fqn}.{op_name}");
 
         // 2) 查找该 member 是否为 effect operation。

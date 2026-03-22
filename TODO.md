@@ -1642,11 +1642,19 @@
      - handler arm 返回类型不匹配时报错。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0607 [TODO] 语法糖：`try/catch/finally` → `handle`（spec §5.7）
+### T0607 [DONE] 语法糖：`try/catch/finally` → `handle`（spec §5.7）
 - 描述：在 parser 层支持 `try { } catch (e: T) { } finally { }` 并 lowering 到 handle AST。
 - 目标：先只支持单个 catch；finally 可选；不支持多 catch。
 - 验收：parse fixture：try/catch/finally 可解析并 lowering；typecheck fixture：对应的 Raise 处理不触发 required effects。
 - 依赖：T0605、T0606
+ - 完成：
+   - ast：`Ident` 支持“合成文本”（用于语法糖节点不来自源文本的场景）。
+   - parser/expr：支持 `try { ... } catch (e: T) { ... } finally { ... }` 并 lowering 为 `ExprKind::Handle`（固定捕获 `scoop.core.Raise.raise`）。
+   - typecheck：`TypeLowering::resolve_type_path_fqn` 与 handle arm callee 解析支持读取合成 Ident 文本，保证 lowering 后可正常解析到 sysroot effect op。
+   - fixtures：
+     - parse：`tests/fixtures/parse/try_catch_finally_lowering.scoop` + AST snapshot；
+     - typecheck：`tests/fixtures/typecheck/try_catch_catches_required_effects_ok.scoop`。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 > 注：以下两项编号属于 T04（类型系统/类型检查），但依赖效果系统的 required effects + try/catch lowering（T0604/T0607），因此放在此处以保证 TODO 的依赖顺序（避免在 effect 体系落地前被选中执行）。
 

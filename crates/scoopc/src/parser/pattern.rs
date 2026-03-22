@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
             }
 
             let tok = self.bump();
-            let ident = ast::Ident { span: tok.span };
+            let ident = ast::Ident::new(tok.span);
             if self.is_wildcard_ident(ident) {
                 return Ok(ast::Pattern {
                     span: tok.span,
@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
             }
 
             let name_tok = self.expect_kind(TokenKind::Ident, "字段名（标识符）")?;
-            let name = ast::Ident { span: name_tok.span };
+            let name = ast::Ident::new(name_tok.span);
 
             let value = if self.eat_symbol(Symbol::Colon) {
                 Some(Box::new(self.parse_pattern()?))
@@ -358,12 +358,12 @@ impl<'a> Parser<'a> {
     fn parse_pattern_type_path(&mut self) -> Result<ast::TypePath, ParseError> {
         let first = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
         let start = first.span.start;
-        let mut segments = vec![ast::Ident { span: first.span }];
+        let mut segments = vec![ast::Ident::new(first.span)];
 
         while self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Ident {
             self.bump(); // `.`
             let seg = self.bump(); // ident
-            segments.push(ast::Ident { span: seg.span });
+            segments.push(ast::Ident::new(seg.span));
         }
 
         let end = segments.last().unwrap().span.end;

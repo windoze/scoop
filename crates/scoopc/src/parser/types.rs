@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
     fn parse_path_type(&mut self) -> Result<ast::TypeRef, ParseError> {
         let first = self.expect_kind(TokenKind::Ident, "类型名（标识符）")?;
         let start = first.span.start;
-        let mut segments = vec![ast::Ident { span: first.span }];
+        let mut segments = vec![ast::Ident::new(first.span)];
 
         // 仅当 `.` 后面仍是标识符时，才将其视为路径段分隔。
         //
@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
         while self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Ident {
             self.bump(); // `.`
             let seg = self.bump(); // ident
-            segments.push(ast::Ident { span: seg.span });
+            segments.push(ast::Ident::new(seg.span));
         }
 
         let mut args = Vec::new();

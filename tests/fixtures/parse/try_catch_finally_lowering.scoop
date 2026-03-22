@@ -1,0 +1,20 @@
+// EXPECT: pass
+// EXPECT-AST: try_catch_finally_lowering.ast
+// 目标：T0607：`try/catch/finally` 在 parser 层 lowering 为 `handle { ... } with { ... } finally { ... }`。
+
+package fixtures.parse
+
+import scoop.core.*
+
+fun main() {
+    val x = try {
+        Raise.raise(1)
+        1
+    } catch (e: Int) {
+        e
+    } finally {
+        0
+    }
+    x
+}
+
