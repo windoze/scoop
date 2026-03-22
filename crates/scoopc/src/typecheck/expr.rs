@@ -2935,6 +2935,7 @@ fn is_cast_allowed(
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         ) => {
             expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
                 && nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
         }
         _ => false,
@@ -5026,6 +5027,9 @@ fn collect_type_arg_candidates_for_single_type_param(
             if expected_nominal.fqn != found_nominal.fqn {
                 return;
             }
+            if expected_nominal.eff != found_nominal.eff {
+                return;
+            }
             if expected_nominal.args.len() != found_nominal.args.len() {
                 return;
             }
@@ -5050,6 +5054,9 @@ fn collect_type_arg_candidates_for_single_type_param(
             TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
         ) => {
             if expected_nominal.fqn != found_nominal.fqn {
+                return;
+            }
+            if expected_nominal.eff != found_nominal.eff {
                 return;
             }
             if expected_nominal.args.len() != found_nominal.args.len() {

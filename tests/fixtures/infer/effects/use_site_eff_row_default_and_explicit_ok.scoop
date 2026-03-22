@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T0511 use-site `eff` row 实参：
+// - 省略 use-site `eff` 时按声明处默认值实例化（此处为 `Pure`）
+// - 显式 `Disposable<eff Async>` 会参与调用 receiver 类型检查
+
+package fixtures.infer
+
+effect Async
+
+interface Disposable<eff E = Pure>
+
+fun Disposable<eff Pure>.pureOnly(): Unit
+fun Disposable<eff Async>.asyncOnly(): Unit
+
+fun pureDisposable(): Disposable
+fun asyncDisposable(): Disposable<eff Async>
+
+fun ok() {
+    pureDisposable().pureOnly()
+    asyncDisposable().asyncOnly()
+}
+

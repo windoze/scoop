@@ -44,6 +44,14 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    #[error("类型 {name} 不支持 use-site effect row 实参（`eff ...`）")]
+    #[diagnostic(code(scoop::typecheck::use_site_eff_arg_not_allowed))]
+    UseSiteEffectRowArgNotAllowed {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的类型语法：{kind}")]
     #[diagnostic(code(scoop::typecheck::unsupported_type_ref))]
     UnsupportedTypeRef {
@@ -350,6 +358,39 @@ impl<'a> TypeLowering<'a> {
         );
         ctx.push_type_param_bindings(bindings);
         let out = ctx.lower_type_ref(ty);
+        ctx.pop_type_param_bindings();
+        out
+    }
+
+    /// 在“声明处文件”的 package/import 上下文中 lower 一个 effect row expression，并注入 use-site type args。
+    ///
+    /// 用途（T0511）：
+    /// - nominal type 的 `eff` row 参数默认值写在声明处；
+    /// - use-site 省略 `Type<eff ...>` 时，需要在声明文件的解析规则下计算默认 row，
+    ///   并把其中出现的 type params（如 `Raise<T>`）替换为使用点的具体类型实参。
+    pub(super) fn lower_effect_row_expr_in_decl_file_with_bindings(
+        &mut self,
+        decl_file: &Path,
+        bindings: impl IntoIterator<Item = (String, TypeId)>,
+        expr: Option<&ast::EffectRowExpr>,
+    ) -> Result<EffectRow, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+        ctx.push_type_param_bindings(bindings);
+        let out = ctx.lower_effect_row_expr(expr);
         ctx.pop_type_param_bindings();
         out
     }
@@ -712,7 +753,23 @@ impl<'a> TypeLowering<'a> {
             TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, span),
             TypeSymbolKind::Nominal(kind) => {
                 self.check_where_constraints_on_instantiation(&fqn, sym, &args, span)?;
-                let nominal = NominalType { fqn, args };
+                let eff = match &sym.eff_param {
+                    None => None,
+                    Some(eff_param) => {
+                        let bindings = sym
+                            .type_param_names
+                            .iter()
+                            .cloned()
+                            .zip(args.iter().copied())
+                            .collect::<Vec<_>>();
+                        Some(self.lower_effect_row_expr_in_decl_file_with_bindings(
+                            &sym.decl_file,
+                            bindings,
+                            eff_param.default.as_ref(),
+                        )?)
+                    }
+                };
+                let nominal = NominalType { fqn, args, eff };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
                         .types
@@ -807,9 +864,16 @@ impl<'a> TypeLowering<'a> {
             Err(other) => return Err(other),
         };
 
-        // 说明（T0253）：
+        // T0253/T0511：
         // - use-site effect row 实参（`eff ...`）在 AST 中被建模为 `TypeRef::EffectRowArg`；
-        // - 它不属于“类型参数”（arity）的一部分，因此在 typecheck 的 type args lowering 中暂时忽略。
+        // - 它不属于“类型参数”（arity），但会影响 nominal type identity 与后续调用检查。
+        let mut eff_arg: Option<&ast::EffectRowExpr> = None;
+        for a in &path.args {
+            if let ast::TypeRef::EffectRowArg { row, .. } = a {
+                // parser 已保证最多一个且位于末尾；这里保持健壮性取第一个。
+                eff_arg.get_or_insert(row);
+            }
+        }
         let type_args = path
             .args
             .iter()
@@ -821,40 +885,88 @@ impl<'a> TypeLowering<'a> {
             // `Any`：引用类型的顶层 supertype。
             "scoop.core.Any" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.any);
             }
             // `String`：内建字符串类型。
             "scoop.core.String" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.string);
             }
             // `Unit`：0 元 tuple。
             "scoop.core.Unit" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.unit);
             }
             // `Nothing`：bottom type。
             "scoop.core.Nothing" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.nothing);
             }
             // `Bool`：内建布尔类型。
             "scoop.core.Bool" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.bool_);
             }
             // `Int/UInt`：word-sized 整数。
             "scoop.core.Int" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.int);
             }
             "scoop.core.UInt" => {
                 check_arity(&fqn, 0, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 return Ok(self.builtins.uint);
             }
             // `Option<T>`：值类型；同时也是 `T?` 的 desugar 目标。
             "scoop.core.Option" => {
                 check_arity(&fqn, 1, type_args.len(), path.span)?;
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
                 let inner = self.lower_type_ref(type_args[0])?;
                 return Ok(self.types.ty_option(inner));
             }
@@ -891,10 +1003,41 @@ impl<'a> TypeLowering<'a> {
             .collect::<Result<Vec<_>, _>>()?;
 
         match sym.kind {
-            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, path.span),
+            TypeSymbolKind::TypeAlias => {
+                if eff_arg.is_some() {
+                    return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                        name: fqn,
+                        span: path.span.into(),
+                    });
+                }
+                self.lower_type_alias_fqn(&fqn, path.span)
+            }
             TypeSymbolKind::Nominal(kind) => {
                 self.check_where_constraints_on_instantiation(&fqn, sym, &args, path.span)?;
-                let nominal = NominalType { fqn, args };
+                let eff = match (&sym.eff_param, eff_arg) {
+                    (None, None) => None,
+                    (None, Some(_)) => {
+                        return Err(TypeLowerError::UseSiteEffectRowArgNotAllowed {
+                            name: fqn,
+                            span: path.span.into(),
+                        });
+                    }
+                    (Some(_), Some(expr)) => Some(self.lower_effect_row_expr(Some(expr))?),
+                    (Some(eff_param), None) => {
+                        let bindings = sym
+                            .type_param_names
+                            .iter()
+                            .cloned()
+                            .zip(args.iter().copied())
+                            .collect::<Vec<_>>();
+                        Some(self.lower_effect_row_expr_in_decl_file_with_bindings(
+                            &sym.decl_file,
+                            bindings,
+                            eff_param.default.as_ref(),
+                        )?)
+                    }
+                };
+                let nominal = NominalType { fqn, args, eff };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
                         .types

@@ -1540,11 +1540,20 @@
    - fixtures：新增 3 个 infer-fail 用例断言错误码 + `约束来源` 子串 + 精确位置；
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0511 [TODO] use-site `eff` row 参数：默认值与显式实参推断（spec §3.4 / §14.7.3）
+### T0511 [DONE] use-site `eff` row 参数：默认值与显式实参推断（spec §3.4 / §14.7.3）
 - 描述：当类型或调用点使用 `Type<eff Row>` 时，支持 effect row 默认值、显式实参和由上下文/lambda body 反推的 row 参数实例化。
 - 目标：先覆盖“单个 row 参数 + 默认值 + 简单并集”的场景；高阶 row 约束后续。
 - 验收：effects/infer fixture：`Disposable` 省略 use-site row 时默认到 `Pure`；显式 `Disposable<eff Async>` 可参与调用检查。
 - 依赖：T0253、T0509、T0603
+ - 完成：
+   - type env：为 `TypeSymbol` 增加 `eff_param`（name/default/span/decl_file），供 use-site 默认值按声明处上下文计算。
+   - type lowering：支持 `Type<eff Row>`：
+     - 显式 `eff Row` lowering 为 `EffectRow`；
+     - 省略时使用声明处默认值（缺省为 `Pure`）；
+     - 将 effect row 实参纳入 `NominalType` identity，并在不支持的类型上给出稳定诊断。
+   - ty/display/assignable：`NominalType` 新增 `eff` 字段并在显示中输出 `<eff ...>`；`is_type_assignable` 与推断结构遍历按 `eff` 区分。
+   - fixtures：新增 `tests/fixtures/infer/effects/*` 覆盖默认 `Pure` 与 receiver mismatch 诊断。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0512 [TODO] overload resolution 与泛型/默认参数/命名参数/row 推断联动
 - 描述：让 overload resolution 不只依赖显式类型，还能与泛型实参推断、默认参数、命名参数、effect row 参数、receiver function type 一起求解候选。

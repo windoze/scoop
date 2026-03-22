@@ -37,6 +37,12 @@ pub enum TypeSymbolKind {
 pub struct TypeSymbol {
     pub kind: TypeSymbolKind,
     pub type_param_count: usize,
+    /// 是否包含 `eff` effect row 参数（spec §3.4 / §5.8）。
+    ///
+    /// 说明：
+    /// - `eff` 参数不计入 `type_param_count`（arity），因为它不是 type argument；
+    /// - use-site 的 `Type<eff Row>` lowering 需要知道声明处的默认值与声明文件上下文。
+    pub eff_param: Option<EffParamInfo>,
     /// 类型参数名（按声明顺序）。
     ///
     /// 说明：
@@ -57,6 +63,14 @@ pub struct TypeSymbol {
     pub where_constraints: Vec<WhereConstraintInfo>,
     pub span: Span,
     pub decl_file: PathBuf,
+}
+
+/// `eff` effect row 参数在 type env 中的最小表示。
+#[derive(Debug, Clone)]
+pub struct EffParamInfo {
+    pub span: Span,
+    pub name: String,
+    pub default: Option<ast::EffectRowExpr>,
 }
 
 /// `where` 子句的一条约束在 type env 中的最小表示。
@@ -285,6 +299,7 @@ impl TypeEnv {
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             type_param_count: 0,
+                            eff_param: None,
                             type_param_names: Vec::new(),
                             type_param_variances: Vec::new(),
                             where_constraints: Vec::new(),
@@ -361,6 +376,11 @@ impl TypeEnv {
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
                 type_param_count: decl.type_params.len(),
+                eff_param: decl.eff_param.as_ref().map(|p| EffParamInfo {
+                    span: p.span,
+                    name: source.slice(p.name.span).to_string(),
+                    default: p.default.clone(),
+                }),
                 type_param_names: type_params.clone(),
                 type_param_variances,
                 where_constraints,
@@ -509,6 +529,7 @@ impl TypeEnv {
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
                 type_param_count: 0,
+                eff_param: None,
                 type_param_names: Vec::new(),
                 type_param_variances: Vec::new(),
                 where_constraints: Vec::new(),

@@ -106,6 +106,9 @@ pub(super) fn is_type_assignable(
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         ) => {
             if found_nominal.fqn == expected_nominal.fqn {
+                if found_nominal.eff != expected_nominal.eff {
+                    return false;
+                }
                 if found_nominal.args.len() != expected_nominal.args.len() {
                     return false;
                 }
@@ -154,7 +157,7 @@ pub(super) fn is_type_assignable(
 
             // 当前阶段的最小继承/实现规则：只在目标类型“未带实参”时做上转，
             // 避免过早引入“泛型超类型实例化”的复杂语义。
-            if !expected_nominal.args.is_empty() {
+            if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
                 return false;
             }
 
@@ -165,6 +168,9 @@ pub(super) fn is_type_assignable(
             TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),
         ) => {
             if found_nominal.fqn != expected_nominal.fqn {
+                return false;
+            }
+            if found_nominal.eff != expected_nominal.eff {
                 return false;
             }
             if found_nominal.args.len() != expected_nominal.args.len() {
@@ -267,4 +273,3 @@ pub(super) fn is_type_assignable(
         _ => false,
     }
 }
-

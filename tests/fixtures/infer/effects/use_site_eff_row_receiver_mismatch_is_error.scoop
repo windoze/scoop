@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_receiver_type_mismatch
+// EXPECT-ERROR: 期望 receiver 为 fixtures.infer.Disposable<eff fixtures.infer.Async>
+// EXPECT-ERROR: 但得到 fixtures.infer.Disposable<eff Pure>
+// EXPECT-ERROR-AT: 19:5
+// 目标：T0511 use-site `eff` row 实参：`Disposable`（默认 `Pure`）与 `Disposable<eff Async>` 在调用检查中必须可区分。
+
+package fixtures.infer
+
+effect Async
+
+interface Disposable<eff E = Pure>
+
+fun Disposable<eff Async>.asyncOnly(): Unit
+
+fun pureDisposable(): Disposable
+
+fun bad() {
+    pureDisposable().asyncOnly()
+}
+

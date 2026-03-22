@@ -91,6 +91,13 @@ pub enum RefTypeKind {
 pub struct NominalType {
     pub fqn: String,
     pub args: Vec<TypeId>,
+    /// use-site effect row 实参（`Type<eff Row>`）。
+    ///
+    /// 说明：
+    /// - 仅当该 nominal type 在声明处包含 `eff` row 参数时为 `Some`；
+    /// - 当前阶段我们把它视为 nominal type identity 的一部分（与 type args 类似）；
+    /// - 更复杂的 row 变量/约束与子类型关系留给后续任务（T0515+）。
+    pub eff: Option<EffectRow>,
 }
 
 /// 类型参数类型（`T`）。
@@ -435,13 +442,20 @@ fn format_nominal(
     depth: usize,
 ) -> fmt::Result {
     write!(f, "{}", nominal.fqn)?;
-    if !nominal.args.is_empty() {
+    if !nominal.args.is_empty() || nominal.eff.is_some() {
         write!(f, "<")?;
         for (idx, arg) in nominal.args.iter().copied().enumerate() {
             if idx != 0 {
                 write!(f, ", ")?;
             }
             format_type(store, arg, f, depth + 1)?;
+        }
+        if let Some(eff) = &nominal.eff {
+            if !nominal.args.is_empty() {
+                write!(f, ", ")?;
+            }
+            write!(f, "eff ")?;
+            format_effect_row(store, eff, f, depth + 1)?;
         }
         write!(f, ">")?;
     }
@@ -488,6 +502,7 @@ mod tests {
         let raise_any = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
             fqn: "scoop.core.Raise".to_string(),
             args: vec![builtins.any],
+            eff: None,
         })));
         let effectful = tys.ty_function(
             Some(builtins.string),
@@ -498,6 +513,37 @@ mod tests {
         assert_eq!(
             tys.display(effectful).to_string(),
             "String.(Any) -> Any / scoop.core.Raise<Any>"
+        );
+    }
+
+    #[test]
+    fn type_display_formats_nominal_with_effect_row_arg() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        let async_eff = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "fixtures.Async".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+        let disposable_async = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "fixtures.Disposable".to_string(),
+            args: Vec::new(),
+            eff: Some(EffectRow::new(vec![async_eff])),
+        })));
+        assert_eq!(
+            tys.display(disposable_async).to_string(),
+            "fixtures.Disposable<eff fixtures.Async>"
+        );
+
+        let disposable_pure = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "fixtures.Disposable".to_string(),
+            args: vec![builtins.any],
+            eff: Some(EffectRow::pure()),
+        })));
+        assert_eq!(
+            tys.display(disposable_pure).to_string(),
+            "fixtures.Disposable<Any, eff Pure>"
         );
     }
 

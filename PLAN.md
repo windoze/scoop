@@ -396,7 +396,8 @@
    - [ ] 支持跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（见 spec §5.5）
    - [ ] one-shot：原子状态位保证并发下只能成功一次
 
-- [ ] use-site effect row 实参：`Type<eff Row>` 的解析/类型检查/推断（spec §3.4）
+- [x] use-site effect row 实参：`Type<eff Row>` 的类型检查（默认值 + 显式实参，纳入 nominal type identity；T0511）
+- [ ] use-site effect row 实参：由上下文/lambda body 反推的 row 实参推断（高阶约束与求解留待 T0515+）
 - [ ] `Task<T>` 与 `async fun` 语义：
   - `async fun foo(): T` desugar 为 `fun foo(): Task<T>`
   - 调用者签名不携带 `/ Async`
