@@ -4991,6 +4991,18 @@ fn fmt_effect_row(row: &EffectRow, lower: &TypeLowering<'_>) -> String {
         .join(" + ")
 }
 
+fn visibility_from_modifiers(modifiers: &[ast::Modifier]) -> Visibility {
+    // 当前阶段（T0245）parser 只负责“解析并存储”，不做组合合法性校验；
+    // 这里沿用 resolver 的最小优先级规则：`private` > `internal` > 默认 `public`。
+    if modifiers.contains(&ast::Modifier::Private) {
+        return Visibility::Private;
+    }
+    if modifiers.contains(&ast::Modifier::Internal) {
+        return Visibility::Internal;
+    }
+    Visibility::Public
+}
+
 fn check_required_effects_for_fun_decl(
     fun: &ast::FunDecl,
     performed: &[(TypeId, Span)],
@@ -5000,7 +5012,26 @@ fn check_required_effects_for_fun_decl(
         return Ok(());
     }
 
-    let declared = lower.lower_effect_row_expr(fun.effects.as_ref())?;
+    // T0508：effect row 推断入口：
+    // - public：缺省效果强制为 Pure（perform 任何 effect 都必须显式标注 row 或被 handler 捕获）
+    // - private/internal：允许省略 `/ RowExpr`，由函数体内 “立即执行的 perform” 推断出 required effects。
+    let declared = if fun.effects.is_some() {
+        lower.lower_effect_row_expr(fun.effects.as_ref())?
+    } else {
+        match visibility_from_modifiers(&fun.modifiers) {
+            Visibility::Public => EffectRow::pure(),
+            Visibility::Internal | Visibility::Private => {
+                let mut seen: HashSet<TypeId> = HashSet::new();
+                let mut terms: Vec<TypeId> = Vec::new();
+                for (effect, _) in performed.iter().copied() {
+                    if seen.insert(effect) {
+                        terms.push(effect);
+                    }
+                }
+                EffectRow::new(terms)
+            }
+        }
+    };
 
     for (effect, span) in performed.iter().copied() {
         if declared.terms.contains(&effect) {

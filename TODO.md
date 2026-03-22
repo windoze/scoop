@@ -1505,11 +1505,15 @@
    - fixtures：更新 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 增加显式 row；新增 required effects pass/fail fixtures 覆盖 `/ Pure` 与 `/ (Raise<Int>)`。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0508 [TODO] effect 推断 v0：private/internal 可推断 row，public 默认 Pure（PLAN §6.1）
+### T0508 [DONE] effect 推断 v0：private/internal 可推断 row，public 默认 Pure（PLAN §6.1）
 - 描述：实现 effect row 的推断入口：public 函数默认 `/ Pure`（强制），private/internal 可推断。
 - 目标：先只覆盖单文件；跨包 API 后续与 Cone 联动。
 - 验收：effects fixture：public 函数 perform Raise 时报错；private 函数可推断出需要 Raise（或在 dump-hir 中可见）。
 - 依赖：T0604、T0245
+ - 完成：
+   - typecheck：在 `/ RowExpr` 缺省时按可见性选择策略：public 强制 `Pure`，private/internal 从函数体内收集到的 performed effects 推断 effect row。
+   - fixtures：新增 public 缺省 row 的 compile-fail，以及 private 缺省 row 的 compile-pass 回归用例。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0509 [TODO] effect row 参数 `eff` 推断（spec §14.7.3 / §3.4）
 - 描述：实现 `eff E = Pure` 这种 row type parameter 的推断/实例化规则。

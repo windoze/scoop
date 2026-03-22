@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 12:5
+// 目标：T0508 effect 推断 v0：public 函数缺省 effect row 强制为 Pure。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() {
+    Raise.raise(1)
+}
+

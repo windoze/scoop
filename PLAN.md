@@ -328,7 +328,8 @@
 - [ ] 约束表示：`τ1 <: τ2`、相等、行约束（effects）
   - [x] 相等约束 + 推断变量 + 最小 unify 骨架（T0501）
   - [x] 子类型约束 `τ1 <: τ2` 的求解（T0506）
-  - [ ] effects 行约束（T0508/T0509；依赖 required effects：T0604 ✅）
+  - [x] effects 行推断入口（T0508：public 强制 Pure、private/internal 可推断；依赖 required effects：T0604 ✅）
+  - [ ] effects 行参数 `eff` 推断（T0509）
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
 - [x] 返回类型推断：缺省 return type 从函数体推断（T0507，spec §14.6）
@@ -359,8 +360,8 @@
 - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
   - required effects（T0604：已实现未声明的 effect 报错；暂不含 handler；spec §14.7.1）
-  - public 默认 `/ Pure` 的强制约束
-  - private/internal 可推断 effect row
+  - [x] public 默认 `/ Pure` 的强制约束（T0508）
+  - [x] private/internal 可推断 effect row（T0508）
   - overriding：`R_over ⊆ R_base`
   - entry point 必须 `Pure`（等价于 `Pure!`，闭合语义）
   - 闭合行额外约束：所有来源的 effect（含 callback 透传）都不能逃逸出函数边界（spec §5.8.4）

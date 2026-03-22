@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T0508 effect 推断 v0：private/internal 允许省略 `/ RowExpr`，由函数体推断 required effects。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+private fun f() {
+    Raise.raise(1)
+}
+
