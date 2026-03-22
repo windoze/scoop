@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0452 companion object：`ClassName.member` 可经 companion 解析并得到正确类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C() {
+  companion object {
+    val x: Int = 1
+  }
+}
+
+val y: Int = C.x
+

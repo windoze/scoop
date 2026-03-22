@@ -185,11 +185,9 @@ impl TypeEnv {
     }
 
     /// 返回给定 FQN 的声明处 type param variances（若不是 nominal/typealias 或未收集则为 None）。
-    pub fn type_param_variances(
-        &self,
-        fqn: &str,
-    ) -> Option<&[Option<ast::TypeParamVariance>]> {
-        self.type_symbol(fqn).map(|s| s.type_param_variances.as_slice())
+    pub fn type_param_variances(&self, fqn: &str) -> Option<&[Option<ast::TypeParamVariance>]> {
+        self.type_symbol(fqn)
+            .map(|s| s.type_param_variances.as_slice())
     }
 
     /// 按 FQN 查询 enum 的 variant 信息（若该类型不是 enum 或未收集到则为 None）。
@@ -223,10 +221,7 @@ impl TypeEnv {
     /// - 早期阶段我们允许通过 `Some(1)` 这种“不带 enum 前缀”的写法构造 variant；
     /// - 为避免引入完整的作用域/导入规则，本方法仅提供候选集合，
     ///   由 typecheck 决定“同名唯一”约束与报错策略。
-    pub fn find_enum_variants_named(
-        &self,
-        variant_name: &str,
-    ) -> Vec<(String, EnumVariantInfo)> {
+    pub fn find_enum_variants_named(&self, variant_name: &str) -> Vec<(String, EnumVariantInfo)> {
         let mut out = Vec::new();
         for (enum_fqn, decl) in &self.enums {
             for v in &decl.variants {
@@ -287,10 +282,10 @@ impl TypeEnv {
                 ast::Item::Type(ty) => {
                     self.collect_type_decl(source, file, &pkg_prefix, ty, index)?;
                 }
-                ast::Item::Object(_)
-                | ast::Item::Fun(_)
-                | ast::Item::Val(_)
-                | ast::Item::ExtensionProperty(_) => {}
+                ast::Item::Object(obj) => {
+                    self.collect_object_decl(source, file, &pkg_prefix, obj, index)?;
+                }
+                ast::Item::Fun(_) | ast::Item::Val(_) | ast::Item::ExtensionProperty(_) => {}
             }
         }
 
@@ -421,10 +416,88 @@ impl TypeEnv {
         }
 
         for member in &body.members {
-            let ast::TypeMember::Type(nested) = member else {
-                continue;
-            };
-            self.collect_type_decl(source, file, &fqn, nested, index)?;
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    self.collect_type_decl(source, file, &fqn, nested, index)?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    self.collect_object_decl(source, file, &fqn, obj, index)?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    fn collect_object_decl(
+        &mut self,
+        source: &SourceFile,
+        file: &ast::File,
+        prefix: &str,
+        obj: &ast::ObjectDecl,
+        index: &Index,
+    ) -> Result<(), TypeEnvError> {
+        let (name, name_span) = match &obj.name {
+            Some(name) => (source.slice(name.span).to_string(), name.span),
+            None => match obj.kind {
+                ast::ObjectKind::Companion => ("Companion".to_string(), obj.span),
+                ast::ObjectKind::Object => {
+                    // parser 会拒绝 `object { ... }` 这类非法语法；这里作为防御性兜底忽略。
+                    return Ok(());
+                }
+            },
+        };
+
+        // Kotlin-like：object 在 type 层面表现为一个“无构造器的 class-like nominal type”。
+        // 说明：真实的初始化时机、存储与 codegen/runtime 语义留给后续阶段处理。
+        let fqn = join_prefix(prefix, &name);
+        self.insert_symbol(
+            fqn.clone(),
+            TypeSymbol {
+                kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
+                type_param_count: 0,
+                type_param_variances: Vec::new(),
+                span: name_span,
+                decl_file: source.path().to_path_buf(),
+            },
+        )?;
+
+        // 记录 direct supertypes（与 nominal type 一致；不包含隐式 `Any`）。
+        let mut supers: Vec<String> = Vec::new();
+        for st in &obj.supertypes {
+            if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
+                supers.push(st_fqn);
+            }
+        }
+        supers.sort();
+        supers.dedup();
+        if !supers.is_empty() {
+            self.supertypes.insert(fqn.clone(), supers);
+        }
+
+        let Some(body) = &obj.body else {
+            return Ok(());
+        };
+
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    self.collect_type_decl(source, file, &fqn, nested, index)?;
+                }
+                ast::TypeMember::Object(nested) => {
+                    self.collect_object_decl(source, file, &fqn, nested, index)?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
         }
 
         Ok(())
@@ -462,7 +535,11 @@ fn join_prefix(prefix: &str, name: &str) -> String {
     }
 }
 
-fn build_import_table_best_effort(source: &SourceFile, file: &ast::File, index: &Index) -> ImportTable {
+fn build_import_table_best_effort(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+) -> ImportTable {
     let mut table = ImportTable::default();
 
     for import in &file.imports {
@@ -543,7 +620,9 @@ mod tests {
         let index = Index::build(&pairs).unwrap();
         let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
 
-        let decl = env.enum_decl("scoop.core.Option").expect("Option 应当是 enum");
+        let decl = env
+            .enum_decl("scoop.core.Option")
+            .expect("Option 应当是 enum");
         let source = env
             .source(&decl.decl_file)
             .expect("sysroot source 应当已被收集进 TypeEnv");

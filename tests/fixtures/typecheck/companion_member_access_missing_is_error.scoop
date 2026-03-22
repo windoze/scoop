@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::missing_companion_object
+// EXPECT-ERROR-AT: 12:14
+// EXPECT-ERROR: companion object
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C()
+
+val y: Int = C.x
+

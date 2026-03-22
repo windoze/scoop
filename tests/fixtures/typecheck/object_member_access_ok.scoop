@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0452 object：`Obj.member` 的成员访问能得到正确类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+object Foo {
+  val x: Int = 1
+}
+
+val y: Int = Foo.x
+

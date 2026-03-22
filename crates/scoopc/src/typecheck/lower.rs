@@ -177,7 +177,15 @@ impl<'a> TypeLowering<'a> {
         builtins: BuiltinTypes,
     ) -> Self {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
-        Self::new_with_ctx(source, index, env, types, builtins, pkg_prefix, imports.clone())
+        Self::new_with_ctx(
+            source,
+            index,
+            env,
+            types,
+            builtins,
+            pkg_prefix,
+            imports.clone(),
+        )
     }
 
     /// 在指定的 package/import 上下文中创建 `TypeLowering`。
@@ -214,6 +222,10 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn env(&self) -> &TypeEnv {
         self.env
+    }
+
+    pub(super) fn is_object_type(&self, fqn: &str) -> bool {
+        self.index.object_types.contains(fqn)
     }
 
     /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。
@@ -277,9 +289,7 @@ impl<'a> TypeLowering<'a> {
                 }
                 let return_ty = self.lower_type_ref(&f.return_ty)?;
                 let effects = self.lower_effect_row_expr(f.effects.as_ref())?;
-                Ok(self
-                    .types
-                    .ty_function(receiver, params, return_ty, effects))
+                Ok(self.types.ty_function(receiver, params, return_ty, effects))
             }
         }
     }
@@ -302,7 +312,10 @@ impl<'a> TypeLowering<'a> {
             let ty = self.lower_type_ref(&ast::TypeRef::Path(term.clone()))?;
             let ok = match self.type_kind(ty) {
                 TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                    matches!(self.nominal_decl_kind(&nominal.fqn), Some(ast::TypeKind::Effect))
+                    matches!(
+                        self.nominal_decl_kind(&nominal.fqn),
+                        Some(ast::TypeKind::Effect)
+                    )
                 }
                 _ => false,
             };
@@ -612,7 +625,11 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
-    fn lower_type_alias_fqn(&mut self, fqn: &str, use_span: Span) -> Result<TypeId, TypeLowerError> {
+    fn lower_type_alias_fqn(
+        &mut self,
+        fqn: &str,
+        use_span: Span,
+    ) -> Result<TypeId, TypeLowerError> {
         if let Some(id) = self.type_alias_cache.get(fqn).copied() {
             return Ok(id);
         }
@@ -846,10 +863,7 @@ impl<'a> TypeLowering<'a> {
     /// 当前阶段只覆盖 type body 的“公开签名”层：
     /// - member fun：参数为 in-position，返回值为 out-position（receiver 视作第一个参数）
     /// - member property：`val` 为 out-position，`var` 视为 in+out（invariant）
-    fn check_type_decl_variance_rules(
-        &mut self,
-        ty: &ast::TypeDecl,
-    ) -> Result<(), TypeLowerError> {
+    fn check_type_decl_variance_rules(&mut self, ty: &ast::TypeDecl) -> Result<(), TypeLowerError> {
         // 无需为“全 invariant”声明做额外遍历。
         if ty.type_params.iter().all(|p| p.variance.is_none()) {
             return Ok(());
@@ -1031,7 +1045,10 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
-    pub(super) fn resolve_type_path_fqn(&self, path: &ast::TypePath) -> Result<String, TypeLowerError> {
+    pub(super) fn resolve_type_path_fqn(
+        &self,
+        path: &ast::TypePath,
+    ) -> Result<String, TypeLowerError> {
         let segments = path
             .segments
             .iter()

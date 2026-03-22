@@ -303,7 +303,7 @@
 - [x] enum 完整语义：niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）（T0449：前端固定元数据；后端待落地）
 - [x] pattern rest `..` 的类型检查与绑定规则（spec §4.2）
 - [x] class 初始化模型：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小 typecheck + delegation 门禁）
-- [ ] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
+- [x] `object` / `companion object`：单例类型、成员访问、伴生对象解析（Appendix B.9）
 - [x] 委托属性标准库面：`ReadOnlyProperty` / `ReadWriteProperty` 与 `scoop.delegates`（`lazy`/`observable`/`vetoable`/map-backed）（spec §10.4）
 - [ ] 通用重载解析（函数 / 构造函数 / 扩展）：
   - 候选筛选：arity、receiver、可见性、命名参数、默认参数

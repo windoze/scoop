@@ -1198,11 +1198,23 @@
     - `tests/fixtures/typecheck/delegated_property_map_backed_ok.scoop`
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0452 [TODO] `object` / `companion object`：类型规则与单例语义（Appendix B.9）
+### T0452 [DONE] `object` / `companion object`：类型规则与单例语义（Appendix B.9）
 - 描述：实现 `object` / `companion object` 的类型检查规则：单例不可构造、成员访问类型正确、companion 可通过宿主类名访问。
 - 目标：先只固定静态语义；初始化时机与 storage 留给 codegen/runtime。
 - 验收：typecheck fixture：`object Foo` 不能像 class 一样调用构造；`ClassName.member` 在 companion 存在时通过；无 companion 时报错。
 - 依赖：T0258、T0317、T0404
+- 完成：
+  - type env：收集顶层与嵌套 `object`（含未命名 companion → `Companion`）为 class-like nominal type，使 `Foo` 在表达式位置可拥有类型 `Foo`。
+  - typecheck/expr：
+    - 顶层 object 值引用：`Foo` → `Foo`
+    - member access：支持 `Obj.member`/`ClassName.member` 的字段类型读取；支持 `TypeName.NestedObject` 作为 object 值并返回其名义类型
+    - 调用门禁：新增诊断 `scoop::typecheck::object_not_constructible`，禁止 `Foo()` 构造 object
+  - fixtures：
+    - `tests/fixtures/typecheck/object_member_access_ok.scoop`
+    - `tests/fixtures/typecheck/companion_member_access_ok.scoop`
+    - `tests/fixtures/typecheck/companion_member_access_missing_is_error.scoop`
+    - `tests/fixtures/typecheck/object_not_constructible_is_error.scoop`
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0453 [TODO] 通用函数重载解析 v1：按候选集合做决议
 - 描述：对普通函数调用实现最小 overload resolution：按参数个数、位置/命名参数、可见性、形参可赋值关系筛选候选，并在唯一候选时完成绑定。

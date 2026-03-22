@@ -169,6 +169,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("object 单例不可构造：{name}")]
+    #[diagnostic(code(scoop::typecheck::object_not_constructible))]
+    ObjectNotConstructible {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用解析歧义：{callee}")]
     #[diagnostic(code(scoop::typecheck::ambiguous_call))]
     AmbiguousCall {
@@ -2284,7 +2292,7 @@ fn is_type_assignable(
 fn infer_value_ident_type(
     source: &SourceFile,
     id: &ast::ValueIdent,
-    _lower: &mut TypeLowering<'_>,
+    lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
     top_level_types: &HashMap<String, TypeId>,
@@ -2311,11 +2319,19 @@ fn infer_value_ident_type(
                 span: id.span.into(),
             }),
         ast::ResolvedValueRef::TopLevel { fqn } => {
-            top_level_types.get(fqn).copied().ok_or_else(|| {
-                ExprTypeError::UnsupportedTopLevelValueType {
-                    fqn: fqn.clone(),
-                    span: id.span.into(),
-                }
+            if let Some(ty) = top_level_types.get(fqn).copied() {
+                return Ok(ty);
+            }
+
+            // Kotlin-like：`object Foo` 同时引入一个“类型名 Foo”与一个“值名 Foo”；
+            // 在表达式位置引用 `Foo` 时，类型为该 object 的名义类型 `Foo`。
+            if lower.is_object_type(fqn) {
+                return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), id.span)?);
+            }
+
+            Err(ExprTypeError::UnsupportedTopLevelValueType {
+                fqn: fqn.clone(),
+                span: id.span.into(),
             })
         }
     }
@@ -2375,6 +2391,12 @@ fn infer_call_expr_type(
 
             // 当前阶段仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
             let Some(sigs) = top_level_funs.get(&callee_fqn) else {
+                if id.call.is_none() && lower.is_object_type(&callee_fqn) {
+                    return Err(ExprTypeError::ObjectNotConstructible {
+                        name: callee_fqn,
+                        span: callee_span.into(),
+                    });
+                }
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_fqn,
                     span: callee_span.into(),
@@ -4229,16 +4251,23 @@ fn check_assign_expr_stmt(
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
             // 先递归 typecheck receiver：保证 `a().b = rhs` 能覆盖 `a()`。
-            let _ = infer_expr_type(
-                source,
-                receiver,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            //
+            // 例外：`TypeName.member` 经 companion object 解析时，receiver 不是值表达式；
+            // resolver 会保留 receiver ident 为未解析，此处跳过 receiver typecheck。
+            let receiver_is_type_name =
+                matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
+            if !receiver_is_type_name {
+                let _ = infer_expr_type(
+                    source,
+                    receiver,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
 
             let Some(resolved) = member.resolved.as_ref() else {
                 return Err(ExprTypeError::UnsupportedExpr {
@@ -4570,20 +4599,6 @@ fn infer_member_access_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖。
-    let _ = infer_expr_type(
-        source,
-        receiver,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
-
-    // 当前阶段（T0408）仅支持 “struct 字段” 的成员访问：依赖 resolver 写回 `member.resolved`
-    // 并以 FQN 在当前文件内查找字段类型。
     let Some(resolved) = member.resolved.as_ref() else {
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "member access（未 resolve）",
@@ -4591,8 +4606,32 @@ fn infer_member_access_expr_type(
         });
     };
 
+    // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖。
+    //
+    // 例外：`TypeName.member` 的 companion member access 中，receiver 可能不是一个“值表达式”，
+    // resolver 会刻意保留 `Ident` 的未解析状态；此时跳过 receiver typecheck。
+    let receiver_is_type_name =
+        matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
+    if !receiver_is_type_name {
+        let _ = infer_expr_type(
+            source,
+            receiver,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+    }
+
     match resolved {
         ast::ResolvedMemberRef::Value { fqn } => {
+            // `TypeName.NestedObject` / `Obj.NestedObject`：成员本身是一个 object 单例值。
+            if lower.is_object_type(fqn) {
+                return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?);
+            }
+
             struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
@@ -4633,10 +4672,18 @@ fn collect_member_mutabilities(source: &SourceFile, file: &ast::File) -> HashMap
     let mut map: HashMap<String, bool> = HashMap::new();
 
     for item in &file.items {
-        let ast::Item::Type(ty) = item else {
-            continue;
-        };
-        collect_member_mutabilities_in_type_decl(source, ty, &pkg_prefix, &mut map);
+        match item {
+            ast::Item::Type(ty) => {
+                collect_member_mutabilities_in_type_decl(source, ty, &pkg_prefix, &mut map);
+            }
+            ast::Item::Object(obj) => {
+                collect_member_mutabilities_in_object_decl(source, obj, &pkg_prefix, &mut map);
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_) => {}
+        }
     }
 
     map
@@ -4716,10 +4763,70 @@ fn collect_member_mutabilities_in_type_decl(
     // 无论外层是否 struct/class，都递归收集 nested type（可能存在 nested struct/class）。
     if let Some(body) = &decl.body {
         for member in &body.members {
-            let ast::TypeMember::Type(nested) = member else {
-                continue;
-            };
-            collect_member_mutabilities_in_type_decl(source, nested, &type_fqn, out);
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    collect_member_mutabilities_in_type_decl(source, nested, &type_fqn, out);
+                }
+                ast::TypeMember::Object(obj) => {
+                    collect_member_mutabilities_in_object_decl(source, obj, &type_fqn, out);
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+    }
+}
+
+fn collect_member_mutabilities_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    out: &mut HashMap<String, bool>,
+) {
+    let obj_name = match &obj.name {
+        Some(name) => source.slice(name.span).to_string(),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => "Companion".to_string(),
+            ast::ObjectKind::Object => {
+                // parser 会拒绝 `object { ... }` 这类非法语法；这里作为防御性兜底忽略。
+                return;
+            }
+        },
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        obj_name
+    } else {
+        format!("{prefix}.{obj_name}")
+    };
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                let Some(_ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{obj_fqn}.{field_name}");
+                out.insert(field_fqn, matches!(p.kind, ast::ValKind::Var));
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_member_mutabilities_in_type_decl(source, nested, &obj_fqn, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_member_mutabilities_in_object_decl(source, nested, &obj_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
         }
     }
 }
@@ -4742,10 +4849,24 @@ fn collect_struct_field_types(
     let mut map: HashMap<String, TypeId> = HashMap::new();
 
     for item in &file.items {
-        let ast::Item::Type(ty) = item else {
-            continue;
-        };
-        collect_struct_field_types_in_type_decl(source, ty, &pkg_prefix, lower, &mut map)?;
+        match item {
+            ast::Item::Type(ty) => {
+                collect_struct_field_types_in_type_decl(source, ty, &pkg_prefix, lower, &mut map)?;
+            }
+            ast::Item::Object(obj) => {
+                collect_struct_field_types_in_object_decl(
+                    source,
+                    obj,
+                    &pkg_prefix,
+                    lower,
+                    &mut map,
+                )?;
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_) => {}
+        }
     }
 
     Ok(map)
@@ -4824,10 +4945,73 @@ fn collect_struct_field_types_in_type_decl(
     // 无论外层是否 struct，都递归收集 nested type（可能存在 nested struct）。
     if let Some(body) = &decl.body {
         for member in &body.members {
-            let ast::TypeMember::Type(nested) = member else {
-                continue;
-            };
-            collect_struct_field_types_in_type_decl(source, nested, &type_fqn, lower, out)?;
+            match member {
+                ast::TypeMember::Type(nested) => {
+                    collect_struct_field_types_in_type_decl(source, nested, &type_fqn, lower, out)?;
+                }
+                ast::TypeMember::Object(obj) => {
+                    collect_struct_field_types_in_object_decl(source, obj, &type_fqn, lower, out)?;
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_struct_field_types_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    lower: &mut TypeLowering<'_>,
+    out: &mut HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let obj_name = match &obj.name {
+        Some(name) => source.slice(name.span).to_string(),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => "Companion".to_string(),
+            ast::ObjectKind::Object => {
+                // parser 会拒绝 `object { ... }` 这类非法语法；这里作为防御性兜底忽略。
+                return Ok(());
+            }
+        },
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        obj_name
+    } else {
+        format!("{prefix}.{obj_name}")
+    };
+
+    let Some(body) = &obj.body else {
+        return Ok(());
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) => {
+                let Some(ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_name = source.slice(p.name.span);
+                let field_fqn = format!("{obj_fqn}.{field_name}");
+                out.insert(field_fqn, lower.lower_type_ref(ty_ref)?);
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_struct_field_types_in_type_decl(source, nested, &obj_fqn, lower, out)?;
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_struct_field_types_in_object_decl(source, nested, &obj_fqn, lower, out)?;
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
         }
     }
 

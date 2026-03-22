@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::object_not_constructible
+// EXPECT-ERROR-AT: 14:14
+// EXPECT-ERROR: object
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+object Foo {
+  val x: Int = 1
+}
+
+val y: Int = Foo()
+
