@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_matching_overload
+// EXPECT-ERROR-AT: 18:14
+// EXPECT-ERROR: 没有匹配的重载
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int): Int {
+    return x
+}
+
+fun f(x: String): Int {
+    return 0
+}
+
+val a: Int = f(true)

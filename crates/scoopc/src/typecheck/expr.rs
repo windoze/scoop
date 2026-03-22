@@ -185,6 +185,22 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("重载决议歧义：{callee}")]
+    #[diagnostic(code(scoop::typecheck::ambiguous_overload))]
+    AmbiguousOverload {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("没有匹配的重载：{callee}")]
+    #[diagnostic(code(scoop::typecheck::no_matching_overload))]
+    NoMatchingOverload {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {
@@ -629,6 +645,16 @@ struct FunSigOwned {
     /// 说明：当前阶段不做任何 inlining 优化，该标记仅用于：
     /// - lambda non-local return 的静态门禁（只有 inline lambda 实参允许 `return`）
     is_inline: bool,
+    /// 形参名列表（与 `params` 对齐）。
+    ///
+    /// 用途：
+    /// - T0453：命名实参（`name = expr`）的重排与匹配；
+    /// - 未来：默认参数/重载决议可复用该信息。
+    ///
+    /// 说明：
+    /// - 对于扩展函数，`params[0]` 是 receiver 的类型占位；该位置的 `param_names[0]`
+    ///   仅用于对齐，当前不会参与命名实参匹配（因为 receiver 不可被命名传入）。
+    param_names: Vec<String>,
     params: Vec<TypeId>,
     return_ty: TypeId,
 }
@@ -2337,6 +2363,130 @@ fn infer_value_ident_type(
     }
 }
 
+#[derive(Debug, Clone)]
+enum CallArgKind {
+    Positional,
+    Named { name: String },
+}
+
+#[derive(Debug, Clone)]
+struct CallArgInfo<'a> {
+    kind: CallArgKind,
+    expr: &'a ast::Expr,
+    ty: TypeId,
+    is_int_lit: bool,
+}
+
+/// 把 AST 的调用实参列表归一化为“用于重载筛选”的结构，并预先推导每个实参表达式的类型。
+///
+/// 说明：
+/// - `ExprKind::NamedArg { name = value }` 在调用语境内是“语法糖节点”，其类型应以 `value` 为准；
+/// - 这里提前推导所有实参类型，保证：
+///   - 子表达式的类型错误不会被重载筛选吞掉；
+///   - 后续候选过滤只做纯比较，不再递归进入表达式树。
+fn collect_call_arg_infos<'a>(
+    source: &SourceFile,
+    args: &'a [ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Vec<CallArgInfo<'a>>, ExprTypeError> {
+    let mut out: Vec<CallArgInfo<'a>> = Vec::with_capacity(args.len());
+
+    for arg in args {
+        match &arg.kind {
+            ast::ExprKind::NamedArg { name, value, .. } => {
+                let name = source.slice(name.span).to_string();
+                let expr = value.as_ref();
+                let ty = infer_expr_type(
+                    source,
+                    expr,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                out.push(CallArgInfo {
+                    kind: CallArgKind::Named { name },
+                    expr,
+                    ty,
+                    is_int_lit: matches!(expr.kind, ast::ExprKind::IntLit),
+                });
+            }
+            _ => {
+                let ty = infer_expr_type(
+                    source,
+                    arg,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                out.push(CallArgInfo {
+                    kind: CallArgKind::Positional,
+                    expr: arg,
+                    ty,
+                    is_int_lit: matches!(arg.kind, ast::ExprKind::IntLit),
+                });
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+/// 将调用点的“位置/命名实参”映射到某个候选签名的形参槽位。
+///
+/// 当前阶段（T0453）最小规则：
+/// - 不支持默认参数：必须为每个形参提供一个实参；
+/// - 命名实参仅按“同名形参”匹配；
+/// - 位置实参按从左到右填充尚未被命名实参占用的槽位。
+fn map_call_args_to_params(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+) -> Option<Vec<usize>> {
+    if call_args.len() != param_names.len() {
+        return None;
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+    let mut next_positional = 0usize;
+
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        match &arg.kind {
+            CallArgKind::Positional => {
+                while next_positional < mapping.len() && mapping[next_positional].is_some() {
+                    next_positional += 1;
+                }
+                let slot = mapping.get_mut(next_positional)?;
+                *slot = Some(arg_idx);
+                next_positional += 1;
+            }
+            CallArgKind::Named { name } => {
+                let slot_idx = param_names.iter().position(|p| p == name)?;
+                let slot = mapping.get_mut(slot_idx)?;
+                if slot.is_some() {
+                    return None;
+                }
+                *slot = Some(arg_idx);
+            }
+        }
+    }
+
+    if mapping.iter().any(|x| x.is_none()) {
+        return None;
+    }
+
+    Some(mapping.into_iter().map(|x| x.expect("checked")).collect())
+}
+
 fn infer_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -2404,35 +2554,30 @@ fn infer_call_expr_type(
             };
 
             // 扩展函数不能以 `f(args...)` 的形式被直接调用，因此这里只选择普通顶层函数候选。
-            let mut direct_call_candidates = sigs.iter().filter(|s| !s.is_extension);
-            let Some(sig) = direct_call_candidates.next() else {
+            let direct_call_candidates: Vec<&FunSigOwned> =
+                sigs.iter().filter(|s| !s.is_extension).collect();
+            let Some(sig) = direct_call_candidates.first().copied() else {
                 return Err(ExprTypeError::CalleeNotCallable {
                     callee: callee_fqn,
                     span: callee_span.into(),
                 });
             };
-            if direct_call_candidates.next().is_some() {
-                return Err(ExprTypeError::AmbiguousCall {
-                    callee: callee_fqn,
-                    span: callee_span.into(),
-                });
-            }
 
-            if args.len() != sig.params.len() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: callee_fqn,
-                    expected: sig.params.len(),
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
+            // 只有一个可用候选：沿用旧的“给出精确 arity/type mismatch 诊断”的路径，
+            // 但补齐命名实参的形参映射（T0453）。
+            if direct_call_candidates.len() == 1 {
+                if args.len() != sig.params.len() {
+                    return Err(ExprTypeError::CallArityMismatch {
+                        callee: callee_fqn,
+                        expected: sig.params.len(),
+                        found: args.len(),
+                        span: call_expr.span.into(),
+                    });
+                }
 
-            for (idx, (arg, expected_ty)) in args.iter().zip(sig.params.iter().copied()).enumerate()
-            {
-                // 先做表达式类型推导，再对比参数类型。
-                let found_ty = infer_expr_type(
+                let call_args = collect_call_arg_infos(
                     source,
-                    arg,
+                    args,
                     lower,
                     builtins,
                     locals,
@@ -2440,25 +2585,90 @@ fn infer_call_expr_type(
                     top_level_funs,
                     struct_field_types,
                 )?;
+                let Some(mapping) = map_call_args_to_params(&call_args, &sig.param_names) else {
+                    return Err(ExprTypeError::NoMatchingOverload {
+                        callee: callee_fqn,
+                        span: call_expr.span.into(),
+                    });
+                };
 
-                if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
-                    // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-                    if matches!(arg.kind, ast::ExprKind::IntLit)
-                        && is_integer_type(expected_ty, lower, builtins)
-                    {
+                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let arg = &call_args[arg_idx];
+                    let expected_ty = sig.params[param_idx];
+                    let found_ty = arg.ty;
+
+                    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                        // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
+                        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                            continue;
+                        }
+                        return Err(ExprTypeError::CallArgTypeMismatch {
+                            callee: callee_fqn,
+                            index: param_idx + 1,
+                            expected: lower.fmt_type(expected_ty),
+                            found: lower.fmt_type(found_ty),
+                            span: arg.expr.span.into(),
+                        });
+                    }
+                }
+
+                return Ok(sig.return_ty);
+            }
+
+            // 多候选：执行最小 overload resolution（T0453）。
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let mut matched: Vec<&FunSigOwned> = Vec::new();
+            for cand in direct_call_candidates {
+                if call_args.len() != cand.params.len() {
+                    continue;
+                }
+
+                let Some(mapping) = map_call_args_to_params(&call_args, &cand.param_names) else {
+                    continue;
+                };
+
+                let mut ok = true;
+                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let arg = &call_args[arg_idx];
+                    let expected_ty = cand.params[param_idx];
+                    let found_ty = arg.ty;
+
+                    if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         continue;
                     }
-                    return Err(ExprTypeError::CallArgTypeMismatch {
-                        callee: callee_fqn,
-                        index: idx + 1,
-                        expected: lower.fmt_type(expected_ty),
-                        found: lower.fmt_type(found_ty),
-                        span: arg.span.into(),
-                    });
+                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                        continue;
+                    }
+                    ok = false;
+                    break;
+                }
+
+                if ok {
+                    matched.push(cand);
                 }
             }
 
-            Ok(sig.return_ty)
+            match matched.len() {
+                0 => Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_fqn,
+                    span: call_expr.span.into(),
+                }),
+                1 => Ok(matched[0].return_ty),
+                _ => Err(ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    span: call_expr.span.into(),
+                }),
+            }
         }
         ast::ExprKind::MemberAccess { receiver, member } => infer_member_call_expr_type(
             source,
@@ -3097,6 +3307,7 @@ fn collect_top_level_fun_signatures(
             format!("{pkg_prefix}.{local_name}")
         };
 
+        let mut param_names = Vec::with_capacity(fun.params.len() + 1);
         let mut params = Vec::with_capacity(fun.params.len() + 1);
 
         // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
@@ -3104,6 +3315,8 @@ fn collect_top_level_fun_signatures(
         let is_extension = fun.receiver.is_some();
         let is_inline = fun.modifiers.contains(&ast::Modifier::Inline);
         if let Some(receiver) = &fun.receiver {
+            // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
+            param_names.push("<receiver>".to_string());
             params.push(lower.lower_type_ref(receiver)?);
         }
 
@@ -3112,6 +3325,7 @@ fn collect_top_level_fun_signatures(
                 // headers check 已保证参数类型注解存在；这里保持健壮性。
                 continue;
             };
+            param_names.push(source.slice(p.name.span).to_string());
             params.push(lower.lower_type_ref(ty_ref)?);
         }
 
@@ -3123,6 +3337,7 @@ fn collect_top_level_fun_signatures(
         map.entry(fqn).or_default().push(FunSigOwned {
             is_extension,
             is_inline,
+            param_names,
             params,
             return_ty,
         });

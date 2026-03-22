@@ -1216,11 +1216,23 @@
     - `tests/fixtures/typecheck/object_not_constructible_is_error.scoop`
   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0453 [TODO] 通用函数重载解析 v1：按候选集合做决议
+### T0453 [DONE] 通用函数重载解析 v1：按候选集合做决议
 - 描述：对普通函数调用实现最小 overload resolution：按参数个数、位置/命名参数、可见性、形参可赋值关系筛选候选，并在唯一候选时完成绑定。
 - 目标：先不做 most-specific 的复杂 tie-break；先覆盖“过滤后唯一”与“明确歧义”两类结果。
 - 验收：typecheck fixture：`f(Int)` / `f(String)` 根据实参选中不同 overload；无匹配时报错；多候选同等匹配时报 `ambiguous_overload`。
 - 依赖：T0319、T0407
+- 完成：
+  - typecheck/expr：
+    - 顶层函数调用从“唯一候选”升级为最小重载决议：按 arity + 命名/位置实参映射 + `is_type_assignable` 过滤候选。
+    - 新增稳定诊断：
+      - `scoop::typecheck::no_matching_overload`：过滤后无候选；
+      - `scoop::typecheck::ambiguous_overload`：过滤后仍有多个候选（当前阶段不做 most-specific）。
+    - 单候选路径保持原有精确诊断（`call_arity_mismatch` / `call_arg_type_mismatch`），以避免回归。
+  - fixtures：新增 typecheck fixtures 覆盖三类结果：
+    - `tests/fixtures/typecheck/call_overload_select_by_arg_type_ok.scoop`
+    - `tests/fixtures/typecheck/call_overload_no_match_is_error.scoop`
+    - `tests/fixtures/typecheck/call_overload_ambiguous_is_error.scoop`
+  - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0454 [TODO] 构造函数重载解析：primary / secondary constructors
 - 描述：为 class 构造调用实现 overload resolution：primary constructor 与多个 secondary constructors 共同形成候选集合，按参数匹配与默认参数规则做决议。

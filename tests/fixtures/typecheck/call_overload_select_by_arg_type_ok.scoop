@@ -1,0 +1,18 @@
+// EXPECT: pass
+// 目标：T0453 普通函数重载解析：按实参类型选择唯一 overload。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int): Int {
+    return 1
+}
+
+fun f(x: String): Int {
+    return 2
+}
+
+val a: Int = f(1)
+val b: Int = f("hi")
+

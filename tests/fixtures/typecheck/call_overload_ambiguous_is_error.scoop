@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR-AT: 18:14
+// EXPECT-ERROR: 重载决议歧义
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int): Int {
+    return 1
+}
+
+fun f(x: UInt): Int {
+    return 2
+}
+
+val a: Int = f(1)

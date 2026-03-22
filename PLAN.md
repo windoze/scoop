@@ -171,7 +171,8 @@
 - [ ] overload set 建模：
   - [x] 索引侧：顶层/成员/扩展函数与构造函数收集为候选集合（T0318）
   - [x] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
-  - [ ] typecheck + inference：决议 most-specific 与冲突诊断
+  - [x] typecheck：普通函数调用最小重载决议（T0453：过滤后唯一/歧义）
+  - [ ] inference：most-specific 与重载冲突诊断（后续任务逐步补齐）
 - [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务；T0321b 依赖 T1105 `.cone` 读取，已在 TODO 中延后）
   - [x] T0321a：resolver 引入 cone 边界 + source-only 多 cone fixtures
   - [ ] T0321b：接入真实 `.cone` 依赖后的可见性过滤（等待 T1105）
