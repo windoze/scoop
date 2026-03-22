@@ -1472,11 +1472,17 @@
    - fixtures：新增 parse fixture `tests/fixtures/parse/effect_op_decl_basic.scoop` + AST golden；更新 `type_member_nested_type` golden 覆盖 effect nested type 场景。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0602 [TODO] Typecheck：effect operation 的类型规则与命名空间
+### T0602 [DONE] Typecheck：effect operation 的类型规则与命名空间
 - 描述：把 effect 看作“可 perform 的接口”，operation 生成对应的 perform signature。
 - 目标：先只支持 sysroot 的 `Raise`；不做 effect polymorphism。
 - 验收：typecheck fixture：`Raise.raise(e)`（按语法）能通过（或暂以 `perform Raise.raise(e)` 为准，按 spec）。
 - 依赖：T0601、T0404
+ - 完成：
+   - resolve/index：为 `resolve::FunSig` 补齐 `kind: FunDeclKind`，让 resolver/typecheck 能区分 effect operation 与普通 member fun。
+   - resolver：允许 `EffectName.op` 直接解析到 effect body 内的 operation（不经 companion object），并写回 `MemberIdent.resolved = Fun { fqn }`。
+   - typecheck：为 member call 增加 effect operation 特判，lower operation 的签名并复用既有的单一 type param 推断（`Raise<E>`）以支持 `Raise.raise(e)` 调用。
+   - fixtures：新增 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 回归用例。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0603 [TODO] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。

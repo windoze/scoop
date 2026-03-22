@@ -1355,6 +1355,42 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        // 1.5) `EffectName.op`：effect operation 的限定引用（spec §5.2）。
+        //
+        // 说明：
+        // - effect operation 语义上不经 companion object 分发；
+        // - parser 会把 effect body 内的 `fun` 标记为 `FunDeclKind::EffectOp`（T0601），
+        //   resolver 在此处通过索引侧记录的 `FunSig.kind` 做最小区分。
+        if let Some(syms) = self.index.by_fqn.get(&direct_fqn) {
+            let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+            for o in &syms.fun {
+                if o.sig.kind != ast::FunDeclKind::EffectOp {
+                    continue;
+                }
+                if is_symbol_visible_from(self.use_cone, self.source, &o.symbol) {
+                    member.resolved = Some(ast::ResolvedMemberRef::Fun { fqn: direct_fqn });
+                    return Ok(());
+                }
+                if not_visible.is_none() {
+                    not_visible = Some((
+                        direct_fqn.clone(),
+                        o.symbol.visibility,
+                        o.symbol.span,
+                    ));
+                }
+            }
+
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: member.span.into(),
+                    def_span: def_span.into(),
+                });
+            }
+        }
+
         // 2) `TypeName.member`：尝试经 companion object 解析（spec Appendix B.9 / TODO T0317）。
         let Some(companions) = self.index.companion_objects.get(receiver_ty_fqn) else {
             return Err(ResolveError::MissingCompanionObject {

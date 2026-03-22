@@ -357,6 +357,7 @@
   - [x] `+` 并集、`Pure` 空行
   - [ ] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
 - [ ] 规则：
+  - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
   - required effects（未处理效果检测，spec §14.7.1）
   - public 默认 `/ Pure` 的强制约束
   - private/internal 可推断 effect row

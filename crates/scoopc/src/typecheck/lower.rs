@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -481,6 +482,14 @@ impl<'a> TypeLowering<'a> {
             name,
             decl_file: self.source.path().to_path_buf(),
             decl_span: p.name.span,
+        })
+    }
+
+    pub(super) fn ty_param_named(&mut self, name: String, decl_file: PathBuf, decl_span: Span) -> TypeId {
+        self.types.ty_param(TypeParamType {
+            name,
+            decl_file,
+            decl_span,
         })
     }
 

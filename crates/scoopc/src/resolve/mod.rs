@@ -298,6 +298,7 @@ pub struct ParamSig {
 /// 一个函数声明的“可用于重载决议”的签名信息（仅声明头）。
 #[derive(Debug, Clone)]
 pub struct FunSig {
+    pub kind: ast::FunDeclKind,
     pub receiver: Option<ast::TypeRef>,
     pub type_params_len: usize,
     pub eff_param: Option<ast::EffectRowParam>,
@@ -1109,6 +1110,7 @@ impl Index {
             .collect::<Vec<_>>();
 
         let sig = FunSig {
+            kind: fun.kind,
             receiver: fun.receiver.clone(),
             type_params_len: fun.type_params.len(),
             eff_param: fun.eff_param.clone(),

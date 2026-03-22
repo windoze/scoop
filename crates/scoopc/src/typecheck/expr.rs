@@ -3165,20 +3165,37 @@ fn infer_call_expr_type(
                 }),
             }
         }
-        ast::ExprKind::MemberAccess { receiver, member } => infer_member_call_expr_type(
-            source,
-            call_expr,
-            receiver.as_ref(),
-            member,
-            args,
-            false,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            if let Some(ty) = infer_effect_op_call_expr_type(
+                source,
+                call_expr,
+                member,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )? {
+                return Ok(ty);
+            }
+
+            infer_member_call_expr_type(
+                source,
+                call_expr,
+                receiver.as_ref(),
+                member,
+                args,
+                false,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )
+        }
         ast::ExprKind::SafeMemberAccess {
             receiver, member, ..
         } => infer_member_call_expr_type(
@@ -3718,6 +3735,215 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
         _ => None,
     }
+}
+
+fn infer_effect_op_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
+        return Ok(None);
+    };
+
+    let callee_fqn = fqn.clone();
+
+    // 仅当该 member 解析到一个 effect operation 时，本函数才接管类型检查逻辑；
+    // 否则返回 None 让外层继续走 extension/member call 的路径。
+    let op = lower
+        .index()
+        .by_fqn
+        .get(&callee_fqn)
+        .and_then(|syms| {
+            syms.fun
+                .iter()
+                .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+                .cloned()
+        });
+    let Some(op) = op else {
+        return Ok(None);
+    };
+
+    // effect op 的 qualifier 必须是 effect type（例如 `Raise.raise`），因此这里从 `a.B.op`
+    // 反推 effect type FQN 为 `a.B`。
+    let Some((effect_ty_fqn, _op_name)) = callee_fqn.rsplit_once('.') else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（bad fqn）",
+            span: member.span.into(),
+        });
+    };
+
+    let Some(effect_sym) = lower.env().type_symbol(effect_ty_fqn).cloned() else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（missing effect type symbol）",
+            span: member.span.into(),
+        });
+    };
+
+    // 当前阶段（T0602）目标：先只支持 sysroot 的 `Raise<E>`（单一 type param），
+    // 更完整的 effect polymorphism / 多 type params 留给后续任务（T0609+）。
+    if effect_sym.type_param_names.len() > 1 {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（multiple effect type params）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    if op.sig.receiver.is_some() {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（receiver not supported）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    if op.sig.type_params_len != 0 {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（generic op not supported）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    let mut type_params = Vec::new();
+    let mut bindings: Vec<(String, TypeId)> = Vec::new();
+
+    if let Some(name) = effect_sym.type_param_names.first() {
+        let param_ty = lower.ty_param_named(
+            name.clone(),
+            effect_sym.decl_file.clone(),
+            effect_sym.span,
+        );
+        type_params.push(param_ty);
+        bindings.push((name.clone(), param_ty));
+    }
+
+    // Lower effect op 签名：参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
+    let mut param_names: Vec<String> = Vec::with_capacity(op.sig.params.len());
+    let mut params: Vec<TypeId> = Vec::with_capacity(op.sig.params.len());
+
+    for p in &op.sig.params {
+        param_names.push(p.name.clone());
+
+        let Some(ty_ref) = p.ty.as_ref() else {
+            // headers check 已保证参数类型注解存在；这里保持健壮性。
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "effect op param missing type",
+                span: p.name_span.into(),
+            });
+        };
+
+        let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            &op.symbol.decl_file,
+            bindings.clone(),
+            ty_ref,
+        )?;
+        params.push(ty);
+    }
+
+    let return_ty = match &op.sig.return_ty {
+        Some(ret) => lower.lower_type_ref_in_decl_file_with_bindings(
+            &op.symbol.decl_file,
+            bindings.clone(),
+            ret,
+        )?,
+        None => builtins.unit,
+    };
+
+    let sig = FunSigOwned {
+        decl_span: op.symbol.span,
+        is_extension: false,
+        is_inline: false,
+        param_names,
+        type_params,
+        params,
+        return_ty,
+    };
+
+    let call_args = collect_call_arg_infos(
+        source,
+        args,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if call_args.len() != sig.params.len() {
+        return Err(ExprTypeError::CallArityMismatch {
+            callee: callee_fqn,
+            expected: sig.params.len(),
+            found: call_args.len(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    let Some(mapping) = map_call_args_to_params(&call_args, &sig.param_names) else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_fqn,
+            span: call_expr.span.into(),
+        });
+    };
+
+    let instantiated = instantiate_fun_sig_for_call(
+        &callee_fqn,
+        call_expr.span,
+        &sig,
+        mapping
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(param_idx, arg_idx)| {
+                let arg = &call_args[arg_idx];
+                GenericArgConstraint {
+                    expected: sig.params[param_idx],
+                    found: arg.ty,
+                    found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                }
+            }),
+        lower,
+        builtins,
+    )?;
+
+    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+        let arg = &call_args[arg_idx];
+        let expected_ty = instantiated.params[param_idx];
+        let found_ty = infer_expr_type_in_expected_context(
+            source,
+            arg.expr,
+            expected_ty,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            continue;
+        }
+        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+            continue;
+        }
+
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: callee_fqn,
+            index: param_idx + 1,
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: arg.expr.span.into(),
+        });
+    }
+
+    Ok(Some(instantiated.return_ty))
 }
 
 fn infer_member_call_expr_type(
