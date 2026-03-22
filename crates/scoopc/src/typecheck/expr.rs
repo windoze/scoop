@@ -773,6 +773,17 @@ struct FunSigOwned {
     /// - 对于扩展函数，`params[0]` 是 receiver 的类型占位；该位置的 `param_names[0]`
     ///   仅用于对齐，当前不会参与命名实参匹配（因为 receiver 不可被命名传入）。
     param_names: Vec<String>,
+    /// 形参是否带默认值（与 `params` 对齐）。
+    ///
+    /// 用途：
+    /// - T0454：构造调用重载决议已经支持默认参数；
+    /// - T0512：把默认参数纳入函数调用的 overload resolution（先只做“候选可用性/映射”，
+    ///   默认值表达式的补齐语义留给后续任务 T1305）。
+    ///
+    /// 说明：
+    /// - 对于扩展函数，`params[0]` 是 receiver，占位为 `false`；
+    /// - 当前阶段这里只需要“是否存在默认值”，不复制默认值表达式本体。
+    param_has_defaults: Vec<bool>,
     /// 函数级 type params（按声明顺序）。
     ///
     /// 用途（T0505）：
@@ -3281,15 +3292,6 @@ fn infer_call_expr_type(
             // 只有一个可用候选：沿用旧的“给出精确 arity/type mismatch 诊断”的路径，
             // 但补齐命名实参的形参映射（T0453）。
             if direct_call_candidates.len() == 1 {
-                if args.len() != sig.params.len() {
-                    return Err(ExprTypeError::CallArityMismatch {
-                        callee: callee_fqn,
-                        expected: sig.params.len(),
-                        found: args.len(),
-                        span: call_expr.span.into(),
-                    });
-                }
-
                 let call_args = collect_call_arg_infos(
                     source,
                     args,
@@ -3300,7 +3302,35 @@ fn infer_call_expr_type(
                     top_level_funs,
                     struct_field_types,
                 )?;
-                let Some(mapping) = map_call_args_to_params(&call_args, &sig.param_names) else {
+
+                // 默认参数（T0512）：允许省略带默认值的形参。
+                //
+                // 注意：当前阶段只做“候选可用性/形参映射/类型检查”，不在 AST/HIR 层补齐默认值表达式
+                //（默认值补齐语义留给后续任务 T1305）。
+                if call_args.len() > sig.params.len() {
+                    return Err(ExprTypeError::CallArityMismatch {
+                        callee: callee_fqn,
+                        expected: sig.params.len(),
+                        found: call_args.len(),
+                        span: call_expr.span.into(),
+                    });
+                }
+
+                let required = sig.param_has_defaults.iter().filter(|d| !**d).count();
+                if call_args.len() < required {
+                    return Err(ExprTypeError::CallArityMismatch {
+                        callee: callee_fqn,
+                        expected: required,
+                        found: call_args.len(),
+                        span: call_expr.span.into(),
+                    });
+                }
+
+                let Some(mapping) = map_call_args_to_params_with_defaults(
+                    &call_args,
+                    &sig.param_names,
+                    &sig.param_has_defaults,
+                ) else {
                     return Err(ExprTypeError::NoMatchingOverload {
                         callee: callee_fqn,
                         span: call_expr.span.into(),
@@ -3315,9 +3345,12 @@ fn infer_call_expr_type(
                         .iter()
                         .copied()
                         .enumerate()
-                        .map(|(param_idx, arg_idx)| {
+                        .filter_map(|(param_idx, arg_idx)| {
+                            let Some(arg_idx) = arg_idx else {
+                                return None;
+                            };
                             let arg = &call_args[arg_idx];
-                            GenericArgConstraint {
+                            Some(GenericArgConstraint {
                                 expected: sig.params[param_idx],
                                 found: arg.ty,
                                 found_is_placeholder: matches!(
@@ -3326,7 +3359,7 @@ fn infer_call_expr_type(
                                 ),
                                 from: format!("第 {} 个实参", arg_idx + 1),
                                 span: arg.expr.span,
-                            }
+                            })
                         }),
                     lower,
                     builtins,
@@ -3335,6 +3368,9 @@ fn infer_call_expr_type(
                 // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
                 let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let Some(arg_idx) = arg_idx else {
+                        continue;
+                    };
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = infer_expr_type_in_expected_context(
@@ -3362,6 +3398,9 @@ fn infer_call_expr_type(
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
                     for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else {
+                            continue;
+                        };
                         if !sig
                             .param_fn_effect_uses_eff
                             .get(param_idx)
@@ -3397,12 +3436,15 @@ fn infer_call_expr_type(
 
                 // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row（用于后续的 effect row containment 检查）。
                 if sig.eff_param.is_some() {
-                    for (param_idx, uses_eff) in sig.param_fn_effect_uses_eff.iter().copied().enumerate() {
+                    for (param_idx, uses_eff) in
+                        sig.param_fn_effect_uses_eff.iter().copied().enumerate()
+                    {
                         if !uses_eff {
                             continue;
                         }
                         let expected_ty = instantiated.params[param_idx];
-                        let Some(patched) = replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
+                        let Some(patched) =
+                            replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
                         else {
                             return Err(ExprTypeError::UnsupportedExpr {
                                 kind: "eff row substitution（expected function type）",
@@ -3415,6 +3457,9 @@ fn infer_call_expr_type(
 
                 // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let Some(arg_idx) = arg_idx else {
+                        continue;
+                    };
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
@@ -3462,7 +3507,7 @@ fn infer_call_expr_type(
                 return Ok(instantiated.return_ty);
             }
 
-            // 多候选：执行最小 overload resolution（T0453）。
+            // 多候选：先按形参映射过滤，再对剩余候选尝试泛型/eff 推断（T0512）。
             let call_args = collect_call_arg_infos(
                 source,
                 args,
@@ -3474,21 +3519,170 @@ fn infer_call_expr_type(
                 struct_field_types,
             )?;
 
-            let mut matched: Vec<&FunSigOwned> = Vec::new();
-            for cand in direct_call_candidates {
-                if call_args.len() != cand.params.len() {
-                    continue;
-                }
+            #[derive(Debug, Clone)]
+            struct MatchedFunOverload<'a> {
+                sig: &'a FunSigOwned,
+                instantiated: InstantiatedFunSig,
+                eff_arg: EffectRow,
+            }
 
-                let Some(mapping) = map_call_args_to_params(&call_args, &cand.param_names) else {
+            let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
+            for cand in direct_call_candidates {
+                let Some(mapping) = map_call_args_to_params_with_defaults(
+                    &call_args,
+                    &cand.param_names,
+                    &cand.param_has_defaults,
+                ) else {
                     continue;
                 };
 
+                let mut instantiated = match instantiate_fun_sig_for_call(
+                    &callee_fqn,
+                    call_expr.span,
+                    cand,
+                    mapping
+                        .iter()
+                        .copied()
+                        .enumerate()
+                        .filter_map(|(param_idx, arg_idx)| {
+                            let Some(arg_idx) = arg_idx else {
+                                return None;
+                            };
+                            let arg = &call_args[arg_idx];
+                            Some(GenericArgConstraint {
+                                expected: cand.params[param_idx],
+                                found: arg.ty,
+                                found_is_placeholder: matches!(
+                                    arg.expr.kind,
+                                    ast::ExprKind::Lambda(_)
+                                ),
+                                from: format!("第 {} 个实参", arg_idx + 1),
+                                span: arg.expr.span,
+                            })
+                        }),
+                    lower,
+                    builtins,
+                ) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+
+                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
+                // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
                 let mut ok = true;
+                let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let Some(arg_idx) = arg_idx else {
+                        continue;
+                    };
                     let arg = &call_args[arg_idx];
-                    let expected_ty = cand.params[param_idx];
-                    let found_ty = arg.ty;
+                    if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                        continue;
+                    }
+
+                    let expected_ty = instantiated.params[param_idx];
+                    let found_ty = match infer_expr_type_in_expected_context(
+                        source,
+                        arg.expr,
+                        expected_ty,
+                        ExpectedTypeFrom::new(format!(
+                            "`{}` 的第 {} 个形参 `{}`",
+                            callee_fqn,
+                            param_idx + 1,
+                            cand.param_names[param_idx]
+                        )),
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    ) {
+                        Ok(ty) => ty,
+                        Err(_) => {
+                            ok = false;
+                            break;
+                        }
+                    };
+                    checked_arg_tys[arg_idx] = found_ty;
+                }
+                if !ok {
+                    continue;
+                }
+
+                // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+                let eff_arg = if let Some(eff_param) = &cand.eff_param {
+                    let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else {
+                            continue;
+                        };
+                        if !cand
+                            .param_fn_effect_uses_eff
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+                        let arg = &call_args[arg_idx];
+                        if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                            continue;
+                        }
+
+                        let found_ty = checked_arg_tys[arg_idx];
+                        if let TypeKind::Ref(RefTypeKind::Function(found_fun)) =
+                            lower.type_kind(found_ty)
+                        {
+                            terms.extend(found_fun.effects.terms);
+                        }
+                    }
+
+                    let inferred = EffectRow::new(terms);
+                    let inferred = match substitute_type_args_in_effect_row(
+                        inferred,
+                        &cand.type_params,
+                        &instantiated.type_args,
+                        lower,
+                        call_expr.span,
+                    ) {
+                        Ok(row) => row,
+                        Err(_) => continue,
+                    };
+                    inferred
+                } else {
+                    EffectRow::pure()
+                };
+
+                // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row（用于后续的 effect row containment 检查）。
+                if cand.eff_param.is_some() {
+                    for (param_idx, uses_eff) in
+                        cand.param_fn_effect_uses_eff.iter().copied().enumerate()
+                    {
+                        if !uses_eff {
+                            continue;
+                        }
+                        let expected_ty = instantiated.params[param_idx];
+                        let Some(patched) =
+                            replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
+                        else {
+                            ok = false;
+                            break;
+                        };
+                        instantiated.params[param_idx] = patched;
+                    }
+                }
+                if !ok {
+                    continue;
+                }
+                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let Some(arg_idx) = arg_idx else {
+                        continue;
+                    };
+                    let arg = &call_args[arg_idx];
+                    let expected_ty = instantiated.params[param_idx];
+                    let found_ty = checked_arg_tys[arg_idx];
 
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         continue;
@@ -3501,7 +3695,11 @@ fn infer_call_expr_type(
                 }
 
                 if ok {
-                    matched.push(cand);
+                    matched.push(MatchedFunOverload {
+                        sig: cand,
+                        instantiated,
+                        eff_arg,
+                    });
                 }
             }
 
@@ -3510,7 +3708,40 @@ fn infer_call_expr_type(
                     callee: callee_fqn,
                     span: call_expr.span.into(),
                 }),
-                1 => Ok(matched[0].return_ty),
+                1 => {
+                    let chosen = matched.pop().expect("len == 1");
+
+                    // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+                    let type_param_bindings =
+                        type_param_bindings_from_sig(&chosen.sig.type_params, lower);
+                    lower.push_type_param_bindings(type_param_bindings);
+                    let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
+                        lower.push_effect_row_param_binding(
+                            eff_param.name.clone(),
+                            chosen.eff_arg.clone(),
+                        );
+                        true
+                    } else {
+                        false
+                    };
+                    let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
+                    if eff_binding_pushed {
+                        lower.pop_effect_row_param_binding();
+                    }
+                    lower.pop_type_param_bindings();
+                    let call_effects = substitute_type_args_in_effect_row(
+                        lowered_effects?,
+                        &chosen.sig.type_params,
+                        &chosen.instantiated.type_args,
+                        lower,
+                        call_expr.span,
+                    )?;
+                    for effect in call_effects.terms.iter().copied() {
+                        lower.record_performed_effect(effect, call_expr.span);
+                    }
+
+                    Ok(chosen.instantiated.return_ty)
+                }
                 _ => Err(ExprTypeError::AmbiguousOverload {
                     callee: callee_fqn,
                     span: call_expr.span.into(),
@@ -4109,16 +4340,12 @@ fn infer_effect_op_call_expr_type(
 
     // 仅当该 member 解析到一个 effect operation 时，本函数才接管类型检查逻辑；
     // 否则返回 None 让外层继续走 extension/member call 的路径。
-    let op = lower
-        .index()
-        .by_fqn
-        .get(&callee_fqn)
-        .and_then(|syms| {
-            syms.fun
-                .iter()
-                .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
-                .cloned()
-        });
+    let op = lower.index().by_fqn.get(&callee_fqn).and_then(|syms| {
+        syms.fun
+            .iter()
+            .find(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+            .cloned()
+    });
     let Some(op) = op else {
         return Ok(None);
     };
@@ -4166,11 +4393,8 @@ fn infer_effect_op_call_expr_type(
     let mut bindings: Vec<(String, TypeId)> = Vec::new();
 
     if let Some(name) = effect_sym.type_param_names.first() {
-        let param_ty = lower.ty_param_named(
-            name.clone(),
-            effect_sym.decl_file.clone(),
-            effect_sym.span,
-        );
+        let param_ty =
+            lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
         type_params.push(param_ty);
         bindings.push((name.clone(), param_ty));
     }
@@ -4213,6 +4437,7 @@ fn infer_effect_op_call_expr_type(
         is_extension: false,
         is_inline: false,
         param_names,
+        param_has_defaults: vec![false; param_count],
         type_params,
         eff_param: None,
         param_fn_effect_uses_eff: vec![false; param_count],
@@ -4422,7 +4647,7 @@ fn infer_member_call_expr_type(
     // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
     if ext_candidates.len() == 1 {
         let expected_args = sig.params.len().saturating_sub(1);
-        if call_args.len() != expected_args {
+        if call_args.len() > expected_args {
             return Err(ExprTypeError::CallArityMismatch {
                 callee: callee_fqn,
                 expected: expected_args,
@@ -4438,41 +4663,61 @@ fn infer_member_call_expr_type(
                 span: member.span.into(),
             });
         };
+        let Some(param_has_defaults) = sig.param_has_defaults.get(1..) else {
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee: callee_fqn,
+                span: member.span.into(),
+            });
+        };
 
-        let Some(mapping) = map_call_args_to_params(&call_args, param_names) else {
+        let required = param_has_defaults.iter().filter(|d| !**d).count();
+        if call_args.len() < required {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: callee_fqn,
+                expected: required,
+                found: call_args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+
+        let Some(mapping) =
+            map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
+        else {
             return Err(ExprTypeError::NoMatchingOverload {
                 callee: callee_fqn,
                 span: call_expr.span.into(),
             });
         };
 
-        let mut instantiated =
-            instantiate_fun_sig_for_call(
-                &callee_fqn,
-                call_expr.span,
-                sig,
-                std::iter::once(GenericArgConstraint {
-                    expected: expected_receiver_ty,
-                    found: actual_receiver_ty,
-                    found_is_placeholder: false,
-                    from: "接收者（receiver）".to_string(),
-                    span: receiver.span,
-                })
-                .chain(mapping.iter().copied().enumerate().map(
-                    |(param_idx, arg_idx)| {
-                        let arg = &call_args[arg_idx];
-                        GenericArgConstraint {
-                            expected: sig.params[param_idx + 1],
-                            found: arg.ty,
-                            found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
-                            from: format!("第 {} 个实参", arg_idx + 1),
-                            span: arg.expr.span,
-                        }
-                    },
-                )),
-                lower,
-                builtins,
-            )?;
+        let mut instantiated = instantiate_fun_sig_for_call(
+            &callee_fqn,
+            call_expr.span,
+            sig,
+            std::iter::once(GenericArgConstraint {
+                expected: expected_receiver_ty,
+                found: actual_receiver_ty,
+                found_is_placeholder: false,
+                from: "接收者（receiver）".to_string(),
+                span: receiver.span,
+            })
+            .chain(mapping.iter().copied().enumerate().filter_map(
+                |(param_idx, arg_idx)| {
+                    let Some(arg_idx) = arg_idx else {
+                        return None;
+                    };
+                    let arg = &call_args[arg_idx];
+                    Some(GenericArgConstraint {
+                        expected: sig.params[param_idx + 1],
+                        found: arg.ty,
+                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        from: format!("第 {} 个实参", arg_idx + 1),
+                        span: arg.expr.span,
+                    })
+                },
+            )),
+            lower,
+            builtins,
+        )?;
 
         let expected_receiver_ty = instantiated
             .params
@@ -4491,6 +4736,9 @@ fn infer_member_call_expr_type(
         // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
         let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
             let found_ty = infer_expr_type_in_expected_context(
@@ -4518,6 +4766,9 @@ fn infer_member_call_expr_type(
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                let Some(arg_idx) = arg_idx else {
+                    continue;
+                };
                 let sig_param_idx = param_idx + 1; // 跳过 receiver
                 if !sig
                     .param_fn_effect_uses_eff
@@ -4552,7 +4803,8 @@ fn infer_member_call_expr_type(
 
         // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row。
         if sig.eff_param.is_some() {
-            for (sig_param_idx, uses_eff) in sig.param_fn_effect_uses_eff.iter().copied().enumerate()
+            for (sig_param_idx, uses_eff) in
+                sig.param_fn_effect_uses_eff.iter().copied().enumerate()
             {
                 if !uses_eff {
                     continue;
@@ -4572,6 +4824,9 @@ fn infer_member_call_expr_type(
 
         // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
             let found_ty = checked_arg_tys[arg_idx];
@@ -4631,6 +4886,8 @@ fn infer_member_call_expr_type(
     #[derive(Debug, Clone)]
     struct MatchedExtensionOverload<'a> {
         sig: &'a FunSigOwned,
+        instantiated: InstantiatedFunSig,
+        eff_arg: EffectRow,
         receiver_ty: TypeId,
         /// `call_args[arg_idx]` 对应的“期望类型”（排除了 receiver 参数）。
         expected_arg_tys: Vec<TypeId>,
@@ -4656,11 +4913,11 @@ fn infer_member_call_expr_type(
         a_le_b && !b_le_a
     }
 
-    fn pick_most_specific_extension_overload<'a>(
-        candidates: &[MatchedExtensionOverload<'a>],
+    fn pick_most_specific_extension_overload(
+        candidates: &[MatchedExtensionOverload<'_>],
         lower: &TypeLowering<'_>,
         builtins: BuiltinTypes,
-    ) -> Option<&'a FunSigOwned> {
+    ) -> Option<usize> {
         for (idx, cand) in candidates.iter().enumerate() {
             let mut ok = true;
             for (other_idx, other) in candidates.iter().enumerate() {
@@ -4673,7 +4930,7 @@ fn infer_member_call_expr_type(
                 }
             }
             if ok {
-                return Some(cand.sig);
+                return Some(idx);
             }
         }
         None
@@ -4683,30 +4940,176 @@ fn infer_member_call_expr_type(
     let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
 
     for cand in ext_candidates {
-        let Some(expected_receiver_ty) = cand.params.first().copied() else {
+        let Some(param_names) = cand.param_names.get(1..) else {
             continue;
         };
+        let Some(param_has_defaults) = cand.param_has_defaults.get(1..) else {
+            continue;
+        };
+        let Some(mapping) =
+            map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
+        else {
+            continue;
+        };
+
+        let mut instantiated = match instantiate_fun_sig_for_call(
+            &callee_fqn,
+            call_expr.span,
+            cand,
+            std::iter::once(GenericArgConstraint {
+                expected: cand.params[0],
+                found: actual_receiver_ty,
+                found_is_placeholder: false,
+                from: "接收者（receiver）".to_string(),
+                span: receiver.span,
+            })
+            .chain(mapping.iter().copied().enumerate().filter_map(
+                |(param_idx, arg_idx)| {
+                    let Some(arg_idx) = arg_idx else {
+                        return None;
+                    };
+                    let arg = &call_args[arg_idx];
+                    Some(GenericArgConstraint {
+                        expected: cand.params[param_idx + 1],
+                        found: arg.ty,
+                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        from: format!("第 {} 个实参", arg_idx + 1),
+                        span: arg.expr.span,
+                    })
+                },
+            )),
+            lower,
+            builtins,
+        ) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        // receiver mismatch：该候选不匹配。
+        let expected_receiver_ty = instantiated
+            .params
+            .first()
+            .copied()
+            .unwrap_or(cand.params[0]);
         if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
             continue;
         }
 
-        let expected_args = cand.params.len().saturating_sub(1);
-        if call_args.len() != expected_args {
+        // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
+        let mut ok = true;
+        let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let arg = &call_args[arg_idx];
+            if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                continue;
+            }
+
+            let expected_ty = instantiated.params[param_idx + 1];
+            let found_ty = match infer_expr_type_in_expected_context(
+                source,
+                arg.expr,
+                expected_ty,
+                ExpectedTypeFrom::new(format!(
+                    "`{}` 的第 {} 个形参 `{}`",
+                    callee_fqn,
+                    param_idx + 2,
+                    cand.param_names[param_idx + 1]
+                )),
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            ) {
+                Ok(ty) => ty,
+                Err(_) => {
+                    ok = false;
+                    break;
+                }
+            };
+            checked_arg_tys[arg_idx] = found_ty;
+        }
+        if !ok {
             continue;
         }
 
-        let Some(param_names) = cand.param_names.get(1..) else {
-            continue;
-        };
-        let Some(mapping) = map_call_args_to_params(&call_args, param_names) else {
-            continue;
+        // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+        let eff_arg = if let Some(eff_param) = &cand.eff_param {
+            let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                let Some(arg_idx) = arg_idx else {
+                    continue;
+                };
+                let sig_param_idx = param_idx + 1; // 跳过 receiver
+                if !cand
+                    .param_fn_effect_uses_eff
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+                let arg = &call_args[arg_idx];
+                if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                    continue;
+                }
+
+                let found_ty = checked_arg_tys[arg_idx];
+                if let TypeKind::Ref(RefTypeKind::Function(found_fun)) = lower.type_kind(found_ty) {
+                    terms.extend(found_fun.effects.terms);
+                }
+            }
+
+            let inferred = EffectRow::new(terms);
+            match substitute_type_args_in_effect_row(
+                inferred,
+                &cand.type_params,
+                &instantiated.type_args,
+                lower,
+                call_expr.span,
+            ) {
+                Ok(row) => row,
+                Err(_) => continue,
+            }
+        } else {
+            EffectRow::pure()
         };
 
-        let mut ok = true;
+        // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row。
+        if cand.eff_param.is_some() {
+            for (sig_param_idx, uses_eff) in
+                cand.param_fn_effect_uses_eff.iter().copied().enumerate()
+            {
+                if !uses_eff {
+                    continue;
+                }
+                let expected_ty = instantiated.params[sig_param_idx];
+                let Some(patched) =
+                    replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
+                else {
+                    ok = false;
+                    break;
+                };
+                instantiated.params[sig_param_idx] = patched;
+            }
+        }
+        if !ok {
+            continue;
+        }
+
+        // 参数可赋值检查（跳过 receiver；只检查显式实参）。
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let expected_ty = cand.params[param_idx + 1];
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
-            let found_ty = arg.ty;
+            let found_ty = checked_arg_tys[arg_idx];
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;
@@ -4721,13 +5124,18 @@ fn infer_member_call_expr_type(
         if ok {
             let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                expected_arg_tys[arg_idx] = cand.params[param_idx + 1];
+                let Some(arg_idx) = arg_idx else {
+                    continue;
+                };
+                expected_arg_tys[arg_idx] = instantiated.params[param_idx + 1];
             }
 
             matched.push(MatchedExtensionOverload {
                 sig: cand,
                 receiver_ty: expected_receiver_ty,
                 expected_arg_tys,
+                instantiated,
+                eff_arg,
             });
         }
     }
@@ -4739,19 +5147,47 @@ fn infer_member_call_expr_type(
                 span: call_expr.span.into(),
             });
         }
-        1 => matched[0].sig,
-        _ => pick_most_specific_extension_overload(&matched, lower, builtins).ok_or_else(|| {
-            ExprTypeError::AmbiguousOverload {
-                callee: callee_fqn,
-                span: call_expr.span.into(),
-            }
-        })?,
+        1 => matched.pop().expect("len == 1"),
+        _ => {
+            let idx = pick_most_specific_extension_overload(&matched, lower, builtins).ok_or_else(
+                || ExprTypeError::AmbiguousOverload {
+                    callee: callee_fqn,
+                    span: call_expr.span.into(),
+                },
+            )?;
+            matched.swap_remove(idx)
+        }
     };
 
-    let ret = if safe {
-        lower.ty_option(chosen.return_ty)
+    // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+    let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
+    lower.push_type_param_bindings(type_param_bindings);
+    let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
+        lower.push_effect_row_param_binding(eff_param.name.clone(), chosen.eff_arg.clone());
+        true
     } else {
-        chosen.return_ty
+        false
+    };
+    let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
+    if eff_binding_pushed {
+        lower.pop_effect_row_param_binding();
+    }
+    lower.pop_type_param_bindings();
+    let call_effects = substitute_type_args_in_effect_row(
+        lowered_effects?,
+        &chosen.sig.type_params,
+        &chosen.instantiated.type_args,
+        lower,
+        call_expr.span,
+    )?;
+    for effect in call_effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_expr.span);
+    }
+
+    let ret = if safe {
+        lower.ty_option(chosen.instantiated.return_ty)
+    } else {
+        chosen.instantiated.return_ty
     };
 
     Ok(ret)
@@ -4856,6 +5292,7 @@ fn collect_top_level_fun_signatures(
                 .collect();
 
             let mut param_names = Vec::with_capacity(fun.params.len() + 1);
+            let mut param_has_defaults = Vec::with_capacity(fun.params.len() + 1);
             let mut params = Vec::with_capacity(fun.params.len() + 1);
             let mut param_fn_effect_uses_eff = Vec::with_capacity(fun.params.len() + 1);
 
@@ -4866,6 +5303,7 @@ fn collect_top_level_fun_signatures(
             if let Some(receiver) = &fun.receiver {
                 // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
                 param_names.push("<receiver>".to_string());
+                param_has_defaults.push(false);
                 params.push(lower.lower_type_ref(receiver)?);
                 param_fn_effect_uses_eff.push(false);
             }
@@ -4879,6 +5317,7 @@ fn collect_top_level_fun_signatures(
                     .as_ref()
                     .is_some_and(|e| type_ref_is_fn_effect_eff_var(ty_ref, &e.name, source));
                 param_names.push(source.slice(p.name.span).to_string());
+                param_has_defaults.push(p.default_value.is_some());
                 params.push(lower.lower_type_ref(ty_ref)?);
                 param_fn_effect_uses_eff.push(uses_eff);
             }
@@ -4893,6 +5332,7 @@ fn collect_top_level_fun_signatures(
                 is_extension,
                 is_inline,
                 param_names,
+                param_has_defaults,
                 type_params,
                 eff_param: eff_param_sig.clone(),
                 param_fn_effect_uses_eff,
@@ -4935,7 +5375,11 @@ struct GenericArgConstraint {
     span: Span,
 }
 
-fn type_ref_is_fn_effect_eff_var(ty_ref: &ast::TypeRef, eff_name: &str, source: &SourceFile) -> bool {
+fn type_ref_is_fn_effect_eff_var(
+    ty_ref: &ast::TypeRef,
+    eff_name: &str,
+    source: &SourceFile,
+) -> bool {
     let ast::TypeRef::Function(fun) = ty_ref else {
         return false;
     };
@@ -5300,11 +5744,7 @@ fn substitute_type_args_in_effect_row(
     let mut out_terms: Vec<TypeId> = Vec::with_capacity(row.terms.len());
     for effect in row.terms {
         let mut cur = effect;
-        for (param_ty, arg_ty) in type_params
-            .iter()
-            .copied()
-            .zip(type_args.iter().copied())
-        {
+        for (param_ty, arg_ty) in type_params.iter().copied().zip(type_args.iter().copied()) {
             cur = substitute_single_type_param(cur, param_ty, arg_ty, lower, use_span)?;
         }
         out_terms.push(cur);
@@ -6050,10 +6490,9 @@ fn check_local_val_decl_exprs(
         None => None,
     };
     let expected_from = match &v.binding {
-        ast::ValBinding::Name(name) => ExpectedTypeFrom::new(format!(
-            "局部绑定 `{}` 的类型注解",
-            source.slice(name.span)
-        )),
+        ast::ValBinding::Name(name) => {
+            ExpectedTypeFrom::new(format!("局部绑定 `{}` 的类型注解", source.slice(name.span)))
+        }
         ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("局部解构绑定的类型注解"),
     };
 

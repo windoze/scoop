@@ -175,6 +175,7 @@
   - [x] typecheck：class 构造调用最小重载决议（T0454：primary/secondary + 默认参数）
   - [x] typecheck：扩展函数调用重载决议（T0455：member 优先 + receiver/参数 specificity）
   - [x] typecheck：重载冲突诊断（T0457：重复签名 / 仅返回类型不同 / 默认参数冲突）
+  - [x] inference：重载决议与泛型/默认参数/命名参数/`eff` row 推断联动（T0512）
   - [ ] inference：most-specific tie-break（后续任务逐步补齐）
 - [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务；T0321b 依赖 T1105 `.cone` 读取，已在 TODO 中延后）
   - [x] T0321a：resolver 引入 cone 边界 + source-only 多 cone fixtures

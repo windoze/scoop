@@ -1555,11 +1555,22 @@
    - fixtures：新增 `tests/fixtures/infer/effects/*` 覆盖默认 `Pure` 与 receiver mismatch 诊断。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0512 [TODO] overload resolution 与泛型/默认参数/命名参数/row 推断联动
+### T0512 [DONE] overload resolution 与泛型/默认参数/命名参数/row 推断联动
 - 描述：让 overload resolution 不只依赖显式类型，还能与泛型实参推断、默认参数、命名参数、effect row 参数、receiver function type 一起求解候选。
 - 目标：先覆盖“先过滤候选，再对剩余候选尝试推断”的两阶段策略；更激进的联合求解后续再优化。
 - 验收：infer fixture：泛型 overload 能按实参推断出正确候选；默认参数与命名参数参与后可消除歧义；effect row 也能影响候选选择。
 - 依赖：T0453、T0454、T0455、T0505、T0509
+ - 完成：
+   - typecheck/expr：顶层函数调用与扩展函数调用的多候选重载决议升级为“两阶段”：
+     - 先做候选过滤：args→params 映射（支持默认参数 + 命名参数）；
+     - 再对剩余候选尝试：泛型实例化（T0505）、lambda expected-context 推导（T0504）、`eff` row 推断与 substitution（T0509）。
+   - typecheck/expr：单候选路径同样接入默认参数映射（当前只做可用性/类型检查；默认值表达式的补齐语义留给后续任务 T1305）。
+   - diagnostics：多候选路径在选出唯一候选后，会按实例化后的 type args 与 `eff` row 记录 call required effects（避免之前“重载命中但 effects 未记账”的漏报）。
+   - fixtures：新增 `tests/fixtures/infer/overload_resolution_inference_defaults_and_effects_ok.scoop` 覆盖：
+     - 泛型候选可在多候选中通过实参推断被选中；
+     - 命名参数 + 默认参数共同参与候选可用性判定；
+     - `eff` row 推断可影响候选筛选（lambda effects 与固定 effect row 的可赋值关系）。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0513 [TODO] 最具体候选（most specific candidate）与歧义诊断
 - 描述：在多个候选都可行时，实现 Kotlin-like most-specific candidate 规则，并给出稳定、可解释的歧义诊断。

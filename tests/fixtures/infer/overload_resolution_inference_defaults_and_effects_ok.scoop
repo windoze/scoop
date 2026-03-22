@@ -1,0 +1,41 @@
+// EXPECT: pass
+// 目标：T0512 overload resolution 与推断联动（两阶段：先过滤候选，再对剩余候选尝试推断）：
+// - 多候选时，泛型候选可通过“最小类型实参推断”参与筛选
+// - 默认参数与命名参数参与形参映射与候选可用性判断
+// - effect row 参数（`<eff E = Pure>`）与 lambda body effects 联动，能影响候选选择
+
+package fixtures.infer
+
+import scoop.core.*
+
+effect Foo
+
+// --- 泛型 overload：`choose(1, 2)` 应命中 `choose<T>` 并推断 `T = Int`。
+fun choose<T>(x: T, y: T): T {
+    return x
+}
+
+fun choose(x: Int, y: String): String {
+    return y
+}
+
+// --- 默认参数 + 命名参数：`defaulted(x = 1)` 省略了带默认值的 `y`，仍应匹配 Int overload。
+fun defaulted(x: Int, y: Int = 0): Int {
+    return x
+}
+
+fun defaulted(x: String): Int {
+    return 0
+}
+
+// --- effect row：lambda body perform Raise，但固定 `/ Foo` 候选应被剔除；`<eff E>` 候选应能从 lambda 推断出 `E = Raise<Int>`。
+fun effFixed(block: () -> Unit / Foo): Unit
+fun <eff E = Pure> effFixed(block: () -> Unit / E): Unit
+
+fun ok() {
+    val a: Int = choose(1, 2)
+    val b: Int = defaulted(x = 1)
+    val u: Unit = effFixed {
+        Raise.raise(1)
+    }
+}
