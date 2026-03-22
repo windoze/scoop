@@ -1263,20 +1263,22 @@ pub fn check_file_headers(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
-                resolve_type_ref(source, file, index, &type_params, &ta.ty)?
+                resolve_type_ref(source, file, index, &type_params, None, &ta.ty)?
             }
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;
-                let result = (|| resolve_fun_header(source, file, index, &type_params, fun))();
+                let eff_param = fun.eff_param.as_ref().map(|p| source.slice(p.name.span));
+                let result =
+                    (|| resolve_fun_header(source, file, index, &type_params, eff_param, fun))();
                 type_params.pop_decl();
                 result?;
             }
             ast::Item::ExtensionProperty(p) => {
                 type_params.push_decl(source, &p.type_params)?;
                 let result = (|| {
-                    resolve_type_ref(source, file, index, &type_params, &p.receiver)?;
+                    resolve_type_ref(source, file, index, &type_params, None, &p.receiver)?;
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
                     }
                     Ok(())
                 })();
@@ -1285,7 +1287,7 @@ pub fn check_file_headers(
             }
             ast::Item::Val(v) => {
                 if let Some(ty) = &v.ty {
-                    resolve_type_ref(source, file, index, &type_params, ty)?;
+                    resolve_type_ref(source, file, index, &type_params, None, ty)?;
                 }
             }
             ast::Item::Type(ty) => {
@@ -1316,21 +1318,22 @@ fn resolve_fun_header(
     file: &ast::File,
     index: &Index,
     type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
     fun: &ast::FunDecl,
 ) -> Result<(), ResolveError> {
     if let Some(receiver) = &fun.receiver {
-        resolve_type_ref(source, file, index, type_params, receiver)?;
+        resolve_type_ref(source, file, index, type_params, eff_param, receiver)?;
     }
     for p in &fun.params {
         if let Some(ty) = &p.ty {
-            resolve_type_ref(source, file, index, type_params, ty)?;
+            resolve_type_ref(source, file, index, type_params, eff_param, ty)?;
         }
     }
     if let Some(ret) = &fun.return_ty {
-        resolve_type_ref(source, file, index, type_params, ret)?;
+        resolve_type_ref(source, file, index, type_params, eff_param, ret)?;
     }
     if let Some(w) = &fun.where_clause {
-        resolve_where_clause(source, file, index, type_params, w)?;
+        resolve_where_clause(source, file, index, type_params, eff_param, w)?;
     }
     Ok(())
 }
@@ -1346,22 +1349,24 @@ fn resolve_type_decl_headers(
     type_params.push_decl(source, &ty.type_params)?;
 
     let result = (|| {
+        let ty_eff_param = ty.eff_param.as_ref().map(|p| source.slice(p.name.span));
+
         if let Some(w) = &ty.where_clause {
-            resolve_where_clause(source, file, index, type_params, w)?;
+            resolve_where_clause(source, file, index, type_params, ty_eff_param, w)?;
         }
 
         // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
                 if let Some(ty) = &p.ty {
-                    resolve_type_ref(source, file, index, type_params, ty)?;
+                    resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                 }
             }
         }
 
         // 继承/实现列表：解析 supertype 的类型引用。
         for st in &ty.supertypes {
-            resolve_type_ref(source, file, index, type_params, &st.ty)?;
+            resolve_type_ref(source, file, index, type_params, ty_eff_param, &st.ty)?;
         }
 
         // 类型体成员签名：property/fun/nested type。
@@ -1376,13 +1381,13 @@ fn resolve_type_decl_headers(
                     // 这里复用 TypeRef 的存在性解析规则（包含 type params）。
                     for p in &v.params {
                         if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, type_params, ty)?;
+                            resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                         }
                     }
                 }
                 ast::TypeMember::Property(p) => {
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, type_params, ty)?;
+                        resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                     }
                 }
                 ast::TypeMember::InitBlock(_b) => {
@@ -1393,13 +1398,20 @@ fn resolve_type_decl_headers(
                     // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
                     for p in &ctor.params {
                         if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, type_params, ty)?;
+                            resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                         }
                     }
                 }
                 ast::TypeMember::Fun(f) => {
                     type_params.push_decl(source, &f.type_params)?;
-                    let result = (|| resolve_fun_header(source, file, index, type_params, f))();
+                    let fun_eff_param = f
+                        .eff_param
+                        .as_ref()
+                        .map(|p| source.slice(p.name.span))
+                        .or(ty_eff_param);
+                    let result = (|| {
+                        resolve_fun_header(source, file, index, type_params, fun_eff_param, f)
+                    })();
                     type_params.pop_decl();
                     result?;
                 }
@@ -1437,6 +1449,7 @@ fn resolve_where_clause(
     file: &ast::File,
     index: &Index,
     type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
     where_clause: &ast::WhereClause,
 ) -> Result<(), ResolveError> {
     for c in &where_clause.constraints {
@@ -1447,7 +1460,7 @@ fn resolve_where_clause(
                 span: c.ty_param.span.into(),
             });
         }
-        resolve_type_ref(source, file, index, type_params, &c.bound)?;
+        resolve_type_ref(source, file, index, type_params, eff_param, &c.bound)?;
     }
     Ok(())
 }
@@ -1463,7 +1476,7 @@ fn resolve_object_decl_headers(
 
     // 超类型列表：解析类型引用（若存在）。
     for st in &obj.supertypes {
-        resolve_type_ref(source, file, index, &type_params, &st.ty)?;
+        resolve_type_ref(source, file, index, &type_params, None, &st.ty)?;
     }
 
     let Some(body) = &obj.body else {
@@ -1472,32 +1485,34 @@ fn resolve_object_decl_headers(
 
     for member in &body.members {
         match member {
-            ast::TypeMember::EnumVariant(v) => {
-                for p in &v.params {
-                    if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                ast::TypeMember::EnumVariant(v) => {
+                    for p in &v.params {
+                        if let Some(ty) = &p.ty {
+                            resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                        }
                     }
                 }
-            }
-            ast::TypeMember::Property(p) => {
-                if let Some(ty) = &p.ty {
-                    resolve_type_ref(source, file, index, &type_params, ty)?;
+                ast::TypeMember::Property(p) => {
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                    }
                 }
-            }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
-                for p in &ctor.params {
-                    if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, ty)?;
+                    for p in &ctor.params {
+                        if let Some(ty) = &p.ty {
+                            resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                        }
                     }
                 }
-            }
-            ast::TypeMember::Fun(f) => {
-                type_params.push_decl(source, &f.type_params)?;
-                let result = (|| resolve_fun_header(source, file, index, &type_params, f))();
-                type_params.pop_decl();
-                result?;
-            }
+                ast::TypeMember::Fun(f) => {
+                    type_params.push_decl(source, &f.type_params)?;
+                    let eff_param = f.eff_param.as_ref().map(|p| source.slice(p.name.span));
+                    let result =
+                        (|| resolve_fun_header(source, file, index, &type_params, eff_param, f))();
+                    type_params.pop_decl();
+                    result?;
+                }
             ast::TypeMember::Type(nested) => {
                 let mut nested_type_params = TypeParamScopes::new();
                 resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
@@ -1516,13 +1531,14 @@ fn resolve_type_ref(
     file: &ast::File,
     index: &Index,
     type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
     ty: &ast::TypeRef,
 ) -> Result<(), ResolveError> {
     match ty {
-        ast::TypeRef::Path(p) => resolve_type_path(source, file, index, type_params, p),
+        ast::TypeRef::Path(p) => resolve_type_path(source, file, index, type_params, eff_param, p),
         ast::TypeRef::Tuple(t) => {
             for e in &t.elements {
-                resolve_type_ref(source, file, index, type_params, e)?;
+                resolve_type_ref(source, file, index, type_params, eff_param, e)?;
             }
             Ok(())
         }
@@ -1532,29 +1548,43 @@ fn resolve_type_ref(
             // use-site effect row 语法本身不引入 type position 的引用，但 row expr 的项
             // 与函数类型上的 `/ RowExpr` 一样需要做存在性解析（effect 名 / row 变量等）。
             for term in &row.terms {
-                resolve_type_path(source, file, index, type_params, term)?;
+                if eff_param.is_some_and(|name| {
+                    term.segments.len() == 1
+                        && term.args.is_empty()
+                        && source.slice(term.segments[0].span) == name
+                }) {
+                    continue;
+                }
+                resolve_type_path(source, file, index, type_params, eff_param, term)?;
             }
             Ok(())
         }
         ast::TypeRef::Function(f) => {
             if let Some(receiver) = &f.receiver {
-                resolve_type_ref(source, file, index, type_params, receiver)?;
+                resolve_type_ref(source, file, index, type_params, eff_param, receiver)?;
             }
             for p in &f.params {
-                resolve_type_ref(source, file, index, type_params, p)?;
+                resolve_type_ref(source, file, index, type_params, eff_param, p)?;
             }
-            resolve_type_ref(source, file, index, type_params, &f.return_ty)?;
+            resolve_type_ref(source, file, index, type_params, eff_param, &f.return_ty)?;
 
             if let Some(effects) = &f.effects {
                 for term in &effects.terms {
-                    resolve_type_path(source, file, index, type_params, term)?;
+                    if eff_param.is_some_and(|name| {
+                        term.segments.len() == 1
+                            && term.args.is_empty()
+                            && source.slice(term.segments[0].span) == name
+                    }) {
+                        continue;
+                    }
+                    resolve_type_path(source, file, index, type_params, eff_param, term)?;
                 }
             }
 
             Ok(())
         }
         ast::TypeRef::Nullable { inner, .. } => {
-            resolve_type_ref(source, file, index, type_params, inner)
+            resolve_type_ref(source, file, index, type_params, eff_param, inner)
         }
     }
 }
@@ -1564,11 +1594,12 @@ fn resolve_type_path(
     file: &ast::File,
     index: &Index,
     type_params: &TypeParamScopes,
+    eff_param: Option<&str>,
     path: &ast::TypePath,
 ) -> Result<(), ResolveError> {
     // 先解析类型实参（如 `Option<T>`），确保其中的 TypeRef 也会被递归解析。
     for arg in &path.args {
-        resolve_type_ref(source, file, index, type_params, arg)?;
+        resolve_type_ref(source, file, index, type_params, eff_param, arg)?;
     }
 
     let segments = path

@@ -329,7 +329,7 @@
   - [x] 相等约束 + 推断变量 + 最小 unify 骨架（T0501）
   - [x] 子类型约束 `τ1 <: τ2` 的求解（T0506）
   - [x] effects 行推断入口（T0508：public 强制 Pure、private/internal 可推断；依赖 required effects：T0604 ✅）
-  - [ ] effects 行参数 `eff` 推断（T0509）
+  - [x] effects 行参数 `eff` 推断（T0509）
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
 - [x] 返回类型推断：缺省 return type 从函数体推断（T0507，spec §14.6）

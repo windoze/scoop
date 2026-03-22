@@ -127,6 +127,17 @@ pub fn check_file_type_refs(
             }
             ast::Item::Fun(fun) => {
                 ctx.push_type_params(&fun.type_params);
+                let eff_binding = if let Some(eff_param) = &fun.eff_param {
+                    let name = source.slice(eff_param.name.span).to_string();
+                    let default = match eff_param.default.as_ref() {
+                        Some(expr) => ctx.lower_effect_row_expr(Some(expr))?,
+                        None => EffectRow::pure(),
+                    };
+                    ctx.push_effect_row_param_binding(name.clone(), default);
+                    Some(name)
+                } else {
+                    None
+                };
                 if let Some(receiver) = &fun.receiver {
                     let _ = ctx.lower_type_ref(receiver)?;
                 }
@@ -145,6 +156,9 @@ pub fn check_file_type_refs(
                     }
                 }
                 ctx.pop_type_params(&fun.type_params);
+                if eff_binding.is_some() {
+                    ctx.pop_effect_row_param_binding();
+                }
             }
             ast::Item::ExtensionProperty(p) => {
                 ctx.push_type_params(&p.type_params);
@@ -181,6 +195,8 @@ pub(super) struct TypeLowering<'a> {
     pkg_prefix: String,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
+    /// effect row parameter 作用域栈：用于 lowering `/ E` 这类 row 变量引用（T0509）。
+    effect_row_param_scopes: Vec<HashMap<String, EffectRow>>,
     /// typealias 展开栈（用于循环检测；存储 alias FQN）。
     type_alias_stack: Vec<String>,
     /// 已展开 typealias 的缓存（alias FQN → lowered TypeId）。
@@ -242,6 +258,7 @@ impl<'a> TypeLowering<'a> {
             builtins,
             pkg_prefix,
             type_param_scopes: Vec::new(),
+            effect_row_param_scopes: Vec::new(),
             type_alias_stack: Vec::new(),
             type_alias_cache: HashMap::new(),
             effect_collection_enabled: false,
@@ -256,6 +273,16 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn env(&self) -> &TypeEnv {
         self.env
+    }
+
+    pub(super) fn push_effect_row_param_binding(&mut self, name: String, row: EffectRow) {
+        let mut scope = HashMap::new();
+        scope.insert(name, row);
+        self.effect_row_param_scopes.push(scope);
+    }
+
+    pub(super) fn pop_effect_row_param_binding(&mut self) {
+        let _ = self.effect_row_param_scopes.pop();
     }
 
     pub(super) fn index(&self) -> &Index {
@@ -407,6 +434,20 @@ impl<'a> TypeLowering<'a> {
 
         let mut terms: Vec<TypeId> = Vec::with_capacity(expr.terms.len());
         for term in &expr.terms {
+            // T0509：effect row variable（`E`）在 lowering 阶段展开为其绑定的 row。
+            if term.segments.len() == 1 && term.args.is_empty() {
+                let name = self.source.slice(term.segments[0].span);
+                if let Some(bound) = self
+                    .effect_row_param_scopes
+                    .iter()
+                    .rev()
+                    .find_map(|s| s.get(name))
+                {
+                    terms.extend(bound.terms.iter().copied());
+                    continue;
+                }
+            }
+
             // effect item 的语法复用 `TypePath`；这里复用 TypeRef lowering，再做 kind 检查。
             let ty = self.lower_type_ref(&ast::TypeRef::Path(term.clone()))?;
             let ok = match self.type_kind(ty) {
@@ -454,6 +495,27 @@ impl<'a> TypeLowering<'a> {
         self.effect_collection_suspend_depth =
             self.effect_collection_suspend_depth.saturating_sub(1);
         out
+    }
+
+    pub(super) fn with_nested_effect_collection<R, E>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<R, E>,
+    ) -> Result<(R, Vec<(TypeId, Span)>), E> {
+        let saved_enabled = self.effect_collection_enabled;
+        let saved_suspend = self.effect_collection_suspend_depth;
+        let saved_effects = std::mem::take(&mut self.performed_effects);
+
+        self.effect_collection_enabled = true;
+        self.effect_collection_suspend_depth = 0;
+
+        let result = f(self);
+
+        let collected = std::mem::take(&mut self.performed_effects);
+        self.effect_collection_enabled = saved_enabled;
+        self.effect_collection_suspend_depth = saved_suspend;
+        self.performed_effects = saved_effects;
+
+        result.map(|value| (value, collected))
     }
 
     pub(super) fn record_performed_effect(&mut self, effect: TypeId, span: Span) {
@@ -943,6 +1005,17 @@ impl<'a> TypeLowering<'a> {
     fn check_type_decl_headers(&mut self, ty: &ast::TypeDecl) -> Result<(), TypeLowerError> {
         // `TypeDecl` 的 type params 在其 header/body 的所有 type position 内可见。
         self.push_type_params(&ty.type_params);
+        let ty_eff_binding = if let Some(eff_param) = &ty.eff_param {
+            let name = self.source.slice(eff_param.name.span).to_string();
+            let default = match eff_param.default.as_ref() {
+                Some(expr) => self.lower_effect_row_expr(Some(expr))?,
+                None => EffectRow::pure(),
+            };
+            self.push_effect_row_param_binding(name, default);
+            true
+        } else {
+            false
+        };
 
         // 变型位置规则（Appendix B.4）：在 lowering 过程中做最小静态校验。
         self.check_type_decl_variance_rules(ty)?;
@@ -1001,6 +1074,17 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);
+                    let fun_eff_binding = if let Some(eff_param) = &f.eff_param {
+                        let name = self.source.slice(eff_param.name.span).to_string();
+                        let default = match eff_param.default.as_ref() {
+                            Some(expr) => self.lower_effect_row_expr(Some(expr))?,
+                            None => EffectRow::pure(),
+                        };
+                        self.push_effect_row_param_binding(name, default);
+                        true
+                    } else {
+                        false
+                    };
                     if let Some(receiver) = &f.receiver {
                         let _ = self.lower_type_ref(receiver)?;
                     }
@@ -1017,6 +1101,9 @@ impl<'a> TypeLowering<'a> {
                             let _ = self.lower_type_ref(&c.bound)?;
                         }
                     }
+                    if fun_eff_binding {
+                        self.pop_effect_row_param_binding();
+                    }
                     self.pop_type_params(&f.type_params);
                 }
                 ast::TypeMember::Type(nested) => {
@@ -1028,6 +1115,9 @@ impl<'a> TypeLowering<'a> {
             }
         }
 
+        if ty_eff_binding {
+            self.pop_effect_row_param_binding();
+        }
         self.pop_type_params(&ty.type_params);
         Ok(())
     }
@@ -1066,6 +1156,17 @@ impl<'a> TypeLowering<'a> {
                 }
                 ast::TypeMember::Fun(f) => {
                     self.push_type_params(&f.type_params);
+                    let fun_eff_binding = if let Some(eff_param) = &f.eff_param {
+                        let name = self.source.slice(eff_param.name.span).to_string();
+                        let default = match eff_param.default.as_ref() {
+                            Some(expr) => self.lower_effect_row_expr(Some(expr))?,
+                            None => EffectRow::pure(),
+                        };
+                        self.push_effect_row_param_binding(name, default);
+                        true
+                    } else {
+                        false
+                    };
                     if let Some(receiver) = &f.receiver {
                         let _ = self.lower_type_ref(receiver)?;
                     }
@@ -1076,6 +1177,9 @@ impl<'a> TypeLowering<'a> {
                     }
                     if let Some(ret) = &f.return_ty {
                         let _ = self.lower_type_ref(ret)?;
+                    }
+                    if fun_eff_binding {
+                        self.pop_effect_row_param_binding();
                     }
                     self.pop_type_params(&f.type_params);
                 }

@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0509 effect row 参数 `eff`：调用点省略 row 参数时使用默认值（`Pure`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// `E` 缺省为 Pure，因此调用 `f()` 不应引入任何 required effects。
+fun <eff E = Pure> f(): Int / E
+
+fun ok() {
+    val x: Int = f()
+}
+

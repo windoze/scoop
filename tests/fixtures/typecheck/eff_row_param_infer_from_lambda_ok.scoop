@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0509 effect row 参数 `eff`：从 lambda body 推断 `E`，并要求外层函数声明对应 required effects。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun <eff E = Pure> run(block: () -> Unit / E): Unit / E
+
+fun ok() / (Raise<Int>) {
+    val x: Unit = run { Raise.raise(1) }
+}
+

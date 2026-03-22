@@ -1515,11 +1515,18 @@
    - fixtures：新增 public 缺省 row 的 compile-fail，以及 private 缺省 row 的 compile-pass 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0509 [TODO] effect row 参数 `eff` 推断（spec §14.7.3 / §3.4）
+### T0509 [DONE] effect row 参数 `eff` 推断（spec §14.7.3 / §3.4）
 - 描述：实现 `eff E = Pure` 这种 row type parameter 的推断/实例化规则。
 - 目标：先只支持默认值与 `E1+E2` 实参；不做高阶 row 运算。
 - 验收：effects fixture：`fun <eff E = Pure> ... / E` 在调用点省略 row 参数可推断为 Pure。
 - 依赖：T0250、T0603、T0508
+ - 完成：
+   - resolve：允许在 effect row 中引用 `eff` 参数名（例如 `/ E`），避免把 `E` 当作普通类型去解析。
+   - typecheck/lower：引入 effect row 参数作用域，将 `/ E` 展开为其绑定的 row（默认值缺省为 `Pure`）。
+   - typecheck/expr：从 lambda body 收集到的 performed effects 推断 `E`，并把被调用函数的 required effects 计入外层函数体的 performed effects。
+   - typecheck/overloads：重载冲突检查阶段在 lowering 签名时同样注入 `eff` 参数绑定，避免 `E` 未解析错误。
+   - fixtures：新增 `eff` 默认 Pure、从 lambda 推断、以及“推断后外层缺少效果声明”的 fail 用例覆盖。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0510 [TODO] 推断失败诊断：最小可读解释（spec §14.7.4）
 - 描述：把“推断失败”映射到具体 span，并给出最小解释（期望类型/实际类型/约束来源）。

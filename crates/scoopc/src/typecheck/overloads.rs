@@ -152,6 +152,17 @@ fn collect_type_decl(
 
     // class/type 的 type params 进入作用域，供 ctor/member signatures lowering。
     lower.push_type_params(&ty.type_params);
+    let ty_eff_binding = if let Some(eff_param) = &ty.eff_param {
+        let name = source.slice(eff_param.name.span).to_string();
+        let default = match eff_param.default.as_ref() {
+            Some(expr) => lower.lower_effect_row_expr(Some(expr))?,
+            None => crate::ty::EffectRow::pure(),
+        };
+        lower.push_effect_row_param_binding(name, default);
+        true
+    } else {
+        false
+    };
 
     if let Some(primary) = &ty.primary_ctor {
         collect_ctor_decl(
@@ -203,6 +214,9 @@ fn collect_type_decl(
         }
     }
 
+    if ty_eff_binding {
+        lower.pop_effect_row_param_binding();
+    }
     lower.pop_type_params(&ty.type_params);
 
     Ok(())
@@ -296,6 +310,17 @@ fn collect_fun_decl(
     let fqn = join_prefix(prefix, &name);
 
     lower.push_type_params(&fun.type_params);
+    let fun_eff_binding = if let Some(eff_param) = &fun.eff_param {
+        let name = source.slice(eff_param.name.span).to_string();
+        let default = match eff_param.default.as_ref() {
+            Some(expr) => lower.lower_effect_row_expr(Some(expr))?,
+            None => crate::ty::EffectRow::pure(),
+        };
+        lower.push_effect_row_param_binding(name, default);
+        true
+    } else {
+        false
+    };
 
     let receiver = match &fun.receiver {
         Some(r) => Some(lower.lower_type_ref(r)?),
@@ -307,6 +332,9 @@ fn collect_fun_decl(
         None => None,
     };
 
+    if fun_eff_binding {
+        lower.pop_effect_row_param_binding();
+    }
     lower.pop_type_params(&fun.type_params);
 
     funs_by_fqn.entry(fqn.clone()).or_default().push(FunDeclInfo {

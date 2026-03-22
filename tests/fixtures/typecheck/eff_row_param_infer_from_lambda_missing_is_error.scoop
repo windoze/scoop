@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 15:19
+// 目标：T0509 effect row 参数 `eff`：从 lambda body 推断 `E`，并把调用的 required effects 计入外层函数。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// `run` 的 required effects 是 `/ E`，其中 `E` 来自 lambda body 的 required effects。
+fun <eff E = Pure> run(block: () -> Unit / E): Unit / E
+
+fun bad() {
+    val x: Unit = run { Raise.raise(1) }
+}

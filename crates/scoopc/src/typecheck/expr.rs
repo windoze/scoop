@@ -713,6 +713,12 @@ pub enum ExprTypeError {
 }
 
 #[derive(Debug, Clone)]
+struct EffParamSig {
+    name: String,
+    default: EffectRow,
+}
+
+#[derive(Debug, Clone)]
 struct FunSigOwned {
     /// 声明处 name 的 span：用于把“某个具体 overload”与 AST 节点对应起来，
     /// 以便在后续 pass 中回写（例如返回类型推断，T0507）。
@@ -745,8 +751,20 @@ struct FunSigOwned {
     /// - 让调用点可以识别“哪些 TypeId 是该函数的类型参数”
     /// - 在参数检查前做最小泛型实参推断，并对签名做 substitution（实例化）
     type_params: Vec<TypeId>,
+    /// effect row 参数（`<eff E = Pure>`）（spec §3.4 / §14.7.3）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅支持单一 `eff` 参数（parser 已强制最多一个）；
+    /// - 若调用点无法从 lambda 实参推断该 row，则回退到 `default`。
+    eff_param: Option<EffParamSig>,
+    /// 形参是否为 `(...)->T / E` 这类“effects 直接引用 `eff` 变量”的函数类型。
+    ///
+    /// 对齐约定：该数组与 `params` 对齐（扩展函数包含 receiver 的占位参数）。
+    param_fn_effect_uses_eff: Vec<bool>,
     params: Vec<TypeId>,
     return_ty: TypeId,
+    /// 函数声明处的 effect row 标注：`/ Pure` / `/ E` / `/ (E1 + E2)`（spec §5.8）。
+    effects: Option<ast::EffectRowExpr>,
 }
 
 /// 对一个文件的表达式做最小类型检查。
@@ -1133,6 +1151,23 @@ fn check_class_member_fun_body_exprs(
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     lower.push_type_params(&fun.type_params);
+    let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+        let name = source.slice(eff_param.name.span).to_string();
+        let default = match eff_param.default.as_ref() {
+            Some(expr) => match lower.lower_effect_row_expr(Some(expr)) {
+                Ok(row) => row,
+                Err(e) => {
+                    lower.pop_type_params(&fun.type_params);
+                    return Err(e.into());
+                }
+            },
+            None => EffectRow::pure(),
+        };
+        lower.push_effect_row_param_binding(name, default);
+        true
+    } else {
+        false
+    };
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
         let mut locals: HashMap<Span, TypeId> = HashMap::new();
@@ -1224,6 +1259,9 @@ fn check_class_member_fun_body_exprs(
         }
         Err(e) => Err(e),
     };
+    if eff_binding_pushed {
+        lower.pop_effect_row_param_binding();
+    }
     lower.pop_type_params(&fun.type_params);
     result
 }
@@ -2176,38 +2214,48 @@ fn try_infer_lambda_expr_type_by_expected(
         return Ok(None);
     };
 
-    // 当前阶段目标（T0504）：先只支持“单参数 lambda”，并且不支持 receiver function type。
-    if expected_fun.receiver.is_some() || expected_fun.params.len() != 1 {
+    // 当前阶段目标（T0504/T0509）：
+    // - 支持 0/1 参数 lambda（`() -> T` / `(A) -> T`）
+    // - 不支持 receiver function type
+    if expected_fun.receiver.is_some() {
         return Ok(None);
     }
 
-    if lam.params.len() != 1 {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "lambda（当前仅支持单参数，且参数类型需来自期望函数类型）",
-            span: lam_expr.span.into(),
-        });
-    }
-
-    let expected_param_ty = expected_fun.params[0];
-    let param = &lam.params[0];
-    let param_ty = match &param.ty {
-        Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
-        None => expected_param_ty,
-    };
-
-    // lambda 内部的作用域（最小子集）：
-    // - 继承外层捕获的局部绑定
-    // - 注入 lambda 形参（供 body 的 ident typecheck 使用）
     let mut lambda_locals = locals.clone();
-    lambda_locals.insert(param.name.span, param_ty);
+    let mut param_tys: Vec<TypeId> = Vec::new();
+
+    match expected_fun.params.len() {
+        0 => {
+            if !lam.params.is_empty() {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
+                    span: lam_expr.span.into(),
+                });
+            }
+        }
+        1 => {
+            if lam.params.len() != 1 {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
+                    span: lam_expr.span.into(),
+                });
+            }
+
+            let expected_param_ty = expected_fun.params[0];
+            let param = &lam.params[0];
+            let param_ty = match &param.ty {
+                Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
+                None => expected_param_ty,
+            };
+            lambda_locals.insert(param.name.span, param_ty);
+            param_tys.push(param_ty);
+        }
+        _ => return Ok(None),
+    }
 
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
-    //
-    // required effects（T0604）：
-    // lambda body 内的 effect 属于该函数值本身，不能计入外层函数“立即执行”的 required effects，
-    // 因此这里临时抑制 effect 收集。
-    let body_ty = lower.with_effect_collection_suspended(|lower| {
+    let (body_ty, performed_effects) = lower.with_nested_effect_collection(|lower| {
         infer_expr_type(
             source,
             lam.body.as_ref(),
@@ -2220,7 +2268,13 @@ fn try_infer_lambda_expr_type_by_expected(
         )
     })?;
 
-    let lam_ty = lower.ty_function(None, vec![param_ty], body_ty, EffectRow::pure());
+    let effects = EffectRow::new(
+        performed_effects
+            .into_iter()
+            .map(|(effect, _)| effect)
+            .collect(),
+    );
+    let lam_ty = lower.ty_function(None, param_tys, body_ty, effects);
     Ok(Some(lam_ty))
 }
 
@@ -3079,7 +3133,7 @@ fn infer_call_expr_type(
                     });
                 };
 
-                let instantiated = instantiate_fun_sig_for_call(
+                let mut instantiated = instantiate_fun_sig_for_call(
                     &callee_fqn,
                     call_expr.span,
                     sig,
@@ -3102,6 +3156,8 @@ fn infer_call_expr_type(
                     builtins,
                 )?;
 
+                // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
+                let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
@@ -3116,6 +3172,70 @@ fn infer_call_expr_type(
                         top_level_funs,
                         struct_field_types,
                     )?;
+                    checked_arg_tys[arg_idx] = found_ty;
+                }
+
+                // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+                let eff_arg = if let Some(eff_param) = &sig.eff_param {
+                    let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        if !sig
+                            .param_fn_effect_uses_eff
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+                        let arg = &call_args[arg_idx];
+                        if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                            continue;
+                        }
+
+                        let found_ty = checked_arg_tys[arg_idx];
+                        if let TypeKind::Ref(RefTypeKind::Function(found_fun)) =
+                            lower.type_kind(found_ty)
+                        {
+                            terms.extend(found_fun.effects.terms);
+                        }
+                    }
+
+                    let inferred = EffectRow::new(terms);
+                    substitute_type_args_in_effect_row(
+                        inferred,
+                        &sig.type_params,
+                        &instantiated.type_args,
+                        lower,
+                        call_expr.span,
+                    )?
+                } else {
+                    EffectRow::pure()
+                };
+
+                // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row（用于后续的 effect row containment 检查）。
+                if sig.eff_param.is_some() {
+                    for (param_idx, uses_eff) in sig.param_fn_effect_uses_eff.iter().copied().enumerate() {
+                        if !uses_eff {
+                            continue;
+                        }
+                        let expected_ty = instantiated.params[param_idx];
+                        let Some(patched) = replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
+                        else {
+                            return Err(ExprTypeError::UnsupportedExpr {
+                                kind: "eff row substitution（expected function type）",
+                                span: call_expr.span.into(),
+                            });
+                        };
+                        instantiated.params[param_idx] = patched;
+                    }
+                }
+
+                // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
+                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                    let arg = &call_args[arg_idx];
+                    let expected_ty = instantiated.params[param_idx];
+                    let found_ty = checked_arg_tys[arg_idx];
 
                     if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
@@ -3130,6 +3250,31 @@ fn infer_call_expr_type(
                             span: arg.expr.span.into(),
                         });
                     }
+                }
+
+                // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+                let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
+                lower.push_type_param_bindings(type_param_bindings);
+                let eff_binding_pushed = if let Some(eff_param) = &sig.eff_param {
+                    lower.push_effect_row_param_binding(eff_param.name.clone(), eff_arg.clone());
+                    true
+                } else {
+                    false
+                };
+                let lowered_effects = lower.lower_effect_row_expr(sig.effects.as_ref());
+                if eff_binding_pushed {
+                    lower.pop_effect_row_param_binding();
+                }
+                lower.pop_type_param_bindings();
+                let call_effects = substitute_type_args_in_effect_row(
+                    lowered_effects?,
+                    &sig.type_params,
+                    &instantiated.type_args,
+                    lower,
+                    call_expr.span,
+                )?;
+                for effect in call_effects.terms.iter().copied() {
+                    lower.record_performed_effect(effect, call_expr.span);
                 }
 
                 return Ok(instantiated.return_ty);
@@ -3880,14 +4025,18 @@ fn infer_effect_op_call_expr_type(
         None => builtins.unit,
     };
 
+    let param_count = params.len();
     let sig = FunSigOwned {
         decl_span: op.symbol.span,
         is_extension: false,
         is_inline: false,
         param_names,
         type_params,
+        eff_param: None,
+        param_fn_effect_uses_eff: vec![false; param_count],
         params,
         return_ty,
+        effects: None,
     };
 
     let call_args = collect_call_arg_infos(
@@ -4107,7 +4256,7 @@ fn infer_member_call_expr_type(
             });
         };
 
-        let instantiated =
+        let mut instantiated =
             instantiate_fun_sig_for_call(
                 &callee_fqn,
                 call_expr.span,
@@ -4145,6 +4294,8 @@ fn infer_member_call_expr_type(
             });
         }
 
+        // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
+        let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
@@ -4159,6 +4310,71 @@ fn infer_member_call_expr_type(
                 top_level_funs,
                 struct_field_types,
             )?;
+            checked_arg_tys[arg_idx] = found_ty;
+        }
+
+        // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+        let eff_arg = if let Some(eff_param) = &sig.eff_param {
+            let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                let sig_param_idx = param_idx + 1; // 跳过 receiver
+                if !sig
+                    .param_fn_effect_uses_eff
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
+                let arg = &call_args[arg_idx];
+                if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                    continue;
+                }
+
+                let found_ty = checked_arg_tys[arg_idx];
+                if let TypeKind::Ref(RefTypeKind::Function(found_fun)) = lower.type_kind(found_ty) {
+                    terms.extend(found_fun.effects.terms);
+                }
+            }
+
+            let inferred = EffectRow::new(terms);
+            substitute_type_args_in_effect_row(
+                inferred,
+                &sig.type_params,
+                &instantiated.type_args,
+                lower,
+                call_expr.span,
+            )?
+        } else {
+            EffectRow::pure()
+        };
+
+        // 将签名里 `(...)->T / E` 的 `E` 替换为实例化后的 effect row。
+        if sig.eff_param.is_some() {
+            for (sig_param_idx, uses_eff) in sig.param_fn_effect_uses_eff.iter().copied().enumerate()
+            {
+                if !uses_eff {
+                    continue;
+                }
+                let expected_ty = instantiated.params[sig_param_idx];
+                let Some(patched) =
+                    replace_function_type_effects(expected_ty, eff_arg.clone(), lower)
+                else {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "eff row substitution（expected function type）",
+                        span: call_expr.span.into(),
+                    });
+                };
+                instantiated.params[sig_param_idx] = patched;
+            }
+        }
+
+        // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let expected_ty = instantiated.params[param_idx + 1];
+            let arg = &call_args[arg_idx];
+            let found_ty = checked_arg_tys[arg_idx];
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;
@@ -4176,6 +4392,31 @@ fn infer_member_call_expr_type(
                 found: lower.fmt_type(found_ty),
                 span: arg.expr.span.into(),
             });
+        }
+
+        // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+        let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
+        lower.push_type_param_bindings(type_param_bindings);
+        let eff_binding_pushed = if let Some(eff_param) = &sig.eff_param {
+            lower.push_effect_row_param_binding(eff_param.name.clone(), eff_arg.clone());
+            true
+        } else {
+            false
+        };
+        let lowered_effects = lower.lower_effect_row_expr(sig.effects.as_ref());
+        if eff_binding_pushed {
+            lower.pop_effect_row_param_binding();
+        }
+        lower.pop_type_param_bindings();
+        let call_effects = substitute_type_args_in_effect_row(
+            lowered_effects?,
+            &sig.type_params,
+            &instantiated.type_args,
+            lower,
+            call_expr.span,
+        )?;
+        for effect in call_effects.terms.iter().copied() {
+            lower.record_performed_effect(effect, call_expr.span);
         }
 
         let ret = if safe {
@@ -4390,6 +4631,23 @@ fn collect_top_level_fun_signatures(
 
         // fun 自身的 type params 在签名 lowering 语境内可见。
         lower.push_type_params(&fun.type_params);
+
+        // T0509：effect row 参数（`<eff E = Pure>`）。
+        //
+        // 说明：这里先把 `E` 绑定到默认值（缺省为 Pure），以便签名里的 `(...) / E` 能顺利 lowering；
+        // 调用点会根据 lambda body 的 required effects 覆盖该默认值并做实例化。
+        let eff_param_sig = if let Some(eff_param) = &fun.eff_param {
+            let name = source.slice(eff_param.name.span).to_string();
+            let default = match eff_param.default.as_ref() {
+                Some(expr) => lower.lower_effect_row_expr(Some(expr))?,
+                None => EffectRow::pure(),
+            };
+            lower.push_effect_row_param_binding(name.clone(), default.clone());
+            Some(EffParamSig { name, default })
+        } else {
+            None
+        };
+
         let result: Result<(), ExprTypeError> = (|| {
             let type_params: Vec<TypeId> = fun
                 .type_params
@@ -4399,6 +4657,7 @@ fn collect_top_level_fun_signatures(
 
             let mut param_names = Vec::with_capacity(fun.params.len() + 1);
             let mut params = Vec::with_capacity(fun.params.len() + 1);
+            let mut param_fn_effect_uses_eff = Vec::with_capacity(fun.params.len() + 1);
 
             // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
             // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
@@ -4408,6 +4667,7 @@ fn collect_top_level_fun_signatures(
                 // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
                 param_names.push("<receiver>".to_string());
                 params.push(lower.lower_type_ref(receiver)?);
+                param_fn_effect_uses_eff.push(false);
             }
 
             for p in &fun.params {
@@ -4415,8 +4675,12 @@ fn collect_top_level_fun_signatures(
                     // headers check 已保证参数类型注解存在；这里保持健壮性。
                     continue;
                 };
+                let uses_eff = eff_param_sig
+                    .as_ref()
+                    .is_some_and(|e| type_ref_is_fn_effect_eff_var(ty_ref, &e.name, source));
                 param_names.push(source.slice(p.name.span).to_string());
                 params.push(lower.lower_type_ref(ty_ref)?);
+                param_fn_effect_uses_eff.push(uses_eff);
             }
 
             let return_ty = match &fun.return_ty {
@@ -4430,11 +4694,17 @@ fn collect_top_level_fun_signatures(
                 is_inline,
                 param_names,
                 type_params,
+                eff_param: eff_param_sig.clone(),
+                param_fn_effect_uses_eff,
                 params,
                 return_ty,
+                effects: fun.effects.clone(),
             });
             Ok(())
         })();
+        if eff_param_sig.is_some() {
+            lower.pop_effect_row_param_binding();
+        }
         lower.pop_type_params(&fun.type_params);
         result?;
     }
@@ -4459,6 +4729,27 @@ struct GenericArgConstraint {
     /// 若为 `true`，表示 `found` 只是“为了 overload 筛选占位”的类型（例如 lambda 在预收集阶段被记为 `Any`），
     /// 不应当用于泛型推断。
     found_is_placeholder: bool,
+}
+
+fn type_ref_is_fn_effect_eff_var(ty_ref: &ast::TypeRef, eff_name: &str, source: &SourceFile) -> bool {
+    let ast::TypeRef::Function(fun) = ty_ref else {
+        return false;
+    };
+
+    let Some(effects) = fun.effects.as_ref() else {
+        return false;
+    };
+
+    if effects.terms.len() != 1 {
+        return false;
+    }
+
+    let term = &effects.terms[0];
+    if term.segments.len() != 1 || !term.args.is_empty() {
+        return false;
+    }
+
+    source.slice(term.segments[0].span) == eff_name
 }
 
 fn type_param_name(ty: TypeId, lower: &TypeLowering<'_>) -> String {
@@ -4768,6 +5059,58 @@ fn substitute_single_type_param(
     }
 }
 
+fn replace_function_type_effects(
+    ty: TypeId,
+    effects: EffectRow,
+    lower: &mut TypeLowering<'_>,
+) -> Option<TypeId> {
+    let TypeKind::Ref(RefTypeKind::Function(fun)) = lower.type_kind(ty) else {
+        return None;
+    };
+    Some(lower.ty_function(fun.receiver, fun.params, fun.return_ty, effects))
+}
+
+fn type_param_bindings_from_sig(
+    type_params: &[TypeId],
+    lower: &TypeLowering<'_>,
+) -> Vec<(String, TypeId)> {
+    type_params
+        .iter()
+        .copied()
+        .filter_map(|ty| match lower.type_kind(ty) {
+            TypeKind::Param(p) => Some((p.name, ty)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn substitute_type_args_in_effect_row(
+    row: EffectRow,
+    type_params: &[TypeId],
+    type_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
+    use_span: Span,
+) -> Result<EffectRow, ExprTypeError> {
+    if type_params.is_empty() || type_args.is_empty() {
+        return Ok(row);
+    }
+
+    let mut out_terms: Vec<TypeId> = Vec::with_capacity(row.terms.len());
+    for effect in row.terms {
+        let mut cur = effect;
+        for (param_ty, arg_ty) in type_params
+            .iter()
+            .copied()
+            .zip(type_args.iter().copied())
+        {
+            cur = substitute_single_type_param(cur, param_ty, arg_ty, lower, use_span)?;
+        }
+        out_terms.push(cur);
+    }
+
+    Ok(EffectRow::new(out_terms))
+}
+
 fn instantiate_fun_sig_for_call(
     callee: &str,
     call_span: Span,
@@ -5060,6 +5403,23 @@ fn check_fun_body_exprs(
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     lower.push_type_params(&fun.type_params);
+    let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
+        let name = source.slice(eff_param.name.span).to_string();
+        let default = match eff_param.default.as_ref() {
+            Some(expr) => match lower.lower_effect_row_expr(Some(expr)) {
+                Ok(row) => row,
+                Err(e) => {
+                    lower.pop_type_params(&fun.type_params);
+                    return Err(e.into());
+                }
+            },
+            None => EffectRow::pure(),
+        };
+        lower.push_effect_row_param_binding(name, default);
+        true
+    } else {
+        false
+    };
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
         // 函数级的“局部值类型表”（binder decl span → TypeId）。
@@ -5156,6 +5516,9 @@ fn check_fun_body_exprs(
         }
         Err(e) => Err(e),
     };
+    if eff_binding_pushed {
+        lower.pop_effect_row_param_binding();
+    }
     lower.pop_type_params(&fun.type_params);
     result
 }
