@@ -328,7 +328,7 @@
 - [ ] 约束表示：`τ1 <: τ2`、相等、行约束（effects）
   - [x] 相等约束 + 推断变量 + 最小 unify 骨架（T0501）
   - [x] 子类型约束 `τ1 <: τ2` 的求解（T0506）
-  - [ ] effects 行约束（T0508/T0509；依赖 required effects T0604）
+  - [ ] effects 行约束（T0508/T0509；依赖 required effects：T0604 ✅）
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
 - [x] 返回类型推断：缺省 return type 从函数体推断（T0507，spec §14.6）
@@ -358,7 +358,7 @@
   - [ ] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
 - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
-  - required effects（未处理效果检测，spec §14.7.1）
+  - required effects（T0604：已实现未声明的 effect 报错；暂不含 handler；spec §14.7.1）
   - public 默认 `/ Pure` 的强制约束
   - private/internal 可推断 effect row
   - overriding：`R_over ⊆ R_base`
@@ -367,8 +367,8 @@
   - 高级 row 语义：高级归一化、泛型 row 变量、必要的高阶 row 运算
 - [ ] 语法糖：
   - `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`
-  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 required effects + try/catch lowering：T0604/T0607）
-  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0604/T0607）
+  - `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b；依赖 try/catch lowering：T0607）
+  - `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0607）
   - 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）

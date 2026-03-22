@@ -185,6 +185,16 @@ pub(super) struct TypeLowering<'a> {
     type_alias_stack: Vec<String>,
     /// 已展开 typealias 的缓存（alias FQN → lowered TypeId）。
     type_alias_cache: HashMap<String, TypeId>,
+    /// 当前是否处于“required effects 收集”模式（T0604）。
+    ///
+    /// 说明：只在检查函数体时启用；其它 typecheck phase 默认关闭，避免改变现有行为。
+    effect_collection_enabled: bool,
+    /// effect 收集的“抑制深度”：
+    /// - 进入 lambda body 时会暂时抑制（lambda 的 effect 属于函数值本身，而非外层函数立即执行的效果）。
+    /// - 未来若引入更多“非立即执行”的语境（例如 `const`/comptime），同样可复用该机制。
+    effect_collection_suspend_depth: usize,
+    /// 记录（effect TypeId, perform span）。
+    performed_effects: Vec<(TypeId, Span)>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -234,6 +244,9 @@ impl<'a> TypeLowering<'a> {
             type_param_scopes: Vec::new(),
             type_alias_stack: Vec::new(),
             type_alias_cache: HashMap::new(),
+            effect_collection_enabled: false,
+            effect_collection_suspend_depth: 0,
+            performed_effects: Vec::new(),
         }
     }
 
@@ -380,7 +393,7 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
-    fn lower_effect_row_expr(
+    pub(super) fn lower_effect_row_expr(
         &mut self,
         expr: Option<&ast::EffectRowExpr>,
     ) -> Result<EffectRow, TypeLowerError> {
@@ -418,6 +431,39 @@ impl<'a> TypeLowering<'a> {
         }
 
         Ok(EffectRow::new(terms))
+    }
+
+    pub(super) fn begin_effect_collection(&mut self) {
+        self.effect_collection_enabled = true;
+        self.effect_collection_suspend_depth = 0;
+        self.performed_effects.clear();
+    }
+
+    pub(super) fn finish_effect_collection(&mut self) -> Vec<(TypeId, Span)> {
+        self.effect_collection_enabled = false;
+        self.effect_collection_suspend_depth = 0;
+        std::mem::take(&mut self.performed_effects)
+    }
+
+    pub(super) fn with_effect_collection_suspended<R>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.effect_collection_suspend_depth += 1;
+        let out = f(self);
+        self.effect_collection_suspend_depth =
+            self.effect_collection_suspend_depth.saturating_sub(1);
+        out
+    }
+
+    pub(super) fn record_performed_effect(&mut self, effect: TypeId, span: Span) {
+        if !self.effect_collection_enabled {
+            return;
+        }
+        if self.effect_collection_suspend_depth > 0 {
+            return;
+        }
+        self.performed_effects.push((effect, span));
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {

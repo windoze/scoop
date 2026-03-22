@@ -1493,11 +1493,17 @@
    - fixtures：新增 parse fixture `tests/fixtures/parse/fun_decl_effect_row_basic.scoop` + AST golden，覆盖函数声明上的 `/ Pure`、`/ E1+E2` 与括号形式。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0604 [TODO] Typecheck：required effects 检查（spec §14.7.1）
+### T0604 [DONE] Typecheck：required effects 检查（spec §14.7.1）
 - 描述：当函数体 perform 了 effect，但未在函数签名 row 中声明，也未被 handle，则报错。
 - 目标：先只覆盖 `Raise`；先不实现 handler，允许“显式声明 row”。
 - 验收：effects fixture：`fun f() { Raise.raise(e) }` 在 `/ Pure` 下失败；在 `/ Raise<...>`（按语法）下通过。
 - 依赖：T0602、T0603
+ - 完成：
+   - typecheck：在函数体 typecheck 期间收集 effect op call（当前为 `Raise.raise(...)`），并与函数签名的 effect row 做包含性检查；未写 `/ RowExpr` 时默认视为 `Pure`。
+   - expr stmt：call 作为表达式语句时也会对 effect op call 做最小调用检查，以便记录 required effects（避免被“语句层不完整 typecheck”跳过）。
+   - diagnostics：新增稳定错误码 `scoop::typecheck::required_effect_not_declared`。
+   - fixtures：更新 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 增加显式 row；新增 required effects pass/fail fixtures 覆盖 `/ Pure` 与 `/ (Raise<Int>)`。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0508 [TODO] effect 推断 v0：private/internal 可推断 row，public 默认 Pure（PLAN §6.1）
 - 描述：实现 effect row 的推断入口：public 函数默认 `/ Pure`（强制），private/internal 可推断。

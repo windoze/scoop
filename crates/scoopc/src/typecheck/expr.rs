@@ -50,6 +50,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("缺少效果声明：函数声明为 {declared}，但这里 perform 了 {required}")]
+    #[diagnostic(code(scoop::typecheck::required_effect_not_declared))]
+    RequiredEffectNotDeclared {
+        required: String,
+        declared: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的模式绑定（pattern binding）")]
     #[diagnostic(code(scoop::typecheck::unsupported_pattern_binding))]
     UnsupportedPatternBinding {
@@ -1124,7 +1133,8 @@ fn check_class_member_fun_body_exprs(
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     lower.push_type_params(&fun.type_params);
-    let result: Result<(), ExprTypeError> = (|| {
+    lower.begin_effect_collection();
+    let body_result: Result<(), ExprTypeError> = (|| {
         let mut locals: HashMap<Span, TypeId> = HashMap::new();
         let mut stable_bindings: HashSet<Span> = HashSet::new();
         let mut mutable_bindings: HashSet<Span> = HashSet::new();
@@ -1205,6 +1215,15 @@ fn check_class_member_fun_body_exprs(
 
         Ok(())
     })();
+    let performed_effects = lower.finish_effect_collection();
+
+    let result = match body_result {
+        Ok(()) => {
+            check_required_effects_for_fun_decl(fun, &performed_effects, lower)?;
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
     lower.pop_type_params(&fun.type_params);
     result
 }
@@ -2184,16 +2203,22 @@ fn try_infer_lambda_expr_type_by_expected(
 
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
-    let body_ty = infer_expr_type(
-        source,
-        lam.body.as_ref(),
-        lower,
-        builtins,
-        &lambda_locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    //
+    // required effects（T0604）：
+    // lambda body 内的 effect 属于该函数值本身，不能计入外层函数“立即执行”的 required effects，
+    // 因此这里临时抑制 effect 收集。
+    let body_ty = lower.with_effect_collection_suspended(|lower| {
+        infer_expr_type(
+            source,
+            lam.body.as_ref(),
+            lower,
+            builtins,
+            &lambda_locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )
+    })?;
 
     let lam_ty = lower.ty_function(None, vec![param_ty], body_ty, EffectRow::pure());
     Ok(Some(lam_ty))
@@ -3943,6 +3968,14 @@ fn infer_effect_op_call_expr_type(
         });
     }
 
+    // required effects（T0604）：effect op call 视为“立即执行的 perform”，记录到当前函数体的 effects 集合中。
+    let effect_instance = lower.lower_type_fqn_with_args(
+        effect_ty_fqn.to_string(),
+        instantiated.type_args.clone(),
+        call_expr.span,
+    )?;
+    lower.record_performed_effect(effect_instance, call_expr.span);
+
     Ok(Some(instantiated.return_ty))
 }
 
@@ -4413,6 +4446,10 @@ fn collect_top_level_fun_signatures(
 struct InstantiatedFunSig {
     params: Vec<TypeId>,
     return_ty: TypeId,
+    /// 推断/显式提供的泛型实参（与 `sig.type_params` 对齐）。
+    ///
+    /// 当前阶段（T0505）仅支持单一类型参数；未来可扩展为多参数。
+    type_args: Vec<TypeId>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -4743,6 +4780,7 @@ fn instantiate_fun_sig_for_call(
         return Ok(InstantiatedFunSig {
             params: sig.params.clone(),
             return_ty: sig.return_ty,
+            type_args: Vec::new(),
         });
     }
 
@@ -4815,7 +4853,11 @@ fn instantiate_fun_sig_for_call(
     let return_ty =
         substitute_single_type_param(sig.return_ty, param_ty, binding, lower, call_span)?;
 
-    Ok(InstantiatedFunSig { params, return_ty })
+    Ok(InstantiatedFunSig {
+        params,
+        return_ty,
+        type_args: vec![binding],
+    })
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -4917,21 +4959,62 @@ fn check_lambda_expr_stmt_body(
         None
     };
 
-    check_expr_stmt(
-        source,
-        lam.body.as_ref(),
-        lower,
-        builtins,
-        &mut lambda_locals,
-        &mut lambda_stable,
-        &mut lambda_mutable,
-        0,
-        nested_expected_return_ty,
-        top_level_types,
-        top_level_funs,
-        member_mutabilities,
-        struct_field_types,
-    )
+    // required effects（T0604）：lambda body 的 effect 属于该函数值，不计入外层函数立即执行的 effects。
+    lower.with_effect_collection_suspended(|lower| {
+        check_expr_stmt(
+            source,
+            lam.body.as_ref(),
+            lower,
+            builtins,
+            &mut lambda_locals,
+            &mut lambda_stable,
+            &mut lambda_mutable,
+            0,
+            nested_expected_return_ty,
+            top_level_types,
+            top_level_funs,
+            member_mutabilities,
+            struct_field_types,
+        )
+    })
+}
+
+fn fmt_effect_row(row: &EffectRow, lower: &TypeLowering<'_>) -> String {
+    if row.terms.is_empty() {
+        return "Pure".to_string();
+    }
+    row.terms
+        .iter()
+        .copied()
+        .map(|e| lower.fmt_type(e))
+        .collect::<Vec<_>>()
+        .join(" + ")
+}
+
+fn check_required_effects_for_fun_decl(
+    fun: &ast::FunDecl,
+    performed: &[(TypeId, Span)],
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if performed.is_empty() {
+        return Ok(());
+    }
+
+    let declared = lower.lower_effect_row_expr(fun.effects.as_ref())?;
+
+    for (effect, span) in performed.iter().copied() {
+        if declared.terms.contains(&effect) {
+            continue;
+        }
+
+        return Err(ExprTypeError::RequiredEffectNotDeclared {
+            required: lower.fmt_type(effect),
+            declared: fmt_effect_row(&declared, lower),
+            span: span.into(),
+        });
+    }
+
+    Ok(())
 }
 
 fn check_fun_body_exprs(
@@ -4946,7 +5029,8 @@ fn check_fun_body_exprs(
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     lower.push_type_params(&fun.type_params);
-    let result: Result<(), ExprTypeError> = (|| {
+    lower.begin_effect_collection();
+    let body_result: Result<(), ExprTypeError> = (|| {
         // 函数级的“局部值类型表”（binder decl span → TypeId）。
         //
         // 当前阶段规则（最小子集）：
@@ -5032,6 +5116,15 @@ fn check_fun_body_exprs(
 
         Ok(())
     })();
+    let performed_effects = lower.finish_effect_collection();
+
+    let result = match body_result {
+        Ok(()) => {
+            check_required_effects_for_fun_decl(fun, &performed_effects, lower)?;
+            Ok(())
+        }
+        Err(e) => Err(e),
+    };
     lower.pop_type_params(&fun.type_params);
     result
 }
@@ -5656,6 +5749,24 @@ fn check_expr_stmt(
                     top_level_types,
                     top_level_funs,
                     member_mutabilities,
+                    struct_field_types,
+                )?;
+            }
+
+            // required effects（T0604）：
+            // call 作为“表达式语句”时，typecheck 默认不会对其做完整调用检查；
+            // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
+            if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
+                let _ = infer_effect_op_call_expr_type(
+                    source,
+                    expr,
+                    member,
+                    args,
+                    lower,
+                    builtins,
+                    &*locals,
+                    top_level_types,
+                    top_level_funs,
                     struct_field_types,
                 )?;
             }

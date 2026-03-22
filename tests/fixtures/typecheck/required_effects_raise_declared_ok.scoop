@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T0604 required effects：显式声明 / Raise<Int> 时允许 perform。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f() / (Raise<Int>) {
+    Raise.raise(1)
+}

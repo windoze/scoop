@@ -5,8 +5,7 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun f() {
+fun f() / (Raise<Int>) {
     val x = Raise.raise(1)
     val y = x
 }
-
