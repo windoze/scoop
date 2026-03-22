@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_non_exhaustive_missing_variants
+// EXPECT-ERROR-AT: 13:14
+// EXPECT-ERROR: (Some(_), false)
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+val flag: Bool = true
+
+val x: Int = when ((opt, flag)) {
+  (None, true) -> 0;
+  (None, false) -> 1;
+  (Some(v), true) -> v;
+}

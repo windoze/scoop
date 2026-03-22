@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0459 `when` 穷尽性检查：tuple of（Option<T>, Bool）多维组合可被穷尽覆盖（无需 else）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+val flag: Bool = true
+
+val x: Int = when ((opt, flag)) {
+  (None, true) -> 0;
+  (None, false) -> 1;
+  (Some(v), true) -> v;
+  (Some(v), false) -> v + 1;
+}

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_non_exhaustive_missing_variants
+// EXPECT-ERROR-AT: 12:16
+// EXPECT-ERROR: Some((_, Some(_)))
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val nested: Option<(Int, Option<Int>)> = Some((1, Some(2)))
+
+val res: Int = when (nested) {
+  None -> 0
+  Some((a, None)) -> a
+}

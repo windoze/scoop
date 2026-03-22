@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0459 `when` 穷尽性检查：Option payload 中包含 tuple + 内层 Option 的嵌套组合可被穷尽覆盖（无需 else）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val nested: Option<(Int, Option<Int>)> = Some((1, Some(2)))
+
+val res: Int = when (nested) {
+  None -> 0
+  Some((a, None)) -> a
+  Some((a, Some(b))) -> a + b
+}
+
