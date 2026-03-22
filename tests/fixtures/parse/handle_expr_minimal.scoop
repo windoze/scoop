@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-AST: handle_expr_minimal.ast
+// 目标：验证 `handle { ... } with { ... }` 的最小语法可解析（non-resuming arm `->`）。
+
+package fixtures.parse
+
+fun main() {
+    val x = handle {
+        1
+    } with {
+        Raise.raise(e) -> {
+            e
+        }
+    }
+}
+

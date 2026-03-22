@@ -522,6 +522,10 @@ impl<'a> Parser<'a> {
             return Ok(Some(self.parse_when_expr()?));
         }
 
+        if self.peek_keyword(Keyword::Handle) {
+            return Ok(Some(self.parse_handle_expr()?));
+        }
+
         if self.peek_symbol(Symbol::LBrace) {
             return Ok(Some(self.parse_lambda_expr()?));
         }
@@ -531,6 +535,306 @@ impl<'a> Parser<'a> {
         }
 
         Ok(None)
+    }
+
+    /// 解析 `handle { ... } with { ... }`（spec §5.4）。
+    ///
+    /// 当前阶段（T0605）：
+    /// - 仅支持 non-resuming arm：`Effect.op(binders...) -> body`；
+    /// - 语法错误在 arm 级别做恢复：尽量跳到下一个 arm 起始继续解析；
+    /// - `-> resume` 与 `, k ->` 暂不支持（会报错，但尽量不级联）。
+    fn parse_handle_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let handle_kw = self.expect_keyword(Keyword::Handle)?;
+        let start = handle_kw.span.start;
+
+        // spec 示例固定使用 block：`handle { ... } ...`
+        let body = self.parse_block()?;
+
+        self.expect_keyword(Keyword::With)?;
+
+        let open = self.expect_symbol(Symbol::LBrace)?;
+        let mut arms = Vec::new();
+
+        while !self.peek_kind(TokenKind::Eof) && !self.peek_symbol(Symbol::RBrace) {
+            // 允许多余的 `;`（类似 block 内的空语句）
+            while self.eat_symbol(Symbol::Semicolon) {}
+            if self.peek_symbol(Symbol::RBrace) {
+                break;
+            }
+
+            match self.parse_handle_arm() {
+                Ok(arm) => arms.push(arm),
+                Err(e) => {
+                    self.record_error(e);
+                    self.recover_to_handle_arm_sync();
+                }
+            }
+
+            while self.eat_symbol(Symbol::Semicolon) {}
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RBrace,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RBrace)?;
+
+        // spec §5.7：`handle { ... } with { ... } finally { ... }`
+        let finally = if self.peek_keyword(Keyword::Finally) {
+            self.bump(); // `finally`
+            Some(self.parse_block()?)
+        } else {
+            None
+        };
+
+        let end = finally
+            .as_ref()
+            .map(|b| b.span.end)
+            .unwrap_or(close.span.end);
+
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::Handle { body, arms, finally },
+        })
+    }
+
+    fn parse_handle_arm(&mut self) -> Result<ast::HandleArm, ParseError> {
+        let op = self.parse_handle_op()?;
+        let arrow = self.expect_symbol(Symbol::Arrow)?;
+
+        // spec §5.4：`-> resume { ... }`（immediate-resume）在当前阶段未实现。
+        //
+        // 注意：`resume` 在 lexer 层仍是 ident；这里按语法形态做一个保守拒绝，
+        // 避免误把 `-> resume { ... }` 当作普通调用表达式。
+        if self.peek_ident_text("resume") && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
+        {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "表达式（handler arm body；暂不支持 `-> resume`）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let body = self.parse_control_body_expr("表达式（handler arm body）")?;
+
+        Ok(ast::HandleArm {
+            span: Span::new(op.span.start, body.span.end),
+            op,
+            arrow_span: arrow.span,
+            body,
+        })
+    }
+
+    fn parse_handle_op(&mut self) -> Result<ast::HandleOp, ParseError> {
+        // effect operation name：`Raise.raise` / `foo.bar.Async.await`（op 为最后一个 segment）
+        let first = self.expect_kind(TokenKind::Ident, "effect operation 名（标识符）")?;
+        let start = first.span.start;
+
+        let mut segments = vec![ast::Ident { span: first.span }];
+        let mut dot_spans = Vec::new();
+
+        while self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Ident {
+            let dot = self.bump();
+            let seg = self.bump();
+            dot_spans.push(dot.span);
+            segments.push(ast::Ident { span: seg.span });
+        }
+
+        // 至少要有一个 `.`：`Effect.op(...)`
+        if segments.len() < 2 {
+            let tok = *self.peek();
+            return Err(ParseError::Expected {
+                expected: "effect operation（例如 `Raise.raise(...)`）",
+                found: tok.kind,
+                span: tok.span.into(),
+            });
+        }
+
+        let Some(dot_span) = dot_spans.last().copied() else {
+            unreachable!("segments.len()>=2 时应至少消费过一个 dot");
+        };
+
+        let op = segments
+            .pop()
+            .expect("segments.len()>=2 已保证存在 op segment");
+
+        let effect_start = segments.first().map(|x| x.span.start).unwrap_or(start);
+        let effect_end = segments
+            .last()
+            .map(|x| x.span.end)
+            .unwrap_or(op.span.end);
+
+        let effect = ast::TypePath {
+            span: Span::new(effect_start, effect_end),
+            segments,
+            args: Vec::new(),
+        };
+
+        let open = self.expect_symbol(Symbol::LParen)?;
+        let mut binders = Vec::new();
+
+        if !self.peek_symbol(Symbol::RParen) {
+            loop {
+                let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
+                let name = ast::Ident { span: name_tok.span };
+
+                let (colon_span, ty, end) = if self.peek_symbol(Symbol::Colon) {
+                    let colon = self.bump();
+                    let ty = self.parse_type_ref()?;
+                    let end = ty.span().end;
+                    (Some(colon.span), Some(ty), end)
+                } else {
+                    (None, None, name_tok.span.end)
+                };
+
+                binders.push(ast::HandleBinder {
+                    span: Span::new(name_tok.span.start, end),
+                    name,
+                    colon_span,
+                    ty,
+                });
+
+                if self.eat_symbol(Symbol::Comma) {
+                    // allow trailing comma
+                    if self.peek_symbol(Symbol::RParen) {
+                        break;
+                    }
+                    continue;
+                }
+
+                break;
+            }
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RParen,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RParen)?;
+
+        Ok(ast::HandleOp {
+            span: Span::new(start, close.span.end),
+            effect,
+            dot_span,
+            op,
+            binders,
+        })
+    }
+
+    fn recover_to_handle_arm_sync(&mut self) {
+        // arm 同步点：
+        // - handler list 的 `}`（不要吞掉，留给外层闭合）
+        // - 下一个 `Effect.op(...) ->` 的起始（不要吞掉，留给外层继续解析）
+        // - `;`（可选分隔符；外层会跳过）
+        //
+        // 说明：handler arms 允许省略分号，因此这里不能只同步到 `;`。
+        if self.peek_kind(TokenKind::Eof) || self.peek_symbol(Symbol::RBrace) {
+            return;
+        }
+        if self.peek_symbol(Symbol::Semicolon) {
+            return;
+        }
+        if self.looks_like_handle_arm_start_at(self.i) {
+            return;
+        }
+
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+
+        while !self.peek_kind(TokenKind::Eof) {
+            if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                if self.peek_symbol(Symbol::RBrace)
+                    || self.peek_symbol(Symbol::Semicolon)
+                    || self.looks_like_handle_arm_start_at(self.i)
+                {
+                    break;
+                }
+            }
+
+            let tok = self.bump();
+            if let TokenKind::Symbol(sym) = tok.kind {
+                match sym {
+                    Symbol::LParen => depth_paren += 1,
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn looks_like_handle_arm_start_at(&self, idx: usize) -> bool {
+        let Some(first) = self.tokens.get(idx) else {
+            return false;
+        };
+        if first.kind != TokenKind::Ident {
+            return false;
+        }
+
+        // arm head 至少应满足 `Ident . Ident` 的前缀形态；这也避免把 `, k ->` 中的 `k` 误判为 arm 起始。
+        let Some(dot) = self.tokens.get(idx + 1) else {
+            return false;
+        };
+        let Some(second) = self.tokens.get(idx + 2) else {
+            return false;
+        };
+        if dot.kind != TokenKind::Symbol(Symbol::Dot) || second.kind != TokenKind::Ident {
+            return false;
+        }
+
+        let mut depth_paren = 0usize;
+        let mut depth_brace = 0usize;
+        let mut depth_bracket = 0usize;
+        let mut saw_lparen = false;
+
+        let mut j = idx;
+        while let Some(tok) = self.tokens.get(j) {
+            match tok.kind {
+                TokenKind::Eof => return false,
+                TokenKind::Symbol(Symbol::Arrow)
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                {
+                    return saw_lparen;
+                }
+                TokenKind::Symbol(Symbol::Semicolon)
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                {
+                    return false;
+                }
+                TokenKind::Symbol(Symbol::RBrace)
+                    if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 =>
+                {
+                    // handler list 结束前都没遇到 `->`：不是 arm 起始。
+                    return false;
+                }
+                TokenKind::Symbol(sym) => match sym {
+                    Symbol::LParen => {
+                        saw_lparen = true;
+                        depth_paren += 1;
+                    }
+                    Symbol::RParen => depth_paren = depth_paren.saturating_sub(1),
+                    Symbol::LBracket => depth_bracket += 1,
+                    Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
+                    Symbol::LBrace => depth_brace += 1,
+                    Symbol::RBrace => depth_brace = depth_brace.saturating_sub(1),
+                    _ => {}
+                },
+                _ => {}
+            }
+
+            j = j.saturating_add(1);
+        }
+
+        false
     }
 
     fn parse_trailing_lambda_call_expr(

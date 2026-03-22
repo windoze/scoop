@@ -7385,6 +7385,7 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::StructLit { .. } => "struct literal",
         ast::ExprKind::If { .. } => "if expression",
         ast::ExprKind::When { .. } => "when expression",
+        ast::ExprKind::Handle { .. } => "handle expression",
         ast::ExprKind::MemberAccess { .. } => "member access",
         ast::ExprKind::SpliceField { .. } => "splice field access",
         ast::ExprKind::SafeMemberAccess { .. } => "safe member access",

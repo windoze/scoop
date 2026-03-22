@@ -671,6 +671,23 @@ impl<'a> BlockScopeChecker<'a> {
                     self.pop_scope();
                 }
             }
+            ast::ExprKind::Handle { body, arms, finally } => {
+                // handle body 是一个 block；handler arms 的 binder 仅在各自 arm body 内可见。
+                self.check_block(body)?;
+
+                for arm in arms {
+                    self.push_scope();
+                    for b in &arm.op.binders {
+                        self.declare_ident_typed(&b.name, b.ty.clone())?;
+                    }
+                    self.check_expr(&mut arm.body)?;
+                    self.pop_scope();
+                }
+
+                if let Some(finally) = finally {
+                    self.check_block(finally)?;
+                }
+            }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 // `TypeName.member` 允许作为 companion member access：
                 // receiver 可能不是一个 value ident（例如 class 名称），因此这里对

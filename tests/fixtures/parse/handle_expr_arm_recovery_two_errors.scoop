@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR: 2 个错误
+// EXPECT-ERROR-CODE: scoop::parse::many_errors
+// EXPECT-ERROR-AT: 13:24
+// 目标：验证 handler arms 内语法错误可恢复到下一个 arm（并避免级联错误）。
+
+package fixtures.parse
+
+fun main() {
+    handle {
+        1
+    } with {
+        Raise.raise(e) println(e)
+        Raise.raise(e) -> resume { 2 }
+    }
+}

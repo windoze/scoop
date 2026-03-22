@@ -1614,11 +1614,18 @@
    - fixtures：新增 `tests/fixtures/infer/effects/eff_row_order_is_normalized_ok.scoop` 覆盖 row 表达式顺序归一化（`Foo+Bar` ≡ `Bar+Foo`）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0605 [TODO] Parser：`handle { ... } with { ... }`（spec §5.4）
+### T0605 [DONE] Parser：`handle { ... } with { ... }`（spec §5.4）
 - 描述：解析 handle 表达式与 handler arms（先支持 non-resuming `->` 一种 arm）。
 - 目标：先不实现 `-> resume` 与 `, k ->`；arm body 可用 block 表达式。
 - 验收：parse fixture：最小 handle 示例可解析；语法错误能恢复到下一个 arm。
 - 依赖：T0214、T0207
+ - 完成：
+   - ast：新增 `ExprKind::Handle { body, arms, finally }` 与 `HandleArm/HandleOp/HandleBinder` 语法建模（non-resuming `->`）。
+   - parser：支持 `handle { ... } with { ... }` 解析；arm head 解析为 `Effect.op(binders...)`（binder 支持可选 `: Type`）。
+   - parser：arm 级错误恢复：在单个 arm 语法错误后同步到下一个 `Effect.op(...) ->` 起始继续解析，避免级联。
+   - parser：`-> resume { ... }` 与 `, k ->` 形态当前报错（保持 TODO 目标“不实现”）。
+   - fixtures：新增 parse pass fixture + AST snapshot；新增 parse fail fixture 覆盖“两处错误但可恢复到第二个 arm”。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0606 [TODO] Typecheck：handler arms 的类型规则（non-resuming）
 - 描述：校验 arm 的参数类型、返回类型、以及 handle 表达式整体类型。

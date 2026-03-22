@@ -355,6 +355,7 @@
 
 - [ ] 语法：
   - [x] 函数声明/函数类型的 `/ RowExpr`（T0603）
+  - [x] `handle { ... } with { ... }`（T0605：仅 non-resuming arm `->`；arm 级错误恢复；`finally` 仅语法建模）
   - [ ] `eff` 作为上下文关键字：`<eff E = Pure>`、`eff E1+E2`（parser 已支持声明处 `<eff E = Pure>`；use-site `Type<eff Row>` 待补）
   - [x] `+` 并集、`Pure` 空行
   - [ ] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）

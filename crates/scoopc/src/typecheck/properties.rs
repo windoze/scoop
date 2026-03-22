@@ -637,6 +637,19 @@ fn field_use_span_in_expr(
                 })
             })
         }
+        ast::ExprKind::Handle { body, arms, finally } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
+                .or_else(|| {
+                    arms.iter().find_map(|arm| {
+                        field_use_span_in_expr(source, backing_field_decl_span, &arm.body)
+                    })
+                })
+                .or_else(|| {
+                    finally
+                        .as_ref()
+                        .and_then(|b| field_use_span_in_block(source, backing_field_decl_span, b))
+                })
+        }
         ast::ExprKind::MemberAccess { receiver, .. } => {
             field_use_span_in_expr(source, backing_field_decl_span, receiver)
         }

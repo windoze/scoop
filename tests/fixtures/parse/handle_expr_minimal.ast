@@ -1,0 +1,128 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 160..182,
+            path: [
+                Ident {
+                    span: 168..176,
+                },
+                Ident {
+                    span: 177..182,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Fun(
+            FunDecl {
+                span: 184..300,
+                receiver: None,
+                name: Ident {
+                    span: 188..192,
+                },
+                type_params: [],
+                params_span: 192..194,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 195..300,
+                        stmts: [
+                            Stmt {
+                                span: 201..298,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 201..298,
+                                        kind: Val,
+                                        name: Ident {
+                                            span: 205..206,
+                                        },
+                                        ty: None,
+                                        init: Some(
+                                            Expr {
+                                                span: 209..298,
+                                                kind: Handle {
+                                                    body: Block {
+                                                        span: 216..233,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 226..227,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 226..227,
+                                                                        kind: IntLit,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                    arms: [
+                                                        HandleArm {
+                                                            span: 249..292,
+                                                            op: HandleOp {
+                                                                span: 249..263,
+                                                                effect: TypePath {
+                                                                    span: 249..254,
+                                                                    segments: [
+                                                                        Ident {
+                                                                            span: 249..254,
+                                                                        },
+                                                                    ],
+                                                                    args: [],
+                                                                },
+                                                                dot_span: 254..255,
+                                                                op: Ident {
+                                                                    span: 255..260,
+                                                                },
+                                                                binders: [
+                                                                    HandleBinder {
+                                                                        span: 261..262,
+                                                                        name: Ident {
+                                                                            span: 261..262,
+                                                                        },
+                                                                        colon_span: None,
+                                                                        ty: None,
+                                                                    },
+                                                                ],
+                                                            },
+                                                            arrow_span: 264..266,
+                                                            body: Expr {
+                                                                span: 267..292,
+                                                                kind: Block(
+                                                                    Block {
+                                                                        span: 267..292,
+                                                                        stmts: [
+                                                                            Stmt {
+                                                                                span: 281..282,
+                                                                                kind: Expr(
+                                                                                    Expr {
+                                                                                        span: 281..282,
+                                                                                        kind: Ident(
+                                                                                            Ident {
+                                                                                                span: 281..282,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                    ],
+                                                    finally: None,
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

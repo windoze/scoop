@@ -1012,6 +1012,17 @@ pub enum ExprKind {
         subject: Box<Expr>,
         arms: Vec<WhenArm>,
     },
+    /// `handle { ... } with { ... }`（spec §5.4）。
+    ///
+    /// 说明：
+    /// - 当前阶段（T0605）仅支持 non-resuming arm：`Effect.op(args) -> body`；
+    /// - `-> resume` 与 `, k ->` 的语法形态留到后续任务补齐；
+    /// - `finally { ... }` 目前仅做语法建模（完整语义见 spec §5.7 / 后续 lowering）。
+    Handle {
+        body: Block,
+        arms: Vec<HandleArm>,
+        finally: Option<Block>,
+    },
     /// 成员访问表达式：`receiver.member`（postfix）。
     ///
     /// 说明：
@@ -1142,6 +1153,36 @@ pub struct WhenArm {
     pub guard: Option<Expr>,
     pub arrow_span: Span,
     pub body: Expr,
+}
+
+/// `handle` 的一个 handler arm：`Effect.op(args...) -> body`。
+#[derive(Debug, Clone)]
+pub struct HandleArm {
+    pub span: Span,
+    pub op: HandleOp,
+    pub arrow_span: Span,
+    pub body: Expr,
+}
+
+/// handler arm head 中的 effect operation：`Effect.op(binders...)`。
+///
+/// 注意：这里的 `binders` 是 **参数绑定**（类似模式参数），不是普通调用表达式的实参表达式。
+#[derive(Debug, Clone)]
+pub struct HandleOp {
+    pub span: Span,
+    pub effect: TypePath,
+    pub dot_span: Span,
+    pub op: Ident,
+    pub binders: Vec<HandleBinder>,
+}
+
+/// handler arm 的一个参数绑定：`name` 或 `name: Type`。
+#[derive(Debug, Clone)]
+pub struct HandleBinder {
+    pub span: Span,
+    pub name: Ident,
+    pub colon_span: Option<Span>,
+    pub ty: Option<TypeRef>,
 }
 
 /// `when` 分支的模式（早期最小子集）。
