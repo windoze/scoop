@@ -341,7 +341,7 @@
 - [ ] overload resolution 与推断联动：
   - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议
   - effect rows / `eff` 参数也必须能参与重载筛选与歧义诊断
-- [ ] 真正的分支合并类型：LUB / 受限 union 的构造、比较与化简（替代简单 `Any` fallback）
+- [x] 真正的分支合并类型：LUB / 受限 union 的构造、比较与化简（替代简单 `Any` fallback）（T0514）
 - [ ] effect row 高级推断：高阶 row 约束、泛型 row 变量、归一化参与候选决议
 
 **本阶段 DoD**

@@ -80,6 +80,25 @@ pub enum RefTypeKind {
     /// - receiver function type（`T.(...) -> ...`）被建模为“带 receiver 的函数类型”，其子类型规则
     ///   与参数一致（逆变）。
     Function(FunctionType),
+
+    /// 受限 union 类型：`A | B | ...`。
+    ///
+    /// 说明：
+    /// - 该类型目前主要用于“分支结果类型合并”（if/when 的 LUB）在缺少合适公共超类型时的保守精化；
+    /// - 运行时表示与更强的静态语义（例如对 union 的成员访问/智能转换）会在后续阶段逐步补齐；
+    /// - 当前实现保证：
+    ///   - 展平嵌套 union（`(A | B) | C` → `A | B | C`）
+    ///   - 去重与稳定排序（用于稳定诊断与 fixtures 断言）
+    ///   - `Nothing` 被消去（`Nothing | T` → `T`）
+    ///   - `Any` 吸收其它项（`Any | T` → `Any`）
+    Union(UnionType),
+}
+
+/// union 类型的规范化表示。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UnionType {
+    /// 已规范化：排序 + 去重 + 无嵌套 union + 不包含 `Nothing`。
+    pub variants: Vec<TypeId>,
 }
 
 /// 名义类型（nominal type）的最小表示。
@@ -313,6 +332,43 @@ impl TypeStore {
         })))
     }
 
+    /// 构造一个 union 类型（`A | B | ...`），并做最小规范化。
+    pub fn ty_union(&mut self, variants: Vec<TypeId>) -> TypeId {
+        let mut flat: Vec<TypeId> = Vec::with_capacity(variants.len());
+
+        for v in variants {
+            match self.kind(v) {
+                // 展平嵌套 union。
+                TypeKind::Ref(RefTypeKind::Union(u)) => flat.extend(u.variants.iter().copied()),
+                // `Nothing | T` → `T`（bottom 不贡献到 union）。
+                TypeKind::Value(ValueTypeKind::Nothing) => {}
+                _ => flat.push(v),
+            }
+        }
+
+        // `Any` 吸收其它项。
+        if let Some(any_id) = flat.iter().copied().find(|id| matches!(self.kind(*id), TypeKind::Ref(RefTypeKind::Any))) {
+            return any_id;
+        }
+
+        // 规范化：稳定排序 + 去重（用于稳定诊断与 fixtures 断言）。
+        //
+        // 注意：不能直接按 `TypeId` 排序，因为 `TypeId` 的分配顺序会受 intern 顺序影响；
+        // 这里按格式化后的文本排序，使得输出对使用方更稳定（同时保留 `TypeId` 作为 tie-break）。
+        flat.sort_by(|a, b| {
+            let sa = self.display(*a).to_string();
+            let sb = self.display(*b).to_string();
+            sa.cmp(&sb).then_with(|| a.cmp(b))
+        });
+        flat.dedup();
+
+        if flat.len() == 1 {
+            return flat[0];
+        }
+
+        self.intern(TypeKind::Ref(RefTypeKind::Union(UnionType { variants: flat })))
+    }
+
     /// 构造一个类型参数 `TypeId`（例如 `T`）。
     pub fn ty_param(&mut self, param: TypeParamType) -> TypeId {
         self.intern(TypeKind::Param(param))
@@ -354,6 +410,7 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
         TypeKind::Ref(RefTypeKind::String) => write!(f, "String"),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
         TypeKind::Ref(RefTypeKind::Function(fun)) => format_function_type(store, fun, f, depth),
+        TypeKind::Ref(RefTypeKind::Union(u)) => format_union_type(store, u, f, depth),
         TypeKind::Value(ValueTypeKind::Unit) => write!(f, "Unit"),
         TypeKind::Value(ValueTypeKind::Nothing) => write!(f, "Nothing"),
         TypeKind::Value(ValueTypeKind::Bool) => write!(f, "Bool"),
@@ -383,6 +440,21 @@ fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth:
         TypeKind::Value(ValueTypeKind::Nominal(n)) => format_nominal(store, n, f, depth),
         TypeKind::Param(p) => write!(f, "{}", p.name),
     }
+}
+
+fn format_union_type(
+    store: &TypeStore,
+    union: &UnionType,
+    f: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
+    for (idx, v) in union.variants.iter().copied().enumerate() {
+        if idx != 0 {
+            write!(f, " | ")?;
+        }
+        format_type(store, v, f, depth + 1)?;
+    }
+    Ok(())
 }
 
 fn format_function_type(
@@ -545,6 +617,22 @@ mod tests {
             tys.display(disposable_pure).to_string(),
             "fixtures.Disposable<Any, eff Pure>"
         );
+    }
+
+    #[test]
+    fn type_display_formats_union_types_and_canonicalizes() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        let u = tys.ty_union(vec![builtins.int, builtins.string]);
+        assert_eq!(tys.display(u).to_string(), "Int | String");
+
+        // `Nothing` 被消去，`Any` 吸收其它项，嵌套 union 被展平且去重。
+        let nested = tys.ty_union(vec![builtins.nothing, u, builtins.string]);
+        assert_eq!(tys.display(nested).to_string(), "Int | String");
+
+        let any_absorb = tys.ty_union(vec![builtins.any, builtins.int]);
+        assert_eq!(tys.display(any_absorb).to_string(), "Any");
     }
 
     #[test]

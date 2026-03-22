@@ -10,6 +10,7 @@
 mod type_env;
 mod lower;
 mod assignable;
+mod branch_merge;
 mod headers;
 mod expr;
 mod structs;

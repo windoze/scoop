@@ -29,6 +29,7 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
+use super::branch_merge;
 use super::lower::{TypeLowerError, TypeLowering};
 use super::val_pat;
 use super::when_exhaustiveness;
@@ -1987,15 +1988,10 @@ fn infer_expr_type(
             Ok(builtins.bool_)
         }
         ast::ExprKind::When { subject, arms } => {
-            // `when` 表达式结果类型：当前阶段（T0414）只实现最小规则：
+            // `when` 表达式结果类型：
             // - 递归类型检查 subject 与每个 arm body（保证覆盖其中的表达式）；
-            // - 若所有分支 body 的类型相同，则结果为该类型；
-            // - 若存在多个非 `Nothing` 的分支且类型不一致，则 fallback 为 `Any`（真正的 LUB 规则留到后续任务实现）。
+            // - 对所有 arm body 的类型做分支合并（T0514：LUB / 受限 union）；
             // - 若所有分支都是 `Nothing`（不可达），则整体结果为 `Nothing`。
-            //
-            // 额外：`Nothing` 是 bottom type（T0420a），因此：
-            // - `Nothing` 与任意 `T` 的 LUB 至少应为 `T`；
-            // - 这里先做一个最小 special-case：忽略 `Nothing` 分支参与比较。
             let subject_ty = infer_expr_type(
                 source,
                 subject,
@@ -2032,15 +2028,18 @@ fn infer_expr_type(
                     struct_field_types,
                 )?;
 
-                // `Nothing`：不可达分支（例如后续 `Raise.raise`），不影响最小 LUB 推导。
+                // `Nothing`：不可达分支（例如后续 `Raise.raise`），不影响分支合并结果。
                 if arm_ty == builtins.nothing {
                     continue;
                 }
 
                 match result {
                     None => result = Some(arm_ty),
-                    Some(prev) if prev == arm_ty => {}
-                    Some(_) => result = Some(builtins.any),
+                    Some(prev) => {
+                        result = Some(branch_merge::merge_branch_result_type(
+                            prev, arm_ty, lower, builtins,
+                        ));
+                    }
                 }
             }
 
@@ -2135,10 +2134,10 @@ fn infer_if_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    // 当前阶段（T0502）仅把 `if` 当作“可推导结果类型”的表达式，
-    // 以支持 `val x = if (...) 1 else 2` 这类最小推断回归。
-    //
-    // 非目标（后续任务 T0514）：真正的 LUB / union 规则与更强的条件类型约束。
+    // `if` 表达式结果类型：
+    // - 递归类型检查 cond / then / else（保证覆盖内部表达式）；
+    // - then/else 通过 T0514 分支合并规则计算结果类型；
+    // - 没有 else 时视为 `Unit`（更接近语句形式）。
 
     // 先 typecheck cond：保证其中的表达式也会被覆盖（错误不应被吞掉）。
     let _ = infer_expr_type(
@@ -2180,20 +2179,12 @@ fn infer_if_expr_type(
         struct_field_types,
     )?;
 
-    // `Nothing` 是 bottom type：与任意 `T` 合并时应选择 `T`（最小 special-case）。
-    if then_ty == builtins.nothing {
-        return Ok(else_ty);
-    }
-    if else_ty == builtins.nothing {
-        return Ok(then_ty);
-    }
-
-    if then_ty == else_ty {
-        return Ok(then_ty);
-    }
-
-    // TODO(T0514): 这里先用 `Any` 作为最小 fallback，后续用真正的 LUB/union 替换。
-    Ok(builtins.any)
+    Ok(branch_merge::merge_branch_result_type(
+        then_ty,
+        else_ty,
+        lower,
+        builtins,
+    ))
 }
 
 /// “期望类型”的来源说明（用于推断失败诊断）。
@@ -5835,6 +5826,21 @@ fn substitute_single_type_param(
             }
 
             Ok(lower.ty_function(receiver, params, return_ty, effects))
+        }
+        TypeKind::Ref(RefTypeKind::Union(union)) => {
+            let mut changed = false;
+            let mut variants: Vec<TypeId> = Vec::with_capacity(union.variants.len());
+            for v in union.variants {
+                let new_v = substitute_single_type_param(v, param_ty, arg_ty, lower, use_span)?;
+                if new_v != v {
+                    changed = true;
+                }
+                variants.push(new_v);
+            }
+            if !changed {
+                return Ok(ty);
+            }
+            Ok(lower.ty_union(variants))
         }
     }
 }

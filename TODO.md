@@ -1586,11 +1586,22 @@
    - fixtures：新增 infer pass/fail 用例覆盖 most-specific 与歧义候选列表断言。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0514 [TODO] 分支类型合并：真正的 LUB / 受限 union 构造与化简
+### T0514 [DONE] 分支类型合并：真正的 LUB / 受限 union 构造与化简
 - 描述：替换当前 `if/when` 的 “相同类型否则回退到 Any” 规则，引入真正的最小上界计算，并在必要时构造受限 union/公共超类型结果。
 - 目标：先覆盖最常见层级：继承关系、nullability、`Nothing`、enum/tuple/函数类型的可比较情况；保证结果稳定可解释。
 - 验收：infer fixtures：`if (c) child else parent` 推断为 `Parent`；`if (c) Int else String` 不再无脑退化，按既定 union/LUB 规则给出结果或稳定诊断。
 - 依赖：T0414、T0503、T0506
+ - 完成：
+   - ty：新增受限 union 类型表示 `A | B | ...`（稳定排序/去重/展平，`Nothing` 消去，`Any` 吸收）。
+   - typecheck：新增 `branch_merge` 模块，实现 if/when 分支类型合并：
+     - 优先使用子类型关系与名义继承的公共超类型（避免过早退化为 `Any`）；
+     - 结构类型覆盖 `Option`/tuple/function 的“可比较情况”；
+     - 无合适公共超类型时构造 union 作为保守精化。
+   - typecheck/expr：`if` 与 `when` 的结果类型推断改为统一走 `branch_merge::merge_branch_result_type`。
+   - fixtures：
+     - 更新 `infer/*mixed_types*`：不再断言 `Any`，改为断言 `Int | String`；
+     - 新增 `infer/if_branch_lub_inheritance_ok.scoop` 覆盖 Child/Parent → Parent。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0515 [TODO] effect row 推断 v1：高阶 row 约束、泛型 row 变量与归一化
 - 描述：把 effect row 推断从“默认值 + 简单并集”推进到更完整的求解：支持泛型 row 变量参与约束、必要的高阶 row 运算，以及规范化后的等价比较。

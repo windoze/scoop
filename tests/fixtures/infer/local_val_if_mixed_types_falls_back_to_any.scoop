@@ -1,8 +1,8 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
 // EXPECT-ERROR-AT: 13:18
-// EXPECT-ERROR: 得到 Any
-// 目标：T0503 `if` 分支类型合并：分支类型不一致时 fallback 到 Any。
+// EXPECT-ERROR: 得到 Int | String
+// 目标：T0514 `if` 分支类型合并：分支类型不一致时不再无脑退化到 Any，而是构造受限 union。
 
 package fixtures.infer
 
@@ -12,4 +12,3 @@ fun f(cond: Bool) {
     val x = if (cond) 1 else "hi"
     val y: Int = x
 }
-

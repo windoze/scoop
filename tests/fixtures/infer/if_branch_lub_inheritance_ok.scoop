@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0514 分支类型合并：存在公共超类型时应推断为该类型（Child/Parent → Parent）。
+
+package fixtures.infer
+
+import scoop.core.*
+
+open class Parent() {}
+
+class Child() : Parent() {}
+
+fun f(cond: Bool) {
+    val x = if (cond) Child() else Parent()
+    val y: Parent = x
+}
+

@@ -573,10 +573,6 @@ impl<'a> TypeLowering<'a> {
         self.types.display(id).to_string()
     }
 
-    pub(super) fn types(&self) -> &TypeStore {
-        self.types
-    }
-
     /// 返回给定 `TypeId` 在 `TypeStore` 中的具体 kind（clone）。
     ///
     /// 说明：typecheck 的某些表达式语义（例如 `with` 更新）需要区分：
@@ -610,6 +606,10 @@ impl<'a> TypeLowering<'a> {
         self.types.ty_tuple(elements)
     }
 
+    pub(super) fn ty_union(&mut self, variants: Vec<TypeId>) -> TypeId {
+        self.types.ty_union(variants)
+    }
+
     pub(super) fn ty_function(
         &mut self,
         receiver: Option<TypeId>,
@@ -618,6 +618,10 @@ impl<'a> TypeLowering<'a> {
         effects: EffectRow,
     ) -> TypeId {
         self.types.ty_function(receiver, params, return_ty, effects)
+    }
+
+    pub(super) fn intern_type_kind(&mut self, kind: TypeKind) -> TypeId {
+        self.types.intern(kind)
     }
 
     /// 将一个声明处的 `TypeParam` 构造成 `TypeId`（`TypeKind::Param`）。
