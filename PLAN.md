@@ -173,6 +173,7 @@
   - [x] 调用点/构造点：从“唯一 callee”升级为“候选集合 + 调用形状”（T0319）
   - [x] typecheck：普通函数调用最小重载决议（T0453：过滤后唯一/歧义）
   - [x] typecheck：class 构造调用最小重载决议（T0454：primary/secondary + 默认参数）
+  - [x] typecheck：扩展函数调用重载决议（T0455：member 优先 + receiver/参数 specificity）
   - [ ] inference：most-specific 与重载冲突诊断（后续任务逐步补齐）
 - [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务；T0321b 依赖 T1105 `.cone` 读取，已在 TODO 中延后）
   - [x] T0321a：resolver 引入 cone 边界 + source-only 多 cone fixtures

@@ -1252,11 +1252,22 @@
     - `tests/fixtures/typecheck/class_ctor_overload_ambiguous_default_is_error.scoop`
   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0455 [TODO] 扩展函数重载解析：member 优先 + receiver specificity
+### T0455 [DONE] 扩展函数重载解析：member 优先 + receiver specificity
 - 描述：在已有 extension 静态分发基础上，支持同名多个 extension overload，并固定优先级：member 胜出，其次按 receiver/参数更具体者胜出。
 - 目标：先只覆盖同包/已导入 extension；跨包导入优先级与可见性复用现有规则。
 - 验收：typecheck fixture：多个 extension overload 可按 receiver/参数类型选中；member 与 extension 同名时选 member；无唯一候选时报歧义。
 - 依赖：T0436、T0453、T0312
+ - 完成：
+   - typecheck/expr：`receiver.member(...)` 扩展调用从“要求唯一 extension 候选”升级为重载决议：
+     - 先按 receiver 可赋值关系 + 位置/命名实参映射 + 形参可赋值关系过滤候选；
+     - 多候选时使用 most-specific tie-break：receiver 与每个实参的期望类型都更具体者胜出；
+     - 无匹配时报 `no_matching_overload`；无唯一 most-specific 时报 `ambiguous_overload`；
+     - 单候选路径保持旧的精确 mismatch 诊断，并补齐命名实参支持。
+   - fixtures：新增 typecheck fixtures：
+     - `tests/fixtures/typecheck/extension_overload_select_by_receiver_ok.scoop`
+     - `tests/fixtures/typecheck/extension_overload_select_by_arg_type_ok.scoop`
+     - `tests/fixtures/typecheck/extension_overload_ambiguous_is_error.scoop`
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0456 [TODO] enum variant 构造与 pattern 消歧：摆脱“同名唯一 variant”假设
 - 描述：当不同 enum 存在同名 variant（如多个 `None` / `Some` 风格命名）时，variant 构造与 pattern 匹配应按期望类型或 `when` subject type 解析，而不是要求全局同名唯一。

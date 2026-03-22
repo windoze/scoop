@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR-AT: 21:14
+// EXPECT-ERROR: 重载决议歧义
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// receiver 更具体：`String.mix(...)`
+fun String.mix(x: Any): Int {
+    return 0
+}
+
+// 参数更具体：`Any.mix(String)`
+fun Any.mix(x: String): Int {
+    return 0
+}
+
+val s: String
+val x: Int = s.mix("x")

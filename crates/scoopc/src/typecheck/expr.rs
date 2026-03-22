@@ -3371,19 +3371,26 @@ fn infer_member_call_expr_type(
     };
 
     // 只选择扩展函数候选（同名顶层普通函数不参与 `receiver.member()`）。
-    let mut ext_candidates = sigs.iter().filter(|s| s.is_extension);
-    let Some(sig) = ext_candidates.next() else {
+    let ext_candidates: Vec<&FunSigOwned> = sigs.iter().filter(|s| s.is_extension).collect();
+    let Some(sig) = ext_candidates.first().copied() else {
         return Err(ExprTypeError::CalleeNotCallable {
             callee: callee_fqn,
             span: member.span.into(),
         });
     };
-    if ext_candidates.next().is_some() {
-        return Err(ExprTypeError::AmbiguousCall {
-            callee: callee_fqn,
-            span: member.span.into(),
-        });
-    }
+
+    // 预先推导所有“显式实参”的类型（不含 receiver），并归一化 named arg 的语法糖节点，
+    // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
+    let call_args = collect_call_arg_infos(
+        source,
+        args,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
 
     let Some(expected_receiver_ty) = sig.params.first().copied() else {
         // 健壮性：扩展函数至少应该包含 receiver 这一参数。
@@ -3393,69 +3400,200 @@ fn infer_member_call_expr_type(
         });
     };
 
-    if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
-        return Err(ExprTypeError::CallReceiverTypeMismatch {
-            callee: callee_fqn,
-            expected: lower.fmt_type(expected_receiver_ty),
-            found: lower.fmt_type(actual_receiver_ty),
-            span: receiver.span.into(),
-        });
-    }
+    // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
+    if ext_candidates.len() == 1 {
+        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+            return Err(ExprTypeError::CallReceiverTypeMismatch {
+                callee: callee_fqn,
+                expected: lower.fmt_type(expected_receiver_ty),
+                found: lower.fmt_type(actual_receiver_ty),
+                span: receiver.span.into(),
+            });
+        }
 
-    let expected_args = sig.params.len().saturating_sub(1);
-    if args.len() != expected_args {
-        return Err(ExprTypeError::CallArityMismatch {
-            callee: callee_fqn,
-            expected: expected_args,
-            found: args.len(),
-            span: call_expr.span.into(),
-        });
-    }
+        let expected_args = sig.params.len().saturating_sub(1);
+        if call_args.len() != expected_args {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: callee_fqn,
+                expected: expected_args,
+                found: call_args.len(),
+                span: call_expr.span.into(),
+            });
+        }
 
-    let Some(expected_param_tys) = sig.params.get(1..) else {
-        return Err(ExprTypeError::CalleeNotCallable {
-            callee: callee_fqn,
-            span: member.span.into(),
-        });
-    };
+        let Some(param_names) = sig.param_names.get(1..) else {
+            // 健壮性：扩展函数至少应该包含 receiver 的占位形参名。
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee: callee_fqn,
+                span: member.span.into(),
+            });
+        };
 
-    for (idx, (arg, expected_ty)) in args
-        .iter()
-        .zip(expected_param_tys.iter().copied())
-        .enumerate()
-    {
-        let found_ty = infer_expr_type(
-            source,
-            arg,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let Some(mapping) = map_call_args_to_params(&call_args, param_names) else {
+            return Err(ExprTypeError::NoMatchingOverload {
+                callee: callee_fqn,
+                span: call_expr.span.into(),
+            });
+        };
 
-        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
-            // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-            if matches!(arg.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_ty, lower, builtins)
-            {
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let expected_ty = sig.params[param_idx + 1];
+            let arg = &call_args[arg_idx];
+            let found_ty = arg.ty;
+
+            if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;
             }
+            if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                continue;
+            }
+
             return Err(ExprTypeError::CallArgTypeMismatch {
                 callee: callee_fqn,
-                index: idx + 1,
+                // extension 调用：`receiver.member(arg1, arg2, ...)` 的第 1 个“显式参数”
+                // 对应 `sig.params[1]`（跳过 receiver 参数）。
+                index: param_idx + 1,
                 expected: lower.fmt_type(expected_ty),
                 found: lower.fmt_type(found_ty),
-                span: arg.span.into(),
+                span: arg.expr.span.into(),
+            });
+        }
+
+        let ret = if safe {
+            lower.ty_option(sig.return_ty)
+        } else {
+            sig.return_ty
+        };
+
+        return Ok(ret);
+    }
+
+    #[derive(Debug, Clone)]
+    struct MatchedExtensionOverload<'a> {
+        sig: &'a FunSigOwned,
+        receiver_ty: TypeId,
+        /// `call_args[arg_idx]` 对应的“期望类型”（排除了 receiver 参数）。
+        expected_arg_tys: Vec<TypeId>,
+    }
+
+    fn is_strictly_more_specific_extension_overload(
+        a: &MatchedExtensionOverload<'_>,
+        b: &MatchedExtensionOverload<'_>,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> bool {
+        let a_le_b = is_type_assignable(a.receiver_ty, b.receiver_ty, lower, builtins)
+            && a
+                .expected_arg_tys
+                .iter()
+                .zip(b.expected_arg_tys.iter())
+                .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
+        let b_le_a = is_type_assignable(b.receiver_ty, a.receiver_ty, lower, builtins)
+            && b
+                .expected_arg_tys
+                .iter()
+                .zip(a.expected_arg_tys.iter())
+                .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
+
+        a_le_b && !b_le_a
+    }
+
+    fn pick_most_specific_extension_overload<'a>(
+        candidates: &[MatchedExtensionOverload<'a>],
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> Option<&'a FunSigOwned> {
+        for (idx, cand) in candidates.iter().enumerate() {
+            let mut ok = true;
+            for (other_idx, other) in candidates.iter().enumerate() {
+                if idx == other_idx {
+                    continue;
+                }
+                if !is_strictly_more_specific_extension_overload(cand, other, lower, builtins) {
+                    ok = false;
+                    break;
+                }
+            }
+            if ok {
+                return Some(cand.sig);
+            }
+        }
+        None
+    }
+
+    // 多候选：先按 receiver/参数匹配筛选，再用 receiver/参数 specificity 选出 most-specific（T0455）。
+    let mut matched: Vec<MatchedExtensionOverload<'_>> = Vec::new();
+
+    for cand in ext_candidates {
+        let Some(expected_receiver_ty) = cand.params.first().copied() else {
+            continue;
+        };
+        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+            continue;
+        }
+
+        let expected_args = cand.params.len().saturating_sub(1);
+        if call_args.len() != expected_args {
+            continue;
+        }
+
+        let Some(param_names) = cand.param_names.get(1..) else {
+            continue;
+        };
+        let Some(mapping) = map_call_args_to_params(&call_args, param_names) else {
+            continue;
+        };
+
+        let mut ok = true;
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let expected_ty = cand.params[param_idx + 1];
+            let arg = &call_args[arg_idx];
+            let found_ty = arg.ty;
+
+            if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                continue;
+            }
+            if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                continue;
+            }
+            ok = false;
+            break;
+        }
+
+        if ok {
+            let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
+            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                expected_arg_tys[arg_idx] = cand.params[param_idx + 1];
+            }
+
+            matched.push(MatchedExtensionOverload {
+                sig: cand,
+                receiver_ty: expected_receiver_ty,
+                expected_arg_tys,
             });
         }
     }
 
+    let chosen = match matched.len() {
+        0 => {
+            return Err(ExprTypeError::NoMatchingOverload {
+                callee: callee_fqn,
+                span: call_expr.span.into(),
+            });
+        }
+        1 => matched[0].sig,
+        _ => pick_most_specific_extension_overload(&matched, lower, builtins).ok_or_else(|| {
+            ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                span: call_expr.span.into(),
+            }
+        })?,
+    };
+
     let ret = if safe {
-        lower.ty_option(sig.return_ty)
+        lower.ty_option(chosen.return_ty)
     } else {
-        sig.return_ty
+        chosen.return_ty
     };
 
     Ok(ret)

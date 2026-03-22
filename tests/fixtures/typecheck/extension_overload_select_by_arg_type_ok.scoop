@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T0455 扩展函数重载决议：按参数类型选择更具体 overload。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun Any.pick(x: Int): Int {
+    return x
+}
+
+fun Any.pick(x: String): String {
+    return x
+}
+
+val a: Any
+val x: Int = a.pick(1)
+val y: String = a.pick("hi")
+
