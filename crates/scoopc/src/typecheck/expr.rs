@@ -1883,6 +1883,27 @@ fn infer_expr_type_in_expected_context(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    // T0504：lambda 参数类型下推（spec §14.7.2）。
+    //
+    // 说明：lambda 的参数类型通常由“期望的函数类型”向下传播而来，因此这里在存在 expected type 时
+    // 优先尝试用该信息推断 lambda 的参数类型与返回类型。
+    if let ast::ExprKind::Lambda(lam) = &expr.kind {
+        if let Some(ty) = try_infer_lambda_expr_type_by_expected(
+            source,
+            expr,
+            lam,
+            expected_ty,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )? {
+            return Ok(ty);
+        }
+    }
+
     if let ast::ExprKind::Call { callee, args } = &expr.kind {
         if let ast::ExprKind::Ident(id) = &callee.kind {
             if id.resolved.is_none() {
@@ -1915,6 +1936,64 @@ fn infer_expr_type_in_expected_context(
         top_level_funs,
         struct_field_types,
     )
+}
+
+fn try_infer_lambda_expr_type_by_expected(
+    source: &SourceFile,
+    lam_expr: &ast::Expr,
+    lam: &ast::LambdaExpr,
+    expected_ty: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let TypeKind::Ref(RefTypeKind::Function(expected_fun)) = lower.type_kind(expected_ty) else {
+        return Ok(None);
+    };
+
+    // 当前阶段目标（T0504）：先只支持“单参数 lambda”，并且不支持 receiver function type。
+    if expected_fun.receiver.is_some() || expected_fun.params.len() != 1 {
+        return Ok(None);
+    }
+
+    if lam.params.len() != 1 {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "lambda（当前仅支持单参数，且参数类型需来自期望函数类型）",
+            span: lam_expr.span.into(),
+        });
+    }
+
+    let expected_param_ty = expected_fun.params[0];
+    let param = &lam.params[0];
+    let param_ty = match &param.ty {
+        Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
+        None => expected_param_ty,
+    };
+
+    // lambda 内部的作用域（最小子集）：
+    // - 继承外层捕获的局部绑定
+    // - 注入 lambda 形参（供 body 的 ident typecheck 使用）
+    let mut lambda_locals = locals.clone();
+    lambda_locals.insert(param.name.span, param_ty);
+
+    // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
+    // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
+    let body_ty = infer_expr_type(
+        source,
+        lam.body.as_ref(),
+        lower,
+        builtins,
+        &lambda_locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let lam_ty = lower.ty_function(None, vec![param_ty], body_ty, EffectRow::pure());
+    Ok(Some(lam_ty))
 }
 
 fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
@@ -2493,16 +2572,21 @@ fn collect_call_arg_infos<'a>(
             ast::ExprKind::NamedArg { name, value, .. } => {
                 let name = source.slice(name.span).to_string();
                 let expr = value.as_ref();
-                let ty = infer_expr_type(
-                    source,
-                    expr,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let ty = match expr.kind {
+                    // lambda 的类型通常依赖 expected type；在“预收集实参信息”阶段先用占位类型，
+                    // 以便后续在“已选定签名”的语境下重新 typecheck（T0504）。
+                    ast::ExprKind::Lambda(_) => builtins.any,
+                    _ => infer_expr_type(
+                        source,
+                        expr,
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?,
+                };
                 out.push(CallArgInfo {
                     kind: CallArgKind::Named { name },
                     expr,
@@ -2511,16 +2595,19 @@ fn collect_call_arg_infos<'a>(
                 });
             }
             _ => {
-                let ty = infer_expr_type(
-                    source,
-                    arg,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let ty = match arg.kind {
+                    ast::ExprKind::Lambda(_) => builtins.any,
+                    _ => infer_expr_type(
+                        source,
+                        arg,
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?,
+                };
                 out.push(CallArgInfo {
                     kind: CallArgKind::Positional,
                     expr: arg,
@@ -2767,7 +2854,17 @@ fn infer_call_expr_type(
                 for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                     let arg = &call_args[arg_idx];
                     let expected_ty = sig.params[param_idx];
-                    let found_ty = arg.ty;
+                    let found_ty = infer_expr_type_in_expected_context(
+                        source,
+                        arg.expr,
+                        expected_ty,
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?;
 
                     if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
@@ -3531,7 +3628,17 @@ fn infer_member_call_expr_type(
         for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
             let expected_ty = sig.params[param_idx + 1];
             let arg = &call_args[arg_idx];
-            let found_ty = arg.ty;
+            let found_ty = infer_expr_type_in_expected_context(
+                source,
+                arg.expr,
+                expected_ty,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;

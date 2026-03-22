@@ -1397,11 +1397,19 @@
    - typecheck：把 `Any` fallback 的 TODO 标号从 T0503 更新到 T0514（真正 LUB/union 任务）
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0504 [TODO] lambda 参数类型下推（spec §14.7.2）
+### T0504 [DONE] lambda 参数类型下推（spec §14.7.2）
 - 描述：在调用点已知函数类型时，把参数类型下推到 lambda 参数。
 - 目标：先只支持单参数 lambda；不支持多段推断链。
 - 验收：infer fixture：`fun takes(f: (Int) -> Int) {}` + `takes { x -> x }` 通过并推断 x 为 Int。
 - 依赖：T0219、T0222、T0501
+ - 完成：
+   - typecheck：在 `infer_expr_type_in_expected_context` 中实现 lambda expected type 传播：
+     - 当 expected type 为 `(T) -> R`（无 receiver、单参数）时，把 `T` 下推到 lambda 形参；
+     - 在 lambda body 语境注入形参类型并推导 body 类型作为返回类型（最小实现）。
+   - typecheck：普通调用与扩展调用的“单候选路径”在检查实参时改为按形参类型做 expected-context 推导，
+     使 `takes { x -> x + 1 }` 这类调用能正确推断 lambda 形参类型。
+   - fixtures：新增 `tests/fixtures/infer/lambda_param_type_is_propagated_from_expected.scoop` 回归用例。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0505 [TODO] 泛型实参推断 v0（spec §14.5）
 - 描述：从调用参数推断泛型实参（例如 `id(1)` 推断 `T=Int`）。

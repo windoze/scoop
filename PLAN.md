@@ -331,7 +331,8 @@
   - [ ] effects 行约束（T0508/T0509）
 - [x] 局部变量推断：`val x = expr`（T0502）
 - [x] LUB（if/when 分支：相同类型 / Any fallback）（T0503）
-- [ ] lambda 推断：参数类型下推、返回类型与 effect row 推断（见 spec §14.7.2）
+- [x] lambda 推断 v0：参数类型下推（T0504，spec §14.7.2）
+- [ ] lambda 推断：更完整的返回类型合并与 effect row 推断（后续任务）
 - [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释
 - [ ] overload resolution 与推断联动：
   - 泛型实参、lambda expected type、默认参数、命名参数、trailing lambda 共同参与候选决议

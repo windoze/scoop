@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0504 lambda 参数类型下推：当调用点已知函数类型时，lambda 参数类型可由期望类型向下传播推断。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun takes(f: (Int) -> Int) { }
+
+fun f() {
+    val u = takes { x -> x + 1 }
+}
+
