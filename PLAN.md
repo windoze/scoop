@@ -326,6 +326,9 @@
 对齐 spec §14：constraint generation + solving（非 HM W）。
 
 - [ ] 约束表示：`τ1 <: τ2`、相等、行约束（effects）
+  - [x] 相等约束 + 推断变量 + 最小 unify 骨架（T0501）
+  - [ ] 子类型约束 `τ1 <: τ2` 的求解（T0506）
+  - [ ] effects 行约束（T0508/T0509）
 - [ ] LUB（if/when 分支）
 - [ ] lambda 推断：参数类型下推、返回类型与 effect row 推断（见 spec §14.7.2）
 - [ ] 错误报告：把“推断失败”映射到具体源 span 与最小可读解释

@@ -1364,11 +1364,14 @@
 
 ## T05：类型推断（阶段 4：约束生成与求解，逐步扩展）
 
-### T0501 [TODO] 推断框架：引入 constraint 表示与求解器骨架（spec §14.9）
+### T0501 [DONE] 推断框架：引入 constraint 表示与求解器骨架（spec §14.9）
 - 描述：为 `infer` 建立数据结构：`τ1 <: τ2`、相等、未知类型变量。
 - 目标：先只实现相等约束与简单 unify；subtyping 后续任务。
 - 验收：新增单测：`T = Int`、`T = String` 冲突时报错；`cargo test -p scoopc` 通过。
 - 依赖：T0401
+ - 完成：
+   - 新增 `scoopc::infer` 模块：`InferVarId`/`InferTerm`/`Constraint`/`InferError` 与最小 `Solver`（union-find + concrete binding）。
+   - 新增单测覆盖 “同一推断变量被绑定为两个不同 `TypeId` 时返回 `TypeConflict`”；`cargo test -p scoopc` 通过。
 
 ### T0502 [TODO] 局部变量推断：`val x = expr` 推断 x 类型（spec §14.3）
 - 描述：当缺少类型注解时，从 initializer 推断类型。
