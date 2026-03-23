@@ -1721,11 +1721,19 @@
      - `tests/fixtures/typecheck/entry_point_main_explicit_non_pure_effect_row_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0611 [TODO] Continuation 类型建模（spec §5.5）
+### T0611 [DONE] Continuation 类型建模（spec §5.5）
 - 描述：在类型系统中加入 `Continuation<T, /E>`（或等价表示），并把 `resume(value)` 的类型规则固定下来。
 - 目标：先只建类型与 typecheck 规则；不做 codegen。
 - 验收：新增 typecheck fixture：`k: Continuation<Int, /Pure>` 的参数/返回类型检查正确；`resume` 多次调用的静态限制可先不做。
 - 依赖：T0609、T0435
+ - 完成：
+   - sysroot：新增 `scoop.core.Continuation<T, eff E = Pure>` 声明，作为 `Continuation<T, /E>` 的等价表示（`E` 为 required effects）。
+   - typecheck/expr：支持 `k.resume(value)` 的内建类型规则：检查 `value` 可赋值到 `T`，并把 `E` 计入 required effects（safe-call 返回 `Option<Unit>`）。
+   - typecheck/lower：把 `Continuation` 纳入隐式 builtin type 名称映射（允许在 type position 直接写 `Continuation`）。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/continuation_type_and_resume_pure_ok.scoop`
+     - `tests/fixtures/typecheck/continuation_resume_required_effect_missing_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0612 [TODO] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
 - 描述：为 effect 调用与 handle 表达式添加 IR 节点，确保能从 AST lowering 到 HIR/MIR 并 dump。

@@ -5220,6 +5220,110 @@ fn infer_effect_op_call_expr_type(
     Ok(Some(instantiated.return_ty))
 }
 
+fn try_infer_continuation_resume_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    receiver_ty: TypeId,
+    member: &ast::MemberIdent,
+    args: &[ast::Expr],
+    safe: bool,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    // spec §5.5：`k.resume(value: T)`。
+    //
+    // 说明：
+    // - 当前阶段 typecheck 尚未支持 class/interface 的实例方法调用；因此这里把 `resume` 视为一个
+    //   “内建 member call 形态”，独立于扩展函数解析。
+    // - `Continuation<T, eff E>` 的 `E` 视为“调用 resume 可能执行的 required effects”。
+    if source.slice(member.span) != "resume" {
+        return Ok(None);
+    }
+
+    let (expected_value_ty, effects) = match lower.type_kind(receiver_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            if nominal.fqn == "scoop.core.Continuation" && nominal.args.len() == 1 =>
+        {
+            (nominal.args[0], nominal.eff.unwrap_or_else(EffectRow::pure))
+        }
+        _ => return Ok(None),
+    };
+
+    let value_expr = match args {
+        [] => {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: "scoop.core.Continuation.resume".to_string(),
+                expected: 1,
+                found: 0,
+                span: call_expr.span.into(),
+            });
+        }
+        [only] => match &only.kind {
+            ast::ExprKind::NamedArg { name, value, .. } => {
+                if source.slice(name.span) != "value" {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "Continuation.resume 的命名实参（当前仅支持 `value = ...`）",
+                        span: name.span.into(),
+                    });
+                }
+                value.as_ref()
+            }
+            _ => only,
+        },
+        _ => {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: "scoop.core.Continuation.resume".to_string(),
+                expected: 1,
+                found: args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+    };
+
+    let found_value_ty = infer_expr_type(
+        source,
+        value_expr,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins) {
+        if matches!(value_expr.kind, ast::ExprKind::IntLit)
+            && is_integer_type(expected_value_ty, lower, builtins)
+        {
+            // 整数字面量允许被上下文整数类型吸收（与普通调用保持一致）。
+        } else {
+            return Err(ExprTypeError::CallArgTypeMismatch {
+                callee: "scoop.core.Continuation.resume".to_string(),
+                index: 1,
+                expected: lower.fmt_type(expected_value_ty),
+                found: lower.fmt_type(found_value_ty),
+                span: value_expr.span.into(),
+            });
+        }
+    }
+
+    // required effects：`resume` 视为“立即执行 continuation 的下一步”，因此把 `E` 计入当前函数体的 required effects。
+    for effect in effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_expr.span);
+    }
+
+    let ret = if safe {
+        lower.ty_option(builtins.unit)
+    } else {
+        builtins.unit
+    };
+    Ok(Some(ret))
+}
+
 fn infer_member_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -5259,6 +5363,23 @@ fn infer_member_call_expr_type(
     } else {
         receiver_ty
     };
+
+    if let Some(ret) = try_infer_continuation_resume_call_expr_type(
+        source,
+        call_expr,
+        actual_receiver_ty,
+        member,
+        args,
+        safe,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )? {
+        return Ok(ret);
+    }
 
     // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；

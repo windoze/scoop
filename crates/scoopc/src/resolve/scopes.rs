@@ -1333,6 +1333,18 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // spec §5.5：`Continuation.resume` 是内建操作。
+        //
+        // 说明：
+        // - 现阶段 resolver 主要负责“把可静态确定的成员名解析到一个 FQN”，用于后续 typecheck；
+        // - 但 `Continuation.resume` 在语义上并不是普通成员/扩展函数（更像语言关键操作），并且我们
+        //   还未在 sysroot 中暴露其完整声明；
+        // - 为了避免把该语义强行建模为一个普通符号，这里对该内建操作做保守放行：不报 unresolved，
+        //   留给 typecheck 决定其类型规则与 required effects 传播（TODO T0611）。
+        if receiver_ty_fqn == "scoop.core.Continuation" && member_name == "resume" {
+            return Ok(());
+        }
+
         Err(ResolveError::UnresolvedMember {
             name: member_fqn,
             span: member.span.into(),

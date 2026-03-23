@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 16:5
+// 目标：T0611：`k.resume(value)` 的 required effects 必须从 `Continuation<..., eff E>` 的 `E` 传播到调用点。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(): Nothing
+}
+
+fun bad(k: Continuation<Int, eff Boom>) {
+    k.resume(1)
+}

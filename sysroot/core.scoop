@@ -58,6 +58,14 @@ enum Option<T> {
     None
 }
 
+// Continuation（spec §5.5）
+//
+// 说明：
+// - `Continuation<T, eff E>` 表示一个“等待被恢复”的计算片段；
+// - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
+// - 当前阶段仅用于静态类型检查与 required-effects 传播；运行期语义/one-shot 约束由后续任务补齐。
+class Continuation<T, eff E = Pure>
+
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {
     NullAssertionFailed,

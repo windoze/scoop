@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0611 Continuation 类型建模（spec §5.5）：支持 `Continuation<T, eff E>` 并能 typecheck `k.resume(value)`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun id(k: Continuation<Int, eff Pure>): Continuation<Int, eff Pure> {
+    return k
+}
+
+fun run(k: Continuation<Int, eff Pure>) {
+    k.resume(1)
+}
+
