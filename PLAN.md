@@ -440,6 +440,7 @@
   - [x] HIR 骨架 + `dump-hir`（TODO T0701）
   - [x] AST→HIR lowering（声明头 + 简单函数体）：`TypeRef`→`TypeId` + ident→`SymbolId`（TODO T0702）
 - [ ] MIR：显式控制流（基本块）、显式临时变量、显式 drop/cleanup（用于 `finally`/effect unwinding）
+  - [x] MIR 骨架：基本块/terminator/locals + CFG 校验（TODO T0703）
 
 ### 7.2 泛型单态化（monomorphization）
 

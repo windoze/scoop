@@ -1877,11 +1877,16 @@
    - fixtures：新增 `tests/fixtures/hir/minimal.scoop` + `tests/fixtures/hir/minimal.hir` golden，并在 `scoopc` 单测中做回归比对。
    - 验收：`cargo test --all`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/minimal.scoop` 通过。
 
-### T0703 [TODO] MIR：基本块 + 显式控制流骨架（为后续 finally/effect 做准备）
+### T0703 [DONE] MIR：基本块 + 显式控制流骨架（为后续 finally/effect 做准备）
 - 描述：定义 MIR 的 BB/terminator/locals；支持顺序执行与 return。
 - 目标：暂不实现 if/when lowering；先把数据结构立起来。
 - 验收：新增单测：手工构造 MIR 并验证 CFG 连通；或对最小 HIR lowering 生成 1 个 BB + return。
 - 依赖：T0702
+ - 完成：
+   - scoopc：新增 `mir` 模块（Body/BasicBlock/Terminator/locals）与 CFG 校验辅助函数（reachable/unreachable/validate）。
+   - scoop：`scoop test` 支持 `tests/fixtures/hir/**`（HIR lowering + `.hir` golden），避免该目录被当作“未实现 phase”而导致回归失败。
+   - tests：新增单测覆盖 CFG 连通与非法 target 的稳定报错。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0612 [TODO] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
 - 描述：为 effect 调用与 handle 表达式添加 IR 节点，确保能从 AST lowering 到 HIR/MIR 并 dump。

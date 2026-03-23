@@ -11,6 +11,7 @@
 pub mod ast;
 pub mod hir;
 pub mod infer;
+pub mod mir;
 pub mod parser;
 pub mod resolve;
 pub mod session;
