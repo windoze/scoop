@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::closed_effect_row_contains_row_var
+// EXPECT-ERROR-AT: 10:34
+// EXPECT-ERROR: 闭合 effect row 不允许引用 row 变量
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun <eff E = Pure> bad(): Unit / E! {}

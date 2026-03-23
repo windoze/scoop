@@ -24,6 +24,7 @@
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
 - 2026-03-23：T0628（RowExpr 高级语义）跨度较大，已拆分为 T0628a/T0628b，先以 `E + ...` 的实例化/推断为最小可回归落点。
 - 2026-03-23：完成 T0628a：typecheck 侧支持 `E + R` 形式的 row（函数类型 `/ Row` 与 use-site `Type<eff Row>`），调用点按 `found - base` 推断并回填实例化结果，新增 infer/effects fixtures 覆盖。
+- 2026-03-23：完成 T0628b：引入 `TypeId` 级的 row 替换 plan，支持在 tuple/Option/多层 function type/nominal args 中实例化 `E + ...`，并补齐闭合 row 引用 row 变量（`E!`）的稳定诊断与 fixtures 覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

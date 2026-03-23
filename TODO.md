@@ -1802,11 +1802,20 @@
      覆盖函数类型与名义类型两类 `E + R` 形式，并验证顺序归一化不影响推断。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0628b [TODO] RowExpr：`E + ...` 在嵌套类型中的替换与逃逸诊断
+### T0628b [DONE] RowExpr：`E + ...` 在嵌套类型中的替换与逃逸诊断
 - 描述：把 `E + R` 的实例化/替换从“顶层参数类型”扩展到更一般的嵌套位置（tuple/union/Option/多层 function type），并补齐“row 变量逃逸/不良组合”的稳定诊断（例如 closed row 与泛型 row 的交互）。
 - 目标：实现一个可复用的“在 TypeId 里替换 row”遍历器；避免在多个 call-site 路径里复制逻辑。
 - 验收：新增 typecheck fixtures 覆盖“嵌套类型中的 `E + R` 仍可正确实例化/检查”；新增至少 1 个 fail fixture 覆盖稳定错误码。
 - 依赖：T0628a
+ - 完成：
+   - typecheck：新增 `scoopc::typecheck::eff_row_subst`，基于 `EffRowVarSubstPlan` 对 `TypeId` 做结构化重建，
+     支持在 tuple/Option/多层 function type/nominal args 中把 `E + base` 替换为调用点的 `E_arg + base`。
+   - typecheck：调用点统一入口 `instantiate_eff_row_var_in_sig_types`，避免 direct call / extension call / overload paths 重复替换逻辑。
+   - diagnostics：`TypeLowerError` 新增 `scoop::typecheck::closed_effect_row_contains_row_var`，禁止闭合 row（`E!`）引用 row 变量。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/eff_row_param_nested_e_plus_base_subst_ok.scoop`
+     - `tests/fixtures/typecheck/closed_effect_row_contains_row_var_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0629 [TODO] Program boundary：多 entry point / library boundary 规则
 - 描述：把 program boundary 从“仅检查 `main` 必须 `Pure`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure`。

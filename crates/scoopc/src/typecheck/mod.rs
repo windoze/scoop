@@ -24,6 +24,7 @@ mod override_effects;
 mod layout;
 mod overloads;
 mod where_clause;
+mod eff_row_subst;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};

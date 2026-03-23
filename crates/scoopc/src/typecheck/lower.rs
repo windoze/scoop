@@ -77,6 +77,18 @@ pub enum TypeLowerError {
         span: miette::SourceSpan,
     },
 
+    /// 闭合 effect row（`E!`）不允许包含 row 变量（例如函数级 `<eff E>` 的 `E`）。
+    ///
+    /// 说明：当前阶段闭合 row 的主要用途是 program boundary（例如 `Pure!`）。
+    /// 把 row 变量放进闭合 row 会让“闭合”的语义在调用点被重新打开，导致边界规则难以保持直观。
+    #[error("闭合 effect row 不允许引用 row 变量：{name}")]
+    #[diagnostic(code(scoop::typecheck::closed_effect_row_contains_row_var))]
+    ClosedEffectRowContainsRowVar {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     /// 循环 typealias（直接或间接）：例如 `typealias A = B; typealias B = A`。
     #[error("循环的类型别名：{cycle}")]
     #[diagnostic(code(scoop::typecheck::cyclic_type_alias))]
@@ -524,6 +536,20 @@ impl<'a> TypeLowering<'a> {
             // T0509：effect row variable（`E`）在 lowering 阶段展开为其绑定的 row。
             if term.segments.len() == 1 && term.args.is_empty() {
                 let name = self.source.slice(term.segments[0].span);
+                // spec §5.8.4：闭合 row 的语义要求它是“不可逃逸”的边界；
+                // 因此这里禁止在闭合 row 内直接引用 row 变量（例如 `E!`）。
+                if expr.closed
+                    && self
+                        .effect_row_param_scopes
+                        .iter()
+                        .rev()
+                        .any(|s| s.contains_key(name))
+                {
+                    return Err(TypeLowerError::ClosedEffectRowContainsRowVar {
+                        name: name.to_string(),
+                        span: term.span.into(),
+                    });
+                }
                 if let Some(bound) = self
                     .effect_row_param_scopes
                     .iter()

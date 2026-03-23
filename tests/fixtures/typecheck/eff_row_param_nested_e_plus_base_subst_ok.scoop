@@ -1,0 +1,36 @@
+// EXPECT: pass
+// 目标：T0628b RowExpr：
+// - 把 `E + R` 的替换从“顶层参数类型”扩展到嵌套位置（tuple/Option/多层 function type）。
+// - 调用点推断出的 `E` 必须回填到嵌套的 function type effects 上，避免默认 `Pure` 导致类型不匹配。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect IO {
+    fun read(): Unit
+}
+
+// 第二个参数：tuple 内嵌 `Option<() -> ... / (E + IO)>` 以及 `() -> ... / (E + IO)`。
+fun <eff E = Pure> takes(
+    block: () -> Unit / E,
+    pair: (Option<() -> Unit / (E + IO)>, () -> Unit / (E + IO))
+): Unit / Pure
+
+fun ok() {
+    val f: () -> Unit / (Raise<Int> + IO) = {
+        IO.read()
+        Raise.raise(1)
+    }
+    val opt: Option<() -> Unit / (Raise<Int> + IO)> = Some(f)
+    val pair: (Option<() -> Unit / (Raise<Int> + IO)>, () -> Unit / (Raise<Int> + IO)) =
+        (opt, f)
+
+    takes(
+        {
+            IO.read()
+            Raise.raise(1)
+        },
+        pair
+    )
+}
