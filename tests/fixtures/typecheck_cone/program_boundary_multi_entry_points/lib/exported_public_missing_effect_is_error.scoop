@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 12:5
+// 目标：T0629a：library cone 的 public API 是下游入口，漏写 effects row 不允许隐式推断出 Raise。
+
+package fixtures.typecheck_cone.lib
+
+import scoop.core.*
+
+public fun exported() {
+    Raise.raise(1)
+}
+

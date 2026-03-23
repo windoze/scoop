@@ -25,6 +25,7 @@
 - 2026-03-23：T0628（RowExpr 高级语义）跨度较大，已拆分为 T0628a/T0628b，先以 `E + ...` 的实例化/推断为最小可回归落点。
 - 2026-03-23：完成 T0628a：typecheck 侧支持 `E + R` 形式的 row（函数类型 `/ Row` 与 use-site `Type<eff Row>`），调用点按 `found - base` 推断并回填实例化结果，新增 infer/effects fixtures 覆盖。
 - 2026-03-23：完成 T0628b：引入 `TypeId` 级的 row 替换 plan，支持在 tuple/Option/多层 function type/nominal args 中实例化 `E + ...`，并补齐闭合 row 引用 row 变量（`E!`）的稳定诊断与 fixtures 覆盖。
+- 2026-03-23：完成 T0629a：program boundary 的 entry point 引入 cone-aware 规则（仅 consumer cone 的 `main` 视为 entry point），并新增 `typecheck_cone` fixtures runner 与用例覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -418,7 +419,7 @@
   - `Task<T>` 懒执行，直到 `await` 或显式启动
 - [ ] Appendix A 一致性：嵌套 handler 必须支持“最近匹配 handler”分发，不能停留在单层 handler 模型
 - [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则（TODO T0629）
-  - [ ] cone-aware entry point：仅 consumer cone 的 `main` 视为 entry point（TODO T0629a）
+  - [x] cone-aware entry point：仅 consumer cone 的 `main` 视为 entry point（TODO T0629a）
   - [ ] 库导出入口 + host/embedded entry points（TODO T0629b，依赖 T1107）
 - [ ] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示
 

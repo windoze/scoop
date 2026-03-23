@@ -878,6 +878,11 @@ pub fn check_file_exprs(
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
+    // T0629a：program boundary 的 entry point 需要对 cone 边界敏感。
+    // 在多 cone 编译单元里，仅把 consumer cone 的 `main` 视为 entry point，
+    // 避免把依赖 cone（库）里的同名 `main` 误判为 entry point。
+    let file_cone = index.cone_of_source(source);
+    let consumer_cone = index.consumer_cone();
 
     // 顶层 `val/var` 的类型表：用于在表达式里引用顶层变量时查询其声明类型。
     //
@@ -907,8 +912,10 @@ pub fn check_file_exprs(
                 } else {
                     format!("{pkg_prefix}.{local_name}")
                 };
-                let is_entry_point =
-                    fun.kind == ast::FunDeclKind::Regular && fun.receiver.is_none() && local_name == "main";
+                let is_entry_point = file_cone == consumer_cone
+                    && fun.kind == ast::FunDeclKind::Regular
+                    && fun.receiver.is_none()
+                    && local_name == "main";
 
                 check_fun_body_exprs(
                     source,

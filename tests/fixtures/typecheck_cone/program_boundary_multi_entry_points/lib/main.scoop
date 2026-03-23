@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T0629a：依赖 cone 的同名 `main` 不应被视为 entry point，因此可以声明并执行非 Pure effect。
+
+package fixtures.typecheck_cone.lib
+
+import scoop.core.*
+
+fun main() / Raise<Int> {
+    Raise.raise(1)
+}
+

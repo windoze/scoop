@@ -501,6 +501,28 @@ impl Index {
             .unwrap_or(ConeId::DEFAULT)
     }
 
+    /// 返回当前编译单元的“consumer cone”（用于 program boundary / entry point 规则）。
+    ///
+    /// 约定（与 fixtures runner 对齐）：
+    /// - `ConeId::DEFAULT`（0）通常用于“无 cone 区分”的单包编译，或 sysroot；
+    /// - 若存在非 0 cone，则选择 **最小的非 0 cone id** 作为 consumer cone（稳定、可预测）。
+    ///
+    /// 说明：真实的 build/link 流程（TODO T1107）未来可能会显式指定“当前被构建的 cone”，
+    /// 但在早期阶段（含 fixtures 模拟）我们先用该稳定规则避免把依赖 cone 的 `main` 误判为 entry point。
+    pub(crate) fn consumer_cone(&self) -> ConeId {
+        let mut min: Option<ConeId> = None;
+        for cone in self.file_cones.values().copied() {
+            if cone == ConeId::DEFAULT {
+                continue;
+            }
+            min = Some(match min {
+                Some(prev) if prev.0 <= cone.0 => prev,
+                _ => cone,
+            });
+        }
+        min.unwrap_or(ConeId::DEFAULT)
+    }
+
     /// 在“同包扩展函数”里查找一个可用于 `receiver.member` 的候选（T0312）。
     ///
     /// 当前阶段最小规则：

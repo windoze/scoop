@@ -1822,13 +1822,18 @@
 - 目标：先覆盖可静态识别的入口面；不引入运行时动态扫描。
 - 备注：该任务依赖 build/link 与多包消费链路（T1107），跨度较大。为保证每步“可单独实现 & 单独验证”，拆分为以下子任务。
 
-### T0629a [TODO] entry point 识别：cone-aware + 多 entry point 稳定规则
+### T0629a [DONE] entry point 识别：cone-aware + 多 entry point 稳定规则
 - 描述：在多 cone 编译单元中，仅将“consumer cone”的 `fun main` 视为 entry point；其它 cone 中同名 `main` 作为普通函数处理（不强制 `Pure`）。
 - 目标：先只做静态判定（基于 cone id）；不引入 `Cone.toml` 或 CLI 选择 entry 的参数。
 - 验收：新增 typecheck + cone fixtures：
   - 同一用例内 app/lib 两个 cone 都有 `main` 时，仅 app 的 `main` 受 entry point `Pure!` 规则约束；
   - library cone 的 `public` API 若含未处理 effect（例如漏写 `/ Raise<...>`）会在 typecheck 阶段被拒绝。
 - 依赖：T0610、T0321a（cone 可见性基础设施）
+ - 完成：
+   - resolve：新增 `Index::consumer_cone()`，用于在多 cone 编译单元中稳定识别 consumer cone。
+   - typecheck：entry point 判定增加 cone 过滤，仅 consumer cone 的 `main` 视为 entry point。
+   - fixtures：`scoop test` 新增 `typecheck_cone` runner，并新增用例 `tests/fixtures/typecheck_cone/program_boundary_multi_entry_points/**` 覆盖多 entry point 与库 public API 的 effect 门禁。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
 - 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。

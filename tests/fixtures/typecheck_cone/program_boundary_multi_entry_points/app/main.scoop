@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T0629a：多 cone 情况下，仅 consumer cone 的 `main` 视为 entry point；因此 app/main 仍必须是 `Pure!`。
+
+package fixtures.typecheck_cone.app
+
+import scoop.core.*
+
+fun main() / Pure! {
+    ()
+}
+
