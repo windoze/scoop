@@ -1708,11 +1708,18 @@
    - fixtures：新增 4 个用例覆盖 class override 与 interface impl 的 pass/fail（含 `Disposable<eff E>` 的实例化替换）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0610 [TODO] Program boundary：entry point 必须 `Pure`（spec §5.10）
+### T0610 [DONE] Program boundary：entry point 必须 `Pure`（spec §5.10）
 - 描述：定义 entry point（例如 `fun main()`）并强制其 effect row 为 `Pure`（或可隐式推断但必须最终 Pure）。
 - 目标：先只检查 `main`；多 entry point（库）后续。
 - 验收：effects fixture：`main` 里 perform Raise（未处理）时报错；`main` 使用 try/catch 处理后通过。
 - 依赖：T0604、T0607
+ - 完成：
+   - typecheck/expr：对 entry point（顶层 `fun main()`）强制 declared effect row 为 `Pure`，禁止 internal/private 的 effect row 推断；显式声明 non-Pure effect row 时给出稳定诊断 `scoop::typecheck::entry_point_must_be_pure`。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/entry_point_main_internal_unhandled_raise_is_error.scoop`
+     - `tests/fixtures/typecheck/entry_point_main_internal_try_catch_ok.scoop`
+     - `tests/fixtures/typecheck/entry_point_main_explicit_non_pure_effect_row_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0611 [TODO] Continuation 类型建模（spec §5.5）
 - 描述：在类型系统中加入 `Continuation<T, /E>`（或等价表示），并把 `resume(value)` 的类型规则固定下来。

@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T0610：entry point（`main`）必须是 Pure，但可以在 `try/catch`（lowering 为 handle）内捕获 Raise。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+internal fun main() {
+    val x: Int = try {
+        Raise.raise(1)
+        1
+    } catch (e: Int) {
+        e
+    }
+    x
+}
+

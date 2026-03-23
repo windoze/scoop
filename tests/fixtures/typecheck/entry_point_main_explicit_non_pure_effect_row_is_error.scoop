@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::entry_point_must_be_pure
+// EXPECT-ERROR: 程序入口
+// EXPECT-ERROR-AT: 11:14
+// 目标：T0610：entry point（`main`）的 effect row 必须是 Pure；显式声明 non-Pure 需要报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() / Raise<Int> {}
+

@@ -69,6 +69,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("程序入口 `main` 必须为 Pure（不能声明为 {declared}）")]
+    #[diagnostic(code(scoop::typecheck::entry_point_must_be_pure))]
+    EntryPointMustBePure {
+        declared: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的模式绑定（pattern binding）")]
     #[diagnostic(code(scoop::typecheck::unsupported_pattern_binding))]
     UnsupportedPatternBinding {
@@ -870,11 +878,14 @@ pub fn check_file_exprs(
                 } else {
                     format!("{pkg_prefix}.{local_name}")
                 };
+                let is_entry_point =
+                    fun.kind == ast::FunDeclKind::Regular && fun.receiver.is_none() && local_name == "main";
 
                 check_fun_body_exprs(
                     source,
                     &fun_fqn,
                     fun,
+                    is_entry_point,
                     &mut lower,
                     builtins,
                     &top_level_types,
@@ -1310,7 +1321,7 @@ fn check_class_member_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            check_required_effects_for_fun_decl(fun, &performed_effects, lower)?;
+            check_required_effects_for_fun_decl(fun, &performed_effects, false, lower)?;
             Ok(())
         }
         Err(e) => Err(e),
@@ -6771,16 +6782,34 @@ fn visibility_from_modifiers(modifiers: &[ast::Modifier]) -> Visibility {
 fn check_required_effects_for_fun_decl(
     fun: &ast::FunDecl,
     performed: &[(TypeId, Span)],
+    is_entry_point: bool,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
+    // spec §5.10：entry point 由 runtime 在无 ambient handler 的边界调用，
+    // 因此其 effect row 必须是 `Pure`（不能显式声明 non-Pure，也不能通过 internal/private 推断出效果）。
+    if is_entry_point {
+        if let Some(expr) = fun.effects.as_ref() {
+            let row = lower.lower_effect_row_expr(Some(expr))?;
+            if !row.terms.is_empty() {
+                return Err(ExprTypeError::EntryPointMustBePure {
+                    declared: fmt_effect_row(&row, lower),
+                    span: expr.span.into(),
+                });
+            }
+        }
+    }
+
     if performed.is_empty() {
         return Ok(());
     }
 
     // T0508：effect row 推断入口：
+    // - entry point：强制为 Pure（spec §5.10）。
     // - public：缺省效果强制为 Pure（perform 任何 effect 都必须显式标注 row 或被 handler 捕获）
     // - private/internal：允许省略 `/ RowExpr`，由函数体内 “立即执行的 perform” 推断出 required effects。
-    let declared = if fun.effects.is_some() {
+    let declared = if is_entry_point {
+        EffectRow::pure()
+    } else if fun.effects.is_some() {
         lower.lower_effect_row_expr(fun.effects.as_ref())?
     } else {
         match visibility_from_modifiers(&fun.modifiers) {
@@ -6817,6 +6846,7 @@ fn check_fun_body_exprs(
     source: &SourceFile,
     fun_fqn: &str,
     fun: &ast::FunDecl,
+    is_entry_point: bool,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
@@ -6933,7 +6963,7 @@ fn check_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            check_required_effects_for_fun_decl(fun, &performed_effects, lower)?;
+            check_required_effects_for_fun_decl(fun, &performed_effects, is_entry_point, lower)?;
             Ok(())
         }
         Err(e) => Err(e),
