@@ -1991,11 +1991,19 @@
    - fixtures：新增 `tests/fixtures/hir/closure_capture_val.*` 与 `tests/fixtures/mir/closure_capture_val.*`；并更新 `tests/fixtures/hir/closure_non_capture.hir` 以适配新增字段。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/closure_capture_val.scoop`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/closure_capture_val.scoop` 通过。
 
-### T0712 [TODO] 单态化（monomorphization）：生成具体实例 MIR（PLAN §7.2）
+### T0712 [DONE] 单态化（monomorphization）：生成具体实例 MIR（PLAN §7.2）
 - 描述：对每个 `MonomorphKey` 生成专用实例（函数/类型），并缓存避免重复。
 - 目标：先只对函数泛型实例化；类型泛型与 effect row 参数后置。
 - 验收：新增 `tests/fixtures/codegen/monomorph_id_int.scoop`：`id(1)` 与 `id("s")` 生成两个实例（可用 dump-ir 验证）。
 - 依赖：T0704、T0505、T0703
+ - 完成：
+   - typecheck：新增 `check_file_exprs_with_monomorph_keys` 入口，并在“泛型顶层函数调用”通过后记录 `MonomorphKey`（去重）。
+   - scoopc/hir：新增 `lower_fun_with_type_bindings`，支持在已绑定 type params 的语境下降低单个函数（供 monomorph 生成实例复用）。
+   - scoopc/mir：新增 `lower_hir_file_for_dump`，允许从既有 HIR 直接降低到 MIR（避免重复 parse/resolve）。
+   - scoopc/monomorph：新增 `lower_for_dump`，执行 parse/resolve/typecheck 收集 keys，并生成实例 HIR→MIR（实例名：`fqn::<TypeArgs...>`）。
+   - scoop：新增 `scoop dump-ir` 子命令，输出单态化实例 MIR 的 Debug 视图。
+   - tests：新增 `monomorph_collects_two_instances_for_id` 单测；新增 `tests/fixtures/codegen/monomorph_id_int.scoop`（run-pass 尚未启用，EXPECT: fail，但可用于 `scoop dump-ir` 手动验证）。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-ir tests/fixtures/codegen/monomorph_id_int.scoop` 通过/可见 `id::<Int>` 与 `id::<String>` 两个实例。
 
 ### T0713 [TODO] effect lowering：把 perform/handle 降到 MIR（non-resuming 先占位）
 - 描述：在 MIR 中表达 perform 与 handler boundary（先用占位 terminator），为 T0614 的 codegen 做准备。

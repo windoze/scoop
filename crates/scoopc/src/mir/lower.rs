@@ -63,6 +63,20 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredM
     })
 }
 
+/// 将一份已构造的 HIR 文件降低为 MIR（供单态化实例生成复用，T0712）。
+///
+/// 说明：
+/// - 与 `lower_for_dump` 不同，该函数不负责 parse/resolve/HIR lowering；
+/// - 调用方需要确保 `hir_file` 中的 `TypeId` 与 `types` 来自同一个 `TypeStore`。
+pub(crate) fn lower_hir_file_for_dump(
+    builtins: BuiltinTypes,
+    types: &mut TypeStore,
+    hir_file: &hir::File,
+) -> File {
+    let mut lowering = MirLowering::new(builtins, types);
+    lowering.lower_file(hir_file)
+}
+
 /// 文件级 lowering：负责遍历顶层 item 并为每个函数构造 MIR body。
 struct MirLowering<'a> {
     builtins: BuiltinTypes,

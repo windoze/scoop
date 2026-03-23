@@ -23,6 +23,7 @@ use thiserror::Error;
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
+use crate::monomorph::MonomorphKey;
 use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -886,7 +887,60 @@ pub fn check_file_exprs(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
+    let _ = check_file_exprs_impl(
+        source,
+        file,
+        index,
+        imports,
+        env,
+        types,
+        builtins,
+        false,
+    )?;
+    Ok(())
+}
+
+/// 对一个文件的表达式做最小类型检查，并在成功时返回单态化（monomorphization）请求集合（T0712）。
+///
+/// 说明：
+/// - 该入口会执行与 `check_file_exprs` 相同的类型检查；
+/// - 额外收集“泛型函数调用”的实例化信息，供后续 monomorph pass 生成专用实例并做去重缓存。
+pub fn check_file_exprs_with_monomorph_keys(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Result<Vec<MonomorphKey>, ExprTypeError> {
+    check_file_exprs_impl(
+        source,
+        file,
+        index,
+        imports,
+        env,
+        types,
+        builtins,
+        true,
+    )
+}
+
+fn check_file_exprs_impl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    collect_monomorph: bool,
+) -> Result<Vec<MonomorphKey>, ExprTypeError> {
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    if collect_monomorph {
+        lower.enable_monomorph_collection();
+    }
+
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     // T0629a：program boundary 的 entry point 需要对 cone 边界敏感。
@@ -956,7 +1010,7 @@ pub fn check_file_exprs(
         }
     }
 
-    Ok(())
+    Ok(lower.take_monomorph_keys())
 }
 
 fn try_infer_fun_return_ty_from_block(
@@ -4302,6 +4356,9 @@ fn infer_call_expr_type(
                 for effect in call_effects.terms.iter().copied() {
                     lower.record_performed_effect(effect, call_expr.span);
                 }
+
+                // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
+                lower.record_monomorph_call(callee_fqn.clone(), sig.decl_span, &instantiated.type_args);
 
                 return Ok(instantiated.return_ty);
             }

@@ -20,6 +20,7 @@ use crate::span::Span;
 use crate::ty::TypeId;
 
 pub use lower::{HirLowerError, LoweredHir, lower_for_dump};
+pub(crate) use lower::lower_fun_with_type_bindings;
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///

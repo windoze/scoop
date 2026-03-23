@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::fixtures::run_pass_unimplemented
+// 目标：T0712 单态化（monomorphization）：`id(1)` 与 `id("s")` 生成两个实例。
+// 备注：run-pass fixtures 尚未启用（T0106b2/T0807）；可用 `scoop dump-ir <this file>` 手动查看实例。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun id<T>(x: T): T {
+    return x
+}
+
+fun f() {
+    val a = id(1)
+    val b = id("s")
+}
+

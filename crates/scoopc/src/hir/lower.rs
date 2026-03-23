@@ -222,6 +222,71 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    /// 在“已绑定 type params”的语境下降低一个函数声明。
+    ///
+    /// 用途：
+    /// - 单态化（monomorphization）生成具体实例：把 `T` 等 type param 直接映射到具体 `TypeId`
+    ///   后再构造 HIR（避免再次生成 `TypeKind::Param`）。
+    fn lower_fun_decl_with_bound_type_params(&mut self, pkg_prefix: &str, fun: &ast::FunDecl) -> FunDecl {
+        let name = fun.name.text(self.source).to_string();
+        let fqn = if pkg_prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{pkg_prefix}.{name}")
+        };
+
+        let params: Vec<Param> = fun
+            .params
+            .iter()
+            .map(|p| {
+                let name = p.name.text(self.source).to_string();
+                let id = self.symbols.intern_local(p.name.span);
+                let ty =
+                    p.ty.as_ref()
+                        .map(|t| self.lower_type_ref(t))
+                        .unwrap_or(self.builtins.any);
+                Param {
+                    span: p.name.span,
+                    id,
+                    name,
+                    ty,
+                }
+            })
+            .collect();
+
+        let receiver_ty = fun.receiver.as_ref().map(|t| self.lower_type_ref(t));
+
+        // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
+        let return_ty = fun
+            .return_ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+
+        let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let ty = self.types.ty_function(
+            receiver_ty,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            effects,
+        );
+
+        let body = match &fun.body {
+            ast::FunBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::FunBody::Missing => None,
+        };
+
+        FunDecl {
+            span: fun.span,
+            fqn,
+            name,
+            ty,
+            params,
+            return_ty,
+            body,
+        }
+    }
+
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
         let init = v.init.as_ref().map(|e| self.lower_expr(pkg_prefix, e));
 
@@ -880,6 +945,18 @@ impl<'a> HirLowering<'a> {
         self.type_param_scopes.push(frame);
     }
 
+    /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。
+    ///
+    /// 用途：
+    /// - 单态化实例生成：把 `T` 等抽象类型替换为调用点推断出的具体类型。
+    fn push_type_param_bindings(&mut self, bindings: impl IntoIterator<Item = (String, TypeId)>) {
+        let mut frame = HashMap::new();
+        for (name, id) in bindings {
+            frame.insert(name, id);
+        }
+        self.type_param_scopes.push(frame);
+    }
+
     fn pop_type_params(&mut self) {
         let _ = self.type_param_scopes.pop();
     }
@@ -1203,6 +1280,29 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let mut ctx = HirLowering::new(source, &ast, &index, &type_kinds, &mut types, builtins);
     let file = ctx.lower_file();
     Ok(LoweredHir { file, types })
+}
+
+/// 将给定的 `ast::FunDecl` 在“已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
+///
+/// 说明：
+/// - 该函数假设调用方已在 AST 上运行 resolver（headers + bodies），以便 `ValueIdent.resolved` 等信息可用；
+/// - `type_bindings` 用于把函数声明处的 `T` 等 type params 映射为具体 `TypeId`（调用点推断结果）。
+pub(crate) fn lower_fun_with_type_bindings(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    fun: &ast::FunDecl,
+    type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> FunDecl {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut ctx = HirLowering::new(source, file, index, type_kinds, types, builtins);
+    ctx.push_type_param_bindings(type_bindings);
+    let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
+    ctx.pop_type_params();
+    out
 }
 
 fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {

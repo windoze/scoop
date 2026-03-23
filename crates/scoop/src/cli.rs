@@ -40,6 +40,12 @@ pub enum Command {
         input: PathBuf,
     },
 
+    /// 解析/resolve/typecheck 输入并打印 IR（单态化实例的 MIR 视图）
+    DumpIr {
+        /// 输入源文件路径
+        input: PathBuf,
+    },
+
     /// 构建可执行文件（未实现）
     Build {
         /// 输入源文件路径

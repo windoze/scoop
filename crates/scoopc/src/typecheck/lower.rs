@@ -5,7 +5,7 @@
 //! - 在 lowering 过程中做最小语义校验：类型存在性（应由 resolve 保证）与泛型 arity 检查
 //! - 覆盖 `Path` / `Tuple` / `Nullable` / `Function`，其它类型语法在后续任务逐步补齐
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -13,6 +13,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::monomorph::{MonomorphKey, MonomorphSymbol};
 use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -231,6 +232,13 @@ pub(super) struct TypeLowering<'a> {
     effect_collection_suspend_depth: usize,
     /// 记录（effect TypeId, perform span）。
     performed_effects: Vec<(TypeId, Span)>,
+    /// 单态化（monomorphization）请求收集器（T0712）。
+    ///
+    /// 说明：
+    /// - 该字段仅在“需要收集 monomorph 实例”的入口中启用；
+    /// - typecheck 阶段遇到“泛型函数调用”时会把 (callee, type args) 记录下来，
+    ///   供后续 monomorph pass 生成专用实例并做去重缓存。
+    monomorph_requests: Option<MonomorphRequests>,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -284,6 +292,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_enabled: false,
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
+            monomorph_requests: None,
         }
     }
 
@@ -293,6 +302,51 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn env(&self) -> &TypeEnv {
         self.env
+    }
+
+    /// 开启 monomorph 请求收集（T0712）。
+    ///
+    /// 说明：默认情况下 typecheck 不收集这些信息，以避免在仅做语义检查时产生额外分配。
+    pub(super) fn enable_monomorph_collection(&mut self) {
+        self.monomorph_requests = Some(MonomorphRequests::default());
+    }
+
+    /// 取出并清空当前收集到的 monomorph keys。
+    pub(super) fn take_monomorph_keys(&mut self) -> Vec<MonomorphKey> {
+        self.monomorph_requests
+            .take()
+            .map(|r| r.into_vec())
+            .unwrap_or_default()
+    }
+
+    /// 记录一次“泛型函数实例化调用”的 monomorph key（T0712）。
+    ///
+    /// 当前阶段约束：
+    /// - 只记录“当前文件内”的顶层函数（decl_file 取 `self.source.path()`）；
+    /// - effect row args（`<eff E>`）的实例化在后续任务接入（此处先留空）。
+    pub(super) fn record_monomorph_call(
+        &mut self,
+        callee_fqn: String,
+        callee_decl_span: Span,
+        type_args: &[TypeId],
+    ) {
+        let Some(req) = self.monomorph_requests.as_mut() else {
+            return;
+        };
+        if type_args.is_empty() {
+            return;
+        }
+
+        let symbol = MonomorphSymbol {
+            fqn: callee_fqn,
+            decl_file: self.source.path().to_path_buf(),
+            decl_span: callee_decl_span,
+        };
+        req.record(MonomorphKey {
+            symbol,
+            type_args: type_args.to_vec(),
+            eff_args: Vec::new(),
+        });
     }
 
     pub(super) fn push_effect_row_param_binding(&mut self, name: String, row: EffectRow) {
@@ -1725,6 +1779,25 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+/// 单态化（monomorphization）请求集合：去重 + 保留稳定顺序。
+#[derive(Debug, Default)]
+struct MonomorphRequests {
+    seen: HashSet<MonomorphKey>,
+    ordered: Vec<MonomorphKey>,
+}
+
+impl MonomorphRequests {
+    fn record(&mut self, key: MonomorphKey) {
+        if self.seen.insert(key.clone()) {
+            self.ordered.push(key);
+        }
+    }
+
+    fn into_vec(self) -> Vec<MonomorphKey> {
+        self.ordered
+    }
 }
 
 fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {

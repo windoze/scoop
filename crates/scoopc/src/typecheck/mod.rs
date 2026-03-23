@@ -29,7 +29,7 @@ mod eff_row_subst;
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
 pub use lower::{check_file_type_refs, TypeLowerError};
 pub use headers::{check_file_headers, TypeHeaderError};
-pub use expr::{check_file_exprs, ExprTypeError};
+pub use expr::{check_file_exprs, check_file_exprs_with_monomorph_keys, ExprTypeError};
 pub use structs::{check_file_struct_decls, StructDeclError};
 pub use properties::{check_file_properties, PropertyDeclError};
 pub use inheritance::{check_file_inheritance, InheritanceError};

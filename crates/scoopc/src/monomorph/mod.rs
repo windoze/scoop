@@ -4,11 +4,15 @@
 //! - 用于把“同一个泛型函数在不同 type args / effect row args 下的实例”区分开；
 //! - 为后续 monomorph pass/LLVM codegen 的实例缓存做准备。
 
+mod lower;
+
 use std::fmt;
 use std::path::PathBuf;
 
 use crate::span::Span;
 use crate::ty::{EffectRow, TypeId};
+
+pub use lower::{LoweredMonomorphMir, MonomorphLowerError, lower_for_dump};
 
 /// 单态化目标（函数/类型等）的稳定引用。
 ///
