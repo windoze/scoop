@@ -1921,11 +1921,16 @@
    - fixtures：新增 `tests/fixtures/hir/control_flow.scoop` + `.hir` golden，并在 `hir::lower` 单测中回归。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/control_flow.scoop` 通过。
 
-### T0706 [TODO] AST → HIR lowering：把 Stmt/Expr 降到 HIR（含符号绑定结果）
+### T0706 [DONE] AST → HIR lowering：把 Stmt/Expr 降到 HIR（含符号绑定结果）
 - 描述：实现 block 内语句/表达式 lowering（含局部绑定、赋值、return、调用、成员访问）。
 - 目标：先不做 pattern lowering（when 先用简化分支表达）；pattern 后续任务补。
 - 验收：新增 HIR snapshot fixtures：至少 1 个包含局部变量与调用；输出稳定。
 - 依赖：T0705、T0305、T0443
+ - 完成：
+   - scoopc/hir：新增 `ExprKind::MemberAccess` + `MemberAccess/MemberRef`，用于承载 resolver 写回的成员绑定结果（字段/方法/扩展成员 FQN）。
+   - scoopc/hir lowering：实现 `ast::ExprKind::MemberAccess` → HIR lowering（保留 member `span/name`，并将 `ResolvedMemberRef` 映射为带 `SymbolId` 的 `MemberRef`）。
+   - fixtures：新增 `tests/fixtures/hir/member_access.scoop` + `.hir` golden 覆盖成员访问、成员调用与成员赋值；并加入 `hir_fixture_member_access_golden` 单测回归。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/member_access.scoop` 通过。
 
 ### T0707 [TODO] MIR：cleanup/finally 的基本模型（为 try/finally 与 effect unwinding）
 - 描述：在 MIR 中引入 cleanup block 或显式 drop/cleanup 机制，让 lowering 可以表达“无论如何都执行”的语义。

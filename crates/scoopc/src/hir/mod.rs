@@ -158,6 +158,15 @@ pub enum ExprKind {
         subject: Box<Expr>,
         arms: Vec<WhenArm>,
     },
+    /// 成员访问表达式：`receiver.member`。
+    ///
+    /// 说明：
+    /// - 该节点用于承载 resolver 写回的成员绑定结果（字段/方法/扩展成员的 FQN）；便于后续 MIR lowering/codegen；
+    /// - safe-call（`?.`）等更复杂形态将在后续任务中补齐。
+    MemberAccess {
+        receiver: Box<Expr>,
+        member: MemberAccess,
+    },
     Call {
         callee: Box<Expr>,
         args: Vec<CallArg>,
@@ -207,6 +216,27 @@ pub enum ValueRef {
         id: SymbolId,
         fqn: String,
     },
+}
+
+/// 成员访问中的“已解析引用”（来自 resolver 写回的 `ResolvedMemberRef`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MemberRef {
+    Value { id: SymbolId, fqn: String },
+    Fun { id: SymbolId, fqn: String },
+    ExtensionValue { id: SymbolId, fqn: String },
+    ExtensionFun { id: SymbolId, fqn: String },
+}
+
+/// 成员访问中的标识符（`receiver.member`）。
+///
+/// 说明：
+/// - `span/name` 用于保持 dump/fixtures 输出稳定且可读；
+/// - `resolved` 为空时表示 resolver 未能给出绑定结果（仍保留结构以避免 panic）。
+#[derive(Debug, Clone)]
+pub struct MemberAccess {
+    pub span: Span,
+    pub name: String,
+    pub resolved: Option<MemberRef>,
 }
 
 /// 调用实参（位置参数或命名参数）。

@@ -1,0 +1,15 @@
+package a
+
+import scoop.core.*
+
+struct Point {
+  var x: Int
+  fun inc(): Int { 0 }
+}
+
+fun use(p: Point) {
+  val y: Int = p.x
+  p.x = 2
+  p.inc()
+  y
+}

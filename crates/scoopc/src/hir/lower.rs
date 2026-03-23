@@ -22,8 +22,8 @@ use crate::ty::{
 
 use super::{
     Block, CallArg, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm, HandleBinder,
-    HandleExpr, HandleOp, Item, LiteralKind, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
-    WhenArm, WhenPat,
+    HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt, StmtKind,
+    SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -403,8 +403,8 @@ impl<'a> HirLowering<'a> {
                 let handle = self.lower_handle_expr(pkg_prefix, body, arms, finally.as_ref());
                 (ExprKind::Handle(handle), self.builtins.any)
             }
-            ast::ExprKind::MemberAccess { .. } => {
-                (ExprKind::Todo("member_access"), self.builtins.any)
+            ast::ExprKind::MemberAccess { receiver, member } => {
+                self.lower_member_access_expr(pkg_prefix, receiver, member)
             }
             ast::ExprKind::SpliceField { .. } => {
                 (ExprKind::Todo("splice_field"), self.builtins.any)
@@ -427,6 +427,52 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    fn lower_member_access_expr(
+        &mut self,
+        pkg_prefix: &str,
+        receiver: &ast::Expr,
+        member: &ast::MemberIdent,
+    ) -> (ExprKind, TypeId) {
+        let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
+
+        let resolved = member
+            .resolved
+            .as_ref()
+            .map(|r| self.lower_resolved_member_ref(r));
+
+        let member = MemberAccess {
+            span: member.span,
+            name: self.source.slice(member.span).to_string(),
+            resolved,
+        };
+
+        (
+            ExprKind::MemberAccess { receiver, member },
+            self.builtins.any,
+        )
+    }
+
+    fn lower_resolved_member_ref(&mut self, resolved: &ast::ResolvedMemberRef) -> MemberRef {
+        match resolved {
+            ast::ResolvedMemberRef::Value { fqn } => MemberRef::Value {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn: fqn.clone(),
+            },
+            ast::ResolvedMemberRef::Fun { fqn } => MemberRef::Fun {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn: fqn.clone(),
+            },
+            ast::ResolvedMemberRef::ExtensionValue { fqn } => MemberRef::ExtensionValue {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn: fqn.clone(),
+            },
+            ast::ResolvedMemberRef::ExtensionFun { fqn } => MemberRef::ExtensionFun {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn: fqn.clone(),
+            },
         }
     }
 
@@ -931,6 +977,24 @@ mod tests {
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/control_flow.hir");
+        let expected = std::fs::read_to_string(&golden_path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hir_fixture_member_access_golden() {
+        let sess = Session::new().unwrap();
+
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/member_access.scoop");
+        let file = SourceFile::load(&fixture_path).unwrap();
+
+        let lowered = lower_for_dump(&sess, &file).unwrap();
+        let actual = format!("{:#?}\n", lowered.file);
+
+        let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/member_access.hir");
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);
