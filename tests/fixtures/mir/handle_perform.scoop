@@ -1,0 +1,13 @@
+package a
+
+import scoop.core.Raise
+
+fun main() {
+  handle {
+    Raise.raise(1)
+    0
+  } with {
+    Raise.raise(e) -> 2
+  }
+}
+

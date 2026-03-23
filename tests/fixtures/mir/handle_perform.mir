@@ -1,0 +1,147 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 36..125,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 51..123,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 76..77,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 64..78,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 118..119,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 51..123,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Todo(
+                                                "handle result pending",
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 51..123,
+                                    kind: Handle {
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "scoop.core.Raise.raise",
+                                                binder_count: 1,
+                                            },
+                                        ],
+                                        has_finally: false,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 76..77,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 64..78,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Todo(
+                                                "perform result pending",
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 64..78,
+                                    kind: Perform {
+                                        op_fqn: "scoop.core.Raise.raise",
+                                    },
+                                    unwind: Todo(
+                                        "perform unwind pending",
+                                    ),
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 118..119,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 100..119,
+                                    kind: Todo(
+                                        "handle arm exit pending",
+                                    ),
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}
