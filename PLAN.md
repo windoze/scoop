@@ -479,7 +479,7 @@
 ### 8.1 LLVM Module/Pass 管线
 
 - [x] 最小 module + `main`（`ret 0`）IR 输出（T0802）
-- [ ] 目标三元组与数据布局（target machine）
+- [x] 目标三元组与数据布局（target machine）（T0803）
 - [ ] 基本优化 pass（O0/O1/O2 可选）
 - [ ] 调试信息（DWARF）可后置
 

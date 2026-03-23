@@ -1,18 +1,19 @@
-//! LLVM 后端（inkwell）——最小可回归落点（T0802）。
+//! LLVM 后端（inkwell）——最小可回归落点（T0802～T0803）。
 //!
 //! 当前阶段只做两件事：
 //! 1) 初始化 host target；
 //! 2) 生成一个最小 LLVM module：只包含 `i32 @main()`，返回 0，并可打印/写出 `.ll`。
+//!
+//! 并在 T0803 里补齐：
+//! - module target triple + data layout（由 host target machine 提供）。
 //!
 //! 说明：
 //! - 这里暂不从 HIR/MIR 生成真实用户函数 body；那属于后续任务（T0808+）。
 //! - 但我们仍会对输入做最小前端检查：必须能 parse，且包含顶层 `fun main`。
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use inkwell::context::Context;
-use inkwell::targets::{InitializationConfig, Target, TargetMachine};
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -21,6 +22,9 @@ use crate::parser::ParseError;
 use crate::session::Session;
 use crate::source::SourceFile;
 
+mod target;
+pub use target::{HostTargetInfo, LlvmTargetError};
+
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmEmitError {
@@ -28,9 +32,9 @@ pub enum LlvmEmitError {
     #[diagnostic(transparent)]
     Parse(#[from] ParseError),
 
-    #[error("LLVM target 初始化失败：{message}")]
-    #[diagnostic(code(scoop::llvm::target_init_failed))]
-    TargetInitFailed { message: String },
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Target(#[from] LlvmTargetError),
 
     #[error("LLVM IR 构造失败：{0}")]
     #[diagnostic(code(scoop::llvm::builder_error))]
@@ -66,15 +70,12 @@ pub fn emit_minimal_main_ir(session: &Session, source: &SourceFile) -> Result<St
         return Err(LlvmEmitError::MissingEntryMain);
     }
 
-    init_native_target()?;
-
     let context = Context::create();
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
 
-    // T0802：先把 target triple 跑通；data layout/target machine 在 T0803 再补齐。
-    let triple = TargetMachine::get_default_triple();
-    module.set_triple(&triple);
+    // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
+    let _target_info = target::configure_module_for_host(&module)?;
 
     let builder = context.create_builder();
     let i32_type = context.i32_type();
@@ -125,18 +126,6 @@ fn module_name_from_path(path: &Path) -> String {
         .to_string()
 }
 
-fn init_native_target() -> Result<(), LlvmEmitError> {
-    static INIT: OnceLock<Result<(), String>> = OnceLock::new();
-    let result = INIT.get_or_init(|| Target::initialize_native(&InitializationConfig::default()));
-
-    match result {
-        Ok(()) => Ok(()),
-        Err(message) => Err(LlvmEmitError::TargetInitFailed {
-            message: message.clone(),
-        }),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,6 +138,7 @@ mod tests {
 
         assert!(ir.contains("define i32 @main()"));
         assert!(ir.contains("ret i32 0"));
+        assert!(ir.contains("target datalayout ="));
         assert!(ir.contains("target triple ="));
     }
 

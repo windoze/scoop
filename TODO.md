@@ -2059,11 +2059,19 @@
      - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
      - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.ll` 可生成 `.ll` 文件。
 
-### T0803 [TODO] 目标机器与数据布局（target machine）初始化（PLAN §8.1）
+### T0803 [DONE] 目标机器与数据布局（target machine）初始化（PLAN §8.1）
 - 描述：在 codegen 中按宿主平台初始化 target，设置 module data layout，并把 pointer size 等 target 信息暴露给后续类型映射（例如 `Int/UInt/UIntPtr` 的 word size）。
 - 目标：先只支持 host；交叉编译后续。
 - 验收：生成的 LLVM module 带 data layout；并可用 `llvm-as`（若有）验证（可选）。
 - 依赖：T0802
+ - 完成：
+   - `crates/scoopc/src/llvm/target.rs`：新增 host target machine 初始化与 module（triple + data layout）配置；暴露 `HostTargetInfo`（含 pointer size/byte order）。
+   - `crates/scoopc/src/llvm/mod.rs`：codegen 时调用 `configure_module_for_host`，并在单测中断言 `target datalayout =` 行存在。
+   - 验收：
+     - `cargo test --all` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.ll` 生成的 `.ll` 含 `target datalayout =`；
+     - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" llvm-as /tmp/overview_minimal_main.ll -o /tmp/overview_minimal_main.bc` 通过。
 
 ### T0804 [TODO] 生成 object 文件（`.o`）并落盘
 - 描述：从 LLVM module 生成目标文件（object），为后续链接做准备。
