@@ -127,6 +127,14 @@ pub enum StmtKind {
         cond: Expr,
         body: Block,
     },
+    /// `break`（当前阶段不支持 label）。
+    Break {
+        break_span: Span,
+    },
+    /// `continue`（当前阶段不支持 label）。
+    Continue {
+        continue_span: Span,
+    },
     Return {
         value: Option<Expr>,
     },

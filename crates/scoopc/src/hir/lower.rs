@@ -317,8 +317,18 @@ impl<'a> HirLowering<'a> {
                 },
                 self.builtins.unit,
             ),
-            ast::StmtKind::Break { .. } => (StmtKind::Todo("break"), self.builtins.unit),
-            ast::StmtKind::Continue { .. } => (StmtKind::Todo("continue"), self.builtins.unit),
+            ast::StmtKind::Break { break_span } => (
+                StmtKind::Break {
+                    break_span: *break_span,
+                },
+                self.builtins.unit,
+            ),
+            ast::StmtKind::Continue { continue_span } => (
+                StmtKind::Continue {
+                    continue_span: *continue_span,
+                },
+                self.builtins.unit,
+            ),
             ast::StmtKind::ComptimeBlock { .. } => {
                 (StmtKind::Todo("comptime_block"), self.builtins.unit)
             }

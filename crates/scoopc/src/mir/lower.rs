@@ -102,6 +102,14 @@ struct FnLowering {
     current_bb: BasicBlockId,
     next_temp: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
+    loop_stack: Vec<LoopContext>,
+}
+
+/// 当前函数内的一个 loop 语境（用于 `break/continue` lowering）。
+#[derive(Debug, Clone, Copy)]
+struct LoopContext {
+    break_target: BasicBlockId,
+    continue_target: BasicBlockId,
 }
 
 impl FnLowering {
@@ -113,6 +121,7 @@ impl FnLowering {
             current_bb: BasicBlockId(0),
             next_temp: 0,
             symbol_locals: HashMap::new(),
+            loop_stack: Vec::new(),
         }
     }
 
@@ -243,6 +252,12 @@ impl FnLowering {
             }
         }
 
+        if self.current_is_terminated() {
+            // block 由于 `return/break/continue` 等提前终止：结果永远不会被使用。
+            // 为保持接口一致，仍返回一个临时 local，但不额外发射赋值语句（避免“终止后又生成语句”）。
+            return self.push_temp_local(block.span, block.ty);
+        }
+
         result.unwrap_or_else(|| self.emit_unit(block.span))
     }
 
@@ -255,9 +270,9 @@ impl FnLowering {
             }
             hir::StmtKind::Val(decl) => self.lower_val_decl(decl),
             hir::StmtKind::Assign { lhs, rhs, .. } => self.lower_assign_stmt(stmt.span, lhs, rhs),
-            hir::StmtKind::While { .. } => {
-                self.push_stmt(stmt.span, StatementKind::Todo("while lowering pending (T0709)"));
-            }
+            hir::StmtKind::While { cond, body } => self.lower_while_stmt(stmt.span, cond, body),
+            hir::StmtKind::Break { .. } => self.lower_break_stmt(stmt.span),
+            hir::StmtKind::Continue { .. } => self.lower_continue_stmt(stmt.span),
             hir::StmtKind::Return { value } => {
                 if let Some(expr) = value {
                     let _ = self.lower_expr_to_local(expr);
@@ -266,6 +281,79 @@ impl FnLowering {
             }
             hir::StmtKind::Todo(kind) => self.push_stmt(stmt.span, StatementKind::Todo(kind)),
         }
+    }
+
+    /// 降低一个 `while` 语句：构造 loop CFG，并为 `break/continue` 建立跳转目标。
+    fn lower_while_stmt(&mut self, span: Span, cond: &hir::Expr, body: &hir::Block) {
+        // CFG 形态（无 label）：
+        //
+        //   parent ──goto──▶ cond_bb ──condbr──▶ body_bb ──goto──▶ cond_bb
+        //                 └───────────────▶ exit_bb
+        //
+        // `break`    → exit_bb
+        // `continue` → cond_bb
+
+        let parent = self.current_bb;
+        let cond_bb = self.push_block(cond.span);
+        let body_bb = self.push_block(body.span);
+        let exit_bb = self.push_block(span);
+
+        self.set_terminator(parent, span, TerminatorKind::Goto { target: cond_bb });
+
+        // 1) condition：在 cond_bb 中求值条件，并用 CondBr 结束。
+        self.current_bb = cond_bb;
+        let cond_local = self.lower_expr_to_local(cond);
+        if !self.current_is_terminated() {
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::CondBr {
+                    cond: Operand::Local(cond_local),
+                    then_target: body_bb,
+                    else_target: exit_bb,
+                },
+            );
+        }
+
+        // 2) body：在 loop context 下 lower body；若 body 自然结束则回跳 cond_bb。
+        self.current_bb = body_bb;
+        self.loop_stack.push(LoopContext {
+            break_target: exit_bb,
+            continue_target: cond_bb,
+        });
+        self.lower_block_as_stmt(body);
+        let _ = self.loop_stack.pop();
+
+        if !self.current_is_terminated() {
+            self.set_terminator(self.current_bb, body.span, TerminatorKind::Goto { target: cond_bb });
+        }
+
+        // 3) 后续语句继续在 exit_bb 生成。
+        self.current_bb = exit_bb;
+    }
+
+    /// 降低 `break`：跳转到当前 loop 的 exit block。
+    fn lower_break_stmt(&mut self, span: Span) {
+        let Some(ctx) = self.loop_stack.last().copied() else {
+            self.set_terminator(self.current_bb, span, TerminatorKind::Todo("break not in loop"));
+            return;
+        };
+        self.set_terminator(self.current_bb, span, TerminatorKind::Goto { target: ctx.break_target });
+    }
+
+    /// 降低 `continue`：跳转到当前 loop 的 cond block。
+    fn lower_continue_stmt(&mut self, span: Span) {
+        let Some(ctx) = self.loop_stack.last().copied() else {
+            self.set_terminator(self.current_bb, span, TerminatorKind::Todo("continue not in loop"));
+            return;
+        };
+        self.set_terminator(
+            self.current_bb,
+            span,
+            TerminatorKind::Goto {
+                target: ctx.continue_target,
+            },
+        );
     }
 
     /// 降低一个 `val/var` 声明：分配 local，并 lower initializer（若存在）。

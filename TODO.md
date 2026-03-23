@@ -1954,11 +1954,16 @@
    - fixtures：新增 `tests/fixtures/mir/if_when.scoop` + `if_when.mir`（包含 if/when 多 BB 的快照）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过；`cargo run -p scoop -- dump-mir tests/fixtures/mir/if_when.scoop` 输出多基本块。
 
-### T0709 [TODO] MIR lowering：while/break/continue
+### T0709 [DONE] MIR lowering：while/break/continue
 - 描述：把 while lowering 为 loop CFG，并正确处理 break/continue 跳转目标。
 - 目标：先不支持 label；后续再补。
 - 验收：新增 IR snapshot fixture：while 内 break/continue 的 CFG 正确（可用文本快照验证）。
 - 依赖：T0706
+ - 完成：
+   - scoopc/hir：补齐 `StmtKind::Break/Continue`，并在 AST→HIR lowering 中生成对应节点（不再用 `Todo("break")`/`Todo("continue")` 占位）。
+   - scoopc/mir lowering：实现 `while` 的 loop CFG 生成，并引入 loop 栈以支持 `break/continue` 正确跳转到 exit/cond block。
+   - fixtures：新增 `tests/fixtures/mir/while_break_continue.scoop` + `.mir` golden 回归 CFG 形态。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/while_break_continue.scoop` 通过。
 
 ### T0710 [TODO] 闭包与函数值：lambda → `{ env_struct, fn_ptr }`（PLAN §7.3）
 - 描述：在 HIR/MIR 中引入 closure 表示，支持捕获变量布局与调用约定。
