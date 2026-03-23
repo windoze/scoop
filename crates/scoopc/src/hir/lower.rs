@@ -4,7 +4,7 @@
 //! - 这里的 lowering 仅用于 `dump-hir` 的调试输出，因此实现上优先保证“稳定输出 + 不 panic”；。
 //! - 完整 lowering（含类型推断结果、更多语法节点）会在后续任务（TODO T0702+）逐步补齐。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -21,9 +21,9 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm,
-    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt,
-    StmtKind, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, File, FunDecl,
+    HandleArm, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
+    Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -456,7 +456,7 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let id = self.alloc_closure_id();
 
-        let params = lam
+        let params: Vec<Param> = lam
             .params
             .iter()
             .map(|p| {
@@ -475,10 +475,12 @@ impl<'a> HirLowering<'a> {
             .collect();
 
         let body = Box::new(self.lower_expr(pkg_prefix, lam.body.as_ref()));
+        let captures = compute_closure_captures(&params, body.as_ref());
         (
             ExprKind::Closure(ClosureExpr {
                 span,
                 id,
+                captures,
                 params,
                 body,
             }),
@@ -890,6 +892,274 @@ impl<'a> HirLowering<'a> {
     }
 }
 
+/// 计算 closure（lambda）的 capture set（自由变量集合）。
+///
+/// 规则（最小实现，供 T0711）：
+/// - 只统计 `VarRef(Local)`；
+/// - 以该 lambda 的 params 与其 body 内引入的局部声明（`val/var`、`when` binder、`handle` binder）为“本地声明”；
+/// - 只把“在 body 中被引用但不属于本地声明”的 local 视为 capture；
+/// - 遇到嵌套 closure 时不深入（由内层 closure 自己计算 captures）。
+fn compute_closure_captures(params: &[Param], body: &Expr) -> Vec<Capture> {
+    let mut declared: HashSet<SymbolId> = params.iter().map(|p| p.id).collect();
+    collect_declared_locals_in_expr(body, &mut declared);
+
+    let mut used: HashMap<SymbolId, Capture> = HashMap::new();
+    collect_used_locals_in_expr(body, &mut used);
+
+    let mut captures: Vec<Capture> = used
+        .into_values()
+        .filter(|c| !declared.contains(&c.id))
+        .collect();
+
+    // 稳定排序：按声明位置排序（同位置用 SymbolId 兜底）。
+    captures.sort_by(|a, b| {
+        a.decl_span
+            .start
+            .cmp(&b.decl_span.start)
+            .then_with(|| a.decl_span.end.cmp(&b.decl_span.end))
+            .then_with(|| a.id.as_u32().cmp(&b.id.as_u32()))
+    });
+
+    captures
+}
+
+fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>) {
+    match &expr.kind {
+        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::VarRef(_) | ExprKind::Todo(_) => {}
+        ExprKind::Block(block) => collect_declared_locals_in_block(block, declared),
+        ExprKind::Closure(_) => {
+            // 嵌套 closure：由其自身计算 capture set。
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_declared_locals_in_expr(cond, declared);
+            collect_declared_locals_in_expr(then_branch, declared);
+            if let Some(e) = else_branch.as_deref() {
+                collect_declared_locals_in_expr(e, declared);
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_declared_locals_in_expr(subject, declared);
+            for arm in arms {
+                collect_declared_locals_in_when_pat(&arm.pat, declared);
+                if let Some(g) = &arm.guard {
+                    collect_declared_locals_in_expr(g, declared);
+                }
+                collect_declared_locals_in_expr(&arm.body, declared);
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. } => collect_declared_locals_in_expr(receiver, declared),
+        ExprKind::Call { callee, args } => {
+            collect_declared_locals_in_expr(callee, declared);
+            for arg in args {
+                match arg {
+                    CallArg::Positional(e) => collect_declared_locals_in_expr(e, declared),
+                    CallArg::Named { value, .. } => collect_declared_locals_in_expr(value, declared),
+                }
+            }
+        }
+        ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    CallArg::Positional(e) => collect_declared_locals_in_expr(e, declared),
+                    CallArg::Named { value, .. } => collect_declared_locals_in_expr(value, declared),
+                }
+            }
+        }
+        ExprKind::Handle(handle) => {
+            collect_declared_locals_in_block(&handle.body, declared);
+            for arm in &handle.arms {
+                for b in &arm.op.binders {
+                    declared.insert(b.id);
+                }
+                collect_declared_locals_in_expr(&arm.body, declared);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_declared_locals_in_block(finally, declared);
+            }
+        }
+    }
+}
+
+fn collect_declared_locals_in_block(block: &Block, declared: &mut HashSet<SymbolId>) {
+    for stmt in &block.stmts {
+        match &stmt.kind {
+            StmtKind::Val(v) => {
+                if let Some(id) = v.id {
+                    declared.insert(id);
+                }
+                if let Some(init) = &v.init {
+                    collect_declared_locals_in_expr(init, declared);
+                }
+            }
+            StmtKind::Expr(e) => collect_declared_locals_in_expr(e, declared),
+            StmtKind::Assign { lhs, rhs, .. } => {
+                collect_declared_locals_in_expr(lhs, declared);
+                collect_declared_locals_in_expr(rhs, declared);
+            }
+            StmtKind::While { cond, body } => {
+                collect_declared_locals_in_expr(cond, declared);
+                collect_declared_locals_in_block(body, declared);
+            }
+            StmtKind::Return { value } => {
+                if let Some(v) = value {
+                    collect_declared_locals_in_expr(v, declared);
+                }
+            }
+            StmtKind::Empty
+            | StmtKind::Break { .. }
+            | StmtKind::Continue { .. }
+            | StmtKind::Todo(_) => {}
+        }
+    }
+}
+
+fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<SymbolId>) {
+    match pat {
+        WhenPat::Bind { id, .. } => {
+            declared.insert(*id);
+        }
+        WhenPat::Tuple { elements, .. } => {
+            for e in elements {
+                collect_declared_locals_in_when_pat(e, declared);
+            }
+        }
+        WhenPat::Variant { args, .. } => {
+            for a in args {
+                collect_declared_locals_in_when_pat(a, declared);
+            }
+        }
+        WhenPat::Else { .. }
+        | WhenPat::Wildcard { .. }
+        | WhenPat::Rest { .. }
+        | WhenPat::Is { .. }
+        | WhenPat::IntLit { .. }
+        | WhenPat::StringLit { .. }
+        | WhenPat::BoolLit { .. } => {}
+    }
+}
+
+fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture>) {
+    match &expr.kind {
+        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Todo(_) => {}
+        ExprKind::VarRef(v) => {
+            let ValueRef::Local { id, name, decl_span } = v else {
+                return;
+            };
+            used.entry(*id).or_insert_with(|| Capture {
+                id: *id,
+                name: name.clone(),
+                decl_span: *decl_span,
+            });
+        }
+        ExprKind::Block(block) => {
+            for stmt in &block.stmts {
+                match &stmt.kind {
+                    StmtKind::Expr(e) => collect_used_locals_in_expr(e, used),
+                    StmtKind::Val(v) => {
+                        if let Some(init) = &v.init {
+                            collect_used_locals_in_expr(init, used);
+                        }
+                    }
+                    StmtKind::Assign { lhs, rhs, .. } => {
+                        collect_used_locals_in_expr(lhs, used);
+                        collect_used_locals_in_expr(rhs, used);
+                    }
+                    StmtKind::While { cond, body } => {
+                        collect_used_locals_in_expr(cond, used);
+                        // while body 是一个 block；其内部的局部声明不影响“使用”收集。
+                        collect_used_locals_in_expr(
+                            &Expr {
+                                span: body.span,
+                                ty: body.ty,
+                                kind: ExprKind::Block(body.clone()),
+                            },
+                            used,
+                        );
+                    }
+                    StmtKind::Return { value } => {
+                        if let Some(v) = value {
+                            collect_used_locals_in_expr(v, used);
+                        }
+                    }
+                    StmtKind::Empty
+                    | StmtKind::Break { .. }
+                    | StmtKind::Continue { .. }
+                    | StmtKind::Todo(_) => {}
+                }
+            }
+        }
+        ExprKind::Closure(_) => {
+            // 嵌套 closure：由其自身计算 capture set。
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_used_locals_in_expr(cond, used);
+            collect_used_locals_in_expr(then_branch, used);
+            if let Some(e) = else_branch.as_deref() {
+                collect_used_locals_in_expr(e, used);
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_used_locals_in_expr(subject, used);
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    collect_used_locals_in_expr(g, used);
+                }
+                collect_used_locals_in_expr(&arm.body, used);
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. } => collect_used_locals_in_expr(receiver, used),
+        ExprKind::Call { callee, args } => {
+            collect_used_locals_in_expr(callee, used);
+            for arg in args {
+                match arg {
+                    CallArg::Positional(e) => collect_used_locals_in_expr(e, used),
+                    CallArg::Named { value, .. } => collect_used_locals_in_expr(value, used),
+                }
+            }
+        }
+        ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    CallArg::Positional(e) => collect_used_locals_in_expr(e, used),
+                    CallArg::Named { value, .. } => collect_used_locals_in_expr(value, used),
+                }
+            }
+        }
+        ExprKind::Handle(handle) => {
+            // handle body / arm body 里的 var refs 都算“使用”；binder 是否 capture 由 declared 集合处理。
+            collect_used_locals_in_expr(
+                &Expr {
+                    span: handle.body.span,
+                    ty: handle.body.ty,
+                    kind: ExprKind::Block(handle.body.clone()),
+                },
+                used,
+            );
+            for arm in &handle.arms {
+                collect_used_locals_in_expr(&arm.body, used);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_used_locals_in_expr(
+                    &Expr {
+                        span: finally.span,
+                        ty: finally.ty,
+                        kind: ExprKind::Block(finally.clone()),
+                    },
+                    used,
+                );
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ValScope {
     TopLevel,
@@ -1069,6 +1339,24 @@ mod tests {
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/closure_non_capture.hir");
+        let expected = std::fs::read_to_string(&golden_path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hir_fixture_closure_capture_val_golden() {
+        let sess = Session::new().unwrap();
+
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/closure_capture_val.scoop");
+        let file = SourceFile::load(&fixture_path).unwrap();
+
+        let lowered = lower_for_dump(&sess, &file).unwrap();
+        let actual = format!("{:#?}\n", lowered.file);
+
+        let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/closure_capture_val.hir");
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);

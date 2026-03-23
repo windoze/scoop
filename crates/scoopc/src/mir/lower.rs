@@ -53,7 +53,10 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredM
     let mut lowered_hir = hir::lower_for_dump(session, source)?;
     let builtins = lowered_hir.types.intern_builtins();
 
-    let file = MirLowering::new(builtins).lower_file(&lowered_hir.file);
+    let file = {
+        let mut lowering = MirLowering::new(builtins, &mut lowered_hir.types);
+        lowering.lower_file(&lowered_hir.file)
+    };
     Ok(LoweredMir {
         file,
         types: lowered_hir.types,
@@ -61,19 +64,19 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredM
 }
 
 /// 文件级 lowering：负责遍历顶层 item 并为每个函数构造 MIR body。
-#[derive(Debug, Clone, Copy)]
-struct MirLowering {
+struct MirLowering<'a> {
     builtins: BuiltinTypes,
+    types: &'a mut TypeStore,
 }
 
-impl MirLowering {
+impl<'a> MirLowering<'a> {
     /// 创建一个 MIR lowering 上下文（仅保存 builtin type ids）。
-    fn new(builtins: BuiltinTypes) -> Self {
-        Self { builtins }
+    fn new(builtins: BuiltinTypes, types: &'a mut TypeStore) -> Self {
+        Self { builtins, types }
     }
 
     /// 把 HIR 文件降到 MIR 文件。
-    fn lower_file(self, file: &hir::File) -> File {
+    fn lower_file(&mut self, file: &hir::File) -> File {
         let mut items = Vec::with_capacity(file.items.len());
         for item in &file.items {
             match item {
@@ -93,15 +96,16 @@ impl MirLowering {
     }
 
     /// 把一个函数降到 MIR。
-    fn lower_fun(self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
-        FnLowering::new(self.builtins, fun.fqn.clone()).lower_fun(fun)
+    fn lower_fun(&mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
+        FnLowering::new(self.builtins, self.types, fun.fqn.clone()).lower_fun(fun)
     }
 }
 
 /// 函数体 lowering：负责为单个函数构造 `Body`、管理 locals、并生成显式 CFG。
 #[derive(Debug)]
-struct FnLowering {
+struct FnLowering<'a> {
     builtins: BuiltinTypes,
+    types: &'a mut TypeStore,
     owner_fqn: String,
     body: Body,
     current_bb: BasicBlockId,
@@ -118,11 +122,23 @@ struct LoopContext {
     continue_target: BasicBlockId,
 }
 
-impl FnLowering {
+/// 一个 closure 捕获的外部局部变量在 env tuple 中的布局信息（T0711）。
+#[derive(Debug, Clone)]
+struct ClosureCaptureLayout {
+    id: hir::SymbolId,
+    name: String,
+    decl_span: Span,
+    ty: TypeId,
+    /// 在“创建该 closure 的函数”中，对应被捕获值的 local。
+    source_local: LocalId,
+}
+
+impl<'a> FnLowering<'a> {
     /// 创建一个新的函数 lowering builder。
-    fn new(builtins: BuiltinTypes, owner_fqn: String) -> Self {
+    fn new(builtins: BuiltinTypes, types: &'a mut TypeStore, owner_fqn: String) -> Self {
         Self {
             builtins,
+            types,
             owner_fqn,
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
@@ -518,11 +534,53 @@ impl FnLowering {
         let name = format!("$lambda{}", closure.id.as_u32());
         let fqn = format!("{}.{}", self.owner_fqn, name);
 
-        let (fun, nested) = FnLowering::new(self.builtins, fqn.clone()).lower_closure_fun(
-            fqn.clone(),
-            name,
-            closure,
-        );
+        // 1) 计算 capture set，并决定 env 的 tuple 类型。
+        let mut captures: Vec<ClosureCaptureLayout> = Vec::new();
+        for cap in &closure.captures {
+            let Some(source_local) = self.symbol_locals.get(&cap.id).copied() else {
+                // 防御性：若当前函数未为该 symbol 分配 local（理论上不应发生），跳过该 capture。
+                continue;
+            };
+            let source_ty = self.body.locals[source_local.as_u32() as usize].ty;
+            captures.push(ClosureCaptureLayout {
+                id: cap.id,
+                name: cap.name.clone(),
+                decl_span: cap.decl_span,
+                ty: source_ty,
+                source_local,
+            });
+        }
+
+        let (env_ty, env_operand) = if captures.is_empty() {
+            (self.builtins.unit, Operand::Const(ConstValue::Unit))
+        } else {
+            let env_ty = self
+                .types
+                .ty_tuple(captures.iter().map(|c| c.ty).collect());
+            let env_local = self.push_temp_local(span, env_ty);
+            self.assign(
+                span,
+                env_local,
+                Rvalue::MakeTuple {
+                    elements: captures
+                        .iter()
+                        .map(|c| Operand::Local(c.source_local))
+                        .collect(),
+                },
+            );
+            (env_ty, Operand::Local(env_local))
+        };
+
+        let (fun, nested) = {
+            let types = &mut *self.types;
+            FnLowering::new(self.builtins, types, fqn.clone()).lower_closure_fun(
+                fqn.clone(),
+                name,
+                closure,
+                env_ty,
+                &captures,
+            )
+        };
         self.nested_funs.push(fun);
         self.nested_funs.extend(nested);
 
@@ -531,7 +589,7 @@ impl FnLowering {
             span,
             tmp,
             Rvalue::MakeClosure {
-                env: Operand::Const(ConstValue::Unit),
+                env: env_operand,
                 fn_ptr: fqn,
             },
         );
@@ -543,22 +601,39 @@ impl FnLowering {
         closure_fqn: String,
         closure_name: String,
         closure: &hir::ClosureExpr,
+        env_ty: TypeId,
+        captures: &[ClosureCaptureLayout],
     ) -> (FunDecl, Vec<FunDecl>) {
         // 1) 创建入口块。
         let entry = self.push_block(closure.span);
         self.body.start = entry;
         self.current_bb = entry;
 
-        // 2) env + 参数变为 locals（env 不参与 SymbolId → LocalId 映射；捕获语义由 T0711 接入）。
+        // 2) env + captures + 参数变为 locals。
         let mut params = Vec::with_capacity(closure.params.len() + 1);
 
-        let env_local = self.push_named_local(closure.span, "$env", self.builtins.unit);
+        let env_local = self.push_named_local(closure.span, "$env", env_ty);
         params.push(Param {
             span: closure.span,
             name: "$env".to_string(),
-            ty: self.builtins.unit,
+            ty: env_ty,
             local: env_local,
         });
+
+        // 把捕获字段从 `$env` 解包到局部 local，并写入 SymbolId → LocalId 映射，使得后续 body lowering
+        // 可以像普通局部变量一样引用它们。
+        for (idx, cap) in captures.iter().enumerate() {
+            let local = self.push_named_local(cap.decl_span, &cap.name, cap.ty);
+            self.symbol_locals.insert(cap.id, local);
+            self.assign(
+                cap.decl_span,
+                local,
+                Rvalue::TupleGet {
+                    tuple: Operand::Local(env_local),
+                    index: idx,
+                },
+            );
+        }
 
         for p in &closure.params {
             let local = self.push_named_local(p.span, &p.name, p.ty);

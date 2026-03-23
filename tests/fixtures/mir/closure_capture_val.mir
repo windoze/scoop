@@ -1,0 +1,247 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..79,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 26..35,
+                                name: Some(
+                                    "y",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 34..35,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 38..70,
+                                name: Some(
+                                    "f",
+                                ),
+                                ty: TypeId(
+                                    8,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 60..70,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    9,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 60..70,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 73..77,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 34..35,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 26..35,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 60..70,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: MakeTuple {
+                                                elements: [
+                                                    Local(
+                                                        l0,
+                                                    ),
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 60..70,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: MakeClosure {
+                                                env: Local(
+                                                    l3,
+                                                ),
+                                                fn_ptr: "a.main.$lambda0",
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 38..70,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 73..77,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Todo(
+                                                "call lowering pending",
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 11..79,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 60..70,
+                fqn: "a.main.$lambda0",
+                name: "$lambda0",
+                ty: TypeId(
+                    0,
+                ),
+                params: [
+                    Param {
+                        span: 60..70,
+                        name: "$env",
+                        ty: TypeId(
+                            9,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 62..63,
+                        name: "x",
+                        ty: TypeId(
+                            0,
+                        ),
+                        local: l2,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 60..70,
+                                name: Some(
+                                    "$env",
+                                ),
+                                ty: TypeId(
+                                    9,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 30..31,
+                                name: Some(
+                                    "y",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 62..63,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 30..31,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: TupleGet {
+                                                tuple: Local(
+                                                    l0,
+                                                ),
+                                                index: 0,
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 60..70,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

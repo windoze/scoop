@@ -1,0 +1,8 @@
+package a
+
+fun main() {
+  val y = 1
+  val f: (Int) -> Int = { x -> y }
+  f(0)
+}
+

@@ -177,9 +177,9 @@ pub enum ExprKind {
     Block(Block),
     /// closure（lambda）表达式：`{ params -> body }` / `{ body }`。
     ///
-    /// 当前阶段（TODO T0710）最小实现：
-    /// - 仅保留语法结构与 `ClosureId`；
-    /// - 捕获变量布局与 env struct 将在后续任务（TODO T0711）接入。
+    /// 当前阶段（T0711）：
+    /// - lowering 会计算 capture set（自由变量集合）并写入 `ClosureExpr.captures`；
+    /// - env struct 的具体布局与 codegen 表示仍在后续任务逐步补齐（此处只保留捕获列表）。
     Closure(ClosureExpr),
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     If {
@@ -221,11 +221,26 @@ pub enum ExprKind {
     Todo(&'static str),
 }
 
+/// closure（lambda）捕获的一个外部局部变量（free variable）。
+///
+/// 说明：
+/// - 这里的“外部”指相对于该 lambda 自身参数与内部局部声明而言；
+/// - 当前阶段仅记录 `SymbolId + name + decl_span`，供后续 env layout / codegen 使用；
+/// - 可变捕获（`var`）的 boxing/aliasing 语义将在后续任务（TODO T0714）落地。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Capture {
+    pub id: SymbolId,
+    pub name: String,
+    pub decl_span: Span,
+}
+
 /// closure（lambda）的 HIR 表示（TODO T0710）。
 #[derive(Debug, Clone)]
 pub struct ClosureExpr {
     pub span: Span,
     pub id: ClosureId,
+    /// 捕获的外部局部变量集合（按 decl span 排序，便于稳定 dump/fixtures）。
+    pub captures: Vec<Capture>,
     pub params: Vec<Param>,
     pub body: Box<Expr>,
 }

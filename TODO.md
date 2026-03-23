@@ -1977,11 +1977,19 @@
    - fixtures：新增 `tests/fixtures/infer/function_value_call_ok.scoop`、`tests/fixtures/hir/closure_non_capture.*`、`tests/fixtures/mir/closure_non_capture.*` 回归用例。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0711 [TODO] 捕获闭包：计算 capture set 并生成 env struct（PLAN §7.3）
+### T0711 [DONE] 捕获闭包：计算 capture set 并生成 env struct（PLAN §7.3）
 - 描述：分析 lambda 体对外部局部变量的引用，生成 env struct，并在调用点传递 env 指针。
 - 目标：先只支持捕获 `val`；捕获 `var`（可变捕获）后置或以 box 处理。
 - 验收：新增 IR fixture：lambda 捕获外部 val 并使用；codegen/run-pass（后续）输出正确。
 - 依赖：T0710、T0304
+ - 完成：
+   - scoopc/hir：`ClosureExpr` 增加 `captures: Vec<Capture>`，lowering 会计算 lambda 的 capture set（跳过嵌套 closure），并按声明位置稳定排序。
+   - scoopc/mir：引入最小 env tuple 表示：
+     - 新增 `Rvalue::MakeTuple`/`Rvalue::TupleGet`；
+     - closure 创建点：根据 capture set 构造 env tuple，并写入 `MakeClosure.env`；
+     - closure 函数体：`$env` 参数类型改为对应的 tuple type，并在入口块把捕获字段解包到局部 local（写入 `SymbolId → LocalId`），使 body 内对捕获变量的 `VarRef` 可正常 lowering。
+   - fixtures：新增 `tests/fixtures/hir/closure_capture_val.*` 与 `tests/fixtures/mir/closure_capture_val.*`；并更新 `tests/fixtures/hir/closure_non_capture.hir` 以适配新增字段。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/closure_capture_val.scoop`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/closure_capture_val.scoop` 通过。
 
 ### T0712 [TODO] 单态化（monomorphization）：生成具体实例 MIR（PLAN §7.2）
 - 描述：对每个 `MonomorphKey` 生成专用实例（函数/类型），并缓存避免重复。

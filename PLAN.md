@@ -34,6 +34,7 @@
 - 2026-03-24：完成 T0707：MIR 引入 cleanup/unwind 最小模型（`UnwindAction` + `Terminator.unwind` + `ResumeUnwind`），并新增 MIR 单测覆盖。
 - 2026-03-24：完成 T0708：引入最小 MIR lowering（if/when → CFG），新增 `scoop dump-mir` 与 `tests/fixtures/mir/**` golden 回归。
 - 2026-03-24：完成 T0709：MIR lowering 补齐 while/break/continue（loop CFG + 跳转目标栈），并新增 `tests/fixtures/mir/while_break_continue.*` 回归。
+- 2026-03-24：完成 T0711：捕获闭包（val 捕获）落地 capture set 计算与 env tuple lowering（`MakeTuple`/`TupleGet`），并新增 HIR/MIR fixtures 回归。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

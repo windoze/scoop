@@ -289,11 +289,20 @@ pub enum ConstValue {
 #[derive(Debug, Clone)]
 pub enum Rvalue {
     Use(Operand),
-    /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（TODO T0710）。
+    /// 创建一个 tuple 值（最小 aggregate，用于 env struct 等场景）。
+    MakeTuple {
+        elements: Vec<Operand>,
+    },
+    /// 读取 tuple 的某个字段：`tuple[index]`（按捕获顺序索引）。
+    TupleGet {
+        tuple: Operand,
+        index: usize,
+    },
+    /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（T0710/T0711）。
     ///
-    /// 当前阶段最小实现：
-    /// - `env` 仅支持空 env（`Unit`）；
-    /// - 捕获分析与 env struct 布局由后续任务（TODO T0711）接入。
+    /// 当前阶段：
+    /// - `env` 支持 `Unit`（无捕获）或最小 tuple env（T0711）；
+    /// - 更丰富的 env 表示（真正的 struct/layout/heap/GC）会在后续 codegen/runtime 任务补齐。
     MakeClosure {
         env: Operand,
         fn_ptr: String,

@@ -2,7 +2,7 @@ File {
     items: [
         Fun(
             FunDecl {
-                span: 11..69,
+                span: 11..79,
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
@@ -14,24 +14,56 @@ File {
                 ),
                 body: Some(
                     Block {
-                        span: 22..69,
+                        span: 22..79,
                         ty: TypeId(
                             0,
                         ),
                         stmts: [
                             Stmt {
-                                span: 26..59,
+                                span: 26..35,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Val(
                                     ValDecl {
-                                        span: 26..59,
+                                        span: 26..35,
                                         id: Some(
-                                            S1,
+                                            S0,
                                         ),
                                         name: Some(
-                                            "id",
+                                            "y",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 34..35,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 38..70,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 38..70,
+                                        id: Some(
+                                            S2,
+                                        ),
+                                        name: Some(
+                                            "f",
                                         ),
                                         mutable: false,
                                         ty: TypeId(
@@ -39,19 +71,25 @@ File {
                                         ),
                                         init: Some(
                                             Expr {
-                                                span: 49..59,
+                                                span: 60..70,
                                                 ty: TypeId(
                                                     0,
                                                 ),
                                                 kind: Closure(
                                                     ClosureExpr {
-                                                        span: 49..59,
+                                                        span: 60..70,
                                                         id: C0,
-                                                        captures: [],
+                                                        captures: [
+                                                            Capture {
+                                                                id: S0,
+                                                                name: "y",
+                                                                decl_span: 30..31,
+                                                            },
+                                                        ],
                                                         params: [
                                                             Param {
-                                                                span: 51..52,
-                                                                id: S0,
+                                                                span: 62..63,
+                                                                id: S1,
                                                                 name: "x",
                                                                 ty: TypeId(
                                                                     0,
@@ -59,15 +97,15 @@ File {
                                                             },
                                                         ],
                                                         body: Expr {
-                                                            span: 56..57,
+                                                            span: 67..68,
                                                             ty: TypeId(
                                                                 0,
                                                             ),
                                                             kind: VarRef(
                                                                 Local {
                                                                     id: S0,
-                                                                    name: "x",
-                                                                    decl_span: 51..52,
+                                                                    name: "y",
+                                                                    decl_span: 30..31,
                                                                 },
                                                             ),
                                                         },
@@ -79,34 +117,34 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 62..67,
+                                span: 73..77,
                                 ty: TypeId(
                                     2,
                                 ),
                                 kind: Expr(
                                     Expr {
-                                        span: 62..67,
+                                        span: 73..77,
                                         ty: TypeId(
                                             0,
                                         ),
                                         kind: Call {
                                             callee: Expr {
-                                                span: 62..64,
+                                                span: 73..74,
                                                 ty: TypeId(
                                                     0,
                                                 ),
                                                 kind: VarRef(
                                                     Local {
-                                                        id: S1,
-                                                        name: "id",
-                                                        decl_span: 30..32,
+                                                        id: S2,
+                                                        name: "f",
+                                                        decl_span: 42..43,
                                                     },
                                                 ),
                                             },
                                             args: [
                                                 Positional(
                                                     Expr {
-                                                        span: 65..66,
+                                                        span: 75..76,
                                                         ty: TypeId(
                                                             5,
                                                         ),
