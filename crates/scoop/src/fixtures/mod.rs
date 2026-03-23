@@ -21,6 +21,7 @@
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
+//! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
@@ -127,6 +128,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "infer" => FixturePhase::Infer,
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(name) if name == "hir" => FixturePhase::Hir,
+        Some(name) if name == "mir" => FixturePhase::Mir,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
 
@@ -137,6 +139,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Infer => infer_fixture(session, &source),
         FixturePhase::RunPass => run_pass::run_fixture_unimplemented(rel, path, &exp),
         FixturePhase::Hir => hir_fixture(session, &source, path),
+        FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
             fixture: rel.display().to_string(),
@@ -162,6 +165,7 @@ enum FixturePhase {
     Infer,
     RunPass,
     Hir,
+    Mir,
     Unimplemented(String),
 }
 
@@ -253,6 +257,24 @@ struct HirGoldenMismatch {
     fixture: String,
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 MIR golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::mir_golden_read_failed))]
+struct MirGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("MIR snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::mir_golden_mismatch))]
+struct MirGoldenMismatch {
+    path: String,
+    fixture: String,
+}
+
 fn parse_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
@@ -311,6 +333,34 @@ fn hir_fixture(
 
     if expected != actual {
         return Err(box_diagnostic(HirGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn mir_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let lowered = scoopc::mir::lower_for_dump(session, source).map_err(box_diagnostic)?;
+    let actual = normalize_newlines(&format!("{:#?}\n", lowered.file));
+
+    let golden_path = fixture_path.with_extension("mir");
+    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(MirGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let expected = normalize_newlines(&expected_raw);
+
+    if expected != actual {
+        return Err(box_diagnostic(MirGoldenMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));

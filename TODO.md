@@ -1942,11 +1942,17 @@
    - tests：新增 MIR 单测覆盖 cleanup edge 可达性与 CFG 校验。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0708 [TODO] MIR lowering：if/when → 基本块 + terminator
+### T0708 [DONE] MIR lowering：if/when → 基本块 + terminator
 - 描述：把条件分支 lowering 为 CFG（br/switch），并在 merge 点管理临时变量。
 - 目标：先只支持 expression-when（每分支一个表达式）；带 guard 的 pattern 后置。
 - 验收：`--dump-ir`（或 dump-mir）对 if/when 示例输出多个 BB；并能被 codegen 接受。
 - 依赖：T0706
+ - 完成：
+   - scoopc/mir：新增最小 MIR lowering（`crates/scoopc/src/mir/lower.rs`），支持 `if/when` 生成显式 CFG（`CondBr/Goto`）并在 merge 点写回临时 local。
+   - scoopc/mir：扩展 MIR 数据结构：`TerminatorKind::CondBr`、`StatementKind::Assign`、最小 `Operand/Rvalue`，以及用于 dump/fixtures 的 `mir::File/FunDecl`。
+   - scoop：新增 `scoop dump-mir <file>`；fixtures runner 支持 `tests/fixtures/mir/**` 并对 `.mir` golden 做回归比对。
+   - fixtures：新增 `tests/fixtures/mir/if_when.scoop` + `if_when.mir`（包含 if/when 多 BB 的快照）。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过；`cargo run -p scoop -- dump-mir tests/fixtures/mir/if_when.scoop` 输出多基本块。
 
 ### T0709 [TODO] MIR lowering：while/break/continue
 - 描述：把 while lowering 为 loop CFG，并正确处理 break/continue 跳转目标。

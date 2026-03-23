@@ -34,6 +34,12 @@ pub enum Command {
         input: PathBuf,
     },
 
+    /// 解析/resolve 输入并打印 MIR（早期实现：Debug 输出）
+    DumpMir {
+        /// 输入源文件路径
+        input: PathBuf,
+    },
+
     /// 构建可执行文件（未实现）
     Build {
         /// 输入源文件路径

@@ -1,0 +1,13 @@
+package a
+
+fun main() {
+  val x: Int = 0
+
+  if (true) { x } else { 2 }
+
+  when (x) {
+    0 -> 10
+    else -> 20
+  }
+}
+

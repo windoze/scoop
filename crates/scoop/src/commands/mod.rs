@@ -6,6 +6,7 @@
 
 mod dump_ast;
 mod dump_hir;
+mod dump_mir;
 mod test;
 
 use tracing_subscriber::EnvFilter;
@@ -25,6 +26,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::Test { fixtures } => test::run(fixtures),
         Command::DumpAst { input } => dump_ast::run(input),
         Command::DumpHir { input } => dump_hir::run(input),
+        Command::DumpMir { input } => dump_mir::run(input),
         Command::Build { .. } => Err(miette::miette!(
             "子命令 `build` 尚未实现；当前仅提供工程骨架。"
         )),

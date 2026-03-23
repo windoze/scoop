@@ -5,16 +5,56 @@
 //! - `try/finally`、effect handler 等需要 cleanup/unwinding 的语义建模（TODO T0707、T0612）
 //! - 单态化与 LLVM codegen
 //!
-//! 当前阶段（TODO T0703）只落地**数据结构骨架**与最小 CFG 验证工具：
+//! 当前阶段（TODO T0703/T0708）落地：
 //! - 基本块（BB）+ terminator
 //! - locals 声明列表
 //! - CFG 连通性/合法性检查（用于单测与后续 pass 的断言）
+//! - 最小 MIR lowering（用于 `dump-mir`/fixtures 回归；未覆盖节点用 `Todo(...)` 占位）
+
+mod lower;
 
 use std::collections::VecDeque;
 use std::fmt;
 
 use crate::span::Span;
 use crate::ty::TypeId;
+
+pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
+
+/// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
+#[derive(Debug, Clone)]
+pub struct File {
+    pub items: Vec<Item>,
+}
+
+/// 顶层条目（top-level items）。
+#[derive(Debug, Clone)]
+pub enum Item {
+    Fun(FunDecl),
+    /// 未纳入当前阶段 MIR 的条目占位（例如顶层 val/global init、type decl 等）。
+    Todo { span: Span, kind: &'static str },
+}
+
+/// 函数声明在 MIR 视图下的承载。
+#[derive(Debug, Clone)]
+pub struct FunDecl {
+    pub span: Span,
+    pub fqn: String,
+    pub name: String,
+    pub ty: TypeId,
+    pub params: Vec<Param>,
+    pub return_ty: TypeId,
+    pub body: Option<Body>,
+}
+
+/// 参数在 MIR 视图下的表示：它同时对应一个 local。
+#[derive(Debug, Clone)]
+pub struct Param {
+    pub span: Span,
+    pub name: String,
+    pub ty: TypeId,
+    pub local: LocalId,
+}
 
 /// 基本块 ID（在 `Body::blocks` 内的索引）。
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -217,7 +257,32 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Nop,
+    /// `target = value`（最小赋值语句，用于 if/when merge 等场景）。
+    Assign { target: LocalId, value: Rvalue },
     /// 未实现节点占位（用于尽早落地数据结构但避免 `todo!()`/panic）。
+    Todo(&'static str),
+}
+
+/// 一个“可以被使用的值”（最小 operand 模型）。
+#[derive(Debug, Clone)]
+pub enum Operand {
+    Local(LocalId),
+    Const(ConstValue),
+}
+
+/// 常量值（当前阶段不保留字面量原始内容，仅保留种类）。
+#[derive(Debug, Clone)]
+pub enum ConstValue {
+    Bool(bool),
+    Unit,
+    Int,
+    String,
+}
+
+/// 右值（最小 rvalue 模型）。
+#[derive(Debug, Clone)]
+pub enum Rvalue {
+    Use(Operand),
     Todo(&'static str),
 }
 
@@ -247,6 +312,12 @@ pub enum TerminatorKind {
     /// cleanup block：执行完清理逻辑后继续向上传播 unwinding。
     ResumeUnwind,
     Goto { target: BasicBlockId },
+    /// 条件分支：若 `cond` 为真跳转到 `then_target`，否则跳转到 `else_target`。
+    CondBr {
+        cond: Operand,
+        then_target: BasicBlockId,
+        else_target: BasicBlockId,
+    },
     Unreachable,
     /// effect operation 调用（对应 HIR 的 `ExprKind::Perform`）。
     ///
@@ -276,6 +347,14 @@ impl TerminatorKind {
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
         match self {
             TerminatorKind::Goto { target } => f(*target),
+            TerminatorKind::CondBr {
+                then_target,
+                else_target,
+                ..
+            } => {
+                f(*then_target);
+                f(*else_target);
+            }
             TerminatorKind::Return
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Unreachable
