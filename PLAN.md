@@ -29,6 +29,7 @@
 - 2026-03-23：完成 T0629a：program boundary 的 entry point 引入 cone-aware 规则（仅 consumer cone 的 `main` 视为 entry point），并新增 `typecheck_cone` fixtures runner 与用例覆盖。
 - 2026-03-23：完成 T0701：新增 `scoopc::hir` 骨架与最小 lowering，并落地 `scoop dump-hir` 调试输出命令。
 - 2026-03-23：完成 T0612：HIR 增加 `perform/handle` 节点与 lowering；MIR 预留对应 terminator；新增 HIR fixtures 回归。
+- 2026-03-23：完成 T0704：新增 `scoopc::monomorph::MonomorphKey`（symbol + type args + effect row args）与单测覆盖，用于后续实例缓存。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

@@ -1900,11 +1900,15 @@
    - fixtures：新增 `tests/fixtures/hir/handle_perform.scoop` + `.hir` golden；并在 `scoopc` 单测中加入 golden 回归。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/handle_perform.scoop` 通过。
 
-### T0704 [TODO] 单态化缓存键：`Symbol + type args + effect row args`（spec §3.1、PLAN §7.2）
+### T0704 [DONE] 单态化缓存键：`Symbol + type args + effect row args`（spec §3.1、PLAN §7.2）
 - 描述：定义 MonomorphKey，并实现 Hash/Eq 与 debug 输出。
 - 目标：先只对函数生效；不实现真实复制生成。
 - 验收：新增单测：同一 key 去重；不同 type args key 不同。
 - 依赖：T0701、T0401
+ - 完成：
+   - scoopc：新增 `monomorph` 模块，定义 `MonomorphSymbol/MonomorphKey`，实现 Hash/Eq/Debug。
+   - tests：新增单测覆盖 key 去重与 type args 区分。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0705 [TODO] HIR：补齐控制流与语句节点（if/when/while/assign/return）
 - 描述：把 parser/typecheck 已支持的控制流语法在 HIR 中建模出来（含 type 与 span）。
