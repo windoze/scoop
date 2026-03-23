@@ -1734,84 +1734,11 @@
      - `tests/fixtures/typecheck/continuation_type_and_resume_pure_ok.scoop`
      - `tests/fixtures/typecheck/continuation_resume_required_effect_missing_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
-
-### T0613 [TODO] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
-- 描述：固定 runtime C ABI（函数/全局符号名），codegen 能生成对其的读写调用。
-- 目标：先只支持单个 slot 类型（例如指针/整型）；复杂 payload 后续。
-- 验收：`--emit-llvm` 产物里包含对 runtime 符号的引用；链接阶段不报未定义符号。
-- 依赖：T0906、T0804
-
-### T0614 [TODO] lowering step 1（部分）：`Raise.raise` 的 flag-based unwinding（只支持最小示例）
-- 描述：实现 `Raise.raise(e)`：写 perform slot + set flag + 早退；调用边界检查 flag 并向外传播；try/catch 在边界消费 slot。
-- 目标：先只支持 `Raise` + `try/catch`（无 finally、无用户自定义 effect）；先不支持跨函数捕获复杂状态。
-- 验收：新增 run-pass fixture：`try { Raise.raise(...) } catch { ... }` 能运行并输出预期；新增 compile-fail：未处理 Raise 报 required effects。
-- 依赖：T0613、T0106b2、T0807
-
-### T0615 [TODO] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
-- 描述：确保 `finally` 在正常路径与 raise/unwind 路径都执行一次。
-- 目标：先只支持 try/catch/finally；不支持 nested handler stack。
-- 验收：新增 run-pass fixture：finally 中打印日志；无论 raise 与否都出现一次且顺序正确。
-- 依赖：T0614、T0707
-
-### T0616 [TODO] lowering step 2：`-> resume`（栈 state machine）（PLAN §6.3.2）
-- 描述：把 handle body 分段、提升跨段 locals，并用 while-loop state machine 实现立即恢复。
-- 目标：先只支持单个 perform 点；`resume` 必须恰好一次的检查可先只做运行期断言。
-- 验收：新增 run-pass fixture：自定义 effect + `-> resume` 能恢复并继续执行；多次 resume 报错（运行期）。
-- 依赖：T0615、T0703
-
-### T0617 [TODO] lowering step 3：`, k ->`（堆 continuation + one-shot）（PLAN §6.3.3）
-- 描述：实现 continuation 对象捕获 handler stack，支持跨线程 `resume`，并用原子状态位保证 one-shot。
-- 目标：先只支持单线程 resume；跨线程作为后续子任务。
-- 验收：新增 run-pass fixture：保存 continuation 后稍后 resume；重复 resume 失败（错误/诊断明确）。
-- 依赖：T0616、T0914
-
-### T0618 [TODO] 跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（spec §5.5）
-- 描述：实现跨线程 resume 的语义与 runtime 支持（TLS handler stack 切换）。
-- 目标：先只支持 2 线程；不实现调度器。
-- 验收：新增 run-pass fixture：在新线程 resume continuation，程序输出符合预期且不崩溃。
-- 依赖：T0617、T0915
-
-### T0619 [TODO] async/await（作为 `Async` effect 的语法糖）（spec §5.7）
-- 描述：解析并 typecheck `async/await`，lowering 到 effect perform/handle（或库函数）模型。
-- 目标：先只实现单线程、无取消；spawn/结构化并发后续。
-- 验收：新增 run-pass fixture：最小 async/await demo 输出正确；required effects 规则一致。
-- 依赖：T0616、T0807
-
-### T0620 [TODO] `spawn`：结构化并发最小模型（spec §5.7）
-- 描述：实现 `spawn` 语法糖与 runtime 支持（join/取消语义先简化）。
-- 目标：先只支持 join；取消后置。
-- 验收：新增 run-pass fixture：spawn 两个任务并 join；输出顺序/值正确。
-- 依赖：T0619
-
-### T0621 [TODO] generator/yield：库级实现验证（spec §5.7）
-- 描述：基于 continuation 或 effect，提供最小 `yield`/迭代器 demo（无需专用语法）。
-- 目标：先只作为库/fixtures 验证，不强依赖语法。
-- 验收：新增 run-pass fixture：生成器 yield 多次并消费；输出正确。
-- 依赖：T0617
-
-### T0622 [TODO] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
-- 描述：在 sysroot/type system 中引入 `Task<T>` 的最小模型，固定“懒执行直到 `await` 或显式启动”的语义，并为 `spawn/async` 共享同一任务抽象。
-- 目标：先只固定类型面与基础语义；取消/结构化并发细节后续。
-- 验收：effects/typecheck fixture：`val t: Task<Int> = ...` 合法；`await` 仅接受 `Task<T>`；未启动任务不要求立即执行。
-- 依赖：T0611、T0820
-
-### T0623 [TODO] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
-- 描述：实现 `async fun foo(): T` 的签名与 lowering 规则：对外暴露 `Task<T>`，而不是 `T / Async`；`/ Async` 只存在于 Task 的计算上下文。
-- 目标：先只覆盖函数声明与调用点；与 executor 的交互后续由 runtime 任务补齐。
-- 验收：effects fixture：`async fun fetch(): Int` 的调用点类型为 `Task<Int>`；把它当作 `Int / Async` 使用时报错。
-- 依赖：T0619、T0622
-
 ### T0624 [TODO] effect rows：use-site `Type<eff Row>` 的实例化与检查（spec §3.4 / §5.8）
 - 描述：在类型检查阶段支持 `Type<eff Row>` 的显式实参与默认化，并与 overriding、required effects、subeffecting 联动。
 - 目标：先只支持单个 row 参数；语法合法性由 parser 先行保证。
 - 验收：effects fixture：`Disposable<eff Async>` 调用需要 Async；`Disposable` 省略时默认 `Pure`；非法多 `eff` clause 报错。
 - 依赖：T0253、T0609、T0511
-
-### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
-- 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循”最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
-- 目标：先只覆盖 `Raise` 与最小自定义 effect；实际 runtime 支持由 T0916 补齐。
-- 验收：effects + run-pass fixture：嵌套 handler 的最近匹配规则成立；arm 内 re-perform 不会自捕获。
-- 依赖：T0615、T0916
 
 ### T0626 [TODO] 闭合 effect row 语法解析：`/ R!`（spec §5.8.4）
 - 描述：在 lexer/parser 中支持 effect row 的 `!` 后缀，将其解析为 `RowExpr::Closed(inner)`（或在现有 `RowExpr` 上加 `closed: bool` 字段）。`!` 的优先级低于 `+`，作用于整个 row，不与最后一个 effect 单独绑定。
@@ -1836,12 +1763,6 @@
 - 目标：先覆盖可静态识别的入口面；不引入运行时动态扫描。
 - 验收：新增 effects + cone fixtures：库导出的公开入口若含未处理 effect 会被拒绝；多个 entry point 共存时规则稳定。
 - 依赖：T0610、T1107
-
-### T0630 [TODO] runtime ABI：perform slot 从单值扩展到复杂 payload
-- 描述：把 effect runtime ABI 从“单个指针/整型 slot”扩展到可承载复杂 payload：多字字段、结构体/union 风格载荷、必要的对齐与判别信息。
-- 目标：保持 non-resuming 路径的实现简单；先固定 ABI 形状，再让 lowering/codegen/runtime 共同接入。
-- 验收：新增 IR/codegen/runtime fixtures：携带复合 payload 的 effect 可被正确写入、传播和读取；ABI 在同一 target 上稳定。
-- 依赖：T0613、T0818、T0906
 
 ### T0631 [TODO] 语法糖：多 `catch` arms 与匹配顺序
 - 描述：把 `try/catch/finally` 从单个 `catch` 扩展到多个 `catch` arm，并固定匹配顺序、不可达分支诊断与 lowering 结果。
@@ -2078,12 +1999,6 @@
 - 验收：新增 run-pass fixture：`val a: Any = 1` 运行不崩溃；并可通过调试打印确认对象非空。
 - 依赖：T0902、T0441、T0810
 
-### T0818 [TODO] effect codegen：flag-based Raise/try-catch（对接 T0614）
-- 描述：把 MIR 中的 perform/handle terminator 生成 LLVM IR，与 runtime slot/flag 交互，实现最小 Raise 处理。
-- 目标：先只支持 `Raise<RuntimeError>` 与 try/catch；finally 在 T0615 补齐。
-- 验收：run-pass fixtures：Raise 被 catch 捕获；未捕获时报错或退出（按设计）。
-- 依赖：T0713、T0614
-
 ### T0819 [TODO] driver：`--emit-llvm/--emit-obj/--emit-asm` 选项与 fixtures 支持（PLAN §9.3）
 - 描述：在 `scoop build` 增加 emit 选项，并允许 fixtures 通过 `ARGS` 触发生成产物用于排查。
 - 目标：先只支持单文件输出；不做多产物目录管理。
@@ -2184,6 +2099,66 @@
 - 验收：新增测试：set flag 后可读回；clear 后恢复初值。
 - 依赖：T0903
 
+### T0613 [TODO] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
+- 描述：固定 runtime C ABI（函数/全局符号名），codegen 能生成对其的读写调用。
+- 目标：先只支持单个 slot 类型（例如指针/整型）；复杂 payload 后续。
+- 验收：`--emit-llvm` 产物里包含对 runtime 符号的引用；链接阶段不报未定义符号。
+- 依赖：T0906、T0804
+
+### T0614 [TODO] lowering step 1（部分）：`Raise.raise` 的 flag-based unwinding（只支持最小示例）
+- 描述：实现 `Raise.raise(e)`：写 perform slot + set flag + 早退；调用边界检查 flag 并向外传播；try/catch 在边界消费 slot。
+- 目标：先只支持 `Raise` + `try/catch`（无 finally、无用户自定义 effect）；先不支持跨函数捕获复杂状态。
+- 验收：新增 run-pass fixture：`try { Raise.raise(...) } catch { ... }` 能运行并输出预期；新增 compile-fail：未处理 Raise 报 required effects。
+- 依赖：T0613、T0106b2、T0807
+
+### T0615 [TODO] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
+- 描述：确保 `finally` 在正常路径与 raise/unwind 路径都执行一次。
+- 目标：先只支持 try/catch/finally；不支持 nested handler stack。
+- 验收：新增 run-pass fixture：finally 中打印日志；无论 raise 与否都出现一次且顺序正确。
+- 依赖：T0614、T0707
+
+### T0616 [TODO] lowering step 2：`-> resume`（栈 state machine）（PLAN §6.3.2）
+- 描述：把 handle body 分段、提升跨段 locals，并用 while-loop state machine 实现立即恢复。
+- 目标：先只支持单个 perform 点；`resume` 必须恰好一次的检查可先只做运行期断言。
+- 验收：新增 run-pass fixture：自定义 effect + `-> resume` 能恢复并继续执行；多次 resume 报错（运行期）。
+- 依赖：T0615、T0703
+
+### T0619 [TODO] async/await（作为 `Async` effect 的语法糖）（spec §5.7）
+- 描述：解析并 typecheck `async/await`，lowering 到 effect perform/handle（或库函数）模型。
+- 目标：先只实现单线程、无取消；spawn/结构化并发后续。
+- 验收：新增 run-pass fixture：最小 async/await demo 输出正确；required effects 规则一致。
+- 依赖：T0616、T0807
+
+### T0620 [TODO] `spawn`：结构化并发最小模型（spec §5.7）
+- 描述：实现 `spawn` 语法糖与 runtime 支持（join/取消语义先简化）。
+- 目标：先只支持 join；取消后置。
+- 验收：新增 run-pass fixture：spawn 两个任务并 join；输出顺序/值正确。
+- 依赖：T0619
+
+### T0622 [TODO] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
+- 描述：在 sysroot/type system 中引入 `Task<T>` 的最小模型，固定“懒执行直到 `await` 或显式启动”的语义，并为 `spawn/async` 共享同一任务抽象。
+- 目标：先只固定类型面与基础语义；取消/结构化并发细节后续。
+- 验收：effects/typecheck fixture：`val t: Task<Int> = ...` 合法；`await` 仅接受 `Task<T>`；未启动任务不要求立即执行。
+- 依赖：T0611、T0820
+
+### T0623 [TODO] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
+- 描述：实现 `async fun foo(): T` 的签名与 lowering 规则：对外暴露 `Task<T>`，而不是 `T / Async`；`/ Async` 只存在于 Task 的计算上下文。
+- 目标：先只覆盖函数声明与调用点；与 executor 的交互后续由 runtime 任务补齐。
+- 验收：effects fixture：`async fun fetch(): Int` 的调用点类型为 `Task<Int>`；把它当作 `Int / Async` 使用时报错。
+- 依赖：T0619、T0622
+
+### T0818 [TODO] effect codegen：flag-based Raise/try-catch（对接 T0614）
+- 描述：把 MIR 中的 perform/handle terminator 生成 LLVM IR，与 runtime slot/flag 交互，实现最小 Raise 处理。
+- 目标：先只支持 `Raise<RuntimeError>` 与 try/catch；finally 在 T0615 补齐。
+- 验收：run-pass fixtures：Raise 被 catch 捕获；未捕获时报错或退出（按设计）。
+- 依赖：T0713、T0614
+
+### T0630 [TODO] runtime ABI：perform slot 从单值扩展到复杂 payload
+- 描述：把 effect runtime ABI 从“单个指针/整型 slot”扩展到可承载复杂 payload：多字字段、结构体/union 风格载荷、必要的对齐与判别信息。
+- 目标：保持 non-resuming 路径的实现简单；先固定 ABI 形状，再让 lowering/codegen/runtime 共同接入。
+- 验收：新增 IR/codegen/runtime fixtures：携带复合 payload 的 effect 可被正确写入、传播和读取；ABI 在同一 target 上稳定。
+- 依赖：T0613、T0818、T0906
+
 ### T0907 [TODO] runtime：类型描述（type descriptor）v0（trace bitmap/回调）
 - 描述：定义 type descriptor 结构（大小、字段 trace 信息），供 GC 扫描对象内引用字段使用。
 - 目标：先只支持 struct/box；interface/class 后续。
@@ -2238,11 +2213,35 @@
 - 验收：新增 run-pass fixture：在新线程 resume continuation，结果与单线程一致。
 - 依赖：T0914、T0911
 
+### T0617 [TODO] lowering step 3：`, k ->`（堆 continuation + one-shot）（PLAN §6.3.3）
+- 描述：实现 continuation 对象捕获 handler stack，支持跨线程 `resume`，并用原子状态位保证 one-shot。
+- 目标：先只支持单线程 resume；跨线程作为后续子任务。
+- 验收：新增 run-pass fixture：保存 continuation 后稍后 resume；重复 resume 失败（错误/诊断明确）。
+- 依赖：T0616、T0914
+
+### T0618 [TODO] 跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（spec §5.5）
+- 描述：实现跨线程 resume 的语义与 runtime 支持（TLS handler stack 切换）。
+- 目标：先只支持 2 线程；不实现调度器。
+- 验收：新增 run-pass fixture：在新线程 resume continuation，程序输出符合预期且不崩溃。
+- 依赖：T0617、T0915
+
+### T0621 [TODO] generator/yield：库级实现验证（spec §5.7）
+- 描述：基于 continuation 或 effect，提供最小 `yield`/迭代器 demo（无需专用语法）。
+- 目标：先只作为库/fixtures 验证，不强依赖语法。
+- 验收：新增 run-pass fixture：生成器 yield 多次并消费；输出正确。
+- 依赖：T0617
+
 ### T0916 [TODO] effect runtime：多层 handler stack 嵌套 dispatch（修正 T0913 的单层目标，Appendix A）
 - 描述：在已有 handler stack 原语之上补齐多层嵌套 handler：按“最近匹配 handler”分发，并保证 arm body 在自身 handler 的 dispatch scope 外执行。
 - 目标：保持与 T0913 兼容，不修改既有任务；本任务专门补齐“多层嵌套”能力。
 - 验收：新增 run-pass fixture：三层嵌套 handler 下最近匹配规则成立；arm 内 re-perform 命中外层 handler。
 - 依赖：T0913
+
+### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
+- 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循”最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
+- 目标：先只覆盖 `Raise` 与最小自定义 effect；实际 runtime 支持由 T0916 补齐。
+- 验收：effects + run-pass fixture：嵌套 handler 的最近匹配规则成立；arm 内 re-perform 不会自捕获。
+- 依赖：T0615、T0916
 
 ### T0917 [TODO] runtime：`Task<T>` / executor 最小原语（spec §5.7）
 - 描述：提供支撑 `Task<T>` / `async` / `spawn` 的最小 runtime 原语：任务状态、入队/恢复、完成回调、可选显式 start。
