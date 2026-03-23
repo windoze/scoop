@@ -1735,12 +1735,6 @@
      - `tests/fixtures/typecheck/continuation_resume_required_effect_missing_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0612 [TODO] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
-- 描述：为 effect 调用与 handle 表达式添加 IR 节点，确保能从 AST lowering 到 HIR/MIR 并 dump。
-- 目标：先只覆盖 non-resuming arm；不实现 unwinding/state machine。
-- 验收：`scoop dump-hir`/`dump-ir` 能输出含 perform/handle 的 IR；新增 fixtures/hir 或 snapshot golden 覆盖。
-- 依赖：T0605、T0702
-
 ### T0613 [TODO] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
 - 描述：固定 runtime C ABI（函数/全局符号名），codegen 能生成对其的读写调用。
 - 目标：先只支持单个 slot 类型（例如指针/整型）；复杂 payload 后续。
@@ -1876,6 +1870,12 @@
 - 目标：暂不实现 if/when lowering；先把数据结构立起来。
 - 验收：新增单测：手工构造 MIR 并验证 CFG 连通；或对最小 HIR lowering 生成 1 个 BB + return。
 - 依赖：T0702
+
+### T0612 [TODO] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
+- 描述：为 effect 调用与 handle 表达式添加 IR 节点，确保能从 AST lowering 到 HIR/MIR 并 dump。
+- 目标：先只覆盖 non-resuming arm；不实现 unwinding/state machine。
+- 验收：`scoop dump-hir`/`dump-ir` 能输出含 perform/handle 的 IR；新增 fixtures/hir 或 snapshot golden 覆盖。
+- 依赖：T0605、T0702、T0703
 
 ### T0704 [TODO] 单态化缓存键：`Symbol + type args + effect row args`（spec §3.1、PLAN §7.2）
 - 描述：定义 MonomorphKey，并实现 Hash/Eq 与 debug 输出。

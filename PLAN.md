@@ -419,6 +419,7 @@
 
 ### 7.1 HIR/MIR 设计
 
+- 注：`perform` / `handle` 的 IR 节点（TODO T0612）依赖 HIR/MIR 骨架与 AST→HIR lowering（TODO T0701～T0703），因此在 TODO 中需要排在 T0703 之后，避免出现“首个 TODO 依赖未满足”的顺序问题。
 - [ ] HIR：保留大部分结构但已解析/已类型化
 - [ ] MIR：显式控制流（基本块）、显式临时变量、显式 drop/cleanup（用于 `finally`/effect unwinding）
 
