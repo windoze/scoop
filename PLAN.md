@@ -22,6 +22,7 @@
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
+- 2026-03-23：T0628（RowExpr 高级语义）跨度较大，已拆分为 T0628a/T0628b，先以 `E + ...` 的实例化/推断为最小可回归落点。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

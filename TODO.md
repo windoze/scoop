@@ -1777,11 +1777,25 @@
      - `tests/fixtures/typecheck/entry_point_main_open_pure_needs_closed_row_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0628 [TODO] RowExpr 高级语义：高级归一化、泛型 row 变量与高阶 row 运算
+### T0628 RowExpr 高级语义（拆分为子任务）
 - 描述：补齐 row 语义层而不只靠推断兜底：定义 row 表达式的规范化、等价判定、泛型 row 变量的合法出现位置，以及 spec 允许的高阶 row 运算。
 - 目标：给 typecheck / infer / overload resolution 一个统一的 row 代数基础；不再把复杂 row 视为“字符串相等”或简单集合并。
-- 验收：effects fixtures：等价 row 表达式经过规范化后可互相赋值；非法的 row 变量逃逸或不良组合会在 typecheck 阶段报错。
+- 备注：该任务涉及 typecheck/overload/推断多个路径，跨度较大。为保证每步“可单独实现 & 单独验证”，拆分为以下子任务。
+
+### T0628a [TODO] RowExpr：支持 `E + ...` 的实例化/推断（函数类型 `/ Row` + use-site `Type<eff Row>`）
+- 描述：把当前只识别 `(...)->T / E` 与 `Type<eff E>` 的最小实现扩展到 `E + R` 形式：调用点可从 lambda effects / `Type<eff ...>` 实参中推断 `E`，并把 `E` 的实例化结果回填到期望类型与返回类型中（避免默认值导致的误判）。
+- 目标：仍只支持单一 `eff` 变量；只处理 `+` 并集（集合语义）；先覆盖“形参类型的顶层 function type / 顶层 nominal type”两类位置。
+- 验收：新增 infer/effects fixtures：
+  - `(...)->T / (E + R)`：lambda 产生的 effects 若超出 `R`，会被推断进 `E`，且调用通过；
+  - `Type<eff (E + R)>`：从实参类型提取 row 约束时，会扣除 `R` 后再推断进 `E`，且调用通过；
+  - `E + R` 与 `R + E` 书写顺序不同不影响推断与可赋值检查（归一化）。
 - 依赖：T0608、T0609、T0515
+
+### T0628b [TODO] RowExpr：`E + ...` 在嵌套类型中的替换与逃逸诊断
+- 描述：把 `E + R` 的实例化/替换从“顶层参数类型”扩展到更一般的嵌套位置（tuple/union/Option/多层 function type），并补齐“row 变量逃逸/不良组合”的稳定诊断（例如 closed row 与泛型 row 的交互）。
+- 目标：实现一个可复用的“在 TypeId 里替换 row”遍历器；避免在多个 call-site 路径里复制逻辑。
+- 验收：新增 typecheck fixtures 覆盖“嵌套类型中的 `E + R` 仍可正确实例化/检查”；新增至少 1 个 fail fixture 覆盖稳定错误码。
+- 依赖：T0628a
 
 ### T0629 [TODO] Program boundary：多 entry point / library boundary 规则
 - 描述：把 program boundary 从“仅检查 `main` 必须 `Pure`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure`。
