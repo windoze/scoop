@@ -14,14 +14,16 @@ use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::span::Span;
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
 
 use super::{
-    Block, CallArg, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm, HandleBinder, HandleExpr,
-    HandleOp, Item, LiteralKind, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
+    Block, CallArg, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm, HandleBinder,
+    HandleExpr, HandleOp, Item, LiteralKind, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
+    WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -170,11 +172,10 @@ impl<'a> HirLowering<'a> {
             .map(|p| {
                 let name = p.name.text(self.source).to_string();
                 let id = self.symbols.intern_local(p.name.span);
-                let ty = p
-                    .ty
-                    .as_ref()
-                    .map(|t| self.lower_type_ref(t))
-                    .unwrap_or(self.builtins.any);
+                let ty =
+                    p.ty.as_ref()
+                        .map(|t| self.lower_type_ref(t))
+                        .unwrap_or(self.builtins.any);
                 Param {
                     span: p.name.span,
                     id,
@@ -283,8 +284,22 @@ impl<'a> HirLowering<'a> {
         let (kind, ty) = match &s.kind {
             ast::StmtKind::Empty => (StmtKind::Empty, self.builtins.unit),
             ast::StmtKind::Expr(e) => {
-                let e = self.lower_expr(pkg_prefix, e);
-                (StmtKind::Expr(e), self.builtins.unit)
+                // 赋值在 AST 中以表达式节点承载，但在 HIR 中视为语句（便于后续 MIR lowering）。
+                if let ast::ExprKind::Assign { lhs, eq_span, rhs } = &e.kind {
+                    let lhs = self.lower_expr(pkg_prefix, lhs);
+                    let rhs = self.lower_expr(pkg_prefix, rhs);
+                    (
+                        StmtKind::Assign {
+                            lhs,
+                            eq_span: *eq_span,
+                            rhs,
+                        },
+                        self.builtins.unit,
+                    )
+                } else {
+                    let e = self.lower_expr(pkg_prefix, e);
+                    (StmtKind::Expr(e), self.builtins.unit)
+                }
             }
             ast::StmtKind::Val(v) => {
                 let v = self.lower_val_decl(pkg_prefix, v, ValScope::Local);
@@ -295,7 +310,13 @@ impl<'a> HirLowering<'a> {
                 (StmtKind::Return { value }, self.builtins.nothing)
             }
             ast::StmtKind::Missing => (StmtKind::Todo("missing_stmt"), self.builtins.unit),
-            ast::StmtKind::While { .. } => (StmtKind::Todo("while"), self.builtins.unit),
+            ast::StmtKind::While { cond, body, .. } => (
+                StmtKind::While {
+                    cond: self.lower_expr(pkg_prefix, cond),
+                    body: self.lower_block(pkg_prefix, body),
+                },
+                self.builtins.unit,
+            ),
             ast::StmtKind::Break { .. } => (StmtKind::Todo("break"), self.builtins.unit),
             ast::StmtKind::Continue { .. } => (StmtKind::Todo("continue"), self.builtins.unit),
             ast::StmtKind::ComptimeBlock { .. } => {
@@ -316,7 +337,9 @@ impl<'a> HirLowering<'a> {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
-            ast::ExprKind::StringLit => (ExprKind::Literal(LiteralKind::String), self.builtins.string),
+            ast::ExprKind::StringLit => {
+                (ExprKind::Literal(LiteralKind::String), self.builtins.string)
+            }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
             ast::ExprKind::InterpolatedString { .. } => {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
@@ -328,13 +351,16 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::Call { callee, args } => {
-                if let Some((kind, ty)) = self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
+                if let Some((kind, ty)) =
+                    self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
                 {
                     (kind, ty)
                 } else {
                     let callee = Box::new(self.lower_expr(pkg_prefix, callee));
-                    let args =
-                        args.iter().map(|arg| self.lower_call_arg(pkg_prefix, arg)).collect();
+                    let args = args
+                        .iter()
+                        .map(|arg| self.lower_call_arg(pkg_prefix, arg))
+                        .collect();
                     (ExprKind::Call { callee, args }, self.builtins.any)
                 }
             }
@@ -342,14 +368,47 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::TupleLit { .. } => (ExprKind::Todo("tuple_lit"), self.builtins.any),
             ast::ExprKind::Lambda(_) => (ExprKind::Todo("lambda"), self.builtins.any),
             ast::ExprKind::StructLit { .. } => (ExprKind::Todo("struct_lit"), self.builtins.any),
-            ast::ExprKind::If { .. } => (ExprKind::Todo("if"), self.builtins.any),
-            ast::ExprKind::When { .. } => (ExprKind::Todo("when"), self.builtins.any),
-            ast::ExprKind::Handle { body, arms, finally } => {
+            ast::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                let cond = Box::new(self.lower_expr(pkg_prefix, cond));
+                let then_branch = Box::new(self.lower_expr(pkg_prefix, then_branch));
+                let else_branch = else_branch
+                    .as_ref()
+                    .map(|e| Box::new(self.lower_expr(pkg_prefix, e)));
+                (
+                    ExprKind::If {
+                        cond,
+                        then_branch,
+                        else_branch,
+                    },
+                    self.builtins.any,
+                )
+            }
+            ast::ExprKind::When { subject, arms } => {
+                let subject = Box::new(self.lower_expr(pkg_prefix, subject));
+                let arms = arms
+                    .iter()
+                    .map(|a| self.lower_when_arm(pkg_prefix, a))
+                    .collect();
+                (ExprKind::When { subject, arms }, self.builtins.any)
+            }
+            ast::ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            } => {
                 let handle = self.lower_handle_expr(pkg_prefix, body, arms, finally.as_ref());
                 (ExprKind::Handle(handle), self.builtins.any)
             }
-            ast::ExprKind::MemberAccess { .. } => (ExprKind::Todo("member_access"), self.builtins.any),
-            ast::ExprKind::SpliceField { .. } => (ExprKind::Todo("splice_field"), self.builtins.any),
+            ast::ExprKind::MemberAccess { .. } => {
+                (ExprKind::Todo("member_access"), self.builtins.any)
+            }
+            ast::ExprKind::SpliceField { .. } => {
+                (ExprKind::Todo("splice_field"), self.builtins.any)
+            }
             ast::ExprKind::SafeMemberAccess { .. } => {
                 (ExprKind::Todo("safe_member_access"), self.builtins.any)
             }
@@ -368,6 +427,49 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    fn lower_when_arm(&mut self, pkg_prefix: &str, arm: &ast::WhenArm) -> WhenArm {
+        WhenArm {
+            span: arm.span,
+            pat: self.lower_when_pat(&arm.pat),
+            guard: arm.guard.as_ref().map(|e| self.lower_expr(pkg_prefix, e)),
+            arrow_span: arm.arrow_span,
+            body: self.lower_expr(pkg_prefix, &arm.body),
+        }
+    }
+
+    fn lower_when_pat(&mut self, pat: &ast::WhenPat) -> WhenPat {
+        match pat {
+            ast::WhenPat::Else { span } => WhenPat::Else { span: *span },
+            ast::WhenPat::Wildcard { span } => WhenPat::Wildcard { span: *span },
+            ast::WhenPat::Rest { span } => WhenPat::Rest { span: *span },
+            ast::WhenPat::Is { is_span, ty } => WhenPat::Is {
+                span: Span::new(is_span.start, ty.span().end),
+                ty: self.lower_type_ref(ty),
+            },
+            ast::WhenPat::Bind { ident } => WhenPat::Bind {
+                span: ident.span,
+                id: self.symbols.intern_local(ident.span),
+                name: ident.text(self.source).to_string(),
+            },
+            ast::WhenPat::Tuple { span, elements } => WhenPat::Tuple {
+                span: *span,
+                elements: elements.iter().map(|e| self.lower_when_pat(e)).collect(),
+            },
+            ast::WhenPat::Variant { span, name, args } => WhenPat::Variant {
+                span: *span,
+                name_span: name.span,
+                name: name.text(self.source).to_string(),
+                args: args.iter().map(|a| self.lower_when_pat(a)).collect(),
+            },
+            ast::WhenPat::IntLit { span } => WhenPat::IntLit { span: *span },
+            ast::WhenPat::StringLit { span } => WhenPat::StringLit { span: *span },
+            ast::WhenPat::BoolLit { span } => {
+                let value = self.source.slice(*span) == "true";
+                WhenPat::BoolLit { span: *span, value }
+            }
         }
     }
 
@@ -423,7 +525,11 @@ impl<'a> HirLowering<'a> {
             .map(|arm| self.lower_handle_arm(pkg_prefix, arm))
             .collect();
         let finally = finally.map(|b| self.lower_block(pkg_prefix, b));
-        HandleExpr { body, arms, finally }
+        HandleExpr {
+            body,
+            arms,
+            finally,
+        }
     }
 
     fn lower_handle_arm(&mut self, pkg_prefix: &str, arm: &ast::HandleArm) -> HandleArm {
@@ -466,11 +572,10 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_handle_binder(&mut self, b: &ast::HandleBinder) -> HandleBinder {
-        let ty = b
-            .ty
-            .as_ref()
-            .map(|t| self.lower_type_ref(t))
-            .unwrap_or(self.builtins.any);
+        let ty =
+            b.ty.as_ref()
+                .map(|t| self.lower_type_ref(t))
+                .unwrap_or(self.builtins.any);
         HandleBinder {
             span: b.span,
             id: self.symbols.intern_local(b.name.span),
@@ -493,10 +598,16 @@ impl<'a> HirLowering<'a> {
     fn lower_ident_expr(&mut self, id: &ast::ValueIdent) -> (ExprKind, TypeId) {
         let text = self.source.slice(id.span);
         if text == "true" {
-            return (ExprKind::Literal(LiteralKind::Bool(true)), self.builtins.bool_);
+            return (
+                ExprKind::Literal(LiteralKind::Bool(true)),
+                self.builtins.bool_,
+            );
         }
         if text == "false" {
-            return (ExprKind::Literal(LiteralKind::Bool(false)), self.builtins.bool_);
+            return (
+                ExprKind::Literal(LiteralKind::Bool(false)),
+                self.builtins.bool_,
+            );
         }
 
         let Some(resolved) = id.resolved.as_ref() else {
@@ -552,9 +663,11 @@ impl<'a> HirLowering<'a> {
             }
         }
 
-        let fqn = self
-            .index
-            .type_ref_to_fqn_in_file(self.source, self.file, &ast::TypeRef::Path(p.clone()));
+        let fqn = self.index.type_ref_to_fqn_in_file(
+            self.source,
+            self.file,
+            &ast::TypeRef::Path(p.clone()),
+        );
 
         let Some(fqn) = fqn else {
             return self.builtins.any;
@@ -592,14 +705,23 @@ impl<'a> HirLowering<'a> {
         }
 
         // `Int32`/`UInt64` 这类固定位宽整数：若出现在 sysroot/type env 中，直接 lowering 为内建整数族。
-        if let Some(bits) = fqn.strip_prefix("scoop.core.Int").and_then(|s| s.parse::<u16>().ok()) {
+        if let Some(bits) = fqn
+            .strip_prefix("scoop.core.Int")
+            .and_then(|s| s.parse::<u16>().ok())
+        {
             return self.types.ty_int_n(bits);
         }
-        if let Some(bits) = fqn.strip_prefix("scoop.core.UInt").and_then(|s| s.parse::<u16>().ok()) {
+        if let Some(bits) = fqn
+            .strip_prefix("scoop.core.UInt")
+            .and_then(|s| s.parse::<u16>().ok())
+        {
             return self.types.ty_uint_n(bits);
         }
 
-        let args = type_args.iter().map(|a| self.lower_type_ref(a)).collect::<Vec<_>>();
+        let args = type_args
+            .iter()
+            .map(|a| self.lower_type_ref(a))
+            .collect::<Vec<_>>();
         let eff = eff_arg.map(|e| self.lower_effect_row_expr(Some(e)));
         self.intern_nominal(fqn, args, eff)
     }
@@ -791,6 +913,24 @@ mod tests {
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/handle_perform.hir");
+        let expected = std::fs::read_to_string(&golden_path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hir_fixture_control_flow_golden() {
+        let sess = Session::new().unwrap();
+
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/control_flow.scoop");
+        let file = SourceFile::load(&fixture_path).unwrap();
+
+        let lowered = lower_for_dump(&sess, &file).unwrap();
+        let actual = format!("{:#?}\n", lowered.file);
+
+        let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/control_flow.hir");
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);

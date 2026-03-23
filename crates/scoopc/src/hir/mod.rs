@@ -113,7 +113,23 @@ pub enum StmtKind {
     Empty,
     Expr(Expr),
     Val(ValDecl),
-    Return { value: Option<Expr> },
+    /// 赋值语句：`lhs = rhs`。
+    ///
+    /// 说明：虽然 parser 在 AST 中以 `ExprKind::Assign` 承载该语法，但在 HIR 中我们把它视为语句，
+    /// 便于后续 MIR lowering 生成显式的 store/写回语义。
+    Assign {
+        lhs: Expr,
+        eq_span: Span,
+        rhs: Expr,
+    },
+    /// `while (cond) { ... }`。
+    While {
+        cond: Expr,
+        body: Block,
+    },
+    Return {
+        value: Option<Expr>,
+    },
     Todo(&'static str),
 }
 
@@ -131,6 +147,17 @@ pub enum ExprKind {
     Literal(LiteralKind),
     VarRef(ValueRef),
     Block(Block),
+    /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
+    If {
+        cond: Box<Expr>,
+        then_branch: Box<Expr>,
+        else_branch: Option<Box<Expr>>,
+    },
+    /// `when (subject) { pat -> expr; ... }`（表达式形式）。
+    When {
+        subject: Box<Expr>,
+        arms: Vec<WhenArm>,
+    },
     Call {
         callee: Box<Expr>,
         args: Vec<CallArg>,
@@ -190,6 +217,65 @@ pub enum CallArg {
         name: String,
         name_span: Span,
         value: Expr,
+    },
+}
+
+/// `when` 的一个分支（arm）：`pat (if guard)? -> body`。
+#[derive(Debug, Clone)]
+pub struct WhenArm {
+    pub span: Span,
+    pub pat: WhenPat,
+    pub guard: Option<Expr>,
+    pub arrow_span: Span,
+    pub body: Expr,
+}
+
+/// `when` 分支的模式（早期最小子集；后续会与通用 Pattern 统一）。
+#[derive(Debug, Clone)]
+pub enum WhenPat {
+    Else {
+        span: Span,
+    },
+    /// `_`：通配符模式（匹配任意值）。
+    Wildcard {
+        span: Span,
+    },
+    /// rest：`..`（忽略剩余字段/元素；仅允许出现在 tuple/variant pattern 内）。
+    Rest {
+        span: Span,
+    },
+    /// `is Type`。
+    Is {
+        span: Span,
+        ty: TypeId,
+    },
+    /// 绑定变量模式：`x`（把匹配到的值绑定到变量 `x`）。
+    Bind {
+        span: Span,
+        id: SymbolId,
+        name: String,
+    },
+    /// tuple 模式：`(p1, p2, ...)`。
+    Tuple {
+        span: Span,
+        elements: Vec<WhenPat>,
+    },
+    /// enum variant 模式：`Some(x)` / `None`（0 参数 variant）。
+    Variant {
+        span: Span,
+        name_span: Span,
+        name: String,
+        args: Vec<WhenPat>,
+    },
+    IntLit {
+        span: Span,
+    },
+    StringLit {
+        span: Span,
+    },
+    BoolLit {
+        span: Span,
+        value: bool,
     },
 }
 

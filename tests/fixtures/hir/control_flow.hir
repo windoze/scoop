@@ -1,0 +1,317 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..168,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 22..168,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 26..40,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 26..40,
+                                        id: Some(
+                                            S0,
+                                        ),
+                                        name: Some(
+                                            "x",
+                                        ),
+                                        mutable: true,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 39..40,
+                                                ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: Literal(
+                                                    Int,
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 43..48,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Assign {
+                                    lhs: Expr {
+                                        span: 43..44,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S0,
+                                                name: "x",
+                                                decl_span: 30..31,
+                                            },
+                                        ),
+                                    },
+                                    eq_span: 45..46,
+                                    rhs: Expr {
+                                        span: 47..48,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        kind: Literal(
+                                            Int,
+                                        ),
+                                    },
+                                },
+                            },
+                            Stmt {
+                                span: 52..78,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 52..78,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: If {
+                                            cond: Expr {
+                                                span: 56..60,
+                                                ty: TypeId(
+                                                    4,
+                                                ),
+                                                kind: Literal(
+                                                    Bool(
+                                                        true,
+                                                    ),
+                                                ),
+                                            },
+                                            then_branch: Expr {
+                                                span: 62..67,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Block(
+                                                    Block {
+                                                        span: 62..67,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 64..65,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 64..65,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: VarRef(
+                                                                            Local {
+                                                                                id: S0,
+                                                                                name: "x",
+                                                                                decl_span: 30..31,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                            else_branch: Some(
+                                                Expr {
+                                                    span: 73..78,
+                                                    ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: Block(
+                                                        Block {
+                                                            span: 73..78,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 75..76,
+                                                                    ty: TypeId(
+                                                                        2,
+                                                                    ),
+                                                                    kind: Expr(
+                                                                        Expr {
+                                                                            span: 75..76,
+                                                                            ty: TypeId(
+                                                                                5,
+                                                                            ),
+                                                                            kind: Literal(
+                                                                                Int,
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ],
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 82..131,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 82..131,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: When {
+                                            subject: Expr {
+                                                span: 88..89,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S0,
+                                                        name: "x",
+                                                        decl_span: 30..31,
+                                                    },
+                                                ),
+                                            },
+                                            arms: [
+                                                WhenArm {
+                                                    span: 97..112,
+                                                    pat: IntLit {
+                                                        span: 97..98,
+                                                    },
+                                                    guard: Some(
+                                                        Expr {
+                                                            span: 102..106,
+                                                            ty: TypeId(
+                                                                4,
+                                                            ),
+                                                            kind: Literal(
+                                                                Bool(
+                                                                    true,
+                                                                ),
+                                                            ),
+                                                        },
+                                                    ),
+                                                    arrow_span: 107..109,
+                                                    body: Expr {
+                                                        span: 110..112,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                },
+                                                WhenArm {
+                                                    span: 117..127,
+                                                    pat: Else {
+                                                        span: 117..121,
+                                                    },
+                                                    guard: None,
+                                                    arrow_span: 122..124,
+                                                    body: Expr {
+                                                        span: 125..127,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 135..166,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: While {
+                                    cond: Expr {
+                                        span: 142..146,
+                                        ty: TypeId(
+                                            4,
+                                        ),
+                                        kind: Literal(
+                                            Bool(
+                                                true,
+                                            ),
+                                        ),
+                                    },
+                                    body: Block {
+                                        span: 148..166,
+                                        ty: TypeId(
+                                            2,
+                                        ),
+                                        stmts: [
+                                            Stmt {
+                                                span: 154..162,
+                                                ty: TypeId(
+                                                    3,
+                                                ),
+                                                kind: Return {
+                                                    value: Some(
+                                                        Expr {
+                                                            span: 161..162,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    id: S0,
+                                                                    name: "x",
+                                                                    decl_span: 30..31,
+                                                                },
+                                                            ),
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

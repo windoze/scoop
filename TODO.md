@@ -1910,11 +1910,16 @@
    - tests：新增单测覆盖 key 去重与 type args 区分。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0705 [TODO] HIR：补齐控制流与语句节点（if/when/while/assign/return）
+### T0705 [DONE] HIR：补齐控制流与语句节点（if/when/while/assign/return）
 - 描述：把 parser/typecheck 已支持的控制流语法在 HIR 中建模出来（含 type 与 span）。
 - 目标：先只覆盖：if/when/while/return/assign；for 后续。
 - 验收：`scoop dump-hir` 对包含上述语法的文件能输出；无 `todo!()`/panic。
 - 依赖：T0701、T0214、T0215、T0228、T0227、T0226
+ - 完成：
+   - scoopc/hir：新增 `ExprKind::If`/`ExprKind::When`、`StmtKind::While`/`StmtKind::Assign`，并引入 `WhenArm`/`WhenPat`。
+   - hir lowering：`dump-hir` 的最小 lowering 现可生成上述节点（type 使用内建类型占位），并把 AST 的赋值“表达式语句”映射为 HIR `StmtKind::Assign`。
+   - fixtures：新增 `tests/fixtures/hir/control_flow.scoop` + `.hir` golden，并在 `hir::lower` 单测中回归。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/control_flow.scoop` 通过。
 
 ### T0706 [TODO] AST → HIR lowering：把 Stmt/Expr 降到 HIR（含符号绑定结果）
 - 描述：实现 block 内语句/表达式 lowering（含局部绑定、赋值、return、调用、成员访问）。

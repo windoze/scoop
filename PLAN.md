@@ -441,6 +441,7 @@
 - [ ] HIR：保留大部分结构但已解析/已类型化
   - [x] HIR 骨架 + `dump-hir`（TODO T0701）
   - [x] AST→HIR lowering（声明头 + 简单函数体）：`TypeRef`→`TypeId` + ident→`SymbolId`（TODO T0702）
+  - [x] HIR：控制流与语句节点建模（if/when/while/assign/return）（TODO T0705）
 - [ ] MIR：显式控制流（基本块）、显式临时变量、显式 drop/cleanup（用于 `finally`/effect unwinding）
   - [x] MIR 骨架：基本块/terminator/locals + CFG 校验（TODO T0703）
 
