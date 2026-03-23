@@ -84,6 +84,7 @@ File {
                                                                 id: S0,
                                                                 name: "y",
                                                                 decl_span: 30..31,
+                                                                mutable: false,
                                                             },
                                                         ],
                                                         params: [

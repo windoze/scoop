@@ -299,6 +299,25 @@ pub enum Rvalue {
         tuple: Operand,
         index: usize,
     },
+    /// 创建一个“可变捕获盒”（T0714）。
+    ///
+    /// 语义：把一个值装入 heap cell，并返回该 cell 的引用；同一个 cell 可被多个 closure 共享捕获，
+    /// 从而保证 `var` 在内外层的读写具备别名一致性。
+    CaptureBoxNew {
+        value: Operand,
+    },
+    /// 从“可变捕获盒”读取当前值（T0714）。
+    CaptureBoxGet {
+        box_operand: Operand,
+    },
+    /// 向“可变捕获盒”写入新值（T0714）。
+    ///
+    /// 注意：该 rvalue 本身的“结果值”在当前阶段并不重要（通常写入一个 `Unit` 临时 local），
+    /// 主要用于在 MIR dump/fixtures 中显式体现写回语义。
+    CaptureBoxSet {
+        box_operand: Operand,
+        value: Operand,
+    },
     /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（T0710/T0711）。
     ///
     /// 当前阶段：

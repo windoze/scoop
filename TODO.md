@@ -2016,11 +2016,20 @@
    - fixtures：新增 `tests/fixtures/mir/handle_perform.scoop` + `.mir` golden 回归用例。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop` 通过。
 
-### T0714 [TODO] 捕获闭包：`var` 可变捕获的 boxing / aliasing / 写回
+### T0714 [DONE] 捕获闭包：`var` 可变捕获的 boxing / aliasing / 写回
 - 描述：在已有 capture set / env struct 基础上，支持捕获可变局部：为 `var` 引入 box 或等价可变单元，并固定读写别名与生命周期语义。
 - 目标：先保证语义正确与 GC 可追踪；不急于优化为栈提升或逃逸分析。
 - 验收：新增 IR/run-pass fixtures：lambda 内外都修改同一个 `var` 时结果一致；多个闭包共享同一捕获盒时行为稳定。
 - 依赖：T0711、T0443
+ - 完成：
+   - scoopc/hir：`Capture` 增加 `mutable: bool`；HIR lowering 记录局部 `val/var` 的 mutability，并在 closure capture set 中把被捕获的 `var` 标记为 `mutable: true`。
+   - scoopc/mir：
+     - 引入内部 box 类型 `scoop.__CaptureBox<T>`；
+     - Rvalue 新增 `CaptureBoxNew/Get/Set`；
+     - 函数 lowering 预扫描任意深度的嵌套 closure captures：若某个 `var` 被捕获，则其存储方式升级为 box（声明处 `CaptureBoxNew`），并确保读写统一经由 `CaptureBoxGet/Set`；
+     - closure env 捕获 box（而非值拷贝），从而多个 closure 共享同一捕获盒。
+   - fixtures：新增 `tests/fixtures/{hir,mir}/closure_capture_var.*`；更新 `tests/fixtures/hir/closure_capture_val.hir` 以包含 `mutable` 字段。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/closure_capture_var.scoop` 通过。
 
 ---
 

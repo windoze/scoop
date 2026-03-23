@@ -93,6 +93,11 @@ struct HirLowering<'a> {
     /// `type fqn -> ast::TypeKind` 的最小索引，用于决定 nominal type 是 ref 还是 value。
     type_kinds: &'a HashMap<String, ast::TypeKind>,
     symbols: SymbolInterner,
+    /// 本文件内的“局部 symbol → 是否可变（var）”信息。
+    ///
+    /// 用途：closure capture set 需要知道捕获目标是否为 `var`，以便在后续 MIR lowering（T0714）
+    /// 侧把可变捕获降为 box/alias 语义。
+    local_mutability: HashMap<SymbolId, bool>,
     next_closure: u32,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
     types: &'a mut TypeStore,
@@ -116,11 +121,28 @@ impl<'a> HirLowering<'a> {
             index,
             type_kinds,
             symbols: SymbolInterner::default(),
+            local_mutability: HashMap::new(),
             next_closure: 0,
             types,
             builtins,
             type_param_scopes: Vec::new(),
         }
+    }
+
+    fn intern_local_symbol(&mut self, decl_span: Span, mutable: bool) -> SymbolId {
+        let id = self.symbols.intern_local(decl_span);
+        match self.local_mutability.get(&id).copied() {
+            // 同一 decl_span 不应出现冲突的 mutability，但为了降低与 resolver 交互时的脆弱性：
+            // - 若任一方认为它是 `var`，则提升为 `var`；
+            // - 否则保持 `val`。
+            Some(prev) => {
+                let _ = self.local_mutability.insert(id, prev || mutable);
+            }
+            None => {
+                self.local_mutability.insert(id, mutable);
+            }
+        }
+        id
     }
 
     fn lower_file(&mut self) -> File {
@@ -173,7 +195,7 @@ impl<'a> HirLowering<'a> {
             .iter()
             .map(|p| {
                 let name = p.name.text(self.source).to_string();
-                let id = self.symbols.intern_local(p.name.span);
+                let id = self.intern_local_symbol(p.name.span, false);
                 let ty =
                     p.ty.as_ref()
                         .map(|t| self.lower_type_ref(t))
@@ -240,7 +262,7 @@ impl<'a> HirLowering<'a> {
             .iter()
             .map(|p| {
                 let name = p.name.text(self.source).to_string();
-                let id = self.symbols.intern_local(p.name.span);
+                let id = self.intern_local_symbol(p.name.span, false);
                 let ty =
                     p.ty.as_ref()
                         .map(|t| self.lower_type_ref(t))
@@ -308,7 +330,9 @@ impl<'a> HirLowering<'a> {
                         };
                         self.symbols.intern_top_level(fqn)
                     }
-                    ValScope::Local => self.symbols.intern_local(id.span),
+                    ValScope::Local => {
+                        self.intern_local_symbol(id.span, v.kind == ast::ValKind::Var)
+                    }
                 };
                 (Some(sym), Some(name))
             }
@@ -532,7 +556,7 @@ impl<'a> HirLowering<'a> {
                         .unwrap_or(self.builtins.any);
                 Param {
                     span: p.name.span,
-                    id: self.symbols.intern_local(p.name.span),
+                    id: self.intern_local_symbol(p.name.span, false),
                     name,
                     ty,
                 }
@@ -540,7 +564,7 @@ impl<'a> HirLowering<'a> {
             .collect();
 
         let body = Box::new(self.lower_expr(pkg_prefix, lam.body.as_ref()));
-        let captures = compute_closure_captures(&params, body.as_ref());
+        let captures = compute_closure_captures(&params, body.as_ref(), &self.local_mutability);
         (
             ExprKind::Closure(ClosureExpr {
                 span,
@@ -620,7 +644,7 @@ impl<'a> HirLowering<'a> {
             },
             ast::WhenPat::Bind { ident } => WhenPat::Bind {
                 span: ident.span,
-                id: self.symbols.intern_local(ident.span),
+                id: self.intern_local_symbol(ident.span, false),
                 name: ident.text(self.source).to_string(),
             },
             ast::WhenPat::Tuple { span, elements } => WhenPat::Tuple {
@@ -747,7 +771,7 @@ impl<'a> HirLowering<'a> {
                 .unwrap_or(self.builtins.any);
         HandleBinder {
             span: b.span,
-            id: self.symbols.intern_local(b.name.span),
+            id: self.intern_local_symbol(b.name.span, false),
             name: b.name.text(self.source).to_string(),
             ty,
         }
@@ -785,7 +809,7 @@ impl<'a> HirLowering<'a> {
 
         let resolved = match resolved {
             ast::ResolvedValueRef::Local { name, decl_span } => ValueRef::Local {
-                id: self.symbols.intern_local(*decl_span),
+                id: self.intern_local_symbol(*decl_span, false),
                 name: name.clone(),
                 decl_span: *decl_span,
             },
@@ -976,7 +1000,11 @@ impl<'a> HirLowering<'a> {
 /// - 以该 lambda 的 params 与其 body 内引入的局部声明（`val/var`、`when` binder、`handle` binder）为“本地声明”；
 /// - 只把“在 body 中被引用但不属于本地声明”的 local 视为 capture；
 /// - 遇到嵌套 closure 时不深入（由内层 closure 自己计算 captures）。
-fn compute_closure_captures(params: &[Param], body: &Expr) -> Vec<Capture> {
+fn compute_closure_captures(
+    params: &[Param],
+    body: &Expr,
+    local_mutability: &HashMap<SymbolId, bool>,
+) -> Vec<Capture> {
     let mut declared: HashSet<SymbolId> = params.iter().map(|p| p.id).collect();
     collect_declared_locals_in_expr(body, &mut declared);
 
@@ -987,6 +1015,10 @@ fn compute_closure_captures(params: &[Param], body: &Expr) -> Vec<Capture> {
         .into_values()
         .filter(|c| !declared.contains(&c.id))
         .collect();
+
+    for c in &mut captures {
+        c.mutable = local_mutability.get(&c.id).copied().unwrap_or(false);
+    }
 
     // 稳定排序：按声明位置排序（同位置用 SymbolId 兜底）。
     captures.sort_by(|a, b| {
@@ -1130,6 +1162,7 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
                 id: *id,
                 name: name.clone(),
                 decl_span: *decl_span,
+                mutable: false,
             });
         }
         ExprKind::Block(block) => {

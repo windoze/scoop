@@ -227,12 +227,14 @@ pub enum ExprKind {
 /// 说明：
 /// - 这里的“外部”指相对于该 lambda 自身参数与内部局部声明而言；
 /// - 当前阶段仅记录 `SymbolId + name + decl_span`，供后续 env layout / codegen 使用；
-/// - 可变捕获（`var`）的 boxing/aliasing 语义将在后续任务（TODO T0714）落地。
+/// - 可变捕获（`var`）在 lowering 时会被标记为 `mutable: true`，并在 MIR lowering（T0714）
+///   侧通过“捕获 box / 读写经由 box”来实现别名语义。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Capture {
     pub id: SymbolId,
     pub name: String,
     pub decl_span: Span,
+    pub mutable: bool,
 }
 
 /// closure（lambda）的 HIR 表示（TODO T0710）。

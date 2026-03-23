@@ -37,6 +37,7 @@
 - 2026-03-24：完成 T0711：捕获闭包（val 捕获）落地 capture set 计算与 env tuple lowering（`MakeTuple`/`TupleGet`），并新增 HIR/MIR fixtures 回归。
 - 2026-03-24：完成 T0712：单态化 v0（函数泛型）：typecheck 收集 `MonomorphKey`，并提供 `scoop dump-ir` 输出单态化实例 MIR（`id::<Int>`/`id::<String>` 两实例可回归）。
 - 2026-03-24：完成 T0713：MIR lowering 把 HIR `perform/handle` 落到 MIR terminator（`Perform/Handle`），并新增 `tests/fixtures/mir/handle_perform.*` golden 回归。
+- 2026-03-24：完成 T0714：捕获闭包对 `var` 引入 CaptureBox 语义（HIR capture 标记 `mutable`；MIR 新增 `CaptureBoxNew/Get/Set` 并在函数内预扫描 closure captures 决定 boxing），新增 `tests/fixtures/{hir,mir}/closure_capture_var.*` 回归覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

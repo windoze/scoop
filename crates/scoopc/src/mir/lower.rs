@@ -5,7 +5,7 @@
 //! - 实现优先保证“稳定输出 + 不 panic”；
 //! - 未覆盖的表达式/语句会以 `Todo(...)` 占位，避免阻断后续迭代。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -14,7 +14,7 @@ use crate::hir;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, TypeId, TypeStore};
+use crate::ty::{BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::{
     BasicBlock, BasicBlockId, Body, ConstValue, File, FunDecl, HandlerArm, Item, LocalDecl,
@@ -44,6 +44,8 @@ pub struct LoweredMir {
 /// 说明：builder 在 block 完成后应当覆盖该 terminator；若最终仍保留该值，说明 lowering 未覆盖到
 /// 某条控制流路径（对 dump/fixtures 来说仍可接受，但在后续阶段应当更严格约束）。
 const UNTERMINATED: &str = "unterminated";
+/// `var` 可变捕获在 MIR dump 阶段使用的内部 box 类型名（T0714）。
+const CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
 
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
 ///
@@ -126,6 +128,8 @@ struct FnLowering<'a> {
     current_bb: BasicBlockId,
     next_temp: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
+    /// 当前函数内哪些 `SymbolId` 以 box 形式存储（用于 `var` 被 closure 捕获时的别名语义，T0714）。
+    boxed_symbols: HashSet<hir::SymbolId>,
     loop_stack: Vec<LoopContext>,
     nested_funs: Vec<FunDecl>,
 }
@@ -144,6 +148,7 @@ struct ClosureCaptureLayout {
     name: String,
     decl_span: Span,
     ty: TypeId,
+    mutable: bool,
     /// 在“创建该 closure 的函数”中，对应被捕获值的 local。
     source_local: LocalId,
 }
@@ -159,6 +164,7 @@ impl<'a> FnLowering<'a> {
             current_bb: BasicBlockId(0),
             next_temp: 0,
             symbol_locals: HashMap::new(),
+            boxed_symbols: HashSet::new(),
             loop_stack: Vec::new(),
             nested_funs: Vec::new(),
         }
@@ -186,6 +192,8 @@ impl<'a> FnLowering<'a> {
 
         // 3) lower 函数体。
         let mir_body = if let Some(block) = fun.body.as_ref() {
+            // 先扫描函数体：若某个 `var` 被任意深度的嵌套 closure 捕获，则该 `var` 在本函数内需要 box 存储。
+            self.boxed_symbols = boxed_symbols_in_block(block);
             self.lower_block_as_stmt(block);
             self.finish_function(fun.span);
             Some(std::mem::replace(&mut self.body, Body::new_empty()))
@@ -434,6 +442,27 @@ impl<'a> FnLowering<'a> {
         };
 
         let name = decl.name.as_deref().unwrap_or("<anon>");
+        // `var` 若被 closure 捕获，需要在本函数内以 box 形式存储，保证后续读写别名一致（T0714）。
+        if decl.mutable && self.boxed_symbols.contains(&id) {
+            let box_ty = self.capture_box_ty(decl.ty);
+            let local = self.push_named_local(decl.span, name, box_ty);
+            self.symbol_locals.insert(id, local);
+
+            if let Some(init) = &decl.init {
+                let value = self.lower_expr_to_local(init);
+                self.assign(
+                    decl.span,
+                    local,
+                    Rvalue::CaptureBoxNew {
+                        value: Operand::Local(value),
+                    },
+                );
+            } else {
+                self.assign(decl.span, local, Rvalue::Todo("boxed var decl init pending"));
+            }
+            return;
+        }
+
         let local = self.push_named_local(decl.span, name, decl.ty);
         self.symbol_locals.insert(id, local);
 
@@ -455,7 +484,19 @@ impl<'a> FnLowering<'a> {
         };
 
         let value = self.lower_expr_to_local(rhs);
-        self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+        if self.boxed_symbols.contains(id) {
+            let tmp = self.push_temp_local(span, self.builtins.unit);
+            self.assign(
+                span,
+                tmp,
+                Rvalue::CaptureBoxSet {
+                    box_operand: Operand::Local(target),
+                    value: Operand::Local(value),
+                },
+            );
+        } else {
+            self.assign(span, target, Rvalue::Use(Operand::Local(value)));
+        }
     }
 
     /// 把一个 HIR 表达式降为“产生值的 local”，并返回该 local。
@@ -514,6 +555,14 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
+    }
+
+    fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {
+        self.types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: CAPTURE_BOX_FQN.to_string(),
+            args: vec![inner],
+            eff: None,
+        })))
     }
 
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
@@ -656,14 +705,31 @@ impl<'a> FnLowering<'a> {
         tmp
     }
 
-    /// 降低变量引用：local 引用直接返回对应的 local；其它引用降为 `Todo`。
+    /// 降低变量引用：
+    /// - 普通 local：直接返回其 local；
+    /// - 被 capture 的 `var`（box 存储）：生成 `CaptureBoxGet` 并返回读取到的临时值 local；
+    /// - 其它引用：降为 `Todo`。
     fn lower_var_ref(&mut self, span: Span, ty: TypeId, v: &hir::ValueRef) -> LocalId {
         match v {
-            hir::ValueRef::Local { id, .. } => self
-                .symbol_locals
-                .get(id)
-                .copied()
-                .unwrap_or_else(|| self.emit_todo_value(span, ty, "unbound local ref")),
+            hir::ValueRef::Local { id, .. } => {
+                let Some(local) = self.symbol_locals.get(id).copied() else {
+                    return self.emit_todo_value(span, ty, "unbound local ref");
+                };
+
+                if self.boxed_symbols.contains(id) {
+                    let tmp = self.push_temp_local(span, ty);
+                    self.assign(
+                        span,
+                        tmp,
+                        Rvalue::CaptureBoxGet {
+                            box_operand: Operand::Local(local),
+                        },
+                    );
+                    tmp
+                } else {
+                    local
+                }
+            }
             hir::ValueRef::TopLevel { .. } => {
                 self.emit_todo_value(span, ty, "top-level ref lowering pending")
             }
@@ -692,6 +758,7 @@ impl<'a> FnLowering<'a> {
                 name: cap.name.clone(),
                 decl_span: cap.decl_span,
                 ty: source_ty,
+                mutable: cap.mutable,
                 source_local,
             });
         }
@@ -749,6 +816,9 @@ impl<'a> FnLowering<'a> {
         env_ty: TypeId,
         captures: &[ClosureCaptureLayout],
     ) -> (FunDecl, Vec<FunDecl>) {
+        // 0) 预扫描 closure body：本 closure 内部若存在嵌套 closure 捕获 `var`，则需要 box 存储（T0714）。
+        self.boxed_symbols = boxed_symbols_in_expr(closure.body.as_ref());
+
         // 1) 创建入口块。
         let entry = self.push_block(closure.span);
         self.body.start = entry;
@@ -770,6 +840,9 @@ impl<'a> FnLowering<'a> {
         for (idx, cap) in captures.iter().enumerate() {
             let local = self.push_named_local(cap.decl_span, &cap.name, cap.ty);
             self.symbol_locals.insert(cap.id, local);
+            if cap.mutable {
+                self.boxed_symbols.insert(cap.id);
+            }
             self.assign(
                 cap.decl_span,
                 local,
@@ -957,5 +1030,112 @@ impl<'a> FnLowering<'a> {
         self.set_terminator(test_bb, span, TerminatorKind::Unreachable);
         self.current_bb = merge_bb;
         result
+    }
+}
+
+fn boxed_symbols_in_block(block: &hir::Block) -> HashSet<hir::SymbolId> {
+    let mut out = HashSet::new();
+    collect_boxed_symbols_in_block(block, &mut out);
+    out
+}
+
+fn boxed_symbols_in_expr(expr: &hir::Expr) -> HashSet<hir::SymbolId> {
+    let mut out = HashSet::new();
+    collect_boxed_symbols_in_expr(expr, &mut out);
+    out
+}
+
+fn collect_boxed_symbols_in_block(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
+    for stmt in &block.stmts {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Expr(expr) => collect_boxed_symbols_in_expr(expr, out),
+            hir::StmtKind::Val(decl) => {
+                if let Some(init) = &decl.init {
+                    collect_boxed_symbols_in_expr(init, out);
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                collect_boxed_symbols_in_expr(lhs, out);
+                collect_boxed_symbols_in_expr(rhs, out);
+            }
+            hir::StmtKind::While { cond, body } => {
+                collect_boxed_symbols_in_expr(cond, out);
+                collect_boxed_symbols_in_block(body, out);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(v) = value {
+                    collect_boxed_symbols_in_expr(v, out);
+                }
+            }
+        }
+    }
+}
+
+fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
+    match &expr.kind {
+        hir::ExprKind::Missing
+        | hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::Block(block) => collect_boxed_symbols_in_block(block, out),
+        hir::ExprKind::Closure(closure) => {
+            for cap in &closure.captures {
+                if cap.mutable {
+                    out.insert(cap.id);
+                }
+            }
+            collect_boxed_symbols_in_expr(closure.body.as_ref(), out);
+        }
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_boxed_symbols_in_expr(cond, out);
+            collect_boxed_symbols_in_expr(then_branch, out);
+            if let Some(e) = else_branch.as_deref() {
+                collect_boxed_symbols_in_expr(e, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_boxed_symbols_in_expr(subject, out);
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    collect_boxed_symbols_in_expr(g, out);
+                }
+                collect_boxed_symbols_in_expr(&arm.body, out);
+            }
+        }
+        hir::ExprKind::MemberAccess { receiver, .. } => collect_boxed_symbols_in_expr(receiver, out),
+        hir::ExprKind::Call { callee, args } => {
+            collect_boxed_symbols_in_expr(callee, out);
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_boxed_symbols_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => collect_boxed_symbols_in_expr(value, out),
+                }
+            }
+        }
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(expr) => collect_boxed_symbols_in_expr(expr, out),
+                    hir::CallArg::Named { value, .. } => collect_boxed_symbols_in_expr(value, out),
+                }
+            }
+        }
+        hir::ExprKind::Handle(handle) => {
+            collect_boxed_symbols_in_block(&handle.body, out);
+            for arm in &handle.arms {
+                collect_boxed_symbols_in_expr(&arm.body, out);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_boxed_symbols_in_block(finally, out);
+            }
+        }
     }
 }
