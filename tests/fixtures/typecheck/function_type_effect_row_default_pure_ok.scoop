@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0608 RowExpr 默认效果：省略 `/ RowExpr` 等价于空行 `/ Pure`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun default_row_is_pure_1(f: () -> Int): () -> Int / Pure {
+    return f
+}
+
+fun default_row_is_pure_2(f: () -> Int / Pure): () -> Int {
+    return f
+}
+

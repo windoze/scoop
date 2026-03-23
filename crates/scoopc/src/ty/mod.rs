@@ -589,6 +589,36 @@ mod tests {
     }
 
     #[test]
+    fn effect_row_canonicalizes_and_checks_subset() {
+        let mut tys = TypeStore::new();
+
+        let a = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "fixtures.EffectA".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+        let b = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: "fixtures.EffectB".to_string(),
+            args: Vec::new(),
+            eff: None,
+        })));
+
+        let pure = EffectRow::pure();
+        let row_a = EffectRow::new(vec![a]);
+        let row_ab = EffectRow::new(vec![a, b]);
+        let row_ba_dup = EffectRow::new(vec![b, a, b]);
+
+        // `+` 的集合语义：去重 + 顺序归一化。
+        assert_eq!(row_ab, row_ba_dup);
+
+        // containment / subeffecting：`R1 ⊆ R2`。
+        assert!(pure.is_subset_of(&row_a));
+        assert!(row_a.is_subset_of(&row_ab));
+        assert!(!row_ab.is_subset_of(&row_a));
+        assert!(!row_a.is_subset_of(&pure));
+    }
+
+    #[test]
     fn type_display_formats_nominal_with_effect_row_arg() {
         let mut tys = TypeStore::new();
         let builtins = tys.intern_builtins();

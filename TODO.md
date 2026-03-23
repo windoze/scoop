@@ -1683,11 +1683,19 @@
      - `tests/fixtures/typecheck/cast_as_required_effect_in_try_catch_ok.scoop`（try/catch 捕获后通过）
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0608 [TODO] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
+### T0608 [DONE] RowExpr 静态语义：`Pure`/`+`/默认 effect/containment（spec §5.8）
 - 描述：实现 effect row 的语义：并集、空行 `Pure`、默认 effect 规则、以及 `R1 ⊆ R2`（subeffecting）的最小判定。
 - 目标：先把 row 当作“集合”；不实现高级归一化；泛型 row 变量后续任务补。
 - 验收：effects fixture：`/ Pure` 可赋给 `/ Pure`；`/ Raise` 不能赋给 `/ Pure`；`/ Pure` 可视为 `/` 空行。
 - 依赖：T0603
+ - 完成：
+   - ty：为 `EffectRow` 的集合归一化与 `R1 ⊆ R2` 判定补齐单测覆盖（Pure/containment）。
+   - fixtures：新增 `tests/fixtures/typecheck/function_type_effect_row_default_pure_ok.scoop` 覆盖“省略 `/ RowExpr` 等价于 `/ Pure` 空行”。
+   - fixtures：结合既有
+     - `tests/fixtures/typecheck/function_type_subtyping_ok.scoop`（`Pure ⊆ R`）
+     - `tests/fixtures/typecheck/function_type_effect_row_not_contained_is_error.scoop`（`R ⊄ Pure`）
+     完成回归矩阵。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0609 [TODO] effect polymorphism：`eff` row 参数与 overriding 规则（spec §5.9）
 - 描述：支持 `<eff E = Pure>` 这类 row 参数，并实现 overriding：`R_over ⊆ R_base`。

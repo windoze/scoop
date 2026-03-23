@@ -362,6 +362,7 @@
 - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
   - required effects（T0604/T0606：已实现未声明的 effect 报错；支持 non-resuming `handle` 捕获；spec §14.7.1）
+  - [x] RowExpr 静态语义：默认 `Pure` + `+` 并集 + containment `R1 ⊆ R2`（T0608）
   - [x] public 默认 `/ Pure` 的强制约束（T0508）
   - [x] private/internal 可推断 effect row（T0508）
   - overriding：`R_over ⊆ R_base`
