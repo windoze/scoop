@@ -77,6 +77,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("程序入口 `main` 必须为闭合 effect row：`Pure!`（这里写的是 {declared}，请在 row 末尾加 `!`）")]
+    #[diagnostic(code(scoop::typecheck::entry_point_must_be_closed_pure))]
+    EntryPointMustBeClosedPure {
+        declared: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("暂不支持的模式绑定（pattern binding）")]
     #[diagnostic(code(scoop::typecheck::unsupported_pattern_binding))]
     UnsupportedPatternBinding {
@@ -7365,6 +7373,15 @@ fn check_required_effects_for_fun_decl(
             let row = lower.lower_effect_row_expr(Some(expr))?;
             if !row.terms.is_empty() {
                 return Err(ExprTypeError::EntryPointMustBePure {
+                    declared: fmt_effect_row(&row, lower),
+                    span: expr.span.into(),
+                });
+            }
+            // spec §5.8.4：entry point 属于 system boundary，必须是闭合 effect row（`Pure!`）。
+            // 说明：省略 effects 标注时仍会按 entry point 的规则强制 Pure；这里仅对“显式写了 open row `/ Pure`”
+            // 给出更明确的诊断，避免用户误以为 open row 能封住 callback/transitive effects。
+            if !expr.closed {
+                return Err(ExprTypeError::EntryPointMustBeClosedPure {
                     declared: fmt_effect_row(&row, lower),
                     span: expr.span.into(),
                 });

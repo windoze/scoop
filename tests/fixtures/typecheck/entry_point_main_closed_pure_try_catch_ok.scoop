@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T0627：闭合 effect row `Pure!` 下，`try/catch` 捕获 Raise 后 main 仍可通过。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() / Pure! {
+    val x: Int = try {
+        Raise.raise(1)
+        1
+    } catch (e: Int) {
+        e
+    }
+    x
+}
+

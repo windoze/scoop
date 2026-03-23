@@ -1764,11 +1764,18 @@
      - fail：`tests/fixtures/parse/effect_row_closed_prefix_not_allowed_fail.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0627 [TODO] 闭合 effect row 类型检查语义（spec §5.8.4）
+### T0627 [DONE] 闭合 effect row 类型检查语义（spec §5.8.4）
 - 描述：实现闭合行的额外约束：对于 `fun f(...): R / E!`，编译器需确认所有来源的 effect（包括 callback 参数透传的 effect）不能逃逸函数边界——即 body 内所有路径的 effect 必须被 handle 或满足 `⊆ E`，且不存在自由 row 变量使 effect 集合扩大。
 - 目标：先只覆盖 `Pure!`（最常见情况，等价”无任何 effect 逃逸”）；泛型 row 变量与闭合行的交互（`E!` 与 `<eff E>` 组合）后续任务补齐。
 - 验收：effects fixture：`fun main(): Unit / Pure!` 内未处理的 `Raise` 报错；使用 `try/catch` 包裹后通过；open row `/ Pure` 在相同情况下报错信息不同（提示”需要闭合 row”）。
 - 依赖：T0626、T0608、T0610
+ - 完成：
+   - typecheck：entry point 显式写 open row `/ Pure` 时，给出“需要闭合 row `Pure!`”的稳定诊断（`scoop::typecheck::entry_point_must_be_closed_pure`）。
+   - fixtures：新增
+     - `tests/fixtures/typecheck/entry_point_main_closed_pure_unhandled_raise_is_error.scoop`
+     - `tests/fixtures/typecheck/entry_point_main_closed_pure_try_catch_ok.scoop`
+     - `tests/fixtures/typecheck/entry_point_main_open_pure_needs_closed_row_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0628 [TODO] RowExpr 高级语义：高级归一化、泛型 row 变量与高阶 row 运算
 - 描述：补齐 row 语义层而不只靠推断兜底：定义 row 表达式的规范化、等价判定、泛型 row 变量的合法出现位置，以及 spec 允许的高阶 row 运算。

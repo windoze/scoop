@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 12:5
+// 目标：T0627：闭合 effect row `Pure!` 要求 main 内所有 effect 必须被 handle；未捕获 Raise 应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() / Pure! {
+    Raise.raise(1)
+}
+

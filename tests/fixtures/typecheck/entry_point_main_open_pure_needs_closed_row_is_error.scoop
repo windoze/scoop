@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::entry_point_must_be_closed_pure
+// EXPECT-ERROR: 闭合 effect row
+// EXPECT-ERROR-AT: 11:14
+// 目标：T0627：entry point 显式写 open row `/ Pure` 时需要提示改为闭合 row `/ Pure!`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() / Pure {
+    Raise.raise(1)
+}
+
