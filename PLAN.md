@@ -386,7 +386,7 @@
   - [x] `try/catch/finally` → `handle { } with { Raise.raise -> } finally { }`（T0607）
   - [x] `!!` 失败 → `Raise.raise(RuntimeError.NullAssertionFailed)`（T0421b：静态 required effects；依赖 try/catch lowering：T0607）
   - [x] `as` 失败 → `Raise.raise(RuntimeError.ClassCastFailed)`（T0445；依赖 T0607）
-  - [ ] 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
+  - [x] 多个 `catch` arm 与匹配顺序（不只单个 `catch`）
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 

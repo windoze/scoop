@@ -730,6 +730,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("不可达的 handler arm：{current} 已被前面的 {previous} 覆盖")]
+    #[diagnostic(code(scoop::typecheck::handle_arm_unreachable))]
+    HandleArmUnreachable {
+        previous: String,
+        current: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("缺少返回值：函数返回类型为 {expected}")]
     #[diagnostic(code(scoop::typecheck::return_value_required))]
     ReturnValueRequired {
@@ -2324,6 +2333,7 @@ fn infer_handle_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     #[derive(Debug, Clone)]
     struct HandleArmLowered {
+        callee_fqn: String,
         handled_effect: TypeId,
         binder_tys: Vec<(Span, TypeId)>,
     }
@@ -2572,6 +2582,7 @@ fn infer_handle_expr_type(
         }
 
         Ok(HandleArmLowered {
+            callee_fqn,
             handled_effect,
             binder_tys,
         })
@@ -2595,7 +2606,11 @@ fn infer_handle_expr_type(
     })?;
 
     // 2) 处理 handler arms：lower effect op、计算 handled effect 实例、并 typecheck arm bodies。
-    let mut handled_effects: HashSet<TypeId> = HashSet::new();
+    // `HandleArm` 的匹配顺序遵循源码中的书写顺序：
+    // - 多个 arm 同时可匹配同一个 performed effect 时，选择最先出现的那个；
+    // - 若某个 arm 的 handled effect 已被更早的 arm 覆盖，则该 arm 不可达（T0631）。
+    let mut handled_effects: Vec<TypeId> = Vec::new();
+    let mut seen_by_callee: HashMap<String, Vec<TypeId>> = HashMap::new();
 
     // handle 表达式的“期望结果类型”：
     // - 若 body 可正常返回（非 Nothing），则 arm body 必须可赋值到该类型；
@@ -2615,7 +2630,22 @@ fn infer_handle_expr_type(
             builtins,
         )?;
 
-        handled_effects.insert(lowered.handled_effect);
+        let seen = seen_by_callee
+            .entry(lowered.callee_fqn.clone())
+            .or_default();
+        if let Some(prev) = seen
+            .iter()
+            .copied()
+            .find(|prev| is_type_assignable(*prev, lowered.handled_effect, lower, builtins))
+        {
+            return Err(ExprTypeError::HandleArmUnreachable {
+                previous: lower.fmt_type(prev),
+                current: lower.fmt_type(lowered.handled_effect),
+                span: arm.arrow_span.into(),
+            });
+        }
+        seen.push(lowered.handled_effect);
+        handled_effects.push(lowered.handled_effect);
 
         let mut arm_locals = locals.clone();
         for (decl_span, ty) in lowered.binder_tys.iter().copied() {
@@ -2695,7 +2725,17 @@ fn infer_handle_expr_type(
 
     // 4) required effects：body 内 performed 的 effects 若被 handler 捕获，则不向外层传播。
     for (effect, span) in body_performed {
-        if handled_effects.contains(&effect) {
+        // handler 捕获语义以“可赋值/子类型”为准：若某个 arm 的 handled effect
+        // 可以匹配该 performed effect（handled <: performed），则该 effect 不向外传播。
+        //
+        // 说明：
+        // - 对于 invariant effect（或 type args 为 value types 的场景），该关系会退化为全等；
+        // - 对于带 `in/out` 的 effect type params，则按声明处变型规则参与匹配。
+        let captured = handled_effects
+            .iter()
+            .copied()
+            .any(|handled| is_type_assignable(handled, effect, lower, builtins));
+        if captured {
             continue;
         }
         lower.record_performed_effect(effect, span);

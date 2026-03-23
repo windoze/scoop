@@ -1,0 +1,22 @@
+// EXPECT: pass
+// EXPECT-AST: try_catch_multi_catch_lowering.ast
+// 目标：T0631：`try/catch/finally` 支持多个 `catch`，并在 parser 层 lowering 为单个 `handle`（多个 arms）。
+
+package fixtures.parse
+
+import scoop.core.*
+
+fun main() {
+    val x = try {
+        Raise.raise(1)
+        1
+    } catch (e: Int) {
+        e
+    } catch (e: Any) {
+        0
+    } finally {
+        0
+    }
+    x
+}
+

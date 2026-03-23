@@ -604,43 +604,92 @@ impl<'a> Parser<'a> {
         })
     }
 
-    /// 解析 `try { ... } catch (e: T) { ... } finally { ... }`（spec §5.7），并在 parser
-    /// 层 desugar 为 `handle` 表达式（T0607）。
+    /// 解析 `try { ... } catch (e: T) { ... } ... finally { ... }`（spec §5.7），并在 parser
+    /// 层 desugar 为 `handle` 表达式（T0607 / T0631）。
     ///
     /// 当前阶段约束：
-    /// - 仅支持单个 catch；
+    /// - 支持多个 `catch` arm（按书写顺序存入 `Handle { arms: ... }`）；
     /// - finally 可选；
-    /// - 暂不支持多 catch / catch-only 表达式体（要求 block）。
+    /// - try body 与每个 catch body 暂要求都是 block（不支持 catch-only 表达式体）。
     fn parse_try_expr(&mut self) -> Result<ast::Expr, ParseError> {
         let try_kw = self.expect_keyword(Keyword::Try)?;
         let start = try_kw.span.start;
 
         let body = self.parse_block()?;
 
-        let catch_kw = self.expect_keyword(Keyword::Catch)?;
-        let catch_kw_span = catch_kw.span;
+        // spec §5.7：至少一个 catch。
+        let mut arms: Vec<ast::HandleArm> = Vec::new();
+        let mut last_catch_end = body.span.end;
 
-        let open_paren = self.expect_symbol(Symbol::LParen)?;
-        let binder_tok = self.expect_kind(TokenKind::Ident, "catch 变量名（标识符）")?;
-        let binder_name = ast::Ident::new(binder_tok.span);
+        let mut first = true;
+        while first || self.peek_keyword(Keyword::Catch) {
+            first = false;
+            let catch_kw = self.expect_keyword(Keyword::Catch)?;
+            let catch_kw_span = catch_kw.span;
 
-        let colon = self.expect_symbol(Symbol::Colon)?;
-        let binder_ty = self.parse_type_ref()?;
+            let open_paren = self.expect_symbol(Symbol::LParen)?;
+            let binder_tok = self.expect_kind(TokenKind::Ident, "catch 变量名（标识符）")?;
+            let binder_name = ast::Ident::new(binder_tok.span);
 
-        if self.peek_kind(TokenKind::Eof) {
-            return Err(ParseError::UnterminatedGroup {
-                close: Symbol::RParen,
-                span: Span::new(open_paren.span.start, self.peek().span.end).into(),
-            });
+            let colon = self.expect_symbol(Symbol::Colon)?;
+            let binder_ty = self.parse_type_ref()?;
+
+            if self.peek_kind(TokenKind::Eof) {
+                return Err(ParseError::UnterminatedGroup {
+                    close: Symbol::RParen,
+                    span: Span::new(open_paren.span.start, self.peek().span.end).into(),
+                });
+            }
+            let close_paren = self.expect_symbol(Symbol::RParen)?;
+
+            let catch_block = self.parse_block()?;
+            let catch_body = ast::Expr {
+                span: catch_block.span,
+                kind: ast::ExprKind::Block(catch_block),
+            };
+            last_catch_end = catch_body.span.end;
+
+            // lowering：`try/catch` 等价于捕获 `scoop.core.Raise.raise` 的 handle。
+            //
+            // 注意：try/catch 语法本身不显式出现 `Raise.raise`，因此这里使用合成 Ident，
+            // 让后续 typecheck 能直接解析到 sysroot 中的 effect op。
+            let synth_span = catch_kw_span;
+            let dot_span = Span::new(synth_span.start, synth_span.start);
+
+            let effect = ast::TypePath {
+                span: synth_span,
+                segments: vec![
+                    ast::Ident::synthetic(synth_span, "scoop"),
+                    ast::Ident::synthetic(synth_span, "core"),
+                    ast::Ident::synthetic(synth_span, "Raise"),
+                ],
+                args: Vec::new(),
+            };
+
+            let op = ast::HandleOp {
+                span: Span::new(catch_kw_span.start, close_paren.span.end),
+                effect,
+                dot_span,
+                op: ast::Ident::synthetic(synth_span, "raise"),
+                binders: vec![ast::HandleBinder {
+                    span: Span::new(binder_tok.span.start, binder_ty.span().end),
+                    name: binder_name,
+                    colon_span: Some(colon.span),
+                    ty: Some(binder_ty),
+                }],
+            };
+
+            let arm = ast::HandleArm {
+                span: Span::new(op.span.start, catch_body.span.end),
+                op,
+                // 语法糖并没有显式 `->`；这里用 `catch` 关键字 span 作为占位，
+                // 以便诊断（若有）能落在 try/catch 区域内。
+                arrow_span: catch_kw_span,
+                body: catch_body,
+            };
+
+            arms.push(arm);
         }
-        let close_paren = self.expect_symbol(Symbol::RParen)?;
-
-        let catch_block = self.parse_block()?;
-        let catch_body = ast::Expr {
-            span: catch_block.span,
-            kind: ast::ExprKind::Block(catch_block),
-        };
-        let catch_body_end = catch_body.span.end;
 
         // spec §5.7：finally 可选。
         let finally = if self.peek_keyword(Keyword::Finally) {
@@ -650,55 +699,16 @@ impl<'a> Parser<'a> {
             None
         };
 
-        // lowering：`try/catch` 等价于捕获 `scoop.core.Raise.raise` 的 handle。
-        //
-        // 注意：try/catch 语法本身不显式出现 `Raise.raise`，因此这里使用合成 Ident，
-        // 让后续 typecheck 能直接解析到 sysroot 中的 effect op。
-        let synth_span = catch_kw_span;
-        let dot_span = Span::new(synth_span.start, synth_span.start);
-
-        let effect = ast::TypePath {
-            span: synth_span,
-            segments: vec![
-                ast::Ident::synthetic(synth_span, "scoop"),
-                ast::Ident::synthetic(synth_span, "core"),
-                ast::Ident::synthetic(synth_span, "Raise"),
-            ],
-            args: Vec::new(),
-        };
-
-        let op = ast::HandleOp {
-            span: Span::new(catch_kw_span.start, close_paren.span.end),
-            effect,
-            dot_span,
-            op: ast::Ident::synthetic(synth_span, "raise"),
-            binders: vec![ast::HandleBinder {
-                span: Span::new(binder_tok.span.start, binder_ty.span().end),
-                name: binder_name,
-                colon_span: Some(colon.span),
-                ty: Some(binder_ty),
-            }],
-        };
-
-        let arm = ast::HandleArm {
-            span: Span::new(op.span.start, catch_body.span.end),
-            op,
-            // 语法糖并没有显式 `->`；这里用 `catch` 关键字 span 作为占位，
-            // 以便诊断（若有）能落在 try/catch 区域内。
-            arrow_span: catch_kw_span,
-            body: catch_body,
-        };
-
         let end = finally
             .as_ref()
             .map(|b| b.span.end)
-            .unwrap_or(catch_body_end);
+            .unwrap_or(last_catch_end);
 
         Ok(ast::Expr {
             span: Span::new(start, end),
             kind: ast::ExprKind::Handle {
                 body,
-                arms: vec![arm],
+                arms,
                 finally,
             },
         })

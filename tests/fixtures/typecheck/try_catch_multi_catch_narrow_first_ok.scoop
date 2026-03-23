@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T0631：多 `catch` arm 支持；更窄的类型写在前面时可通过（匹配顺序为书写顺序）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Error() : Any
+class IOError() : Error()
+
+fun f(): Int / Pure {
+    val x = try {
+        Raise.raise(IOError())
+        0
+    } catch (e: IOError) {
+        1
+    } catch (e: Error) {
+        2
+    }
+    x
+}
+

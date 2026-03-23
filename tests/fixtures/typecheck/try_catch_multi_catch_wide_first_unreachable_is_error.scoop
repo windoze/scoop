@@ -1,0 +1,25 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::handle_arm_unreachable
+// EXPECT-ERROR-AT: 20:7
+// EXPECT-ERROR: 不可达
+// 目标：T0631：更宽的 `catch` 写在前面会吞掉后续更窄分支，应报不可达。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Error() : Any
+class IOError() : Error()
+
+fun f(): Int / Pure {
+    val x = try {
+        Raise.raise(IOError())
+        0
+    } catch (e: Error) {
+        1
+    } catch (e: IOError) {
+        2
+    }
+    x
+}
+

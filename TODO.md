@@ -1837,11 +1837,19 @@
 
 > 注：T0629b 依赖多包 build/link（T1107），已移动到 T1107 之后以保持 TODO 顺序可执行。
 
-### T0631 [TODO] 语法糖：多 `catch` arms 与匹配顺序
+### T0631 [DONE] 语法糖：多 `catch` arms 与匹配顺序
 - 描述：把 `try/catch/finally` 从单个 `catch` 扩展到多个 `catch` arm，并固定匹配顺序、不可达分支诊断与 lowering 结果。
 - 目标：先覆盖异常/错误类型匹配顺序；不做复杂模式匹配。
 - 验收：新增 parse/typecheck fixtures：多个 `catch` 可解析且按书写顺序匹配；被前面更宽类型吞掉的 `catch` 会报不可达。
 - 依赖：T0607、T0606、T0419
+ - 完成：
+   - parser：`try/catch/finally` 解析支持多个 `catch`，并 lowering 为单个 `ExprKind::Handle { arms: ... }`（顺序与源码一致）。
+   - sysroot：`Raise<in E>`（声明处变型），为“更宽 catch 覆盖更窄 catch”的子类型关系提供基础。
+   - typecheck：`handle` 捕获 performed effects 时按“可赋值/子类型”匹配（handled <: performed），并新增不可达 arm 诊断 `scoop::typecheck::handle_arm_unreachable`。
+   - fixtures：
+     - parse：新增 `tests/fixtures/parse/try_catch_multi_catch_lowering.scoop` + AST snapshot；
+     - typecheck：新增 `try_catch_multi_catch_narrow_first_ok` 与 `try_catch_multi_catch_wide_first_unreachable_is_error`。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ---
 

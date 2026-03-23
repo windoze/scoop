@@ -73,6 +73,6 @@ enum RuntimeError {
 }
 
 // Built-in effect: Raise
-effect Raise<E> {
+effect Raise<in E> {
     fun raise(error: E): Nothing
 }
