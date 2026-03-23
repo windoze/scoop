@@ -2073,11 +2073,19 @@
      - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.ll` 生成的 `.ll` 含 `target datalayout =`；
      - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" llvm-as /tmp/overview_minimal_main.ll -o /tmp/overview_minimal_main.bc` 通过。
 
-### T0804 [TODO] 生成 object 文件（`.o`）并落盘
+### T0804 [DONE] 生成 object 文件（`.o`）并落盘
 - 描述：从 LLVM module 生成目标文件（object），为后续链接做准备。
 - 目标：先只生成单个 `.o`；不做 LTO。
 - 验收：新增 `scoop build --emit-obj`（或 `scoopc` 命令）；产出 `.o` 文件存在且非空。
 - 依赖：T0803
+ - 完成：
+   - `crates/scoopc/src/llvm/target.rs`：新增 `host_target_machine()`，用于 object emission 获取 host target machine。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 `emit_minimal_main_obj_to_file()`（`.o` 落盘），并补齐单测断言产物非空。
+   - `crates/scoopc/src/bin/scoopc.rs`：新增 `--emit-obj` 参数与默认输出扩展名 `.o`。
+   - 验收：
+     - `cargo test --all` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-obj tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.o` 可生成 `.o` 且非空。
 
 ### T0805 [TODO] driver：实现 `scoop build <main.scoop> -o <bin>` 的“前端 + 产物路径”流程
 - 描述：让 `scoop build` 至少能：读取文件 → parse/resolve/typecheck →（暂时）不 codegen 也能成功退出并准备输出路径。

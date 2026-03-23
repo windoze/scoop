@@ -40,6 +40,7 @@
 - 2026-03-24：完成 T0714：捕获闭包对 `var` 引入 CaptureBox 语义（HIR capture 标记 `mutable`；MIR 新增 `CaptureBoxNew/Get/Set` 并在函数内预扫描 closure captures 决定 boxing），新增 `tests/fixtures/{hir,mir}/closure_capture_var.*` 回归覆盖。
 - 2026-03-24：完成 T0801：为 `scoopc` 增加 feature-gated `inkwell` 依赖（`llvm` feature 默认关闭）以保持 CI/本地构建可用，并在 `README.md` 说明启用方式与 LLVM/`llvm-config` 前置。
 - 2026-03-24：完成 T0802：新增 `scoopc::llvm` 最小 codegen（生成空 `main` 返回 0），并提供 `scoopc --emit-llvm` 写出 `.ll` 用于验证 target triple/pipeline。
+- 2026-03-24：完成 T0804：新增 `scoopc --emit-obj` 把最小 LLVM module 编译为 `.o` 并落盘，补齐单测覆盖产物非空，为后续链接（T0806）做准备。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

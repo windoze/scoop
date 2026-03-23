@@ -1,8 +1,8 @@
-//! LLVM 后端（inkwell）——最小可回归落点（T0802～T0803）。
+//! LLVM 后端（inkwell）——最小可回归落点（T0802～T0804）。
 //!
 //! 当前阶段只做两件事：
 //! 1) 初始化 host target；
-//! 2) 生成一个最小 LLVM module：只包含 `i32 @main()`，返回 0，并可打印/写出 `.ll`。
+//! 2) 生成一个最小 LLVM module：只包含 `i32 @main()`，返回 0，并可打印/写出 `.ll`/`.o`。
 //!
 //! 并在 T0803 里补齐：
 //! - module target triple + data layout（由 host target machine 提供）。
@@ -14,6 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
+use inkwell::targets::FileType;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -55,6 +56,14 @@ pub enum LlvmEmitError {
         #[source]
         source: std::io::Error,
     },
+
+    #[error("输出路径不是有效 UTF-8：{path}")]
+    #[diagnostic(code(scoop::llvm::invalid_output_path))]
+    InvalidOutputPath { path: PathBuf },
+
+    #[error("写入 object 文件失败：{path}: {message}")]
+    #[diagnostic(code(scoop::llvm::write_obj_failed))]
+    WriteObjFailed { path: PathBuf, message: String },
 }
 
 /// 为一个最小 Scoop 程序生成 LLVM IR（`.ll` 文本）。
@@ -64,13 +73,66 @@ pub enum LlvmEmitError {
 /// - module target triple 设为 host default triple；
 /// - `i32 @main()` 返回 `0`。
 pub fn emit_minimal_main_ir(session: &Session, source: &SourceFile) -> Result<String, LlvmEmitError> {
+    let context = Context::create();
+    let module = build_minimal_main_module(session, source, &context)?;
+    Ok(module.print_to_string().to_string())
+}
+
+/// 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
+pub fn emit_minimal_main_ir_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    let ir = emit_minimal_main_ir(session, source)?;
+
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
+
+    Ok(())
+}
+
+/// 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
+pub fn emit_minimal_main_obj_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
+    // 这里提前做 UTF-8 校验并返回结构化诊断。
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_minimal_main_module(session, source, &context)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+
+    Ok(())
+}
+
+fn build_minimal_main_module<'ctx>(
+    session: &Session,
+    source: &SourceFile,
+    context: &'ctx Context,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     // 先让前端能“读懂”输入：如果连 parse 都过不了，直接返回结构化诊断。
     let ast = session.parse(source)?;
     if !file_has_top_level_main(source, &ast) {
         return Err(LlvmEmitError::MissingEntryMain);
     }
 
-    let context = Context::create();
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
 
@@ -92,23 +154,7 @@ pub fn emit_minimal_main_ir(session: &Session, source: &SourceFile) -> Result<St
             message: e.to_string(),
         })?;
 
-    Ok(module.print_to_string().to_string())
-}
-
-/// 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
-pub fn emit_minimal_main_ir_to_file(
-    session: &Session,
-    source: &SourceFile,
-    output: &Path,
-) -> Result<(), LlvmEmitError> {
-    let ir = emit_minimal_main_ir(session, source)?;
-
-    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
-        path: output.to_path_buf(),
-        source: e,
-    })?;
-
-    Ok(())
+    Ok(module)
 }
 
 fn file_has_top_level_main(source: &SourceFile, file: &ast::File) -> bool {
@@ -128,7 +174,23 @@ fn module_name_from_path(path: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     use super::*;
+
+    fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "scoopc_{prefix}_{}_{}",
+            std::process::id(),
+            nanos
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn minimal_main_ir_contains_main_and_ret0() {
@@ -149,5 +211,20 @@ mod tests {
         let err = emit_minimal_main_ir(&session, &source).unwrap_err();
 
         assert!(matches!(err, LlvmEmitError::MissingEntryMain));
+    }
+
+    #[test]
+    fn minimal_main_obj_written_is_non_empty() {
+        let dir = make_temp_dir("minimal_main_obj_written_is_non_empty");
+        let output = dir.join("main.o");
+
+        let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+        let session = Session::new().unwrap();
+        emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+        let size = std::fs::metadata(&output).unwrap().len();
+        assert!(size > 0, "object 文件不应为空");
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

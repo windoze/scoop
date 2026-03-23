@@ -58,11 +58,12 @@ impl HostTargetInfo {
     }
 }
 
-/// 为 host 创建 target machine，并返回其 `TargetData` 与 `HostTargetInfo`。
+/// 为 host 创建 target machine，并返回 `TargetMachine` 与 `HostTargetInfo`。
 ///
 /// 注意：
 /// - 目前只支持 host；交叉编译的 triple/cpu/features 选择留给后续任务。
-pub fn host_target_data() -> Result<(TargetData, HostTargetInfo), LlvmTargetError> {
+/// - 该函数会完成 LLVM native target 初始化（一次性）。
+pub fn host_target_machine() -> Result<(TargetMachine, HostTargetInfo), LlvmTargetError> {
     init_native_target()?;
 
     let triple = TargetMachine::get_default_triple();
@@ -109,7 +110,16 @@ pub fn host_target_data() -> Result<(TargetData, HostTargetInfo), LlvmTargetErro
         byte_ordering: target_data.get_byte_ordering(),
     };
 
-    Ok((target_data, info))
+    Ok((target_machine, info))
+}
+
+/// 为 host 创建 target machine，并返回其 `TargetData` 与 `HostTargetInfo`。
+///
+/// 注意：
+/// - 目前只支持 host；交叉编译的 triple/cpu/features 选择留给后续任务。
+pub fn host_target_data() -> Result<(TargetData, HostTargetInfo), LlvmTargetError> {
+    let (target_machine, info) = host_target_machine()?;
+    Ok((target_machine.get_target_data(), info))
 }
 
 /// 配置 LLVM module 的 target triple 与 data layout（按 host）。
@@ -119,7 +129,6 @@ pub fn configure_module_for_host<'ctx>(
     module: &Module<'ctx>,
 ) -> Result<HostTargetInfo, LlvmTargetError> {
     let (target_data, info) = host_target_data()?;
-
     // 目标三元组：用于后端/链接器识别目标平台。
     let triple = TargetMachine::get_default_triple();
     module.set_triple(&triple);
@@ -142,4 +151,3 @@ fn init_native_target() -> Result<(), LlvmTargetError> {
         }),
     }
 }
-
