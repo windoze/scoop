@@ -365,7 +365,7 @@
   - [x] RowExpr 静态语义：默认 `Pure` + `+` 并集 + containment `R1 ⊆ R2`（T0608）
   - [x] public 默认 `/ Pure` 的强制约束（T0508）
   - [x] private/internal 可推断 effect row（T0508）
-  - overriding：`R_over ⊆ R_base`
+  - [x] overriding：`R_over ⊆ R_base`（T0609）
   - entry point 必须 `Pure`（等价于 `Pure!`，闭合语义）
   - 闭合行额外约束：所有来源的 effect（含 callback 透传）都不能逃逸出函数边界（spec §5.8.4）
   - 高级 row 语义：高级归一化、泛型 row 变量、必要的高阶 row 运算

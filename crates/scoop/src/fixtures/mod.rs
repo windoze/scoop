@@ -304,6 +304,17 @@ fn typecheck_fixture(
 
     // T0440：interface 实现列表 + 抽象成员实现检查（默认方法不要求实现）。
     scoopc::typecheck::check_file_interfaces(source, &ast, &index, &env).map_err(box_diagnostic)?;
+    // T0609：override/interface impl 的 effect row 不能增加（R_over ⊆ R_base）。
+    scoopc::typecheck::check_file_override_effects(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .map_err(box_diagnostic)?;
 
     scoopc::typecheck::check_file_type_refs(
         source,
@@ -613,6 +624,16 @@ fn run_typecheck_multi_case(
             scoopc::typecheck::check_file_properties(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_type_refs(
                 source,
                 ast,

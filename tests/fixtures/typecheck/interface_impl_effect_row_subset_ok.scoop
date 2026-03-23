@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T0609：实现 interface 时，effect row 同样允许更“纯”（R_over ⊆ R_base）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Disposable<eff E = Pure> {
+    fun dispose(): Unit / E
+}
+
+class C() : Disposable<eff Raise<RuntimeError> > {
+    fun dispose(): Unit { return }
+}

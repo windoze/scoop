@@ -395,6 +395,52 @@ impl<'a> TypeLowering<'a> {
         out
     }
 
+    /// 在“声明处文件”的 package/import 上下文中 lower 一个 effect row expression，并同时注入：
+    /// - use-site type param 绑定（`T` → 具体 TypeId）
+    /// - effect row param 绑定（`E` → 具体 EffectRow）
+    ///
+    /// 用途（T0609）：
+    /// - override/interface impl 的 effect row 检查需要先对 receiver 的 use-site type args 与
+    ///   `<eff E>` row 参数做 substitution，再比较 `R_over ⊆ R_base`。
+    pub(super) fn lower_effect_row_expr_in_decl_file_with_scopes(
+        &mut self,
+        decl_file: &Path,
+        type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+        eff_bindings: impl IntoIterator<Item = (String, EffectRow)>,
+        expr: Option<&ast::EffectRowExpr>,
+    ) -> Result<EffectRow, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+
+        ctx.push_type_param_bindings(type_bindings);
+        let mut pushed_eff = 0usize;
+        for (name, row) in eff_bindings {
+            ctx.push_effect_row_param_binding(name, row);
+            pushed_eff += 1;
+        }
+
+        let out = ctx.lower_effect_row_expr(expr);
+
+        for _ in 0..pushed_eff {
+            ctx.pop_effect_row_param_binding();
+        }
+        ctx.pop_type_param_bindings();
+        out
+    }
+
     /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。
     ///
     /// 说明：

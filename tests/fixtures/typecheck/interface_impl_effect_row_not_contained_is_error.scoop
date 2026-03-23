@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::override_effect_row_not_contained
+// EXPECT-ERROR-AT: 14:27
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface Disposable<eff E = Pure> {
+    fun dispose(): Unit / E
+}
+
+class C() : Disposable<eff Pure> {
+    fun dispose(): Unit / Raise<RuntimeError> { return }
+}

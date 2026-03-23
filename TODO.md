@@ -1697,11 +1697,16 @@
      完成回归矩阵。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0609 [TODO] effect polymorphism：`eff` row 参数与 overriding 规则（spec §5.9）
+### T0609 [DONE] effect polymorphism：`eff` row 参数与 overriding 规则（spec §5.9）
 - 描述：支持 `<eff E = Pure>` 这类 row 参数，并实现 overriding：`R_over ⊆ R_base`。
 - 目标：先只对 member override 做静态检查；不做动态 dispatch。
 - 验收：effects fixture：override 方法的 row 超集时报错；row 子集允许。
 - 依赖：T0509、T0608
+ - 完成：
+   - typecheck：新增 pass `override_effects`，对 class/object 的 `override fun` 与 interface 抽象方法实现执行 effect row containment 检查（`R_over ⊆ R_base`），并对 receiver 的 use-site `Type<...>` 与 `Type<eff ...>` 做 substitution 后再比较。
+   - typecheck/lower：补齐 `lower_effect_row_expr_in_decl_file_with_scopes`，支持在声明处文件上下文同时注入 type param 与 effect row param 绑定。
+   - fixtures：新增 4 个用例覆盖 class override 与 interface impl 的 pass/fail（含 `Disposable<eff E>` 的实例化替换）。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0610 [TODO] Program boundary：entry point 必须 `Pure`（spec §5.10）
 - 描述：定义 entry point（例如 `fun main()`）并强制其 effect row 为 `Pure`（或可隐式推断但必须最终 Pure）。

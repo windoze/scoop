@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T0609 override 的 effect row 允许更“纯”（R_over ⊆ R_base）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Unit / Raise<RuntimeError> { return }
+}
+
+class Derived() : Base() {
+    override fun ping(): Unit { return }
+}
+

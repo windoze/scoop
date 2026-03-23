@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::override_effect_row_not_contained
+// EXPECT-ERROR-AT: 14:33
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Unit / Pure { return }
+}
+
+class Derived() : Base() {
+    override fun ping(): Unit / Raise<RuntimeError> { return }
+}
