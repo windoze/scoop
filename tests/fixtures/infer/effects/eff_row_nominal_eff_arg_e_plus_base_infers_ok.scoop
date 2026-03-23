@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T0628a RowExpr：
+// - 当 use-site effect row 实参写成 `Type<eff (R + E)>` 时，推断 `E` 需要从实参类型提取约束
+//   `found ⊆ (R + E)` 并扣除 base（`found - R`），同时把实例化结果回填到期望类型中。
+
+package fixtures.infer
+
+effect IO
+effect Async
+
+interface Disposable<eff E = Pure>
+
+fun <eff E = Pure> takes(d: Disposable<eff (IO + E)>): Unit
+
+fun ok(d: Disposable<eff Async + IO>) {
+    takes(d)
+}

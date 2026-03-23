@@ -1782,7 +1782,7 @@
 - 目标：给 typecheck / infer / overload resolution 一个统一的 row 代数基础；不再把复杂 row 视为“字符串相等”或简单集合并。
 - 备注：该任务涉及 typecheck/overload/推断多个路径，跨度较大。为保证每步“可单独实现 & 单独验证”，拆分为以下子任务。
 
-### T0628a [TODO] RowExpr：支持 `E + ...` 的实例化/推断（函数类型 `/ Row` + use-site `Type<eff Row>`）
+### T0628a [DONE] RowExpr：支持 `E + ...` 的实例化/推断（函数类型 `/ Row` + use-site `Type<eff Row>`）
 - 描述：把当前只识别 `(...)->T / E` 与 `Type<eff E>` 的最小实现扩展到 `E + R` 形式：调用点可从 lambda effects / `Type<eff ...>` 实参中推断 `E`，并把 `E` 的实例化结果回填到期望类型与返回类型中（避免默认值导致的误判）。
 - 目标：仍只支持单一 `eff` 变量；只处理 `+` 并集（集合语义）；先覆盖“形参类型的顶层 function type / 顶层 nominal type”两类位置。
 - 验收：新增 infer/effects fixtures：
@@ -1790,6 +1790,17 @@
   - `Type<eff (E + R)>`：从实参类型提取 row 约束时，会扣除 `R` 后再推断进 `E`，且调用通过；
   - `E + R` 与 `R + E` 书写顺序不同不影响推断与可赋值检查（归一化）。
 - 依赖：T0608、T0609、T0515
+ - 完成：
+   - typecheck/expr：把签名中“引用 `eff` 变量”的识别从仅支持 `E` 扩展到 `E + R`：
+     - 对函数类型 `(...)->T / Row` 记录 base row（移除 `E` 后的常量项）；
+     - 对 use-site `Type<eff Row>` 同样记录 base row（移除 `E` 后的常量项）。
+   - typecheck/expr：调用点推断 `E` 时按 `found ⊆ (E + base)` 提取最小增量 `found - base`，并把实例化后的
+     `E + base` 回填到期望类型与返回类型中（覆盖 direct call 与 member/extension call 两条路径）。
+   - fixtures：新增
+     - `tests/fixtures/infer/effects/eff_row_fn_type_e_plus_base_infers_ok.scoop`
+     - `tests/fixtures/infer/effects/eff_row_nominal_eff_arg_e_plus_base_infers_ok.scoop`
+     覆盖函数类型与名义类型两类 `E + R` 形式，并验证顺序归一化不影响推断。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0628b [TODO] RowExpr：`E + ...` 在嵌套类型中的替换与逃逸诊断
 - 描述：把 `E + R` 的实例化/替换从“顶层参数类型”扩展到更一般的嵌套位置（tuple/union/Option/多层 function type），并补齐“row 变量逃逸/不良组合”的稳定诊断（例如 closed row 与泛型 row 的交互）。

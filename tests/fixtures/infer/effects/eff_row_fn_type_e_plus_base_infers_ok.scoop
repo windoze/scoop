@@ -1,0 +1,25 @@
+// EXPECT: pass
+// 目标：T0628a RowExpr：
+// - 当形参函数类型的 effects 为 `/ (R + E)`（`E + ...` 形式）时，调用点需要能从 lambda 的 effects
+//   推断出 `E` 的增量部分，并把实例化后的结果回填到期望类型中，避免默认 `Pure` 导致误判。
+
+package fixtures.infer
+
+effect IO {
+    fun read(): Unit
+}
+
+effect Async {
+    fun wait(): Unit
+}
+
+fun <eff E = Pure> using(block: () -> Unit / (IO + E)): Unit {
+    block()
+}
+
+fun ok() {
+    using {
+        IO.read()
+        Async.wait()
+    }
+}
