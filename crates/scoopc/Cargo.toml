@@ -12,3 +12,8 @@ miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
 tracing = "0.1.40"
 inkwell = { version = "0.8.0", optional = true, features = ["llvm18-1"] }
+
+[[bin]]
+name = "scoopc"
+path = "src/bin/scoopc.rs"
+required-features = ["llvm"]

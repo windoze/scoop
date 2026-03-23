@@ -23,13 +23,24 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 cargo build
 ```
 
-如需验证 LLVM 后端依赖是否就绪（当前阶段仅编译依赖，不生成 IR）：
+如需启用 LLVM 后端（inkwell）：
 
 ```bash
 cargo build -p scoopc --features llvm
 ```
 
 > 注：当前 `llvm` feature 选择了 inkwell 的 `llvm18-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 在 PATH 中。
+
+生成最小 LLVM IR（当前阶段仅生成空 `main`，返回 0）：
+
+```bash
+# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
+# export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
+PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
+  cargo run -p scoopc --features llvm --bin scoopc -- \
+  --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop \
+  -o /tmp/overview_minimal_main.ll
+```
 
 运行 CLI：
 

@@ -2045,11 +2045,19 @@
    - `README.md`：补充 LLVM 后端 feature 的开启方式与 `llvm-config` 依赖说明。
    - 验收：`cargo build --all`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 通过。
 
-### T0802 [TODO] 代码生成 v0：生成空 `main` LLVM module（可打印 IR）
+### T0802 [DONE] 代码生成 v0：生成空 `main` LLVM module（可打印 IR）
 - 描述：为一个最小 Scoop 程序生成 LLVM IR（哪怕只返回 0）。
 - 目标：先不处理用户函数；先把 pipeline 与 target triple 跑通。
 - 验收：新增 `scoopc` API 或 CLI `--emit-llvm` 能输出 `.ll`；对最小 fixture 可生成文件。
 - 依赖：T0801、T0703
+ - 完成：
+   - `crates/scoopc/src/llvm/mod.rs`：新增最小 LLVM codegen：生成 module + `i32 @main()`（返回 0），并打印/写出 `.ll`。
+   - `crates/scoopc/src/bin/scoopc.rs`：新增 `scoopc --emit-llvm <input.scoop> [-o <out.ll>]` 命令行，用于写出 LLVM IR 文件。
+   - `crates/scoopc/Cargo.toml`：为 `scoopc` 二进制设置 `required-features = ["llvm"]`，避免无 LLVM 环境下默认构建失败。
+   - 验收：
+     - `cargo test --all`、`cargo run -p scoop -- test` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+     - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.ll` 可生成 `.ll` 文件。
 
 ### T0803 [TODO] 目标机器与数据布局（target machine）初始化（PLAN §8.1）
 - 描述：在 codegen 中按宿主平台初始化 target，设置 module data layout，并把 pointer size 等 target 信息暴露给后续类型映射（例如 `Int/UInt/UIntPtr` 的 word size）。
