@@ -1965,11 +1965,17 @@
    - fixtures：新增 `tests/fixtures/mir/while_break_continue.scoop` + `.mir` golden 回归 CFG 形态。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/while_break_continue.scoop` 通过。
 
-### T0710 [TODO] 闭包与函数值：lambda → `{ env_struct, fn_ptr }`（PLAN §7.3）
+### T0710 [DONE] 闭包与函数值：lambda → `{ env_struct, fn_ptr }`（PLAN §7.3）
 - 描述：在 HIR/MIR 中引入 closure 表示，支持捕获变量布局与调用约定。
 - 目标：先只支持不捕获 lambda（env 为空）；捕获后续子任务。
 - 验收：新增 typecheck + IR fixture：把 lambda 赋给函数类型并调用；编译通过并能 codegen（后续与 T0810 联动）。
 - 依赖：T0222、T0435、T0706
+ - 完成：
+   - scoopc/typecheck：支持调用局部函数值（function type）：`f(args...)`。
+   - scoopc/hir：新增 `ExprKind::Closure`/`ClosureExpr`/`ClosureId`，并在 lowering 中把 AST lambda 降到 HIR。
+   - scoopc/mir：新增 `Rvalue::MakeClosure`；MIR lowering 遇到 closure 时生成 `{ env=Unit, fn_ptr }`，并追加生成的 `$lambdaN` 函数。
+   - fixtures：新增 `tests/fixtures/infer/function_value_call_ok.scoop`、`tests/fixtures/hir/closure_non_capture.*`、`tests/fixtures/mir/closure_non_capture.*` 回归用例。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0711 [TODO] 捕获闭包：计算 capture set 并生成 env struct（PLAN §7.3）
 - 描述：分析 lambda 体对外部局部变量的引用，生成 env struct，并在调用点传递 env 指针。

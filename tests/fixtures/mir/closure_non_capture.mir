@@ -1,0 +1,163 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..69,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 26..59,
+                                name: Some(
+                                    "id",
+                                ),
+                                ty: TypeId(
+                                    8,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 49..59,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 62..67,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 49..59,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: MakeClosure {
+                                                env: Const(
+                                                    Unit,
+                                                ),
+                                                fn_ptr: "a.main.$lambda0",
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 26..59,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 62..67,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Todo(
+                                                "call lowering pending",
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 11..69,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 49..59,
+                fqn: "a.main.$lambda0",
+                name: "$lambda0",
+                ty: TypeId(
+                    0,
+                ),
+                params: [
+                    Param {
+                        span: 49..59,
+                        name: "$env",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 51..52,
+                        name: "x",
+                        ty: TypeId(
+                            0,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 49..59,
+                                name: Some(
+                                    "$env",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                            },
+                            LocalDecl {
+                                span: 51..52,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 49..59,
+                                    kind: Return,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

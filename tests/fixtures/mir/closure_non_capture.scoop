@@ -1,0 +1,7 @@
+package a
+
+fun main() {
+  val id: (Int) -> Int = { x -> x }
+  id(1)
+}
+

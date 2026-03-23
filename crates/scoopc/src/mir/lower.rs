@@ -77,7 +77,11 @@ impl MirLowering {
         let mut items = Vec::with_capacity(file.items.len());
         for item in &file.items {
             match item {
-                hir::Item::Fun(fun) => items.push(Item::Fun(self.lower_fun(fun))),
+                hir::Item::Fun(fun) => {
+                    let (primary, nested) = self.lower_fun(fun);
+                    items.push(Item::Fun(primary));
+                    items.extend(nested.into_iter().map(Item::Fun));
+                }
                 hir::Item::Val(decl) => items.push(Item::Todo {
                     span: decl.span,
                     kind: "top-level val",
@@ -89,8 +93,8 @@ impl MirLowering {
     }
 
     /// 把一个函数降到 MIR。
-    fn lower_fun(self, fun: &hir::FunDecl) -> FunDecl {
-        FnLowering::new(self.builtins).lower_fun(fun)
+    fn lower_fun(self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
+        FnLowering::new(self.builtins, fun.fqn.clone()).lower_fun(fun)
     }
 }
 
@@ -98,11 +102,13 @@ impl MirLowering {
 #[derive(Debug)]
 struct FnLowering {
     builtins: BuiltinTypes,
+    owner_fqn: String,
     body: Body,
     current_bb: BasicBlockId,
     next_temp: u32,
     symbol_locals: HashMap<hir::SymbolId, LocalId>,
     loop_stack: Vec<LoopContext>,
+    nested_funs: Vec<FunDecl>,
 }
 
 /// 当前函数内的一个 loop 语境（用于 `break/continue` lowering）。
@@ -114,19 +120,21 @@ struct LoopContext {
 
 impl FnLowering {
     /// 创建一个新的函数 lowering builder。
-    fn new(builtins: BuiltinTypes) -> Self {
+    fn new(builtins: BuiltinTypes, owner_fqn: String) -> Self {
         Self {
             builtins,
+            owner_fqn,
             body: Body::new_empty(),
             current_bb: BasicBlockId(0),
             next_temp: 0,
             symbol_locals: HashMap::new(),
             loop_stack: Vec::new(),
+            nested_funs: Vec::new(),
         }
     }
 
     /// 把一个 HIR 函数声明降到 MIR（当前阶段仅关注 body 的 CFG 形态）。
-    fn lower_fun(mut self, fun: &hir::FunDecl) -> FunDecl {
+    fn lower_fun(mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
         // 1) 创建入口块。
         let entry = self.push_block(fun.span);
         self.body.start = entry;
@@ -146,13 +154,15 @@ impl FnLowering {
         }
 
         // 3) lower 函数体。
-        let mir_body = fun.body.as_ref().map(|block| {
+        let mir_body = if let Some(block) = fun.body.as_ref() {
             self.lower_block_as_stmt(block);
             self.finish_function(fun.span);
-            self.body
-        });
+            Some(std::mem::replace(&mut self.body, Body::new_empty()))
+        } else {
+            None
+        };
 
-        FunDecl {
+        let out = FunDecl {
             span: fun.span,
             fqn: fun.fqn.clone(),
             name: fun.name.clone(),
@@ -160,7 +170,9 @@ impl FnLowering {
             params,
             return_ty: fun.return_ty,
             body: mir_body,
-        }
+        };
+
+        (out, self.nested_funs)
     }
 
     /// 创建一个新的 basic block，并返回其 id。
@@ -179,7 +191,9 @@ impl FnLowering {
     /// 在当前 basic block 末尾追加一条语句。
     fn push_stmt(&mut self, span: Span, kind: StatementKind) {
         let bb = self.current_bb;
-        self.body.blocks[bb.as_usize()].stmts.push(Statement { span, kind });
+        self.body.blocks[bb.as_usize()]
+            .stmts
+            .push(Statement { span, kind });
     }
 
     /// 覆盖指定 basic block 的 terminator。
@@ -325,7 +339,11 @@ impl FnLowering {
         let _ = self.loop_stack.pop();
 
         if !self.current_is_terminated() {
-            self.set_terminator(self.current_bb, body.span, TerminatorKind::Goto { target: cond_bb });
+            self.set_terminator(
+                self.current_bb,
+                body.span,
+                TerminatorKind::Goto { target: cond_bb },
+            );
         }
 
         // 3) 后续语句继续在 exit_bb 生成。
@@ -335,16 +353,30 @@ impl FnLowering {
     /// 降低 `break`：跳转到当前 loop 的 exit block。
     fn lower_break_stmt(&mut self, span: Span) {
         let Some(ctx) = self.loop_stack.last().copied() else {
-            self.set_terminator(self.current_bb, span, TerminatorKind::Todo("break not in loop"));
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Todo("break not in loop"),
+            );
             return;
         };
-        self.set_terminator(self.current_bb, span, TerminatorKind::Goto { target: ctx.break_target });
+        self.set_terminator(
+            self.current_bb,
+            span,
+            TerminatorKind::Goto {
+                target: ctx.break_target,
+            },
+        );
     }
 
     /// 降低 `continue`：跳转到当前 loop 的 cond block。
     fn lower_continue_stmt(&mut self, span: Span) {
         let Some(ctx) = self.loop_stack.last().copied() else {
-            self.set_terminator(self.current_bb, span, TerminatorKind::Todo("continue not in loop"));
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Todo("continue not in loop"),
+            );
             return;
         };
         self.set_terminator(
@@ -406,16 +438,33 @@ impl FnLowering {
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.lower_var_ref(expr.span, expr.ty, v),
             hir::ExprKind::Block(block) => self.lower_block_as_expr(block),
+            hir::ExprKind::Closure(closure) => self.lower_closure_expr(expr.span, expr.ty, closure),
             hir::ExprKind::If {
                 cond,
                 then_branch,
                 else_branch,
-            } => self.lower_if_expr(expr.span, expr.ty, cond, then_branch, else_branch.as_deref()),
-            hir::ExprKind::When { subject, arms } => self.lower_when_expr(expr.span, expr.ty, subject, arms),
-            hir::ExprKind::MemberAccess { .. } => self.emit_todo_value(expr.span, expr.ty, "member access lowering pending"),
-            hir::ExprKind::Call { .. } => self.emit_todo_value(expr.span, expr.ty, "call lowering pending"),
-            hir::ExprKind::Perform { .. } => self.emit_todo_value(expr.span, expr.ty, "perform lowering pending"),
-            hir::ExprKind::Handle(_) => self.emit_todo_value(expr.span, expr.ty, "handle lowering pending"),
+            } => self.lower_if_expr(
+                expr.span,
+                expr.ty,
+                cond,
+                then_branch,
+                else_branch.as_deref(),
+            ),
+            hir::ExprKind::When { subject, arms } => {
+                self.lower_when_expr(expr.span, expr.ty, subject, arms)
+            }
+            hir::ExprKind::MemberAccess { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "member access lowering pending")
+            }
+            hir::ExprKind::Call { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "call lowering pending")
+            }
+            hir::ExprKind::Perform { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "perform lowering pending")
+            }
+            hir::ExprKind::Handle(_) => {
+                self.emit_todo_value(expr.span, expr.ty, "handle lowering pending")
+            }
         }
     }
 
@@ -454,8 +503,89 @@ impl FnLowering {
                 .get(id)
                 .copied()
                 .unwrap_or_else(|| self.emit_todo_value(span, ty, "unbound local ref")),
-            hir::ValueRef::TopLevel { .. } => self.emit_todo_value(span, ty, "top-level ref lowering pending"),
+            hir::ValueRef::TopLevel { .. } => {
+                self.emit_todo_value(span, ty, "top-level ref lowering pending")
+            }
         }
+    }
+
+    fn lower_closure_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        closure: &hir::ClosureExpr,
+    ) -> LocalId {
+        let name = format!("$lambda{}", closure.id.as_u32());
+        let fqn = format!("{}.{}", self.owner_fqn, name);
+
+        let (fun, nested) = FnLowering::new(self.builtins, fqn.clone()).lower_closure_fun(
+            fqn.clone(),
+            name,
+            closure,
+        );
+        self.nested_funs.push(fun);
+        self.nested_funs.extend(nested);
+
+        let tmp = self.push_temp_local(span, ty);
+        self.assign(
+            span,
+            tmp,
+            Rvalue::MakeClosure {
+                env: Operand::Const(ConstValue::Unit),
+                fn_ptr: fqn,
+            },
+        );
+        tmp
+    }
+
+    fn lower_closure_fun(
+        mut self,
+        closure_fqn: String,
+        closure_name: String,
+        closure: &hir::ClosureExpr,
+    ) -> (FunDecl, Vec<FunDecl>) {
+        // 1) 创建入口块。
+        let entry = self.push_block(closure.span);
+        self.body.start = entry;
+        self.current_bb = entry;
+
+        // 2) env + 参数变为 locals（env 不参与 SymbolId → LocalId 映射；捕获语义由 T0711 接入）。
+        let mut params = Vec::with_capacity(closure.params.len() + 1);
+
+        let env_local = self.push_named_local(closure.span, "$env", self.builtins.unit);
+        params.push(Param {
+            span: closure.span,
+            name: "$env".to_string(),
+            ty: self.builtins.unit,
+            local: env_local,
+        });
+
+        for p in &closure.params {
+            let local = self.push_named_local(p.span, &p.name, p.ty);
+            self.symbol_locals.insert(p.id, local);
+            params.push(Param {
+                span: p.span,
+                name: p.name.clone(),
+                ty: p.ty,
+                local,
+            });
+        }
+
+        // 3) lower lambda body（当前阶段只关注 CFG 形态）。
+        let _ = self.lower_expr_to_local(closure.body.as_ref());
+        self.finish_function(closure.span);
+
+        let out = FunDecl {
+            span: closure.span,
+            fqn: closure_fqn,
+            name: closure_name,
+            ty: self.builtins.any,
+            params,
+            return_ty: closure.body.ty,
+            body: Some(self.body),
+        };
+
+        (out, self.nested_funs)
     }
 
     /// 降低 `if` 表达式：生成 then/else/merge 基本块，并在 merge 点写回一个临时结果 local。
@@ -490,8 +620,16 @@ impl FnLowering {
         self.current_bb = then_bb;
         let then_value = self.lower_expr_to_local(then_branch);
         if !self.current_is_terminated() {
-            self.assign(then_branch.span, result, Rvalue::Use(Operand::Local(then_value)));
-            self.set_terminator(self.current_bb, then_branch.span, TerminatorKind::Goto { target: merge_bb });
+            self.assign(
+                then_branch.span,
+                result,
+                Rvalue::Use(Operand::Local(then_value)),
+            );
+            self.set_terminator(
+                self.current_bb,
+                then_branch.span,
+                TerminatorKind::Goto { target: merge_bb },
+            );
         }
 
         // 3) else 分支：同上；若缺省 else，则使用 Unit 占位。
@@ -501,7 +639,11 @@ impl FnLowering {
             .unwrap_or_else(|| self.emit_unit(span));
         if !self.current_is_terminated() {
             self.assign(span, result, Rvalue::Use(Operand::Local(else_value)));
-            self.set_terminator(self.current_bb, span, TerminatorKind::Goto { target: merge_bb });
+            self.set_terminator(
+                self.current_bb,
+                span,
+                TerminatorKind::Goto { target: merge_bb },
+            );
         }
 
         // 4) merge：后续语句继续在 merge 块中生成。
@@ -539,7 +681,11 @@ impl FnLowering {
                 let body_value = self.lower_expr_to_local(&arm.body);
                 if !self.current_is_terminated() {
                     self.assign(arm.span, result, Rvalue::Use(Operand::Local(body_value)));
-                    self.set_terminator(self.current_bb, arm.span, TerminatorKind::Goto { target: merge_bb });
+                    self.set_terminator(
+                        self.current_bb,
+                        arm.span,
+                        TerminatorKind::Goto { target: merge_bb },
+                    );
                 }
                 self.current_bb = merge_bb;
                 return result;
@@ -575,7 +721,11 @@ impl FnLowering {
             let body_value = self.lower_expr_to_local(&arm.body);
             if !self.current_is_terminated() {
                 self.assign(arm.span, result, Rvalue::Use(Operand::Local(body_value)));
-                self.set_terminator(self.current_bb, arm.span, TerminatorKind::Goto { target: merge_bb });
+                self.set_terminator(
+                    self.current_bb,
+                    arm.span,
+                    TerminatorKind::Goto { target: merge_bb },
+                );
             }
 
             // 继续下一个 arm 的测试块。

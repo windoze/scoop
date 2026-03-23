@@ -41,6 +41,26 @@ impl fmt::Debug for SymbolId {
     }
 }
 
+/// 一个 closure（lambda）在 HIR 中的稳定标识。
+///
+/// 说明：
+/// - 该 ID 仅在“单文件 lowering”的 HIR 中稳定（用于 dump/fixtures 的可回归输出）；
+/// - 后续若引入跨文件/跨 session 的 closure 符号表，可替换为更稳定的形式。
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ClosureId(u32);
+
+impl ClosureId {
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Debug for ClosureId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "C{}", self.0)
+    }
+}
+
 /// 一个源文件 lowering 后的 HIR。
 #[derive(Debug, Clone)]
 pub struct File {
@@ -155,6 +175,12 @@ pub enum ExprKind {
     Literal(LiteralKind),
     VarRef(ValueRef),
     Block(Block),
+    /// closure（lambda）表达式：`{ params -> body }` / `{ body }`。
+    ///
+    /// 当前阶段（TODO T0710）最小实现：
+    /// - 仅保留语法结构与 `ClosureId`；
+    /// - 捕获变量布局与 env struct 将在后续任务（TODO T0711）接入。
+    Closure(ClosureExpr),
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     If {
         cond: Box<Expr>,
@@ -193,6 +219,15 @@ pub enum ExprKind {
     /// 当前阶段仅承载 non-resuming arms 的结构信息；continuation/resume 相关字段留待后续任务补齐。
     Handle(HandleExpr),
     Todo(&'static str),
+}
+
+/// closure（lambda）的 HIR 表示（TODO T0710）。
+#[derive(Debug, Clone)]
+pub struct ClosureExpr {
+    pub span: Span,
+    pub id: ClosureId,
+    pub params: Vec<Param>,
+    pub body: Box<Expr>,
 }
 
 /// 一个 effect operation 的“引用”（以 FQN 表示）。

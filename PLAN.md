@@ -458,7 +458,7 @@
 
 ### 7.3 闭包与函数值
 
-- [ ] lambda → `{ env_struct, fn_ptr }` 形式
+- [x] lambda → `{ env_struct, fn_ptr }` 形式
 - [ ] 捕获变量布局与 GC trace 信息生成
 - [ ] effectful function type 的调用约定统一化
 - [ ] 可变捕获：捕获 `var` 时的 box/lift 策略、别名与写回语义

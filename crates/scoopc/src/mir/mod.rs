@@ -32,7 +32,10 @@ pub struct File {
 pub enum Item {
     Fun(FunDecl),
     /// 未纳入当前阶段 MIR 的条目占位（例如顶层 val/global init、type decl 等）。
-    Todo { span: Span, kind: &'static str },
+    Todo {
+        span: Span,
+        kind: &'static str,
+    },
 }
 
 /// 函数声明在 MIR 视图下的承载。
@@ -258,7 +261,10 @@ pub struct Statement {
 pub enum StatementKind {
     Nop,
     /// `target = value`（最小赋值语句，用于 if/when merge 等场景）。
-    Assign { target: LocalId, value: Rvalue },
+    Assign {
+        target: LocalId,
+        value: Rvalue,
+    },
     /// 未实现节点占位（用于尽早落地数据结构但避免 `todo!()`/panic）。
     Todo(&'static str),
 }
@@ -283,6 +289,15 @@ pub enum ConstValue {
 #[derive(Debug, Clone)]
 pub enum Rvalue {
     Use(Operand),
+    /// 创建一个函数值（closure）：`{ env_struct, fn_ptr }`（TODO T0710）。
+    ///
+    /// 当前阶段最小实现：
+    /// - `env` 仅支持空 env（`Unit`）；
+    /// - 捕获分析与 env struct 布局由后续任务（TODO T0711）接入。
+    MakeClosure {
+        env: Operand,
+        fn_ptr: String,
+    },
     Todo(&'static str),
 }
 
@@ -311,7 +326,9 @@ pub enum TerminatorKind {
     Return,
     /// cleanup block：执行完清理逻辑后继续向上传播 unwinding。
     ResumeUnwind,
-    Goto { target: BasicBlockId },
+    Goto {
+        target: BasicBlockId,
+    },
     /// 条件分支：若 `cond` 为真跳转到 `then_target`，否则跳转到 `else_target`。
     CondBr {
         cond: Operand,
@@ -323,12 +340,17 @@ pub enum TerminatorKind {
     ///
     /// 当前阶段仅保留“发生了哪一个 effect op”的信息；具体如何进入 handler/如何建模 unwinding
     /// 由后续 effect lowering 任务（TODO T0713/T0707）决定。
-    Perform { op_fqn: String },
+    Perform {
+        op_fqn: String,
+    },
     /// effect handler 区域（对应 HIR 的 `ExprKind::Handle`）。
     ///
     /// 注意：该变体目前只是一个“结构占位”，并不携带 CFG target；后续会在 lowering 中把 handle
     /// 展开为显式基本块与 cleanup/handler 栈管理。
-    Handle { arms: Vec<HandlerArm>, has_finally: bool },
+    Handle {
+        arms: Vec<HandlerArm>,
+        has_finally: bool,
+    },
     /// 未实现控制流占位（例如 if/switch/call/cleanup 等）。
     Todo(&'static str),
 }
@@ -380,7 +402,10 @@ pub enum MirValidationError {
     /// MIR body 为空（没有任何基本块）。
     EmptyBody,
     /// `start` 超出 `blocks` 范围。
-    InvalidStartBlock { start: BasicBlockId, blocks_len: usize },
+    InvalidStartBlock {
+        start: BasicBlockId,
+        blocks_len: usize,
+    },
     /// terminator 的 target 超出 `blocks` 范围。
     InvalidTarget {
         from: BasicBlockId,

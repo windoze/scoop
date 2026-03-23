@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T0710 函数值/闭包可调用：局部绑定为函数类型时，允许直接 `f(args...)` 调用。
+
+package fixtures.infer
+
+fun f() {
+    val id: (Int) -> Int = { x -> x }
+    val y: Int = id(1)
+}
+

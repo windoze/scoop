@@ -1,0 +1,128 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..69,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 22..69,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 26..59,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 26..59,
+                                        id: Some(
+                                            S1,
+                                        ),
+                                        name: Some(
+                                            "id",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            8,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 49..59,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Closure(
+                                                    ClosureExpr {
+                                                        span: 49..59,
+                                                        id: C0,
+                                                        params: [
+                                                            Param {
+                                                                span: 51..52,
+                                                                id: S0,
+                                                                name: "x",
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                            },
+                                                        ],
+                                                        body: Expr {
+                                                            span: 56..57,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    id: S0,
+                                                                    name: "x",
+                                                                    decl_span: 51..52,
+                                                                },
+                                                            ),
+                                                        },
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 62..67,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 62..67,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 62..64,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    Local {
+                                                        id: S1,
+                                                        name: "id",
+                                                        decl_span: 30..32,
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 65..66,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

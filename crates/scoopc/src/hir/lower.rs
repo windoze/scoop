@@ -21,9 +21,9 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm, HandleBinder,
-    HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt, StmtKind,
-    SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    Block, CallArg, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm,
+    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt,
+    StmtKind, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -93,6 +93,7 @@ struct HirLowering<'a> {
     /// `type fqn -> ast::TypeKind` 的最小索引，用于决定 nominal type 是 ref 还是 value。
     type_kinds: &'a HashMap<String, ast::TypeKind>,
     symbols: SymbolInterner,
+    next_closure: u32,
     /// 类型表（HIR 内所有 `TypeId` 必须来自同一个 store）。
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
@@ -115,6 +116,7 @@ impl<'a> HirLowering<'a> {
             index,
             type_kinds,
             symbols: SymbolInterner::default(),
+            next_closure: 0,
             types,
             builtins,
             type_param_scopes: Vec::new(),
@@ -376,7 +378,7 @@ impl<'a> HirLowering<'a> {
             }
             ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
             ast::ExprKind::TupleLit { .. } => (ExprKind::Todo("tuple_lit"), self.builtins.any),
-            ast::ExprKind::Lambda(_) => (ExprKind::Todo("lambda"), self.builtins.any),
+            ast::ExprKind::Lambda(lam) => self.lower_lambda_expr(pkg_prefix, e.span, lam),
             ast::ExprKind::StructLit { .. } => (ExprKind::Todo("struct_lit"), self.builtins.any),
             ast::ExprKind::If {
                 cond,
@@ -438,6 +440,50 @@ impl<'a> HirLowering<'a> {
             ty,
             kind,
         }
+    }
+
+    fn alloc_closure_id(&mut self) -> ClosureId {
+        let id = ClosureId(self.next_closure);
+        self.next_closure = self.next_closure.saturating_add(1);
+        id
+    }
+
+    fn lower_lambda_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lam: &ast::LambdaExpr,
+    ) -> (ExprKind, TypeId) {
+        let id = self.alloc_closure_id();
+
+        let params = lam
+            .params
+            .iter()
+            .map(|p| {
+                let name = p.name.text(self.source).to_string();
+                let ty =
+                    p.ty.as_ref()
+                        .map(|t| self.lower_type_ref(t))
+                        .unwrap_or(self.builtins.any);
+                Param {
+                    span: p.name.span,
+                    id: self.symbols.intern_local(p.name.span),
+                    name,
+                    ty,
+                }
+            })
+            .collect();
+
+        let body = Box::new(self.lower_expr(pkg_prefix, lam.body.as_ref()));
+        (
+            ExprKind::Closure(ClosureExpr {
+                span,
+                id,
+                params,
+                body,
+            }),
+            self.builtins.any,
+        )
     }
 
     fn lower_member_access_expr(
@@ -1005,6 +1051,24 @@ mod tests {
 
         let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/hir/member_access.hir");
+        let expected = std::fs::read_to_string(&golden_path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hir_fixture_closure_non_capture_golden() {
+        let sess = Session::new().unwrap();
+
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/closure_non_capture.scoop");
+        let file = SourceFile::load(&fixture_path).unwrap();
+
+        let lowered = lower_for_dump(&sess, &file).unwrap();
+        let actual = format!("{:#?}\n", lowered.file);
+
+        let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/closure_non_capture.hir");
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);
