@@ -14,10 +14,32 @@
 
 mod lower;
 
+use std::fmt;
+
 use crate::span::Span;
 use crate::ty::TypeId;
 
 pub use lower::{HirLowerError, LoweredHir, lower_for_dump};
+
+/// HIR 中引用一个“已解析的符号”的稳定标识。
+///
+/// 说明：
+/// - 当前阶段它主要用于把 AST 中的 ident 引用（`x`/`foo`）绑定到某个“解析结果”（local/top-level）；
+/// - 后续若引入真正的全局 symbol table / 增量编译缓存，可把该 ID 扩展为跨 session 稳定的形式。
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SymbolId(u32);
+
+impl SymbolId {
+    pub fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Debug for SymbolId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "S{}", self.0)
+    }
+}
 
 /// 一个源文件 lowering 后的 HIR。
 #[derive(Debug, Clone)]
@@ -54,6 +76,7 @@ pub struct FunDecl {
 #[derive(Debug, Clone)]
 pub struct Param {
     pub span: Span,
+    pub id: SymbolId,
     pub name: String,
     pub ty: TypeId,
 }
@@ -62,6 +85,7 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub struct ValDecl {
     pub span: Span,
+    pub id: Option<SymbolId>,
     pub name: Option<String>,
     pub mutable: bool,
     pub ty: TypeId,
@@ -125,8 +149,15 @@ pub enum LiteralKind {
 /// 已解析的“值引用”（local/top-level）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueRef {
-    Local { name: String, decl_span: Span },
-    TopLevel { fqn: String },
+    Local {
+        id: SymbolId,
+        name: String,
+        decl_span: Span,
+    },
+    TopLevel {
+        id: SymbolId,
+        fqn: String,
+    },
 }
 
 /// 调用实参（位置参数或命名参数）。

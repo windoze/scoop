@@ -1,0 +1,17 @@
+package a
+
+import scoop.core.Option
+
+struct Point {}
+
+fun takes(x: Option<Int>): Unit {}
+
+fun make(): Point {}
+
+fun <T> id(x: T): T { x }
+
+fun main() {
+  val x: Int = 1
+  id(x)
+}
+

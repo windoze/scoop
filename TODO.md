@@ -1866,11 +1866,16 @@
    - tests：新增 `hir::lower::tests::lower_minimal_file_smoke` 覆盖最小程序 lowering。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/parse/hello.scoop` 通过。
 
-### T0702 [TODO] AST → HIR lowering（声明头 + 简单函数体）
+### T0702 [DONE] AST → HIR lowering（声明头 + 简单函数体）
 - 描述：实现从 AST 构造 HIR：把 `TypeRef` lower 为 `TypeId`，把 ident 绑定为 `SymbolId`。
 - 目标：先只支持无控制流的函数体；不支持闭包捕获。
 - 验收：新增 fixtures/hir 目录（或用 dump-hir 命令行 golden）；最小程序 lowering 不报错。
 - 依赖：T0701
+ - 完成：
+   - hir：引入 `SymbolId`，并让 `Param`/`ValDecl`/`ValueRef` 携带稳定的符号标识（local decl span / top-level FQN）。
+   - hir lowering：在 `Index` 语境下把 `TypeRef` lower 为 `TypeId`（含 builtin、tuple、nullable、function type、nominal 与 type params）。
+   - fixtures：新增 `tests/fixtures/hir/minimal.scoop` + `tests/fixtures/hir/minimal.hir` golden，并在 `scoopc` 单测中做回归比对。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/minimal.scoop` 通过。
 
 ### T0703 [TODO] MIR：基本块 + 显式控制流骨架（为后续 finally/effect 做准备）
 - 描述：定义 MIR 的 BB/terminator/locals；支持顺序执行与 return。
