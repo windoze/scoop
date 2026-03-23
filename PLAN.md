@@ -20,6 +20,7 @@
 
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
+- 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

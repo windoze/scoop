@@ -1516,14 +1516,34 @@ pub struct TypeFunction {
 
 /// effect row 表达式（spec §5.8）。
 ///
-/// 当前阶段（T0219）只需要语法结构：
+/// 当前阶段只需要语法结构：
 /// - `Pure`（空 effect row）
 /// - `E1 + E2 + ...`（并集；项为 effect 名/row 变量的路径）
-#[derive(Debug, Clone)]
+/// - `E!`（闭合 effect row，spec §5.8.4；语义见 TODO T0627）
+#[derive(Clone)]
 pub struct EffectRowExpr {
     pub span: Span,
     /// `terms.is_empty()` 表示 `Pure`。
     pub terms: Vec<TypePath>,
+    /// 是否为闭合 effect row（`E!`）。
+    ///
+    /// 说明：`!` 的优先级低于 `+`，它作用于整个 row 表达式，而不是最后一个项。
+    pub closed: bool,
+}
+
+impl std::fmt::Debug for EffectRowExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 为了保持现有 parse fixtures 的 AST snapshot 稳定：
+        // - open row（`closed=false`）不打印 `closed` 字段，格式与旧版完全一致；
+        // - 仅当闭合 row 时才显式打印 `closed: true`。
+        let mut s = f.debug_struct("EffectRowExpr");
+        s.field("span", &self.span);
+        s.field("terms", &self.terms);
+        if self.closed {
+            s.field("closed", &true);
+        }
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]

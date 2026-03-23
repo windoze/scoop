@@ -241,37 +241,49 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_effect_row_expr(&mut self) -> Result<ast::EffectRowExpr, ParseError> {
         // 支持括号：`/ (Async + Raise<IOError>)`
-        if self.peek_symbol(Symbol::LParen) {
+        let mut expr = if self.peek_symbol(Symbol::LParen) {
             let open = self.bump();
-            let inner = self.parse_effect_row_expr()?;
+            let mut inner = self.parse_effect_row_expr()?;
             let close = self.expect_symbol(Symbol::RParen)?;
-            return Ok(ast::EffectRowExpr {
-                span: Span::new(open.span.start, close.span.end),
-                terms: inner.terms,
-            });
-        }
 
-        let start = self.peek().span.start;
+            // 注意：括号只是分组；闭合标记 `!`（若存在）由 inner 自身解析。
+            inner.span = Span::new(open.span.start, close.span.end);
+            inner
+        } else {
+            let start = self.peek().span.start;
 
-        let mut terms = Vec::new();
-        let first = self.parse_effect_row_term()?;
-        if let Some(term) = first.path {
-            terms.push(term);
-        }
-        let mut end = first.end;
-
-        while self.eat_symbol(Symbol::Plus) {
-            let next = self.parse_effect_row_term()?;
-            if let Some(term) = next.path {
+            let mut terms = Vec::new();
+            let first = self.parse_effect_row_term()?;
+            if let Some(term) = first.path {
                 terms.push(term);
             }
-            end = next.end;
+            let mut end = first.end;
+
+            while self.eat_symbol(Symbol::Plus) {
+                let next = self.parse_effect_row_term()?;
+                if let Some(term) = next.path {
+                    terms.push(term);
+                }
+                end = next.end;
+            }
+
+            ast::EffectRowExpr {
+                span: Span::new(start, end),
+                terms,
+                closed: false,
+            }
+        };
+
+        // 闭合 effect row：`E!`（spec §5.8.4）
+        //
+        // 说明：`!` 的优先级低于 `+`，因此它作用于整个 row 表达式，而不是最后一个 effect 项。
+        if self.peek_symbol(Symbol::Bang) {
+            let bang = self.bump();
+            expr.closed = true;
+            expr.span = Span::new(expr.span.start, bang.span.end);
         }
 
-        Ok(ast::EffectRowExpr {
-            span: Span::new(start, end),
-            terms,
-        })
+        Ok(expr)
     }
 
     fn parse_effect_row_term(&mut self) -> Result<EffectRowTermParse, ParseError> {

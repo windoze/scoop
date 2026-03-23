@@ -1751,11 +1751,18 @@
      - `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0626 [TODO] 闭合 effect row 语法解析：`/ R!`（spec §5.8.4）
+### T0626 [DONE] 闭合 effect row 语法解析：`/ R!`（spec §5.8.4）
 - 描述：在 lexer/parser 中支持 effect row 的 `!` 后缀，将其解析为 `RowExpr::Closed(inner)`（或在现有 `RowExpr` 上加 `closed: bool` 字段）。`!` 的优先级低于 `+`，作用于整个 row，不与最后一个 effect 单独绑定。
 - 目标：只做解析与 AST 表示；类型检查语义留给 T0627。不修改现有 open row 的解析行为。
 - 验收：新增 parse pass fixtures：`fun f(): Unit / Pure!`、`fun f(): Unit / IO+State!`、`fun f(): Unit / (IO)!`；新增 parse fail fixture：`fun f(): Unit / !IO`（前缀形式不支持）。`scoop test` 通过。
 - 依赖：T0219
+ - 完成：
+   - AST：`EffectRowExpr` 新增 `closed: bool`，并通过自定义 `Debug` 保持 open row 的 AST snapshot 输出不变。
+   - parser：`parse_effect_row_expr` 支持后缀 `!`，并保证其优先级低于 `+`（作用于整个 row）。
+   - fixtures：
+     - pass：`tests/fixtures/parse/effect_row_closed_suffix.scoop` + `tests/fixtures/parse/effect_row_closed_suffix.ast`
+     - fail：`tests/fixtures/parse/effect_row_closed_prefix_not_allowed_fail.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0627 [TODO] 闭合 effect row 类型检查语义（spec §5.8.4）
 - 描述：实现闭合行的额外约束：对于 `fun f(...): R / E!`，编译器需确认所有来源的 effect（包括 callback 参数透传的 effect）不能逃逸函数边界——即 body 内所有路径的 effect 必须被 handle 或满足 `⊆ E`，且不存在自由 row 变量使 effect 集合扩大。

@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: 类型名（标识符）
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:17
+// 目标：闭合 effect row 仅支持后缀 `E!`，不支持前缀 `!E`（T0626 / spec §5.8.4）。
+
+package fixtures.parse
+
+fun f(): Unit / !IO {}
+

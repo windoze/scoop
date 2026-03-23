@@ -1,0 +1,10 @@
+// EXPECT: pass
+// EXPECT-AST: effect_row_closed_suffix.ast
+// 目标：验证闭合 effect row `E!` 的解析（T0626 / spec §5.8.4）。
+
+package fixtures.parse
+
+fun f(): Unit / Pure! {}
+fun f(): Unit / IO+State! {}
+fun f(): Unit / (IO)! {}
+
