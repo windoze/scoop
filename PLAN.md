@@ -417,7 +417,9 @@
   - 调用者签名不携带 `/ Async`
   - `Task<T>` 懒执行，直到 `await` 或显式启动
 - [ ] Appendix A 一致性：嵌套 handler 必须支持“最近匹配 handler”分发，不能停留在单层 handler 模型
-- [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则
+- [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则（TODO T0629）
+  - [ ] cone-aware entry point：仅 consumer cone 的 `main` 视为 entry point（TODO T0629a）
+  - [ ] 库导出入口 + host/embedded entry points（TODO T0629b，依赖 T1107）
 - [ ] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示
 
 **本阶段 DoD**

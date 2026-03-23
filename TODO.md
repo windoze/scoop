@@ -1817,11 +1817,24 @@
      - `tests/fixtures/typecheck/closed_effect_row_contains_row_var_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0629 [TODO] Program boundary：多 entry point / library boundary 规则
+### T0629 Program boundary（拆分为子任务）
 - 描述：把 program boundary 从“仅检查 `main` 必须 `Pure`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure`。
 - 目标：先覆盖可静态识别的入口面；不引入运行时动态扫描。
-- 验收：新增 effects + cone fixtures：库导出的公开入口若含未处理 effect 会被拒绝；多个 entry point 共存时规则稳定。
-- 依赖：T0610、T1107
+- 备注：该任务依赖 build/link 与多包消费链路（T1107），跨度较大。为保证每步“可单独实现 & 单独验证”，拆分为以下子任务。
+
+### T0629a [TODO] entry point 识别：cone-aware + 多 entry point 稳定规则
+- 描述：在多 cone 编译单元中，仅将“consumer cone”的 `fun main` 视为 entry point；其它 cone 中同名 `main` 作为普通函数处理（不强制 `Pure`）。
+- 目标：先只做静态判定（基于 cone id）；不引入 `Cone.toml` 或 CLI 选择 entry 的参数。
+- 验收：新增 typecheck + cone fixtures：
+  - 同一用例内 app/lib 两个 cone 都有 `main` 时，仅 app 的 `main` 受 entry point `Pure!` 规则约束；
+  - library cone 的 `public` API 若含未处理 effect（例如漏写 `/ Raise<...>`）会在 typecheck 阶段被拒绝。
+- 依赖：T0610、T0321a（cone 可见性基础设施）
+
+### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
+- 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。
+- 目标：入口集合来源可配置（例如 Cone.toml 或 `scoop build --entry ...`）；不做运行时动态扫描。
+- 验收：新增 cone fixtures：多个 entry point 共存时规则稳定；导出入口若声明非 `Pure` 或漏处理 effect 会被拒绝。
+- 依赖：T1107
 
 ### T0631 [TODO] 语法糖：多 `catch` arms 与匹配顺序
 - 描述：把 `try/catch/finally` 从单个 `catch` 扩展到多个 `catch` arm，并固定匹配顺序、不可达分支诊断与 lowering 结果。
