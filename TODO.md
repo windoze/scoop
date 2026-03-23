@@ -2005,11 +2005,16 @@
    - tests：新增 `monomorph_collects_two_instances_for_id` 单测；新增 `tests/fixtures/codegen/monomorph_id_int.scoop`（run-pass 尚未启用，EXPECT: fail，但可用于 `scoop dump-ir` 手动验证）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-ir tests/fixtures/codegen/monomorph_id_int.scoop` 通过/可见 `id::<Int>` 与 `id::<String>` 两个实例。
 
-### T0713 [TODO] effect lowering：把 perform/handle 降到 MIR（non-resuming 先占位）
+### T0713 [DONE] effect lowering：把 perform/handle 降到 MIR（non-resuming 先占位）
 - 描述：在 MIR 中表达 perform 与 handler boundary（先用占位 terminator），为 T0614 的 codegen 做准备。
 - 目标：先只覆盖 Raise 与 try/catch；resume/continuation 后置。
 - 验收：dump-mir 能看到 perform/handler 相关 terminator；无 panic。
 - 依赖：T0612、T0703
+ - 完成：
+   - scoopc/mir lowering：HIR `ExprKind::Perform/Handle` 现在会生成 `TerminatorKind::Perform/Handle`；并为 `Perform` 标记 `unwind: Todo(...)`。
+   - scoopc/mir lowering：`handle` 的 body/arms/finally 会被 lowering 到独立 basic blocks（当前不连接到主 CFG，仅用于 dump/fixtures 观察内部 `perform`）。
+   - fixtures：新增 `tests/fixtures/mir/handle_perform.scoop` + `.mir` golden 回归用例。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-mir tests/fixtures/mir/handle_perform.scoop` 通过。
 
 ### T0714 [TODO] 捕获闭包：`var` 可变捕获的 boxing / aliasing / 写回
 - 描述：在已有 capture set / env struct 基础上，支持捕获可变局部：为 `var` 引入 box 或等价可变单元，并固定读写别名与生命周期语义。

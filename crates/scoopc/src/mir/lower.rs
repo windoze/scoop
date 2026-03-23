@@ -17,8 +17,9 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeStore};
 
 use super::{
-    BasicBlock, BasicBlockId, Body, ConstValue, File, FunDecl, Item, LocalDecl, LocalId, Operand,
-    Param, Rvalue, Statement, StatementKind, Terminator, TerminatorKind, UnwindAction,
+    BasicBlock, BasicBlockId, Body, ConstValue, File, FunDecl, HandlerArm, Item, LocalDecl,
+    LocalId, Operand, Param, Rvalue, Statement, StatementKind, Terminator, TerminatorKind,
+    UnwindAction,
 };
 
 /// MIR lowering 错误（当前阶段仅包装 HIR lowering 错误）。
@@ -227,12 +228,19 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 覆盖指定 basic block 的 terminator。
+    fn set_terminator_with_unwind(
+        &mut self,
+        bb: BasicBlockId,
+        span: Span,
+        kind: TerminatorKind,
+        unwind: UnwindAction,
+    ) {
+        self.body.blocks[bb.as_usize()].terminator = Terminator { span, kind, unwind };
+    }
+
+    /// 覆盖指定 basic block 的 terminator（默认 `NoUnwind`）。
     fn set_terminator(&mut self, bb: BasicBlockId, span: Span, kind: TerminatorKind) {
-        self.body.blocks[bb.as_usize()].terminator = Terminator {
-            span,
-            kind,
-            unwind: UnwindAction::NoUnwind,
-        };
+        self.set_terminator_with_unwind(bb, span, kind, UnwindAction::NoUnwind);
     }
 
     /// 当前 basic block 是否已经被 terminator 结束。
@@ -489,12 +497,8 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::Call { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "call lowering pending")
             }
-            hir::ExprKind::Perform { .. } => {
-                self.emit_todo_value(expr.span, expr.ty, "perform lowering pending")
-            }
-            hir::ExprKind::Handle(_) => {
-                self.emit_todo_value(expr.span, expr.ty, "handle lowering pending")
-            }
+            hir::ExprKind::Perform { op, args } => self.lower_perform_expr(expr.span, expr.ty, op, args),
+            hir::ExprKind::Handle(handle) => self.lower_handle_expr(expr.span, expr.ty, handle),
         }
     }
 
@@ -510,6 +514,133 @@ impl<'a> FnLowering<'a> {
         let tmp = self.push_temp_local(span, ty);
         self.assign(span, tmp, Rvalue::Todo(msg));
         tmp
+    }
+
+    /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
+    ///
+    /// 当前阶段（TODO T0713）先做“结构落地 + 不 panic”：
+    /// - 先按顺序 lowering 实参表达式（即便暂不把参数传入 MIR terminator）；
+    /// - 为该表达式分配一个临时结果 local（值本身用 `Todo` 占位）；
+    /// - 用 `TerminatorKind::Perform` 结束当前基本块，并标记该点“可能发生 unwinding”。
+    fn lower_perform_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        op: &hir::EffectOpRef,
+        args: &[hir::CallArg],
+    ) -> LocalId {
+        for arg in args {
+            if self.current_is_terminated() {
+                break;
+            }
+            match arg {
+                hir::CallArg::Positional(expr) => {
+                    let _ = self.lower_expr_to_local(expr);
+                }
+                hir::CallArg::Named { value, .. } => {
+                    let _ = self.lower_expr_to_local(value);
+                }
+            }
+        }
+
+        if self.current_is_terminated() {
+            // 实参 lowering 提前终止了 CFG：该 perform 永远不会发生。
+            return self.push_temp_local(span, ty);
+        }
+
+        let result = self.push_temp_local(span, ty);
+        self.assign(span, result, Rvalue::Todo("perform result pending"));
+
+        self.set_terminator_with_unwind(
+            self.current_bb,
+            span,
+            TerminatorKind::Perform {
+                op_fqn: op.fqn.clone(),
+            },
+            UnwindAction::Todo("perform unwind pending"),
+        );
+
+        result
+    }
+
+    /// 降低一个 effect handler 表达式（HIR `Handle`）到 MIR。
+    ///
+    /// 当前阶段（TODO T0713）策略：
+    /// - 把 handler boundary 以 `TerminatorKind::Handle { .. }` 占位落在当前块末尾；
+    /// - 同时把 handle 的 body/arms/finally 降到**独立的新 block**里，便于 `dump-mir`/fixtures
+    ///   观察内部的 `perform`/控制流形态；
+    /// - 这些 block 暂未与主 CFG 连接（后续会在更完整的 effect lowering 中展开为显式 CFG）。
+    fn lower_handle_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        handle: &hir::HandleExpr,
+    ) -> LocalId {
+        let outer_bb = self.current_bb;
+
+        let result = self.push_temp_local(span, ty);
+        self.assign(span, result, Rvalue::Todo("handle result pending"));
+
+        let arms = handle
+            .arms
+            .iter()
+            .map(|arm| HandlerArm {
+                op_fqn: arm.op.op.fqn.clone(),
+                binder_count: arm.op.binders.len(),
+            })
+            .collect();
+
+        self.set_terminator(
+            outer_bb,
+            span,
+            TerminatorKind::Handle {
+                arms,
+                has_finally: handle.finally.is_some(),
+            },
+        );
+
+        // 额外 lower handle 内部结构到独立 block（不连接到主 CFG）。
+        let body_bb = self.push_block(handle.body.span);
+        self.current_bb = body_bb;
+        self.lower_block_as_stmt(&handle.body);
+        if !self.current_is_terminated() {
+            self.set_terminator(
+                self.current_bb,
+                handle.body.span,
+                TerminatorKind::Todo("handle body exit pending"),
+            );
+        }
+
+        for arm in &handle.arms {
+            let arm_bb = self.push_block(arm.span);
+            self.current_bb = arm_bb;
+            let _ = self.lower_expr_to_local(&arm.body);
+            if !self.current_is_terminated() {
+                self.set_terminator(
+                    self.current_bb,
+                    arm.span,
+                    TerminatorKind::Todo("handle arm exit pending"),
+                );
+            }
+        }
+
+        if let Some(finally) = &handle.finally {
+            let finally_bb = self.push_block(finally.span);
+            self.current_bb = finally_bb;
+            self.lower_block_as_stmt(finally);
+            if !self.current_is_terminated() {
+                self.set_terminator(
+                    self.current_bb,
+                    finally.span,
+                    TerminatorKind::Todo("handle finally exit pending"),
+                );
+            }
+        }
+
+        // 注意：必须把 current_bb 恢复回 outer_bb，保证外层 CFG 继续认为“当前块已终止”。
+        self.current_bb = outer_bb;
+
+        result
     }
 
     /// 降低字面量：把常量写入一个临时 local。
