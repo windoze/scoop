@@ -1835,11 +1835,7 @@
    - fixtures：`scoop test` 新增 `typecheck_cone` runner，并新增用例 `tests/fixtures/typecheck_cone/program_boundary_multi_entry_points/**` 覆盖多 entry point 与库 public API 的 effect 门禁。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
-- 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。
-- 目标：入口集合来源可配置（例如 Cone.toml 或 `scoop build --entry ...`）；不做运行时动态扫描。
-- 验收：新增 cone fixtures：多个 entry point 共存时规则稳定；导出入口若声明非 `Pure` 或漏处理 effect 会被拒绝。
-- 依赖：T1107
+> 注：T0629b 依赖多包 build/link（T1107），已移动到 T1107 之后以保持 TODO 顺序可执行。
 
 ### T0631 [TODO] 语法糖：多 `catch` arms 与匹配顺序
 - 描述：把 `try/catch/finally` 从单个 `catch` 扩展到多个 `catch` arm，并固定匹配顺序、不可达分支诊断与 lowering 结果。
@@ -2518,6 +2514,12 @@
 - 目标：先不做增量；先只支持 DAG，无循环依赖。
 - 验收：cone fixture：两包依赖编译并链接成可执行，运行输出正确。
 - 依赖：T1105、T0806
+
+### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
+- 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。
+- 目标：入口集合来源可配置（例如 Cone.toml 或 `scoop build --entry ...`）；不做运行时动态扫描。
+- 验收：新增 cone fixtures：多个 entry point 共存时规则稳定；导出入口若声明非 `Pure` 或漏处理 effect 会被拒绝。
+- 依赖：T1107
 
 ### T1108 [TODO] pre-specialize：从 Cone.toml 指定常用单态化实例（spec §13.7）
 - 描述：支持在 Cone.toml 中列出需要预编译的泛型实例，并在打包时写入 `.cone`。
