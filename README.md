@@ -15,12 +15,21 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 前提：
 - Rust（建议最新版 stable）
 - clang（用于早期 C runtime 构建）
+- LLVM（可选：仅当启用 `scoopc` 的 `llvm` feature 时需要；需提供 `llvm-config`）
 
 构建：
 
 ```bash
 cargo build
 ```
+
+如需验证 LLVM 后端依赖是否就绪（当前阶段仅编译依赖，不生成 IR）：
+
+```bash
+cargo build -p scoopc --features llvm
+```
+
+> 注：当前 `llvm` feature 选择了 inkwell 的 `llvm18-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 在 PATH 中。
 
 运行 CLI：
 
@@ -41,4 +50,3 @@ cargo run -p scoop -- test
 - `crates/scoop_runtime/`：早期运行时构建（C runtime 的 build glue）
 - `runtime/c/`：早期 C 运行时实现（GC/effect/线程等，逐步补齐）
 - `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）
-

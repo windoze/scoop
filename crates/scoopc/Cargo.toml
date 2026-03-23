@@ -3,7 +3,12 @@ name = "scoopc"
 version.workspace = true
 edition.workspace = true
 
+[features]
+# LLVM 后端（inkwell）默认关闭，以保证在未安装 LLVM 的环境（例如 CI）也能 `cargo build/test --all`。
+llvm = ["dep:inkwell"]
+
 [dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
 tracing = "0.1.40"
+inkwell = { version = "0.8.0", optional = true, features = ["llvm18-1"] }

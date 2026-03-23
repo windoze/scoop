@@ -2035,11 +2035,15 @@
 
 ## T08：LLVM 后端与链接（阶段 7：inkwell codegen）
 
-### T0801 [TODO] 引入 inkwell（或等价 LLVM 绑定）并完成最小编译
+### T0801 [DONE] 引入 inkwell（或等价 LLVM 绑定）并完成最小编译
 - 描述：在 `scoopc` 新增 feature-gated `inkwell` 依赖，确保 workspace 在 CI 环境可构建。
 - 目标：先只做到 `cargo build`；不生成任何 IR。
 - 验收：`cargo build --all` 通过；若 CI 缺 LLVM，则需要在文档/CI 明确安装步骤或先使用 feature gate 默认关闭。
 - 依赖：T0001
+ - 完成：
+   - `crates/scoopc/Cargo.toml`：新增 `llvm` feature（默认关闭），并以 optional 依赖引入 `inkwell`。
+   - `README.md`：补充 LLVM 后端 feature 的开启方式与 `llvm-config` 依赖说明。
+   - 验收：`cargo build --all`、`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 通过。
 
 ### T0802 [TODO] 代码生成 v0：生成空 `main` LLVM module（可打印 IR）
 - 描述：为一个最小 Scoop 程序生成 LLVM IR（哪怕只返回 0）。
