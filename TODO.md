@@ -1888,11 +1888,17 @@
    - tests：新增单测覆盖 CFG 连通与非法 target 的稳定报错。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
-### T0612 [TODO] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
+### T0612 [DONE] HIR/MIR：在 IR 中表达 `perform` 与 `handle`（不做 lowering）
 - 描述：为 effect 调用与 handle 表达式添加 IR 节点，确保能从 AST lowering 到 HIR/MIR 并 dump。
 - 目标：先只覆盖 non-resuming arm；不实现 unwinding/state machine。
 - 验收：`scoop dump-hir`/`dump-ir` 能输出含 perform/handle 的 IR；新增 fixtures/hir 或 snapshot golden 覆盖。
 - 依赖：T0605、T0702、T0703
+ - 完成：
+   - scoopc/hir：新增 `ExprKind::Perform`/`ExprKind::Handle`（含 `HandleExpr/HandleArm/HandleOp/HandleBinder` 与 `EffectOpRef`）。
+   - scoopc/hir lowering：识别 effect op call（如 `Raise.raise(1)`）并 lower 为 `Perform`；`handle { ... } with { ... }` lower 为 `Handle`。
+   - scoopc/mir：为后续 effect lowering 预留 `TerminatorKind::Perform`/`Handle` 与 `HandlerArm` 结构占位，并更新 CFG 校验/后继遍历逻辑。
+   - fixtures：新增 `tests/fixtures/hir/handle_perform.scoop` + `.hir` golden；并在 `scoopc` 单测中加入 golden 回归。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/handle_perform.scoop` 通过。
 
 ### T0704 [TODO] 单态化缓存键：`Symbol + type args + effect row args`（spec §3.1、PLAN §7.2）
 - 描述：定义 MonomorphKey，并实现 Hash/Eq 与 debug 输出。

@@ -28,6 +28,7 @@
 - 2026-03-23：完成 T0628b：引入 `TypeId` 级的 row 替换 plan，支持在 tuple/Option/多层 function type/nominal args 中实例化 `E + ...`，并补齐闭合 row 引用 row 变量（`E!`）的稳定诊断与 fixtures 覆盖。
 - 2026-03-23：完成 T0629a：program boundary 的 entry point 引入 cone-aware 规则（仅 consumer cone 的 `main` 视为 entry point），并新增 `typecheck_cone` fixtures runner 与用例覆盖。
 - 2026-03-23：完成 T0701：新增 `scoopc::hir` 骨架与最小 lowering，并落地 `scoop dump-hir` 调试输出命令。
+- 2026-03-23：完成 T0612：HIR 增加 `perform/handle` 节点与 lowering；MIR 预留对应 terminator；新增 HIR fixtures 回归。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

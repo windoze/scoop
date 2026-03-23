@@ -1,0 +1,139 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 36..125,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 47..125,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 51..123,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 51..123,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Handle(
+                                            HandleExpr {
+                                                body: Block {
+                                                    span: 58..88,
+                                                    ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    stmts: [
+                                                        Stmt {
+                                                            span: 64..78,
+                                                            ty: TypeId(
+                                                                2,
+                                                            ),
+                                                            kind: Expr(
+                                                                Expr {
+                                                                    span: 64..78,
+                                                                    ty: TypeId(
+                                                                        0,
+                                                                    ),
+                                                                    kind: Perform {
+                                                                        op: EffectOpRef {
+                                                                            span: 70..75,
+                                                                            fqn: "scoop.core.Raise.raise",
+                                                                        },
+                                                                        args: [
+                                                                            Positional(
+                                                                                Expr {
+                                                                                    span: 76..77,
+                                                                                    ty: TypeId(
+                                                                                        5,
+                                                                                    ),
+                                                                                    kind: Literal(
+                                                                                        Int,
+                                                                                    ),
+                                                                                },
+                                                                            ),
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            ),
+                                                        },
+                                                        Stmt {
+                                                            span: 83..84,
+                                                            ty: TypeId(
+                                                                2,
+                                                            ),
+                                                            kind: Expr(
+                                                                Expr {
+                                                                    span: 83..84,
+                                                                    ty: TypeId(
+                                                                        5,
+                                                                    ),
+                                                                    kind: Literal(
+                                                                        Int,
+                                                                    ),
+                                                                },
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                                arms: [
+                                                    HandleArm {
+                                                        span: 100..119,
+                                                        op: HandleOp {
+                                                            span: 100..114,
+                                                            effect_ty: TypeId(
+                                                                8,
+                                                            ),
+                                                            op: EffectOpRef {
+                                                                span: 106..111,
+                                                                fqn: "scoop.core.Raise.raise",
+                                                            },
+                                                            binders: [
+                                                                HandleBinder {
+                                                                    span: 112..113,
+                                                                    id: S0,
+                                                                    name: "e",
+                                                                    ty: TypeId(
+                                                                        0,
+                                                                    ),
+                                                                },
+                                                            ],
+                                                        },
+                                                        body: Expr {
+                                                            span: 118..119,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                    },
+                                                ],
+                                                finally: None,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

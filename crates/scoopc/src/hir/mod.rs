@@ -135,7 +135,29 @@ pub enum ExprKind {
         callee: Box<Expr>,
         args: Vec<CallArg>,
     },
+    /// effect operation 调用（spec §5.2/§5.4）。
+    ///
+    /// 说明：
+    /// - 在 AST 中该形态通常表现为 `Effect.op(args...)` 的调用表达式；
+    /// - 在后续 lowering（MIR/effect lowering）中会拥有特殊控制流语义（非普通函数调用）。
+    Perform {
+        op: EffectOpRef,
+        args: Vec<CallArg>,
+    },
+    /// effect handler 表达式：`handle { ... } with { ... }`（spec §5.4）。
+    ///
+    /// 当前阶段仅承载 non-resuming arms 的结构信息；continuation/resume 相关字段留待后续任务补齐。
+    Handle(HandleExpr),
     Todo(&'static str),
+}
+
+/// 一个 effect operation 的“引用”（以 FQN 表示）。
+///
+/// 说明：该结构主要用于 HIR dump/fixtures 的稳定输出；后续可替换为更结构化的 symbol 引用。
+#[derive(Debug, Clone)]
+pub struct EffectOpRef {
+    pub span: Span,
+    pub fqn: String,
 }
 
 #[derive(Debug, Clone)]
@@ -169,4 +191,38 @@ pub enum CallArg {
         name_span: Span,
         value: Expr,
     },
+}
+
+/// `handle` 表达式（HIR 视图）。
+#[derive(Debug, Clone)]
+pub struct HandleExpr {
+    pub body: Block,
+    pub arms: Vec<HandleArm>,
+    pub finally: Option<Block>,
+}
+
+/// `handle` 的一个 handler arm（HIR 视图）。
+#[derive(Debug, Clone)]
+pub struct HandleArm {
+    pub span: Span,
+    pub op: HandleOp,
+    pub body: Expr,
+}
+
+/// handler arm head 中的 effect operation：`Effect.op(binders...)`（HIR 视图）。
+#[derive(Debug, Clone)]
+pub struct HandleOp {
+    pub span: Span,
+    pub effect_ty: TypeId,
+    pub op: EffectOpRef,
+    pub binders: Vec<HandleBinder>,
+}
+
+/// handler arm 的一个参数 binder：`name` 或 `name: Type`（HIR 视图）。
+#[derive(Debug, Clone)]
+pub struct HandleBinder {
+    pub span: Span,
+    pub id: SymbolId,
+    pub name: String,
+    pub ty: TypeId,
 }

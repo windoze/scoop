@@ -111,7 +111,11 @@ impl Body {
                         });
                     }
                 }
-                TerminatorKind::Return | TerminatorKind::Unreachable | TerminatorKind::Todo(_) => {}
+                TerminatorKind::Return
+                | TerminatorKind::Unreachable
+                | TerminatorKind::Perform { .. }
+                | TerminatorKind::Handle { .. }
+                | TerminatorKind::Todo(_) => {}
             }
         }
 
@@ -223,8 +227,25 @@ pub enum TerminatorKind {
     Return,
     Goto { target: BasicBlockId },
     Unreachable,
+    /// effect operation 调用（对应 HIR 的 `ExprKind::Perform`）。
+    ///
+    /// 当前阶段仅保留“发生了哪一个 effect op”的信息；具体如何进入 handler/如何建模 unwinding
+    /// 由后续 effect lowering 任务（TODO T0713/T0707）决定。
+    Perform { op_fqn: String },
+    /// effect handler 区域（对应 HIR 的 `ExprKind::Handle`）。
+    ///
+    /// 注意：该变体目前只是一个“结构占位”，并不携带 CFG target；后续会在 lowering 中把 handle
+    /// 展开为显式基本块与 cleanup/handler 栈管理。
+    Handle { arms: Vec<HandlerArm>, has_finally: bool },
     /// 未实现控制流占位（例如 if/switch/call/cleanup 等）。
     Todo(&'static str),
+}
+
+/// `handle` 在 MIR 视图下的一个 handler arm（结构占位）。
+#[derive(Debug, Clone)]
+pub struct HandlerArm {
+    pub op_fqn: String,
+    pub binder_count: usize,
 }
 
 impl TerminatorKind {
@@ -234,7 +255,11 @@ impl TerminatorKind {
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
         match self {
             TerminatorKind::Goto { target } => f(*target),
-            TerminatorKind::Return | TerminatorKind::Unreachable | TerminatorKind::Todo(_) => {}
+            TerminatorKind::Return
+            | TerminatorKind::Unreachable
+            | TerminatorKind::Perform { .. }
+            | TerminatorKind::Handle { .. }
+            | TerminatorKind::Todo(_) => {}
         }
     }
 }
@@ -324,4 +349,3 @@ mod tests {
         );
     }
 }
-

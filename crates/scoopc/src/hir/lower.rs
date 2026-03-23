@@ -20,8 +20,8 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, Expr, ExprKind, File, FunDecl, Item, LiteralKind, Param, Stmt, StmtKind,
-    SymbolId, ValDecl, ValueRef,
+    Block, CallArg, EffectOpRef, Expr, ExprKind, File, FunDecl, HandleArm, HandleBinder, HandleExpr,
+    HandleOp, Item, LiteralKind, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -328,9 +328,15 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Block(b), ty)
             }
             ast::ExprKind::Call { callee, args } => {
-                let callee = Box::new(self.lower_expr(pkg_prefix, callee));
-                let args = args.iter().map(|arg| self.lower_call_arg(pkg_prefix, arg)).collect();
-                (ExprKind::Call { callee, args }, self.builtins.any)
+                if let Some((kind, ty)) = self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
+                {
+                    (kind, ty)
+                } else {
+                    let callee = Box::new(self.lower_expr(pkg_prefix, callee));
+                    let args =
+                        args.iter().map(|arg| self.lower_call_arg(pkg_prefix, arg)).collect();
+                    (ExprKind::Call { callee, args }, self.builtins.any)
+                }
             }
             ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
             ast::ExprKind::TupleLit { .. } => (ExprKind::Todo("tuple_lit"), self.builtins.any),
@@ -338,7 +344,10 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::StructLit { .. } => (ExprKind::Todo("struct_lit"), self.builtins.any),
             ast::ExprKind::If { .. } => (ExprKind::Todo("if"), self.builtins.any),
             ast::ExprKind::When { .. } => (ExprKind::Todo("when"), self.builtins.any),
-            ast::ExprKind::Handle { .. } => (ExprKind::Todo("handle"), self.builtins.any),
+            ast::ExprKind::Handle { body, arms, finally } => {
+                let handle = self.lower_handle_expr(pkg_prefix, body, arms, finally.as_ref());
+                (ExprKind::Handle(handle), self.builtins.any)
+            }
             ast::ExprKind::MemberAccess { .. } => (ExprKind::Todo("member_access"), self.builtins.any),
             ast::ExprKind::SpliceField { .. } => (ExprKind::Todo("splice_field"), self.builtins.any),
             ast::ExprKind::SafeMemberAccess { .. } => {
@@ -359,6 +368,114 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    /// 尝试把一个调用表达式识别为“effect op call”（例如 `Raise.raise(e)`），并 lower 为 HIR `Perform`。
+    ///
+    /// 若不匹配该形态，则返回 None，让外层按普通 `Call` 处理。
+    fn try_lower_effect_op_call_expr(
+        &mut self,
+        pkg_prefix: &str,
+        callee: &ast::Expr,
+        args: &[ast::Expr],
+    ) -> Option<(ExprKind, TypeId)> {
+        let ast::ExprKind::MemberAccess { member, .. } = &callee.kind else {
+            return None;
+        };
+        let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
+            return None;
+        };
+        if !self.is_effect_op_fqn(fqn) {
+            return None;
+        }
+
+        let op = EffectOpRef {
+            span: member.span,
+            fqn: fqn.clone(),
+        };
+        let args = args
+            .iter()
+            .map(|arg| self.lower_call_arg(pkg_prefix, arg))
+            .collect();
+        Some((ExprKind::Perform { op, args }, self.builtins.any))
+    }
+
+    fn is_effect_op_fqn(&self, fqn: &str) -> bool {
+        let Some(syms) = self.index.by_fqn.get(fqn) else {
+            return false;
+        };
+        syms.fun
+            .iter()
+            .any(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+    }
+
+    fn lower_handle_expr(
+        &mut self,
+        pkg_prefix: &str,
+        body: &ast::Block,
+        arms: &[ast::HandleArm],
+        finally: Option<&ast::Block>,
+    ) -> HandleExpr {
+        let body = self.lower_block(pkg_prefix, body);
+        let arms = arms
+            .iter()
+            .map(|arm| self.lower_handle_arm(pkg_prefix, arm))
+            .collect();
+        let finally = finally.map(|b| self.lower_block(pkg_prefix, b));
+        HandleExpr { body, arms, finally }
+    }
+
+    fn lower_handle_arm(&mut self, pkg_prefix: &str, arm: &ast::HandleArm) -> HandleArm {
+        HandleArm {
+            span: arm.span,
+            op: self.lower_handle_op(pkg_prefix, &arm.op),
+            body: self.lower_expr(pkg_prefix, &arm.body),
+        }
+    }
+
+    fn lower_handle_op(&mut self, _pkg_prefix: &str, op: &ast::HandleOp) -> HandleOp {
+        let effect_ty = self.lower_type_path(&op.effect);
+        let effect_fqn = self.index.type_ref_to_fqn_in_file(
+            self.source,
+            self.file,
+            &ast::TypeRef::Path(op.effect.clone()),
+        );
+
+        let op_name = op.op.text(self.source).to_string();
+        let op_fqn = match effect_fqn {
+            Some(effect_fqn) => format!("{effect_fqn}.{op_name}"),
+            None => format!("{}.{}", self.source.slice(op.effect.span), op_name),
+        };
+
+        let binders = op
+            .binders
+            .iter()
+            .map(|b| self.lower_handle_binder(b))
+            .collect();
+
+        HandleOp {
+            span: op.span,
+            effect_ty,
+            op: EffectOpRef {
+                span: op.op.span,
+                fqn: op_fqn,
+            },
+            binders,
+        }
+    }
+
+    fn lower_handle_binder(&mut self, b: &ast::HandleBinder) -> HandleBinder {
+        let ty = b
+            .ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+        HandleBinder {
+            span: b.span,
+            id: self.symbols.intern_local(b.name.span),
+            name: b.name.text(self.source).to_string(),
+            ty,
         }
     }
 
@@ -656,6 +773,24 @@ mod tests {
 
         let golden_path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/hir/minimal.hir");
+        let expected = std::fs::read_to_string(&golden_path).unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hir_fixture_handle_perform_golden() {
+        let sess = Session::new().unwrap();
+
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/handle_perform.scoop");
+        let file = SourceFile::load(&fixture_path).unwrap();
+
+        let lowered = lower_for_dump(&sess, &file).unwrap();
+        let actual = format!("{:#?}\n", lowered.file);
+
+        let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/hir/handle_perform.hir");
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);
