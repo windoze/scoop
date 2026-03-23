@@ -27,6 +27,7 @@
 - 2026-03-23：完成 T0628a：typecheck 侧支持 `E + R` 形式的 row（函数类型 `/ Row` 与 use-site `Type<eff Row>`），调用点按 `found - base` 推断并回填实例化结果，新增 infer/effects fixtures 覆盖。
 - 2026-03-23：完成 T0628b：引入 `TypeId` 级的 row 替换 plan，支持在 tuple/Option/多层 function type/nominal args 中实例化 `E + ...`，并补齐闭合 row 引用 row 变量（`E!`）的稳定诊断与 fixtures 覆盖。
 - 2026-03-23：完成 T0629a：program boundary 的 entry point 引入 cone-aware 规则（仅 consumer cone 的 `main` 视为 entry point），并新增 `typecheck_cone` fixtures runner 与用例覆盖。
+- 2026-03-23：完成 T0701：新增 `scoopc::hir` 骨架与最小 lowering，并落地 `scoop dump-hir` 调试输出命令。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -49,7 +50,8 @@
 - [ ] 提供命令行（拆分为可迭代子任务）：
   - [x] `scoop test`（fixtures harness，当前为最小 smoke）
   - [x] `scoop dump-ast`（当前为占位信息输出）
-  - [ ] `scoop dump-hir` / `scoop dump-ir`（待 HIR/MIR/LLVM 落地）
+  - [x] `scoop dump-hir`（HIR Debug 输出；用于后续 lowering/回归）
+  - [ ] `scoop dump-ir`（待 MIR/LLVM 落地）
   - [ ] `scoop build <main.scoop> -o <bin>`（待 codegen + 链接落地）
   - [ ] `scoop run <main.scoop>`（待 build 可用后落地）
 - [x] `build.rs`：编译 `runtime/c`（强制 clang；当前通过 `crates/scoop_runtime` 实现）
@@ -435,6 +437,7 @@
 
 - 注：`perform` / `handle` 的 IR 节点（TODO T0612）依赖 HIR/MIR 骨架与 AST→HIR lowering（TODO T0701～T0703），因此在 TODO 中需要排在 T0703 之后，避免出现“首个 TODO 依赖未满足”的顺序问题。
 - [ ] HIR：保留大部分结构但已解析/已类型化
+  - [x] HIR 骨架 + `dump-hir`（TODO T0701）
 - [ ] MIR：显式控制流（基本块）、显式临时变量、显式 drop/cleanup（用于 `finally`/effect unwinding）
 
 ### 7.2 泛型单态化（monomorphization）

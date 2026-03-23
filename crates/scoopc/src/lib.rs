@@ -9,6 +9,7 @@
 //! `scoop`（driver）crate 只负责命令行与调度。
 
 pub mod ast;
+pub mod hir;
 pub mod infer;
 pub mod parser;
 pub mod resolve;

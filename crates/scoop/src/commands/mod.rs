@@ -5,6 +5,7 @@
 //! - 真实编译器逻辑在 `scoopc` crate 中实现；driver 只负责 I/O、调度与输出。
 
 mod dump_ast;
+mod dump_hir;
 mod test;
 
 use tracing_subscriber::EnvFilter;
@@ -23,6 +24,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
     match args.command {
         Command::Test { fixtures } => test::run(fixtures),
         Command::DumpAst { input } => dump_ast::run(input),
+        Command::DumpHir { input } => dump_hir::run(input),
         Command::Build { .. } => Err(miette::miette!(
             "子命令 `build` 尚未实现；当前仅提供工程骨架。"
         )),
@@ -31,4 +33,3 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         )),
     }
 }
-

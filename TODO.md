@@ -1855,11 +1855,16 @@
 
 ## T07：IR 与单态化（阶段 6：为 LLVM 做准备）
 
-### T0701 [TODO] HIR：定义已解析/已类型化的中间表示骨架
+### T0701 [DONE] HIR：定义已解析/已类型化的中间表示骨架
 - 描述：新增 `scoopc::hir` 模块：表达式/语句/声明节点携带类型与解析后的 symbol 引用。
 - 目标：先覆盖：fun、val、block、call、literal；其余节点可用 `Todo`/`Unimplemented` 占位。
 - 验收：新增 `scoop dump-hir <file>`（可先打印 Debug）；对一个最小文件能输出 HIR。
 - 依赖：T0404、T0305、T0207、T0002
+ - 完成：
+   - scoopc：新增 `hir` 模块（File/Item/Fun/Val/Block/Stmt/Expr）与最小 AST→HIR lowering（未覆盖节点用 `Todo`/`Any` 占位，避免 panic）。
+   - scoop：新增 `dump-hir` 子命令，调用 `scoopc::hir::lower_for_dump` 并打印 HIR Debug。
+   - tests：新增 `hir::lower::tests::lower_minimal_file_smoke` 覆盖最小程序 lowering。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/parse/hello.scoop` 通过。
 
 ### T0702 [TODO] AST → HIR lowering（声明头 + 简单函数体）
 - 描述：实现从 AST 构造 HIR：把 `TypeRef` lower 为 `TypeId`，把 ident 绑定为 `SymbolId`。
