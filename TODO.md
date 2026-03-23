@@ -1932,11 +1932,15 @@
    - fixtures：新增 `tests/fixtures/hir/member_access.scoop` + `.hir` golden 覆盖成员访问、成员调用与成员赋值；并加入 `hir_fixture_member_access_golden` 单测回归。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop -- dump-hir tests/fixtures/hir/member_access.scoop` 通过。
 
-### T0707 [TODO] MIR：cleanup/finally 的基本模型（为 try/finally 与 effect unwinding）
+### T0707 [DONE] MIR：cleanup/finally 的基本模型（为 try/finally 与 effect unwinding）
 - 描述：在 MIR 中引入 cleanup block 或显式 drop/cleanup 机制，让 lowering 可以表达“无论如何都执行”的语义。
 - 目标：先只支持 `try/finally`；不实现析构（语言尚无 drop）。
 - 验收：新增单测：构造一个带 cleanup 的 MIR 并验证 CFG；后续可被 codegen 使用。
 - 依赖：T0703
+ - 完成：
+   - scoopc/mir：新增 `UnwindAction` 与 `Terminator.unwind`；新增 `TerminatorKind::ResumeUnwind`；`BasicBlock` 增加 `is_cleanup` 标记；CFG 校验与可达性分析纳入 cleanup/unwind 边。
+   - tests：新增 MIR 单测覆盖 cleanup edge 可达性与 CFG 校验。
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0708 [TODO] MIR lowering：if/when → 基本块 + terminator
 - 描述：把条件分支 lowering 为 CFG（br/switch），并在 merge 点管理临时变量。

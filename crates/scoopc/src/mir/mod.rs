@@ -87,7 +87,7 @@ impl Body {
 
     /// 检查 CFG 的**结构合法性**：
     /// - `start` 必须在 `blocks` 范围内
-    /// - 所有 terminator 的 target 必须在范围内
+    /// - 所有 terminator 的 target 必须在范围内（包含 cleanup/unwind target）
     pub fn validate_cfg(&self) -> Result<(), MirValidationError> {
         if self.blocks.is_empty() {
             return Err(MirValidationError::EmptyBody);
@@ -101,21 +101,23 @@ impl Body {
 
         for (idx, block) in self.blocks.iter().enumerate() {
             let from = BasicBlockId(idx as u32);
-            match &block.terminator.kind {
-                TerminatorKind::Goto { target } => {
-                    if target.as_usize() >= self.blocks.len() {
-                        return Err(MirValidationError::InvalidTarget {
-                            from,
-                            target: *target,
-                            blocks_len: self.blocks.len(),
-                        });
-                    }
+
+            // 注意：不分配 Vec，保持验证逻辑轻量；一旦发现无效 target 即返回。
+            let mut invalid_target: Option<BasicBlockId> = None;
+            block.terminator.for_each_successor(|target| {
+                if invalid_target.is_some() {
+                    return;
                 }
-                TerminatorKind::Return
-                | TerminatorKind::Unreachable
-                | TerminatorKind::Perform { .. }
-                | TerminatorKind::Handle { .. }
-                | TerminatorKind::Todo(_) => {}
+                if target.as_usize() >= self.blocks.len() {
+                    invalid_target = Some(target);
+                }
+            });
+            if let Some(target) = invalid_target {
+                return Err(MirValidationError::InvalidTarget {
+                    from,
+                    target,
+                    blocks_len: self.blocks.len(),
+                });
             }
         }
 
@@ -137,7 +139,7 @@ impl Body {
             order.push(bb);
 
             let block = &self.blocks[bb.as_usize()];
-            block.terminator.kind.for_each_successor(|succ| {
+            block.terminator.for_each_successor(|succ| {
                 if visited[succ.as_usize()] {
                     return;
                 }
@@ -167,7 +169,7 @@ impl Body {
 
         while let Some(bb) = queue.pop_front() {
             let block = &self.blocks[bb.as_usize()];
-            block.terminator.kind.for_each_successor(|succ| {
+            block.terminator.for_each_successor(|succ| {
                 if visited[succ.as_usize()] {
                     return;
                 }
@@ -197,6 +199,10 @@ pub struct LocalDecl {
 /// MIR 基本块：顺序语句 + 终结指令（terminator）。
 #[derive(Debug, Clone)]
 pub struct BasicBlock {
+    /// 是否为 cleanup block（用于 `finally`/effect unwinding）。
+    ///
+    /// 该标记本身不影响 CFG 连通性；主要用于 dump/诊断与后续更严格的 MIR 规则。
+    pub is_cleanup: bool,
     pub stmts: Vec<Statement>,
     pub terminator: Terminator,
 }
@@ -220,11 +226,26 @@ pub enum StatementKind {
 pub struct Terminator {
     pub span: Span,
     pub kind: TerminatorKind,
+    /// 当该 terminator 发生 unwinding（例如 effect 传播）时应采取的动作。
+    pub unwind: UnwindAction,
+}
+
+/// terminator 在发生 unwinding 时应采取的动作（最小模型，用于 `finally`/effect unwinding）。
+#[derive(Debug, Clone)]
+pub enum UnwindAction {
+    /// 该 terminator 不会发生 unwinding。
+    NoUnwind,
+    /// 若发生 unwinding，则先跳转到 cleanup block 执行清理逻辑。
+    Cleanup { target: BasicBlockId },
+    /// 未实现占位：表示“可能会 unwind，但具体行为尚未建模”。
+    Todo(&'static str),
 }
 
 #[derive(Debug, Clone)]
 pub enum TerminatorKind {
     Return,
+    /// cleanup block：执行完清理逻辑后继续向上传播 unwinding。
+    ResumeUnwind,
     Goto { target: BasicBlockId },
     Unreachable,
     /// effect operation 调用（对应 HIR 的 `ExprKind::Perform`）。
@@ -249,17 +270,28 @@ pub struct HandlerArm {
 }
 
 impl TerminatorKind {
-    /// 对 terminator 的后继基本块调用回调。
+    /// 对 terminator 的“正常”后继基本块调用回调（不包含 cleanup/unwind 边）。
     ///
     /// 该接口适合做 CFG 分析（reachable/循环检测等），避免为每次查询分配 `Vec`。
     pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
         match self {
             TerminatorKind::Goto { target } => f(*target),
             TerminatorKind::Return
+            | TerminatorKind::ResumeUnwind
             | TerminatorKind::Unreachable
             | TerminatorKind::Perform { .. }
             | TerminatorKind::Handle { .. }
             | TerminatorKind::Todo(_) => {}
+        }
+    }
+}
+
+impl Terminator {
+    /// 对 terminator 的后继基本块调用回调（包含 cleanup/unwind 边）。
+    pub fn for_each_successor(&self, mut f: impl FnMut(BasicBlockId)) {
+        self.kind.for_each_successor(|succ| f(succ));
+        if let UnwindAction::Cleanup { target } = self.unwind {
+            f(target);
         }
     }
 }
@@ -296,6 +328,7 @@ mod tests {
         });
 
         let bb0 = body.push_block(BasicBlock {
+            is_cleanup: false,
             stmts: vec![Statement {
                 span: Span::new(0, 0),
                 kind: StatementKind::Nop,
@@ -305,13 +338,16 @@ mod tests {
                 kind: TerminatorKind::Goto {
                     target: BasicBlockId(1),
                 },
+                unwind: UnwindAction::NoUnwind,
             },
         });
         let bb1 = body.push_block(BasicBlock {
+            is_cleanup: false,
             stmts: Vec::new(),
             terminator: Terminator {
                 span: Span::new(0, 0),
                 kind: TerminatorKind::Return,
+                unwind: UnwindAction::NoUnwind,
             },
         });
 
@@ -329,12 +365,14 @@ mod tests {
     fn cfg_invalid_target_is_error() {
         let mut body = Body::new_empty();
         let bb0 = body.push_block(BasicBlock {
+            is_cleanup: false,
             stmts: Vec::new(),
             terminator: Terminator {
                 span: Span::new(0, 0),
                 kind: TerminatorKind::Goto {
                     target: BasicBlockId(42),
                 },
+                unwind: UnwindAction::NoUnwind,
             },
         });
         body.start = bb0;
@@ -347,5 +385,45 @@ mod tests {
                 blocks_len: 1,
             })
         );
+    }
+
+    #[test]
+    fn cfg_cleanup_edge_is_reachable() {
+        // 模拟一个“可能 unwind 的 terminator”：
+        // - 正常路径不存在（Perform 目前作为占位 terminator）
+        // - unwind 路径跳到 cleanup block，然后用 ResumeUnwind 继续传播
+        let mut body = Body::new_empty();
+
+        let bb0 = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::Perform {
+                    op_fqn: "scoop.core.Raise.raise".to_string(),
+                },
+                unwind: UnwindAction::Cleanup {
+                    target: BasicBlockId(1),
+                },
+            },
+        });
+        let bb1 = body.push_block(BasicBlock {
+            is_cleanup: true,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: Span::new(0, 0),
+                kind: TerminatorKind::ResumeUnwind,
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb0;
+
+        assert_eq!(bb0, BasicBlockId(0));
+        assert_eq!(bb1, BasicBlockId(1));
+        assert!(body.validate_cfg().is_ok());
+        assert_eq!(body.reachable_blocks().unwrap(), vec![bb0, bb1]);
+        assert!(body.is_fully_reachable().unwrap());
+        assert!(body.unreachable_blocks().unwrap().is_empty());
+        assert!(body.blocks[bb1.as_usize()].is_cleanup);
     }
 }

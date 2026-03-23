@@ -31,6 +31,7 @@
 - 2026-03-23：完成 T0612：HIR 增加 `perform/handle` 节点与 lowering；MIR 预留对应 terminator；新增 HIR fixtures 回归。
 - 2026-03-23：完成 T0704：新增 `scoopc::monomorph::MonomorphKey`（symbol + type args + effect row args）与单测覆盖，用于后续实例缓存。
 - 2026-03-24：完成 T0706：AST→HIR lowering 补齐 `member access`（`receiver.member`）节点与解析结果写入，并新增 HIR fixtures/golden 回归覆盖成员访问/成员调用/成员赋值。
+- 2026-03-24：完成 T0707：MIR 引入 cleanup/unwind 最小模型（`UnwindAction` + `Terminator.unwind` + `ResumeUnwind`），并新增 MIR 单测覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -445,6 +446,7 @@
   - [x] HIR：控制流与语句节点建模（if/when/while/assign/return）（TODO T0705）
 - [ ] MIR：显式控制流（基本块）、显式临时变量、显式 drop/cleanup（用于 `finally`/effect unwinding）
   - [x] MIR 骨架：基本块/terminator/locals + CFG 校验（TODO T0703）
+  - [x] MIR：cleanup/finally 的最小模型（UnwindAction + ResumeUnwind）（TODO T0707）
 
 ### 7.2 泛型单态化（monomorphization）
 
