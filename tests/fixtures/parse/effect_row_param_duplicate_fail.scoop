@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR: `eff` 参数必须位于泛型列表末尾
+// EXPECT-ERROR-AT: 9:29
+// 目标：T0624：泛型参数/实参列表中 `eff` 子句至多一个（spec §3.4）。
+
+package fixtures.parse
+
+interface Bad<eff E = Pure, eff F = Pure>

@@ -1,0 +1,27 @@
+// EXPECT: pass
+// 目标：T0624：`Type<eff Row>`（use-site）与 `eff` 参数推断联动：
+// - `Disposable` 省略 use-site `eff` 时默认 `Pure`
+// - `Disposable<eff Async>` 作为实参时，调用点推断 `E` 至少包含 `Async`，并把 required effects 计入当前函数体
+// - internal 函数在省略 effect annotation 时允许从 body 推断 non-Pure effect row（spec §5.8.2）
+
+package fixtures.typecheck
+
+effect Async
+
+interface Disposable<eff E = Pure> {
+    fun dispose(): Unit / E
+}
+
+fun <eff E = Pure> using(d: Disposable<eff E>): Unit / E
+
+fun asyncDisposable(): Disposable<eff Async>
+fun pureDisposable(): Disposable
+
+fun okPureInPublic() {
+    using(pureDisposable())
+}
+
+internal fun okAsyncInInternal() {
+    using(asyncDisposable())
+}
+

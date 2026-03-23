@@ -819,12 +819,26 @@ struct FunSigOwned {
     ///
     /// 对齐约定：该数组与 `params` 对齐（扩展函数包含 receiver 的占位参数）。
     param_fn_effect_uses_eff: Vec<bool>,
+    /// 形参是否为 `Type<eff E>` 这类“use-site effect row 实参直接引用 `eff` 变量”的名义类型。
+    ///
+    /// 用途（T0624）：
+    /// - 推断 `E` 时，除了从 lambda body 的 required effects 外，也需要从类型实参里提取约束：
+    ///   `Disposable<eff Async>` 作为实参会让 `E` 至少包含 `Async`。
+    /// - 在推断出 `E` 之后，还需要把签名里以默认值 lowering 的 `Type<eff E>` 回填为
+    ///   `Type<eff E_arg>`，否则 call arg 的 assignable 检查会错误地用默认值对比。
+    ///
+    /// 对齐约定：该数组与 `params` 对齐（扩展函数包含 receiver 的占位参数）。
+    param_nominal_eff_uses_eff: Vec<bool>,
     /// 返回类型是否为 `(...)->T / E` 这类“effects 直接引用 `eff` 变量”的函数类型。
     ///
     /// 用途（T0515）：
     /// - 当 `eff` row 参数在返回函数类型上透传时，调用点推断出 `E` 后，需要把该 row 实参回填到
     ///   `return_ty` 上，否则高阶函数的返回类型会错误地停留在“声明处默认 row”。
     return_fn_effect_uses_eff: bool,
+    /// 返回类型是否为 `Type<eff E>` 这类“use-site effect row 实参直接引用 `eff` 变量”的名义类型。
+    ///
+    /// 用途（T0624）：调用点推断出 `E` 后，需要把 `return_ty` 中对应的默认值实例化为实际 row。
+    return_nominal_eff_uses_eff: bool,
     params: Vec<TypeId>,
     return_ty: TypeId,
     /// 函数声明处的 effect row 标注：`/ Pure` / `/ E` / `/ (E1 + E2)`（spec §5.8）。
@@ -2405,7 +2419,9 @@ fn infer_handle_expr_type(
             type_params: type_params.clone(),
             eff_param: None,
             param_fn_effect_uses_eff: vec![false; param_count],
+            param_nominal_eff_uses_eff: vec![false; param_count],
             return_fn_effect_uses_eff: false,
+            return_nominal_eff_uses_eff: false,
             params: op_params,
             return_ty: op_return_ty,
             effects: None,
@@ -3948,9 +3964,31 @@ fn infer_call_expr_type(
                     checked_arg_tys[arg_idx] = found_ty;
                 }
 
-                // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+                // T0509/T0624：推断 `eff` row 参数：
+                // - T0509：从 lambda body 的 required effects 推断 `E`；
+                // - T0624：从 `Type<eff E>` 形式的实参类型中提取 row 约束（例如 `Disposable<eff Async>`）。
                 let eff_arg = if let Some(eff_param) = &sig.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+                    // T0624：从 `Type<eff E>` 形参的“实参类型”中提取 effect row 约束。
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else {
+                            continue;
+                        };
+                        if !sig
+                            .param_nominal_eff_uses_eff
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+
+                        let found_ty = checked_arg_tys[arg_idx];
+                        if let Some(row) = nominal_eff_row_from_type(found_ty, lower) {
+                            terms.extend(row.terms);
+                        }
+                    }
 
                     for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                         let Some(arg_idx) = arg_idx else {
@@ -4008,6 +4046,25 @@ fn infer_call_expr_type(
                         };
                         instantiated.params[param_idx] = patched;
                     }
+
+                    // T0624：将签名里 `Type<eff E>` 的 `E` 替换为实例化后的 effect row。
+                    for (param_idx, uses_eff) in
+                        sig.param_nominal_eff_uses_eff.iter().copied().enumerate()
+                    {
+                        if !uses_eff {
+                            continue;
+                        }
+                        let expected_ty = instantiated.params[param_idx];
+                        let Some(patched) =
+                            replace_nominal_type_eff(expected_ty, eff_arg.clone(), lower)
+                        else {
+                            return Err(ExprTypeError::UnsupportedExpr {
+                                kind: "eff row substitution（expected nominal type）",
+                                span: call_expr.span.into(),
+                            });
+                        };
+                        instantiated.params[param_idx] = patched;
+                    }
                 }
                 if sig.return_fn_effect_uses_eff {
                     let Some(patched) =
@@ -4015,6 +4072,17 @@ fn infer_call_expr_type(
                     else {
                         return Err(ExprTypeError::UnsupportedExpr {
                             kind: "eff row substitution（return function type）",
+                            span: call_expr.span.into(),
+                        });
+                    };
+                    instantiated.return_ty = patched;
+                }
+                if sig.return_nominal_eff_uses_eff {
+                    let Some(patched) =
+                        replace_nominal_type_eff(instantiated.return_ty, eff_arg.clone(), lower)
+                    else {
+                        return Err(ExprTypeError::UnsupportedExpr {
+                            kind: "eff row substitution（return nominal type）",
                             span: call_expr.span.into(),
                         });
                     };
@@ -4240,9 +4308,31 @@ fn infer_call_expr_type(
                     continue;
                 }
 
-                // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+                // T0509/T0624：推断 `eff` row 参数：
+                // - T0509：从 lambda body 的 required effects 推断；
+                // - T0624：从 `Type<eff E>` 形参的实参类型提取 row 约束。
                 let eff_arg = if let Some(eff_param) = &cand.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+                    // T0624：从 `Type<eff E>` 形参的实参类型提取约束。
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else {
+                            continue;
+                        };
+                        if !cand
+                            .param_nominal_eff_uses_eff
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+
+                        let found_ty = checked_arg_tys[arg_idx];
+                        if let Some(row) = nominal_eff_row_from_type(found_ty, lower) {
+                            terms.extend(row.terms);
+                        }
+                    }
 
                     for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                         let Some(arg_idx) = arg_idx else {
@@ -4302,6 +4392,25 @@ fn infer_call_expr_type(
                         };
                         instantiated.params[param_idx] = patched;
                     }
+
+                    // T0624：将签名里 `Type<eff E>` 的 `E` 替换为实例化后的 effect row。
+                    if ok {
+                        for (param_idx, uses_eff) in
+                            cand.param_nominal_eff_uses_eff.iter().copied().enumerate()
+                        {
+                            if !uses_eff {
+                                continue;
+                            }
+                            let expected_ty = instantiated.params[param_idx];
+                            let Some(patched) =
+                                replace_nominal_type_eff(expected_ty, eff_arg.clone(), lower)
+                            else {
+                                ok = false;
+                                break;
+                            };
+                            instantiated.params[param_idx] = patched;
+                        }
+                    }
                 }
                 if ok && cand.return_fn_effect_uses_eff {
                     if let Some(patched) = replace_function_type_effects(
@@ -4309,6 +4418,15 @@ fn infer_call_expr_type(
                         eff_arg.clone(),
                         lower,
                     ) {
+                        instantiated.return_ty = patched;
+                    } else {
+                        ok = false;
+                    }
+                }
+                if ok && cand.return_nominal_eff_uses_eff {
+                    if let Some(patched) =
+                        replace_nominal_type_eff(instantiated.return_ty, eff_arg.clone(), lower)
+                    {
                         instantiated.return_ty = patched;
                     } else {
                         ok = false;
@@ -5117,7 +5235,9 @@ fn infer_effect_op_call_expr_type(
         type_params,
         eff_param: None,
         param_fn_effect_uses_eff: vec![false; param_count],
+        param_nominal_eff_uses_eff: vec![false; param_count],
         return_fn_effect_uses_eff: false,
+        return_nominal_eff_uses_eff: false,
         params,
         return_ty,
         effects: None,
@@ -5517,18 +5637,30 @@ fn infer_member_call_expr_type(
             builtins,
         )?;
 
-        let expected_receiver_ty = instantiated
-            .params
-            .first()
-            .copied()
-            .unwrap_or(expected_receiver_ty);
-        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
-            return Err(ExprTypeError::CallReceiverTypeMismatch {
-                callee: callee_fqn,
-                expected: lower.fmt_type(expected_receiver_ty),
-                found: lower.fmt_type(actual_receiver_ty),
-                span: receiver.span.into(),
-            });
+        // receiver mismatch 检查：
+        // - 默认路径：在推断 `eff` row 参数之前就可以做 receiver 可赋值检查，给出更精确诊断；
+        // - 但当 receiver 的类型形如 `Type<eff E>`（直接引用函数级 `eff` 变量）时，
+        //   receiver 的“期望类型”必须等到 `E` 被实例化后才能确定（T0624）。
+        let receiver_uses_eff = sig.eff_param.is_some()
+            && sig
+                .param_nominal_eff_uses_eff
+                .get(0)
+                .copied()
+                .unwrap_or(false);
+        if !receiver_uses_eff {
+            let expected_receiver_ty = instantiated
+                .params
+                .first()
+                .copied()
+                .unwrap_or(expected_receiver_ty);
+            if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+                return Err(ExprTypeError::CallReceiverTypeMismatch {
+                    callee: callee_fqn,
+                    expected: lower.fmt_type(expected_receiver_ty),
+                    found: lower.fmt_type(actual_receiver_ty),
+                    span: receiver.span.into(),
+                });
+            }
         }
 
         // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
@@ -5559,15 +5691,43 @@ fn infer_member_call_expr_type(
             checked_arg_tys[arg_idx] = found_ty;
         }
 
-        // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+        // T0509/T0624：推断 `eff` row 参数：
+        // - T0509：从 lambda body 的 required effects 推断；
+        // - T0624：从 `Type<eff E>` receiver/形参的实参类型提取 row 约束。
         let eff_arg = if let Some(eff_param) = &sig.eff_param {
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+            // T0624：receiver 约束：`ReceiverType<eff E>`。
+            if sig
+                .param_nominal_eff_uses_eff
+                .get(0)
+                .copied()
+                .unwrap_or(false)
+            {
+                if let Some(row) = nominal_eff_row_from_type(actual_receiver_ty, lower) {
+                    terms.extend(row.terms);
+                }
+            }
 
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                 let Some(arg_idx) = arg_idx else {
                     continue;
                 };
                 let sig_param_idx = param_idx + 1; // 跳过 receiver
+
+                // T0624：从 `Type<eff E>` 形参的实参类型提取 row 约束。
+                if sig
+                    .param_nominal_eff_uses_eff
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    let found_ty = checked_arg_tys[arg_idx];
+                    if let Some(row) = nominal_eff_row_from_type(found_ty, lower) {
+                        terms.extend(row.terms);
+                    }
+                }
+
                 if !sig
                     .param_fn_effect_uses_eff
                     .get(sig_param_idx)
@@ -5618,6 +5778,28 @@ fn infer_member_call_expr_type(
                 };
                 instantiated.params[sig_param_idx] = patched;
             }
+
+            // T0624：将签名里 `Type<eff E>` 的 `E` 替换为实例化后的 effect row。
+            for (sig_param_idx, uses_eff) in sig
+                .param_nominal_eff_uses_eff
+                .iter()
+                .copied()
+                .enumerate()
+            {
+                if !uses_eff {
+                    continue;
+                }
+                let expected_ty = instantiated.params[sig_param_idx];
+                let Some(patched) =
+                    replace_nominal_type_eff(expected_ty, eff_arg.clone(), lower)
+                else {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "eff row substitution（expected nominal type）",
+                        span: call_expr.span.into(),
+                    });
+                };
+                instantiated.params[sig_param_idx] = patched;
+            }
         }
         if sig.return_fn_effect_uses_eff {
             let Some(patched) =
@@ -5629,6 +5811,34 @@ fn infer_member_call_expr_type(
                 });
             };
             instantiated.return_ty = patched;
+        }
+        if sig.return_nominal_eff_uses_eff {
+            let Some(patched) =
+                replace_nominal_type_eff(instantiated.return_ty, eff_arg.clone(), lower)
+            else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "eff row substitution（return nominal type）",
+                    span: call_expr.span.into(),
+                });
+            };
+            instantiated.return_ty = patched;
+        }
+
+        // 若 receiver 依赖 `E`，现在 `E` 已实例化完毕，补做 receiver mismatch 检查。
+        if receiver_uses_eff {
+            let expected_receiver_ty = instantiated
+                .params
+                .first()
+                .copied()
+                .unwrap_or(expected_receiver_ty);
+            if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
+                return Err(ExprTypeError::CallReceiverTypeMismatch {
+                    callee: callee_fqn,
+                    expected: lower.fmt_type(expected_receiver_ty),
+                    found: lower.fmt_type(actual_receiver_ty),
+                    span: receiver.span.into(),
+                });
+            }
         }
 
         // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
@@ -5811,14 +6021,28 @@ fn infer_member_call_expr_type(
             Err(_) => continue,
         };
 
-        // receiver mismatch：该候选不匹配。
-        let expected_receiver_ty = instantiated
+        // receiver mismatch 检查：同单候选路径，若 receiver 的类型形如 `Type<eff E>`，
+        // 必须等到 `E` 推断/实例化后才能确定 receiver 是否匹配（T0624）。
+        let receiver_uses_eff = cand.eff_param.is_some()
+            && cand
+                .param_nominal_eff_uses_eff
+                .get(0)
+                .copied()
+                .unwrap_or(false);
+        let mut cand_expected_receiver_ty = instantiated
             .params
             .first()
             .copied()
             .unwrap_or(cand.params[0]);
-        if !is_type_assignable(actual_receiver_ty, expected_receiver_ty, lower, builtins) {
-            continue;
+        if !receiver_uses_eff {
+            if !is_type_assignable(
+                actual_receiver_ty,
+                cand_expected_receiver_ty,
+                lower,
+                builtins,
+            ) {
+                continue;
+            }
         }
 
         // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
@@ -5863,15 +6087,43 @@ fn infer_member_call_expr_type(
             continue;
         }
 
-        // T0509：推断 `eff` row 参数（仅支持默认值 + 从 lambda body 的 required effects 推断）。
+        // T0509/T0624：推断 `eff` row 参数：
+        // - T0509：从 lambda body 的 required effects 推断；
+        // - T0624：从 `Type<eff E>` receiver/形参的实参类型提取 row 约束。
         let eff_arg = if let Some(eff_param) = &cand.eff_param {
             let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
+
+            // T0624：receiver 约束：`ReceiverType<eff E>`。
+            if cand
+                .param_nominal_eff_uses_eff
+                .get(0)
+                .copied()
+                .unwrap_or(false)
+            {
+                if let Some(row) = nominal_eff_row_from_type(actual_receiver_ty, lower) {
+                    terms.extend(row.terms);
+                }
+            }
 
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                 let Some(arg_idx) = arg_idx else {
                     continue;
                 };
                 let sig_param_idx = param_idx + 1; // 跳过 receiver
+
+                // T0624：从 `Type<eff E>` 形参的实参类型提取 row 约束。
+                if cand
+                    .param_nominal_eff_uses_eff
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    let found_ty = checked_arg_tys[arg_idx];
+                    if let Some(row) = nominal_eff_row_from_type(found_ty, lower) {
+                        terms.extend(row.terms);
+                    }
+                }
+
                 if !cand
                     .param_fn_effect_uses_eff
                     .get(sig_param_idx)
@@ -5923,6 +6175,28 @@ fn infer_member_call_expr_type(
                 };
                 instantiated.params[sig_param_idx] = patched;
             }
+
+            // T0624：将签名里 `Type<eff E>` 的 `E` 替换为实例化后的 effect row。
+            if ok {
+                for (sig_param_idx, uses_eff) in cand
+                    .param_nominal_eff_uses_eff
+                    .iter()
+                    .copied()
+                    .enumerate()
+                {
+                    if !uses_eff {
+                        continue;
+                    }
+                    let expected_ty = instantiated.params[sig_param_idx];
+                    let Some(patched) =
+                        replace_nominal_type_eff(expected_ty, eff_arg.clone(), lower)
+                    else {
+                        ok = false;
+                        break;
+                    };
+                    instantiated.params[sig_param_idx] = patched;
+                }
+            }
         }
         if ok && cand.return_fn_effect_uses_eff {
             if let Some(patched) =
@@ -5933,8 +6207,34 @@ fn infer_member_call_expr_type(
                 ok = false;
             }
         }
+        if ok && cand.return_nominal_eff_uses_eff {
+            if let Some(patched) =
+                replace_nominal_type_eff(instantiated.return_ty, eff_arg.clone(), lower)
+            {
+                instantiated.return_ty = patched;
+            } else {
+                ok = false;
+            }
+        }
         if !ok {
             continue;
+        }
+
+        // 若 receiver 依赖 `E`，现在 `E` 已实例化完毕，补做 receiver mismatch 检查。
+        if receiver_uses_eff {
+            cand_expected_receiver_ty = instantiated
+                .params
+                .first()
+                .copied()
+                .unwrap_or(cand.params[0]);
+            if !is_type_assignable(
+                actual_receiver_ty,
+                cand_expected_receiver_ty,
+                lower,
+                builtins,
+            ) {
+                continue;
+            }
         }
 
         // 参数可赋值检查（跳过 receiver；只检查显式实参）。
@@ -5968,7 +6268,7 @@ fn infer_member_call_expr_type(
 
             matched.push(MatchedExtensionOverload {
                 sig: cand,
-                receiver_ty: expected_receiver_ty,
+                receiver_ty: cand_expected_receiver_ty,
                 expected_arg_tys,
                 instantiated,
                 eff_arg,
@@ -6147,6 +6447,7 @@ fn collect_top_level_fun_signatures(
             let mut param_has_defaults = Vec::with_capacity(fun.params.len() + 1);
             let mut params = Vec::with_capacity(fun.params.len() + 1);
             let mut param_fn_effect_uses_eff = Vec::with_capacity(fun.params.len() + 1);
+            let mut param_nominal_eff_uses_eff = Vec::with_capacity(fun.params.len() + 1);
 
             // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
             // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
@@ -6158,6 +6459,10 @@ fn collect_top_level_fun_signatures(
                 param_has_defaults.push(false);
                 params.push(lower.lower_type_ref(receiver)?);
                 param_fn_effect_uses_eff.push(false);
+                let uses_eff = eff_param_sig
+                    .as_ref()
+                    .is_some_and(|e| type_ref_is_nominal_eff_eff_var(receiver, &e.name, source));
+                param_nominal_eff_uses_eff.push(uses_eff);
             }
 
             for p in &fun.params {
@@ -6168,16 +6473,25 @@ fn collect_top_level_fun_signatures(
                 let uses_eff = eff_param_sig
                     .as_ref()
                     .is_some_and(|e| type_ref_is_fn_effect_eff_var(ty_ref, &e.name, source));
+                let uses_nominal_eff = eff_param_sig
+                    .as_ref()
+                    .is_some_and(|e| type_ref_is_nominal_eff_eff_var(ty_ref, &e.name, source));
                 param_names.push(source.slice(p.name.span).to_string());
                 param_has_defaults.push(p.default_value.is_some());
                 params.push(lower.lower_type_ref(ty_ref)?);
                 param_fn_effect_uses_eff.push(uses_eff);
+                param_nominal_eff_uses_eff.push(uses_nominal_eff);
             }
 
             let return_fn_effect_uses_eff = eff_param_sig.as_ref().is_some_and(|e| {
                 fun.return_ty
                     .as_ref()
                     .is_some_and(|ret| type_ref_is_fn_effect_eff_var(ret, &e.name, source))
+            });
+            let return_nominal_eff_uses_eff = eff_param_sig.as_ref().is_some_and(|e| {
+                fun.return_ty
+                    .as_ref()
+                    .is_some_and(|ret| type_ref_is_nominal_eff_eff_var(ret, &e.name, source))
             });
 
             let return_ty = match &fun.return_ty {
@@ -6194,7 +6508,9 @@ fn collect_top_level_fun_signatures(
                 type_params,
                 eff_param: eff_param_sig.clone(),
                 param_fn_effect_uses_eff,
+                param_nominal_eff_uses_eff,
                 return_fn_effect_uses_eff,
+                return_nominal_eff_uses_eff,
                 params,
                 return_ty,
                 effects: fun.effects.clone(),
@@ -6257,6 +6573,47 @@ fn type_ref_is_fn_effect_eff_var(
     }
 
     source.slice(term.segments[0].span) == eff_name
+}
+
+/// `Type<eff E>`：use-site effect row 实参直接引用函数级 `eff` 变量。
+///
+/// 用途（T0624）：
+/// - 在 call-site 推断 `E` 时，从名义类型实参中提取约束（例如 `Disposable<eff Async>`）；
+/// - 推断出 `E` 后，把签名里按默认值 lowering 的类型回填为实例化后的 row。
+///
+/// 说明：当前最小实现仅识别“整行是变量”的形式：`eff E`，不解析 `E + IO` 等更复杂 row 表达式；
+/// 这足以覆盖 spec §5.9 的 `Disposable<eff E>`/`using` 示例与 T0624 的验收 fixture。
+fn type_ref_is_nominal_eff_eff_var(
+    ty_ref: &ast::TypeRef,
+    eff_name: &str,
+    source: &SourceFile,
+) -> bool {
+    match ty_ref {
+        ast::TypeRef::Nullable { inner, .. } => {
+            type_ref_is_nominal_eff_eff_var(inner, eff_name, source)
+        }
+        ast::TypeRef::Path(path) => {
+            let Some(ast::TypeRef::EffectRowArg { row, .. }) = path
+                .args
+                .iter()
+                .find(|a| matches!(a, ast::TypeRef::EffectRowArg { .. }))
+            else {
+                return false;
+            };
+
+            if row.terms.len() != 1 {
+                return false;
+            }
+
+            let term = &row.terms[0];
+            if term.segments.len() != 1 || !term.args.is_empty() {
+                return false;
+            }
+
+            source.slice(term.segments[0].span) == eff_name
+        }
+        _ => false,
+    }
 }
 
 fn type_param_name(ty: TypeId, lower: &TypeLowering<'_>) -> String {
@@ -6330,9 +6687,6 @@ fn collect_type_arg_candidates_for_single_type_param(
             if expected_nominal.fqn != found_nominal.fqn {
                 return;
             }
-            if expected_nominal.eff != found_nominal.eff {
-                return;
-            }
             if expected_nominal.args.len() != found_nominal.args.len() {
                 return;
             }
@@ -6357,9 +6711,6 @@ fn collect_type_arg_candidates_for_single_type_param(
             TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
         ) => {
             if expected_nominal.fqn != found_nominal.fqn {
-                return;
-            }
-            if expected_nominal.eff != found_nominal.eff {
                 return;
             }
             if expected_nominal.args.len() != found_nominal.args.len() {
@@ -6487,10 +6838,41 @@ fn substitute_single_type_param(
                 }
                 args.push(new_a);
             }
+
+            // T0624：名义类型的 `eff` row 参数同样需要参与 substitution（例如 `Raise<T>` 出现在 row 里）。
+            let eff = match nominal.eff {
+                Some(row) => {
+                    let mut eff_changed = false;
+                    let mut out_terms: Vec<TypeId> = Vec::with_capacity(row.terms.len());
+                    for term in row.terms {
+                        let new_term =
+                            substitute_single_type_param(term, param_ty, arg_ty, lower, use_span)?;
+                        if new_term != term {
+                            eff_changed = true;
+                        }
+                        out_terms.push(new_term);
+                    }
+                    if eff_changed {
+                        changed = true;
+                        Some(EffectRow::new(out_terms))
+                    } else {
+                        Some(EffectRow { terms: out_terms })
+                    }
+                }
+                None => None,
+            };
+
             if !changed {
                 return Ok(ty);
             }
-            Ok(lower.lower_type_fqn_with_args(nominal.fqn, args, use_span)?)
+
+            Ok(lower.intern_type_kind(TypeKind::Ref(RefTypeKind::Nominal(
+                crate::ty::NominalType {
+                    fqn: nominal.fqn,
+                    args,
+                    eff,
+                },
+            ))))
         }
         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
             let mut changed = false;
@@ -6502,10 +6884,40 @@ fn substitute_single_type_param(
                 }
                 args.push(new_a);
             }
+
+            let eff = match nominal.eff {
+                Some(row) => {
+                    let mut eff_changed = false;
+                    let mut out_terms: Vec<TypeId> = Vec::with_capacity(row.terms.len());
+                    for term in row.terms {
+                        let new_term =
+                            substitute_single_type_param(term, param_ty, arg_ty, lower, use_span)?;
+                        if new_term != term {
+                            eff_changed = true;
+                        }
+                        out_terms.push(new_term);
+                    }
+                    if eff_changed {
+                        changed = true;
+                        Some(EffectRow::new(out_terms))
+                    } else {
+                        Some(EffectRow { terms: out_terms })
+                    }
+                }
+                None => None,
+            };
+
             if !changed {
                 return Ok(ty);
             }
-            Ok(lower.lower_type_fqn_with_args(nominal.fqn, args, use_span)?)
+
+            Ok(lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(
+                crate::ty::NominalType {
+                    fqn: nominal.fqn,
+                    args,
+                    eff,
+                },
+            ))))
         }
         TypeKind::Ref(RefTypeKind::Function(fun)) => {
             let mut changed = false;
@@ -6588,6 +7000,46 @@ fn replace_function_type_effects(
         return None;
     };
     Some(lower.ty_function(fun.receiver, fun.params, fun.return_ty, effects))
+}
+
+fn nominal_eff_row_from_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.eff,
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.eff,
+        // nullable（`T?`）在 lowering 阶段会变成 `Option<T>`；这里递归剥一层便于推断 `E`。
+        TypeKind::Value(ValueTypeKind::Option(inner)) => nominal_eff_row_from_type(inner, lower),
+        _ => None,
+    }
+}
+
+fn replace_nominal_type_eff(
+    ty: TypeId,
+    eff: EffectRow,
+    lower: &mut TypeLowering<'_>,
+) -> Option<TypeId> {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => Some(lower.intern_type_kind(TypeKind::Ref(
+            RefTypeKind::Nominal(crate::ty::NominalType {
+                fqn: nominal.fqn,
+                args: nominal.args,
+                eff: Some(eff),
+            }),
+        ))),
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(lower.intern_type_kind(
+            TypeKind::Value(ValueTypeKind::Nominal(crate::ty::NominalType {
+                fqn: nominal.fqn,
+                args: nominal.args,
+                eff: Some(eff),
+            })),
+        )),
+        TypeKind::Value(ValueTypeKind::Option(inner)) => replace_nominal_type_eff(
+            inner,
+            eff,
+            lower,
+        )
+        .map(|patched| lower.ty_option(patched)),
+        _ => None,
+    }
 }
 
 fn type_param_bindings_from_sig(

@@ -106,8 +106,16 @@ pub(super) fn is_type_assignable(
             TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
         ) => {
             if found_nominal.fqn == expected_nominal.fqn {
-                if found_nominal.eff != expected_nominal.eff {
-                    return false;
+                // T0624：名义类型的 `eff` row 参数参与 subeffecting：
+                // `Type<eff R1> <: Type<eff R2>` 当且仅当 `R1 ⊆ R2`（requires no more effects than）。
+                match (found_nominal.eff.as_ref(), expected_nominal.eff.as_ref()) {
+                    (None, None) => {}
+                    (Some(found), Some(expected)) => {
+                        if !found.is_subset_of(expected) {
+                            return false;
+                        }
+                    }
+                    _ => return false,
                 }
                 if found_nominal.args.len() != expected_nominal.args.len() {
                     return false;
@@ -170,8 +178,15 @@ pub(super) fn is_type_assignable(
             if found_nominal.fqn != expected_nominal.fqn {
                 return false;
             }
-            if found_nominal.eff != expected_nominal.eff {
-                return false;
+            // T0624：名义值类型的 `eff` row 参数同样参与 subeffecting（row 不影响布局）。
+            match (found_nominal.eff.as_ref(), expected_nominal.eff.as_ref()) {
+                (None, None) => {}
+                (Some(found), Some(expected)) => {
+                    if !found.is_subset_of(expected) {
+                        return false;
+                    }
+                }
+                _ => return false,
             }
             if found_nominal.args.len() != expected_nominal.args.len() {
                 return false;

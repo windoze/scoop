@@ -1734,11 +1734,22 @@
      - `tests/fixtures/typecheck/continuation_type_and_resume_pure_ok.scoop`
      - `tests/fixtures/typecheck/continuation_resume_required_effect_missing_is_error.scoop`
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
-### T0624 [TODO] effect rows：use-site `Type<eff Row>` 的实例化与检查（spec §3.4 / §5.8）
+### T0624 [DONE] effect rows：use-site `Type<eff Row>` 的实例化与检查（spec §3.4 / §5.8）
 - 描述：在类型检查阶段支持 `Type<eff Row>` 的显式实参与默认化，并与 overriding、required effects、subeffecting 联动。
 - 目标：先只支持单个 row 参数；语法合法性由 parser 先行保证。
 - 验收：effects fixture：`Disposable<eff Async>` 调用需要 Async；`Disposable` 省略时默认 `Pure`；非法多 `eff` clause 报错。
 - 依赖：T0253、T0609、T0511
+ - 完成：
+   - typecheck/assignable：名义类型的 `eff` row 参数参与 subeffecting：`Type<eff R1> <: Type<eff R2>` 当且仅当 `R1 ⊆ R2`。
+   - typecheck/expr：`eff` row 参数推断扩展为“默认值 + lambda body + `Type<eff E>` 实参类型”联合推断，并在调用点把实例化后的 row 回填到形参/返回类型。
+   - typecheck/expr：修复/补齐 substitution：名义类型 `NominalType.eff` 在 type arg substitution 时保持并参与递归替换（例如 `Raise<T>` 出现在 row terms）。
+   - typecheck/expr：扩展函数重载决议中，候选的 `receiver_ty` 使用每个候选自身的实例化结果（避免错误把第一个候选的 receiver 用于所有候选的 specificity 比较）。
+   - fixtures：新增/更新
+     - `tests/fixtures/typecheck/eff_row_param_infer_from_nominal_missing_is_error.scoop`
+     - `tests/fixtures/typecheck/eff_row_param_infer_from_nominal_ok.scoop`
+     - `tests/fixtures/parse/effect_row_param_duplicate_fail.scoop`
+     - `tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ### T0626 [TODO] 闭合 effect row 语法解析：`/ R!`（spec §5.8.4）
 - 描述：在 lexer/parser 中支持 effect row 的 `!` 后缀，将其解析为 `RowExpr::Closed(inner)`（或在现有 `RowExpr` 上加 `closed: bool` 字段）。`!` 的优先级低于 `+`，作用于整个 row，不与最后一个 effect 单独绑定。
