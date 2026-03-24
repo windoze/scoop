@@ -2212,11 +2212,18 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0809 [TODO] codegen v2：局部变量（alloca）与赋值
+### T0809 [DONE] codegen v2：局部变量（alloca）与赋值
 - 描述：把 HIR/MIR locals 映射到 LLVM alloca/load/store，支持 `var` 赋值更新。
 - 目标：先只支持函数内局部；不实现逃逸分析。
-- 验收：新增 run-pass fixture：`var x = 1; x = x + 1; print(x)` 输出 2。
+- 验收：新增 run-pass fixture：`var x = 1; x = x + 1; return x` 退出码为 2（当前阶段用 exit code 断言）。
 - 依赖：T0808、T0443
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：locals 统一降为 `alloca` + `load/store`；支持 `var` 声明与 `x = expr` 赋值语句（仅 local `var`）。
+   - `tests/fixtures/run-pass/var_assign_basic.scoop`：新增 run-pass fixture，覆盖 `var` 赋值更新与读写回归。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0810 [TODO] codegen v3：函数调用 ABI（参数传递/返回值）
 - 描述：支持调用用户定义函数与 sysroot/extern 函数（先按简单 C ABI）。

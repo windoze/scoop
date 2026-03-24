@@ -4,21 +4,22 @@
 //! - 整数/布尔字面量；
 //! - 一元运算：`!`、`-`、`~`；
 //! - 二元运算：算术/比较/位运算/移位（含 shift count mask）；
-//! - `val` 局部绑定（immutable，SSA 形式）；
+//! - 局部绑定：`val`/`var`（映射为 `alloca` + `load/store`）；
+//! - 赋值语句：`x = expr`（仅支持 local `var`）；
 //! - `return`（以及“block 最后表达式”作为隐式返回）。
 //!
 //! 非目标（后续任务逐步补齐）：
-//! - `var` 与赋值更新（T0809）；
 //! - 函数调用 ABI（T0810）；
 //! - if/when/loop 等控制流（依赖 MIR/CFG codegen 任务）。
 
 use std::collections::HashMap;
 
+use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::types::IntType;
 use inkwell::values::IntValue;
-use inkwell::IntPredicate;
+use inkwell::values::PointerValue;
 
 use crate::ast;
 use crate::hir;
@@ -84,9 +85,19 @@ impl<'ctx> CgValue<'ctx> {
     }
 }
 
+/// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
+///
+/// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
+#[derive(Debug, Clone, Copy)]
+struct CgLocal<'ctx> {
+    ty: CgTy,
+    ptr: PointerValue<'ctx>,
+    mutable: bool,
+}
+
 #[derive(Debug, Default)]
 struct Env<'ctx> {
-    scopes: Vec<HashMap<hir::SymbolId, CgValue<'ctx>>>,
+    scopes: Vec<HashMap<hir::SymbolId, CgLocal<'ctx>>>,
 }
 
 impl<'ctx> Env<'ctx> {
@@ -98,16 +109,16 @@ impl<'ctx> Env<'ctx> {
         let _ = self.scopes.pop();
     }
 
-    fn insert(&mut self, id: hir::SymbolId, value: CgValue<'ctx>) {
+    fn insert(&mut self, id: hir::SymbolId, local: CgLocal<'ctx>) {
         if let Some(frame) = self.scopes.last_mut() {
-            frame.insert(id, value);
+            frame.insert(id, local);
         }
     }
 
-    fn get(&self, id: hir::SymbolId) -> Option<CgValue<'ctx>> {
+    fn get(&self, id: hir::SymbolId) -> Option<CgLocal<'ctx>> {
         for frame in self.scopes.iter().rev() {
-            if let Some(v) = frame.get(&id).copied() {
-                return Some(v);
+            if let Some(local) = frame.get(&id).copied() {
+                return Some(local);
             }
         }
         None
@@ -174,6 +185,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_val_decl(decl)?;
                     tail_value = None;
                 }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    tail_value = None;
+                }
                 hir::StmtKind::Expr(expr) => {
                     let v = self.codegen_expr(expr)?;
                     if is_last {
@@ -194,9 +209,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.env.pop_scope();
                     return Ok(exit);
                 }
-                // 控制流与赋值更新留待后续任务。
-                hir::StmtKind::Assign { .. }
-                | hir::StmtKind::While { .. }
+                // 控制流留待后续任务（需要 function-level CFG/MIR codegen）。
+                hir::StmtKind::While { .. }
                 | hir::StmtKind::Break { .. }
                 | hir::StmtKind::Continue { .. }
                 | hir::StmtKind::Todo(_) => {
@@ -223,13 +237,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn codegen_val_decl(&mut self, decl: &hir::ValDecl) -> Result<(), LlvmEmitError> {
-        if decl.mutable {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "`var` declaration",
-                at: decl.span.into(),
-            });
-        }
-
         let Some(id) = decl.id else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "anonymous val binding",
@@ -254,21 +261,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
-        let value = self.coerce_value(decl.span, init, target_ty)?;
-        self.env.insert(id, value);
+        // T0809：局部变量统一降为 alloca + store/load；`val/var` 仅在“是否允许赋值”上有差异。
+        let name = decl.name.as_deref().unwrap_or("local");
+        let ptr = self.create_entry_alloca(decl.span, name, target_ty)?;
+        self.store_local_value(decl.span, ptr, target_ty, init)?;
+        self.env.insert(
+            id,
+            CgLocal {
+                ty: target_ty,
+                ptr,
+                mutable: decl.mutable,
+            },
+        );
+        Ok(())
+    }
+
+    fn codegen_assign_stmt(
+        &mut self,
+        eq_span: crate::span::Span,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<(), LlvmEmitError> {
+        let hir::ExprKind::VarRef(vref) = &lhs.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "assignment lhs",
+                at: lhs.span.into(),
+            });
+        };
+
+        let hir::ValueRef::Local { id, .. } = vref else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "assignment to non-local",
+                at: lhs.span.into(),
+            });
+        };
+
+        let local = self
+            .env
+            .get(*id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown local value",
+                at: lhs.span.into(),
+            })?;
+
+        if !local.mutable {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "assignment to immutable local",
+                at: eq_span.into(),
+            });
+        }
+
+        let rhs_v = self.codegen_expr(rhs)?;
+        self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
         Ok(())
     }
 
     fn codegen_expr(&mut self, expr: &hir::Expr) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match &expr.kind {
-            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "expression",
-                at: expr.span.into(),
-            }),
+            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "expression",
+                    at: expr.span.into(),
+                })
+            }
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
-            hir::ExprKind::Unary { op, expr: inner, .. } => self.codegen_unary(expr.span, *op, inner),
-            hir::ExprKind::Binary { lhs, op, rhs, .. } => self.codegen_binary(expr.span, *op, lhs, rhs),
+            hir::ExprKind::Unary {
+                op, expr: inner, ..
+            } => self.codegen_unary(expr.span, *op, inner),
+            hir::ExprKind::Binary { lhs, op, rhs, .. } => {
+                self.codegen_binary(expr.span, *op, lhs, rhs)
+            }
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
 
             // 后续任务接入 MIR/CFG codegen
@@ -297,6 +360,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_val_decl(decl)?;
                     value = CgValue::unit();
                 }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    value = CgValue::unit();
+                }
                 hir::StmtKind::Expr(expr) => {
                     let v = self.codegen_expr(expr)?;
                     value = if is_last { v } else { CgValue::unit() };
@@ -308,8 +375,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: stmt.span.into(),
                     });
                 }
-                hir::StmtKind::Assign { .. }
-                | hir::StmtKind::While { .. }
+                hir::StmtKind::While { .. }
                 | hir::StmtKind::Break { .. }
                 | hir::StmtKind::Continue { .. }
                 | hir::StmtKind::Todo(_) => {
@@ -333,7 +399,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match lit {
             hir::LiteralKind::Unit => Ok(CgValue::unit()),
-            hir::LiteralKind::Bool(v) => Ok(CgValue::bool(self.context.bool_type().const_int(*v as u64, false))),
+            hir::LiteralKind::Bool(v) => Ok(CgValue::bool(
+                self.context.bool_type().const_int(*v as u64, false),
+            )),
             hir::LiteralKind::Int => {
                 let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -344,7 +412,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let text = self.source.slice(span);
                 let value = parse_int_literal_decimal(text);
                 let value = mask_to_bits(value, int_ty.bits) as u64;
-                Ok(CgValue::int(self.int_type(int_ty).const_int(value, false), int_ty))
+                Ok(CgValue::int(
+                    self.int_type(int_ty).const_int(value, false),
+                    int_ty,
+                ))
             }
             // 早期阶段：字符串/插值字符串不参与 main v1 codegen。
             hir::LiteralKind::String => Err(LlvmEmitError::UnsupportedMainBody {
@@ -366,10 +437,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        self.env.get(*id).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "unknown local value",
-            at: span.into(),
-        })
+        let local = self
+            .env
+            .get(*id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown local value",
+                at: span.into(),
+            })?;
+
+        match local.ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool => {
+                let raw = self
+                    .builder
+                    .build_load(self.storage_int_type(local.ty), local.ptr, "load_bool")?
+                    .into_int_value();
+                Ok(CgValue::bool(raw))
+            }
+            CgTy::Int(int_ty) => {
+                let raw = self
+                    .builder
+                    .build_load(self.storage_int_type(local.ty), local.ptr, "load_int")?
+                    .into_int_value();
+                Ok(CgValue::int(raw, int_ty))
+            }
+        }
     }
 
     fn codegen_unary(
@@ -380,26 +472,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match op {
             ast::UnaryOp::Not => {
-                let v = self.codegen_expr(expr)?.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "unary ! operand",
-                    at: span.into(),
-                })?;
+                let v = self.codegen_expr(expr)?.as_bool().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "unary ! operand",
+                        at: span.into(),
+                    },
+                )?;
                 let out = self.builder.build_not(v, "not")?;
                 Ok(CgValue::bool(out))
             }
             ast::UnaryOp::Neg => {
-                let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "unary - operand",
-                    at: span.into(),
-                })?;
+                let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "unary - operand",
+                        at: span.into(),
+                    },
+                )?;
                 let out = self.builder.build_int_neg(v, "neg")?;
                 Ok(CgValue::int(out, ty))
             }
             ast::UnaryOp::BitNot => {
-                let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "unary ~ operand",
-                    at: span.into(),
-                })?;
+                let (v, ty) = self.codegen_expr(expr)?.as_int().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "unary ~ operand",
+                        at: span.into(),
+                    },
+                )?;
                 let out = self.builder.build_not(v, "bitnot")?;
                 Ok(CgValue::int(out, ty))
             }
@@ -431,7 +529,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             ast::BinaryOp::Eq | ast::BinaryOp::Ne => self.codegen_equality(span, op, lhs, rhs),
 
-            ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => self.codegen_bool_logic(span, op, lhs, rhs),
+            ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+                self.codegen_bool_logic(span, op, lhs, rhs)
+            }
 
             ast::BinaryOp::Elvis => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "elvis operator",
@@ -450,20 +550,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
         let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
-        let (l_raw, l_ty) = self.codegen_expr(lhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "integer binary op lhs",
-            at: span.into(),
-        })?;
-        let (r_raw, r_ty) = self.codegen_expr(rhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "integer binary op rhs",
-            at: span.into(),
-        })?;
+        let (l_raw, l_ty) =
+            self.codegen_expr(lhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "integer binary op lhs",
+                    at: span.into(),
+                })?;
+        let (r_raw, r_ty) =
+            self.codegen_expr(rhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "integer binary op rhs",
+                    at: span.into(),
+                })?;
 
-        let out_ty =
-            unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+        let out_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
                 kind: "integer binary op type",
                 at: span.into(),
-            })?;
+            },
+        )?;
 
         let l = self.cast_int(l_raw, l_ty, out_ty)?;
         let r = self.cast_int(r_raw, r_ty, out_ty)?;
@@ -508,23 +615,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (lhs_value, lhs_ty) =
-            self.codegen_expr(lhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "shift lhs type",
-                at: span.into(),
-            })?;
+            self.codegen_expr(lhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "shift lhs type",
+                    at: span.into(),
+                })?;
 
-        let rhs_value = self.codegen_expr(rhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "shift rhs type",
-            at: span.into(),
-        })?;
+        let rhs_value =
+            self.codegen_expr(rhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "shift rhs type",
+                    at: span.into(),
+                })?;
 
         let shift_count = self.mask_shift_count(lhs_ty, rhs_value.0)?;
 
         let out = match op {
-            ast::BinaryOp::Shl => self.builder.build_left_shift(lhs_value, shift_count, "shl")?,
-            ast::BinaryOp::Shr => self
+            ast::BinaryOp::Shl => self
                 .builder
-                .build_right_shift(lhs_value, shift_count, lhs_ty.signed, "shr")?,
+                .build_left_shift(lhs_value, shift_count, "shl")?,
+            ast::BinaryOp::Shr => {
+                self.builder
+                    .build_right_shift(lhs_value, shift_count, lhs_ty.signed, "shr")?
+            }
             _ => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "shift operator",
@@ -545,7 +660,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let lhs_int = self.int_type(lhs_ty);
 
         // 1) 截断为 lhs 的位宽（只取低位，后续再 mask）。
-        let rhs_trunc = self.builder.build_int_truncate(rhs, lhs_int, "shift_rhs_trunc")?;
+        let rhs_trunc = self
+            .builder
+            .build_int_truncate(rhs, lhs_int, "shift_rhs_trunc")?;
 
         // 2) mask：shiftCount & (bitWidth - 1)，避免 LLVM 对“超范围 shift”的 UB。
         let mask = lhs_int.const_int((lhs_bits.saturating_sub(1)) as u64, false);
@@ -562,19 +679,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
         let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
-        let (l_raw, l_ty) = self.codegen_expr(lhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "comparison lhs",
-            at: span.into(),
-        })?;
-        let (r_raw, r_ty) = self.codegen_expr(rhs)?.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "comparison rhs",
-            at: span.into(),
-        })?;
+        let (l_raw, l_ty) =
+            self.codegen_expr(lhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "comparison lhs",
+                    at: span.into(),
+                })?;
+        let (r_raw, r_ty) =
+            self.codegen_expr(rhs)?
+                .as_int()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "comparison rhs",
+                    at: span.into(),
+                })?;
 
-        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "comparison operand type",
-            at: span.into(),
-        })?;
+        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "comparison operand type",
+                at: span.into(),
+            },
+        )?;
 
         let l = self.cast_int(l_raw, l_ty, int_ty)?;
         let r = self.cast_int(r_raw, r_ty, int_ty)?;
@@ -623,9 +748,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ast::BinaryOp::Ne => IntPredicate::NE,
                 _ => unreachable!("filtered by caller"),
             };
-            return Ok(CgValue::bool(
-                self.builder.build_int_compare(pred, l, r, "icmp_bool")?,
-            ));
+            return Ok(CgValue::bool(self.builder.build_int_compare(
+                pred,
+                l,
+                r,
+                "icmp_bool",
+            )?));
         }
 
         // Int == Int（含 int literal 吸收）
@@ -642,10 +770,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "equality operand type",
-            at: span.into(),
-        })?;
+        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "equality operand type",
+                at: span.into(),
+            },
+        )?;
 
         let l = self.cast_int(l_raw, l_ty, int_ty)?;
         let r = self.cast_int(r_raw, r_ty, int_ty)?;
@@ -667,14 +797,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let l = self.codegen_expr(lhs)?.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "bool operator lhs",
-            at: span.into(),
-        })?;
-        let r = self.codegen_expr(rhs)?.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "bool operator rhs",
-            at: span.into(),
-        })?;
+        let l = self
+            .codegen_expr(lhs)?
+            .as_bool()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "bool operator lhs",
+                at: span.into(),
+            })?;
+        let r = self
+            .codegen_expr(rhs)?
+            .as_bool()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "bool operator rhs",
+                at: span.into(),
+            })?;
 
         let out = match op {
             ast::BinaryOp::LogAnd => self.builder.build_and(l, r, "and")?,
@@ -695,7 +831,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Bool, CgTy::Bool) => Ok(value),
             (CgTy::Bool, CgTy::Int(int_ty)) => {
                 let v = value.as_bool().unwrap();
-                let out = self.builder.build_int_z_extend(v, self.int_type(int_ty), "bool_to_int")?;
+                let out =
+                    self.builder
+                        .build_int_z_extend(v, self.int_type(int_ty), "bool_to_int")?;
                 Ok(CgValue::int(out, int_ty))
             }
             (CgTy::Int(from), CgTy::Int(to)) => {
@@ -710,7 +848,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn cast_int(&mut self, value: IntValue<'ctx>, from: IntTy, to: IntTy) -> Result<IntValue<'ctx>, LlvmEmitError> {
+    fn cast_int(
+        &mut self,
+        value: IntValue<'ctx>,
+        from: IntTy,
+        to: IntTy,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         if from.bits == to.bits {
             return Ok(value);
         }
@@ -776,9 +919,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn int_type(&self, ty: IntTy) -> IntType<'ctx> {
         self.context.custom_width_int_type(ty.bits)
     }
+
+    fn storage_int_type(&self, ty: CgTy) -> IntType<'ctx> {
+        match ty {
+            // 说明：Unit 没有运行期值；当前阶段仅用于“可放入 alloca”与保持 load/store 管线统一。
+            CgTy::Unit => self.context.i8_type(),
+            CgTy::Bool => self.context.bool_type(),
+            CgTy::Int(int_ty) => self.int_type(int_ty),
+        }
+    }
+
+    fn create_entry_alloca(
+        &self,
+        at: crate::span::Span,
+        name: &str,
+        ty: CgTy,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let alloca_builder = self.context.create_builder();
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let entry = func
+            .get_first_basic_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function has no entry block",
+                at: at.into(),
+            })?;
+
+        match entry.get_first_instruction() {
+            Some(inst) => alloca_builder.position_before(&inst),
+            None => alloca_builder.position_at_end(entry),
+        }
+
+        Ok(alloca_builder.build_alloca(self.storage_int_type(ty), name)?)
+    }
+
+    fn store_local_value(
+        &mut self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        ty: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        // 说明：当前阶段 locals 只允许 `Unit/Bool/Int`，因此 store 的载荷统一是 `IntValue`（或 Unit 的占位字节）。
+        let v = self.coerce_value(at, value, ty)?;
+        match ty {
+            CgTy::Unit => {
+                let zero = self.context.i8_type().const_int(0, false);
+                let _ = self.builder.build_store(ptr, zero)?;
+            }
+            CgTy::Bool | CgTy::Int(_) => {
+                let Some(raw) = v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "store value",
+                        at: at.into(),
+                    });
+                };
+                let _ = self.builder.build_store(ptr, raw)?;
+            }
+        }
+        Ok(())
+    }
 }
 
-fn unify_int_types(lhs_is_lit: bool, lhs_ty: IntTy, rhs_is_lit: bool, rhs_ty: IntTy) -> Option<IntTy> {
+fn unify_int_types(
+    lhs_is_lit: bool,
+    lhs_ty: IntTy,
+    rhs_is_lit: bool,
+    rhs_ty: IntTy,
+) -> Option<IntTy> {
     if lhs_ty == rhs_ty {
         return Some(lhs_ty);
     }

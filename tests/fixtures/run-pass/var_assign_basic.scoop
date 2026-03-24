@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-EXIT: 2
+//
+// T0809: codegen v2（局部变量 alloca/load/store + `var` 赋值更新）
+//
+// 说明：
+// - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果。
+
+import scoop.core.*
+
+fun main(): Int32 {
+    var x: Int32 = 1
+    x = x + 1
+    return x
+}
+
