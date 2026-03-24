@@ -66,7 +66,7 @@
 - [x] `crates/scoop/`：CLI（`scoop build/run/test`），负责调用 `scoopc`、链接、跑测试（已建立骨架）
 - [x] `crates/scoop_runtime/`：早期运行时构建 glue（clang + C runtime）（已建立骨架）
 - [x] `runtime/c/`：早期 C 运行时（GC + 基础内建 + 线程注册 + effect TLS）（已建立占位实现）
-- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前已包含 `core.scoop` + `delegates.scoop` + `collections.scoop` 的最小集合；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、io 等）
+- [x] `sysroot/`：`.scoop` 形式的内建 API 声明（当前已包含 `core.scoop` + `delegates.scoop` + `collections.scoop` 的最小集合；已补齐最小 I/O（print/println，T0820）；后续补齐 integers/aliases、intrinsics、unsafe/ptr、gc、更多 io 等）
 - [x] `tests/fixtures/`：所有编译期/运行期 fixtures（见 §10）（已建立最小 smoke）
 - [x] `tools/`：辅助脚本（已加入 `tools/scoop_tools`：spec doctest fixtures 抽取/一致性检查；后续扩展 golden 工具）
 

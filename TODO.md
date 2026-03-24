@@ -2340,11 +2340,18 @@
    - `cargo run -p scoop -- test` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（会生成 `target/fixtures/build/emit_llvm_basic.ll`）。
 
-### T0820 [TODO] sysroot：最小 I/O API（`print/println`）与字符串基础（spec §8）
+### T0820 [DONE] sysroot：最小 I/O API（`print/println`）与字符串基础（spec §8）
 - 描述：在 sysroot 声明最小 `print/println`（可标为 `@Extern` 或 `@Intrinsic`），并把 `String` 作为 reference type 的最小表面固定下来。
 - 目标：先只声明 API；实现可在 runtime（C）中提供。
 - 验收：resolve/typecheck fixture：`println("hi")` 可通过（至少到 typecheck）；未声明时报错。
 - 依赖：T0418、T1001
+ - 完成：
+   - `sysroot/core.scoop`：新增 `print/println(String): Unit` 的最小声明。
+   - `crates/scoopc/src/typecheck/expr.rs`：顶层函数调用在缺少“当前文件签名”时回退到 `Index` 查询（使 sysroot 顶层函数可在普通函数体中被调用并类型检查）。
+   - `tests/fixtures/typecheck/println_string_ok.scoop`：新增回归用例覆盖 `print/println("hi")`。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0821 [TODO] runtime：最小字符串对象与 `scoop_println` 实现（C）
 - 描述：实现 runtime 字符串承载（可先用 C 字符串包装）与打印函数，供 early run-pass 使用。

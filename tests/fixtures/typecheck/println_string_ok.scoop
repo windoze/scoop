@@ -1,0 +1,11 @@
+// EXPECT: pass
+//
+// T0820：sysroot 最小 I/O API（print/println）声明回归。
+
+import scoop.core.*
+
+fun f() {
+    print("hi")
+    println("hi")
+}
+

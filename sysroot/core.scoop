@@ -19,6 +19,14 @@ class String
 struct Unit
 enum Nothing
 
+// I/O（最小表面，早期阶段）。
+//
+// 说明：
+// - 目前仅作为 sysroot API 声明，让 resolver/typecheck 能识别 `print/println`；
+// - 真实实现将由 runtime（C）提供（见 TODO：T0821/T0822）。
+fun print(value: String): Unit
+fun println(value: String): Unit
+
 // Delegated property metadata（spec §10.4）。
 //
 // 说明：

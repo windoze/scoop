@@ -4014,6 +4014,101 @@ fn infer_function_value_call_expr_type(
     Ok(fun.return_ty)
 }
 
+fn collect_top_level_fun_signatures_from_index(
+    callee_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<Vec<FunSigOwned>, ExprTypeError> {
+    // 先把 overload 列表复制出来，避免在持有 `lower.index()` 的不可变借用时再调用
+    // `lower.lower_type_ref_in_decl_file(...)`（需要可变借用）。
+    let overloads = match lower.index().by_fqn.get(callee_fqn) {
+        Some(syms) => syms.fun.clone(),
+        None => Vec::new(),
+    };
+
+    if overloads.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // NOTE: `Index` 侧的 `FunSig` 目前只保留了“用于 overload resolution 的声明头信息”，
+    // 其中 `type_params_len` 不包含 type param 的名字，因此我们暂时无法在这里把跨文件/跨包的
+    // 泛型函数签名完整降低为 `FunSigOwned`（lowering 需要 name→TypeId 绑定）。
+    //
+    // 为避免误伤未覆盖的用例，这里先只支持非泛型函数签名（`type_params_len == 0`）。
+    //
+    // 这对于 sysroot 的最小 I/O（`println(String)`）已足够；更完整的跨文件泛型调用将由后续任务补齐。
+    let mut out: Vec<FunSigOwned> = Vec::new();
+    for o in &overloads {
+        if o.sig.type_params_len != 0 {
+            continue;
+        }
+
+        // `FunSigOwned` 要求“扩展函数 receiver 降糖为第一个参数”；这里与
+        // `collect_top_level_fun_signatures` 的约定保持一致。
+        let is_extension = o.sig.receiver.is_some();
+        // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
+        // 不包含 `inline`。跨文件顶层函数调用暂按 `inline = false` 处理即可（对 println 这类 sysroot API 足够）。
+        let is_inline = false;
+
+        // 当前实现只用于“可调用性/参数检查/重载决议”，因此暂不支持跨文件 `eff` 参数与
+        // 更复杂的 `E + ...` 替换计划。
+        if o.sig.eff_param.is_some() {
+            continue;
+        }
+
+        let mut param_names = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
+        let mut param_has_defaults =
+            Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
+        let mut params = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
+
+        if let Some(receiver) = &o.sig.receiver {
+            param_names.push("<receiver>".to_string());
+            param_has_defaults.push(false);
+            let receiver_ty = lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, receiver)?;
+            params.push(receiver_ty);
+        }
+
+        for p in &o.sig.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            param_names.push(p.name.clone());
+            param_has_defaults.push(p.has_default);
+            let ty = lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, ty_ref)?;
+            params.push(ty);
+        }
+
+        let return_ty = match &o.sig.return_ty {
+            Some(ret) => lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, ret)?,
+            None => builtins.unit,
+        };
+
+        let param_fn_effect_eff_base: Vec<Option<EffectRow>> = vec![None; params.len()];
+        let param_nominal_eff_eff_base: Vec<Option<EffectRow>> = vec![None; params.len()];
+        let param_eff_row_var_subst: Vec<EffRowVarSubstPlan> =
+            vec![EffRowVarSubstPlan::None; params.len()];
+
+        out.push(FunSigOwned {
+            decl_span: o.symbol.span,
+            is_extension,
+            is_inline,
+            param_names,
+            param_has_defaults,
+            type_params: Vec::new(),
+            eff_param: None,
+            param_fn_effect_eff_base,
+            param_nominal_eff_eff_base,
+            param_eff_row_var_subst,
+            return_eff_row_var_subst: EffRowVarSubstPlan::None,
+            params,
+            return_ty,
+            effects: o.sig.effects.clone(),
+        });
+    }
+
+    Ok(out)
+}
+
 fn infer_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -4089,18 +4184,28 @@ fn infer_call_expr_type(
                 }
             };
 
-            // 当前阶段仅支持“当前文件内”的顶层函数调用类型检查（无重载、无默认参数）。
-            let Some(sigs) = top_level_funs.get(&callee_fqn) else {
-                if id.call.is_none() && lower.is_object_type(&callee_fqn) {
-                    return Err(ExprTypeError::ObjectNotConstructible {
-                        name: callee_fqn,
-                        span: callee_span.into(),
-                    });
+            // 当前阶段：优先使用“当前文件内”的函数签名信息（支持 return type 推断等回写），
+            // 并在缺失时回退到 `Index`（用于 sysroot / 跨文件顶层函数调用）。
+            let sigs_from_index: Vec<FunSigOwned>;
+            let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
+                Some(s) => s.as_slice(),
+                None => {
+                    sigs_from_index =
+                        collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+                    if sigs_from_index.is_empty() {
+                        if id.call.is_none() && lower.is_object_type(&callee_fqn) {
+                            return Err(ExprTypeError::ObjectNotConstructible {
+                                name: callee_fqn,
+                                span: callee_span.into(),
+                            });
+                        }
+                        return Err(ExprTypeError::CalleeNotCallable {
+                            callee: callee_fqn,
+                            span: callee_span.into(),
+                        });
+                    }
+                    sigs_from_index.as_slice()
                 }
-                return Err(ExprTypeError::CalleeNotCallable {
-                    callee: callee_fqn,
-                    span: callee_span.into(),
-                });
             };
 
             // 扩展函数不能以 `f(args...)` 的形式被直接调用，因此这里只选择普通顶层函数候选。
