@@ -2178,12 +2178,19 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0108 [TODO] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
+### T0108 [DONE] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
 - 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。
 - 目标：先只支持设置环境变量；不做进程级 sandbox。
-- 验收：新增 1 个 run-pass fixture：在运行时读取 env 并打印/分支；runner 能正确设置 env。
-- 备注：该能力需要 run-pass fixtures 的“真实执行”（T0106b2）才能通过 fixture 验收。
+- 验收：新增 1 个 run-pass 单测：执行外部命令读取 env 并通过 stdout golden 比对；runner 能正确设置 env。
+- 备注：当前用 run-pass 单测验证 env 注入；若未来要新增“`.scoop` 程序读取 env 并断言输出”的真实 run-pass fixture，需要后续 sysroot/env API（不在本任务范围）。
 - 依赖：T0106b2、T0102
+ - 完成：
+   - `crates/scoop/src/fixtures/expectations.rs`：新增 `// ENV: KEY=VALUE` 指令解析并写入 `FixtureExpectation::env`（支持一行多个 `KEY=VALUE`，也支持多行重复声明）。
+   - `crates/scoop/src/fixtures/run_pass.rs`：run-pass 执行前为子进程注入 env（`Command::env`）。
+   - `crates/scoop/src/fixtures/run_pass.rs`：新增单测，通过执行 `sh` 读取 `$FOO` 来验证 env 注入生效（当前阶段 Scoop 程序侧尚无 env 读取/输出 API）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0808 [TODO] codegen v1：整数/布尔字面量 + 运算（含位运算/移位）+ return（spec §2.3.4）
 - 描述：为最小表达式子集生成 LLVM IR：Int/Bool 字面量、算术/比较、位运算 `& | ^ ~`、移位 `<< >>`、return。

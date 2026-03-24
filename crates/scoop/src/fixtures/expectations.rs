@@ -7,6 +7,7 @@
 //! - `// EXPECT-ERROR-CODE: <code>`（例如 `scoop::parse::expected`）
 //! - `// EXPECT-ERROR-AT: <line>:<col>`（1-based）
 //! - `// ARGS: <args...>`（按空白分割，原样传递给 driver/编译器阶段）
+//! - `// ENV: KEY=VALUE`（可重复；按空白分割多个 `KEY=VALUE`）
 //! - `// EXPECT-AST: <file>`（parse fixtures：将 AST dump 与 golden 文件做全文比对）
 //! - `// RUN-STDOUT: <file>`（run-pass fixtures：stdout golden）
 //! - `// RUN-STDERR: <file>`（run-pass fixtures：stderr golden）
@@ -26,6 +27,7 @@ pub struct FixtureExpectation<'a> {
     pub error_code: Option<&'a str>,
     pub error_at: Option<(usize, usize)>,
     pub args: Vec<String>,
+    pub env: Vec<(String, String)>,
     pub ast_golden: Option<&'a str>,
     pub run_stdout: Option<&'a str>,
     pub run_stderr: Option<&'a str>,
@@ -41,6 +43,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut error_code = None;
         let mut error_at = None;
         let mut args = Vec::new();
+        let mut env = Vec::new();
         let mut ast_golden = None;
         let mut run_stdout = None;
         let mut run_stderr = None;
@@ -83,6 +86,11 @@ impl<'a> FixtureExpectation<'a> {
                 args.extend(rest.split_whitespace().map(|s| s.to_string()));
             }
 
+            if let Some(rest) = directive.strip_prefix("ENV:") {
+                let rest = rest.trim();
+                env.extend(parse_env_kv_pairs(rest));
+            }
+
             if let Some(rest) = directive.strip_prefix("EXPECT-AST:") {
                 ast_golden = Some(rest.trim());
             }
@@ -110,6 +118,7 @@ impl<'a> FixtureExpectation<'a> {
             error_code,
             error_at,
             args,
+            env,
             ast_golden,
             run_stdout,
             run_stderr,
@@ -126,6 +135,16 @@ fn parse_line_col(s: &str) -> Option<(usize, usize)> {
     Some((line, col))
 }
 
+fn parse_env_kv_pairs(s: &str) -> impl Iterator<Item = (String, String)> + '_ {
+    s.split_whitespace().filter_map(|token| {
+        let (key, value) = token.split_once('=')?;
+        if key.trim().is_empty() {
+            return None;
+        }
+        Some((key.trim().to_string(), value.to_string()))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,6 +157,7 @@ mod tests {
         assert_eq!(exp.error_code, None);
         assert_eq!(exp.error_at, None);
         assert!(exp.args.is_empty());
+        assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
@@ -155,6 +175,7 @@ mod tests {
         assert_eq!(exp.error_code, Some("scoop::parse::expected"));
         assert_eq!(exp.error_at, Some((3, 5)));
         assert!(exp.args.is_empty());
+        assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
@@ -171,11 +192,27 @@ mod tests {
             exp.args,
             vec!["--dump-ast", "--emit-llvm", "--gc-stress"]
         );
+        assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
+    }
+
+    #[test]
+    fn parse_env_key_value_pairs() {
+        let exp = FixtureExpectation::from_source(
+            "// ENV: FOO=bar BAZ=qux\n// ENV: EMPTY=\nfun main() {}\n",
+        );
+        assert_eq!(
+            exp.env,
+            vec![
+                ("FOO".to_string(), "bar".to_string()),
+                ("BAZ".to_string(), "qux".to_string()),
+                ("EMPTY".to_string(), "".to_string()),
+            ]
+        );
     }
 
     #[test]

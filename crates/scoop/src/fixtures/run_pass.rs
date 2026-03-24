@@ -224,6 +224,10 @@ pub(crate) fn run_fixture_command(
     exp: &FixtureExpectation<'_>,
     mut cmd: Command,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    for (key, value) in &exp.env {
+        cmd.env(key, value);
+    }
+
     let output = run_command_collect_output(rel_fixture, exp, &mut cmd)?;
     assert_exit_status_matches(rel_fixture, exp, output.status)?;
 
@@ -622,6 +626,32 @@ mod tests {
         let cmd = {
             let mut cmd = Command::new("sh");
             cmd.arg("-c").arg("printf 'hello\\nworld\\n'");
+            cmd
+        };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_sets_env_vars() {
+        let dir = make_temp_dir("run_fixture_command_sets_env_vars");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("out.txt");
+
+        std::fs::write(
+            &fixture_path,
+            "// RUN-STDOUT: out.txt\n// ENV: FOO=bar\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(&golden_path, "bar\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n// ENV: FOO=bar\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("printf '%s\\n' \"$FOO\"");
             cmd
         };
 
