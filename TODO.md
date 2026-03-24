@@ -2324,12 +2324,6 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0817 [TODO] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
-- 描述：在 codegen 中为 box/object 分配调用 runtime `scoop_alloc`，并写入最小对象头/类型描述指针（若已定义）。
-- 目标：先只支持 boxing `Int`/简单对象；不实现移动 GC。
-- 验收：新增 run-pass fixture：`val a: Any = 1` 运行不崩溃；并可通过调试打印确认对象非空。
-- 依赖：T0902、T0441、T0810
-
 ### T0819 [TODO] driver：`--emit-llvm/--emit-obj/--emit-asm` 选项与 fixtures 支持（PLAN §9.3）
 - 描述：在 `scoop build` 增加 emit 选项，并允许 fixtures 通过 `ARGS` 触发生成产物用于排查。
 - 目标：先只支持单文件输出；不做多产物目录管理。
@@ -2405,6 +2399,12 @@
 - 目标：为后续 codegen 做最小保障；GC 语义后置。
 - 验收：新增测试：调用 `scoop_alloc(16)` 返回非空；重复调用不崩溃。
 - 依赖：T0901
+
+### T0817 [TODO] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
+- 描述：在 codegen 中为 box/object 分配调用 runtime `scoop_alloc`，并写入最小对象头/类型描述指针（若已定义）。
+- 目标：先只支持 boxing `Int`/简单对象；不实现移动 GC。
+- 验收：新增 run-pass fixture：`val a: Any = 1` 运行不崩溃；并可通过调试打印确认对象非空。
+- 依赖：T0902、T0441、T0810
 
 ### T0903 [TODO] runtime：引入线程注册接口（占位）与 TLS 骨架
 - 描述：提供 `scoop_thread_register/unregister`（先空实现），为 GC/effect TLS 铺路。
