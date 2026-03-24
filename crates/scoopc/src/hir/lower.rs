@@ -469,7 +469,19 @@ impl<'a> HirLowering<'a> {
                 }
             }
             ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
-            ast::ExprKind::TupleLit { .. } => (ExprKind::Todo("tuple_lit"), self.builtins.any),
+            ast::ExprKind::TupleLit { elements } => {
+                let elements: Vec<Expr> = elements
+                    .iter()
+                    .map(|e| self.lower_expr(pkg_prefix, e))
+                    .collect();
+                let ty = if elements.is_empty() {
+                    self.builtins.unit
+                } else {
+                    self.types
+                        .ty_tuple(elements.iter().map(|e| e.ty).collect())
+                };
+                (ExprKind::TupleLit { elements }, ty)
+            }
             ast::ExprKind::Lambda(lam) => self.lower_lambda_expr(pkg_prefix, e.span, lam),
             ast::ExprKind::StructLit { ty, fields } => {
                 self.lower_struct_lit_expr(pkg_prefix, e.span, ty, fields)
@@ -1209,6 +1221,11 @@ fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>
                 collect_declared_locals_in_expr(&f.value, declared);
             }
         }
+        ExprKind::TupleLit { elements } => {
+            for e in elements {
+                collect_declared_locals_in_expr(e, declared);
+            }
+        }
         ExprKind::Unary { expr, .. } => collect_declared_locals_in_expr(expr.as_ref(), declared),
         ExprKind::Binary { lhs, rhs, .. } => {
             collect_declared_locals_in_expr(lhs.as_ref(), declared);
@@ -1347,6 +1364,11 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
         ExprKind::StructLit { fields, .. } => {
             for f in fields {
                 collect_used_locals_in_expr(&f.value, used);
+            }
+        }
+        ExprKind::TupleLit { elements } => {
+            for e in elements {
+                collect_used_locals_in_expr(e, used);
             }
         }
         ExprKind::Unary { expr, .. } => collect_used_locals_in_expr(expr.as_ref(), used),

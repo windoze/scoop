@@ -9074,21 +9074,17 @@ fn infer_member_access_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let Some(resolved) = member.resolved.as_ref() else {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "member access（未 resolve）",
-            span: member.span.into(),
-        });
-    };
-
-    // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖。
+    // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖，
+    // 并在需要时为 tuple 元素访问提供 receiver 类型信息。
     //
     // 例外：`TypeName.member` 的 companion member access 中，receiver 可能不是一个“值表达式”，
     // resolver 会刻意保留 `Ident` 的未解析状态；此时跳过 receiver typecheck。
     let receiver_is_type_name =
         matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
-    if !receiver_is_type_name {
-        let _ = infer_expr_type(
+    let receiver_ty = if receiver_is_type_name {
+        None
+    } else {
+        Some(infer_expr_type(
             source,
             receiver,
             lower,
@@ -9097,11 +9093,46 @@ fn infer_member_access_expr_type(
             top_level_types,
             top_level_funs,
             struct_field_types,
-        )?;
-    }
+        )?)
+    };
 
-    match resolved {
-        ast::ResolvedMemberRef::Value { fqn } => {
+    match member.resolved.as_ref() {
+        None => {
+            // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
+            //
+            // 说明：
+            // - tuple 并非名义类型，因此 resolver 阶段无法像 `Point.x` 一样写回成员 FQN；
+            // - 这里在 typecheck 阶段通过 receiver 的推导类型来支持最小 tuple 元素访问语义。
+            let Some(receiver_ty) = receiver_ty else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "member access（未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
+            else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "member access（未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            let member_name = source.slice(member.span);
+            let Some(idx) = parse_tuple_member_index(member_name) else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "member access（未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            let ty = elements.get(idx).copied().ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "tuple element access（index out of bounds）",
+                span: member.span.into(),
+            })?;
+            Ok(ty)
+        }
+        Some(ast::ResolvedMemberRef::Value { fqn }) => {
             // `TypeName.NestedObject` / `Obj.NestedObject`：成员本身是一个 object 单例值。
             if lower.is_object_type(fqn) {
                 return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?);
@@ -9114,15 +9145,28 @@ fn infer_member_access_expr_type(
                 }
             })
         }
-        ast::ResolvedMemberRef::Fun { fqn }
-        | ast::ResolvedMemberRef::ExtensionValue { fqn }
-        | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+        Some(
+            ast::ResolvedMemberRef::Fun { fqn }
+            | ast::ResolvedMemberRef::ExtensionValue { fqn }
+            | ast::ResolvedMemberRef::ExtensionFun { fqn },
+        ) => {
             Err(ExprTypeError::UnsupportedMemberAccess {
                 fqn: fqn.clone(),
                 span: member.span.into(),
             })
         }
     }
+}
+
+fn parse_tuple_member_index(text: &str) -> Option<usize> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() {
+        return None;
+    }
+    if !digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse::<usize>().ok()
 }
 
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {

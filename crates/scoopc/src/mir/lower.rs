@@ -519,6 +519,9 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::StructLit { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "struct literal lowering pending")
             }
+            hir::ExprKind::TupleLit { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "tuple literal lowering pending")
+            }
             hir::ExprKind::Unary { .. } => {
                 // 当前阶段 MIR 仍以 CFG 形态回归为主；一元表达式求值留给后续 codegen 任务补齐。
                 let tmp = self.push_temp_local(expr.span, expr.ty);
@@ -1099,6 +1102,11 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {
                 collect_boxed_symbols_in_expr(&f.value, out);
+            }
+        }
+        hir::ExprKind::TupleLit { elements } => {
+            for e in elements {
+                collect_boxed_symbols_in_expr(e, out);
             }
         }
         hir::ExprKind::Unary { expr, .. } => collect_boxed_symbols_in_expr(expr.as_ref(), out),

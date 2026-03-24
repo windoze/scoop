@@ -2257,11 +2257,23 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0812 [TODO] codegen：tuple/Unit 的表示与传递（spec §2.3.3）
+### T0812 [DONE] codegen：tuple/Unit 的表示与传递（spec §2.3.3）
 - 描述：为 tuple 生成 LLVM struct（或 aggregate），支持构造/解构访问（先用于表达式/赋值）。
 - 目标：先只支持定长 tuple；不实现 variadic tuple。
-- 验收：新增 run-pass fixture：`val t = (1,2); print(t.0+t.1)`（按语法）输出 3。
+- 验收：新增 run-pass fixture：`val t = (1,2); t._0 + t._1`（按语法）结果为 3（当前用 exit code 断言）。
 - 依赖：T0811、T0410
+ - 完成：
+   - `crates/scoopc/src/hir/mod.rs`：HIR 新增 `ExprKind::TupleLit` 表达 tuple 字面量。
+   - `crates/scoopc/src/hir/lower.rs`：实现 tuple literal lowering（`TypeStore::ty_tuple`），并补齐 closure capture 与调用扫描的遍历分支。
+   - `crates/scoopc/src/typecheck/expr.rs`：支持 tuple 元素访问 `t._0` / `t._1`（resolver 无法写回成员 FQN 的场景）。
+   - `crates/scoopc/src/llvm/codegen.rs`：实现 tuple LLVM struct type、tuple literal 构造（`insertvalue`）与元素访问（`struct_gep`/`extractvalue`）。
+   - `crates/scoopc/src/llvm/mod.rs`：可达调用扫描支持遍历 tuple literal。
+   - `tests/fixtures/run-pass/tuple_access_basic.scoop`：新增 run-pass fixture，覆盖 tuple literal + 元素访问并用 `EXPECT-EXIT` 断言结果。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0813 [TODO] codegen：rich enum（tagged union）最小布局（PLAN §8.2）
 - 描述：为 enum 生成 `{tag, payload}` 表示（payload 用最大变体的 LLVM struct/union），支持构造与判别。

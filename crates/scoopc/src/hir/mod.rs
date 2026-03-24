@@ -192,6 +192,14 @@ pub enum ExprKind {
         ty: TypeId,
         fields: Vec<StructLitField>,
     },
+    /// tuple 字面量：`(a, b, ...)`（spec §2.3.3）。
+    ///
+    /// 说明：
+    /// - `()`（Unit）在 HIR 中用 `Literal(Unit)` 表示；
+    /// - 该节点仅用于“可回归的早期 codegen/HIR dump”，更完整的 tuple lowering 见后续任务。
+    TupleLit {
+        elements: Vec<Expr>,
+    },
     /// 前缀一元运算：`!expr` / `-expr` / `~expr`（spec §2.3.4）。
     Unary {
         op: ast::UnaryOp,

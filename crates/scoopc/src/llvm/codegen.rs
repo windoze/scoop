@@ -51,6 +51,7 @@ enum CgTy {
     Unit,
     Bool,
     Int(IntTy),
+    Tuple(TypeId),
     Struct(TypeId),
 }
 
@@ -204,7 +205,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function return type",
                     at: fun.span.into(),
@@ -419,6 +420,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
             hir::ExprKind::StructLit { ty, fields } => self.codegen_struct_lit(expr.span, *ty, fields),
+            hir::ExprKind::TupleLit { elements } => self.codegen_tuple_lit(expr.span, expr.ty, elements),
             hir::ExprKind::Unary {
                 op, expr: inner, ..
             } => self.codegen_unary(expr.span, *op, inner),
@@ -529,7 +531,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
-            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "call return type",
                 at: span.into(),
             }),
@@ -550,7 +552,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
-            CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function param type",
                     at: span.into(),
@@ -574,7 +576,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into(),
-            CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg value",
                     at: span.into(),
@@ -617,7 +619,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .into_int_value();
                     CgValue::int(raw, int_ty)
                 }
-                CgTy::Struct(_) => {
+                CgTy::Tuple(_) | CgTy::Struct(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "param type",
                         at: param.span.into(),
@@ -710,8 +712,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
             CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
-            // 说明：当前阶段不支持 struct 作为函数返回类型，因此这里仅提供占位值；
+            // 说明：当前阶段不支持 tuple/struct 作为函数返回类型，因此这里仅提供占位值；
             // 若后续误用，会在 emit/store 阶段触发结构化错误而非 panic。
+            CgTy::Tuple(ty) => CgValue {
+                ty: CgTy::Tuple(ty),
+                value: None,
+            },
             CgTy::Struct(ty) => CgValue { ty: CgTy::Struct(ty), value: None },
         }
     }
@@ -737,8 +743,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
             }
-            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct return type",
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "aggregate return type",
                 at: span.into(),
             }),
         }
@@ -857,6 +863,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(raw, int_ty))
             }
+            CgTy::Tuple(_) => {
+                let raw = self
+                    .builder
+                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_tuple")?;
+                Ok(CgValue {
+                    ty: local.ty,
+                    value: Some(raw),
+                })
+            }
             CgTy::Struct(_) => {
                 let raw = self
                     .builder
@@ -931,55 +946,173 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn codegen_tuple_lit(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+        elements: &[hir::Expr],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(CgTy::Tuple(tuple_ty)) = self.cg_ty_of(ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple literal type",
+                at: span.into(),
+            });
+        };
+
+        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple literal type",
+                at: span.into(),
+            });
+        };
+
+        if element_tys.len() != elements.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple literal arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
+
+        for (idx, (elem_expr, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
+            let elem_cg = self.cg_ty_of(*elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple element type",
+                at: elem_expr.span.into(),
+            })?;
+
+            let elem_v = self.codegen_expr(elem_expr)?;
+            let coerced = self.coerce_value(elem_expr.span, elem_v, elem_cg)?;
+
+            let raw: BasicValueEnum<'ctx> = match elem_cg {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple element value",
+                    at: elem_expr.span.into(),
+                })?,
+            };
+
+            let name = format!("insert_elem_{idx}");
+            agg = self.builder.build_insert_value(agg, raw, idx as u32, &name)?;
+        }
+
+        Ok(CgValue {
+            ty: CgTy::Tuple(tuple_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
     fn codegen_member_access(
         &mut self,
         _span: crate::span::Span,
         receiver: &hir::Expr,
         member: &hir::MemberAccess,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+        match member.resolved.as_ref() {
+            Some(hir::MemberRef::Value { fqn, .. }) => {
+                // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
+                if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
+                    if let Some(local) = self.env.get(*id) {
+                        if let CgTy::Struct(struct_ty) = local.ty {
+                            let (field_idx, field_ty) =
+                                self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                            if field_ty == CgTy::Unit {
+                                return Ok(CgValue::unit());
+                            }
+
+                            let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
+                            let field_ptr = self.builder.build_struct_gep(
+                                llvm_struct_ty,
+                                local.ptr,
+                                field_idx,
+                                "field_gep",
+                            )?;
+                            let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
+                            let loaded =
+                                self.builder
+                                    .build_load(llvm_field_ty, field_ptr, "load_field")?;
+                            return self.cg_value_from_loaded(member.span, field_ty, loaded);
+                        }
+                    }
+                }
+
+                // fallback：先把 receiver 降到值，再用 extractvalue 取字段。
+                let recv = self.codegen_expr(receiver)?;
+                let CgTy::Struct(struct_ty) = recv.ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "member access receiver type",
+                        at: receiver.span.into(),
+                    });
+                };
+                let (field_idx, field_ty) = self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                if field_ty == CgTy::Unit {
+                    return Ok(CgValue::unit());
+                }
+
+                let raw = recv.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "member access receiver value",
+                    at: receiver.span.into(),
+                })?;
+                let struct_v = raw.into_struct_value();
+                let extracted = self
+                    .builder
+                    .build_extract_value(struct_v, field_idx, "extract_field")?;
+                return self.cg_value_from_loaded(member.span, field_ty, extracted);
+            }
+            Some(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "member access target",
+                    at: member.span.into(),
+                });
+            }
+            None => {}
+        }
+
+        // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
+        let Some(elem_idx) = parse_tuple_member_index(&member.name) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "member access target",
                 at: member.span.into(),
             });
         };
 
-        // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
+        // 优先路径：`localTuple._0` —— 用 GEP 从 alloca slot 取元素。
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
             if let Some(local) = self.env.get(*id) {
-                if let CgTy::Struct(struct_ty) = local.ty {
-                    let (field_idx, field_ty) =
-                        self.lookup_struct_field(struct_ty, fqn, member.span)?;
-                    if field_ty == CgTy::Unit {
+                if let CgTy::Tuple(tuple_ty) = local.ty {
+                    let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
+                    if elem_ty == CgTy::Unit {
                         return Ok(CgValue::unit());
                     }
 
-                    let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
-                    let field_ptr = self.builder.build_struct_gep(
-                        llvm_struct_ty,
+                    let llvm_tuple_ty = self.llvm_tuple_type(member.span, tuple_ty)?;
+                    let elem_ptr = self.builder.build_struct_gep(
+                        llvm_tuple_ty,
                         local.ptr,
-                        field_idx,
-                        "field_gep",
+                        elem_idx,
+                        "tuple_elem_gep",
                     )?;
-                    let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
+                    let llvm_elem_ty = self.llvm_basic_type_of(member.span, elem_ty)?;
                     let loaded =
                         self.builder
-                            .build_load(llvm_field_ty, field_ptr, "load_field")?;
-                    return self.cg_value_from_loaded(member.span, field_ty, loaded);
+                            .build_load(llvm_elem_ty, elem_ptr, "load_tuple_elem")?;
+                    return self.cg_value_from_loaded(member.span, elem_ty, loaded);
                 }
             }
         }
 
-        // fallback：先把 receiver 降到值，再用 extractvalue 取字段。
+        // fallback：先把 receiver 降到值，再用 extractvalue 取元素。
         let recv = self.codegen_expr(receiver)?;
-        let CgTy::Struct(struct_ty) = recv.ty else {
+        let CgTy::Tuple(tuple_ty) = recv.ty else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "member access receiver type",
                 at: receiver.span.into(),
             });
         };
-        let (field_idx, field_ty) = self.lookup_struct_field(struct_ty, fqn, member.span)?;
-        if field_ty == CgTy::Unit {
+
+        let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
+        if elem_ty == CgTy::Unit {
             return Ok(CgValue::unit());
         }
 
@@ -987,11 +1120,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "member access receiver value",
             at: receiver.span.into(),
         })?;
-        let struct_v = raw.into_struct_value();
+        let tuple_v = raw.into_struct_value();
         let extracted = self
             .builder
-            .build_extract_value(struct_v, field_idx, "extract_field")?;
-        self.cg_value_from_loaded(member.span, field_ty, extracted)
+            .build_extract_value(tuple_v, elem_idx, "extract_tuple_elem")?;
+        self.cg_value_from_loaded(member.span, elem_ty, extracted)
     }
 
     fn lookup_struct_field(
@@ -1029,6 +1162,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((idx as u32, field_ty))
     }
 
+    fn lookup_tuple_element(
+        &self,
+        tuple_ty: TypeId,
+        elem_idx: u32,
+        at: crate::span::Span,
+    ) -> Result<CgTy, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple type id",
+                at: at.into(),
+            });
+        };
+
+        let elem_ty = elements
+            .get(elem_idx as usize)
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple element out of bounds",
+                at: at.into(),
+            })?;
+
+        self.cg_ty_of(elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "tuple element type",
+            at: at.into(),
+        })
+    }
+
     fn cg_value_from_loaded(
         &self,
         _at: crate::span::Span,
@@ -1039,6 +1199,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(raw.into_int_value()),
             CgTy::Int(int_ty) => CgValue::int(raw.into_int_value(), int_ty),
+            CgTy::Tuple(tuple_ty) => CgValue {
+                ty: CgTy::Tuple(tuple_ty),
+                value: Some(raw),
+            },
             CgTy::Struct(struct_ty) => CgValue {
                 ty: CgTy::Struct(struct_ty),
                 value: Some(raw),
@@ -1429,6 +1593,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let out = self.cast_int(v, from, to)?;
                 Ok(CgValue::int(out, to))
             }
+            (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value coercion",
@@ -1487,6 +1652,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let casted = self.cast_int(v, from, to)?;
                 Ok(casted)
             }
+            CgTy::Tuple(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple exit code",
+                at: at.into(),
+            }),
             CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "struct exit code",
                 at: at.into(),
@@ -1514,6 +1683,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: u32::from(*bits),
                 signed: false,
             })),
+            TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
                 .struct_layouts
                 .contains_key(&nominal.fqn)
@@ -1585,6 +1755,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+            CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
         })
     }
@@ -1623,6 +1794,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         struct_ty.set_body(&llvm_fields, false);
         Ok(struct_ty)
+    }
+
+    fn llvm_tuple_type(
+        &self,
+        at: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple type id",
+                at: at.into(),
+            });
+        };
+
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(elements.len());
+        for elem_ty in elements {
+            let elem_cg = self.cg_ty_of(*elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple element type",
+                at: at.into(),
+            })?;
+            llvm_fields.push(self.llvm_basic_type_of(at, elem_cg)?);
+        }
+
+        Ok(self.context.struct_type(&llvm_fields, false))
     }
 
     fn create_entry_alloca(
@@ -1677,7 +1872,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::Struct(_) => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) => {
                 let Some(raw) = v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
@@ -1707,6 +1902,17 @@ fn unify_int_types(
         return Some(lhs_ty);
     }
     None
+}
+
+fn parse_tuple_member_index(text: &str) -> Option<u32> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() {
+        return None;
+    }
+    if !digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse::<u32>().ok()
 }
 
 fn parse_int_literal_decimal(text: &str) -> u128 {

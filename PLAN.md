@@ -50,6 +50,7 @@
 - 2026-03-24：完成 T0809：LLVM codegen v2 将 main 内 locals 统一映射为 `alloca` + `load/store`，并支持 `var` 的赋值更新；新增 run-pass fixture 覆盖读写回归。
 - 2026-03-24：完成 T0810：LLVM codegen v3 支持顶层函数调用（按简单 C ABI 传参/返回），并且只为 `main` 可达的函数生成/声明，避免未使用的泛型/占位签名影响 codegen；新增 run-pass fixture 覆盖 `add(1,2)`。
 - 2026-03-24：完成 T0811：LLVM codegen v4 支持 struct 值类型布局与字段访问：为 struct FQN 生成 named LLVM struct type（opaque + set_body），struct literal 构造用 `insertvalue` 组装 aggregate，字段读取对 `localStruct.field` 走 struct GEP + `load`；新增 run-pass fixture 覆盖 struct literal + 字段读取（当前因 typecheck 对整数字面量推导为 `Int`，fixture 字段类型使用 `Int` 并用 exit code 断言结果）。
+- 2026-03-24：完成 T0812：LLVM codegen v5 支持 tuple 值类型布局与元素访问：为 tuple 生成 LLVM struct type，tuple literal 用 `insertvalue` 组装 aggregate；`t._0` / `t._1` 在局部变量路径走 struct GEP + `load`（fallback 用 `extractvalue`）；同时在 typecheck 中支持 tuple 元素访问语义以通过前端检查；新增 run-pass fixture 覆盖 tuple 求和并用 exit code 断言结果。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -496,6 +497,9 @@
 ### 8.2 数据布局与 ABI
 
 - [ ] 值类型（struct/tuple/enum）按 LLVM struct layout 映射
+  - [x] struct：布局 + 字段访问（T0811）
+  - [x] tuple：布局 + `._0` / `._1` 元素访问（T0812）
+  - [ ] enum：tagged union 布局（T0813）
 - [ ] 引用类型：对象头（type descriptor 指针 + flags + size 等）
 - [ ] interface/虚表：最小可行实现（先只支持接口方法调用与装箱）
 

@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+//
+// T0812: codegen：tuple/Unit 的表示与传递（spec §2.3.3）
+//
+// 说明：
+// - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果。
+// - tuple 元素访问语法使用 `t._0` / `t._1`（与 spec 对齐）。
+
+import scoop.core.*
+
+fun main(): Int {
+    val t = (1, 2)
+    return t._0 + t._1
+}
+
