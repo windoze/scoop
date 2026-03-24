@@ -3,6 +3,11 @@ name = "scoop"
 version.workspace = true
 edition.workspace = true
 
+[features]
+# driver 默认不启用 LLVM 后端，以保持在未安装 LLVM/llvm-config 的环境也能构建与跑回归。
+# 启用后 `scoop build` 将生成 object 并调用 clang 链接运行时（T0806）。
+llvm = ["scoopc/llvm"]
+
 [dependencies]
 clap = { version = "4.5.23", features = ["derive"] }
 miette = { version = "7.6.0", features = ["fancy"] }

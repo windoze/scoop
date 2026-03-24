@@ -2101,11 +2101,21 @@
      - `cargo test -p scoop` 通过（含 `commands::build` smoke test）；
      - `cargo run -p scoop -- build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/a` 返回 0。
 
-### T0806 [TODO] 链接：把 `.o` 与 `scoop_runtime` 静态库链接为可执行文件
+### T0806 [DONE] 链接：把 `.o` 与 `scoop_runtime` 静态库链接为可执行文件
 - 描述：实现最小链接器调用（可用 clang 或 `cc` crate）把 runtime 拉进来。
 - 目标：先只支持 host 平台；暂不处理多文件/包。
 - 验收：`scoop build ...` 产出可执行文件；运行后退出码正确（哪怕 main 空）。
 - 依赖：T0804、T0014、T0805
+ - 完成：
+   - `crates/scoop/src/toolchain.rs`：新增最小 clang 链接封装 `link_obj_with_runtime()`，并提供单测（不依赖 LLVM）。
+   - `crates/scoop/src/commands/build.rs`：在启用 `scoop` 的 `llvm` feature 时，调用 `scoopc::llvm::emit_minimal_main_obj_to_file()` 生成 `.o`，再通过 clang 链接为可执行文件。
+   - `crates/scoop/Cargo.toml`：新增 `llvm` feature（转发到 `scoopc/llvm`），默认保持关闭以兼容未安装 LLVM 的环境。
+   - 文档/CLI：更新 `README.md` 与 `crates/scoop/src/cli.rs`，说明 `scoop build` 需要启用 `--features llvm` 才会真正产出二进制。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoop --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/scoop_overview_minimal_main` 生成可执行文件并运行返回 0。
 
 ### T0807 [TODO] driver：实现 `scoop run <main.scoop>`（build + exec）
 - 描述：在 build 成功后执行产物，并把 stdout/stderr 透传。

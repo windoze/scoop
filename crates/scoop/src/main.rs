@@ -6,6 +6,8 @@
 mod cli;
 mod commands;
 mod fixtures;
+#[cfg(any(feature = "llvm", test))]
+mod toolchain;
 
 use clap::Parser as _;
 

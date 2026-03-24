@@ -54,6 +54,16 @@ cargo run -p scoop -- --help
 cargo run -p scoop -- test
 ```
 
+生成最小可执行文件（需要启用 LLVM 后端，并安装 `llvm-config`；链接阶段使用 clang）：
+
+```bash
+# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
+# export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
+PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
+  cargo run -p scoop --features llvm -- \
+  build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main
+```
+
 ## 目录结构（简述）
 
 - `crates/scoop/`：命令行工具（driver）

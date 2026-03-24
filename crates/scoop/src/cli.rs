@@ -46,11 +46,11 @@ pub enum Command {
         input: PathBuf,
     },
 
-    /// 构建可执行文件（当前阶段仅做前端检查，不生成二进制）
+    /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
     Build {
         /// 输入源文件路径
         input: PathBuf,
-        /// 输出文件路径（当前阶段仅用于“准备输出路径”）
+        /// 输出文件路径
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
