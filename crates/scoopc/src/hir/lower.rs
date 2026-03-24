@@ -25,6 +25,7 @@ use super::{
     HandleArm, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
     Param, Stmt, StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField,
     SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    EnumLayout, EnumLayoutIndex, EnumVariantFieldLayout, EnumVariantLayout,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -48,6 +49,8 @@ pub struct LoweredHir {
     pub types: TypeStore,
     /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。
     pub struct_layouts: StructLayoutIndex,
+    /// 由本次 lowering 过程中收集到的 enum variant 布局信息（供早期 LLVM codegen 查询）。
+    pub enum_layouts: EnumLayoutIndex,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -894,7 +897,14 @@ impl<'a> HirLowering<'a> {
         }
 
         let Some(resolved) = id.resolved.as_ref() else {
-            return (ExprKind::Todo("unresolved_ident"), self.builtins.any);
+            // 典型场景：enum variant ctor 的 callee（`Some(1)`）/0-参数 variant 值（`None`）；
+            // resolver 会保留为“未 resolve”，让 typecheck 在期望类型语境下决议。
+            return (
+                ExprKind::UnresolvedIdent {
+                    name: text.to_string(),
+                },
+                self.builtins.any,
+            );
         };
 
         let resolved = match resolved {
@@ -1215,7 +1225,11 @@ fn compute_closure_captures(
 
 fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>) {
     match &expr.kind {
-        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::VarRef(_) | ExprKind::Todo(_) => {}
+        ExprKind::Missing
+        | ExprKind::Literal(_)
+        | ExprKind::VarRef(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::Todo(_) => {}
         ExprKind::StructLit { fields, .. } => {
             for f in fields {
                 collect_declared_locals_in_expr(&f.value, declared);
@@ -1349,7 +1363,7 @@ fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<Sym
 
 fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture>) {
     match &expr.kind {
-        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::Todo(_) => {}
+        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::UnresolvedIdent { .. } | ExprKind::Todo(_) => {}
         ExprKind::VarRef(v) => {
             let ValueRef::Local { id, name, decl_span } = v else {
                 return;
@@ -1530,10 +1544,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
     let struct_layouts = collect_struct_layouts(&pairs, &index);
+    // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
+    let enum_layouts = collect_enum_layouts(&pairs, &index);
     Ok(LoweredHir {
         file,
         types,
         struct_layouts,
+        enum_layouts,
     })
 }
 
@@ -1658,6 +1675,101 @@ fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) ->
                 StructLayout {
                     fqn,
                     fields,
+                },
+            );
+        }
+    }
+
+    out
+}
+
+/// 收集当前编译单元（sysroot + 当前文件）里出现的 enum variant 布局信息。
+///
+/// 说明（早期阶段约束）：
+/// - 仅收集**顶层 enum**；
+/// - 暂不支持泛型 enum / `eff` 参数化 enum（这类布局需要单态化后再确定，留到后续任务）；
+/// - variant tag 按声明顺序分配，从 0 开始（与 typecheck/type env 的最小规则对齐）。
+fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> EnumLayoutIndex {
+    let mut out: EnumLayoutIndex = HashMap::new();
+
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            if !matches!(ty.kind, ast::TypeKind::Enum) {
+                continue;
+            }
+
+            // 泛型/eff 参数化 enum 的布局需要在 monomorphization 后才能稳定确定：
+            // - payload 字段类型可能包含未绑定的 type params；
+            // - 后端布局/boxing 策略可能依赖实例化参数。
+            if !ty.type_params.is_empty() || ty.eff_param.is_some() {
+                continue;
+            }
+
+            let name = ty.name.text(source).to_string();
+            let fqn = if pkg_prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{pkg_prefix}.{name}")
+            };
+
+            if out.contains_key(&fqn) {
+                continue;
+            }
+
+            let mut variants: Vec<EnumVariantLayout> = Vec::new();
+            let Some(body) = &ty.body else {
+                out.insert(
+                    fqn.clone(),
+                    EnumLayout {
+                        fqn,
+                        variants,
+                    },
+                );
+                continue;
+            };
+
+            let mut next_tag: u32 = 0;
+            for member in &body.members {
+                let ast::TypeMember::EnumVariant(v) = member else {
+                    continue;
+                };
+
+                let variant_name = v.name.text(source).to_string();
+                let tag = next_tag;
+                next_tag = next_tag.saturating_add(1);
+
+                let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
+                for p in &v.params {
+                    let field_name = p.name.text(source).to_string();
+                    let ty_fqn = p
+                        .ty
+                        .as_ref()
+                        .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
+                    fields.push(EnumVariantFieldLayout {
+                        span: p.name.span,
+                        name: field_name,
+                        ty_fqn,
+                    });
+                }
+
+                variants.push(EnumVariantLayout {
+                    span: v.span,
+                    name: variant_name,
+                    tag,
+                    fields,
+                });
+            }
+
+            out.insert(
+                fqn.clone(),
+                EnumLayout {
+                    fqn,
+                    variants,
                 },
             );
         }

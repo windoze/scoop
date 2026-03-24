@@ -11,9 +11,10 @@
 //! - 局部绑定：`val`/`var`（映射为 `alloca` + `load/store`）；
 //! - 赋值语句：`x = expr`（仅支持 local `var`）；
 //! - `return`（以及“block 最后表达式”作为隐式返回）。
+//! - `when`（T0813：仅支持 enum tag 判别 + variant binder；不支持 guard/or-pattern）。
 //!
 //! 非目标（后续任务逐步补齐）：
-//! - if/when/loop 等控制流（依赖 MIR/CFG codegen 任务）。
+//! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
 
 use std::collections::HashMap;
 
@@ -53,6 +54,7 @@ enum CgTy {
     Int(IntTy),
     Tuple(TypeId),
     Struct(TypeId),
+    Enum(TypeId),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -152,6 +154,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     source: &'a SourceFile,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
+    enum_layouts: &'a hir::EnumLayoutIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
 }
@@ -165,6 +168,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source: &'a SourceFile,
         types: &'a TypeStore,
         struct_layouts: &'a hir::StructLayoutIndex,
+        enum_layouts: &'a hir::EnumLayoutIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
         Self {
@@ -175,6 +179,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             source,
             types,
             struct_layouts,
+            enum_layouts,
             fun_index,
             env: Env::default(),
         }
@@ -205,7 +210,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::Tuple(_) | CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function return type",
                     at: fun.span.into(),
@@ -345,7 +350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init = match decl.init.as_ref() {
-            Some(expr) => self.codegen_expr(expr)?,
+            Some(expr) => self.codegen_expr_in_expected_context(expr, Some(target_ty))?,
             None => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "val without initializer",
@@ -367,6 +372,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         );
         Ok(())
+    }
+
+    fn codegen_expr_in_expected_context(
+        &mut self,
+        expr: &hir::Expr,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match &expr.kind {
+            hir::ExprKind::UnresolvedIdent { name } => {
+                self.codegen_unresolved_ident(expr.span, name, expected)
+            }
+            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args, expected),
+            _ => self.codegen_expr(expr),
+        }
     }
 
     fn codegen_assign_stmt(
@@ -417,6 +436,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: expr.span.into(),
                 })
             }
+            hir::ExprKind::UnresolvedIdent { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unresolved ident (missing expected type context)",
+                at: expr.span.into(),
+            }),
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
             hir::ExprKind::StructLit { ty, fields } => self.codegen_struct_lit(expr.span, *ty, fields),
@@ -428,15 +451,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_binary(expr.span, *op, lhs, rhs)
             }
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
-            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args),
+            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args, None),
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.codegen_member_access(expr.span, receiver, member)
             }
+            hir::ExprKind::When { subject, arms } => self.codegen_when_expr(expr.span, subject, arms),
 
             // 后续任务接入 MIR/CFG codegen
             hir::ExprKind::Closure(_)
             | hir::ExprKind::If { .. }
-            | hir::ExprKind::When { .. }
             | hir::ExprKind::Perform { .. }
             | hir::ExprKind::Handle(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "expression kind",
@@ -450,21 +473,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee: &hir::Expr,
         args: &[hir::CallArg],
+        expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "call callee",
-                at: callee.span.into(),
-            });
-        };
+        // 1) 普通顶层函数调用：`foo(args...)`
+        if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
+        }
 
+        // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，
+        //    需要依赖“期望类型语境”才能决定属于哪个 enum。
+        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
+            let Some(CgTy::Enum(enum_ty)) = expected else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum variant ctor call without expected enum type",
+                    at: callee.span.into(),
+                });
+            };
+            return self.codegen_enum_variant_ctor_call(span, enum_ty, name, args);
+        }
+
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind: "call callee",
+            at: callee.span.into(),
+        })
+    }
+
+    fn codegen_top_level_fun_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let sig_fun = self
             .fun_index
             .get(fqn)
             .copied()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "call callee type",
-                at: callee.span.into(),
+                at: callee_span.into(),
             })?;
 
         if args.len() != sig_fun.params.len() {
@@ -531,9 +578,499 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "call return type",
                 at: span.into(),
+            }),
+        }
+    }
+
+    fn codegen_unresolved_ident(
+        &mut self,
+        span: crate::span::Span,
+        name: &str,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 0-参数 enum variant 值：`None`
+        let Some(CgTy::Enum(enum_ty)) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unresolved ident without expected enum type",
+                at: span.into(),
+            });
+        };
+
+        let (tag, field_count) = {
+            let layout = self.enum_layout_of(span, enum_ty)?;
+            let variant = layout
+                .variants
+                .iter()
+                .find(|v| v.name == name)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "unknown enum variant",
+                    at: span.into(),
+                })?;
+            (variant.tag, variant.fields.len())
+        };
+
+        if field_count != 0 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "non-zero-arity enum variant used as value",
+                at: span.into(),
+            });
+        }
+
+        self.build_enum_value(span, enum_ty, tag, None)
+    }
+
+    fn codegen_enum_variant_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        enum_ty: TypeId,
+        variant_name: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (tag, fields) = {
+            let layout = self.enum_layout_of(span, enum_ty)?;
+            let variant = layout
+                .variants
+                .iter()
+                .find(|v| v.name == variant_name)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "unknown enum variant",
+                    at: span.into(),
+                })?;
+            (variant.tag, variant.fields.clone())
+        };
+
+        if fields.len() != args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum variant ctor arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        // 当前阶段（T0813）只支持 “小 payload”：0 字段或 1 字段（标量）。
+        if fields.len() > 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum variant payload (multi-field)",
+                at: span.into(),
+            });
+        }
+
+        let payload = if let Some(field) = fields.first() {
+            let hir::CallArg::Positional(arg_expr) = &args[0] else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "named enum ctor arg",
+                    at: span.into(),
+                });
+            };
+
+            let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+
+            let arg_v = self.codegen_expr_in_expected_context(arg_expr, Some(field_cg))?;
+            let coerced = self.coerce_value(arg_expr.span, arg_v, field_cg)?;
+
+            Some(self.coerce_enum_payload_word(arg_expr.span, coerced, field_cg)?)
+        } else {
+            None
+        };
+
+        self.build_enum_value(span, enum_ty, tag, payload)
+    }
+
+    fn enum_layout_of(
+        &self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+    ) -> Result<&hir::EnumLayout, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(enum_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum type id",
+                at: at.into(),
+            });
+        };
+
+        self.enum_layouts
+            .get(&nominal.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum layout",
+                at: at.into(),
+            })
+    }
+
+    fn enum_payload_ty(&self) -> IntTy {
+        IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        }
+    }
+
+    fn coerce_enum_payload_word(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+        value_ty: CgTy,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let payload_ty = self.enum_payload_ty();
+        let payload_int_ty = self.int_type(payload_ty);
+
+        match value_ty {
+            CgTy::Unit => Ok(payload_int_ty.const_int(0, false)),
+            CgTy::Bool => {
+                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum payload bool",
+                    at: at.into(),
+                })?;
+                Ok(self
+                    .builder
+                    .build_int_z_extend(b, payload_int_ty, "enum_payload_bool")?)
+            }
+            CgTy::Int(from) => {
+                let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum payload int",
+                    at: at.into(),
+                })?;
+                if from.bits > payload_ty.bits {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload larger than word",
+                        at: at.into(),
+                    });
+                }
+                Ok(self.cast_int(v, from, payload_ty)?)
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum payload (non-scalar)",
+                at: at.into(),
+            }),
+        }
+    }
+
+    fn build_enum_value(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        tag: u32,
+        payload: Option<IntValue<'ctx>>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let llvm_enum_ty = self.llvm_enum_type(at, enum_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
+
+        let tag_ty = self.context.i32_type();
+        let payload_ty = self.int_type(self.enum_payload_ty());
+
+        agg = self
+            .builder
+            .build_insert_value(agg, tag_ty.const_int(u64::from(tag), false), 0, "enum_tag")?;
+
+        let payload_v = payload.unwrap_or_else(|| payload_ty.const_int(0, false));
+        agg = self
+            .builder
+            .build_insert_value(agg, payload_v, 1, "enum_payload")?;
+
+        Ok(CgValue {
+            ty: CgTy::Enum(enum_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn codegen_when_expr(
+        &mut self,
+        span: crate::span::Span,
+        subject: &hir::Expr,
+        arms: &[hir::WhenArm],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if arms.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when (no arms)",
+                at: span.into(),
+            });
+        }
+
+        for arm in arms {
+            if arm.guard.is_some() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when guard",
+                    at: arm.span.into(),
+                });
+            }
+        }
+
+        let subject_v = self.codegen_expr(subject)?;
+        let CgTy::Enum(enum_ty) = subject_v.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when subject type",
+                at: subject.span.into(),
+            });
+        };
+        let subject_raw = subject_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "when subject value",
+            at: subject.span.into(),
+        })?;
+
+        // 将 subject 落到一个栈 slot：便于在各 arm 中做 payload 解构（避免跨 block 的 dominance 细节）。
+        let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_v.ty)?;
+        self.store_local_value(span, subject_ptr, subject_v.ty, subject_v)?;
+
+        let subject_struct = subject_raw.into_struct_value();
+        let tag = self
+            .builder
+            .build_extract_value(subject_struct, 0, "when_tag")?
+            .into_int_value();
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let merge_bb = self.context.append_basic_block(func, "when_merge");
+        let arm_bbs = (0..arms.len())
+            .map(|i| self.context.append_basic_block(func, &format!("when_arm_{i}")))
+            .collect::<Vec<_>>();
+        let check_bbs = (0..arms.len())
+            .map(|i| self.context.append_basic_block(func, &format!("when_check_{i}")))
+            .collect::<Vec<_>>();
+
+        // 从当前 block 跳转到判别链。
+        self.builder.build_unconditional_branch(check_bbs[0])?;
+
+        // 构建判别链：按声明顺序生成 tag 比较。
+        let layout = self.enum_layout_of(span, enum_ty)?;
+        let tag_ty = self.context.i32_type();
+        let mut no_match_bb: Option<inkwell::basic_block::BasicBlock<'ctx>> = None;
+
+        for (idx, arm) in arms.iter().enumerate() {
+            self.builder.position_at_end(check_bbs[idx]);
+
+            match &arm.pat {
+                hir::WhenPat::Else { .. }
+                | hir::WhenPat::Wildcard { .. }
+                | hir::WhenPat::Bind { .. } => {
+                    self.builder.build_unconditional_branch(arm_bbs[idx])?;
+                }
+                hir::WhenPat::Variant { name, .. } => {
+                    let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when unknown enum variant",
+                            at: arm.pat.span().into(),
+                        });
+                    };
+
+                    let cond = self.builder.build_int_compare(
+                        IntPredicate::EQ,
+                        tag,
+                        tag_ty.const_int(u64::from(variant.tag), false),
+                        "when_tag_eq",
+                    )?;
+
+                    let else_bb = if idx + 1 < arms.len() {
+                        check_bbs[idx + 1]
+                    } else {
+                        // typecheck 已保证穷尽性；若这里仍未匹配，说明它是不可达路径。
+                        let bb = *no_match_bb.get_or_insert_with(|| {
+                            self.context.append_basic_block(func, "when_no_match")
+                        });
+                        bb
+                    };
+
+                    self.builder
+                        .build_conditional_branch(cond, arm_bbs[idx], else_bb)?;
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when pattern",
+                        at: arm.pat.span().into(),
+                    });
+                }
+            }
+        }
+
+        // no-match block：不可达（但需要一个 terminator 让 IR 完整）。
+        if let Some(bb) = no_match_bb {
+            self.builder.position_at_end(bb);
+            self.builder.build_unreachable()?;
+        }
+
+        // 生成各 arm body，并把结果汇合到 merge。
+        let mut out_ty: Option<CgTy> = None;
+        let mut incoming: Vec<(inkwell::basic_block::BasicBlock<'ctx>, CgValue<'ctx>)> = Vec::new();
+
+        for (idx, arm) in arms.iter().enumerate() {
+            self.builder.position_at_end(arm_bbs[idx]);
+
+            self.env.push_scope();
+            self.bind_when_pat(span, enum_ty, &arm.pat, subject_ptr)?;
+
+            let v = self.codegen_expr(&arm.body)?;
+            match out_ty {
+                None => out_ty = Some(v.ty),
+                Some(prev) if prev == v.ty => {}
+                Some(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when arm type mismatch",
+                        at: arm.body.span.into(),
+                    });
+                }
+            }
+
+            self.builder.build_unconditional_branch(merge_bb)?;
+            self.env.pop_scope();
+
+            incoming.push((arm_bbs[idx], v));
+        }
+
+        self.builder.position_at_end(merge_bb);
+
+        let out_ty = out_ty.unwrap_or(CgTy::Unit);
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool | CgTy::Int(_) => {
+                let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let phi = self.builder.build_phi(phi_ty, "when_phi")?;
+
+                for (bb, v) in incoming {
+                    let raw = v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when arm value",
+                        at: span.into(),
+                    })?;
+                    phi.add_incoming(&[(&raw, bb)]);
+                }
+
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(phi.as_basic_value()),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when result type",
+                at: span.into(),
+            }),
+        }
+    }
+
+    fn bind_when_pat(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        pat: &hir::WhenPat,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Else { .. } | hir::WhenPat::Wildcard { .. } => Ok(()),
+            hir::WhenPat::Bind { id, name, .. } => {
+                // `x -> ...`：绑定整个 subject。
+                let ty = CgTy::Enum(enum_ty);
+                let ptr = self.create_entry_alloca(at, name, ty)?;
+                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let loaded = self.builder.build_load(llvm_ty, subject_ptr, "bind_subject")?;
+                let v = CgValue {
+                    ty,
+                    value: Some(loaded),
+                };
+                self.store_local_value(at, ptr, ty, v)?;
+                self.env.insert(
+                    *id,
+                    CgLocal {
+                        ty,
+                        ptr,
+                        mutable: false,
+                    },
+                );
+                Ok(())
+            }
+            hir::WhenPat::Variant { name, args, .. } => {
+                let layout = self.enum_layout_of(at, enum_ty)?;
+                let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when unknown enum variant",
+                        at: pat.span().into(),
+                    });
+                };
+
+                if variant.fields.len() != args.len() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when variant arity mismatch",
+                        at: pat.span().into(),
+                    });
+                }
+                if variant.fields.len() > 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when variant payload (multi-field)",
+                        at: pat.span().into(),
+                    });
+                }
+
+                if let (Some(field), Some(arg_pat)) = (variant.fields.first(), args.first()) {
+                    let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+
+                    let llvm_enum_ty = self.llvm_enum_type(at, enum_ty)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+                    let raw_struct = loaded.into_struct_value();
+                    let payload_raw = self
+                        .builder
+                        .build_extract_value(raw_struct, 1, "when_payload")?
+                        .into_int_value();
+
+                    // 当前阶段 payload 固定为 word-sized int；按字段类型截断/转换。
+                    let extracted = match field_cg {
+                        CgTy::Unit => CgValue::unit(),
+                        CgTy::Bool => {
+                            let b = self
+                                .builder
+                                .build_int_truncate(payload_raw, self.context.bool_type(), "payload_to_bool")?;
+                            CgValue::bool(b)
+                        }
+                        CgTy::Int(int_ty) => {
+                            let from = self.enum_payload_ty();
+                            let casted = self.cast_int(payload_raw, from, int_ty)?;
+                            CgValue::int(casted, int_ty)
+                        }
+                        CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when payload (non-scalar)",
+                                at: field.span.into(),
+                            });
+                        }
+                    };
+
+                    match arg_pat {
+                        hir::WhenPat::Bind { id, name, .. } => {
+                            let ptr = self.create_entry_alloca(at, name, field_cg)?;
+                            self.store_local_value(at, ptr, field_cg, extracted)?;
+                            self.env.insert(
+                                *id,
+                                CgLocal {
+                                    ty: field_cg,
+                                    ptr,
+                                    mutable: false,
+                                },
+                            );
+                        }
+                        hir::WhenPat::Wildcard { .. } | hir::WhenPat::Rest { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when variant arg pattern",
+                                at: arg_pat.span().into(),
+                            });
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when pattern",
+                at: pat.span().into(),
             }),
         }
     }
@@ -552,7 +1089,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
-            CgTy::Tuple(_) | CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function param type",
                     at: span.into(),
@@ -576,7 +1113,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into(),
-            CgTy::Tuple(_) | CgTy::Struct(_) => {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg value",
                     at: span.into(),
@@ -619,7 +1156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .into_int_value();
                     CgValue::int(raw, int_ty)
                 }
-                CgTy::Tuple(_) | CgTy::Struct(_) => {
+                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "param type",
                         at: param.span.into(),
@@ -719,6 +1256,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value: None,
             },
             CgTy::Struct(ty) => CgValue { ty: CgTy::Struct(ty), value: None },
+            CgTy::Enum(ty) => CgValue { ty: CgTy::Enum(ty), value: None },
         }
     }
 
@@ -743,7 +1281,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "aggregate return type",
                 at: span.into(),
             }),
@@ -876,6 +1414,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let raw = self
                     .builder
                     .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_struct")?;
+                Ok(CgValue {
+                    ty: local.ty,
+                    value: Some(raw),
+                })
+            }
+            CgTy::Enum(_) => {
+                let raw = self
+                    .builder
+                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_enum")?;
                 Ok(CgValue {
                     ty: local.ty,
                     value: Some(raw),
@@ -1205,6 +1752,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
             CgTy::Struct(struct_ty) => CgValue {
                 ty: CgTy::Struct(struct_ty),
+                value: Some(raw),
+            },
+            CgTy::Enum(enum_ty) => CgValue {
+                ty: CgTy::Enum(enum_ty),
                 value: Some(raw),
             },
         })
@@ -1595,6 +2146,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
+            (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value coercion",
                 at: at.into(),
@@ -1656,8 +2208,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "tuple exit code",
                 at: at.into(),
             }),
-            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct exit code",
+            CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "composite exit code",
                 at: at.into(),
             }),
         }
@@ -1684,10 +2236,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signed: false,
             })),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
-                .struct_layouts
-                .contains_key(&nominal.fqn)
-                .then_some(CgTy::Struct(ty)),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                if self.struct_layouts.contains_key(&nominal.fqn) {
+                    return Some(CgTy::Struct(ty));
+                }
+                if self.enum_layouts.contains_key(&nominal.fqn) {
+                    return Some(CgTy::Enum(ty));
+                }
+                None
+            }
             _ => None,
         }
     }
@@ -1757,6 +2314,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
+            CgTy::Enum(enum_ty) => self.llvm_enum_type(at, enum_ty)?.into(),
         })
     }
 
@@ -1794,6 +2352,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         struct_ty.set_body(&llvm_fields, false);
         Ok(struct_ty)
+    }
+
+    fn llvm_enum_type(
+        &self,
+        at: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum type id",
+                at: at.into(),
+            });
+        };
+
+        let layout = self
+            .enum_layouts
+            .get(&nominal.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum layout",
+                at: at.into(),
+            })?;
+
+        if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
+            return Ok(existing);
+        }
+
+        // 最小 rich enum 表示：`{ tag: i32, payload: iN }`
+        // - tag：按声明顺序分配的 variant id
+        // - payload：当前阶段只支持“单 machine word 承载的小 payload”
+        let enum_ty = self.context.opaque_struct_type(&layout.fqn);
+        let tag_ty = self.context.i32_type();
+        let payload_ty = self.int_type(IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        });
+        enum_ty.set_body(&[tag_ty.into(), payload_ty.into()], false);
+        Ok(enum_ty)
     }
 
     fn llvm_tuple_type(
@@ -1865,14 +2460,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         // 说明：当前阶段 locals 允许：
         // - 标量：`Unit/Bool/Int*`
-        // - struct（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
+        // - struct/enum（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
         let v = self.coerce_value(at, value, ty)?;
         match ty {
             CgTy::Unit => {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(raw) = v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",

@@ -2275,11 +2275,23 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0813 [TODO] codegen：rich enum（tagged union）最小布局（PLAN §8.2）
+### T0813 [DONE] codegen：rich enum（tagged union）最小布局（PLAN §8.2）
 - 描述：为 enum 生成 `{tag, payload}` 表示（payload 用最大变体的 LLVM struct/union），支持构造与判别。
 - 目标：先不做 niche 优化；先只支持小 payload。
 - 验收：新增 run-pass fixture：构造 `Some(1)` 与 `None`，when 分支输出不同结果。
 - 依赖：T0812、T0425、T0708
+ - 完成：
+   - `crates/scoopc/src/hir/{mod.rs,lower.rs}`：新增 `EnumLayoutIndex`（enum FQN → variants/tag/字段类型），并在 HIR lowering 中收集顶层非泛型 enum 的布局；同时用 `ExprKind::UnresolvedIdent` 保留 resolver 未绑定的标识符，便于后端在“期望类型语境”下处理 enum variant ctor/值。
+   - `crates/scoopc/src/llvm/codegen.rs`：新增 enum 的最小 LLVM 表示 `{ i32 tag, iN payload }`（payload 为 word-sized int），支持：
+     - enum variant ctor：`Some(1)`（需要期望类型为 enum）；
+     - 0-参数 variant：`None()`（同样走 ctor 路径以绕开 resolver 对裸 `None` 的限制）；
+     - `when`：按 tag 比较分发到各分支，并支持 `Some(v)` binder 解构读取 payload。
+   - `tests/fixtures/run-pass/enum_rich_when_basic.scoop`：新增 run-pass fixture，覆盖 `Some(1)`/`None()` 构造 + `when` 分支，并用 `EXPECT-EXIT` 断言结果。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoopc --features llvm` 通过；
+   - `cargo test -p scoop --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-sys + clang）。
 
 ### T0814 [TODO] codegen：`when` lowering（switch + pattern tests）
 - 描述：把 `when`（至少 enum/Bool）降到 LLVM switch；tuple/struct pattern 用字段比较实现。

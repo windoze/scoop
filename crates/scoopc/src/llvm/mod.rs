@@ -182,6 +182,7 @@ fn build_minimal_main_module<'ctx>(
         source,
         &lowered.types,
         &lowered.struct_layouts,
+        &lowered.enum_layouts,
         &fun_index,
     );
 
@@ -208,6 +209,7 @@ fn build_minimal_main_module<'ctx>(
             source,
             &lowered.types,
             &lowered.struct_layouts,
+            &lowered.enum_layouts,
             &fun_index,
         )
         .codegen_top_level_fun(fun, llvm_fun)?;
@@ -228,6 +230,7 @@ fn build_minimal_main_module<'ctx>(
         source,
         &lowered.types,
         &lowered.struct_layouts,
+        &lowered.enum_layouts,
         &fun_index,
     )
         .codegen_main_exit_code(hir_main)?;
@@ -326,7 +329,7 @@ fn collect_calls_in_stmt(stmt: &hir::Stmt, out: &mut Vec<String>) {
 fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
     match &expr.kind {
         hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-        hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) => {}
+        hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {
                 collect_calls_in_expr(&f.value, out);

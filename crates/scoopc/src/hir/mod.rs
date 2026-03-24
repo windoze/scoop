@@ -187,6 +187,12 @@ pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
     VarRef(ValueRef),
+    /// 未能在 resolver 阶段绑定的标识符。
+    ///
+    /// 典型场景：enum variant ctor `Some(1)` / 0-参数 variant 值 `None`。
+    /// - resolver 会对 `Call(Ident)` 的 callee 允许“未 resolve”（把更贴近语义的诊断留给 typecheck）；
+    /// - HIR 为了保持结构可回归，需要保留该名字，供后续 lowering/codegen 在“期望类型语境”下判定含义。
+    UnresolvedIdent { name: String },
     /// struct literal：`TypeName { field: expr, ... }`。
     StructLit {
         ty: TypeId,
@@ -373,6 +379,40 @@ pub struct StructFieldLayout {
 /// `struct FQN -> StructLayout` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type StructLayoutIndex = HashMap<String, StructLayout>;
 
+/// 一个 enum（值类型）的“布局信息”（早期用于 LLVM codegen）。
+///
+/// 说明：
+/// - 当前阶段（T0813）只需要 `{tag, payload}` 的最小表示，因此只保留：
+///   - variant 顺序与 tag（按声明顺序分配，从 0 开始）；
+///   - payload 字段的类型（仅对 `TypeRef::Path` 可解析；其它类型留空）。
+/// - 更复杂的布局策略（niche / boxing / size disparity lint）留给后续任务（T0826）。
+#[derive(Debug, Clone)]
+pub struct EnumLayout {
+    pub fqn: String,
+    pub variants: Vec<EnumVariantLayout>,
+}
+
+/// enum 的一个 variant 的布局信息。
+#[derive(Debug, Clone)]
+pub struct EnumVariantLayout {
+    pub span: Span,
+    pub name: String,
+    pub tag: u32,
+    pub fields: Vec<EnumVariantFieldLayout>,
+}
+
+/// enum variant 的一个字段布局信息。
+#[derive(Debug, Clone)]
+pub struct EnumVariantFieldLayout {
+    pub span: Span,
+    pub name: String,
+    /// 字段类型的 FQN（当前仅对 `TypeRef::Path` 可解析；其它类型留空）。
+    pub ty_fqn: Option<String>,
+}
+
+/// `enum FQN -> EnumLayout` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type EnumLayoutIndex = HashMap<String, EnumLayout>;
+
 /// `when` 的一个分支（arm）：`pat (if guard)? -> body`。
 #[derive(Debug, Clone)]
 pub struct WhenArm {
@@ -430,6 +470,23 @@ pub enum WhenPat {
         span: Span,
         value: bool,
     },
+}
+
+impl WhenPat {
+    pub fn span(&self) -> Span {
+        match self {
+            WhenPat::Else { span } => *span,
+            WhenPat::Wildcard { span } => *span,
+            WhenPat::Rest { span } => *span,
+            WhenPat::Is { span, .. } => *span,
+            WhenPat::Bind { span, .. } => *span,
+            WhenPat::Tuple { span, .. } => *span,
+            WhenPat::Variant { span, .. } => *span,
+            WhenPat::IntLit { span } => *span,
+            WhenPat::StringLit { span } => *span,
+            WhenPat::BoolLit { span, .. } => *span,
+        }
+    }
 }
 
 /// `handle` 表达式（HIR 视图）。

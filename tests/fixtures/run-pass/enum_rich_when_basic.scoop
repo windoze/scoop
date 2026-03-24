@@ -1,0 +1,32 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+//
+// T0813: codegen（rich enum 最小布局 + when 判别）
+//
+// 说明：
+// - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果。
+// - 构造 `Some(1)` 与 `None`，并用 `when` 分支得到不同结果。
+
+import scoop.core.*
+
+enum MyOpt {
+    Some(val value: Int),
+    None,
+}
+
+fun main(): Int {
+    val some: MyOpt = Some(1)
+    val none: MyOpt = None()
+
+    val x: Int = when (some) {
+        Some(v) -> v
+        None -> 0
+    }
+
+    val y: Int = when (none) {
+        Some(v) -> v
+        None -> 2
+    }
+
+    return x + y
+}

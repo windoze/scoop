@@ -509,6 +509,9 @@ impl<'a> FnLowering<'a> {
                 self.assign(expr.span, tmp, Rvalue::Todo("missing expr"));
                 tmp
             }
+            hir::ExprKind::UnresolvedIdent { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "unresolved ident")
+            }
             hir::ExprKind::Todo(kind) => {
                 let tmp = self.push_temp_local(expr.span, expr.ty);
                 self.assign(expr.span, tmp, Rvalue::Todo(kind));
@@ -1098,6 +1101,7 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. }
         | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {
