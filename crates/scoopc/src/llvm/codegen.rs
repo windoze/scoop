@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 
+use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -27,6 +28,7 @@ use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
 use inkwell::types::StructType;
 use inkwell::values::FunctionValue;
+use inkwell::values::GlobalValue;
 use inkwell::values::AggregateValueEnum;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
@@ -37,7 +39,7 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::SourceFile;
-use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::LlvmEmitError;
 
@@ -55,6 +57,13 @@ enum CgTy {
     Tuple(TypeId),
     Struct(TypeId),
     Enum(TypeId),
+    /// runtime 字符串对象（early stage）
+    ///
+    /// 说明：
+    /// - 当前阶段把 `scoop.core.String` 映射为 `*const ScoopString`（C ABI）；
+    /// - 该指针的指向对象目前允许来自：字符串字面量生成的栈上 `ScoopString`；
+    /// - 更完整的 String 对象头/GC 语义将由后续任务补齐（T09/T12）。
+    String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -210,7 +219,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function return type",
                     at: fun.span.into(),
@@ -477,6 +486,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 1) 普通顶层函数调用：`foo(args...)`
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            // T0822：最小 I/O（sysroot `print/println(String)`）直接映射到 runtime 符号。
+            if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
+                return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
+            }
             return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
         }
 
@@ -496,6 +509,60 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "call callee",
             at: callee.span.into(),
         })
+    }
+
+    fn codegen_sysroot_print_like(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot print/println arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot print/println named arg",
+                at: span.into(),
+            });
+        };
+
+        let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
+        let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot print/println arg value",
+                at: expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(str_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot print/println arg type",
+                at: expr.span.into(),
+            });
+        };
+
+        let rt_name = match fqn {
+            "scoop.core.print" => "scoop_print",
+            "scoop.core.println" => "scoop_println",
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "unknown sysroot print/println callee",
+                    at: callee_span.into(),
+                });
+            }
+        };
+
+        let rt_fun = self.declare_runtime_print_like(rt_name);
+        let _ = self
+            .builder
+            .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
+        Ok(CgValue::unit())
     }
 
     fn codegen_top_level_fun_call(
@@ -578,10 +645,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "call return type",
-                at: span.into(),
-            }),
+            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call return type",
+                    at: span.into(),
+                })
+            }
         }
     }
 
@@ -738,10 +807,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(self.cast_int(v, from, payload_ty)?)
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum payload (non-scalar)",
-                at: at.into(),
-            }),
+            CgTy::String => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload string",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload string",
+                        at: at.into(),
+                    });
+                };
+                Ok(self
+                    .builder
+                    .build_ptr_to_int(ptr, payload_int_ty, "enum_payload_str_ptr")?)
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum payload (non-scalar)",
+                    at: at.into(),
+                })
+            }
         }
     }
 
@@ -1010,7 +1098,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let out_ty = out_ty.unwrap_or(CgTy::Unit);
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String => {
                 let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
                 let phi = self.builder.build_phi(phi_ty, "when_phi")?;
 
@@ -1124,6 +1212,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let from = self.enum_payload_ty();
                             let casted = self.cast_int(payload_raw, from, int_ty)?;
                             CgValue::int(casted, int_ty)
+                        }
+                        CgTy::String => {
+                            let ptr = self.builder.build_int_to_ptr(
+                                payload_raw,
+                                self.llvm_scoop_string_ptr_type(),
+                                "payload_to_str_ptr",
+                            )?;
+                            CgValue {
+                                ty: CgTy::String,
+                                value: Some(ptr.into()),
+                            }
                         }
                         CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1442,6 +1541,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+            CgTy::String => self.llvm_scoop_string_ptr_type().into(),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function param type",
@@ -1459,7 +1559,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
         Ok(match param_ty {
             CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-            CgTy::Bool | CgTy::Int(_) => value
+            CgTy::Bool | CgTy::Int(_) | CgTy::String => value
                 .value
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg value",
@@ -1508,6 +1608,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         })?
                         .into_int_value();
                     CgValue::int(raw, int_ty)
+                }
+                CgTy::String => {
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?
+                        .into_pointer_value();
+                    CgValue {
+                        ty: CgTy::String,
+                        value: Some(raw.into()),
+                    }
                 }
                 CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1602,6 +1715,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
             CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
+            CgTy::String => CgValue {
+                ty: CgTy::String,
+                value: Some(self.llvm_scoop_string_ptr_type().const_null().into()),
+            },
             // 说明：当前阶段不支持 tuple/struct 作为函数返回类型，因此这里仅提供占位值；
             // 若后续误用，会在 emit/store 阶段触发结构化错误而非 panic。
             CgTy::Tuple(ty) => CgValue {
@@ -1634,10 +1751,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "aggregate return type",
-                at: span.into(),
-            }),
+            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "aggregate return type",
+                    at: span.into(),
+                })
+            }
         }
     }
 
@@ -1710,12 +1829,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     int_ty,
                 ))
             }
-            // 早期阶段：字符串/插值字符串不参与 main v1 codegen。
-            hir::LiteralKind::String => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "string literal",
-                at: span.into(),
-            }),
+            hir::LiteralKind::String => self.codegen_string_literal(span),
         }
+    }
+
+    fn codegen_string_literal(&mut self, span: crate::span::Span) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let text = self.source.slice(span);
+
+        let bytes = match parse_string_literal_bytes(text) {
+            Ok(bytes) => bytes,
+            Err(StringLiteralParseError::Interpolated) => {
+                // 插值字符串（`f"..."`/`f"""..."""`）由后续任务 T0823 lowering 处理；
+                // 当前阶段避免“把原始文本当作普通字符串”导致语义错误。
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "interpolated string literal",
+                    at: span.into(),
+                });
+            }
+            Err(StringLiteralParseError::Invalid) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "invalid string literal",
+                    at: span.into(),
+                });
+            }
+        };
+
+        // 1) 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
+        let data_gv = self.get_or_create_global_bytes(span, &bytes);
+
+        // 2) 构造 `ScoopString { len, data }` 并返回其指针（当前阶段先放在栈上）。
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let str_ptr = self.create_entry_alloca_raw(span, "scoop_str_lit", scoop_str_ty.into())?;
+
+        let len_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 0, "str_len_gep")?;
+        let data_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_data_gep")?;
+
+        let len = self
+            .context
+            .i64_type()
+            .const_int(bytes.len() as u64, false);
+
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let data_i8_ptr = self.builder.build_pointer_cast(
+            data_gv.as_pointer_value(),
+            i8_ptr_ty,
+            "str_data_ptr",
+        )?;
+
+        let _ = self.builder.build_store(len_ptr, len)?;
+        let _ = self.builder.build_store(data_ptr, data_i8_ptr)?;
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
     }
 
     fn codegen_var_ref(
@@ -1753,6 +1924,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_int")?
                     .into_int_value();
                 Ok(CgValue::int(raw, int_ty))
+            }
+            CgTy::String => {
+                let raw = self
+                    .builder
+                    .build_load(
+                        self.llvm_basic_type_of(span, local.ty)?,
+                        local.ptr,
+                        "load_str",
+                    )?
+                    .into_pointer_value();
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(raw.into()),
+                })
             }
             CgTy::Tuple(_) => {
                 let raw = self
@@ -2099,6 +2284,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(raw.into_int_value()),
             CgTy::Int(int_ty) => CgValue::int(raw.into_int_value(), int_ty),
+            CgTy::String => CgValue {
+                ty: CgTy::String,
+                value: Some(raw.into_pointer_value().into()),
+            },
             CgTy::Tuple(tuple_ty) => CgValue {
                 ty: CgTy::Tuple(tuple_ty),
                 value: Some(raw),
@@ -2497,6 +2686,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let out = self.cast_int(v, from, to)?;
                 Ok(CgValue::int(out, to))
             }
+            (CgTy::String, CgTy::String) => Ok(value),
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
@@ -2557,6 +2747,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let casted = self.cast_int(v, from, to)?;
                 Ok(casted)
             }
+            CgTy::String => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "string exit code",
+                at: at.into(),
+            }),
             CgTy::Tuple(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "tuple exit code",
                 at: at.into(),
@@ -2570,6 +2764,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
@@ -2617,6 +2812,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ty_fqn {
             "scoop.core.Unit" => Ok(CgTy::Unit),
             "scoop.core.Bool" => Ok(CgTy::Bool),
+            "scoop.core.String" => Ok(CgTy::String),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
@@ -2655,6 +2851,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.custom_width_int_type(ty.bits)
     }
 
+    fn llvm_scoop_string_type(&self) -> StructType<'ctx> {
+        // 说明：该类型名用于 LLVM module 内部复用，不应与用户类型冲突（使用 runtime 命名空间前缀）。
+        const TY_NAME: &str = "scoop.runtime.ScoopString";
+
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        // `typedef struct { uint64_t len; const uint8_t *data; } ScoopString;`
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let len_ty = self.context.i64_type();
+        let data_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        ty.set_body(&[len_ty.into(), data_ty.into()], false);
+        ty
+    }
+
+    fn llvm_scoop_string_ptr_type(&self) -> inkwell::types::PointerType<'ctx> {
+        self.llvm_scoop_string_type()
+            .ptr_type(AddressSpace::default())
+    }
+
+    fn declare_runtime_print_like(&self, name: &str) -> FunctionValue<'ctx> {
+        if let Some(existing) = self.module.get_function(name) {
+            return existing;
+        }
+
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] =
+            [self.llvm_scoop_string_ptr_type().into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(name, fn_ty, None)
+    }
+
+    fn get_or_create_global_bytes(&self, span: crate::span::Span, bytes: &[u8]) -> GlobalValue<'ctx> {
+        let name = format!("__scoop_str_data_{}_{}", span.start, span.end);
+        if let Some(existing) = self.module.get_global(&name) {
+            return existing;
+        }
+
+        let arr_ty = self.context.i8_type().array_type(bytes.len() as u32);
+        let gv = self.module.add_global(arr_ty, None, &name);
+        let init = self.context.const_string(bytes, false);
+        gv.set_initializer(&init);
+        gv.set_constant(true);
+        gv
+    }
+
     fn llvm_basic_type_of(
         &self,
         at: crate::span::Span,
@@ -2665,6 +2907,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+            CgTy::String => self.llvm_scoop_string_ptr_type().into(),
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
             CgTy::Enum(enum_ty) => self.llvm_enum_type(at, enum_ty)?.into(),
@@ -2774,6 +3017,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
         ty: CgTy,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let alloca_ty = self.llvm_basic_type_of(at, ty)?;
+        self.create_entry_alloca_raw(at, name, alloca_ty)
+    }
+
+    fn create_entry_alloca_raw(
+        &self,
+        at: crate::span::Span,
+        name: &str,
+        alloca_ty: BasicTypeEnum<'ctx>,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let alloca_builder = self.context.create_builder();
         let insert_block =
             self.builder
@@ -2800,7 +3053,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => alloca_builder.position_at_end(entry),
         }
 
-        let alloca_ty = self.llvm_basic_type_of(at, ty)?;
         Ok(alloca_builder.build_alloca(alloca_ty, name)?)
     }
 
@@ -2820,7 +3072,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(raw) = v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
@@ -2885,4 +3137,101 @@ fn mask_to_bits(value: u128, bits: u32) -> u128 {
     }
     let mask = (1u128 << bits) - 1;
     value & mask
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StringLiteralParseError {
+    Invalid,
+    Interpolated,
+}
+
+fn parse_string_literal_bytes(text: &str) -> Result<Vec<u8>, StringLiteralParseError> {
+    // f-string：留给 T0823 lowering；这里避免误把它当作普通字符串直接输出。
+    if text.starts_with("f\"") || text.starts_with("f\"\"\"") {
+        return Err(StringLiteralParseError::Interpolated);
+    }
+
+    // raw string：""" ... """
+    if let Some(rest) = text.strip_prefix("\"\"\"") {
+        let inner = rest
+            .strip_suffix("\"\"\"")
+            .ok_or(StringLiteralParseError::Invalid)?;
+        return Ok(inner.as_bytes().to_vec());
+    }
+
+    // normal string：" ... "（支持最小转义）
+    let inner = text
+        .strip_prefix('"')
+        .and_then(|s| s.strip_suffix('"'))
+        .ok_or(StringLiteralParseError::Invalid)?;
+
+    parse_normal_string_bytes(inner)
+}
+
+fn parse_normal_string_bytes(inner: &str) -> Result<Vec<u8>, StringLiteralParseError> {
+    let mut out: Vec<u8> = Vec::with_capacity(inner.len());
+    let mut chars = inner.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            let mut buf = [0u8; 4];
+            let s = ch.encode_utf8(&mut buf);
+            out.extend_from_slice(s.as_bytes());
+            continue;
+        }
+
+        let Some(esc) = chars.next() else {
+            return Err(StringLiteralParseError::Invalid);
+        };
+
+        match esc {
+            '\\' => out.push(b'\\'),
+            '"' => out.push(b'"'),
+            'n' => out.push(b'\n'),
+            'r' => out.push(b'\r'),
+            't' => out.push(b'\t'),
+            '0' => out.push(b'\0'),
+            // `\u{...}`（Kotlin-like，early stage）
+            'u' => {
+                let Some('{') = chars.next() else {
+                    return Err(StringLiteralParseError::Invalid);
+                };
+
+                let mut hex = String::new();
+                let mut closed = false;
+                while let Some(c) = chars.next() {
+                    if c == '}' {
+                        closed = true;
+                        break;
+                    }
+                    hex.push(c);
+                    if hex.len() > 6 {
+                        return Err(StringLiteralParseError::Invalid);
+                    }
+                }
+
+                if !closed || hex.is_empty() {
+                    return Err(StringLiteralParseError::Invalid);
+                }
+
+                let cp =
+                    u32::from_str_radix(&hex, 16).map_err(|_| StringLiteralParseError::Invalid)?;
+                let Some(ch) = char::from_u32(cp) else {
+                    return Err(StringLiteralParseError::Invalid);
+                };
+
+                let mut buf = [0u8; 4];
+                let s = ch.encode_utf8(&mut buf);
+                out.extend_from_slice(s.as_bytes());
+            }
+            // fallback：保守策略——把未知转义当作“转义后字符本身”（便于早期跑通）。
+            other => {
+                let mut buf = [0u8; 4];
+                let s = other.encode_utf8(&mut buf);
+                out.extend_from_slice(s.as_bytes());
+            }
+        }
+    }
+
+    Ok(out)
 }

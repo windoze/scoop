@@ -2365,11 +2365,19 @@
    - `cargo test --all` 通过；
    - `cargo test -p scoop clang_can_link_object_with_runtime_and_println` 通过。
 
-### T0822 [TODO] codegen：字符串字面量与调用 `println`（spec §8.1）
+### T0822 [DONE] codegen：字符串字面量与调用 `println`（spec §8.1）
 - 描述：把 `"..."` 与 raw string lowering 为 runtime 字符串对象（或常量指针），并生成对 `scoop_println` 的调用。
 - 目标：先只支持纯字面量；插值字符串后续任务补。
 - 验收：新增 run-pass fixture：`fun main(){ println(\"hello\") }` 输出 `hello`。
 - 依赖：T0821、T0810
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：新增 `CgTy::String`（`scoop.core.String` → `*const ScoopString`），并实现字符串字面量 lowering：生成只读全局字节序列 + 栈上 `ScoopString { len, data }`。
+   - `crates/scoopc/src/llvm/codegen.rs`：把 sysroot `scoop.core.print/println` 调用直接映射到 runtime `scoop_print/scoop_println`（C ABI）。
+   - `tests/fixtures/codegen/println_string_literal.scoop`：新增 run-pass fixture，断言 `println("hello")` 的 stdout。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoopc --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0823 [TODO] f-string 插值：`f\"...{expr}...\"` 的 lowering（spec §8.2）
 - 描述：实现插值字符串的 lowering：拆分为片段并拼接（或调用格式化 runtime），至少支持 `{Int}`/`{String}`。

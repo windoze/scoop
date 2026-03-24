@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: println_string_literal.stdout.txt
+// 目标：T0822 字符串字面量 lowering + `println(String)` 调用到 runtime `scoop_println`。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun main() {
+    println("hello")
+}
+
