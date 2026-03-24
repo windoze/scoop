@@ -2324,12 +2324,6 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0816 [TODO] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
-- 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。
-- 目标：先只支持单线程；先只插桩“明显活跃的引用局部变量”。
-- 验收：新增 run-pass fixture：分配若干对象（先可用 malloc 代替 GC）并触发一次“伪 GC 扫描”（仅遍历 roots）不崩溃。
-- 依赖：T0905、T0817
-
 ### T0817 [TODO] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
 - 描述：在 codegen 中为 box/object 分配调用 runtime `scoop_alloc`，并写入最小对象头/类型描述指针（若已定义）。
 - 目标：先只支持 boxing `Int`/简单对象；不实现移动 GC。
@@ -2429,6 +2423,12 @@
 - 目标：先不做扫描；只把数据结构与 push/pop API 做出来。
 - 验收：新增测试：push/pop 两层 frame 后 `current_frame` 指针正确回退。
 - 依赖：T0903
+
+### T0816 [TODO] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
+- 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。
+- 目标：先只支持单线程；先只插桩“明显活跃的引用局部变量”。
+- 验收：新增 run-pass fixture：分配若干对象（先可用 malloc 代替 GC）并触发一次“伪 GC 扫描”（仅遍历 roots）不崩溃。
+- 依赖：T0905、T0817
 
 ### T0906 [TODO] effect runtime v0：TLS slot + flag（为 `->` handler 做准备）（PLAN §6.3.1）
 - 描述：在 runtime 中增加 `__scoop_effect_active` 与 perform slot（结构体/union 先占位）。
