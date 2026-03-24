@@ -1,0 +1,4 @@
+// EXPECT: pass
+// RUN-STDERR: stderr_empty_ok.stderr
+
+fun main() {}

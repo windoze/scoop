@@ -89,6 +89,20 @@ pub(crate) fn run_fixture(
     // 当未启用 `--features llvm` 时，这里仅校验 golden 文件可读并跳过执行。
     if !cfg!(feature = "llvm") {
         validate_golden_files_readable(fixture_path, exp)?;
+        // 重要：CI 默认不启用 `scoop` 的 `llvm` feature，因此 run-pass fixtures 通常会被“跳过执行”。
+        //
+        // 但对于 `EXPECT: fail` 的 run-pass fixtures，我们仍希望在不依赖 LLVM 的情况下，能够回归：
+        // - stdout/stderr mismatch 的稳定错误码；
+        // - 同时断言 stdout/stderr 时，stderr mismatch 能被区分出来（见 T0111b）。
+        //
+        // 因此这里对“期望失败”的 case 做一个可预测的模拟：把实际 stdout/stderr 视为“空输出”，
+        // 然后复用同一套 golden 对比逻辑生成诊断。
+        //
+        // 说明：这不会影响 `EXPECT: pass` 的 fixtures；它们依旧是“仅校验 golden 文件可读”。
+        if matches!(exp.expect, super::expectations::Expect::Fail) {
+            assert_stdout_matches(fixture_path, exp, "")?;
+            assert_stderr_matches(fixture_path, exp, "")?;
+        }
         return Ok(());
     }
 

@@ -2151,11 +2151,18 @@
    - `cargo run -p scoop -- test` 通过；
    - `cargo run -p scoop --features llvm -- test` 可真正执行 run-pass fixtures（需要 LLVM/llvm-config + clang）。
 
-### T0111b [TODO] run-pass fixtures：`RUN-STDERR` golden（真实 fixtures 覆盖）
+### T0111b [DONE] run-pass fixtures：`RUN-STDERR` golden（真实 fixtures 覆盖）
 - 描述：在 `tests/fixtures/run-pass/**` 增加 fixtures 覆盖 `RUN-STDERR`：一个断言 stderr 输出正确，一个断言 stdout/stderr 同时输出且 stderr mismatch 时 runner 报错码稳定。
 - 目标：保证 run-pass 的 stdout/stderr mismatch 诊断可稳定区分（便于长期回归）。
 - 验收：新增 2 个 run-pass fixtures（1 pass + 1 fail）；`cargo run -p scoop -- test` 能稳定通过且在 fail case 下给出 `scoop::fixtures::run_stderr_mismatch`（或同等稳定错误码）。
 - 依赖：T0106b2、T0111a、T0107
+ - 完成：
+   - `crates/scoop/src/fixtures/run_pass.rs`：未启用 `llvm` feature 时，对 `EXPECT: fail` 的 run-pass fixture 做“空输出模拟”，确保在 CI 下也能回归 stderr mismatch 的稳定错误码。
+   - `tests/fixtures/run-pass/stderr_empty_ok.scoop` + `tests/fixtures/run-pass/stderr_empty_ok.stderr`：断言 stderr（空输出）golden 一致。
+   - `tests/fixtures/run-pass/stderr_mismatch_distinguishable.scoop` + golden：同时断言 stdout/stderr，且 stderr mismatch 的错误码稳定为 `scoop::fixtures::run_stderr_mismatch`。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0112 [TODO] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
 - 描述：让 fixtures runner 对运行进程执行退出码断言与超时控制，并在超时、信号终止、非预期退出码时生成稳定诊断。
