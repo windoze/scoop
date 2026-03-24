@@ -43,6 +43,7 @@
 - 2026-03-24：完成 T0804：新增 `scoopc --emit-obj` 把最小 LLVM module 编译为 `.o` 并落盘，补齐单测覆盖产物非空，为后续链接（T0806）做准备。
 - 2026-03-24：完成 T0805：driver `scoop build` 接入前端 parse/resolve/typecheck，并准备输出路径（当前不做 codegen/链接）。
 - 2026-03-24：完成 T0806：driver 在启用 `--features llvm` 时生成 `.o` 并调用 clang 链接早期 C runtime，产出可执行文件（单测覆盖 link 与运行返回 0）。
+- 2026-03-24：完成 T0807：driver 实现 `scoop run`（临时目录 build + exec，stdout/stderr 与退出码透传）。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

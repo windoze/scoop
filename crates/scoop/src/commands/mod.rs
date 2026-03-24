@@ -9,6 +9,8 @@ mod dump_hir;
 mod dump_ir;
 mod dump_mir;
 mod build;
+mod run;
+mod temp;
 mod test;
 
 use tracing_subscriber::EnvFilter;
@@ -31,8 +33,6 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::DumpMir { input } => dump_mir::run(input),
         Command::DumpIr { input } => dump_ir::run(input),
         Command::Build { input, output } => build::run(input, output),
-        Command::Run { .. } => Err(miette::miette!(
-            "子命令 `run` 尚未实现；当前仅提供工程骨架。"
-        )),
+        Command::Run { input } => run::run(input),
     }
 }

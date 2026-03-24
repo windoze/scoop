@@ -7,8 +7,6 @@
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
 use std::path::{Path, PathBuf};
-#[cfg(feature = "llvm")]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
@@ -158,7 +156,7 @@ fn run_codegen_and_link(
     source: &scoopc::source::SourceFile,
     output: &Path,
 ) -> Result<()> {
-    let dir = make_temp_dir("scoop_build")?;
+    let dir = super::temp::make_temp_dir("scoop_build")?;
     let obj = dir.join("main.o");
 
     scoopc::llvm::emit_minimal_main_obj_to_file(session, source, &obj)?;
@@ -166,21 +164,6 @@ fn run_codegen_and_link(
 
     let _ = std::fs::remove_dir_all(&dir);
     Ok(())
-}
-
-#[cfg(feature = "llvm")]
-fn make_temp_dir(prefix: &str) -> Result<PathBuf> {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .into_diagnostic()
-        .wrap_err("系统时间异常")?
-        .as_nanos();
-
-    let dir = std::env::temp_dir().join(format!("{prefix}_{}_{}", std::process::id(), nanos));
-    std::fs::create_dir_all(&dir)
-        .into_diagnostic()
-        .wrap_err("无法创建临时目录")?;
-    Ok(dir)
 }
 
 #[cfg(test)]

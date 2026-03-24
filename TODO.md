@@ -2117,11 +2117,23 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoop --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/scoop_overview_minimal_main` 生成可执行文件并运行返回 0。
 
-### T0807 [TODO] driver：实现 `scoop run <main.scoop>`（build + exec）
+### T0807 [DONE] driver：实现 `scoop run <main.scoop>`（build + exec）
 - 描述：在 build 成功后执行产物，并把 stdout/stderr 透传。
 - 目标：先不做 sandbox；超时/退出码断言留给 fixtures。
 - 验收：`scoop run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 返回 0。
 - 依赖：T0806
+ - 完成：
+   - `crates/scoop/src/commands/run.rs`：新增 `scoop run`（临时目录构建并执行，stdout/stderr 透传，退出码透传）。
+   - `crates/scoop/src/commands/temp.rs`：抽取临时目录创建工具，供 `build/run` 复用。
+   - `crates/scoop/src/commands/build.rs`：复用共享的临时目录工具（去重）。
+   - `crates/scoop/src/commands/mod.rs`：接入 `Command::Run` 分发。
+   - `crates/scoop/src/cli.rs`：更新 `run` 子命令帮助文本（提示需要 `--features llvm`）。
+   - `README.md`：补齐 `scoop run` 使用示例。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `cargo run -p scoop -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 给出“需要启用 LLVM”提示；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 返回 0。
 
 ### T0106b2 [TODO] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
 - 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。

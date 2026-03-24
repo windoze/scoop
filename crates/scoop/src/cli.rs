@@ -55,7 +55,7 @@ pub enum Command {
         output: Option<PathBuf>,
     },
 
-    /// 运行程序（未实现）
+    /// 运行程序（先 build 后 exec；需要启用 `--features llvm`）
     Run {
         /// 输入源文件路径
         input: PathBuf,
