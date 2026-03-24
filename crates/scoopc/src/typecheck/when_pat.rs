@@ -49,6 +49,22 @@ fn check_when_pat(
         | ast::WhenPat::IntLit { .. }
         | ast::WhenPat::StringLit { .. }
         | ast::WhenPat::BoolLit { .. } => Ok(()),
+        ast::WhenPat::Or { span, pats } => {
+            // 当前阶段（T0825）后端需要为 or-pattern 生成正确的控制流；
+            // 为避免在“不同分支绑定集合不一致”时引入未定义语义，这里先限制：
+            // - or-pattern 内不得引入任何 binder（含嵌套 bind）。
+            if pats.iter().any(when_pat_contains_bind) {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "when or-pattern（暂不支持 binder）",
+                    span: (*span).into(),
+                });
+            }
+
+            for p in pats {
+                check_when_pat(source, p, expected_ty, lower, builtins, bindings)?;
+            }
+            Ok(())
+        }
         ast::WhenPat::Is { ty, .. } => {
             // 当前阶段仅保证 TypeRef 可 lowering（运行期语义与 smart cast 留给后续阶段补齐）。
             let _ = lower.lower_type_ref(ty)?;
@@ -203,6 +219,22 @@ fn check_when_pat(
 
             Ok(())
         }
+    }
+}
+
+fn when_pat_contains_bind(pat: &ast::WhenPat) -> bool {
+    match pat {
+        ast::WhenPat::Bind { .. } => true,
+        ast::WhenPat::Tuple { elements, .. } => elements.iter().any(when_pat_contains_bind),
+        ast::WhenPat::Variant { args, .. } => args.iter().any(when_pat_contains_bind),
+        ast::WhenPat::Or { pats, .. } => pats.iter().any(when_pat_contains_bind),
+        ast::WhenPat::Else { .. }
+        | ast::WhenPat::Is { .. }
+        | ast::WhenPat::Wildcard { .. }
+        | ast::WhenPat::Rest { .. }
+        | ast::WhenPat::IntLit { .. }
+        | ast::WhenPat::StringLit { .. }
+        | ast::WhenPat::BoolLit { .. } => false,
     }
 }
 

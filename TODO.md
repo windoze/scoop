@@ -2409,11 +2409,23 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 
-### T0825 [TODO] codegen：`when` lowering 补齐 or-pattern / guard（spec §4.2）
+### T0825 [DONE] codegen：`when` lowering 补齐 or-pattern / guard（spec §4.2）
 - 描述：在已有 `when` lowering 基础上补齐 or-pattern 与 guard 的代码生成：or-pattern 共享后继块，guard 在匹配成功后再判定条件。
 - 目标：先不追求最优 CFG；先保证语义正确与诊断稳定。
 - 验收：新增 run-pass fixture：`A | B` 分支与 `pattern if cond` 分支都能得到正确结果。
 - 依赖：T0814、T0429、T0450
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：`WhenPat` 增加 `Or { pats }` 变体。
+   - `crates/scoopc/src/parser/expr.rs`：when pattern 支持解析 `A | B | C`。
+   - `crates/scoopc/src/typecheck/expr.rs`：补齐 `when` 分支 guard 的类型检查（必须为 `Bool`）。
+   - `crates/scoopc/src/typecheck/when_pat.rs` / `when_exhaustiveness.rs`：or-pattern 的绑定限制（当前不支持 binder）与穷尽性覆盖判定。
+   - `crates/scoopc/src/hir/{mod.rs,lower.rs}`：HIR 接入 `WhenPat::Or`（含 closure capture 的 locals 收集遍历）。
+   - `crates/scoopc/src/llvm/codegen.rs`：`when` 在出现 guard/or-pattern 时改用“链式判别 + guard fail 回落”的 CFG lowering。
+   - `tests/fixtures/run-pass/when_or_pattern_and_guard_basic.scoop`：新增 run-pass fixture，断言 or-pattern 与 guard 分支行为（含 guard=false 回落）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoopc --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0826 [TODO] codegen：enum niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
 - 描述：为 rich enum 落实完整布局策略：能使用 niche 时消除显式 tag；oversized variant 自动 boxing；size disparity 明显时发出 lint warning。

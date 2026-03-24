@@ -764,6 +764,7 @@ impl<'a> BlockScopeChecker<'a> {
     fn declare_when_pat_binders(&mut self, pat: &ast::WhenPat) -> Result<(), ResolveError> {
         match pat {
             ast::WhenPat::Else { .. }
+            | ast::WhenPat::Or { .. }
             | ast::WhenPat::Is { .. }
             | ast::WhenPat::Wildcard { .. }
             | ast::WhenPat::Rest { .. }

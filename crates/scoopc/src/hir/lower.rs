@@ -753,6 +753,10 @@ impl<'a> HirLowering<'a> {
     fn lower_when_pat(&mut self, pat: &ast::WhenPat) -> WhenPat {
         match pat {
             ast::WhenPat::Else { span } => WhenPat::Else { span: *span },
+            ast::WhenPat::Or { span, pats } => WhenPat::Or {
+                span: *span,
+                pats: pats.iter().map(|p| self.lower_when_pat(p)).collect(),
+            },
             ast::WhenPat::Wildcard { span } => WhenPat::Wildcard { span: *span },
             ast::WhenPat::Rest { span } => WhenPat::Rest { span: *span },
             ast::WhenPat::Is { is_span, ty } => WhenPat::Is {
@@ -1375,6 +1379,11 @@ fn collect_declared_locals_in_block(block: &Block, declared: &mut HashSet<Symbol
 
 fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<SymbolId>) {
     match pat {
+        WhenPat::Or { pats, .. } => {
+            for p in pats {
+                collect_declared_locals_in_when_pat(p, declared);
+            }
+        }
         WhenPat::Bind { id, .. } => {
             declared.insert(*id);
         }

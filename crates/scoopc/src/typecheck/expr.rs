@@ -767,6 +767,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`when` 分支 guard 条件类型必须是 Bool，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::when_guard_not_bool))]
+    WhenGuardNotBool {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`break` 只能出现在循环体内")]
     #[diagnostic(code(scoop::typecheck::break_not_in_loop))]
     BreakNotInLoop {
@@ -2171,6 +2179,26 @@ fn infer_expr_type(
                     source, &arm.pat, subject_ty, lower, builtins,
                 )? {
                     arm_locals.insert(decl_span, ty);
+                }
+
+                // guard：需要在注入 binder 之后检查，这样 `Some(x) if x > 0` 才能在 guard 中引用 `x`。
+                if let Some(guard) = &arm.guard {
+                    let guard_ty = infer_expr_type(
+                        source,
+                        guard,
+                        lower,
+                        builtins,
+                        &arm_locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?;
+                    if !is_type_assignable(guard_ty, builtins.bool_, lower, builtins) {
+                        return Err(ExprTypeError::WhenGuardNotBool {
+                            found: lower.fmt_type(guard_ty),
+                            span: guard.span.into(),
+                        });
+                    }
                 }
 
                 let arm_ty = infer_expr_type(

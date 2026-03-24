@@ -450,6 +450,11 @@ pub enum WhenPat {
     Else {
         span: Span,
     },
+    /// or-pattern：`A | B | C`
+    Or {
+        span: Span,
+        pats: Vec<WhenPat>,
+    },
     /// `_`：通配符模式（匹配任意值）。
     Wildcard {
         span: Span,
@@ -497,6 +502,7 @@ impl WhenPat {
     pub fn span(&self) -> Span {
         match self {
             WhenPat::Else { span } => *span,
+            WhenPat::Or { span, .. } => *span,
             WhenPat::Wildcard { span } => *span,
             WhenPat::Rest { span } => *span,
             WhenPat::Is { span, .. } => *span,

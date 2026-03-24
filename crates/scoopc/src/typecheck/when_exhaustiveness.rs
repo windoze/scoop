@@ -85,15 +85,8 @@ pub(super) fn check_when_exhaustiveness(
         .map(|arm| &arm.pat)
         .collect();
 
-    let has_catch_all = arm_pats.iter().any(|pat| {
-        matches!(
-            pat,
-            ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Bind { .. }
-        )
-    });
-    let has_else_keyword = arm_pats
-        .iter()
-        .any(|pat| matches!(pat, ast::WhenPat::Else { .. }));
+    let has_catch_all = arm_pats.iter().any(|pat| pat_is_catch_all(pat));
+    let has_else_keyword = arm_pats.iter().any(|pat| pat_contains_else_keyword(pat));
 
     // 对无法分析构造器集合的 subject 类型，保持原有规则：必须有 `else/_/bind` 兜底。
     if !is_analyzable_subject_type(subject_ty, lower, builtins) {
@@ -386,8 +379,27 @@ fn cross_product_checked(lists: &[Vec<ExamplePat>]) -> Option<Vec<Vec<ExamplePat
     Some(acc)
 }
 
+fn pat_is_catch_all(pat: &ast::WhenPat) -> bool {
+    match pat {
+        ast::WhenPat::Else { .. } | ast::WhenPat::Wildcard { .. } | ast::WhenPat::Bind { .. } => {
+            true
+        }
+        ast::WhenPat::Or { pats, .. } => pats.iter().any(pat_is_catch_all),
+        _ => false,
+    }
+}
+
+fn pat_contains_else_keyword(pat: &ast::WhenPat) -> bool {
+    match pat {
+        ast::WhenPat::Else { .. } => true,
+        ast::WhenPat::Or { pats, .. } => pats.iter().any(pat_contains_else_keyword),
+        _ => false,
+    }
+}
+
 fn pat_covers_example(source: &SourceFile, pat: &ast::WhenPat, ex: &ExamplePat) -> bool {
     match pat {
+        ast::WhenPat::Or { pats, .. } => pats.iter().any(|p| pat_covers_example(source, p, ex)),
         ast::WhenPat::Else { .. }
         | ast::WhenPat::Wildcard { .. }
         | ast::WhenPat::Bind { .. }

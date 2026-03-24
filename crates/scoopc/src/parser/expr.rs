@@ -1584,6 +1584,31 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_when_pat_internal(&mut self, allow_else: bool) -> Result<ast::WhenPat, ParseError> {
+        let first = self.parse_when_pat_atom_internal(allow_else)?;
+
+        // or-pattern：`A | B | C`
+        //
+        // 说明：
+        // - 该语法仅用于 `when` pattern 位置；
+        // - 当前阶段不在 parser 处强制限制 `else` 出现在 or-pattern 内（语义约束交给后续阶段）。
+        let mut pats = vec![first];
+        while self.eat_symbol(Symbol::Or) {
+            pats.push(self.parse_when_pat_atom_internal(false)?);
+        }
+
+        if pats.len() == 1 {
+            return Ok(pats.pop().unwrap());
+        }
+
+        let start = pats.first().unwrap().span().start;
+        let end = pats.last().unwrap().span().end;
+        Ok(ast::WhenPat::Or {
+            span: Span::new(start, end),
+            pats,
+        })
+    }
+
+    fn parse_when_pat_atom_internal(&mut self, allow_else: bool) -> Result<ast::WhenPat, ParseError> {
         if allow_else && self.peek_keyword(Keyword::Else) {
             let tok = self.bump();
             return Ok(ast::WhenPat::Else { span: tok.span });

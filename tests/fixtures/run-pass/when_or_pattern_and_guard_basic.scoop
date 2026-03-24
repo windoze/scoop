@@ -1,0 +1,46 @@
+// EXPECT: pass
+// EXPECT-EXIT: 8
+//
+// T0825: codegen（when or-pattern + guard）
+//
+// 覆盖点：
+// - or-pattern：`A | B` 语法解析 + when 判别
+// - guard：`pat if cond -> ...`，guard 为 false 时应回落到后续分支
+
+import scoop.core.*
+
+enum Dir {
+    A,
+    B,
+    C,
+}
+
+enum Opt {
+    Some(val value: Int),
+    None,
+}
+
+fun main(): Int {
+    val dir: Dir = A()
+    val x: Int = when (dir) {
+        A | B -> 1
+        else -> 2
+    }
+
+    val pos: Opt = Some(1)
+    val y: Int = when (pos) {
+        Some(n) if n > 0 -> 3
+        Some(_) -> 4
+        else -> 5
+    }
+
+    val zero: Opt = Some(0)
+    val z: Int = when (zero) {
+        Some(n) if n > 0 -> 3
+        Some(_) -> 4
+        else -> 5
+    }
+
+    return x + y + z
+}
+

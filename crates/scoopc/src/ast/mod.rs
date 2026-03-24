@@ -1191,6 +1191,15 @@ pub enum WhenPat {
     Else {
         span: Span,
     },
+    /// or-pattern：`A | B | C`
+    ///
+    /// 说明：
+    /// - 该语法仅用于 `when` 分支头；
+    /// - 当前阶段语义与更完整的 pattern 系统仍在逐步补齐（see TODO）。
+    Or {
+        span: Span,
+        pats: Vec<WhenPat>,
+    },
     Is {
         is_span: Span,
         ty: TypeRef,
@@ -1240,6 +1249,7 @@ impl WhenPat {
     pub fn span(&self) -> Span {
         match self {
             WhenPat::Else { span } => *span,
+            WhenPat::Or { span, .. } => *span,
             WhenPat::Is { is_span, ty } => Span::new(is_span.start, ty.span().end),
             WhenPat::Wildcard { span } => *span,
             WhenPat::Rest { span } => *span,
