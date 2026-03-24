@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 // 运行时字符串对象（early stage）。
@@ -54,4 +55,45 @@ void scoop_println(const ScoopString *value) {
   scoop_print(value);
   (void)fputc('\n', stdout);
   (void)fflush(stdout);
+}
+
+// 最小格式化工具：把整数写入 UTF-8 buffer，并返回写入的字节数（不含 '\0'）。
+//
+// 说明：
+// - 该 API 用于 early stage 的 f-string 插值 `{Int}`（TODO T0823）；
+// - 采用 “caller 提供 buffer + cap” 的形式，避免在 runtime 侧引入堆分配依赖；
+// - 当前实现依赖 libc `snprintf`；后续可替换为无 libc 的实现，或接入真正的 String API。
+uint64_t scoop_format_i64(int64_t value, uint8_t *out, uint64_t cap) {
+  if (out == 0 || cap == 0) {
+    return 0;
+  }
+
+  int n = snprintf((char *)out, (size_t)cap, "%" PRId64, value);
+  if (n <= 0) {
+    return 0;
+  }
+
+  uint64_t u = (uint64_t)n;
+  // 若发生截断，按“已写入的最大长度”返回（保守且可用）。
+  if (u >= cap) {
+    return cap - 1;
+  }
+  return u;
+}
+
+uint64_t scoop_format_u64(uint64_t value, uint8_t *out, uint64_t cap) {
+  if (out == 0 || cap == 0) {
+    return 0;
+  }
+
+  int n = snprintf((char *)out, (size_t)cap, "%" PRIu64, value);
+  if (n <= 0) {
+    return 0;
+  }
+
+  uint64_t u = (uint64_t)n;
+  if (u >= cap) {
+    return cap - 1;
+  }
+  return u;
 }

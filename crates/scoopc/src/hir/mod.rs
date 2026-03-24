@@ -21,8 +21,8 @@ use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
-pub use lower::{HirLowerError, LoweredHir, lower_for_dump};
 pub(crate) use lower::lower_fun_with_type_bindings;
+pub use lower::{HirLowerError, LoweredHir, lower_for_dump};
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///
@@ -182,6 +182,15 @@ pub struct StructLitField {
     pub value: Expr,
 }
 
+/// 插值字符串的片段（spec §8.2）。
+#[derive(Debug, Clone)]
+pub enum InterpolatedStringPart {
+    /// 纯文本片段（保留源码 span；转义/去重写回等语义由后续阶段决定）。
+    Text { span: Span },
+    /// 插值表达式片段：`{ expr }`。
+    Expr { expr: Expr },
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Missing,
@@ -192,7 +201,9 @@ pub enum ExprKind {
     /// 典型场景：enum variant ctor `Some(1)` / 0-参数 variant 值 `None`。
     /// - resolver 会对 `Call(Ident)` 的 callee 允许“未 resolve”（把更贴近语义的诊断留给 typecheck）；
     /// - HIR 为了保持结构可回归，需要保留该名字，供后续 lowering/codegen 在“期望类型语境”下判定含义。
-    UnresolvedIdent { name: String },
+    UnresolvedIdent {
+        name: String,
+    },
     /// struct literal：`TypeName { field: expr, ... }`。
     StructLit {
         ty: TypeId,
@@ -205,6 +216,16 @@ pub enum ExprKind {
     /// - 该节点仅用于“可回归的早期 codegen/HIR dump”，更完整的 tuple lowering 见后续任务。
     TupleLit {
         elements: Vec<Expr>,
+    },
+    /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
+    ///
+    /// 说明：
+    /// - HIR 保留 parser 拆分后的 Text/Expr 片段列表；
+    /// - 当前阶段 codegen 直接把它 lowering 为“拼接后的 runtime `ScoopString`”。
+    InterpolatedString {
+        /// 是否为 raw f-string（`f"""..."""`）。
+        raw: bool,
+        parts: Vec<InterpolatedStringPart>,
     },
     /// 前缀一元运算：`!expr` / `-expr` / `~expr`（spec §2.3.4）。
     Unary {

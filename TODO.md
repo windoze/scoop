@@ -2379,11 +2379,20 @@
    - `cargo test -p scoopc --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0823 [TODO] f-string 插值：`f\"...{expr}...\"` 的 lowering（spec §8.2）
+### T0823 [DONE] f-string 插值：`f\"...{expr}...\"` 的 lowering（spec §8.2）
 - 描述：实现插值字符串的 lowering：拆分为片段并拼接（或调用格式化 runtime），至少支持 `{Int}`/`{String}`。
 - 目标：先不实现 `trimIndent`；先不做 locale/format spec。
 - 验收：新增 run-pass fixture：`val s = f\"hi {name}\"; println(s)` 输出正确。
 - 依赖：T0217、T0822、T0809
+ - 完成：
+   - `crates/scoopc/src/hir/*`：HIR 增加 `ExprKind::InterpolatedString` 与片段建模，并在 lowering 中保留 Text/Expr 分片。
+   - `crates/scoopc/src/llvm/codegen.rs`：实现插值字符串 codegen：拼接 Text/Expr 片段到栈上 buffer，返回 runtime `ScoopString` 指针；`{Int}` 通过调用 runtime `scoop_format_{i64,u64}` 写入临时 buffer。
+   - `runtime/c/scoop_runtime.c`：新增 `scoop_format_i64/scoop_format_u64`，用于最小整数 formatting（不引入堆分配依赖）。
+   - `tests/fixtures/codegen/f_string_interpolation.scoop`：新增 run-pass fixture，覆盖 `{String}`/`{Int}` 插值并断言 stdout。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoopc --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0824 [TODO] tuple 字段访问语法对齐 spec：`._0` / `._1`（spec §2.3.3）
 - 描述：补齐 tuple 字段访问的 lowering/codegen，并把相关 fixtures 与文档样例统一到 spec 语法 `t._0` / `t._1`。

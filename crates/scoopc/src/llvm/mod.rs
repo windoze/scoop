@@ -89,7 +89,10 @@ pub enum LlvmEmitError {
 /// - 一个 LLVM module（module name 取决于输入文件名）；
 /// - module target triple / data layout 设为 host；
 /// - `i32 @main()` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
-pub fn emit_minimal_main_ir(session: &Session, source: &SourceFile) -> Result<String, LlvmEmitError> {
+pub fn emit_minimal_main_ir(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<String, LlvmEmitError> {
     let context = Context::create();
     let module = build_minimal_main_module(session, source, &context)?;
     Ok(module.print_to_string().to_string())
@@ -229,10 +232,12 @@ fn build_minimal_main_module<'ctx>(
         if fun.body.is_none() {
             continue;
         }
-        let llvm_fun = module.get_function(&fun.fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "missing declared function",
-            at: fun.span.into(),
-        })?;
+        let llvm_fun = module
+            .get_function(&fun.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "missing declared function",
+                at: fun.span.into(),
+            })?;
         codegen::MainCodegen::new(
             context,
             &module,
@@ -255,9 +260,15 @@ fn build_minimal_main_module<'ctx>(
     builder.position_at_end(entry);
 
     // T0815：在入口函数里调用 runtime init（当前阶段先只调用一次）。
-    let rt_init = module.get_function("scoop_runtime_init").unwrap_or_else(|| {
-        module.add_function("scoop_runtime_init", context.void_type().fn_type(&[], false), None)
-    });
+    let rt_init = module
+        .get_function("scoop_runtime_init")
+        .unwrap_or_else(|| {
+            module.add_function(
+                "scoop_runtime_init",
+                context.void_type().fn_type(&[], false),
+                None,
+            )
+        });
     builder.build_call(rt_init, &[], "rt_init")?;
 
     let exit_code = codegen::MainCodegen::new(
@@ -271,7 +282,7 @@ fn build_minimal_main_module<'ctx>(
         &lowered.enum_layouts,
         &fun_index,
     )
-        .codegen_main_exit_code(hir_main)?;
+    .codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;
 
     module
@@ -367,7 +378,9 @@ fn collect_calls_in_stmt(stmt: &hir::Stmt, out: &mut Vec<String>) {
 fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
     match &expr.kind {
         hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-        hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
+        hir::ExprKind::Literal(_)
+        | hir::ExprKind::VarRef(_)
+        | hir::ExprKind::UnresolvedIdent { .. } => {}
         hir::ExprKind::StructLit { fields, .. } => {
             for f in fields {
                 collect_calls_in_expr(&f.value, out);
@@ -376,6 +389,13 @@ fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
         hir::ExprKind::TupleLit { elements } => {
             for e in elements {
                 collect_calls_in_expr(e, out);
+            }
+        }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for p in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = p {
+                    collect_calls_in_expr(expr, out);
+                }
             }
         }
         hir::ExprKind::Unary { expr: inner, .. } => collect_calls_in_expr(inner, out),
@@ -456,11 +476,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!(
-            "scoopc_{prefix}_{}_{}",
-            std::process::id(),
-            nanos
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

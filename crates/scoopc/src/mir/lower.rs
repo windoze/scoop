@@ -458,7 +458,11 @@ impl<'a> FnLowering<'a> {
                     },
                 );
             } else {
-                self.assign(decl.span, local, Rvalue::Todo("boxed var decl init pending"));
+                self.assign(
+                    decl.span,
+                    local,
+                    Rvalue::Todo("boxed var decl init pending"),
+                );
             }
             return;
         }
@@ -525,6 +529,9 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::TupleLit { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "tuple literal lowering pending")
             }
+            hir::ExprKind::InterpolatedString { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "interpolated string lowering pending")
+            }
             hir::ExprKind::Unary { .. } => {
                 // 当前阶段 MIR 仍以 CFG 形态回归为主；一元表达式求值留给后续 codegen 任务补齐。
                 let tmp = self.push_temp_local(expr.span, expr.ty);
@@ -559,7 +566,9 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::Call { .. } => {
                 self.emit_todo_value(expr.span, expr.ty, "call lowering pending")
             }
-            hir::ExprKind::Perform { op, args } => self.lower_perform_expr(expr.span, expr.ty, op, args),
+            hir::ExprKind::Perform { op, args } => {
+                self.lower_perform_expr(expr.span, expr.ty, op, args)
+            }
             hir::ExprKind::Handle(handle) => self.lower_handle_expr(expr.span, expr.ty, handle),
         }
     }
@@ -579,11 +588,12 @@ impl<'a> FnLowering<'a> {
     }
 
     fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {
-        self.types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
-            fqn: CAPTURE_BOX_FQN.to_string(),
-            args: vec![inner],
-            eff: None,
-        })))
+        self.types
+            .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+                fqn: CAPTURE_BOX_FQN.to_string(),
+                args: vec![inner],
+                eff: None,
+            })))
     }
 
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
@@ -640,12 +650,7 @@ impl<'a> FnLowering<'a> {
     /// - 同时把 handle 的 body/arms/finally 降到**独立的新 block**里，便于 `dump-mir`/fixtures
     ///   观察内部的 `perform`/控制流形态；
     /// - 这些 block 暂未与主 CFG 连接（后续会在更完整的 effect lowering 中展开为显式 CFG）。
-    fn lower_handle_expr(
-        &mut self,
-        span: Span,
-        ty: TypeId,
-        handle: &hir::HandleExpr,
-    ) -> LocalId {
+    fn lower_handle_expr(&mut self, span: Span, ty: TypeId, handle: &hir::HandleExpr) -> LocalId {
         let outer_bb = self.current_bb;
 
         let result = self.push_temp_local(span, ty);
@@ -787,9 +792,7 @@ impl<'a> FnLowering<'a> {
         let (env_ty, env_operand) = if captures.is_empty() {
             (self.builtins.unit, Operand::Const(ConstValue::Unit))
         } else {
-            let env_ty = self
-                .types
-                .ty_tuple(captures.iter().map(|c| c.ty).collect());
+            let env_ty = self.types.ty_tuple(captures.iter().map(|c| c.ty).collect());
             let env_local = self.push_temp_local(span, env_ty);
             self.assign(
                 span,
@@ -1113,6 +1116,13 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
                 collect_boxed_symbols_in_expr(e, out);
             }
         }
+        hir::ExprKind::InterpolatedString { parts, .. } => {
+            for p in parts {
+                if let hir::InterpolatedStringPart::Expr { expr } = p {
+                    collect_boxed_symbols_in_expr(expr, out);
+                }
+            }
+        }
         hir::ExprKind::Unary { expr, .. } => collect_boxed_symbols_in_expr(expr.as_ref(), out),
         hir::ExprKind::Binary { lhs, rhs, .. } => {
             collect_boxed_symbols_in_expr(lhs.as_ref(), out);
@@ -1147,7 +1157,9 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
                 collect_boxed_symbols_in_expr(&arm.body, out);
             }
         }
-        hir::ExprKind::MemberAccess { receiver, .. } => collect_boxed_symbols_in_expr(receiver, out),
+        hir::ExprKind::MemberAccess { receiver, .. } => {
+            collect_boxed_symbols_in_expr(receiver, out)
+        }
         hir::ExprKind::Call { callee, args } => {
             collect_boxed_symbols_in_expr(callee, out);
             for arg in args {

@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: f_string_interpolation.stdout.txt
+// 目标：T0823 f-string 插值 lowering（支持 `{String}`/`{Int}`）。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun main() {
+    val name = "scoop"
+    val n = 42
+    val s = f"hi {name} {n}"
+    println(s)
+}
+

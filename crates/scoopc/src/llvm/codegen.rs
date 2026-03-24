@@ -27,11 +27,11 @@ use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
 use inkwell::types::StructType;
-use inkwell::values::FunctionValue;
-use inkwell::values::GlobalValue;
 use inkwell::values::AggregateValueEnum;
 use inkwell::values::BasicValue;
 use inkwell::values::BasicValueEnum;
+use inkwell::values::FunctionValue;
+use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
@@ -246,12 +246,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.env.push_scope();
         self.codegen_fun_params(fun, llvm_fun)?;
 
-        let declared_return_cg = self
-            .cg_ty_of(fun.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
-            })?;
+        let declared_return_cg =
+            self.cg_ty_of(fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "function return type",
+                    at: fun.span.into(),
+                })?;
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(fun.span, declared_return_cg, ret_v)?;
 
@@ -392,7 +392,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::UnresolvedIdent { name } => {
                 self.codegen_unresolved_ident(expr.span, name, expected)
             }
-            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args, expected),
+            hir::ExprKind::Call { callee, args } => {
+                self.codegen_call(expr.span, callee, args, expected)
+            }
             _ => self.codegen_expr(expr),
         }
     }
@@ -451,8 +453,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }),
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
-            hir::ExprKind::StructLit { ty, fields } => self.codegen_struct_lit(expr.span, *ty, fields),
-            hir::ExprKind::TupleLit { elements } => self.codegen_tuple_lit(expr.span, expr.ty, elements),
+            hir::ExprKind::StructLit { ty, fields } => {
+                self.codegen_struct_lit(expr.span, *ty, fields)
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                self.codegen_tuple_lit(expr.span, expr.ty, elements)
+            }
+            hir::ExprKind::InterpolatedString { raw, parts } => {
+                self.codegen_interpolated_string(expr.span, *raw, parts)
+            }
             hir::ExprKind::Unary {
                 op, expr: inner, ..
             } => self.codegen_unary(expr.span, *op, inner),
@@ -460,11 +469,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_binary(expr.span, *op, lhs, rhs)
             }
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
-            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args, None),
+            hir::ExprKind::Call { callee, args } => {
+                self.codegen_call(expr.span, callee, args, None)
+            }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.codegen_member_access(expr.span, receiver, member)
             }
-            hir::ExprKind::When { subject, arms } => self.codegen_when_expr(expr.span, subject, arms),
+            hir::ExprKind::When { subject, arms } => {
+                self.codegen_when_expr(expr.span, subject, arms)
+            }
 
             // 后续任务接入 MIR/CFG codegen
             hir::ExprKind::Closure(_)
@@ -572,14 +585,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let sig_fun = self
-            .fun_index
-            .get(fqn)
-            .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "call callee type",
-                at: callee_span.into(),
-            })?;
+        let sig_fun =
+            self.fun_index
+                .get(fqn)
+                .copied()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call callee type",
+                    at: callee_span.into(),
+                })?;
 
         if args.len() != sig_fun.params.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -597,12 +610,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
 
-            let target_cg = self
-                .cg_ty_of(sig_fun.params[idx].ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+            let target_cg = self.cg_ty_of(sig_fun.params[idx].ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg type",
                     at: expr.span.into(),
-                })?;
+                },
+            )?;
             let v = self.codegen_expr(expr)?;
             let coerced = self.coerce_value(expr.span, v, target_cg)?;
             llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
@@ -614,12 +627,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
 
-        let ret_cg = self
-            .cg_ty_of(sig_fun.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "call return type",
-                at: span.into(),
-            })?;
+        let ret_cg =
+            self.cg_ty_of(sig_fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call return type",
+                    at: span.into(),
+                })?;
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
@@ -670,14 +683,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let (tag, field_count) = {
             let layout = self.enum_layout_of(span, enum_ty)?;
-            let variant = layout
-                .variants
-                .iter()
-                .find(|v| v.name == name)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+            let variant = layout.variants.iter().find(|v| v.name == name).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
                     kind: "unknown enum variant",
                     at: span.into(),
-                })?;
+                },
+            )?;
             (variant.tag, variant.fields.len())
         };
 
@@ -846,9 +857,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let tag_ty = self.context.i32_type();
         let payload_ty = self.int_type(self.enum_payload_ty());
 
-        agg = self
-            .builder
-            .build_insert_value(agg, tag_ty.const_int(u64::from(tag), false), 0, "enum_tag")?;
+        agg = self.builder.build_insert_value(
+            agg,
+            tag_ty.const_int(u64::from(tag), false),
+            0,
+            "enum_tag",
+        )?;
 
         let payload_v = payload.unwrap_or_else(|| payload_ty.const_int(0, false));
         agg = self
@@ -910,7 +924,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let merge_bb = self.context.append_basic_block(func, "when_merge");
         let arm_bbs = (0..arms.len())
-            .map(|i| self.context.append_basic_block(func, &format!("when_arm_{i}")))
+            .map(|i| {
+                self.context
+                    .append_basic_block(func, &format!("when_arm_{i}"))
+            })
             .collect::<Vec<_>>();
 
         // 生成分派：enum/bool 优先降到 LLVM switch；tuple 仍用分支链并做字段比较。
@@ -1020,7 +1037,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 let check_bbs = (0..arms.len())
-                    .map(|i| self.context.append_basic_block(func, &format!("when_check_{i}")))
+                    .map(|i| {
+                        self.context
+                            .append_basic_block(func, &format!("when_check_{i}"))
+                    })
                     .collect::<Vec<_>>();
                 let no_match_bb = self.context.append_basic_block(func, "when_no_match");
 
@@ -1115,10 +1135,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(phi.as_basic_value()),
                 })
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when result type",
-                at: span.into(),
-            }),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when result type",
+                    at: span.into(),
+                })
+            }
         }
     }
 
@@ -1141,7 +1163,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // `x -> ...`：绑定整个 subject。
                 let ptr = self.create_entry_alloca(at, name, subject_ty)?;
                 let llvm_ty = self.llvm_basic_type_of(at, subject_ty)?;
-                let loaded = self.builder.build_load(llvm_ty, subject_ptr, "bind_subject")?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, subject_ptr, "bind_subject")?;
                 let v = CgValue {
                     ty: subject_ty,
                     value: Some(loaded),
@@ -1203,9 +1227,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let extracted = match field_cg {
                         CgTy::Unit => CgValue::unit(),
                         CgTy::Bool => {
-                            let b = self
-                                .builder
-                                .build_int_truncate(payload_raw, self.context.bool_type(), "payload_to_bool")?;
+                            let b = self.builder.build_int_truncate(
+                                payload_raw,
+                                self.context.bool_type(),
+                                "payload_to_bool",
+                            )?;
                             CgValue::bool(b)
                         }
                         CgTy::Int(int_ty) => {
@@ -1293,7 +1319,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     elements.len()
                 };
 
-                if (!has_rest && pat_arity != tuple_elems.len()) || (has_rest && pat_arity > tuple_elems.len()) {
+                if (!has_rest && pat_arity != tuple_elems.len())
+                    || (has_rest && pat_arity > tuple_elems.len())
+                {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when tuple pattern arity mismatch",
                         at: pat.span().into(),
@@ -1316,9 +1344,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let extracted_v = if elem_ty == CgTy::Unit {
                         CgValue::unit()
                     } else {
-                        let raw = self
-                            .builder
-                            .build_extract_value(tuple_v, idx as u32, "when_tuple_elem")?;
+                        let raw = self.builder.build_extract_value(
+                            tuple_v,
+                            idx as u32,
+                            "when_tuple_elem",
+                        )?;
                         self.cg_value_from_loaded(elem_pat.span(), elem_ty, raw)?
                     };
 
@@ -1372,7 +1402,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         None
     }
 
-    fn when_first_matching_arm_for_bool(&self, arms: &[hir::WhenArm], value: bool) -> Option<usize> {
+    fn when_first_matching_arm_for_bool(
+        &self,
+        arms: &[hir::WhenArm],
+        value: bool,
+    ) -> Option<usize> {
         for (idx, arm) in arms.iter().enumerate() {
             match &arm.pat {
                 hir::WhenPat::Else { .. }
@@ -1417,7 +1451,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let pat_arity = rest_idx.unwrap_or(elements.len());
-        if (rest_idx.is_none() && pat_arity != tuple_elems.len()) || (rest_idx.is_some() && pat_arity > tuple_elems.len()) {
+        if (rest_idx.is_none() && pat_arity != tuple_elems.len())
+            || (rest_idx.is_some() && pat_arity > tuple_elems.len())
+        {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "when tuple pattern arity mismatch",
                 at: at.into(),
@@ -1433,8 +1469,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut cond = self.context.bool_type().const_int(1, false);
         for (idx, elem_pat) in elements.iter().enumerate().take(pat_arity) {
             let elem_ty = self.lookup_tuple_element(tuple_ty, idx as u32, elem_pat.span())?;
-            let elem_cond =
-                self.codegen_when_pat_cond_for_tuple_elem(at, tuple_ty, idx, elem_ty, tuple_v, elem_pat)?;
+            let elem_cond = self.codegen_when_pat_cond_for_tuple_elem(
+                at, tuple_ty, idx, elem_ty, tuple_v, elem_pat,
+            )?;
             cond = self.builder.build_and(cond, elem_cond, "when_tuple_and")?;
         }
         Ok(cond)
@@ -1502,7 +1539,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty) else {
+                let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty)
+                else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "tuple type id",
                         at: pat.span().into(),
@@ -1511,9 +1549,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // 由于 extractvalue 返回的是一个“by-value tuple struct”，我们先把它落到临时 slot，
                 // 再复用 `codegen_when_tuple_pat_cond` 的逻辑生成递归比较。
-                let nested_raw =
-                    self.builder
-                        .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?;
+                let nested_raw = self.builder.build_extract_value(
+                    tuple_v,
+                    elem_idx as u32,
+                    "when_tuple_elem",
+                )?;
                 let nested_value = self.cg_value_from_loaded(pat.span(), elem_ty, nested_raw)?;
                 let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
                 let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
@@ -1532,10 +1572,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self.cg_ty_of(ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "function param type",
-            at: span.into(),
-        })?;
+        let cg = self
+            .cg_ty_of(ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function param type",
+                at: span.into(),
+            })?;
 
         Ok(match cg {
             CgTy::Unit => self.context.i8_type().into(),
@@ -1581,10 +1623,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for (idx, param) in fun.params.iter().enumerate() {
-            let target_ty = self.cg_ty_of(param.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "param type",
-                at: param.span.into(),
-            })?;
+            let target_ty = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "param type",
+                    at: param.span.into(),
+                })?;
 
             let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
             let init = match target_ty {
@@ -1725,8 +1769,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::Tuple(ty),
                 value: None,
             },
-            CgTy::Struct(ty) => CgValue { ty: CgTy::Struct(ty), value: None },
-            CgTy::Enum(ty) => CgValue { ty: CgTy::Enum(ty), value: None },
+            CgTy::Struct(ty) => CgValue {
+                ty: CgTy::Struct(ty),
+                value: None,
+            },
+            CgTy::Enum(ty) => CgValue {
+                ty: CgTy::Enum(ty),
+                value: None,
+            },
         }
     }
 
@@ -1833,7 +1883,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_string_literal(&mut self, span: crate::span::Span) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    fn codegen_string_literal(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let text = self.source.slice(span);
 
         let bytes = match parse_string_literal_bytes(text) {
@@ -1868,10 +1921,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_data_gep")?;
 
-        let len = self
-            .context
-            .i64_type()
-            .const_int(bytes.len() as u64, false);
+        let len = self.context.i64_type().const_int(bytes.len() as u64, false);
 
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let data_i8_ptr = self.builder.build_pointer_cast(
@@ -1882,6 +1932,226 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let _ = self.builder.build_store(len_ptr, len)?;
         let _ = self.builder.build_store(data_ptr, data_i8_ptr)?;
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
+    }
+
+    fn codegen_interpolated_string(
+        &mut self,
+        span: crate::span::Span,
+        raw: bool,
+        parts: &[hir::InterpolatedStringPart],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 当前阶段的落点：把 f-string 分片后“拼接”为一段连续 UTF-8 字节序列，
+        // 以 runtime `ScoopString { len, data }` 的形式返回（data 指向栈上 buffer）。
+        //
+        // 约束（与 TODO T0823 对齐）：
+        // - 仅支持 `{Int}` 与 `{String}`；
+        // - 先不支持 format spec / locale；
+        // - 先不做 heap 分配：buffer 全部落在栈上（未来接入 `scoop_alloc`/GC 再升级）。
+
+        #[derive(Clone, Copy)]
+        struct Segment<'ctx> {
+            ptr: PointerValue<'ctx>,
+            len: IntValue<'ctx>,
+        }
+
+        let i64_ty = self.context.i64_type();
+        let i8_ty = self.context.i8_type();
+        let i8_ptr_ty = i8_ty.ptr_type(AddressSpace::default());
+
+        // 1) 为结果构造一个 `ScoopString`（固定大小，放在 entry block）
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let str_ptr = self.create_entry_alloca_raw(span, "scoop_str_fstr", scoop_str_ty.into())?;
+
+        // 2) 先做一遍：收集所有片段的 (ptr, len)，并计算总长度（运行期）。
+        let mut segments: Vec<Segment<'ctx>> = Vec::new();
+        let mut total_len = i64_ty.const_zero();
+
+        for part in parts {
+            match part {
+                hir::InterpolatedStringPart::Text { span: text_span } => {
+                    let text = self.source.slice(*text_span);
+                    let bytes = parse_f_string_text_bytes(raw, text).map_err(|_| {
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "invalid interpolated string text",
+                            at: (*text_span).into(),
+                        }
+                    })?;
+
+                    let gv = self.get_or_create_global_bytes(*text_span, &bytes);
+                    let ptr = self.builder.build_pointer_cast(
+                        gv.as_pointer_value(),
+                        i8_ptr_ty,
+                        "fstr_text_ptr",
+                    )?;
+                    let len = i64_ty.const_int(bytes.len() as u64, false);
+
+                    segments.push(Segment { ptr, len });
+                    total_len = self
+                        .builder
+                        .build_int_add(total_len, len, "fstr_total_len")?;
+                }
+                hir::InterpolatedStringPart::Expr { expr } => {
+                    let v = self.codegen_expr(expr)?;
+
+                    match v.ty {
+                        CgTy::String => {
+                            let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
+                            let Some(raw) = coerced.value else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation expr value",
+                                    at: expr.span.into(),
+                                });
+                            };
+                            let BasicValueEnum::PointerValue(str_obj_ptr) = raw else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation expr type",
+                                    at: expr.span.into(),
+                                });
+                            };
+
+                            let len_ptr = self.builder.build_struct_gep(
+                                scoop_str_ty,
+                                str_obj_ptr,
+                                0,
+                                "fstr_part_len_gep",
+                            )?;
+                            let data_ptr = self.builder.build_struct_gep(
+                                scoop_str_ty,
+                                str_obj_ptr,
+                                1,
+                                "fstr_part_data_gep",
+                            )?;
+
+                            let len = self
+                                .builder
+                                .build_load(i64_ty, len_ptr, "fstr_part_len")?
+                                .into_int_value();
+                            let data = self
+                                .builder
+                                .build_load(i8_ptr_ty, data_ptr, "fstr_part_data")?
+                                .into_pointer_value();
+
+                            segments.push(Segment { ptr: data, len });
+                            total_len =
+                                self.builder
+                                    .build_int_add(total_len, len, "fstr_total_len")?;
+                        }
+                        CgTy::Int(from_ty) => {
+                            if from_ty.bits > 64 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "integer width for string interpolation",
+                                    at: expr.span.into(),
+                                });
+                            }
+
+                            let (raw_int, _) =
+                                v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "integer interpolation expr value",
+                                    at: expr.span.into(),
+                                })?;
+
+                            // 先把整数提升/截断到 i64/u64，再调用 runtime 格式化到临时 buffer。
+                            let to_ty = IntTy {
+                                bits: 64,
+                                signed: from_ty.signed,
+                            };
+                            let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
+
+                            // i64 最长：`-9223372036854775808`（20 字符）；
+                            // 这里给更宽松的 cap，避免后续扩展时踩坑。
+                            let cap = i64_ty.const_int(64, false);
+                            let buf =
+                                self.builder
+                                    .build_array_alloca(i8_ty, cap, "fstr_int_buf")?;
+
+                            let fmt_name = if from_ty.signed {
+                                "scoop_format_i64"
+                            } else {
+                                "scoop_format_u64"
+                            };
+                            let fmt_fun = self.declare_runtime_format_int(fmt_name);
+                            let call_site = self.builder.build_call(
+                                fmt_fun,
+                                &[int64.into(), buf.into(), cap.into()],
+                                "fstr_fmt_int",
+                            )?;
+                            let len = call_site
+                                .try_as_basic_value()
+                                .basic()
+                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "string interpolation int length",
+                                    at: expr.span.into(),
+                                })?
+                                .into_int_value();
+
+                            segments.push(Segment { ptr: buf, len });
+                            total_len =
+                                self.builder
+                                    .build_int_add(total_len, len, "fstr_total_len")?;
+                        }
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "string interpolation expr type",
+                                at: expr.span.into(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3) 为拼接结果分配 buffer，并按顺序 memcpy 各段。
+        //
+        // 注意：`alloca [0 x i8]` 在某些目标上会导致奇怪的 IR/后端行为；这里保证至少分配 1 byte。
+        let is_zero = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            total_len,
+            i64_ty.const_zero(),
+            "fstr_total_is_zero",
+        )?;
+        let alloc_len = self
+            .builder
+            .build_select(
+                is_zero,
+                i64_ty.const_int(1, false),
+                total_len,
+                "fstr_alloc_len",
+            )?
+            .into_int_value();
+
+        let buf = self
+            .builder
+            .build_array_alloca(i8_ty, alloc_len, "fstr_buf")?;
+
+        let mut cursor = i64_ty.const_zero();
+        for (idx, seg) in segments.iter().enumerate() {
+            let dst = unsafe {
+                self.builder.build_in_bounds_gep(
+                    i8_ty,
+                    buf,
+                    &[cursor],
+                    &format!("fstr_dst_{idx}"),
+                )?
+            };
+            let _ = self.builder.build_memcpy(dst, 1, seg.ptr, 1, seg.len)?;
+            cursor = self.builder.build_int_add(cursor, seg.len, "fstr_cursor")?;
+        }
+
+        // 4) 写回 `ScoopString { len, data }` 并返回其指针。
+        let len_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 0, "fstr_len_gep")?;
+        let data_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 1, "fstr_data_gep")?;
+
+        let _ = self.builder.build_store(len_ptr, total_len)?;
+        let _ = self.builder.build_store(data_ptr, buf)?;
 
         Ok(CgValue {
             ty: CgTy::String,
@@ -1914,14 +2184,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool => {
                 let raw = self
                     .builder
-                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_bool")?
+                    .build_load(
+                        self.llvm_basic_type_of(span, local.ty)?,
+                        local.ptr,
+                        "load_bool",
+                    )?
                     .into_int_value();
                 Ok(CgValue::bool(raw))
             }
             CgTy::Int(int_ty) => {
                 let raw = self
                     .builder
-                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_int")?
+                    .build_load(
+                        self.llvm_basic_type_of(span, local.ty)?,
+                        local.ptr,
+                        "load_int",
+                    )?
                     .into_int_value();
                 Ok(CgValue::int(raw, int_ty))
             }
@@ -1940,27 +2218,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::Tuple(_) => {
-                let raw = self
-                    .builder
-                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_tuple")?;
+                let raw = self.builder.build_load(
+                    self.llvm_basic_type_of(span, local.ty)?,
+                    local.ptr,
+                    "load_tuple",
+                )?;
                 Ok(CgValue {
                     ty: local.ty,
                     value: Some(raw),
                 })
             }
             CgTy::Struct(_) => {
-                let raw = self
-                    .builder
-                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_struct")?;
+                let raw = self.builder.build_load(
+                    self.llvm_basic_type_of(span, local.ty)?,
+                    local.ptr,
+                    "load_struct",
+                )?;
                 Ok(CgValue {
                     ty: local.ty,
                     value: Some(raw),
                 })
             }
             CgTy::Enum(_) => {
-                let raw = self
-                    .builder
-                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_enum")?;
+                let raw = self.builder.build_load(
+                    self.llvm_basic_type_of(span, local.ty)?,
+                    local.ptr,
+                    "load_enum",
+                )?;
                 Ok(CgValue {
                     ty: local.ty,
                     value: Some(raw),
@@ -1989,13 +2273,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let layout = self
-            .struct_layouts
-            .get(&nominal.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct literal layout",
-                at: span.into(),
-            })?;
+        let layout =
+            self.struct_layouts
+                .get(&nominal.fqn)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct literal layout",
+                    at: span.into(),
+                })?;
 
         let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
         let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
@@ -2022,7 +2306,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             let name = format!("insert_{}", field.name);
-            agg = self.builder.build_insert_value(agg, raw, idx as u32, &name)?;
+            agg = self
+                .builder
+                .build_insert_value(agg, raw, idx as u32, &name)?;
         }
 
         Ok(CgValue {
@@ -2062,10 +2348,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut agg: AggregateValueEnum<'ctx> = llvm_tuple_ty.get_undef().into();
 
         for (idx, (elem_expr, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
-            let elem_cg = self.cg_ty_of(*elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple element type",
-                at: elem_expr.span.into(),
-            })?;
+            let elem_cg = self
+                .cg_ty_of(*elem_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple element type",
+                    at: elem_expr.span.into(),
+                })?;
 
             let elem_v = self.codegen_expr(elem_expr)?;
             let coerced = self.coerce_value(elem_expr.span, elem_v, elem_cg)?;
@@ -2079,7 +2367,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
 
             let name = format!("insert_elem_{idx}");
-            agg = self.builder.build_insert_value(agg, raw, idx as u32, &name)?;
+            agg = self
+                .builder
+                .build_insert_value(agg, raw, idx as u32, &name)?;
         }
 
         Ok(CgValue {
@@ -2130,7 +2420,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: receiver.span.into(),
                     });
                 };
-                let (field_idx, field_ty) = self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                let (field_idx, field_ty) =
+                    self.lookup_struct_field(struct_ty, fqn, member.span)?;
                 if field_ty == CgTy::Unit {
                     return Ok(CgValue::unit());
                 }
@@ -2140,9 +2431,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: receiver.span.into(),
                 })?;
                 let struct_v = raw.into_struct_value();
-                let extracted = self
-                    .builder
-                    .build_extract_value(struct_v, field_idx, "extract_field")?;
+                let extracted =
+                    self.builder
+                        .build_extract_value(struct_v, field_idx, "extract_field")?;
                 return self.cg_value_from_loaded(member.span, field_ty, extracted);
             }
             Some(_) => {
@@ -2206,9 +2497,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             at: receiver.span.into(),
         })?;
         let tuple_v = raw.into_struct_value();
-        let extracted = self
-            .builder
-            .build_extract_value(tuple_v, elem_idx, "extract_tuple_elem")?;
+        let extracted =
+            self.builder
+                .build_extract_value(tuple_v, elem_idx, "extract_tuple_elem")?;
         self.cg_value_from_loaded(member.span, elem_ty, extracted)
     }
 
@@ -2225,13 +2516,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let layout = self
-            .struct_layouts
-            .get(&nominal.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct layout",
-                at: at.into(),
-            })?;
+        let layout =
+            self.struct_layouts
+                .get(&nominal.fqn)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct layout",
+                    at: at.into(),
+                })?;
 
         let idx = layout
             .fields
@@ -2260,18 +2551,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let elem_ty = elements
-            .get(elem_idx as usize)
-            .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple element out of bounds",
-                at: at.into(),
-            })?;
+        let elem_ty =
+            elements
+                .get(elem_idx as usize)
+                .copied()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple element out of bounds",
+                    at: at.into(),
+                })?;
 
-        self.cg_ty_of(elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "tuple element type",
-            at: at.into(),
-        })
+        self.cg_ty_of(elem_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple element type",
+                at: at.into(),
+            })
     }
 
     fn cg_value_from_loaded(
@@ -2883,7 +3176,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(name, fn_ty, None)
     }
 
-    fn get_or_create_global_bytes(&self, span: crate::span::Span, bytes: &[u8]) -> GlobalValue<'ctx> {
+    fn declare_runtime_format_int(&self, name: &str) -> FunctionValue<'ctx> {
+        if let Some(existing) = self.module.get_function(name) {
+            return existing;
+        }
+
+        // `uint64_t scoop_format_{i64,u64}(int64_t value, uint8_t* out, uint64_t cap)`
+        //
+        // 说明：
+        // - 该函数用于 f-string 插值 `{Int}` 的最小 formatting（TODO T0823）；
+        // - 由 runtime 实现，避免在 LLVM IR 中直接引入 varargs `snprintf` 调用。
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [i64_ty.into(), i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
+        self.module.add_function(name, fn_ty, None)
+    }
+
+    fn get_or_create_global_bytes(
+        &self,
+        span: crate::span::Span,
+        bytes: &[u8],
+    ) -> GlobalValue<'ctx> {
         let name = format!("__scoop_str_data_{}_{}", span.start, span.end);
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
@@ -2926,13 +3241,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let layout = self
-            .struct_layouts
-            .get(&nominal.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct layout",
-                at: at.into(),
-            })?;
+        let layout =
+            self.struct_layouts
+                .get(&nominal.fqn)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct layout",
+                    at: at.into(),
+                })?;
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
             return Ok(existing);
@@ -2962,13 +3277,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let layout = self
-            .enum_layouts
-            .get(&nominal.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum layout",
-                at: at.into(),
-            })?;
+        let layout =
+            self.enum_layouts
+                .get(&nominal.fqn)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum layout",
+                    at: at.into(),
+                })?;
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
             return Ok(existing);
@@ -3001,10 +3316,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(elements.len());
         for elem_ty in elements {
-            let elem_cg = self.cg_ty_of(*elem_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple element type",
-                at: at.into(),
-            })?;
+            let elem_cg = self
+                .cg_ty_of(*elem_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "tuple element type",
+                    at: at.into(),
+                })?;
             llvm_fields.push(self.llvm_basic_type_of(at, elem_cg)?);
         }
 
@@ -3072,7 +3389,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;
             }
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(raw) = v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
@@ -3234,4 +3556,81 @@ fn parse_normal_string_bytes(inner: &str) -> Result<Vec<u8>, StringLiteralParseE
     }
 
     Ok(out)
+}
+
+fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLiteralParseError> {
+    // f-string 的 Text 片段来自 parser 拆分后的“内容区间 slice”，不包含包裹引号。
+    // 这里需要补齐两类语义：
+    // - `{{` / `}}`：字面量大括号（spec §8.2）；
+    // - 非 raw f-string：支持最小转义（与普通字符串一致）。
+    if raw {
+        let undoubled = undouble_braces(text);
+        return Ok(undoubled.into_bytes());
+    }
+
+    // 非 raw：先在源码层“去双大括号”，并避免把 `\u{...}` 的 `{}` 当作候选；
+    // 再复用普通字符串的转义解析。
+    let undoubled = undouble_braces_preserving_escapes(text);
+    parse_normal_string_bytes(&undoubled)
+}
+
+fn undouble_braces(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '{' if matches!(chars.peek(), Some('{')) => {
+                let _ = chars.next();
+                out.push('{');
+            }
+            '}' if matches!(chars.peek(), Some('}')) => {
+                let _ = chars.next();
+                out.push('}');
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
+fn undouble_braces_preserving_escapes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            // 转义序列中的 `{`/`}` 不参与 `{{`/`}}` 的消解。
+            out.push('\\');
+            let Some(next) = chars.next() else {
+                break;
+            };
+            out.push(next);
+
+            // `\u{...}`：把整个 `{...}` 视为转义语法的一部分，原样拷贝。
+            if next == 'u' && matches!(chars.peek(), Some('{')) {
+                out.push(chars.next().expect("peek 已保证存在"));
+                while let Some(c) = chars.next() {
+                    out.push(c);
+                    if c == '}' {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+
+        match ch {
+            '{' if matches!(chars.peek(), Some('{')) => {
+                let _ = chars.next();
+                out.push('{');
+            }
+            '}' if matches!(chars.peek(), Some('}')) => {
+                let _ = chars.next();
+                out.push('}');
+            }
+            _ => out.push(ch),
+        }
+    }
+
+    out
 }

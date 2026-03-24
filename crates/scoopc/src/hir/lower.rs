@@ -21,11 +21,11 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, File, FunDecl,
-    HandleArm, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
-    Param, Stmt, StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField,
-    SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
-    EnumLayout, EnumLayoutIndex, EnumVariantFieldLayout, EnumVariantLayout,
+    Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
+    EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
+    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt,
+    StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId,
+    ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -255,7 +255,11 @@ impl<'a> HirLowering<'a> {
     /// 用途：
     /// - 单态化（monomorphization）生成具体实例：把 `T` 等 type param 直接映射到具体 `TypeId`
     ///   后再构造 HIR（避免再次生成 `TypeKind::Param`）。
-    fn lower_fun_decl_with_bound_type_params(&mut self, pkg_prefix: &str, fun: &ast::FunDecl) -> FunDecl {
+    fn lower_fun_decl_with_bound_type_params(
+        &mut self,
+        pkg_prefix: &str,
+        fun: &ast::FunDecl,
+    ) -> FunDecl {
         let name = fun.name.text(self.source).to_string();
         let fqn = if pkg_prefix.is_empty() {
             name.clone()
@@ -448,8 +452,24 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
-            ast::ExprKind::InterpolatedString { .. } => {
-                (ExprKind::Literal(LiteralKind::String), self.builtins.string)
+            ast::ExprKind::InterpolatedString { raw, parts } => {
+                let parts = parts
+                    .iter()
+                    .map(|p| match p {
+                        ast::InterpolatedStringPart::Text { span } => {
+                            super::InterpolatedStringPart::Text { span: *span }
+                        }
+                        ast::InterpolatedStringPart::Expr { expr } => {
+                            super::InterpolatedStringPart::Expr {
+                                expr: self.lower_expr(pkg_prefix, expr),
+                            }
+                        }
+                    })
+                    .collect();
+                (
+                    ExprKind::InterpolatedString { raw: *raw, parts },
+                    self.builtins.string,
+                )
             }
             ast::ExprKind::Ident(id) => self.lower_ident_expr(id),
             ast::ExprKind::Block(b) => {
@@ -480,8 +500,7 @@ impl<'a> HirLowering<'a> {
                 let ty = if elements.is_empty() {
                     self.builtins.unit
                 } else {
-                    self.types
-                        .ty_tuple(elements.iter().map(|e| e.ty).collect())
+                    self.types.ty_tuple(elements.iter().map(|e| e.ty).collect())
                 };
                 (ExprKind::TupleLit { elements }, ty)
             }
@@ -563,7 +582,12 @@ impl<'a> HirLowering<'a> {
                     ty,
                 )
             }
-            ast::ExprKind::Binary { lhs, op, op_span, rhs } => {
+            ast::ExprKind::Binary {
+                lhs,
+                op,
+                op_span,
+                rhs,
+            } => {
                 let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                 let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
                 let ty = self.lower_binary_expr_type(&lhs, &rhs, *op);
@@ -1240,6 +1264,13 @@ fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>
                 collect_declared_locals_in_expr(e, declared);
             }
         }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for p in parts {
+                if let super::InterpolatedStringPart::Expr { expr } = p {
+                    collect_declared_locals_in_expr(expr, declared);
+                }
+            }
+        }
         ExprKind::Unary { expr, .. } => collect_declared_locals_in_expr(expr.as_ref(), declared),
         ExprKind::Binary { lhs, rhs, .. } => {
             collect_declared_locals_in_expr(lhs.as_ref(), declared);
@@ -1270,13 +1301,17 @@ fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>
                 collect_declared_locals_in_expr(&arm.body, declared);
             }
         }
-        ExprKind::MemberAccess { receiver, .. } => collect_declared_locals_in_expr(receiver, declared),
+        ExprKind::MemberAccess { receiver, .. } => {
+            collect_declared_locals_in_expr(receiver, declared)
+        }
         ExprKind::Call { callee, args } => {
             collect_declared_locals_in_expr(callee, declared);
             for arg in args {
                 match arg {
                     CallArg::Positional(e) => collect_declared_locals_in_expr(e, declared),
-                    CallArg::Named { value, .. } => collect_declared_locals_in_expr(value, declared),
+                    CallArg::Named { value, .. } => {
+                        collect_declared_locals_in_expr(value, declared)
+                    }
                 }
             }
         }
@@ -1284,7 +1319,9 @@ fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>
             for arg in args {
                 match arg {
                     CallArg::Positional(e) => collect_declared_locals_in_expr(e, declared),
-                    CallArg::Named { value, .. } => collect_declared_locals_in_expr(value, declared),
+                    CallArg::Named { value, .. } => {
+                        collect_declared_locals_in_expr(value, declared)
+                    }
                 }
             }
         }
@@ -1363,9 +1400,17 @@ fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<Sym
 
 fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture>) {
     match &expr.kind {
-        ExprKind::Missing | ExprKind::Literal(_) | ExprKind::UnresolvedIdent { .. } | ExprKind::Todo(_) => {}
+        ExprKind::Missing
+        | ExprKind::Literal(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::Todo(_) => {}
         ExprKind::VarRef(v) => {
-            let ValueRef::Local { id, name, decl_span } = v else {
+            let ValueRef::Local {
+                id,
+                name,
+                decl_span,
+            } = v
+            else {
                 return;
             };
             used.entry(*id).or_insert_with(|| Capture {
@@ -1383,6 +1428,13 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
         ExprKind::TupleLit { elements } => {
             for e in elements {
                 collect_used_locals_in_expr(e, used);
+            }
+        }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for p in parts {
+                if let super::InterpolatedStringPart::Expr { expr } = p {
+                    collect_used_locals_in_expr(expr, used);
+                }
             }
         }
         ExprKind::Unary { expr, .. } => collect_used_locals_in_expr(expr.as_ref(), used),
@@ -1656,10 +1708,9 @@ fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) ->
                 for p in &primary_ctor.params {
                     let field_name = p.name.text(source).to_string();
                     let field_fqn = format!("{fqn}.{field_name}");
-                    let ty_fqn = p
-                        .ty
-                        .as_ref()
-                        .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
+                    let ty_fqn =
+                        p.ty.as_ref()
+                            .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
 
                     fields.push(StructFieldLayout {
                         span: p.name.span,
@@ -1670,13 +1721,7 @@ fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) ->
                 }
             }
 
-            out.insert(
-                fqn.clone(),
-                StructLayout {
-                    fqn,
-                    fields,
-                },
-            );
+            out.insert(fqn.clone(), StructLayout { fqn, fields });
         }
     }
 
@@ -1723,13 +1768,7 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
 
             let mut variants: Vec<EnumVariantLayout> = Vec::new();
             let Some(body) = &ty.body else {
-                out.insert(
-                    fqn.clone(),
-                    EnumLayout {
-                        fqn,
-                        variants,
-                    },
-                );
+                out.insert(fqn.clone(), EnumLayout { fqn, variants });
                 continue;
             };
 
@@ -1746,10 +1785,9 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
-                    let ty_fqn = p
-                        .ty
-                        .as_ref()
-                        .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
+                    let ty_fqn =
+                        p.ty.as_ref()
+                            .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
                     fields.push(EnumVariantFieldLayout {
                         span: p.name.span,
                         name: field_name,
@@ -1765,13 +1803,7 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
                 });
             }
 
-            out.insert(
-                fqn.clone(),
-                EnumLayout {
-                    fqn,
-                    variants,
-                },
-            );
+            out.insert(fqn.clone(), EnumLayout { fqn, variants });
         }
     }
 
