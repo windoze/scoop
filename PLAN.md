@@ -26,6 +26,7 @@
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。
 - 2026-03-25：完成 T0822：LLVM codegen 支持字符串字面量 lowering，并把 sysroot `print/println(String)` 映射到 runtime `scoop_print/scoop_println`；新增 run-pass fixture 覆盖 `println("hello")` 的 stdout。
 - 2026-03-25：完成 T0823：LLVM codegen 支持 f-string 插值（Text/Expr 分片拼接，最小支持 `{String}`/`{Int}`），并新增 runtime `scoop_format_{i64,u64}`；新增 run-pass fixture 覆盖 `val s = f"hi {name} {n}"; println(s)` 的 stdout。
+- 2026-03-25：完成 T0824：tuple 字段访问语法统一为 `t._0` / `t._1`，并补齐 `print/println(Int)` 的最小 codegen（runtime formatting + `scoop_print/scoop_println`）；新增 run-pass fixture 覆盖 tuple 求和 stdout 与 `t.0` parse compile-fail 回归。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
@@ -524,7 +525,7 @@
 > 优点：实现难度低、语义清晰、可逐步演进到移动 GC；缺点：需要编译器插桩，性能一般，但足够 bootstrap。
 
 - [ ] `when` lowering：补齐 or-pattern / guard（spec §4.2）
-- [ ] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）
+- [x] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）
 - [ ] enum layout/codegen：补齐 niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
 - [ ] `object` / `companion object` codegen：单例存储、一次初始化、静态成员访问（Appendix B.9）
 - [ ] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）

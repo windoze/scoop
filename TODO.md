@@ -2394,11 +2394,20 @@
    - `cargo test -p scoopc --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0824 [TODO] tuple 字段访问语法对齐 spec：`._0` / `._1`（spec §2.3.3）
+### T0824 [DONE] tuple 字段访问语法对齐 spec：`._0` / `._1`（spec §2.3.3）
 - 描述：补齐 tuple 字段访问的 lowering/codegen，并把相关 fixtures 与文档样例统一到 spec 语法 `t._0` / `t._1`。
 - 目标：不修改既有任务定义；通过新增任务把语法差异显式收口。
 - 验收：新增 run-pass fixture：`val t = (1,2); print(t._0 + t._1)` 输出 `3`；`t.0` 不作为合法 tuple 访问被接受。
 - 依赖：T0812、T0210、T0410
+ - 完成：
+   - `sysroot/core.scoop`：新增 `print/println(Int)` overload，使 `print(t._0 + t._1)` 可通过前端检查。
+   - `crates/scoopc/src/llvm/codegen.rs`：`print/println` 支持整数实参：调用 runtime `scoop_format_{i64,u64}` 格式化到栈上 buffer，再映射到 `scoop_print/scoop_println`。
+   - `tests/fixtures/run-pass/tuple_access_print_sum.scoop`：新增 run-pass fixture，断言 stdout 为 `3`（含换行）。
+   - `tests/fixtures/parse/tuple_access_numeric_member_not_allowed_fail.scoop`：新增 parse compile-fail fixture，确保 `t.0` 在 parser 阶段报错。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 
 ### T0825 [TODO] codegen：`when` lowering 补齐 or-pattern / guard（spec §4.2）
 - 描述：在已有 `when` lowering 基础上补齐 or-pattern 与 guard 的代码生成：or-pattern 共享后继块，guard 在匹配成功后再判定条件。

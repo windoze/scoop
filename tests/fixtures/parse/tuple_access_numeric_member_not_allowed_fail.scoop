@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR: 成员名（标识符）
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 11:7
+// 目标：spec §2.3.3：tuple 元素访问必须使用 `t._0` 形式，不允许 `t.0`。
+
+package fixtures.parse
+
+fun main() {
+    val t = (1, 2)
+    t.0
+}
+

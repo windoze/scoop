@@ -545,21 +545,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
-        let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
-        let Some(raw) = coerced.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot print/println arg value",
-                at: expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(str_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot print/println arg type",
-                at: expr.span.into(),
-            });
-        };
-
         let rt_name = match fqn {
             "scoop.core.print" => "scoop_print",
             "scoop.core.println" => "scoop_println",
@@ -571,11 +556,114 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
+        // 说明：
+        // - sysroot 中允许 `print/println` 以 overload set 的形式声明（例如 `String` 与 `Int`）；
+        // - HIR 当前阶段不保留“已选定 overload”的信息，因此这里以实参 codegen 后的 `CgTy`
+        //   来决定使用哪条 lowering 路径。
+        let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
+        let str_ptr = match v.ty {
+            CgTy::String => {
+                let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
+                let Some(raw) = coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println arg value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(str_ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println arg type",
+                        at: expr.span.into(),
+                    });
+                };
+                str_ptr
+            }
+            CgTy::Int(from_ty) => {
+                let (raw_int, _) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sysroot print/println int arg value",
+                    at: expr.span.into(),
+                })?;
+                self.codegen_int_to_scoop_string(expr.span, raw_int, from_ty)?
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sysroot print/println arg type",
+                    at: expr.span.into(),
+                });
+            }
+        };
+
         let rt_fun = self.declare_runtime_print_like(rt_name);
         let _ = self
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn codegen_int_to_scoop_string(
+        &mut self,
+        at: crate::span::Span,
+        raw_int: IntValue<'ctx>,
+        from_ty: IntTy,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if from_ty.bits > 64 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "integer width for print/println",
+                at: at.into(),
+            });
+        }
+
+        let i64_ty = self.context.i64_type();
+        let i8_ty = self.context.i8_type();
+
+        // 先把整数提升/截断到 i64/u64，再调用 runtime 格式化到临时 buffer。
+        let to_ty = IntTy {
+            bits: 64,
+            signed: from_ty.signed,
+        };
+        let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
+
+        // i64 最长：`-9223372036854775808`（20 字符），预留更宽裕的 cap。
+        let cap = i64_ty.const_int(64, false);
+        let buf = self
+            .builder
+            .build_array_alloca(i8_ty, cap, "print_int_buf")?;
+
+        let fmt_name = if from_ty.signed {
+            "scoop_format_i64"
+        } else {
+            "scoop_format_u64"
+        };
+        let fmt_fun = self.declare_runtime_format_int(fmt_name);
+        let call_site = self.builder.build_call(
+            fmt_fun,
+            &[int64.into(), buf.into(), cap.into()],
+            "print_fmt_int",
+        )?;
+        let len = call_site
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "print int length",
+                at: at.into(),
+            })?
+            .into_int_value();
+
+        // 构造一个 `ScoopString { len, data }`（放在 entry block，便于复用/避免 alloca 位置敏感问题）。
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let str_ptr = self.create_entry_alloca_raw(at, "scoop_str_int", scoop_str_ty.into())?;
+
+        let len_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 0, "print_int_len_gep")?;
+        let data_ptr = self
+            .builder
+            .build_struct_gep(scoop_str_ty, str_ptr, 1, "print_int_data_gep")?;
+
+        let _ = self.builder.build_store(len_ptr, len)?;
+        let _ = self.builder.build_store(data_ptr, buf)?;
+
+        Ok(str_ptr)
     }
 
     fn codegen_top_level_fun_call(

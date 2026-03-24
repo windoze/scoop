@@ -26,6 +26,8 @@ enum Nothing
 // - 真实实现将由 runtime（C）提供（见 TODO：T0821/T0822）。
 fun print(value: String): Unit
 fun println(value: String): Unit
+fun print(value: Int): Unit
+fun println(value: Int): Unit
 
 // Delegated property metadata（spec §10.4）。
 //
