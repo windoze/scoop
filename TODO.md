@@ -2293,11 +2293,23 @@
    - `cargo test -p scoop --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-sys + clang）。
 
-### T0814 [TODO] codegen：`when` lowering（switch + pattern tests）
+### T0814 [DONE] codegen：`when` lowering（switch + pattern tests）
 - 描述：把 `when`（至少 enum/Bool）降到 LLVM switch；tuple/struct pattern 用字段比较实现。
 - 目标：先不支持 or-pattern/guard；后续再扩展。
 - 验收：新增 run-pass fixture：when on Option/Bool 输出正确；缺 else 的错误在 typecheck 阶段已挡住。
 - 依赖：T0813、T0428
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：`codegen_when_expr` 支持：
+     - enum `when`：按 enum tag 生成 LLVM `switch`，并保持“按源码顺序”的首个匹配 arm 语义；
+     - bool `when`：按 `true/false` 生成 LLVM `switch`；
+     - tuple `when`：生成判别链，并对 tuple pattern 做字段相等比较（支持嵌套 tuple）。
+   - `crates/scoopc/src/llvm/codegen.rs`：`bind_when_pat` 泛化为“按 subject 类型绑定”，并新增 tuple pattern 的 binder 绑定（`(1, x)` 绑定 `x`）。
+   - `tests/fixtures/run-pass/when_switch_basic.scoop`：新增 run-pass fixture，覆盖 enum/bool/tuple 三类 `when`（用 `EXPECT-EXIT` 断言结果）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-config + clang）。
 
 ### T0815 [TODO] runtime 集成：生成的 `main` 调用 `scoop_runtime_init`
 - 描述：在入口函数里调用 runtime init（以及必要的 thread register）。

@@ -1,0 +1,38 @@
+// EXPECT: pass
+// EXPECT-EXIT: 5
+//
+// T0814: codegen：`when` lowering（switch + pattern tests）
+//
+// 覆盖：
+// - enum `when`：用 LLVM switch 做 tag 判别，并支持 `Some(v)` binder 解构
+// - bool `when`：用 LLVM switch 做 true/false 分派
+// - tuple pattern：按字段做相等比较，并支持 binder
+
+import scoop.core.*
+
+enum MyOpt {
+    Some(val value: Int),
+    None,
+}
+
+fun main(): Int {
+    val some: MyOpt = Some(1)
+
+    val a: Int = when (some) {
+        Some(v) -> v
+        None -> 0
+    }
+
+    val b: Int = when (true) {
+        true -> 2
+        false -> 0
+    }
+
+    val t = (1, 2)
+    val c: Int = when (t) {
+        (1, x) -> x
+        else -> 0
+    }
+
+    return a + b + c
+}

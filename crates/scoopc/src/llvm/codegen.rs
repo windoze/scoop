@@ -796,26 +796,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let subject_v = self.codegen_expr(subject)?;
-        let CgTy::Enum(enum_ty) = subject_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when subject type",
-                at: subject.span.into(),
-            });
-        };
+        let subject_ty = subject_v.ty;
         let subject_raw = subject_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "when subject value",
             at: subject.span.into(),
         })?;
 
         // 将 subject 落到一个栈 slot：便于在各 arm 中做 payload 解构（避免跨 block 的 dominance 细节）。
-        let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_v.ty)?;
-        self.store_local_value(span, subject_ptr, subject_v.ty, subject_v)?;
-
-        let subject_struct = subject_raw.into_struct_value();
-        let tag = self
-            .builder
-            .build_extract_value(subject_struct, 0, "when_tag")?
-            .into_int_value();
+        let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_ty)?;
+        self.store_local_value(span, subject_ptr, subject_ty, subject_v)?;
 
         let insert_block =
             self.builder
@@ -835,68 +824,157 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let arm_bbs = (0..arms.len())
             .map(|i| self.context.append_basic_block(func, &format!("when_arm_{i}")))
             .collect::<Vec<_>>();
-        let check_bbs = (0..arms.len())
-            .map(|i| self.context.append_basic_block(func, &format!("when_check_{i}")))
-            .collect::<Vec<_>>();
 
-        // 从当前 block 跳转到判别链。
-        self.builder.build_unconditional_branch(check_bbs[0])?;
-
-        // 构建判别链：按声明顺序生成 tag 比较。
-        let layout = self.enum_layout_of(span, enum_ty)?;
-        let tag_ty = self.context.i32_type();
-        let mut no_match_bb: Option<inkwell::basic_block::BasicBlock<'ctx>> = None;
-
-        for (idx, arm) in arms.iter().enumerate() {
-            self.builder.position_at_end(check_bbs[idx]);
-
-            match &arm.pat {
-                hir::WhenPat::Else { .. }
-                | hir::WhenPat::Wildcard { .. }
-                | hir::WhenPat::Bind { .. } => {
-                    self.builder.build_unconditional_branch(arm_bbs[idx])?;
+        // 生成分派：enum/bool 优先降到 LLVM switch；tuple 仍用分支链并做字段比较。
+        match subject_ty {
+            CgTy::Enum(enum_ty) => {
+                for arm in arms {
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. }
+                        | hir::WhenPat::Variant { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when pattern (enum)",
+                                at: arm.pat.span().into(),
+                            });
+                        }
+                    }
                 }
-                hir::WhenPat::Variant { name, .. } => {
-                    let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
+
+                let subject_struct = subject_raw.into_struct_value();
+                let tag = self
+                    .builder
+                    .build_extract_value(subject_struct, 0, "when_tag")?
+                    .into_int_value();
+
+                let layout = self.enum_layout_of(span, enum_ty)?;
+                let tag_ty = self.context.i32_type();
+                let default_bb = self.context.append_basic_block(func, "when_no_match");
+
+                let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
+                    Vec::with_capacity(layout.variants.len());
+                for variant in &layout.variants {
+                    let Some(target_idx) =
+                        self.when_first_matching_arm_for_enum_variant(arms, &variant.name)
+                    else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when unknown enum variant",
-                            at: arm.pat.span().into(),
+                            kind: "when missing enum arm",
+                            at: span.into(),
                         });
                     };
-
-                    let cond = self.builder.build_int_compare(
-                        IntPredicate::EQ,
-                        tag,
+                    cases.push((
                         tag_ty.const_int(u64::from(variant.tag), false),
-                        "when_tag_eq",
-                    )?;
-
-                    let else_bb = if idx + 1 < arms.len() {
-                        check_bbs[idx + 1]
-                    } else {
-                        // typecheck 已保证穷尽性；若这里仍未匹配，说明它是不可达路径。
-                        let bb = *no_match_bb.get_or_insert_with(|| {
-                            self.context.append_basic_block(func, "when_no_match")
-                        });
-                        bb
-                    };
-
-                    self.builder
-                        .build_conditional_branch(cond, arm_bbs[idx], else_bb)?;
+                        arm_bbs[target_idx],
+                    ));
                 }
-                _ => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when pattern",
-                        at: arm.pat.span().into(),
-                    });
-                }
+
+                self.builder.build_switch(tag, default_bb, &cases)?;
+                self.builder.position_at_end(default_bb);
+                self.builder.build_unreachable()?;
             }
-        }
+            CgTy::Bool => {
+                for arm in arms {
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. }
+                        | hir::WhenPat::BoolLit { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when pattern (bool)",
+                                at: arm.pat.span().into(),
+                            });
+                        }
+                    }
+                }
 
-        // no-match block：不可达（但需要一个 terminator 让 IR 完整）。
-        if let Some(bb) = no_match_bb {
-            self.builder.position_at_end(bb);
-            self.builder.build_unreachable()?;
+                let b = subject_raw.into_int_value();
+                let bool_ty = self.context.bool_type();
+                let default_bb = self.context.append_basic_block(func, "when_no_match");
+
+                let Some(false_idx) = self.when_first_matching_arm_for_bool(arms, false) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when missing bool arm (false)",
+                        at: span.into(),
+                    });
+                };
+                let Some(true_idx) = self.when_first_matching_arm_for_bool(arms, true) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when missing bool arm (true)",
+                        at: span.into(),
+                    });
+                };
+
+                let cases = [
+                    (bool_ty.const_int(0, false), arm_bbs[false_idx]),
+                    (bool_ty.const_int(1, false), arm_bbs[true_idx]),
+                ];
+                self.builder.build_switch(b, default_bb, &cases)?;
+                self.builder.position_at_end(default_bb);
+                self.builder.build_unreachable()?;
+            }
+            CgTy::Tuple(tuple_ty) => {
+                for arm in arms {
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. }
+                        | hir::WhenPat::Tuple { .. } => {}
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when pattern (tuple)",
+                                at: arm.pat.span().into(),
+                            });
+                        }
+                    }
+                }
+
+                let check_bbs = (0..arms.len())
+                    .map(|i| self.context.append_basic_block(func, &format!("when_check_{i}")))
+                    .collect::<Vec<_>>();
+                let no_match_bb = self.context.append_basic_block(func, "when_no_match");
+
+                self.builder.build_unconditional_branch(check_bbs[0])?;
+
+                for (idx, arm) in arms.iter().enumerate() {
+                    self.builder.position_at_end(check_bbs[idx]);
+
+                    match &arm.pat {
+                        hir::WhenPat::Else { .. }
+                        | hir::WhenPat::Wildcard { .. }
+                        | hir::WhenPat::Bind { .. } => {
+                            self.builder.build_unconditional_branch(arm_bbs[idx])?;
+                        }
+                        hir::WhenPat::Tuple { elements, .. } => {
+                            let cond = self.codegen_when_tuple_pat_cond(
+                                span,
+                                tuple_ty,
+                                elements,
+                                subject_ptr,
+                            )?;
+                            let else_bb = if idx + 1 < arms.len() {
+                                check_bbs[idx + 1]
+                            } else {
+                                no_match_bb
+                            };
+                            self.builder
+                                .build_conditional_branch(cond, arm_bbs[idx], else_bb)?;
+                        }
+                        _ => unreachable!("tuple patterns validated above"),
+                    }
+                }
+
+                self.builder.position_at_end(no_match_bb);
+                self.builder.build_unreachable()?;
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when subject type",
+                    at: subject.span.into(),
+                });
+            }
         }
 
         // 生成各 arm body，并把结果汇合到 merge。
@@ -907,7 +985,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(arm_bbs[idx]);
 
             self.env.push_scope();
-            self.bind_when_pat(span, enum_ty, &arm.pat, subject_ptr)?;
+            self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
 
             let v = self.codegen_expr(&arm.body)?;
             match out_ty {
@@ -959,27 +1037,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn bind_when_pat(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        subject_ty: CgTy,
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         match pat {
-            hir::WhenPat::Else { .. } | hir::WhenPat::Wildcard { .. } => Ok(()),
+            hir::WhenPat::Else { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Rest { .. }
+            | hir::WhenPat::Is { .. }
+            | hir::WhenPat::IntLit { .. }
+            | hir::WhenPat::StringLit { .. }
+            | hir::WhenPat::BoolLit { .. } => Ok(()),
             hir::WhenPat::Bind { id, name, .. } => {
                 // `x -> ...`：绑定整个 subject。
-                let ty = CgTy::Enum(enum_ty);
-                let ptr = self.create_entry_alloca(at, name, ty)?;
-                let llvm_ty = self.llvm_basic_type_of(at, ty)?;
+                let ptr = self.create_entry_alloca(at, name, subject_ty)?;
+                let llvm_ty = self.llvm_basic_type_of(at, subject_ty)?;
                 let loaded = self.builder.build_load(llvm_ty, subject_ptr, "bind_subject")?;
                 let v = CgValue {
-                    ty,
+                    ty: subject_ty,
                     value: Some(loaded),
                 };
-                self.store_local_value(at, ptr, ty, v)?;
+                self.store_local_value(at, ptr, subject_ty, v)?;
                 self.env.insert(
                     *id,
                     CgLocal {
-                        ty,
+                        ty: subject_ty,
                         ptr,
                         mutable: false,
                     },
@@ -987,6 +1070,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(())
             }
             hir::WhenPat::Variant { name, args, .. } => {
+                let CgTy::Enum(enum_ty) = subject_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when variant pattern subject type",
+                        at: pat.span().into(),
+                    });
+                };
+
                 let layout = self.enum_layout_of(at, enum_ty)?;
                 let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1068,8 +1158,271 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 Ok(())
             }
+            hir::WhenPat::Tuple { elements, .. } => {
+                let CgTy::Tuple(tuple_ty) = subject_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple pattern subject type",
+                        at: pat.span().into(),
+                    });
+                };
+
+                let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty)
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "tuple type id",
+                        at: pat.span().into(),
+                    });
+                };
+
+                let mut has_rest = false;
+                for (idx, elem_pat) in elements.iter().enumerate() {
+                    if matches!(elem_pat, hir::WhenPat::Rest { .. }) {
+                        if idx + 1 != elements.len() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when tuple pattern rest position",
+                                at: elem_pat.span().into(),
+                            });
+                        }
+                        has_rest = true;
+                        break;
+                    }
+                }
+
+                let pat_arity = if has_rest {
+                    elements.len().saturating_sub(1)
+                } else {
+                    elements.len()
+                };
+
+                if (!has_rest && pat_arity != tuple_elems.len()) || (has_rest && pat_arity > tuple_elems.len()) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple pattern arity mismatch",
+                        at: pat.span().into(),
+                    });
+                }
+
+                let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
+                let loaded =
+                    self.builder
+                        .build_load(llvm_tuple_ty, subject_ptr, "load_when_tuple")?;
+                let tuple_v = loaded.into_struct_value();
+
+                for (idx, elem_pat) in elements.iter().enumerate() {
+                    if matches!(elem_pat, hir::WhenPat::Rest { .. }) {
+                        break;
+                    }
+                    let elem_ty =
+                        self.lookup_tuple_element(tuple_ty, idx as u32, elem_pat.span())?;
+
+                    let extracted_v = if elem_ty == CgTy::Unit {
+                        CgValue::unit()
+                    } else {
+                        let raw = self
+                            .builder
+                            .build_extract_value(tuple_v, idx as u32, "when_tuple_elem")?;
+                        self.cg_value_from_loaded(elem_pat.span(), elem_ty, raw)?
+                    };
+
+                    match elem_pat {
+                        hir::WhenPat::Bind { .. } => {
+                            // 直接把元素作为 subject 绑定（避免额外临时 slot）。
+                            let hir::WhenPat::Bind { id, name, .. } = elem_pat else {
+                                unreachable!()
+                            };
+                            let ptr = self.create_entry_alloca(at, name, elem_ty)?;
+                            self.store_local_value(at, ptr, elem_ty, extracted_v)?;
+                            self.env.insert(
+                                *id,
+                                CgLocal {
+                                    ty: elem_ty,
+                                    ptr,
+                                    mutable: false,
+                                },
+                            );
+                        }
+                        hir::WhenPat::Tuple { .. } | hir::WhenPat::Variant { .. } => {
+                            // 递归绑定：需要一个临时 slot 让子 pattern 能 load/extract。
+                            let tmp_name = format!("when_tuple_elem_{idx}");
+                            let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
+                            self.store_local_value(at, tmp_ptr, elem_ty, extracted_v)?;
+                            self.bind_when_pat(at, elem_ty, elem_pat, tmp_ptr)?;
+                        }
+                        _ => {}
+                    }
+                }
+
+                Ok(())
+            }
+        }
+    }
+
+    fn when_first_matching_arm_for_enum_variant(
+        &self,
+        arms: &[hir::WhenArm],
+        variant_name: &str,
+    ) -> Option<usize> {
+        for (idx, arm) in arms.iter().enumerate() {
+            match &arm.pat {
+                hir::WhenPat::Else { .. }
+                | hir::WhenPat::Wildcard { .. }
+                | hir::WhenPat::Bind { .. } => return Some(idx),
+                hir::WhenPat::Variant { name, .. } if name == variant_name => return Some(idx),
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn when_first_matching_arm_for_bool(&self, arms: &[hir::WhenArm], value: bool) -> Option<usize> {
+        for (idx, arm) in arms.iter().enumerate() {
+            match &arm.pat {
+                hir::WhenPat::Else { .. }
+                | hir::WhenPat::Wildcard { .. }
+                | hir::WhenPat::Bind { .. } => return Some(idx),
+                hir::WhenPat::BoolLit { value: v, .. } if *v == value => return Some(idx),
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn codegen_when_tuple_pat_cond(
+        &mut self,
+        at: crate::span::Span,
+        tuple_ty: TypeId,
+        elements: &[hir::WhenPat],
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "tuple type id",
+                at: at.into(),
+            });
+        };
+
+        let mut rest_idx: Option<usize> = None;
+        for (idx, pat) in elements.iter().enumerate() {
+            if matches!(pat, hir::WhenPat::Rest { .. }) {
+                rest_idx = Some(idx);
+                break;
+            }
+        }
+
+        if let Some(rest) = rest_idx {
+            if rest + 1 != elements.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "when tuple pattern rest position",
+                    at: elements[rest].span().into(),
+                });
+            }
+        }
+
+        let pat_arity = rest_idx.unwrap_or(elements.len());
+        if (rest_idx.is_none() && pat_arity != tuple_elems.len()) || (rest_idx.is_some() && pat_arity > tuple_elems.len()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "when tuple pattern arity mismatch",
+                at: at.into(),
+            });
+        }
+
+        let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
+        let loaded = self
+            .builder
+            .build_load(llvm_tuple_ty, subject_ptr, "load_when_tuple")?;
+        let tuple_v = loaded.into_struct_value();
+
+        let mut cond = self.context.bool_type().const_int(1, false);
+        for (idx, elem_pat) in elements.iter().enumerate().take(pat_arity) {
+            let elem_ty = self.lookup_tuple_element(tuple_ty, idx as u32, elem_pat.span())?;
+            let elem_cond =
+                self.codegen_when_pat_cond_for_tuple_elem(at, tuple_ty, idx, elem_ty, tuple_v, elem_pat)?;
+            cond = self.builder.build_and(cond, elem_cond, "when_tuple_and")?;
+        }
+        Ok(cond)
+    }
+
+    fn codegen_when_pat_cond_for_tuple_elem(
+        &mut self,
+        at: crate::span::Span,
+        tuple_ty: TypeId,
+        elem_idx: usize,
+        elem_ty: CgTy,
+        tuple_v: inkwell::values::StructValue<'ctx>,
+        pat: &hir::WhenPat,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Bind { .. }
+            | hir::WhenPat::Rest { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            hir::WhenPat::BoolLit { value, .. } => {
+                let CgTy::Bool = elem_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem bool pattern type",
+                        at: pat.span().into(),
+                    });
+                };
+                let raw = self
+                    .builder
+                    .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
+                    .into_int_value();
+                let expected = self.context.bool_type().const_int(*value as u64, false);
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    raw,
+                    expected,
+                    "when_tuple_bool_eq",
+                )?)
+            }
+            hir::WhenPat::IntLit { span } => {
+                let CgTy::Int(int_ty) = elem_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem int pattern type",
+                        at: pat.span().into(),
+                    });
+                };
+                let raw = self
+                    .builder
+                    .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
+                    .into_int_value();
+                let text = self.source.slice(*span);
+                let value = parse_int_literal_decimal(text);
+                let value = mask_to_bits(value, int_ty.bits) as u64;
+                let expected = self.int_type(int_ty).const_int(value, false);
+                Ok(self.builder.build_int_compare(
+                    IntPredicate::EQ,
+                    raw,
+                    expected,
+                    "when_tuple_int_eq",
+                )?)
+            }
+            hir::WhenPat::Tuple { elements, .. } => {
+                let CgTy::Tuple(nested_tuple_ty) = elem_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when tuple elem tuple pattern type",
+                        at: pat.span().into(),
+                    });
+                };
+
+                let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "tuple type id",
+                        at: pat.span().into(),
+                    });
+                };
+
+                // 由于 extractvalue 返回的是一个“by-value tuple struct”，我们先把它落到临时 slot，
+                // 再复用 `codegen_when_tuple_pat_cond` 的逻辑生成递归比较。
+                let nested_raw =
+                    self.builder
+                        .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?;
+                let nested_value = self.cg_value_from_loaded(pat.span(), elem_ty, nested_raw)?;
+                let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
+                let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
+                self.store_local_value(at, tmp_ptr, elem_ty, nested_value)?;
+                self.codegen_when_tuple_pat_cond(at, nested_tuple_ty, elements, tmp_ptr)
+            }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern",
+                kind: "when tuple pattern",
                 at: pat.span().into(),
             }),
         }

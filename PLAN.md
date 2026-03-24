@@ -52,6 +52,7 @@
 - 2026-03-24：完成 T0811：LLVM codegen v4 支持 struct 值类型布局与字段访问：为 struct FQN 生成 named LLVM struct type（opaque + set_body），struct literal 构造用 `insertvalue` 组装 aggregate，字段读取对 `localStruct.field` 走 struct GEP + `load`；新增 run-pass fixture 覆盖 struct literal + 字段读取（当前因 typecheck 对整数字面量推导为 `Int`，fixture 字段类型使用 `Int` 并用 exit code 断言结果）。
 - 2026-03-24：完成 T0812：LLVM codegen v5 支持 tuple 值类型布局与元素访问：为 tuple 生成 LLVM struct type，tuple literal 用 `insertvalue` 组装 aggregate；`t._0` / `t._1` 在局部变量路径走 struct GEP + `load`（fallback 用 `extractvalue`）；同时在 typecheck 中支持 tuple 元素访问语义以通过前端检查；新增 run-pass fixture 覆盖 tuple 求和并用 exit code 断言结果。
 - 2026-03-24：完成 T0813：LLVM codegen 支持 rich enum 的最小 `{tag, payload}` 表示（payload 为 word-sized int），并在“期望类型语境”下支持 enum variant ctor（含 0-参数 variant 以 `None()` 形式构造），以及 `when` 对 enum 的 tag 判别与 `Some(v)` binder 解构；新增 run-pass fixture 覆盖 `Some(1)`/`None()` + `when` 分支并用 exit code 断言结果。
+- 2026-03-24：完成 T0814：LLVM codegen 将 enum/bool 的 `when` 降到 LLVM `switch`（保持“按源码顺序”的首个匹配 arm 语义），并支持 tuple `when` 的字段比较与 binder；新增 run-pass fixture 覆盖 enum/bool/tuple 三类 `when` 并用 exit code 断言结果。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
