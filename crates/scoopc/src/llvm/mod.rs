@@ -222,6 +222,12 @@ fn build_minimal_main_module<'ctx>(
     let entry = context.append_basic_block(main, "entry");
     builder.position_at_end(entry);
 
+    // T0815：在入口函数里调用 runtime init（当前阶段先只调用一次）。
+    let rt_init = module.get_function("scoop_runtime_init").unwrap_or_else(|| {
+        module.add_function("scoop_runtime_init", context.void_type().fn_type(&[], false), None)
+    });
+    builder.build_call(rt_init, &[], "rt_init")?;
+
     let exit_code = codegen::MainCodegen::new(
         context,
         &module,
@@ -434,6 +440,10 @@ mod tests {
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
         assert!(ir.contains("define i32 @main()"));
+        assert!(
+            ir.contains("call void @scoop_runtime_init()"),
+            "生成的 main 应调用 scoop_runtime_init"
+        );
         assert!(ir.contains("ret i32 0"));
         assert!(ir.contains("target datalayout ="));
         assert!(ir.contains("target triple ="));

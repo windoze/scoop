@@ -2311,11 +2311,18 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-config + clang）。
 
-### T0815 [TODO] runtime 集成：生成的 `main` 调用 `scoop_runtime_init`
+### T0815 [DONE] runtime 集成：生成的 `main` 调用 `scoop_runtime_init`
 - 描述：在入口函数里调用 runtime init（以及必要的 thread register）。
 - 目标：先只在 main 调用一次；多线程后续再处理。
 - 验收：链接后的程序运行不崩溃；可通过运行时 debug 输出确认 init 被调用（若启用）。
 - 依赖：T0901、T0806
+ - 完成：
+   - `crates/scoopc/src/llvm/mod.rs`：生成的 `i32 @main()` 在执行 Scoop `fun main` 之前，会先声明并调用 `scoop_runtime_init()`（C ABI）。
+   - `crates/scoopc/src/llvm/mod.rs`：更新 LLVM 单测，断言 IR 中包含对 `scoop_runtime_init` 的调用。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0816 [TODO] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
 - 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。
