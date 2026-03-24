@@ -1,6 +1,10 @@
-//! LLVM IR 生成（早期阶段，T0808）。
+//! LLVM IR 生成（早期阶段，T0808～T0810）。
 //!
-//! 当前落点：仅支持把**入口函数 `fun main`** 的一小部分表达式子集降低到 `i32 @main()`：
+//! 当前落点：支持把**入口函数 `fun main`** 与其调用到的顶层函数降低到单个 LLVM module：
+//! - 入口保持为 `i32 @main()`（C ABI），其返回值作为进程退出码；
+//! - 额外生成（或声明）被调用的顶层函数（先按简单 C ABI）。
+//!
+//! 表达式/语句子集（当前只覆盖早期最小回归需要）：
 //! - 整数/布尔字面量；
 //! - 一元运算：`!`、`-`、`~`；
 //! - 二元运算：算术/比较/位运算/移位（含 shift count mask）；
@@ -9,7 +13,6 @@
 //! - `return`（以及“block 最后表达式”作为隐式返回）。
 //!
 //! 非目标（后续任务逐步补齐）：
-//! - 函数调用 ABI（T0810）；
 //! - if/when/loop 等控制流（依赖 MIR/CFG codegen 任务）。
 
 use std::collections::HashMap;
@@ -17,7 +20,10 @@ use std::collections::HashMap;
 use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
+use inkwell::module::Module;
+use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::IntType;
+use inkwell::values::FunctionValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
@@ -127,29 +133,94 @@ impl<'ctx> Env<'ctx> {
 
 pub(crate) struct MainCodegen<'a, 'ctx> {
     context: &'ctx Context,
+    module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
     host: &'a HostTargetInfo,
     source: &'a SourceFile,
     types: &'a TypeStore,
+    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn new(
         context: &'ctx Context,
+        module: &'a Module<'ctx>,
         builder: &'a Builder<'ctx>,
         host: &'a HostTargetInfo,
         source: &'a SourceFile,
         types: &'a TypeStore,
+        fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
         Self {
             context,
+            module,
             builder,
             host,
             source,
             types,
+            fun_index,
             env: Env::default(),
         }
+    }
+
+    pub(crate) fn declare_top_level_fun(
+        &self,
+        fun: &hir::FunDecl,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.module.get_function(&fun.fqn) {
+            return Ok(existing);
+        }
+
+        let llvm_params = fun
+            .params
+            .iter()
+            .map(|p| self.llvm_param_ty(p.span, p.ty))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let return_cg = self
+            .cg_ty_of(fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            })?;
+
+        let fn_ty = match return_cg {
+            CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
+            CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
+            CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
+        };
+
+        Ok(self.module.add_function(&fun.fqn, fn_ty, None))
+    }
+
+    pub(crate) fn codegen_top_level_fun(
+        mut self,
+        fun: &hir::FunDecl,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(body) = fun.body.as_ref() else {
+            // extern / declaration-only：由调用点按需声明即可，这里不生成 body。
+            return Ok(());
+        };
+
+        let entry = self.context.append_basic_block(llvm_fun, "entry");
+        self.builder.position_at_end(entry);
+
+        self.env.push_scope();
+        self.codegen_fun_params(fun, llvm_fun)?;
+
+        let declared_return_cg = self
+            .cg_ty_of(fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "function return type",
+                at: fun.span.into(),
+            })?;
+        let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
+        self.emit_return(fun.span, declared_return_cg, ret_v)?;
+
+        self.env.pop_scope();
+        Ok(())
     }
 
     pub(crate) fn codegen_main_exit_code(
@@ -333,18 +404,290 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_binary(expr.span, *op, lhs, rhs)
             }
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
+            hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args),
 
             // 后续任务接入 MIR/CFG codegen
             hir::ExprKind::Closure(_)
             | hir::ExprKind::If { .. }
             | hir::ExprKind::When { .. }
             | hir::ExprKind::MemberAccess { .. }
-            | hir::ExprKind::Call { .. }
             | hir::ExprKind::Perform { .. }
             | hir::ExprKind::Handle(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "expression kind",
                 at: expr.span.into(),
             }),
+        }
+    }
+
+    fn codegen_call(
+        &mut self,
+        span: crate::span::Span,
+        callee: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call callee",
+                at: callee.span.into(),
+            });
+        };
+
+        let sig_fun = self
+            .fun_index
+            .get(fqn)
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "call callee type",
+                at: callee.span.into(),
+            })?;
+
+        if args.len() != sig_fun.params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let mut llvm_args = Vec::with_capacity(args.len());
+        for (idx, arg) in args.iter().enumerate() {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "named call arg",
+                    at: span.into(),
+                });
+            };
+
+            let target_cg = self
+                .cg_ty_of(sig_fun.params[idx].ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call arg type",
+                    at: expr.span.into(),
+                })?;
+            let v = self.codegen_expr(expr)?;
+            let coerced = self.coerce_value(expr.span, v, target_cg)?;
+            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        }
+
+        let llvm_fun = match self.module.get_function(fqn) {
+            Some(f) => f,
+            None => self.declare_top_level_fun(sig_fun)?,
+        };
+        let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
+
+        let ret_cg = self
+            .cg_ty_of(sig_fun.return_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "call return type",
+                at: span.into(),
+            })?;
+
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::bool(value))
+            }
+            CgTy::Int(int_ty) => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::int(value, int_ty))
+            }
+        }
+    }
+
+    fn llvm_param_ty(
+        &self,
+        span: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
+        let cg = self.cg_ty_of(ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "function param type",
+            at: span.into(),
+        })?;
+
+        Ok(match cg {
+            CgTy::Unit => self.context.i8_type().into(),
+            CgTy::Bool => self.context.bool_type().into(),
+            CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+        })
+    }
+
+    fn as_llvm_arg_value(
+        &self,
+        span: crate::span::Span,
+        param_ty: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
+        Ok(match param_ty {
+            CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+            CgTy::Bool | CgTy::Int(_) => value
+                .value
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call arg value",
+                    at: span.into(),
+                })?
+                .into(),
+        })
+    }
+
+    fn codegen_fun_params(
+        &mut self,
+        fun: &hir::FunDecl,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, param) in fun.params.iter().enumerate() {
+            let target_ty = self.cg_ty_of(param.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "param type",
+                at: param.span.into(),
+            })?;
+
+            let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
+            let init = match target_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Bool => {
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?
+                        .into_int_value();
+                    CgValue::bool(raw)
+                }
+                CgTy::Int(int_ty) => {
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?
+                        .into_int_value();
+                    CgValue::int(raw, int_ty)
+                }
+            };
+
+            self.store_local_value(param.span, ptr, target_ty, init)?;
+            self.env.insert(
+                param.id,
+                CgLocal {
+                    ty: target_ty,
+                    ptr,
+                    mutable: false,
+                },
+            );
+        }
+        Ok(())
+    }
+
+    fn codegen_block_as_return_value(
+        &mut self,
+        block: &hir::Block,
+        declared_return_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let mut tail_value: Option<CgValue<'ctx>> = None;
+
+        self.env.push_scope();
+
+        for (idx, stmt) in block.stmts.iter().enumerate() {
+            let is_last = idx + 1 == block.stmts.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                    tail_value = None;
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    tail_value = None;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let v = self.codegen_expr(expr)?;
+                    tail_value = if is_last { Some(v) } else { None };
+                }
+                hir::StmtKind::Return { value } => {
+                    let out = match value {
+                        Some(expr) => {
+                            let v = self.codegen_expr(expr)?;
+                            if declared_return_ty == CgTy::Unit {
+                                CgValue::unit()
+                            } else {
+                                self.coerce_value(expr.span, v, declared_return_ty)?
+                            }
+                        }
+                        None => self.default_value(declared_return_ty),
+                    };
+
+                    self.env.pop_scope();
+                    return Ok(out);
+                }
+                hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        let out = if let Some(v) = tail_value {
+            if declared_return_ty == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(block.span, v, declared_return_ty)?
+            }
+        } else {
+            self.default_value(declared_return_ty)
+        };
+
+        self.env.pop_scope();
+        Ok(out)
+    }
+
+    fn default_value(&self, ty: CgTy) -> CgValue<'ctx> {
+        match ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
+            CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
+        }
+    }
+
+    fn emit_return(
+        &mut self,
+        span: crate::span::Span,
+        declared_return_ty: CgTy,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        match declared_return_ty {
+            CgTy::Unit => {
+                self.builder.build_return(None)?;
+                Ok(())
+            }
+            CgTy::Bool | CgTy::Int(_) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "return value",
+                        at: span.into(),
+                    });
+                };
+                self.builder.build_return(Some(&raw))?;
+                Ok(())
+            }
         }
     }
 

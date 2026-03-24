@@ -2225,11 +2225,19 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0810 [TODO] codegen v3：函数调用 ABI（参数传递/返回值）
+### T0810 [DONE] codegen v3：函数调用 ABI（参数传递/返回值）
 - 描述：支持调用用户定义函数与 sysroot/extern 函数（先按简单 C ABI）。
 - 目标：先不支持可变参数/泛型实例化跨模块；只编译单模块。
 - 验收：新增 run-pass fixture：定义 `add` 并调用；输出正确。
 - 依赖：T0809、T0311
+ - 完成：
+   - `crates/scoopc/src/llvm/mod.rs`：在生成 LLVM module 时，收集 `main` 可达的顶层函数（基于 HIR `Call(TopLevel)` 扫描）并仅为这些函数声明/生成 LLVM function，避免未使用的泛型/占位签名影响 codegen。
+   - `crates/scoopc/src/llvm/codegen.rs`：支持 `ExprKind::Call` 的最小 lowering（callee 必须是 `TopLevel` fun），按签名做参数 coercion，并生成 `call` 指令；同时支持为可达顶层函数生成 entry/params alloca 与返回值。
+   - `tests/fixtures/run-pass/fun_call_add_basic.scoop`：新增 run-pass fixture：`add(1, 2)` 返回 3，使用 `EXPECT-EXIT` 断言结果。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoop --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0811 [TODO] codegen：值类型布局（struct）与字段访问（PLAN §8.2）
 - 描述：为 struct 生成 LLVM struct type，支持按字段索引 GEP 访问。

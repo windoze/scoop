@@ -1,15 +1,16 @@
-//! LLVM 后端（inkwell）——可回归的最小 codegen 落点（T0802～T0808）。
+//! LLVM 后端（inkwell）——可回归的最小 codegen 落点（T0802～T0810）。
 //!
 //! 当前阶段目标：
 //! 1) 初始化 host target（target triple + data layout）。
-//! 2) 生成一个 LLVM module，包含入口 `i32 @main()`：
-//!    - 若源文件中存在顶层 `fun main`，则对其 body 做 **v1 子集** codegen（见 T0808）；
-//!    - 该子集覆盖整数/布尔字面量、算术/比较、位运算与移位（含 shift count mask）、`val` 局部绑定、`return`/隐式返回。
+//! 2) 生成一个 LLVM module，包含入口 `i32 @main()`（C ABI）：
+//!    - 若源文件中存在顶层 `fun main`，则对其 body 做早期子集 codegen，并将返回值作为进程退出码；
+//!    - 同时生成/声明 `main` 调用到的顶层函数（T0810：先按简单 C ABI）。
 //!
 //! 说明：
-//! - 当前仍只 codegen `main`；其它顶层函数/类型声明会被忽略（但仍会参与 parse/resolve 以保持前端一致）。
-//! - `var` 与赋值更新、函数调用 ABI、控制流 CFG 等能力留给后续任务逐步补齐。
+//! - 目前仍只支持“表达式/语句最小子集”；复杂控制流需要 MIR/CFG codegen（后续任务）。
+//! - 目前只编译单模块：不会做跨文件/跨包的泛型实例化与链接管理（后续任务）。
 
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
@@ -145,16 +146,8 @@ fn build_minimal_main_module<'ctx>(
     // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
     let target_info = target::configure_module_for_host(&module)?;
 
-    let builder = context.create_builder();
-    let i32_type = context.i32_type();
-    let fn_type = i32_type.fn_type(&[], false);
-
-    let main = module.add_function("main", fn_type, None);
-    let entry = context.append_basic_block(main, "entry");
-    builder.position_at_end(entry);
-
-    // 当前阶段只 codegen 顶层 `fun main` 的有限子集；其它顶层声明会被忽略。
     let lowered = hir::lower_for_dump(session, source)?;
+
     let hir_main = lowered
         .file
         .items
@@ -165,7 +158,75 @@ fn build_minimal_main_module<'ctx>(
         })
         .ok_or(LlvmEmitError::MissingEntryMain)?;
 
-    let exit_code = codegen::MainCodegen::new(context, &builder, &target_info, source, &lowered.types)
+    let builder = context.create_builder();
+
+    let fun_index: HashMap<String, &hir::FunDecl> = lowered
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            hir::Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .map(|fun| (fun.fqn.clone(), fun))
+        .collect();
+
+    // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
+    // - 避免“无 main”时把无关错误暴露给调用方；
+    // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
+    let declare = codegen::MainCodegen::new(
+        context,
+        &module,
+        &builder,
+        &target_info,
+        source,
+        &lowered.types,
+        &fun_index,
+    );
+
+    let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(hir_main, &fun_index);
+    reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
+
+    for fun in &reachable {
+        let _ = declare.declare_top_level_fun(fun)?;
+    }
+
+    for fun in &reachable {
+        if fun.body.is_none() {
+            continue;
+        }
+        let llvm_fun = module.get_function(&fun.fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "missing declared function",
+            at: fun.span.into(),
+        })?;
+        codegen::MainCodegen::new(
+            context,
+            &module,
+            &builder,
+            &target_info,
+            source,
+            &lowered.types,
+            &fun_index,
+        )
+        .codegen_top_level_fun(fun, llvm_fun)?;
+    }
+
+    let i32_type = context.i32_type();
+    let fn_type = i32_type.fn_type(&[], false);
+
+    let main = module.add_function("main", fn_type, None);
+    let entry = context.append_basic_block(main, "entry");
+    builder.position_at_end(entry);
+
+    let exit_code = codegen::MainCodegen::new(
+        context,
+        &module,
+        &builder,
+        &target_info,
+        source,
+        &lowered.types,
+        &fun_index,
+    )
         .codegen_main_exit_code(hir_main)?;
     builder.build_return(Some(&exit_code))?;
 
@@ -176,6 +237,150 @@ fn build_minimal_main_module<'ctx>(
         })?;
 
     Ok(module)
+}
+
+fn collect_reachable_top_level_funs<'a>(
+    entry: &'a hir::FunDecl,
+    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+) -> Vec<&'a hir::FunDecl> {
+    let mut seen_calls: HashSet<String> = HashSet::new();
+    let mut queue: VecDeque<String> = VecDeque::new();
+    let mut reachable: HashSet<String> = HashSet::new();
+
+    let mut initial: Vec<String> = Vec::new();
+    collect_calls_in_fun(entry, &mut initial);
+    for fqn in initial {
+        if seen_calls.insert(fqn.clone()) {
+            queue.push_back(fqn);
+        }
+    }
+
+    while let Some(fqn) = queue.pop_front() {
+        let Some(fun) = fun_index.get(&fqn).copied() else {
+            continue;
+        };
+        if fun.name == "main" {
+            continue;
+        }
+        if !reachable.insert(fqn.clone()) {
+            continue;
+        }
+
+        let mut nested: Vec<String> = Vec::new();
+        collect_calls_in_fun(fun, &mut nested);
+        for callee in nested {
+            if seen_calls.insert(callee.clone()) {
+                queue.push_back(callee);
+            }
+        }
+    }
+
+    reachable
+        .into_iter()
+        .filter_map(|fqn| fun_index.get(&fqn).copied())
+        .collect()
+}
+
+fn collect_calls_in_fun(fun: &hir::FunDecl, out: &mut Vec<String>) {
+    let Some(body) = fun.body.as_ref() else {
+        return;
+    };
+    collect_calls_in_block(body, out);
+}
+
+fn collect_calls_in_block(block: &hir::Block, out: &mut Vec<String>) {
+    for stmt in &block.stmts {
+        collect_calls_in_stmt(stmt, out);
+    }
+}
+
+fn collect_calls_in_stmt(stmt: &hir::Stmt, out: &mut Vec<String>) {
+    match &stmt.kind {
+        hir::StmtKind::Empty => {}
+        hir::StmtKind::Expr(expr) => collect_calls_in_expr(expr, out),
+        hir::StmtKind::Val(decl) => {
+            if let Some(init) = decl.init.as_ref() {
+                collect_calls_in_expr(init, out);
+            }
+        }
+        hir::StmtKind::Assign { lhs, rhs, .. } => {
+            collect_calls_in_expr(lhs, out);
+            collect_calls_in_expr(rhs, out);
+        }
+        hir::StmtKind::Return { value } => {
+            if let Some(expr) = value.as_ref() {
+                collect_calls_in_expr(expr, out);
+            }
+        }
+        hir::StmtKind::While { cond, body } => {
+            collect_calls_in_expr(cond, out);
+            collect_calls_in_block(body, out);
+        }
+        hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } | hir::StmtKind::Todo(_) => {}
+    }
+}
+
+fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
+    match &expr.kind {
+        hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) => {}
+        hir::ExprKind::Unary { expr: inner, .. } => collect_calls_in_expr(inner, out),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_calls_in_expr(lhs, out);
+            collect_calls_in_expr(rhs, out);
+        }
+        hir::ExprKind::Block(block) => collect_calls_in_block(block, out),
+        hir::ExprKind::Call { callee, args } => {
+            if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+                out.push(fqn.clone());
+            }
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(e) => collect_calls_in_expr(e, out),
+                    hir::CallArg::Named { value, .. } => collect_calls_in_expr(value, out),
+                }
+            }
+        }
+        hir::ExprKind::Closure(c) => collect_calls_in_expr(&c.body, out),
+        hir::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_calls_in_expr(cond, out);
+            collect_calls_in_expr(then_branch, out);
+            if let Some(e) = else_branch.as_ref() {
+                collect_calls_in_expr(e, out);
+            }
+        }
+        hir::ExprKind::When { subject, arms } => {
+            collect_calls_in_expr(subject, out);
+            for arm in arms {
+                if let Some(guard) = arm.guard.as_ref() {
+                    collect_calls_in_expr(guard, out);
+                }
+                collect_calls_in_expr(&arm.body, out);
+            }
+        }
+        hir::ExprKind::MemberAccess { receiver, .. } => collect_calls_in_expr(receiver, out),
+        hir::ExprKind::Perform { args, .. } => {
+            for arg in args {
+                match arg {
+                    hir::CallArg::Positional(e) => collect_calls_in_expr(e, out),
+                    hir::CallArg::Named { value, .. } => collect_calls_in_expr(value, out),
+                }
+            }
+        }
+        hir::ExprKind::Handle(h) => {
+            collect_calls_in_block(&h.body, out);
+            for arm in &h.arms {
+                collect_calls_in_expr(&arm.body, out);
+            }
+            if let Some(finally) = h.finally.as_ref() {
+                collect_calls_in_block(finally, out);
+            }
+        }
+    }
 }
 
 fn module_name_from_path(path: &Path) -> String {

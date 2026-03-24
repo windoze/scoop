@@ -1,0 +1,18 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+//
+// T0810: codegen v3（函数调用 ABI：参数传递/返回值）
+//
+// 说明：
+// - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果。
+// - 只覆盖最简单的 top-level fun 调用（按 C ABI 传参/返回）。
+
+import scoop.core.*
+
+fun add(a: Int32, b: Int32): Int32 {
+    return a + b
+}
+
+fun main(): Int32 {
+    return add(1, 2)
+}
