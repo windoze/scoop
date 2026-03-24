@@ -10,18 +10,45 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuildEmit {
+    /// 产出可执行文件（默认）。
+    Executable,
+    /// 产出 LLVM IR（`.ll`）。
+    LlvmIr,
+    /// 产出 object 文件（`.o` / `.obj`）。
+    Obj,
+    /// 产出汇编（`.s` / `.asm`）。
+    Asm,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BuildOptions {
+    pub emit: BuildEmit,
+}
+
+impl Default for BuildOptions {
+    fn default() -> Self {
+        Self {
+            emit: BuildEmit::Executable,
+        }
+    }
+}
+
 /// 执行 `scoop build <input> [-o <output>]`。
 ///
 /// 当前阶段验收点：
 /// - 输入可通过 parse/resolve/typecheck 时返回 `Ok(())`；
-/// - `output` 仅用于“准备输出路径”，不会实际写入二进制文件。
-pub fn run(input: PathBuf, output: Option<PathBuf>) -> Result<()> {
+/// - 当启用 `--features llvm` 时：
+///   - 默认产出可执行文件；
+///   - 若指定 `--emit-llvm/--emit-obj/--emit-asm`，则改为产出对应单文件产物。
+pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
 
-    let output = output.unwrap_or_else(default_output_path);
+    let output = output.unwrap_or_else(|| default_output_path_for_emit(options.emit));
     ensure_output_parent_dir(&output)?;
 
     if output.exists() && output.is_dir() {
@@ -33,9 +60,58 @@ pub fn run(input: PathBuf, output: Option<PathBuf>) -> Result<()> {
 
     run_frontend(&session, &source)?;
 
-    // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
-    #[cfg(feature = "llvm")]
-    run_codegen_and_link(&session, &source, &output)?;
+    match options.emit {
+        BuildEmit::Executable => {
+            // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
+            #[cfg(feature = "llvm")]
+            run_codegen_and_link(&session, &source, &output)?;
+        }
+        BuildEmit::LlvmIr => {
+            #[cfg(feature = "llvm")]
+            {
+                scoopc::llvm::emit_minimal_main_ir_to_file(&session, &source, &output)?;
+            }
+            #[cfg(not(feature = "llvm"))]
+            {
+                let _ = &session;
+                let _ = &source;
+                let _ = &output;
+                return Err(miette::miette!(
+                    "`--emit-llvm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-llvm <file> -o <out.ll>`"
+                ));
+            }
+        }
+        BuildEmit::Obj => {
+            #[cfg(feature = "llvm")]
+            {
+                scoopc::llvm::emit_minimal_main_obj_to_file(&session, &source, &output)?;
+            }
+            #[cfg(not(feature = "llvm"))]
+            {
+                let _ = &session;
+                let _ = &source;
+                let _ = &output;
+                return Err(miette::miette!(
+                    "`--emit-obj` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-obj <file> -o <out.o>`"
+                ));
+            }
+        }
+        BuildEmit::Asm => {
+            #[cfg(feature = "llvm")]
+            {
+                scoopc::llvm::emit_minimal_main_asm_to_file(&session, &source, &output)?;
+            }
+            #[cfg(not(feature = "llvm"))]
+            {
+                let _ = &session;
+                let _ = &source;
+                let _ = &output;
+                return Err(miette::miette!(
+                    "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-asm <file> -o <out.s>`"
+                ));
+            }
+        }
+    }
 
     Ok(())
 }
@@ -141,12 +217,31 @@ fn ensure_output_parent_dir(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn default_output_path() -> PathBuf {
-    let ext = std::env::consts::EXE_EXTENSION;
-    if ext.is_empty() {
-        PathBuf::from("a.out")
-    } else {
-        PathBuf::from(format!("a.{ext}"))
+fn default_output_path_for_emit(emit: BuildEmit) -> PathBuf {
+    match emit {
+        BuildEmit::Executable => {
+            let ext = std::env::consts::EXE_EXTENSION;
+            if ext.is_empty() {
+                PathBuf::from("a.out")
+            } else {
+                PathBuf::from(format!("a.{ext}"))
+            }
+        }
+        BuildEmit::LlvmIr => PathBuf::from("a.ll"),
+        BuildEmit::Obj => {
+            if cfg!(windows) {
+                PathBuf::from("a.obj")
+            } else {
+                PathBuf::from("a.o")
+            }
+        }
+        BuildEmit::Asm => {
+            if cfg!(windows) {
+                PathBuf::from("a.asm")
+            } else {
+                PathBuf::from("a.s")
+            }
+        }
     }
 }
 
@@ -180,7 +275,7 @@ mod tests {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
 
-        super::run(input, Some(out)).unwrap();
+        super::run(input, Some(out), super::BuildOptions::default()).unwrap();
         assert!(dir.path().join("nested").is_dir());
     }
 
@@ -193,10 +288,32 @@ mod tests {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
 
-        super::run(input, Some(out.clone())).unwrap();
+        super::run(input, Some(out.clone()), super::BuildOptions::default()).unwrap();
         assert!(out.is_file(), "build 应写出可执行文件");
 
         let status = std::process::Command::new(&out).status().unwrap();
         assert!(status.success(), "可执行文件应返回 0");
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn build_emit_llvm_writes_ll_file() {
+        let dir = tempdir().unwrap();
+        let out = dir.path().join("main.ll");
+
+        let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
+
+        super::run(
+            input,
+            Some(out.clone()),
+            super::BuildOptions {
+                emit: super::BuildEmit::LlvmIr,
+            },
+        )
+        .unwrap();
+
+        let ll = std::fs::read_to_string(&out).unwrap();
+        assert!(ll.contains("define i32 @main()"), "应输出 LLVM IR");
     }
 }

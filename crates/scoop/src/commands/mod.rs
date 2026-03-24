@@ -8,7 +8,7 @@ mod dump_ast;
 mod dump_hir;
 mod dump_ir;
 mod dump_mir;
-mod build;
+pub(crate) mod build;
 mod run;
 mod temp;
 mod test;
@@ -32,7 +32,25 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::DumpHir { input } => dump_hir::run(input),
         Command::DumpMir { input } => dump_mir::run(input),
         Command::DumpIr { input } => dump_ir::run(input),
-        Command::Build { input, output } => build::run(input, output),
+        Command::Build {
+            input,
+            output,
+            emit_llvm,
+            emit_obj,
+            emit_asm,
+        } => {
+            let emit = if emit_llvm {
+                build::BuildEmit::LlvmIr
+            } else if emit_obj {
+                build::BuildEmit::Obj
+            } else if emit_asm {
+                build::BuildEmit::Asm
+            } else {
+                build::BuildEmit::Executable
+            };
+
+            build::run(input, output, build::BuildOptions { emit })
+        }
         Command::Run { input } => run::run(input),
     }
 }

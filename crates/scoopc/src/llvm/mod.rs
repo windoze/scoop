@@ -77,6 +77,10 @@ pub enum LlvmEmitError {
     #[error("写入 object 文件失败：{path}: {message}")]
     #[diagnostic(code(scoop::llvm::write_obj_failed))]
     WriteObjFailed { path: PathBuf, message: String },
+
+    #[error("写入 assembly 文件失败：{path}: {message}")]
+    #[diagnostic(code(scoop::llvm::write_asm_failed))]
+    WriteAsmFailed { path: PathBuf, message: String },
 }
 
 /// 为一个 Scoop 程序生成 LLVM IR（`.ll` 文本）。
@@ -128,6 +132,34 @@ pub fn emit_minimal_main_obj_to_file(
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+
+    Ok(())
+}
+
+/// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
+pub fn emit_minimal_main_asm_to_file(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
+    // 这里提前做 UTF-8 校验并返回结构化诊断。
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_minimal_main_module(session, source, &context)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    target_machine
+        .write_to_file(&module, FileType::Assembly, output)
+        .map_err(|e| LlvmEmitError::WriteAsmFailed {
             path: output.to_path_buf(),
             message: e.to_string(),
         })?;
@@ -469,6 +501,21 @@ mod tests {
 
         let size = std::fs::metadata(&output).unwrap().len();
         assert!(size > 0, "object 文件不应为空");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn minimal_main_asm_written_is_non_empty() {
+        let dir = make_temp_dir("minimal_main_asm_written_is_non_empty");
+        let output = dir.join("main.s");
+
+        let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+        let session = Session::new().unwrap();
+        emit_minimal_main_asm_to_file(&session, &source, &output).unwrap();
+
+        let size = std::fs::metadata(&output).unwrap().len();
+        assert!(size > 0, "assembly 文件不应为空");
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

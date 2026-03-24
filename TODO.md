@@ -2324,11 +2324,21 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0819 [TODO] driver：`--emit-llvm/--emit-obj/--emit-asm` 选项与 fixtures 支持（PLAN §9.3）
+### T0819 [DONE] driver：`--emit-llvm/--emit-obj/--emit-asm` 选项与 fixtures 支持（PLAN §9.3）
 - 描述：在 `scoop build` 增加 emit 选项，并允许 fixtures 通过 `ARGS` 触发生成产物用于排查。
 - 目标：先只支持单文件输出；不做多产物目录管理。
 - 验收：新增 1 个 fixture：`// ARGS: --emit-llvm` 能生成 `.ll` 文件；`scoop test` 通过。
 - 依赖：T0102、T0804
+ - 完成：
+   - `crates/scoop/src/cli.rs`：为 `scoop build` 增加互斥选项 `--emit-llvm/--emit-obj/--emit-asm`。
+   - `crates/scoop/src/commands/build.rs`：引入 `BuildEmit/BuildOptions`，支持单文件输出 LLVM IR/object/asm；默认仍输出可执行文件。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 `emit_minimal_main_asm_to_file` 支持 `--emit-asm` 落盘。
+   - `crates/scoop/src/fixtures/mod.rs`：新增 build phase（`tests/fixtures/build/**`），消费 `// ARGS: --emit-*` 并把产物写入 `target/fixtures/...`，同时断言产物存在且非空。
+   - `tests/fixtures/build/emit_llvm_basic.scoop`：新增 fixture，通过 `// ARGS: --emit-llvm` 触发生成 `.ll`。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（会生成 `target/fixtures/build/emit_llvm_basic.ll`）。
 
 ### T0820 [TODO] sysroot：最小 I/O API（`print/println`）与字符串基础（spec §8）
 - 描述：在 sysroot 声明最小 `print/println`（可标为 `@Extern` 或 `@Intrinsic`），并把 `String` 作为 reference type 的最小表面固定下来。

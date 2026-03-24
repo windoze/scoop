@@ -9,10 +9,12 @@
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
+//! - build fixtures：调用 `scoop build`（产出 `.ll`/`.o`/`.s` 等单文件，用于排查）
 //! - run-pass fixtures：通过 `scoop run` 真正执行，并做 stdout/stderr golden 比对（需要启用 `scoop` 的 `llvm` feature）
 //!
 //! 目录路由（phase）：
 //! - `tests/fixtures/parse/**` → parse
+//! - `tests/fixtures/build/**` → build
 //! - `tests/fixtures/resolve/**` → resolve
 //! - `tests/fixtures/resolve_multi/<case>/**` → resolve（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
@@ -111,18 +113,14 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
 fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path) -> Result<()> {
     let source = scoopc::source::SourceFile::load(path)?;
     let exp = FixtureExpectation::from_source(source.text());
-    // T0102/T0107：当前仅解析 `// ARGS:`/`RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT` 等指令并结构化存储，
-    // 后续 phase/runner 再真正消费这些参数。
-    let _ = exp.args.len();
-    let _ = exp.run_stdout;
-    let _ = exp.run_stderr;
-    let _ = exp.expect_exit;
-    let _ = exp.timeout_ms;
+    // T0102/T0107：`// ARGS:`/`RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT` 等指令会被解析并结构化存储；
+    // 当前阶段只有部分 phase 会消费它们（例如 build phase 会消费 emit 相关 ARGS，run-pass 会消费 env/stdout/stderr 等）。
 
     let rel = path.strip_prefix(fixtures_root).unwrap_or(path);
     let phase = match phase_dir(rel) {
         None => FixturePhase::Parse,
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
+        Some(name) if name == "build" => FixturePhase::Build,
         Some(name) if name == "resolve" => FixturePhase::Resolve,
         Some(name) if name == "typecheck" => FixturePhase::Typecheck,
         Some(name) if name == "infer" => FixturePhase::Infer,
@@ -134,6 +132,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
+        FixturePhase::Build => build_fixture(rel, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source),
         FixturePhase::Infer => infer_fixture(session, &source),
@@ -160,6 +159,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FixturePhase {
     Parse,
+    Build,
     Resolve,
     Typecheck,
     Infer,
@@ -273,6 +273,149 @@ struct MirGoldenReadFailed {
 struct MirGoldenMismatch {
     path: String,
     fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures 未生成期望产物：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_artifact_missing))]
+struct BuildArtifactMissing {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures 产物为空：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_artifact_empty))]
+struct BuildArtifactEmpty {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法创建 build fixtures 输出目录：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_output_dir_create_failed))]
+struct BuildOutputDirCreateFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures 执行失败：{message}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_exec_failed))]
+struct BuildExecFailed {
+    message: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 build fixtures 产物元数据：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_artifact_metadata_failed))]
+struct BuildArtifactMetadataFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+fn build_fixture(
+    rel_fixture: &Path,
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let emit_llvm = exp.args.iter().any(|a| a == "--emit-llvm");
+    let emit_obj = exp.args.iter().any(|a| a == "--emit-obj");
+    let emit_asm = exp.args.iter().any(|a| a == "--emit-asm");
+    let emit_requested = emit_llvm || emit_obj || emit_asm;
+
+    // 约定：build fixtures 主要用于产出后端相关单文件产物（`.ll`/`.o`/`.s`）做排查；
+    // 若未请求 emit，则该 fixture 在当前阶段视为“无操作”直接通过。
+    if !emit_requested {
+        return Ok(());
+    }
+
+    let emit = if emit_llvm {
+        crate::commands::build::BuildEmit::LlvmIr
+    } else if emit_obj {
+        crate::commands::build::BuildEmit::Obj
+    } else {
+        crate::commands::build::BuildEmit::Asm
+    };
+
+    // 与 run-pass fixtures 一致：当未启用 LLVM 后端时，为保持 `scoop test` 可回归，这里跳过实际产物生成。
+    if !cfg!(feature = "llvm") {
+        return Ok(());
+    }
+
+    let mut out = PathBuf::from("target/fixtures").join(rel_fixture);
+    let ext = match emit {
+        crate::commands::build::BuildEmit::LlvmIr => "ll",
+        crate::commands::build::BuildEmit::Obj => {
+            if cfg!(windows) {
+                "obj"
+            } else {
+                "o"
+            }
+        }
+        crate::commands::build::BuildEmit::Asm => {
+            if cfg!(windows) {
+                "asm"
+            } else {
+                "s"
+            }
+        }
+        crate::commands::build::BuildEmit::Executable => std::env::consts::EXE_EXTENSION,
+    };
+    out.set_extension(ext);
+
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            box_diagnostic(BuildOutputDirCreateFailed {
+                path: parent.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+    }
+    let _ = std::fs::remove_file(&out);
+
+    crate::commands::build::run(
+        fixture_path.to_path_buf(),
+        Some(out.clone()),
+        crate::commands::build::BuildOptions { emit },
+    )
+    .map_err(|e| {
+        box_diagnostic(BuildExecFailed {
+            message: e.to_string(),
+            fixture: fixture_path.display().to_string(),
+        })
+    })?;
+
+    if !out.is_file() {
+        return Err(box_diagnostic(BuildArtifactMissing {
+            path: out.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    let size = std::fs::metadata(&out)
+        .map_err(|e| {
+            box_diagnostic(BuildArtifactMetadataFailed {
+                path: out.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?
+        .len();
+    if size == 0 {
+        return Err(box_diagnostic(BuildArtifactEmpty {
+            path: out.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
 }
 
 fn parse_fixture(

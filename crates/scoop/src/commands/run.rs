@@ -34,7 +34,7 @@ pub fn run(input: PathBuf) -> Result<()> {
 
 fn run_for_exit_code(input: PathBuf, exe: &Path) -> Result<i32> {
     // 复用 build 的“前端检查 +（可选）生成二进制”逻辑。
-    super::build::run(input, Some(exe.to_path_buf()))?;
+    super::build::run(input, Some(exe.to_path_buf()), super::build::BuildOptions::default())?;
 
     if !cfg!(feature = "llvm") {
         return Err(miette::miette!(
@@ -104,4 +104,3 @@ mod tests {
         assert_eq!(code, 0, "最小 main 应返回 0");
     }
 }
-

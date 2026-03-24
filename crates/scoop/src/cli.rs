@@ -53,6 +53,18 @@ pub enum Command {
         /// 输出文件路径
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// 输出 LLVM IR（`.ll`）
+        #[arg(long, conflicts_with_all = ["emit_obj", "emit_asm"])]
+        emit_llvm: bool,
+
+        /// 输出 object 文件（`.o` / `.obj`）
+        #[arg(long, conflicts_with_all = ["emit_llvm", "emit_asm"])]
+        emit_obj: bool,
+
+        /// 输出汇编（`.s` / `.asm`）
+        #[arg(long, conflicts_with_all = ["emit_llvm", "emit_obj"])]
+        emit_asm: bool,
     },
 
     /// 运行程序（先 build 后 exec；需要启用 `--features llvm`）

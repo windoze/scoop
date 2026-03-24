@@ -1,0 +1,5 @@
+// ARGS: --emit-llvm
+package fixtures.build
+
+fun main() {}
+
