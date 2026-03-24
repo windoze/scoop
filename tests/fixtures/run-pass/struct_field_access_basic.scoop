@@ -1,0 +1,21 @@
+// EXPECT: pass
+// EXPECT-EXIT: 42
+//
+// T0811: codegen：值类型布局（struct）与字段访问
+//
+// 说明：
+// - 当前阶段尚无 sysroot I/O（`print/println`），因此用 exit code 来断言结果；
+// - 覆盖：
+//   - struct literal 构造（`Point { x: 42, y: 1 }`）
+//   - 字段读取（`p.x`），codegen 侧应使用 struct GEP 取字段。
+
+import scoop.core.*
+
+// 说明：当前 typecheck 会把整数字面量推导为 `Int`（word-sized），并且 struct literal
+// 的字段初始化暂不做“字面量吸收/数值提升”；因此这里用 `Int` 作为字段类型。
+struct Point(val x: Int, val y: Int)
+
+fun main(): Int {
+    val p: Point = Point { x: 42, y: 1 }
+    return p.x
+}

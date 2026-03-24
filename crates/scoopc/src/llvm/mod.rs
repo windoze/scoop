@@ -181,6 +181,7 @@ fn build_minimal_main_module<'ctx>(
         &target_info,
         source,
         &lowered.types,
+        &lowered.struct_layouts,
         &fun_index,
     );
 
@@ -206,6 +207,7 @@ fn build_minimal_main_module<'ctx>(
             &target_info,
             source,
             &lowered.types,
+            &lowered.struct_layouts,
             &fun_index,
         )
         .codegen_top_level_fun(fun, llvm_fun)?;
@@ -225,6 +227,7 @@ fn build_minimal_main_module<'ctx>(
         &target_info,
         source,
         &lowered.types,
+        &lowered.struct_layouts,
         &fun_index,
     )
         .codegen_main_exit_code(hir_main)?;
@@ -324,6 +327,11 @@ fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
     match &expr.kind {
         hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
         hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) => {}
+        hir::ExprKind::StructLit { fields, .. } => {
+            for f in fields {
+                collect_calls_in_expr(&f.value, out);
+            }
+        }
         hir::ExprKind::Unary { expr: inner, .. } => collect_calls_in_expr(inner, out),
         hir::ExprKind::Binary { lhs, rhs, .. } => {
             collect_calls_in_expr(lhs, out);

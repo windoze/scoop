@@ -14,6 +14,7 @@
 
 mod lower;
 
+use std::collections::HashMap;
 use std::fmt;
 
 use crate::ast;
@@ -171,11 +172,26 @@ pub struct Expr {
     pub kind: ExprKind,
 }
 
+/// struct literal 的字段初始化项（HIR 视图）。
+#[derive(Debug, Clone)]
+pub struct StructLitField {
+    pub span: Span,
+    pub name: String,
+    pub name_span: Span,
+    pub colon_span: Span,
+    pub value: Expr,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
     VarRef(ValueRef),
+    /// struct literal：`TypeName { field: expr, ... }`。
+    StructLit {
+        ty: TypeId,
+        fields: Vec<StructLitField>,
+    },
     /// 前缀一元运算：`!expr` / `-expr` / `~expr`（spec §2.3.4）。
     Unary {
         op: ast::UnaryOp,
@@ -324,6 +340,30 @@ pub enum CallArg {
         value: Expr,
     },
 }
+
+/// 一个 struct（值类型）的“字段布局”信息（早期用于 LLVM codegen）。
+///
+/// 说明：
+/// - 当前后端只需要“字段顺序 + 字段类型”，以便对字段生成稳定的 GEP 索引；
+/// - padding/对齐由 LLVM data layout 决定（TODO T0811 目标）。
+#[derive(Debug, Clone)]
+pub struct StructLayout {
+    pub fqn: String,
+    pub fields: Vec<StructFieldLayout>,
+}
+
+/// struct 的单个字段布局信息。
+#[derive(Debug, Clone)]
+pub struct StructFieldLayout {
+    pub span: Span,
+    pub name: String,
+    pub fqn: String,
+    /// 字段类型的 FQN（当前仅对 `TypeRef::Path` 可解析；其它类型留空）。
+    pub ty_fqn: Option<String>,
+}
+
+/// `struct FQN -> StructLayout` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type StructLayoutIndex = HashMap<String, StructLayout>;
 
 /// `when` 的一个分支（arm）：`pat (if guard)? -> body`。
 #[derive(Debug, Clone)]

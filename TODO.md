@@ -2239,11 +2239,23 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoop --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
-### T0811 [TODO] codegen：值类型布局（struct）与字段访问（PLAN §8.2）
+### T0811 [DONE] codegen：值类型布局（struct）与字段访问（PLAN §8.2）
 - 描述：为 struct 生成 LLVM struct type，支持按字段索引 GEP 访问。
 - 目标：先只支持无 padding 调整（交给 LLVM layout）；不实现 repr 属性。
-- 验收：新增 run-pass fixture：构造 struct、读取字段、打印；输出正确。
+- 验收：新增 run-pass fixture：构造 struct、读取字段；输出（exit code）正确。
 - 依赖：T0810、T0409
+ - 完成：
+   - `crates/scoopc/src/hir/{mod.rs,lower.rs}`：HIR 新增 `StructLit` 表达式节点；并在 lowering 阶段收集 `StructLayoutIndex`（struct FQN → 字段顺序/类型 FQN）供后端使用，同时保持 HIR/MIR fixtures 的 `TypeId` 稳定回归。
+   - `crates/scoopc/src/llvm/codegen.rs`：支持：
+     - 把 struct FQN 映射为 named LLVM struct type（opaque + set_body）；
+     - struct literal 构造（`insertvalue` 组装 aggregate）；
+     - 字段读取：对 `localStruct.field` 使用 `getelementptr`（struct GEP）+ `load`。
+   - `tests/fixtures/run-pass/struct_field_access_basic.scoop`：新增 run-pass fixture，覆盖 struct literal + 字段读取并用 `EXPECT-EXIT` 断言结果（当前无 `print/println`）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0812 [TODO] codegen：tuple/Unit 的表示与传递（spec §2.3.3）
 - 描述：为 tuple 生成 LLVM struct（或 aggregate），支持构造/解构访问（先用于表达式/赋值）。

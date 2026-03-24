@@ -23,7 +23,8 @@ use crate::ty::{
 use super::{
     Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, File, FunDecl,
     HandleArm, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
-    Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    Param, Stmt, StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField,
+    SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -45,6 +46,8 @@ pub enum HirLowerError {
 pub struct LoweredHir {
     pub file: File,
     pub types: TypeStore,
+    /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。
+    pub struct_layouts: StructLayoutIndex,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -468,7 +471,9 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
             ast::ExprKind::TupleLit { .. } => (ExprKind::Todo("tuple_lit"), self.builtins.any),
             ast::ExprKind::Lambda(lam) => self.lower_lambda_expr(pkg_prefix, e.span, lam),
-            ast::ExprKind::StructLit { .. } => (ExprKind::Todo("struct_lit"), self.builtins.any),
+            ast::ExprKind::StructLit { ty, fields } => {
+                self.lower_struct_lit_expr(pkg_prefix, e.span, ty, fields)
+            }
             ast::ExprKind::If {
                 cond,
                 then_branch,
@@ -613,6 +618,40 @@ impl<'a> HirLowering<'a> {
                 body,
             }),
             self.builtins.any,
+        )
+    }
+
+    /// 把 AST 的 struct literal（`Type { field: expr, ... }`）降低为 HIR 表示。
+    ///
+    /// 说明：
+    /// - 当前 lowering 不做字段存在性/类型匹配检查（这些属于 typecheck，参见 TODO T0423）；
+    /// - 这里只保留“目标类型 + 字段初始化表达式列表”，供早期 LLVM codegen（T0811）构造值。
+    fn lower_struct_lit_expr(
+        &mut self,
+        pkg_prefix: &str,
+        _span: Span,
+        ty: &ast::TypePath,
+        fields: &[ast::StructLitField],
+    ) -> (ExprKind, TypeId) {
+        let ty_id = self.lower_type_path(ty);
+
+        let lowered_fields = fields
+            .iter()
+            .map(|f| StructLitField {
+                span: f.span,
+                name: f.name.text(self.source).to_string(),
+                name_span: f.name.span,
+                colon_span: f.colon_span,
+                value: self.lower_expr(pkg_prefix, &f.value),
+            })
+            .collect::<Vec<_>>();
+
+        (
+            ExprKind::StructLit {
+                ty: ty_id,
+                fields: lowered_fields,
+            },
+            ty_id,
         )
     }
 
@@ -1165,6 +1204,11 @@ fn compute_closure_captures(
 fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>) {
     match &expr.kind {
         ExprKind::Missing | ExprKind::Literal(_) | ExprKind::VarRef(_) | ExprKind::Todo(_) => {}
+        ExprKind::StructLit { fields, .. } => {
+            for f in fields {
+                collect_declared_locals_in_expr(&f.value, declared);
+            }
+        }
         ExprKind::Unary { expr, .. } => collect_declared_locals_in_expr(expr.as_ref(), declared),
         ExprKind::Binary { lhs, rhs, .. } => {
             collect_declared_locals_in_expr(lhs.as_ref(), declared);
@@ -1300,6 +1344,11 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
                 mutable: false,
             });
         }
+        ExprKind::StructLit { fields, .. } => {
+            for f in fields {
+                collect_used_locals_in_expr(&f.value, used);
+            }
+        }
         ExprKind::Unary { expr, .. } => collect_used_locals_in_expr(expr.as_ref(), used),
         ExprKind::Binary { lhs, rhs, .. } => {
             collect_used_locals_in_expr(lhs.as_ref(), used);
@@ -1422,7 +1471,8 @@ enum ValScope {
 /// 1) parse 源文件为 AST；
 /// 2) 构建 sysroot + 当前文件的 `Index`；
 /// 3) 运行 resolver（headers + bodies）把绑定结果写回 AST；
-/// 4) 在一个新的 `TypeStore` 中 intern builtin types，并把 AST 降为 HIR（未覆盖节点用 `Any` 占位）。
+/// 4) 在一个新的 `TypeStore` 中 intern builtin types，收集 struct 布局信息，并把 AST 降为 HIR
+///    （未覆盖节点用 `Any` 占位）。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
 
@@ -1450,9 +1500,19 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
 
-    let mut ctx = HirLowering::new(source, &ast, &index, &type_kinds, &mut types, builtins);
-    let file = ctx.lower_file();
-    Ok(LoweredHir { file, types })
+    // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
+    let file = {
+        let mut ctx = HirLowering::new(source, &ast, &index, &type_kinds, &mut types, builtins);
+        ctx.lower_file()
+    };
+
+    // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
+    let struct_layouts = collect_struct_layouts(&pairs, &index);
+    Ok(LoweredHir {
+        file,
+        types,
+        struct_layouts,
+    })
 }
 
 /// 将给定的 `ast::FunDecl` 在“已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
@@ -1510,6 +1570,77 @@ fn collect_type_decl_kinds(pairs: &[(&SourceFile, &ast::File)]) -> HashMap<Strin
             out.insert(fqn, ty.kind);
         }
     }
+    out
+}
+
+/// 收集当前编译单元（sysroot + 当前文件）里出现的 struct 字段布局信息。
+///
+/// 说明（早期阶段约束）：
+/// - 仅收集**顶层 struct**；
+/// - 仅使用 struct 的 primary ctor params 作为字段（与 resolver 对齐：`p.x` 来自 ctor param）；
+/// - 暂不支持泛型 struct / `eff` 参数化 struct：这类布局需要单态化后再确定（留到后续任务）。
+fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> StructLayoutIndex {
+    let mut out: StructLayoutIndex = HashMap::new();
+
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            if !matches!(ty.kind, ast::TypeKind::Struct) {
+                continue;
+            }
+
+            // 泛型/eff 参数化 struct 的布局需要在 monomorphization 后才能稳定确定：
+            // - field 的 type args 可能包含未绑定的 type params；
+            // - ABI/layout 可能依赖实例化参数。
+            if !ty.type_params.is_empty() || ty.eff_param.is_some() {
+                continue;
+            }
+
+            let name = ty.name.text(source).to_string();
+            let fqn = if pkg_prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{pkg_prefix}.{name}")
+            };
+
+            // 避免重复写入（例如 sysroot 与用户文件存在同名 type 时，resolver 会先报错）。
+            if out.contains_key(&fqn) {
+                continue;
+            }
+
+            let mut fields: Vec<StructFieldLayout> = Vec::new();
+            if let Some(primary_ctor) = &ty.primary_ctor {
+                for p in &primary_ctor.params {
+                    let field_name = p.name.text(source).to_string();
+                    let field_fqn = format!("{fqn}.{field_name}");
+                    let ty_fqn = p
+                        .ty
+                        .as_ref()
+                        .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
+
+                    fields.push(StructFieldLayout {
+                        span: p.name.span,
+                        name: field_name,
+                        fqn: field_fqn,
+                        ty_fqn,
+                    });
+                }
+            }
+
+            out.insert(
+                fqn.clone(),
+                StructLayout {
+                    fqn,
+                    fields,
+                },
+            );
+        }
+    }
+
     out
 }
 

@@ -22,8 +22,13 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::BasicMetadataTypeEnum;
+use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
+use inkwell::types::StructType;
 use inkwell::values::FunctionValue;
+use inkwell::values::AggregateValueEnum;
+use inkwell::values::BasicValue;
+use inkwell::values::BasicValueEnum;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
@@ -46,12 +51,13 @@ enum CgTy {
     Unit,
     Bool,
     Int(IntTy),
+    Struct(TypeId),
 }
 
 #[derive(Debug, Clone, Copy)]
 struct CgValue<'ctx> {
     ty: CgTy,
-    value: Option<IntValue<'ctx>>,
+    value: Option<BasicValueEnum<'ctx>>,
 }
 
 impl<'ctx> CgValue<'ctx> {
@@ -65,27 +71,33 @@ impl<'ctx> CgValue<'ctx> {
     fn int(value: IntValue<'ctx>, ty: IntTy) -> Self {
         Self {
             ty: CgTy::Int(ty),
-            value: Some(value),
+            value: Some(value.into()),
         }
     }
 
     fn bool(value: IntValue<'ctx>) -> Self {
         Self {
             ty: CgTy::Bool,
-            value: Some(value),
+            value: Some(value.into()),
         }
     }
 
     fn as_int(self) -> Option<(IntValue<'ctx>, IntTy)> {
         match self.ty {
-            CgTy::Int(ty) => Some((self.value?, ty)),
+            CgTy::Int(ty) => match self.value? {
+                BasicValueEnum::IntValue(v) => Some((v, ty)),
+                _ => None,
+            },
             _ => None,
         }
     }
 
     fn as_bool(self) -> Option<IntValue<'ctx>> {
         match self.ty {
-            CgTy::Bool => self.value,
+            CgTy::Bool => match self.value? {
+                BasicValueEnum::IntValue(v) => Some(v),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -138,6 +150,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     host: &'a HostTargetInfo,
     source: &'a SourceFile,
     types: &'a TypeStore,
+    struct_layouts: &'a hir::StructLayoutIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
 }
@@ -150,6 +163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         host: &'a HostTargetInfo,
         source: &'a SourceFile,
         types: &'a TypeStore,
+        struct_layouts: &'a hir::StructLayoutIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
         Self {
@@ -159,6 +173,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             host,
             source,
             types,
+            struct_layouts,
             fun_index,
             env: Env::default(),
         }
@@ -189,6 +204,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
+            CgTy::Struct(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "function return type",
+                    at: fun.span.into(),
+                });
+            }
         };
 
         Ok(self.module.add_function(&fun.fqn, fn_ty, None))
@@ -272,7 +293,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let exit = match value {
                         Some(expr) => {
                             let v = self.codegen_expr(expr)?;
-                            self.coerce_exit_code(v)?
+                            self.coerce_exit_code(expr.span, v)?
                         }
                         None => self.context.i32_type().const_int(0, false),
                     };
@@ -296,7 +317,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 隐式返回：当函数声明了整数/Bool 返回类型时，允许用 block tail value 作为返回值。
         let exit = if let Some(v) = tail_value {
             match self.cg_ty_of(declared_return_ty) {
-                Some(CgTy::Int(_) | CgTy::Bool) => self.coerce_exit_code(v)?,
+                Some(CgTy::Int(_) | CgTy::Bool) => self.coerce_exit_code(block.span, v)?,
                 _ => self.context.i32_type().const_int(0, false),
             }
         } else {
@@ -397,6 +418,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.codegen_var_ref(expr.span, v),
+            hir::ExprKind::StructLit { ty, fields } => self.codegen_struct_lit(expr.span, *ty, fields),
             hir::ExprKind::Unary {
                 op, expr: inner, ..
             } => self.codegen_unary(expr.span, *op, inner),
@@ -405,12 +427,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
             hir::ExprKind::Call { callee, args } => self.codegen_call(expr.span, callee, args),
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.codegen_member_access(expr.span, receiver, member)
+            }
 
             // 后续任务接入 MIR/CFG codegen
             hir::ExprKind::Closure(_)
             | hir::ExprKind::If { .. }
             | hir::ExprKind::When { .. }
-            | hir::ExprKind::MemberAccess { .. }
             | hir::ExprKind::Perform { .. }
             | hir::ExprKind::Handle(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "expression kind",
@@ -505,6 +529,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
+            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call return type",
+                at: span.into(),
+            }),
         }
     }
 
@@ -522,6 +550,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+            CgTy::Struct(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "function param type",
+                    at: span.into(),
+                });
+            }
         })
     }
 
@@ -540,6 +574,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?
                 .into(),
+            CgTy::Struct(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "call arg value",
+                    at: span.into(),
+                });
+            }
         })
     }
 
@@ -576,6 +616,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         })?
                         .into_int_value();
                     CgValue::int(raw, int_ty)
+                }
+                CgTy::Struct(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "param type",
+                        at: param.span.into(),
+                    });
                 }
             };
 
@@ -664,6 +710,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => CgValue::unit(),
             CgTy::Bool => CgValue::bool(self.context.bool_type().const_int(0, false)),
             CgTy::Int(int_ty) => CgValue::int(self.int_type(int_ty).const_int(0, false), int_ty),
+            // 说明：当前阶段不支持 struct 作为函数返回类型，因此这里仅提供占位值；
+            // 若后续误用，会在 emit/store 阶段触发结构化错误而非 panic。
+            CgTy::Struct(ty) => CgValue { ty: CgTy::Struct(ty), value: None },
         }
     }
 
@@ -688,6 +737,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
             }
+            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct return type",
+                at: span.into(),
+            }),
         }
     }
 
@@ -793,18 +846,204 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool => {
                 let raw = self
                     .builder
-                    .build_load(self.storage_int_type(local.ty), local.ptr, "load_bool")?
+                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_bool")?
                     .into_int_value();
                 Ok(CgValue::bool(raw))
             }
             CgTy::Int(int_ty) => {
                 let raw = self
                     .builder
-                    .build_load(self.storage_int_type(local.ty), local.ptr, "load_int")?
+                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_int")?
                     .into_int_value();
                 Ok(CgValue::int(raw, int_ty))
             }
+            CgTy::Struct(_) => {
+                let raw = self
+                    .builder
+                    .build_load(self.llvm_basic_type_of(span, local.ty)?, local.ptr, "load_struct")?;
+                Ok(CgValue {
+                    ty: local.ty,
+                    value: Some(raw),
+                })
+            }
         }
+    }
+
+    fn codegen_struct_lit(
+        &mut self,
+        span: crate::span::Span,
+        ty: TypeId,
+        fields: &[hir::StructLitField],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(CgTy::Struct(struct_ty)) = self.cg_ty_of(ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct literal type",
+                at: span.into(),
+            });
+        };
+
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct literal type",
+                at: span.into(),
+            });
+        };
+
+        let layout = self
+            .struct_layouts
+            .get(&nominal.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct literal layout",
+                at: span.into(),
+            })?;
+
+        let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+
+        for (idx, field) in layout.fields.iter().enumerate() {
+            let Some(init) = fields.iter().find(|f| f.name == field.name) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct literal missing field",
+                    at: span.into(),
+                });
+            };
+
+            let field_cg = self.cg_ty_of_type_fqn(init.span, field.ty_fqn.as_deref())?;
+
+            let init_v = self.codegen_expr(&init.value)?;
+            let coerced = self.coerce_value(init.value.span, init_v, field_cg)?;
+
+            let raw = match field_cg {
+                CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+                _ => coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct field value",
+                    at: init.value.span.into(),
+                })?,
+            };
+
+            let name = format!("insert_{}", field.name);
+            agg = self.builder.build_insert_value(agg, raw, idx as u32, &name)?;
+        }
+
+        Ok(CgValue {
+            ty: CgTy::Struct(struct_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn codegen_member_access(
+        &mut self,
+        _span: crate::span::Span,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "member access target",
+                at: member.span.into(),
+            });
+        };
+
+        // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
+            if let Some(local) = self.env.get(*id) {
+                if let CgTy::Struct(struct_ty) = local.ty {
+                    let (field_idx, field_ty) =
+                        self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                    if field_ty == CgTy::Unit {
+                        return Ok(CgValue::unit());
+                    }
+
+                    let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
+                    let field_ptr = self.builder.build_struct_gep(
+                        llvm_struct_ty,
+                        local.ptr,
+                        field_idx,
+                        "field_gep",
+                    )?;
+                    let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_field_ty, field_ptr, "load_field")?;
+                    return self.cg_value_from_loaded(member.span, field_ty, loaded);
+                }
+            }
+        }
+
+        // fallback：先把 receiver 降到值，再用 extractvalue 取字段。
+        let recv = self.codegen_expr(receiver)?;
+        let CgTy::Struct(struct_ty) = recv.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "member access receiver type",
+                at: receiver.span.into(),
+            });
+        };
+        let (field_idx, field_ty) = self.lookup_struct_field(struct_ty, fqn, member.span)?;
+        if field_ty == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+
+        let raw = recv.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "member access receiver value",
+            at: receiver.span.into(),
+        })?;
+        let struct_v = raw.into_struct_value();
+        let extracted = self
+            .builder
+            .build_extract_value(struct_v, field_idx, "extract_field")?;
+        self.cg_value_from_loaded(member.span, field_ty, extracted)
+    }
+
+    fn lookup_struct_field(
+        &self,
+        struct_ty: TypeId,
+        field_fqn: &str,
+        at: crate::span::Span,
+    ) -> Result<(u32, CgTy), LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct type id",
+                at: at.into(),
+            });
+        };
+
+        let layout = self
+            .struct_layouts
+            .get(&nominal.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct layout",
+                at: at.into(),
+            })?;
+
+        let idx = layout
+            .fields
+            .iter()
+            .position(|f| f.fqn == field_fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown struct field",
+                at: at.into(),
+            })?;
+
+        let field = &layout.fields[idx];
+        let field_ty = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+        Ok((idx as u32, field_ty))
+    }
+
+    fn cg_value_from_loaded(
+        &self,
+        _at: crate::span::Span,
+        ty: CgTy,
+        raw: BasicValueEnum<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        Ok(match ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Bool => CgValue::bool(raw.into_int_value()),
+            CgTy::Int(int_ty) => CgValue::int(raw.into_int_value(), int_ty),
+            CgTy::Struct(struct_ty) => CgValue {
+                ty: CgTy::Struct(struct_ty),
+                value: Some(raw),
+            },
+        })
     }
 
     fn codegen_unary(
@@ -1173,17 +1412,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Unit, CgTy::Unit) => Ok(CgValue::unit()),
             (CgTy::Bool, CgTy::Bool) => Ok(value),
             (CgTy::Bool, CgTy::Int(int_ty)) => {
-                let v = value.as_bool().unwrap();
+                let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "bool value",
+                    at: at.into(),
+                })?;
                 let out =
                     self.builder
                         .build_int_z_extend(v, self.int_type(int_ty), "bool_to_int")?;
                 Ok(CgValue::int(out, int_ty))
             }
             (CgTy::Int(from), CgTy::Int(to)) => {
-                let v = value.value.unwrap();
+                let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "int value",
+                    at: at.into(),
+                })?;
                 let out = self.cast_int(v, from, to)?;
                 Ok(CgValue::int(out, to))
             }
+            (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value coercion",
                 at: at.into(),
@@ -1213,18 +1459,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn coerce_exit_code(&mut self, value: CgValue<'ctx>) -> Result<IntValue<'ctx>, LlvmEmitError> {
+    fn coerce_exit_code(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let i32_ty = self.context.i32_type();
 
         match value.ty {
             CgTy::Unit => Ok(i32_ty.const_int(0, false)),
             CgTy::Bool => {
-                let b = value.as_bool().unwrap();
+                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "exit bool",
+                    at: at.into(),
+                })?;
                 Ok(self.builder.build_int_z_extend(b, i32_ty, "exit_bool")?)
             }
             CgTy::Int(int_ty) => {
-                let v = value.value.unwrap();
-                let from = int_ty;
+                let (v, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "exit int",
+                    at: at.into(),
+                })?;
                 let to = IntTy {
                     bits: 32,
                     signed: int_ty.signed,
@@ -1232,6 +1487,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let casted = self.cast_int(v, from, to)?;
                 Ok(casted)
             }
+            CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct exit code",
+                at: at.into(),
+            }),
         }
     }
 
@@ -1255,7 +1514,60 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: u32::from(*bits),
                 signed: false,
             })),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
+                .struct_layouts
+                .contains_key(&nominal.fqn)
+                .then_some(CgTy::Struct(ty)),
             _ => None,
+        }
+    }
+
+    fn cg_ty_of_type_fqn(
+        &self,
+        at: crate::span::Span,
+        ty_fqn: Option<&str>,
+    ) -> Result<CgTy, LlvmEmitError> {
+        let Some(ty_fqn) = ty_fqn else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct field type",
+                at: at.into(),
+            });
+        };
+
+        match ty_fqn {
+            "scoop.core.Unit" => Ok(CgTy::Unit),
+            "scoop.core.Bool" => Ok(CgTy::Bool),
+            "scoop.core.Int" => Ok(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: true,
+            })),
+            "scoop.core.UInt" => Ok(CgTy::Int(IntTy {
+                bits: self.host.word_bit_width(),
+                signed: false,
+            })),
+            other => {
+                // 固定位宽整数族（与 HIR lowering 的 special-case 规则对齐）。
+                if let Some(bits) = other
+                    .strip_prefix("scoop.core.Int")
+                    .and_then(|s| s.parse::<u32>().ok())
+                {
+                    return Ok(CgTy::Int(IntTy { bits, signed: true }));
+                }
+                if let Some(bits) = other
+                    .strip_prefix("scoop.core.UInt")
+                    .and_then(|s| s.parse::<u32>().ok())
+                {
+                    return Ok(CgTy::Int(IntTy {
+                        bits,
+                        signed: false,
+                    }));
+                }
+
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "struct field type",
+                    at: at.into(),
+                })
+            }
         }
     }
 
@@ -1263,13 +1575,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.custom_width_int_type(ty.bits)
     }
 
-    fn storage_int_type(&self, ty: CgTy) -> IntType<'ctx> {
-        match ty {
+    fn llvm_basic_type_of(
+        &self,
+        at: crate::span::Span,
+        ty: CgTy,
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        Ok(match ty {
             // 说明：Unit 没有运行期值；当前阶段仅用于“可放入 alloca”与保持 load/store 管线统一。
-            CgTy::Unit => self.context.i8_type(),
-            CgTy::Bool => self.context.bool_type(),
-            CgTy::Int(int_ty) => self.int_type(int_ty),
+            CgTy::Unit => self.context.i8_type().into(),
+            CgTy::Bool => self.context.bool_type().into(),
+            CgTy::Int(int_ty) => self.int_type(int_ty).into(),
+            CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
+        })
+    }
+
+    fn llvm_struct_type(
+        &self,
+        at: crate::span::Span,
+        ty: TypeId,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct type id",
+                at: at.into(),
+            });
+        };
+
+        let layout = self
+            .struct_layouts
+            .get(&nominal.fqn)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "struct layout",
+                at: at.into(),
+            })?;
+
+        if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
+            return Ok(existing);
         }
+
+        let struct_ty = self.context.opaque_struct_type(&layout.fqn);
+
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+        for field in &layout.fields {
+            let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+            llvm_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
+        }
+
+        struct_ty.set_body(&llvm_fields, false);
+        Ok(struct_ty)
     }
 
     fn create_entry_alloca(
@@ -1304,7 +1657,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => alloca_builder.position_at_end(entry),
         }
 
-        Ok(alloca_builder.build_alloca(self.storage_int_type(ty), name)?)
+        let alloca_ty = self.llvm_basic_type_of(at, ty)?;
+        Ok(alloca_builder.build_alloca(alloca_ty, name)?)
     }
 
     fn store_local_value(
@@ -1314,14 +1668,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        // 说明：当前阶段 locals 只允许 `Unit/Bool/Int`，因此 store 的载荷统一是 `IntValue`（或 Unit 的占位字节）。
+        // 说明：当前阶段 locals 允许：
+        // - 标量：`Unit/Bool/Int*`
+        // - struct（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
         let v = self.coerce_value(at, value, ty)?;
         match ty {
             CgTy::Unit => {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;
             }
-            CgTy::Bool | CgTy::Int(_) => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::Struct(_) => {
                 let Some(raw) = v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "store value",
