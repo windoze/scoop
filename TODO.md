@@ -2164,11 +2164,19 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0112 [TODO] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
+### T0112 [DONE] run-pass fixtures：`EXPECT-EXIT` / `TIMEOUT` 真正生效
 - 描述：让 fixtures runner 对运行进程执行退出码断言与超时控制，并在超时、信号终止、非预期退出码时生成稳定诊断。
 - 目标：先只覆盖单进程执行模型；不做沙箱与资源限额。
 - 验收：新增 run-pass fixtures：一个断言非零退出码，一个断言超时失败；`scoop test` 能稳定区分“程序失败”和“fixture 断言失败”。
 - 依赖：T0106b2、T0107
+ - 完成：
+   - `crates/scoop/src/fixtures/run_pass.rs`：run-pass 执行器支持 `EXPECT-EXIT` 与 `TIMEOUT`；新增超时/信号终止/退出码不匹配的稳定诊断，并保持“未启用 llvm 时可回归”的 fail 用例模拟逻辑。
+   - `tests/fixtures/run-pass/exit_code_mismatch.scoop`：新增退出码 mismatch 的 fixtures 覆盖（稳定错误码 `scoop::fixtures::run_exit_code_mismatch`）。
+   - `tests/fixtures/run-pass/timeout_should_fail.scoop`：新增超时 fixtures 覆盖（稳定错误码 `scoop::fixtures::run_exec_timeout`）。
+   - `crates/scoop/src/fixtures/run_pass.rs`：新增单测覆盖 `EXPECT-EXIT` 通过/不匹配、超时、信号终止。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0108 [TODO] fixtures：支持环境变量开关（如 `SCOOP_GC_STRESS=1`）（PLAN §10.4）
 - 描述：允许 fixture 通过 `// ENV: KEY=VALUE`（或统一用 `ARGS`）配置测试运行环境。

@@ -1,0 +1,6 @@
+// EXPECT: fail
+// TIMEOUT: 10
+// EXPECT-ERROR-CODE: scoop::fixtures::run_exec_timeout
+// EXPECT-ERROR: run-pass 命令超时
+
+fun main() {}

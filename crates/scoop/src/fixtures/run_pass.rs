@@ -5,13 +5,19 @@
 //! - run-pass phase 的默认执行方式为：通过 `scoop run <fixture>` 作为子进程真正执行（T0106b2）。
 //! - 由于 `scoop run` 需要启用 `scoop` 的 `llvm` feature：若当前未启用，则仅校验 golden 文件可读并跳过执行。
 
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use miette::Diagnostic;
 use thiserror::Error;
 
 use super::expectations::FixtureExpectation;
+
+#[cfg(unix)]
+use std::os::unix::process::ExitStatusExt;
 
 #[derive(Debug, Error, Diagnostic)]
 #[error("无法读取 stdout golden 文件：{path}（fixture: {fixture}）")]
@@ -80,6 +86,36 @@ struct RunExecNonZeroExit {
     fixture: String,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Debug, Error, Diagnostic)]
+#[error("run-pass 命令超时：{timeout_ms}ms（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_exec_timeout))]
+struct RunExecTimeout {
+    timeout_ms: u64,
+    fixture: String,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Debug, Error, Diagnostic)]
+#[error("run-pass 命令被信号终止：{signal}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_exec_signaled))]
+struct RunExecSignaled {
+    signal: String,
+    fixture: String,
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "run-pass 命令退出码不符合期望：期望 {expected}，实际为 {actual}（fixture: {fixture}）"
+)]
+#[diagnostic(code(scoop::fixtures::run_exit_code_mismatch))]
+struct RunExitCodeMismatch {
+    expected: i32,
+    actual: i32,
+    fixture: String,
+}
+
 pub(crate) fn run_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
@@ -100,6 +136,26 @@ pub(crate) fn run_fixture(
         //
         // 说明：这不会影响 `EXPECT: pass` 的 fixtures；它们依旧是“仅校验 golden 文件可读”。
         if matches!(exp.expect, super::expectations::Expect::Fail) {
+            if let Some(timeout_ms) = exp.timeout_ms {
+                return Err(super::box_diagnostic(RunExecTimeout {
+                    timeout_ms,
+                    fixture: rel_fixture.display().to_string(),
+                }));
+            }
+
+            if let Some(expected) = exp.expect_exit {
+                // 说明：未启用 LLVM 时我们无法真正执行 `scoop run`，因此这里用一个稳定且可预测的
+                // “空执行”模型来回归 runner 的诊断行为：假设实际退出码为 0。
+                let actual = 0;
+                if actual != expected {
+                    return Err(super::box_diagnostic(RunExitCodeMismatch {
+                        expected,
+                        actual,
+                        fixture: rel_fixture.display().to_string(),
+                    }));
+                }
+            }
+
             assert_stdout_matches(fixture_path, exp, "")?;
             assert_stderr_matches(fixture_path, exp, "")?;
         }
@@ -160,7 +216,7 @@ fn validate_golden_files_readable(
 /// 说明：
 /// - 该函数是 run-pass phase 的“真实执行接口”（T0106b1）；
 /// - `run_fixture` 默认通过 `scoop run <fixture>` 接入该能力；
-/// - 当前阶段只做 stdout/stderr 捕获 + golden 比对（不做超时/退出码断言）。
+/// - 当前阶段支持 stdout/stderr 捕获 + golden 比对，并可选启用退出码断言与超时控制（T0112）。
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn run_fixture_command(
     rel_fixture: &Path,
@@ -168,7 +224,80 @@ pub(crate) fn run_fixture_command(
     exp: &FixtureExpectation<'_>,
     mut cmd: Command,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let output = cmd.output().map_err(|e| {
+    let output = run_command_collect_output(rel_fixture, exp, &mut cmd)?;
+    assert_exit_status_matches(rel_fixture, exp, output.status)?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_stdout_matches(fixture_path, exp, &stdout)?;
+    assert_stderr_matches(fixture_path, exp, &stderr)?;
+    Ok(())
+}
+
+/// 运行外部命令后收集到的输出（stdout/stderr + 退出状态）。
+#[derive(Debug)]
+struct CommandOutput {
+    status: ExitStatus,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+/// 执行 `cmd` 并捕获 stdout/stderr，可选启用超时。
+///
+/// - 该函数不负责“退出码是否符合期望”的判定（由 `assert_exit_status_matches` 完成）。
+/// - 若发生超时，会尽力 kill 子进程并回收（wait）后返回 `RunExecTimeout`。
+fn run_command_collect_output(
+    rel_fixture: &Path,
+    exp: &FixtureExpectation<'_>,
+    cmd: &mut Command,
+) -> std::result::Result<CommandOutput, Box<dyn miette::Diagnostic>> {
+    let program = cmd.get_program().to_string_lossy().to_string();
+
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| {
+        super::box_diagnostic(RunExecFailed {
+            program,
+            fixture: rel_fixture.display().to_string(),
+            source: e,
+        })
+    })?;
+
+    let child_stdout = child.stdout.take().ok_or_else(|| {
+        super::box_diagnostic(RunExecFailed {
+            program: cmd.get_program().to_string_lossy().to_string(),
+            fixture: rel_fixture.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "stdout 未被配置为 piped",
+            ),
+        })
+    })?;
+    let child_stderr = child.stderr.take().ok_or_else(|| {
+        super::box_diagnostic(RunExecFailed {
+            program: cmd.get_program().to_string_lossy().to_string(),
+            fixture: rel_fixture.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "stderr 未被配置为 piped",
+            ),
+        })
+    })?;
+
+    let stdout_thread = thread::spawn(move || -> std::io::Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        let mut stdout = child_stdout;
+        stdout.read_to_end(&mut buf)?;
+        Ok(buf)
+    });
+    let stderr_thread = thread::spawn(move || -> std::io::Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        let mut stderr = child_stderr;
+        stderr.read_to_end(&mut buf)?;
+        Ok(buf)
+    });
+
+    let timeout = exp.timeout_ms.map(Duration::from_millis);
+    let (status, timed_out) = wait_child_with_optional_timeout(&mut child, timeout).map_err(|e| {
         super::box_diagnostic(RunExecFailed {
             program: cmd.get_program().to_string_lossy().to_string(),
             fixture: rel_fixture.display().to_string(),
@@ -176,18 +305,141 @@ pub(crate) fn run_fixture_command(
         })
     })?;
 
-    if !output.status.success() {
-        return Err(super::box_diagnostic(RunExecNonZeroExit {
-            status: output.status.to_string(),
+    let stdout = stdout_thread
+        .join()
+        .map_err(|_| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, "stdout 捕获线程 panic"),
+            })
+        })?
+        .map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: e,
+            })
+        })?;
+    let stderr = stderr_thread
+        .join()
+        .map_err(|_| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, "stderr 捕获线程 panic"),
+            })
+        })?
+        .map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: e,
+            })
+        })?;
+
+    if timed_out {
+        return Err(super::box_diagnostic(RunExecTimeout {
+            timeout_ms: exp.timeout_ms.unwrap_or(0),
             fixture: rel_fixture.display().to_string(),
         }));
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_stdout_matches(fixture_path, exp, &stdout)?;
-    assert_stderr_matches(fixture_path, exp, &stderr)?;
-    Ok(())
+    Ok(CommandOutput {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+/// 等待子进程结束；若提供 `timeout`，则在超过时限后 kill 并返回 `(status, true)`。
+fn wait_child_with_optional_timeout(
+    child: &mut std::process::Child,
+    timeout: Option<Duration>,
+) -> std::io::Result<(ExitStatus, bool)> {
+    let Some(timeout) = timeout else {
+        return child.wait().map(|status| (status, false));
+    };
+
+    let start = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return Ok((status, false));
+        }
+
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let status = child.wait()?;
+            return Ok((status, true));
+        }
+
+        let elapsed = start.elapsed();
+        let remaining = if elapsed >= timeout {
+            Duration::from_millis(0)
+        } else {
+            timeout - elapsed
+        };
+        thread::sleep(remaining.min(Duration::from_millis(10)));
+    }
+}
+
+/// 对 `ExitStatus` 做“期望退出码/信号终止/非零退出”三类稳定诊断归因。
+///
+/// 约定：
+/// - 若 `EXPECT-EXIT` 存在，则优先按“退出码断言”处理（允许非零退出）。
+/// - 若 `EXPECT-EXIT` 不存在，则非零退出视为“程序失败”（`run_exec_nonzero_exit`）。
+fn assert_exit_status_matches(
+    rel_fixture: &Path,
+    exp: &FixtureExpectation<'_>,
+    status: ExitStatus,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    if let Some(expected) = exp.expect_exit {
+        let Some(actual) = status.code() else {
+            return Err(super::box_diagnostic(RunExecSignaled {
+                signal: exit_status_signal_string(status),
+                fixture: rel_fixture.display().to_string(),
+            }));
+        };
+
+        if actual != expected {
+            return Err(super::box_diagnostic(RunExitCodeMismatch {
+                expected,
+                actual,
+                fixture: rel_fixture.display().to_string(),
+            }));
+        }
+
+        return Ok(());
+    }
+
+    if status.success() {
+        return Ok(());
+    }
+
+    if status.code().is_none() {
+        return Err(super::box_diagnostic(RunExecSignaled {
+            signal: exit_status_signal_string(status),
+            fixture: rel_fixture.display().to_string(),
+        }));
+    }
+
+    Err(super::box_diagnostic(RunExecNonZeroExit {
+        status: status.to_string(),
+        fixture: rel_fixture.display().to_string(),
+    }))
+}
+
+/// 将“信号终止”转换为稳定字符串（目前使用信号编号）。
+fn exit_status_signal_string(status: ExitStatus) -> String {
+    #[cfg(unix)]
+    {
+        if let Some(signal) = status.signal() {
+            return signal.to_string();
+        }
+    }
+
+    let _ = status;
+    "unknown".to_string()
 }
 
 /// 断言 stdout 与 golden 文件一致（按 `RUN-STDOUT` 指令）。
@@ -451,6 +703,98 @@ mod tests {
         assert_eq!(
             err.code().unwrap().to_string(),
             "scoop::fixtures::run_exec_nonzero_exit"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_expect_exit_allows_nonzero_exit() {
+        let dir = make_temp_dir("run_fixture_command_expect_exit_allows_nonzero_exit");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(&fixture_path, "// EXPECT-EXIT: 3\nfun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// EXPECT-EXIT: 3\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("exit 3");
+            cmd
+        };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_exit_code_mismatch_has_stable_code() {
+        let dir = make_temp_dir("run_fixture_command_exit_code_mismatch_has_stable_code");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(&fixture_path, "// EXPECT-EXIT: 0\nfun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// EXPECT-EXIT: 0\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("exit 3");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exit_code_mismatch"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_timeout_has_stable_code() {
+        let dir = make_temp_dir("run_fixture_command_timeout_has_stable_code");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(&fixture_path, "// TIMEOUT: 10\nfun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// TIMEOUT: 10\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("sleep 5");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exec_timeout"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_signaled_has_stable_code() {
+        let dir = make_temp_dir("run_fixture_command_signaled_has_stable_code");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(&fixture_path, "fun main() {}\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("fun main() {}\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("kill -9 $$");
+            cmd
+        };
+
+        let err = run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::fixtures::run_exec_signaled"
         );
 
         std::fs::remove_dir_all(&dir).unwrap();

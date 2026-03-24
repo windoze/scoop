@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-EXIT: 1
+// EXPECT-ERROR-CODE: scoop::fixtures::run_exit_code_mismatch
+// EXPECT-ERROR: 退出码不符合期望
+
+fun main() {}
