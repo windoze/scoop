@@ -23,6 +23,7 @@
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0817（heap 分配）依赖 runtime 的 `scoop_alloc`（T0902），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0817 移动到 T0902 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
+- 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。

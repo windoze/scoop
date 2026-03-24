@@ -2353,11 +2353,17 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0821 [TODO] runtime：最小字符串对象与 `scoop_println` 实现（C）
+### T0821 [DONE] runtime：最小字符串对象与 `scoop_println` 实现（C）
 - 描述：实现 runtime 字符串承载（可先用 C 字符串包装）与打印函数，供 early run-pass 使用。
 - 目标：先只支持 UTF-8 字面量与拼接后置；不实现完整 String API。
-- 验收：链接后程序调用 `println("hi")` 能输出；run-pass fixture 通过。
+- 验收：clang 链接后调用 `scoop_println` 能输出（Scoop 侧 lowering/调用由后续 T0822 接入）。
 - 依赖：T0820、T0106b2、T0902
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：引入最小 `ScoopString` 承载与 `scoop_print/scoop_println`（stdout）。
+   - `crates/scoop/src/toolchain.rs`：新增 clang + runtime 的 smoke test，断言 `scoop_println` 输出 `hi\\n`。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoop clang_can_link_object_with_runtime_and_println` 通过。
 
 ### T0822 [TODO] codegen：字符串字面量与调用 `println`（spec §8.1）
 - 描述：把 `"..."` 与 raw string lowering 为 runtime 字符串对象（或常量指针），并生成对 `scoop_println` 的调用。
