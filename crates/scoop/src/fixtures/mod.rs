@@ -9,7 +9,7 @@
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
-//! - run-pass fixtures：当前仅提供 stdout/stderr golden 比对逻辑与执行接口骨架（真实执行待后续任务接入）
+//! - run-pass fixtures：通过 `scoop run` 真正执行，并做 stdout/stderr golden 比对（需要启用 `scoop` 的 `llvm` feature）
 //!
 //! 目录路由（phase）：
 //! - `tests/fixtures/parse/**` → parse
@@ -137,7 +137,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source),
         FixturePhase::Infer => infer_fixture(session, &source),
-        FixturePhase::RunPass => run_pass::run_fixture_unimplemented(rel, path, &exp),
+        FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {

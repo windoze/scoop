@@ -1,0 +1,4 @@
+// EXPECT: pass
+// RUN-STDOUT: minimal_main.stdout
+
+fun main() {}

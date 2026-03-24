@@ -2135,12 +2135,21 @@
    - `cargo run -p scoop -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 给出“需要启用 LLVM”提示；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/spec_doctest/overview_minimal_main.scoop` 返回 0。
 
-### T0106b2 [TODO] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
+### T0106b2 [DONE] run-pass fixtures：默认使用 `scoop run` 执行 + 增加 1 个可执行 fixture
 - 描述：当 `scoop run`（T0807）可用后，fixtures runner 通过 `scoop run <fixture>` 真正执行 fixture，并断言 stdout。
 - 目标：先只做 stdout；stderr/超时/退出码仍留给后续任务。
 - 验收：新增 1 个 run-pass fixture（例如打印固定字符串）；`cargo run -p scoop -- test` 能编译并运行且通过。
 - 备注：该任务本身属于测试体系，但其验收依赖完整执行链路（`scoop run` + link/runtime/codegen），因此放在这里以便按依赖顺序推进。
 - 依赖：T0106b1、T0807
+ - 完成：
+   - `crates/scoop/src/fixtures/run_pass.rs`：run-pass phase 默认通过 `scoop run <fixture>` 子进程执行并捕获 stdout/stderr，与 golden 比对；未启用 `llvm` feature 时仅校验 golden 可读并跳过执行。
+   - `crates/scoop/src/fixtures/mod.rs`：run-pass phase 接入 `run_pass::run_fixture()`。
+   - `tests/fixtures/run-pass/minimal_main.scoop`：新增最小可执行 run-pass fixture（断言 stdout）。
+   - `tests/fixtures/codegen/monomorph_id_int.scoop`：run-pass phase 已启用，更新为 `EXPECT: pass`（作为 smoke）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `cargo run -p scoop --features llvm -- test` 可真正执行 run-pass fixtures（需要 LLVM/llvm-config + clang）。
 
 ### T0111b [TODO] run-pass fixtures：`RUN-STDERR` golden（真实 fixtures 覆盖）
 - 描述：在 `tests/fixtures/run-pass/**` 增加 fixtures 覆盖 `RUN-STDERR`：一个断言 stderr 输出正确，一个断言 stdout/stderr 同时输出且 stderr mismatch 时 runner 报错码稳定。

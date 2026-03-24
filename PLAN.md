@@ -618,7 +618,7 @@ tests/
 ### 10.4 运行期 fixtures（run-pass）
 
 - [x] T0106a：fixtures runner 识别 `codegen/`（或 `run-pass/`）phase，并实现 stdout golden 比对（对比逻辑可单测独立验证）
-- [ ] T0106b：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout（stderr 后续补齐）
+- [x] T0106b：接入 `scoop run`（T0807）真正“编译 + 运行” fixture，并断言 stdout（默认仅在启用 `scoop --features llvm` 时执行）
 - [ ] 支持超时、退出码断言（fixtures 指令：`TIMEOUT`/`EXPECT-EXIT`）
 - [x] T0111a：支持 stderr golden 断言（对比逻辑 + 稳定诊断，可单测）
 - [ ] T0111b：新增 run-pass fixtures 覆盖 stderr（需要 T0106b2 真正执行）

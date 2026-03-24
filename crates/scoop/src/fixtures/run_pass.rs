@@ -1,9 +1,9 @@
 //! run-pass fixtures（运行期）支持。
 //!
 //! 说明：
-//! - 本模块当前只落地“stdout/stderr golden 对比”与诊断类型（T0106a/T0111a）
-//! - “执行外部命令并捕获 stdout”的接口由 T0106b1 提供
-//! - 真正的 `scoop run <fixture>` 接入与可执行 fixture 由后续任务（T0106b2 / T0807）完成
+//! - 本模块落地“stdout/stderr golden 对比”与稳定诊断（T0106a/T0111a）。
+//! - run-pass phase 的默认执行方式为：通过 `scoop run <fixture>` 作为子进程真正执行（T0106b2）。
+//! - 由于 `scoop run` 需要启用 `scoop` 的 `llvm` feature：若当前未启用，则仅校验 golden 文件可读并跳过执行。
 
 use std::path::Path;
 use std::process::Command;
@@ -12,14 +12,6 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use super::expectations::FixtureExpectation;
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("run-pass fixtures 尚未启用（fixture: {fixture}）：{reason}")]
-#[diagnostic(code(scoop::fixtures::run_pass_unimplemented))]
-struct RunPassUnimplemented {
-    fixture: String,
-    reason: String,
-}
 
 #[derive(Debug, Error, Diagnostic)]
 #[error("无法读取 stdout golden 文件：{path}（fixture: {fixture}）")]
@@ -57,8 +49,17 @@ struct RunStderrMismatch {
     fixture: String,
 }
 
-// 说明：下面这组诊断与执行入口会在 T0106b2（接入 `scoop run`）中被 fixtures runner 调用。
-// 目前阶段仅提供“可单测的执行能力”，因此在非 test build 下暂时未被引用。
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法定位当前 scoop 可执行文件（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_locate_scoop_failed))]
+struct RunLocateScoopFailed {
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+// 说明：下面这组诊断与执行入口会在 fixtures runner 的 run-pass phase 中被调用；
+// `run_fixture_command` 同时也用于单测（可注入外部命令）。
 #[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Error, Diagnostic)]
 #[error("无法执行 run-pass 命令：{program}（fixture: {fixture}）")]
@@ -79,71 +80,72 @@ struct RunExecNonZeroExit {
     fixture: String,
 }
 
-/// run-pass phase 的占位实现。
-///
-/// 该 phase 依赖 `scoop run`（T0807）与 build/link/codegen pipeline，
-/// 当前阶段先返回稳定诊断，便于先写 fixtures/runner 逻辑再补齐后端。
-pub(crate) fn run_fixture_unimplemented(
+pub(crate) fn run_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    // 先验证 stdout golden 文件可读（若提供）。
-    //
-    // 这样即使 run-pass 的“真实执行”尚未接入，也能尽早发现 fixture 本身的路径错误。
+    // `scoop run` 需要 feature-gated 的 LLVM 后端。为保持在未安装 LLVM 的环境仍可跑 `scoop test`，
+    // 当未启用 `--features llvm` 时，这里仅校验 golden 文件可读并跳过执行。
+    if !cfg!(feature = "llvm") {
+        validate_golden_files_readable(fixture_path, exp)?;
+        return Ok(());
+    }
+
+    let exe = std::env::current_exe().map_err(|e| {
+        super::box_diagnostic(RunLocateScoopFailed {
+            fixture: rel_fixture.display().to_string(),
+            source: e,
+        })
+    })?;
+
+    let mut cmd = Command::new(exe);
+    cmd.arg("run").arg(fixture_path);
+    run_fixture_command(rel_fixture, fixture_path, exp, cmd)
+}
+
+fn validate_golden_files_readable(
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     if let Some(golden_rel) = exp.run_stdout {
         let golden_path = fixture_path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(golden_rel);
 
-        let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+        std::fs::read_to_string(&golden_path).map_err(|e| {
             super::box_diagnostic(RunStdoutReadFailed {
                 path: golden_path.display().to_string(),
                 fixture: fixture_path.display().to_string(),
                 source: e,
             })
         })?;
-
-        // 用“golden 自身作为 stdout”跑一遍对比逻辑，确保：
-        // - 换行归一化逻辑正确
-        // - 诊断类型在非 test build 下也会被编译进来（避免 dead_code 警告）
-        assert_stdout_matches(fixture_path, exp, &expected)?;
     }
 
-    // 先验证 stderr golden 文件可读（若提供）。
     if let Some(golden_rel) = exp.run_stderr {
         let golden_path = fixture_path
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .join(golden_rel);
 
-        let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+        std::fs::read_to_string(&golden_path).map_err(|e| {
             super::box_diagnostic(RunStderrReadFailed {
                 path: golden_path.display().to_string(),
                 fixture: fixture_path.display().to_string(),
                 source: e,
             })
         })?;
-
-        // 用“golden 自身作为 stderr”跑一遍对比逻辑，确保：
-        // - 换行归一化逻辑正确
-        // - 诊断类型在非 test build 下也会被编译进来（避免 dead_code 警告）
-        assert_stderr_matches(fixture_path, exp, &expected)?;
     }
 
-    Err(super::box_diagnostic(RunPassUnimplemented {
-        fixture: rel_fixture.display().to_string(),
-        reason: "需要先实现 `scoop run`（T0807），并在 fixtures runner 中接入真实执行（T0106b2）"
-            .to_string(),
-    }))
+    Ok(())
 }
 
 /// 执行一个外部命令来“运行”该 run-pass fixture，并断言 stdout 与 golden 一致。
 ///
 /// 说明：
 /// - 该函数是 run-pass phase 的“真实执行接口”（T0106b1）；
-/// - 真正的 `scoop run <fixture>` 接入由后续任务（T0106b2/T0807）完成；
+/// - `run_fixture` 默认通过 `scoop run <fixture>` 接入该能力；
 /// - 当前阶段只做 stdout/stderr 捕获 + golden 比对（不做超时/退出码断言）。
 #[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn run_fixture_command(
