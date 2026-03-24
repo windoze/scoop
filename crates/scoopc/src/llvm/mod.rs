@@ -1,15 +1,14 @@
-//! LLVM 后端（inkwell）——最小可回归落点（T0802～T0804）。
+//! LLVM 后端（inkwell）——可回归的最小 codegen 落点（T0802～T0808）。
 //!
-//! 当前阶段只做两件事：
-//! 1) 初始化 host target；
-//! 2) 生成一个最小 LLVM module：只包含 `i32 @main()`，返回 0，并可打印/写出 `.ll`/`.o`。
-//!
-//! 并在 T0803 里补齐：
-//! - module target triple + data layout（由 host target machine 提供）。
+//! 当前阶段目标：
+//! 1) 初始化 host target（target triple + data layout）。
+//! 2) 生成一个 LLVM module，包含入口 `i32 @main()`：
+//!    - 若源文件中存在顶层 `fun main`，则对其 body 做 **v1 子集** codegen（见 T0808）；
+//!    - 该子集覆盖整数/布尔字面量、算术/比较、位运算与移位（含 shift count mask）、`val` 局部绑定、`return`/隐式返回。
 //!
 //! 说明：
-//! - 这里暂不从 HIR/MIR 生成真实用户函数 body；那属于后续任务（T0808+）。
-//! - 但我们仍会对输入做最小前端检查：必须能 parse，且包含顶层 `fun main`。
+//! - 当前仍只 codegen `main`；其它顶层函数/类型声明会被忽略（但仍会参与 parse/resolve 以保持前端一致）。
+//! - `var` 与赋值更新、函数调用 ABI、控制流 CFG 等能力留给后续任务逐步补齐。
 
 use std::path::{Path, PathBuf};
 
@@ -18,11 +17,12 @@ use inkwell::targets::FileType;
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::ast;
+use crate::hir;
 use crate::parser::ParseError;
 use crate::session::Session;
 use crate::source::SourceFile;
 
+mod codegen;
 mod target;
 pub use target::{HostTargetInfo, LlvmTargetError};
 
@@ -35,6 +35,10 @@ pub enum LlvmEmitError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    HirLower(#[from] hir::HirLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Target(#[from] LlvmTargetError),
 
     #[error("LLVM IR 构造失败：{0}")]
@@ -44,6 +48,14 @@ pub enum LlvmEmitError {
     #[error("找不到入口函数 `main`（当前阶段仅支持顶层 `fun main() {{ ... }}`）")]
     #[diagnostic(code(scoop::llvm::missing_entry_main))]
     MissingEntryMain,
+
+    #[error("暂不支持的 main 代码生成节点：{kind}")]
+    #[diagnostic(code(scoop::llvm::unsupported_main_body))]
+    UnsupportedMainBody {
+        kind: &'static str,
+        #[label("这里")]
+        at: miette::SourceSpan,
+    },
 
     #[error("LLVM module 校验失败：{message}")]
     #[diagnostic(code(scoop::llvm::module_verification_failed))]
@@ -66,12 +78,12 @@ pub enum LlvmEmitError {
     WriteObjFailed { path: PathBuf, message: String },
 }
 
-/// 为一个最小 Scoop 程序生成 LLVM IR（`.ll` 文本）。
+/// 为一个 Scoop 程序生成 LLVM IR（`.ll` 文本）。
 ///
-/// 当前阶段（T0802）的输出固定为：
+/// 当前阶段（T0808）的输出形态：
 /// - 一个 LLVM module（module name 取决于输入文件名）；
-/// - module target triple 设为 host default triple；
-/// - `i32 @main()` 返回 `0`。
+/// - module target triple / data layout 设为 host；
+/// - `i32 @main()` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
 pub fn emit_minimal_main_ir(session: &Session, source: &SourceFile) -> Result<String, LlvmEmitError> {
     let context = Context::create();
     let module = build_minimal_main_module(session, source, &context)?;
@@ -127,17 +139,11 @@ fn build_minimal_main_module<'ctx>(
     source: &SourceFile,
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
-    // 先让前端能“读懂”输入：如果连 parse 都过不了，直接返回结构化诊断。
-    let ast = session.parse(source)?;
-    if !file_has_top_level_main(source, &ast) {
-        return Err(LlvmEmitError::MissingEntryMain);
-    }
-
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
 
     // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
-    let _target_info = target::configure_module_for_host(&module)?;
+    let target_info = target::configure_module_for_host(&module)?;
 
     let builder = context.create_builder();
     let i32_type = context.i32_type();
@@ -146,7 +152,22 @@ fn build_minimal_main_module<'ctx>(
     let main = module.add_function("main", fn_type, None);
     let entry = context.append_basic_block(main, "entry");
     builder.position_at_end(entry);
-    builder.build_return(Some(&i32_type.const_int(0, false)))?;
+
+    // 当前阶段只 codegen 顶层 `fun main` 的有限子集；其它顶层声明会被忽略。
+    let lowered = hir::lower_for_dump(session, source)?;
+    let hir_main = lowered
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.name == "main" => Some(fun),
+            _ => None,
+        })
+        .ok_or(LlvmEmitError::MissingEntryMain)?;
+
+    let exit_code = codegen::MainCodegen::new(context, &builder, &target_info, source, &lowered.types)
+        .codegen_main_exit_code(hir_main)?;
+    builder.build_return(Some(&exit_code))?;
 
     module
         .verify()
@@ -155,13 +176,6 @@ fn build_minimal_main_module<'ctx>(
         })?;
 
     Ok(module)
-}
-
-fn file_has_top_level_main(source: &SourceFile, file: &ast::File) -> bool {
-    file.items.iter().any(|item| match item {
-        ast::Item::Fun(fun) => source.slice(fun.name.span) == "main",
-        _ => false,
-    })
 }
 
 fn module_name_from_path(path: &Path) -> String {

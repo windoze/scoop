@@ -516,8 +516,47 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::NotNullAssert { .. } => {
                 (ExprKind::Todo("not_null_assert"), self.builtins.any)
             }
-            ast::ExprKind::Unary { .. } => (ExprKind::Todo("unary"), self.builtins.any),
-            ast::ExprKind::Binary { .. } => (ExprKind::Todo("binary"), self.builtins.any),
+            ast::ExprKind::Unary { op, op_span, expr } => {
+                let expr = Box::new(self.lower_expr(pkg_prefix, expr));
+                let ty = match op {
+                    ast::UnaryOp::Not => {
+                        if expr.ty == self.builtins.bool_ {
+                            self.builtins.bool_
+                        } else {
+                            self.builtins.any
+                        }
+                    }
+                    ast::UnaryOp::Neg | ast::UnaryOp::BitNot => {
+                        if self.is_integer_type(expr.ty) {
+                            expr.ty
+                        } else {
+                            self.builtins.any
+                        }
+                    }
+                };
+                (
+                    ExprKind::Unary {
+                        op: *op,
+                        op_span: *op_span,
+                        expr,
+                    },
+                    ty,
+                )
+            }
+            ast::ExprKind::Binary { lhs, op, op_span, rhs } => {
+                let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
+                let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));
+                let ty = self.lower_binary_expr_type(&lhs, &rhs, *op);
+                (
+                    ExprKind::Binary {
+                        lhs,
+                        op: *op,
+                        op_span: *op_span,
+                        rhs,
+                    },
+                    ty,
+                )
+            }
             ast::ExprKind::Assign { .. } => (ExprKind::Todo("assign"), self.builtins.any),
             ast::ExprKind::TypeCheck { .. } => (ExprKind::Todo("type_check"), self.builtins.any),
             ast::ExprKind::Cast { .. } => (ExprKind::Todo("cast"), self.builtins.any),
@@ -822,6 +861,97 @@ impl<'a> HirLowering<'a> {
         (ExprKind::VarRef(resolved), self.builtins.any)
     }
 
+    fn is_integer_type(&self, ty: TypeId) -> bool {
+        if ty == self.builtins.int || ty == self.builtins.uint {
+            return true;
+        }
+
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Value(ValueTypeKind::IntN(_) | ValueTypeKind::UIntN(_))
+        )
+    }
+
+    /// 对齐 typecheck 阶段的最小规则：整数二元运算要求“相同的整数类型”，但允许一侧是整数字面量。
+    ///
+    /// 说明：HIR lowering 目前仅用于 dump/fixtures 与早期 codegen，因此这里的规则只覆盖：
+    /// - 算术/位运算：`T op T -> T`（一侧为 int literal 时可吸收为另一侧的整数类型）
+    /// - 移位：`T << Int -> T` / `T >> Int -> T`
+    /// - 比较：`T < T -> Bool` 等
+    /// - 相等：`T == T -> Bool` / `Bool == Bool -> Bool`
+    fn lower_binary_expr_type(&self, lhs: &Expr, rhs: &Expr, op: ast::BinaryOp) -> TypeId {
+        let unify_int_same_type = |lhs: &Expr, rhs: &Expr| -> Option<TypeId> {
+            if lhs.ty == rhs.ty && self.is_integer_type(lhs.ty) {
+                return Some(lhs.ty);
+            }
+
+            let lhs_is_int_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Int));
+            let rhs_is_int_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Int));
+
+            if lhs_is_int_lit && self.is_integer_type(rhs.ty) {
+                return Some(rhs.ty);
+            }
+            if rhs_is_int_lit && self.is_integer_type(lhs.ty) {
+                return Some(lhs.ty);
+            }
+
+            None
+        };
+
+        match op {
+            // arithmetic + bitwise: T op T -> T
+            ast::BinaryOp::Add
+            | ast::BinaryOp::Sub
+            | ast::BinaryOp::Mul
+            | ast::BinaryOp::Div
+            | ast::BinaryOp::Rem
+            | ast::BinaryOp::BitAnd
+            | ast::BinaryOp::BitXor
+            | ast::BinaryOp::BitOr => unify_int_same_type(lhs, rhs).unwrap_or(self.builtins.any),
+
+            // shifts: T << Int -> T
+            ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                if self.is_integer_type(lhs.ty) && rhs.ty == self.builtins.int {
+                    lhs.ty
+                } else {
+                    self.builtins.any
+                }
+            }
+
+            // comparisons: T < T -> Bool
+            ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+                if unify_int_same_type(lhs, rhs).is_some() {
+                    self.builtins.bool_
+                } else {
+                    self.builtins.any
+                }
+            }
+
+            // equality: (T == T) -> Bool; (Bool == Bool) -> Bool
+            ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+                if lhs.ty == self.builtins.bool_ && rhs.ty == self.builtins.bool_ {
+                    return self.builtins.bool_;
+                }
+                if unify_int_same_type(lhs, rhs).is_some() {
+                    return self.builtins.bool_;
+                }
+                self.builtins.any
+            }
+
+            // boolean logic: Bool op Bool -> Bool
+            ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+                if lhs.ty == self.builtins.bool_ && rhs.ty == self.builtins.bool_ {
+                    self.builtins.bool_
+                } else {
+                    self.builtins.any
+                }
+            }
+
+            // elvis not lowered in current HIR dump mode
+            ast::BinaryOp::Elvis => self.builtins.any,
+        }
+    }
+
     fn lower_type_ref(&mut self, t: &ast::TypeRef) -> TypeId {
         match t {
             ast::TypeRef::Path(p) => self.lower_type_path(p),
@@ -1035,6 +1165,11 @@ fn compute_closure_captures(
 fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>) {
     match &expr.kind {
         ExprKind::Missing | ExprKind::Literal(_) | ExprKind::VarRef(_) | ExprKind::Todo(_) => {}
+        ExprKind::Unary { expr, .. } => collect_declared_locals_in_expr(expr.as_ref(), declared),
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_declared_locals_in_expr(lhs.as_ref(), declared);
+            collect_declared_locals_in_expr(rhs.as_ref(), declared);
+        }
         ExprKind::Block(block) => collect_declared_locals_in_block(block, declared),
         ExprKind::Closure(_) => {
             // 嵌套 closure：由其自身计算 capture set。
@@ -1164,6 +1299,11 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
                 decl_span: *decl_span,
                 mutable: false,
             });
+        }
+        ExprKind::Unary { expr, .. } => collect_used_locals_in_expr(expr.as_ref(), used),
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_used_locals_in_expr(lhs.as_ref(), used);
+            collect_used_locals_in_expr(rhs.as_ref(), used);
         }
         ExprKind::Block(block) => {
             for stmt in &block.stmts {

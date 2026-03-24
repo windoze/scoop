@@ -516,6 +516,18 @@ impl<'a> FnLowering<'a> {
             }
             hir::ExprKind::Literal(lit) => self.lower_literal(expr.span, expr.ty, lit),
             hir::ExprKind::VarRef(v) => self.lower_var_ref(expr.span, expr.ty, v),
+            hir::ExprKind::Unary { .. } => {
+                // 当前阶段 MIR 仍以 CFG 形态回归为主；一元表达式求值留给后续 codegen 任务补齐。
+                let tmp = self.push_temp_local(expr.span, expr.ty);
+                self.assign(expr.span, tmp, Rvalue::Todo("unary"));
+                tmp
+            }
+            hir::ExprKind::Binary { .. } => {
+                // 当前阶段 MIR 仍以 CFG 形态回归为主；二元表达式求值留给后续 codegen 任务补齐。
+                let tmp = self.push_temp_local(expr.span, expr.ty);
+                self.assign(expr.span, tmp, Rvalue::Todo("binary"));
+                tmp
+            }
             hir::ExprKind::Block(block) => self.lower_block_as_expr(block),
             hir::ExprKind::Closure(closure) => self.lower_closure_expr(expr.span, expr.ty, closure),
             hir::ExprKind::If {
@@ -1081,6 +1093,11 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
         | hir::ExprKind::Literal(_)
         | hir::ExprKind::VarRef(_)
         | hir::ExprKind::Todo(_) => {}
+        hir::ExprKind::Unary { expr, .. } => collect_boxed_symbols_in_expr(expr.as_ref(), out),
+        hir::ExprKind::Binary { lhs, rhs, .. } => {
+            collect_boxed_symbols_in_expr(lhs.as_ref(), out);
+            collect_boxed_symbols_in_expr(rhs.as_ref(), out);
+        }
         hir::ExprKind::Block(block) => collect_boxed_symbols_in_block(block, out),
         hir::ExprKind::Closure(closure) => {
             for cap in &closure.captures {

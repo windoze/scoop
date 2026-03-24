@@ -2192,7 +2192,7 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0808 [TODO] codegen v1：整数/布尔字面量 + 运算（含位运算/移位）+ return（spec §2.3.4）
+### T0808 [DONE] codegen v1：整数/布尔字面量 + 运算（含位运算/移位）+ return（spec §2.3.4）
 - 描述：为最小表达式子集生成 LLVM IR：Int/Bool 字面量、算术/比较、位运算 `& | ^ ~`、移位 `<< >>`、return。
 - 目标：按 spec 固定整数语义：
   - wrap-around（LLVM 默认不加 `nsw/nuw` 即可）
@@ -2200,6 +2200,17 @@
   - shift count 必须 mask（例如 `shift % bitWidth`），避免 LLVM 对超范围 shift 的 UB
 - 验收：新增 run-pass fixture：位运算与移位得到稳定结果（含 `UInt8` 的 `>>`）；输出正确。
 - 依赖：T0802、T0708、T0106b2
+ - 完成：
+   - `crates/scoopc/src/hir/mod.rs`：HIR 表达式增加 `Unary/Binary` 节点，承载 `!/-/~` 与常见二元运算。
+   - `crates/scoopc/src/hir/lower.rs`：AST→HIR lowering 补齐一元/二元运算节点，并在 closure captures 的 declared/used 收集里递归处理新节点。
+   - `crates/scoopc/src/llvm/codegen.rs`：实现 main v1 的 LLVM codegen（整数/布尔字面量、算术/比较/位运算/移位、shift mask、`val` 局部绑定、`return`/隐式返回）。
+   - `crates/scoopc/src/llvm/mod.rs`：最小 module 仍生成 `i32 @main()`，但 body 改为调用 v1 codegen 并返回计算结果。
+   - `tests/fixtures/run-pass/int_bitops_shift.scoop`：新增 run-pass fixture：覆盖 `& | ^ ~`、`<< >>`、shift count mask、`UInt8` 逻辑右移，并用 `EXPECT-EXIT` 断言结果稳定。
+   - `tests/fixtures/codegen/monomorph_id_int.scoop`：补齐 `main`（返回 0），使其在启用 `llvm` 时可被 run-pass phase 真正执行（继续作为 smoke）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/llvm-config + clang）。
 
 ### T0809 [TODO] codegen v2：局部变量（alloca）与赋值
 - 描述：把 HIR/MIR locals 映射到 LLVM alloca/load/store，支持 `var` 赋值更新。

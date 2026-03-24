@@ -1,0 +1,26 @@
+// EXPECT: pass
+// EXPECT-EXIT: 39
+//
+// T0808: codegen v1（整数/布尔字面量 + 运算 + return）
+// - 覆盖位运算：`& | ^ ~`
+// - 覆盖移位：`<< >>`
+// - 覆盖 shift count mask：`<< 9` / `>> 9` 在 UInt8 下等价于 `<< 1` / `>> 1`
+// - 覆盖 unsigned `>>`：让最高位为 1 的 UInt8 右移后补 0（逻辑右移）
+
+import scoop.core.*
+
+fun main(): UInt8 {
+    val x: UInt8 = 129
+    val one: UInt8 = 1
+    val mask: UInt8 = 15
+
+    val a: UInt8 = x >> 1
+    val b: UInt8 = one << 9
+    val c: UInt8 = a ^ b
+    val d: UInt8 = ~mask
+    val e: UInt8 = c & d
+    val f: UInt8 = e | mask
+
+    return f >> 9
+}
+

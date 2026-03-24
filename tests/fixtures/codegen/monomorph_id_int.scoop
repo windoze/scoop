@@ -16,3 +16,9 @@ fun f() {
     val a = id(1)
     val b = id("s")
 }
+
+// 说明：run-pass phase 会通过 `scoop run` 真正执行该文件，因此需要提供入口 `main`。
+// 当前阶段（T0802/T0808）后端仍只 codegen `main` 的最小子集，因此这里让它返回 0 即可。
+fun main(): Int {
+    return 0
+}

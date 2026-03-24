@@ -46,6 +46,7 @@
 - 2026-03-24：完成 T0807：driver 实现 `scoop run`（临时目录 build + exec，stdout/stderr 与退出码透传）。
 - 2026-03-24：完成 T0112：run-pass fixtures runner 让 `EXPECT-EXIT`/`TIMEOUT` 真正生效，并新增超时/信号终止/退出码不匹配的稳定诊断与 fixtures 覆盖。
 - 2026-03-24：完成 T0108：fixtures 支持 `// ENV: KEY=VALUE` 指令，run-pass 执行子进程时注入 env，并新增单测覆盖。
+- 2026-03-24：完成 T0808：LLVM codegen v1 支持 Int/Bool 字面量、一元/二元运算（含位运算/移位与 shift count mask）、`val` 局部绑定、`return`/隐式返回，并新增 run-pass fixture 覆盖 `UInt8 >>` 的逻辑右移语义。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

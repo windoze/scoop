@@ -16,6 +16,7 @@ mod lower;
 
 use std::fmt;
 
+use crate::ast;
 use crate::span::Span;
 use crate::ty::TypeId;
 
@@ -175,6 +176,19 @@ pub enum ExprKind {
     Missing,
     Literal(LiteralKind),
     VarRef(ValueRef),
+    /// 前缀一元运算：`!expr` / `-expr` / `~expr`（spec §2.3.4）。
+    Unary {
+        op: ast::UnaryOp,
+        op_span: Span,
+        expr: Box<Expr>,
+    },
+    /// 二元运算表达式：`lhs op rhs`（spec §2.3.4）。
+    Binary {
+        lhs: Box<Expr>,
+        op: ast::BinaryOp,
+        op_span: Span,
+        rhs: Box<Expr>,
+    },
     Block(Block),
     /// closure（lambda）表达式：`{ params -> body }` / `{ body }`。
     ///

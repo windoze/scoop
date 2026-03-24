@@ -1,8 +1,8 @@
 //! `scoopc` 独立命令行入口（早期阶段）。
 //!
-//! 当前阶段（T0802～T0804）支持两个能力：
-//! - `--emit-llvm <input.scoop> [-o <out.ll>]`：生成最小 LLVM IR（空 `main` 返回 0）。
-//! - `--emit-obj <input.scoop> [-o <out.o>]`：把最小 module 编译为 object 文件（为链接做准备）。
+//! 当前阶段（T0802～T0808）支持两个能力：
+//! - `--emit-llvm <input.scoop> [-o <out.ll>]`：生成 LLVM IR（`main` v1 子集 codegen）。
+//! - `--emit-obj <input.scoop> [-o <out.o>]`：把 module 编译为 object 文件（为链接做准备）。
 
 use std::path::{Path, PathBuf};
 
@@ -15,7 +15,7 @@ const USAGE: &str = "\
 
 说明：
   - 该二进制需要启用 `scoopc` 的 `llvm` feature（并安装对应 LLVM/llvm-config）。
-  - 当前仅生成最小 module：i32 @main() { ret i32 0 }。
+  - 当前只 codegen 入口 `fun main` 的一小部分表达式子集；其它顶层声明会被忽略。
 ";
 
 fn main() -> Result<()> {
