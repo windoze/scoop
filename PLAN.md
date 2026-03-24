@@ -41,6 +41,7 @@
 - 2026-03-24：完成 T0801：为 `scoopc` 增加 feature-gated `inkwell` 依赖（`llvm` feature 默认关闭）以保持 CI/本地构建可用，并在 `README.md` 说明启用方式与 LLVM/`llvm-config` 前置。
 - 2026-03-24：完成 T0802：新增 `scoopc::llvm` 最小 codegen（生成空 `main` 返回 0），并提供 `scoopc --emit-llvm` 写出 `.ll` 用于验证 target triple/pipeline。
 - 2026-03-24：完成 T0804：新增 `scoopc --emit-obj` 把最小 LLVM module 编译为 `.o` 并落盘，补齐单测覆盖产物非空，为后续链接（T0806）做准备。
+- 2026-03-24：完成 T0805：driver `scoop build` 接入前端 parse/resolve/typecheck，并准备输出路径（当前不做 codegen/链接）。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -64,8 +65,8 @@
   - [x] `scoop test`（fixtures harness，当前为最小 smoke）
   - [x] `scoop dump-ast`（当前为占位信息输出）
   - [x] `scoop dump-hir`（HIR Debug 输出；用于后续 lowering/回归）
-  - [ ] `scoop dump-ir`（待 MIR/LLVM 落地）
-  - [ ] `scoop build <main.scoop> -o <bin>`（待 codegen + 链接落地）
+  - [x] `scoop dump-ir`（单态化实例 MIR Debug 输出；用于回归/调试）
+  - [ ] `scoop build <main.scoop> -o <bin>`（T0805：前端检查/输出路径已落地；待 codegen + 链接）
   - [ ] `scoop run <main.scoop>`（待 build 可用后落地）
 - [x] `build.rs`：编译 `runtime/c`（强制 clang；当前通过 `crates/scoop_runtime` 实现）
 - [x] CI：最小矩阵（ubuntu）跑 `cargo test --all` + `scoop test`

@@ -547,6 +547,7 @@ dependencies = [
  "clap",
  "miette",
  "scoopc",
+ "tempfile",
  "thiserror",
  "tracing",
  "tracing-subscriber",

@@ -2087,11 +2087,19 @@
      - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
      - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoopc --features llvm --bin scoopc -- --emit-obj tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main.o` 可生成 `.o` 且非空。
 
-### T0805 [TODO] driver：实现 `scoop build <main.scoop> -o <bin>` 的“前端 + 产物路径”流程
+### T0805 [DONE] driver：实现 `scoop build <main.scoop> -o <bin>` 的“前端 + 产物路径”流程
 - 描述：让 `scoop build` 至少能：读取文件 → parse/resolve/typecheck →（暂时）不 codegen 也能成功退出并准备输出路径。
 - 目标：先把 CLI 与诊断体验打磨出来；codegen 后续任务接入。
 - 验收：新增 fixtures（或集成测试）：`scoop build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/a` 返回 0。
 - 依赖：T0404、T0002
+ - 完成：
+   - `crates/scoop/src/commands/build.rs`：新增 `scoop build`（前端 parse/resolve/typecheck）与输出路径父目录准备（仅创建目录，不写二进制）。
+   - `crates/scoop/src/commands/mod.rs`：接入 `Command::Build` 分发。
+   - `crates/scoop/src/cli.rs`：更新 `build` 命令帮助文本（明确当前阶段只做前端检查）。
+   - `crates/scoop/Cargo.toml`：增加 dev-dependency `tempfile`，用于 build 子命令单测。
+   - 验收：
+     - `cargo test -p scoop` 通过（含 `commands::build` smoke test）；
+     - `cargo run -p scoop -- build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/a` 返回 0。
 
 ### T0806 [TODO] 链接：把 `.o` 与 `scoop_runtime` 静态库链接为可执行文件
 - 描述：实现最小链接器调用（可用 clang 或 `cc` crate）把 runtime 拉进来。
