@@ -66,6 +66,7 @@
 - 2026-03-24：完成 T0814：LLVM codegen 将 enum/bool 的 `when` 降到 LLVM `switch`（保持“按源码顺序”的首个匹配 arm 语义），并支持 tuple `when` 的字段比较与 binder；新增 run-pass fixture 覆盖 enum/bool/tuple 三类 `when` 并用 exit code 断言结果。
 - 2026-03-25：完成 T0815：生成的 `i32 @main()` 在执行 Scoop `fun main` 前调用 `scoop_runtime_init()`，并更新 LLVM 单测断言 IR 含该调用。
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。
+- 2026-03-25：完成 T0904：引入 mark-sweep GC 的数据结构骨架（heap/object header/free list）与最小自检，并让 clang 链接覆盖 `runtime/c/*.c`。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -548,8 +549,9 @@
 - [x] 分配器：`scoop_alloc(size)` v0（`malloc`）+ codegen 侧装箱调用（T0902/T0817）
 - [ ] 分配器：`scoop_alloc(size, type_desc)`（带类型描述，供 GC 扫描对象字段）
 - [ ] GC（先易后难）：
-  - v0：非移动 mark-sweep（实现简单，pin/unpin 可先是 no-op 或计数）
-  - v1：可选移动/压缩（实现 pin/unpin 语义）
+  - [x] v0：mark-sweep 数据结构骨架（T0904）
+  - [ ] v0：非移动 mark-sweep（实现简单，pin/unpin 可先是 no-op 或计数）
+  - [ ] v1：可选移动/压缩（实现 pin/unpin 语义）
 - [ ] 类型描述（type descriptor）：
   - pointer bitmap 或 trace 回调
   - 用于扫描对象内的引用字段（struct/enum/closure env）

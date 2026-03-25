@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "scoop_gc.h"
+
 // TLS（thread-local storage）抽象层。
 //
 // 说明：
@@ -79,6 +81,13 @@ static const ScoopString SCOOP_EMPTY_STRING = {0, 0};
 // - 未来会扩展为：线程注册、TLS、effect slots、GC heap 等（TODO T0903/T0904/...）。
 static uint32_t scoop_rt_initialized = 0;
 static uint32_t scoop_rt_init_calls = 0;
+
+// GC heap（v0：数据结构骨架）。
+//
+// 说明：
+// - 当前阶段仅初始化结构体，不接入 `scoop_alloc`；
+// - 后续任务会把 `scoop_alloc` 改为在 heap 中登记对象，并实现 mark-sweep（TODO T0910）。
+static ScoopGcHeap scoop_gc_heap;
 
 uint32_t scoop_runtime_is_initialized(void) {
   return scoop_rt_initialized;
@@ -368,6 +377,8 @@ void scoop_runtime_init(void) {
 
   scoop_rt_initialized = 1;
   scoop_rt_init_calls = 1;
+
+  scoop_gc_heap_init(&scoop_gc_heap);
 
   SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
                sizeof(ScoopString),

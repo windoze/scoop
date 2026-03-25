@@ -2527,11 +2527,20 @@
  - 验收：
    - `cargo test --all` 通过。
 
-### T0904 [TODO] GC v0：mark-sweep 的数据结构骨架（不要求可用）
+### T0904 [DONE] GC v0：mark-sweep 的数据结构骨架（不要求可用）
 - 描述：定义 heap、object header、free list 等结构体与接口。
 - 目标：先立结构与接口，具体算法/性能后续。
 - 验收：C 编译通过（clang warnings as errors 若开启）；新增最小单测/运行时自检（可选）。
 - 依赖：T0902
+ - 完成：
+   - `runtime/c/scoop_gc.{h,c}`：新增 mark-sweep GC 数据结构骨架（heap/object header/free list）与 `scoop_gc_heap_init/scoop_gc_self_check`。
+   - `runtime/c/scoop_runtime.c`：引入 GC heap 单例并在 `scoop_runtime_init` 中初始化（不改变 `scoop_alloc` 语义）。
+   - `crates/scoop_runtime/build.rs`：编译并链接 `scoop_gc.c`，同时增加 `rerun-if-changed`。
+   - `crates/scoop/src/toolchain.rs`：clang 链接改为包含 `runtime/c/*.c`，避免新增模块后出现未定义符号。
+   - `crates/scoop_runtime/tests/gc_self_check.rs`：新增 smoke test 覆盖 GC 自检符号可用性。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0905 [TODO] Shadow stack：定义 `GcFrame` 结构与 TLS 链（PLAN §8.3）
 - 描述：在 runtime 中定义 `GcFrame { prev, roots[] }` 与 `current_frame` TLS。

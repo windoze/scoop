@@ -42,16 +42,17 @@ pub enum LinkError {
 /// 通过 clang 将单个 object 文件与 Scoop runtime 链接为可执行文件。
 ///
 /// 当前阶段实现策略：
-/// - 直接把 `runtime/c/scoop_runtime.c` 作为输入交给 clang，让其编译并参与链接；
+/// - 直接把 `runtime/c/*.c` 作为输入交给 clang，让其编译并参与链接；
 /// - 避免依赖 Cargo build 输出路径（后续若要复用 `scoop_runtime` crate 产物再重构）。
 pub fn link_obj_with_runtime(obj: &Path, output: &Path) -> Result<(), LinkError> {
-    let runtime_c = runtime_c_path();
-    if !runtime_c.is_file() {
-        return Err(LinkError::RuntimeSourceMissing { path: runtime_c });
-    }
+    let runtime_sources = runtime_c_sources()?;
 
     let mut cmd = Command::new("clang");
-    cmd.arg(obj).arg(&runtime_c).arg("-o").arg(output);
+    cmd.arg(obj);
+    for src in &runtime_sources {
+        cmd.arg(src);
+    }
+    cmd.arg("-o").arg(output);
 
     let output_res = cmd.output();
     let output_res = match output_res {
@@ -72,8 +73,46 @@ pub fn link_obj_with_runtime(obj: &Path, output: &Path) -> Result<(), LinkError>
     Ok(())
 }
 
-fn runtime_c_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c/scoop_runtime.c")
+fn runtime_c_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c")
+}
+
+fn runtime_c_sources() -> Result<Vec<PathBuf>, LinkError> {
+    let dir = runtime_c_dir();
+    let runtime_main = dir.join("scoop_runtime.c");
+    if !runtime_main.is_file() {
+        return Err(LinkError::RuntimeSourceMissing {
+            path: runtime_main,
+        });
+    }
+
+    let mut extra = Vec::<PathBuf>::new();
+    let entries = std::fs::read_dir(&dir).map_err(|_| LinkError::RuntimeSourceMissing {
+        path: dir.clone(),
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|_| LinkError::RuntimeSourceMissing { path: dir.clone() })?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        if path == runtime_main {
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) != Some("c") {
+            continue;
+        }
+        extra.push(path);
+    }
+
+    // 稳定顺序，避免 debug command 字符串抖动。
+    extra.sort_by(|a, b| a.as_os_str().cmp(b.as_os_str()));
+
+    let mut all = Vec::with_capacity(1 + extra.len());
+    all.push(runtime_main);
+    all.extend(extra);
+    Ok(all)
 }
 
 fn format_command_for_debug(cmd: &Command) -> String {
