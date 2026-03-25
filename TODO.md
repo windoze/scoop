@@ -2618,11 +2618,21 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0615 [TODO] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
+### T0615 [DONE] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
 - 描述：确保 `finally` 在正常路径与 raise/unwind 路径都执行一次。
 - 目标：先只支持 try/catch/finally；不支持 nested handler stack。
 - 验收：新增 run-pass fixture：finally 中打印日志；无论 raise 与否都出现一次且顺序正确。
 - 依赖：T0614、T0707
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：LLVM codegen 支持 `handle ... finally { ... }`：
+     - body 正常结束与 catch 返回都会执行 finally；
+     - catch 内再次发生 raise 时，会先执行 finally 再向外传播（不在本 handler 内清 flag/slot）。
+   - `tests/fixtures/run-pass/try_catch_finally_raise_int_basic.scoop`：新增 run-pass fixture 覆盖 try/catch/finally 在 raise 与非 raise 两条路径的执行顺序。
+   - `tests/fixtures/run-pass/try_catch_finally_raise_int_basic.stdout`：新增 stdout golden。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0616 [TODO] lowering step 2：`-> resume`（栈 state machine）（PLAN §6.3.2）
 - 描述：把 handle body 分段、提升跨段 locals，并用 while-loop state machine 实现立即恢复。

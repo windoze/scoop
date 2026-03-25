@@ -1,0 +1,10 @@
+case_ok
+try_ok
+finally_ok
+after_ok
+case_raise
+boom_before
+catch_raise
+7
+finally_raise
+after_raise

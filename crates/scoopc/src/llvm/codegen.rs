@@ -1063,13 +1063,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         handle: &hir::HandleExpr,
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if handle.finally.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle finally (not supported yet)",
-                at: span.into(),
-            });
-        }
-
         let out_ty = expected.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "handle needs expected type context",
             at: span.into(),
@@ -1110,9 +1103,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
+        let outer_raise_target = self.current_raise_target();
+
         let body_bb = self.context.append_basic_block(func, "handle_body");
         let catch_bb = self.context.append_basic_block(func, "handle_catch");
+
+        // `finally` 语义：保证在“正常路径 / catch 返回 / catch 继续 raise 向外传播”三种情况下都执行一次。
+        // - 正常路径与 catch 返回：汇合到 finally_bb 再进入 merge；
+        // - catch 内发生 raise：先进入 finally_unwind_bb 执行 finally，然后向外传播 raise（不清 flag/slot）。
+        let finally_bb = self.context.append_basic_block(func, "handle_finally");
+        let finally_unwind_bb = self.context.append_basic_block(func, "handle_finally_unwind");
         let merge_bb = self.context.append_basic_block(func, "handle_merge");
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_result", out_ty)?)
+        };
 
         // 进入 handle：先执行 body；若发生 Raise，则通过 flag/slot unwind 到 catch_bb。
         self.builder.build_unconditional_branch(body_bb)?;
@@ -1128,13 +1135,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         self.pop_raise_target();
 
-        // body 正常结束：汇合到 merge。
-        let mut incoming: Vec<(inkwell::basic_block::BasicBlock<'ctx>, CgValue<'ctx>)> =
-            Vec::new();
+        // body 正常结束：进入 finally（并保存结果值）。
         if let Some(bb) = self.builder.get_insert_block() {
             if bb.get_terminator().is_none() {
-                self.builder.build_unconditional_branch(merge_bb)?;
-                incoming.push((bb, body_v));
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
+                }
+                self.builder.build_unconditional_branch(finally_bb)?;
             }
         }
 
@@ -1201,7 +1208,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         );
 
+        // catch body 若再次发生 Raise：先执行 finally，再向外传播（不在本 handler 内消费 slot）。
+        self.push_raise_target(finally_unwind_bb);
         let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+        self.pop_raise_target();
         let arm_v = if out_ty == CgTy::Unit {
             CgValue::unit()
         } else {
@@ -1217,11 +1227,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
         let catch_reaches_merge = catch_end.get_terminator().is_none();
         if catch_reaches_merge {
-            self.builder.build_unconditional_branch(merge_bb)?;
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+            }
+            self.builder.build_unconditional_branch(finally_bb)?;
         }
         self.env.pop_scope();
-        if catch_reaches_merge {
-            incoming.push((catch_end, arm_v));
+
+        // --- finally_unwind ---
+        self.builder.position_at_end(finally_unwind_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                if let Some(target) = outer_raise_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    let ret_ty =
+                        self.current_fun_return_ty
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle finally unwind needs function return type",
+                                at: span.into(),
+                            })?;
+                    let v = self.default_value(ret_ty);
+                    self.emit_return(span, ret_ty, v)?;
+                }
+            }
+        }
+
+        // --- finally ---
+        self.builder.position_at_end(finally_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(merge_bb)?;
+            }
         }
 
         // --- merge ---
@@ -1230,18 +1273,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
-                let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
-                let phi = self.builder.build_phi(phi_ty, "handle_phi")?;
-                for (bb, v) in incoming {
-                    let raw = v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "handle arm/body value",
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
                         at: span.into(),
-                    })?;
-                    phi.add_incoming(&[(&raw, bb)]);
-                }
+                    });
+                };
+
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, ptr, "handle_result")?;
                 Ok(CgValue {
                     ty: out_ty,
-                    value: Some(phi.as_basic_value()),
+                    value: Some(loaded),
                 })
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
