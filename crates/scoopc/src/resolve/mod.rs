@@ -609,7 +609,9 @@ impl Index {
         let segments = path
             .segments
             .iter()
-            .map(|id| source.slice(id.span))
+            // 支持 parser 生成的合成 Ident（例如 try/catch lowering 中的 `scoop.core.Raise`）：
+            // 后续 resolve/typecheck 应优先使用 Ident 内部携带的字面文本，而不是 span 回切。
+            .map(|id| id.text(source))
             .collect::<Vec<_>>();
         let local = segments.join(".");
 
@@ -631,7 +633,7 @@ impl Index {
                 let import_path = import
                     .path
                     .iter()
-                    .map(|id| source.slice(id.span))
+                    .map(|id| id.text(source))
                     .collect::<Vec<_>>()
                     .join(".");
 
@@ -641,8 +643,8 @@ impl Index {
                     let local = import
                         .alias
                         .as_ref()
-                        .map(|id| source.slice(id.span))
-                        .or_else(|| import.path.last().map(|id| source.slice(id.span)))
+                        .map(|id| id.text(source))
+                        .or_else(|| import.path.last().map(|id| id.text(source)))
                         .unwrap_or("");
                     if local == name {
                         candidates.push(import_path);

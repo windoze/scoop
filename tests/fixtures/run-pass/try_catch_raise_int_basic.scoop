@@ -1,0 +1,34 @@
+// EXPECT: pass
+// RUN-STDOUT: try_catch_raise_int_basic.stdout
+//
+// T0614: lowering step 1（最小）：`Raise.raise` 的 flag-based unwinding + try/catch 捕获。
+//
+// 目标覆盖：
+// - `Raise.raise(e)` 写入 perform slot 并置位 flag；
+// - raising 函数应当“早退”，后续语句不应执行；
+// - 调用点在函数返回后检查 flag，并跳转到最近的 try/catch（handler boundary）；
+// - catch 能读出 slot 中的 `e` 并继续执行后续语句。
+
+import scoop.core.*
+
+fun boom(): Int / Raise<Int> {
+    println("before")
+    Raise.raise(3)
+    println("after")
+    return 0
+}
+
+fun main(): Int {
+    val x: Int = try {
+        val y: Int = boom()
+        println("unreachable")
+        y
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        0
+    }
+
+    println("after_try")
+    return x
+}

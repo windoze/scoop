@@ -2601,11 +2601,22 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（包含该 fixture）。
 
-### T0614 [TODO] lowering step 1（部分）：`Raise.raise` 的 flag-based unwinding（只支持最小示例）
+### T0614 [DONE] lowering step 1（部分）：`Raise.raise` 的 flag-based unwinding（只支持最小示例）
 - 描述：实现 `Raise.raise(e)`：写 perform slot + set flag + 早退；调用边界检查 flag 并向外传播；try/catch 在边界消费 slot。
 - 目标：先只支持 `Raise` + `try/catch`（无 finally、无用户自定义 effect）；先不支持跨函数捕获复杂状态。
 - 验收：新增 run-pass fixture：`try { Raise.raise(...) } catch { ... }` 能运行并输出预期；新增 compile-fail：未处理 Raise 报 required effects。
 - 依赖：T0613、T0106b2、T0807
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：支持 HIR `Perform/Handle` 的最小 lowering：
+     - `Raise.raise(e)` 写入 runtime perform slot（`op_tag + value`）并置位 flag；
+     - 在 handler boundary 内跳到 catch；否则返回默认值向外传播；
+     - 普通顶层函数调用返回后检查 flag，并按“最近 handler / 向外传播”规则 unwind。
+   - `crates/scoopc/src/resolve/mod.rs`：修复 `type_path_to_fqn_in_file` 对合成 Ident 的处理（`Ident.text(...)`），使 try/catch lowering 的 `Raise` 目标能解析为 `scoop.core.Raise.raise`。
+   - `tests/fixtures/run-pass/try_catch_raise_int_basic.scoop`：新增 run-pass 用例（stdout golden）回归 try/catch 捕获与跨函数传播。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0615 [TODO] lowering step 1（补齐）：`finally` 的清理语义（spec §5.7）
 - 描述：确保 `finally` 在正常路径与 raise/unwind 路径都执行一次。

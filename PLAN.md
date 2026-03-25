@@ -70,6 +70,7 @@
 - 2026-03-25：完成 T0905：shadow stack `ScoopGcFrame` + TLS 链头（`current_frame`）与 push/pop API，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0816：LLVM codegen 为含 GC 引用的函数插桩 shadow stack frame（push/pop + roots 写入），runtime 新增 debug 扫描计数接口，并新增 run-pass fixture 覆盖。
 - 2026-03-25：完成 T0613：补齐 effect runtime 的最小 ABI（active flag + perform slot 的读写 API），并在 LLVM codegen 侧提供 sysroot `__scoop_effect_*` 映射；新增 `scoop_runtime`/`scoopc` 单测与 run-pass fixture 回归覆盖。
+- 2026-03-25：完成 T0614：实现 `Raise.raise` 的最小 flag-based unwinding（写 slot+flag、call-site 传播、try/catch 边界消费 slot 并清 flag），并新增 run-pass fixture；同时修复 resolver 对 try/catch lowering 合成 Ident 的 FQN 推导（确保可解析到 `scoop.core.Raise.raise`）。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -441,9 +442,9 @@
 
 1) **非恢复 `->`（flag-based unwinding）**
    - [x] TLS：`__scoop_effect_active` + perform slot（T0906）
-   - [ ] `perform` 写 slot + set flag + return
-   - [ ] 调用链传播：检查 flag，沿栈向外返回
-   - [ ] handler 边界消费 slot 并清 flag，然后执行 arm；`finally` 正确执行；必要时 re-raise
+   - [x] `perform` 写 slot + set flag + return（T0614：先只覆盖 `Raise.raise`）
+   - [x] 调用链传播：检查 flag，沿栈向外返回（T0614：先只覆盖顶层函数调用）
+   - [ ] handler 边界消费 slot 并清 flag，然后执行 arm（T0614）；`finally` 正确执行；必要时 re-raise（T0615）
 
 2) **立即恢复 `-> resume`（栈 state machine）**
    - [ ] 把 handle body 分段（perform/call 边界）

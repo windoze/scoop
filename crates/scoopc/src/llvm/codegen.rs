@@ -217,6 +217,20 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
     enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
     gc_frame: Option<GcFrameState<'ctx>>,
+    /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的“早退返回默认值”）。
+    ///
+    /// 说明：
+    /// - 当 `Raise.raise` 发生且当前不存在 handler boundary 时，需要沿调用链向外传播：
+    ///   通过返回默认值结束当前函数，并保持 effect flag/slot 不被消费；
+    /// - 若在 handler boundary 内，则会跳转到 catch 分支而不是 return。
+    current_fun_return_ty: Option<CgTy>,
+    /// Raise/try-catch 的“当前捕获边界”栈（用于最小 flag-based unwinding，TODO T0614）。
+    ///
+    /// 语义（当前阶段）：
+    /// - `Raise.raise(e)`：写 slot + set flag，然后跳到栈顶 catch block；
+    /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
+    /// - 若栈为空，则返回默认值继续向外传播。
+    raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -248,7 +262,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
             gc_frame: None,
+            current_fun_return_ty: None,
+            raise_target_stack: Vec::new(),
         }
+    }
+
+    fn current_raise_target(&self) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
+        self.raise_target_stack.last().copied()
+    }
+
+    fn push_raise_target(&mut self, target: inkwell::basic_block::BasicBlock<'ctx>) {
+        self.raise_target_stack.push(target);
+    }
+
+    fn pop_raise_target(&mut self) {
+        let _ = self.raise_target_stack.pop();
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -311,6 +339,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "function return type",
                     at: fun.span.into(),
                 })?;
+        self.current_fun_return_ty = Some(declared_return_cg);
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(fun.span, declared_return_cg, ret_v)?;
 
@@ -434,6 +463,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mut self,
         fun: &hir::FunDecl,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能“早退”。
+        self.current_fun_return_ty = Some(CgTy::Int(IntTy {
+            bits: 32,
+            signed: true,
+        }));
         self.env.push_scope();
 
         let exit = match fun.body.as_ref() {
@@ -590,6 +624,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Handle(handle) => {
                 self.collect_gc_root_ids_in_block(&handle.body, out, seen);
                 for arm in &handle.arms {
+                    // handler arm binder 也可能是引用类型（例如 `catch (e: Any)`）：
+                    // - lowering 后会变成一个局部 slot；
+                    // - 若它是 ref，则必须为其分配 GC root slot，避免 error 值被错误回收。
+                    for binder in &arm.op.binders {
+                        if matches!(self.cg_ty_of(binder.ty), Some(CgTy::Ref)) && seen.insert(binder.id) {
+                            out.push(binder.id);
+                        }
+                    }
                     self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
                 }
                 if let Some(finally) = handle.finally.as_ref() {
@@ -727,6 +769,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Call { callee, args } => {
                 self.codegen_call(expr.span, callee, args, expected)
             }
+            hir::ExprKind::Perform { op, args } => {
+                self.codegen_perform_expr(expr.span, op, args, expected)
+            }
+            hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, expected),
             _ => self.codegen_expr(expr),
         }
     }
@@ -816,11 +862,391 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // 后续任务接入 MIR/CFG codegen
             hir::ExprKind::Closure(_)
-            | hir::ExprKind::If { .. }
-            | hir::ExprKind::Perform { .. }
-            | hir::ExprKind::Handle(_) => Err(LlvmEmitError::UnsupportedMainBody {
+            | hir::ExprKind::If { .. } => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "expression kind",
                 at: expr.span.into(),
+            }),
+            hir::ExprKind::Perform { op, args } => self.codegen_perform_expr(expr.span, op, args, None),
+            hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, None),
+        }
+    }
+
+    /// 读取运行时 TLS effect flag，并返回 `i1`（是否 active）。
+    ///
+    /// 说明：这里直接调用 runtime C ABI（`scoop_effect_is_active`），避免把该读取当作“普通函数调用”
+    /// 从而触发递归插桩（call site 检查 flag → 再调用 is_active → 再检查...）。
+    fn emit_effect_is_active_i1(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let rt = self.declare_runtime_effect_is_active();
+        let call = self.builder.build_call(rt, &[], "effect_is_active")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect is_active return value",
+                at: at.into(),
+            })?;
+        let BasicValueEnum::IntValue(active_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect is_active return type",
+                at: at.into(),
+            });
+        };
+        Ok(self.builder.build_int_compare(
+            IntPredicate::NE,
+            active_i32,
+            self.context.i32_type().const_zero(),
+            "effect_active",
+        )?)
+    }
+
+    /// 在“最近 handler boundary”存在时跳转到 catch；否则返回默认值向外传播。
+    ///
+    /// 用途：
+    /// - 普通函数调用返回后：callee 可能执行 `Raise.raise`，因此返回后需要检查 flag 并决定是否 unwind。
+    fn emit_effect_unwind_if_active(&mut self, at: crate::span::Span) -> Result<(), LlvmEmitError> {
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        let cont_bb = self.context.append_basic_block(func, "effect_unwind_cont");
+        let is_active = self.emit_effect_is_active_i1(at)?;
+
+        if let Some(target) = self.current_raise_target() {
+            self.builder
+                .build_conditional_branch(is_active, target, cont_bb)?;
+        } else {
+            let ret_bb = self.context.append_basic_block(func, "effect_unwind_return");
+            self.builder
+                .build_conditional_branch(is_active, ret_bb, cont_bb)?;
+
+            self.builder.position_at_end(ret_bb);
+            let ret_ty =
+                self.current_fun_return_ty
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect unwind needs function return type",
+                        at: at.into(),
+                    })?;
+            let v = self.default_value(ret_ty);
+            self.emit_return(at, ret_ty, v)?;
+        }
+
+        self.builder.position_at_end(cont_bb);
+        Ok(())
+    }
+
+    /// codegen 一个 `Raise.raise(e)`（HIR `Perform` 的最小子集）。
+    ///
+    /// 当前阶段（T0614）约束：
+    /// - 只支持 `scoop.core.Raise.raise`；
+    /// - `e` 只支持可降为 word-sized `Int` 的值（用于写入 perform slot）；
+    /// - 不支持 finally / 自定义 effect / `-> resume`。
+    fn codegen_perform_expr(
+        &mut self,
+        span: crate::span::Span,
+        op: &hir::EffectOpRef,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if op.fqn != "scoop.core.Raise.raise" {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect op (only Raise.raise supported)",
+                at: op.span.into(),
+            });
+        }
+
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Raise.raise arity mismatch",
+                at: span.into(),
+            });
+        }
+        let hir::CallArg::Positional(err_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Raise.raise named arg",
+                at: span.into(),
+            });
+        };
+
+        // 1) 计算 `error` 值（当前阶段约定：以 word-sized Int 写入 slot）。
+        let word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let err_v = self.codegen_expr_in_expected_context(err_expr, Some(CgTy::Int(word)))?;
+        let err_v = self.coerce_value(err_expr.span, err_v, CgTy::Int(word))?;
+        let (err_raw, err_from) = err_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "Raise.raise arg value",
+            at: err_expr.span.into(),
+        })?;
+        let err_to = IntTy {
+            bits: 64,
+            signed: false,
+        };
+        let err_u64 = self.cast_int(err_raw, err_from, err_to)?;
+
+        // 2) 写 slot + set flag。
+        // 说明：当前阶段只需要“可观测的最小表示”；op_tag 未来会与更通用的 payload ABI 对齐（T0630）。
+        const OP_TAG_RAISE: u64 = 1;
+        let tag_i32 = self
+            .context
+            .i32_type()
+            .const_int(OP_TAG_RAISE, false);
+        let rt_write = self.declare_runtime_effect_perform_slot_write_u64();
+        let _ = self
+            .builder
+            .build_call(rt_write, &[tag_i32.into(), err_u64.into()], "raise_write_slot")?;
+
+        let rt_set = self.declare_runtime_effect_set_active();
+        let _ = self.builder.build_call(rt_set, &[], "raise_set_active")?;
+
+        // 3) “早退”：在 handler boundary 内跳到 catch，否则返回默认值向外传播。
+        if let Some(target) = self.current_raise_target() {
+            self.builder.build_unconditional_branch(target)?;
+        } else {
+            let ret_ty =
+                self.current_fun_return_ty
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Raise.raise needs function return type",
+                        at: span.into(),
+                    })?;
+            let v = self.default_value(ret_ty);
+            self.emit_return(span, ret_ty, v)?;
+        }
+
+        // 4) 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let dead = self.context.append_basic_block(func, "after_raise_dead");
+        self.builder.position_at_end(dead);
+
+        // Raise 的返回类型在类型系统里是 `Nothing`，可用于任意期望类型；
+        // 这里返回一个“期望类型的默认值”以保持后续 codegen 可继续推进。
+        Ok(match expected {
+            Some(ty) => self.default_value(ty),
+            None => CgValue::unit(),
+        })
+    }
+
+    /// codegen 一个 `handle { ... } with { Raise.raise(e) -> ... }`（`try/catch` 的 lowering 产物）。
+    ///
+    /// 当前阶段（T0614）约束：
+    /// - 只支持捕获 `scoop.core.Raise.raise`；
+    /// - 只支持单个 arm（最小示例）；finally 语义由 T0615 补齐；
+    /// - arm body 在“handler scope”之外生成，避免 self-capture（PLAN §6.2）。
+    fn codegen_handle_expr(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if handle.finally.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle finally (not supported yet)",
+                at: span.into(),
+            });
+        }
+
+        let out_ty = expected.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "handle needs expected type context",
+            at: span.into(),
+        })?;
+
+        if handle.arms.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle arm count (only 1 supported)",
+                at: span.into(),
+            });
+        }
+        let arm = &handle.arms[0];
+        if arm.op.op.fqn != "scoop.core.Raise.raise" {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle op (only Raise.raise supported)",
+                at: arm.op.op.span.into(),
+            });
+        }
+        if arm.op.binders.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle binder count (only 1 supported)",
+                at: arm.op.span.into(),
+            });
+        }
+        let binder = &arm.op.binders[0];
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let body_bb = self.context.append_basic_block(func, "handle_body");
+        let catch_bb = self.context.append_basic_block(func, "handle_catch");
+        let merge_bb = self.context.append_basic_block(func, "handle_merge");
+
+        // 进入 handle：先执行 body；若发生 Raise，则通过 flag/slot unwind 到 catch_bb。
+        self.builder.build_unconditional_branch(body_bb)?;
+
+        // --- body ---
+        self.builder.position_at_end(body_bb);
+        self.push_raise_target(catch_bb);
+        let body_v = self.codegen_block_value(&handle.body)?;
+        let body_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(handle.body.span, body_v, out_ty)?
+        };
+        self.pop_raise_target();
+
+        // body 正常结束：汇合到 merge。
+        let mut incoming: Vec<(inkwell::basic_block::BasicBlock<'ctx>, CgValue<'ctx>)> =
+            Vec::new();
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(merge_bb)?;
+                incoming.push((bb, body_v));
+            }
+        }
+
+        // --- catch ---
+        self.builder.position_at_end(catch_bb);
+
+        // 读取 slot（value）并清除 flag/slot。
+        let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+        let call = self.builder.build_call(rt_read, &[], "raise_read_slot")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_value return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(value_u64) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_value return type",
+                at: span.into(),
+            });
+        };
+
+        let rt_clear = self.declare_runtime_effect_clear();
+        let _ = self.builder.build_call(rt_clear, &[], "raise_clear")?;
+
+        let word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let value_word = self.cast_int(
+            value_u64,
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+            word,
+        )?;
+        let binder_value = CgValue::int(value_word, word);
+
+        // binder scope：arm body 在 handler scope 之外执行（因此不 push raise_target）。
+        self.env.push_scope();
+
+        let binder_cg_ty =
+            self.cg_ty_of(binder.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle binder type",
+                    at: binder.span.into(),
+                })?;
+        let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
+        let stored =
+            self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
+        let gc_root_slot = self.gc_root_slot_for(binder.id);
+        if let Some(slot_ptr) = gc_root_slot {
+            self.store_gc_root_slot_value(binder.span, slot_ptr, stored)?;
+        }
+        self.env.insert(
+            binder.id,
+            CgLocal {
+                ty: binder_cg_ty,
+                ptr: binder_ptr,
+                mutable: false,
+                gc_root_slot,
+            },
+        );
+
+        let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+        let arm_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(arm.body.span, arm_v, out_ty)?
+        };
+
+        let catch_end =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let catch_reaches_merge = catch_end.get_terminator().is_none();
+        if catch_reaches_merge {
+            self.builder.build_unconditional_branch(merge_bb)?;
+        }
+        self.env.pop_scope();
+        if catch_reaches_merge {
+            incoming.push((catch_end, arm_v));
+        }
+
+        // --- merge ---
+        self.builder.position_at_end(merge_bb);
+
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let phi = self.builder.build_phi(phi_ty, "handle_phi")?;
+                for (bb, v) in incoming {
+                    let raw = v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle arm/body value",
+                        at: span.into(),
+                    })?;
+                    phi.add_incoming(&[(&raw, bb)]);
+                }
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(phi.as_basic_value()),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle result type",
+                at: span.into(),
             }),
         }
     }
@@ -1346,6 +1772,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
         let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
+        // T0614：flag-based unwinding（最小 Raise）：
+        // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
+        // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
+        self.emit_effect_unwind_if_active(span)?;
 
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
