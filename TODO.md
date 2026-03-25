@@ -2542,11 +2542,18 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0905 [TODO] Shadow stack：定义 `GcFrame` 结构与 TLS 链（PLAN §8.3）
+### T0905 [DONE] Shadow stack：定义 `GcFrame` 结构与 TLS 链（PLAN §8.3）
 - 描述：在 runtime 中定义 `GcFrame { prev, roots[] }` 与 `current_frame` TLS。
 - 目标：先不做扫描；只把数据结构与 push/pop API 做出来。
 - 验收：新增测试：push/pop 两层 frame 后 `current_frame` 指针正确回退。
 - 依赖：T0903
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `ScoopGcFrame`（prev + roots[]）与 shadow stack API 声明。
+   - `runtime/c/scoop_runtime.c`：在线程 TLS 中维护 `gc_current_frame`，实现 `scoop_gc_frame_push/pop` 与 `scoop_gc_current_frame`。
+   - `crates/scoop_runtime/tests/shadow_stack.rs`：新增集成测试覆盖两层 frame 的 push/pop 回退语义。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0816 [TODO] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
 - 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。

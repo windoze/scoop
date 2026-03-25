@@ -16,6 +16,25 @@
 // 前置声明：type descriptor 在 TODO T0907 引入；此处只占位。
 typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
 
+// Shadow stack（精确根集）帧。
+//
+// TODO T0905：
+// - 该结构体将由编译器在函数 prologue/epilogue 插桩 push/pop（PLAN §8.3）。
+// - 当前阶段仅要求能维护链表（prev 指针），不要求实现 root 扫描。
+typedef struct ScoopGcFrame {
+  // 上一个 frame（按调用栈嵌套形成链表）。
+  struct ScoopGcFrame *prev;
+
+  // `roots[]` 的元素个数。early stage：push/pop 不依赖该字段，但为后续扫描预留。
+  uint32_t root_count;
+
+  // 保留字段：用于对齐/版本/flags 等。
+  uint32_t _reserved_u32;
+
+  // roots slots：每个 slot 存放一个 GC-managed 指针（或 NULL）。
+  void *roots[];
+} ScoopGcFrame;
+
 // GC 对象头（v0：骨架）。
 //
 // 说明：
@@ -66,5 +85,14 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);
+
+// 返回当前线程的 shadow stack 链头。
+ScoopGcFrame *scoop_gc_current_frame(void);
+
+// 将 frame push 到当前线程的 shadow stack 链头。
+void scoop_gc_frame_push(ScoopGcFrame *frame);
+
+// 将 frame 从 shadow stack 链头 pop（要求 top == frame）。
+void scoop_gc_frame_pop(ScoopGcFrame *frame);
 
 #endif // SCOOP_GC_H

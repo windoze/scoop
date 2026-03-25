@@ -112,7 +112,7 @@ typedef struct ScoopThreadTls {
   uint32_t _reserved_u32;
 
   // GC：shadow stack 当前帧链头（TODO T0905）。
-  void *gc_current_frame;
+  ScoopGcFrame *gc_current_frame;
 
   // effect runtime（TODO T0906）：占位指针/slot。
   void *_reserved0;
@@ -158,6 +158,43 @@ void scoop_thread_unregister(void) {
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
+}
+
+// --- GC / shadow stack（TODO T0905） ---
+
+ScoopGcFrame *scoop_gc_current_frame(void) {
+  return scoop_tls.gc_current_frame;
+}
+
+void scoop_gc_frame_push(ScoopGcFrame *frame) {
+  if (frame == 0) {
+    return;
+  }
+
+  // 在早期阶段尽量保持接口易用：允许在未显式 init/register 的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  frame->prev = scoop_tls.gc_current_frame;
+  scoop_tls.gc_current_frame = frame;
+}
+
+void scoop_gc_frame_pop(ScoopGcFrame *frame) {
+  if (frame == 0) {
+    return;
+  }
+
+  // 健壮性：pop 必须匹配最近一次 push；否则保持状态不变并在 debug 下输出日志。
+  if (scoop_tls.gc_current_frame != frame) {
+    SCOOP_RT_LOG("scoop_gc_frame_pop: mismatch (current=%p, frame=%p)",
+                 (void *)scoop_tls.gc_current_frame,
+                 (void *)frame);
+    return;
+  }
+
+  scoop_tls.gc_current_frame = frame->prev;
+  frame->prev = 0;
 }
 
 static int scoop_is_indent_ws(uint8_t c) {
