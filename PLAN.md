@@ -68,6 +68,7 @@
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。
 - 2026-03-25：完成 T0904：引入 mark-sweep GC 的数据结构骨架（heap/object header/free list）与最小自检，并让 clang 链接覆盖 `runtime/c/*.c`。
 - 2026-03-25：完成 T0905：shadow stack `ScoopGcFrame` + TLS 链头（`current_frame`）与 push/pop API，并新增 `scoop_runtime` 集成测试覆盖。
+- 2026-03-25：完成 T0816：LLVM codegen 为含 GC 引用的函数插桩 shadow stack frame（push/pop + roots 写入），runtime 新增 debug 扫描计数接口，并新增 run-pass fixture 覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 
@@ -525,8 +526,8 @@
 为了避免早期实现 LLVM `gc.statepoint` 的复杂度，建议先实现 **shadow stack**：
 
 - [x] TLS：当前线程 `current_frame`（`scoop_gc_current_frame` / `scoop_gc_frame_push/pop`）（T0905）
-- [ ] 每个函数 prologue 建立 `GcFrame`（包含 prev 指针 + roots 数组）
-- [ ] 在需要的地方把 GC 引用写入 roots slot（局部变量活跃区）
+- [x] 每个函数 prologue/epilogue 建立 `GcFrame`（包含 prev 指针 + roots 数组）（T0816）
+- [x] 在需要的地方把 GC 引用写入 roots slot（局部变量活跃区）（T0816）
 - [ ] 分配触发 GC 时，runtime 扫描所有线程的 frame 链得到根集
 
 > 优点：实现难度低、语义清晰、可逐步演进到移动 GC；缺点：需要编译器插桩，性能一般，但足够 bootstrap。

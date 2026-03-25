@@ -95,4 +95,11 @@ void scoop_gc_frame_push(ScoopGcFrame *frame);
 // 将 frame 从 shadow stack 链头 pop（要求 top == frame）。
 void scoop_gc_frame_pop(ScoopGcFrame *frame);
 
+// Debug helper：遍历当前线程的 shadow stack，并统计非空 roots slot 的个数。
+//
+// 说明：
+// - 该 API 主要用于 compiler/codegen 的插桩回归（TODO T0816）；
+// - 当前阶段不执行真正的 mark/sweep，只做“可遍历且不崩溃”的扫描。
+uint64_t scoop_gc_debug_count_roots_current_thread(void);
+
 #endif // SCOOP_GC_H

@@ -2555,11 +2555,22 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0816 [TODO] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
+### T0816 [DONE] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
 - 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。
 - 目标：先只支持单线程；先只插桩“明显活跃的引用局部变量”。
 - 验收：新增 run-pass fixture：分配若干对象（先可用 malloc 代替 GC）并触发一次“伪 GC 扫描”（仅遍历 roots）不崩溃。
 - 依赖：T0905、T0817
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `scoop_gc_debug_count_roots_current_thread` 声明（仅遍历 roots，不做真实 GC）。
+   - `runtime/c/scoop_runtime.c`：实现 debug 扫描计数（带保守上限，避免破坏链表导致崩溃）。
+   - `crates/scoop_runtime/tests/shadow_stack.rs`：新增单测覆盖 debug 扫描计数返回值。
+   - `crates/scoopc/src/llvm/codegen.rs`：为含引用局部变量的函数生成 shadow stack frame push/pop，并把对应 locals 写入 roots slot；并把 sysroot debug 函数映射到 runtime 符号。
+   - `sysroot/core.scoop`：声明 `__scoop_gc_debug_count_roots_current_thread(): Int`（fixtures 专用）。
+   - `tests/fixtures/run-pass/gc_shadow_stack_instrumentation_basic.*`：新增 run-pass fixture 覆盖插桩与伪扫描。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0906 [TODO] effect runtime v0：TLS slot + flag（为 `->` handler 做准备）（PLAN §6.3.1）
 - 描述：在 runtime 中增加 `__scoop_effect_active` 与 perform slot（结构体/union 先占位）。

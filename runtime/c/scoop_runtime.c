@@ -197,6 +197,49 @@ void scoop_gc_frame_pop(ScoopGcFrame *frame) {
   frame->prev = 0;
 }
 
+uint64_t scoop_gc_debug_count_roots_current_thread(void) {
+  // 说明：
+  // - 该函数用于“伪 GC 扫描”回归（TODO T0816），只做 shadow stack 遍历；
+  // - 为了避免意外的未初始化使用，这里保持与 push 一致：允许在未显式 init/register
+  //   的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  uint64_t count = 0;
+  ScoopGcFrame *frame = scoop_tls.gc_current_frame;
+
+  // 健壮性：若 frame 链被破坏（形成环/或 root_count 异常），这里做保守上限避免死循环
+  // 或越界访问导致崩溃；debug 日志可用于手动排查插桩问题。
+  uint32_t frame_steps = 0;
+  const uint32_t max_frames = 1024u * 1024u;
+  const uint32_t max_roots_per_frame = 1024u * 1024u;
+
+  while (frame != 0) {
+    if (frame_steps++ > max_frames) {
+      SCOOP_RT_LOG("scoop_gc_debug_count_roots_current_thread: too many frames, abort scan");
+      break;
+    }
+
+    uint32_t n = frame->root_count;
+    if (n > max_roots_per_frame) {
+      SCOOP_RT_LOG("scoop_gc_debug_count_roots_current_thread: suspicious root_count=%" PRIu32,
+                   n);
+      n = max_roots_per_frame;
+    }
+
+    for (uint32_t i = 0; i < n; i++) {
+      if (frame->roots[i] != 0) {
+        count++;
+      }
+    }
+
+    frame = frame->prev;
+  }
+
+  return count;
+}
+
 static int scoop_is_indent_ws(uint8_t c) {
   // Kotlin 风格：缩进只考虑空格/Tab（raw string 的常见场景）。
   return c == (uint8_t)' ' || c == (uint8_t)'\t';

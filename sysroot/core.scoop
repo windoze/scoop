@@ -29,6 +29,13 @@ fun println(value: String): Unit
 fun print(value: Int): Unit
 fun println(value: Int): Unit
 
+// GC / shadow stack（测试辅助）。
+//
+// 说明：
+// - 该 API 仅用于 fixtures 回归 shadow stack 插桩（TODO T0816）；
+// - 返回当前线程 shadow stack 中“非空 roots slot”的数量（不会执行真实 GC）。
+fun __scoop_gc_debug_count_roots_current_thread(): Int
+
 // Delegated property metadata（spec §10.4）。
 //
 // 说明：

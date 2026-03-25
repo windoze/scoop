@@ -16,7 +16,7 @@
 //! 非目标（后续任务逐步补齐）：
 //! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use inkwell::AddressSpace;
 use inkwell::IntPredicate;
@@ -158,6 +158,14 @@ struct CgLocal<'ctx> {
     ty: CgTy,
     ptr: PointerValue<'ctx>,
     mutable: bool,
+    /// 若该 local 是“可被 GC 扫描的引用”，则这里记录其对应的 shadow stack roots slot 指针。
+    gc_root_slot: Option<PointerValue<'ctx>>,
+}
+
+/// 当前函数的 shadow stack（GC roots）插桩状态（TODO T0816）。
+struct GcFrameState<'ctx> {
+    frame_ptr: PointerValue<'ctx>,
+    root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>>,
 }
 
 #[derive(Debug, Default)]
@@ -208,6 +216,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     option_niche_cache: HashMap<TypeId, Option<(NicheStorage, u64)>>,
     /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
     enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
+    gc_frame: Option<GcFrameState<'ctx>>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -238,6 +247,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             type_layout_cache: HashMap::new(),
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
+            gc_frame: None,
         }
     }
 
@@ -290,6 +300,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
+        self.setup_gc_frame(fun)?;
+
         self.env.push_scope();
         self.codegen_fun_params(fun, llvm_fun)?;
 
@@ -306,6 +318,118 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn setup_gc_frame(&mut self, fun: &hir::FunDecl) -> Result<(), LlvmEmitError> {
+        let root_ids = self.collect_gc_root_ids(fun);
+        if root_ids.is_empty() {
+            return Ok(());
+        }
+
+        let root_count = root_ids.len() as u32;
+        let frame_ty = self.llvm_gc_frame_type(root_count);
+
+        // 说明：frame 本身也是栈上的一个 local；放在 entry block 的 alloca 区域，便于后续
+        // 统一做 mem2reg / 优化（以及未来可能的 `gc.statepoint` 迁移）。
+        let frame_ptr = self.create_entry_alloca_raw(
+            fun.span,
+            "gc_frame",
+            frame_ty.into(),
+        )?;
+
+        let i32_ty = self.context.i32_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+
+        // 初始化 header：root_count + reserved + prev（prev 将由 push 写入，但这里也写 0 以便调试）。
+        let prev_ptr = self
+            .builder
+            .build_struct_gep(frame_ty, frame_ptr, 0, "gc_prev_gep")?;
+        let root_count_ptr = self
+            .builder
+            .build_struct_gep(frame_ty, frame_ptr, 1, "gc_root_count_gep")?;
+        let reserved_ptr = self
+            .builder
+            .build_struct_gep(frame_ty, frame_ptr, 2, "gc_reserved_gep")?;
+
+        let _ = self.builder.build_store(prev_ptr, i8_ptr_ty.const_null())?;
+        let _ = self
+            .builder
+            .build_store(root_count_ptr, i32_ty.const_int(root_count as u64, false))?;
+        let _ = self.builder.build_store(reserved_ptr, i32_ty.const_zero())?;
+
+        // roots[] 初始化为 NULL，并记录每个 local 对应的 slot 指针。
+        let roots_arr_ptr = self
+            .builder
+            .build_struct_gep(frame_ty, frame_ptr, 3, "gc_roots_arr_gep")?;
+        let roots_base = self.builder.build_pointer_cast(
+            roots_arr_ptr,
+            i8_ptr_ty.ptr_type(AddressSpace::default()),
+            "gc_roots_base",
+        )?;
+
+        let mut root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>> =
+            HashMap::with_capacity(root_ids.len());
+        for (idx, id) in root_ids.iter().enumerate() {
+            let index = i32_ty.const_int(idx as u64, false);
+            let slot_ptr = unsafe {
+                self.builder.build_in_bounds_gep(
+                    i8_ptr_ty,
+                    roots_base,
+                    &[index],
+                    &format!("gc_root_slot_{idx}"),
+                )?
+            };
+            let _ = self.builder.build_store(slot_ptr, i8_ptr_ty.const_null())?;
+            root_slots.insert(*id, slot_ptr);
+        }
+
+        // push(frame)
+        let push = self.declare_runtime_gc_frame_push();
+        let frame_i8 = self
+            .builder
+            .build_pointer_cast(frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(push, &[frame_i8.into()], "gc_frame_push")?;
+
+        self.gc_frame = Some(GcFrameState {
+            frame_ptr,
+            root_slots,
+        });
+        Ok(())
+    }
+
+    fn gc_root_slot_for(&self, id: hir::SymbolId) -> Option<PointerValue<'ctx>> {
+        self.gc_frame
+            .as_ref()
+            .and_then(|state| state.root_slots.get(&id).copied())
+    }
+
+    fn store_gc_root_slot_value(
+        &mut self,
+        at: crate::span::Span,
+        slot_ptr: PointerValue<'ctx>,
+        value: CgValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(raw) = value.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "gc root value",
+                at: at.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "gc root value type",
+                at: at.into(),
+            });
+        };
+
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let casted = self
+            .builder
+            .build_pointer_cast(ptr, i8_ptr_ty, "gc_root_i8")?;
+        let _ = self.builder.build_store(slot_ptr, casted)?;
+        Ok(())
+    }
+
     pub(crate) fn codegen_main_exit_code(
         mut self,
         fun: &hir::FunDecl,
@@ -319,6 +443,160 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.env.pop_scope();
         Ok(exit)
+    }
+
+    fn collect_gc_root_ids(&self, fun: &hir::FunDecl) -> Vec<hir::SymbolId> {
+        let mut out: Vec<hir::SymbolId> = Vec::new();
+        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
+
+        for param in &fun.params {
+            if matches!(self.cg_ty_of(param.ty), Some(CgTy::Ref)) && seen.insert(param.id) {
+                out.push(param.id);
+            }
+        }
+
+        if let Some(body) = fun.body.as_ref() {
+            self.collect_gc_root_ids_in_block(body, &mut out, &mut seen);
+        }
+
+        out
+    }
+
+    fn collect_gc_root_ids_in_block(
+        &self,
+        block: &hir::Block,
+        out: &mut Vec<hir::SymbolId>,
+        seen: &mut HashSet<hir::SymbolId>,
+    ) {
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    if matches!(self.cg_ty_of(decl.ty), Some(CgTy::Ref)) {
+                        if let Some(id) = decl.id {
+                            if seen.insert(id) {
+                                out.push(id);
+                            }
+                        }
+                    }
+                    if let Some(init) = decl.init.as_ref() {
+                        self.collect_gc_root_ids_in_expr(init, out, seen);
+                    }
+                }
+                hir::StmtKind::Expr(expr) => self.collect_gc_root_ids_in_expr(expr, out, seen),
+                hir::StmtKind::Assign { lhs, rhs, .. } => {
+                    self.collect_gc_root_ids_in_expr(lhs, out, seen);
+                    self.collect_gc_root_ids_in_expr(rhs, out, seen);
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.collect_gc_root_ids_in_expr(cond, out, seen);
+                    self.collect_gc_root_ids_in_block(body, out, seen);
+                }
+                hir::StmtKind::Return { value } => {
+                    if let Some(expr) = value.as_ref() {
+                        self.collect_gc_root_ids_in_expr(expr, out, seen);
+                    }
+                }
+                hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {}
+            }
+        }
+    }
+
+    fn collect_gc_root_ids_in_expr(
+        &self,
+        expr: &hir::Expr,
+        out: &mut Vec<hir::SymbolId>,
+        seen: &mut HashSet<hir::SymbolId>,
+    ) {
+        match &expr.kind {
+            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Literal(_) | hir::ExprKind::VarRef(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.collect_gc_root_ids_in_expr(&field.value, out, seen);
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for elem in elements {
+                    self.collect_gc_root_ids_in_expr(elem, out, seen);
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.collect_gc_root_ids_in_expr(expr, out, seen);
+                    }
+                }
+            }
+            hir::ExprKind::Unary { expr, .. } => self.collect_gc_root_ids_in_expr(expr, out, seen),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_gc_root_ids_in_expr(lhs, out, seen);
+                self.collect_gc_root_ids_in_expr(rhs, out, seen);
+            }
+            hir::ExprKind::Block(block) => self.collect_gc_root_ids_in_block(block, out, seen),
+            hir::ExprKind::Closure(_) => {
+                // closure body 将在其自身的函数体里插桩；此处不把 closure 内部 locals 计入外层函数。
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.collect_gc_root_ids_in_expr(cond, out, seen);
+                self.collect_gc_root_ids_in_expr(then_branch, out, seen);
+                if let Some(else_branch) = else_branch.as_ref() {
+                    self.collect_gc_root_ids_in_expr(else_branch, out, seen);
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.collect_gc_root_ids_in_expr(subject, out, seen);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        self.collect_gc_root_ids_in_expr(guard, out, seen);
+                    }
+                    self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
+                }
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.collect_gc_root_ids_in_expr(callee, out, seen);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_gc_root_ids_in_expr(expr, out, seen);
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_gc_root_ids_in_expr(value, out, seen);
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => {
+                self.collect_gc_root_ids_in_expr(receiver, out, seen);
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_gc_root_ids_in_expr(expr, out, seen);
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_gc_root_ids_in_expr(value, out, seen);
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Handle(handle) => {
+                self.collect_gc_root_ids_in_block(&handle.body, out, seen);
+                for arm in &handle.arms {
+                    self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    self.collect_gc_root_ids_in_block(finally, out, seen);
+                }
+            }
+        }
     }
 
     fn codegen_block_as_exit_code(
@@ -418,13 +696,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0809：局部变量统一降为 alloca + store/load；`val/var` 仅在“是否允许赋值”上有差异。
         let name = decl.name.as_deref().unwrap_or("local");
         let ptr = self.create_entry_alloca(decl.span, name, target_ty)?;
-        self.store_local_value(decl.span, ptr, target_ty, init)?;
+        let stored = self.store_local_value(decl.span, ptr, target_ty, init)?;
+
+        let gc_root_slot = self.gc_root_slot_for(id);
+        if let Some(slot_ptr) = gc_root_slot {
+            self.store_gc_root_slot_value(decl.span, slot_ptr, stored)?;
+        }
+
         self.env.insert(
             id,
             CgLocal {
                 ty: target_ty,
                 ptr,
                 mutable: decl.mutable,
+                gc_root_slot,
             },
         );
         Ok(())
@@ -482,7 +767,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let rhs_v = self.codegen_expr(rhs)?;
-        self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
+        let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
+        if let Some(slot_ptr) = local.gc_root_slot {
+            self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
+        }
         Ok(())
     }
 
@@ -546,6 +834,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 1) 普通顶层函数调用：`foo(args...)`
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            // TODO T0816：shadow stack 插桩回归用的 debug helper。
+            if fqn == "scoop.core.__scoop_gc_debug_count_roots_current_thread" {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug count roots arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_gc_debug_count_roots_current_thread();
+                let call = self.builder.build_call(rt, &[], "gc_debug_count_roots")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug count roots return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug count roots return type",
+                        at: span.into(),
+                    });
+                };
+
+                let from = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let to = IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: true,
+                };
+                let casted = self.cast_int(raw_int, from, to)?;
+                return Ok(CgValue::int(casted, to));
+            }
+
             // T0822：最小 I/O（sysroot `print/println(String)`）直接映射到 runtime 符号。
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
@@ -1436,7 +1761,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 将 subject 落到一个栈 slot：便于在各 arm 中做 payload 解构（避免跨 block 的 dominance 细节）。
         let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_ty)?;
-        self.store_local_value(span, subject_ptr, subject_ty, subject_v)?;
+        let _ = self.store_local_value(span, subject_ptr, subject_ty, subject_v)?;
 
         let insert_block =
             self.builder
@@ -1860,13 +2185,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: subject_ty,
                     value: Some(loaded),
                 };
-                self.store_local_value(at, ptr, subject_ty, v)?;
+                let _ = self.store_local_value(at, ptr, subject_ty, v)?;
                 self.env.insert(
                     *id,
                     CgLocal {
                         ty: subject_ty,
                         ptr,
                         mutable: false,
+                        gc_root_slot: None,
                     },
                 );
                 Ok(())
@@ -1957,13 +2283,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     self.cg_value_from_loaded(arg_pat.span(), field_cg, raw)?;
 
                                 let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                                self.store_local_value(at, ptr, field_cg, extracted)?;
+                                let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
                                 self.env.insert(
                                     *id,
                                     CgLocal {
                                         ty: field_cg,
                                         ptr,
                                         mutable: false,
+                                        gc_root_slot: None,
                                     },
                                 );
                             }
@@ -2033,13 +2360,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     match first_pat {
                         hir::WhenPat::Bind { id, name, .. } => {
                             let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                            self.store_local_value(at, ptr, field_cg, extracted)?;
+                            let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
                             self.env.insert(
                                 *id,
                                 CgLocal {
                                     ty: field_cg,
                                     ptr,
                                     mutable: false,
+                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -2125,13 +2453,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 match arg_pat {
                     hir::WhenPat::Bind { id, name, .. } => {
                         let ptr = self.create_entry_alloca(at, name, field_cg)?;
-                        self.store_local_value(at, ptr, field_cg, extracted)?;
+                        let _ = self.store_local_value(at, ptr, field_cg, extracted)?;
                         self.env.insert(
                             *id,
                             CgLocal {
                                 ty: field_cg,
                                 ptr,
                                 mutable: false,
+                                gc_root_slot: None,
                             },
                         );
                     }
@@ -2222,13 +2551,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 unreachable!()
                             };
                             let ptr = self.create_entry_alloca(at, name, elem_ty)?;
-                            self.store_local_value(at, ptr, elem_ty, extracted_v)?;
+                            let _ = self.store_local_value(at, ptr, elem_ty, extracted_v)?;
                             self.env.insert(
                                 *id,
                                 CgLocal {
                                     ty: elem_ty,
                                     ptr,
                                     mutable: false,
+                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -2236,7 +2566,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             // 递归绑定：需要一个临时 slot 让子 pattern 能 load/extract。
                             let tmp_name = format!("when_tuple_elem_{idx}");
                             let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
-                            self.store_local_value(at, tmp_ptr, elem_ty, extracted_v)?;
+                            let _ = self.store_local_value(at, tmp_ptr, elem_ty, extracted_v)?;
                             self.bind_when_pat(at, elem_ty, elem_pat, tmp_ptr)?;
                         }
                         _ => {}
@@ -2636,7 +2966,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let nested_value = self.cg_value_from_loaded(pat.span(), elem_ty, nested_raw)?;
                 let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
                 let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
-                self.store_local_value(at, tmp_ptr, elem_ty, nested_value)?;
+                let _ = self.store_local_value(at, tmp_ptr, elem_ty, nested_value)?;
                 self.codegen_when_tuple_pat_cond(at, nested_tuple_ty, elements, tmp_ptr)
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
@@ -2771,13 +3101,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             };
 
-            self.store_local_value(param.span, ptr, target_ty, init)?;
+            let stored = self.store_local_value(param.span, ptr, target_ty, init)?;
+            let gc_root_slot = self.gc_root_slot_for(param.id);
+            if let Some(slot_ptr) = gc_root_slot {
+                self.store_gc_root_slot_value(param.span, slot_ptr, stored)?;
+            }
             self.env.insert(
                 param.id,
                 CgLocal {
                     ty: target_ty,
                     ptr,
                     mutable: false,
+                    gc_root_slot,
                 },
             );
         }
@@ -2893,6 +3228,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declared_return_ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
+        if let Some(gc) = self.gc_frame.as_ref() {
+            let pop = self.declare_runtime_gc_frame_pop();
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let frame_i8 = self
+                .builder
+                .build_pointer_cast(gc.frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
+            let _ = self
+                .builder
+                .build_call(pop, &[frame_i8.into()], "gc_frame_pop")?;
+        }
+
         match declared_return_ty {
             CgTy::Unit => {
                 self.builder.build_return(None)?;
@@ -3787,7 +4133,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         else {
                             continue;
                         };
-                        self.store_local_value(init.span, global.as_pointer_value(), prop_cg, v)?;
+                        let _ =
+                            self.store_local_value(init.span, global.as_pointer_value(), prop_cg, v)?;
                     }
                 }
                 hir::ObjectInitStep::InitBlock { block } => {
@@ -4642,6 +4989,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    fn llvm_gc_frame_type(&self, root_count: u32) -> StructType<'ctx> {
+        // 说明：
+        // - `runtime/c/scoop_gc.h` 中的 `ScoopGcFrame` 使用 flexible array `roots[]`；
+        // - 在 LLVM IR 中我们为每个不同的 `root_count` 生成一个具名 struct：
+        //   `{ prev: i8*, root_count: i32, reserved: i32, roots: [N x i8*] }`。
+        //
+        // 只要前 3 个字段布局与 runtime 匹配，就能与 C 侧按前缀访问兼容（push/pop/scan）。
+        let name = format!("scoop.runtime.ScoopGcFrame_{root_count}");
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(&name);
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let roots_ty = i8_ptr_ty.array_type(root_count);
+        ty.set_body(
+            &[
+                i8_ptr_ty.into(),
+                i32_ty.into(),
+                i32_ty.into(),
+                roots_ty.into(),
+            ],
+            false,
+        );
+        ty
+    }
+
     fn declare_runtime_print_like(&self, name: &str) -> FunctionValue<'ctx> {
         if let Some(existing) = self.module.get_function(name) {
             return existing;
@@ -4695,6 +5070,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_frame_push(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_frame_push";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_gc_frame_push(ScoopGcFrame* frame)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_frame_pop(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_frame_pop";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_gc_frame_pop(ScoopGcFrame* frame)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_debug_count_roots_current_thread(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_debug_count_roots_current_thread";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_gc_debug_count_roots_current_thread(void)`
+        let fn_ty = self.context.i64_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -4949,7 +5361,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ptr: PointerValue<'ctx>,
         ty: CgTy,
         value: CgValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 说明：当前阶段 locals 允许：
         // - 标量：`Unit/Bool/Int*`
         // - struct/enum（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
@@ -4975,7 +5387,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.builder.build_store(ptr, raw)?;
             }
         }
-        Ok(())
+        Ok(v)
     }
 }
 

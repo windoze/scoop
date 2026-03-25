@@ -17,6 +17,14 @@ struct ScoopGcFrame {
     roots: [*mut c_void; 1],
 }
 
+#[repr(C)]
+struct ScoopGcFrame2 {
+    prev: *mut ScoopGcFrame,
+    root_count: u32,
+    _reserved_u32: u32,
+    roots: [*mut c_void; 2],
+}
+
 unsafe extern "C" {
     fn scoop_runtime_init();
 
@@ -26,6 +34,8 @@ unsafe extern "C" {
     fn scoop_gc_current_frame() -> *mut ScoopGcFrame;
     fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
     fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
+
+    fn scoop_gc_debug_count_roots_current_thread() -> u64;
 }
 
 #[test]
@@ -69,3 +79,39 @@ fn shadow_stack_push_pop_two_frames_rewinds_current_frame() {
     }
 }
 
+#[test]
+fn shadow_stack_debug_count_roots_counts_non_null_slots() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        let mut a = 1u8;
+        let mut b = 2u8;
+
+        let mut frame1 = ScoopGcFrame2 {
+            prev: ptr::null_mut(),
+            root_count: 2,
+            _reserved_u32: 0,
+            roots: [ptr::null_mut(), (&mut a as *mut u8).cast::<c_void>()],
+        };
+
+        scoop_gc_frame_push((&mut frame1 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
+
+        let mut frame2 = ScoopGcFrame {
+            prev: ptr::null_mut(),
+            root_count: 1,
+            _reserved_u32: 0,
+            roots: [(&mut b as *mut u8).cast::<c_void>()],
+        };
+
+        scoop_gc_frame_push(&mut frame2);
+
+        // frame2 有 1 个非空 root，frame1 有 1 个非空 root，总计 2。
+        assert_eq!(scoop_gc_debug_count_roots_current_thread(), 2);
+
+        scoop_gc_frame_pop(&mut frame2);
+        scoop_gc_frame_pop((&mut frame1 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
+
+        scoop_thread_unregister();
+    }
+}
