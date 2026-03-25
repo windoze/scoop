@@ -39,6 +39,7 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::SourceFile;
+use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::LlvmEmitError;
@@ -64,6 +65,31 @@ enum CgTy {
     /// - 该指针的指向对象目前允许来自：字符串字面量生成的栈上 `ScoopString`；
     /// - 更完整的 String 对象头/GC 语义将由后续任务补齐（T09/T12）。
     String,
+}
+
+// boxing / lint 的启发式阈值（与 typecheck::layout.rs 保持一致）。
+const ENUM_BOX_DISPARITY_RATIO: u64 = 4;
+const ENUM_BOX_INLINE_THRESHOLD_WORDS: u64 = 16;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CgEnumRepr {
+    TaggedUnion,
+    /// niche 优化：无显式 tag，通过 payload 的非法值编码 `None`。
+    Niche { storage: NicheStorage, none_value: u64 },
+}
+
+#[derive(Debug, Clone)]
+struct CgEnumVariant {
+    name: String,
+    tag: u32,
+    boxed: bool,
+    fields: Vec<CgTy>,
+}
+
+#[derive(Debug, Clone)]
+struct CgEnumLayout {
+    repr: CgEnumRepr,
+    variants: Vec<CgEnumVariant>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -166,6 +192,12 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
+    /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
+    type_layout_cache: HashMap<TypeId, TypeLayout>,
+    /// `Option<T>` niche 表示的 `None` 编码（用于嵌套 niche）。
+    option_niche_cache: HashMap<TypeId, Option<(NicheStorage, u64)>>,
+    /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
+    enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -191,6 +223,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_layouts,
             fun_index,
             env: Env::default(),
+            type_layout_cache: HashMap::new(),
+            option_niche_cache: HashMap::new(),
+            enum_cg_layout_cache: HashMap::new(),
         }
     }
 
@@ -797,53 +832,98 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         variant_name: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let (tag, fields) = {
-            let layout = self.enum_layout_of(span, enum_ty)?;
-            let variant = layout
-                .variants
-                .iter()
-                .find(|v| v.name == variant_name)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "unknown enum variant",
-                    at: span.into(),
-                })?;
-            (variant.tag, variant.fields.clone())
-        };
+        let layout = self.cg_enum_layout(span, enum_ty)?;
+        let variant = layout
+            .variants
+            .iter()
+            .find(|v| v.name == variant_name)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown enum variant",
+                at: span.into(),
+            })?
+            .clone();
 
-        if fields.len() != args.len() {
+        if variant.fields.len() != args.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "enum variant ctor arity mismatch",
                 at: span.into(),
             });
         }
 
-        // 当前阶段（T0813）只支持 “小 payload”：0 字段或 1 字段（标量）。
-        if fields.len() > 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant payload (multi-field)",
-                at: span.into(),
-            });
-        }
-
-        let payload = if let Some(field) = fields.first() {
-            let hir::CallArg::Positional(arg_expr) = &args[0] else {
+        // 先把所有实参在“字段期望类型”下 codegen 并做最小 coercion，避免后续重复走 codegen。
+        let mut field_values: Vec<(CgTy, CgValue<'ctx>)> = Vec::with_capacity(args.len());
+        for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args.iter()).enumerate() {
+            let hir::CallArg::Positional(arg_expr) = arg else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "named enum ctor arg",
                     at: span.into(),
                 });
             };
 
-            let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+            let v = self.codegen_expr_in_expected_context(arg_expr, Some(field_cg))?;
+            let coerced = self.coerce_value(arg_expr.span, v, field_cg)?;
+            field_values.push((field_cg, coerced));
 
-            let arg_v = self.codegen_expr_in_expected_context(arg_expr, Some(field_cg))?;
-            let coerced = self.coerce_value(arg_expr.span, arg_v, field_cg)?;
+            // 提前在 debug 名称里体现 index，便于排查（不影响语义）。
+            let _ = idx;
+        }
 
-            Some(self.coerce_enum_payload_word(arg_expr.span, coerced, field_cg)?)
+        // 1) boxed variant：把 payload fields 聚合成一个 payload struct，存到栈上并把指针写入 enum payload。
+        if variant.boxed {
+            let payload_struct_ty =
+                self.llvm_enum_boxed_payload_struct_type(span, enum_ty, &variant)?;
+            let mut payload: AggregateValueEnum<'ctx> = payload_struct_ty.get_undef().into();
+
+            for (idx, (field_cg, field_v)) in field_values.iter().enumerate() {
+                // Unit 没有运行期值；当前阶段不允许把 Unit 作为 enum payload 字段。
+                if matches!(field_cg, CgTy::Unit) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum boxed payload field (unit)",
+                        at: span.into(),
+                    });
+                }
+                let raw = field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum boxed payload field value",
+                    at: span.into(),
+                })?;
+                payload = self.builder.build_insert_value(
+                    payload,
+                    raw,
+                    idx as u32,
+                    &format!("enum_payload_field_{idx}"),
+                )?;
+            }
+
+            let tmp_name = format!(
+                "boxed_enum_payload_{}_{}",
+                enum_ty.as_u32(),
+                sanitize_llvm_ident(&variant.name)
+            );
+            let payload_ptr = self.create_entry_alloca_raw(span, &tmp_name, payload_struct_ty.into())?;
+            let _ = self.builder.build_store(payload_ptr, payload.as_basic_value_enum())?;
+
+            let word_ty = self.int_type(self.enum_payload_ty());
+            let payload_word =
+                self.builder
+                    .build_ptr_to_int(payload_ptr, word_ty, "boxed_enum_payload_ptr")?;
+            return self.build_enum_value(span, enum_ty, variant.tag, Some(payload_word));
+        }
+
+        // 2) inline（非 boxed）variant：当前阶段仍采用 “word payload” 承载的小 payload。
+        if variant.fields.len() > 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum variant payload (multi-field, not boxed)",
+                at: span.into(),
+            });
+        }
+
+        let payload = if let Some((field_cg, field_v)) = field_values.first().copied() {
+            Some(self.coerce_enum_payload_word(span, field_v, field_cg)?)
         } else {
             None
         };
 
-        self.build_enum_value(span, enum_ty, tag, payload)
+        self.build_enum_value(span, enum_ty, variant.tag, payload)
     }
 
     fn enum_layout_of(
@@ -851,19 +931,263 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         enum_ty: TypeId,
     ) -> Result<&hir::EnumLayout, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(enum_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum type id",
-                at: at.into(),
-            });
+        let fqn = match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum type id",
+                    at: at.into(),
+                });
+            }
         };
 
-        self.enum_layouts
-            .get(&nominal.fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum layout",
+        self.enum_layouts.get(fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "enum layout",
+            at: at.into(),
+        })
+    }
+
+    fn target_layout(&self) -> TargetLayout {
+        // 说明：与 typecheck::layout.rs 一致，当前阶段用 host pointer size/align 作为 layout。
+        TargetLayout::host()
+    }
+
+    fn type_layout(&mut self, ty: TypeId) -> TypeLayout {
+        if let Some(layout) = self.type_layout_cache.get(&ty).copied() {
+            return layout;
+        }
+
+        let target = self.target_layout();
+
+        let layout = match self.types.kind(ty) {
+            TypeKind::Ref(_) => TypeLayout::new(target.pointer_size, target.pointer_align).with_niche(NicheDomain {
+                storage: NicheStorage::Pointer,
+                next: 0,
+                end: target.pointer_align.max(1),
+            }),
+            TypeKind::Param(_) => TypeLayout::new(target.pointer_size, target.pointer_align),
+            TypeKind::Value(v) => match v {
+                ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
+                ValueTypeKind::Bool => TypeLayout::new(1, 1).with_niche(NicheDomain {
+                    storage: NicheStorage::U8,
+                    next: 2,
+                    end: 256,
+                }),
+                ValueTypeKind::Int | ValueTypeKind::UInt => {
+                    TypeLayout::new(target.pointer_size, target.pointer_align)
+                }
+                ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
+                    let size = (u64::from(*bits) + 7) / 8;
+                    let align = size.clamp(1, target.pointer_align.max(1));
+                    TypeLayout::new(size, align)
+                }
+                ValueTypeKind::Tuple(elements) => self.aggregate_fields_layout_for_type_ids(elements),
+                ValueTypeKind::Option(inner) => self.option_type_layout(ty, *inner),
+                ValueTypeKind::Nominal(_) => {
+                    // 当前 codegen 只在 niche/boxing 决策里需要 layout 信息；nominal struct/enum 的精确布局
+                    // 将在对应任务里补齐。这里按“opaque word-sized”兜底，避免过度耦合。
+                    TypeLayout::new(target.pointer_size, target.pointer_align)
+                }
+            },
+        };
+
+        self.type_layout_cache.insert(ty, layout);
+        layout
+    }
+
+    fn option_type_layout(&mut self, option_ty: TypeId, inner: TypeId) -> TypeLayout {
+        // 注意：该函数只负责“niche 传播”与 `None` 编码缓存（供后续 codegen 使用）。
+        if self.option_niche_cache.contains_key(&option_ty) {
+            return *self
+                .type_layout_cache
+                .get(&option_ty)
+                .unwrap_or(&TypeLayout::new(self.target_layout().pointer_size, self.target_layout().pointer_align));
+        }
+
+        let target = self.target_layout();
+        let inner_layout = self.type_layout(inner);
+
+        // niche path：inner 提供可用 niche domain。
+        if let Some(mut domain) = inner_layout.niche {
+            if let Some(none_value) = domain.take_one() {
+                self.option_niche_cache
+                    .insert(option_ty, Some((domain.storage, none_value)));
+
+                let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
+                self.type_layout_cache.insert(option_ty, layout);
+                return layout;
+            }
+        }
+
+        // tagged union fallback：不携带 niche。
+        self.option_niche_cache.insert(option_ty, None);
+
+        // 说明：当前 codegen 的 enum 表示仍采用 `{ tag: i32, payload: word }`，因此这里返回一个
+        // “足够大”的布局即可；精确大小与 tag type 选择后续任务再统一。
+        let tag_size = 4u64;
+        let tag_align = 4u64;
+        let payload_size = target.pointer_size;
+        let payload_align = target.pointer_align;
+        let payload_offset = align_to(tag_size, payload_align);
+        let align = payload_align.max(tag_align);
+        let size = align_to(payload_offset + payload_size, align);
+        let layout = TypeLayout::new(size, align);
+        self.type_layout_cache.insert(option_ty, layout);
+        layout
+    }
+
+    fn aggregate_fields_layout_for_type_ids(&mut self, fields: &[TypeId]) -> TypeLayout {
+        let mut size = 0u64;
+        let mut align = 1u64;
+        for &field in fields {
+            let l = self.type_layout(field);
+            size = align_to(size, l.align);
+            size = size.saturating_add(l.size);
+            align = align.max(l.align);
+        }
+        size = align_to(size, align);
+        TypeLayout::new(size, align)
+    }
+
+    fn cg_enum_layout(&mut self, at: crate::span::Span, enum_ty: TypeId) -> Result<&CgEnumLayout, LlvmEmitError> {
+        if !self.enum_cg_layout_cache.contains_key(&enum_ty) {
+            let computed = self.compute_cg_enum_layout(at, enum_ty)?;
+            self.enum_cg_layout_cache.insert(enum_ty, computed);
+        }
+        Ok(self
+            .enum_cg_layout_cache
+            .get(&enum_ty)
+            .expect("just inserted"))
+    }
+
+    fn compute_cg_enum_layout(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+    ) -> Result<CgEnumLayout, LlvmEmitError> {
+        match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Option(inner)) => {
+                // 确保 option niche 缓存已被填充（用于 nested niche）。
+                let _ = self.type_layout(enum_ty);
+                let repr = match self.option_niche_cache.get(&enum_ty).copied().flatten() {
+                    Some((storage, none_value)) => CgEnumRepr::Niche { storage, none_value },
+                    None => CgEnumRepr::TaggedUnion,
+                };
+
+                let inner_cg = self.cg_ty_of(*inner).ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Option<T> inner type",
+                    at: at.into(),
+                })?;
+
+                Ok(CgEnumLayout {
+                    repr,
+                    variants: vec![
+                        CgEnumVariant {
+                            name: "Some".to_string(),
+                            tag: 0,
+                            boxed: false,
+                            fields: vec![inner_cg],
+                        },
+                        CgEnumVariant {
+                            name: "None".to_string(),
+                            tag: 1,
+                            boxed: false,
+                            fields: Vec::new(),
+                        },
+                    ],
+                })
+            }
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                let hir_layout = self
+                    .enum_layouts
+                    .get(&nominal.fqn)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum layout",
+                        at: at.into(),
+                    })?;
+
+                let mut variants: Vec<CgEnumVariant> = Vec::with_capacity(hir_layout.variants.len());
+                let mut payload_layouts: Vec<TypeLayout> = Vec::with_capacity(hir_layout.variants.len());
+                for v in &hir_layout.variants {
+                    let mut fields = Vec::with_capacity(v.fields.len());
+                    for f in &v.fields {
+                        let cg = self.cg_ty_of_type_fqn(f.span, f.ty_fqn.as_deref())?;
+                        fields.push(cg);
+                    }
+                    payload_layouts.push(self.aggregate_fields_layout_for_cg_tys(&fields)?);
+                    variants.push(CgEnumVariant {
+                        name: v.name.clone(),
+                        tag: v.tag,
+                        boxed: false,
+                        fields,
+                    });
+                }
+
+                // boxing：复用 typecheck 的启发式规则（ratio + inline threshold）。
+                let target = self.target_layout();
+                let (max_size, second_size) = largest_two_sizes(&payload_layouts);
+                let inline_threshold = target.pointer_size.saturating_mul(ENUM_BOX_INLINE_THRESHOLD_WORDS);
+                let disparity = if second_size == 0 {
+                    max_size >= inline_threshold
+                } else {
+                    max_size >= inline_threshold
+                        && max_size >= second_size.saturating_mul(ENUM_BOX_DISPARITY_RATIO)
+                };
+
+                if disparity {
+                    for (v, payload) in variants.iter_mut().zip(payload_layouts.iter()) {
+                        if payload.size == max_size && max_size > target.pointer_size {
+                            v.boxed = true;
+                        }
+                    }
+                }
+
+                Ok(CgEnumLayout {
+                    repr: CgEnumRepr::TaggedUnion,
+                    variants,
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum type id",
                 at: at.into(),
-            })
+            }),
+        }
+    }
+
+    fn aggregate_fields_layout_for_cg_tys(
+        &self,
+        fields: &[CgTy],
+    ) -> Result<TypeLayout, LlvmEmitError> {
+        let mut size = 0u64;
+        let mut align = 1u64;
+        for &field in fields {
+            let field_layout = self.cg_ty_layout(field)?;
+            size = align_to(size, field_layout.align);
+            size = size.saturating_add(field_layout.size);
+            align = align.max(field_layout.align);
+        }
+        size = align_to(size, align);
+        Ok(TypeLayout::new(size, align))
+    }
+
+    fn cg_ty_layout(&self, ty: CgTy) -> Result<TypeLayout, LlvmEmitError> {
+        let target = self.target_layout();
+        Ok(match ty {
+            CgTy::Unit => TypeLayout::new(0, 1),
+            // 当前阶段 Bool 在 LLVM 中用 i1 表示，但 layout/lint/niche 计算按“存储为 u8”建模。
+            CgTy::Bool => TypeLayout::new(1, 1),
+            CgTy::Int(int_ty) => {
+                let size = (u64::from(int_ty.bits) + 7) / 8;
+                let align = size.clamp(1, target.pointer_align.max(1));
+                TypeLayout::new(size, align)
+            }
+            CgTy::String => TypeLayout::new(target.pointer_size, target.pointer_align),
+            // 兜底：composite 在当前阶段按 word-sized opaque 处理，避免错误放大。
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                TypeLayout::new(target.pointer_size, target.pointer_align)
+            }
+        })
     }
 
     fn enum_payload_ty(&self) -> IntTy {
@@ -939,28 +1263,83 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         tag: u32,
         payload: Option<IntValue<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let llvm_enum_ty = self.llvm_enum_type(at, enum_ty)?;
-        let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
+        // 注意：`cg_enum_layout(...)` 返回的是对缓存表的引用；为了避免与后续 `&mut self` 调用产生借用冲突，
+        // 这里先把需要的字段拷贝出来再继续。
+        let (repr, some_field) = {
+            let layout = self.cg_enum_layout(at, enum_ty)?;
+            let repr = layout.repr;
+            let some_field = layout
+                .variants
+                .iter()
+                .find(|v| v.name == "Some")
+                .and_then(|v| v.fields.first())
+                .copied();
+            (repr, some_field)
+        };
 
-        let tag_ty = self.context.i32_type();
-        let payload_ty = self.int_type(self.enum_payload_ty());
+        match repr {
+            CgEnumRepr::TaggedUnion => {
+                let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?;
+                let llvm_enum_ty = llvm_enum_ty.into_struct_type();
+                let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
 
-        agg = self.builder.build_insert_value(
-            agg,
-            tag_ty.const_int(u64::from(tag), false),
-            0,
-            "enum_tag",
-        )?;
+                let tag_ty = self.context.i32_type();
+                let payload_ty = self.int_type(self.enum_payload_ty());
 
-        let payload_v = payload.unwrap_or_else(|| payload_ty.const_int(0, false));
-        agg = self
-            .builder
-            .build_insert_value(agg, payload_v, 1, "enum_payload")?;
+                agg = self.builder.build_insert_value(
+                    agg,
+                    tag_ty.const_int(u64::from(tag), false),
+                    0,
+                    "enum_tag",
+                )?;
 
-        Ok(CgValue {
-            ty: CgTy::Enum(enum_ty),
-            value: Some(agg.as_basic_value_enum()),
-        })
+                let payload_v = payload.unwrap_or_else(|| payload_ty.const_int(0, false));
+                agg = self
+                    .builder
+                    .build_insert_value(agg, payload_v, 1, "enum_payload")?;
+
+                Ok(CgValue {
+                    ty: CgTy::Enum(enum_ty),
+                    value: Some(agg.as_basic_value_enum()),
+                })
+            }
+            CgEnumRepr::Niche { storage, none_value } => {
+                // 说明：niche 表示下 `tag` 不参与运行期布局；caller 只需要保证：
+                // - `None`：payload 传 None（使用 `none_value` 作为编码）；
+                // - `Some(x)`：payload 传 Some(word(x))。
+                let word_ty = self.int_type(self.enum_payload_ty());
+                let encoded = payload.unwrap_or_else(|| word_ty.const_int(none_value, false));
+
+                let raw: BasicValueEnum<'ctx> = match storage {
+                    NicheStorage::Pointer => {
+                        // 存储类型取 `Some` variant 的字段类型（通常为指针）。
+                        let some_field = some_field.ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "Option niche payload type",
+                            at: at.into(),
+                        })?;
+                        let llvm_storage_ty = self.llvm_basic_type_of(at, some_field)?;
+                        let BasicTypeEnum::PointerType(ptr_ty) = llvm_storage_ty else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Option niche storage (non-pointer)",
+                                at: at.into(),
+                            });
+                        };
+                        self.builder
+                            .build_int_to_ptr(encoded, ptr_ty, "option_niche_ptr")?
+                            .into()
+                    }
+                    NicheStorage::U8 => self
+                        .builder
+                        .build_int_truncate(encoded, self.context.i8_type(), "option_niche_u8")?
+                        .into(),
+                };
+
+                Ok(CgValue {
+                    ty: CgTy::Enum(enum_ty),
+                    value: Some(raw),
+                })
+            }
+        }
     }
 
     fn codegen_when_expr(
@@ -1148,11 +1527,49 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
 
-                let subject_struct = subject_raw.into_struct_value();
-                let tag = self
-                    .builder
-                    .build_extract_value(subject_struct, 0, "when_tag")?
-                    .into_int_value();
+                let cg_layout = self.cg_enum_layout(span, enum_ty)?;
+                let tag = match cg_layout.repr {
+                    CgEnumRepr::TaggedUnion => {
+                        let subject_struct = subject_raw.into_struct_value();
+                        self.builder
+                            .build_extract_value(subject_struct, 0, "when_tag")?
+                            .into_int_value()
+                    }
+                    CgEnumRepr::Niche { storage, none_value } => {
+                        let is_none = match storage {
+                            NicheStorage::Pointer => {
+                                let ptr = subject_raw.into_pointer_value();
+                                let word_ty = self.int_type(self.enum_payload_ty());
+                                let as_int = self
+                                    .builder
+                                    .build_ptr_to_int(ptr, word_ty, "option_ptr_as_int")?;
+                                let expected = word_ty.const_int(none_value, false);
+                                self.builder.build_int_compare(
+                                    IntPredicate::EQ,
+                                    as_int,
+                                    expected,
+                                    "option_is_none",
+                                )?
+                            }
+                            NicheStorage::U8 => {
+                                let v = subject_raw.into_int_value();
+                                let expected = self.context.i8_type().const_int(none_value, false);
+                                self.builder.build_int_compare(
+                                    IntPredicate::EQ,
+                                    v,
+                                    expected,
+                                    "option_is_none",
+                                )?
+                            }
+                        };
+
+                        let some_tag = self.context.i32_type().const_int(0, false);
+                        let none_tag = self.context.i32_type().const_int(1, false);
+                        self.builder
+                            .build_select(is_none, none_tag, some_tag, "option_tag")?
+                            .into_int_value()
+                    }
+                };
 
                 let layout = self.enum_layout_of(span, enum_ty)?;
                 let tag_ty = self.context.i32_type();
@@ -1386,76 +1803,150 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let layout = self.enum_layout_of(at, enum_ty)?;
-                let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when unknown enum variant",
-                        at: pat.span().into(),
-                    });
+                let (repr, variant) = {
+                    let cg_layout = self.cg_enum_layout(at, enum_ty)?;
+                    let repr = cg_layout.repr;
+                    let variant = cg_layout
+                        .variants
+                        .iter()
+                        .find(|v| v.name == *name)
+                        .cloned()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when unknown enum variant",
+                            at: pat.span().into(),
+                        })?;
+                    (repr, variant)
                 };
 
-                if variant.fields.len() != args.len() {
+                // 解析 `..`：parser/typecheck 已保证它最多出现一次且必须出现在最后一个位置。
+                let (prefix_pats, has_rest) = match args.last() {
+                    Some(hir::WhenPat::Rest { .. }) => (&args[..args.len().saturating_sub(1)], true),
+                    _ => (args.as_slice(), false),
+                };
+
+                let expected_arity = variant.fields.len();
+                let found_arity = prefix_pats.len();
+                if (!has_rest && expected_arity != found_arity) || (has_rest && found_arity > expected_arity) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when variant arity mismatch",
                         at: pat.span().into(),
                     });
                 }
-                if variant.fields.len() > 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant payload (multi-field)",
-                        at: pat.span().into(),
-                    });
+
+                if prefix_pats.is_empty() {
+                    return Ok(());
                 }
 
-                if let (Some(field), Some(arg_pat)) = (variant.fields.first(), args.first()) {
-                    let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
-
-                    let llvm_enum_ty = self.llvm_enum_type(at, enum_ty)?;
+                // boxed variant：payload 是指向“payload struct”的指针（存放所有字段）。
+                if variant.boxed {
+                    let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
                     let loaded =
                         self.builder
                             .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
                     let raw_struct = loaded.into_struct_value();
-                    let payload_raw = self
+                    let payload_word = self
                         .builder
                         .build_extract_value(raw_struct, 1, "when_payload")?
                         .into_int_value();
 
-                    // 当前阶段 payload 固定为 word-sized int；按字段类型截断/转换。
+                    let payload_struct_ty =
+                        self.llvm_enum_boxed_payload_struct_type(at, enum_ty, &variant)?;
+                    let payload_ptr = self.builder.build_int_to_ptr(
+                        payload_word,
+                        payload_struct_ty.ptr_type(AddressSpace::default()),
+                        "when_payload_ptr",
+                    )?;
+                    let payload_loaded = self
+                        .builder
+                        .build_load(payload_struct_ty, payload_ptr, "load_when_payload")?
+                        .into_struct_value();
+
+                    for (idx, arg_pat) in prefix_pats.iter().enumerate() {
+                        let field_cg = *variant
+                            .fields
+                            .get(idx)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when boxed payload field index",
+                                at: arg_pat.span().into(),
+                            })?;
+
+                        match arg_pat {
+                            hir::WhenPat::Bind { id, name, .. } => {
+                                let raw = self.builder.build_extract_value(
+                                    payload_loaded,
+                                    idx as u32,
+                                    "when_payload_field",
+                                )?;
+                                let extracted =
+                                    self.cg_value_from_loaded(arg_pat.span(), field_cg, raw)?;
+
+                                let ptr = self.create_entry_alloca(at, name, field_cg)?;
+                                self.store_local_value(at, ptr, field_cg, extracted)?;
+                                self.env.insert(
+                                    *id,
+                                    CgLocal {
+                                        ty: field_cg,
+                                        ptr,
+                                        mutable: false,
+                                    },
+                                );
+                            }
+                            hir::WhenPat::Wildcard { .. } => {}
+                            hir::WhenPat::Rest { .. } => break,
+                            _ => {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "when variant arg pattern",
+                                    at: arg_pat.span().into(),
+                                });
+                            }
+                        }
+                    }
+
+                    return Ok(());
+                }
+
+                // niche enum（当前仅 Option<T>）：payload 就是 enum 本身。
+                if matches!(repr, CgEnumRepr::Niche { .. }) {
+                    if variant.fields.len() != 1 {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "niche enum variant arity",
+                            at: pat.span().into(),
+                        });
+                    }
+
+                    let field_cg = variant.fields[0];
+                    let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+
+                    // 存储类型可能与字段类型不同（例如 `Option<Bool>` 存储为 u8）。
                     let extracted = match field_cg {
-                        CgTy::Unit => CgValue::unit(),
                         CgTy::Bool => {
                             let b = self.builder.build_int_truncate(
-                                payload_raw,
+                                loaded.into_int_value(),
                                 self.context.bool_type(),
-                                "payload_to_bool",
+                                "option_bool_from_u8",
                             )?;
                             CgValue::bool(b)
                         }
-                        CgTy::Int(int_ty) => {
-                            let from = self.enum_payload_ty();
-                            let casted = self.cast_int(payload_raw, from, int_ty)?;
-                            CgValue::int(casted, int_ty)
-                        }
-                        CgTy::String => {
-                            let ptr = self.builder.build_int_to_ptr(
-                                payload_raw,
-                                self.llvm_scoop_string_ptr_type(),
-                                "payload_to_str_ptr",
-                            )?;
-                            CgValue {
-                                ty: CgTy::String,
-                                value: Some(ptr.into()),
-                            }
-                        }
-                        CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                        CgTy::String => CgValue {
+                            ty: CgTy::String,
+                            value: Some(loaded.into_pointer_value().into()),
+                        },
+                        CgTy::Unit | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when payload (non-scalar)",
-                                at: field.span.into(),
+                                kind: "niche enum payload type",
+                                at: pat.span().into(),
                             });
                         }
                     };
 
-                    match arg_pat {
+                    // niche enum 的 binder 只能绑定第一个字段（且 rest 可能忽略其余）。
+                    let Some(first_pat) = prefix_pats.first() else {
+                        return Ok(());
+                    };
+                    match first_pat {
                         hir::WhenPat::Bind { id, name, .. } => {
                             let ptr = self.create_entry_alloca(at, name, field_cg)?;
                             self.store_local_value(at, ptr, field_cg, extracted)?;
@@ -1472,9 +1963,89 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         _ => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
                                 kind: "when variant arg pattern",
-                                at: arg_pat.span().into(),
+                                at: first_pat.span().into(),
                             });
                         }
+                    }
+
+                    return Ok(());
+                }
+
+                // inline tagged union：仍只支持 “小 payload”（单字段标量）。
+                if variant.fields.len() != 1 || prefix_pats.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when variant payload (inline, unsupported arity)",
+                        at: pat.span().into(),
+                    });
+                }
+
+                let field_cg = variant.fields[0];
+                let arg_pat = &prefix_pats[0];
+
+                let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
+                let loaded =
+                    self.builder
+                        .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
+                let raw_struct = loaded.into_struct_value();
+                let payload_raw = self
+                    .builder
+                    .build_extract_value(raw_struct, 1, "when_payload")?
+                    .into_int_value();
+
+                // 当前阶段 payload 固定为 word-sized int；按字段类型截断/转换。
+                let extracted = match field_cg {
+                    CgTy::Unit => CgValue::unit(),
+                    CgTy::Bool => {
+                        let b = self.builder.build_int_truncate(
+                            payload_raw,
+                            self.context.bool_type(),
+                            "payload_to_bool",
+                        )?;
+                        CgValue::bool(b)
+                    }
+                    CgTy::Int(int_ty) => {
+                        let from = self.enum_payload_ty();
+                        let casted = self.cast_int(payload_raw, from, int_ty)?;
+                        CgValue::int(casted, int_ty)
+                    }
+                    CgTy::String => {
+                        let ptr = self.builder.build_int_to_ptr(
+                            payload_raw,
+                            self.llvm_scoop_string_ptr_type(),
+                            "payload_to_str_ptr",
+                        )?;
+                        CgValue {
+                            ty: CgTy::String,
+                            value: Some(ptr.into()),
+                        }
+                    }
+                    CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when payload (non-scalar)",
+                            at: arg_pat.span().into(),
+                        });
+                    }
+                };
+
+                match arg_pat {
+                    hir::WhenPat::Bind { id, name, .. } => {
+                        let ptr = self.create_entry_alloca(at, name, field_cg)?;
+                        self.store_local_value(at, ptr, field_cg, extracted)?;
+                        self.env.insert(
+                            *id,
+                            CgLocal {
+                                ty: field_cg,
+                                ptr,
+                                mutable: false,
+                            },
+                        );
+                    }
+                    hir::WhenPat::Wildcard { .. } | hir::WhenPat::Rest { .. } => {}
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when variant arg pattern",
+                            at: arg_pat.span().into(),
+                        });
                     }
                 }
 
@@ -1620,18 +2191,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let llvm_enum_ty = self.llvm_enum_type(at, enum_ty)?;
+        let repr = self.cg_enum_layout(at, enum_ty)?.repr;
+        let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?;
         let loaded = self
             .builder
             .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
-        let raw_struct = loaded.into_struct_value();
-        let tag = self
-            .builder
-            .build_extract_value(raw_struct, 0, "when_tag")?
-            .into_int_value();
 
-        let layout = self.enum_layout_of(at, enum_ty)?;
-        self.codegen_when_pat_cond_for_enum_with_tag(at, layout, tag, pat)
+        let tag = match repr {
+            CgEnumRepr::TaggedUnion => {
+                let raw_struct = loaded.into_struct_value();
+                self.builder
+                    .build_extract_value(raw_struct, 0, "when_tag")?
+                    .into_int_value()
+            }
+            CgEnumRepr::Niche { storage, none_value } => {
+                let is_none = match storage {
+                    NicheStorage::Pointer => {
+                        let ptr = loaded.into_pointer_value();
+                        let word_ty = self.int_type(self.enum_payload_ty());
+                        let as_int = self
+                            .builder
+                            .build_ptr_to_int(ptr, word_ty, "option_ptr_as_int")?;
+                        let expected = word_ty.const_int(none_value, false);
+                        self.builder.build_int_compare(
+                            IntPredicate::EQ,
+                            as_int,
+                            expected,
+                            "option_is_none",
+                        )?
+                    }
+                    NicheStorage::U8 => {
+                        let v = loaded.into_int_value();
+                        let expected = self.context.i8_type().const_int(none_value, false);
+                        self.builder.build_int_compare(
+                            IntPredicate::EQ,
+                            v,
+                            expected,
+                            "option_is_none",
+                        )?
+                    }
+                };
+
+                let some_tag = self.context.i32_type().const_int(0, false);
+                let none_tag = self.context.i32_type().const_int(1, false);
+                self.builder
+                    .build_select(is_none, none_tag, some_tag, "option_tag")?
+                    .into_int_value()
+            }
+        };
+
+        let hir_layout = self.enum_layout_of(at, enum_ty)?;
+        self.codegen_when_pat_cond_for_enum_with_tag(at, hir_layout, tag, pat)
     }
 
     fn codegen_when_pat_cond_for_enum_with_tag(
@@ -1652,20 +2262,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: pat.span().into(),
                     });
                 };
-
-                // 早期阶段：只支持 0/1 字段 variant（与 enum codegen 表示对齐）。
-                if variant.fields.len() > 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant payload (multi-field)",
-                        at: pat.span().into(),
-                    });
-                }
-                if variant.fields.len() != args.len() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant arity mismatch",
-                        at: pat.span().into(),
-                    });
-                }
+                let _ = args;
 
                 let expected = self
                     .context
@@ -3460,6 +4057,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 bits: u32::from(*bits),
                 signed: false,
             })),
+            TypeKind::Value(ValueTypeKind::Option(_)) => Some(CgTy::Enum(ty)),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                 if self.struct_layouts.contains_key(&nominal.fqn) {
@@ -3597,7 +4195,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn llvm_basic_type_of(
-        &self,
+        &mut self,
         at: crate::span::Span,
         ty: CgTy,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
@@ -3609,12 +4207,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::String => self.llvm_scoop_string_ptr_type().into(),
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
-            CgTy::Enum(enum_ty) => self.llvm_enum_type(at, enum_ty)?.into(),
+            CgTy::Enum(enum_ty) => self.llvm_enum_value_type(at, enum_ty)?,
         })
     }
 
     fn llvm_struct_type(
-        &self,
+        &mut self,
         at: crate::span::Span,
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
@@ -3649,45 +4247,68 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(struct_ty)
     }
 
-    fn llvm_enum_type(
-        &self,
+    fn llvm_enum_value_type(
+        &mut self,
         at: crate::span::Span,
         ty: TypeId,
-    ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum type id",
-                at: at.into(),
-            });
+    ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
+        // 注意：避免持有 `cg_enum_layout(...)` 返回的引用跨越后续 `&mut self` 调用。
+        let (repr, some_field) = {
+            let cg_layout = self.cg_enum_layout(at, ty)?;
+            let repr = cg_layout.repr;
+            let some_field = cg_layout
+                .variants
+                .iter()
+                .find(|v| v.name == "Some")
+                .and_then(|v| v.fields.first())
+                .copied();
+            (repr, some_field)
         };
 
-        let layout =
-            self.enum_layouts
-                .get(&nominal.fqn)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum layout",
-                    at: at.into(),
-                })?;
+        match repr {
+            CgEnumRepr::TaggedUnion => {
+                let fqn = match self.types.kind(ty) {
+                    TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "enum type id",
+                            at: at.into(),
+                        });
+                    }
+                };
 
-        if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
-            return Ok(existing);
+                if let Some(existing) = self.context.get_struct_type(fqn) {
+                    return Ok(existing.into());
+                }
+
+                // 最小 rich enum 表示：`{ tag: i32, payload: iN }`
+                // - tag：按声明顺序分配的 variant id
+                // - payload：当前阶段用 machine word 承载 payload 或 boxed payload 指针
+                let enum_ty = self.context.opaque_struct_type(fqn);
+                let tag_ty = self.context.i32_type();
+                let payload_ty = self.int_type(IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: false,
+                });
+                enum_ty.set_body(&[tag_ty.into(), payload_ty.into()], false);
+                Ok(enum_ty.into())
+            }
+            CgEnumRepr::Niche { storage, .. } => match storage {
+                NicheStorage::Pointer => {
+                    let some_field = some_field.ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Option niche payload type",
+                        at: at.into(),
+                    })?;
+                    Ok(self.llvm_basic_type_of(at, some_field)?)
+                }
+                NicheStorage::U8 => Ok(self.context.i8_type().into()),
+            },
         }
-
-        // 最小 rich enum 表示：`{ tag: i32, payload: iN }`
-        // - tag：按声明顺序分配的 variant id
-        // - payload：当前阶段只支持“单 machine word 承载的小 payload”
-        let enum_ty = self.context.opaque_struct_type(&layout.fqn);
-        let tag_ty = self.context.i32_type();
-        let payload_ty = self.int_type(IntTy {
-            bits: self.host.word_bit_width(),
-            signed: false,
-        });
-        enum_ty.set_body(&[tag_ty.into(), payload_ty.into()], false);
-        Ok(enum_ty)
     }
 
     fn llvm_tuple_type(
-        &self,
+        &mut self,
         at: crate::span::Span,
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
@@ -3712,8 +4333,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(self.context.struct_type(&llvm_fields, false))
     }
 
+    fn llvm_enum_boxed_payload_struct_type(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        variant: &CgEnumVariant,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let enum_fqn = match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum boxed payload type",
+                    at: at.into(),
+                });
+            }
+        };
+
+        // 说明：boxed payload 在运行期是一个独立的聚合对象；当前阶段用一个具名 LLVM struct 承载其字段布局，
+        // 以便 ctor/binder 双方对齐类型（避免 bitcast 到不一致的匿名 struct）。
+        let name = format!(
+            "scoop_boxed_payload_{}_{}",
+            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&variant.name)
+        );
+
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return Ok(existing);
+        }
+
+        let payload_ty = self.context.opaque_struct_type(&name);
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(variant.fields.len());
+        for &field_cg in &variant.fields {
+            llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
+        }
+        payload_ty.set_body(&llvm_fields, false);
+        Ok(payload_ty)
+    }
+
     fn create_entry_alloca(
-        &self,
+        &mut self,
         at: crate::span::Span,
         name: &str,
         ty: CgTy,
@@ -3792,6 +4451,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
+fn align_to(value: u64, align: u64) -> u64 {
+    if align <= 1 {
+        return value;
+    }
+    let mask = align - 1;
+    (value + mask) & !mask
+}
+
+fn largest_two_sizes(layouts: &[TypeLayout]) -> (u64, u64) {
+    let mut max = 0u64;
+    let mut second = 0u64;
+    for l in layouts {
+        let s = l.size;
+        if s >= max {
+            second = max;
+            max = s;
+            continue;
+        }
+        if s > second {
+            second = s;
+        }
+    }
+    (max, second)
+}
+
 fn unify_int_types(
     lhs_is_lit: bool,
     lhs_ty: IntTy,
@@ -3819,6 +4503,22 @@ fn parse_tuple_member_index(text: &str) -> Option<u32> {
         return None;
     }
     digits.parse::<u32>().ok()
+}
+
+fn sanitize_llvm_ident(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "_".to_string()
+    } else {
+        out
+    }
 }
 
 fn parse_int_literal_decimal(text: &str) -> u128 {

@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: option_ref_niche_basic.stdout
+//
+// 目标：T0826 enum niche codegen（`Option<RefType>`：`None = null`）。
+
+import scoop.core.*
+
+fun main() {
+    val o: String? = Some("hi")
+    val out: String = when (o) {
+        Some(s) -> s
+        None -> "none"
+    }
+    println(out)
+}
+

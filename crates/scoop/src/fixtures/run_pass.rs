@@ -38,6 +38,14 @@ struct RunStdoutMismatch {
 }
 
 #[derive(Debug, Error, Diagnostic)]
+#[error("stdout 未包含期望子串：{substring}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_stdout_missing_substring))]
+struct RunStdoutMissingSubstring {
+    substring: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
 #[error("无法读取 stderr golden 文件：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::run_stderr_read_failed))]
 struct RunStderrReadFailed {
@@ -52,6 +60,14 @@ struct RunStderrReadFailed {
 #[diagnostic(code(scoop::fixtures::run_stderr_mismatch))]
 struct RunStderrMismatch {
     path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("stderr 未包含期望子串：{substring}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_stderr_missing_substring))]
+struct RunStderrMissingSubstring {
+    substring: String,
     fixture: String,
 }
 
@@ -455,31 +471,40 @@ pub(crate) fn assert_stdout_matches(
     exp: &FixtureExpectation<'_>,
     actual_stdout: &str,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let Some(golden_rel) = exp.run_stdout else {
-        return Ok(());
-    };
-
-    let golden_path = fixture_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(golden_rel);
-
-    let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
-        super::box_diagnostic(RunStdoutReadFailed {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-            source: e,
-        })
-    })?;
-
-    let expected = super::normalize_newlines(&expected);
     let actual = super::normalize_newlines(actual_stdout);
 
-    if expected != actual {
-        return Err(super::box_diagnostic(RunStdoutMismatch {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-        }));
+    if let Some(golden_rel) = exp.run_stdout {
+        let golden_path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(golden_rel);
+
+        let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+            super::box_diagnostic(RunStdoutReadFailed {
+                path: golden_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+
+        let expected = super::normalize_newlines(&expected);
+
+        if expected != actual {
+            return Err(super::box_diagnostic(RunStdoutMismatch {
+                path: golden_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+            }));
+        }
+    }
+
+    if let Some(needle) = exp.run_stdout_contains {
+        let needle = super::normalize_newlines(needle);
+        if !actual.contains(&needle) {
+            return Err(super::box_diagnostic(RunStdoutMissingSubstring {
+                substring: needle,
+                fixture: fixture_path.display().to_string(),
+            }));
+        }
     }
 
     Ok(())
@@ -494,31 +519,40 @@ pub(crate) fn assert_stderr_matches(
     exp: &FixtureExpectation<'_>,
     actual_stderr: &str,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let Some(golden_rel) = exp.run_stderr else {
-        return Ok(());
-    };
-
-    let golden_path = fixture_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(golden_rel);
-
-    let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
-        super::box_diagnostic(RunStderrReadFailed {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-            source: e,
-        })
-    })?;
-
-    let expected = super::normalize_newlines(&expected);
     let actual = super::normalize_newlines(actual_stderr);
 
-    if expected != actual {
-        return Err(super::box_diagnostic(RunStderrMismatch {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-        }));
+    if let Some(golden_rel) = exp.run_stderr {
+        let golden_path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(golden_rel);
+
+        let expected = std::fs::read_to_string(&golden_path).map_err(|e| {
+            super::box_diagnostic(RunStderrReadFailed {
+                path: golden_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+
+        let expected = super::normalize_newlines(&expected);
+
+        if expected != actual {
+            return Err(super::box_diagnostic(RunStderrMismatch {
+                path: golden_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+            }));
+        }
+    }
+
+    if let Some(needle) = exp.run_stderr_contains {
+        let needle = super::normalize_newlines(needle);
+        if !actual.contains(&needle) {
+            return Err(super::box_diagnostic(RunStderrMissingSubstring {
+                substring: needle,
+                fixture: fixture_path.display().to_string(),
+            }));
+        }
     }
 
     Ok(())
@@ -555,6 +589,23 @@ mod tests {
 
         let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n");
         assert_stdout_matches(&fixture_path, &exp, "hello\nworld\n").unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn stderr_contains_matches_ok() {
+        let dir = make_temp_dir("stderr_contains_matches_ok");
+        let fixture_path = dir.join("hello.scoop");
+
+        std::fs::write(
+            &fixture_path,
+            "// RUN-STDERR-CONTAINS: boxed oversized variant\nfun main() {}\n",
+        )
+        .unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDERR-CONTAINS: boxed oversized variant\n");
+        assert_stderr_matches(&fixture_path, &exp, "warn: boxed oversized variant\n").unwrap();
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

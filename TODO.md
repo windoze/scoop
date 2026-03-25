@@ -2427,11 +2427,21 @@
    - `cargo test -p scoopc --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0826 [TODO] codegen：enum niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
+### T0826 [DONE] codegen：enum niche 优化 / oversized variant boxing / disparity lint（spec §2.3.2）
 - 描述：为 rich enum 落实完整布局策略：能使用 niche 时消除显式 tag；oversized variant 自动 boxing；size disparity 明显时发出 lint warning。
 - 目标：先覆盖 `Option<RefType>` 等高价值场景；更复杂嵌套 niche 后续可继续扩展。
 - 验收：新增 codegen/run-pass fixture：`Option<RefType>` 正常工作；oversized variant case 通过并伴随 lint（warning 可先文本断言）。
 - 依赖：T0449、T0813
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：`Option<T>` 在 codegen 侧接入 niche 表示（`None` 用非法值编码），并为 rich enum 补齐 oversized variant boxing（boxed payload 为指针）；`when` 支持对 boxed payload 解构绑定与 enum variant pattern 的 `..`（rest）。
+   - `crates/scoop/src/fixtures/expectations.rs`：fixtures 指令新增 `RUN-STDOUT-CONTAINS`/`RUN-STDERR-CONTAINS`（子串断言），用于稳定断言含时间戳的 warning。
+   - `crates/scoop/src/fixtures/run_pass.rs`：run-pass phase 支持 stdout/stderr 子串断言（与 golden 全文比对并存）。
+   - `tests/fixtures/run-pass/option_ref_niche_basic.scoop`：新增 run-pass fixture，覆盖 `Option<String>`（niche）构造 + `when` 解构 + `println`。
+   - `tests/fixtures/run-pass/enum_oversized_variant_boxing_basic.scoop`：新增 run-pass fixture，覆盖 multi-field oversized variant boxing，并用 `RUN-STDERR-CONTAINS` 断言 lint warning 关键子串。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test` 通过并实际执行 run-pass fixtures。
 
 ### T0827 [TODO] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
 - 描述：当 `trimIndent()` 的接收者不是编译期常量时，生成普通运行期调用并接到最小字符串 API。

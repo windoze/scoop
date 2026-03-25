@@ -28,6 +28,7 @@
 - 2026-03-25：完成 T0823：LLVM codegen 支持 f-string 插值（Text/Expr 分片拼接，最小支持 `{String}`/`{Int}`），并新增 runtime `scoop_format_{i64,u64}`；新增 run-pass fixture 覆盖 `val s = f"hi {name} {n}"; println(s)` 的 stdout。
 - 2026-03-25：完成 T0824：tuple 字段访问语法统一为 `t._0` / `t._1`，并补齐 `print/println(Int)` 的最小 codegen（runtime formatting + `scoop_print/scoop_println`）；新增 run-pass fixture 覆盖 tuple 求和 stdout 与 `t.0` parse compile-fail 回归。
 - 2026-03-25：完成 T0825：`when` codegen 支持 or-pattern（`A | B`）与 guard（`pat if cond`），guard 为 false 时会回落到后续分支；新增 run-pass fixture 覆盖两类语义。
+- 2026-03-25：完成 T0826：LLVM codegen 支持 `Option<RefType>` niche 表示与 rich enum 的 oversized variant boxing；run-pass fixtures 新增 `RUN-STDERR-CONTAINS`/`RUN-STDOUT-CONTAINS` 子串断言用于稳定验证 lint warning；新增 run-pass fixtures 覆盖 Option niche 与 oversized boxing。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。

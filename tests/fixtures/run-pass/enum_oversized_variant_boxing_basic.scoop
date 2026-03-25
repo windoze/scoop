@@ -1,0 +1,42 @@
+// EXPECT: pass
+// RUN-STDOUT: enum_oversized_variant_boxing_basic.stdout
+// RUN-STDERR-CONTAINS: enum variant size disparity is significant; boxing oversized variant(s) enum_fqn=fixtures.run_pass.Big
+//
+// 目标：T0826 oversized variant boxing + size disparity lint（warning）。
+
+package fixtures.run_pass
+
+import scoop.core.*
+
+enum Big {
+    Small(val x: Int),
+    Huge(
+        val a0: Int,
+        val a1: Int,
+        val a2: Int,
+        val a3: Int,
+        val a4: Int,
+        val a5: Int,
+        val a6: Int,
+        val a7: Int,
+        val a8: Int,
+        val a9: Int,
+        val a10: Int,
+        val a11: Int,
+        val a12: Int,
+        val a13: Int,
+        val a14: Int,
+        val a15: Int,
+        val a16: Int,
+    ),
+}
+
+fun main() {
+    val v: Big = Huge(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+    val out: Int = when (v) {
+        Small(x) -> x
+        Huge(a0, ..) -> a0
+    }
+    println(out)
+}
+
