@@ -1033,6 +1033,15 @@ pub enum ExprKind {
     Async {
         body: Block,
     },
+    /// `spawn { ... }`（spec §5.7）：结构化并发语法糖（T0620）。
+    ///
+    /// 说明：
+    /// - 该节点只负责保留语法结构（关键字 + block）；
+    /// - 具体 desugar（例如 lowering 到 runtime/`Task` 模型）由后续阶段决定；
+    /// - 当前阶段先落地一个“可回归”的最小 join 语义（无取消）。
+    Spawn {
+        body: Block,
+    },
     /// `await expr`（spec §5.7）：作为 `Async.await(...)` 的语法糖。
     ///
     /// 说明：
@@ -1040,6 +1049,15 @@ pub enum ExprKind {
     /// - 后续阶段会把它 lower 成一次 `Async` effect operation 的 perform 点。
     Await {
         await_span: Span,
+        expr: Box<Expr>,
+    },
+    /// `join expr`：结构化并发最小语法糖（T0620）。
+    ///
+    /// 说明：
+    /// - 当前阶段用于让 fixtures 可以表达“等待子任务完成并取回结果”的形态；
+    /// - 更完整的 `Task<T>`/`await`/取消语义将由后续任务补齐（T0622/T0917）。
+    Join {
+        join_span: Span,
         expr: Box<Expr>,
     },
     /// 成员访问表达式：`receiver.member`（postfix）。

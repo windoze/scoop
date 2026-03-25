@@ -2671,11 +2671,27 @@
    - `cargo test --all` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0620 [TODO] `spawn`：结构化并发最小模型（spec §5.7）
+### T0620 [DONE] `spawn`：结构化并发最小模型（spec §5.7）
 - 描述：实现 `spawn` 语法糖与 runtime 支持（join/取消语义先简化）。
 - 目标：先只支持 join；取消后置。
 - 验收：新增 run-pass fixture：spawn 两个任务并 join；输出顺序/值正确。
 - 依赖：T0619
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：AST 新增 `ExprKind::Spawn` / `ExprKind::Join`。
+   - `crates/scoopc/src/parser/expr.rs`：新增 `spawn { ... }` 与 `join expr` 的解析（上下文关键字）。
+   - `crates/scoopc/src/resolve/scopes.rs`：scope checker 覆盖 spawn/join 递归检查。
+   - `crates/scoopc/src/typecheck/expr.rs`：typecheck 接入 spawn/join，并把它们计入 `Async` performed effects（确保 `async { ... }` 可捕获）。
+   - `crates/scoopc/src/hir/lower.rs`：lowering 把 spawn/join desugar 为 `scoop.core.__scoop_task_{spawn,join}_int` 调用（避免依赖 closure codegen）。
+   - `sysroot/core.scoop`：新增内部 runtime helper 声明：`__scoop_task_spawn_int` / `__scoop_task_join_int`。
+   - `runtime/c/scoop_runtime.c`：实现 `scoop_task_spawn_int` / `scoop_task_join_int`（one-shot join；当前不提供真实并行/取消）。
+   - `crates/scoopc/src/llvm/codegen.rs`：把 sysroot helper 映射到 runtime C 符号，并处理 word ↔ i64/u64 cast。
+   - `crates/scoop_runtime/tests/task_spawn_join.rs`：新增 runtime 集成测试覆盖 spawn/join roundtrip。
+   - `tests/fixtures/typecheck/entry_point_main_spawn_join_async_ok.scoop`：新增 typecheck fixture 回归 entry point 纯度。
+   - `tests/fixtures/run-pass/spawn_join_int_basic.*`：新增 run-pass fixture + stdout golden 回归输出顺序。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - （可选，需 LLVM）`PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 
 ### T0622 [TODO] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
 - 描述：在 sysroot/type system 中引入 `Task<T>` 的最小模型，固定“懒执行直到 `await` 或显式启动”的语义，并为 `spawn/async` 共享同一任务抽象。

@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: spawn_join_int_basic.stdout
+//
+// T0620: `spawn/join`（结构化并发最小模型）
+//
+// 目标覆盖（当前阶段最小可回归语义）：
+// - `spawn { ... }` 计算 body 并返回一个 `Int` 句柄（后续会升级为 `Task<T>`）；
+// - `join handle` 取回结果（当前为 one-shot）。
+
+import scoop.core.*
+
+fun main(): Int {
+    val result: Int = async {
+        println("before")
+
+        val t1: Int = spawn {
+            println("t1")
+            10
+        }
+
+        val t2: Int = spawn {
+            println("t2")
+            32
+        }
+
+        val a: Int = join t1
+        val b: Int = join t2
+
+        println("sum")
+        println(a + b)
+        a + b
+    }
+
+    println("done")
+    println(result)
+    return 0
+}
+

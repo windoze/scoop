@@ -227,6 +227,50 @@ uint64_t scoop_effect_perform_slot_read_u64(void) {
   return __scoop_effect_perform_slot.value.as_u64;
 }
 
+// --- Tasks / spawn/join（early stage, TODO T0620） ---
+//
+// 说明：
+// - 当前阶段只提供最小可执行语义：`spawn { body }` 会先在当前线程计算出 `Int` 值，
+//   再由 runtime 分配一个句柄对象保存该值；`join handle` 取回该值；
+// - 该实现不提供真实并行/取消；后续将被 `Task<T>` + executor 模型替换（TODO T0622/T0917）。
+// - `join` 当前为 one-shot：对同一个 handle 重复 join 会直接 `exit(3)`（与 `resume` 的运行期断言保持一致）。
+typedef struct ScoopTaskInt {
+  uint32_t joined;
+  uint32_t _reserved_u32;
+  int64_t value;
+} ScoopTaskInt;
+
+uint64_t scoop_task_spawn_int(int64_t value) {
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
+  ScoopTaskInt *task = (ScoopTaskInt *)malloc(sizeof(ScoopTaskInt));
+  if (task == 0) {
+    // OOM：返回 0 句柄（join 时会返回 0）。
+    return 0;
+  }
+
+  task->joined = 0;
+  task->_reserved_u32 = 0;
+  task->value = value;
+  return (uint64_t)(uintptr_t)task;
+}
+
+int64_t scoop_task_join_int(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  ScoopTaskInt *task = (ScoopTaskInt *)(uintptr_t)handle;
+  if (task->joined) {
+    exit(3);
+  }
+
+  task->joined = 1;
+  return task->value;
+}
+
 // --- GC / shadow stack（TODO T0905） ---
 
 ScoopGcFrame *scoop_gc_current_frame(void) {

@@ -653,7 +653,13 @@ fn field_use_span_in_expr(
         ast::ExprKind::Async { body } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }
+        ast::ExprKind::Spawn { body } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
+        }
         ast::ExprKind::Await { expr, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, expr)
+        }
+        ast::ExprKind::Join { expr, .. } => {
             field_use_span_in_expr(source, backing_field_decl_span, expr)
         }
         ast::ExprKind::MemberAccess { receiver, .. } => {

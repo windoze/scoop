@@ -108,6 +108,15 @@ effect Async {
     fun await(value: Int): Int
 }
 
+// Tasks / spawn/join（early stage, internal）。
+//
+// 说明：
+// - 该组 API 仅用于 `spawn/join` 语法糖的最小可执行落点（T0620）；
+// - 当前阶段句柄与结果都先固定为 `Int`，并不承诺稳定 ABI；
+// - 后续会被 `Task<T>` + executor/runtime 原语替换（T0622/T0917）。
+fun __scoop_task_spawn_int(value: Int): Int
+fun __scoop_task_join_int(taskHandle: Int): Int
+
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {
     NullAssertionFailed,

@@ -182,6 +182,46 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        // spec §5.7：`spawn { ... }`（结构化并发语法糖，T0620）。
+        //
+        // 说明：
+        // - 为避免与 Kotlin 风格 trailing lambda 的 `spawn { ... }`（call + lambda）形态冲突，
+        //   这里把 `spawn` 作为“上下文关键字”在前缀位置优先解析为独立语法节点；
+        // - 当前阶段只支持紧跟一个 block：`spawn { ... }`。
+        if self.peek_ident_text("spawn") {
+            let spawn_kw = self.bump(); // `spawn`（ident）
+            let start = spawn_kw.span.start;
+
+            let body = self.parse_block()?;
+            return Ok(Some(ast::Expr {
+                span: Span::new(start, body.span.end),
+                kind: ast::ExprKind::Spawn { body },
+            }));
+        }
+
+        // T0620：`join expr`（结构化并发最小语法糖）。
+        //
+        // 说明：
+        // - lexer 当前把 `join` 作为 ident（上下文关键字），因此这里通过字面文本判别；
+        // - `join` 作为前缀操作符，优先级与 `await`/`!`/`-` 等前缀一元运算对齐。
+        if self.peek_ident_text("join") {
+            let join_kw = self.bump(); // `join`（ident）
+            let tok = *self.peek();
+            let expr = self.try_parse_expr_prefix()?.ok_or(ParseError::Expected {
+                expected: "表达式（join 的操作数）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+
+            return Ok(Some(ast::Expr {
+                span: Span::new(join_kw.span.start, expr.span.end),
+                kind: ast::ExprKind::Join {
+                    join_span: join_kw.span,
+                    expr: Box::new(expr),
+                },
+            }));
+        }
+
         // spec §5.7：`await expr`（作为 Async effect 的语法糖）。
         //
         // 说明：

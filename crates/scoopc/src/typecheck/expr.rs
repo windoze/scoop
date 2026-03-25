@@ -2264,9 +2264,35 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::Spawn { body } => infer_spawn_expr_type(
+            source,
+            expr,
+            body,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Await { await_span: _, expr: inner } => infer_await_expr_type(
             source,
             expr,
+            inner,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::Join {
+            join_span,
+            expr: inner,
+        } => infer_join_expr_type(
+            source,
+            expr,
+            *join_span,
             inner,
             lower,
             builtins,
@@ -2394,6 +2420,57 @@ fn infer_async_expr_type(
     Ok(body_ty)
 }
 
+/// 推导 `spawn { ... }` 的类型，并把 `Async` 计入 required effects（T0620）。
+///
+/// 当前阶段（最小可回归落点）：
+/// - `spawn` 被视为一次 `Async` performed effect（与规范中 desugar 到 `Async.spawn(...)` 对齐）；
+/// - 先只支持 `spawn` body 的值类型为 `Int`，并返回一个 `Int` 句柄（后续由 `Task<T>` 替换）；
+/// - 更完整的 `Task<T>` / generic spawn / 取消语义留给后续任务（T0622/T0917）。
+fn infer_spawn_expr_type(
+    source: &SourceFile,
+    spawn_expr: &ast::Expr,
+    body: &ast::Block,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let body_ty = infer_block_value_type(
+        source,
+        body,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let expected_ty = builtins.int;
+    if !is_type_assignable(body_ty, expected_ty, lower, builtins) {
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: "spawn".to_string(),
+            index: 1,
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(body_ty),
+            span: body.span.into(),
+        });
+    }
+
+    let async_effect = lower.lower_type_fqn_with_args(
+        ASYNC_EFFECT_FQN.to_string(),
+        Vec::new(),
+        spawn_expr.span,
+    )?;
+    lower.record_performed_effect(async_effect, spawn_expr.span);
+
+    // 当前阶段（T0620）spawn 的返回类型先落到 `Int` 句柄，供 join 取回结果；
+    // 后续任务会把它替换为 `Task<T>` 并接入 executor/runtime。
+    Ok(expected_ty)
+}
+
 /// 推导 `await expr` 的类型，并把 `Async` 计入 required effects。
 ///
 /// 当前阶段（T0619）最小规则：
@@ -2439,6 +2516,56 @@ fn infer_await_expr_type(
         await_expr.span,
     )?;
     lower.record_performed_effect(async_effect, await_expr.span);
+    Ok(expected_ty)
+}
+
+/// 推导 `join expr` 的类型，并把 `Async` 计入 required effects（T0620）。
+///
+/// 当前阶段（最小可回归落点）：
+/// - `join` 仅支持等待一个 `Int` 句柄，并返回 `Int`；
+/// - `join` 视为一次 `Async` performed effect（与后续 `Task<T>` + `await` 方向保持一致）。
+fn infer_join_expr_type(
+    source: &SourceFile,
+    _join_expr: &ast::Expr,
+    join_span: Span,
+    inner: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let found_ty = infer_expr_type(
+        source,
+        inner,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let expected_ty = builtins.int;
+    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: "join".to_string(),
+            index: 1,
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: inner.span.into(),
+        });
+    }
+
+    let async_effect = lower.lower_type_fqn_with_args(
+        ASYNC_EFFECT_FQN.to_string(),
+        Vec::new(),
+        join_span,
+    )?;
+    lower.record_performed_effect(async_effect, join_span);
+
+    // 当前阶段（T0620）join 的返回类型先固定为 `Int`。
     Ok(expected_ty)
 }
 
@@ -9185,7 +9312,9 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::When { .. } => "when expression",
         ast::ExprKind::Handle { .. } => "handle expression",
         ast::ExprKind::Async { .. } => "async expression",
+        ast::ExprKind::Spawn { .. } => "spawn expression",
         ast::ExprKind::Await { .. } => "await expression",
+        ast::ExprKind::Join { .. } => "join expression",
         ast::ExprKind::MemberAccess { .. } => "member access",
         ast::ExprKind::SpliceField { .. } => "splice field access",
         ast::ExprKind::SafeMemberAccess { .. } => "safe member access",

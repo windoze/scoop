@@ -116,6 +116,8 @@ struct HirLowering<'a> {
 
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
+    const TASK_SPAWN_INT_FQN: &'static str = "scoop.core.__scoop_task_spawn_int";
+    const TASK_JOIN_INT_FQN: &'static str = "scoop.core.__scoop_task_join_int";
 
     fn new(
         source: &'a SourceFile,
@@ -641,6 +643,40 @@ impl<'a> HirLowering<'a> {
                 };
                 (ExprKind::Handle(handle), self.builtins.any)
             }
+            ast::ExprKind::Spawn { body } => {
+                // T0620：`spawn { ... }`（结构化并发最小模型）。
+                //
+                // 当前阶段（最小可回归落点）：
+                // - `spawn` 的 body 先按普通 block 表达式执行并产出一个 `Int` 值；
+                // - 该值通过 runtime helper 包装为一个 `Int` 句柄（后续可替换为 `Task<T>`）。
+                //
+                // NOTE: 这里刻意不使用 lambda/closure，以避免依赖 closure codegen（尚未接入）。
+
+                let body = self.lower_block(pkg_prefix, body);
+                let body_expr = Expr {
+                    span: body.span,
+                    ty: body.ty,
+                    kind: ExprKind::Block(body),
+                };
+
+                let fqn = Self::TASK_SPAWN_INT_FQN.to_string();
+                let callee = Expr {
+                    span: e.span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(fqn.clone()),
+                        fqn,
+                    }),
+                };
+
+                (
+                    ExprKind::Call {
+                        callee: Box::new(callee),
+                        args: vec![CallArg::Positional(body_expr)],
+                    },
+                    self.builtins.int,
+                )
+            }
             ast::ExprKind::Await { await_span, expr } => {
                 // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
                 //
@@ -654,6 +690,30 @@ impl<'a> HirLowering<'a> {
                 (
                     ExprKind::Perform {
                         op,
+                        args: vec![CallArg::Positional(inner)],
+                    },
+                    self.builtins.int,
+                )
+            }
+            ast::ExprKind::Join { join_span, expr } => {
+                // T0620：`join expr`（结构化并发最小模型）。
+                //
+                // 当前阶段：join 仅支持 `Int` 句柄，并返回 `Int`（后续会替换为 `await Task<T>`）。
+                let inner = self.lower_expr(pkg_prefix, expr);
+
+                let fqn = Self::TASK_JOIN_INT_FQN.to_string();
+                let callee = Expr {
+                    span: *join_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(fqn.clone()),
+                        fqn,
+                    }),
+                };
+
+                (
+                    ExprKind::Call {
+                        callee: Box::new(callee),
                         args: vec![CallArg::Positional(inner)],
                     },
                     self.builtins.int,

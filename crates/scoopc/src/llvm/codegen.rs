@@ -1807,6 +1807,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
+            // T0620：spawn/join（结构化并发最小模型）使用 runtime helper。
+            if fqn == "scoop.core.__scoop_task_spawn_int" || fqn == "scoop.core.__scoop_task_join_int"
+            {
+                return self.codegen_sysroot_task_intrinsics(span, callee.span, fqn, args);
+            }
             return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
         }
 
@@ -2244,6 +2249,147 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown sysroot effect intrinsic callee",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_task_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+
+        match fqn {
+            "scoop.core.__scoop_task_spawn_int" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task spawn arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task spawn named arg",
+                        at: span.into(),
+                    });
+                };
+
+                // `spawn { ... }` 当前阶段只支持 `Int`；typecheck 已保证类型，但这里仍做一次显式期望。
+                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(word)))?;
+                let v = self.coerce_value(expr.span, v, CgTy::Int(word))?;
+                let (raw_int, from) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "task spawn arg value",
+                    at: expr.span.into(),
+                })?;
+
+                // runtime ABI：`uint64_t scoop_task_spawn_int(int64_t value)`
+                let value_i64 = self.cast_int(
+                    raw_int,
+                    from,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                )?;
+
+                let rt = self.declare_runtime_task_spawn_int();
+                let call = self
+                    .builder
+                    .build_call(rt, &[value_i64.into()], "task_spawn_int")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task spawn return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(handle_u64) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task spawn return type",
+                        at: span.into(),
+                    });
+                };
+
+                let handle_word = self.cast_int(
+                    handle_u64,
+                    IntTy {
+                        bits: 64,
+                        signed: false,
+                    },
+                    word,
+                )?;
+                Ok(CgValue::int(handle_word, word))
+            }
+            "scoop.core.__scoop_task_join_int" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task join arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task join named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(word)))?;
+                let v = self.coerce_value(expr.span, v, CgTy::Int(word))?;
+                let (raw_handle, from) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "task join arg value",
+                    at: expr.span.into(),
+                })?;
+
+                // runtime ABI：`int64_t scoop_task_join_int(uint64_t handle)`
+                let handle_u64 = self.cast_int(
+                    raw_handle,
+                    from,
+                    IntTy {
+                        bits: 64,
+                        signed: false,
+                    },
+                )?;
+
+                let rt = self.declare_runtime_task_join_int();
+                let call = self
+                    .builder
+                    .build_call(rt, &[handle_u64.into()], "task_join_int")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task join return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(value_i64) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "task join return type",
+                        at: span.into(),
+                    });
+                };
+
+                let value_word = self.cast_int(
+                    value_i64,
+                    IntTy {
+                        bits: 64,
+                        signed: true,
+                    },
+                    word,
+                )?;
+                Ok(CgValue::int(value_word, word))
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown sysroot task intrinsic callee",
                 at: callee_span.into(),
             }),
         }
@@ -6351,6 +6497,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint64_t scoop_gc_debug_count_roots_current_thread(void)`
         let fn_ty = self.context.i64_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_task_spawn_int(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_task_spawn_int";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_task_spawn_int(int64_t value)`
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_task_join_int(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_task_join_int";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `int64_t scoop_task_join_int(uint64_t handle)`
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

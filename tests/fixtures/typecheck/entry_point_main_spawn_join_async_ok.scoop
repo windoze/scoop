@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T0620：`spawn/join` 在 `async { ... }` 语境内不应使 entry point 泄露 `Async` required effects。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Int = async {
+        val t: Int = spawn { 1 }
+        val y: Int = join t
+        y
+    }
+
+    // 仅用于确保 `x` 在外层可作为普通 `Int` 使用。
+    println(x)
+    return 0
+}
+

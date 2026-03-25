@@ -700,8 +700,16 @@ impl<'a> BlockScopeChecker<'a> {
                 // spec §5.7：`async { ... }` 的 body 同样是一个 block。
                 self.check_block(body)?;
             }
+            ast::ExprKind::Spawn { body } => {
+                // spec §5.7：`spawn { ... }` 的 body 同样是一个 block。
+                self.check_block(body)?;
+            }
             ast::ExprKind::Await { expr, .. } => {
                 // spec §5.7：`await expr` 只是一层前缀语法糖，递归检查其操作数即可。
+                self.check_expr(expr.as_mut())?;
+            }
+            ast::ExprKind::Join { expr, .. } => {
+                // T0620：`join expr` 只是一层前缀语法糖，递归检查其操作数即可。
                 self.check_expr(expr.as_mut())?;
             }
             ast::ExprKind::MemberAccess { receiver, member } => {
