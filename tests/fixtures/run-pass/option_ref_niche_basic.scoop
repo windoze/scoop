@@ -7,10 +7,9 @@ import scoop.core.*
 
 fun main() {
     val o: String? = Some("hi")
-    val out: String = when (o) {
+    val result: String = when (o) {
         Some(s) -> s
         None -> "none"
     }
-    println(out)
+    println(result)
 }
-

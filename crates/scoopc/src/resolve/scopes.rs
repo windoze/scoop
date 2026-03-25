@@ -255,7 +255,11 @@ impl<'a> BlockScopeChecker<'a> {
                 ast::TypeMember::Property(p) => {
                     self.check_type_member_property(p, &this_ctx, ctor_params, None, false)?
                 }
-                ast::TypeMember::InitBlock(_b) => {}
+                ast::TypeMember::InitBlock(b) => {
+                    // object/companion object 也允许出现 `init { ... }`：需要在其中解析值名字引用，
+                    // 以便后续 typecheck/codegen 能复用写回的绑定结果（T0828）。
+                    self.with_this_context(this_ctx.clone(), |this| this.check_block(&mut b.body))?;
+                }
                 ast::TypeMember::SecondaryCtor(_ctor) => {}
                 ast::TypeMember::Fun(fun) => {
                     self.check_type_member_fun(fun, &this_ctx, ctor_params)?

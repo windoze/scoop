@@ -2459,11 +2459,21 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/string_trim_indent_basic.scoop` 输出与 golden 一致。
 
-### T0828 [TODO] codegen：`object` / `companion object` 单例存储与成员访问（Appendix B.9）
+### T0828 [DONE] codegen：`object` / `companion object` 单例存储与成员访问（Appendix B.9）
 - 描述：实现 `object` / `companion object` 的最小 codegen：单例存储、一次初始化、静态成员访问 lowering。
 - 目标：先只覆盖单线程；线程安全初始化后续可由 runtime 原语增强。
 - 验收：新增 run-pass fixture：多次访问同一 object 获得同一实例语义；`ClassName.member` 可访问 companion 成员。
-- 依赖：T0452、T0918
+- 依赖：T0452
+- 完成：
+  - `crates/scoopc/src/hir/mod.rs`：增加 `ObjectInitIndex/ObjectInitStep` side table，为后端提供 object/companion 的初始化顺序与属性元信息。
+  - `crates/scoopc/src/hir/lower.rs`：在 lowering 阶段收集 object/companion 的属性 init 与 `init {}` 块（按源码顺序）。
+  - `crates/scoopc/src/llvm/codegen.rs`：生成 module-local guard + init function（单线程 once），并在 `Foo.x`/`C.x` 访问点先调用 init，再读取全局 backing storage。
+  - `crates/scoopc/src/llvm/mod.rs`：把 object init 索引注入 LLVM codegen。
+  - `tests/fixtures/run-pass/object_companion_once_init_basic.scoop`：新增 run-pass fixture，覆盖 object/companion 的 once 初始化与 `ClassName.member` 静态访问。
+- 验收：
+  - `cargo test --all` 通过；
+  - `cargo test -p scoopc --features llvm` 通过；
+  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ---
 

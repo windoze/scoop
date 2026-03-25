@@ -23,9 +23,9 @@ use crate::ty::{
 use super::{
     Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
     EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
-    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, Param, Stmt,
-    StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId,
-    ValDecl, ValueRef, WhenArm, WhenPat,
+    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
+    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructFieldLayout,
+    StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -51,6 +51,8 @@ pub struct LoweredHir {
     pub struct_layouts: StructLayoutIndex,
     /// 由本次 lowering 过程中收集到的 enum variant 布局信息（供早期 LLVM codegen 查询）。
     pub enum_layouts: EnumLayoutIndex,
+    /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
+    pub object_inits: ObjectInitIndex,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -1603,6 +1605,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ctx.lower_file()
     };
 
+    // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
+    let object_inits = collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
     let struct_layouts = collect_struct_layouts(&pairs, &index);
     // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
@@ -1612,6 +1617,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         types,
         struct_layouts,
         enum_layouts,
+        object_inits,
     })
 }
 
@@ -1671,6 +1677,146 @@ fn collect_type_decl_kinds(pairs: &[(&SourceFile, &ast::File)]) -> HashMap<Strin
         }
     }
     out
+}
+
+fn collect_object_inits(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> ObjectInitIndex {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut ctx = HirLowering::new(source, file, index, type_kinds, types, builtins);
+
+    let mut out: ObjectInitIndex = HashMap::new();
+    for item in &file.items {
+        match item {
+            ast::Item::Object(obj) => {
+                collect_object_decl_inits(&mut ctx, &pkg_prefix, &pkg_prefix, obj, &mut out);
+            }
+            ast::Item::Type(ty) => {
+                collect_objects_in_type_decl(&mut ctx, &pkg_prefix, &pkg_prefix, ty, &mut out);
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_) => {}
+        }
+    }
+
+    out
+}
+
+fn collect_objects_in_type_decl(
+    ctx: &mut HirLowering<'_>,
+    pkg_prefix: &str,
+    owner_prefix: &str,
+    decl: &ast::TypeDecl,
+    out: &mut ObjectInitIndex,
+) {
+    let name = decl.name.text(ctx.source).to_string();
+    let type_fqn = join_prefix(owner_prefix, &name);
+    let Some(body) = &decl.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Object(obj) => {
+                collect_object_decl_inits(ctx, pkg_prefix, &type_fqn, obj, out);
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_objects_in_type_decl(ctx, pkg_prefix, &type_fqn, nested, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_object_decl_inits(
+    ctx: &mut HirLowering<'_>,
+    pkg_prefix: &str,
+    owner_prefix: &str,
+    obj: &ast::ObjectDecl,
+    out: &mut ObjectInitIndex,
+) {
+    let Some(name) = object_decl_name(ctx.source, obj) else {
+        return;
+    };
+
+    let fqn = join_prefix(owner_prefix, &name);
+    let mut init = ObjectInit {
+        fqn: fqn.clone(),
+        properties: HashMap::new(),
+        steps: Vec::new(),
+    };
+
+    if let Some(body) = &obj.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) => {
+                    let name = p.name.text(ctx.source).to_string();
+                    let mutable = matches!(p.kind, ast::ValKind::Var);
+                    let ty =
+                        p.ty.as_ref()
+                            .map(|t| ctx.lower_type_ref(t))
+                            .unwrap_or(ctx.builtins.any);
+                    let has_init = p.init.is_some();
+                    init.properties.insert(
+                        name.clone(),
+                        ObjectProperty {
+                            name: name.clone(),
+                            mutable,
+                            ty,
+                            has_init,
+                        },
+                    );
+
+                    if let Some(expr) = p.init.as_ref() {
+                        let lowered = ctx.lower_expr(pkg_prefix, expr);
+                        init.steps.push(ObjectInitStep::PropertyInit { name, init: lowered });
+                    }
+                }
+                ast::TypeMember::InitBlock(b) => {
+                    let block = ctx.lower_block(pkg_prefix, &b.body);
+                    init.steps.push(ObjectInitStep::InitBlock { block });
+                }
+                ast::TypeMember::Object(nested) => {
+                    collect_object_decl_inits(ctx, pkg_prefix, &fqn, nested, out);
+                }
+                ast::TypeMember::Type(_)
+                | ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+    }
+
+    out.entry(fqn).or_insert(init);
+}
+
+fn object_decl_name(source: &SourceFile, obj: &ast::ObjectDecl) -> Option<String> {
+    match obj.name.as_ref() {
+        Some(name) => Some(name.text(source).to_string()),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => Some("Companion".to_string()),
+            ast::ObjectKind::Object => None,
+        },
+    }
+}
+
+fn join_prefix(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() {
+        name.to_string()
+    } else {
+        format!("{prefix}.{name}")
+    }
 }
 
 /// 收集当前编译单元（sysroot + 当前文件）里出现的 struct 字段布局信息。

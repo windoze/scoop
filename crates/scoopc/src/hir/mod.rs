@@ -434,6 +434,43 @@ pub struct EnumVariantFieldLayout {
 /// `enum FQN -> EnumLayout` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type EnumLayoutIndex = HashMap<String, EnumLayout>;
 
+/// `object` / `companion object` 的初始化信息索引（Appendix B.9）。
+///
+/// 说明：
+/// - 该索引不影响 `dump-hir` 的输出稳定性（只作为后端 side table 使用）；
+/// - 当前阶段只收集 object 体内的“可观测初始化副作用”：
+///   - 属性 backing field 的 init 表达式（`val/var x = expr`）
+///   - `init { ... }` 初始化块
+pub type ObjectInitIndex = HashMap<String, ObjectInit>;
+
+/// 一个 object（含 companion object）的初始化顺序与成员信息。
+#[derive(Debug, Clone)]
+pub struct ObjectInit {
+    pub fqn: String,
+    /// object 体内声明的属性（按 name 索引）。
+    pub properties: HashMap<String, ObjectProperty>,
+    /// 初始化步骤（按源码顺序稳定化，用于一次初始化 codegen）。
+    pub steps: Vec<ObjectInitStep>,
+}
+
+/// object 的一个属性声明信息（最小后端视图）。
+#[derive(Debug, Clone)]
+pub struct ObjectProperty {
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+    pub has_init: bool,
+}
+
+/// object 一次初始化的步骤（按源码顺序执行）。
+#[derive(Debug, Clone)]
+pub enum ObjectInitStep {
+    /// 执行 `val/var name = init` 的 init 表达式，并写入 backing storage。
+    PropertyInit { name: String, init: Expr },
+    /// 执行 `init { ... }` 块。
+    InitBlock { block: Block },
+}
+
 /// `when` 的一个分支（arm）：`pat (if guard)? -> body`。
 #[derive(Debug, Clone)]
 pub struct WhenArm {

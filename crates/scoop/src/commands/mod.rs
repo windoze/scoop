@@ -22,7 +22,11 @@ use crate::cli::{Args, Command};
 /// 通过 `RUST_LOG=scoop=debug` 控制输出。
 pub fn init_tracing() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    // 约定：编译器/driver 日志走 stderr，避免污染 run-pass fixtures 的 stdout 断言。
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .init();
 }
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {

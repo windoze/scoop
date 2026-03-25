@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: object_companion_once_init_basic.stdout
+//
+// T0828: `object` / `companion object` once 初始化 + 静态成员访问。
+
+import scoop.core.*
+
+object Foo {
+    init {
+        println("Foo.init")
+    }
+
+    val x: Int = 1
+}
+
+class C() {
+    companion object {
+        init {
+            println("C.Companion.init")
+        }
+
+        val x: Int = 2
+    }
+}
+
+fun main(): Int {
+    println(Foo.x)
+    println(Foo.x)
+    println(C.x)
+    println(C.x)
+    return 0
+}

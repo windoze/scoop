@@ -218,6 +218,7 @@ fn build_minimal_main_module<'ctx>(
         &lowered.types,
         &lowered.struct_layouts,
         &lowered.enum_layouts,
+        &lowered.object_inits,
         &fun_index,
     );
 
@@ -247,6 +248,7 @@ fn build_minimal_main_module<'ctx>(
             &lowered.types,
             &lowered.struct_layouts,
             &lowered.enum_layouts,
+            &lowered.object_inits,
             &fun_index,
         )
         .codegen_top_level_fun(fun, llvm_fun)?;
@@ -280,6 +282,7 @@ fn build_minimal_main_module<'ctx>(
         &lowered.types,
         &lowered.struct_layouts,
         &lowered.enum_layouts,
+        &lowered.object_inits,
         &fun_index,
     )
     .codegen_main_exit_code(hir_main)?;

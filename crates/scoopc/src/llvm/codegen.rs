@@ -22,6 +22,7 @@ use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
+use inkwell::module::Linkage;
 use inkwell::module::Module;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicTypeEnum;
@@ -190,6 +191,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
+    object_inits: &'a hir::ObjectInitIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
@@ -210,6 +212,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         types: &'a TypeStore,
         struct_layouts: &'a hir::StructLayoutIndex,
         enum_layouts: &'a hir::EnumLayoutIndex,
+        object_inits: &'a hir::ObjectInitIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
         Self {
@@ -221,6 +224,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             types,
             struct_layouts,
             enum_layouts,
+            object_inits,
             fun_index,
             env: Env::default(),
             type_layout_cache: HashMap::new(),
@@ -867,16 +871,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let (tag, field_count) = {
-            let layout = self.enum_layout_of(span, enum_ty)?;
-            let variant = layout.variants.iter().find(|v| v.name == name).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "unknown enum variant",
-                    at: span.into(),
-                },
-            )?;
-            (variant.tag, variant.fields.len())
-        };
+        let cg_layout = self.cg_enum_layout(span, enum_ty)?;
+        let variant = cg_layout
+            .variants
+            .iter()
+            .find(|v| v.name == name)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown enum variant",
+                at: span.into(),
+            })?;
+        let tag = variant.tag;
+        let field_count = variant.fields.len();
 
         if field_count != 0 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -987,28 +992,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.build_enum_value(span, enum_ty, variant.tag, payload)
-    }
-
-    fn enum_layout_of(
-        &self,
-        at: crate::span::Span,
-        enum_ty: TypeId,
-    ) -> Result<&hir::EnumLayout, LlvmEmitError> {
-        let fqn = match self.types.kind(enum_ty) {
-            TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum type id",
-                    at: at.into(),
-                });
-            }
-        };
-
-        self.enum_layouts.get(fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "enum layout",
-            at: at.into(),
-        })
     }
 
     fn target_layout(&self) -> TargetLayout {
@@ -1590,8 +1573,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
 
-                let cg_layout = self.cg_enum_layout(span, enum_ty)?;
-                let tag = match cg_layout.repr {
+                // 注意：避免持有 `cg_enum_layout(...)` 的借用跨越后续 builder 调用。
+                let (repr, variants) = {
+                    let cg_layout = self.cg_enum_layout(span, enum_ty)?;
+                    (cg_layout.repr, cg_layout.variants.clone())
+                };
+
+                let tag = match repr {
                     CgEnumRepr::TaggedUnion => {
                         let subject_struct = subject_raw.into_struct_value();
                         self.builder
@@ -1634,13 +1622,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 };
 
-                let layout = self.enum_layout_of(span, enum_ty)?;
                 let tag_ty = self.context.i32_type();
                 let default_bb = self.context.append_basic_block(func, "when_no_match");
 
                 let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
-                    Vec::with_capacity(layout.variants.len());
-                for variant in &layout.variants {
+                    Vec::with_capacity(variants.len());
+                for variant in &variants {
                     let Some(target_idx) =
                         self.when_first_matching_arm_for_enum_variant(arms, &variant.name)
                     else {
@@ -2254,7 +2241,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let repr = self.cg_enum_layout(at, enum_ty)?.repr;
+        // 注意：避免持有 `cg_enum_layout(...)` 的借用跨越后续 builder 调用。
+        let (repr, variants) = {
+            let cg_layout = self.cg_enum_layout(at, enum_ty)?;
+            (cg_layout.repr, cg_layout.variants.clone())
+        };
         let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?;
         let loaded = self
             .builder
@@ -2303,14 +2294,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
-        let hir_layout = self.enum_layout_of(at, enum_ty)?;
-        self.codegen_when_pat_cond_for_enum_with_tag(at, hir_layout, tag, pat)
+        self.codegen_when_pat_cond_for_enum_with_tag(at, &variants, tag, pat)
     }
 
     fn codegen_when_pat_cond_for_enum_with_tag(
         &self,
-        _at: crate::span::Span,
-        layout: &hir::EnumLayout,
+        at: crate::span::Span,
+        variants: &[CgEnumVariant],
         tag: IntValue<'ctx>,
         pat: &hir::WhenPat,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
@@ -2319,7 +2309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(self.context.bool_type().const_int(1, false))
             }
             hir::WhenPat::Variant { name, args, .. } => {
-                let Some(variant) = layout.variants.iter().find(|v| v.name == *name) else {
+                let Some(variant) = variants.iter().find(|v| v.name == *name) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when unknown enum variant",
                         at: pat.span().into(),
@@ -2341,7 +2331,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Or { pats, .. } => {
                 let mut cond = self.context.bool_type().const_int(0, false);
                 for p in pats {
-                    let c = self.codegen_when_pat_cond_for_enum_with_tag(_at, layout, tag, p)?;
+                    let c = self.codegen_when_pat_cond_for_enum_with_tag(at, variants, tag, p)?;
                     cond = self.builder.build_or(cond, c, "when_or")?;
                 }
                 Ok(cond)
@@ -3430,6 +3420,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match member.resolved.as_ref() {
             Some(hir::MemberRef::Value { fqn, .. }) => {
+                // T0828：`object` / `companion object` 静态成员访问（backing field 读取）。
+                if self.lookup_object_property_by_fqn(fqn).is_some() {
+                    return self.codegen_object_property_access(member.span, fqn);
+                }
+
                 // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
                 if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
                     if let Some(local) = self.env.get(*id) {
@@ -3545,6 +3540,227 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_extract_value(tuple_v, elem_idx, "extract_tuple_elem")?;
         self.cg_value_from_loaded(member.span, elem_ty, extracted)
+    }
+
+    fn lookup_object_property_by_fqn(
+        &self,
+        prop_fqn: &str,
+    ) -> Option<(&hir::ObjectInit, &hir::ObjectProperty)> {
+        let (owner, name) = prop_fqn.rsplit_once('.')?;
+        let obj = self.object_inits.get(owner)?;
+        let prop = obj.properties.get(name)?;
+        Some((obj, prop))
+    }
+
+    fn codegen_object_property_access(
+        &mut self,
+        at: crate::span::Span,
+        prop_fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let (object_fqn, prop) = match self.lookup_object_property_by_fqn(prop_fqn) {
+            Some((obj, prop)) => (obj.fqn.clone(), prop.clone()),
+            None => {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "object property access (missing metadata)",
+                at: at.into(),
+            });
+            }
+        };
+
+        if !prop.has_init {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "object property without initializer",
+                at: at.into(),
+            });
+        }
+
+        let prop_cg =
+            self.cg_ty_of(prop.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "object property type",
+                    at: at.into(),
+                })?;
+
+        let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
+        let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+
+        if prop_cg == CgTy::Unit {
+            return Ok(CgValue::unit());
+        }
+
+        let Some(global) = self.declare_object_property_global(at, prop_fqn, prop_cg)? else {
+            return Ok(CgValue::unit());
+        };
+        let llvm_ty = self.llvm_basic_type_of(at, prop_cg)?;
+        let loaded =
+            self.builder
+                .build_load(llvm_ty, global.as_pointer_value(), "load_obj_prop")?;
+        self.cg_value_from_loaded(at, prop_cg, loaded)
+    }
+
+    fn ensure_object_init_function_defined(
+        &mut self,
+        object_fqn: &str,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let Some(obj) = self.object_inits.get(object_fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "object init (missing metadata)",
+                at: crate::span::Span::new(0, 0).into(),
+            });
+        };
+
+        let name = object_init_fn_name(object_fqn);
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+
+        let llvm_fun = self
+            .module
+            .get_function(&name)
+            .unwrap_or_else(|| self.module.add_function(&name, fn_ty, None));
+
+        // 已有 body：无需重复生成。
+        if llvm_fun.get_first_basic_block().is_some() {
+            return Ok(llvm_fun);
+        }
+
+        // 在生成 init function body 时，临时切换 builder 的插入点；结束后恢复到调用方位置。
+        let saved_block = self.builder.get_insert_block();
+
+        let mut init_codegen = MainCodegen::new(
+            self.context,
+            self.module,
+            self.builder,
+            self.host,
+            self.source,
+            self.types,
+            self.struct_layouts,
+            self.enum_layouts,
+            self.object_inits,
+            self.fun_index,
+        );
+        init_codegen.codegen_object_init_fun_body(obj, llvm_fun)?;
+
+        if let Some(bb) = saved_block {
+            self.builder.position_at_end(bb);
+        }
+
+        Ok(llvm_fun)
+    }
+
+    fn codegen_object_init_fun_body(
+        &mut self,
+        obj: &hir::ObjectInit,
+        llvm_fun: FunctionValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let entry = self.context.append_basic_block(llvm_fun, "entry");
+        let init_bb = self.context.append_basic_block(llvm_fun, "init");
+        let done_bb = self.context.append_basic_block(llvm_fun, "done");
+
+        self.builder.position_at_end(entry);
+
+        let guard = self.declare_object_init_guard(&obj.fqn);
+        let guard_val = self
+            .builder
+            .build_load(self.context.bool_type(), guard.as_pointer_value(), "load_guard")?
+            .into_int_value();
+        self.builder
+            .build_conditional_branch(guard_val, done_bb, init_bb)?;
+
+        self.builder.position_at_end(init_bb);
+
+        // 单线程最小语义：先写入 guard，避免递归初始化导致的重复执行。
+        let _ = self
+            .builder
+            .build_store(guard.as_pointer_value(), self.context.bool_type().const_int(1, false))?;
+
+        self.env.push_scope();
+        for step in &obj.steps {
+            match step {
+                hir::ObjectInitStep::PropertyInit { name, init } => {
+                    let Some(prop) = obj.properties.get(name) else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "object property init (missing property)",
+                            at: init.span.into(),
+                        });
+                    };
+
+                    let prop_cg =
+                        self.cg_ty_of(prop.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "object property init type",
+                                at: init.span.into(),
+                            })?;
+
+                    let v = self.codegen_expr_in_expected_context(init, Some(prop_cg))?;
+
+                    // Unit：只执行副作用即可，无需 backing storage。
+                    if prop_cg != CgTy::Unit {
+                        let prop_fqn = format!("{}.{}", obj.fqn, name);
+                        let Some(global) =
+                            self.declare_object_property_global(init.span, &prop_fqn, prop_cg)?
+                        else {
+                            continue;
+                        };
+                        self.store_local_value(init.span, global.as_pointer_value(), prop_cg, v)?;
+                    }
+                }
+                hir::ObjectInitStep::InitBlock { block } => {
+                    let _ = self.codegen_block_value(block)?;
+                }
+            }
+        }
+        self.env.pop_scope();
+
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        self.builder.position_at_end(done_bb);
+        self.builder.build_return(None)?;
+        Ok(())
+    }
+
+    fn declare_object_init_guard(&self, object_fqn: &str) -> GlobalValue<'ctx> {
+        let name = object_guard_global_name(object_fqn);
+        if let Some(existing) = self.module.get_global(&name) {
+            return existing;
+        }
+
+        let gv = self.module.add_global(self.context.bool_type(), None, &name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_initializer(&self.context.bool_type().const_int(0, false));
+        gv
+    }
+
+    fn declare_object_property_global(
+        &mut self,
+        at: crate::span::Span,
+        prop_fqn: &str,
+        prop_cg: CgTy,
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        if prop_cg == CgTy::Unit {
+            return Ok(None);
+        }
+
+        let name = object_prop_global_name(prop_fqn);
+        if let Some(existing) = self.module.get_global(&name) {
+            return Ok(Some(existing));
+        }
+
+        let llvm_ty = self.llvm_basic_type_of(at, prop_cg)?;
+        let gv = self.module.add_global(llvm_ty, None, &name);
+        gv.set_linkage(Linkage::Internal);
+
+        let init: BasicValueEnum<'ctx> = match llvm_ty {
+            BasicTypeEnum::IntType(ty) => BasicValueEnum::IntValue(ty.const_int(0, false)),
+            BasicTypeEnum::PointerType(ty) => BasicValueEnum::PointerValue(ty.const_null()),
+            BasicTypeEnum::StructType(ty) => BasicValueEnum::StructValue(ty.const_zero()),
+            BasicTypeEnum::ArrayType(ty) => BasicValueEnum::ArrayValue(ty.const_zero()),
+            BasicTypeEnum::FloatType(ty) => BasicValueEnum::FloatValue(ty.const_float(0.0)),
+            BasicTypeEnum::VectorType(ty) => BasicValueEnum::VectorValue(ty.const_zero()),
+            BasicTypeEnum::ScalableVectorType(ty) => {
+                BasicValueEnum::ScalableVectorValue(ty.const_zero())
+            }
+        };
+        gv.set_initializer(&init);
+        Ok(Some(gv))
     }
 
     fn lookup_struct_field(
@@ -4525,6 +4741,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         Ok(())
     }
+}
+
+fn object_init_fn_name(object_fqn: &str) -> String {
+    format!("__scoop_object_init__{object_fqn}")
+}
+
+fn object_guard_global_name(object_fqn: &str) -> String {
+    format!("__scoop_object_guard__{object_fqn}")
+}
+
+fn object_prop_global_name(prop_fqn: &str) -> String {
+    format!("__scoop_object_prop__{prop_fqn}")
 }
 
 fn align_to(value: u64, align: u64) -> u64 {
