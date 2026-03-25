@@ -439,7 +439,7 @@
 ### 6.3 Codegen/Lowering：分三步落地
 
 1) **非恢复 `->`（flag-based unwinding）**
-   - [ ] TLS：`__scoop_effect_active` + perform slot
+   - [x] TLS：`__scoop_effect_active` + perform slot（T0906）
    - [ ] `perform` 写 slot + set flag + return
    - [ ] 调用链传播：检查 flag，沿栈向外返回
    - [ ] handler 边界消费 slot 并清 flag，然后执行 arm；`finally` 正确执行；必要时 re-raise

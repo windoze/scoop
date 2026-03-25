@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "scoop_gc.h"
 
@@ -114,13 +115,42 @@ typedef struct ScoopThreadTls {
   // GC：shadow stack 当前帧链头（TODO T0905）。
   ScoopGcFrame *gc_current_frame;
 
-  // effect runtime（TODO T0906）：占位指针/slot。
+  // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
   void *_reserved0;
   void *_reserved1;
   void *_reserved2;
 } ScoopThreadTls;
 
 static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
+
+// --- effect runtime v0（TODO T0906） ---
+//
+// 说明：
+// - 本阶段只提供 flag + 单个 perform slot 的 TLS 骨架；不实现 dispatch；
+// - codegen/lowering 会在后续任务（T0613+）接入对这些 TLS 符号的读写；
+// - 这些符号名用于仓库内部实现/测试，并不承诺稳定 ABI（见 spec 备注）。
+typedef union ScoopEffectSlotValue {
+  void *as_ptr;
+  uint64_t as_u64;
+  int64_t as_i64;
+} ScoopEffectSlotValue;
+
+typedef struct ScoopEffectPerformSlot {
+  // operation tag（由 lowering 写入；当前阶段仅占位）。
+  uint32_t op_tag;
+
+  // 保留字段：对齐/扩展。
+  uint32_t _reserved_u32;
+
+  // 最小载荷：单 slot（指针/整型）。
+  ScoopEffectSlotValue value;
+} ScoopEffectPerformSlot;
+
+// flag-based unwinding：每线程 active flag（0=inactive，1=active）。
+SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
+
+// flag-based unwinding：每线程 perform slot（后续由 `perform` 写入）。
+SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 
 uint32_t scoop_thread_is_registered(void) {
   return scoop_tls.registered;
@@ -158,6 +188,24 @@ void scoop_thread_unregister(void) {
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
+
+  // effect runtime：清空 flag/slot（TODO T0906）。
+  __scoop_effect_active = 0;
+  (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
+
+// effect runtime（TODO T0906）：set/clear API（仅用于最小回归与后续 lowering 接入）。
+uint32_t scoop_effect_is_active(void) {
+  return __scoop_effect_active;
+}
+
+void scoop_effect_set_active(void) {
+  __scoop_effect_active = 1;
+}
+
+void scoop_effect_clear(void) {
+  __scoop_effect_active = 0;
+  (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
 }
 
 // --- GC / shadow stack（TODO T0905） ---

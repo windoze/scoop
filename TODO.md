@@ -2572,11 +2572,17 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0906 [TODO] effect runtime v0：TLS slot + flag（为 `->` handler 做准备）（PLAN §6.3.1）
+### T0906 [DONE] effect runtime v0：TLS slot + flag（为 `->` handler 做准备）（PLAN §6.3.1）
 - 描述：在 runtime 中增加 `__scoop_effect_active` 与 perform slot（结构体/union 先占位）。
 - 目标：先不实现 dispatch；只提供 set/clear API。
 - 验收：新增测试：set flag 后可读回；clear 后恢复初值。
 - 依赖：T0903
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 TLS 符号 `__scoop_effect_active` 与 `__scoop_effect_perform_slot`（slot 结构占位），并提供 `scoop_effect_*` 的 set/clear/读回接口；在线程 unregister 时清空 TLS。
+   - `crates/scoop_runtime/tests/effect_tls.rs`：新增集成测试覆盖 active flag 的 set/clear 幂等与 unregister 清理语义。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0613 [TODO] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
 - 描述：固定 runtime C ABI（函数/全局符号名），codegen 能生成对其的读写调用。
