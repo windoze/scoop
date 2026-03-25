@@ -2479,11 +2479,17 @@
 
 ## T09：早期运行时（C + clang）（阶段 8：可执行与可观测）
 
-### T0901 [TODO] runtime：补齐 `scoop_runtime_init` 的可观察行为（最小日志/断言）
+### T0901 [DONE] runtime：补齐 `scoop_runtime_init` 的可观察行为（最小日志/断言）
 - 描述：在 C runtime 初始化时设置最小全局状态，并可选输出 debug（受宏控制）。
 - 目标：先不引入 GC；只让链接后的程序能调用 init 不崩溃。
 - 验收：新增一个 Rust 集成测试（或小 C harness）调用 `scoop_runtime_init()` 通过；CI 通过。
 - 依赖：T0014
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：补齐 `scoop_runtime_init` 的一次初始化标记与可选 debug 日志（`SCOOP_RT_DEBUG`），并新增 `scoop_runtime_is_initialized/scoop_runtime_init_count` 供测试/调试观测。
+   - `crates/scoop_runtime/build.rs`：显式声明 `rerun-if-changed`（runtime 源码位于 crate 目录之外），确保变更会触发重编译。
+   - `crates/scoop_runtime/tests/runtime_init.rs`：新增 Rust 集成测试，验证 init 可调用、可重复调用且状态可观测。
+ - 验收：
+   - `cargo test --all` 通过。
 
 ### T0902 [TODO] runtime：实现 `scoop_alloc` 的最小可用版本（先用 `malloc`）
 - 描述：把当前返回 0 的占位改为真正分配（暂时非 GC）。

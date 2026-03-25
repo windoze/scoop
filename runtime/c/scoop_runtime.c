@@ -10,6 +10,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// 运行时 debug 日志（编译期开关）。
+//
+// 说明：
+// - 该宏用于让早期 runtime 具备“可观察性”，便于手动调试初始化/ABI；
+// - 默认关闭，避免污染用户程序输出；
+// - 可在编译 C runtime 时通过 `-DSCOOP_RT_DEBUG=1` 打开（TODO T0901）。
+#ifndef SCOOP_RT_DEBUG
+#define SCOOP_RT_DEBUG 0
+#endif
+
+#if SCOOP_RT_DEBUG
+#define SCOOP_RT_LOG(...) \
+  do { \
+    (void)fprintf(stderr, "[scooprt] " __VA_ARGS__); \
+    (void)fputc('\n', stderr); \
+    (void)fflush(stderr); \
+  } while (0)
+#else
+#define SCOOP_RT_LOG(...) \
+  do { \
+    (void)0; \
+  } while (0)
+#endif
+
 // 运行时字符串对象（early stage）。
 //
 // 说明：
@@ -22,7 +46,31 @@ typedef struct ScoopString {
   const uint8_t *data;
 } ScoopString;
 
+// ABI 断言：保证 codegen 侧对 `ScoopString` 的布局假设稳定。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(uint64_t) == 8, "uint64_t must be 8 bytes");
+_Static_assert(offsetof(ScoopString, len) == 0, "ScoopString.len offset must be 0");
+_Static_assert(offsetof(ScoopString, data) == 8, "ScoopString.data offset must be 8");
+_Static_assert(sizeof(ScoopString) == 16, "ScoopString size must be 16 bytes");
+#endif
+
 static const ScoopString SCOOP_EMPTY_STRING = {0, 0};
+
+// 运行时全局状态（early stage）。
+//
+// 说明：
+// - 当前阶段只需要“可被初始化且可观察”，不引入 GC/TLS/线程；
+// - 未来会扩展为：线程注册、TLS、effect slots、GC heap 等（TODO T0903/T0904/...）。
+static uint32_t scoop_rt_initialized = 0;
+static uint32_t scoop_rt_init_calls = 0;
+
+uint32_t scoop_runtime_is_initialized(void) {
+  return scoop_rt_initialized;
+}
+
+uint32_t scoop_runtime_init_count(void) {
+  return scoop_rt_init_calls;
+}
 
 static int scoop_is_indent_ws(uint8_t c) {
   // Kotlin 风格：缩进只考虑空格/Tab（raw string 的常见场景）。
@@ -230,7 +278,21 @@ const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
 
 // 运行时初始化（后续可由编译器生成的 main 调用）
 void scoop_runtime_init(void) {
-  // TODO: 初始化 GC / TLS / 线程注册
+  // 说明：当前阶段允许被重复调用（避免在多入口/测试场景下因重复 init 直接崩溃）。
+  // 线程安全的 once 初始化将在引入线程注册后再补齐（TODO T0903/T0911）。
+  if (scoop_rt_initialized) {
+    scoop_rt_init_calls++;
+    SCOOP_RT_LOG("scoop_runtime_init: already initialized (calls=%" PRIu32 ")",
+                 scoop_rt_init_calls);
+    return;
+  }
+
+  scoop_rt_initialized = 1;
+  scoop_rt_init_calls = 1;
+
+  SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
+               sizeof(ScoopString),
+               offsetof(ScoopString, data));
 }
 
 // 最小占位分配 API（后续替换为真正 GC 分配）
