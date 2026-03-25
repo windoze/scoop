@@ -5835,6 +5835,26 @@ fn infer_member_call_expr_type(
         return Ok(ret);
     }
 
+    // spec §8.4：`String.trimIndent()` 是内建的 `const fun`（运行期可回退为普通调用）。
+    //
+    // 说明：
+    // - 早期阶段 `String` API 尚未完整通过 sysroot 声明并接入“扩展函数调用”路径；
+    // - 这里先以 intrinsic 的形式固定最小类型规则：`String.trimIndent(): String`。
+    //
+    // TODO T1216：接入编译期求值（当 receiver 为编译期常量时折叠）。
+    let member_name = source.slice(member.span);
+    if member_name == "trimIndent" && actual_receiver_ty == builtins.string {
+        if !args.is_empty() {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: "trimIndent".to_string(),
+                expected: 0,
+                found: args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+        return Ok(builtins.string);
+    }
+
     // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），

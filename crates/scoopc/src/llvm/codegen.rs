@@ -541,6 +541,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
         }
 
+        // 1.5) 内建 String API（early stage）：`receiver.trimIndent()`
+        //
+        // 说明：
+        // - `trimIndent` 在语言层面是 `String` 的 `const fun`（spec §8.4）；
+        // - 编译期折叠由 TODO T1216 负责；此处只负责运行期 fallback：调用 runtime 实现。
+        if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            if member.name == "trimIndent" {
+                return self.codegen_string_trim_indent(span, receiver, args);
+            }
+        }
+
         // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，
         //    需要依赖“期望类型语境”才能决定属于哪个 enum。
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
@@ -556,6 +567,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "call callee",
             at: callee.span.into(),
+        })
+    }
+
+    fn codegen_string_trim_indent(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::String))?;
+        let coerced = self.coerce_value(receiver.span, recv, CgTy::String)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        let rt_fun = self.declare_runtime_trim_indent();
+        let call = self
+            .builder
+            .build_call(rt_fun, &[recv_ptr.into()], "rt_trim_indent")?;
+        let ret =
+            call.try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "trimIndent return value",
+                    at: span.into(),
+                })?;
+        let BasicValueEnum::PointerValue(out_ptr) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "trimIndent return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(out_ptr.into()),
         })
     }
 
@@ -4174,6 +4237,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             [i64_ty.into(), i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(name, fn_ty, None)
+    }
+
+    fn declare_runtime_trim_indent(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_string_trim_indent";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_string_trim_indent(const ScoopString* value)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
     }
 
     fn get_or_create_global_bytes(

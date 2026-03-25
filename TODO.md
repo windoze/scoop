@@ -2443,11 +2443,21 @@
    - `cargo run -p scoop -- test` 通过；
    - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test` 通过并实际执行 run-pass fixtures。
 
-### T0827 [TODO] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
+### T0827 [DONE] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
 - 描述：当 `trimIndent()` 的接收者不是编译期常量时，生成普通运行期调用并接到最小字符串 API。
 - 目标：先只支持最常见的 raw string 场景；不做额外格式化 API。
 - 验收：新增 run-pass fixture：raw string 调用 `trimIndent()` 后输出去缩进结果；非 raw string 也可走同一路径。
-- 依赖：T0822、T1216
+- 依赖：T0822
+ - 完成：
+   - `crates/scoopc/src/resolve/scopes.rs`：resolver 对 `String.trimIndent()` 做内建放行（避免已知 String receiver 时误报 unresolved member）。
+   - `crates/scoopc/src/typecheck/expr.rs`：以 intrinsic 形式固定最小类型规则：`String.trimIndent(): String`（编译期折叠留给 T1216）。
+   - `crates/scoopc/src/llvm/codegen.rs`：为 `receiver.trimIndent()` 生成运行期调用 `scoop_string_trim_indent`，并返回 `ScoopString*`。
+   - `runtime/c/scoop_runtime.c`：实现 `scoop_string_trim_indent`（`malloc` 分配输出，先不依赖 GC/`scoop_alloc`）。
+   - `tests/fixtures/run-pass/string_trim_indent_basic.scoop`：新增 run-pass fixture 覆盖运行期 fallback 与二次调用（非 raw receiver）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/string_trim_indent_basic.scoop` 输出与 golden 一致。
 
 ### T0828 [TODO] codegen：`object` / `companion object` 单例存储与成员访问（Appendix B.9）
 - 描述：实现 `object` / `companion object` 的最小 codegen：单例存储、一次初始化、静态成员访问 lowering。

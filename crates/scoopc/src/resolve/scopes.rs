@@ -1334,6 +1334,16 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // spec §8.4：`String.trimIndent()` 是内建的字符串 API（const fun）。
+        //
+        // 说明：
+        // - 早期阶段我们尚未把 `String` 的成员函数完整建模为可解析的符号（TODO T1216/T0827）；
+        // - resolver 在这里对“已知 receiver 类型为 `scoop.core.String`”的 case 做保守放行，
+        //   让后续 typecheck/codegen 走 intrinsic 路径（并在运行期 fallback）。
+        if receiver_ty_fqn == "scoop.core.String" && member_name == "trimIndent" {
+            return Ok(());
+        }
+
         // spec §5.5：`Continuation.resume` 是内建操作。
         //
         // 说明：

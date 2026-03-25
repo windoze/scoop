@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: string_trim_indent_basic.stdout
+//
+// 目标：T0827 `trimIndent()` 运行期 fallback 与最小字符串 API 对接。
+// - receiver 为 f-string 生成的运行期字符串（非编译期常量），必须走运行期路径；
+// - 同时验证对“非 raw string receiver”（普通 `String` 值）再次调用仍可工作。
+
+import scoop.core.*
+
+fun main() {
+    val name = "Bob"
+
+    val s: String = f"""
+        a
+          b {name}
+        c
+    """.trimIndent()
+
+    println(s)
+    println("---")
+
+    val again: String = s.trimIndent()
+    println(again)
+}

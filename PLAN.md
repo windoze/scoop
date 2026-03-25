@@ -530,7 +530,7 @@
 - [x] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）
 - [ ] enum layout/codegen：补齐 niche optimization、oversized variant boxing、variant size disparity lint（spec §2.3.2）
 - [ ] `object` / `companion object` codegen：单例存储、一次初始化、静态成员访问（Appendix B.9）
-- [ ] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
+- [x] `trimIndent()`：运行期 fallback 与字符串 API 对接（spec §8.4）
 
 **本阶段 DoD**
 - 生成的二进制可运行（至少支持整数运算、函数调用、打印、Option/enum 基本构造）。
@@ -733,7 +733,7 @@ fixtures：
 - [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
-- [ ] `trimIndent()`：编译期求值 + 运行期 fallback（spec §8.4）
+- [ ] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）
 - [ ] sysroot/stdlib：补齐 scope functions（§11）；delegated property API surface 已在 sysroot 落地（spec §10.4）
 
 fixtures：
