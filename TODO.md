@@ -3134,9 +3134,33 @@
 - 依赖：T1314、T1406
 
 ### T1317 [TODO] `std` v1：collections / iterators / text / algorithms
-- 描述：实现全量 `std` 的第一层基础模块：动态数组、哈希表/有序映射、字符串/文本工具、迭代器、切片/视图、常见算法与 builder API。
-- 目标：以纯 Scoop 为主；性能优化与 specialized backend 后续可渐进增强。
-- 验收：新增 std fixtures：常见集合操作、iterator pipeline、文本处理、排序/查找等能力可运行，覆盖面接近“可替代日常业务开发中的第三方基础库”。
+- 描述：实现全量 `std` 的第一层基础模块，重点先把 **collections 与 iterators** 的核心形态固定下来：以 `Array<T>` / `MutableArray<T>` 为唯一集合底座，并在其上用纯 Scoop 构建 `List/Set/Map` 等。
+- 目标：
+  - **最小 intrinsics**：除 `Array/MutableArray` 的必要底层 primitive 外，`List/Set/Map`（含 mutable）不新增 intrinsic；除“绝对必要”的底层 primitive 外，其它方法与操作都用 Scoop 实现（保持语义一致、便于维护）。
+  - `Array<T>`（不可变）：
+    - 只读集合：支持 `get`、`length/size`、迭代与常用数组操作；
+    - 支持从 iterable 构造（优先 `Array.from(iterable)`）。
+  - `MutableArray<T>`（可变）：
+    - 支持 `get/set/push/pop/insert/remove/splice` 等基础操作；
+    - 以容量策略（capacity growth）保证 `push/pop/insert/remove` 的摊还 O(1)（允许扩容/搬移导致的偶发 O(n)）；
+    - 如确需新增 intrinsic，应仅限于 buffer 分配/搬移/容量查询等底层 primitive；`push/pop/insert/remove/splice` 的策略与边界条件尽量由纯 Scoop 库代码实现。
+  - 数组字面量 `[...]`：
+    - 按 expected type 推断为 `Array<T>` 或 `MutableArray<T>`；
+    - 支持显式类型注解：`val xs: Array<Int> = [1, 2, 3]`（以及 `val ys: MutableArray<Int> = [1, 2, 3]`）。
+  - iterable 构造与 `MutableArray -> Array`（是否暴露转换 API）：
+    - 允许实现上用内部 builder（例如内部 `MutableArray`）做增量构造；
+    - 若需要“零拷贝把 builder 变成 `Array`”，必须先定义**显式且安全**的语义（例如 `freeze`：冻结后任何别名都不可再变更）；
+    - 在缺少上述语义前，不对外暴露 `MutableArray -> Array` 的零拷贝转换 API（必要时仅 `internal` 使用）。
+  - `List<T>`：定义为 `Array<T>` 的别名：`typealias List<T> = Array<T>`。
+  - `Hashable`：新增 `Hashable` 接口，并为 primitive types 提供实现（用于 `Set/Map` 的键约束）。
+  - `Set<T: Hashable>` / `Map<K: Hashable, V>`：基于 `Array` 的纯 Scoop 实现（不新增 intrinsics）。
+  - `MutableSet<T: Hashable>` / `MutableMap<K: Hashable, V>`：基于 `MutableArray` 的纯 Scoop 实现（不新增 intrinsics）。
+  - `MutableList<T>`：用 `MutableArray` 做 backing pool，以纯 Scoop 实现全部方法，并保证 `push/pop/insert/remove` 摊还 O(1)。
+- 验收：新增 std fixtures（compile + run-pass）覆盖：
+  - `Array`/`MutableArray` 的 immutability/mutability 与 `get/set/push/pop/insert/remove/splice` 行为；
+  - `[...]` 字面量的 expected-type 推断与类型注解；
+  - 迭代（`for` 协议）与从 iterable 构造；
+  - `Hashable` 在 primitive 上可用，且 `Set/Map`（含 mutable）在“无新增 intrinsics”的前提下可运行。
 - 依赖：T1316、T1315
 
 ### T1318 [TODO] `std` v2：io / fs / path / process / env / time

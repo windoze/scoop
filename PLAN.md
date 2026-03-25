@@ -702,6 +702,10 @@ tests/
 - [ ] 后期 runtime / std 阶段的 intrinsic 预算规则：
   - 默认不再新增 intrinsic，优先用纯 Scoop 库补 runtime/stdlib 缺口
   - 若审计证明缺少底层 primitive，则单独立项增加最小 intrinsic，并与上层库任务拆开推进
+  - 集合特别约束（Array-first，最小 intrinsics）：
+    - `Array<T>` / `MutableArray<T>` 允许作为 **唯一** 集合底座引入少量底层 primitive（必要时通过 `@Intrinsic` 落地）
+    - `push/pop/insert/remove/splice` 等能力必须作为库 API 支持；其实现 **默认必须** 由纯 Scoop 完成（基于 `get/set` + 容量策略等），只有当审计证明存在底层 blocker 时才允许回流增加最小 intrinsic
+    - `Set/Map/List/MutableList/MutableSet/MutableMap` 等上层集合 **不得** 引入新的 intrinsic；性能问题优先通过纯 Scoop 算法/专门化与优化解决
 
 fixtures：
 - `tests/fixtures/unsafe_nogc/*` 覆盖所有违规路径（必须 compile-fail）
@@ -759,7 +763,17 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
 - [ ] `object` 与 companion object（如需要）
 - [x] `typealias`（纯类型层语法糖；当前仅非泛型别名 + 展开 + 循环检测，T0446）
 - [ ] Ranges/progressions 与 `for` 迭代协议
-- [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）
+- [ ] 基础集合与常用操作（`map/filter/fold` 等更多是库工作，但需要类型推断与泛型单态化支撑）：
+  - `Array<T>`：不可变（只读集合）；支持 `get`/`length`/迭代与常用数组操作
+  - `MutableArray<T>`：可变；支持 `get/set/push/pop/insert/remove/splice`，并采用容量策略保证 `push/pop` 摊还 O(1)
+  - 两者都应支持迭代（`for` 协议/迭代器）与从 iterable 构造（优先 `Array.from(iterable)` / `MutableArray.from(iterable)`）：
+    - 允许实现上使用内部 builder（例如内部 `MutableArray`）以获得摊还 O(1) 的增量构造
+    - 若需要“零拷贝把 builder 变成不可变 Array”，必须定义**显式且安全**的语义（例如 `freeze`：冻结后任何别名都不可再变更）
+    - 在缺少上述语义前，**不要**对外暴露 `MutableArray -> Array` 的零拷贝转换 API（避免把“只读视图”误当成不可变值）
+  - 数组字面量 `[...]`：按 expected type 推断为 `Array<T>` 或 `MutableArray<T>`，并支持 `val xs: Array<Int> = [1, 2, 3]` 这类类型注解
+  - `List<T>`：定义为 `Array<T>` 的别名（`typealias List<T> = Array<T>`）
+  - `Hashable`：加入 sysroot 并为 primitive types 提供实现；`Set/Map`（含 mutable）全部用纯 Scoop 基于 `Array`/`MutableArray` 实现，不引入 intrinsics
+  - `MutableList<T>`：用 `MutableArray` 做 backing pool，以纯 Scoop 实现并追求高效（`push/pop/insert/remove` 摊还 O(1)）
 - [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
 - [x] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小落地）
@@ -771,6 +785,7 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - 目标能力与 Rust `std` 同量级、可比较，但不要求 API 一致
   - 建议分层：`core` / `alloc` / `std` / 平台适配层
   - 覆盖 collections、text/regex、iterators、io/fs/path/process/env、time、sync/thread/channels、net、async adapters、test/support utilities 等
+  - collections 设计约束：以 `Array`/`MutableArray` 为底座；`List<T>` 为 `Array<T>` 别名；`Set/Map`（含 mutable）为纯 Scoop（不新增 intrinsics）
 - [ ] Kotlin 风格重载决议兼容：
   - most specific candidate 规则
   - 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
