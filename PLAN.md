@@ -545,7 +545,8 @@
 ### 9.1 最小运行时组件
 
 - [ ] 启动入口：`main`/平台 glue，初始化 TLS（GC + effect）
-- [ ] 分配器：`scoop_alloc(size, type_desc)`
+- [x] 分配器：`scoop_alloc(size)` v0（`malloc`）+ codegen 侧装箱调用（T0902/T0817）
+- [ ] 分配器：`scoop_alloc(size, type_desc)`（带类型描述，供 GC 扫描对象字段）
 - [ ] GC（先易后难）：
   - v0：非移动 mark-sweep（实现简单，pin/unpin 可先是 no-op 或计数）
   - v1：可选移动/压缩（实现 pin/unpin 语义）

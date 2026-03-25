@@ -2503,11 +2503,18 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0817 [TODO] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
+### T0817 [DONE] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
 - 描述：在 codegen 中为 box/object 分配调用 runtime `scoop_alloc`，并写入最小对象头/类型描述指针（若已定义）。
 - 目标：先只支持 boxing `Int`/简单对象；不实现移动 GC。
 - 验收：新增 run-pass fixture：`val a: Any = 1` 运行不崩溃；并可通过调试打印确认对象非空。
 - 依赖：T0902、T0441、T0810
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：新增 `CgTy::Ref`（`i8*`）用于承载 `Any` 等引用类型，并在 `Int -> Any` coercion 中调用 runtime `scoop_alloc` 进行 heap 装箱（对象头 type_desc 先写 `NULL`）。
+   - `tests/fixtures/run-pass/boxing_int_to_any_basic.scoop`：新增 run-pass fixture 覆盖 `val a: Any = 1`（装箱）并运行期回归。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0903 [TODO] runtime：引入线程注册接口（占位）与 TLS 骨架
 - 描述：提供 `scoop_thread_register/unregister`（先空实现），为 GC/effect TLS 铺路。

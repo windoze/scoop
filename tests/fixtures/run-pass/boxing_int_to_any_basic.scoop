@@ -1,0 +1,13 @@
+// EXPECT: pass
+// RUN-STDOUT: boxing_int_to_any_basic.stdout
+//
+// 目标：T0817 `Int -> Any` 装箱应进行 heap 分配（`scoop_alloc`），运行期不崩溃。
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    println("ok")
+    return 0
+}
+

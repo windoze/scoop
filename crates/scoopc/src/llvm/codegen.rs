@@ -66,6 +66,14 @@ enum CgTy {
     /// - 该指针的指向对象目前允许来自：字符串字面量生成的栈上 `ScoopString`；
     /// - 更完整的 String 对象头/GC 语义将由后续任务补齐（T09/T12）。
     String,
+    /// 通用引用类型（Any / class / interface / function / union ...）。
+    ///
+    /// 当前阶段的 codegen 约定：
+    /// - 一律用 `i8*`（opaque pointer）表示；
+    /// - 值类型向引用类型的隐式转换需要装箱（T0817：先只支持 `Int -> Any`）。
+    ///
+    /// 未来将替换为带对象头（type descriptor/flags/size）的具体布局（PLAN §8.2/§9.1）。
+    Ref,
 }
 
 // boxing / lint 的启发式阈值（与 typecheck::layout.rs 保持一致）。
@@ -258,7 +266,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function return type",
                     at: fun.span.into(),
@@ -848,7 +856,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
-            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "call return type",
                     at: span.into(),
@@ -1229,6 +1237,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 TypeLayout::new(size, align)
             }
             CgTy::String => TypeLayout::new(target.pointer_size, target.pointer_align),
+            CgTy::Ref => TypeLayout::new(target.pointer_size, target.pointer_align),
             // 兜底：composite 在当前阶段按 word-sized opaque 处理，避免错误放大。
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 TypeLayout::new(target.pointer_size, target.pointer_align)
@@ -1292,6 +1301,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(self
                     .builder
                     .build_ptr_to_int(ptr, payload_int_ty, "enum_payload_str_ptr")?)
+            }
+            CgTy::Ref => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload ref",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload ref",
+                        at: at.into(),
+                    });
+                };
+                Ok(self
+                    .builder
+                    .build_ptr_to_int(ptr, payload_int_ty, "enum_payload_ref_ptr")?)
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
@@ -1529,7 +1555,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let out_ty = out_ty.unwrap_or(CgTy::Unit);
             return match out_ty {
                 CgTy::Unit => Ok(CgValue::unit()),
-                CgTy::Bool | CgTy::Int(_) | CgTy::String => {
+                CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
                     let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
                     let phi = self.builder.build_phi(phi_ty, "when_phi")?;
 
@@ -1781,7 +1807,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let out_ty = out_ty.unwrap_or(CgTy::Unit);
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
                 let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
                 let phi = self.builder.build_phi(phi_ty, "when_phi")?;
 
@@ -1984,7 +2010,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             ty: CgTy::String,
                             value: Some(loaded.into_pointer_value().into()),
                         },
-                        CgTy::Unit | CgTy::Int(_) | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                        CgTy::Ref => CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(loaded.into_pointer_value().into()),
+                        },
+                        CgTy::Unit
+                        | CgTy::Int(_)
+                        | CgTy::Tuple(_)
+                        | CgTy::Struct(_)
+                        | CgTy::Enum(_) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
                                 kind: "niche enum payload type",
                                 at: pat.span().into(),
@@ -2066,6 +2100,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )?;
                         CgValue {
                             ty: CgTy::String,
+                            value: Some(ptr.into()),
+                        }
+                    }
+                    CgTy::Ref => {
+                        let ptr = self.builder.build_int_to_ptr(
+                            payload_raw,
+                            self.context.i8_type().ptr_type(AddressSpace::default()),
+                            "payload_to_ref_ptr",
+                        )?;
+                        CgValue {
+                            ty: CgTy::Ref,
                             value: Some(ptr.into()),
                         }
                     }
@@ -2618,6 +2663,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
             CgTy::String => self.llvm_scoop_string_ptr_type().into(),
+            CgTy::Ref => self
+                .context
+                .i8_type()
+                .ptr_type(AddressSpace::default())
+                .into(),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function param type",
@@ -2635,7 +2685,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
         Ok(match param_ty {
             CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String => value
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => value
                 .value
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg value",
@@ -2697,6 +2747,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .into_pointer_value();
                     CgValue {
                         ty: CgTy::String,
+                        value: Some(raw.into()),
+                    }
+                }
+                CgTy::Ref => {
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?
+                        .into_pointer_value();
+                    CgValue {
+                        ty: CgTy::Ref,
                         value: Some(raw.into()),
                     }
                 }
@@ -2797,6 +2860,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::String,
                 value: Some(self.llvm_scoop_string_ptr_type().const_null().into()),
             },
+            CgTy::Ref => CgValue {
+                ty: CgTy::Ref,
+                value: Some(
+                    self.context
+                        .i8_type()
+                        .ptr_type(AddressSpace::default())
+                        .const_null()
+                        .into(),
+                ),
+            },
             // 说明：当前阶段不支持 tuple/struct 作为函数返回类型，因此这里仅提供占位值；
             // 若后续误用，会在 emit/store 阶段触发结构化错误而非 panic。
             CgTy::Tuple(ty) => CgValue {
@@ -2835,7 +2908,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
             }
-            CgTy::String | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "aggregate return type",
                     at: span.into(),
@@ -3248,6 +3321,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_pointer_value();
                 Ok(CgValue {
                     ty: CgTy::String,
+                    value: Some(raw.into()),
+                })
+            }
+            CgTy::Ref => {
+                let raw = self
+                    .builder
+                    .build_load(
+                        self.llvm_basic_type_of(span, local.ty)?,
+                        local.ptr,
+                        "load_ref",
+                    )?
+                    .into_pointer_value();
+                Ok(CgValue {
+                    ty: CgTy::Ref,
                     value: Some(raw.into()),
                 })
             }
@@ -3841,6 +3928,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::String,
                 value: Some(raw.into_pointer_value().into()),
             },
+            CgTy::Ref => CgValue {
+                ty: CgTy::Ref,
+                value: Some(raw.into_pointer_value().into()),
+            },
             CgTy::Tuple(tuple_ty) => CgValue {
                 ty: CgTy::Tuple(tuple_ty),
                 value: Some(raw),
@@ -4240,6 +4331,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::int(out, to))
             }
             (CgTy::String, CgTy::String) => Ok(value),
+            (CgTy::String, CgTy::Ref) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "string value",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "string value type",
+                        at: at.into(),
+                    });
+                };
+                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+                let casted = self
+                    .builder
+                    .build_pointer_cast(ptr, i8_ptr_ty, "coerce_str_to_ref")?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(casted.into()),
+                })
+            }
+            (CgTy::Ref, CgTy::Ref) => Ok(value),
+            (CgTy::Int(_), CgTy::Ref) => {
+                // T0817：值类型装箱到 `Any`（当前阶段先只支持整数族）。
+                let (raw_int, from_ty) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "int value",
+                    at: at.into(),
+                })?;
+                let boxed = self.codegen_box_int_to_ref(at, raw_int, from_ty)?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(boxed.into()),
+                })
+            }
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
             (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
@@ -4248,6 +4374,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             }),
         }
+    }
+
+    fn codegen_box_int_to_ref(
+        &mut self,
+        at: crate::span::Span,
+        value: IntValue<'ctx>,
+        value_ty: IntTy,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        // 约定（early stage）：
+        // - box 对象布局：`{ type_desc: i8*, payload: <int> }`
+        // - 目前 type_desc 先写 NULL；后续会接入 type descriptor 与 GC（T0907+）。
+        //
+        // 注意：这里不尝试做“复用 box 类型”或 cache；LLVM named struct 会在 module 内复用。
+        let target = self.target_layout();
+        let payload_size = (u64::from(value_ty.bits) + 7) / 8;
+        let payload_align = payload_size.clamp(1, target.pointer_align.max(1));
+
+        let header_size = target.pointer_size;
+        let header_align = target.pointer_align.max(1);
+        let payload_offset = align_to(header_size, payload_align);
+        let obj_align = header_align.max(payload_align);
+        let total_size = align_to(payload_offset.saturating_add(payload_size), obj_align);
+
+        let rt_alloc = self.declare_runtime_alloc();
+        let size_v = self
+            .context
+            .i64_type()
+            .const_int(total_size as u64, false);
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_box")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: at.into(),
+            })?;
+
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: at.into(),
+            });
+        };
+
+        // 写入对象头与 payload（type_desc 先为 NULL）。
+        let boxed_ty = self.llvm_boxed_int_type(value_ty);
+        let boxed_ptr_ty = boxed_ty.ptr_type(AddressSpace::default());
+        let boxed_ptr =
+            self.builder
+                .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;
+
+        let type_desc_ptr =
+            self.builder
+                .build_struct_gep(boxed_ty, boxed_ptr, 0, "boxed_type_desc_gep")?;
+        let payload_ptr =
+            self.builder
+                .build_struct_gep(boxed_ty, boxed_ptr, 1, "boxed_payload_gep")?;
+
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let null_desc = i8_ptr_ty.const_null();
+        let _ = self.builder.build_store(type_desc_ptr, null_desc)?;
+        let _ = self.builder.build_store(payload_ptr, value)?;
+
+        Ok(raw_ptr)
     }
 
     fn cast_int(
@@ -4304,6 +4496,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "string exit code",
                 at: at.into(),
             }),
+            CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "ref exit code",
+                at: at.into(),
+            }),
             CgTy::Tuple(_) => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "tuple exit code",
                 at: at.into(),
@@ -4318,6 +4514,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
+            TypeKind::Ref(_) => Some(CgTy::Ref),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
@@ -4426,6 +4623,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ptr_type(AddressSpace::default())
     }
 
+    fn llvm_boxed_int_type(&self, payload: IntTy) -> StructType<'ctx> {
+        // 说明：box 类型目前只用于 `Int/UInt/... -> Any` 的最小装箱（T0817）。
+        // 未来会扩展为统一的对象头 + type descriptor（T0907+）。
+        let name = format!(
+            "scoop.runtime.BoxedInt{}_{}",
+            payload.bits,
+            if payload.signed { "i" } else { "u" }
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return existing;
+        }
+
+        // `{ i8* type_desc, <int> payload }`
+        let ty = self.context.opaque_struct_type(&name);
+        let type_desc_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        ty.set_body(&[type_desc_ty.into(), self.int_type(payload).into()], false);
+        ty
+    }
+
     fn declare_runtime_print_like(&self, name: &str) -> FunctionValue<'ctx> {
         if let Some(existing) = self.module.get_function(name) {
             return existing;
@@ -4468,6 +4684,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    fn declare_runtime_alloc(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_alloc";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void *scoop_alloc(uint64_t size)`
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     fn get_or_create_global_bytes(
         &self,
         span: crate::span::Span,
@@ -4497,6 +4727,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
             CgTy::String => self.llvm_scoop_string_ptr_type().into(),
+            CgTy::Ref => self
+                .context
+                .i8_type()
+                .ptr_type(AddressSpace::default())
+                .into(),
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
             CgTy::Enum(enum_ty) => self.llvm_enum_value_type(at, enum_ty)?,
@@ -4727,6 +4962,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool
             | CgTy::Int(_)
             | CgTy::String
+            | CgTy::Ref
             | CgTy::Tuple(_)
             | CgTy::Struct(_)
             | CgTy::Enum(_) => {
