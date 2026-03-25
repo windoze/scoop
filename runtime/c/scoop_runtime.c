@@ -10,6 +10,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// TLS（thread-local storage）抽象层。
+//
+// 说明：
+// - 运行时的 GC/effect 状态必须是线程本地的（见 PLAN.md §9 / TODO T0903/T0905/T0906）。
+// - 早期阶段我们只需要“有 TLS 骨架且可链接”，具体字段会在后续任务中逐步补齐。
+// - 优先使用 C11 `_Thread_local`；否则降级到常见编译器扩展。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define SCOOP_THREAD_LOCAL _Thread_local
+#elif defined(_MSC_VER)
+#define SCOOP_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__) || defined(__clang__)
+#define SCOOP_THREAD_LOCAL __thread
+#else
+#define SCOOP_THREAD_LOCAL
+#endif
+
 // 运行时 debug 日志（编译期开关）。
 //
 // 说明：
@@ -70,6 +86,69 @@ uint32_t scoop_runtime_is_initialized(void) {
 
 uint32_t scoop_runtime_init_count(void) {
   return scoop_rt_init_calls;
+}
+
+// 每线程 TLS 状态（early stage：占位）。
+//
+// 说明：
+// - 目前只提供“线程是否已注册”的观测与基本清理；
+// - 后续会扩展：
+//   - GC：`current_frame`（shadow stack 链头，TODO T0905）
+//   - effect：handler stack / perform slot / flag（TODO T0906）
+typedef struct ScoopThreadTls {
+  // 1 表示已注册到 runtime；0 表示未注册。
+  uint32_t registered;
+
+  // 保留字段：未来用于版本/flags 等。
+  uint32_t _reserved_u32;
+
+  // GC：shadow stack 当前帧链头（TODO T0905）。
+  void *gc_current_frame;
+
+  // effect runtime（TODO T0906）：占位指针/slot。
+  void *_reserved0;
+  void *_reserved1;
+  void *_reserved2;
+} ScoopThreadTls;
+
+static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
+
+uint32_t scoop_thread_is_registered(void) {
+  return scoop_tls.registered;
+}
+
+// `scoop_runtime_init` 定义在文件后部；这里给出前置声明以避免隐式声明警告。
+void scoop_runtime_init(void);
+
+// 线程注册接口（占位）。
+//
+// 说明：
+// - 未来在引入 stop-the-world GC 后，新线程必须注册/注销，以便被枚举并扫描 roots；
+// - 当前阶段只做“TLS 标记 + 可重复调用”，不维护全局线程列表。
+void scoop_thread_register(void) {
+  // 若 runtime 尚未 init，则允许先 init（保持接口易用性；init 目前是幂等的）。
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
+  if (scoop_tls.registered) {
+    return;
+  }
+
+  scoop_tls.registered = 1;
+}
+
+void scoop_thread_unregister(void) {
+  if (!scoop_tls.registered) {
+    return;
+  }
+
+  // 早期阶段：注销时清空 TLS，避免后续测试/手动调试场景出现悬挂状态。
+  scoop_tls.registered = 0;
+  scoop_tls.gc_current_frame = 0;
+  scoop_tls._reserved0 = 0;
+  scoop_tls._reserved1 = 0;
+  scoop_tls._reserved2 = 0;
 }
 
 static int scoop_is_indent_ws(uint8_t c) {

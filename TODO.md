@@ -2516,11 +2516,16 @@
    - `cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0903 [TODO] runtime：引入线程注册接口（占位）与 TLS 骨架
+### T0903 [DONE] runtime：引入线程注册接口（占位）与 TLS 骨架
 - 描述：提供 `scoop_thread_register/unregister`（先空实现），为 GC/effect TLS 铺路。
 - 目标：API 稳定、可跨平台；实现可后置。
 - 验收：链接通过；新增测试在主线程调用 register/unregister 不崩溃。
 - 依赖：T0901
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 TLS 抽象宏（优先 `_Thread_local`）与 `ScoopThreadTls` 占位结构；实现 `scoop_thread_register/unregister`（幂等、空实现）并提供 `scoop_thread_is_registered` 便于测试观测。
+   - `crates/scoop_runtime/tests/thread_registration.rs`：新增集成测试覆盖 register/unregister 的可调用性与幂等行为。
+ - 验收：
+   - `cargo test --all` 通过。
 
 ### T0904 [TODO] GC v0：mark-sweep 的数据结构骨架（不要求可用）
 - 描述：定义 heap、object header、free list 等结构体与接口。
