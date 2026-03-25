@@ -543,10 +543,11 @@ impl<'a> Parser<'a> {
 
     /// 解析 `handle { ... } with { ... }`（spec §5.4）。
     ///
-    /// 当前阶段（T0605）：
-    /// - 仅支持 non-resuming arm：`Effect.op(binders...) -> body`；
+    /// 当前阶段：
+    /// - 支持 non-resuming arm：`Effect.op(binders...) -> body`；
+    /// - 支持 immediate-resume arm：`Effect.op(binders...) -> resume { ... }`（T0616）；
     /// - 语法错误在 arm 级别做恢复：尽量跳到下一个 arm 起始继续解析；
-    /// - `-> resume` 与 `, k ->` 暂不支持（会报错，但尽量不级联）。
+    /// - `, k ->` 暂不支持（会报错，但尽量不级联）。
     fn parse_handle_expr(&mut self) -> Result<ast::Expr, ParseError> {
         let handle_kw = self.expect_keyword(Keyword::Handle)?;
         let start = handle_kw.span.start;
@@ -685,6 +686,7 @@ impl<'a> Parser<'a> {
                 // 语法糖并没有显式 `->`；这里用 `catch` 关键字 span 作为占位，
                 // 以便诊断（若有）能落在 try/catch 区域内。
                 arrow_span: catch_kw_span,
+                kind: ast::HandleArmKind::NonResuming,
                 body: catch_body,
             };
 
@@ -718,17 +720,26 @@ impl<'a> Parser<'a> {
         let op = self.parse_handle_op()?;
         let arrow = self.expect_symbol(Symbol::Arrow)?;
 
-        // spec §5.4：`-> resume { ... }`（immediate-resume）在当前阶段未实现。
+        // spec §5.4：`-> resume { ... }`（immediate-resume）。
         //
-        // 注意：`resume` 在 lexer 层仍是 ident；这里按语法形态做一个保守拒绝，
-        // 避免误把 `-> resume { ... }` 当作普通调用表达式。
+        // 注意：`resume` 在 lexer 层仍是 ident；这里以“`resume` + `{`”的形态做语法判别，
+        // 避免把它误解析为普通 call 表达式（Kotlin 风格的 trailing lambda）。
         if self.peek_ident_text("resume") && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
         {
-            let tok = *self.peek();
-            return Err(ParseError::Expected {
-                expected: "表达式（handler arm body；暂不支持 `-> resume`）",
-                found: tok.kind,
-                span: tok.span.into(),
+            let resume_tok = self.bump(); // `resume`（ident）
+            let resume_span = resume_tok.span;
+            let block = self.parse_block()?;
+            let body = ast::Expr {
+                span: block.span,
+                kind: ast::ExprKind::Block(block),
+            };
+
+            return Ok(ast::HandleArm {
+                span: Span::new(op.span.start, body.span.end),
+                op,
+                arrow_span: arrow.span,
+                kind: ast::HandleArmKind::ImmediateResume { resume_span },
+                body,
             });
         }
 
@@ -738,6 +749,7 @@ impl<'a> Parser<'a> {
             span: Span::new(op.span.start, body.span.end),
             op,
             arrow_span: arrow.span,
+            kind: ast::HandleArmKind::NonResuming,
             body,
         })
     }

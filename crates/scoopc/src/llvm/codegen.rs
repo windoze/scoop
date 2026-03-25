@@ -168,6 +168,21 @@ struct GcFrameState<'ctx> {
     root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>>,
 }
 
+/// `-> resume` lowering（T0616）在 codegen 阶段使用的“立即恢复”上下文。
+///
+/// 说明：
+/// - 当前实现先只覆盖“单个 perform 点”的最小栈上 state machine；
+/// - `resume(value)` 会写入 `resume_value_ptr`、更新 `state_ptr`，并跳回 `dispatch_bb`。
+#[derive(Debug, Clone, Copy)]
+struct ImmediateResumeCtx<'ctx> {
+    resume_symbol: hir::SymbolId,
+    resume_value_ty: CgTy,
+    resume_value_ptr: Option<PointerValue<'ctx>>,
+    resume_used_ptr: PointerValue<'ctx>,
+    state_ptr: PointerValue<'ctx>,
+    next_state: u32,
+}
+
 #[derive(Debug, Default)]
 struct Env<'ctx> {
     scopes: Vec<HashMap<hir::SymbolId, CgLocal<'ctx>>>,
@@ -231,6 +246,10 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
     /// - 若栈为空，则返回默认值继续向外传播。
     raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
+    /// `-> resume` lowering 的上下文栈（T0616）。
+    ///
+    /// 说明：handle arm body 内的 `resume(value)` 需要引用该上下文，因此用栈来支持嵌套 handle。
+    immediate_resume_ctx_stack: Vec<ImmediateResumeCtx<'ctx>>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -264,6 +283,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gc_frame: None,
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
+            immediate_resume_ctx_stack: Vec::new(),
         }
     }
 
@@ -277,6 +297,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn pop_raise_target(&mut self) {
         let _ = self.raise_target_stack.pop();
+    }
+
+    fn current_immediate_resume_ctx(&self) -> Option<ImmediateResumeCtx<'ctx>> {
+        self.immediate_resume_ctx_stack.last().copied()
+    }
+
+    fn push_immediate_resume_ctx(&mut self, ctx: ImmediateResumeCtx<'ctx>) {
+        self.immediate_resume_ctx_stack.push(ctx);
+    }
+
+    fn pop_immediate_resume_ctx(&mut self) {
+        let _ = self.immediate_resume_ctx_stack.pop();
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -1075,6 +1107,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         let arm = &handle.arms[0];
+        if let hir::HandleArmKind::ImmediateResume { resume } = arm.kind {
+            return self.codegen_handle_expr_immediate_resume(span, handle, arm, resume, out_ty);
+        }
         if arm.op.op.fqn != "scoop.core.Raise.raise" {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle op (only Raise.raise supported)",
@@ -1294,6 +1329,420 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_handle_expr_immediate_resume(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        arm: &hir::HandleArm,
+        resume_symbol: hir::SymbolId,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T0616：先实现最小“栈 state machine”版本的 `-> resume`：
+        // - 只支持单个 perform 点（位于一个 `val x: T = Effect.op(...)` 的 init 中）
+        // - `resume(value)` 必须恰好一次：重复/缺失先按运行期错误处理（exit(3)）
+        if handle.finally.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle finally (immediate-resume)",
+                at: span.into(),
+            });
+        }
+
+        // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform` 这种形式）。
+        let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
+            None;
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            match &stmt.kind {
+                hir::StmtKind::Val(decl) => {
+                    let Some(init) = decl.init.as_ref() else {
+                        continue;
+                    };
+                    if let hir::ExprKind::Perform { op, args } = &init.kind {
+                        if perform_site.is_some() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle resume body (multiple perform points)",
+                                at: init.span.into(),
+                            });
+                        }
+                        perform_site = Some((idx, decl, op, args.as_slice()));
+                    }
+                }
+                hir::StmtKind::Expr(expr) => {
+                    if matches!(expr.kind, hir::ExprKind::Perform { .. }) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle resume body (perform must be bound to val)",
+                            at: expr.span.into(),
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let Some((perform_idx, perform_decl, perform_op, perform_args)) = perform_site else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume body (missing perform)",
+                at: span.into(),
+            });
+        };
+
+        if perform_op.fqn != arm.op.op.fqn {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume op mismatch",
+                at: perform_op.span.into(),
+            });
+        }
+
+        let Some(perform_id) = perform_decl.id else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume perform binding id",
+                at: perform_decl.span.into(),
+            });
+        };
+
+        let resume_value_ty = self
+            .cg_ty_of(perform_decl.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume perform value type",
+                at: perform_decl.span.into(),
+            })?;
+
+        if arm.op.binders.len() != perform_args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle resume binder arity mismatch",
+                at: arm.op.span.into(),
+            });
+        }
+
+        // 2) 创建 state machine 所需的基本块与栈上存储。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let dispatch_bb = self.context.append_basic_block(func, "handle_resume_dispatch");
+        let state0_bb = self.context.append_basic_block(func, "handle_resume_state0");
+        let state1_bb = self.context.append_basic_block(func, "handle_resume_state1");
+        let arm_bb = self.context.append_basic_block(func, "handle_resume_arm");
+        let done_bb = self.context.append_basic_block(func, "handle_resume_done");
+        let bad_state_bb = self.context.append_basic_block(func, "handle_resume_bad_state");
+
+        let i32_ty = self.context.i32_type();
+        let state_ptr = self.create_entry_alloca_raw(span, "handle_state", i32_ty.into())?;
+        let resume_used_ptr =
+            self.create_entry_alloca_raw(span, "handle_resume_used", self.context.bool_type().into())?;
+        let resume_value_ptr = if resume_value_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(
+                span,
+                "handle_resume_value",
+                resume_value_ty,
+            )?)
+        };
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_result", out_ty)?)
+        };
+
+        // binder locals：提前在 entry block 分配 slot；在 perform 点写入，在 arm body 内读取。
+        struct BinderSlot<'ctx> {
+            id: hir::SymbolId,
+            ty: CgTy,
+            ptr: PointerValue<'ctx>,
+            gc_root_slot: Option<PointerValue<'ctx>>,
+        }
+        let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
+        for binder in &arm.op.binders {
+            let binder_ty =
+                self.cg_ty_of(binder.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle resume binder type",
+                        at: binder.span.into(),
+                    })?;
+            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
+            binder_slots.push(BinderSlot {
+                id: binder.id,
+                ty: binder_ty,
+                ptr,
+                gc_root_slot: self.gc_root_slot_for(binder.id),
+            });
+        }
+
+        // 3) 初始化并进入 dispatch。
+        let _ = self.builder.build_store(state_ptr, i32_ty.const_zero())?;
+        let _ = self.builder.build_store(
+            resume_used_ptr,
+            self.context.bool_type().const_int(0, false),
+        )?;
+        self.builder.build_unconditional_branch(dispatch_bb)?;
+
+        // --- dispatch ---
+        self.builder.position_at_end(dispatch_bb);
+        let state = self
+            .builder
+            .build_load(i32_ty, state_ptr, "handle_state")?
+            .into_int_value();
+        let cases = [
+            (i32_ty.const_int(0, false), state0_bb),
+            (i32_ty.const_int(1, false), state1_bb),
+        ];
+        self.builder.build_switch(state, bad_state_bb, &cases)?;
+
+        // --- bad_state ---
+        self.builder.position_at_end(bad_state_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        // `handle` body 的 locals 在整个 state machine 生命周期内有效（因此这里不使用 `codegen_block_value`）。
+        self.env.push_scope();
+
+        // --- state0：执行 perform 之前的片段，遇到 perform 则进入 arm ---
+        self.builder.position_at_end(state0_bb);
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx == perform_idx {
+                break;
+            }
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => self.codegen_val_decl(decl)?,
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let _ = self.codegen_expr(expr)?;
+                }
+                hir::StmtKind::Return { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "`return` inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+                hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        // perform 语句本身：当前阶段仅支持 `val x: T = Effect.op(args...)`。
+        let target_ptr = {
+            let name = perform_decl.name.as_deref().unwrap_or("perform_value");
+            let ptr = self.create_entry_alloca(perform_decl.span, name, resume_value_ty)?;
+
+            let gc_root_slot = self.gc_root_slot_for(perform_id);
+            self.env.insert(
+                perform_id,
+                CgLocal {
+                    ty: resume_value_ty,
+                    ptr,
+                    mutable: perform_decl.mutable,
+                    gc_root_slot,
+                },
+            );
+            ptr
+        };
+
+        // 写入 binder values（供 arm body 使用）。
+        for (idx, arg) in perform_args.iter().enumerate() {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle resume perform args (named arg not supported)",
+                    at: span.into(),
+                });
+            };
+            let slot = &binder_slots[idx];
+            if slot.ty == CgTy::Unit {
+                continue;
+            }
+
+            let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+            let v = self.coerce_value(expr.span, v, slot.ty)?;
+            let stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+            if let Some(gc_root_slot) = slot.gc_root_slot {
+                self.store_gc_root_slot_value(expr.span, gc_root_slot, stored)?;
+            }
+        }
+
+        // 重置一次性标记，并进入 handler arm。
+        let _ = self.builder.build_store(
+            resume_used_ptr,
+            self.context.bool_type().const_int(0, false),
+        )?;
+        self.builder.build_unconditional_branch(arm_bb)?;
+
+        // --- arm：执行 handler 片段，必须调用 `resume(value)` 跳回 dispatch ---
+        self.builder.position_at_end(arm_bb);
+        self.env.push_scope();
+        for slot in &binder_slots {
+            self.env.insert(
+                slot.id,
+                CgLocal {
+                    ty: slot.ty,
+                    ptr: slot.ptr,
+                    mutable: false,
+                    gc_root_slot: slot.gc_root_slot,
+                },
+            );
+        }
+
+        let resume_ctx = ImmediateResumeCtx {
+            resume_symbol,
+            resume_value_ty,
+            resume_value_ptr,
+            resume_used_ptr,
+            state_ptr,
+            next_state: 1,
+        };
+        self.push_immediate_resume_ctx(resume_ctx);
+        let _ = self.codegen_expr_in_expected_context(&arm.body, Some(CgTy::Unit))?;
+        self.pop_immediate_resume_ctx();
+
+        // `resume(value)` 必须恰好一次：
+        // - 未调用：arm 结束时检测到 `resume_used == false`，运行期退出；
+        // - 多次调用：在 `resume(value)` intrinsic 内部检测到 `resume_used == true`，运行期退出。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let resume_ok_bb = self.context.append_basic_block(func, "handle_resume_arm_ok");
+        let resume_missing_bb = self.context.append_basic_block(func, "handle_resume_arm_missing");
+
+        let used = self
+            .builder
+            .build_load(self.context.bool_type(), resume_used_ptr, "resume_used")?
+            .into_int_value();
+        self.builder
+            .build_conditional_branch(used, resume_ok_bb, resume_missing_bb)?;
+
+        self.builder.position_at_end(resume_missing_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        self.builder.position_at_end(resume_ok_bb);
+        self.builder.build_unconditional_branch(dispatch_bb)?;
+
+        self.env.pop_scope();
+
+        // --- state1：恢复 perform 的返回值，并继续执行剩余片段，计算 handle 的结果 ---
+        self.builder.position_at_end(state1_bb);
+
+        if let Some(ptr) = resume_value_ptr {
+            let llvm_ty = self.llvm_basic_type_of(span, resume_value_ty)?;
+            let loaded = self.builder.build_load(llvm_ty, ptr, "resume_value")?;
+            let v = CgValue {
+                ty: resume_value_ty,
+                value: Some(loaded),
+            };
+            let stored = self.store_local_value(span, target_ptr, resume_value_ty, v)?;
+
+            // 若该 binding 是 GC root，则在写回后同步 shadow stack slot。
+            if let Some(local) = self.env.get(perform_id) {
+                if let Some(slot_ptr) = local.gc_root_slot {
+                    self.store_gc_root_slot_value(span, slot_ptr, stored)?;
+                }
+            }
+        }
+
+        let mut value: CgValue<'ctx> = CgValue::unit();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx <= perform_idx {
+                continue;
+            }
+            let is_last = idx + 1 == handle.body.stmts.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                    value = CgValue::unit();
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    value = CgValue::unit();
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let v = self.codegen_expr(expr)?;
+                    value = if is_last { v } else { CgValue::unit() };
+                }
+                hir::StmtKind::Return { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "`return` inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+                hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement inside handle resume body",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        let value = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(handle.body.span, value, out_ty)?
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(handle.body.span, ptr, out_ty, value)?;
+        }
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // --- done：读取并返回结果 ---
+        self.builder.position_at_end(done_bb);
+        self.env.pop_scope();
+
+        Ok(match out_ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, ptr, "handle_result")?;
+                CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle result type",
+                    at: span.into(),
+                });
+            }
+        })
+    }
+
     fn codegen_call(
         &mut self,
         span: crate::span::Span,
@@ -1301,6 +1750,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T0616：`-> resume` arm body 内的 `resume(value)`（隐式注入的局部符号）。
+        if let Some(ctx) = self.current_immediate_resume_ctx() {
+            if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind {
+                if *id == ctx.resume_symbol {
+                    return self.codegen_immediate_resume_call(span, args, expected, ctx);
+                }
+            }
+        }
+
         // 1) 普通顶层函数调用：`foo(args...)`
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
             // TODO T0816：shadow stack 插桩回归用的 debug helper。
@@ -1378,6 +1836,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "call callee",
             at: callee.span.into(),
+        })
+    }
+
+    fn codegen_immediate_resume_call(
+        &mut self,
+        span: crate::span::Span,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+        ctx: ImmediateResumeCtx<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 语义：写回 resume value + 更新 state + 跳回 dispatch。
+        //
+        // 当前阶段（T0616）约束：
+        // - 仅支持一个位置实参：`resume(value)`；
+        // - 多次 resume 先按运行期错误处理（exit(3)）。
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "resume() arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(value_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "resume() named arg",
+                at: span.into(),
+            });
+        };
+
+        let value = self.codegen_expr_in_expected_context(value_expr, Some(ctx.resume_value_ty))?;
+        let value = self.coerce_value(value_expr.span, value, ctx.resume_value_ty)?;
+
+        // one-shot（运行期断言）：重复调用 resume 直接退出。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "resume_ok");
+        let err_bb = self.context.append_basic_block(func, "resume_twice");
+        let cont_bb = self.context.append_basic_block(func, "resume_cont");
+
+        let used = self
+            .builder
+            .build_load(self.context.bool_type(), ctx.resume_used_ptr, "resume_used")?
+            .into_int_value();
+        self.builder.build_conditional_branch(used, err_bb, ok_bb)?;
+
+        // --- err ---
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        // --- ok ---
+        self.builder.position_at_end(ok_bb);
+        let _ = self
+            .builder
+            .build_store(ctx.resume_used_ptr, self.context.bool_type().const_int(1, false))?;
+
+        if let Some(ptr) = ctx.resume_value_ptr {
+            let Some(raw) = value.value else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "resume(value) arg value",
+                    at: value_expr.span.into(),
+                });
+            };
+            let _ = self.builder.build_store(ptr, raw)?;
+        }
+
+        let _ = self.builder.build_store(
+            ctx.state_ptr,
+            self.context.i32_type().const_int(ctx.next_state as u64, false),
+        )?;
+
+        self.builder.build_unconditional_branch(cont_bb)?;
+
+        // --- cont ---
+        self.builder.position_at_end(cont_bb);
+
+        Ok(match expected {
+            Some(ty) => self.default_value(ty),
+            None => CgValue::unit(),
         })
     }
 
@@ -3890,6 +4438,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value: None,
             },
         }
+    }
+
+    fn declare_libc_exit(&self) -> FunctionValue<'ctx> {
+        if let Some(f) = self.module.get_function("exit") {
+            return f;
+        }
+        let fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[self.context.i32_type().into()], false);
+        self.module.add_function("exit", fn_ty, None)
+    }
+
+    fn emit_exit_with_code(
+        &mut self,
+        at: crate::span::Span,
+        code: i32,
+    ) -> Result<(), LlvmEmitError> {
+        let exit = self.declare_libc_exit();
+        let code_i32 = self.context.i32_type().const_int(code as u64, false);
+        let _ = self
+            .builder
+            .build_call(exit, &[code_i32.into()], "exit")?;
+        self.builder.build_unreachable()?;
+        let _ = at;
+        Ok(())
     }
 
     fn emit_return(

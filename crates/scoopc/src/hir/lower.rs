@@ -23,7 +23,7 @@ use crate::ty::{
 use super::{
     Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
     EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
-    HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
+    HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
     ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructFieldLayout,
     StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
@@ -849,9 +849,16 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_handle_arm(&mut self, pkg_prefix: &str, arm: &ast::HandleArm) -> HandleArm {
+        let kind = match arm.kind {
+            ast::HandleArmKind::NonResuming => HandleArmKind::NonResuming,
+            ast::HandleArmKind::ImmediateResume { resume_span } => HandleArmKind::ImmediateResume {
+                resume: self.intern_local_symbol(resume_span, false),
+            },
+        };
         HandleArm {
             span: arm.span,
             op: self.lower_handle_op(pkg_prefix, &arm.op),
+            kind,
             body: self.lower_expr(pkg_prefix, &arm.body),
         }
     }

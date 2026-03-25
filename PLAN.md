@@ -445,13 +445,13 @@
    - [x] TLS：`__scoop_effect_active` + perform slot（T0906）
    - [x] `perform` 写 slot + set flag + return（T0614：先只覆盖 `Raise.raise`）
    - [x] 调用链传播：检查 flag，沿栈向外返回（T0614：先只覆盖顶层函数调用）
-   - [ ] handler 边界消费 slot 并清 flag，然后执行 arm（T0614）；`finally` 正确执行；必要时 re-raise（T0615）
+   - [x] handler 边界消费 slot 并清 flag，然后执行 arm（T0614）；`finally` 正确执行；必要时 re-raise（T0615）
 
 2) **立即恢复 `-> resume`（栈 state machine）**
-   - [ ] 把 handle body 分段（perform/call 边界）
-   - [ ] lifted locals（跨段变量提升）
-   - [ ] while-loop 调度 state
-   - [ ] `resume(value)` 必须恰好一次（编译期/运行期双保险）
+   - [x] 把 handle body 分段（v0：仅单个 perform 点）
+   - [x] lifted locals（v0：只覆盖必要局部/跨段写回）
+   - [x] while-loop 调度 state
+   - [x] `resume(value)` 必须恰好一次（v0：运行期 one-shot 断言，违规 `exit(3)`）
 
 3) **逃逸 continuation `, k ->`（堆 state machine + continuation 对象）**
    - [ ] continuation 捕获 handler stack（fiber-local 语义）

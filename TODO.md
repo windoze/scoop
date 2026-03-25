@@ -2634,11 +2634,25 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0616 [TODO] lowering step 2：`-> resume`（栈 state machine）（PLAN §6.3.2）
+### T0616 [DONE] lowering step 2：`-> resume`（栈 state machine）（PLAN §6.3.2）
 - 描述：把 handle body 分段、提升跨段 locals，并用 while-loop state machine 实现立即恢复。
 - 目标：先只支持单个 perform 点；`resume` 必须恰好一次的检查可先只做运行期断言。
 - 验收：新增 run-pass fixture：自定义 effect + `-> resume` 能恢复并继续执行；多次 resume 报错（运行期）。
 - 依赖：T0615、T0703
+ - 完成：
+   - `crates/scoopc/src/parser/expr.rs`：支持 `handle ... with { Effect.op(...) -> resume { ... } }` 的语法解析，并标记 arm kind。
+   - `crates/scoopc/src/ast/mod.rs`：AST handle arm 增加 `kind`（NonResuming / ImmediateResume），并自定义 `Debug` 尽量保持 parse snapshot 稳定。
+   - `crates/scoopc/src/resolve/scopes.rs`：在 `-> resume` arm scope 内注入局部 `resume` 标识符（供 typecheck/codegen 侧识别与特判）。
+   - `crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/hir/lower.rs`：HIR 侧建模 `HandleArmKind`，lowering 时为 resume 生成局部 `SymbolId`。
+   - `crates/scoopc/src/typecheck/expr.rs`：为 `-> resume` arm 注入 `resume: (T) -> Unit` 的局部函数值类型（T 为 op 返回类型），并在 v0 阶段禁止同一 handle 混用 `->` 与 `-> resume` 两类 arm。
+   - `crates/scoopc/src/llvm/codegen.rs`：实现单 perform 点的 while-loop state machine lowering；`resume(value)` one-shot 运行期断言（多次/未调用均 `exit(3)`）。
+   - `tests/fixtures/run-pass/effect_resume_yield_int_basic.scoop`：新增 run-pass 覆盖自定义 effect + `-> resume` 恢复后继续执行。
+   - `tests/fixtures/run-pass/effect_resume_double_resume_exit.scoop`：新增 run-pass 覆盖重复 resume 的 `EXPECT-EXIT: 3` 断言。
+   - `tests/fixtures/parse/handle_expr_arm_recovery_two_errors.scoop`：更新 parse fail 断言，适配新的恢复路径。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0619 [TODO] async/await（作为 `Async` effect 的语法糖）（spec §5.7）
 - 描述：解析并 typecheck `async/await`，lowering 到 effect perform/handle（或库函数）模型。

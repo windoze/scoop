@@ -282,7 +282,9 @@ pub enum ExprKind {
     },
     /// effect handler 表达式：`handle { ... } with { ... }`（spec §5.4）。
     ///
-    /// 当前阶段仅承载 non-resuming arms 的结构信息；continuation/resume 相关字段留待后续任务补齐。
+    /// 当前阶段：
+    /// - 支持 non-resuming arms（`->`）与 immediate-resume arms（`-> resume`，T0616）；
+    /// - escape continuation（`, k ->`）相关字段留待后续任务补齐。
     Handle(HandleExpr),
     Todo(&'static str),
 }
@@ -562,11 +564,40 @@ pub struct HandleExpr {
 }
 
 /// `handle` 的一个 handler arm（HIR 视图）。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HandleArm {
     pub span: Span,
     pub op: HandleOp,
+    pub kind: HandleArmKind,
     pub body: Expr,
+}
+
+impl fmt::Debug for HandleArm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // 为了保持 HIR fixtures 的 dump 输出尽量稳定：
+        // - non-resuming arm 不额外打印 kind（与旧版输出保持一致）
+        // - `-> resume` arm 仅在必要时打印 resume symbol 以便回归与调试
+        let mut s = f.debug_struct("HandleArm");
+        s.field("span", &self.span);
+        s.field("op", &self.op);
+        if let HandleArmKind::ImmediateResume { resume } = self.kind {
+            s.field("resume", &resume);
+        }
+        s.field("body", &self.body);
+        s.finish()
+    }
+}
+
+/// handler arm 的语义形态（spec §5.4）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandleArmKind {
+    /// `->`：非恢复 arm；handled computation 被放弃（try/catch lowering 产物）。
+    NonResuming,
+    /// `-> resume`：立即恢复 arm（T0616）。
+    ///
+    /// `resume(value)` 是一个隐式注入的局部符号：其 `SymbolId` 存在于本字段中，
+    /// 供后续 lowering/codegen 识别并生成 state machine 跳转。
+    ImmediateResume { resume: SymbolId },
 }
 
 /// handler arm head 中的 effect operation：`Effect.op(binders...)`（HIR 视图）。

@@ -684,6 +684,10 @@ impl<'a> BlockScopeChecker<'a> {
                     for b in &arm.op.binders {
                         self.declare_ident_typed(&b.name, b.ty.clone())?;
                     }
+                    // spec §5.4：`-> resume` arm 里 `resume(value)` 是一个隐式注入的局部符号。
+                    if let ast::HandleArmKind::ImmediateResume { resume_span } = arm.kind {
+                        self.declare_ident(&ast::Ident::new(resume_span))?;
+                    }
                     self.check_expr(&mut arm.body)?;
                     self.pop_scope();
                 }

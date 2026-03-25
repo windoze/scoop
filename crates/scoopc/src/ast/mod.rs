@@ -1015,8 +1015,9 @@ pub enum ExprKind {
     /// `handle { ... } with { ... }`（spec §5.4）。
     ///
     /// 说明：
-    /// - 当前阶段（T0605）仅支持 non-resuming arm：`Effect.op(args) -> body`；
-    /// - `-> resume` 与 `, k ->` 的语法形态留到后续任务补齐；
+    /// - 支持 non-resuming arm：`Effect.op(args) -> body`；
+    /// - 支持 immediate-resume arm：`Effect.op(args) -> resume { ... }`（T0616）；
+    /// - `, k ->`（escape continuation）语法形态留到后续任务补齐；
     /// - `finally { ... }` 目前仅做语法建模（完整语义见 spec §5.7 / 后续 lowering）。
     Handle {
         body: Block,
@@ -1156,12 +1157,46 @@ pub struct WhenArm {
 }
 
 /// `handle` 的一个 handler arm：`Effect.op(args...) -> body`。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HandleArm {
     pub span: Span,
     pub op: HandleOp,
     pub arrow_span: Span,
+    pub kind: HandleArmKind,
     pub body: Expr,
+}
+
+/// `handle` 的 handler arm 形式（spec §5.4）。
+///
+/// 说明：
+/// - non-resuming：`Effect.op(...) -> expr`（try/catch lowering 产物属于该类）。
+/// - immediate-resume：`Effect.op(...) -> resume { ... }`（T0616：栈上 state machine）。
+#[derive(Debug, Clone, Copy)]
+pub enum HandleArmKind {
+    /// `->`：非恢复 arm；handled computation 被放弃。
+    NonResuming,
+    /// `-> resume`：立即恢复 arm；`resume(value)` 必须恰好一次。
+    ImmediateResume {
+        /// `resume` 标识符本身在源码中的 span（用于 resolver/typecheck 注入 `resume` 符号）。
+        resume_span: Span,
+    },
+}
+
+impl std::fmt::Debug for HandleArm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 为了保持 parse fixtures 的 AST snapshot 尽量稳定：
+        // - non-resuming arm 不额外打印 kind（与旧版输出保持一致）
+        // - 仅当出现 `-> resume` arm 时才打印 resume_span 以便回归与调试
+        let mut s = f.debug_struct("HandleArm");
+        s.field("span", &self.span);
+        s.field("op", &self.op);
+        s.field("arrow_span", &self.arrow_span);
+        if let HandleArmKind::ImmediateResume { resume_span } = self.kind {
+            s.field("resume_span", &resume_span);
+        }
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// handler arm head 中的 effect operation：`Effect.op(binders...)`。
