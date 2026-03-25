@@ -297,9 +297,23 @@ void scoop_runtime_init(void) {
 
 // 最小占位分配 API（后续替换为真正 GC 分配）
 void *scoop_alloc(uint64_t size) {
-  // TODO: 使用 GC 分配器
-  (void)size;
-  return 0;
+  // 说明（early stage）：
+  // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；
+  // - 暂不做对象头/类型信息写入（由后续 codegen + GC 任务补齐）；
+  // - OOM 时返回 NULL，由上层决定如何处理（未来可映射到 Raise<RuntimeError>）。
+  if (size == 0) {
+    // `malloc(0)` 的返回值在不同实现上可能为 NULL 或唯一指针；为保持可预期，这里统一分配 1 字节。
+    size = 1;
+  }
+  if (size > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+
+  void *p = malloc((size_t)size);
+  if (p == 0) {
+    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", size);
+  }
+  return p;
 }
 
 // 打印（不追加换行）。

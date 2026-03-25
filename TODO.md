@@ -2491,11 +2491,17 @@
  - 验收：
    - `cargo test --all` 通过。
 
-### T0902 [TODO] runtime：实现 `scoop_alloc` 的最小可用版本（先用 `malloc`）
+### T0902 [DONE] runtime：实现 `scoop_alloc` 的最小可用版本（先用 `malloc`）
 - 描述：把当前返回 0 的占位改为真正分配（暂时非 GC）。
 - 目标：为后续 codegen 做最小保障；GC 语义后置。
 - 验收：新增测试：调用 `scoop_alloc(16)` 返回非空；重复调用不崩溃。
 - 依赖：T0901
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：`scoop_alloc` 改为基于 libc `malloc` 的最小实现，并处理 `size=0` 与溢出场景（OOM 时返回 NULL）。
+   - `crates/scoop_runtime/tests/alloc.rs`：新增集成测试，验证 `scoop_alloc(16)` 返回非空且可重复调用。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0817 [TODO] heap 分配：为 boxing/引用对象生成 `scoop_alloc` 调用（PLAN §9.1）
 - 描述：在 codegen 中为 box/object 分配调用 runtime `scoop_alloc`，并写入最小对象头/类型描述指针（若已定义）。
