@@ -502,6 +502,59 @@ mod tests {
     }
 
     #[test]
+    fn effect_runtime_intrinsics_are_emitted_as_symbol_calls() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    __scoop_effect_clear()
+    __scoop_effect_slot_write(7, 123)
+    __scoop_effect_set_active()
+
+    val active: Int = __scoop_effect_is_active()
+    val tag: Int = __scoop_effect_slot_read_op_tag()
+    val value: Int = __scoop_effect_slot_read_value()
+
+    // 让返回值依赖这些调用，避免未来优化/重写时被意外删除。
+    active + tag + value
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_effect_is_active"),
+            "IR 应包含对 scoop_effect_is_active 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_set_active"),
+            "IR 应包含对 scoop_effect_set_active 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_clear"),
+            "IR 应包含对 scoop_effect_clear 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_write_u64"),
+            "IR 应包含对 scoop_effect_perform_slot_write_u64 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_read_op_tag"),
+            "IR 应包含对 scoop_effect_perform_slot_read_op_tag 的引用"
+        );
+        assert!(
+            ir.contains("@scoop_effect_perform_slot_read_u64"),
+            "IR 应包含对 scoop_effect_perform_slot_read_u64 的引用"
+        );
+    }
+
+    #[test]
     fn missing_main_is_reported() {
         let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
         let session = Session::new().unwrap();

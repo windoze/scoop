@@ -2584,11 +2584,22 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0613 [TODO] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
+### T0613 [DONE] lowering step 1（部分）：定义 runtime ABI（perform slot + flag）并在 codegen 侧可调用
 - 描述：固定 runtime C ABI（函数/全局符号名），codegen 能生成对其的读写调用。
 - 目标：先只支持单个 slot 类型（例如指针/整型）；复杂 payload 后续。
 - 验收：`--emit-llvm` 产物里包含对 runtime 符号的引用；链接阶段不报未定义符号。
 - 依赖：T0906、T0804
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 perform slot 的最小读写 ABI（`scoop_effect_perform_slot_write_u64/read_*`）。
+   - `sysroot/core.scoop`：新增 `__scoop_effect_*` 测试辅助 API 声明。
+   - `crates/scoopc/src/llvm/codegen.rs`：把 sysroot `__scoop_effect_*` 映射到 runtime C 符号，并在 `--emit-llvm` 下生成调用。
+   - `crates/scoop_runtime/tests/effect_tls.rs`：新增集成测试覆盖 slot 的写回/清空/unregister 清理语义。
+   - `crates/scoopc/src/llvm/mod.rs`：新增单测断言 IR 包含 effect runtime 符号引用。
+   - `tests/fixtures/run-pass/effect_runtime_slot_abi_basic.scoop`：新增 run-pass fixture 覆盖“可编译+可链接+可执行”。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（包含该 fixture）。
 
 ### T0614 [TODO] lowering step 1（部分）：`Raise.raise` 的 flag-based unwinding（只支持最小示例）
 - 描述：实现 `Raise.raise(e)`：写 perform slot + set flag + 早退；调用边界检查 flag 并向外传播；try/catch 在边界消费 slot。

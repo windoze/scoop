@@ -69,6 +69,7 @@
 - 2026-03-25：完成 T0904：引入 mark-sweep GC 的数据结构骨架（heap/object header/free list）与最小自检，并让 clang 链接覆盖 `runtime/c/*.c`。
 - 2026-03-25：完成 T0905：shadow stack `ScoopGcFrame` + TLS 链头（`current_frame`）与 push/pop API，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0816：LLVM codegen 为含 GC 引用的函数插桩 shadow stack frame（push/pop + roots 写入），runtime 新增 debug 扫描计数接口，并新增 run-pass fixture 覆盖。
+- 2026-03-25：完成 T0613：补齐 effect runtime 的最小 ABI（active flag + perform slot 的读写 API），并在 LLVM codegen 侧提供 sysroot `__scoop_effect_*` 映射；新增 `scoop_runtime`/`scoopc` 单测与 run-pass fixture 回归覆盖。
 
 ## 1. 仓库结构与工具链（阶段 0：工程化）
 

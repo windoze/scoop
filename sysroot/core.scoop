@@ -36,6 +36,20 @@ fun println(value: Int): Unit
 // - 返回当前线程 shadow stack 中“非空 roots slot”的数量（不会执行真实 GC）。
 fun __scoop_gc_debug_count_roots_current_thread(): Int
 
+// Effect runtime（测试辅助）。
+//
+// 说明：
+// - 该组 API 仅用于回归 effect lowering/codegen 与 runtime ABI（TODO T0613+）；
+// - 它们映射到 runtime 的 C 符号（`scoop_effect_*`），并不承诺稳定的用户态 API；
+// - `opTag/value` 的语义将在后续 lowering 中固定；当前阶段只要求“可读写可观测”。
+fun __scoop_effect_is_active(): Int
+fun __scoop_effect_set_active(): Unit
+fun __scoop_effect_clear(): Unit
+
+fun __scoop_effect_slot_write(opTag: Int, value: Int): Unit
+fun __scoop_effect_slot_read_op_tag(): Int
+fun __scoop_effect_slot_read_value(): Int
+
 // Delegated property metadata（spec §10.4）。
 //
 // 说明：

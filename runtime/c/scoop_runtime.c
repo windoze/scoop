@@ -208,6 +208,25 @@ void scoop_effect_clear(void) {
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
 }
 
+// effect runtime（TODO T0613）：perform slot 读写 API（最小 ABI）。
+//
+// 说明：
+// - lowering/codegen 会把 `perform` 的最小载荷（指针/整型）编码进一个 `uint64_t`；
+// - `op_tag` 用于区分 operation（后续任务会定义 stable tag 分配规则）。
+// - 当前阶段不做任何 dispatch/unwind；仅提供 TLS slot 的读写，以便后续 lowering 接入并可回归验证。
+void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
+  __scoop_effect_perform_slot.op_tag = op_tag;
+  __scoop_effect_perform_slot.value.as_u64 = value;
+}
+
+uint32_t scoop_effect_perform_slot_read_op_tag(void) {
+  return __scoop_effect_perform_slot.op_tag;
+}
+
+uint64_t scoop_effect_perform_slot_read_u64(void) {
+  return __scoop_effect_perform_slot.value.as_u64;
+}
+
 // --- GC / shadow stack（TODO T0905） ---
 
 ScoopGcFrame *scoop_gc_current_frame(void) {

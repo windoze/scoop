@@ -871,6 +871,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(CgValue::int(casted, to));
             }
 
+            // TODO T0613：effect runtime ABI（flag + perform slot）回归用的 sysroot debug helpers。
+            if fqn.starts_with("scoop.core.__scoop_effect_") {
+                return self.codegen_sysroot_effect_intrinsics(span, callee.span, fqn, args);
+            }
+
             // T0822：最小 I/O（sysroot `print/println(String)`）直接映射到 runtime 符号。
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
@@ -1033,6 +1038,198 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_effect_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+
+        match fqn {
+            "scoop.core.__scoop_effect_is_active" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect is_active arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_is_active();
+                let call = self.builder.build_call(rt, &[], "effect_is_active")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect is_active return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect is_active return type",
+                        at: span.into(),
+                    });
+                };
+
+                let from = IntTy {
+                    bits: 32,
+                    signed: false,
+                };
+                let casted = self.cast_int(raw_int, from, word)?;
+                Ok(CgValue::int(casted, word))
+            }
+            "scoop.core.__scoop_effect_set_active" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect set_active arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_set_active();
+                let _ = self.builder.build_call(rt, &[], "effect_set_active")?;
+                Ok(CgValue::unit())
+            }
+            "scoop.core.__scoop_effect_clear" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect clear arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_clear();
+                let _ = self.builder.build_call(rt, &[], "effect_clear")?;
+                Ok(CgValue::unit())
+            }
+            "scoop.core.__scoop_effect_slot_write" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_write arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(tag_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_write tag named arg",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(value_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_write value named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let tag_v = self.codegen_expr_in_expected_context(tag_expr, Some(CgTy::Int(word)))?;
+                let tag_v = self.coerce_value(tag_expr.span, tag_v, CgTy::Int(word))?;
+                let (tag_raw, tag_from) = tag_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect slot_write tag value",
+                    at: tag_expr.span.into(),
+                })?;
+                let tag_to = IntTy {
+                    bits: 32,
+                    signed: false,
+                };
+                let tag_i32 = self.cast_int(tag_raw, tag_from, tag_to)?;
+
+                let value_v =
+                    self.codegen_expr_in_expected_context(value_expr, Some(CgTy::Int(word)))?;
+                let value_v = self.coerce_value(value_expr.span, value_v, CgTy::Int(word))?;
+                let (value_raw, value_from) =
+                    value_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_write value",
+                        at: value_expr.span.into(),
+                    })?;
+                let value_to = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let value_i64 = self.cast_int(value_raw, value_from, value_to)?;
+
+                let rt = self.declare_runtime_effect_perform_slot_write_u64();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[tag_i32.into(), value_i64.into()],
+                    "effect_slot_write",
+                )?;
+                Ok(CgValue::unit())
+            }
+            "scoop.core.__scoop_effect_slot_read_op_tag" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_op_tag arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_perform_slot_read_op_tag();
+                let call = self.builder.build_call(rt, &[], "effect_slot_read_op_tag")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_op_tag return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_op_tag return type",
+                        at: span.into(),
+                    });
+                };
+
+                let from = IntTy {
+                    bits: 32,
+                    signed: false,
+                };
+                let casted = self.cast_int(raw_int, from, word)?;
+                Ok(CgValue::int(casted, word))
+            }
+            "scoop.core.__scoop_effect_slot_read_value" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_value arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_effect_perform_slot_read_u64();
+                let call = self.builder.build_call(rt, &[], "effect_slot_read_u64")?;
+                let raw = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_value return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "effect slot_read_value return type",
+                        at: span.into(),
+                    });
+                };
+
+                let from = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let casted = self.cast_int(raw_int, from, word)?;
+                Ok(CgValue::int(casted, word))
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown sysroot effect intrinsic callee",
+                at: callee_span.into(),
+            }),
+        }
     }
 
     fn codegen_int_to_scoop_string(
@@ -5106,6 +5303,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint64_t scoop_gc_debug_count_roots_current_thread(void)`
+        let fn_ty = self.context.i64_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_is_active(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_is_active";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_effect_is_active(void)`
+        let fn_ty = self.context.i32_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_set_active(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_set_active";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_set_active(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_clear(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_clear";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_clear(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_perform_slot_write_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_perform_slot_write_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value)`
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i32_ty.into(), i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_perform_slot_read_op_tag(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_perform_slot_read_op_tag";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_effect_perform_slot_read_op_tag(void)`
+        let fn_ty = self.context.i32_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_perform_slot_read_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_perform_slot_read_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_effect_perform_slot_read_u64(void)`
         let fn_ty = self.context.i64_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
