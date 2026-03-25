@@ -471,7 +471,7 @@
 - [ ] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示
 
 **本阶段 DoD**
-- compile-pass + run-pass 覆盖 `Raise`、`try/catch/finally`、自定义 effect + handle，以及一个最小 async/await demo。
+- compile-pass + run-pass 覆盖 `Raise`、`try/catch/finally`、自定义 effect + handle，以及一个最小 async/await demo（T0619：`tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`）。
 
 ---
 

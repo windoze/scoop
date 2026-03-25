@@ -197,7 +197,6 @@ impl<'a> Lexer<'a> {
             "catch" => Some(Keyword::Catch),
             "finally" => Some(Keyword::Finally),
             "async" => Some(Keyword::Async),
-            "await" => Some(Keyword::Await),
             "return" => Some(Keyword::Return),
             "comptime" => Some(Keyword::Comptime),
             "if" => Some(Keyword::If),

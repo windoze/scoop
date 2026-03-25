@@ -650,6 +650,12 @@ fn field_use_span_in_expr(
                         .and_then(|b| field_use_span_in_block(source, backing_field_decl_span, b))
                 })
         }
+        ast::ExprKind::Async { body } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
+        }
+        ast::ExprKind::Await { expr, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, expr)
+        }
         ast::ExprKind::MemberAccess { receiver, .. } => {
             field_use_span_in_expr(source, backing_field_decl_span, receiver)
         }

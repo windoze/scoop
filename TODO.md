@@ -2654,11 +2654,22 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0619 [TODO] async/await（作为 `Async` effect 的语法糖）（spec §5.7）
+### T0619 [DONE] async/await（作为 `Async` effect 的语法糖）（spec §5.7）
 - 描述：解析并 typecheck `async/await`，lowering 到 effect perform/handle（或库函数）模型。
 - 目标：先只实现单线程、无取消；spawn/结构化并发后续。
 - 验收：新增 run-pass fixture：最小 async/await demo 输出正确；required effects 规则一致。
 - 依赖：T0616、T0807
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ExprKind::Async` / `ExprKind::Await` 语法节点。
+   - `crates/scoopc/src/parser/expr.rs`：支持解析 `async { ... }` 与前缀 `await expr`。
+   - `crates/scoopc/src/typecheck/expr.rs`：`await` 计入 `Async` required effects；`async` 捕获 `Async` 使其不向外传播（当前先只支持 `Int`）。
+   - `crates/scoopc/src/hir/lower.rs`：`async` lowering 为 `handle` + `-> resume` 的同步 handler；`await` lowering 为 `Perform(scoop.core.Async.await)`。
+   - `crates/scoopc/src/syntax/lexer.rs`：把 `await` 调整为“上下文关键字”（作为 ident token），以便 sysroot 声明 `fun await(...)`。
+   - `sysroot/core.scoop`：加入内建 `effect Async` 的最小声明（`await(value: Int): Int`）。
+   - `tests/fixtures/run-pass/async_await_minimal_int_basic.*`：新增 run-pass fixture + stdout golden 回归。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0620 [TODO] `spawn`：结构化并发最小模型（spec §5.7）
 - 描述：实现 `spawn` 语法糖与 runtime 支持（join/取消语义先简化）。

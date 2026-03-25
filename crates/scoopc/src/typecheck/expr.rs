@@ -40,6 +40,8 @@ use super::when_exhaustiveness;
 use super::when_pat;
 use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
 
+const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
     #[error(transparent)]
@@ -2251,6 +2253,28 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::Async { body } => infer_async_expr_type(
+            source,
+            expr,
+            body,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::Await { await_span: _, expr: inner } => infer_await_expr_type(
+            source,
+            expr,
+            inner,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::WithUpdate { base, updates, .. } => infer_with_update_expr_type(
             source,
             base,
@@ -2321,6 +2345,101 @@ fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+/// 推导 `async { ... }` 的类型，并在 required-effects 收集上“捕获 Async”。
+///
+/// 当前阶段（T0619）最小规则：
+/// - async body 的值类型等价于 block 的值类型；
+/// - body 内发生的 `await` 会记录一次 `Async` performed effect；
+/// - `async { ... }` 作为语法糖会捕获该 `Async`，因此该 effect 不向外层传播。
+fn infer_async_expr_type(
+    source: &SourceFile,
+    async_expr: &ast::Expr,
+    body: &ast::Block,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let async_effect = lower.lower_type_fqn_with_args(
+        ASYNC_EFFECT_FQN.to_string(),
+        Vec::new(),
+        async_expr.span,
+    )?;
+
+    let (body_ty, body_performed) = lower.with_nested_effect_collection(|lower| {
+        infer_block_value_type(
+            source,
+            body,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )
+    })?;
+
+    // 捕获 async 语境内的 `Async` performed effect（其余 effects 正常向外传播）。
+    for (effect, span) in body_performed {
+        if effect == async_effect {
+            continue;
+        }
+        lower.record_performed_effect(effect, span);
+    }
+
+    Ok(body_ty)
+}
+
+/// 推导 `await expr` 的类型，并把 `Async` 计入 required effects。
+///
+/// 当前阶段（T0619）最小规则：
+/// - 先只支持 `await` 一个 `Int` 值（作为最小可执行 demo 的落点）；
+/// - `await` 视为一次 `Async` effect 的 perform 点；
+/// - 更完整的 `Task<T>` / generic `await<T>` 语义留给后续任务（T0622/T0623）。
+fn infer_await_expr_type(
+    source: &SourceFile,
+    await_expr: &ast::Expr,
+    inner: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let found_ty = infer_expr_type(
+        source,
+        inner,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let expected_ty = builtins.int;
+    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: "await".to_string(),
+            index: 1,
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: inner.span.into(),
+        });
+    }
+
+    let async_effect = lower.lower_type_fqn_with_args(
+        ASYNC_EFFECT_FQN.to_string(),
+        Vec::new(),
+        await_expr.span,
+    )?;
+    lower.record_performed_effect(async_effect, await_expr.span);
+    Ok(expected_ty)
 }
 
 /// 推导 `block` 作为表达式时的结果类型。
@@ -9065,6 +9184,8 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::If { .. } => "if expression",
         ast::ExprKind::When { .. } => "when expression",
         ast::ExprKind::Handle { .. } => "handle expression",
+        ast::ExprKind::Async { .. } => "async expression",
+        ast::ExprKind::Await { .. } => "await expression",
         ast::ExprKind::MemberAccess { .. } => "member access",
         ast::ExprKind::SpliceField { .. } => "splice field access",
         ast::ExprKind::SafeMemberAccess { .. } => "safe member access",

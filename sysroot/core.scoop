@@ -97,6 +97,17 @@ enum Option<T> {
 // - 当前阶段仅用于静态类型检查与 required-effects 传播；运行期语义/one-shot 约束由后续任务补齐。
 class Continuation<T, eff E = Pure>
 
+// Built-in effect: Async（spec §5.7）
+//
+// 说明：
+// - 规范中 `Async.await<T>(task: Task<T>): T` 依赖 `Task<T>` 与 executor/runtime；
+// - 当前阶段（T0619）为保证“可单独实现 & 可单独验证”，先提供一个最小可回归签名：
+//   - 仅支持 `Int`，用于 fixtures 的 async/await demo；
+//   - 更完整的 `Task<T>` / generic await / spawn 语义由后续任务补齐（T0622/T0620/T0917）。
+effect Async {
+    fun await(value: Int): Int
+}
+
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {
     NullAssertionFailed,

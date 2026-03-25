@@ -696,6 +696,14 @@ impl<'a> BlockScopeChecker<'a> {
                     self.check_block(finally)?;
                 }
             }
+            ast::ExprKind::Async { body } => {
+                // spec §5.7：`async { ... }` 的 body 同样是一个 block。
+                self.check_block(body)?;
+            }
+            ast::ExprKind::Await { expr, .. } => {
+                // spec §5.7：`await expr` 只是一层前缀语法糖，递归检查其操作数即可。
+                self.check_expr(expr.as_mut())?;
+            }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 // `TypeName.member` 允许作为 companion member access：
                 // receiver 可能不是一个 value ident（例如 class 名称），因此这里对

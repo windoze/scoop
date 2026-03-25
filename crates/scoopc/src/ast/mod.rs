@@ -1024,6 +1024,24 @@ pub enum ExprKind {
         arms: Vec<HandleArm>,
         finally: Option<Block>,
     },
+    /// `async { ... }`（spec §5.7）：作为 `Async` effect 的语法糖。
+    ///
+    /// 说明：
+    /// - 该节点只负责保留语法结构（关键字 + block）；
+    /// - 具体 desugar（例如 lowering 到 `handle` + `Async.await`）由后续阶段决定；
+    /// - 早期阶段实现会以“可回归”为目标，先落地一个最小可执行语义（单线程、无取消）。
+    Async {
+        body: Block,
+    },
+    /// `await expr`（spec §5.7）：作为 `Async.await(...)` 的语法糖。
+    ///
+    /// 说明：
+    /// - `await` 只在语法层作为前缀操作符存在；
+    /// - 后续阶段会把它 lower 成一次 `Async` effect operation 的 perform 点。
+    Await {
+        await_span: Span,
+        expr: Box<Expr>,
+    },
     /// 成员访问表达式：`receiver.member`（postfix）。
     ///
     /// 说明：

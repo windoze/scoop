@@ -115,6 +115,8 @@ struct HirLowering<'a> {
 }
 
 impl<'a> HirLowering<'a> {
+    const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
+
     fn new(
         source: &'a SourceFile,
         file: &'a ast::File,
@@ -544,6 +546,118 @@ impl<'a> HirLowering<'a> {
             } => {
                 let handle = self.lower_handle_expr(pkg_prefix, body, arms, finally.as_ref());
                 (ExprKind::Handle(handle), self.builtins.any)
+            }
+            ast::ExprKind::Async { body } => {
+                // T0619：`async { ... }` 是 `Async` effect 的语法糖。
+                //
+                // 当前阶段（最小可回归落点）：
+                // - 直接 lower 为一个 `handle` 表达式（immediate-resume arm），拦截 `Async.await`；
+                // - handler 的语义为“同步 pass-through”：`await x` 立即恢复并返回 `x`；
+                // - 更完整的 executor/Task 模型留给后续任务（T0622/T0917）。
+
+                let body = self.lower_block(pkg_prefix, body);
+
+                // synth：构造 `scoop.core.Async` 的 TypePath（不依赖 import）。
+                let synth_span = e.span;
+                let effect_path = ast::TypePath {
+                    span: synth_span,
+                    segments: vec![
+                        ast::Ident::synthetic(synth_span, "scoop"),
+                        ast::Ident::synthetic(synth_span, "core"),
+                        ast::Ident::synthetic(synth_span, "Async"),
+                    ],
+                    args: Vec::new(),
+                };
+                let effect_ty = self.lower_type_path(&effect_path);
+
+                // 为避免与真实源码 binding span 冲突，这里为 binder/resume 分配两个零长度 span。
+                let binder_decl_span = Span::new(e.span.start, e.span.start);
+                let resume_decl_span = Span::new(e.span.end, e.span.end);
+
+                let binder_id = self.intern_local_symbol(binder_decl_span, false);
+                let resume_id = self.intern_local_symbol(resume_decl_span, false);
+
+                let binder_name = "value".to_string();
+                let resume_name = "resume".to_string();
+
+                let binder = HandleBinder {
+                    span: binder_decl_span,
+                    id: binder_id,
+                    name: binder_name.clone(),
+                    ty: self.builtins.int,
+                };
+
+                let op = HandleOp {
+                    span: e.span,
+                    effect_ty,
+                    op: EffectOpRef {
+                        span: e.span,
+                        fqn: Self::ASYNC_AWAIT_FQN.to_string(),
+                    },
+                    binders: vec![binder],
+                };
+
+                let resume_ref = ValueRef::Local {
+                    id: resume_id,
+                    name: resume_name.clone(),
+                    decl_span: resume_decl_span,
+                };
+                let binder_ref = ValueRef::Local {
+                    id: binder_id,
+                    name: binder_name.clone(),
+                    decl_span: binder_decl_span,
+                };
+
+                let resume_callee = Expr {
+                    span: resume_decl_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(resume_ref),
+                };
+                let binder_arg = Expr {
+                    span: binder_decl_span,
+                    ty: self.builtins.int,
+                    kind: ExprKind::VarRef(binder_ref),
+                };
+                let arm_body = Expr {
+                    span: e.span,
+                    ty: self.builtins.unit,
+                    kind: ExprKind::Call {
+                        callee: Box::new(resume_callee),
+                        args: vec![CallArg::Positional(binder_arg)],
+                    },
+                };
+
+                let arm = HandleArm {
+                    span: e.span,
+                    op,
+                    kind: HandleArmKind::ImmediateResume { resume: resume_id },
+                    body: arm_body,
+                };
+
+                let handle = HandleExpr {
+                    body,
+                    arms: vec![arm],
+                    finally: None,
+                };
+                (ExprKind::Handle(handle), self.builtins.any)
+            }
+            ast::ExprKind::Await { await_span, expr } => {
+                // T0619：`await expr`（async/await）作为 `Async.await(...)` 的语法糖。
+                //
+                // NOTE: 这里直接 lower 为 HIR `Perform`，不依赖 resolver 对 `Async.await` 的成员解析写回；
+                // 这样能避免“语法糖节点需要合成表达式 ident”的复杂度。
+                let inner = self.lower_expr(pkg_prefix, expr);
+                let op = EffectOpRef {
+                    span: *await_span,
+                    fqn: Self::ASYNC_AWAIT_FQN.to_string(),
+                };
+                (
+                    ExprKind::Perform {
+                        op,
+                        args: vec![CallArg::Positional(inner)],
+                    },
+                    self.builtins.int,
+                )
             }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.lower_member_access_expr(pkg_prefix, receiver, member)
