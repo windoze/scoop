@@ -129,22 +129,45 @@ static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
 // - 本阶段只提供 flag + 单个 perform slot 的 TLS 骨架；不实现 dispatch；
 // - codegen/lowering 会在后续任务（T0613+）接入对这些 TLS 符号的读写；
 // - 这些符号名用于仓库内部实现/测试，并不承诺稳定 ABI（见 spec 备注）。
-typedef union ScoopEffectSlotValue {
-  void *as_ptr;
-  uint64_t as_u64;
-  int64_t as_i64;
-} ScoopEffectSlotValue;
+// perform slot：flag-based unwinding 的“effect 载荷寄存器”（每线程）。
+//
+// 设计目标（TODO T0630）：
+// - 能承载多 word payload（结构体风格：按字段顺序写入 words）
+// - 允许 union/variant 风格：由 lowering 在 words[0] 写入判别信息（例如 enum tag / kind）
+// - ABI 在同一 target 上稳定（offset/size 固化，便于 LLVM codegen 假设与测试）
+//
+// 说明：
+// - 当前阶段把 payload 统一表示为若干个 `u64` word；更复杂的布局/对齐规则留给后续任务扩展。
+// - `payload_len_words` 表示有效 word 数量；当 slot 被 clear 时，它必须为 0。
+#define SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS 8u
 
 typedef struct ScoopEffectPerformSlot {
-  // operation tag（由 lowering 写入；当前阶段仅占位）。
+  // operation tag（由 lowering 写入；当前阶段用于区分不同 effect op）。
   uint32_t op_tag;
 
-  // 保留字段：对齐/扩展。
-  uint32_t _reserved_u32;
+  // payload 的有效 word 数（0..=SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS）。
+  uint32_t payload_len_words;
 
-  // 最小载荷：单 slot（指针/整型）。
-  ScoopEffectSlotValue value;
+  // payload words：低层 ABI 以 “word 序列” 形式传递复合数据。
+  uint64_t payload_words[SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS];
 } ScoopEffectPerformSlot;
+
+// ABI 断言：固定 perform slot 的布局，以便 codegen 与跨 crate 测试可以依赖。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(
+    offsetof(ScoopEffectPerformSlot, op_tag) == 0,
+    "ScoopEffectPerformSlot.op_tag offset must be 0");
+_Static_assert(
+    offsetof(ScoopEffectPerformSlot, payload_len_words) == 4,
+    "ScoopEffectPerformSlot.payload_len_words offset must be 4");
+_Static_assert(
+    offsetof(ScoopEffectPerformSlot, payload_words) == 8,
+    "ScoopEffectPerformSlot.payload_words offset must be 8");
+_Static_assert(
+    sizeof(ScoopEffectPerformSlot) ==
+        (8u + 8u * SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS),
+    "ScoopEffectPerformSlot size must be 8 + 8*MAX_WORDS bytes");
+#endif
 
 // flag-based unwinding：每线程 active flag（0=inactive，1=active）。
 SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
@@ -208,23 +231,58 @@ void scoop_effect_clear(void) {
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
 }
 
-// effect runtime（TODO T0613）：perform slot 读写 API（最小 ABI）。
+// effect runtime（TODO T0613/T0630）：perform slot 读写 API（稳定 ABI）。
 //
 // 说明：
-// - lowering/codegen 会把 `perform` 的最小载荷（指针/整型）编码进一个 `uint64_t`；
-// - `op_tag` 用于区分 operation（后续任务会定义 stable tag 分配规则）。
+// - `op_tag` 用于区分 operation（后续任务会定义稳定的 tag 分配规则）。
 // - 当前阶段不做任何 dispatch/unwind；仅提供 TLS slot 的读写，以便后续 lowering 接入并可回归验证。
 void scoop_effect_perform_slot_write_u64(uint32_t op_tag, uint64_t value) {
   __scoop_effect_perform_slot.op_tag = op_tag;
-  __scoop_effect_perform_slot.value.as_u64 = value;
+  __scoop_effect_perform_slot.payload_len_words = 1;
+  __scoop_effect_perform_slot.payload_words[0] = value;
+  // 清理剩余 words，避免测试/调试读取到“上一次”的脏数据。
+  for (uint32_t i = 1; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
+    __scoop_effect_perform_slot.payload_words[i] = 0;
+  }
+}
+
+void scoop_effect_perform_slot_write_u64_2(uint32_t op_tag,
+                                          uint64_t word0,
+                                          uint64_t word1) {
+  __scoop_effect_perform_slot.op_tag = op_tag;
+  __scoop_effect_perform_slot.payload_len_words = 2;
+  __scoop_effect_perform_slot.payload_words[0] = word0;
+  __scoop_effect_perform_slot.payload_words[1] = word1;
+  for (uint32_t i = 2; i < SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS; i++) {
+    __scoop_effect_perform_slot.payload_words[i] = 0;
+  }
 }
 
 uint32_t scoop_effect_perform_slot_read_op_tag(void) {
   return __scoop_effect_perform_slot.op_tag;
 }
 
+uint32_t scoop_effect_perform_slot_read_len_words(void) {
+  return __scoop_effect_perform_slot.payload_len_words;
+}
+
 uint64_t scoop_effect_perform_slot_read_u64(void) {
-  return __scoop_effect_perform_slot.value.as_u64;
+  // 兼容 API：读第 0 个 word（单 word payload 的最常见场景）。
+  if (__scoop_effect_perform_slot.payload_len_words == 0) {
+    return 0;
+  }
+  return __scoop_effect_perform_slot.payload_words[0];
+}
+
+uint64_t scoop_effect_perform_slot_read_u64_at(uint32_t index) {
+  // 早期阶段选择“越界返回 0”而不是崩溃，避免错误传播路径里引入额外不确定性。
+  if (index >= SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS) {
+    return 0;
+  }
+  if (index >= __scoop_effect_perform_slot.payload_len_words) {
+    return 0;
+  }
+  return __scoop_effect_perform_slot.payload_words[index];
 }
 
 // --- Tasks / spawn/join（early stage, TODO T0620） ---

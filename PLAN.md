@@ -36,6 +36,7 @@
 - 2026-03-26：完成 T0622：引入 `Task<T>` 的最小类型/库模型：sysroot 增加 `Task`，`Async.await` 改为 `Task<T> -> T`；typecheck 侧把 `spawn` 返回值与 `await/join` 参数切到 `Task<T>`；HIR/codegen 侧把 `Task` 暂落到 word-sized 句柄并保持 run-pass 可回归。
 - 2026-03-26：完成 T0623：支持 `async fun` 降糖到 `Task<T>`：parser 增加 `async` modifier；resolve/index 与 typecheck 侧保证调用点返回 `Task<T>`；`async fun` 函数体内的 `Async` performed effects 不向外层 required effects 传播；HIR lowering 将返回值包装为 task 句柄（`__scoop_task_spawn_int`，early stage）。
 - 2026-03-26：完成 T0818：effect codegen（flag-based Raise/try-catch）：支持 `Raise<RuntimeError>` payload 写入/恢复、`EnumName.UnitVariant` 常量生成，并新增 run-pass fixture 回归。
+- 2026-03-26：完成 T0630：perform slot ABI 升级为多 word payload（`len + words[8]`），新增读写 API；`Raise.raise` 统一采用 2-word `(kind, value)` 编码并在 handler 边界断言回归，确保 lowering/codegen/runtime 对齐。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
@@ -472,7 +473,7 @@
 - [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则（TODO T0629）
   - [x] cone-aware entry point：仅 consumer cone 的 `main` 视为 entry point（TODO T0629a）
   - [ ] 库导出入口 + host/embedded entry points（TODO T0629b，依赖 T1107）
-- [ ] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示
+- [x] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示（T0630）
 
 **本阶段 DoD**
 - compile-pass + run-pass 覆盖 `Raise`、`try/catch/finally`、自定义 effect + handle，以及一个最小 async/await demo（T0619：`tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`）。

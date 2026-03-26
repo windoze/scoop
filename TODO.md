@@ -2752,11 +2752,28 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0630 [TODO] runtime ABI：perform slot 从单值扩展到复杂 payload
+### T0630 [DONE] runtime ABI：perform slot 从单值扩展到复杂 payload
 - 描述：把 effect runtime ABI 从“单个指针/整型 slot”扩展到可承载复杂 payload：多字字段、结构体/union 风格载荷、必要的对齐与判别信息。
 - 目标：保持 non-resuming 路径的实现简单；先固定 ABI 形状，再让 lowering/codegen/runtime 共同接入。
 - 验收：新增 IR/codegen/runtime fixtures：携带复合 payload 的 effect 可被正确写入、传播和读取；ABI 在同一 target 上稳定。
 - 依赖：T0613、T0818、T0906
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：
+     - perform slot ABI 升级为 `op_tag + payload_len_words + payload_words[8]`（固定 offset/size 并加 `_Static_assert`）；
+     - 新增多 word 读写 API：`scoop_effect_perform_slot_write_u64_2`、`scoop_effect_perform_slot_read_len_words`、`scoop_effect_perform_slot_read_u64_at`。
+   - `sysroot/core.scoop`：新增多 word 测试辅助 intrinsics：`__scoop_effect_slot_write2`、`__scoop_effect_slot_read_len_words`、`__scoop_effect_slot_read_word`（保留单 word API 兼容）。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - `Raise.raise` payload 升级为 2-word `(kind, value)` union 风格编码；
+     - try/catch handler 边界读取 2 words + 运行期断言（len/kind），并清 flag/slot 后执行 arm（保持 flag-based unwinding 语义）。
+     - sysroot effect intrinsics 映射新增多 word 读写入口，并补齐 runtime 符号声明。
+   - 测试/fixtures：
+     - `crates/scoop_runtime/tests/effect_tls.rs`：新增多 word 读写与越界读回归；
+     - `crates/scoopc/src/llvm/mod.rs`：LLVM IR 单测更新为断言多 word ABI 符号；
+     - `tests/fixtures/run-pass/effect_runtime_slot_abi_basic.scoop`：升级为多 word payload，用退出码断言读写结果。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0907 [TODO] runtime：类型描述（type descriptor）v0（trace bitmap/回调）
 - 描述：定义 type descriptor 结构（大小、字段 trace 信息），供 GC 扫描对象内引用字段使用。

@@ -12,8 +12,11 @@ unsafe extern "C" {
     fn scoop_effect_clear();
 
     fn scoop_effect_perform_slot_write_u64(op_tag: u32, value: u64);
+    fn scoop_effect_perform_slot_write_u64_2(op_tag: u32, word0: u64, word1: u64);
     fn scoop_effect_perform_slot_read_op_tag() -> u32;
+    fn scoop_effect_perform_slot_read_len_words() -> u32;
     fn scoop_effect_perform_slot_read_u64() -> u64;
+    fn scoop_effect_perform_slot_read_u64_at(index: u32) -> u64;
 }
 
 #[test]
@@ -52,23 +55,45 @@ fn effect_tls_perform_slot_read_write_is_observable() {
         // clear 后应回到初值。
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
-        // write 后可读回。
+        // write 1 word 后可读回。
         scoop_effect_perform_slot_write_u64(7, 123);
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 7);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         assert_eq!(scoop_effect_perform_slot_read_u64(), 123);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 123);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
-        // clear 会清空 slot。
+        // write 2 words：复合 payload（TODO T0630）的最小可观测行为。
+        scoop_effect_perform_slot_write_u64_2(9, 11, 22);
+        assert_eq!(scoop_effect_perform_slot_read_op_tag(), 9);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 2);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 11);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 22);
+
+        // 越界读取应返回 0（避免引入额外崩溃点）。
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(999), 0);
+
+        // clear 会清空 slot（包括 len 与所有 words）。
         scoop_effect_clear();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(1), 0);
 
         // unregister 会清空 TLS：slot 必须回到初值。
         scoop_effect_perform_slot_write_u64(1, 42);
-        assert_eq!(scoop_effect_perform_slot_read_u64(), 42);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 42);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 1);
         scoop_thread_unregister();
         assert_eq!(scoop_effect_perform_slot_read_op_tag(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_len_words(), 0);
         assert_eq!(scoop_effect_perform_slot_read_u64(), 0);
+        assert_eq!(scoop_effect_perform_slot_read_u64_at(0), 0);
     }
 }
