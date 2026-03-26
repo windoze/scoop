@@ -541,7 +541,7 @@
 - [x] 每个函数 prologue/epilogue 建立 `GcFrame`（包含 prev 指针 + roots 数组）（T0816）
 - [x] 在需要的地方把 GC 引用写入 roots slot（局部变量活跃区）（T0816）
 - [x] runtime：遍历当前线程 frame 链枚举 roots（visitor 形式，T0909）
-- [ ] 分配触发 GC 时，runtime 扫描所有线程的 frame 链得到根集
+- [x] 分配触发 GC 时，runtime 扫描所有线程的 frame 链得到根集（T0911）
 
 > 优点：实现难度低、语义清晰、可逐步演进到移动 GC；缺点：需要编译器插桩，性能一般，但足够 bootstrap。
 
@@ -570,8 +570,9 @@
 - [ ] 类型描述（type descriptor）：
   - pointer bitmap 或 trace 回调
   - 用于扫描对象内的引用字段（struct/enum/closure env）
-- [ ] 线程注册：新线程必须注册到 runtime 以便 GC stop-the-world 扫描其 shadow stack
+- [x] 线程注册：新线程必须注册到 runtime 以便 GC stop-the-world 扫描其 shadow stack（T0911）
   - [x] v0：`scoop_thread_register/unregister` 占位 + TLS 骨架（T0903）
+  - [x] v0：协作式 stop-the-world + 扫描所有线程 roots（T0911）
 - [ ] `object` / `companion object`：跨 DLL / 动态链接的一次初始化与全局可见性策略
 
 ### 9.2 effect runtime（C 或编译器插桩）

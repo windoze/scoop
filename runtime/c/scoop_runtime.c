@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <inttypes.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,6 +83,7 @@ static const ScoopString SCOOP_EMPTY_STRING = {0, 0};
 // - 未来会扩展为：线程注册、TLS、effect slots、GC heap 等（TODO T0903/T0904/...）。
 static uint32_t scoop_rt_initialized = 0;
 static uint32_t scoop_rt_init_calls = 0;
+static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // GC heap（v0：数据结构骨架）。
 //
@@ -199,12 +201,20 @@ void scoop_thread_register(void) {
   }
 
   scoop_tls.registered = 1;
+
+  // 把当前线程纳入 GC stop-the-world 线程表（TODO T0911）。
+  void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot);
+  scoop_gc_thread_register(&scoop_tls.gc_current_frame);
 }
 
 void scoop_thread_unregister(void) {
   if (!scoop_tls.registered) {
     return;
   }
+
+  // 从 GC stop-the-world 线程表注销（TODO T0911）。
+  void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot);
+  scoop_gc_thread_unregister(&scoop_tls.gc_current_frame);
 
   // 早期阶段：注销时清空 TLS，避免后续测试/手动调试场景出现悬挂状态。
   scoop_tls.registered = 0;
@@ -341,6 +351,10 @@ void scoop_gc_frame_push(ScoopGcFrame *frame) {
     return;
   }
 
+  // safepoint：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
+  void scoop_gc_safepoint(void);
+  scoop_gc_safepoint();
+
   // 在早期阶段尽量保持接口易用：允许在未显式 init/register 的情况下被调用。
   if (!scoop_tls.registered) {
     scoop_thread_register();
@@ -354,6 +368,10 @@ void scoop_gc_frame_pop(ScoopGcFrame *frame) {
   if (frame == 0) {
     return;
   }
+
+  // safepoint：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
+  void scoop_gc_safepoint(void);
+  scoop_gc_safepoint();
 
   // 健壮性：pop 必须匹配最近一次 push；否则保持状态不变并在 debug 下输出日志。
   if (scoop_tls.gc_current_frame != frame) {
@@ -372,7 +390,7 @@ void scoop_gc_frame_pop(ScoopGcFrame *frame) {
 // 说明：
 // - v0 只扫描当前线程的 frame 链；
 // - 为避免插桩/手动构造 frame 时出现环或异常 root_count 造成崩溃，这里做了保守上限。
-static uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(
+uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(
     ScoopGcFrame *frame,
     ScoopGcTraceVisitor visitor,
     void *ctx) {
@@ -650,12 +668,15 @@ const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
 
 // 运行时初始化（后续可由编译器生成的 main 调用）
 void scoop_runtime_init(void) {
+  (void)pthread_mutex_lock(&scoop_rt_init_lock);
+
   // 说明：当前阶段允许被重复调用（避免在多入口/测试场景下因重复 init 直接崩溃）。
-  // 线程安全的 once 初始化将在引入线程注册后再补齐（TODO T0903/T0911）。
+  // 在引入线程注册后（TODO T0903/T0911），这里升级为“线程安全的幂等初始化”。
   if (scoop_rt_initialized) {
     scoop_rt_init_calls++;
     SCOOP_RT_LOG("scoop_runtime_init: already initialized (calls=%" PRIu32 ")",
                  scoop_rt_init_calls);
+    (void)pthread_mutex_unlock(&scoop_rt_init_lock);
     return;
   }
 
@@ -667,6 +688,8 @@ void scoop_runtime_init(void) {
   SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
                sizeof(ScoopString),
                offsetof(ScoopString, data));
+
+  (void)pthread_mutex_unlock(&scoop_rt_init_lock);
 }
 
 // 最小占位分配 API（后续替换为真正 GC 分配）。
@@ -680,6 +703,10 @@ void *scoop_alloc(uint64_t size) {
   if (!scoop_rt_initialized) {
     scoop_runtime_init();
   }
+
+  // safepoint：允许 GC stop-the-world 在分配前暂停当前线程（TODO T0911）。
+  void scoop_gc_safepoint(void);
+  scoop_gc_safepoint();
 
   // 说明（early stage）：
   // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；
@@ -713,10 +740,9 @@ void *scoop_alloc(uint64_t size) {
   hdr->flags = 0;
   hdr->mark = 0;
 
-  // 登记到 heap 链表（用于 sweep）。
-  hdr->next = scoop_gc_heap.objects;
-  scoop_gc_heap.objects = hdr;
-  scoop_gc_heap.bytes_allocated += object_size;
+  // 登记到 heap 链表（用于 sweep）。多线程下由 GC 模块加锁保护（TODO T0911）。
+  void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+  scoop_gc_heap_register_object(hdr);
 
   return p;
 }

@@ -5,8 +5,175 @@
 
 #include "scoop_gc.h"
 
+#include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
+
+// --- 线程注册 + stop-the-world（TODO T0911） ---
+//
+// 设计说明（early stage）：
+// - 当前 GC v0 的根集来自 shadow stack（编译器插桩维护 `ScoopGcFrame` 链）。
+// - 为了在多线程下正确扫描所有线程的 shadow stack，需要在 GC 期间暂停（stop-the-world）
+//   所有“已注册线程”，并在暂停期间枚举每个线程的 `current_frame` 链。
+// - 该实现采用“协作式 STW”：线程必须在 safepoint 调用 `scoop_gc_safepoint()` 才会被暂停。
+//   后续编译器会在需要的位置插入 safepoint（例如分配/循环回边等）。
+//
+// 约束：
+// - 该实现优先满足“可验证且不崩溃”的语义，不追求性能。
+// - 线程必须显式调用 `scoop_thread_register/unregister`（由 runtime 侧提供）以参与 GC STW。
+
+typedef struct ScoopGcThreadRecord {
+  struct ScoopGcThreadRecord *next;
+  pthread_t thread;
+  // 指向该线程 TLS 内的 `current_frame` 槽位（由 runtime 注册时传入）。
+  ScoopGcFrame **current_frame_slot;
+  // 1 表示该线程已进入 STW park；用于避免重复计数。
+  uint32_t parked;
+} ScoopGcThreadRecord;
+
+static pthread_mutex_t scoop_gc_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t scoop_gc_cond = PTHREAD_COND_INITIALIZER;
+
+static ScoopGcThreadRecord *scoop_gc_threads = 0;
+static uint32_t scoop_gc_thread_count = 0;
+
+// STW 状态（由 `scoop_gc_collect` 驱动）。
+static uint32_t scoop_gc_stw_requested = 0;
+static pthread_t scoop_gc_stw_initiator;
+static uint32_t scoop_gc_stw_parked_count = 0;
+
+static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (pthread_equal(it->thread, t)) {
+      return it;
+    }
+  }
+  return 0;
+}
+
+// runtime 侧在 `scoop_thread_register/unregister` 中调用这些函数，把线程纳入 GC 的 STW 范围。
+void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
+  if (current_frame_slot == 0) {
+    return;
+  }
+
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
+  if (existing != 0) {
+    existing->current_frame_slot = current_frame_slot;
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  ScoopGcThreadRecord *rec = (ScoopGcThreadRecord *)malloc(sizeof(ScoopGcThreadRecord));
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  rec->next = scoop_gc_threads;
+  rec->thread = self;
+  rec->current_frame_slot = current_frame_slot;
+  rec->parked = 0;
+
+  scoop_gc_threads = rec;
+  scoop_gc_thread_count += 1;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
+void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
+  (void)current_frame_slot;
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  // 若当前有其它线程正在进行 STW，则等它结束后再注销，避免破坏 stop-the-world 计数。
+  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+
+  ScoopGcThreadRecord **link = &scoop_gc_threads;
+  while (*link != 0) {
+    ScoopGcThreadRecord *it = *link;
+    if (!pthread_equal(it->thread, self)) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    if (scoop_gc_thread_count > 0) {
+      scoop_gc_thread_count -= 1;
+    }
+    free(it);
+    break;
+  }
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
+// safepoint：若 GC 正在请求 STW，则当前线程在此处 park，直到 GC 结束。
+void scoop_gc_safepoint(void) {
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  // 协作式 STW：只有在该线程已注册且不是 initiator 时才会 park。
+  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+    ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+    if (rec == 0) {
+      // 未注册：不参与 STW（early stage 语义约定）。
+      break;
+    }
+
+    if (!rec->parked) {
+      rec->parked = 1;
+      scoop_gc_stw_parked_count += 1;
+      // 唤醒 GC 线程：它可能正在等待 parked_count 达标。
+      (void)pthread_cond_broadcast(&scoop_gc_cond);
+    }
+
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
+// scope helper：进入 stop-the-world（等待其它线程 park）。
+static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
+  scoop_gc_stw_requested = 1;
+  scoop_gc_stw_initiator = initiator;
+  scoop_gc_stw_parked_count = 0;
+
+  // 重置 parked 标记，避免上一轮残留（健壮性）。
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    it->parked = 0;
+  }
+
+  // 需要 park 的线程数量：所有已注册线程 - initiator（若 initiator 已注册）。
+  uint32_t need_to_park = scoop_gc_thread_count;
+  if (scoop_gc_find_thread_unlocked(initiator) != 0 && need_to_park > 0) {
+    need_to_park -= 1;
+  }
+
+  while (scoop_gc_stw_parked_count < need_to_park) {
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+}
+
+static void scoop_gc_stop_the_world_end_unlocked(void) {
+  scoop_gc_stw_requested = 0;
+  scoop_gc_stw_parked_count = 0;
+
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    it->parked = 0;
+  }
+
+  (void)pthread_cond_broadcast(&scoop_gc_cond);
+}
 
 // 进程全局 heap（v0：单线程）。
 //
@@ -14,6 +181,21 @@
 // - 该符号不在头文件中导出；对外通过 `scoop_alloc`/`scoop_gc_collect` 等 API 访问；
 // - 多线程 stop-the-world 与 per-thread allocator 将在后续任务（T0911+）补齐。
 ScoopGcHeap scoop_gc_heap;
+
+void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return;
+  }
+
+  // 说明：heap 链表与统计字段是进程全局共享状态；在多线程下需加锁保护。
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  obj->next = scoop_gc_heap.objects;
+  scoop_gc_heap.objects = obj;
+  scoop_gc_heap.bytes_allocated += obj->size;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
 
 void scoop_gc_heap_init(ScoopGcHeap *heap) {
   if (heap == 0) {
@@ -153,16 +335,50 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
 }
 
 void scoop_gc_collect(void) {
-  // v0：单线程，无 stop-the-world；只扫描当前线程 roots。
+  // v0->v0+：协作式 stop-the-world，扫描所有已注册线程 roots。
+  //
+  // 说明：
+  // - 该函数会阻塞直到其它注册线程在 safepoint 处 park（`scoop_gc_safepoint()`）。
+  // - 若有线程注册但从不进入 safepoint，本函数可能无限等待（early stage 限制）。
+
+  // 先确保 runtime 已 init 且当前线程已注册（便于被纳入 roots 枚举）。
+  //
+  // 注意：这些函数定义在 `scoop_runtime.c`，这里用本地声明以避免头文件耦合。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  // 保证同一时刻只允许一个 GC 周期。
+  while (scoop_gc_stw_requested) {
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+
+  scoop_gc_stop_the_world_begin_unlocked(self);
+
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
 
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
-  // 1) mark roots
-  (void)scoop_gc_shadow_stack_visit_roots_current_thread(scoop_gc_mark_visitor,
-                                                        (void *)&ctx);
+  // 1) mark roots（扫描所有已注册线程的 shadow stack）
+  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
+                                                        ScoopGcTraceVisitor visitor,
+                                                        void *ctx);
+
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (it->current_frame_slot == 0) {
+      continue;
+    }
+
+    ScoopGcFrame *frame = *(it->current_frame_slot);
+    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
+  }
 
   // 2) mark transitive closure（若对象带 type descriptor）。
   while (stack.len > 0) {
@@ -199,22 +415,33 @@ void scoop_gc_collect(void) {
     heap->bytes_freed += obj->size;
     free(obj);
   }
+
+  scoop_gc_stop_the_world_end_unlocked();
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
 uint64_t scoop_gc_debug_heap_object_count(void) {
+  (void)pthread_mutex_lock(&scoop_gc_lock);
   uint64_t count = 0;
   for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
     count++;
   }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
   return count;
 }
 
 uint64_t scoop_gc_debug_heap_bytes_allocated(void) {
-  return scoop_gc_heap.bytes_allocated;
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t v = scoop_gc_heap.bytes_allocated;
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return v;
 }
 
 uint64_t scoop_gc_debug_heap_bytes_freed(void) {
-  return scoop_gc_heap.bytes_freed;
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t v = scoop_gc_heap.bytes_freed;
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return v;
 }
 
 // `scoop_alloc` 由 `scoop_runtime.c` 实现；这里仅声明供 debug helper 调用。

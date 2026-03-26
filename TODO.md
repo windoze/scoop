@@ -2835,11 +2835,18 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0911 [TODO] 线程注册 + stop-the-world 扫描所有线程（PLAN §9.1）
+### T0911 [DONE] 线程注册 + stop-the-world 扫描所有线程（PLAN §9.1）
 - 描述：实现线程注册表，GC 时暂停所有注册线程并扫描其 shadow stack。
 - 目标：先只支持 2 线程；暂停策略可先用全局 mutex + 条件变量。
 - 验收：新增运行期测试：两线程各自持有对象引用，GC 扫描到两边 roots；程序不崩溃。
 - 依赖：T0903、T0910
+ - 完成：
+   - `runtime/c/scoop_gc.c`：引入线程注册表 + 协作式 stop-the-world（mutex/cond + safepoint），并让 `scoop_gc_collect()` 在 STW 下扫描所有线程的 shadow stack roots。
+   - `runtime/c/scoop_runtime.c`：`scoop_thread_register/unregister` 接入 GC 线程表；`scoop_alloc`/`scoop_gc_frame_push/pop` 增加 safepoint；`scoop_runtime_init()` 升级为线程安全幂等。
+   - `crates/scoop_runtime/tests/gc_stop_the_world.rs`：新增多线程回归测试，验证 GC 能保活两线程 roots。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0912 [TODO] pin/unpin API（spec §15.10 / PLAN §9.1）
 - 描述：在 runtime 中提供 `scoop_pin/scoop_unpin`，并定义 pin 计数或列表，为未来移动 GC 做准备。
