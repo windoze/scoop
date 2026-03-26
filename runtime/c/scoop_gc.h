@@ -170,6 +170,17 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
 void scoop_gc_collect(void);
 
+// --- Pinning（spec §15.10） ---
+//
+// 说明：
+// - `pin/unpin` 用于把某个 heap 对象标记为“不可移动且必须保活”，供 FFI/异步 I/O
+//   等场景在把指针交给外部系统时使用。
+// - v0（非移动 mark-sweep）阶段，对象本身不会移动；pin 的主要效果是把对象加入
+//   “额外 roots”，避免在没有 shadow stack 引用时被 sweep。
+// - 返回值：1 表示成功；0 表示失败（例如 obj==NULL、对象不在 heap 中、或 unpin 下溢）。
+uint32_t scoop_pin(void *obj);
+uint32_t scoop_unpin(void *obj);
+
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);

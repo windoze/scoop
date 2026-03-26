@@ -565,8 +565,9 @@
 - [ ] 分配器：`scoop_alloc(size, type_desc)`（带类型描述，供 GC 扫描对象字段）
 - [ ] GC（先易后难）：
   - [x] v0：mark-sweep 数据结构骨架（T0904）
-  - [x] v0：非移动 mark-sweep（手动触发 `scoop_gc_collect`，T0910；pin/unpin 后续补齐）
-  - [ ] v1：可选移动/压缩（实现 pin/unpin 语义）
+  - [x] v0：非移动 mark-sweep（手动触发 `scoop_gc_collect`，T0910）
+  - [x] v0：pin/unpin API（pinned objects 作为额外 roots，T0912）
+  - [ ] v1：可选移动/压缩（pin/unpin 在移动 GC 上才真正有意义，但 API/错误检查语义已固定）
 - [ ] 类型描述（type descriptor）：
   - pointer bitmap 或 trace 回调
   - 用于扫描对象内的引用字段（struct/enum/closure env）

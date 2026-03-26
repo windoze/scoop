@@ -2848,11 +2848,18 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0912 [TODO] pin/unpin API（spec §15.10 / PLAN §9.1）
+### T0912 [DONE] pin/unpin API（spec §15.10 / PLAN §9.1）
 - 描述：在 runtime 中提供 `scoop_pin/scoop_unpin`，并定义 pin 计数或列表，为未来移动 GC 做准备。
 - 目标：在非移动 GC 中可先是计数/no-op，但语义与错误检查要固定。
 - 验收：新增测试：pin/unpin 计数配对；重复 unpin 报错或断言。
 - 依赖：T0910
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `scoop_pin/scoop_unpin` 声明并固化 v0 返回值语义（成功=1/失败=0）。
+   - `runtime/c/scoop_gc.c`：实现 per-object pin 计数；GC 时把 pinned 对象作为额外 roots 标记保活；unpin 下溢返回失败。
+   - `crates/scoop_runtime/tests/pin_unpin.rs`：新增集成测试：pin 两次/unpin 两次配对；pin 期间无 roots 仍保活；重复 unpin 返回失败。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0913 [TODO] effect runtime：handler stack push/pop + 最近匹配分发规则（Appendix A）
 - 描述：实现 handler stack（TLS），并按“最近匹配 handler”分发；arm body 在 dispatch scope 外执行。

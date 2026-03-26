@@ -182,6 +182,142 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
 // - 多线程 stop-the-world 与 per-thread allocator 将在后续任务（T0911+）补齐。
 ScoopGcHeap scoop_gc_heap;
 
+// --- Pinning（spec §15.10 / TODO T0912） ---
+//
+// 说明（early stage）：
+// - 在移动/压缩 GC 中，pin 的核心语义是“对象地址稳定”；v0 非移动 GC 下对象不会移动，
+//   但 pin 仍必须保证“对象在 pin 期间被保活（视为 root）”以及“pin/unpin 配对检查”。
+// - 为了便于单独回归验证，这里采用“每对象 pin 计数”的实现：同一对象可被多次 pin，
+//   需对应次数 unpin；当计数归零时从 pinned 集合移除。
+// - v0 实现选择用链表保存 pinned 集合（对象数不大，且该 API 为 @Unsafe 低频路径）。
+typedef struct ScoopGcPinnedRecord {
+  struct ScoopGcPinnedRecord *next;
+  ScoopGcObjectHeader *object;
+  uint64_t pin_count;
+} ScoopGcPinnedRecord;
+
+static ScoopGcPinnedRecord *scoop_gc_pinned_objects = 0;
+
+static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+
+  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+    if (it == obj) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+
+  for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+    if (it->object == obj) {
+      return it;
+    }
+  }
+  return 0;
+}
+
+uint32_t scoop_pin(void *raw_obj) {
+  if (raw_obj == 0) {
+    return 0;
+  }
+
+  // 说明：保持与其它 runtime API 一致：允许在未显式 init/register 的情况下被调用。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  // 健壮性：只允许 pin 由 `scoop_alloc` 分配并登记到 heap 的对象，避免 GC 在后续扫描
+  // pinned roots 时对非法指针解引用导致崩溃。
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 0;
+  }
+
+  ScoopGcPinnedRecord *rec = scoop_gc_find_pinned_unlocked(obj);
+  if (rec != 0) {
+    if (rec->pin_count == UINT64_MAX) {
+      // overflow：保守失败（避免 wrap 导致“错误解 pin”）。
+      (void)pthread_mutex_unlock(&scoop_gc_lock);
+      return 0;
+    }
+    rec->pin_count += 1;
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 1;
+  }
+
+  rec = (ScoopGcPinnedRecord *)malloc(sizeof(ScoopGcPinnedRecord));
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 0;
+  }
+
+  rec->next = scoop_gc_pinned_objects;
+  rec->object = obj;
+  rec->pin_count = 1;
+  scoop_gc_pinned_objects = rec;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return 1;
+}
+
+uint32_t scoop_unpin(void *raw_obj) {
+  if (raw_obj == 0) {
+    return 0;
+  }
+
+  // 说明：与 `scoop_pin` 对齐：确保 runtime init + 当前线程参与 STW。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  ScoopGcPinnedRecord **link = &scoop_gc_pinned_objects;
+  while (*link != 0) {
+    ScoopGcPinnedRecord *it = *link;
+    if (it->object != obj) {
+      link = &it->next;
+      continue;
+    }
+
+    // 找到了：递减计数；归零则移除节点。
+    if (it->pin_count == 0) {
+      // 理论上不会发生；保守失败（且不崩溃）。
+      (void)pthread_mutex_unlock(&scoop_gc_lock);
+      return 0;
+    }
+
+    it->pin_count -= 1;
+    if (it->pin_count == 0) {
+      *link = it->next;
+      free(it);
+    }
+
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 1;
+  }
+
+  // 未找到：unpin 下溢（对未 pin 的对象 unpin，或重复 unpin）。
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return 0;
+}
+
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return;
@@ -378,6 +514,18 @@ void scoop_gc_collect(void) {
 
     ScoopGcFrame *frame = *(it->current_frame_slot);
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
+  }
+
+  // 1b) mark pinned roots（spec §15.10）：pinned 对象必须保活，即使没有 shadow stack 引用。
+  for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    if (it->pin_count == 0) {
+      continue;
+    }
+
+    scoop_gc_mark_object_if_needed(&ctx, it->object);
   }
 
   // 2) mark transitive closure（若对象带 type descriptor）。
