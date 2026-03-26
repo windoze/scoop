@@ -1575,6 +1575,19 @@ impl<'a> BlockScopeChecker<'a> {
                             ty_fqn: fqn.clone(),
                         });
                     }
+                    // enum 也会在 value namespace 中注入一个同名值（见 `Index::add_type_decl`），
+                    // 以支持 `EnumName.Variant` 的限定名引用；此时同样可把其“接收者类型”视为同名类型。
+                    if self
+                        .index
+                        .by_fqn
+                        .get(fqn)
+                        .and_then(|syms| syms.get(SymbolKind::Type))
+                        .is_some()
+                    {
+                        return Some(MemberReceiverKind::Value {
+                            ty_fqn: fqn.clone(),
+                        });
+                    }
                     return None;
                 }
 

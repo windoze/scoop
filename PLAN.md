@@ -35,6 +35,7 @@
 - 2026-03-26：完成 T0620：新增 `spawn/join` 结构化并发最小模型（`Int` 句柄 + runtime helper），并补齐 typecheck/run-pass fixtures 与 runtime 测试覆盖。
 - 2026-03-26：完成 T0622：引入 `Task<T>` 的最小类型/库模型：sysroot 增加 `Task`，`Async.await` 改为 `Task<T> -> T`；typecheck 侧把 `spawn` 返回值与 `await/join` 参数切到 `Task<T>`；HIR/codegen 侧把 `Task` 暂落到 word-sized 句柄并保持 run-pass 可回归。
 - 2026-03-26：完成 T0623：支持 `async fun` 降糖到 `Task<T>`：parser 增加 `async` modifier；resolve/index 与 typecheck 侧保证调用点返回 `Task<T>`；`async fun` 函数体内的 `Async` performed effects 不向外层 required effects 传播；HIR lowering 将返回值包装为 task 句柄（`__scoop_task_spawn_int`，early stage）。
+- 2026-03-26：完成 T0818：effect codegen（flag-based Raise/try-catch）：支持 `Raise<RuntimeError>` payload 写入/恢复、`EnumName.UnitVariant` 常量生成，并新增 run-pass fixture 回归。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。

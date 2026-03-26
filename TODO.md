@@ -2730,11 +2730,27 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T0818 [TODO] effect codegen：flag-based Raise/try-catch（对接 T0614）
+### T0818 [DONE] effect codegen：flag-based Raise/try-catch（对接 T0614）
 - 描述：把 MIR 中的 perform/handle terminator 生成 LLVM IR，与 runtime slot/flag 交互，实现最小 Raise 处理。
 - 目标：先只支持 `Raise<RuntimeError>` 与 try/catch；finally 在 T0615 补齐。
 - 验收：run-pass fixtures：Raise 被 catch 捕获；未捕获时报错或退出（按设计）。
 - 依赖：T0713、T0614
+ - 完成：
+   - `crates/scoopc/src/resolve/mod.rs`：为 enum 注入 0-参数（unit）variant 的 value symbol，使 `EnumName.Variant` 可被 resolver 写回（最小支持 `RuntimeError.NullAssertionFailed`）。
+   - `crates/scoopc/src/resolve/scopes.rs`：member access receiver 推导支持 enum “值命名空间入口”，让 `EnumName.Variant` 走 `resolve_member_access_on_value_receiver` 路径。
+   - `crates/scoopc/src/typecheck/expr.rs`：member access 对 enum unit variant 值做最小类型推断与 receiver 跳过，避免把 enum type name 当作普通顶层值推导而报错。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - `Raise.raise` payload 编码支持 `RuntimeError`（把 enum tag 写入 slot），并在 catch 侧恢复 enum 值；
+     - codegen 支持 `EnumName.UnitVariant` 的 member access 产出 enum 常量；
+     - 修复 sysroot effect/task intrinsics 中 word/handle 类型变量名不一致导致的 `--features llvm` 编译失败。
+   - fixtures：
+     - `tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`：新增 run-pass 覆盖 `Raise<RuntimeError>` 捕获；
+     - `tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.stdout`：新增 stdout golden；
+     - `tests/fixtures/run-pass/spawn_join_int_basic.stdout`：修复多余空行导致的 stdout golden mismatch。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0630 [TODO] runtime ABI：perform slot 从单值扩展到复杂 payload
 - 描述：把 effect runtime ABI 从“单个指针/整型 slot”扩展到可承载复杂 payload：多字字段、结构体/union 风格载荷、必要的对齐与判别信息。

@@ -979,11 +979,95 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    /// 将 `Raise.raise(error)` 的 `error` 值编码为 runtime perform slot 的 `u64` 载荷。
+    ///
+    /// 当前阶段（T0818）的目标是先把 `Raise<RuntimeError>` 跑通，以支持：
+    /// - `x!!` / `x as T` 等“运行期失败 → Raise<RuntimeError>”的语义落点；
+    /// - `try/catch` 能读回并匹配 `RuntimeError` 的 unit variants。
+    ///
+    /// 约束（刻意保持小范围，复杂 payload 留给 T0630）：
+    /// - 整数族：按 word-sized 整数写入 slot；
+    /// - `scoop.core.RuntimeError`：仅写入 enum tag（payload 固定为 0）。
+    fn codegen_raise_error_payload_u64(
+        &mut self,
+        err_expr: &hir::Expr,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        // slot 的载荷固定为 u64（runtime ABI，T0613）。
+        let u64_ty = self.context.i64_type();
+        let from_u64 = IntTy {
+            bits: 64,
+            signed: false,
+        };
+
+        // 注意：HIR 在早期阶段并不总是为每个表达式标注精确类型（例如 member access 常为 `Any`），
+        // 因此这里以 codegen 后的 `CgValue.ty` 为准（避免过度依赖 `hir::Expr.ty`）。
+        let err_v = self.codegen_expr(err_expr)?;
+
+        match err_v.ty {
+            CgTy::Int(from_ty) => {
+                // 整数族：把值编码进 slot 的 u64。
+                let (err_raw, _) = err_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Raise.raise arg value",
+                    at: err_expr.span.into(),
+                })?;
+                Ok(self.cast_int(err_raw, from_ty, from_u64)?)
+            }
+            CgTy::Enum(enum_ty) if self.is_sysroot_runtime_error_enum(enum_ty) => {
+                // `RuntimeError`：写入 tag（u32）到 slot（u64）。
+                //
+                // 注意：当前 `RuntimeError` 的 enum 表示是 tagged union `{ tag: i32, payload: word }`，
+                // 其中 payload 为空（unit variants），因此只需要写回 tag 即可。
+                let repr = self.cg_enum_layout(err_expr.span, enum_ty)?.repr;
+                if !matches!(repr, CgEnumRepr::TaggedUnion) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Raise<RuntimeError> niche repr (not supported)",
+                        at: err_expr.span.into(),
+                    });
+                }
+
+                let raw = err_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Raise.raise arg value",
+                    at: err_expr.span.into(),
+                })?;
+                let enum_v = raw.into_struct_value();
+                let extracted =
+                    self.builder
+                        .build_extract_value(enum_v, 0, "raise_runtime_error_tag")?;
+                let BasicValueEnum::IntValue(tag_i32) = extracted else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Raise<RuntimeError> tag value",
+                        at: err_expr.span.into(),
+                    });
+                };
+                Ok(self
+                    .builder
+                    .build_int_z_extend(tag_i32, u64_ty, "raise_runtime_error_tag_u64")?)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Raise.raise arg type (payload encoding)",
+                at: err_expr.span.into(),
+            }),
+        }
+    }
+
+    /// 判断一个 value nominal type 是否是 sysroot 内建的 `scoop.core.RuntimeError`。
+    ///
+    /// 说明：T0818 只要求打通 `Raise<RuntimeError>`；其它 `Raise<E>` 的复杂 payload ABI 留给 T0630。
+    fn is_sysroot_runtime_error_enum(&self, ty: TypeId) -> bool {
+        matches!(
+            self.types.kind(ty),
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.core.RuntimeError"
+        )
+    }
+
     /// codegen 一个 `Raise.raise(e)`（HIR `Perform` 的最小子集）。
     ///
     /// 当前阶段（T0614）约束：
     /// - 只支持 `scoop.core.Raise.raise`；
-    /// - `e` 只支持可降为 word-sized `Int` 的值（用于写入 perform slot）；
+    /// - `e` 只支持：
+    ///   - word-sized `Int`（沿用 T0614 的最小约定）；
+    ///   - `RuntimeError`（T0818：写入 enum tag）；
     /// - 不支持 finally / 自定义 effect / `-> resume`。
     fn codegen_perform_expr(
         &mut self,
@@ -1012,22 +1096,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        // 1) 计算 `error` 值（当前阶段约定：以 word-sized Int 写入 slot）。
-        let word = IntTy {
-            bits: self.host.word_bit_width(),
-            signed: true,
-        };
-        let err_v = self.codegen_expr_in_expected_context(err_expr, Some(CgTy::Int(word)))?;
-        let err_v = self.coerce_value(err_expr.span, err_v, CgTy::Int(word))?;
-        let (err_raw, err_from) = err_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "Raise.raise arg value",
-            at: err_expr.span.into(),
-        })?;
-        let err_to = IntTy {
-            bits: 64,
-            signed: false,
-        };
-        let err_u64 = self.cast_int(err_raw, err_from, err_to)?;
+        // 1) 计算 `error` 值，并编码为 slot 的 u64 载荷。
+        let err_u64 = self.codegen_raise_error_payload_u64(err_expr)?;
 
         // 2) 写 slot + set flag。
         // 说明：当前阶段只需要“可观测的最小表示”；op_tag 未来会与更通用的 payload ABI 对齐（T0630）。
@@ -1203,20 +1273,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let rt_clear = self.declare_runtime_effect_clear();
         let _ = self.builder.build_call(rt_clear, &[], "raise_clear")?;
 
-        let word = IntTy {
-            bits: self.host.word_bit_width(),
-            signed: true,
-        };
-        let value_word = self.cast_int(
-            value_u64,
-            IntTy {
-                bits: 64,
-                signed: false,
-            },
-            word,
-        )?;
-        let binder_value = CgValue::int(value_word, word);
-
         // binder scope：arm body 在 handler scope 之外执行（因此不 push raise_target）。
         self.env.push_scope();
 
@@ -1226,6 +1282,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "handle binder type",
                     at: binder.span.into(),
                 })?;
+        let binder_value = match binder_cg_ty {
+            CgTy::Int(int_ty) => {
+                // 传统路径：`Raise<Int>` —— 直接把 slot 的 u64 解码回整数。
+                let from_u64 = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let decoded = self.cast_int(value_u64, from_u64, int_ty)?;
+                CgValue::int(decoded, int_ty)
+            }
+            CgTy::Enum(enum_ty) if self.is_sysroot_runtime_error_enum(enum_ty) => {
+                // `Raise<RuntimeError>`：slot 里承载的是 enum tag（u64），这里把它恢复为 enum 值。
+                let repr = self.cg_enum_layout(span, enum_ty)?.repr;
+                if !matches!(repr, CgEnumRepr::TaggedUnion) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Raise<RuntimeError> niche repr (not supported)",
+                        at: span.into(),
+                    });
+                }
+
+                let tag_i32 = self.builder.build_int_truncate(
+                    value_u64,
+                    self.context.i32_type(),
+                    "raise_runtime_error_tag_i32",
+                )?;
+                let payload_zero =
+                    self.int_type(self.enum_payload_ty()).const_int(0, false);
+
+                let llvm_enum_ty = self.llvm_enum_value_type(span, enum_ty)?;
+                let llvm_enum_ty = llvm_enum_ty.into_struct_type();
+                let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
+                agg = self
+                    .builder
+                    .build_insert_value(agg, tag_i32, 0, "raise_runtime_error_tag")?;
+                agg = self.builder.build_insert_value(
+                    agg,
+                    payload_zero,
+                    1,
+                    "raise_runtime_error_payload",
+                )?;
+                CgValue {
+                    ty: CgTy::Enum(enum_ty),
+                    value: Some(agg.as_basic_value_enum()),
+                }
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle binder type (Raise payload decode)",
+                    at: binder.span.into(),
+                });
+            }
+        };
         let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
         let stored =
             self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
@@ -2073,7 +2181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: self.host.word_bit_width(),
             signed: true,
         };
-        let handle_word = IntTy {
+        let _handle_word = IntTy {
             bits: self.host.word_bit_width(),
             signed: false,
         };
@@ -2107,8 +2215,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     bits: 32,
                     signed: false,
                 };
-                let casted = self.cast_int(raw_int, from, word)?;
-                Ok(CgValue::int(casted, word))
+                let casted = self.cast_int(raw_int, from, value_word)?;
+                Ok(CgValue::int(casted, value_word))
             }
             "scoop.core.__scoop_effect_set_active" => {
                 if !args.is_empty() {
@@ -2155,8 +2263,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let tag_v = self.codegen_expr_in_expected_context(tag_expr, Some(CgTy::Int(word)))?;
-                let tag_v = self.coerce_value(tag_expr.span, tag_v, CgTy::Int(word))?;
+                let tag_v = self
+                    .codegen_expr_in_expected_context(tag_expr, Some(CgTy::Int(value_word)))?;
+                let tag_v = self.coerce_value(tag_expr.span, tag_v, CgTy::Int(value_word))?;
                 let (tag_raw, tag_from) = tag_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "effect slot_write tag value",
                     at: tag_expr.span.into(),
@@ -2168,8 +2277,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let tag_i32 = self.cast_int(tag_raw, tag_from, tag_to)?;
 
                 let value_v =
-                    self.codegen_expr_in_expected_context(value_expr, Some(CgTy::Int(word)))?;
-                let value_v = self.coerce_value(value_expr.span, value_v, CgTy::Int(word))?;
+                    self.codegen_expr_in_expected_context(value_expr, Some(CgTy::Int(value_word)))?;
+                let value_v =
+                    self.coerce_value(value_expr.span, value_v, CgTy::Int(value_word))?;
                 let (value_raw, value_from) =
                     value_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                         kind: "effect slot_write value",
@@ -2217,8 +2327,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     bits: 32,
                     signed: false,
                 };
-                let casted = self.cast_int(raw_int, from, word)?;
-                Ok(CgValue::int(casted, word))
+                let casted = self.cast_int(raw_int, from, value_word)?;
+                Ok(CgValue::int(casted, value_word))
             }
             "scoop.core.__scoop_effect_slot_read_value" => {
                 if !args.is_empty() {
@@ -2248,8 +2358,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     bits: 64,
                     signed: false,
                 };
-                let casted = self.cast_int(raw_int, from, word)?;
-                Ok(CgValue::int(casted, word))
+                let casted = self.cast_int(raw_int, from, value_word)?;
+                Ok(CgValue::int(casted, value_word))
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown sysroot effect intrinsic callee",
@@ -2265,9 +2375,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let word = IntTy {
+        let value_word = IntTy {
             bits: self.host.word_bit_width(),
             signed: true,
+        };
+        let handle_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
         };
 
         match fqn {
@@ -5252,6 +5366,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_object_property_access(member.span, fqn);
                 }
 
+                // `EnumName.Variant`（unit variant）：`RuntimeError.NullAssertionFailed` 等。
+                if let Some(v) = self.try_codegen_qualified_enum_unit_variant_value(member.span, fqn)? {
+                    return Ok(v);
+                }
+
                 // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
                 if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
                     if let Some(local) = self.env.get(*id) {
@@ -5367,6 +5486,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_extract_value(tuple_v, elem_idx, "extract_tuple_elem")?;
         self.cg_value_from_loaded(member.span, elem_ty, extracted)
+    }
+
+    /// 将一个“限定名 enum unit variant 值”（例如 `RuntimeError.NullAssertionFailed`）降低为 enum 常量。
+    ///
+    /// 说明：
+    /// - parser 会把 `EnumName.Variant` 表示为 member access；
+    /// - resolver 会将 `Variant` 解析为一个 value FQN（`EnumFqn.Variant`）；
+    /// - 对于 0-arity（unit）variant，我们在 codegen 侧直接构造 `{ tag, payload }` 值。
+    fn try_codegen_qualified_enum_unit_variant_value(
+        &mut self,
+        at: crate::span::Span,
+        value_fqn: &str,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some((owner_fqn, variant_name)) = value_fqn.rsplit_once('.') else {
+            return Ok(None);
+        };
+        let Some(enum_layout) = self.enum_layouts.get(owner_fqn) else {
+            return Ok(None);
+        };
+        let Some(variant) = enum_layout.variants.iter().find(|v| v.name == variant_name) else {
+            return Ok(None);
+        };
+
+        let tag = variant.tag;
+        let field_count = variant.fields.len();
+        if field_count != 0 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum variant with payload used as value",
+                at: at.into(),
+            });
+        }
+
+        let enum_ty = self
+            .types
+            .iter_ids()
+            .find(|id| {
+                matches!(
+                    self.types.kind(*id),
+                    TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                        if nominal.fqn == owner_fqn && nominal.args.is_empty() && nominal.eff.is_none()
+                )
+            })
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum type id for qualified variant value",
+                at: at.into(),
+            })?;
+
+        let v = self.build_enum_value(at, enum_ty, tag, None)?;
+        Ok(Some(v))
     }
 
     fn lookup_object_property_by_fqn(

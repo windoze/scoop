@@ -9632,6 +9632,29 @@ fn infer_member_access_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    // enum unit variant 值：`EnumName.Variant`（例如 `RuntimeError.NullAssertionFailed`）。
+    //
+    // 说明：
+    // - resolver 会把该 member access 直接解析为一个 value FQN：`EnumFqn.Variant`；
+    // - receiver（`EnumName`）在语义上只是“值命名空间的入口”，并非真正的运行期值；
+    // - 因此这里在 typecheck 阶段直接返回 enum 类型，并跳过 receiver 的表达式 typecheck，
+    //   避免把 enum type name 当作普通顶层值进行推导而报错（`UnsupportedTopLevelValueType`）。
+    if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() {
+        if let Some((enum_fqn, variant_name)) = fqn.rsplit_once('.') {
+            if let Some(decl) = lower.env().enum_decl(enum_fqn) {
+                if decl
+                    .variants
+                    .iter()
+                    .any(|v| v.name == variant_name && v.fields.is_empty())
+                {
+                    return Ok(
+                        lower.lower_type_fqn_with_args(enum_fqn.to_string(), Vec::new(), member.span)?
+                    );
+                }
+            }
+        }
+    }
+
     // 先递归类型检查 receiver：保证其中的表达式（如 `a().b` 的 `a()`）也会被覆盖，
     // 并在需要时为 tuple 元素访问提供 receiver 类型信息。
     //

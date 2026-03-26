@@ -846,9 +846,36 @@ impl Index {
 
         for member in &body.members {
             match member {
-                ast::TypeMember::EnumVariant(_v) => {
-                    // enum variant 在当前阶段仅做解析与结构化存储；
-                    // 其符号注入与更完整的语义由后续 rich enum 任务补齐（T0425+）。
+                ast::TypeMember::EnumVariant(v) => {
+                    // enum variant 值需要注入到 value namespace：
+                    // - `EnumName.Variant`（限定名引用）应当可解析（spec §5.7 / T0419）。
+                    //
+                    // 当前阶段（最小落点）：
+                    // - 仅注入 0-参数（unit）variant 作为“值”；
+                    // - 带 payload 的 variant 构造（`Some(x)` / `Enum.Some(x)`）的完整符号建模与重载规则
+                    //   留给后续 rich enum 任务（T0425+）。
+                    if v.params.is_empty() {
+                        // 注意：这里刻意不在 resolver 阶段对“重复 variant 名称”报错：
+                        // - typecheck 的 `TypeEnv` 会以更稳定的错误码（`duplicate_enum_variant`）报告该问题；
+                        // - resolver 侧只需要保证“可解析的最小符号骨架”存在即可。
+                        //
+                        // 因此若插入时遇到同名冲突（DuplicateDefinition），这里选择忽略并继续，
+                        // 让 typecheck 再给出更精确的诊断。
+                        let inserted = self.insert_symbol(
+                            cone,
+                            source,
+                            &type_prefix,
+                            SymbolKind::Value,
+                            v.name.span,
+                            visibility,
+                            &[],
+                        );
+                        match inserted {
+                            Ok(()) => {}
+                            Err(ResolveError::DuplicateDefinition { .. }) => {}
+                            Err(e) => return Err(e),
+                        }
+                    }
                 }
                 ast::TypeMember::Property(p) => {
                     let visibility = visibility_from_modifiers(&p.modifiers, p.span)?;

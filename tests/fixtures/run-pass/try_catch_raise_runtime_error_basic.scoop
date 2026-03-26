@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: try_catch_raise_runtime_error_basic.stdout
+//
+// T0818: effect codegen（最小）：`Raise<RuntimeError>` 的 flag-based unwinding + try/catch 捕获。
+//
+// 目标覆盖：
+// - `RuntimeError.NullAssertionFailed`（限定名 enum unit variant 值）可被 codegen；
+// - `Raise.raise(RuntimeError.*)` 会写入 perform slot 并置位 flag；
+// - catch 能从 slot 中恢复 `RuntimeError` 并匹配到正确的 variant。
+
+import scoop.core.*
+
+fun boom(): Int / Raise<RuntimeError> {
+    println("before")
+    Raise.raise(RuntimeError.NullAssertionFailed)
+    println("after")
+    return 0
+}
+
+fun main(): Int {
+    val x: Int = try {
+        val y: Int = boom()
+        println("unreachable")
+        y
+    } catch (e: RuntimeError) {
+        println("caught")
+        val code: Int = when (e) {
+            NullAssertionFailed -> 100
+            ClassCastFailed -> 200
+        }
+        println(code)
+        0
+    }
+
+    println("after_try")
+    return x
+}
+
