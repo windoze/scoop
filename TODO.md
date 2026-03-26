@@ -2712,11 +2712,23 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T0623 [TODO] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
+### T0623 [DONE] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
 - 描述：实现 `async fun foo(): T` 的签名与 lowering 规则：对外暴露 `Task<T>`，而不是 `T / Async`；`/ Async` 只存在于 Task 的计算上下文。
 - 目标：先只覆盖函数声明与调用点；与 executor 的交互后续由 runtime 任务补齐。
 - 验收：effects fixture：`async fun fetch(): Int` 的调用点类型为 `Task<Int>`；把它当作 `Int / Async` 使用时报错。
 - 依赖：T0619、T0622
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `Modifier::Async`（语法层建模）。
+   - `crates/scoopc/src/parser/decls.rs`、`crates/scoopc/src/parser/cursor.rs`：把 `async` 纳入 modifiers 解析/前瞻。
+   - `crates/scoopc/src/resolve/mod.rs`：Index 侧把 `async fun` 的 return type 写为 `Task<T>`（跨文件调用点可见）。
+   - `crates/scoopc/src/typecheck/expr.rs`：调用点签名返回 `Task<T>`；`async fun` 函数体内的 `Async` performed effects 不外泄到声明处 required effects。
+   - `crates/scoopc/src/hir/lower.rs`：HIR 侧把 `async fun` 返回类型降为 task handle（`UInt`），并将 `return`/尾表达式包装为 `__scoop_task_spawn_int(...)`（保持 early-stage 可回归）。
+   - fixtures：
+     - `tests/fixtures/typecheck/async_fun_returns_task_ok.scoop`：pass 覆盖 `Task<Int>` 返回与 `await/spawn` 可用。
+     - `tests/fixtures/typecheck/async_fun_used_as_value_is_error.scoop`：fail 覆盖误用为 `Int` 的诊断。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0818 [TODO] effect codegen：flag-based Raise/try-catch（对接 T0614）
 - 描述：把 MIR 中的 perform/handle terminator 生成 LLVM IR，与 runtime slot/flag 交互，实现最小 Raise 处理。

@@ -106,6 +106,20 @@ fn parse_annotation_class_decl() {
 }
 
 #[test]
+fn parse_async_fun_decl() {
+    let src = SourceFile::new_virtual("<mem>", "package a\nasync fun f(): Int { return 1 }\n");
+    let file = parse_file(&src).unwrap();
+    assert_eq!(file.items.len(), 1);
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为函数声明");
+    };
+
+    assert_eq!(src.slice(f.name.span), "f");
+    assert!(f.modifiers.contains(&ast::Modifier::Async));
+}
+
+#[test]
 fn parse_top_level_val_var() {
     let src = SourceFile::new_virtual(
         "<mem>",

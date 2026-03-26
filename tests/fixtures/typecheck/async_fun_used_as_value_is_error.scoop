@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR: Task<Int>
+// EXPECT-ERROR-AT: 14:18
+// 目标：T0623：`async fun foo(): T` 不应被当作 `T` 使用（调用点返回 `Task<T>`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+async fun fetch(): Int { return 1 }
+
+fun main(): Int {
+    val x: Int = fetch()
+    println(x)
+    return 0
+}

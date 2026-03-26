@@ -91,6 +91,10 @@ pub enum Modifier {
     Abstract,
     Sealed,
     // misc
+    /// `async fun`：异步函数标记（spec §5.3 / §5.7）。
+    ///
+    /// 说明：当前阶段仅做语法层解析与存储；语义（签名降糖、Task 模型）由 typecheck/lowering 负责。
+    Async,
     Inline,
     Override,
     /// 编译期可求值/可用于编译期执行的标记（spec §6）。

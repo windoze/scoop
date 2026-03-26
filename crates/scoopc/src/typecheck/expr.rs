@@ -1433,7 +1433,23 @@ fn check_class_member_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            check_required_effects_for_fun_decl(fun, &performed_effects, false, lower)?;
+            // T0623：member `async fun` 同样需要把 `Async` 留在 Task 的计算语境内。
+            let performed_for_decl = if fun.modifiers.contains(&ast::Modifier::Async) {
+                let async_effect = lower.lower_type_fqn_with_args(
+                    ASYNC_EFFECT_FQN.to_string(),
+                    Vec::new(),
+                    fun.name.span,
+                )?;
+                performed_effects
+                    .iter()
+                    .copied()
+                    .filter(|(effect, _)| *effect != async_effect)
+                    .collect::<Vec<_>>()
+            } else {
+                performed_effects.clone()
+            };
+
+            check_required_effects_for_fun_decl(fun, &performed_for_decl, false, lower)?;
             Ok(())
         }
         Err(e) => Err(e),
@@ -7134,14 +7150,51 @@ fn collect_top_level_fun_signatures(
                 param_eff_row_var_subst.push(subst_plan);
             }
 
-            let return_ty = match &fun.return_ty {
+            // T0623：`async fun foo(): T` 对外暴露 `Task<T>`。
+            //
+            // 说明：
+            // - 这里的 `return_ty` 用于调用点类型与 overload resolution；
+            // - 函数体内部的 `return` 类型检查仍以 AST 上的 `return_ty`（T）为准（见 `check_fun_body_exprs`）。
+            let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+            let inner_return_ty = match &fun.return_ty {
                 Some(ret) => lower.lower_type_ref(ret)?,
                 None => builtins.unit,
             };
+            let return_ty = if is_async_fun {
+                lower.lower_type_fqn_with_args(
+                    TASK_FQN.to_string(),
+                    vec![inner_return_ty],
+                    fun.name.span,
+                )?
+            } else {
+                inner_return_ty
+            };
+
             let return_eff_row_var_subst = if let (Some(eff_param), Some(ret_ref)) =
                 (eff_param_sig.as_ref(), fun.return_ty.as_ref())
             {
-                build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, source, lower)?
+                if is_async_fun {
+                    // 对 eff var substitution：在签名视图下，返回类型是 `Task<ret_ref>`。
+                    let synth_span = ret_ref.span();
+                    let synth_ret_ref = ast::TypeRef::Path(ast::TypePath {
+                        span: synth_span,
+                        segments: vec![
+                            ast::Ident::synthetic(synth_span, "scoop"),
+                            ast::Ident::synthetic(synth_span, "core"),
+                            ast::Ident::synthetic(synth_span, "Task"),
+                        ],
+                        args: vec![ret_ref.clone()],
+                    });
+                    build_eff_row_var_subst_plan(
+                        &synth_ret_ref,
+                        return_ty,
+                        &eff_param.name,
+                        source,
+                        lower,
+                    )?
+                } else {
+                    build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, source, lower)?
+                }
             } else {
                 EffRowVarSubstPlan::None
             };
@@ -8242,7 +8295,15 @@ fn check_fun_body_exprs(
                     // 回写到顶层函数签名表：使得后续同文件的调用点能看到推断后的返回类型。
                     if let Some(sigs) = top_level_funs.get_mut(fun_fqn) {
                         if let Some(sig) = sigs.iter_mut().find(|s| s.decl_span == fun.name.span) {
-                            sig.return_ty = inferred;
+                            sig.return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
+                                lower.lower_type_fqn_with_args(
+                                    TASK_FQN.to_string(),
+                                    vec![inferred],
+                                    fun.name.span,
+                                )?
+                            } else {
+                                inferred
+                            };
                         }
                     }
 
@@ -8277,7 +8338,24 @@ fn check_fun_body_exprs(
 
     let result = match body_result {
         Ok(()) => {
-            check_required_effects_for_fun_decl(fun, &performed_effects, is_entry_point, lower)?;
+            // T0623：`async fun` 的 `/ Async` 只存在于 Task 的计算上下文，
+            // 因此函数体内的 `Async` performed effects 不应向外层（调用点）传播。
+            let performed_for_decl = if fun.modifiers.contains(&ast::Modifier::Async) {
+                let async_effect = lower.lower_type_fqn_with_args(
+                    ASYNC_EFFECT_FQN.to_string(),
+                    Vec::new(),
+                    fun.name.span,
+                )?;
+                performed_effects
+                    .iter()
+                    .copied()
+                    .filter(|(effect, _)| *effect != async_effect)
+                    .collect::<Vec<_>>()
+            } else {
+                performed_effects.clone()
+            };
+
+            check_required_effects_for_fun_decl(fun, &performed_for_decl, is_entry_point, lower)?;
             Ok(())
         }
         Err(e) => Err(e),

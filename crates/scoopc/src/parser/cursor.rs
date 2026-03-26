@@ -458,6 +458,7 @@ fn is_modifier_keyword(kw: Keyword) -> bool {
             | Keyword::Open
             | Keyword::Abstract
             | Keyword::Sealed
+            | Keyword::Async
             | Keyword::Inline
             | Keyword::Override
             | Keyword::Const

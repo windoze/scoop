@@ -77,6 +77,7 @@ impl<'a> Parser<'a> {
                 TokenKind::Keyword(Keyword::Open) => ast::Modifier::Open,
                 TokenKind::Keyword(Keyword::Abstract) => ast::Modifier::Abstract,
                 TokenKind::Keyword(Keyword::Sealed) => ast::Modifier::Sealed,
+                TokenKind::Keyword(Keyword::Async) => ast::Modifier::Async,
                 TokenKind::Keyword(Keyword::Inline) => ast::Modifier::Inline,
                 TokenKind::Keyword(Keyword::Override) => ast::Modifier::Override,
                 TokenKind::Keyword(Keyword::Const) => ast::Modifier::Const,

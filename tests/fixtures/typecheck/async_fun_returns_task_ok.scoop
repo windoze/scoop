@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：T0623：`async fun foo(): T` 的调用点类型应为 `Task<T>`，并且函数体内允许直接使用 `await/spawn`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+async fun fetch(): Int {
+    val t: Task<Int> = spawn { 40 }
+    val x: Int = await t
+    return x + 2
+}
+
+fun main(): Int {
+    val task: Task<Int> = fetch()
+    val value: Int = async { await task }
+    println(value)
+    return 0
+}
+

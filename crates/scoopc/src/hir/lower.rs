@@ -224,11 +224,21 @@ impl<'a> HirLowering<'a> {
         let receiver_ty = fun.receiver.as_ref().map(|t| self.lower_type_ref(t));
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
-        let return_ty = fun
+        //
+        // T0623：`async fun foo(): T` 对外暴露 `Task<T>`：
+        // - 早期 HIR 里 task 先用 word-sized `UInt` 句柄承载（与 `spawn/join` 一致）；
+        // - 真正的 `Task<T>` nominal type lowering 与 ABI 会在后续任务中补齐。
+        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+        let _inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
+        let return_ty = if is_async_fun {
+            self.builtins.uint
+        } else {
+            _inner_return_ty
+        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         let ty = self.types.ty_function(
@@ -239,7 +249,14 @@ impl<'a> HirLowering<'a> {
         );
 
         let body = match &fun.body {
-            ast::FunBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::FunBody::Block(b) => {
+                let lowered = self.lower_block(pkg_prefix, b);
+                if is_async_fun {
+                    Some(self.rewrite_async_fun_block(lowered, true))
+                } else {
+                    Some(lowered)
+                }
+            }
             ast::FunBody::Missing => None,
         };
 
@@ -295,11 +312,19 @@ impl<'a> HirLowering<'a> {
         let receiver_ty = fun.receiver.as_ref().map(|t| self.lower_type_ref(t));
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
-        let return_ty = fun
+        //
+        // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 task handle（`UInt`）。
+        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+        let _inner_return_ty = fun
             .return_ty
             .as_ref()
             .map(|t| self.lower_type_ref(t))
             .unwrap_or(self.builtins.any);
+        let return_ty = if is_async_fun {
+            self.builtins.uint
+        } else {
+            _inner_return_ty
+        };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         let ty = self.types.ty_function(
@@ -310,7 +335,14 @@ impl<'a> HirLowering<'a> {
         );
 
         let body = match &fun.body {
-            ast::FunBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::FunBody::Block(b) => {
+                let lowered = self.lower_block(pkg_prefix, b);
+                if is_async_fun {
+                    Some(self.rewrite_async_fun_block(lowered, true))
+                } else {
+                    Some(lowered)
+                }
+            }
             ast::FunBody::Missing => None,
         };
 
@@ -322,6 +354,87 @@ impl<'a> HirLowering<'a> {
             params,
             return_ty,
             body,
+        }
+    }
+
+    fn rewrite_async_fun_block(&mut self, mut block: Block, wrap_tail_expr: bool) -> Block {
+        // T0623：把 `async fun` 的返回值包装成 task 句柄：
+        // - `return expr` → `return __scoop_task_spawn_int(expr)`（early stage 仅支持 Int）；
+        // - block tail expr（隐式返回）同样做一次包装。
+
+        for stmt in &mut block.stmts {
+            match &mut stmt.kind {
+                StmtKind::While { body, .. } => {
+                    // 这里用 `replace` 把 body move 出来，避免对 Block 增加 Default 约束。
+                    let placeholder = Block {
+                        span: body.span,
+                        ty: body.ty,
+                        stmts: Vec::new(),
+                    };
+                    let old = std::mem::replace(body, placeholder);
+                    *body = self.rewrite_async_fun_block(old, false);
+                }
+                StmtKind::Return { value } => {
+                    if let Some(v) = value.take() {
+                        *value = Some(self.wrap_task_spawn_int_call(stmt.span, v));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if wrap_tail_expr {
+            // 隐式返回：若 block 末尾是表达式语句，则将其值包装为 task handle。
+            if let Some(last) = block.stmts.last_mut() {
+                if let StmtKind::Expr(expr) = &mut last.kind {
+                    // 用占位符把 expr move 出来，避免对 Expr 增加 Default 约束。
+                    let expr_span = expr.span;
+                    let expr_ty = expr.ty;
+                    let old = std::mem::replace(
+                        expr,
+                        Expr {
+                            span: expr_span,
+                            ty: expr_ty,
+                            kind: ExprKind::Missing,
+                        },
+                    );
+                    *expr = self.wrap_task_spawn_int_call(expr_span, old);
+                }
+            }
+        }
+
+        // 重新计算 block 类型：保持与 `lower_block` 的规则一致。
+        block.ty = block
+            .stmts
+            .last()
+            .and_then(|s| match &s.kind {
+                StmtKind::Expr(e) => Some(e.ty),
+                _ => None,
+            })
+            .unwrap_or(self.builtins.unit);
+
+        block
+    }
+
+    fn wrap_task_spawn_int_call(&mut self, at: Span, value: Expr) -> Expr {
+        // `__scoop_task_spawn_int(value)` → task handle (`UInt`)。
+        let fqn = Self::TASK_SPAWN_INT_FQN.to_string();
+        let callee = Expr {
+            span: at,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn,
+            }),
+        };
+
+        Expr {
+            span: at,
+            ty: self.builtins.uint,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: vec![CallArg::Positional(value)],
+            },
         }
     }
 
