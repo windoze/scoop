@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdatomic.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -385,6 +386,122 @@ ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag
       return it;
     }
     it = it->prev;
+  }
+  return 0;
+}
+
+// --- Continuation（spec §5.5 / TODO T0914） ---
+//
+// 说明：
+// - `Continuation<T>` 是 escape continuation（`, k ->`）在运行期的堆对象表示；
+// - 该对象需要捕获：
+//   - suspension 点的 handler stack（Appendix A：fiber-local 语义）
+//   - heap state machine 的状态指针（由编译器生成并用 GC 管理）
+// - one-shot 约束：同一个 continuation 只能成功 resume 一次（第二次是运行期错误）。
+//
+// 当前阶段（T0914）先只固定 ABI 布局并提供原子 one-shot 检查 API；
+// handler stack 的跨线程安装与恢复留给后续任务（TODO T0915）。
+typedef void (*ScoopContinuationStepFn)(void *state, uint64_t resume_value);
+
+typedef struct ScoopContinuation {
+  // 作为 GC-managed 对象，必须以对象头开头（与 `scoop_alloc` 约定一致）。
+  ScoopGcObjectHeader hdr;
+
+  // 0=未 resume；1=已 resume（one-shot）。使用原子状态位为未来并发 resume 做准备。
+  _Atomic uint32_t resumed;
+
+  // 保留字段：用于对齐/未来扩展（例如更细的状态机标志）。
+  uint32_t _reserved_u32;
+
+  // 捕获的 handler stack（suspension 点的 TLS 栈顶指针；Appendix A）。
+  ScoopEffectHandlerFrame *captured_handler_stack_top;
+
+  // heap state machine 指针（由编译器生成；应当是 GC-managed heap 对象）。
+  void *state;
+
+  // step 函数（由编译器生成的 trampoline），用于推进 state machine。
+  ScoopContinuationStepFn step_fn;
+} ScoopContinuation;
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopContinuation, hdr) == 0,
+               "ScoopContinuation.hdr offset must be 0");
+_Static_assert(offsetof(ScoopContinuation, resumed) == sizeof(ScoopGcObjectHeader),
+               "ScoopContinuation.resumed offset must be sizeof(ScoopGcObjectHeader)");
+_Static_assert(offsetof(ScoopContinuation, captured_handler_stack_top) ==
+                   (sizeof(ScoopGcObjectHeader) + 8u),
+               "ScoopContinuation.captured_handler_stack_top offset must be header + 8");
+_Static_assert((sizeof(ScoopContinuation) % sizeof(void *)) == 0,
+               "ScoopContinuation size must be pointer-aligned");
+#endif
+
+static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
+  if (object == 0 || visitor == 0) {
+    return 0;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)object;
+  if (k->state == 0) {
+    return 0;
+  }
+
+  // `state` 预期指向一个 GC-managed heap 对象；把该槽位暴露给 visitor 以便 mark 更新/追踪。
+  void **slot = (void **)&k->state;
+  visitor(slot, ctx);
+  return 1;
+}
+
+static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopContinuation),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = scoop_continuation_trace,
+};
+
+// `scoop_alloc` 在文件后部定义；这里提供前置声明以避免隐式声明警告/错误。
+void *scoop_alloc(uint64_t size);
+
+void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
+  // 约定：为保持 API 易用，允许在未显式 init/register 的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
+  if (k == 0) {
+    return 0;
+  }
+
+  // `scoop_alloc` 已初始化对象头（size/mark 等）；这里补齐 continuation 专属字段。
+  k->hdr.type_desc = &SCOOP_CONTINUATION_TYPE_DESC;
+
+  atomic_init(&k->resumed, 0);
+  k->_reserved_u32 = 0;
+  k->captured_handler_stack_top = __scoop_effect_handler_stack_top;
+  k->state = state;
+  k->step_fn = step_fn;
+
+  return (void *)k;
+}
+
+uint32_t scoop_continuation_try_resume(void *continuation) {
+  if (continuation == 0) {
+    return 0;
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  uint32_t expected = 0;
+  if (atomic_compare_exchange_strong_explicit(
+          &k->resumed,
+          &expected,
+          1u,
+          memory_order_acq_rel,
+          memory_order_acquire)) {
+    return 1;
   }
   return 0;
 }

@@ -2877,11 +2877,17 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0914 [TODO] continuation 对象：one-shot 状态位 + resume API（PLAN §6.3.3）
+### T0914 [DONE] continuation 对象：one-shot 状态位 + resume API（PLAN §6.3.3）
 - 描述：定义 continuation 结构：捕获 handler stack + 目标状态；实现原子 one-shot。
 - 目标：先只支持单线程；并发 resume 后续。
 - 验收：新增运行期测试：同一 continuation resume 两次，第二次失败（返回错误码或 abort，需固定）。
 - 依赖：T0913
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 `ScoopContinuation`（捕获 handler stack + state/step_fn）与 one-shot 原子状态位；实现 `scoop_continuation_alloc/scoop_continuation_try_resume`。
+   - `crates/scoop_runtime/tests/continuation_one_shot.rs`：新增集成测试覆盖“捕获 handler stack”与“重复 resume 第二次失败”。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0915 [TODO] 跨线程 continuation resume：TLS handler stack 切换（spec §5.5）
 - 描述：实现把 continuation 捕获的 handler stack 安装到当前线程，并在 resume 后恢复原 TLS。

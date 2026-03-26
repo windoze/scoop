@@ -580,7 +580,7 @@
 
 - [x] TLS：handler stack 指针、perform slot、flag（T0906/T0913）
 - [x] 最小原语：push/pop handler frame、读写 perform slot（T0613/T0913）
-- [ ] continuation one-shot + resume API（T0914）
+- [x] continuation one-shot + resume API（T0914）
 
 ### 9.3 与 clang 的构建集成
 
