@@ -1,0 +1,11 @@
+producer_start
+consume1
+1
+after_yield1
+consume2
+2
+after_yield2
+consume3
+3
+producer_done
+done

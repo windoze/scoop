@@ -1,0 +1,69 @@
+// EXPECT: pass
+// RUN-STDOUT: generator_yield_iter_int_basic.stdout
+//
+// T0621: generator/yield（库级实现验证，spec §5.7）
+//
+// 说明：
+// - 不依赖专用语法：用 effect + escape continuation（`, k ->`）实现“最小 generator”。
+// - `Yield.yield(value)` 每次把值交给 consumer，然后暂停；consumer 通过保存的 continuation 继续推进。
+
+import scoop.core.*
+
+effect Yield {
+    fun yield(value: Int): Int
+}
+
+fun main(): Int {
+    // 说明：当前阶段自定义 effect op 的 codegen 仅打通了 `handle { val x = Effect.op(...) ... } with { ... , k -> ... }`
+    // 这一条“可回归的最小链路”（T0617）。因此这里用“嵌套 handle + continuation 链”来表达多次 yield；
+    // consumer 侧在 handler arm 内“立即 resume”，把多次 yield 串成一次可执行回归用例。
+    println("producer_start")
+
+    // 第一次启动 generator：运行到第 1 个 `yield` 并进入 handler arm；
+    // handler arm 会打印 value，并 `resume` 推进到下一次 yield。
+    //
+    // 注意：LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val _: Unit = ...` 提供。
+    val _run: Unit = handle {
+        // 约束：escape continuation 的 perform 点必须是 block 的第一个语句（当前阶段实现限制）。
+        val _x: Int = Yield.yield(1)
+
+        // 继续推进（resume 后执行）：
+        println("after_yield1")
+
+        // 第二次 yield：用嵌套 handle 把“下一次暂停点”编码成新的 continuation。
+        val _y2: Unit = handle {
+            val _y: Int = Yield.yield(2)
+
+            println("after_yield2")
+
+            // 第三次 yield：同理再嵌套一次。
+            val _y3: Unit = handle {
+                val _z: Int = Yield.yield(3)
+
+                println("producer_done")
+            } with {
+                Yield.yield(v: Int), kk -> {
+                    println("consume3")
+                    println(v)
+                    kk.resume(0)
+                }
+            }
+        } with {
+            Yield.yield(v: Int), kk -> {
+                println("consume2")
+                println(v)
+                kk.resume(0)
+            }
+        }
+    } with {
+        Yield.yield(v: Int), kk -> {
+            println("consume1")
+            println(v)
+            kk.resume(0)
+        }
+    }
+
+    println("done")
+
+    return 0
+}

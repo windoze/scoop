@@ -2957,11 +2957,18 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok，含该用例）。
 
-### T0621 [TODO] generator/yield：库级实现验证（spec §5.7）
+### T0621 [DONE] generator/yield：库级实现验证（spec §5.7）
 - 描述：基于 continuation 或 effect，提供最小 `yield`/迭代器 demo（无需专用语法）。
 - 目标：先只作为库/fixtures 验证，不强依赖语法。
 - 验收：新增 run-pass fixture：生成器 yield 多次并消费；输出正确。
 - 依赖：T0617
+ - 完成：
+   - `tests/fixtures/run-pass/generator_yield_iter_int_basic.scoop`：用 effect + escape continuation（`, k ->`）提供最小 yield demo；通过“嵌套 handle + arm 内立即 `k.resume(...)`”串联多次 yield，并在 stdout 中可观测。
+   - `tests/fixtures/run-pass/generator_yield_iter_int_basic.stdout`：stdout golden（按行精确比对）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok，含该用例）。
 
 ### T0916 [TODO] effect runtime：多层 handler stack 嵌套 dispatch（修正 T0913 的单层目标，Appendix A）
 - 描述：在已有 handler stack 原语之上补齐多层嵌套 handler：按“最近匹配 handler”分发，并保证 arm body 在自身 handler 的 dispatch scope 外执行。
