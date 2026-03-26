@@ -1,0 +1,56 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handler_stack_nearest_three_levels_and_arm_outside_scope.stdout
+//
+// T0916: effect runtime（Appendix A）回归：
+// - 三层嵌套 handler：最近者优先（Appendix A.3）
+// - handler arm body 在自身 dispatch scope 外执行，避免 self-capture（Appendix A.4）
+//
+// 说明：
+// - `Raise.raise` 等价于最小 non-resuming effect（flag-based unwinding）；
+// - 该用例通过“inner/middle catch 内再次 Raise.raise”验证：
+//   - 内层 handler 不会捕获自身（应命中外层 handler）；
+//   - 多层嵌套下 unwind/propagate 仍按最近匹配规则稳定工作。
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Int = try {
+        println("outer_try")
+
+        val y: Int = try {
+            println("middle_try")
+
+            val z: Int = try {
+                println("inner_try")
+                Raise.raise(10)
+                111
+            } catch (e: Int) {
+                println("inner_catch")
+                println(e)
+                // Appendix A.4：此处必须命中 middle_catch，而不是再次命中 inner_catch。
+                Raise.raise(20)
+                222
+            }
+
+            println("unreachable_after_inner")
+            z
+        } catch (e: Int) {
+            println("middle_catch")
+            println(e)
+            // Appendix A.4：此处必须命中 outer_catch，而不是再次命中 middle_catch。
+            Raise.raise(30)
+            333
+        }
+
+        println("unreachable_after_middle")
+        y
+    } catch (e: Int) {
+        println("outer_catch")
+        println(e)
+        0
+    }
+
+    println("after_all")
+    return x
+}
+

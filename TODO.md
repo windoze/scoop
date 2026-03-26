@@ -2970,11 +2970,19 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok，含该用例）。
 
-### T0916 [TODO] effect runtime：多层 handler stack 嵌套 dispatch（修正 T0913 的单层目标，Appendix A）
+### T0916 [DONE] effect runtime：多层 handler stack 嵌套 dispatch（修正 T0913 的单层目标，Appendix A）
 - 描述：在已有 handler stack 原语之上补齐多层嵌套 handler：按“最近匹配 handler”分发，并保证 arm body 在自身 handler 的 dispatch scope 外执行。
 - 目标：保持与 T0913 兼容，不修改既有任务；本任务专门补齐“多层嵌套”能力。
 - 验收：新增 run-pass fixture：三层嵌套 handler 下最近匹配规则成立；arm 内 re-perform 命中外层 handler。
 - 依赖：T0913
+ - 完成：
+   - `tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop`：新增三层嵌套 try/catch（Raise.raise）回归用例。
+   - `tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.stdout`：stdout golden（按行精确比对）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- dump-hir tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.scoop` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 可执行该用例（需要安装 LLVM 并提供 `llvm-config`）。
 
 ### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
 - 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循”最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
