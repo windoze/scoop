@@ -379,6 +379,22 @@ ScoopEffectHandlerFrame *scoop_effect_handler_stack_top(void) {
   return __scoop_effect_handler_stack_top;
 }
 
+// 切换当前线程的 handler stack 栈顶指针，并返回旧值。
+//
+// 说明：
+// - 该 API 主要用于 continuation 跨线程 `resume`：在进入 continuation 时安装 captured handler stack，
+//   在返回后恢复调用方原有的动态上下文（spec §5.5）。
+ScoopEffectHandlerFrame *scoop_effect_handler_stack_swap_top(ScoopEffectHandlerFrame *new_top) {
+  // 保持与其它 runtime API 一致：允许在未显式 init/register 的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  ScoopEffectHandlerFrame *old_top = __scoop_effect_handler_stack_top;
+  __scoop_effect_handler_stack_top = new_top;
+  return old_top;
+}
+
 ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag) {
   ScoopEffectHandlerFrame *it = __scoop_effect_handler_stack_top;
   while (it != 0) {
@@ -400,7 +416,7 @@ ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag
 // - one-shot 约束：同一个 continuation 只能成功 resume 一次（第二次是运行期错误）。
 //
 // 当前阶段（T0914）先只固定 ABI 布局并提供原子 one-shot 检查 API；
-// handler stack 的跨线程安装与恢复留给后续任务（TODO T0915）。
+// handler stack 的跨线程安装与恢复由 `scoop_continuation_resume_u64`（TODO T0915a）提供。
 typedef void (*ScoopContinuationStepFn)(void *state, uint64_t resume_value);
 
 typedef struct ScoopContinuation {
@@ -504,6 +520,39 @@ uint32_t scoop_continuation_try_resume(void *continuation) {
     return 1;
   }
   return 0;
+}
+
+// 执行 continuation 的一步推进（由编译器生成的 step_fn 实现状态机推进）。
+//
+// 语义（spec §5.5）：
+// - one-shot：同一个 continuation 只能成功 resume 一次；第二次为运行期错误（exit(3)）。
+// - fiber-local：resume 时需要恢复其捕获的 handler stack（Appendix A），允许在另一线程执行；
+//   并在 step_fn 返回后恢复调用方原 TLS handler stack。
+//
+// 当前阶段（T0915a）只切换 handler stack；perform slot/flag 等其它 TLS 状态仍由 lowering 约束其使用。
+void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
+  if (continuation == 0) {
+    return;
+  }
+
+  // 允许在未显式 init/register 的情况下被调用（与其它 API 保持一致）。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  if (!scoop_continuation_try_resume(continuation)) {
+    exit(3);
+  }
+
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  ScoopEffectHandlerFrame *saved =
+      scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
+
+  if (k->step_fn != 0) {
+    k->step_fn(k->state, resume_value);
+  }
+
+  (void)scoop_effect_handler_stack_swap_top(saved);
 }
 
 // --- Tasks / spawn/join（early stage, TODO T0620） ---

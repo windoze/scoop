@@ -2894,11 +2894,17 @@
 - 目标：先不支持并发同时 resume；只支持单次跨线程。
 - 备注：端到端 run-pass fixture 依赖编译器侧对堆 continuation（`, k ->`）与跨线程执行链路的接入；为保证“可单独实现 & 单独验证”，先拆成运行时原语与端到端 fixture 两步。
 
-### T0915a [TODO] runtime：continuation resume 时切换/恢复 TLS handler stack（spec §5.5）
+### T0915a [DONE] runtime：continuation resume 时切换/恢复 TLS handler stack（spec §5.5）
 - 描述：在 runtime 中提供“临时安装 captured handler stack → 执行 step_fn → 恢复原 TLS handler stack”的原语；允许在另一线程执行。
 - 目标：只实现 TLS handler stack 的切换/恢复；不要求编译器立即接入 `, k ->`；不实现并发同时 resume。
 - 验收：新增运行期测试（`crates/scoop_runtime/tests`）：跨线程调用 resume 原语时，step_fn 看到的 handler stack top 为 captured 值，且返回后 TLS 恢复为原值；`cargo test -p scoop_runtime` 通过。
 - 依赖：T0914、T0911
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 `scoop_effect_handler_stack_swap_top` 与 `scoop_continuation_resume_u64`，在 resume 期间安装 captured handler stack 并在返回后恢复原 TLS。
+   - `crates/scoop_runtime/tests/continuation_cross_thread_handler_stack.rs`：新增跨线程回归测试，验证 step_fn 观察到的 handler stack top 与恢复语义。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0915b [TODO] run-pass：跨线程 resume 的端到端 fixture（spec §5.5）
 - 描述：在 Scoop fixtures 中新增 run-pass case：在新线程 `resume` continuation（或等价语义），输出与单线程一致。
