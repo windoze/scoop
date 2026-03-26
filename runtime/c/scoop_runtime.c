@@ -366,17 +366,20 @@ void scoop_gc_frame_pop(ScoopGcFrame *frame) {
   frame->prev = 0;
 }
 
-uint64_t scoop_gc_debug_count_roots_current_thread(void) {
-  // 说明：
-  // - 该函数用于“伪 GC 扫描”回归（TODO T0816），只做 shadow stack 遍历；
-  // - 为了避免意外的未初始化使用，这里保持与 push 一致：允许在未显式 init/register
-  //   的情况下被调用。
-  if (!scoop_tls.registered) {
-    scoop_thread_register();
+// Shadow stack roots 扫描（TODO T0909）。
+//
+// 说明：
+// - v0 只扫描当前线程的 frame 链；
+// - 为避免插桩/手动构造 frame 时出现环或异常 root_count 造成崩溃，这里做了保守上限。
+static uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(
+    ScoopGcFrame *frame,
+    ScoopGcTraceVisitor visitor,
+    void *ctx) {
+  if (visitor == 0) {
+    return 0;
   }
 
-  uint64_t count = 0;
-  ScoopGcFrame *frame = scoop_tls.gc_current_frame;
+  uint64_t visited = 0;
 
   // 健壮性：若 frame 链被破坏（形成环/或 root_count 异常），这里做保守上限避免死循环
   // 或越界访问导致崩溃；debug 日志可用于手动排查插桩问题。
@@ -386,26 +389,57 @@ uint64_t scoop_gc_debug_count_roots_current_thread(void) {
 
   while (frame != 0) {
     if (frame_steps++ > max_frames) {
-      SCOOP_RT_LOG("scoop_gc_debug_count_roots_current_thread: too many frames, abort scan");
+      SCOOP_RT_LOG("scoop_gc_shadow_stack_visit_roots_from_frame: too many frames, abort scan");
       break;
     }
 
     uint32_t n = frame->root_count;
     if (n > max_roots_per_frame) {
-      SCOOP_RT_LOG("scoop_gc_debug_count_roots_current_thread: suspicious root_count=%" PRIu32,
+      SCOOP_RT_LOG("scoop_gc_shadow_stack_visit_roots_from_frame: suspicious root_count=%" PRIu32,
                    n);
       n = max_roots_per_frame;
     }
 
     for (uint32_t i = 0; i < n; i++) {
-      if (frame->roots[i] != 0) {
-        count++;
+      if (frame->roots[i] == 0) {
+        continue;
       }
+
+      void **slot = (void **)&frame->roots[i];
+      visitor(slot, ctx);
+      visited++;
     }
 
     frame = frame->prev;
   }
 
+  return visited;
+}
+
+uint64_t scoop_gc_shadow_stack_visit_roots_current_thread(ScoopGcTraceVisitor visitor,
+                                                         void *ctx) {
+  // 说明：保持与 push/debug helper 一致：允许在未显式 init/register 的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  ScoopGcFrame *frame = scoop_tls.gc_current_frame;
+  return scoop_gc_shadow_stack_visit_roots_from_frame(frame, visitor, ctx);
+}
+
+// Debug helper：用于返回 roots 数量（与 TODO T0816 的“伪扫描”回归保持一致）。
+static void scoop_gc_shadow_stack_count_visitor(void **slot, void *ctx) {
+  (void)slot;
+  uint64_t *count = (uint64_t *)ctx;
+  (*count)++;
+}
+
+uint64_t scoop_gc_debug_count_roots_current_thread(void) {
+  // 说明：该函数用于“伪 GC 扫描”回归（TODO T0816），只统计 roots 个数。
+  uint64_t count = 0;
+  (void)scoop_gc_shadow_stack_visit_roots_current_thread(
+      scoop_gc_shadow_stack_count_visitor,
+      (void *)&count);
   return count;
 }
 

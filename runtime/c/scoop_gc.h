@@ -183,6 +183,17 @@ void scoop_gc_frame_push(ScoopGcFrame *frame);
 // 将 frame 从 shadow stack 链头 pop（要求 top == frame）。
 void scoop_gc_frame_pop(ScoopGcFrame *frame);
 
+// 遍历当前线程的 shadow stack，并对每个非空 root slot 调用 visitor。
+//
+// 返回值：visitor 被调用的次数（即扫描到的 roots 数量）。
+//
+// 说明：
+// - 该 API 为后续 mark 阶段提供“根集枚举”能力（TODO T0909）；
+// - v0 只支持单线程：仅扫描当前线程的 frame 链；
+// - visitor 会收到 `void** slot`（可读写），以便未来移动 GC 可原地更新引用。
+uint64_t scoop_gc_shadow_stack_visit_roots_current_thread(ScoopGcTraceVisitor visitor,
+                                                         void *ctx);
+
 // Debug helper：遍历当前线程的 shadow stack，并统计非空 roots slot 的个数。
 //
 // 说明：

@@ -39,6 +39,7 @@
 - 2026-03-26：完成 T0630：perform slot ABI 升级为多 word payload（`len + words[8]`），新增读写 API；`Raise.raise` 统一采用 2-word `(kind, value)` 编码并在 handler 边界断言回归，确保 lowering/codegen/runtime 对齐。
 - 2026-03-26：完成 T0907：runtime 引入 type descriptor v0（`size_bytes + trace bitmap/trace_fn`），并新增 guard page 集成测试确保扫描按 size 裁剪不越界。
 - 2026-03-26：完成 T0908：runtime 对象头（`ScoopGcObjectHeader`）与最小 heap 布局：`scoop_alloc` 初始化 header 字段并固化字段偏移（static asserts），新增对象头集成测试，并同步更新 `Int -> Any` 装箱布局为 `{ header, payload }`。
+- 2026-03-26：完成 T0909：GC v0 单线程 shadow stack roots 扫描（visitor API），新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
@@ -538,6 +539,7 @@
 - [x] TLS：当前线程 `current_frame`（`scoop_gc_current_frame` / `scoop_gc_frame_push/pop`）（T0905）
 - [x] 每个函数 prologue/epilogue 建立 `GcFrame`（包含 prev 指针 + roots 数组）（T0816）
 - [x] 在需要的地方把 GC 引用写入 roots slot（局部变量活跃区）（T0816）
+- [x] runtime：遍历当前线程 frame 链枚举 roots（visitor 形式，T0909）
 - [ ] 分配触发 GC 时，runtime 扫描所有线程的 frame 链得到根集
 
 > 优点：实现难度低、语义清晰、可逐步演进到移动 GC；缺点：需要编译器插桩，性能一般，但足够 bootstrap。

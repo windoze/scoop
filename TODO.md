@@ -2804,11 +2804,18 @@
  - 验收：
    - `cargo test --all` 通过。
 
-### T0909 [TODO] GC v0：shadow stack root 扫描（单线程）
+### T0909 [DONE] GC v0：shadow stack root 扫描（单线程）
 - 描述：实现扫描当前线程 `GcFrame` 链并枚举 roots，供 mark 阶段使用。
 - 目标：先只支持单线程；不 stop-the-world。
 - 验收：新增测试：构造 2 层 frame，每层 2 个 roots，扫描回收集到 4 个 roots。
 - 依赖：T0905、T0907
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 roots 扫描 API：`scoop_gc_shadow_stack_visit_roots_current_thread`（visitor 形式枚举 roots slots）。
+   - `runtime/c/scoop_runtime.c`：实现遍历 `ScoopGcFrame` 链并对每个非空 slot 调用 visitor；并让 `scoop_gc_debug_count_roots_current_thread` 复用该扫描逻辑。
+   - `crates/scoop_runtime/tests/shadow_stack.rs`：新增集成测试：构造两层 frame（每层 2 个 roots）并断言扫描到 4 个 roots。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0910 [TODO] GC v0：最小 mark-sweep（单线程）可用版本
 - 描述：在 `scoop_alloc` 中分配对象并记录到 heap 列表；实现一次 mark-sweep（手动触发）。

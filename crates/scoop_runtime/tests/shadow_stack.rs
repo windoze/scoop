@@ -35,7 +35,24 @@ unsafe extern "C" {
     fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
     fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
 
+    fn scoop_gc_shadow_stack_visit_roots_current_thread(
+        visitor: extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void),
+        ctx: *mut c_void,
+    ) -> u64;
+
     fn scoop_gc_debug_count_roots_current_thread() -> u64;
+}
+
+// roots 扫描 visitor：把每个被访问到的 root slot 计数 +1。
+//
+// 说明：
+// - 该函数会被 C runtime 回调，因此必须是 `extern "C"`；
+// - 测试用例里只做计数，不解引用 slot，避免引入 UB 风险。
+extern "C" fn count_root_slot(_slot: *mut *mut c_void, ctx: *mut c_void) {
+    unsafe {
+        let count = &mut *(ctx as *mut u64);
+        *count += 1;
+    }
 }
 
 #[test]
@@ -110,6 +127,58 @@ fn shadow_stack_debug_count_roots_counts_non_null_slots() {
         assert_eq!(scoop_gc_debug_count_roots_current_thread(), 2);
 
         scoop_gc_frame_pop(&mut frame2);
+        scoop_gc_frame_pop((&mut frame1 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
+
+        scoop_thread_unregister();
+    }
+}
+
+#[test]
+fn shadow_stack_scan_roots_two_frames_collects_all_roots() {
+    unsafe {
+        scoop_runtime_init();
+        scoop_thread_register();
+
+        let mut a = 1u8;
+        let mut b = 2u8;
+        let mut c = 3u8;
+        let mut d = 4u8;
+
+        let mut frame1 = ScoopGcFrame2 {
+            prev: ptr::null_mut(),
+            root_count: 2,
+            _reserved_u32: 0,
+            roots: [
+                (&mut a as *mut u8).cast::<c_void>(),
+                (&mut b as *mut u8).cast::<c_void>(),
+            ],
+        };
+
+        scoop_gc_frame_push((&mut frame1 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
+
+        let mut frame2 = ScoopGcFrame2 {
+            prev: ptr::null_mut(),
+            root_count: 2,
+            _reserved_u32: 0,
+            roots: [
+                (&mut c as *mut u8).cast::<c_void>(),
+                (&mut d as *mut u8).cast::<c_void>(),
+            ],
+        };
+
+        scoop_gc_frame_push((&mut frame2 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
+
+        let mut visited_by_visitor = 0u64;
+        let visited = scoop_gc_shadow_stack_visit_roots_current_thread(
+            count_root_slot,
+            (&mut visited_by_visitor as *mut u64).cast::<c_void>(),
+        );
+
+        // frame2 与 frame1 各有 2 个非空 root，总计 4。
+        assert_eq!(visited, 4);
+        assert_eq!(visited_by_visitor, 4);
+
+        scoop_gc_frame_pop((&mut frame2 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
         scoop_gc_frame_pop((&mut frame1 as *mut ScoopGcFrame2).cast::<ScoopGcFrame>());
 
         scoop_thread_unregister();
