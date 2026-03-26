@@ -2790,11 +2790,19 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0908 [TODO] runtime：对象头（object header）与最小 heap 对象布局
+### T0908 [DONE] runtime：对象头（object header）与最小 heap 对象布局
 - 描述：定义 heap 对象头：指向 type descriptor、flags/size 等，配合 `scoop_alloc` 返回指针。
 - 目标：先只实现非移动对象；不实现压缩。
 - 验收：新增测试：alloc 后 header 字段可读写；对齐满足基本要求。
 - 依赖：T0902、T0907
+ - 完成：
+   - `runtime/c/scoop_gc.h`：固化 `ScoopGcObjectHeader` 的关键字段偏移（`_Static_assert`），并补充对象布局约定（`scoop_alloc` 返回 header 起始地址，payload 紧随其后）。
+   - `runtime/c/scoop_runtime.c`：`scoop_alloc` 统一初始化对象头（`next/type_desc/size/flags/mark`），并对 `size=0`/`size < header` 做保守处理（至少分配对象头大小）。
+   - `crates/scoop_runtime/tests/object_header.rs`：新增集成测试，断言对象头字段默认值、可写回，以及基础对齐满足要求。
+   - `crates/scoop_runtime/tests/alloc.rs`：写入测试改为写 payload（避免覆盖对象头）。
+   - `crates/scoopc/src/llvm/codegen.rs`：同步更新 `Int -> Any` 装箱布局为 `{ ScoopGcObjectHeader, payload }`，并新增对应的 LLVM struct 类型定义（保持与 C runtime 对齐）。
+ - 验收：
+   - `cargo test --all` 通过。
 
 ### T0909 [TODO] GC v0：shadow stack root 扫描（单线程）
 - 描述：实现扫描当前线程 `GcFrame` 链并枚举 roots，供 mark 阶段使用。

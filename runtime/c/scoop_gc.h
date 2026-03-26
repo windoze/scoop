@@ -83,8 +83,13 @@ typedef struct ScoopGcFrame {
 // GC 对象头（v0：骨架）。
 //
 // 说明：
-// - 该结构体只用于“规划对象布局”和“连接 heap 列表”；并不代表最终 ABI。
-// - TODO T0908 会把对象头与 `scoop_alloc` 的返回指针语义对齐（header vs payload）。
+// - 该结构体用于定义“heap 对象的内存前缀（header）”：
+//   - `scoop_alloc` 返回的指针指向 header 起始地址；
+//   - 对象的 payload（用户字段/box payload 等）紧随 header 之后；
+//   - type descriptor 的 `trace_start_offset_bytes` 可设置为 `sizeof(ScoopGcObjectHeader)`
+//     以跳过 header，从 payload 的引用字段开始扫描（见 TODO T0907）。
+// - 该布局仍处于早期阶段，但我们会用 `_Static_assert` 固定关键字段偏移，便于
+//   Rust/LLVM codegen 在同一仓库内做一致性假设（TODO T0908）。
 typedef struct ScoopGcObjectHeader {
   // heap 链表：用于 sweep 阶段遍历所有已分配对象。
   struct ScoopGcObjectHeader *next;
@@ -99,6 +104,36 @@ typedef struct ScoopGcObjectHeader {
   uint32_t flags;
   uint32_t mark;
 } ScoopGcObjectHeader;
+
+// ABI 断言：固定对象头关键字段的相对偏移，避免在后续演进中“悄悄漂移”。
+//
+// 说明：
+// - 这些断言旨在覆盖仓库当前支持的主流平台（64-bit/32-bit）；若未来需要支持更
+//   特殊的 ABI，可在引入 target-aware layout（TODO T0803）时再做细化。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopGcObjectHeader, next) == 0,
+               "ScoopGcObjectHeader.next offset must be 0");
+_Static_assert(offsetof(ScoopGcObjectHeader, type_desc) == sizeof(void *),
+               "ScoopGcObjectHeader.type_desc offset must be sizeof(void*)");
+_Static_assert(offsetof(ScoopGcObjectHeader, size) == (2u * sizeof(void *)),
+               "ScoopGcObjectHeader.size offset must be 2*sizeof(void*)");
+_Static_assert(
+    offsetof(ScoopGcObjectHeader, flags) ==
+        (2u * sizeof(void *) + sizeof(uint64_t)),
+    "ScoopGcObjectHeader.flags offset must be 2*sizeof(void*) + sizeof(u64)");
+_Static_assert(
+    offsetof(ScoopGcObjectHeader, mark) ==
+        (2u * sizeof(void *) + sizeof(uint64_t) + sizeof(uint32_t)),
+    "ScoopGcObjectHeader.mark offset must be flags+sizeof(u32)");
+_Static_assert((sizeof(ScoopGcObjectHeader) % sizeof(void *)) == 0,
+               "ScoopGcObjectHeader size must be pointer-aligned");
+#endif
+
+// 计算对象 payload 的起始指针（紧随 header 之后）。
+//
+// 注意：这是一个便捷宏；对象的实际字段布局由编译器按类型决定。
+#define SCOOP_GC_OBJECT_PAYLOAD_PTR(object) \
+  ((void *)((uint8_t *)(object) + sizeof(ScoopGcObjectHeader)))
 
 // Free list 节点（v0：骨架）。
 //

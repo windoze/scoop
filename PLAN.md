@@ -38,6 +38,7 @@
 - 2026-03-26：完成 T0818：effect codegen（flag-based Raise/try-catch）：支持 `Raise<RuntimeError>` payload 写入/恢复、`EnumName.UnitVariant` 常量生成，并新增 run-pass fixture 回归。
 - 2026-03-26：完成 T0630：perform slot ABI 升级为多 word payload（`len + words[8]`），新增读写 API；`Raise.raise` 统一采用 2-word `(kind, value)` 编码并在 handler 边界断言回归，确保 lowering/codegen/runtime 对齐。
 - 2026-03-26：完成 T0907：runtime 引入 type descriptor v0（`size_bytes + trace bitmap/trace_fn`），并新增 guard page 集成测试确保扫描按 size 裁剪不越界。
+- 2026-03-26：完成 T0908：runtime 对象头（`ScoopGcObjectHeader`）与最小 heap 布局：`scoop_alloc` 初始化 header 字段并固化字段偏移（static asserts），新增对象头集成测试，并同步更新 `Int -> Any` 装箱布局为 `{ header, payload }`。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。

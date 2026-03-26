@@ -6682,16 +6682,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_ty: IntTy,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         // 约定（early stage）：
-        // - box 对象布局：`{ type_desc: i8*, payload: <int> }`
-        // - 目前 type_desc 先写 NULL；后续会接入 type descriptor 与 GC（T0907+）。
+        // - box 对象布局：`{ header: ScoopGcObjectHeader, payload: <int> }`（TODO T0908）
+        // - 当前阶段由 runtime 的 `scoop_alloc` 初始化对象头字段：
+        //   - `next = NULL`
+        //   - `type_desc = NULL`（后续由 typed alloc 或 codegen 写入；TODO T0907+）
+        //   - `size = alloc_size`
+        //   - `flags/mark = 0`
         //
         // 注意：这里不尝试做“复用 box 类型”或 cache；LLVM named struct 会在 module 内复用。
         let target = self.target_layout();
         let payload_size = (u64::from(value_ty.bits) + 7) / 8;
         let payload_align = payload_size.clamp(1, target.pointer_align.max(1));
 
-        let header_size = target.pointer_size;
-        let header_align = target.pointer_align.max(1);
+        // 对象头布局与 C runtime 对齐（见 `runtime/c/scoop_gc.h` 的 static asserts）。
+        //
+        // `ScoopGcObjectHeader` 字段：
+        // - next: void*
+        // - type_desc: void*
+        // - size: u64
+        // - flags: u32
+        // - mark: u32
+        let header_size = 2 * target.pointer_size + 16;
+        let header_align = target.pointer_align.max(8).max(1);
         let payload_offset = align_to(header_size, payload_align);
         let obj_align = header_align.max(payload_align);
         let total_size = align_to(payload_offset.saturating_add(payload_size), obj_align);
@@ -6716,23 +6728,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        // 写入对象头与 payload（type_desc 先为 NULL）。
+        // 写入 payload（对象头由 runtime 初始化）。
         let boxed_ty = self.llvm_boxed_int_type(value_ty);
         let boxed_ptr_ty = boxed_ty.ptr_type(AddressSpace::default());
         let boxed_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;
 
-        let type_desc_ptr =
-            self.builder
-                .build_struct_gep(boxed_ty, boxed_ptr, 0, "boxed_type_desc_gep")?;
         let payload_ptr =
             self.builder
                 .build_struct_gep(boxed_ty, boxed_ptr, 1, "boxed_payload_gep")?;
-
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let null_desc = i8_ptr_ty.const_null();
-        let _ = self.builder.build_store(type_desc_ptr, null_desc)?;
         let _ = self.builder.build_store(payload_ptr, value)?;
 
         Ok(raw_ptr)
@@ -6927,9 +6932,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .ptr_type(AddressSpace::default())
     }
 
+    fn llvm_gc_object_header_type(&self) -> StructType<'ctx> {
+        // 说明：
+        // - 该类型对应 `runtime/c/scoop_gc.h` 的 `ScoopGcObjectHeader`（TODO T0908）；
+        // - 当前阶段用 `i8*` 作为 `next` 与 `type_desc` 的承载类型（不暴露具体指针类型）；
+        // - 布局必须与 C runtime 一致，否则 `scoop_alloc` 初始化的对象头会被错误解释。
+        const TY_NAME: &str = "scoop.runtime.ScoopGcObjectHeader";
+
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        // `typedef struct { void* next; void* type_desc; uint64_t size; uint32_t flags; uint32_t mark; } ScoopGcObjectHeader;`
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let i32_ty = self.context.i32_type();
+        ty.set_body(
+            &[
+                i8_ptr_ty.into(),
+                i8_ptr_ty.into(),
+                i64_ty.into(),
+                i32_ty.into(),
+                i32_ty.into(),
+            ],
+            false,
+        );
+        ty
+    }
+
     fn llvm_boxed_int_type(&self, payload: IntTy) -> StructType<'ctx> {
         // 说明：box 类型目前只用于 `Int/UInt/... -> Any` 的最小装箱（T0817）。
-        // 未来会扩展为统一的对象头 + type descriptor（T0907+）。
+        // 未来会扩展为统一的对象头 + type descriptor（T0907+）；当前已接入最小对象头（T0908）。
         let name = format!(
             "scoop.runtime.BoxedInt{}_{}",
             payload.bits,
@@ -6939,10 +6973,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `{ i8* type_desc, <int> payload }`
+        // `{ ScoopGcObjectHeader header, <int> payload }`
         let ty = self.context.opaque_struct_type(&name);
-        let type_desc_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        ty.set_body(&[type_desc_ty.into(), self.int_type(payload).into()], false);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into(), self.int_type(payload).into()], false);
         ty
     }
 

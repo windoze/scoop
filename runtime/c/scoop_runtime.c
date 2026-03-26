@@ -634,24 +634,44 @@ void scoop_runtime_init(void) {
                offsetof(ScoopString, data));
 }
 
-// 最小占位分配 API（后续替换为真正 GC 分配）
+// 最小占位分配 API（后续替换为真正 GC 分配）。
+//
+// 约定（TODO T0908）：
+// - `scoop_alloc(size)` 的 `size` 表示“对象总大小（字节）”，包含对象头（header）与 payload；
+// - 返回指针指向对象头起始地址（`ScoopGcObjectHeader*`）；
+// - 当前阶段仍以 libc `malloc` 为底层分配器，不登记到 heap 列表、不触发 GC。
 void *scoop_alloc(uint64_t size) {
   // 说明（early stage）：
   // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；
-  // - 暂不做对象头/类型信息写入（由后续 codegen + GC 任务补齐）；
+  // - 会初始化对象头（type_desc/size/flags/mark 等），但暂不接入 type descriptor 与 GC；
   // - OOM 时返回 NULL，由上层决定如何处理（未来可映射到 Raise<RuntimeError>）。
-  if (size == 0) {
-    // `malloc(0)` 的返回值在不同实现上可能为 NULL 或唯一指针；为保持可预期，这里统一分配 1 字节。
-    size = 1;
+  uint64_t object_size = size;
+  if (object_size == 0) {
+    // `malloc(0)` 的返回值在不同实现上可能为 NULL 或唯一指针；为保持可预期，这里至少分配对象头大小。
+    object_size = (uint64_t)sizeof(ScoopGcObjectHeader);
   }
-  if (size > (uint64_t)SIZE_MAX) {
+  if (object_size < (uint64_t)sizeof(ScoopGcObjectHeader)) {
+    // 保守策略：若调用方传入的 size 小于对象头，则强制提升到对象头大小，避免后续写 header 越界。
+    object_size = (uint64_t)sizeof(ScoopGcObjectHeader);
+  }
+  if (object_size > (uint64_t)SIZE_MAX) {
     return 0;
   }
 
-  void *p = malloc((size_t)size);
+  void *p = malloc((size_t)object_size);
   if (p == 0) {
-    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", size);
+    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+    return 0;
   }
+
+  // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+  hdr->next = 0;
+  hdr->type_desc = 0;
+  hdr->size = object_size;
+  hdr->flags = 0;
+  hdr->mark = 0;
+
   return p;
 }
 
