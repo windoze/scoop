@@ -581,6 +581,7 @@
 - [x] TLS：handler stack 指针、perform slot、flag（T0906/T0913）
 - [x] 最小原语：push/pop handler frame、读写 perform slot（T0613/T0913）
 - [x] continuation one-shot + resume API（T0914）
+- [ ] continuation 跨线程 `resume`：安装 captured handler stack，并在返回后恢复原 TLS（T0915a；端到端 fixture 见 T0915b）
 
 ### 9.3 与 clang 的构建集成
 

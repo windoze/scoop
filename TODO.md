@@ -2889,11 +2889,22 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0915 [TODO] 跨线程 continuation resume：TLS handler stack 切换（spec §5.5）
-- 描述：实现把 continuation 捕获的 handler stack 安装到当前线程，并在 resume 后恢复原 TLS。
+### T0915（拆分为子任务）
+- 描述：跨线程 `resume` 时需要把 continuation 捕获的 handler stack 安装到当前线程 TLS，并在返回后恢复原 TLS（spec §5.5）。
 - 目标：先不支持并发同时 resume；只支持单次跨线程。
-- 验收：新增 run-pass fixture：在新线程 resume continuation，结果与单线程一致。
+- 备注：端到端 run-pass fixture 依赖编译器侧对堆 continuation（`, k ->`）与跨线程执行链路的接入；为保证“可单独实现 & 单独验证”，先拆成运行时原语与端到端 fixture 两步。
+
+### T0915a [TODO] runtime：continuation resume 时切换/恢复 TLS handler stack（spec §5.5）
+- 描述：在 runtime 中提供“临时安装 captured handler stack → 执行 step_fn → 恢复原 TLS handler stack”的原语；允许在另一线程执行。
+- 目标：只实现 TLS handler stack 的切换/恢复；不要求编译器立即接入 `, k ->`；不实现并发同时 resume。
+- 验收：新增运行期测试（`crates/scoop_runtime/tests`）：跨线程调用 resume 原语时，step_fn 看到的 handler stack top 为 captured 值，且返回后 TLS 恢复为原值；`cargo test -p scoop_runtime` 通过。
 - 依赖：T0914、T0911
+
+### T0915b [TODO] run-pass：跨线程 resume 的端到端 fixture（spec §5.5）
+- 描述：在 Scoop fixtures 中新增 run-pass case：在新线程 `resume` continuation（或等价语义），输出与单线程一致。
+- 目标：只做端到端回归；不引入调度器/executor；线程数先固定为 2。
+- 验收：新增 run-pass fixture；`PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T0915a、T0618、T0106b2
 
 ### T0617 [TODO] lowering step 3：`, k ->`（堆 continuation + one-shot）（PLAN §6.3.3）
 - 描述：实现 continuation 对象捕获 handler stack，支持跨线程 `resume`，并用原子状态位保证 one-shot。
