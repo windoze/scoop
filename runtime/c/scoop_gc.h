@@ -5,7 +5,7 @@
 //   - type descriptor（对象内引用字段扫描）
 //   - shadow stack root 扫描
 //   - stop-the-world 与多线程支持
-// - 当前阶段（TODO T0904）不要求可用的 GC 算法实现；先把结构与接口稳定下来。
+// - 在完成 TODO T0910 后，该文件也提供最小可用的单线程 mark-sweep（手动触发）。
 
 #ifndef SCOOP_GC_H
 #define SCOOP_GC_H
@@ -162,6 +162,14 @@ typedef struct ScoopGcHeap {
 // 初始化 heap 结构（不分配任何内存）。
 void scoop_gc_heap_init(ScoopGcHeap *heap);
 
+// 手动触发一次 mark-sweep GC（v0：单线程）。
+//
+// 说明：
+// - 该 API 当前用于 fixtures/集成测试回归（TODO T0910），不实现自动触发策略；
+// - v0 只扫描当前线程的 shadow stack roots（见 `scoop_gc_shadow_stack_visit_roots_current_thread`）；
+// - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
+void scoop_gc_collect(void);
+
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);
@@ -200,5 +208,19 @@ uint64_t scoop_gc_shadow_stack_visit_roots_current_thread(ScoopGcTraceVisitor vi
 // - 该 API 主要用于 compiler/codegen 的插桩回归（TODO T0816）；
 // - 当前阶段不执行真正的 mark/sweep，只做“可遍历且不崩溃”的扫描。
 uint64_t scoop_gc_debug_count_roots_current_thread(void);
+
+// --- Debug helpers（用于测试/fixtures；不承诺稳定 ABI） ---
+
+// 返回当前 heap 链表中的对象个数（用于回归 sweep 是否回收）。
+uint64_t scoop_gc_debug_heap_object_count(void);
+
+// 返回 heap 统计字段（累计值）。
+uint64_t scoop_gc_debug_heap_bytes_allocated(void);
+uint64_t scoop_gc_debug_heap_bytes_freed(void);
+
+// Debug helper：分配 `count` 个“垃圾对象”（不写入 roots），用于 GC 压测与回归。
+//
+// 说明：当 `count <= 0` 时不分配；当 OOM 时会提前停止分配。
+void scoop_gc_debug_alloc_garbage(int64_t count);
 
 #endif // SCOOP_GC_H

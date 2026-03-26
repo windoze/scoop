@@ -15,7 +15,7 @@ struct ScoopGcObjectHeader {
 unsafe extern "C" {
     fn scoop_runtime_init();
     fn scoop_alloc(size: u64) -> *mut c_void;
-    fn free(ptr: *mut c_void);
+    fn scoop_gc_collect();
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn scoop_alloc_initializes_object_header_and_alignment_is_sane() {
         *payload = 0xEE;
         *payload.add(15) = 0xFF;
 
-        free(p);
+        // T0910：alloc 的对象由 GC 管理；本测试不写入 shadow stack roots，因此 collect 会回收该对象。
+        scoop_gc_collect();
     }
 }
-

@@ -86,9 +86,10 @@ static uint32_t scoop_rt_init_calls = 0;
 // GC heap（v0：数据结构骨架）。
 //
 // 说明：
-// - 当前阶段仅初始化结构体，不接入 `scoop_alloc`；
-// - 后续任务会把 `scoop_alloc` 改为在 heap 中登记对象，并实现 mark-sweep（TODO T0910）。
-static ScoopGcHeap scoop_gc_heap;
+// - heap 的定义位于 `runtime/c/scoop_gc.c`（保持 GC 逻辑集中）；本文件仅引用它；
+// - `scoop_runtime_init()` 会初始化 heap；`scoop_alloc` 会把对象登记到 heap 链表；
+// - 手动触发 GC：`scoop_gc_collect()`（TODO T0910）。
+extern ScoopGcHeap scoop_gc_heap;
 
 uint32_t scoop_runtime_is_initialized(void) {
   return scoop_rt_initialized;
@@ -673,11 +674,17 @@ void scoop_runtime_init(void) {
 // 约定（TODO T0908）：
 // - `scoop_alloc(size)` 的 `size` 表示“对象总大小（字节）”，包含对象头（header）与 payload；
 // - 返回指针指向对象头起始地址（`ScoopGcObjectHeader*`）；
-// - 当前阶段仍以 libc `malloc` 为底层分配器，不登记到 heap 列表、不触发 GC。
+// - v0：仍以 libc `malloc` 为底层分配器，但会登记到 heap 链表，供 `scoop_gc_collect()` sweep。
 void *scoop_alloc(uint64_t size) {
+  // 说明：保持与其它 runtime API 一致：允许在未显式 init 的情况下被调用。
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
   // 说明（early stage）：
   // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；
-  // - 会初始化对象头（type_desc/size/flags/mark 等），但暂不接入 type descriptor 与 GC；
+  // - 会初始化对象头（type_desc/size/flags/mark 等），并登记到 heap 链表供 `scoop_gc_collect()` sweep；
+  // - 对象字段扫描依赖 type descriptor（`hdr->type_desc`），后续会由 typed alloc/codegen 写入（TODO T0907+）。
   // - OOM 时返回 NULL，由上层决定如何处理（未来可映射到 Raise<RuntimeError>）。
   uint64_t object_size = size;
   if (object_size == 0) {
@@ -700,11 +707,16 @@ void *scoop_alloc(uint64_t size) {
 
   // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
   ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
-  hdr->next = 0;
+  hdr->next = 0; // 先置 0，随后会被登记到 heap 链表。
   hdr->type_desc = 0;
   hdr->size = object_size;
   hdr->flags = 0;
   hdr->mark = 0;
+
+  // 登记到 heap 链表（用于 sweep）。
+  hdr->next = scoop_gc_heap.objects;
+  scoop_gc_heap.objects = hdr;
+  scoop_gc_heap.bytes_allocated += object_size;
 
   return p;
 }

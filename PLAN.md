@@ -40,6 +40,7 @@
 - 2026-03-26：完成 T0907：runtime 引入 type descriptor v0（`size_bytes + trace bitmap/trace_fn`），并新增 guard page 集成测试确保扫描按 size 裁剪不越界。
 - 2026-03-26：完成 T0908：runtime 对象头（`ScoopGcObjectHeader`）与最小 heap 布局：`scoop_alloc` 初始化 header 字段并固化字段偏移（static asserts），新增对象头集成测试，并同步更新 `Int -> Any` 装箱布局为 `{ header, payload }`。
 - 2026-03-26：完成 T0909：GC v0 单线程 shadow stack roots 扫描（visitor API），新增 `scoop_runtime` 集成测试覆盖。
+- 2026-03-26：完成 T0910：GC v0 单线程 mark-sweep（手动触发 `scoop_gc_collect`），新增 heap 统计 debug API、runtime 集成测试与 run-pass fixture 覆盖。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。
@@ -564,7 +565,7 @@
 - [ ] 分配器：`scoop_alloc(size, type_desc)`（带类型描述，供 GC 扫描对象字段）
 - [ ] GC（先易后难）：
   - [x] v0：mark-sweep 数据结构骨架（T0904）
-  - [ ] v0：非移动 mark-sweep（实现简单，pin/unpin 可先是 no-op 或计数）
+  - [x] v0：非移动 mark-sweep（手动触发 `scoop_gc_collect`，T0910；pin/unpin 后续补齐）
   - [ ] v1：可选移动/压缩（实现 pin/unpin 语义）
 - [ ] 类型描述（type descriptor）：
   - pointer bitmap 或 trace 回调

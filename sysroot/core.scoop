@@ -36,6 +36,17 @@ fun println(value: Int): Unit
 // - 返回当前线程 shadow stack 中“非空 roots slot”的数量（不会执行真实 GC）。
 fun __scoop_gc_debug_count_roots_current_thread(): Int
 
+// GC（测试辅助）。
+//
+// 说明：
+// - 该组 API 用于回归 v0 mark-sweep（TODO T0910）；并不承诺稳定的用户态 API；
+// - `__scoop_gc_collect()` 手动触发一次 GC（仅扫描当前线程 roots）；
+// - `__scoop_gc_debug_alloc_garbage(n)` 用于制造垃圾对象（不写入 roots）；
+// - `__scoop_gc_debug_heap_object_count()` 用于验证 sweep 是否回收。
+fun __scoop_gc_collect(): Unit
+fun __scoop_gc_debug_heap_object_count(): Int
+fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+
 // Effect runtime（测试辅助）。
 //
 // 说明：

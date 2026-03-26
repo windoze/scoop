@@ -16,7 +16,7 @@ unsafe extern "C" {
     fn scoop_runtime_init();
     fn scoop_alloc(size: u64) -> *mut c_void;
 
-    fn free(ptr: *mut c_void);
+    fn scoop_gc_collect();
 }
 
 #[test]
@@ -30,11 +30,12 @@ fn scoop_alloc_returns_non_null_and_can_be_called_repeatedly() {
         assert!(!p1.is_null(), "scoop_alloc must return non-null");
         // 避免把数据写进对象头：payload 紧随 header 之后。
         *((p1 as *mut u8).add(core::mem::size_of::<ScoopGcObjectHeader>())) = 0xAB;
-        free(p1);
 
         let p2 = scoop_alloc(header_size + 16);
         assert!(!p2.is_null(), "scoop_alloc must be callable repeatedly");
         *((p2 as *mut u8).add(core::mem::size_of::<ScoopGcObjectHeader>())) = 0xCD;
-        free(p2);
+
+        // T0910：alloc 的对象由 GC 管理；在没有 roots 的情况下，collect 应回收全部对象。
+        scoop_gc_collect();
     }
 }

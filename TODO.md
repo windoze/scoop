@@ -2817,11 +2817,23 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0910 [TODO] GC v0：最小 mark-sweep（单线程）可用版本
+### T0910 [DONE] GC v0：最小 mark-sweep（单线程）可用版本
 - 描述：在 `scoop_alloc` 中分配对象并记录到 heap 列表；实现一次 mark-sweep（手动触发）。
 - 目标：先不做触发策略；先提供 `scoop_gc_collect()` 手动调用。
 - 验收：新增 run-pass fixture：分配大量对象并手动触发 collect，不崩溃且能回收未引用对象（可用计数验证）。
 - 依赖：T0909、T0106b2
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `scoop_gc_collect()` 与 heap debug API（object count / bytes allocated / bytes freed），并新增 `scoop_gc_debug_alloc_garbage()`。
+   - `runtime/c/scoop_gc.c`：实现单线程 mark-sweep（roots mark + 可选 type descriptor trace + sweep），并提供 heap 统计与 garbage alloc helper。
+   - `runtime/c/scoop_runtime.c`：`scoop_alloc` 分配后登记到 heap 链表、累计 `bytes_allocated`，并在未 init 场景下自动 init。
+   - `sysroot/core.scoop`：新增 `__scoop_gc_collect/__scoop_gc_debug_heap_object_count/__scoop_gc_debug_alloc_garbage`（测试辅助）。
+   - `crates/scoopc/src/llvm/codegen.rs`：把上述 sysroot helper 映射到 runtime C 符号，完成参数/返回值的整数位宽转换。
+   - `crates/scoop_runtime/tests/gc_mark_sweep.rs`：新增集成测试覆盖“root 保活 + sweep 回收”。
+   - `crates/scoop_runtime/tests/alloc.rs`、`crates/scoop_runtime/tests/object_header.rs`：测试改为使用 `scoop_gc_collect()` 回收对象（不再直接 `free`）。
+   - `tests/fixtures/run-pass/gc_mark_sweep_basic.scoop`：新增 run-pass fixture（制造垃圾 + collect + 计数验证）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0911 [TODO] 线程注册 + stop-the-world 扫描所有线程（PLAN §9.1）
 - 描述：实现线程注册表，GC 时暂停所有注册线程并扫描其 shadow stack。

@@ -2077,6 +2077,100 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(CgValue::int(casted, to));
             }
 
+            // TODO T0910：GC v0（mark-sweep，测试辅助）。
+            if fqn == "scoop.core.__scoop_gc_collect" {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc collect arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_gc_collect();
+                let _ = self.builder.build_call(rt, &[], "gc_collect")?;
+                return Ok(CgValue::unit());
+            }
+
+            if fqn == "scoop.core.__scoop_gc_debug_heap_object_count" {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc heap object count arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_gc_debug_heap_object_count();
+                let call = self
+                    .builder
+                    .build_call(rt, &[], "gc_debug_heap_object_count")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc heap object count return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(raw_int) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc heap object count return type",
+                        at: span.into(),
+                    });
+                };
+
+                let from = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                let to = IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: true,
+                };
+                let casted = self.cast_int(raw_int, from, to)?;
+                return Ok(CgValue::int(casted, to));
+            }
+
+            if fqn == "scoop.core.__scoop_gc_debug_alloc_garbage" {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug alloc garbage arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(count_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug alloc garbage named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let value_word = IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: true,
+                };
+
+                let count_v =
+                    self.codegen_expr_in_expected_context(count_expr, Some(CgTy::Int(value_word)))?;
+                let count_v = self.coerce_value(count_expr.span, count_v, CgTy::Int(value_word))?;
+                let (count_raw, count_from) =
+                    count_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "gc debug alloc garbage count value",
+                        at: count_expr.span.into(),
+                    })?;
+                let count_to = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                let count_i64 = self.cast_int(count_raw, count_from, count_to)?;
+
+                let rt = self.declare_runtime_gc_debug_alloc_garbage();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[count_i64.into()],
+                    "gc_debug_alloc_garbage",
+                )?;
+                return Ok(CgValue::unit());
+            }
+
             // TODO T0613：effect runtime ABI（flag + perform slot）回归用的 sysroot debug helpers。
             if fqn.starts_with("scoop.core.__scoop_effect_") {
                 return self.codegen_sysroot_effect_intrinsics(span, callee.span, fqn, args);
@@ -7098,6 +7192,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint64_t scoop_gc_debug_count_roots_current_thread(void)`
         let fn_ty = self.context.i64_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_collect(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_collect";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_gc_collect(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_debug_heap_object_count(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_debug_heap_object_count";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_gc_debug_heap_object_count(void)`
+        let fn_ty = self.context.i64_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_debug_alloc_garbage(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_debug_alloc_garbage";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_gc_debug_alloc_garbage(int64_t count)`
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
