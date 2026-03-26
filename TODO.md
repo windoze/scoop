@@ -2775,11 +2775,20 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0907 [TODO] runtime：类型描述（type descriptor）v0（trace bitmap/回调）
+### T0907 [DONE] runtime：类型描述（type descriptor）v0（trace bitmap/回调）
 - 描述：定义 type descriptor 结构（大小、字段 trace 信息），供 GC 扫描对象内引用字段使用。
 - 目标：先只支持 struct/box；interface/class 后续。
 - 验收：新增 C/Rust 测试：构造一个 descriptor 并用它扫描一段内存（假设布局）不越界。
 - 依赖：T0904
+ - 完成：
+   - `runtime/c/scoop_gc.{h,c}`：定义 `ScoopTypeDescriptor`（`size_bytes/trace_start_offset_bytes/trace_bitmap` 与可选 `trace_fn`），并实现 `scoop_gc_type_descriptor_trace`（按 `size_bytes` 裁剪扫描范围，避免越界）。
+   - `crates/scoop_runtime/tests/type_descriptor.rs`：新增 Rust 集成测试：
+     - bitmap 仅访问被标记的槽位；
+     - guard page 断言：当 bitmap 远大于对象大小时，trace 仍不会越界读取。
+   - `crates/scoop_runtime/Cargo.toml`：新增 `libc` dev-dependency 以支持 `mmap/mprotect` 测试。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ### T0908 [TODO] runtime：对象头（object header）与最小 heap 对象布局
 - 描述：定义 heap 对象头：指向 type descriptor、flags/size 等，配合 `scoop_alloc` 返回指针。

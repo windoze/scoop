@@ -558,6 +558,7 @@ name = "scoop_runtime"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "libc",
 ]
 
 [[package]]

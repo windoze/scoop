@@ -13,8 +13,53 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// 前置声明：type descriptor 在 TODO T0907 引入；此处只占位。
-typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
+// --- Type descriptor（TODO T0907） ---
+//
+// 说明：
+// - type descriptor 用于描述一个 heap 对象（或 box 的 payload）的布局信息：
+//   - 对象大小（用于边界裁剪/健壮性）
+//   - 引用字段（GC-managed pointers）的扫描规则（trace bitmap 或自定义回调）
+// - 早期阶段只要求“可安全扫描”与“ABI 可被 Rust/C 测试构造并调用”；并不承诺最终 ABI。
+// - TODO T0908 会把该 descriptor 与对象头/heap 布局对齐；届时 `trace_start_offset_bytes`
+//   可用于跳过 header。
+
+// 扫描回调：`slot` 指向对象内部某个“指针槽位”（可读写）。
+typedef void (*ScoopGcTraceVisitor)(void **slot, void *ctx);
+
+// 自定义 trace 函数：当 bitmap 无法表达（例如复杂容器/变长布局）时使用。
+// 返回值为调用 visitor 的次数。
+typedef uint64_t (*ScoopTypeTraceFn)(void *object, ScoopGcTraceVisitor visitor, void *ctx);
+
+typedef struct ScoopTypeDescriptor {
+  // ABI 版本（预留）：便于后续演进时做兼容分支；v0 固定为 0。
+  uint32_t abi_version;
+
+  // 预留 flags：例如“是否有尾随变长 payload”等（v0 未定义语义）。
+  uint32_t flags;
+
+  // 对象在内存中的总大小（字节）。
+  uint64_t size_bytes;
+
+  // 从 `object` 起始地址偏移多少字节开始扫描引用字段。
+  // 说明：该偏移必须是指针对齐（`sizeof(void*)` 的倍数）；否则 v0 直接跳过扫描。
+  uint64_t trace_start_offset_bytes;
+
+  // `trace_bitmap` 的长度（单位：u64 word）。
+  // 每个 bit 表示一个指针 word 是否为“引用槽位”：
+  // - bit 0 表示 `trace_start_offset_bytes + 0*sizeof(void*)`
+  // - bit 1 表示 `trace_start_offset_bytes + 1*sizeof(void*)`
+  // - ...
+  uint32_t trace_bitmap_u64_len;
+
+  // 预留字段：用于对齐/未来扩展。
+  uint32_t _reserved_u32;
+
+  // trace bitmap：可为 NULL（表示无引用字段，或使用 trace_fn）。
+  const uint64_t *trace_bitmap;
+
+  // 自定义 trace 回调：可为 NULL（表示使用 trace_bitmap）。
+  ScoopTypeTraceFn trace_fn;
+} ScoopTypeDescriptor;
 
 // Shadow stack（精确根集）帧。
 //
@@ -85,6 +130,14 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);
+
+// 使用 type descriptor 扫描对象内部引用字段。
+//
+// 返回值：visitor 被调用的次数（即扫描到的引用槽位数量）。
+uint64_t scoop_gc_type_descriptor_trace(const ScoopTypeDescriptor *type_desc,
+                                       void *object,
+                                       ScoopGcTraceVisitor visitor,
+                                       void *ctx);
 
 // 返回当前线程的 shadow stack 链头。
 ScoopGcFrame *scoop_gc_current_frame(void);
