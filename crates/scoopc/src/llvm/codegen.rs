@@ -2855,6 +2855,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_task_intrinsics(span, callee.span, fqn, args);
             }
+            // T0618：跨线程 resume（创建线程并 join，避免引入调度器）。
+            if fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
+                return self.codegen_sysroot_thread_intrinsics(span, callee.span, fqn, args);
+            }
             return self.codegen_top_level_fun_call(span, callee.span, fqn, args);
         }
 
@@ -3715,6 +3719,73 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown sysroot task intrinsic callee",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_thread_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match fqn {
+            "scoop.core.__scoop_thread_spawn_join_resume_u64" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "thread spawn+resume arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(k_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "thread spawn+resume named arg (continuation)",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(value_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "thread spawn+resume named arg (value)",
+                        at: span.into(),
+                    });
+                };
+
+                let k_v = self.codegen_expr_in_expected_context(k_expr, Some(CgTy::Ref))?;
+                let k_v = self.coerce_value(k_expr.span, k_v, CgTy::Ref)?;
+                let Some(k_raw) = k_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "thread spawn+resume continuation value",
+                        at: k_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(k_ptr) = k_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "thread spawn+resume continuation type",
+                        at: k_expr.span.into(),
+                    });
+                };
+
+                let value_v = self.codegen_expr(value_expr)?;
+                let value_word = self.coerce_u64_word(value_expr.span, value_v)?;
+
+                // runtime ABI：`void scoop_thread_spawn_join_resume_u64(void* k, uint64_t resume_value)`
+                let rt = self.declare_runtime_thread_spawn_join_resume_u64();
+                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+                let k_i8 = self
+                    .builder
+                    .build_pointer_cast(k_ptr, i8_ptr_ty, "thread_resume_k_i8")?;
+                let _ = self.builder.build_call(
+                    rt,
+                    &[k_i8.into(), value_word.into()],
+                    "thread_spawn_join_resume",
+                )?;
+                Ok(CgValue::unit())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown sysroot thread intrinsic callee",
                 at: callee_span.into(),
             }),
         }
@@ -8166,6 +8237,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_continuation_resume_u64(void* k, uint64_t resume_value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_thread_spawn_join_resume_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_thread_spawn_join_resume_u64(void* k, uint64_t resume_value)`
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];

@@ -23,6 +23,7 @@
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0817（heap 分配）依赖 runtime 的 `scoop_alloc`（T0902），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0817 移动到 T0902 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-27：`TODO.md` 中 T0915b（跨线程 resume 的端到端 run-pass fixture）依赖 T0618（跨线程 `resume` 语义/接入），但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0915b 移动到 T0618 之后，以保持 TODO 的依赖顺序可执行。
+- 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。

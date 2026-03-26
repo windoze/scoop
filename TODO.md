@@ -2929,11 +2929,20 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0618 [TODO] 跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（spec §5.5）
+### T0618 [DONE] 跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（spec §5.5）
 - 描述：实现跨线程 resume 的语义与 runtime 支持（TLS handler stack 切换）。
 - 目标：先只支持 2 线程；不实现调度器。
 - 验收：新增 run-pass fixture：在新线程 resume continuation，程序输出符合预期且不崩溃。
 - 依赖：T0617、T0915
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 `scoop_thread_spawn_join_resume_u64`（pthread spawn + join），在线程内调用 `scoop_continuation_resume_u64` 并在退出前 `scoop_thread_unregister` 清理注册状态。
+   - `sysroot/core.scoop`：新增 sysroot 内部 helper：`__scoop_thread_spawn_join_resume_u64(Continuation<Int>, Int)`。
+   - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.core.__scoop_thread_spawn_join_resume_u64` 映射到 runtime 符号 `scoop_thread_spawn_join_resume_u64`。
+   - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.*`：新增端到端 fixture（跨线程 resume）与 stdout golden。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0915b [TODO] run-pass：跨线程 resume 的端到端 fixture（spec §5.5）
 - 描述：在 Scoop fixtures 中新增 run-pass case：在新线程 `resume` continuation（或等价语义），输出与单线程一致。

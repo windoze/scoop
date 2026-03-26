@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_cross_thread.stdout
+//
+// T0618：跨线程 resume（spec §5.5）
+//
+// 目标覆盖：
+// - handler arm 捕获 continuation；
+// - 在新线程中 resume continuation，并等待其执行完成；
+// - 程序输出稳定且不崩溃。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    // 注意：当前阶段 `None` 作为“裸标识符值”尚不可用；用 `None()` 走 enum variant ctor 路径。
+    var saved: Continuation<Int>? = None()
+
+    // handle body 在 perform 处暂停；arm 把 k 存起来并返回。
+    //
+    // 注意：当前 LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val ignore: Unit = ...` 的形式提供。
+    val ignore: Unit = handle {
+        val x: Int = Yield.next()
+        println(x)
+    } with {
+        Yield.next(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after handle")
+
+    when (saved) {
+        Some(k) -> {
+            __scoop_thread_spawn_join_resume_u64(k, 42)
+            println("after cross-thread resume")
+        }
+        None -> println("missing")
+    }
+}
+

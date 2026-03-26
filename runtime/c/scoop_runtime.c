@@ -555,6 +555,59 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
   (void)scoop_effect_handler_stack_swap_top(saved);
 }
 
+// --- Continuation 跨线程 resume（spec §5.5 / TODO T0618） ---
+//
+// 说明：
+// - 该 helper 用于把“跨线程 resume”能力暴露给 end-to-end fixtures（不引入调度器）。
+// - 语义：在一个新线程中调用 `scoop_continuation_resume_u64`，并 join 等待其完成。
+// - 线程会在执行结束后调用 `scoop_thread_unregister`，避免 STW 线程表残留已退出线程的 TLS 槽位。
+typedef struct ScoopThreadResumeU64Args {
+  void *continuation;
+  uint64_t resume_value;
+} ScoopThreadResumeU64Args;
+
+static void *scoop_thread_entry_resume_u64(void *arg) {
+  if (arg == 0) {
+    return 0;
+  }
+
+  ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
+  scoop_continuation_resume_u64(args->continuation, args->resume_value);
+
+  // 清理线程注册信息：避免 GC 的线程枚举残留无效条目。
+  scoop_thread_unregister();
+  free(args);
+
+  return 0;
+}
+
+void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_value) {
+  // 保持与其它 runtime API 一致：允许在未显式 init/register 的情况下被调用。
+  if (!scoop_rt_initialized) {
+    scoop_runtime_init();
+  }
+
+  ScoopThreadResumeU64Args *args =
+      (ScoopThreadResumeU64Args *)malloc(sizeof(ScoopThreadResumeU64Args));
+  if (args == 0) {
+    exit(3);
+  }
+  args->continuation = continuation;
+  args->resume_value = resume_value;
+
+  pthread_t t;
+  int rc = pthread_create(&t, 0, scoop_thread_entry_resume_u64, (void *)args);
+  if (rc != 0) {
+    free(args);
+    exit(3);
+  }
+
+  rc = pthread_join(t, 0);
+  if (rc != 0) {
+    exit(3);
+  }
+}
+
 // --- Tasks / spawn/join（early stage, TODO T0620） ---
 //
 // 说明：
