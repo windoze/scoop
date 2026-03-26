@@ -172,6 +172,41 @@ _Static_assert(
     "ScoopEffectPerformSlot size must be 8 + 8*MAX_WORDS bytes");
 #endif
 
+// --- effect runtime：handler stack（TODO T0913 / Appendix A） ---
+//
+// 说明：
+// - handler stack 用于表达“当前计算”的动态 effect 上下文（Appendix A：最近匹配 handler 分发）；
+// - v0 只实现：
+//   - TLS 栈：push/pop；
+//   - 最近匹配查询（按 op_tag 精确匹配）；
+//   - active 开关：用于实现“arm body 在自身 handler 的 dispatch scope 之外执行”（Appendix A.4）。
+// - handler arm 的实际执行仍由编译器 lowering/codegen 生成；runtime 只维护动态上下文。
+//
+// 关键语义（Appendix A.4）：
+// - 进入 arm body 期间，触发该 arm 的 handler instance 必须被视为 inactive；
+// - arm body 内再次 perform 同一 op，应命中外层 handler（若存在），而不是自捕获。
+typedef struct ScoopEffectHandlerFrame {
+  struct ScoopEffectHandlerFrame *prev;
+  uint32_t op_tag;
+  uint32_t active;
+} ScoopEffectHandlerFrame;
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(
+    offsetof(ScoopEffectHandlerFrame, prev) == 0,
+    "ScoopEffectHandlerFrame.prev offset must be 0");
+_Static_assert(
+    offsetof(ScoopEffectHandlerFrame, op_tag) == 8,
+    "ScoopEffectHandlerFrame.op_tag offset must be 8");
+_Static_assert(
+    offsetof(ScoopEffectHandlerFrame, active) == 12,
+    "ScoopEffectHandlerFrame.active offset must be 12");
+_Static_assert(sizeof(ScoopEffectHandlerFrame) == 16, "ScoopEffectHandlerFrame size must be 16");
+#endif
+
+// handler stack：每线程栈顶指针。
+SCOOP_THREAD_LOCAL ScoopEffectHandlerFrame *__scoop_effect_handler_stack_top = 0;
+
 // flag-based unwinding：每线程 active flag（0=inactive，1=active）。
 SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
 
@@ -225,6 +260,7 @@ void scoop_thread_unregister(void) {
 
   // effect runtime：清空 flag/slot（TODO T0906）。
   __scoop_effect_active = 0;
+  __scoop_effect_handler_stack_top = 0;
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
 }
 
@@ -294,6 +330,63 @@ uint64_t scoop_effect_perform_slot_read_u64_at(uint32_t index) {
     return 0;
   }
   return __scoop_effect_perform_slot.payload_words[index];
+}
+
+// --- effect runtime：handler stack API（TODO T0913） ---
+//
+// 说明：
+// - `frame` 预期由编译器在栈上分配，并保证 push/pop 成对；
+// - 若 push/pop 不匹配，说明 lowering/codegen 出现 bug：按运行期错误处理（exit(3)）。
+void scoop_effect_handler_stack_push(ScoopEffectHandlerFrame *frame, uint32_t op_tag) {
+  if (frame == 0) {
+    return;
+  }
+
+  // 保持与 GC/effect 其它 API 一致：允许在未显式 init/register 的情况下被调用。
+  if (!scoop_tls.registered) {
+    scoop_thread_register();
+  }
+
+  frame->prev = __scoop_effect_handler_stack_top;
+  frame->op_tag = op_tag;
+  frame->active = 1;
+  __scoop_effect_handler_stack_top = frame;
+}
+
+void scoop_effect_handler_stack_pop(ScoopEffectHandlerFrame *frame) {
+  if (frame == 0) {
+    return;
+  }
+
+  if (__scoop_effect_handler_stack_top != frame) {
+    exit(3);
+  }
+
+  __scoop_effect_handler_stack_top = frame->prev;
+  frame->prev = 0;
+  frame->active = 0;
+}
+
+void scoop_effect_handler_stack_set_active(ScoopEffectHandlerFrame *frame, uint32_t active) {
+  if (frame == 0) {
+    return;
+  }
+  frame->active = active ? 1u : 0u;
+}
+
+ScoopEffectHandlerFrame *scoop_effect_handler_stack_top(void) {
+  return __scoop_effect_handler_stack_top;
+}
+
+ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag) {
+  ScoopEffectHandlerFrame *it = __scoop_effect_handler_stack_top;
+  while (it != 0) {
+    if (it->active && it->op_tag == op_tag) {
+      return it;
+    }
+    it = it->prev;
+  }
+  return 0;
 }
 
 // --- Tasks / spawn/join（early stage, TODO T0620） ---

@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_handler_stack_nearest_and_arm_outside_scope.stdout
+//
+// T0913: effect runtime（Appendix A）回归：
+// - 嵌套 handler：最近者优先（Appendix A.3）
+// - handler arm body 在自身 dispatch scope 外执行，避免 self-capture（Appendix A.4）
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Int = try {
+        val y: Int = try {
+            println("inner_try")
+            Raise.raise(10)
+            111
+        } catch (e: Int) {
+            println("inner_catch")
+            println(e)
+            // 该 raise 必须命中外层 handler，而不是再次命中当前 catch（Appendix A.4）。
+            Raise.raise(20)
+            222
+        }
+
+        println("unreachable_after_inner")
+        y
+    } catch (e: Int) {
+        println("outer_catch")
+        println(e)
+        0
+    }
+
+    println("after_outer")
+    return x
+}
+

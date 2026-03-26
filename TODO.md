@@ -2861,11 +2861,21 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0913 [TODO] effect runtime：handler stack push/pop + 最近匹配分发规则（Appendix A）
+### T0913 [DONE] effect runtime：handler stack push/pop + 最近匹配分发规则（Appendix A）
 - 描述：实现 handler stack（TLS），并按“最近匹配 handler”分发；arm body 在 dispatch scope 外执行。
 - 目标：先只支持单层 handler；多层嵌套后续。
 - 验收：新增 run-pass fixture：嵌套 handle 时最近者优先；在 arm 内再次 perform 不会捕获到同一个 handler（按 Appendix A.4）。
 - 依赖：T0906、T0106b2
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 `ScoopEffectHandlerFrame` + TLS handler stack（push/pop/find_nearest/set_active），并在 `scoop_thread_unregister` 时清理。
+   - `crates/scoopc/src/llvm/codegen.rs`：`handle`（try/catch）与 `-> resume` lowering 期间维护 handler stack；arm body 执行期间将当前 handler 置为 inactive（Appendix A.4）。
+   - `crates/scoopc/src/llvm/codegen.rs`：入口 `main` 也插桩 GC frame push/pop，修复 run-pass `gc_mark_sweep_basic` 在 main 触发 GC 时 roots 丢失的问题。
+   - `crates/scoop_runtime/tests/effect_handler_stack.rs`：新增集成测试覆盖 handler stack push/pop、最近匹配查询与 inactive 跳过语义。
+   - `tests/fixtures/run-pass/effect_handler_stack_nearest_and_arm_outside_scope.*`：新增 run-pass fixture 回归最近匹配与 arm self-capture 避免。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0914 [TODO] continuation 对象：one-shot 状态位 + resume API（PLAN §6.3.3）
 - 描述：定义 continuation 结构：捕获 handler stack + 目标状态；实现原子 one-shot。

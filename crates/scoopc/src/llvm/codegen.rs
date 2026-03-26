@@ -501,12 +501,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: 32,
             signed: true,
         }));
+
+        // T0910：GC v0 mark-sweep 需要能够扫描入口函数的 roots（run-pass fixtures 会在 main 中触发 GC）。
+        self.setup_gc_frame(fun)?;
+
         self.env.push_scope();
 
         let exit = match fun.body.as_ref() {
             Some(body) => self.codegen_block_as_exit_code(body, fun.return_ty)?,
             None => self.context.i32_type().const_int(0, false),
         };
+
+        // main 的返回由调用点在外层插入（见 `llvm/mod.rs`），因此这里需要显式 pop gc frame。
+        if let Some(gc) = self.gc_frame.as_ref() {
+            let pop = self.declare_runtime_gc_frame_pop();
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let frame_i8 =
+                self.builder
+                    .build_pointer_cast(gc.frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
+            let _ = self
+                .builder
+                .build_call(pop, &[frame_i8.into()], "gc_frame_pop")?;
+        }
 
         self.env.pop_scope();
         Ok(exit)
@@ -1233,6 +1249,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
+        // TODO T0913：在动态层维护 handler stack（Appendix A）。
+        // 当前阶段只需要：
+        // - 进入 handle body 前 push；
+        // - 正常结束或进入 arm/catch 前 pop（arm body 在 dispatch scope 外执行，Appendix A.4）。
+        const OP_TAG_RAISE: u64 = 1;
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let handler_frame_ptr = self.create_entry_alloca_raw(
+            span,
+            "handle_effect_frame",
+            handler_frame_ty.into(),
+        )?;
+
         let outer_raise_target = self.current_raise_target();
 
         let body_bb = self.context.append_basic_block(func, "handle_body");
@@ -1252,6 +1280,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             Some(self.create_entry_alloca(span, "handle_result", out_ty)?)
         };
+
+        // 进入 handle body：push handler frame（动态上下文）。
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
+        let op_tag_i32 = self.context.i32_type().const_int(OP_TAG_RAISE, false);
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_effect_push",
+        )?;
 
         // 进入 handle：先执行 body；若发生 Raise，则通过 flag/slot unwind 到 catch_bb。
         self.builder.build_unconditional_branch(body_bb)?;
@@ -1273,12 +1314,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(ptr) = result_ptr {
                     let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
                 }
+
+                // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（与现有 lowering 一致）。
+                let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+                let frame_i8 = self
+                    .builder
+                    .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
+                let _ = self
+                    .builder
+                    .build_call(rt_pop, &[frame_i8.into()], "handle_effect_pop")?;
+
                 self.builder.build_unconditional_branch(finally_bb)?;
             }
         }
 
         // --- catch ---
         self.builder.position_at_end(catch_bb);
+
+        // 进入 handler arm：pop handler frame（Appendix A.4：arm body 在自身 handler scope 外执行）。
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_effect_pop")?;
 
         // 读取 slot（payload words）并清除 flag/slot。
         //
@@ -1697,6 +1759,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
+        // TODO T0913：在动态层维护 handler stack（Appendix A）。
+        //
+        // - handle 进入后 push handler frame；
+        // - arm body 执行期间将其标记为 inactive（Appendix A.4），避免 self-capture；
+        // - 进入 resumed computation（dispatch/state1...）前再恢复为 active；
+        // - handle 结束时 pop。
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let handler_frame_ptr = self.create_entry_alloca_raw(
+            span,
+            "handle_resume_effect_frame",
+            handler_frame_ty.into(),
+        )?;
+
         let dispatch_bb = self
             .context
             .append_basic_block(func, "handle_resume_dispatch");
@@ -1761,6 +1836,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             resume_used_ptr,
             self.context.bool_type().const_int(0, false),
         )?;
+
+        // push handler frame（动态上下文）。
+        //
+        // 说明：op_tag 目前仅对 `Raise.raise` 固化为 1；其它 op 先写 0（未来由统一的 op_tag 分配规则补齐）。
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_resume_effect_frame_i8")?;
+        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
+            self.context.i32_type().const_int(1, false)
+        } else {
+            self.context.i32_type().const_zero()
+        };
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_resume_effect_push",
+        )?;
+
         self.builder.build_unconditional_branch(dispatch_bb)?;
 
         // --- dispatch ---
@@ -1863,6 +1958,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- arm：执行 handler 片段，必须调用 `resume(value)` 跳回 dispatch ---
         self.builder.position_at_end(arm_bb);
+
+        // Appendix A.4：arm body 在自身 handler 的 dispatch scope 外执行（避免 self-capture）。
+        let rt_set_active = self.declare_runtime_effect_handler_stack_set_active();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_resume_effect_frame_i8")?;
+        let inactive = self.context.i32_type().const_zero();
+        let _ = self.builder.build_call(
+            rt_set_active,
+            &[frame_i8.into(), inactive.into()],
+            "handle_resume_effect_inactive",
+        )?;
+
         self.env.push_scope();
         for slot in &binder_slots {
             self.env.insert(
@@ -1922,6 +2031,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.emit_exit_with_code(span, 3)?;
 
         self.builder.position_at_end(resume_ok_bb);
+
+        // 恢复 handler 为 active：后续 resumed computation（dispatch/state1）应处于该 handler 的动态 scope 下。
+        let rt_set_active = self.declare_runtime_effect_handler_stack_set_active();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_resume_effect_frame_i8")?;
+        let active = self.context.i32_type().const_int(1, false);
+        let _ = self.builder.build_call(
+            rt_set_active,
+            &[frame_i8.into(), active.into()],
+            "handle_resume_effect_active",
+        )?;
+
         self.builder.build_unconditional_branch(dispatch_bb)?;
 
         self.env.pop_scope();
@@ -1996,6 +2119,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- done：读取并返回结果 ---
         self.builder.position_at_end(done_bb);
+
+        // handle 结束：pop handler frame（动态上下文）。
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_resume_effect_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_resume_effect_pop")?;
+
         self.env.pop_scope();
 
         Ok(match out_ty {
@@ -7102,6 +7236,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
+        // 说明：
+        // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；
+        // - v0 只要求 `{ prev: i8*, op_tag: i32, active: i32 }` 的稳定布局；
+        // - codegen 不直接访问字段，只负责在栈上分配并把指针传给 runtime push/pop/active API。
+        const TY_NAME: &str = "scoop.runtime.ScoopEffectHandlerFrame";
+
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        ty.set_body(&[i8_ptr_ty.into(), i32_ty.into(), i32_ty.into()], false);
+        ty
+    }
+
     fn declare_runtime_print_like(&self, name: &str) -> FunctionValue<'ctx> {
         if let Some(existing) = self.module.get_function(name) {
             return existing;
@@ -7286,6 +7438,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_effect_clear(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_handler_stack_push(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_handler_stack_push";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_handler_stack_push(ScoopEffectHandlerFrame* frame, uint32_t op_tag)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_handler_stack_pop(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_handler_stack_pop";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_handler_stack_pop(ScoopEffectHandlerFrame* frame)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_handler_stack_set_active(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_handler_stack_set_active";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_handler_stack_set_active(ScoopEffectHandlerFrame* frame, uint32_t active)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

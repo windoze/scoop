@@ -445,8 +445,8 @@
 
 ### 6.2 动态层：handler stack dispatch（Appendix A）
 
-- [ ] 运行时必须维护 **handler stack**（按“最近匹配 handler”分发）
-- [ ] arm body 在 dispatch scope 之外执行（避免 self-capture）
+- [x] 运行时必须维护 **handler stack**（按“最近匹配 handler”分发）（T0913）
+- [x] arm body 在 dispatch scope 之外执行（避免 self-capture）（T0913）
 
 ### 6.3 Codegen/Lowering：分三步落地
 
@@ -578,8 +578,9 @@
 
 ### 9.2 effect runtime（C 或编译器插桩）
 
-- [ ] TLS：handler stack 指针、perform slot、flag
-- [ ] 最小原语：push/pop handler frame、读写 perform slot、原子 one-shot continuation
+- [x] TLS：handler stack 指针、perform slot、flag（T0906/T0913）
+- [x] 最小原语：push/pop handler frame、读写 perform slot（T0613/T0913）
+- [ ] continuation one-shot + resume API（T0914）
 
 ### 9.3 与 clang 的构建集成
 

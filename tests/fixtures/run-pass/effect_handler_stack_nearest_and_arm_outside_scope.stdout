@@ -1,0 +1,6 @@
+inner_try
+inner_catch
+10
+outer_catch
+20
+after_outer
