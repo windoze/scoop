@@ -2944,11 +2944,18 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T0915b [TODO] run-pass：跨线程 resume 的端到端 fixture（spec §5.5）
+### T0915b [DONE] run-pass：跨线程 resume 的端到端 fixture（spec §5.5）
 - 描述：在 Scoop fixtures 中新增 run-pass case：在新线程 `resume` continuation（或等价语义），输出与单线程一致。
 - 目标：只做端到端回归；不引入调度器/executor；线程数先固定为 2。
 - 验收：新增 run-pass fixture；`PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T0915a、T0618、T0106b2
+ - 完成：
+   - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop`：跨线程 `resume` continuation（`__scoop_thread_spawn_join_resume_u64`）端到端 fixture。
+   - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.stdout`：stdout golden（输出与单线程恢复语义一致）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok，含该用例）。
 
 ### T0621 [TODO] generator/yield：库级实现验证（spec §5.7）
 - 描述：基于 continuation 或 effect，提供最小 `yield`/迭代器 demo（无需专用语法）。
