@@ -2984,11 +2984,21 @@
    - `cargo run -p scoop -- test` 通过；
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 可执行该用例（需要安装 LLVM 并提供 `llvm-config`）。
 
-### T0625 [TODO] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
+### T0625 [DONE] Appendix A 一致性：嵌套 handler 的语义契约与 lowering 校验
 - 描述：在 lowering/semantics 层明确并验证：嵌套 `handle` 必须遵循”最近匹配 handler”分发，且 handler arm body 在其自身 dispatch scope 外执行。
 - 目标：先只覆盖 `Raise` 与最小自定义 effect；实际 runtime 支持由 T0916 补齐。
 - 验收：effects + run-pass fixture：嵌套 handler 的最近匹配规则成立；arm 内 re-perform 不会自捕获。
 - 依赖：T0615、T0916
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：为最小自定义 non-resuming effect 补齐 `perform/handle` codegen：
+     - `perform`：写 slot（1 word payload）+ set flag，并跳转到最近匹配的 handler boundary；
+     - `handle`：catch 读取 slot 并清 flag/slot；arm body 在自身 dispatch scope 外执行（避免 self-capture），arm 内 re-perform 先经 `finally_unwind` 再向外传播。
+   - `tests/fixtures/run-pass/effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.*`：新增端到端 run-pass fixture（自定义 non-resuming effect 的三层嵌套 + arm re-perform）与 stdout golden。
+   - `tests/fixtures/run-pass/effect_handler_stack_nearest_three_levels_and_arm_outside_scope.stdout`：移除尾随空行，避免与实际 stdout 的严格比对产生误报。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok，包含新用例）。
 
 ### T0917 [TODO] runtime：`Task<T>` / executor 最小原语（spec §5.7）
 - 描述：提供支撑 `Task<T>` / `async` / `spawn` 的最小 runtime 原语：任务状态、入队/恢复、完成回调、可选显式 start。

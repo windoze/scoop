@@ -1,0 +1,64 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_custom_nonresuming_nested_nearest_and_arm_outside_scope.stdout
+//
+// T0625: Appendix A 一致性（嵌套 handler）回归：
+// - 最近匹配 handler 分发（Appendix A.3）：inner → middle → outer
+// - handler arm body 在自身 dispatch scope 外执行（Appendix A.4）：arm 内再次 perform 不会自捕获
+//
+// 说明：
+// - 该用例使用“最小自定义 non-resuming effect”（类似 `Raise.raise` 的语义形态）；
+// - inner/middle 的 handler arm 内再次 perform 同一 op，应命中外层 handler，而不是再次命中自身。
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun main(): Int {
+    val x: Int = handle {
+        println("outer_body")
+
+        val y: Int = handle {
+            println("middle_body")
+
+            val z: Int = handle {
+                println("inner_body")
+                Boom.boom(10)
+                111
+            } with {
+                Boom.boom(e: Int) -> {
+                    println("inner_catch")
+                    println(e)
+                    // Appendix A.4：此处必须命中 middle_catch，而不是再次命中 inner_catch。
+                    Boom.boom(20)
+                    222
+                }
+            }
+
+            println("unreachable_after_inner")
+            z
+        } with {
+            Boom.boom(e: Int) -> {
+                println("middle_catch")
+                println(e)
+                // Appendix A.4：此处必须命中 outer_catch，而不是再次命中 middle_catch。
+                Boom.boom(30)
+                333
+            }
+        }
+
+        println("unreachable_after_middle")
+        y
+    } with {
+        Boom.boom(e: Int) -> {
+            println("outer_catch")
+            println(e)
+            0
+        }
+    }
+
+    println("after_all")
+    return x
+}
+

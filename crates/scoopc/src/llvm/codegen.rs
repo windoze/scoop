@@ -78,6 +78,18 @@ enum CgTy {
 
 // boxing / lint 的启发式阈值（与 typecheck::layout.rs 保持一致）。
 const ENUM_BOX_DISPARITY_RATIO: u64 = 4;
+
+/// flag-based unwinding（non-resuming effect）的“捕获边界”记录。
+///
+/// 说明：
+/// - 当前阶段 `Raise.raise` 仍有独立的 `raise_target_stack`（历史原因，T0614）；
+/// - T0625 起，为最小自定义 non-resuming effect 增加同样的“最近匹配”捕获边界栈，
+///   用于在一个函数内把 `perform` 直接分发到最近的 `handle` catch block。
+#[derive(Debug, Clone)]
+struct EffectUnwindTarget<'ctx> {
+    op_fqn: String,
+    target: inkwell::basic_block::BasicBlock<'ctx>,
+}
 const ENUM_BOX_INLINE_THRESHOLD_WORDS: u64 = 16;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -249,6 +261,12 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
     /// - 若栈为空，则返回默认值继续向外传播。
     raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
+    /// 最小自定义 non-resuming effect 的“当前捕获边界”栈（T0625）。
+    ///
+    /// 语义：
+    /// - `perform` 发生时，根据 op FQN 在该栈中从内到外查找最近匹配的 catch block，并跳转；
+    /// - handle body 结束后必须 pop，保证 handler arm body 处于自身 dispatch scope 外（避免 self-capture）。
+    effect_unwind_target_stack: Vec<EffectUnwindTarget<'ctx>>,
     /// `-> resume` lowering 的上下文栈（T0616）。
     ///
     /// 说明：handle arm body 内的 `resume(value)` 需要引用该上下文，因此用栈来支持嵌套 handle。
@@ -288,6 +306,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gc_frame: None,
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
+            effect_unwind_target_stack: Vec::new(),
             immediate_resume_ctx_stack: Vec::new(),
             escape_continuation_seq: 0,
         }
@@ -303,6 +322,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn pop_raise_target(&mut self) {
         let _ = self.raise_target_stack.pop();
+    }
+
+    fn current_effect_unwind_target(
+        &self,
+        op_fqn: &str,
+    ) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
+        self.effect_unwind_target_stack
+            .iter()
+            .rev()
+            .find(|t| t.op_fqn == op_fqn)
+            .map(|t| t.target)
+    }
+
+    fn push_effect_unwind_target(
+        &mut self,
+        op_fqn: &str,
+        target: inkwell::basic_block::BasicBlock<'ctx>,
+    ) {
+        self.effect_unwind_target_stack.push(EffectUnwindTarget {
+            op_fqn: op_fqn.to_string(),
+            target,
+        });
+    }
+
+    fn pop_effect_unwind_target(&mut self) {
+        let _ = self.effect_unwind_target_stack.pop();
     }
 
     fn current_immediate_resume_ctx(&self) -> Option<ImmediateResumeCtx<'ctx>> {
@@ -1123,10 +1168,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if op.fqn != "scoop.core.Raise.raise" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect op (only Raise.raise supported)",
-                at: op.span.into(),
-            });
+            return self.codegen_perform_expr_nonresuming_custom_int(span, op, args, expected);
         }
 
         if args.len() != 1 {
@@ -1203,6 +1245,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    /// codegen 一个最小自定义 non-resuming effect `perform`（T0625）。
+    ///
+    /// 当前阶段约束：
+    /// - 仅支持 `op(arg)` 形式，且 `arg` 必须是 word-sized `Int`；
+    /// - 仅支持在同一函数内存在匹配的 `handle ... with { Effect.op(x) -> ... }` 捕获边界：
+    ///   若不存在，则直接报错（避免与现有 `Raise` 的“返回默认值向外传播”机制混淆）。
+    ///
+    /// 语义：
+    /// - 写入 runtime perform slot（1 word payload）并 set flag；
+    /// - 直接跳转到最近的匹配 catch block（最近匹配：从栈顶向外找）。
+    fn codegen_perform_expr_nonresuming_custom_int(
+        &mut self,
+        span: crate::span::Span,
+        op: &hir::EffectOpRef,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect op arity mismatch (custom non-resuming)",
+                at: span.into(),
+            });
+        }
+        let hir::CallArg::Positional(payload_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect op named arg (custom non-resuming)",
+                at: span.into(),
+            });
+        };
+
+        let payload_v = self.codegen_expr(payload_expr)?;
+        let CgTy::Int(from_ty) = payload_v.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect payload type (custom non-resuming, only Int supported)",
+                at: payload_expr.span.into(),
+            });
+        };
+        let (payload_raw, _) = payload_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "effect payload value (custom non-resuming)",
+            at: payload_expr.span.into(),
+        })?;
+
+        // v0：自定义 effect 的 op_tag 暂不分配稳定编号（runtime 仍会记录到 slot 里便于调试）。
+        let op_tag_i32 = self.context.i32_type().const_zero();
+        let from_u64 = IntTy {
+            bits: 64,
+            signed: false,
+        };
+        let payload_u64 = self.cast_int(payload_raw, from_ty, from_u64)?;
+
+        let rt_write = self.declare_runtime_effect_perform_slot_write_u64();
+        let _ = self.builder.build_call(
+            rt_write,
+            &[op_tag_i32.into(), payload_u64.into()],
+            "effect_write_slot",
+        )?;
+        let rt_set = self.declare_runtime_effect_set_active();
+        let _ = self.builder.build_call(rt_set, &[], "effect_set_active")?;
+
+        let Some(target) = self.current_effect_unwind_target(&op.fqn) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect op without handle boundary (custom non-resuming)",
+                at: span.into(),
+            });
+        };
+        self.builder.build_unconditional_branch(target)?;
+
+        // 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let dead = self.context.append_basic_block(func, "after_effect_dead");
+        self.builder.position_at_end(dead);
+
+        Ok(match expected {
+            Some(ty) => self.default_value(ty),
+            None => CgValue::unit(),
+        })
+    }
+
     /// codegen 一个 `handle { ... } with { Raise.raise(e) -> ... }`（`try/catch` 的 lowering 产物）。
     ///
     /// 当前阶段（T0614）约束：
@@ -1243,10 +1375,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
         if arm.op.op.fqn != "scoop.core.Raise.raise" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle op (only Raise.raise supported)",
-                at: arm.op.op.span.into(),
-            });
+            return self.codegen_handle_expr_nonresuming_custom_int_payload(span, handle, arm, out_ty);
         }
         if arm.op.binders.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1678,6 +1807,310 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })
             }
+        }
+    }
+
+    /// codegen 一个最小自定义 non-resuming effect 的 `handle`（T0625）。
+    ///
+    /// 当前阶段约束：
+    /// - 仅支持单 arm；
+    /// - binder 仅支持 1 个且类型为 `Int`；
+    /// - payload ABI：`perform` 往 slot 写 1 个 word（u64），catch 读取并清 flag/slot。
+    ///
+    /// 关键语义（Appendix A.4）：
+    /// - handler arm body 在自身 dispatch scope 外执行：因此 arm codegen 期间不在
+    ///   `effect_unwind_target_stack` 中保留 `catch_bb` 入口；
+    /// - 但为了确保 `finally` 语义（若有）仍然成立，arm body 内若再次 perform 同一 op，
+    ///   会先跳到 `finally_unwind_bb` 执行 finally，再向外层 handler 传播。
+    fn codegen_handle_expr_nonresuming_custom_int_payload(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        arm: &hir::HandleArm,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if arm.op.binders.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle binder count (custom non-resuming, only 1 supported)",
+                at: arm.op.span.into(),
+            });
+        }
+        let binder = &arm.op.binders[0];
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        // v0：自定义 effect 的 op_tag 暂用 0（与现有 resume/escape 代码保持一致）。
+        let op_tag_i32 = self.context.i32_type().const_zero();
+
+        let outer_target = self.current_effect_unwind_target(&arm.op.op.fqn);
+
+        let body_bb = self.context.append_basic_block(func, "handle_custom_body");
+        let catch_bb = self.context.append_basic_block(func, "handle_custom_catch");
+
+        // `finally` 语义：保证在“正常路径 / catch 返回 / catch 继续 perform 向外传播”三种情况下都执行一次。
+        let finally_bb = self.context.append_basic_block(func, "handle_custom_finally");
+        let finally_unwind_bb = self
+            .context
+            .append_basic_block(func, "handle_custom_finally_unwind");
+        let merge_bb = self.context.append_basic_block(func, "handle_custom_merge");
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_custom_result", out_ty)?)
+        };
+
+        // handler frame（动态上下文）。
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let handler_frame_ptr =
+            self.create_entry_alloca_raw(span, "handle_custom_effect_frame", handler_frame_ty.into())?;
+
+        // 进入 handle body：push handler frame（动态上下文）。
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_custom_frame_i8")?;
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_custom_effect_push",
+        )?;
+
+        // 进入 handle：先执行 body；若发生 perform，则跳到 catch_bb。
+        self.builder.build_unconditional_branch(body_bb)?;
+
+        // --- body ---
+        self.builder.position_at_end(body_bb);
+        self.push_effect_unwind_target(&arm.op.op.fqn, catch_bb);
+        let body_v = self.codegen_block_value(&handle.body)?;
+        self.pop_effect_unwind_target();
+
+        let body_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(handle.body.span, body_v, out_ty)?
+        };
+
+        // body 正常结束：进入 finally（并保存结果值）。
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
+                }
+
+                // body 正常结束：pop handler frame，使 finally 处于 handler scope 之外（Appendix A.4）。
+                let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+                let frame_i8 = self
+                    .builder
+                    .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_custom_frame_i8")?;
+                let _ = self
+                    .builder
+                    .build_call(rt_pop, &[frame_i8.into()], "handle_custom_effect_pop")?;
+
+                self.builder.build_unconditional_branch(finally_bb)?;
+            }
+        }
+
+        // --- catch ---
+        self.builder.position_at_end(catch_bb);
+
+        // 进入 handler arm：pop handler frame（Appendix A.4：arm body 在自身 handler scope 外执行）。
+        let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_custom_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(rt_pop, &[frame_i8.into()], "handle_custom_effect_pop")?;
+
+        // 读取 slot（1 word payload）并清除 flag/slot。
+        let rt_len = self.declare_runtime_effect_perform_slot_read_len_words();
+        let call = self
+            .builder
+            .build_call(rt_len, &[], "custom_read_slot_len_words")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_len_words return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(len_words_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_len_words return type",
+                at: span.into(),
+            });
+        };
+
+        let expected_len = self.context.i32_type().const_int(1, false);
+        let len_ok = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            len_words_i32,
+            expected_len,
+            "custom_slot_len_ok",
+        )?;
+        let len_ok_bb = self.context.append_basic_block(func, "custom_slot_len_ok_bb");
+        let len_bad_bb = self.context.append_basic_block(func, "custom_slot_len_bad_bb");
+        self.builder
+            .build_conditional_branch(len_ok, len_ok_bb, len_bad_bb)?;
+
+        self.builder.position_at_end(len_bad_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        self.builder.position_at_end(len_ok_bb);
+
+        let rt_read = self.declare_runtime_effect_perform_slot_read_u64();
+        let value_call = self
+            .builder
+            .build_call(rt_read, &[], "custom_read_slot_word0")?;
+        let value_raw = value_call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_word0 return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(value_u64) = value_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "effect slot_read_word0 return type",
+                at: span.into(),
+            });
+        };
+
+        let rt_clear = self.declare_runtime_effect_clear();
+        let _ = self.builder.build_call(rt_clear, &[], "custom_clear")?;
+
+        // binder scope：arm body 在 handler scope 之外执行（因此不 push effect_unwind_target_stack 的 catch_bb）。
+        self.env.push_scope();
+
+        let binder_cg_ty = self
+            .cg_ty_of(binder.ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle binder type (custom non-resuming)",
+                at: binder.span.into(),
+            })?;
+        let CgTy::Int(int_ty) = binder_cg_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle binder type (custom non-resuming, only Int supported)",
+                at: binder.span.into(),
+            });
+        };
+
+        let from_u64 = IntTy {
+            bits: 64,
+            signed: false,
+        };
+        let decoded = self.cast_int(value_u64, from_u64, int_ty)?;
+        let binder_value = CgValue::int(decoded, int_ty);
+
+        let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
+        let stored = self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
+        let gc_root_slot = self.gc_root_slot_for(binder.id);
+        if let Some(slot_ptr) = gc_root_slot {
+            self.store_gc_root_slot_value(binder.span, slot_ptr, stored)?;
+        }
+        self.env.insert(
+            binder.id,
+            CgLocal {
+                ty: binder_cg_ty,
+                ptr: binder_ptr,
+                mutable: false,
+                gc_root_slot,
+            },
+        );
+
+        // catch body 若再次发生 perform：先执行 finally，再向外传播（不在本 handler 内消费 slot）。
+        self.push_effect_unwind_target(&arm.op.op.fqn, finally_unwind_bb);
+        let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+        self.pop_effect_unwind_target();
+        let arm_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(arm.body.span, arm_v, out_ty)?
+        };
+
+        let catch_end =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let catch_reaches_merge = catch_end.get_terminator().is_none();
+        if catch_reaches_merge {
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+            }
+            self.builder.build_unconditional_branch(finally_bb)?;
+        }
+        self.env.pop_scope();
+
+        // --- finally_unwind ---
+        self.builder.position_at_end(finally_unwind_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                if let Some(target) = outer_target {
+                    self.builder.build_unconditional_branch(target)?;
+                } else {
+                    // 当前阶段：自定义 effect 在程序边界的处理策略尚未固定；先按运行期错误处理。
+                    self.emit_exit_with_code(span, 3)?;
+                }
+            }
+        }
+
+        // --- finally ---
+        self.builder.position_at_end(finally_bb);
+        if let Some(finally) = handle.finally.as_ref() {
+            let _ = self.codegen_block_value(finally)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(merge_bb)?;
+            }
+        }
+
+        // --- merge ---
+        self.builder.position_at_end(merge_bb);
+
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
+                        at: span.into(),
+                    });
+                };
+
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, ptr, "handle_custom_result")?;
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle result type",
+                at: span.into(),
+            }),
         }
     }
 

@@ -1,6 +1,6 @@
-outer_try
-middle_try
-inner_try
+outer_body
+middle_body
+inner_body
 inner_catch
 10
 middle_catch
