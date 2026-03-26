@@ -253,6 +253,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///
     /// 说明：handle arm body 内的 `resume(value)` 需要引用该上下文，因此用栈来支持嵌套 handle。
     immediate_resume_ctx_stack: Vec<ImmediateResumeCtx<'ctx>>,
+    /// `, k ->`（escape continuation，T0617）在单个函数内生成 step trampoline 时使用的序号。
+    escape_continuation_seq: u32,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -287,6 +289,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
             immediate_resume_ctx_stack: Vec::new(),
+            escape_continuation_seq: 0,
         }
     }
 
@@ -685,6 +688,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             out.push(binder.id);
                         }
                     }
+                    // `, k ->`：continuation binder 本身也是引用类型（Continuation 是 class）。
+                    if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind {
+                        if seen.insert(continuation) {
+                            out.push(continuation);
+                        }
+                    }
                     self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
                 }
                 if let Some(finally) = handle.finally.as_ref() {
@@ -865,7 +874,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let rhs_v = self.codegen_expr(rhs)?;
+        let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
         let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
         if let Some(slot_ptr) = local.gc_root_slot {
             self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
@@ -1220,6 +1229,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let arm = &handle.arms[0];
         if let hir::HandleArmKind::ImmediateResume { resume } = arm.kind {
             return self.codegen_handle_expr_immediate_resume(span, handle, arm, resume, out_ty);
+        }
+        if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind {
+            let seq = self.escape_continuation_seq;
+            self.escape_continuation_seq = self.escape_continuation_seq.saturating_add(1);
+            return self.codegen_handle_expr_escape_continuation(
+                span,
+                handle,
+                arm,
+                continuation,
+                seq,
+                out_ty,
+            );
         }
         if arm.op.op.fqn != "scoop.core.Raise.raise" {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2157,6 +2178,520 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    fn codegen_handle_expr_escape_continuation(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        arm: &hir::HandleArm,
+        continuation_symbol: hir::SymbolId,
+        seq: u32,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T0617：`Effect.op(...), k -> { ... }`
+        //
+        // 当前阶段（最小可回归落点）：
+        // - 仅支持单个 arm（在外层已校验）；
+        // - handle body 仅支持“单个 perform 点”，且要求为 block 的第一个语句；
+        // - heap state machine 先只承载 handler frame，并用 step trampoline 执行 perform 之后的剩余语句；
+        // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
+        if handle.finally.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle finally (escape continuation)",
+                at: span.into(),
+            });
+        }
+
+        // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform` 且位于 block 首语句）。
+        let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
+            None;
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            match &stmt.kind {
+                hir::StmtKind::Val(decl) => {
+                    let Some(init) = decl.init.as_ref() else {
+                        continue;
+                    };
+                    if let hir::ExprKind::Perform { op, args } = &init.kind {
+                        if perform_site.is_some() {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle escape body (multiple perform points)",
+                                at: init.span.into(),
+                            });
+                        }
+                        perform_site = Some((idx, decl, op, args.as_slice()));
+                    }
+                }
+                hir::StmtKind::Expr(expr) => {
+                    if matches!(expr.kind, hir::ExprKind::Perform { .. }) {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape body (perform must be bound to val)",
+                            at: expr.span.into(),
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let Some((perform_idx, perform_decl, perform_op, perform_args)) = perform_site else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape body (missing perform)",
+                at: span.into(),
+            });
+        };
+        if perform_idx != 0 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape body (perform must be first statement)",
+                at: handle.body.span.into(),
+            });
+        }
+        if perform_op.fqn != arm.op.op.fqn {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape op mismatch",
+                at: perform_op.span.into(),
+            });
+        }
+        if arm.op.binders.len() != perform_args.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape binder arity mismatch",
+                at: arm.op.span.into(),
+            });
+        }
+
+        let Some(perform_id) = perform_decl.id else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape perform binding id",
+                at: perform_decl.span.into(),
+            });
+        };
+
+        let resume_value_ty =
+            self.cg_ty_of(perform_decl.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape perform value type",
+                    at: perform_decl.span.into(),
+                })?;
+
+        // 2) 生成 step trampoline：`void step(void* state, uint64_t resume_value)`
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let func_name = func
+            .get_name()
+            .to_str()
+            .unwrap_or("anonymous")
+            .to_string();
+        let func_name = sanitize_llvm_ident(&func_name);
+
+        let state_ty_name = format!("scoop.runtime.ContState__{func_name}_{seq}");
+        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+            existing
+        } else {
+            let ty = self.context.opaque_struct_type(&state_ty_name);
+            let header_ty = self.llvm_gc_object_header_type();
+            let frame_ty = self.llvm_effect_handler_frame_type();
+            ty.set_body(&[header_ty.into(), frame_ty.into()], false);
+            ty
+        };
+
+        let step_name = format!("__scoop_cont_step__{func_name}_{seq}");
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let step_fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[i8_ptr_ty.into(), i64_ty.into()], false);
+        let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
+        step_fn.set_linkage(Linkage::Internal);
+
+        // 保存外层插入点：step 生成会重定位 builder。
+        let saved_block = insert_block;
+
+        // 生成 step 函数体：执行 perform 之后的剩余语句（state 参数当前阶段仅用于 keep-alive handler frame）。
+        {
+            let mut cg = MainCodegen::new(
+                self.context,
+                self.module,
+                self.builder,
+                self.host,
+                self.source,
+                self.types,
+                self.struct_layouts,
+                self.enum_layouts,
+                self.object_inits,
+                self.fun_index,
+            );
+
+            let entry = self.context.append_basic_block(step_fn, "entry");
+            cg.builder.position_at_end(entry);
+
+            // step 为内部 trampoline：返回类型固定为 Unit。
+            cg.current_fun_return_ty = Some(CgTy::Unit);
+
+            cg.env.push_scope();
+
+            // v0：只支持把 resume_value 当作一个 word-sized payload 写回到 perform binding。
+            let resume_word = step_fn
+                .get_nth_param(1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "continuation step resume param",
+                    at: span.into(),
+                })?
+                .into_int_value();
+
+            let local_name = perform_decl.name.as_deref().unwrap_or("resume_value");
+            let target_ptr = cg.create_entry_alloca(span, local_name, resume_value_ty)?;
+
+            let resume_value = match resume_value_ty {
+                CgTy::Unit => CgValue::unit(),
+                CgTy::Bool => {
+                    let zero = i64_ty.const_int(0, false);
+                    let b = cg.builder.build_int_compare(
+                        IntPredicate::NE,
+                        resume_word,
+                        zero,
+                        "resume_bool",
+                    )?;
+                    CgValue::bool(b)
+                }
+                CgTy::Int(int_ty) => {
+                    let to = cg.int_type(int_ty);
+                    let v = if int_ty.bits == 64 {
+                        resume_word
+                    } else {
+                        cg.builder.build_int_truncate(resume_word, to, "resume_int")?
+                    };
+                    CgValue::int(v, int_ty)
+                }
+                CgTy::String => {
+                    let ptr_ty = cg.llvm_scoop_string_ptr_type();
+                    let ptr = cg.builder.build_int_to_ptr(resume_word, ptr_ty, "resume_str")?;
+                    CgValue {
+                        ty: CgTy::String,
+                        value: Some(ptr.into()),
+                    }
+                }
+                CgTy::Ref => {
+                    let ptr_ty = cg.context.i8_type().ptr_type(AddressSpace::default());
+                    let ptr = cg.builder.build_int_to_ptr(resume_word, ptr_ty, "resume_ref")?;
+                    CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(ptr.into()),
+                    }
+                }
+                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "continuation resume payload type",
+                        at: perform_decl.span.into(),
+                    });
+                }
+            };
+
+            let stored = cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
+            let gc_root_slot = cg.gc_root_slot_for(perform_id);
+            if let Some(slot_ptr) = gc_root_slot {
+                cg.store_gc_root_slot_value(span, slot_ptr, stored)?;
+            }
+            cg.env.insert(
+                perform_id,
+                CgLocal {
+                    ty: resume_value_ty,
+                    ptr: target_ptr,
+                    mutable: false,
+                    gc_root_slot,
+                },
+            );
+
+            // 执行 perform 之后的剩余语句。
+            let mut _value: CgValue<'ctx> = CgValue::unit();
+            for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+                if idx <= perform_idx {
+                    continue;
+                }
+                match &stmt.kind {
+                    hir::StmtKind::Empty => {}
+                    hir::StmtKind::Val(decl) => {
+                        cg.codegen_val_decl(decl)?;
+                        _value = CgValue::unit();
+                    }
+                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                        _value = CgValue::unit();
+                    }
+                    hir::StmtKind::Expr(expr) => {
+                        let _ = cg.codegen_expr(expr)?;
+                        _value = CgValue::unit();
+                    }
+                    hir::StmtKind::Return { .. } => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "`return` inside continuation step",
+                            at: stmt.span.into(),
+                        });
+                    }
+                    hir::StmtKind::While { .. }
+                    | hir::StmtKind::Break { .. }
+                    | hir::StmtKind::Continue { .. }
+                    | hir::StmtKind::Todo(_) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "statement inside continuation step",
+                            at: stmt.span.into(),
+                        });
+                    }
+                }
+            }
+
+            cg.env.pop_scope();
+            cg.builder.build_return(None)?;
+        }
+
+        // 恢复外层插入点。
+        self.builder.position_at_end(saved_block);
+
+        // 3) 生成 handle 的初始执行：push handler frame → 在 perform 点创建 continuation → 执行 arm → 返回。
+        let body_bb = self
+            .context
+            .append_basic_block(func, "handle_escape_body");
+        let arm_bb = self.context.append_basic_block(func, "handle_escape_arm");
+        let done_bb = self.context.append_basic_block(func, "handle_escape_done");
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_escape_result", out_ty)?)
+        };
+
+        // binder slots：在 perform 点写入，在 arm body 中读取。
+        struct BinderSlot<'ctx> {
+            id: hir::SymbolId,
+            ty: CgTy,
+            ptr: PointerValue<'ctx>,
+            gc_root_slot: Option<PointerValue<'ctx>>,
+        }
+        let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
+        for binder in &arm.op.binders {
+            let binder_ty =
+                self.cg_ty_of(binder.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle escape binder type",
+                        at: binder.span.into(),
+                    })?;
+            let ptr = self.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
+            binder_slots.push(BinderSlot {
+                id: binder.id,
+                ty: binder_ty,
+                ptr,
+                gc_root_slot: self.gc_root_slot_for(binder.id),
+            });
+        }
+
+        // continuation binder local：在 perform 点写入，在 arm body 中读取。
+        let cont_ptr =
+            self.create_entry_alloca(span, &format!("handle_escape_k_{seq}"), CgTy::Ref)?;
+        let cont_root_slot = self.gc_root_slot_for(continuation_symbol);
+
+        self.builder.build_unconditional_branch(body_bb)?;
+
+        // --- body ---
+        self.builder.position_at_end(body_bb);
+        self.env.push_scope();
+
+        // heap state：`{ header, handler_frame }`
+        let target = self.target_layout();
+        let header_size = 2 * target.pointer_size + 16;
+        let header_align = target.pointer_align.max(8).max(1);
+        let frame_size = target.pointer_size + 8;
+        let frame_align = target.pointer_align.max(4).max(1);
+        let payload_offset = align_to(header_size, frame_align);
+        let obj_align = header_align.max(frame_align);
+        let total_size = align_to(payload_offset.saturating_add(frame_size), obj_align);
+
+        let rt_alloc = self.declare_runtime_alloc();
+        let size_v = i64_ty.const_int(total_size as u64, false);
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_cont_state")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(state_raw) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+        let state_ptr = self
+            .builder
+            .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
+        let frame_ptr = self
+            .builder
+            .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
+
+        // push handler frame（动态上下文）。
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let frame_i8 = self
+            .builder
+            .build_bit_cast(frame_ptr, i8_ptr_ty, "handle_escape_frame_i8")?;
+        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
+            self.context.i32_type().const_int(1, false)
+        } else {
+            self.context.i32_type().const_zero()
+        };
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_escape_effect_push",
+        )?;
+
+        // --- perform site：计算 args → 写 binder slots → 创建 continuation ---
+        for (slot, arg) in binder_slots.iter().zip(perform_args.iter()) {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape named perform arg",
+                    at: span.into(),
+                });
+            };
+            let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+            let stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+            if let Some(slot_ptr) = slot.gc_root_slot {
+                self.store_gc_root_slot_value(expr.span, slot_ptr, stored)?;
+            }
+        }
+
+        let rt_cont_alloc = self.declare_runtime_continuation_alloc();
+        let step_ptr = step_fn.as_global_value().as_pointer_value();
+        let call = self.builder.build_call(
+            rt_cont_alloc,
+            &[state_raw.into(), step_ptr.into()],
+            "cont_alloc",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "continuation alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(k_raw) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "continuation alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let stored = self.store_local_value(
+            span,
+            cont_ptr,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(k_raw.into()),
+            },
+        )?;
+        if let Some(slot_ptr) = cont_root_slot {
+            self.store_gc_root_slot_value(span, slot_ptr, stored)?;
+        }
+
+        // 将 handler frame 从当前线程的 handler stack 顶部“摘除”（不清理 frame 字段），以便：
+        // - handler arm body 在 dispatch scope 外执行（Appendix A.4）
+        // - continuation 捕获的 handler stack（frame->prev 链）保持完整（spec §5.5）
+        let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let prev_ptr =
+            self.builder
+                .build_struct_gep(handler_frame_ty, frame_ptr, 0, "handle_escape_prev_gep")?;
+        let prev_raw = self
+            .builder
+            .build_load(i8_ptr_ty, prev_ptr, "handle_escape_prev")?;
+        let rt_swap = self.declare_runtime_effect_handler_stack_swap_top();
+        let _ = self.builder.build_call(
+            rt_swap,
+            &[prev_raw.into()],
+            "handle_escape_detach",
+        )?;
+
+        // body locals 不应在 arm scope 可见：提前 pop。
+        self.env.pop_scope();
+
+        self.builder.build_unconditional_branch(arm_bb)?;
+
+        // --- arm ---
+        self.builder.position_at_end(arm_bb);
+        self.env.push_scope();
+        for slot in &binder_slots {
+            self.env.insert(
+                slot.id,
+                CgLocal {
+                    ty: slot.ty,
+                    ptr: slot.ptr,
+                    mutable: false,
+                    gc_root_slot: slot.gc_root_slot,
+                },
+            );
+        }
+        self.env.insert(
+            continuation_symbol,
+            CgLocal {
+                ty: CgTy::Ref,
+                ptr: cont_ptr,
+                mutable: false,
+                gc_root_slot: cont_root_slot,
+            },
+        );
+
+        let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+        let arm_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(arm.body.span, arm_v, out_ty)?
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+        }
+
+        self.env.pop_scope();
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // --- done ---
+        self.builder.position_at_end(done_bb);
+
+        Ok(match out_ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle escape result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, ptr, "handle_escape_result")?;
+                CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle escape result type",
+                at: span.into(),
+            })?,
+        })
+    }
+
     fn codegen_call(
         &mut self,
         span: crate::span::Span,
@@ -2329,6 +2864,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - `trimIndent` 在语言层面是 `String` 的 `const fun`（spec §8.4）；
         // - 编译期折叠由 TODO T1216 负责；此处只负责运行期 fallback：调用 runtime 实现。
         if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            // spec §5.5：`k.resume(value)`（escape continuation）。
+            if member.name == "resume" {
+                return self.codegen_continuation_resume_call(span, receiver, args);
+            }
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
@@ -2443,6 +2982,112 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(ty) => self.default_value(ty),
             None => CgValue::unit(),
         })
+    }
+
+    fn codegen_continuation_resume_call(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // spec §5.5：`k.resume(value)`。
+        //
+        // 约束（early stage）：
+        // - 仅支持一个位置实参；
+        // - `value` 会被编码为一个 `u64` word 传给 runtime（T0914：`scoop_continuation_resume_u64`）。
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(value_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume named arg",
+                at: span.into(),
+            });
+        };
+
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+        let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
+        let Some(recv_raw) = recv.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(k_ptr) = recv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Continuation.resume receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        let value = self.codegen_expr(value_expr)?;
+        let word = self.coerce_u64_word(value_expr.span, value)?;
+
+        let rt_resume = self.declare_runtime_continuation_resume_u64();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let k_i8 = self
+            .builder
+            .build_pointer_cast(k_ptr, i8_ptr_ty, "cont_k_i8")?;
+        let _ = self
+            .builder
+            .build_call(rt_resume, &[k_i8.into(), word.into()], "cont_resume")?;
+
+        Ok(CgValue::unit())
+    }
+
+    fn coerce_u64_word(
+        &mut self,
+        at: crate::span::Span,
+        value: CgValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        // 将一个可表示为 “word-sized u64 payload” 的值转换为 `i64`（在 ABI 层作为 `uint64_t` 使用）。
+        //
+        // 注意：这里不引入额外的 tag/布局；更复杂的 payload 由 TODO T0630 扩展。
+        let i64_ty = self.context.i64_type();
+        match value.ty {
+            CgTy::Unit => Ok(i64_ty.const_int(0, false)),
+            CgTy::Bool => {
+                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "u64 word from bool",
+                    at: at.into(),
+                })?;
+                Ok(self.builder.build_int_z_extend(b, i64_ty, "bool_to_u64")?)
+            }
+            CgTy::Int(_) => {
+                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "u64 word from int",
+                    at: at.into(),
+                })?;
+                let to = IntTy {
+                    bits: 64,
+                    signed: false,
+                };
+                Ok(self.cast_int(raw, from, to)?)
+            }
+            CgTy::String | CgTy::Ref => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "u64 word from pointer value",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "u64 word from pointer type",
+                        at: at.into(),
+                    });
+                };
+                Ok(self.builder.build_ptr_to_int(ptr, i64_ty, "ptr_to_u64")?)
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "u64 word from composite value",
+                at: at.into(),
+            }),
+        }
     }
 
     fn codegen_string_trim_indent(
@@ -7478,6 +8123,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_handler_stack_swap_top(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_handler_stack_swap_top";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_effect_handler_stack_swap_top(void* new_top)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_continuation_alloc(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_continuation_alloc";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void* state, uint64_t value))`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let step_fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[i8_ptr_ty.into(), i64_ty.into()], false)
+            .ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), step_fn_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_continuation_resume_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_continuation_resume_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_continuation_resume_u64(void* k, uint64_t resume_value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }

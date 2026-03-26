@@ -464,9 +464,9 @@
    - [x] `resume(value)` 必须恰好一次（v0：运行期 one-shot 断言，违规 `exit(3)`）
 
 3) **逃逸 continuation `, k ->`（堆 state machine + continuation 对象）**
-   - [ ] continuation 捕获 handler stack（fiber-local 语义）
+   - [x] continuation 捕获 handler stack（fiber-local 语义）
    - [ ] 支持跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（见 spec §5.5）
-   - [ ] one-shot：原子状态位保证并发下只能成功一次
+   - [x] one-shot：原子状态位保证并发下只能成功一次
 
 - [x] use-site effect row 实参：`Type<eff Row>` 的类型检查（默认值 + 显式实参，纳入 nominal type identity；T0511）
 - [ ] use-site effect row 实参：由上下文/lambda body 反推的 row 实参推断（高阶约束与求解留待 T0515+）

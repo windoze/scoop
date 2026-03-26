@@ -2329,6 +2329,17 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(
+            source,
+            lhs,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
         ast::ExprKind::Binary {
             lhs,
             op,
@@ -2690,6 +2701,150 @@ fn infer_block_value_type(
     Ok(tail_expr_ty.unwrap_or(builtins.unit))
 }
 
+/// 推导赋值表达式 `lhs = rhs` 的类型。
+///
+/// 说明：
+/// - AST 中赋值以 `ExprKind::Assign` 承载，但在 HIR 中会降为 `StmtKind::Assign`；
+/// - 在 `infer_expr_type` 这条“表达式语境”的入口里，我们缺少 `stable/mutable bindings`
+///   信息（它只在 `check_expr_stmt` 的 statement 语境中维护），因此这里先实现最小可回归规则：
+///   - lhs 仅允许标识符或成员访问；
+///   - rhs 必须可赋给 lhs 的类型（复用 `is_type_assignable`）；
+///   - 赋值表达式的结果类型为 `Unit`；
+/// - 对“必须是 `var`”的可写性约束，当前阶段仅在 statement 语境（`check_assign_expr_stmt`）
+///   中强制；等 `infer_expr_type` 也携带 stable/mutable 后再统一收敛。
+fn infer_assign_expr_type(
+    source: &SourceFile,
+    lhs: &ast::Expr,
+    rhs: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let expected_ty = match &lhs.kind {
+        ast::ExprKind::Ident(id) => {
+            let Some(resolved) = id.resolved.as_ref() else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "assignment lhs（unresolved ident）",
+                    span: id.span.into(),
+                });
+            };
+
+            match resolved {
+                ast::ResolvedValueRef::Local { name, decl_span } => locals
+                    .get(decl_span)
+                    .copied()
+                    .ok_or_else(|| ExprTypeError::UnknownLocalValueType {
+                        name: name.clone(),
+                        span: id.span.into(),
+                    })?,
+                ast::ResolvedValueRef::TopLevel { .. } => {
+                    // 与 statement 语境保持一致：当前阶段先不支持顶层赋值。
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "assignment lhs（top-level value）",
+                        span: id.span.into(),
+                    });
+                }
+            }
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            // 先递归 typecheck receiver：保证 `a().b = rhs` 能覆盖 `a()`。
+            //
+            // 例外：`TypeName.member` 经 companion object 解析时，receiver 不是值表达式；
+            // resolver 会保留 receiver ident 为未解析，此处跳过 receiver typecheck。
+            let receiver_is_type_name =
+                matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
+            if !receiver_is_type_name {
+                let _ = infer_expr_type(
+                    source,
+                    receiver,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+
+            let Some(resolved) = member.resolved.as_ref() else {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: "assignment lhs（member 未 resolve）",
+                    span: member.span.into(),
+                });
+            };
+
+            let fqn = match resolved {
+                ast::ResolvedMemberRef::Value { fqn } => fqn,
+                ast::ResolvedMemberRef::Fun { fqn }
+                | ast::ResolvedMemberRef::ExtensionValue { fqn }
+                | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+                    return Err(ExprTypeError::UnsupportedMemberAccess {
+                        fqn: fqn.clone(),
+                        span: member.span.into(),
+                    });
+                }
+            };
+
+            // 注意：这里不做 member 可写性检查（缺少 member_mutabilities 表）。
+            // 若 fqn 不是字段/属性（例如 enum unit variant 值），这里会报 unsupported。
+            struct_field_types.get(fqn).copied().ok_or_else(|| {
+                ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                }
+            })?
+        }
+        _ => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "assignment lhs（仅支持标识符或成员访问）",
+                span: lhs.span.into(),
+            });
+        }
+    };
+
+    // 递归 typecheck rhs：保证 `x = f()` 这类表达式也会覆盖 rhs 中的表达式。
+    let expected_from = match &lhs.kind {
+        ast::ExprKind::Ident(id) => {
+            ExpectedTypeFrom::new(format!("赋值目标 `{}` 的类型", source.slice(id.span)))
+        }
+        ast::ExprKind::MemberAccess { member, .. } => ExpectedTypeFrom::new(format!(
+            "赋值目标 `{}` 的字段类型",
+            source.slice(member.span)
+        )),
+        _ => ExpectedTypeFrom::new("赋值目标的类型"),
+    };
+    let found_ty = infer_expr_type_in_expected_context(
+        source,
+        rhs,
+        expected_ty,
+        expected_from,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
+        if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins)
+        {
+            return Ok(builtins.unit);
+        }
+        return Err(ExprTypeError::AssignmentTypeMismatch {
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: rhs.span.into(),
+        });
+    }
+
+    Ok(builtins.unit)
+}
+
 /// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606）。
 ///
 /// 当前阶段目标（与 TODO T0606 对齐）：
@@ -2986,10 +3141,19 @@ fn infer_handle_expr_type(
             ast::HandleArmKind::ImmediateResume { .. }
         )
     });
-    if has_non_resuming && has_immediate_resume {
+    let has_escape_continuation = arms.iter().any(|a| {
+        matches!(
+            a.kind,
+            ast::HandleArmKind::EscapeContinuation { .. }
+        )
+    });
+
+    if (has_non_resuming && has_immediate_resume)
+        || (has_escape_continuation && (has_non_resuming || has_immediate_resume))
+    {
         // 早期阶段先拒绝“同一个 handle 中混用 `->` 与 `-> resume`”，避免把结果类型/控制流语义搞混。
         return Err(ExprTypeError::UnsupportedExpr {
-            kind: "handle（暂不支持混用 `->` 与 `-> resume` arms）",
+            kind: "handle（暂不支持混用 `->` / `-> resume` / `, k ->` arms）",
             span: handle_expr.span.into(),
         });
     }
@@ -3082,6 +3246,74 @@ fn infer_handle_expr_type(
                     top_level_funs,
                     struct_field_types,
                 )?;
+            }
+            ast::HandleArmKind::EscapeContinuation { k_span } => {
+                // `, k ->`：注入 continuation binder 的类型 `Continuation<T>`（T 为 op 返回类型）。
+                //
+                // 说明：
+                // - 当前阶段 continuation 的 effect row 参数仍使用 sysroot 默认值（`Pure`）；
+                // - `k.resume(value)` 的 required-effects 传播在 `Continuation.resume` 的内建规则中处理（spec §5.5）。
+                let cont_ty = lower.lower_type_fqn_with_args(
+                    "scoop.core.Continuation".to_string(),
+                    vec![lowered.op_return_ty],
+                    arm.span,
+                )?;
+                arm_locals.insert(k_span, cont_ty);
+
+                // arm body 的类型必须与 handle 的结果类型一致（与 non-resuming 等价：perform 时 handle 立即返回 arm 值）。
+                let arm_body_ty = match result_ty {
+                    Some(expected) => {
+                        let found = infer_expr_type_in_expected_context(
+                            source,
+                            &arm.body,
+                            expected,
+                            ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
+                            lower,
+                            builtins,
+                            &arm_locals,
+                            top_level_types,
+                            top_level_funs,
+                            struct_field_types,
+                        )?;
+                        if !is_type_assignable(found, expected, lower, builtins) {
+                            return Err(ExprTypeError::HandleArmReturnTypeMismatch {
+                                expected: lower.fmt_type(expected),
+                                found: lower.fmt_type(found),
+                                span: arm.body.span.into(),
+                            });
+                        }
+                        found
+                    }
+                    None => {
+                        let found = infer_expr_type(
+                            source,
+                            &arm.body,
+                            lower,
+                            builtins,
+                            &arm_locals,
+                            top_level_types,
+                            top_level_funs,
+                            struct_field_types,
+                        )?;
+                        result_ty = Some(found);
+                        found
+                    }
+                };
+
+                // 若 body 为 Nothing 且 result_ty 刚刚由该 arm 决定，后续 arms 仍需做一致性校验。
+                if let Some(expected) = result_ty {
+                    if expected == arm_body_ty {
+                        continue;
+                    }
+                    if is_type_assignable(arm_body_ty, expected, lower, builtins) {
+                        continue;
+                    }
+                    return Err(ExprTypeError::HandleArmReturnTypeMismatch {
+                        expected: lower.fmt_type(expected),
+                        found: lower.fmt_type(arm_body_ty),
+                        span: arm.body.span.into(),
+                    });
+                }
             }
             ast::HandleArmKind::NonResuming => {
                 // arm body 的类型必须与 handle 的结果类型一致（try/catch 等价语义）。

@@ -631,7 +631,7 @@ impl<'a> Parser<'a> {
     /// - 支持 non-resuming arm：`Effect.op(binders...) -> body`；
     /// - 支持 immediate-resume arm：`Effect.op(binders...) -> resume { ... }`（T0616）；
     /// - 语法错误在 arm 级别做恢复：尽量跳到下一个 arm 起始继续解析；
-    /// - `, k ->` 暂不支持（会报错，但尽量不级联）。
+    /// - 支持 escape continuation arm：`Effect.op(binders...), k -> body`（T0617）。
     fn parse_handle_expr(&mut self) -> Result<ast::Expr, ParseError> {
         let handle_kw = self.expect_keyword(Keyword::Handle)?;
         let start = handle_kw.span.start;
@@ -802,6 +802,22 @@ impl<'a> Parser<'a> {
 
     fn parse_handle_arm(&mut self) -> Result<ast::HandleArm, ParseError> {
         let op = self.parse_handle_op()?;
+
+        // spec §5.4：`Effect.op(...), k -> { ... }`（escape continuation）。
+        if self.eat_symbol(Symbol::Comma) {
+            let k_tok = self.expect_kind(TokenKind::Ident, "continuation binder（标识符）")?;
+            let arrow = self.expect_symbol(Symbol::Arrow)?;
+            let body = self.parse_control_body_expr("表达式（handler arm body）")?;
+
+            return Ok(ast::HandleArm {
+                span: Span::new(op.span.start, body.span.end),
+                op,
+                arrow_span: arrow.span,
+                kind: ast::HandleArmKind::EscapeContinuation { k_span: k_tok.span },
+                body,
+            });
+        }
+
         let arrow = self.expect_symbol(Symbol::Arrow)?;
 
         // spec §5.4：`-> resume { ... }`（immediate-resume）。

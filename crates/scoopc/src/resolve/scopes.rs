@@ -688,6 +688,10 @@ impl<'a> BlockScopeChecker<'a> {
                     if let ast::HandleArmKind::ImmediateResume { resume_span } = arm.kind {
                         self.declare_ident(&ast::Ident::new(resume_span))?;
                     }
+                    // spec §5.4：`, k ->` arm 里 `k` 是显式 continuation binder（作为局部值）。
+                    if let ast::HandleArmKind::EscapeContinuation { k_span } = arm.kind {
+                        self.declare_ident(&ast::Ident::new(k_span))?;
+                    }
                     self.check_expr(&mut arm.body)?;
                     self.pop_scope();
                 }

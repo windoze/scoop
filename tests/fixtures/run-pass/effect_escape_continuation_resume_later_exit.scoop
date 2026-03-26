@@ -1,0 +1,42 @@
+// EXPECT: pass
+// EXPECT-EXIT: 3
+// RUN-STDOUT: effect_escape_continuation_resume_later_exit.stdout
+//
+// 目标：T0617 `, k ->`（escape continuation）：
+// - handler arm 保存 continuation；
+// - 稍后调用 `k.resume(value)` 恢复并继续执行；
+// - 重复 resume 为运行期错误（exit(3)）。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    // 注意：当前阶段 `None` 作为“裸标识符值”尚不可用；用 `None()` 走 enum variant ctor 路径。
+    var saved: Continuation<Int>? = None()
+
+    // 说明：handle body 在 perform 处暂停；arm 把 k 存起来并返回。
+    //
+    // 注意：当前 LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val ignore: Unit = ...` 的形式提供。
+    val ignore: Unit = handle {
+        val x: Int = Yield.next()
+        println(x)
+    } with {
+        Yield.next(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after handle")
+
+    when (saved) {
+        Some(k) -> {
+            k.resume(42)
+            println("after resume")
+            k.resume(43)
+        }
+        None -> println("missing")
+    }
+}

@@ -2906,11 +2906,28 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0617 [TODO] lowering step 3：`, k ->`（堆 continuation + one-shot）（PLAN §6.3.3）
+### T0617 [DONE] lowering step 3：`, k ->`（堆 continuation + one-shot）（PLAN §6.3.3）
 - 描述：实现 continuation 对象捕获 handler stack，支持跨线程 `resume`，并用原子状态位保证 one-shot。
 - 目标：先只支持单线程 resume；跨线程作为后续子任务。
 - 验收：新增 run-pass fixture：保存 continuation 后稍后 resume；重复 resume 失败（错误/诊断明确）。
 - 依赖：T0616、T0914
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：`handle` arm 语法新增 `, k ->`（escape continuation）节点。
+   - `crates/scoopc/src/parser/expr.rs`：支持解析 `Effect.op(...), k -> body` 形式的 handler arm。
+   - `crates/scoopc/src/resolve/scopes.rs`：在 `, k ->` arm body 作用域内注入局部标识符 `k`。
+   - `crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/hir/lower.rs`：lowering 到 HIR `HandleArmKind::EscapeContinuation`。
+   - `crates/scoopc/src/typecheck/expr.rs`：为 `, k ->` arm 注入 `k: Continuation<T>`；并补齐赋值表达式在表达式语境下的 typecheck（用于 arm body）。
+   - `crates/scoopc/src/llvm/codegen.rs`：最小可回归的 escape continuation codegen：
+     - `handle` arm 支持 `EscapeContinuation`；
+     - `k.resume(value)` lowering 到 `scoop_continuation_resume_u64`；
+     - arm body 执行前将 handler 从 TLS 栈顶摘除，避免 arm 自捕获（Appendix A.4）。
+   - `tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`：新增端到端 fixture：
+     - 保存 continuation 后稍后 `resume(42)`，并打印恢复后的值；
+     - 第二次 `resume` 触发 one-shot 运行期错误（固定 `exit(3)`）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T0618 [TODO] 跨线程 `resume`：恢复 captured handler stack 到当前线程 TLS（spec §5.5）
 - 描述：实现跨线程 resume 的语义与 runtime 支持（TLS handler stack 切换）。

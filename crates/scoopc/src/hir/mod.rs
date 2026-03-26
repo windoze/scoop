@@ -580,8 +580,14 @@ impl fmt::Debug for HandleArm {
         let mut s = f.debug_struct("HandleArm");
         s.field("span", &self.span);
         s.field("op", &self.op);
-        if let HandleArmKind::ImmediateResume { resume } = self.kind {
-            s.field("resume", &resume);
+        match self.kind {
+            HandleArmKind::ImmediateResume { resume } => {
+                s.field("resume", &resume);
+            }
+            HandleArmKind::EscapeContinuation { continuation } => {
+                s.field("continuation", &continuation);
+            }
+            HandleArmKind::NonResuming => {}
         }
         s.field("body", &self.body);
         s.finish()
@@ -598,6 +604,10 @@ pub enum HandleArmKind {
     /// `resume(value)` 是一个隐式注入的局部符号：其 `SymbolId` 存在于本字段中，
     /// 供后续 lowering/codegen 识别并生成 state machine 跳转。
     ImmediateResume { resume: SymbolId },
+    /// `, k ->`：逃逸 continuation arm（T0617）。
+    ///
+    /// `k.resume(value)` 会在后续 lowering/codegen 中生成对 runtime continuation 的调用。
+    EscapeContinuation { continuation: SymbolId },
 }
 
 /// handler arm head 中的 effect operation：`Effect.op(binders...)`（HIR 视图）。

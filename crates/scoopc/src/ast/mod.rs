@@ -1021,7 +1021,7 @@ pub enum ExprKind {
     /// 说明：
     /// - 支持 non-resuming arm：`Effect.op(args) -> body`；
     /// - 支持 immediate-resume arm：`Effect.op(args) -> resume { ... }`（T0616）；
-    /// - `, k ->`（escape continuation）语法形态留到后续任务补齐；
+    /// - 支持 escape continuation arm：`Effect.op(args), k -> body`（T0617）；
     /// - `finally { ... }` 目前仅做语法建模（完整语义见 spec §5.7 / 后续 lowering）。
     Handle {
         body: Block,
@@ -1220,6 +1220,13 @@ pub enum HandleArmKind {
         /// `resume` 标识符本身在源码中的 span（用于 resolver/typecheck 注入 `resume` 符号）。
         resume_span: Span,
     },
+    /// `, k ->`：逃逸 continuation arm；`k` 是显式 continuation binder。
+    ///
+    /// 说明：当前阶段仅做语法建模；continuation 的运行期语义由 lowering/codegen（T0617+）落地。
+    EscapeContinuation {
+        /// continuation binder（例如 `k`）在源码中的 span（用于 resolver/typecheck 注入 `k` 符号）。
+        k_span: Span,
+    },
 }
 
 impl std::fmt::Debug for HandleArm {
@@ -1233,6 +1240,9 @@ impl std::fmt::Debug for HandleArm {
         s.field("arrow_span", &self.arrow_span);
         if let HandleArmKind::ImmediateResume { resume_span } = self.kind {
             s.field("resume_span", &resume_span);
+        }
+        if let HandleArmKind::EscapeContinuation { k_span } = self.kind {
+            s.field("k_span", &k_span);
         }
         s.field("body", &self.body);
         s.finish()

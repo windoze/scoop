@@ -1163,6 +1163,9 @@ impl<'a> HirLowering<'a> {
             ast::HandleArmKind::ImmediateResume { resume_span } => HandleArmKind::ImmediateResume {
                 resume: self.intern_local_symbol(resume_span, false),
             },
+            ast::HandleArmKind::EscapeContinuation { k_span } => HandleArmKind::EscapeContinuation {
+                continuation: self.intern_local_symbol(k_span, false),
+            },
         };
         HandleArm {
             span: arm.span,
