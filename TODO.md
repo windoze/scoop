@@ -2693,11 +2693,24 @@
    - `cargo run -p scoop -- test` 通过；
    - （可选，需 LLVM）`PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 
-### T0622 [TODO] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
+### T0622 [DONE] `Task<T>`：类型/库模型与 lazy 语义（spec §5.3 / §5.7）
 - 描述：在 sysroot/type system 中引入 `Task<T>` 的最小模型，固定“懒执行直到 `await` 或显式启动”的语义，并为 `spawn/async` 共享同一任务抽象。
 - 目标：先只固定类型面与基础语义；取消/结构化并发细节后续。
 - 验收：effects/typecheck fixture：`val t: Task<Int> = ...` 合法；`await` 仅接受 `Task<T>`；未启动任务不要求立即执行。
 - 依赖：T0611、T0820
+ - 完成：
+   - `sysroot/core.scoop`：新增 `Task<T>` 声明；把 `Async.await` 升级为 `fun <T> await(task: Task<T>): T`；调整 sysroot task helper 的签名为 `Task<Int>` 句柄。
+   - `crates/scoopc/src/typecheck/lower.rs`：把 `Task` 纳入 implicit builtin type FQN 映射（允许写 `Task<Int>`）。
+   - `crates/scoopc/src/typecheck/expr.rs`：`spawn` 返回 `Task<Int>`；`await/join` 仅接受 `Task<T>` 并返回 `T`，同时维持 `Async` required-effects 传播规则。
+   - `crates/scoopc/src/hir/lower.rs`：`async { ... }` 的 handler arm 将 `await task` 同步 `join` 取回 `Int` 结果后再 `resume`（避免把 task 句柄透传为结果）。
+   - `crates/scoopc/src/llvm/codegen.rs`：把 `Task<T>` 视为 word-sized `UInt` 句柄类型，并在 sysroot task intrinsics 上按 `uint64_t handle` 做有符号/无符号转换。
+   - fixtures：
+     - `tests/fixtures/typecheck/entry_point_main_spawn_join_async_ok.scoop`：升级为 `Task<Int>` + `await` 覆盖。
+     - `tests/fixtures/typecheck/await_arg_not_task_is_error.scoop`：新增 compile-fail 覆盖 `await 1` 报错。
+     - `tests/fixtures/run-pass/async_await_minimal_int_basic.scoop`、`tests/fixtures/run-pass/spawn_join_int_basic.scoop`：升级为 `Task<Int>` 句柄，保持可运行回归。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T0623 [TODO] `async fun`：desugar 到 `fun ...: Task<T>`（spec §5.3 / §5.7）
 - 描述：实现 `async fun foo(): T` 的签名与 lowering 规则：对外暴露 `Task<T>`，而不是 `T / Async`；`/ Async` 只存在于 Task 的计算上下文。

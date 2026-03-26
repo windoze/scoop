@@ -1,5 +1,6 @@
 // EXPECT: pass
-// 目标：T0620：`spawn/join` 在 `async { ... }` 语境内不应使 entry point 泄露 `Async` required effects。
+// 目标：T0622：`spawn/join/await` 在 `async { ... }` 语境内不应使 entry point 泄露 `Async` required effects，
+//      且 `spawn` 的返回值/`await` 的参数应为 `Task<T>`。
 
 package fixtures.typecheck
 
@@ -7,13 +8,14 @@ import scoop.core.*
 
 fun main(): Int {
     val x: Int = async {
-        val t: Int = spawn { 1 }
-        val y: Int = join t
-        y
+        val t1: Task<Int> = spawn { 1 }
+        val t2: Task<Int> = spawn { 2 }
+        val a: Int = join t1
+        val b: Int = await t2
+        a + b
     }
 
     // 仅用于确保 `x` 在外层可作为普通 `Int` 使用。
     println(x)
     return 0
 }
-

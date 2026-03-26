@@ -41,6 +41,7 @@ use super::when_pat;
 use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
 
 const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
+const TASK_FQN: &str = "scoop.core.Task";
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
@@ -2466,17 +2467,35 @@ fn infer_spawn_expr_type(
     )?;
     lower.record_performed_effect(async_effect, spawn_expr.span);
 
-    // 当前阶段（T0620）spawn 的返回类型先落到 `Int` 句柄，供 join 取回结果；
-    // 后续任务会把它替换为 `Task<T>` 并接入 executor/runtime。
-    Ok(expected_ty)
+    // T0622：为 `spawn/await` 引入 `Task<T>` 的最小类型模型：
+    // - 当前阶段仍只支持 `T = Int` 的可执行落点；
+    // - `Task<T>` 的运行期语义（lazy/executor/取消）由后续 runtime 任务补齐（T0917）。
+    Ok(lower.lower_type_fqn_with_args(
+        TASK_FQN.to_string(),
+        vec![expected_ty],
+        spawn_expr.span,
+    )?)
+}
+
+fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
+    match lower.type_kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            if n.fqn == TASK_FQN && n.args.len() == 1 {
+                Some(n.args[0])
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 }
 
 /// 推导 `await expr` 的类型，并把 `Async` 计入 required effects。
 ///
-/// 当前阶段（T0619）最小规则：
-/// - 先只支持 `await` 一个 `Int` 值（作为最小可执行 demo 的落点）；
+/// 当前阶段（T0622）最小规则：
+/// - `await` 只接受 `Task<T>`，并返回 `T`；
 /// - `await` 视为一次 `Async` effect 的 perform 点；
-/// - 更完整的 `Task<T>` / generic `await<T>` 语义留给后续任务（T0622/T0623）。
+/// - 运行期的 executor/跨线程 resume 语义留给后续任务（T0917+）。
 fn infer_await_expr_type(
     source: &SourceFile,
     await_expr: &ast::Expr,
@@ -2499,16 +2518,20 @@ fn infer_await_expr_type(
         struct_field_types,
     )?;
 
-    let expected_ty = builtins.int;
-    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+    let Some(result_ty) = task_inner_type(found_ty, lower) else {
+        let expected_task = lower.lower_type_fqn_with_args(
+            TASK_FQN.to_string(),
+            vec![builtins.any],
+            await_expr.span,
+        )?;
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: "await".to_string(),
             index: 1,
-            expected: lower.fmt_type(expected_ty),
+            expected: lower.fmt_type(expected_task),
             found: lower.fmt_type(found_ty),
             span: inner.span.into(),
         });
-    }
+    };
 
     let async_effect = lower.lower_type_fqn_with_args(
         ASYNC_EFFECT_FQN.to_string(),
@@ -2516,14 +2539,14 @@ fn infer_await_expr_type(
         await_expr.span,
     )?;
     lower.record_performed_effect(async_effect, await_expr.span);
-    Ok(expected_ty)
+    Ok(result_ty)
 }
 
 /// 推导 `join expr` 的类型，并把 `Async` 计入 required effects（T0620）。
 ///
 /// 当前阶段（最小可回归落点）：
-/// - `join` 仅支持等待一个 `Int` 句柄，并返回 `Int`；
-/// - `join` 视为一次 `Async` performed effect（与后续 `Task<T>` + `await` 方向保持一致）。
+/// - `join` 仅支持等待一个 `Task<T>` 并返回 `T`（当前最小可执行落点仍是 `T = Int`）；
+/// - `join` 视为一次 `Async` performed effect（与 `await` 保持一致）。
 fn infer_join_expr_type(
     source: &SourceFile,
     _join_expr: &ast::Expr,
@@ -2547,16 +2570,20 @@ fn infer_join_expr_type(
         struct_field_types,
     )?;
 
-    let expected_ty = builtins.int;
-    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+    let Some(result_ty) = task_inner_type(found_ty, lower) else {
+        let expected_task = lower.lower_type_fqn_with_args(
+            TASK_FQN.to_string(),
+            vec![builtins.any],
+            join_span,
+        )?;
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: "join".to_string(),
             index: 1,
-            expected: lower.fmt_type(expected_ty),
+            expected: lower.fmt_type(expected_task),
             found: lower.fmt_type(found_ty),
             span: inner.span.into(),
         });
-    }
+    };
 
     let async_effect = lower.lower_type_fqn_with_args(
         ASYNC_EFFECT_FQN.to_string(),
@@ -2565,8 +2592,7 @@ fn infer_join_expr_type(
     )?;
     lower.record_performed_effect(async_effect, join_span);
 
-    // 当前阶段（T0620）join 的返回类型先固定为 `Int`。
-    Ok(expected_ty)
+    Ok(result_ty)
 }
 
 /// 推导 `block` 作为表达式时的结果类型。

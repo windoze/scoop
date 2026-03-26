@@ -1812,6 +1812,7 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
         "UInt" | "scoop.core.UInt" => Some("scoop.core.UInt"),
         "Option" | "scoop.core.Option" => Some("scoop.core.Option"),
         "Continuation" | "scoop.core.Continuation" => Some("scoop.core.Continuation"),
+        "Task" | "scoop.core.Task" => Some("scoop.core.Task"),
         _ => None,
     }
 }

@@ -33,6 +33,7 @@
 - 2026-03-25：完成 T0828：LLVM codegen 支持 `object` / `companion object` 的单线程 once 初始化（module-local guard）与静态属性访问；新增 run-pass fixture 覆盖 once 初始化与 `ClassName.member`。
 - 2026-03-26：完成 T0615：LLVM codegen 补齐 try/catch/finally 的 `finally` 清理语义（正常路径与 raise/unwind 路径都执行一次），并新增 run-pass fixture 覆盖输出顺序。
 - 2026-03-26：完成 T0620：新增 `spawn/join` 结构化并发最小模型（`Int` 句柄 + runtime helper），并补齐 typecheck/run-pass fixtures 与 runtime 测试覆盖。
+- 2026-03-26：完成 T0622：引入 `Task<T>` 的最小类型/库模型：sysroot 增加 `Task`，`Async.await` 改为 `Task<T> -> T`；typecheck 侧把 `spawn` 返回值与 `await/join` 参数切到 `Task<T>`；HIR/codegen 侧把 `Task` 暂落到 word-sized 句柄并保持 run-pass 可回归。
 - 2026-03-23：完成 T0624：use-site `Type<eff Row>` 的默认化/实例化接入 typecheck，并让名义类型的 `eff` row 参数参与 subeffecting；补齐从 `Type<eff E>` 实参类型推断 `E` 与 required effects 联动的 fixtures 覆盖。
 - 2026-03-23：完成 T0626：parser/AST 支持闭合 effect row `E!` 语法（`!` 低于 `+`，作用于整个 row），并新增 parse fixtures 覆盖。
 - 2026-03-23：完成 T0627：typecheck 侧为 entry point 补齐闭合 row `Pure!` 的门禁与诊断（显式写 open `/ Pure` 会提示改为 `Pure!`），并新增 `Pure!` + try/catch / unhandled Raise fixtures 覆盖。

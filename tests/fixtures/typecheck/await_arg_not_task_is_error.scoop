@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_type_mismatch
+// EXPECT-ERROR: await
+// EXPECT-ERROR-AT: 13:28
+// 目标：T0622：`await` 仅接受 `Task<T>`，对非 Task 参数应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Int {
+    val x: Int = async {
+        val y: Int = await 1
+        y
+    }
+
+    println(x)
+    return 0
+}

@@ -554,8 +554,8 @@ impl<'a> HirLowering<'a> {
                 //
                 // 当前阶段（最小可回归落点）：
                 // - 直接 lower 为一个 `handle` 表达式（immediate-resume arm），拦截 `Async.await`；
-                // - handler 的语义为“同步 pass-through”：`await x` 立即恢复并返回 `x`；
-                // - 更完整的 executor/Task 模型留给后续任务（T0622/T0917）。
+                // - handler 的语义为“同步 join”：`await task` 会调用 runtime helper 取回 `Int` 结果并立即恢复；
+                // - 更完整的 executor/跨线程 resume 语义留给后续任务（T0917）。
 
                 let body = self.lower_block(pkg_prefix, body);
 
@@ -586,7 +586,8 @@ impl<'a> HirLowering<'a> {
                     span: binder_decl_span,
                     id: binder_id,
                     name: binder_name.clone(),
-                    ty: self.builtins.int,
+                    // NOTE: 当前阶段 Task 运行期表示为 word-sized handle；这里用 `UInt` 承载它。
+                    ty: self.builtins.uint,
                 };
 
                 let op = HandleOp {
@@ -617,15 +618,35 @@ impl<'a> HirLowering<'a> {
                 };
                 let binder_arg = Expr {
                     span: binder_decl_span,
-                    ty: self.builtins.int,
+                    ty: self.builtins.uint,
                     kind: ExprKind::VarRef(binder_ref),
                 };
+
+                // `await task` 的最小可执行语义：调用 sysroot task helper 取回结果（目前只支持 `Int`）。
+                let join_fqn = Self::TASK_JOIN_INT_FQN.to_string();
+                let join_callee = Expr {
+                    span: binder_decl_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(join_fqn.clone()),
+                        fqn: join_fqn,
+                    }),
+                };
+                let join_call = Expr {
+                    span: binder_decl_span,
+                    ty: self.builtins.int,
+                    kind: ExprKind::Call {
+                        callee: Box::new(join_callee),
+                        args: vec![CallArg::Positional(binder_arg)],
+                    },
+                };
+
                 let arm_body = Expr {
                     span: e.span,
                     ty: self.builtins.unit,
                     kind: ExprKind::Call {
                         callee: Box::new(resume_callee),
-                        args: vec![CallArg::Positional(binder_arg)],
+                        args: vec![CallArg::Positional(join_call)],
                     },
                 };
 
@@ -648,7 +669,7 @@ impl<'a> HirLowering<'a> {
                 //
                 // 当前阶段（最小可回归落点）：
                 // - `spawn` 的 body 先按普通 block 表达式执行并产出一个 `Int` 值；
-                // - 该值通过 runtime helper 包装为一个 `Int` 句柄（后续可替换为 `Task<T>`）。
+                // - 该值通过 runtime helper 包装为一个 task handle（后续可替换为更完整的 `Task<T>` 模型）。
                 //
                 // NOTE: 这里刻意不使用 lambda/closure，以避免依赖 closure codegen（尚未接入）。
 
@@ -674,7 +695,8 @@ impl<'a> HirLowering<'a> {
                         callee: Box::new(callee),
                         args: vec![CallArg::Positional(body_expr)],
                     },
-                    self.builtins.int,
+                    // task handle：用 word-sized `UInt` 表示。
+                    self.builtins.uint,
                 )
             }
             ast::ExprKind::Await { await_span, expr } => {

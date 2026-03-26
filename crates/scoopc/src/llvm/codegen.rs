@@ -2069,9 +2069,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let word = IntTy {
+        let value_word = IntTy {
             bits: self.host.word_bit_width(),
             signed: true,
+        };
+        let handle_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
         };
 
         match fqn {
@@ -2283,8 +2287,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 // `spawn { ... }` 当前阶段只支持 `Int`；typecheck 已保证类型，但这里仍做一次显式期望。
-                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(word)))?;
-                let v = self.coerce_value(expr.span, v, CgTy::Int(word))?;
+                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(value_word)))?;
+                let v = self.coerce_value(expr.span, v, CgTy::Int(value_word))?;
                 let (raw_int, from) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "task spawn arg value",
                     at: expr.span.into(),
@@ -2318,15 +2322,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let handle_word = self.cast_int(
+                let handle_word_val = self.cast_int(
                     handle_u64,
                     IntTy {
                         bits: 64,
                         signed: false,
                     },
-                    word,
+                    handle_word,
                 )?;
-                Ok(CgValue::int(handle_word, word))
+                Ok(CgValue::int(handle_word_val, handle_word))
             }
             "scoop.core.__scoop_task_join_int" => {
                 if args.len() != 1 {
@@ -2343,8 +2347,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(word)))?;
-                let v = self.coerce_value(expr.span, v, CgTy::Int(word))?;
+                let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::Int(handle_word)))?;
+                let v = self.coerce_value(expr.span, v, CgTy::Int(handle_word))?;
                 let (raw_handle, from) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "task join arg value",
                     at: expr.span.into(),
@@ -2378,15 +2382,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
-                let value_word = self.cast_int(
+                let value_word_val = self.cast_int(
                     value_i64,
                     IntTy {
                         bits: 64,
                         signed: true,
                     },
-                    word,
+                    value_word,
                 )?;
-                Ok(CgValue::int(value_word, word))
+                Ok(CgValue::int(value_word_val, value_word))
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown sysroot task intrinsic callee",
@@ -6251,6 +6255,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
+            // T0622：`Task<T>` 在早期阶段先落到 “word-sized handle”（runtime 用 `uint64_t` 承载）。
+            // 为保持 run-pass/codegen 可回归，这里把它视为 `UInt` 风格的整数句柄类型。
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.Task" => {
+                Some(CgTy::Int(IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: false,
+                }))
+            }
             TypeKind::Ref(_) => Some(CgTy::Ref),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),

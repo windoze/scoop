@@ -5,14 +5,15 @@
 //
 // 目标覆盖（当前阶段最小可回归语义）：
 // - `async { ... }` 捕获 `await` 产生的 `Async` required effects，使 `main` 仍满足 entry-point 纯度规则；
-// - `await expr` 在 async body 内会形成一个 perform 点，并由 async handler 立即恢复（同步 pass-through）。
+// - T0622：`await` 的参数应为 `Task<T>`，并在 async handler 内同步 `join` 取回结果后恢复。
 
 import scoop.core.*
 
 fun main(): Int {
     val result: Int = async {
         println("before")
-        val x: Int = await 41
+        val t: Task<Int> = spawn { 41 }
+        val x: Int = await t
         println("after")
         println(x)
         x + 1
@@ -22,4 +23,3 @@ fun main(): Int {
     println(result)
     return 0
 }
-
