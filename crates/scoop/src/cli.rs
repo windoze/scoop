@@ -48,7 +48,7 @@ pub enum Command {
 
     /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
     Build {
-        /// 输入源文件路径
+        /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
         /// 输出文件路径
         #[arg(short, long)]
@@ -69,7 +69,7 @@ pub enum Command {
 
     /// 运行程序（先 build 后 exec；需要启用 `--features llvm`）
     Run {
-        /// 输入源文件路径
+        /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
     },
 }

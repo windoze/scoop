@@ -10,6 +10,20 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
+#[derive(Debug)]
+struct BuildInput {
+    /// 当前编译单元的全部源文件（单文件模式为 1 个；cone 包为 `src/**/*.scoop`）。
+    sources: Vec<scoopc::source::SourceFile>,
+    /// 可执行入口（`main.scoop`）在 `sources` 中的下标。
+    main_index: usize,
+}
+
+impl BuildInput {
+    fn main_source(&self) -> &scoopc::source::SourceFile {
+        &self.sources[self.main_index]
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuildEmit {
     /// 产出可执行文件（默认）。
@@ -55,26 +69,28 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         return Err(miette::miette!("输出路径是目录：{}", output.display()));
     }
 
-    let source = scoopc::source::SourceFile::load(&input)?;
     let session = scoopc::session::Session::new()?;
 
-    run_frontend(&session, &source)?;
+    let input = load_build_input(&input)?;
+    run_frontend(&session, &input.sources)?;
+    // 非 llvm 构建下，codegen 分支会被编译掉；这里显式访问一次 main 以避免 dead_code 警告，
+    // 同时也作为“加载逻辑能稳定定位入口”的最小一致性校验。
+    let _ = input.main_source();
 
     match options.emit {
         BuildEmit::Executable => {
             // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
             #[cfg(feature = "llvm")]
-            run_codegen_and_link(&session, &source, &output)?;
+            run_codegen_and_link(&session, input.main_source(), &output)?;
         }
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
             {
-                scoopc::llvm::emit_minimal_main_ir_to_file(&session, &source, &output)?;
+                scoopc::llvm::emit_minimal_main_ir_to_file(&session, input.main_source(), &output)?;
             }
             #[cfg(not(feature = "llvm"))]
             {
                 let _ = &session;
-                let _ = &source;
                 let _ = &output;
                 return Err(miette::miette!(
                     "`--emit-llvm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-llvm <file> -o <out.ll>`"
@@ -84,12 +100,11 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Obj => {
             #[cfg(feature = "llvm")]
             {
-                scoopc::llvm::emit_minimal_main_obj_to_file(&session, &source, &output)?;
+                scoopc::llvm::emit_minimal_main_obj_to_file(&session, input.main_source(), &output)?;
             }
             #[cfg(not(feature = "llvm"))]
             {
                 let _ = &session;
-                let _ = &source;
                 let _ = &output;
                 return Err(miette::miette!(
                     "`--emit-obj` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-obj <file> -o <out.o>`"
@@ -99,12 +114,11 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Asm => {
             #[cfg(feature = "llvm")]
             {
-                scoopc::llvm::emit_minimal_main_asm_to_file(&session, &source, &output)?;
+                scoopc::llvm::emit_minimal_main_asm_to_file(&session, input.main_source(), &output)?;
             }
             #[cfg(not(feature = "llvm"))]
             {
                 let _ = &session;
-                let _ = &source;
                 let _ = &output;
                 return Err(miette::miette!(
                     "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-asm <file> -o <out.s>`"
@@ -116,101 +130,175 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     Ok(())
 }
 
-fn run_frontend(session: &scoopc::session::Session, source: &scoopc::source::SourceFile) -> Result<()> {
-    let mut ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
+fn load_build_input(input: &Path) -> Result<BuildInput> {
+    // 单文件模式：保持 `scoop build <file.scoop>` 的原有行为。
+    if input.is_file() {
+        return Ok(BuildInput {
+            sources: vec![scoopc::source::SourceFile::load(input)?],
+            main_index: 0,
+        });
+    }
+
+    // cone 包模式：`scoop build <cone-root>`（按 T1102 规则定位 `src/main.scoop`）。
+    if input.is_dir() {
+        let pkg = scoopc::cone::load_cone_source_package(input)?;
+        let mut sources = Vec::with_capacity(pkg.sources.len());
+        let mut main_index = None;
+        for (idx, path) in pkg.sources.iter().enumerate() {
+            let source = scoopc::source::SourceFile::load(path)?;
+            if source.path() == pkg.main.as_path() {
+                main_index = Some(idx);
+            }
+            sources.push(source);
+        }
+
+        let main_index = main_index.ok_or_else(|| {
+            miette::miette!(
+                "cone package 的 main 未出现在 sources 列表中：{}",
+                pkg.main.display()
+            )
+        })?;
+
+        return Ok(BuildInput { sources, main_index });
+    }
+
+    Err(miette::miette!(
+        "输入既不是文件也不是目录：{}",
+        input.display()
+    ))
+}
+
+fn run_frontend(session: &scoopc::session::Session, sources: &[scoopc::source::SourceFile]) -> Result<()> {
+    if sources.is_empty() {
+        return Err(miette::miette!("内部错误：build 输入 sources 为空"));
+    }
+
+    // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
+    let mut asts = Vec::with_capacity(sources.len());
+    for source in sources {
+        let ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
+        asts.push(ast);
+    }
 
     // 先运行不依赖 resolver/index 的 typecheck 预检查（与 fixtures/typecheck pipeline 对齐）。
-    scoopc::typecheck::check_file_headers(source, &ast).map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_struct_decls(source, &ast).map_err(miette::Report::from)?;
-
-    let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
-        pairs.push((&f.source, &f.ast));
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        scoopc::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
     }
-    pairs.push((source, &ast));
 
-    let index = scoopc::resolve::Index::build(&pairs).map_err(miette::Report::from)?;
+    // 构建 Index：sysroot 作为 cone 0；当前被 build 的 cone 作为 cone 1。
+    let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
+    for f in &session.sysroot().files {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: scoopc::resolve::ConeId::new(0),
+            source: &f.source,
+            file: &f.ast,
+        });
+    }
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: scoopc::resolve::ConeId::new(1),
+            source,
+            file: ast,
+        });
+    }
 
-    let headers = scoopc::resolve::check_file_headers(source, &ast, &index).map_err(miette::Report::from)?;
-    scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(miette::Report::from)?;
+    let index = scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
 
+    // resolver phase：headers + bodies（逐文件运行，但共享同一个 index）。
+    let mut headers = Vec::with_capacity(sources.len());
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        let h = scoopc::resolve::check_file_headers(source, ast, &index).map_err(miette::Report::from)?;
+        headers.push(h);
+    }
+    for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
+        scoopc::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
+    }
+
+    // type env：sysroot + 当前 cone 全部文件（用于跨文件 TypeRef lowering）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::from)?;
-    env.extend_from_file(source, &ast, &index)
-        .map_err(miette::Report::from)?;
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::from)?;
+    }
 
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
-    scoopc::typecheck::check_file_annotations(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(miette::Report::from)?;
+    // typecheck phase：逐文件执行（共享 env/index/types）。
+    for ((source, ast), h) in sources.iter().zip(asts.iter()).zip(headers.iter()) {
+        scoopc::typecheck::check_file_annotations(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_properties(source, ast, &index, &env).map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_interfaces(source, &ast, &index, &env).map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_override_effects(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_override_effects(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_type_refs(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_type_refs(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_where_clauses(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_where_clauses(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_overload_conflicts(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_overload_conflicts(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_exprs(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .map_err(miette::Report::from)?;
+        scoopc::typecheck::check_file_exprs(
+            source,
+            ast,
+            &index,
+            &h.imports,
+            &env,
+            &mut types,
+            builtins,
+        )
+        .map_err(miette::Report::from)?;
+    }
 
+    // 对整个编译单元中出现过的类型做一次 layout/metadata 计算（与 fixtures/typecheck_multi 对齐）。
     scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
         .map_err(miette::Report::from)?;
 
@@ -287,6 +375,30 @@ mod tests {
 
         super::run(input, Some(out), super::BuildOptions::default()).unwrap();
         assert!(dir.path().join("nested").is_dir());
+    }
+
+    #[test]
+    fn build_accepts_cone_package_dir_and_finds_main() {
+        let dir = tempdir().unwrap();
+        let pkg = dir.path().join("pkg");
+        let src = pkg.join("src");
+        std::fs::create_dir_all(&src).unwrap();
+
+        std::fs::write(
+            pkg.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-pkg"
+version = "0.0.0"
+"#,
+        )
+        .unwrap();
+
+        std::fs::write(src.join("main.scoop"), "fun main() {}\n").unwrap();
+        std::fs::write(src.join("util.scoop"), "fun helper() {}\n").unwrap();
+
+        let out = dir.path().join("out").join("a");
+        super::run(pkg, Some(out), super::BuildOptions::default()).unwrap();
     }
 
     #[cfg(all(feature = "llvm", not(windows)))]

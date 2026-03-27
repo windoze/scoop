@@ -3348,11 +3348,18 @@
 - 验收：新增单测：解析最小 Cone.toml；新增 fixture：带 `Cone.toml` 的 package 目录可被发现。
 - 依赖：T0002
 
-### T1102 [TODO] 包加载：按 Cone 目录结构发现源文件（spec §13.2）
+### T1102 [DONE] 包加载：按 Cone 目录结构发现源文件（spec §13.2）
 - 描述：实现 “package root → sources 列表” 的加载规则。
 - 目标：先不做增量编译；不做 sysroot 之外的标准库。
 - 验收：新增集成测试：构造临时目录 package，`scoop build` 能找到 main 并 parse/resolve。
 - 依赖：T1101、T0805
+ - 完成：
+   - `crates/scoopc/src/cone/package.rs`：实现 cone root → `src/**/*.scoop` sources 发现与 `src/main.scoop` 入口定位。
+   - `crates/scoop/src/commands/build.rs`：`scoop build` 支持输入包目录（包含 `Cone.toml`），并以单一编译单元执行 parse/resolve/typecheck（sysroot cone=0，当前 cone=1）。
+   - `crates/scoop/src/cli.rs`：更新 `build/run` 参数说明支持“源文件或包目录”。
+   - `crates/scoop/src/commands/build.rs`：新增单测覆盖“包目录 build”。
+ - 验收：
+   - `cargo test --all`
 
 ### T1103 [TODO] scoopir v0：定义稳定 IR schema（仅 public API）
 - 描述：定义一个最小可序列化 schema（JSON/CBOR/自定义）表达 public API（类型/函数签名）。

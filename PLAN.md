@@ -43,6 +43,7 @@
 - 2026-03-28：完成 T1013：sysroot 补齐 `@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention` 与 `AnnotationTarget` enum；parser 支持 `@Target(AnnotationTarget.X, ...)` 的最小注解参数解析；typecheck 对非法 target 名给出稳定错误码，并新增 parse/typecheck fixtures 覆盖。
 - 2026-03-28：完成 T1016a：typecheck 读取注解类上的 `@Target/@Retention` 并在使用点强制执行；限制 `@Target/@Retention` 只能用于 `annotation class`；对 `@Retention("comptime"|"cone")` 做最小合法性检查；新增 typecheck fixtures 覆盖。
 - 2026-03-28：完成 T1019：注解参数解析支持常量表达式/数组字面量/enum 值/class literal；typecheck 在注解使用点执行“参数绑定 + 编译期常量判定 + 类型匹配”，并新增 parse/typecheck fixtures 覆盖（含非常量参数报错）。
+- 2026-03-28：完成 T1102：实现 cone source package 加载（`src/**/*.scoop` + `src/main.scoop`），并让 `scoop build/run` 支持输入包目录；新增 `scoop` 单测覆盖。
 - 2026-03-27：完成 T1008：sysroot 暴露 `GC.pin/GC.unpin` 并在 typecheck/codegen lowering 到 runtime `scoop_pin/scoop_unpin`；由于当前泛型 struct 布局尚未实现，`Pinned<T>` 暂降级为非泛型 `Pinned`（`value: Any`）；新增 run-pass fixture `gc_pin_unpin_basic` 与 compile-fail fixture `gc_pin_value_type_is_error` 回归。
 - 2026-03-27：完成 T1009：typecheck 支持最小 unsafe 指针原语 `addrOf/load/store` 并强制 unsafe context 门禁；新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-27：完成 T1010：sysroot 新增 `scoop.unsafe` 模块声明（`Ptr<T>` + `ptrToUIntPtr/uintPtrToPtr`），并新增 resolve fixture 覆盖 `import scoop.unsafe.*` 与符号引用。
@@ -776,6 +777,7 @@ fixtures：
 - [ ] archive（可先用 zip/tar，后续换自定义格式）
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
   - [x] 读取 `Cone.toml`（name/version/deps，T1101）
+  - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）
 - [ ] 预编译实例（pre-specialize）：cache key 与选择规则
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
