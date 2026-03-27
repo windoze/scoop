@@ -620,6 +620,9 @@ fn field_use_span_in_expr(
             }
         }),
         ast::ExprKind::Block(b) => field_use_span_in_block(source, backing_field_decl_span, b),
+        ast::ExprKind::UnsafeBlock { body, .. } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
+        }
         ast::ExprKind::Lambda(l) => field_use_span_in_expr(source, backing_field_decl_span, &l.body),
         ast::ExprKind::StructLit { fields, .. } => fields.iter().find_map(|f| {
             field_use_span_in_expr(source, backing_field_decl_span, &f.value)

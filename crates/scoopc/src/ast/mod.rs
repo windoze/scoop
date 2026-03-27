@@ -1067,6 +1067,17 @@ pub enum ExprKind {
         parts: Vec<InterpolatedStringPart>,
     },
     Block(Block),
+    /// `@Unsafe { ... }`（spec §15.9.2）：局部 unsafe context 块。
+    ///
+    /// 说明：
+    /// - 该节点只负责表达“在该 block 内允许执行需要 unsafe context 的操作”；
+    /// - 具体 unsafe 原语（例如 `Ptr<T>`/内存读写）由后续任务引入（T1009）；
+    /// - typecheck 会在进入该 block 时 push unsafe depth，并在退出时 pop（T1004）。
+    UnsafeBlock {
+        /// `@Unsafe` 的 span（不包含 `{ ... }`）。
+        at_unsafe_span: Span,
+        body: Block,
+    },
     /// Lambda 表达式：`{ params -> body }` / `{ body }`（spec §12）。
     ///
     /// 当前任务（T0221）仅引入 AST 节点建模；解析与 `{}` 歧义消解见后续任务（T0222/T0225）。

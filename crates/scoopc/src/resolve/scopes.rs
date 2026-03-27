@@ -634,6 +634,7 @@ impl<'a> BlockScopeChecker<'a> {
                 }
             }
             ast::ExprKind::Block(b) => self.check_block(b)?,
+            ast::ExprKind::UnsafeBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::Lambda(lam) => {
                 // lambda 的参数在其 body 内可见；暂不记录 capture 信息（非目标）。
                 self.push_scope();

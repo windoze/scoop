@@ -19,6 +19,7 @@
 //! - `if` 表达式（T0214）：`if (cond) thenExpr else elseExpr?`
 //! - `when` 表达式（T0215）：`when (expr) { ... }`（最小分支子集）
 //! - 赋值表达式（T0227）：`lhs = rhs`（lhs 先限 ident/member）
+//! - unsafe block（T1004）：`@Unsafe { ... }`
 //!
 //! 说明：
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
@@ -182,6 +183,22 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
+        // spec §15.9.2：`@Unsafe { ... }`（unsafe block）。
+        //
+        // 说明：
+        // - 该语法位于表达式/语句层：作为一个“局部 unsafe context”区域；
+        // - 当前阶段仅支持内建 `Unsafe`，不支持任意注解作为 block 前缀；
+        // - 必须紧跟一个 block：`@Unsafe { ... }`。
+        if self.peek_symbol(Symbol::At)
+            && self.peek_n(1).kind == TokenKind::Ident
+            && self
+                .source_text
+                .get(self.peek_n(1).span.start..self.peek_n(1).span.end)
+                == Some("Unsafe")
+        {
+            return Ok(Some(self.parse_unsafe_block_expr()?));
+        }
+
         // spec §5.7：`spawn { ... }`（结构化并发语法糖，T0620）。
         //
         // 说明：
@@ -273,6 +290,29 @@ impl<'a> Parser<'a> {
                 expr: Box::new(expr),
             },
         }))
+    }
+
+    fn parse_unsafe_block_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let at = self.expect_symbol(Symbol::At)?;
+        let start = at.span.start;
+
+        // 当前阶段仅支持 `@Unsafe`。
+        let unsafe_kw = self.expect_kind(TokenKind::Ident, "`Unsafe`（unsafe block 注解名）")?;
+        debug_assert_eq!(
+            self.source_text
+                .get(unsafe_kw.span.start..unsafe_kw.span.end),
+            Some("Unsafe")
+        );
+        let at_unsafe_span = Span::new(start, unsafe_kw.span.end);
+
+        let body = self.parse_block()?;
+        Ok(ast::Expr {
+            span: Span::new(start, body.span.end),
+            kind: ast::ExprKind::UnsafeBlock {
+                at_unsafe_span,
+                body,
+            },
+        })
     }
 
     fn parse_expr_bp(&mut self, min_bp: u8) -> Result<Option<ast::Expr>, ParseError> {

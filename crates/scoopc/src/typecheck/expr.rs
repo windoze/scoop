@@ -2028,6 +2028,21 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
+        ast::ExprKind::UnsafeBlock { body, .. } => {
+            lower.push_unsafe_context();
+            let result = infer_block_value_type(
+                source,
+                body,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            );
+            lower.pop_unsafe_context();
+            result
+        }
         ast::ExprKind::TupleLit { elements } => {
             if elements.is_empty() {
                 return Ok(builtins.unit);
@@ -9162,6 +9177,26 @@ fn check_expr_stmt(
             member_mutabilities,
             struct_field_types,
         ),
+        ast::ExprKind::UnsafeBlock { body, .. } => {
+            lower.push_unsafe_context();
+            let result = check_block_exprs(
+                source,
+                body,
+                lower,
+                builtins,
+                locals,
+                stable_bindings,
+                mutable_bindings,
+                loop_depth,
+                expected_return_ty,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            );
+            lower.pop_unsafe_context();
+            result
+        }
         ast::ExprKind::If {
             cond,
             then_branch,
@@ -9739,6 +9774,7 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::TupleLit { .. } => "tuple literal",
         ast::ExprKind::InterpolatedString { .. } => "interpolated string",
         ast::ExprKind::Block(_) => "block",
+        ast::ExprKind::UnsafeBlock { .. } => "unsafe block",
         ast::ExprKind::Lambda(_) => "lambda",
         ast::ExprKind::StructLit { .. } => "struct literal",
         ast::ExprKind::If { .. } => "if expression",

@@ -3097,11 +3097,22 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T1004 [TODO] Typecheck：`@Unsafe { ... }` 块语法与上下文传播（spec §15.9.2）
+### T1004 [DONE] Typecheck：`@Unsafe { ... }` 块语法与上下文传播（spec §15.9.2）
 - 描述：在表达式/语句层支持 unsafe block，并让检查器在该区域放宽限制。
 - 目标：先只做上下文标记；不实现指针 API。
 - 验收：unsafe_nogc fixture：在 unsafe block 内允许调用 `@Extern`，块外禁止。
 - 依赖：T1003、T0207
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ExprKind::UnsafeBlock`（`@Unsafe { ... }`）。
+   - `crates/scoopc/src/parser/expr.rs`：解析 `@Unsafe { ... }` 为 `UnsafeBlock` 表达式。
+   - `crates/scoopc/src/resolve/scopes.rs`：resolver 递归进入 unsafe block body。
+   - `crates/scoopc/src/typecheck/expr.rs`：进入/退出 unsafe block 时 push/pop unsafe depth，使 block 内允许调用 `@Extern/@Unsafe`。
+   - `crates/scoopc/src/hir/lower.rs`、`crates/scoopc/src/typecheck/properties.rs`：补齐 `ExprKind` 分支以保持全 crate 构建通过。
+   - `crates/scoopc/src/parser/tests.rs`：新增 parser 单测 `parse_unsafe_block_expr`。
+   - `tests/fixtures/unsafe_nogc/*`：新增 1 个 pass + 1 个 fail fixture 覆盖“block 内允许 / block 外仍禁止”。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T1005 [TODO] `@NoGC`：调用限制与“可能分配”静态判定（spec §15.8）
 - 描述：实现 `@NoGC`：禁止堆分配、禁止调用非 `@NoGC/@Extern`；当编译器无法证明无分配时必须保守报错。

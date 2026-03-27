@@ -596,6 +596,13 @@ impl<'a> HirLowering<'a> {
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
+            ast::ExprKind::UnsafeBlock { body, .. } => {
+                // `@Unsafe { ... }` 仅影响 typecheck 的 unsafe context，
+                // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1004）。
+                let b = self.lower_block(pkg_prefix, body);
+                let ty = b.ty;
+                (ExprKind::Block(b), ty)
+            }
             ast::ExprKind::Call { callee, args } => {
                 if let Some((kind, ty)) =
                     self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
