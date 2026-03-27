@@ -28,6 +28,7 @@
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。
 - 2026-03-27：完成 T0916：新增 run-pass fixture `effect_handler_stack_nearest_three_levels_and_arm_outside_scope` 回归三层嵌套 handler 的最近匹配与 arm self-capture 避免。
 - 2026-03-27：完成 T0625：LLVM codegen 支持最小自定义 non-resuming effect（slot 1-word payload）的 `perform/handle`，并新增 run-pass fixture `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope` 回归嵌套 handler 的最近匹配与 arm re-perform 不自捕获。
+- 2026-03-27：完成 T0917：runtime 增加最小 `Task<T>`/executor 原语（task 状态机 + continuation 入队/恢复 + completion 回调 + 显式 start），并新增 `scoop_runtime` 集成测试回归回调顺序与状态转换。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。
@@ -595,7 +596,7 @@
 - [ ] `scoopc` 链接时自动把 runtime 拉进来
 - [ ] fixtures 中提供 `--emit-llvm`/`--emit-obj`/`--emit-asm` 选项方便排查
 - [ ] effect runtime 必须支持多层 handler stack（最近匹配分发 + arm body 在 dispatch scope 外；Appendix A）
-- [ ] `Task<T>` / executor 最小 runtime 原语：任务状态、入队/恢复、可选 start（spec §5.7）
+- [x] `Task<T>` / executor 最小 runtime 原语：任务状态、入队/恢复、可选 start（spec §5.7）
 - [ ] `object` / `companion object` 的 once/init 支持（Appendix B.9）
 
 **本阶段 DoD**
