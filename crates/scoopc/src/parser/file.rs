@@ -7,6 +7,28 @@ use super::{ParseError, Parser};
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_file(mut self) -> Result<ast::File, ParseError> {
+        // spec §15.3：文件级注解（`@file:...`）必须出现在 `package/import` 之前。
+        //
+        // 注意：这里刻意只消费显式 `@file:` 前缀的注解，避免把普通顶层声明注解
+        // （例如文件开头的 `@Unsafe fun f()`）误判为 file annotation。
+        let mut file_annotations = Vec::new();
+        while self.peek_symbol(Symbol::At)
+            && self.peek_n(1).kind == TokenKind::Ident
+            && self.peek_n(2).kind == TokenKind::Symbol(Symbol::Colon)
+            && self
+                .source_text
+                .get(self.peek_n(1).span.start..self.peek_n(1).span.end)
+                == Some("file")
+        {
+            match self.parse_annotation_use() {
+                Ok(ann) => file_annotations.push(ann),
+                Err(e) => {
+                    self.record_error(e);
+                    self.recover_to_top_level_sync();
+                }
+            }
+        }
+
         let package = if self.peek_keyword(Keyword::Package) {
             match self.parse_package_decl() {
                 Ok(pkg) => Some(pkg),
@@ -111,6 +133,7 @@ impl<'a> Parser<'a> {
         }
 
         self.finish(ast::File {
+            file_annotations,
             package,
             imports,
             items,

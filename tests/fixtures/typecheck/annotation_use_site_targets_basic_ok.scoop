@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T1014 use-site targets：file/property/param/field 在 typecheck 中可遍历与解析。
+
+@file:AllowIntrinsic
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class Rename(val key: String = "")
+annotation class Validated
+
+class Config(
+    @property:Rename("db_url") @field:Rename("db_url_field") val dbUrl: String,
+    @param:Validated val port: Int,
+)
+

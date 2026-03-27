@@ -116,7 +116,7 @@ impl<'a> Parser<'a> {
     /// - 允许最小子集：
     ///   - int/string 字面量（原有能力）
     ///   - `A.B` 形式的枚举值引用（用于 `@Target(AnnotationTarget.X, ...)`）。
-    fn parse_annotation_use(&mut self) -> Result<ast::AnnotationUse, ParseError> {
+    pub(super) fn parse_annotation_use(&mut self) -> Result<ast::AnnotationUse, ParseError> {
         let at = self.expect_symbol(Symbol::At)?;
         let start = at.span.start;
 
@@ -1168,6 +1168,11 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            let mut annotations = Vec::new();
+            while self.peek_symbol(Symbol::At) {
+                annotations.push(self.parse_annotation_use()?);
+            }
+
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
             let name = ast::Ident::new(name_tok.span);
 
@@ -1190,6 +1195,7 @@ impl<'a> Parser<'a> {
             };
 
             params.push(ast::Param {
+                annotations,
                 kind: None,
                 name,
                 ty,
@@ -1227,6 +1233,11 @@ impl<'a> Parser<'a> {
         }
 
         loop {
+            let mut annotations = Vec::new();
+            while self.peek_symbol(Symbol::At) {
+                annotations.push(self.parse_annotation_use()?);
+            }
+
             // Kotlin 风格：`class C(val x: Int)` / `class C(var x: Int)`
             let kind = if self.peek_keyword(Keyword::Val) {
                 self.bump();
@@ -1260,6 +1271,7 @@ impl<'a> Parser<'a> {
             };
 
             params.push(ast::Param {
+                annotations,
                 kind,
                 name,
                 ty,
@@ -1815,6 +1827,7 @@ impl<'a> Parser<'a> {
                     let ty = self.parse_type_ref()?;
 
                     params.push(ast::Param {
+                        annotations: Vec::new(),
                         kind: Some(ast::ValKind::Val),
                         name: field_name,
                         ty: Some(ty),

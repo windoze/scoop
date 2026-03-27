@@ -8,11 +8,31 @@
 
 use crate::span::Span;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct File {
+    /// 文件级注解列表：`@file:...`（spec §15.3）。
+    ///
+    /// 说明：
+    /// - 仅承载语法结构；target/retention 等语义规则由后续 typecheck 任务实现（T1016）。
+    /// - 为保持既有 parse fixtures 的 AST snapshot 稳定：
+    ///   - 该字段为空时，Debug 输出不会打印它。
+    pub file_annotations: Vec<AnnotationUse>,
     pub package: Option<PackageDecl>,
     pub imports: Vec<ImportDecl>,
     pub items: Vec<Item>,
+}
+
+impl std::fmt::Debug for File {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("File");
+        if !self.file_annotations.is_empty() {
+            s.field("file_annotations", &self.file_annotations);
+        }
+        s.field("package", &self.package);
+        s.field("imports", &self.imports);
+        s.field("items", &self.items);
+        s.finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1594,6 +1614,14 @@ pub enum StmtKind {
 
 #[derive(Clone)]
 pub struct Param {
+    /// 参数上的注解列表（spec §15.3）。
+    ///
+    /// 说明：
+    /// - 同一个参数在不同语境下可能映射到不同“可注解元素”：
+    ///   - 普通函数参数：主要目标是 Param；
+    ///   - 主构造 `val/var` 参数：同时是 Param + Property + Field（可用 use-site target 前缀区分）。
+    /// - 当前阶段仅做语法解析与结构化存储；具体附着语义由后续任务逐步补齐（T1016/T1208...）。
+    pub annotations: Vec<AnnotationUse>,
     /// 主构造参数中的 `val/var` 前缀（Kotlin-like）。
     ///
     /// 说明：
@@ -1609,6 +1637,9 @@ pub struct Param {
 impl std::fmt::Debug for Param {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("Param");
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         s.field("name", &self.name);
         if self.kind.is_some() {
             s.field("kind", &self.kind);
@@ -1834,6 +1865,7 @@ mod tests {
             span: Span::new(0, 6),
             kind: ExprKind::Lambda(LambdaExpr {
                 params: vec![Param {
+                    annotations: Vec::new(),
                     kind: None,
                     name: Ident::new(Span::new(1, 2)),
                     ty: None,

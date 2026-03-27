@@ -146,6 +146,10 @@ pub fn check_file_annotations(
 ) -> Result<(), AnnotationError> {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
 
+    // 文件级注解：`@file:...`
+    check_annotation_uses(source, file, index, env, &file.file_annotations)?;
+    reject_builtin_annotations_on_target(source, &file.file_annotations, "file")?;
+
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
@@ -155,6 +159,7 @@ pub fn check_file_annotations(
             ast::Item::Fun(fun) => {
                 check_annotation_uses(source, file, index, env, &fun.annotations)?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
+                check_param_list_annotations(source, file, index, env, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
                 check_annotation_uses(source, file, index, env, &p.annotations)?;
@@ -197,6 +202,11 @@ fn check_type_decl_annotations(
         check_annotation_class_decl_rules(source, decl, &type_fqn)?;
     }
 
+    // 2.5) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
+    if let Some(primary_ctor) = &decl.primary_ctor {
+        check_param_list_annotations(source, file, index, env, &primary_ctor.params)?;
+    }
+
     // 3) 递归检查类型体成员（包含 nested types）。
     let Some(body) = &decl.body else {
         return Ok(());
@@ -214,10 +224,12 @@ fn check_type_decl_annotations(
             ast::TypeMember::SecondaryCtor(ctor) => {
                 check_annotation_uses(source, file, index, env, &ctor.annotations)?;
                 reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
+                check_param_list_annotations(source, file, index, env, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
                 check_annotation_uses(source, file, index, env, &fun.annotations)?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
+                check_param_list_annotations(source, file, index, env, &fun.params)?;
             }
             ast::TypeMember::Type(nested) => {
                 check_type_decl_annotations(source, file, index, env, nested, &type_fqn)?;
@@ -229,6 +241,21 @@ fn check_type_decl_annotations(
         }
     }
 
+    Ok(())
+}
+
+/// 检查一组参数上的注解使用（`@Name(...)`）。
+fn check_param_list_annotations(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    params: &[ast::Param],
+) -> Result<(), AnnotationError> {
+    for p in params {
+        check_annotation_uses(source, file, index, env, &p.annotations)?;
+        reject_builtin_annotations_on_target(source, &p.annotations, "param")?;
+    }
     Ok(())
 }
 

@@ -742,7 +742,7 @@ tests/
   - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
   - [ ] meta-annotations 与 `.cone` 导出策略
 - [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
-- [ ] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
+- [x] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3，已支持解析与挂载；get/set 仍为纯语法存储）
 - [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 - [ ] 后期 runtime / std 阶段的 intrinsic 预算规则：
   - 默认不再新增 intrinsic，优先用纯 Scoop 库补 runtime/stdlib 缺口

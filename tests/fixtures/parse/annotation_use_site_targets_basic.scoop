@@ -1,0 +1,18 @@
+// EXPECT: pass
+// EXPECT-AST: annotation_use_site_targets_basic.ast
+// 目标：T1014 use-site targets（property/param/field/file）解析与挂载。
+
+@file:AllowIntrinsic
+
+package fixtures.parse
+
+import scoop.core.*
+
+annotation class Rename(val key: String = "")
+annotation class Validated
+
+class Config(
+    @property:Rename("db_url") @field:Rename("db_url_field") val dbUrl: String,
+    @param:Validated val port: Int,
+)
+

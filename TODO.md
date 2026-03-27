@@ -3263,11 +3263,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1014 [TODO] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
+### T1014 [DONE] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
 - 描述：支持 use-site target 前缀语法，并在注解附着时区分实际目标元素。
 - 目标：先只覆盖 property / param / field / file；getter/setter 的细化可在同任务内保留占位实现。
 - 验收：新增 parse/typecheck fixture：`@property:Rename`、`@param:Validated`、`@file:AllowIntrinsic` 可解析并附着到正确目标。
 - 依赖：T1001、T1013
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：为 `File` 增加 `file_annotations`（仅当非空时参与 Debug 输出以保持既有 AST golden 稳定）；为 `Param` 增加 `annotations`（支持构造参数/函数参数等位置的注解挂载）。
+   - `crates/scoopc/src/parser/file.rs`：支持在 `package/import` 之前解析文件级注解 `@file:...` 并写入 `File.file_annotations`（只消费显式 `@file:` 前缀，避免误吞普通声明注解）。
+   - `crates/scoopc/src/parser/decls.rs`：参数列表解析支持前缀注解（函数参数与主构造参数），并开放 `parse_annotation_use` 供文件解析复用。
+   - `crates/scoopc/src/typecheck/annotations.rs`：遍历并检查文件级注解与参数注解（含函数参数、主构造参数、二级构造参数与成员函数参数），并拒绝把内建注解用在 `file/param` 目标上。
+   - `tests/fixtures/parse/annotation_use_site_targets_basic.*`：新增 parse fixture + AST golden 覆盖 `@file:` 与参数 use-site targets。
+   - `tests/fixtures/typecheck/annotation_use_site_targets_basic_ok.scoop`：新增 typecheck fixture 覆盖 file/param/property/field use-site target 在 typecheck 中可被解析。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1015 [TODO] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 - 描述：支持命名空间注解的解析与绑定：例如 `@Serialization.Rename("x")`。

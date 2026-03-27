@@ -1555,6 +1555,7 @@ impl<'a> Parser<'a> {
                 None
             };
             params.push(ast::Param {
+                annotations: Vec::new(),
                 kind: None,
                 name,
                 ty,
