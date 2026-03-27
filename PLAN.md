@@ -740,7 +740,9 @@ tests/
 - [ ] 注解系统补齐：
   - [x] 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
   - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
-  - [ ] meta-annotations 与 `.cone` 导出策略
+  - [ ] meta-annotations（拆分）：
+    - [ ] typecheck enforce `@Target/@Retention`
+    - [ ] `.cone` 导出策略（cone-preserved 注解下游可见）
 - [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
 - [x] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3，已支持解析与挂载；get/set 仍为纯语法存储）
 - [x] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
