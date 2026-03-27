@@ -20,6 +20,7 @@
 //! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/typecheck_cone/<case>/<cone>/**` → typecheck（多 cone：每个 cone 子目录作为独立可见性边界）
+//! - `tests/fixtures/typecheck_cone_archive/<case>/<pkg>/**` → typecheck（真实 `.cone` 依赖：先打包依赖，再注入 `api.scoopir`）
 //! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/infer/**` → infer
@@ -52,6 +53,9 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     let typecheck_multi_cases = collect_typecheck_multi_cases(&typecheck_multi_root)?;
     let typecheck_cone_root = fixtures_root.join("typecheck_cone");
     let typecheck_cone_cases = collect_typecheck_cone_cases(&typecheck_cone_root)?;
+    let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
+    let typecheck_cone_archive_cases =
+        collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
 
     let mut files = Vec::new();
     let mut skip_dirs: Vec<&Path> = Vec::new();
@@ -67,6 +71,9 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     if typecheck_cone_root.is_dir() {
         skip_dirs.push(typecheck_cone_root.as_path());
     }
+    if typecheck_cone_archive_root.is_dir() {
+        skip_dirs.push(typecheck_cone_archive_root.as_path());
+    }
     collect_scoop_files(fixtures_root, &mut files, &skip_dirs)?;
     files.sort();
 
@@ -74,6 +81,7 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
         && resolve_multi_cases.is_empty()
         && typecheck_multi_cases.is_empty()
         && typecheck_cone_cases.is_empty()
+        && typecheck_cone_archive_cases.is_empty()
     {
         return Err(miette!(
             "fixtures 目录下未发现任何 .scoop 文件：{}",
@@ -107,6 +115,12 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     for case_dir in typecheck_cone_cases {
         ok += run_typecheck_cone_case(&session, fixtures_root, &case_dir)
             .wrap_err_with(|| format!("typecheck_cone case 失败：{}", case_dir.display()))?;
+    }
+
+    for case_dir in typecheck_cone_archive_cases {
+        ok += run_typecheck_cone_archive_case(&session, fixtures_root, &case_dir).wrap_err_with(
+            || format!("typecheck_cone_archive case 失败：{}", case_dir.display()),
+        )?;
     }
 
     Ok(ok)
@@ -189,7 +203,9 @@ struct ResolveConeCaseTooSmall {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("resolve_cone case 的 cone 子目录 `{cone}` 下未发现任何 `.scoop` 文件（fixture: {fixture}）")]
+#[error(
+    "resolve_cone case 的 cone 子目录 `{cone}` 下未发现任何 `.scoop` 文件（fixture: {fixture}）"
+)]
 #[diagnostic(code(scoop::fixtures::resolve_cone_cone_empty))]
 struct ResolveConeConeEmpty {
     fixture: String,
@@ -211,11 +227,27 @@ struct TypecheckConeCaseTooSmall {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("typecheck_cone case 的 cone 子目录 `{cone}` 下未发现任何 `.scoop` 文件（fixture: {fixture}）")]
+#[error(
+    "typecheck_cone case 的 cone 子目录 `{cone}` 下未发现任何 `.scoop` 文件（fixture: {fixture}）"
+)]
 #[diagnostic(code(scoop::fixtures::typecheck_cone_cone_empty))]
 struct TypecheckConeConeEmpty {
     fixture: String,
     cone: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("typecheck_cone_archive case 需要至少 2 个 package 子目录（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::typecheck_cone_archive_case_too_small))]
+struct TypecheckConeArchiveCaseTooSmall {
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("typecheck_cone_archive case 需要且仅需要 1 个 consumer package（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::typecheck_cone_archive_consumer_not_unique))]
+struct TypecheckConeArchiveConsumerNotUnique {
+    fixture: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -559,8 +591,10 @@ fn scoopir_fixture(
     pairs.push((source, &ast));
     let index = scoopc::resolve::Index::build(&pairs).map_err(box_diagnostic)?;
 
-    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).map_err(box_diagnostic)?;
-    env.extend_from_file(source, &ast, &index).map_err(box_diagnostic)?;
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(box_diagnostic)?;
+    env.extend_from_file(source, &ast, &index)
+        .map_err(box_diagnostic)?;
 
     let hir = scoopc::hir::lower_for_dump(session, source).map_err(box_diagnostic)?;
     let ir = scoopc::cone::scoopir::export_public_api_for_source(source, &index, &env, &hir)
@@ -641,11 +675,12 @@ fn typecheck_fixture(
     // 说明：
     // - 这里复用 resolver 的 block scope + value ident 解析逻辑（T0304/T0305/T0308）；
     // - 若 bodies 中存在未定义值引用，将以 resolve 错误提前失败（避免后续 typecheck 重复报错）。
-    scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers).map_err(box_diagnostic)?;
+    scoopc::resolve::check_file_bodies(source, &mut ast, &index, &headers)
+        .map_err(box_diagnostic)?;
 
     // 构建 type env：sysroot + 当前文件（用于跨文件 type position 查询）。
-    let mut env =
-        scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).map_err(box_diagnostic)?;
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(box_diagnostic)?;
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
 
@@ -903,7 +938,8 @@ fn run_resolve_cone_case(
         let exp = FixtureExpectation::from_source(f.source.text());
 
         let result: std::result::Result<(), Box<dyn miette::Diagnostic>> =
-            scoopc::resolve::check_file_bindings(&f.source, &mut f.ast, &index).map_err(box_diagnostic);
+            scoopc::resolve::check_file_bindings(&f.source, &mut f.ast, &index)
+                .map_err(box_diagnostic);
 
         match (exp.expect, result) {
             (Expect::Pass, Ok(())) => {}
@@ -1033,8 +1069,8 @@ fn run_typecheck_cone_case(
                 .map_err(box_diagnostic)?;
 
             // resolver phase：headers + bodies。
-            let headers =
-                scoopc::resolve::check_file_headers(&f.source, &mut f.ast, &index).map_err(box_diagnostic)?;
+            let headers = scoopc::resolve::check_file_headers(&f.source, &mut f.ast, &index)
+                .map_err(box_diagnostic)?;
             scoopc::resolve::check_file_bodies(&f.source, &mut f.ast, &index, &headers)
                 .map_err(box_diagnostic)?;
 
@@ -1129,6 +1165,249 @@ fn run_typecheck_cone_case(
     Ok(ok)
 }
 
+/// 运行一个 `tests/fixtures/typecheck_cone_archive/<case>/<pkg>/` 的“真实 `.cone` 依赖注入”用例。
+///
+/// 规则（当前阶段，T1105）：
+/// - case 目录下必须有 2+ 个 package 子目录（每个子目录为一个 cone root：包含 `Cone.toml` + `src/**.scoop`）
+/// - case 中必须且仅必须有 1 个 consumer package（其 `Cone.toml` 含 `[dependencies]`）
+/// - runner 会先把依赖 packages 打成 `.cone`，再从 `.cone` 读取 `api.scoopir` 并注入：
+///   - `resolve::Index`（import/name resolution）
+///   - `typecheck::TypeEnv`（TypeRef lowering）
+/// - 最后仅对 consumer package 的源文件运行 typecheck pipeline，并按文件头注释断言 pass/fail
+fn run_typecheck_cone_archive_case(
+    session: &scoopc::session::Session,
+    fixtures_root: &Path,
+    case_dir: &Path,
+) -> Result<usize> {
+    let mut pkg_dirs = Vec::new();
+    for entry in std::fs::read_dir(case_dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", case_dir.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            pkg_dirs.push(entry.path());
+        }
+    }
+
+    pkg_dirs.sort();
+    if pkg_dirs.len() < 2 {
+        let rel = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+        return Err(TypecheckConeArchiveCaseTooSmall {
+            fixture: rel.display().to_string(),
+        }
+        .into());
+    }
+
+    let mut pkgs: Vec<scoopc::cone::ConeSourcePackage> = Vec::new();
+    for dir in &pkg_dirs {
+        pkgs.push(scoopc::cone::load_cone_source_package(dir)?);
+    }
+
+    let consumer_indices = pkgs
+        .iter()
+        .enumerate()
+        .filter(|(_idx, pkg)| !pkg.manifest.dependencies.is_empty())
+        .map(|(idx, _)| idx)
+        .collect::<Vec<_>>();
+
+    if consumer_indices.len() != 1 {
+        let rel = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+        return Err(TypecheckConeArchiveConsumerNotUnique {
+            fixture: rel.display().to_string(),
+        }
+        .into());
+    }
+    let consumer_idx = consumer_indices[0];
+
+    // 先把所有 packages 写成 `.cone`，并以 cone name 建索引（供 consumer 依赖查找）。
+    let out_dir = crate::commands::temp::make_temp_dir("scoop_fixtures_cone_archive")?;
+    let mut cone_paths: std::collections::HashMap<String, PathBuf> =
+        std::collections::HashMap::new();
+
+    for (idx, pkg) in pkgs.iter().enumerate() {
+        // 说明：consumer package 往往依赖其它 cone，因此在未实现“依赖图打包”（T1107）之前，
+        // 这里仅打包“无依赖的 leaf packages”，用于模拟下游通过 `.cone` 消费 public API 的路径。
+        if idx == consumer_idx {
+            continue;
+        }
+
+        let out = out_dir.join(format!(
+            "{}-{}.cone",
+            pkg.manifest.cone.name, pkg.manifest.cone.version
+        ));
+        scoopc::cone::write_cone_archive_v0(session, pkg, &out)?;
+        cone_paths.insert(pkg.manifest.cone.name.clone(), out);
+    }
+
+    let consumer_pkg = &pkgs[consumer_idx];
+
+    // consumer sources：按 cone source package 的规则加载 `src/**/*.scoop`（稳定排序）。
+    let mut sources: Vec<scoopc::source::SourceFile> = Vec::new();
+    let mut asts: Vec<scoopc::ast::File> = Vec::new();
+    for path in &consumer_pkg.sources {
+        let source = scoopc::source::SourceFile::load(path)?;
+        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        sources.push(source);
+        asts.push(ast);
+    }
+
+    // 先构建 Index：sysroot + consumer sources（cone=1）。
+    let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
+    for f in &session.sysroot().files {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: scoopc::resolve::ConeId::new(0),
+            source: &f.source,
+            file: &f.ast,
+        });
+    }
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        indexed.push(scoopc::resolve::IndexedFile {
+            cone: scoopc::resolve::ConeId::new(1),
+            source,
+            file: ast,
+        });
+    }
+
+    let mut index =
+        scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::new)?;
+
+    // type env：sysroot + consumer files（用于当前 cone 的 TypeRef lowering）。
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(miette::Report::new)?;
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::new)?;
+    }
+
+    // 注入依赖 `.cone` 的 public API（T1105）。
+    //
+    // cone id 分配约定：
+    // - 0：sysroot
+    // - 1：consumer
+    // - 2+：按依赖在 Cone.toml 中出现顺序分配（稳定）
+    let mut next_dep_cone: u32 = 2;
+    for dep_name in consumer_pkg.manifest.dependencies.keys() {
+        let Some(path) = cone_paths.get(dep_name) else {
+            return Err(miette!(
+                "consumer 依赖 `{dep_name}` 未在该 case 中找到对应的 package（case: {}）",
+                case_dir.display()
+            ));
+        };
+
+        let dep = scoopc::cone::load_cone_archive_api(path)?;
+        let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
+        next_dep_cone += 1;
+        scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, &dep)?;
+    }
+
+    let mut types = scoopc::ty::TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut ok = 0usize;
+
+    for (source, ast) in sources.iter().zip(asts.iter_mut()) {
+        let exp = FixtureExpectation::from_source(source.text());
+
+        let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
+            // 先运行不依赖 resolver/index 的 typecheck 预检查。
+            scoopc::typecheck::check_file_headers(source, ast).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_struct_decls(source, ast).map_err(box_diagnostic)?;
+
+            // resolver phase：headers + bodies。
+            let headers =
+                scoopc::resolve::check_file_headers(source, ast, &index).map_err(box_diagnostic)?;
+            scoopc::resolve::check_file_bodies(source, ast, &index, &headers)
+                .map_err(box_diagnostic)?;
+
+            // typecheck phase。
+            scoopc::typecheck::check_file_annotations(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_properties(source, ast, &index, &env)
+                .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_inheritance(source, ast, &index)
+                .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_interfaces(source, ast, &index, &env)
+                .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_override_effects(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_type_refs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_where_clauses(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_overload_conflicts(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_exprs(
+                source,
+                ast,
+                &index,
+                &headers.imports,
+                &env,
+                &mut types,
+                builtins,
+            )
+            .map_err(box_diagnostic)?;
+            Ok(())
+        })();
+
+        match (exp.expect, result) {
+            (Expect::Pass, Ok(())) => {}
+            (Expect::Pass, Err(e)) => return Err(miette!("期望通过，但执行失败：{e}")),
+            (Expect::Fail, Ok(())) => return Err(miette!("期望失败，但执行成功")),
+            (Expect::Fail, Err(e)) => {
+                assert_diagnostic_matches(source, &exp, &*e)?;
+            }
+        }
+
+        ok += 1;
+    }
+
+    // 对整个编译单元中出现过的类型做一次 layout/metadata 计算（与 typecheck_multi 对齐）。
+    scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
+        .map_err(miette::Report::new)?;
+
+    Ok(ok)
+}
+
 /// 运行一个 `tests/fixtures/typecheck_multi/<case>/` 的多文件编译单元。
 ///
 /// 规则（当前阶段）：
@@ -1208,9 +1487,12 @@ fn run_typecheck_multi_case(
                 builtins,
             )
             .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_properties(source, ast, &index, &env).map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_properties(source, ast, &index, &env)
+                .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_inheritance(source, ast, &index)
+                .map_err(box_diagnostic)?;
+            scoopc::typecheck::check_file_interfaces(source, ast, &index, &env)
+                .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_override_effects(
                 source,
                 ast,
@@ -1456,6 +1738,29 @@ fn collect_typecheck_cone_cases(typecheck_cone_root: &Path) -> Result<Vec<PathBu
     for entry in std::fs::read_dir(typecheck_cone_root)
         .into_diagnostic()
         .wrap_err_with(|| format!("无法读取目录：{}", typecheck_cone_root.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            cases.push(path);
+        }
+    }
+
+    cases.sort();
+    Ok(cases)
+}
+
+fn collect_typecheck_cone_archive_cases(
+    typecheck_cone_archive_root: &Path,
+) -> Result<Vec<PathBuf>> {
+    if !typecheck_cone_archive_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut cases = Vec::new();
+    for entry in std::fs::read_dir(typecheck_cone_archive_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", typecheck_cone_archive_root.display()))?
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();

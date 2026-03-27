@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：T1105：consumer cone 通过读取依赖 `.cone` 的 `api.scoopir`，能解析并类型检查依赖包的 public API。
+
+package fixtures.typecheck_cone_archive.app
+
+import scoop.core.*
+import fixtures.typecheck_cone_archive.lib.*
+
+public fun main() / Pure! {
+    val t: Token = makeToken(1)
+}

@@ -272,9 +272,9 @@
   - [x] typecheck：重载冲突诊断（T0457：重复签名 / 仅返回类型不同 / 默认参数冲突）
   - [x] inference：重载决议与泛型/默认参数/命名参数/`eff` row 推断联动（T0512）
   - [x] inference：most-specific tie-break（T0513：参数/receiver 更具体 + 默认参数更少优先；歧义诊断列出候选签名）
-- [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务；T0321b 依赖 T1105 `.cone` 读取，已在 TODO 中延后）
+- [ ] 跨包可见性：`public/internal/private` 在 source package / `.cone` 依赖边界上的规则与诊断（拆分为子任务；T0321b 依赖 T1105 `.cone` 读取；T1105 已完成）
   - [x] T0321a：resolver 引入 cone 边界 + source-only 多 cone fixtures
-  - [ ] T0321b：接入真实 `.cone` 依赖后的可见性过滤（等待 T1105）
+  - [ ] T0321b：接入真实 `.cone` 依赖后的可见性过滤（前置 T1105 已完成）
 - [ ] 跨包扩展导入：extension 在显式 import / star import / 成员候选之间的可见性、shadowing 与候选收集（依赖 T0321b）
 
 ### 3.3 sysroot 注入
@@ -776,6 +776,7 @@ fixtures：
 ### 12.2 `.cone` 归档格式
 
 - [x] archive（v0：tar；包含 `Cone.toml` + `api.scoopir` + `SOURCES_SHA256`，T1104）
+- [x] 读取 `.cone`：加载 `api.scoopir` 并注入下游 typecheck（T1105）
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
   - [x] 读取 `Cone.toml`（name/version/deps，T1101）
   - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）

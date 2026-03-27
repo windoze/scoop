@@ -11,7 +11,7 @@ mod dump_ir;
 mod dump_mir;
 mod package;
 mod run;
-mod temp;
+pub(crate) mod temp;
 mod test;
 
 use tracing_subscriber::EnvFilter;

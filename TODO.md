@@ -3388,11 +3388,19 @@
  - 验收：
    - `cargo test --all`
 
-### T1105 [TODO] `.cone` 读取：加载 `api.scoopir` 并参与下游类型检查（spec §13.3）
+### T1105 [DONE] `.cone` 读取：加载 `api.scoopir` 并参与下游类型检查（spec §13.3）
 - 描述：实现从 `.cone` 读取 IR 与元数据，把依赖包的 public API 注入 type env。
 - 目标：先只支持同平台/同版本；版本兼容后续任务。
 - 验收：新增 cone fixture：A 包导出一个类型/函数，B 包依赖 A 并能通过 typecheck。
 - 依赖：T1104、T0402
+ - 完成：
+   - `crates/scoopc/src/cone/consume.rs`：实现 `.cone` 读取（Cone.toml + api.scoopir）与 public API 注入（Index + TypeEnv）。
+   - `crates/scoopc/src/typecheck/type_env.rs`：新增外部 source/type symbol 注入接口，供 `.cone` 依赖使用。
+   - `crates/scoop/src/fixtures/mod.rs`：新增 `typecheck_cone_archive` fixtures runner（先打包依赖，再注入 api.scoopir）。
+   - `tests/fixtures/typecheck_cone_archive/deps_api_injection/*`：新增 fixture：consumer 通过 `.cone` 依赖成功 typecheck。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 > 注：以下 resolver 任务原位于 T03（包与名字解析）章节；因依赖 `.cone` 读取（T1105），已移动至此处以保持依赖顺序。
 

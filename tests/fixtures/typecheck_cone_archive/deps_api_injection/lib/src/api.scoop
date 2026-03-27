@@ -1,0 +1,10 @@
+package fixtures.typecheck_cone_archive.lib
+
+import scoop.core.*
+
+public struct Token(val value: Int)
+
+public fun makeToken(x: Int): Token {
+    Token { value: x }
+}
+

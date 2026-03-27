@@ -105,8 +105,12 @@ impl AnnotationRetentionPolicy {
 
     pub fn parse(text: &str) -> Option<Self> {
         match text {
-            "comptime" | "comptime-only" | "comptime_only" => Some(AnnotationRetentionPolicy::ComptimeOnly),
-            "cone" | "cone-preserved" | "cone_preserved" => Some(AnnotationRetentionPolicy::ConePreserved),
+            "comptime" | "comptime-only" | "comptime_only" => {
+                Some(AnnotationRetentionPolicy::ComptimeOnly)
+            }
+            "cone" | "cone-preserved" | "cone_preserved" => {
+                Some(AnnotationRetentionPolicy::ConePreserved)
+            }
             _ => None,
         }
     }
@@ -350,6 +354,27 @@ impl TypeEnv {
     /// 通过文件路径获取对应的 `SourceFile`（若该文件在构建 env 时被收集过）。
     pub fn source(&self, path: &Path) -> Option<&SourceFile> {
         self.sources.get(path)
+    }
+
+    /// 注入一个“外部声明来源”的 `SourceFile`。
+    ///
+    /// 用途（T1105）：
+    /// - `.cone` 依赖的 `api.scoopir` 会被反解为一组合成的 `ast::TypeRef`/签名信息；
+    /// - 为了让后续 lowering 能通过 span 切片取回标识符文本，需要把该合成 source 挂到 env 上；
+    /// - 同一路径重复注入时保持第一次写入（避免覆盖）。
+    pub fn insert_external_source(&mut self, source: SourceFile) {
+        self.sources
+            .entry(source.path().to_path_buf())
+            .or_insert(source);
+    }
+
+    /// 直接注入一个外部 type symbol（例如来自 `.cone` 的 public API）。
+    pub fn insert_external_type_symbol(
+        &mut self,
+        fqn: String,
+        symbol: TypeSymbol,
+    ) -> Result<(), TypeEnvError> {
+        self.insert_symbol(fqn, symbol)
     }
 
     /// 返回给定源文件的 type lowering 上下文（package/import）。
@@ -733,7 +758,10 @@ fn extract_annotation_class_meta(
     file: &ast::File,
     decl: &ast::TypeDecl,
     index: &Index,
-) -> (Option<Vec<AnnotationTargetKind>>, Option<AnnotationRetentionPolicy>) {
+) -> (
+    Option<Vec<AnnotationTargetKind>>,
+    Option<AnnotationRetentionPolicy>,
+) {
     let mut targets: Option<Vec<AnnotationTargetKind>> = None;
     let mut retention: Option<AnnotationRetentionPolicy> = None;
 
@@ -776,7 +804,10 @@ fn extract_annotation_class_meta(
     (targets, retention)
 }
 
-fn collect_annotation_params(source: &SourceFile, decl: &ast::TypeDecl) -> Vec<AnnotationParamInfo> {
+fn collect_annotation_params(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+) -> Vec<AnnotationParamInfo> {
     let Some(primary_ctor) = &decl.primary_ctor else {
         return Vec::new();
     };
@@ -812,7 +843,10 @@ fn annotation_use_to_fqn(
     index.type_ref_to_fqn_in_file(source, file, &ty)
 }
 
-fn extract_annotation_target_variant(source: &SourceFile, expr: &ast::Expr) -> Option<(String, Span)> {
+fn extract_annotation_target_variant(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Option<(String, Span)> {
     let mut segs: Vec<(String, Span)> = Vec::new();
     if !collect_member_access_path(source, expr, &mut segs) {
         return None;
