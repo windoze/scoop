@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：验证 sysroot `scoop.unsafe` 可被 import，并在 resolve 阶段绑定 `Ptr<T>` 与转换 intrinsic（T1010）。
+
+package fixtures.resolve
+
+import scoop.unsafe.*
+
+fun usePtr(p: Ptr<Int>) {
+    ptrToUIntPtr(p)
+}
+

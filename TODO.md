@@ -3201,7 +3201,7 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T1010 [TODO] sysroot：新增 `scoop.unsafe` 模块声明（`Ptr<T>` + 指针/整数转换 intrinsics）（spec §15.9.4）
+### T1010 [DONE] sysroot：新增 `scoop.unsafe` 模块声明（`Ptr<T>` + 指针/整数转换 intrinsics）（spec §15.9.4）
 - 描述：在 sysroot 增加专门的 unsafe 模块（建议 `package scoop.unsafe`），声明：
   - `@Intrinsic struct Ptr<T>`
   - `@Intrinsic @NoGC @Unsafe fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr`
@@ -3209,6 +3209,12 @@
 - 目标：先只做“可见声明”；intrinsic 的具体 lowering 留给后续 codegen；模块命名与路径固定以便审计。
 - 验收：新增 resolve fixture：`import scoop.unsafe.*` 后能引用 `Ptr<Int>`、`ptrToUIntPtr`；`scoop test` 通过。
 - 依赖：T0418、T1001
+ - 完成：
+   - `sysroot/unsafe.scoop`：新增 `package scoop.unsafe`，声明 `@Intrinsic struct Ptr<T>` 与 `ptrToUIntPtr/uintPtrToPtr` 两个指针↔整数转换 intrinsics。
+   - `tests/fixtures/resolve/sysroot_unsafe_ptr_import_ok.scoop`：新增 resolve fixture，覆盖 `import scoop.unsafe.*` 后引用 `Ptr<Int>` 与 `ptrToUIntPtr`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1011 [TODO] Typecheck：`Ptr<T>` 的 GC-free pointee 限制（spec §15.9.4 / runtime §4.1）
 - 描述：实现 `Ptr<T>` 的 well-formedness：`T` 必须是 GC-free value type（不允许直接/间接包含 GC ref），并在违反时给出清晰诊断。

@@ -1,0 +1,23 @@
+// Scoop sysroot: unsafe primitives surface (spec §15.9.4)
+//
+// 说明：
+// - 本文件仅提供“声明表面”，用于名字解析与类型检查；
+// - 具体 lowering/ABI/运行期语义由后续 codegen/runtime 任务补齐；
+// - 模块名固定为 `scoop.unsafe`，便于审计所有 unsafe primitive 的来源。
+
+package scoop.unsafe
+
+import scoop.core.*
+
+/// 原始指针类型（intrinsic，编译器/后端固定语义）。
+@Intrinsic
+struct Ptr<T>
+
+/// 指针 → UIntPtr（只能在 unsafe context 使用；spec §15.9.4）。
+@Intrinsic @NoGC @Unsafe
+fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
+
+/// UIntPtr → 指针（只能在 unsafe context 使用；spec §15.9.4）。
+@Intrinsic @NoGC @Unsafe
+fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
+
