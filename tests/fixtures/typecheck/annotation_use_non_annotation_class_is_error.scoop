@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_type_is_not_annotation_class
+// EXPECT-ERROR-AT: 10:2
+// EXPECT-ERROR: 不是注解类
+
+package fixtures.typecheck
+
+class NotAnno {}
+
+@NotAnno
+fun f() {}
+

@@ -567,6 +567,8 @@ fn typecheck_fixture(
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
 
+    scoopc::typecheck::check_file_annotations(source, &ast, &index, &env).map_err(box_diagnostic)?;
+
     // T0431/T0432：属性（class/value type）的最小语义检查。
     scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(box_diagnostic)?;
     // T0439：class 继承与 override 的最小语义检查。
@@ -946,6 +948,8 @@ fn run_typecheck_cone_case(
                 .map_err(box_diagnostic)?;
 
             // typecheck phase。
+            scoopc::typecheck::check_file_annotations(&f.source, &mut f.ast, &index, &env)
+                .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_properties(&f.source, &mut f.ast, &index, &env)
                 .map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(&f.source, &mut f.ast, &index)
@@ -1095,6 +1099,7 @@ fn run_typecheck_multi_case(
                 .map_err(box_diagnostic)?;
 
             // typecheck phase。
+            scoopc::typecheck::check_file_annotations(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_properties(source, ast, &index, &env).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_inheritance(source, ast, &index).map_err(box_diagnostic)?;
             scoopc::typecheck::check_file_interfaces(source, ast, &index, &env).map_err(box_diagnostic)?;

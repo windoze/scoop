@@ -36,6 +36,12 @@ pub enum TypeSymbolKind {
 #[derive(Debug, Clone)]
 pub struct TypeSymbol {
     pub kind: TypeSymbolKind,
+    /// 是否为注解类（`annotation class ...`，spec §15.2）。
+    ///
+    /// 说明：
+    /// - 该标记用于在 typecheck 阶段验证 `@Name(...)` 的 `Name` 必须引用一个注解类；
+    /// - “target/retention/参数类型限制”等更完整规则留给后续任务实现（见 TODO T10xx）。
+    pub is_annotation_class: bool,
     pub type_param_count: usize,
     /// 是否包含 `eff` effect row 参数（spec §3.4 / §5.8）。
     ///
@@ -298,6 +304,7 @@ impl TypeEnv {
                         fqn.clone(),
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
+                            is_annotation_class: false,
                             type_param_count: 0,
                             eff_param: None,
                             type_param_names: Vec::new(),
@@ -375,6 +382,8 @@ impl TypeEnv {
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
+                is_annotation_class: decl.kind == ast::TypeKind::Class
+                    && decl.modifiers.contains(&ast::Modifier::Annotation),
                 type_param_count: decl.type_params.len(),
                 eff_param: decl.eff_param.as_ref().map(|p| EffParamInfo {
                     span: p.span,
@@ -528,6 +537,7 @@ impl TypeEnv {
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
+                is_annotation_class: false,
                 type_param_count: 0,
                 eff_param: None,
                 type_param_names: Vec::new(),

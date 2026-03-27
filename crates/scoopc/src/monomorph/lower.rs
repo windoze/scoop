@@ -19,7 +19,9 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{TypeId, TypeStore};
 use crate::typecheck;
-use crate::typecheck::{ExprTypeError, StructDeclError, TypeEnvError, TypeHeaderError, TypeLowerError, TypeEnv};
+use crate::typecheck::{
+    AnnotationError, ExprTypeError, StructDeclError, TypeEnv, TypeEnvError, TypeHeaderError, TypeLowerError,
+};
 
 use super::MonomorphKey;
 
@@ -49,6 +51,10 @@ pub enum MonomorphLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     TypeLowering(#[from] TypeLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Annotation(#[from] AnnotationError),
 
     #[error(transparent)]
     #[diagnostic(transparent)]
@@ -114,6 +120,8 @@ pub fn lower_for_dump(
     // 5) typecheck expr，并收集 monomorph keys（T0712）
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
+
+    typecheck::check_file_annotations(source, &file, &index, &env)?;
 
     typecheck::check_file_type_refs(
         source,

@@ -8,6 +8,7 @@
 //! 提供起点。
 
 mod type_env;
+mod annotations;
 mod lower;
 mod assignable;
 mod branch_merge;
@@ -27,6 +28,7 @@ mod where_clause;
 mod eff_row_subst;
 
 pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
+pub use annotations::{check_file_annotations, AnnotationError};
 pub use lower::{check_file_type_refs, TypeLowerError};
 pub use headers::{check_file_headers, TypeHeaderError};
 pub use expr::{check_file_exprs, check_file_exprs_with_monomorph_keys, ExprTypeError};

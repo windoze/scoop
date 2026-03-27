@@ -3062,11 +3062,21 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T1002 [TODO] Parser：注解声明 `annotation class X(...)`（spec §15.2）
+### T1002 [DONE] Parser：注解声明 `annotation class X(...)`（spec §15.2）
 - 描述：支持声明注解类型，并在 type env 中识别其为“注解类”。
 - 目标：先只支持 data-only（无方法体）；target/retention 规则后续。
 - 验收：新增 parse+typecheck fixture：定义注解并使用；错误用法给出诊断。
 - 依赖：T1001、T0404
+ - 完成：
+   - `crates/scoopc/src/typecheck/type_env.rs`：`TypeSymbol` 新增 `is_annotation_class`，在 env 构建时识别 `annotation class`。
+   - `crates/scoopc/src/typecheck/annotations.rs`：新增 `check_file_annotations`，实现：
+     - 注解类 data-only 形态约束（必须是 `class`、不支持 supertypes/type body、参数必须是 `val`）；
+     - 注解使用 `@Name(...)` 的最小验证：`Name` 必须解析到注解类类型符号。
+   - `crates/scoop/src/commands/build.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/monomorph/lower.rs`：在 typecheck pipeline 中接入注解检查（确保 `scoop build`/fixtures/monomorph 一致）。
+   - `tests/fixtures/typecheck/annotation_*`：新增 1 个 pass + 2 个 fail fixtures 覆盖“定义并使用 / 非注解类用作注解 / 注解类参数非 val”。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T1003 [TODO] Typecheck：内建注解 `@Unsafe/@NoGC/@Extern/@Intrinsic` 的合法性检查（PLAN §11）
 - 描述：实现基础规则：`@Extern` 隐含 `@NoGC`；调用点需要 unsafe context（按 PLAN 建议）。

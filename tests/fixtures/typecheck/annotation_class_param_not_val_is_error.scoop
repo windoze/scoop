@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_class_param_must_be_val
+// EXPECT-ERROR-AT: 10:22
+// EXPECT-ERROR: 必须是 `val`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class Bad(x: String)
+

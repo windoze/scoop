@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T1002 注解类声明 + 注解使用（`@Name(...)`）最小语义检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class Rename(val key: String = "")
+
+@Rename("id")
+fun f() {}
+
