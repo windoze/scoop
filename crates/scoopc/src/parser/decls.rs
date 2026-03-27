@@ -111,11 +111,9 @@ impl<'a> Parser<'a> {
 
     /// 解析单个注解使用：`@Name(...)`（spec §15.3）。
     ///
-    /// 当前阶段约束（T1001 + T1013）：
-    /// - 仍不解析“通用表达式参数”；
-    /// - 允许最小子集：
-    ///   - int/string 字面量（原有能力）
-    ///   - `A.B` 形式的枚举值引用（用于 `@Target(AnnotationTarget.X, ...)`）。
+    /// 当前阶段（T1019）：
+    /// - 注解参数语法层面允许解析更通用的表达式（例如 `1 + 2`、`[1,2]`、`Color.Red`、`String::class`）；
+    /// - 但“注解参数必须是编译期常量”的语义约束由 typecheck 执行（见 `typecheck::annotations`）。
     pub(super) fn parse_annotation_use(&mut self) -> Result<ast::AnnotationUse, ParseError> {
         let at = self.expect_symbol(Symbol::At)?;
         let start = at.span.start;
@@ -183,6 +181,8 @@ impl<'a> Parser<'a> {
         // named arg：`name: value`
         let name = if self.peek_kind(TokenKind::Ident)
             && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Colon)
+            // `String::class`：避免把 `::` 误判为 named arg 的 `:`
+            && self.peek_n(2).kind != TokenKind::Symbol(Symbol::Colon)
         {
             let name_tok = self.bump(); // ident
             self.bump(); // ':'
@@ -191,75 +191,17 @@ impl<'a> Parser<'a> {
             None
         };
 
-        let value = self.parse_annotation_value_literal()?;
+        let tok = *self.peek();
+        let value = self.try_parse_expr()?.ok_or(ParseError::Expected {
+            expected: "表达式（注解参数值）",
+            found: tok.kind,
+            span: tok.span.into(),
+        })?;
         Ok(ast::AnnotationArg {
             span: Span::new(start, value.span.end),
             name,
             value,
         })
-    }
-
-    fn parse_annotation_value_literal(&mut self) -> Result<ast::Expr, ParseError> {
-        let tok = *self.peek();
-        match tok.kind {
-            TokenKind::IntLiteral => {
-                self.bump();
-                Ok(ast::Expr {
-                    span: tok.span,
-                    kind: ast::ExprKind::IntLit,
-                })
-            }
-            TokenKind::StringLiteral(kind) => {
-                // 只允许非插值字符串；插值字符串内部携带表达式，按“仅字面量参数”约束应拒绝。
-                let interpolated = match kind {
-                    crate::syntax::token::StringKind::Normal { interpolated }
-                    | crate::syntax::token::StringKind::Raw { interpolated } => interpolated,
-                };
-                if interpolated {
-                    return Err(ParseError::Expected {
-                        expected: "字符串字面量（不支持插值字符串）",
-                        found: tok.kind,
-                        span: tok.span.into(),
-                    });
-                }
-                self.bump();
-                Ok(ast::Expr {
-                    span: tok.span,
-                    kind: ast::ExprKind::StringLit,
-                })
-            }
-            TokenKind::Ident => {
-                // T1013：`@Target(AnnotationTarget.Field, ...)` 需要最小支持 enum value 形态。
-                // 这里刻意不接入完整表达式 parser，而是只支持 `Ident(.Ident)*`，并建模为
-                // `Ident` + 多层 `MemberAccess`。
-                let first = self.bump(); // ident
-                let mut expr = ast::Expr {
-                    span: first.span,
-                    kind: ast::ExprKind::Ident(ast::ValueIdent::new(first.span)),
-                };
-
-                while self.peek_symbol(Symbol::Dot) {
-                    self.bump(); // '.'
-                    let seg = self.expect_kind(TokenKind::Ident, "注解参数值（标识符）")?;
-                    let member = ast::MemberIdent::new(seg.span);
-                    let span = Span::new(expr.span.start, seg.span.end);
-                    expr = ast::Expr {
-                        span,
-                        kind: ast::ExprKind::MemberAccess {
-                            receiver: Box::new(expr),
-                            member,
-                        },
-                    };
-                }
-
-                Ok(expr)
-            }
-            _ => Err(ParseError::Expected {
-                expected: "注解参数值（仅支持 int/string 字面量或 `A.B` 形式的枚举值引用）",
-                found: tok.kind,
-                span: tok.span.into(),
-            }),
-        }
     }
 
     fn parse_type_param_list(

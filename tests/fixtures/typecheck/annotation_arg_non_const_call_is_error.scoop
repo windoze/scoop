@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_arg_not_const
+// EXPECT-ERROR-AT: 15:7
+// EXPECT-ERROR: 编译期常量
+// 目标：T1019：非常量的注解参数必须报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class Anno(val v: Int)
+
+fun other(): Int { return 1 }
+
+@Anno(other())
+fun f() {}

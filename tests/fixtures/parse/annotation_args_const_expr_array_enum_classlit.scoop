@@ -1,0 +1,25 @@
+// EXPECT: pass
+// EXPECT-AST: annotation_args_const_expr_array_enum_classlit.ast
+// 目标：T1019 注解参数解析：常量表达式 / 数组字面量 / enum 值 / class-literal。
+
+package fixtures.parse
+
+annotation class AnnoInt(val v: Int)
+annotation class AnnoArr(val xs: Array<Int>)
+annotation class AnnoEnum(val c: Color)
+annotation class AnnoClass(val ty: String)
+
+enum Color { Red, Blue }
+
+@AnnoInt(1 + 2)
+fun f() {}
+
+@AnnoArr([1, 2, 3])
+fun g() {}
+
+@AnnoEnum(Color.Red)
+fun h() {}
+
+@AnnoClass(String::class)
+fun i() {}
+

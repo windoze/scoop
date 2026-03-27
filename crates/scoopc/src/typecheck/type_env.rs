@@ -137,6 +137,12 @@ pub struct TypeSymbol {
     ///
     /// 注意：导出到 `.cone` 的行为留给 T1016b；此处仅做“声明头收集”供后续阶段查询。
     pub annotation_retention: Option<AnnotationRetentionPolicy>,
+    /// 若该类型是注解类，记录其主构造参数信息（T1019）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅用于在注解使用点做“参数类型 + 编译期常量”检查；
+    /// - 更完整的默认值计算/可选参数规则会在后续任务中完善（spec §15.2 / §15.3）。
+    pub annotation_params: Vec<AnnotationParamInfo>,
     pub type_param_count: usize,
     /// 是否包含 `eff` effect row 参数（spec §3.4 / §5.8）。
     ///
@@ -164,6 +170,15 @@ pub struct TypeSymbol {
     pub where_constraints: Vec<WhereConstraintInfo>,
     pub span: Span,
     pub decl_file: PathBuf,
+}
+
+/// 注解类主构造参数在 type env 中的最小表示（T1019）。
+#[derive(Debug, Clone)]
+pub struct AnnotationParamInfo {
+    pub name: String,
+    pub name_span: Span,
+    pub ty: ast::TypeRef,
+    pub has_default: bool,
 }
 
 /// `eff` effect row 参数在 type env 中的最小表示。
@@ -395,13 +410,14 @@ impl TypeEnv {
                 ast::Item::TypeAlias(ta) => {
                     let name = source.slice(ta.name.span).to_string();
                     let fqn = join_prefix(&pkg_prefix, &name);
-                        self.insert_symbol(
+                    self.insert_symbol(
                         fqn.clone(),
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             is_annotation_class: false,
                             annotation_targets: None,
                             annotation_retention: None,
+                            annotation_params: Vec::new(),
                             type_param_count: 0,
                             eff_param: None,
                             type_param_names: Vec::new(),
@@ -482,6 +498,11 @@ impl TypeEnv {
         } else {
             (None, None)
         };
+        let annotation_params = if is_annotation_class {
+            collect_annotation_params(source, decl)
+        } else {
+            Vec::new()
+        };
 
         self.insert_symbol(
             fqn.clone(),
@@ -490,6 +511,7 @@ impl TypeEnv {
                 is_annotation_class,
                 annotation_targets,
                 annotation_retention,
+                annotation_params,
                 type_param_count: decl.type_params.len(),
                 eff_param: decl.eff_param.as_ref().map(|p| EffParamInfo {
                     span: p.span,
@@ -500,7 +522,7 @@ impl TypeEnv {
                 type_param_variances,
                 where_constraints,
                 span: decl.name.span,
-                    decl_file: source.path().to_path_buf(),
+                decl_file: source.path().to_path_buf(),
             },
         )?;
 
@@ -646,6 +668,7 @@ impl TypeEnv {
                 is_annotation_class: false,
                 annotation_targets: None,
                 annotation_retention: None,
+                annotation_params: Vec::new(),
                 type_param_count: 0,
                 eff_param: None,
                 type_param_names: Vec::new(),
@@ -751,6 +774,28 @@ fn extract_annotation_class_meta(
     }
 
     (targets, retention)
+}
+
+fn collect_annotation_params(source: &SourceFile, decl: &ast::TypeDecl) -> Vec<AnnotationParamInfo> {
+    let Some(primary_ctor) = &decl.primary_ctor else {
+        return Vec::new();
+    };
+
+    let mut out: Vec<AnnotationParamInfo> = Vec::new();
+    for p in &primary_ctor.params {
+        let Some(ty) = &p.ty else {
+            // `typecheck::check_file_headers` 会给出更精确的诊断；这里保持健壮性。
+            continue;
+        };
+
+        out.push(AnnotationParamInfo {
+            name: source.slice(p.name.span).to_string(),
+            name_span: p.name.span,
+            ty: ty.clone(),
+            has_default: p.default_value.is_some(),
+        });
+    }
+    out
 }
 
 fn annotation_use_to_fqn(

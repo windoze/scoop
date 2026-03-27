@@ -10,15 +10,21 @@
 //! - 注解在表达式位置的语义（如 `@Suppress(...) expr`）；
 //! - `@Extern/@Intrinsic/@NoGC/@Unsafe` 等内建注解的特殊行为（T1003 已覆盖最小门禁；更完整规则见 TODO）。
 
+use std::collections::HashMap;
+
 use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::Index;
+use crate::resolve::ImportTable;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::builtin_annotations::{BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind};
+use super::assignable::is_type_assignable;
+use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
 
 #[derive(Debug, Clone, Copy)]
@@ -182,6 +188,70 @@ pub enum AnnotationError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("注解 `{annotation}` 参数过多（最多 {max} 个）")]
+    #[diagnostic(code(scoop::typecheck::annotation_args_too_many))]
+    AnnotationArgsTooMany {
+        annotation: String,
+        max: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 没有名为 `{name}` 的参数")]
+    #[diagnostic(code(scoop::typecheck::unknown_annotation_param))]
+    UnknownAnnotationParam {
+        annotation: String,
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 的参数 `{param}` 被重复赋值")]
+    #[diagnostic(code(scoop::typecheck::annotation_arg_duplicate))]
+    AnnotationArgDuplicate {
+        annotation: String,
+        param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 缺少必填参数 `{param}`")]
+    #[diagnostic(code(scoop::typecheck::annotation_arg_missing_required))]
+    AnnotationArgMissingRequired {
+        annotation: String,
+        param: String,
+        #[label("注解使用在这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 命名参数之后不能再使用位置参数")]
+    #[diagnostic(code(scoop::typecheck::annotation_arg_positional_after_named))]
+    AnnotationArgPositionalAfterNamed {
+        annotation: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 的参数 `{param}` 必须是编译期常量表达式")]
+    #[diagnostic(code(scoop::typecheck::annotation_arg_not_const))]
+    AnnotationArgNotConst {
+        annotation: String,
+        param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("注解 `{annotation}` 的参数 `{param}` 类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::annotation_arg_type_mismatch))]
+    AnnotationArgTypeMismatch {
+        annotation: String,
+        param: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内的注解相关最小规则。
@@ -193,8 +263,12 @@ pub fn check_file_annotations(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
 ) -> Result<(), AnnotationError> {
+    let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     let pkg_prefix = package_prefix(source, file.package.as_ref());
 
     // 文件级注解：`@file:...`
@@ -203,6 +277,8 @@ pub fn check_file_annotations(
         file,
         index,
         env,
+        &mut lower,
+        builtins,
         &file.file_annotations,
         AnnotationSite::new(AnnotationTargetKind::Module),
     )?;
@@ -216,6 +292,8 @@ pub fn check_file_annotations(
                     file,
                     index,
                     env,
+                    &mut lower,
+                    builtins,
                     &ta.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Type),
                 )?;
@@ -227,11 +305,13 @@ pub fn check_file_annotations(
                     file,
                     index,
                     env,
+                    &mut lower,
+                    builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
-                check_param_list_annotations(source, file, index, env, &fun.params)?;
+                check_param_list_annotations(source, file, index, env, &mut lower, builtins, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
                 check_annotation_uses(
@@ -239,6 +319,8 @@ pub fn check_file_annotations(
                     file,
                     index,
                     env,
+                    &mut lower,
+                    builtins,
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
@@ -250,16 +332,18 @@ pub fn check_file_annotations(
                     file,
                     index,
                     env,
+                    &mut lower,
+                    builtins,
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
                 reject_builtin_annotations_on_target(source, &v.annotations, "val/var")?;
             }
             ast::Item::Type(ty) => {
-                check_type_decl_annotations(source, file, index, env, ty, &pkg_prefix)?;
+                check_type_decl_annotations(source, file, index, env, &mut lower, builtins, ty, &pkg_prefix)?;
             }
             ast::Item::Object(obj) => {
-                check_object_decl_annotations(source, file, index, env, obj, &pkg_prefix)?;
+                check_object_decl_annotations(source, file, index, env, &mut lower, builtins, obj, &pkg_prefix)?;
             }
         }
     }
@@ -273,6 +357,8 @@ fn check_type_decl_annotations(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     decl: &ast::TypeDecl,
     prefix: &str,
 ) -> Result<(), AnnotationError> {
@@ -286,7 +372,7 @@ fn check_type_decl_annotations(
     } else {
         AnnotationSite::new(AnnotationTargetKind::Type)
     };
-    check_annotation_uses(source, file, index, env, &decl.annotations, site)?;
+    check_annotation_uses(source, file, index, env, lower, builtins, &decl.annotations, site)?;
     check_builtin_annotations_on_type_decl(source, decl, &type_fqn)?;
 
     // 2) 注解类自身的最小形态约束（data-only）。
@@ -296,7 +382,7 @@ fn check_type_decl_annotations(
 
     // 2.5) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
     if let Some(primary_ctor) = &decl.primary_ctor {
-        check_param_list_annotations(source, file, index, env, &primary_ctor.params)?;
+        check_param_list_annotations(source, file, index, env, lower, builtins, &primary_ctor.params)?;
     }
 
     // 3) 递归检查类型体成员（包含 nested types）。
@@ -311,6 +397,8 @@ fn check_type_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
@@ -322,6 +410,8 @@ fn check_type_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
@@ -333,11 +423,13 @@ fn check_type_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
                 reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
-                check_param_list_annotations(source, file, index, env, &ctor.params)?;
+                check_param_list_annotations(source, file, index, env, lower, builtins, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
                 check_annotation_uses(
@@ -345,17 +437,19 @@ fn check_type_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
-                check_param_list_annotations(source, file, index, env, &fun.params)?;
+                check_param_list_annotations(source, file, index, env, lower, builtins, &fun.params)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(source, file, index, env, nested, &type_fqn)?;
+                check_type_decl_annotations(source, file, index, env, lower, builtins, nested, &type_fqn)?;
             }
             ast::TypeMember::Object(obj) => {
-                check_object_decl_annotations(source, file, index, env, obj, &type_fqn)?;
+                check_object_decl_annotations(source, file, index, env, lower, builtins, obj, &type_fqn)?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -370,6 +464,8 @@ fn check_param_list_annotations(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     params: &[ast::Param],
 ) -> Result<(), AnnotationError> {
     for p in params {
@@ -379,7 +475,7 @@ fn check_param_list_annotations(
         } else {
             AnnotationSite::new(AnnotationTargetKind::Param)
         };
-        check_annotation_uses(source, file, index, env, &p.annotations, site)?;
+        check_annotation_uses(source, file, index, env, lower, builtins, &p.annotations, site)?;
         reject_builtin_annotations_on_target(source, &p.annotations, "param")?;
     }
     Ok(())
@@ -391,6 +487,8 @@ fn check_object_decl_annotations(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     obj: &ast::ObjectDecl,
     prefix: &str,
 ) -> Result<(), AnnotationError> {
@@ -400,6 +498,8 @@ fn check_object_decl_annotations(
         file,
         index,
         env,
+        lower,
+        builtins,
         &obj.annotations,
         AnnotationSite::new(AnnotationTargetKind::Type),
     )?;
@@ -430,6 +530,8 @@ fn check_object_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
@@ -441,6 +543,8 @@ fn check_object_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
@@ -452,6 +556,8 @@ fn check_object_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
@@ -463,16 +569,18 @@ fn check_object_decl_annotations(
                     file,
                     index,
                     env,
+                    lower,
+                    builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(source, file, index, env, nested, &obj_fqn)?;
+                check_type_decl_annotations(source, file, index, env, lower, builtins, nested, &obj_fqn)?;
             }
             ast::TypeMember::Object(nested) => {
-                check_object_decl_annotations(source, file, index, env, nested, &obj_fqn)?;
+                check_object_decl_annotations(source, file, index, env, lower, builtins, nested, &obj_fqn)?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -534,11 +642,13 @@ fn check_annotation_uses(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     annotations: &[ast::AnnotationUse],
     site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
     for a in annotations {
-        check_one_annotation_use(source, file, index, env, a, site)?;
+        check_one_annotation_use(source, file, index, env, lower, builtins, a, site)?;
     }
     Ok(())
 }
@@ -549,6 +659,8 @@ fn check_one_annotation_use(
     file: &ast::File,
     index: &Index,
     env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
     ann: &ast::AnnotationUse,
     site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
@@ -627,6 +739,9 @@ fn check_one_annotation_use(
         }
     }
 
+    // T1019：注解参数的“类型匹配 + 编译期常量”检查。
+    check_annotation_args(source, file, index, env, lower, builtins, &fqn, sym, ann)?;
+
     Ok(())
 }
 
@@ -668,6 +783,417 @@ fn check_retention_annotation_args(
         });
     }
     Ok(())
+}
+
+fn check_annotation_args(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    annotation_fqn: &str,
+    sym: &super::TypeSymbol,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    let params = sym.annotation_params.as_slice();
+    if params.is_empty() {
+        if ann.args.is_empty() {
+            return Ok(());
+        }
+        return Err(AnnotationError::AnnotationArgsTooMany {
+            annotation: annotation_fqn.to_string(),
+            max: 0,
+            span: ann.span.into(),
+        });
+    }
+
+    let mut idx_of: HashMap<String, usize> = HashMap::new();
+    for (idx, p) in params.iter().enumerate() {
+        idx_of.insert(p.name.clone(), idx);
+    }
+
+    let mut assigned: Vec<Option<&ast::AnnotationArg>> = vec![None; params.len()];
+    let mut next_positional = 0usize;
+    let mut seen_named = false;
+
+    for arg in &ann.args {
+        match &arg.name {
+            Some(name_id) => {
+                seen_named = true;
+                let name = name_id.text(source).to_string();
+                let Some(&param_idx) = idx_of.get(&name) else {
+                    return Err(AnnotationError::UnknownAnnotationParam {
+                        annotation: annotation_fqn.to_string(),
+                        name,
+                        span: name_id.span.into(),
+                    });
+                };
+                if assigned[param_idx].is_some() {
+                    return Err(AnnotationError::AnnotationArgDuplicate {
+                        annotation: annotation_fqn.to_string(),
+                        param: params[param_idx].name.clone(),
+                        span: name_id.span.into(),
+                    });
+                }
+                assigned[param_idx] = Some(arg);
+            }
+            None => {
+                if seen_named {
+                    return Err(AnnotationError::AnnotationArgPositionalAfterNamed {
+                        annotation: annotation_fqn.to_string(),
+                        span: arg.span.into(),
+                    });
+                }
+                if next_positional >= params.len() {
+                    return Err(AnnotationError::AnnotationArgsTooMany {
+                        annotation: annotation_fqn.to_string(),
+                        max: params.len(),
+                        span: arg.span.into(),
+                    });
+                }
+                assigned[next_positional] = Some(arg);
+                next_positional += 1;
+            }
+        }
+    }
+
+    for (idx, p) in params.iter().enumerate() {
+        if assigned[idx].is_none() && !p.has_default {
+            return Err(AnnotationError::AnnotationArgMissingRequired {
+                annotation: annotation_fqn.to_string(),
+                param: p.name.clone(),
+                span: ann.span.into(),
+            });
+        }
+    }
+
+    for (idx, maybe_arg) in assigned.iter().enumerate() {
+        let Some(arg) = maybe_arg else {
+            continue;
+        };
+
+        let expected_ty = match lower.lower_type_ref_in_decl_file(&sym.decl_file, &params[idx].ty) {
+            Ok(ty) => ty,
+            Err(_e) => {
+                // 更精确的类型诊断由 `check_file_type_refs`/`TypeLowerError` 给出；
+                // 这里保持注解检查阶段的健壮性，不在此重复报错。
+                continue;
+            }
+        };
+
+        let found_ty = infer_annotation_const_expr_type(
+            source,
+            file,
+            index,
+            env,
+            lower,
+            builtins,
+            &arg.value,
+            annotation_fqn,
+            params[idx].name.as_str(),
+        )?;
+
+        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            return Err(AnnotationError::AnnotationArgTypeMismatch {
+                annotation: annotation_fqn.to_string(),
+                param: params[idx].name.clone(),
+                expected: lower.fmt_type(expected_ty),
+                found: lower.fmt_type(found_ty),
+                span: arg.value.span.into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+fn infer_annotation_const_expr_type(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    expr: &ast::Expr,
+    annotation_fqn: &str,
+    param_name: &str,
+) -> Result<TypeId, AnnotationError> {
+    let not_const = || AnnotationError::AnnotationArgNotConst {
+        annotation: annotation_fqn.to_string(),
+        param: param_name.to_string(),
+        span: expr.span.into(),
+    };
+
+    match &expr.kind {
+        ast::ExprKind::IntLit => Ok(builtins.int),
+        ast::ExprKind::StringLit => Ok(builtins.string),
+        ast::ExprKind::UnitLit => Ok(builtins.unit),
+        ast::ExprKind::InterpolatedString { .. } => Err(not_const()),
+        ast::ExprKind::Ident(id) => match source.slice(id.span) {
+            "true" | "false" => Ok(builtins.bool_),
+            _ => Err(not_const()),
+        },
+        ast::ExprKind::Unary { op, expr: inner, .. } => {
+            let operand_ty = infer_annotation_const_expr_type(
+                source,
+                file,
+                index,
+                env,
+                lower,
+                builtins,
+                inner.as_ref(),
+                annotation_fqn,
+                param_name,
+            )?;
+            match op {
+                ast::UnaryOp::Not => {
+                    if operand_ty == builtins.bool_ {
+                        Ok(builtins.bool_)
+                    } else {
+                        Err(not_const())
+                    }
+                }
+                ast::UnaryOp::Neg | ast::UnaryOp::BitNot => {
+                    if is_integer_type_for_const_expr(operand_ty, lower, builtins) {
+                        Ok(operand_ty)
+                    } else {
+                        Err(not_const())
+                    }
+                }
+            }
+        }
+        ast::ExprKind::Binary { lhs, op, rhs, .. } => {
+            let lhs_ty = infer_annotation_const_expr_type(
+                source,
+                file,
+                index,
+                env,
+                lower,
+                builtins,
+                lhs.as_ref(),
+                annotation_fqn,
+                param_name,
+            )?;
+            let rhs_ty = infer_annotation_const_expr_type(
+                source,
+                file,
+                index,
+                env,
+                lower,
+                builtins,
+                rhs.as_ref(),
+                annotation_fqn,
+                param_name,
+            )?;
+
+            match op {
+                ast::BinaryOp::Add
+                | ast::BinaryOp::Sub
+                | ast::BinaryOp::Mul
+                | ast::BinaryOp::Div
+                | ast::BinaryOp::Rem
+                | ast::BinaryOp::BitAnd
+                | ast::BinaryOp::BitXor
+                | ast::BinaryOp::BitOr => unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+                    .ok_or_else(not_const),
+
+                ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                    if is_integer_type_for_const_expr(lhs_ty, lower, builtins) && rhs_ty == builtins.int {
+                        Ok(lhs_ty)
+                    } else {
+                        Err(not_const())
+                    }
+                }
+
+                ast::BinaryOp::Lt
+                | ast::BinaryOp::Le
+                | ast::BinaryOp::Gt
+                | ast::BinaryOp::Ge => {
+                    if unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins).is_some() {
+                        Ok(builtins.bool_)
+                    } else {
+                        Err(not_const())
+                    }
+                }
+
+                ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+                    if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
+                        return Ok(builtins.bool_);
+                    }
+                    if unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins).is_some() {
+                        return Ok(builtins.bool_);
+                    }
+                    Err(not_const())
+                }
+
+                ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+                    if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
+                        Ok(builtins.bool_)
+                    } else {
+                        Err(not_const())
+                    }
+                }
+
+                ast::BinaryOp::Elvis => Err(not_const()),
+            }
+        }
+        ast::ExprKind::MemberAccess { .. } => infer_enum_unit_variant_const_type(source, file, index, env, lower, expr)
+            .ok_or_else(not_const),
+        ast::ExprKind::ArrayLit { elements } => {
+            let first = elements.first().ok_or_else(not_const)?;
+            let mut elem_ty = infer_annotation_const_expr_type(
+                source,
+                file,
+                index,
+                env,
+                lower,
+                builtins,
+                first,
+                annotation_fqn,
+                param_name,
+            )?;
+
+            for e in elements.iter().skip(1) {
+                let ty = infer_annotation_const_expr_type(
+                    source,
+                    file,
+                    index,
+                    env,
+                    lower,
+                    builtins,
+                    e,
+                    annotation_fqn,
+                    param_name,
+                )?;
+
+                if ty == elem_ty {
+                    continue;
+                }
+
+                // 允许 `Int` 字面量元素“适配”到其它整数类型（与表达式 typecheck 的最小规则对齐）。
+                if matches!(&e.kind, ast::ExprKind::IntLit)
+                    && is_integer_type_for_const_expr(elem_ty, lower, builtins)
+                    && is_integer_type_for_const_expr(ty, lower, builtins)
+                {
+                    continue;
+                }
+
+                if matches!(&first.kind, ast::ExprKind::IntLit)
+                    && is_integer_type_for_const_expr(elem_ty, lower, builtins)
+                    && is_integer_type_for_const_expr(ty, lower, builtins)
+                {
+                    elem_ty = ty;
+                    continue;
+                }
+
+                return Err(not_const());
+            }
+
+            lower
+                .lower_type_fqn_with_args("scoop.core.Array".to_string(), vec![elem_ty], expr.span)
+                .map_err(|_e| not_const())
+        }
+        ast::ExprKind::ClassLit { ty } => {
+            // 当前阶段：class literal 仅作为“编译期可用的类型名常量”存在。
+            // 这里做最小保证：类型引用必须可解析（存在性由 Index/TypeEnv 决定）。
+            if index.type_ref_to_fqn_in_file(source, file, ty).is_none() {
+                return Err(not_const());
+            }
+            Ok(builtins.string)
+        }
+        _ => Err(not_const()),
+    }
+}
+
+fn infer_enum_unit_variant_const_type(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    env: &TypeEnv,
+    lower: &mut TypeLowering<'_>,
+    expr: &ast::Expr,
+) -> Option<TypeId> {
+    let mut segs: Vec<(String, Span)> = Vec::new();
+    if !collect_member_access_path(source, expr, &mut segs) {
+        return None;
+    }
+    if segs.len() < 2 {
+        return None;
+    }
+
+    let (variant_name, _variant_span) = segs.last().cloned()?;
+    let type_segs = &segs[..segs.len() - 1];
+    let first = type_segs.first()?;
+    let last = type_segs.last()?;
+
+    let path = ast::TypePath {
+        span: Span::new(first.1.start, last.1.end),
+        segments: type_segs
+            .iter()
+            .map(|(_text, span)| ast::Ident::new(*span))
+            .collect(),
+        args: Vec::new(),
+    };
+    let ty_ref = ast::TypeRef::Path(path);
+    let enum_fqn = index.type_ref_to_fqn_in_file(source, file, &ty_ref)?;
+
+    let decl = env.enum_decl(&enum_fqn)?;
+    let ok = decl
+        .variants
+        .iter()
+        .any(|v| v.name == variant_name && v.fields.is_empty());
+    if !ok {
+        return None;
+    }
+
+    lower
+        .lower_type_fqn_with_args(enum_fqn, Vec::new(), expr.span)
+        .ok()
+}
+
+fn is_integer_type_for_const_expr(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+    if ty == builtins.int || ty == builtins.uint {
+        return true;
+    }
+
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::IntN(_) | ValueTypeKind::UIntN(_)) => true,
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Int8"
+                | "scoop.core.Int16"
+                | "scoop.core.Int32"
+                | "scoop.core.Int64"
+                | "scoop.core.UInt8"
+                | "scoop.core.UInt16"
+                | "scoop.core.UInt32"
+                | "scoop.core.UInt64"
+        ),
+        _ => false,
+    }
+}
+
+fn unify_integer_operands_for_const_expr(
+    lhs: &ast::Expr,
+    lhs_ty: TypeId,
+    rhs: &ast::Expr,
+    rhs_ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Option<TypeId> {
+    if lhs_ty == rhs_ty && is_integer_type_for_const_expr(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    if matches!(&lhs.kind, ast::ExprKind::IntLit) && is_integer_type_for_const_expr(rhs_ty, lower, builtins) {
+        return Some(rhs_ty);
+    }
+    if matches!(&rhs.kind, ast::ExprKind::IntLit) && is_integer_type_for_const_expr(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    None
 }
 
 fn effective_annotation_target(

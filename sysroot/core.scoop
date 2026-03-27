@@ -16,6 +16,12 @@ interface Any
 // - sysroot 只提供“可见声明”，用于名字解析与工具链展示。
 struct Bool
 class String
+// 泛型数组类型（compile-time + runtime 表面）。
+//
+// 说明：
+// - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
+// - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
+class Array<T>
 struct Unit
 enum Nothing
 

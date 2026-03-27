@@ -121,7 +121,15 @@ pub fn lower_for_dump(
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
 
-    typecheck::check_file_annotations(source, &file, &index, &env)?;
+    typecheck::check_file_annotations(
+        source,
+        &file,
+        &index,
+        &resolved_headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )?;
 
     typecheck::check_file_type_refs(
         source,

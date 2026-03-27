@@ -609,8 +609,12 @@ fn field_use_span_in_expr(
         | ast::ExprKind::Ident(_)
         | ast::ExprKind::IntLit
         | ast::ExprKind::StringLit
-        | ast::ExprKind::UnitLit => None,
+        | ast::ExprKind::UnitLit
+        | ast::ExprKind::ClassLit { .. } => None,
         ast::ExprKind::TupleLit { elements } => elements
+            .iter()
+            .find_map(|e| field_use_span_in_expr(source, backing_field_decl_span, e)),
+        ast::ExprKind::ArrayLit { elements } => elements
             .iter()
             .find_map(|e| field_use_span_in_expr(source, backing_field_decl_span, e)),
         ast::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|p| match p {

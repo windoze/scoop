@@ -1,0 +1,26 @@
+// EXPECT: pass
+// 目标：T1019 注解参数：常量表达式 / 数组字面量 / enum 值 / class-literal。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class AnnoInt(val v: Int)
+annotation class AnnoArr(val xs: Array<Int>)
+annotation class AnnoEnum(val c: Color)
+annotation class AnnoClass(val ty: String)
+
+enum Color { Red, Blue }
+
+@AnnoInt(1 + 2)
+fun f() {}
+
+@AnnoArr([1, 2, 3])
+fun g() {}
+
+@AnnoEnum(Color.Red)
+fun h() {}
+
+@AnnoClass(String::class)
+fun i() {}
+

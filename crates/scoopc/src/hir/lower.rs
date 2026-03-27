@@ -574,6 +574,8 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
+            ast::ExprKind::ArrayLit { .. } => (ExprKind::Todo("array_lit"), self.builtins.any),
+            ast::ExprKind::ClassLit { .. } => (ExprKind::Todo("class_lit"), self.builtins.string),
             ast::ExprKind::InterpolatedString { raw, parts } => {
                 let parts = parts
                     .iter()

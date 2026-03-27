@@ -1080,6 +1080,14 @@ pub enum ExprKind {
     TupleLit {
         elements: Vec<Expr>,
     },
+    /// array 字面量：`[a, b, ...]`（spec §15.2 注解参数 / 后续 collections 语义）。
+    ///
+    /// 说明：
+    /// - 当前阶段主要用于注解参数（T1019）：允许把一组常量打包成 `Array<T>` 传入注解；
+    /// - 运行期数组/索引语义与 codegen 支持留给后续任务补齐。
+    ArrayLit {
+        elements: Vec<Expr>,
+    },
     /// 插值字符串：`f"Hello, {name}!"` / `f"""...{x}..."""`（spec §8.2/§8.3）。
     ///
     /// lexer 会把整个 f-string 当作一个 token；parser 会把其拆分为 Text/Expr 片段列表。
@@ -1114,6 +1122,14 @@ pub enum ExprKind {
     StructLit {
         ty: TypePath,
         fields: Vec<StructLitField>,
+    },
+    /// class 字面量：`TypeName::class`（Kotlin-like，T1019）。
+    ///
+    /// 说明：
+    /// - 当前阶段把它视为“编译期可用的类型名常量”，供注解参数等语境使用；
+    /// - 更完整的 TypeMeta/反射语义由后续 comptime/reflection 任务落地（T1204/T1208）。
+    ClassLit {
+        ty: TypeRef,
     },
     /// `if (cond) thenExpr else elseExpr?`（表达式形式）。
     ///

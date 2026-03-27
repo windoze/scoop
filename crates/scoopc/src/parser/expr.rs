@@ -142,6 +142,19 @@ impl<'a> Parser<'a> {
                 expr = self.parse_with_update_expr(expr)?;
                 continue;
             }
+            // Kotlin-like class literal：`TypeName::class`（T1019）。
+            //
+            // 说明：
+            // - 这里不引入新的 token（仍用两个 `:`）；解析时仅在 `::` 后紧跟 `class` 时成立；
+            // - 左侧要求是“类型名路径”（`Ident(.Ident)*`），由 parser 在此处做形态约束。
+            if self.peek_symbol(Symbol::Colon)
+                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Colon)
+                && self.peek_n(2).kind == TokenKind::Keyword(Keyword::Class)
+            {
+                last_postfix_was_trailing_lambda = false;
+                expr = self.parse_class_lit_expr(expr)?;
+                continue;
+            }
             if self.peek_symbol(Symbol::Dot) {
                 last_postfix_was_trailing_lambda = false;
                 expr = self.parse_member_access_expr(expr)?;
@@ -644,6 +657,10 @@ impl<'a> Parser<'a> {
 
         if self.peek_symbol(Symbol::LParen) {
             return self.try_parse_paren_group_expr();
+        }
+
+        if self.peek_symbol(Symbol::LBracket) {
+            return Ok(Some(self.parse_array_lit_expr()?));
         }
 
         Ok(None)
@@ -2288,6 +2305,74 @@ impl<'a> Parser<'a> {
         Ok(Some(ast::Expr::missing(span)))
     }
 
+    fn parse_array_lit_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let open = self.expect_symbol(Symbol::LBracket)?;
+        let start = open.span.start;
+
+        let mut elements = Vec::new();
+        if self.peek_symbol(Symbol::RBracket) {
+            let close = self.bump();
+            return Ok(ast::Expr {
+                span: Span::new(start, close.span.end),
+                kind: ast::ExprKind::ArrayLit { elements },
+            });
+        }
+
+        loop {
+            let tok = *self.peek();
+            let expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "表达式（数组元素）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+            elements.push(expr);
+
+            if self.eat_symbol(Symbol::Comma) {
+                // allow trailing comma
+                if self.peek_symbol(Symbol::RBracket) {
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        if self.peek_kind(TokenKind::Eof) {
+            return Err(ParseError::UnterminatedGroup {
+                close: Symbol::RBracket,
+                span: Span::new(open.span.start, self.peek().span.end).into(),
+            });
+        }
+        let close = self.expect_symbol(Symbol::RBracket)?;
+        Ok(ast::Expr {
+            span: Span::new(start, close.span.end),
+            kind: ast::ExprKind::ArrayLit { elements },
+        })
+    }
+
+    fn parse_class_lit_expr(&mut self, receiver: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let receiver_span = receiver.span;
+        let start = receiver_span.start;
+
+        let Some(path) = type_path_from_expr(receiver) else {
+            return Err(ParseError::ClassLiteralReceiverInvalid {
+                span: receiver_span.into(),
+            });
+        };
+
+        self.bump(); // ':'
+        self.bump(); // ':'
+        let class_kw = self.expect_keyword(Keyword::Class)?;
+        let end = class_kw.span.end;
+
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::ClassLit {
+                ty: ast::TypeRef::Path(path),
+            },
+        })
+    }
+
     fn disambiguate_ident_lbrace_group(&self) -> BraceGroupKind {
         debug_assert_eq!(self.peek().kind, TokenKind::Ident);
         debug_assert_eq!(self.peek_n(1).kind, TokenKind::Symbol(Symbol::LBrace));
@@ -2585,6 +2670,38 @@ fn shift_lex_error(err: LexError, base_offset: usize) -> LexError {
         LexError::UnterminatedString { span } => LexError::UnterminatedString {
             span: shift_source_span(span, base_offset),
         },
+    }
+}
+
+fn type_path_from_expr(expr: ast::Expr) -> Option<ast::TypePath> {
+    let mut segments: Vec<ast::Ident> = Vec::new();
+    if !collect_type_path_segments_from_expr(&expr, &mut segments) {
+        return None;
+    }
+    if segments.is_empty() {
+        return None;
+    }
+    Some(ast::TypePath {
+        span: expr.span,
+        segments,
+        args: Vec::new(),
+    })
+}
+
+fn collect_type_path_segments_from_expr(expr: &ast::Expr, out: &mut Vec<ast::Ident>) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            out.push(ast::Ident::new(id.span));
+            true
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            if !collect_type_path_segments_from_expr(receiver.as_ref(), out) {
+                return false;
+            }
+            out.push(ast::Ident::new(member.span));
+            true
+        }
+        _ => false,
     }
 }
 

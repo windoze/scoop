@@ -3321,11 +3321,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1019 [TODO] 注解参数：支持常量表达式 / 数组 / enum / class-literal 参数
+### T1019 [DONE] 注解参数：支持常量表达式 / 数组 / enum / class-literal 参数
 - 描述：把注解参数从“仅无参或字面量”扩展到更完整的常量参数模型：常量表达式、数组字面量、enum 值、类字面量等，并在 typecheck 中验证参数类型与可求值性。
 - 目标：先只接受编译期可确定的参数；不允许运行期依赖值混入注解参数。
 - 验收：新增 parse/typecheck fixtures：`@Anno(1 + 2)`、`@Anno([A, B])`、`@Anno(Color.Red)`、`@Anno(String::class)` 可通过；非常量参数报错。
-- 依赖：T1001、T1002、T1202
+- 依赖：T1001、T1002
+ - 完成：
+   - `crates/scoopc/src/parser/decls.rs`：注解参数改为复用表达式 parser，并避免把 `String::class` 误判为 named arg（`String: ...`）。
+   - `crates/scoopc/src/parser/expr.rs`：新增 `[...]` 数组字面量与 `TypeName::class`（class literal）解析。
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ExprKind::ArrayLit` / `ExprKind::ClassLit`。
+   - `crates/scoopc/src/typecheck/type_env.rs`：为注解类缓存主构造参数签名（name/type/default），供注解使用点检查。
+   - `crates/scoopc/src/typecheck/annotations.rs`：在注解使用点执行“参数绑定 + 常量表达式判定 + 类型匹配”，并给出稳定错误码（`annotation_arg_not_const` 等）。
+   - `sysroot/core.scoop`：补齐 `Array<T>` 声明面，支持注解参数类型 `Array<...>`。
+   - `tests/fixtures/parse/*`、`tests/fixtures/typecheck/*`：新增 pass + fail fixtures 覆盖四类参数与非常量报错。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ---
 

@@ -139,12 +139,21 @@ fn run_frontend(session: &scoopc::session::Session, source: &scoopc::source::Sou
     env.extend_from_file(source, &ast, &index)
         .map_err(miette::Report::from)?;
 
-    scoopc::typecheck::check_file_annotations(source, &ast, &index, &env).map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(miette::Report::from)?;
-    scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(miette::Report::from)?;
-
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
+
+    scoopc::typecheck::check_file_annotations(
+        source,
+        &ast,
+        &index,
+        &headers.imports,
+        &env,
+        &mut types,
+        builtins,
+    )
+    .map_err(miette::Report::from)?;
+    scoopc::typecheck::check_file_properties(source, &ast, &index, &env).map_err(miette::Report::from)?;
+    scoopc::typecheck::check_file_inheritance(source, &ast, &index).map_err(miette::Report::from)?;
 
     scoopc::typecheck::check_file_interfaces(source, &ast, &index, &env).map_err(miette::Report::from)?;
     scoopc::typecheck::check_file_override_effects(

@@ -63,6 +63,13 @@ pub enum ParseError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("语法错误：`::class` 的左侧必须是类型名路径（例如 `String::class`）")]
+    #[diagnostic(code(scoop::parse::class_literal_receiver_invalid))]
+    ClassLiteralReceiverInvalid {
+        #[label("这里需要类型名")]
+        span: miette::SourceSpan,
+    },
 }
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
@@ -120,6 +127,7 @@ impl ParseError {
             ParseError::Expected { span, .. } => Some(*span),
             ParseError::UnterminatedGroup { span, .. } => Some(*span),
             ParseError::FStringUnescapedRBrace { span } => Some(*span),
+            ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
         }
     }
 }

@@ -619,8 +619,14 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::Missing
             | ast::ExprKind::IntLit
             | ast::ExprKind::StringLit
-            | ast::ExprKind::UnitLit => {}
+            | ast::ExprKind::UnitLit
+            | ast::ExprKind::ClassLit { .. } => {}
             ast::ExprKind::TupleLit { elements } => {
+                for e in elements {
+                    self.check_expr(e)?;
+                }
+            }
+            ast::ExprKind::ArrayLit { elements } => {
                 for e in elements {
                     self.check_expr(e)?;
                 }
