@@ -3296,7 +3296,7 @@
 ### T1016 meta-annotations（拆分为子任务，spec §15.5）
 - 描述：实现 meta-annotations 的最小规则：`@Target` 限制注解可应用位置，`@Retention` 决定是否仅编译期可见或保留到 `.cone` 元数据。
 - 目标：先只支持 comptime-only 与 cone-preserved 两档；更细粒度 policy 后续再补。
-- 备注：为保证 TODO 顺序“首个 `[TODO]` 可直接实现”，把“typecheck 合法性”和“.cone 导出/下游可见性”拆分为两步（后者依赖 Cone 基础设施）。
+- 备注：为保证 TODO 顺序“首个 `[TODO]` 可直接实现”，把“typecheck 合法性”和“.cone 导出/下游可见性”拆分为两步（后者依赖 Cone 基础设施）；T1016b 已移动到 T1209 之后以满足依赖顺序。
 
 ### T1016a [DONE] meta-annotations：typecheck enforce `@Target/@Retention`（不含 `.cone`）
 - 描述：在 typecheck 阶段读取注解类上的 meta-annotations，并在所有注解使用点强制执行：
@@ -3320,12 +3320,6 @@
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
-
-### T1016b [TODO] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
-- 描述：把标记为 cone-preserved 的注解写入 `.cone` 元数据（或 scoopir），并在下游编译/反射中可读；comptime-only 不导出。
-- 目标：先只保证“下游可见/不可见”的边界；注解参数复杂表达式留给 T1019/T1209 之后再补。
-- 验收：新增 cone fixture：cone-preserved 注解在下游可见；comptime-only 注解在下游不可见（或为空）。
-- 依赖：T1103、T1209、T1016a
 
 ### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
 - 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
@@ -3480,6 +3474,12 @@
 - 目标：先只支持读取注解名与字面量参数；复杂表达式参数后置。
 - 验收：comptime fixture：读取 `@Deprecated("x")` 的参数并生成代码/诊断；输出稳定。
 - 依赖：T1001、T1208
+
+### T1016b [TODO] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
+- 描述：把标记为 cone-preserved 的注解写入 `.cone` 元数据（或 scoopir），并在下游编译/反射中可读；comptime-only 不导出。
+- 目标：先只保证“下游可见/不可见”的边界；注解参数复杂表达式留给 T1019/T1209 之后再补。
+- 验收：新增 cone fixture：cone-preserved 注解在下游可见；comptime-only 注解在下游不可见（或为空）。
+- 依赖：T1103、T1209、T1016a
 
 ### T1210 [TODO] 委托属性 lowering 所需：生成 `PropertyMeta` 常量并传参（spec §10.4）
 - 描述：为 delegated property 生成静态 `PropertyMeta` 常量，并在 getter/setter 转发时传入。
