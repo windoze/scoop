@@ -3114,11 +3114,21 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T1005 [TODO] `@NoGC`：调用限制与“可能分配”静态判定（spec §15.8）
+### T1005 [DONE] `@NoGC`：调用限制与“可能分配”静态判定（spec §15.8）
 - 描述：实现 `@NoGC`：禁止堆分配、禁止调用非 `@NoGC/@Extern`；当编译器无法证明无分配时必须保守报错。
 - 目标：先只做基于“已知分配点”的保守分析；不做全程序逃逸分析。
 - 验收：unsafe_nogc fixture：在 `@NoGC` 函数里调用 `scoop_alloc`（或构造 box）报错；调用纯函数通过。
 - 依赖：T1003、T0817
+ - 完成：
+   - `crates/scoopc/src/typecheck/lower.rs`：引入 `@NoGC` 上下文深度（push/pop/suspend），并在 lambda body 中默认抑制该上下文。
+   - `crates/scoopc/src/typecheck/expr.rs`：
+     - 新增 `@NoGC` 调用门禁：仅允许调用 `@NoGC/@Extern` 函数；
+     - 新增“已知分配点”门禁：值类型（或 type param 占位）在赋值到引用类型时视为 boxing（可能堆分配），在 `@NoGC` 中报错；
+     - 修复表达式语句位置的调用可绕过问题：`@NoGC` 下的 `call();` 也会强制走调用类型检查路径。
+   - `tests/fixtures/unsafe_nogc/*`：新增 `@NoGC` 的 pass/fail fixtures（禁止调用非 NoGC、禁止 boxing）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T1006 [TODO] `@Extern`：FFI 符号名与 ABI 约定（spec §15.8.3）
 - 描述：为 `@Extern` 函数定义名称映射（如 `@Extern("puts")`）与最小 ABI（C ABI）。

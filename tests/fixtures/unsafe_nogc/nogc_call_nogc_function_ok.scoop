@@ -1,0 +1,14 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+@NoGC
+fun pure_add(a: Int, b: Int): Int {
+    return a + b
+}
+
+@NoGC
+fun ok(): Int {
+    return pure_add(1, 2)
+}
+

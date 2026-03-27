@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_call_forbidden
+// EXPECT-ERROR-AT: 14:12
+// EXPECT-ERROR: @NoGC
+
+package fixtures.unsafe_nogc
+
+fun may_alloc(): Int {
+    return 1
+}
+
+@NoGC
+fun bad(): Int {
+    return may_alloc()
+}
+

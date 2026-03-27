@@ -247,6 +247,14 @@ pub(super) struct TypeLowering<'a> {
     /// - 在非 unsafe context 中，这类调用会在表达式 typecheck 阶段报错（T1003）；
     /// - 未来 `@Unsafe { ... }` block（T1004）会复用同一机制做局部 push/pop。
     unsafe_context_depth: usize,
+
+    /// `@NoGC` 上下文深度（TODO T1005）。
+    ///
+    /// 说明：
+    /// - 在 `@NoGC` 函数体内，编译器需要保守拒绝“可能分配”的行为；
+    /// - 目前我们只实现最小静态门禁（调用点/已知装箱点），更完整分析留给后续任务；
+    /// - 使用 depth 而不是 bool，便于未来扩展局部 `@NoGC { ... }` 或其它可嵌套语境。
+    nogc_context_depth: usize,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -302,6 +310,7 @@ impl<'a> TypeLowering<'a> {
             performed_effects: Vec::new(),
             monomorph_requests: None,
             unsafe_context_depth: 0,
+            nogc_context_depth: 0,
         }
     }
 
@@ -324,6 +333,33 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn in_unsafe_context(&self) -> bool {
         self.unsafe_context_depth > 0
+    }
+
+    pub(super) fn push_nogc_context(&mut self) {
+        self.nogc_context_depth += 1;
+    }
+
+    pub(super) fn pop_nogc_context(&mut self) {
+        debug_assert!(self.nogc_context_depth > 0);
+        self.nogc_context_depth = self.nogc_context_depth.saturating_sub(1);
+    }
+
+    pub(super) fn in_nogc_context(&self) -> bool {
+        self.nogc_context_depth > 0
+    }
+
+    /// 在一个临时区域中“抑制 `@NoGC` 上下文”。
+    ///
+    /// 用途：
+    /// - lambda body 的代码并不在外层函数执行时立即运行；
+    ///   为避免把 `@NoGC` 的限制错误地施加到 lambda body 上（产生大量假阳性），
+    ///   这里提供一个最小的“暂停”机制。
+    pub(super) fn with_nogc_context_suspended<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = self.nogc_context_depth;
+        self.nogc_context_depth = 0;
+        let out = f(self);
+        self.nogc_context_depth = saved;
+        out
     }
 
     /// 开启 monomorph 请求收集（T0712）。

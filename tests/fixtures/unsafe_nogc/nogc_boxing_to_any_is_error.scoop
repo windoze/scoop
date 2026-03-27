@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_boxing_forbidden
+// EXPECT-ERROR-AT: 10:12
+// EXPECT-ERROR: 装箱
+
+package fixtures.unsafe_nogc
+
+@NoGC
+fun bad(): scoop.core.Any {
+    return 1
+}

@@ -35,6 +35,7 @@
 - 2026-03-27：完成 T1002：typecheck 增加 `annotation class` 识别与 `@Name(...)` 引用校验（data-only 形态约束 + 非注解类用作注解报错），并新增 typecheck fixtures 覆盖。
 - 2026-03-27：完成 T1003：typecheck 增加内建注解 `@Unsafe/@NoGC/@Extern/@Intrinsic` 的最小合法性检查；并对 `@Extern/@Unsafe` 调用点施加 unsafe context 门禁；新增 `tests/fixtures/unsafe_nogc/*` 回归。
 - 2026-03-27：完成 T1004：parser/typecheck 支持 `@Unsafe { ... }` 块并在 typecheck 传播 unsafe context；新增 unsafe_nogc fixtures 覆盖“block 内允许调用 @Extern / block 外仍禁止”。
+- 2026-03-27：完成 T1005：typecheck 增加 `@NoGC` 的最小静态门禁（禁止调用非 `@NoGC/@Extern`、禁止已知 boxing 分配点），并新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。

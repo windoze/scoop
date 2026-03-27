@@ -328,6 +328,23 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@NoGC` 上下文禁止调用非 `@NoGC/@Extern` 函数：{callee}")]
+    #[diagnostic(code(scoop::typecheck::nogc_call_forbidden))]
+    NoGcCallForbidden {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@NoGC` 上下文禁止装箱（可能堆分配）：{from} -> {to}")]
+    #[diagnostic(code(scoop::typecheck::nogc_boxing_forbidden))]
+    NoGcBoxingForbidden {
+        from: String,
+        to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {
@@ -1383,9 +1400,14 @@ fn check_class_member_fun_body_exprs(
         false
     };
 
-    let unsafe_ctx_pushed = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations).is_unsafe;
+    let builtin_flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+    let unsafe_ctx_pushed = builtin_flags.is_unsafe;
+    let nogc_ctx_pushed = builtin_flags.is_nogc;
     if unsafe_ctx_pushed {
         lower.push_unsafe_context();
+    }
+    if nogc_ctx_pushed {
+        lower.push_nogc_context();
     }
 
     lower.begin_effect_collection();
@@ -1497,6 +1519,9 @@ fn check_class_member_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
+    }
+    if nogc_ctx_pushed {
+        lower.pop_nogc_context();
     }
     if unsafe_ctx_pushed {
         lower.pop_unsafe_context();
@@ -4569,6 +4594,17 @@ fn infer_function_value_call_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    // `@NoGC`：保守门禁。
+    //
+    // 说明：当前阶段我们无法证明“某个函数值/闭包”是否为 `@NoGC`，
+    // 因此在 `@NoGC` 上下文中一律拒绝这类调用（宁可误杀也不放过）。
+    if lower.in_nogc_context() {
+        return Err(ExprTypeError::NoGcCallForbidden {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
     // 当前阶段（TODO T0710）最小实现：允许调用“局部值中的函数类型”（lambda/闭包/函数值）。
     //
     // 约束：
@@ -4653,6 +4689,7 @@ fn infer_function_value_call_expr_type(
     {
         let expected_ty = fun.params[idx];
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             continue;
         }
         // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
@@ -4796,6 +4833,69 @@ fn check_unsafe_call_gate(
     Ok(())
 }
 
+fn check_nogc_call_gate(
+    callee_fqn: &str,
+    sig: &FunSigOwned,
+    call_span: Span,
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if !lower.in_nogc_context() {
+        return Ok(());
+    }
+
+    // spec §15.8：`@NoGC` 函数体内必须保守拒绝“可能分配”的调用点。
+    //
+    // 当前阶段（TODO T1005）最小实现：
+    // - 仅允许调用 `@NoGC`（含 `@Extern` 隐含 `@NoGC`）的函数；
+    // - 其它调用一律视为“可能分配/可能触发 GC”，直接报错。
+    if sig.is_nogc || sig.is_extern {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::NoGcCallForbidden {
+        callee: callee_fqn.to_string(),
+        span: call_span.into(),
+    })
+}
+
+fn check_nogc_boxing_gate(
+    found: TypeId,
+    expected: TypeId,
+    at: Span,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    if !lower.in_nogc_context() {
+        return Ok(());
+    }
+
+    // `Nothing` 不会在运行时产生值；将其视为“不会发生装箱/分配”。
+    if found == builtins.nothing {
+        return Ok(());
+    }
+
+    // 当前阶段的“已知分配点”之一：值类型（或无法判定是否为值类型的 type param）
+    // 被上下文吸收到引用类型（`Any`/interface 等）时，需要 boxing（T0817）。
+    let expected_is_ref = matches!(lower.type_kind(expected), TypeKind::Ref(_));
+    if !expected_is_ref {
+        return Ok(());
+    }
+
+    let found_may_need_boxing = matches!(
+        lower.type_kind(found),
+        TypeKind::Value(_) | TypeKind::Param(_)
+    );
+    if !found_may_need_boxing {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::NoGcBoxingForbidden {
+        from: lower.fmt_type(found),
+        to: lower.fmt_type(expected),
+        span: at.into(),
+    })
+}
+
 fn infer_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -4909,6 +5009,7 @@ fn infer_call_expr_type(
             // 但补齐命名实参的形参映射（T0453）。
             if direct_call_candidates.len() == 1 {
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+                check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 let call_args = collect_call_arg_infos(
                     source,
                     args,
@@ -5110,19 +5211,23 @@ fn infer_call_expr_type(
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
 
-                    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
-                        // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-                        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
-                            continue;
-                        }
-                        return Err(ExprTypeError::CallArgTypeMismatch {
-                            callee: callee_fqn,
-                            index: param_idx + 1,
-                            expected: lower.fmt_type(expected_ty),
-                            found: lower.fmt_type(found_ty),
-                            span: arg.expr.span.into(),
-                        });
+                    if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                        check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+                        continue;
                     }
+
+                    // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
+                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                        continue;
+                    }
+
+                    return Err(ExprTypeError::CallArgTypeMismatch {
+                        callee: callee_fqn,
+                        index: param_idx + 1,
+                        expected: lower.fmt_type(expected_ty),
+                        found: lower.fmt_type(found_ty),
+                        span: arg.expr.span.into(),
+                    });
                 }
 
                 // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
@@ -5500,6 +5605,23 @@ fn infer_call_expr_type(
             };
 
             check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+            check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+
+            // `@NoGC`：已知分配点（boxing）门禁。
+            //
+            // 说明：多候选路径中我们不会为所有实参做第二遍 expected-context 推断（避免额外副作用），
+            // 这里用“预收集到的实参类型 + 已选定候选的期望实参类型”做最小判定即可：
+            // - 若某个实参是值类型（或 type param 占位），且被期望类型吸收到引用类型，则需要 boxing；
+            // - 在 `@NoGC` 上下文中应当保守拒绝。
+            for (arg_idx, arg) in call_args.iter().enumerate() {
+                let expected_ty = *chosen.expected_arg_tys.get(arg_idx).unwrap_or(&builtins.nothing);
+                if expected_ty == builtins.nothing {
+                    continue;
+                }
+                if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
+                    check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
+                }
+            }
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
@@ -6585,6 +6707,7 @@ fn infer_member_call_expr_type(
     // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
     if ext_candidates.len() == 1 {
         check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+        check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         let expected_args = sig.params.len().saturating_sub(1);
         if call_args.len() > expected_args {
             return Err(ExprTypeError::CallArityMismatch {
@@ -6681,6 +6804,13 @@ fn infer_member_call_expr_type(
                     span: receiver.span.into(),
                 });
             }
+            check_nogc_boxing_gate(
+                actual_receiver_ty,
+                expected_receiver_ty,
+                receiver.span,
+                lower,
+                builtins,
+            )?;
         }
 
         // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
@@ -6823,6 +6953,13 @@ fn infer_member_call_expr_type(
                     span: receiver.span.into(),
                 });
             }
+            check_nogc_boxing_gate(
+                actual_receiver_ty,
+                expected_receiver_ty,
+                receiver.span,
+                lower,
+                builtins,
+            )?;
         }
 
         // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
@@ -6835,6 +6972,7 @@ fn infer_member_call_expr_type(
             let found_ty = checked_arg_tys[arg_idx];
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
                 continue;
             }
             if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
@@ -7277,6 +7415,25 @@ fn infer_member_call_expr_type(
     };
 
     check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+    check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+
+    // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。
+    check_nogc_boxing_gate(
+        actual_receiver_ty,
+        chosen.receiver_ty,
+        receiver.span,
+        lower,
+        builtins,
+    )?;
+    for (arg_idx, arg) in call_args.iter().enumerate() {
+        let expected_ty = *chosen.expected_arg_tys.get(arg_idx).unwrap_or(&builtins.nothing);
+        if expected_ty == builtins.nothing {
+            continue;
+        }
+        if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
+            check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
+        }
+    }
 
     // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
     let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
@@ -8392,21 +8549,24 @@ fn check_lambda_expr_stmt_body(
 
     // required effects（T0604）：lambda body 的 effect 属于该函数值，不计入外层函数立即执行的 effects。
     lower.with_effect_collection_suspended(|lower| {
-        check_expr_stmt(
-            source,
-            lam.body.as_ref(),
-            lower,
-            builtins,
-            &mut lambda_locals,
-            &mut lambda_stable,
-            &mut lambda_mutable,
-            0,
-            nested_expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )
+        // `@NoGC`：lambda body 并不在外层函数执行时立即运行，不能把 `@NoGC` 的限制“向内传播”。
+        lower.with_nogc_context_suspended(|lower| {
+            check_expr_stmt(
+                source,
+                lam.body.as_ref(),
+                lower,
+                builtins,
+                &mut lambda_locals,
+                &mut lambda_stable,
+                &mut lambda_mutable,
+                0,
+                nested_expected_return_ty,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            )
+        })
     })
 }
 
@@ -8575,9 +8735,14 @@ fn check_fun_body_exprs(
         false
     };
 
-    let unsafe_ctx_pushed = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations).is_unsafe;
+    let builtin_flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
+    let unsafe_ctx_pushed = builtin_flags.is_unsafe;
+    let nogc_ctx_pushed = builtin_flags.is_nogc;
     if unsafe_ctx_pushed {
         lower.push_unsafe_context();
+    }
+    if nogc_ctx_pushed {
+        lower.push_nogc_context();
     }
 
     lower.begin_effect_collection();
@@ -8704,6 +8869,9 @@ fn check_fun_body_exprs(
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
     }
+    if nogc_ctx_pushed {
+        lower.pop_nogc_context();
+    }
     if unsafe_ctx_pushed {
         lower.pop_unsafe_context();
     }
@@ -8828,6 +8996,7 @@ fn check_stmt_exprs(
                             span: v.span.into(),
                         });
                     }
+                    check_nogc_boxing_gate(found, expected, v.span, lower, builtins)?;
                 }
                 None => {
                     // `return` 不带返回值：等价于返回 `Unit`。
@@ -9063,15 +9232,15 @@ fn check_local_val_decl_exprs(
     };
 
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
+        let init = v.init.as_ref().unwrap();
         if !is_type_assignable(found, expected, lower, builtins) {
             // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-            if matches!(v.init.as_ref().unwrap().kind, ast::ExprKind::IntLit)
+            if matches!(init.kind, ast::ExprKind::IntLit)
                 && is_integer_type(expected, lower, builtins)
             {
                 // ok
             } else {
                 // 复用顶层 initializer 的错误码与文本（保持 fixtures 断言稳定）。
-                let init = v.init.as_ref().unwrap();
                 return Err(ExprTypeError::InitializerTypeMismatch {
                     expected: lower.fmt_type(expected),
                     found: lower.fmt_type(found),
@@ -9079,6 +9248,7 @@ fn check_local_val_decl_exprs(
                 });
             }
         }
+        check_nogc_boxing_gate(found, expected, init.span, lower, builtins)?;
     }
 
     let inferred = declared_ty.or(init_ty);
@@ -9350,6 +9520,21 @@ fn check_expr_stmt(
             }
         }
         ast::ExprKind::Call { callee, args } => {
+            // `@NoGC`：在表达式语句位置也必须强制检查调用点，
+            // 否则会被 `call();` 这类“仅为副作用的调用”绕过门禁。
+            if lower.in_nogc_context() {
+                let _ = infer_expr_type(
+                    source,
+                    expr,
+                    lower,
+                    builtins,
+                    &*locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+
             // T0444：`inline` 与 non-local return 的最小语义门禁：
             // - 默认：lambda body 内出现 `return` 一律报错
             // - 例外：当该 lambda 是 inline 函数的“lambda 参数实参”时，允许 non-local return
