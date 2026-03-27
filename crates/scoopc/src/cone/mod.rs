@@ -4,9 +4,18 @@
 //! - T1101：`Cone.toml` 的最小解析（name/version/deps）；
 //! - T1102：source package 的加载规则（cone root → sources 列表 + main 入口定位）。
 
+pub mod archive;
 pub mod manifest;
 pub mod package;
 pub mod scoopir;
 
-pub use manifest::{CONE_TOML_FILE_NAME, ConeManifest, ConeSection, discover_cone_manifest_path, discover_cone_root};
-pub use package::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package};
+pub use archive::{
+    CONE_API_SCOOPIR_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME, list_cone_archive_entries,
+    read_cone_archive_entry, write_cone_archive_v0,
+};
+pub use manifest::{
+    CONE_TOML_FILE_NAME, ConeManifest, ConeSection, discover_cone_manifest_path, discover_cone_root,
+};
+pub use package::{
+    CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package,
+};

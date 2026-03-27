@@ -3375,11 +3375,18 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1104 [TODO] `.cone` 归档 v0：打包 scoopir 与元数据（PLAN §12.2）
+### T1104 [DONE] `.cone` 归档 v0：打包 scoopir 与元数据（PLAN §12.2）
 - 描述：用 zip/tar 实现最小归档：包含 `Cone.toml`、`api.scoopir`、sources hash。
 - 目标：先只实现写包；读包后续任务。
 - 验收：`scoop package`（新命令）能生成 `.cone` 文件并列出内容；新增测试验证归档包含必需文件。
 - 依赖：T1101、T1103
+ - 完成：
+   - `crates/scoopc/src/cone/archive.rs`：实现 `.cone`（tar）写入与读取条目（仅用于列出/单测）；归档包含 `Cone.toml`、`api.scoopir`、`SOURCES_SHA256`。
+   - `crates/scoopc/src/hir/lower.rs`：新增 `lower_for_compilation_unit` 以支持多文件 cone 的 HIR lowering（供 ScoopIR 导出使用）。
+   - `crates/scoopc/src/cone/scoopir/export.rs`：新增 `export_public_api_for_cone_sources` 聚合导出 cone 的 public API。
+   - `crates/scoop/src/commands/package.rs` + `crates/scoop/src/cli.rs`：新增 `scoop package` 子命令并输出归档条目列表。
+ - 验收：
+   - `cargo test --all`
 
 ### T1105 [TODO] `.cone` 读取：加载 `api.scoopir` 并参与下游类型检查（spec §13.3）
 - 描述：实现从 `.cone` 读取 IR 与元数据，把依赖包的 public API 注入 type env。

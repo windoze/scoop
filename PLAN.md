@@ -775,7 +775,7 @@ fixtures：
 
 ### 12.2 `.cone` 归档格式
 
-- [ ] archive（可先用 zip/tar，后续换自定义格式）
+- [x] archive（v0：tar；包含 `Cone.toml` + `api.scoopir` + `SOURCES_SHA256`，T1104）
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
   - [x] 读取 `Cone.toml`（name/version/deps，T1101）
   - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）

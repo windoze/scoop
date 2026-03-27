@@ -4,11 +4,12 @@
 //! - 这里的职责是将 CLI 命令分发到具体子模块。
 //! - 真实编译器逻辑在 `scoopc` crate 中实现；driver 只负责 I/O、调度与输出。
 
+pub(crate) mod build;
 mod dump_ast;
 mod dump_hir;
 mod dump_ir;
 mod dump_mir;
-pub(crate) mod build;
+mod package;
 mod run;
 mod temp;
 mod test;
@@ -56,5 +57,6 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             build::run(input, output, build::BuildOptions { emit })
         }
         Command::Run { input } => run::run(input),
+        Command::Package { input, output } => package::run(input, output),
     }
 }

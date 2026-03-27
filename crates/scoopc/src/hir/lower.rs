@@ -24,9 +24,10 @@ use crate::ty::{
 use super::{
     Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
     EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
-    HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
-    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructFieldLayout,
-    StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
+    ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind,
+    StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
+    ValueRef, WhenArm, WhenPat,
 };
 
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
@@ -1175,9 +1176,11 @@ impl<'a> HirLowering<'a> {
             ast::HandleArmKind::ImmediateResume { resume_span } => HandleArmKind::ImmediateResume {
                 resume: self.intern_local_symbol(resume_span, false),
             },
-            ast::HandleArmKind::EscapeContinuation { k_span } => HandleArmKind::EscapeContinuation {
-                continuation: self.intern_local_symbol(k_span, false),
-            },
+            ast::HandleArmKind::EscapeContinuation { k_span } => {
+                HandleArmKind::EscapeContinuation {
+                    continuation: self.intern_local_symbol(k_span, false),
+                }
+            }
         };
         HandleArm {
             span: arm.span,
@@ -1937,7 +1940,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
-    let object_inits = collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    let object_inits =
+        collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -1948,6 +1952,48 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let enum_layouts = collect_enum_layouts(&pairs, &index);
     Ok(LoweredHir {
         file,
+        types,
+        struct_layouts,
+        enum_layouts,
+        extern_funs,
+        object_inits,
+    })
+}
+
+/// 在“给定编译单元（多个源文件）”的上下文中，为其中一个文件生成 HIR。
+///
+/// 用途：
+/// - `.cone` 打包时导出 `api.scoopir`（TODO T1104）需要跨文件可见的类型 kind 信息；
+/// - 后续多包编译/链接流程也会复用类似的“多文件 lowering”入口。
+///
+/// 约定：
+/// - `file` 必须已经过 resolver（至少 `check_file_headers + check_file_bodies`），
+///   以保证标识符绑定信息已写回 AST；
+/// - `compilation_unit` 应包含 sysroot + 当前 cone 的全部源文件（稳定排序可保证输出更可回归）。
+pub fn lower_for_compilation_unit(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> Result<LoweredHir, HirLowerError> {
+    let type_kinds = collect_type_decl_kinds(compilation_unit);
+
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+
+    // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
+    let file_hir = {
+        let mut ctx = HirLowering::new(source, file, index, &type_kinds, &mut types, builtins);
+        ctx.lower_file()
+    };
+
+    let object_inits = collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+    let extern_funs = collect_extern_funs(source, file);
+    let struct_layouts = collect_struct_layouts(compilation_unit, index);
+    let enum_layouts = collect_enum_layouts(compilation_unit, index);
+
+    Ok(LoweredHir {
+        file: file_hir,
         types,
         struct_layouts,
         enum_layouts,
@@ -2115,7 +2161,10 @@ fn collect_object_decl_inits(
 
                     if let Some(expr) = p.init.as_ref() {
                         let lowered = ctx.lower_expr(pkg_prefix, expr);
-                        init.steps.push(ObjectInitStep::PropertyInit { name, init: lowered });
+                        init.steps.push(ObjectInitStep::PropertyInit {
+                            name,
+                            init: lowered,
+                        });
                     }
                 }
                 ast::TypeMember::InitBlock(b) => {
@@ -2213,7 +2262,11 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::
 }
 
 fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
-    let segs = ann.path.iter().map(|id| id.text(source)).collect::<Vec<_>>();
+    let segs = ann
+        .path
+        .iter()
+        .map(|id| id.text(source))
+        .collect::<Vec<_>>();
     matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
 }
 

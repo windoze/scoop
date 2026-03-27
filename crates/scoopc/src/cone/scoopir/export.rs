@@ -12,9 +12,13 @@ use thiserror::Error;
 
 use crate::hir::{Item as HirItem, LoweredHir};
 use crate::resolve::{Index, Visibility};
+use crate::session::Session;
 use crate::source::SourceFile;
+use crate::ty::{
+    EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, UnionType,
+    ValueTypeKind,
+};
 use crate::typecheck::{TypeEnv, TypeSymbolKind};
-use crate::ty::{EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, UnionType, ValueTypeKind};
 
 use super::schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,
@@ -54,6 +58,97 @@ pub fn export_public_api_for_source(
     funs.sort_by(|a, b| a.fqn.cmp(&b.fqn));
 
     Ok(ScoopIrFile::new_v0(types, funs))
+}
+
+/// 从一个 cone 的多个源文件中导出其 public API 的 ScoopIR v0（聚合版）。
+///
+/// 说明（v0 约束）：
+/// - 目前只导出 public type/fun 的“声明头”；不导出函数体；
+/// - 该函数会构建 sysroot + 当前 cone 的 `Index` 并运行 resolver（headers + bodies），
+///   以确保 HIR lowering 能得到稳定的 `TypeId`；
+/// - `.cone` 的 IR 版本协商与下游消费由后续任务实现（TODO T1105/T1106）。
+pub fn export_public_api_for_cone_sources(
+    session: &Session,
+    sources: &[SourceFile],
+) -> miette::Result<ScoopIrFile> {
+    if sources.is_empty() {
+        return Err(miette::miette!("导出 ScoopIR 失败：sources 为空"));
+    }
+
+    // 1) parse：得到 AST（后续 resolver 会写回绑定结果，因此这里用可变 Vec 承载）。
+    let mut asts = Vec::with_capacity(sources.len());
+    for source in sources {
+        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        asts.push(ast);
+    }
+
+    // 2) index：sysroot cone=0，当前 cone=1（与 `scoop build` 对齐）。
+    let mut indexed: Vec<crate::resolve::IndexedFile<'_>> = Vec::new();
+    for f in &session.sysroot().files {
+        indexed.push(crate::resolve::IndexedFile {
+            cone: crate::resolve::ConeId::new(0),
+            source: &f.source,
+            file: &f.ast,
+        });
+    }
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        indexed.push(crate::resolve::IndexedFile {
+            cone: crate::resolve::ConeId::new(1),
+            source,
+            file: ast,
+        });
+    }
+
+    let index = crate::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
+
+    // 3) resolver：headers + bodies，把绑定结果写回 AST（供 HIR lowering 使用）。
+    let mut headers = Vec::with_capacity(sources.len());
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        let h = crate::resolve::check_file_headers(source, ast, &index)
+            .map_err(miette::Report::from)?;
+        headers.push(h);
+    }
+    for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
+        crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
+    }
+
+    // 4) type env：用于导出 public type 的声明头信息。
+    let mut env = crate::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
+        .map_err(miette::Report::from)?;
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        env.extend_from_file(source, ast, &index)
+            .map_err(miette::Report::from)?;
+    }
+
+    // 5) HIR lowering + per-file export，再聚合。
+    let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        pairs.push((source, ast));
+    }
+
+    let mut all_types = Vec::new();
+    let mut all_funs = Vec::new();
+    for (source, ast) in sources.iter().zip(asts.iter()) {
+        let hir = crate::hir::lower_for_compilation_unit(source, ast, &index, &pairs)
+            .map_err(miette::Report::from)?;
+        let ir = export_public_api_for_source(source, &index, &env, &hir)
+            .map_err(miette::Report::from)?;
+
+        all_types.extend(ir.types);
+        all_funs.extend(ir.funs);
+    }
+
+    // 排序 + 去重（理论上 resolver/index 已保证 FQN 唯一，这里做防御性处理）。
+    all_types.sort_by(|a, b| a.fqn.cmp(&b.fqn));
+    all_types.dedup_by(|a, b| a.fqn == b.fqn);
+
+    all_funs.sort_by(|a, b| a.fqn.cmp(&b.fqn));
+    all_funs.dedup_by(|a, b| a.fqn == b.fqn);
+
+    Ok(ScoopIrFile::new_v0(all_types, all_funs))
 }
 
 /// 收集某个源文件内声明的 `public` 类型（type header）。
@@ -132,13 +227,14 @@ fn export_public_funs_for_source(
 
         // v0：用 Index 的可见性作为 “public API” 的过滤条件。
         let Some(ns) = index.by_fqn.get(&fun.fqn) else {
-            return Err(ScoopIrExportError::MissingFunSymbol { fqn: fun.fqn.clone() });
+            return Err(ScoopIrExportError::MissingFunSymbol {
+                fqn: fun.fqn.clone(),
+            });
         };
-        let Some(overload) = ns
-            .fun
-            .iter()
-            .find(|o| o.symbol.decl_file.as_path() == source.path() && o.symbol.visibility == Visibility::Public)
-        else {
+        let Some(overload) = ns.fun.iter().find(|o| {
+            o.symbol.decl_file.as_path() == source.path()
+                && o.symbol.visibility == Visibility::Public
+        }) else {
             continue;
         };
 
@@ -167,7 +263,8 @@ fn export_public_funs_for_source(
         let return_ty = to_ir_type(&hir.types, fun.return_ty, 0);
         let effects = to_ir_effect_row(&hir.types, &effects, 0);
 
-        let type_params = collect_type_params_for_fun(&hir.types, receiver, &params, &return_ty, &effects);
+        let type_params =
+            collect_type_params_for_fun(&hir.types, receiver, &params, &return_ty, &effects);
 
         out.push(IrFunDecl {
             fqn: fun.fqn.clone(),
@@ -184,10 +281,16 @@ fn export_public_funs_for_source(
 }
 
 /// 从 `TypeStore` 中解码一个函数类型。
-fn decode_function_type(store: &TypeStore, fun_ty: TypeId, fqn: &str) -> Result<FunctionType, ScoopIrExportError> {
+fn decode_function_type(
+    store: &TypeStore,
+    fun_ty: TypeId,
+    fqn: &str,
+) -> Result<FunctionType, ScoopIrExportError> {
     match store.kind(fun_ty) {
         TypeKind::Ref(RefTypeKind::Function(ft)) => Ok(ft.clone()),
-        _ => Err(ScoopIrExportError::UnexpectedFunType { fqn: fqn.to_string() }),
+        _ => Err(ScoopIrExportError::UnexpectedFunType {
+            fqn: fqn.to_string(),
+        }),
     }
 }
 
@@ -290,7 +393,11 @@ fn collect_type_params_from_type_id(
 }
 
 /// 递归扫描 IR 类型表达式，补齐 `type_params` 列表（去重且保序）。
-fn collect_type_params_from_ir_type(ty: &IrType, seen: &mut HashSet<String>, out: &mut Vec<String>) {
+fn collect_type_params_from_ir_type(
+    ty: &IrType,
+    seen: &mut HashSet<String>,
+    out: &mut Vec<String>,
+) {
     match ty {
         IrType::Named { args, eff, .. } => {
             for a in args {

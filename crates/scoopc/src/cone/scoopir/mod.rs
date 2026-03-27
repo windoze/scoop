@@ -10,13 +10,14 @@
 mod export;
 mod schema;
 
-pub use export::{ScoopIrExportError, export_public_api_for_source};
+pub use export::{
+    ScoopIrExportError, export_public_api_for_cone_sources, export_public_api_for_source,
+};
 pub use schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,
-    IrTypeParam, IrVariance, SchemaHeader, ScoopIrFile, SCOOPIR_SCHEMA_NAME,
-    SCOOPIR_SCHEMA_VERSION,
+    IrTypeParam, IrVariance, SCOOPIR_SCHEMA_NAME, SCOOPIR_SCHEMA_VERSION, SchemaHeader,
+    ScoopIrFile,
 };
 
 #[cfg(test)]
 mod tests;
-

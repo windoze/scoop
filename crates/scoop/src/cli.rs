@@ -72,4 +72,13 @@ pub enum Command {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
     },
+
+    /// 打包 cone 包为 `.cone` 归档（v0：只写包）
+    Package {
+        /// 输入包目录（包含 `Cone.toml`）
+        input: PathBuf,
+        /// 输出 `.cone` 文件路径
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
