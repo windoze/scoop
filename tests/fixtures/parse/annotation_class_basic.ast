@@ -70,7 +70,26 @@ File {
                         members: [
                             Property(
                                 PropertyDecl {
-                                    span: 168..189,
+                                    span: 142..189,
+                                    annotations: [
+                                        AnnotationUse {
+                                            span: 142..163,
+                                            path: [
+                                                Ident {
+                                                    span: 143..149,
+                                                },
+                                            ],
+                                            args: [
+                                                AnnotationArg {
+                                                    span: 150..162,
+                                                    value: Expr {
+                                                        span: 150..162,
+                                                        kind: StringLit,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
                                     kind: Val,
                                     name: Ident {
                                         span: 172..181,

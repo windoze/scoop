@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: annotation_use_fun_basic.ast
+
+package fixtures.parse
+
+@Unsafe
+fun f() {}
+
+@Extern("c_name")
+fun g() {}
+

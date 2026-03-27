@@ -57,6 +57,10 @@ pub enum Item {
 #[derive(Clone)]
 pub struct TypeAliasDecl {
     pub span: Span,
+    /// 声明上的注解列表：`@Name(...)`（spec §15.3）。
+    ///
+    /// 说明：当前阶段仅做语法层“解析并存储”；合法性/目标校验由后续 typecheck 任务实现。
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub name: Ident,
     pub ty: TypeRef,
@@ -66,6 +70,9 @@ impl std::fmt::Debug for TypeAliasDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("TypeAliasDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -106,6 +113,59 @@ pub enum Modifier {
     /// 当前阶段仅用于 parser 把 `annotation` 作为修饰符解析并存储；
     /// 语义限制（例如只允许用于 class、参数必须是 `val` 等）由后续阶段实现。
     Annotation,
+}
+
+/// 注解使用（annotation use）：`@Name(...)`（spec §15.3）。
+///
+/// 说明：注解语义（target/retention/参数类型等）由后续 typecheck 负责；
+/// 当前阶段只做语法结构建模，用于 fixtures 与后续检查器接入。
+#[derive(Clone)]
+pub struct AnnotationUse {
+    pub span: Span,
+    /// use-site target（可选）：`@property:Foo` / `@param:Bar`。
+    ///
+    /// 说明：当前阶段只做语法解析与结构化存储，不校验 target 合法性。
+    pub use_site_target: Option<Ident>,
+    /// 注解名路径：`@A` / `@A.B`。
+    pub path: Vec<Ident>,
+    /// 参数列表（可选）：`@Name(arg1, name: "x")`。
+    pub args: Vec<AnnotationArg>,
+}
+
+/// 注解参数（仅建模语法）：`name: value` / `value`。
+#[derive(Clone)]
+pub struct AnnotationArg {
+    pub span: Span,
+    pub name: Option<Ident>,
+    /// 当前阶段（T1001）约束：只允许字面量值（int/string）。
+    pub value: Expr,
+}
+
+impl std::fmt::Debug for AnnotationUse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("AnnotationUse");
+        s.field("span", &self.span);
+        if self.use_site_target.is_some() {
+            s.field("use_site_target", &self.use_site_target);
+        }
+        s.field("path", &self.path);
+        if !self.args.is_empty() {
+            s.field("args", &self.args);
+        }
+        s.finish()
+    }
+}
+
+impl std::fmt::Debug for AnnotationArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("AnnotationArg");
+        s.field("span", &self.span);
+        if self.name.is_some() {
+            s.field("name", &self.name);
+        }
+        s.field("value", &self.value);
+        s.finish()
+    }
 }
 
 /// 类型参数的变型标记（spec §3.2~§3.3）。
@@ -248,6 +308,7 @@ impl std::fmt::Debug for SuperType {
 #[derive(Clone)]
 pub struct TypeDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub kind: TypeKind,
     pub name: Ident,
@@ -270,6 +331,9 @@ impl std::fmt::Debug for TypeDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("TypeDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -309,6 +373,7 @@ pub enum ObjectKind {
 #[derive(Clone)]
 pub struct ObjectDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub kind: ObjectKind,
     /// 对于 `companion object { ... }`，name 允许缺省。
@@ -323,6 +388,9 @@ impl std::fmt::Debug for ObjectDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("ObjectDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -357,6 +425,7 @@ pub struct TypeBody {
 #[derive(Clone)]
 pub struct EnumVariantDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub name: Ident,
     /// variant 携带的字段列表（用 `Param` 复用 `name + ty + default_value` 的结构）。
     ///
@@ -368,6 +437,9 @@ impl std::fmt::Debug for EnumVariantDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("EnumVariantDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         s.field("name", &self.name);
         if !self.params.is_empty() {
             s.field("params", &self.params);
@@ -436,6 +508,7 @@ pub struct CtorDelegationCall {
 #[derive(Clone)]
 pub struct SecondaryCtorDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub params_span: Span,
     pub params: Vec<Param>,
@@ -447,6 +520,9 @@ impl std::fmt::Debug for SecondaryCtorDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("SecondaryCtorDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -467,6 +543,7 @@ impl std::fmt::Debug for SecondaryCtorDecl {
 #[derive(Clone)]
 pub struct PropertyDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub kind: ValKind,
     pub name: Ident,
@@ -491,6 +568,9 @@ impl std::fmt::Debug for PropertyDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("PropertyDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -558,6 +638,7 @@ pub enum FunDeclKind {
 pub struct FunDecl {
     pub span: Span,
     pub kind: FunDeclKind,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     /// 扩展函数 receiver（`fun T.name(...)` 中的 `T`）。
     ///
@@ -582,6 +663,9 @@ impl std::fmt::Debug for FunDecl {
         s.field("span", &self.span);
         if self.kind != FunDeclKind::Regular {
             s.field("kind", &self.kind);
+        }
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
         }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
@@ -623,6 +707,7 @@ pub enum FunBody {
 #[derive(Clone)]
 pub struct ExtensionPropertyDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub kind: ValKind,
     pub type_params: Vec<TypeParam>,
@@ -640,6 +725,9 @@ impl std::fmt::Debug for ExtensionPropertyDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("ExtensionPropertyDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }
@@ -1375,7 +1463,10 @@ pub enum PatternKind {
     /// - 该 pattern 复用 `when` 的 variant destructuring 语义；
     /// - `path` 允许写 `Enum.Variant` 形式以消歧；
     /// - 当前阶段仅支持“位置参数”的 payload 解构（不支持命名字段）。
-    Variant { path: TypePath, args: Vec<Pattern> },
+    Variant {
+        path: TypePath,
+        args: Vec<Pattern>,
+    },
     Tuple(Vec<Pattern>),
     Struct {
         path: TypePath,
@@ -1520,6 +1611,7 @@ impl std::fmt::Debug for Param {
 #[derive(Clone)]
 pub struct ValDecl {
     pub span: Span,
+    pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub kind: ValKind,
     pub binding: ValBinding,
@@ -1547,6 +1639,9 @@ impl std::fmt::Debug for ValDecl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("ValDecl");
         s.field("span", &self.span);
+        if !self.annotations.is_empty() {
+            s.field("annotations", &self.annotations);
+        }
         if !self.modifiers.is_empty() {
             s.field("modifiers", &self.modifiers);
         }

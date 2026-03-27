@@ -74,7 +74,10 @@ fn parse_import_alias_decl() {
     assert_eq!(import.path.len(), 3);
     assert!(!import.has_star);
 
-    let alias = import.alias.as_ref().expect("alias import 应当记录 alias 名");
+    let alias = import
+        .alias
+        .as_ref()
+        .expect("alias import 应当记录 alias 名");
     assert_eq!(src.slice(alias.span), "Qux");
 }
 
@@ -120,6 +123,34 @@ fn parse_async_fun_decl() {
 }
 
 #[test]
+fn parse_fun_decl_with_annotations() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\n@Unsafe\n@Extern(\"c_name\")\nfun f() {}\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Fun(f) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为函数声明");
+    };
+
+    assert_eq!(src.slice(f.name.span), "f");
+    assert_eq!(f.annotations.len(), 2);
+
+    assert_eq!(src.slice(f.annotations[0].path[0].span), "Unsafe");
+    assert!(f.annotations[0].args.is_empty());
+
+    assert_eq!(src.slice(f.annotations[1].path[0].span), "Extern");
+    assert_eq!(f.annotations[1].args.len(), 1);
+    assert!(f.annotations[1].args[0].name.is_none());
+    assert!(matches!(
+        f.annotations[1].args[0].value.kind,
+        ast::ExprKind::StringLit
+    ));
+    assert_eq!(src.slice(f.annotations[1].args[0].value.span), "\"c_name\"");
+}
+
+#[test]
 fn parse_top_level_val_var() {
     let src = SourceFile::new_virtual(
         "<mem>",
@@ -162,14 +193,24 @@ fn parse_call_named_args() {
     };
     assert_eq!(args.len(), 2);
 
-    let ast::ExprKind::NamedArg { name, eq_span, value } = &args[0].kind else {
+    let ast::ExprKind::NamedArg {
+        name,
+        eq_span,
+        value,
+    } = &args[0].kind
+    else {
         panic!("期望第一个实参为命名参数");
     };
     assert_eq!(src.slice(name.span), "x");
     assert_eq!(src.slice(*eq_span), "=");
     assert!(matches!(&value.kind, ast::ExprKind::IntLit));
 
-    let ast::ExprKind::NamedArg { name, eq_span, value } = &args[1].kind else {
+    let ast::ExprKind::NamedArg {
+        name,
+        eq_span,
+        value,
+    } = &args[1].kind
+    else {
         panic!("期望第二个实参为命名参数");
     };
     assert_eq!(src.slice(name.span), "y");

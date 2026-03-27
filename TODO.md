@@ -3048,11 +3048,19 @@
 
 ## T10：注解系统与系统编程通道（阶段 9）
 
-### T1001 [TODO] Parser：注解使用 `@Name(...)` 的 AST 与解析（spec §15.3）
+### T1001 [DONE] Parser：注解使用 `@Name(...)` 的 AST 与解析（spec §15.3）
 - 描述：允许在声明前出现一个或多个注解，并把它们记录到 AST 节点上。
 - 目标：先只支持无参/仅字面量参数；不解析复杂表达式参数。
 - 验收：新增 parse fixture：`@Unsafe fun f() {}` 可解析；`@Extern("c_name") fun g()` 可解析（若支持字符串参数）。
 - 依赖：T0218
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `AnnotationUse`/`AnnotationArg`，并为主要声明节点增加 `annotations` 字段（空时不影响既有 AST snapshot）。
+   - `crates/scoopc/src/parser/cursor.rs`：lookahead 支持跳过注解前缀，避免顶层与 type body 分流误判。
+   - `crates/scoopc/src/parser/decls.rs`：实现 `@Name(...)` 解析（含可选 use-site target 与字面量参数），并写入各类声明的 `annotations`。
+   - `tests/fixtures/parse/annotation_use_fun_basic.*`：新增 fixtures 覆盖 `@Unsafe` 与 `@Extern("c_name")`。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T1002 [TODO] Parser：注解声明 `annotation class X(...)`（spec §15.2）
 - 描述：支持声明注解类型，并在 type env 中识别其为“注解类”。

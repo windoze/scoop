@@ -127,7 +127,10 @@ impl<'a> Parser<'a> {
 
             let mut span = Span::new(
                 return_span.start,
-                value.as_ref().map(|e| e.span.end).unwrap_or(return_span.end),
+                value
+                    .as_ref()
+                    .map(|e| e.span.end)
+                    .unwrap_or(return_span.end),
             );
             // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
             if self.peek_symbol(Symbol::Semicolon) {
@@ -247,7 +250,10 @@ impl<'a> Parser<'a> {
 
             return Ok(ast::Stmt {
                 span,
-                kind: ast::StmtKind::ComptimeBlock { comptime_span, body },
+                kind: ast::StmtKind::ComptimeBlock {
+                    comptime_span,
+                    body,
+                },
             });
         }
 
@@ -429,46 +435,42 @@ impl<'a> Parser<'a> {
         }
 
         // T0244/T0460：`val` 支持解构绑定（tuple/struct/variant pattern）；`var` 按 spec 不支持。
-        let (binding, binding_end) = if kind == ast::ValKind::Val && self.peek_symbol(Symbol::LParen)
-        {
-            let pat = self.parse_pattern()?;
-            let end = pat.span.end;
-            (ast::ValBinding::Pattern(pat), end)
-        } else if kind == ast::ValKind::Val && self.looks_like_struct_pattern_ahead() {
-            let pat = self.parse_pattern()?;
-            let end = pat.span.end;
-            (ast::ValBinding::Pattern(pat), end)
-        } else if kind == ast::ValKind::Val && self.looks_like_variant_pattern_ahead() {
-            let pat = self.parse_pattern()?;
-            let end = pat.span.end;
-            (ast::ValBinding::Pattern(pat), end)
-        } else {
-            let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
-            let name = ast::Ident::new(name_tok.span);
-            // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
-            if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
-                let tok = *self.peek();
-                let _ = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
-                return Err(ParseError::Expected {
-                    expected: "`:` / `=`（`var` 不支持解构绑定）",
-                    found: tok.kind,
-                    span: tok.span.into(),
-                });
-            }
-            (ast::ValBinding::Name(name), name_tok.span.end)
-        };
+        let (binding, binding_end) =
+            if kind == ast::ValKind::Val && self.peek_symbol(Symbol::LParen) {
+                let pat = self.parse_pattern()?;
+                let end = pat.span.end;
+                (ast::ValBinding::Pattern(pat), end)
+            } else if kind == ast::ValKind::Val && self.looks_like_struct_pattern_ahead() {
+                let pat = self.parse_pattern()?;
+                let end = pat.span.end;
+                (ast::ValBinding::Pattern(pat), end)
+            } else if kind == ast::ValKind::Val && self.looks_like_variant_pattern_ahead() {
+                let pat = self.parse_pattern()?;
+                let end = pat.span.end;
+                (ast::ValBinding::Pattern(pat), end)
+            } else {
+                let name_tok = self.expect_kind(TokenKind::Ident, "变量名（标识符）")?;
+                let name = ast::Ident::new(name_tok.span);
+                // `var Point { ... } = ...` 这种形态通常是“误写解构”；给出更明确的语法错误位置。
+                if kind == ast::ValKind::Var && self.peek_symbol(Symbol::LBrace) {
+                    let tok = *self.peek();
+                    let _ = self.consume_balanced(Symbol::LBrace, Symbol::RBrace)?;
+                    return Err(ParseError::Expected {
+                        expected: "`:` / `=`（`var` 不支持解构绑定）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+                }
+                (ast::ValBinding::Name(name), name_tok.span.end)
+            };
 
-        let ty = if matches!(binding, ast::ValBinding::Name(_)) && self.eat_symbol(Symbol::Colon)
-        {
+        let ty = if matches!(binding, ast::ValBinding::Name(_)) && self.eat_symbol(Symbol::Colon) {
             Some(self.parse_type_ref()?)
         } else {
             None
         };
 
-        let mut last_end = ty
-            .as_ref()
-            .map(|t| t.span().end)
-            .unwrap_or(binding_end);
+        let mut last_end = ty.as_ref().map(|t| t.span().end).unwrap_or(binding_end);
 
         let init = if self.eat_symbol(Symbol::Eq) {
             if self.peek_kind(TokenKind::Eof)
@@ -510,6 +512,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ValDecl {
             span: Span::new(kw.span.start, last_end),
+            annotations: Vec::new(),
             modifiers: Vec::new(),
             kind,
             binding,

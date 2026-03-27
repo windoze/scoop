@@ -66,10 +66,23 @@ impl TypeBodyContext {
 }
 
 impl<'a> Parser<'a> {
-    fn parse_modifiers(&mut self) -> Vec<ast::Modifier> {
+    /// 解析声明前缀：零个或多个注解（`@Name(...)`）+ 修饰符（`public`/`async`...）。
+    ///
+    /// 说明：
+    /// - 支持注解与修饰符任意交错出现；
+    /// - modifiers 会按既有规则排序去重（T0245），annotations 保持源代码顺序。
+    fn parse_decl_prefix(
+        &mut self,
+    ) -> Result<(Vec<ast::AnnotationUse>, Vec<ast::Modifier>), ParseError> {
+        let mut annotations = Vec::new();
         let mut modifiers = Vec::new();
 
         loop {
+            if self.peek_symbol(Symbol::At) {
+                annotations.push(self.parse_annotation_use()?);
+                continue;
+            }
+
             let modifier = match self.peek().kind {
                 TokenKind::Keyword(Keyword::Public) => ast::Modifier::Public,
                 TokenKind::Keyword(Keyword::Internal) => ast::Modifier::Internal,
@@ -92,7 +105,132 @@ impl<'a> Parser<'a> {
         // T0245：修饰符顺序无关，统一排序并去重，保证 AST snapshot 稳定。
         modifiers.sort_unstable();
         modifiers.dedup();
-        modifiers
+
+        Ok((annotations, modifiers))
+    }
+
+    /// 解析单个注解使用：`@Name(...)`（spec §15.3）。
+    ///
+    /// 当前阶段（T1001）约束：
+    /// - 参数值只允许字面量：int/string（不解析复杂表达式参数）。
+    fn parse_annotation_use(&mut self) -> Result<ast::AnnotationUse, ParseError> {
+        let at = self.expect_symbol(Symbol::At)?;
+        let start = at.span.start;
+
+        let first = self.expect_kind(TokenKind::Ident, "注解名（标识符）")?;
+        let mut use_site_target = None;
+
+        // use-site target：`@property:Foo` / `@param:Bar`
+        // 当前阶段不校验 target 的合法性，只保留其 span。
+        let mut path: Vec<ast::Ident> = vec![ast::Ident::new(first.span)];
+        let mut end = first.span.end;
+
+        if self.peek_symbol(Symbol::Colon) {
+            // `@target:Name`：把第一个 ident 视为 target，路径从 `:` 后重新开始。
+            use_site_target = Some(path.remove(0));
+            self.bump(); // ':'
+
+            let name = self.expect_kind(TokenKind::Ident, "注解名（标识符）")?;
+            end = name.span.end;
+            path.push(ast::Ident::new(name.span));
+        }
+
+        while self.peek_symbol(Symbol::Dot) {
+            self.bump(); // '.'
+            let seg = self.expect_kind(TokenKind::Ident, "注解名（标识符）")?;
+            end = seg.span.end;
+            path.push(ast::Ident::new(seg.span));
+        }
+
+        let mut args = Vec::new();
+        if self.peek_symbol(Symbol::LParen) {
+            self.bump(); // '('
+
+            if !self.peek_symbol(Symbol::RParen) {
+                loop {
+                    let arg = self.parse_annotation_arg()?;
+                    args.push(arg);
+
+                    if self.eat_symbol(Symbol::Comma) {
+                        // allow trailing comma
+                        if self.peek_symbol(Symbol::RParen) {
+                            break;
+                        }
+                        continue;
+                    }
+                    break;
+                }
+            }
+
+            let close = self.expect_symbol(Symbol::RParen)?;
+            end = close.span.end;
+        }
+
+        Ok(ast::AnnotationUse {
+            span: Span::new(start, end),
+            use_site_target,
+            path,
+            args,
+        })
+    }
+
+    fn parse_annotation_arg(&mut self) -> Result<ast::AnnotationArg, ParseError> {
+        let start = self.peek().span.start;
+
+        // named arg：`name: value`
+        let name = if self.peek_kind(TokenKind::Ident)
+            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Colon)
+        {
+            let name_tok = self.bump(); // ident
+            self.bump(); // ':'
+            Some(ast::Ident::new(name_tok.span))
+        } else {
+            None
+        };
+
+        let value = self.parse_annotation_value_literal()?;
+        Ok(ast::AnnotationArg {
+            span: Span::new(start, value.span.end),
+            name,
+            value,
+        })
+    }
+
+    fn parse_annotation_value_literal(&mut self) -> Result<ast::Expr, ParseError> {
+        let tok = *self.peek();
+        match tok.kind {
+            TokenKind::IntLiteral => {
+                self.bump();
+                Ok(ast::Expr {
+                    span: tok.span,
+                    kind: ast::ExprKind::IntLit,
+                })
+            }
+            TokenKind::StringLiteral(kind) => {
+                // 只允许非插值字符串；插值字符串内部携带表达式，按“仅字面量参数”约束应拒绝。
+                let interpolated = match kind {
+                    crate::syntax::token::StringKind::Normal { interpolated }
+                    | crate::syntax::token::StringKind::Raw { interpolated } => interpolated,
+                };
+                if interpolated {
+                    return Err(ParseError::Expected {
+                        expected: "字符串字面量（不支持插值字符串）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
+                }
+                self.bump();
+                Ok(ast::Expr {
+                    span: tok.span,
+                    kind: ast::ExprKind::StringLit,
+                })
+            }
+            _ => Err(ParseError::Expected {
+                expected: "注解参数值（仅支持 int/string 字面量）",
+                found: tok.kind,
+                span: tok.span.into(),
+            }),
+        }
     }
 
     fn parse_type_param_list(
@@ -173,7 +311,10 @@ impl<'a> Parser<'a> {
             let name_tok = self.expect_kind(TokenKind::Ident, "类型参数名（标识符）")?;
             let name = ast::Ident::new(name_tok.span);
             params.push(ast::TypeParam {
-                span: Span::new(variance_start.unwrap_or(name_tok.span.start), name_tok.span.end),
+                span: Span::new(
+                    variance_start.unwrap_or(name_tok.span.start),
+                    name_tok.span.end,
+                ),
                 variance,
                 name,
             });
@@ -194,7 +335,14 @@ impl<'a> Parser<'a> {
 
     fn parse_type_params_opt(
         &mut self,
-    ) -> Result<(Option<Span>, Vec<ast::TypeParam>, Option<ast::EffectRowParam>), ParseError> {
+    ) -> Result<
+        (
+            Option<Span>,
+            Vec<ast::TypeParam>,
+            Option<ast::EffectRowParam>,
+        ),
+        ParseError,
+    > {
         if !self.peek_symbol(Symbol::Lt) {
             return Ok((None, Vec::new(), None));
         }
@@ -266,10 +414,7 @@ impl<'a> Parser<'a> {
 
         let Some((dot_idx, _name_idx)) = self.detect_extension_receiver_dot(start_idx) else {
             let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-            return Ok((
-                None,
-                ast::Ident::new(name_tok.span),
-            ));
+            return Ok((None, ast::Ident::new(name_tok.span)));
         };
 
         let mut receiver_tokens: Vec<Token> = self.tokens[start_idx..dot_idx].to_vec();
@@ -297,10 +442,7 @@ impl<'a> Parser<'a> {
         self.i = dot_idx;
         self.expect_symbol(Symbol::Dot)?;
         let name_tok = self.expect_kind(TokenKind::Ident, "函数名（标识符）")?;
-        Ok((
-            Some(receiver),
-            ast::Ident::new(name_tok.span),
-        ))
+        Ok((Some(receiver), ast::Ident::new(name_tok.span)))
     }
 
     /// 若当前位置开始是扩展函数 receiver 形式，则返回 `(dot_idx, name_idx)`：
@@ -459,7 +601,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let _kw = self.expect_keyword(Keyword::Fun)?;
         // Scoop 支持两种泛型参数列表位置：
@@ -467,7 +609,8 @@ impl<'a> Parser<'a> {
         // - `fun name<T>(...)`（历史 fixtures 兼容）
         //
         // 规则：若 `fun` 后立即出现 `<...>`，则优先解析为“前置泛型列表”，且函数名后不再解析第二个泛型列表。
-        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) =
+            self.parse_type_params_opt()?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
         let (type_params, eff_param) = if _pre_type_params_span.is_some() {
             (pre_type_params, pre_eff_param)
@@ -525,6 +668,7 @@ impl<'a> Parser<'a> {
         Ok(ast::FunDecl {
             span: Span::new(start, last_end),
             kind: ast::FunDeclKind::Regular,
+            annotations,
             modifiers,
             receiver,
             name,
@@ -546,7 +690,7 @@ impl<'a> Parser<'a> {
     /// - 仅支持非泛型 typealias（不允许 `typealias Name<T> = ...`）
     pub(super) fn parse_typealias_decl(&mut self) -> Result<ast::TypeAliasDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         self.expect_keyword(Keyword::Typealias)?;
 
@@ -558,6 +702,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::TypeAliasDecl {
             span: Span::new(start, ty.span().end),
+            annotations,
             modifiers,
             name,
             ty,
@@ -566,7 +711,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_val_decl(&mut self) -> Result<ast::ValDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
@@ -704,6 +849,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ValDecl {
             span: Span::new(start, last_end),
+            annotations,
             modifiers,
             kind,
             binding,
@@ -725,7 +871,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<ast::ExtensionPropertyDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
@@ -764,10 +910,7 @@ impl<'a> Parser<'a> {
         self.bump(); // ':'
         let ty = Some(self.parse_type_ref()?);
 
-        let mut last_end = ty
-            .as_ref()
-            .map(|t| t.span().end)
-            .unwrap_or(name.span.end);
+        let mut last_end = ty.as_ref().map(|t| t.span().end).unwrap_or(name.span.end);
 
         // initializer：语法上允许解析，但语义规则在 typecheck 中限制。
         let init = if self.eat_symbol(Symbol::Eq) {
@@ -825,6 +968,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ExtensionPropertyDecl {
             span: Span::new(start, last_end),
+            annotations,
             modifiers,
             kind,
             type_params,
@@ -841,7 +985,8 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<(ast::TypeRef, ast::Ident), ParseError> {
         let start_idx = self.i;
-        let Some((dot_idx, _name_idx)) = self.detect_extension_property_receiver_dot(start_idx) else {
+        let Some((dot_idx, _name_idx)) = self.detect_extension_property_receiver_dot(start_idx)
+        else {
             let tok = *self.peek();
             return Err(ParseError::Expected {
                 expected: "扩展属性 receiver（形如 `ReceiverType.name`）",
@@ -876,10 +1021,7 @@ impl<'a> Parser<'a> {
         self.expect_symbol(Symbol::Dot)?;
         let name_tok = self.expect_kind(TokenKind::Ident, "属性名（标识符）")?;
 
-        Ok((
-            receiver,
-            ast::Ident::new(name_tok.span),
-        ))
+        Ok((receiver, ast::Ident::new(name_tok.span)))
     }
 
     /// 若当前位置开始是扩展属性 receiver 形式，则返回 `(dot_idx, name_idx)`：
@@ -911,12 +1053,20 @@ impl<'a> Parser<'a> {
                     Symbol::RBracket => depth_bracket = depth_bracket.saturating_sub(1),
                     Symbol::Eq | Symbol::Semicolon => {
                         // `=` 之后进入 initializer；extension property 的 receiver/name 必须出现在 `:` 之前。
-                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 && depth_angle == 0 {
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                        {
                             break;
                         }
                     }
                     Symbol::Colon => {
-                        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 && depth_angle == 0 {
+                        if depth_paren == 0
+                            && depth_brace == 0
+                            && depth_bracket == 0
+                            && depth_angle == 0
+                        {
                             colon_idx = Some(idx);
                             break;
                         }
@@ -1142,8 +1292,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_type_decl(&mut self) -> Result<ast::TypeDecl, ParseError> {
         let start = self.peek().span.start;
-
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let (kind_kw, kind) = if self.peek_keyword(Keyword::Class) {
             (self.bump(), ast::TypeKind::Class)
@@ -1177,7 +1326,10 @@ impl<'a> Parser<'a> {
         let primary_ctor = if self.peek_symbol(Symbol::LParen) {
             let (params_span, params) = self.parse_primary_ctor_param_list()?;
             last_end = last_end.max(params_span.end);
-            Some(ast::PrimaryCtorDecl { params_span, params })
+            Some(ast::PrimaryCtorDecl {
+                params_span,
+                params,
+            })
         } else {
             None
         };
@@ -1231,6 +1383,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::TypeDecl {
             span: Span::new(start, last_end),
+            annotations,
             modifiers,
             kind,
             name,
@@ -1251,10 +1404,12 @@ impl<'a> Parser<'a> {
         self.parse_object_decl_inner(ast::ObjectKind::Companion)
     }
 
-    fn parse_object_decl_inner(&mut self, kind: ast::ObjectKind) -> Result<ast::ObjectDecl, ParseError> {
+    fn parse_object_decl_inner(
+        &mut self,
+        kind: ast::ObjectKind,
+    ) -> Result<ast::ObjectDecl, ParseError> {
         let start = self.peek().span.start;
-
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let (kind, name, mut last_end) = match kind {
             ast::ObjectKind::Object => {
@@ -1321,6 +1476,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::ObjectDecl {
             span: Span::new(start, last_end),
+            annotations,
             modifiers,
             kind,
             name,
@@ -1366,7 +1522,8 @@ impl<'a> Parser<'a> {
             // 仅在 class body 中被识别为次构造器语法。
             if ctx.allow_secondary_ctors
                 && head == TokenKind::Ident
-                && self.source_text.get(head_tok.span.start..head_tok.span.end) == Some("constructor")
+                && self.source_text.get(head_tok.span.start..head_tok.span.end)
+                    == Some("constructor")
             {
                 match self.parse_type_member_secondary_ctor_decl() {
                     Ok(decl) => members.push(ast::TypeMember::SecondaryCtor(decl)),
@@ -1437,10 +1594,7 @@ impl<'a> Parser<'a> {
                 continue;
             }
 
-            if matches!(
-                head,
-                TokenKind::Keyword(Keyword::Val | Keyword::Var)
-            ) {
+            if matches!(head, TokenKind::Keyword(Keyword::Val | Keyword::Var)) {
                 match self.parse_type_member_property_decl() {
                     Ok(decl) => members.push(ast::TypeMember::Property(decl)),
                     Err(e) => {
@@ -1492,8 +1646,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_type_member_init_block_decl(&mut self) -> Result<ast::InitBlockDecl, ParseError> {
-        // `init` 不支持 modifiers，但为了保持 parser cursor 前进与错误恢复，仍先消费掉它们。
-        let _modifiers = self.parse_modifiers();
+        // `init` 不支持 modifiers/annotations，但为了保持 parser cursor 前进与错误恢复，仍先消费掉声明前缀。
+        let (_annotations, _modifiers) = self.parse_decl_prefix()?;
 
         if !self.peek_ident_text("init") {
             let tok = *self.peek();
@@ -1516,7 +1670,7 @@ impl<'a> Parser<'a> {
         &mut self,
     ) -> Result<ast::SecondaryCtorDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         if !self.peek_ident_text("constructor") {
             let tok = *self.peek();
@@ -1541,6 +1695,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::SecondaryCtorDecl {
             span: Span::new(start, body.span.end.max(ctor_kw.span.end)),
+            annotations,
             modifiers,
             params_span,
             params,
@@ -1591,10 +1746,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_enum_variant_decl(&mut self) -> Result<ast::EnumVariantDecl, ParseError> {
+        let start = self.peek().span.start;
+        let (annotations, _modifiers) = self.parse_decl_prefix()?;
+
         let name_tok = self.expect_kind(TokenKind::Ident, "enum variant 名（标识符）")?;
         let name = ast::Ident::new(name_tok.span);
 
-        let start = name.span.start;
         let mut last_end = name.span.end;
         let mut params: Vec<ast::Param> = Vec::new();
 
@@ -1653,6 +1810,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::EnumVariantDecl {
             span: Span::new(start, last_end),
+            annotations,
             name,
             params,
         })
@@ -1660,7 +1818,7 @@ impl<'a> Parser<'a> {
 
     fn parse_type_member_property_decl(&mut self) -> Result<ast::PropertyDecl, ParseError> {
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let kw = if self.peek_keyword(Keyword::Val) {
             self.bump()
@@ -1748,10 +1906,8 @@ impl<'a> Parser<'a> {
                 {
                     expr
                 } else {
-                    let span = self.skip_until_type_member_or_accessor_boundary(
-                        delegate_start,
-                        last_end,
-                    );
+                    let span =
+                        self.skip_until_type_member_or_accessor_boundary(delegate_start, last_end);
                     last_end = span.end;
                     ast::Expr::missing(span)
                 }
@@ -1836,6 +1992,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::PropertyDecl {
             span: Span::new(start, last_end),
+            annotations,
             modifiers,
             kind,
             name,
@@ -2029,10 +2186,11 @@ impl<'a> Parser<'a> {
     fn parse_type_member_fun_decl(&mut self) -> Result<ast::FunDecl, ParseError> {
         // 目标：只解析函数声明头（name/params/return type），函数体仍只保留 span。
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let _kw = self.expect_keyword(Keyword::Fun)?;
-        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) =
+            self.parse_type_params_opt()?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
         let (type_params, eff_param) = if _pre_type_params_span.is_some() {
             (pre_type_params, pre_eff_param)
@@ -2093,6 +2251,7 @@ impl<'a> Parser<'a> {
         Ok(ast::FunDecl {
             span: Span::new(start, last_end),
             kind: ast::FunDeclKind::Regular,
+            annotations,
             modifiers,
             receiver,
             name,
@@ -2114,10 +2273,11 @@ impl<'a> Parser<'a> {
         // - operation 不允许有函数体（不支持默认实现）；
         // - 仅做语法解析与结构化存储，语义规则交给后续 typecheck（TODO T0602+）。
         let start = self.peek().span.start;
-        let modifiers = self.parse_modifiers();
+        let (annotations, modifiers) = self.parse_decl_prefix()?;
 
         let _kw = self.expect_keyword(Keyword::Fun)?;
-        let (_pre_type_params_span, pre_type_params, pre_eff_param) = self.parse_type_params_opt()?;
+        let (_pre_type_params_span, pre_type_params, pre_eff_param) =
+            self.parse_type_params_opt()?;
         let (receiver, name) = self.parse_fun_receiver_and_name()?;
         let (type_params, eff_param) = if _pre_type_params_span.is_some() {
             (pre_type_params, pre_eff_param)
@@ -2183,6 +2343,7 @@ impl<'a> Parser<'a> {
         Ok(ast::FunDecl {
             span: Span::new(start, last_end),
             kind: ast::FunDeclKind::EffectOp,
+            annotations,
             modifiers,
             receiver,
             name,

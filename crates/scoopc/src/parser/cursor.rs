@@ -167,7 +167,20 @@ impl<'a> Parser<'a> {
     }
 
     pub(super) fn peek_after_modifiers(&self) -> &Token {
-        let mut idx = self.i;
+        let idx = self.skip_decl_prefix_idx(self.i);
+        self.tokens.get(idx).unwrap_or_else(|| {
+            self.tokens
+                .last()
+                .expect("lexer must produce at least EOF token")
+        })
+    }
+
+    /// 跳过“声明前缀”token（modifiers + annotations），返回前缀后第一个 token 的索引。
+    ///
+    /// 说明：
+    /// - 该函数只用于 lookahead/分流/错误恢复；
+    /// - 语法错误时会尽量保守：只保证 cursor 能前进，不尝试做严格校验。
+    fn skip_decl_prefix_idx(&self, mut idx: usize) -> usize {
         loop {
             let tok = self.tokens.get(idx).unwrap_or_else(|| {
                 self.tokens
@@ -180,9 +193,92 @@ impl<'a> Parser<'a> {
                     idx = idx.saturating_add(1);
                     continue;
                 }
-                _ => return tok,
+                TokenKind::Symbol(Symbol::At) => {
+                    idx = self.skip_one_annotation_idx(idx);
+                    continue;
+                }
+                _ => return idx,
             }
         }
+    }
+
+    /// 跳过单个注解使用（从 `@` 开始），返回其末尾后一位索引。
+    ///
+    /// 支持形态：
+    /// - `@Name`
+    /// - `@Namespace.Name(args)`
+    /// - `@property:Name(args)`（use-site target）
+    fn skip_one_annotation_idx(&self, mut idx: usize) -> usize {
+        // consume `@`
+        idx = idx.saturating_add(1);
+
+        // 需要一个标识符；若缺失，保守返回（只跳过 `@`）。
+        if !matches!(self.tokens.get(idx).map(|t| t.kind), Some(TokenKind::Ident)) {
+            return idx;
+        }
+
+        // consume first ident
+        idx = idx.saturating_add(1);
+
+        // optional use-site target：`@target:Name`
+        if matches!(
+            self.tokens.get(idx).map(|t| t.kind),
+            Some(TokenKind::Symbol(Symbol::Colon))
+        ) {
+            // consume ':'
+            idx = idx.saturating_add(1);
+            // require a new ident for real annotation path start
+            if !matches!(self.tokens.get(idx).map(|t| t.kind), Some(TokenKind::Ident)) {
+                return idx;
+            }
+            idx = idx.saturating_add(1);
+        }
+
+        // dotted path segments
+        loop {
+            if !matches!(
+                self.tokens.get(idx).map(|t| t.kind),
+                Some(TokenKind::Symbol(Symbol::Dot))
+            ) {
+                break;
+            }
+            // consume '.'
+            idx = idx.saturating_add(1);
+            // consume ident if present; otherwise stop（避免越界与死循环）
+            if !matches!(self.tokens.get(idx).map(|t| t.kind), Some(TokenKind::Ident)) {
+                break;
+            }
+            idx = idx.saturating_add(1);
+        }
+
+        // optional args list: `( ... )`
+        if !matches!(
+            self.tokens.get(idx).map(|t| t.kind),
+            Some(TokenKind::Symbol(Symbol::LParen))
+        ) {
+            return idx;
+        }
+
+        let mut depth_paren = 0usize;
+        while let Some(tok) = self.tokens.get(idx) {
+            match tok.kind {
+                TokenKind::Eof => break,
+                TokenKind::Symbol(Symbol::LParen) => {
+                    depth_paren += 1;
+                    idx = idx.saturating_add(1);
+                }
+                TokenKind::Symbol(Symbol::RParen) => {
+                    depth_paren = depth_paren.saturating_sub(1);
+                    idx = idx.saturating_add(1);
+                    if depth_paren == 0 {
+                        break;
+                    }
+                }
+                _ => idx = idx.saturating_add(1),
+            }
+        }
+
+        idx
     }
 
     pub(super) fn is_type_decl_start(&self) -> bool {
@@ -234,21 +330,7 @@ impl<'a> Parser<'a> {
     /// - 不做完整语法解析：仅在 header 中寻找 `ReceiverType . name :` 形态。
     pub(super) fn is_extension_property_decl_start(&self) -> bool {
         // 1) 跳过 modifiers，定位到 `val/var`
-        let mut idx = self.i;
-        loop {
-            let tok = self.tokens.get(idx).unwrap_or_else(|| {
-                self.tokens
-                    .last()
-                    .expect("lexer must produce at least EOF token")
-            });
-            match tok.kind {
-                TokenKind::Keyword(kw) if is_modifier_keyword(kw) => {
-                    idx = idx.saturating_add(1);
-                    continue;
-                }
-                _ => break,
-            }
-        }
+        let mut idx = self.skip_decl_prefix_idx(self.i);
 
         let Some(tok) = self.tokens.get(idx) else {
             return false;
