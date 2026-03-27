@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun safe(p: Ptr<Int>) {
+    @Unsafe { ptrToUIntPtr(p) }
+}
+

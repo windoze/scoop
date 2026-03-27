@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::invalid_cast
+// EXPECT-ERROR: 不允许的显式类型转换
+// EXPECT-ERROR-AT: 13:15
+// 目标：T1012 指针↔整数转换只能通过 sysroot intrinsics；`as` 不应被当作指针转换。
+
+package fixtures.unsafe_nogc
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun safe(p: Ptr<Int>) {
+    val x = p as UIntPtr
+}
+

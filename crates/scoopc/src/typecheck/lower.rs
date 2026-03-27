@@ -832,7 +832,12 @@ impl<'a> TypeLowering<'a> {
         })
     }
 
-    pub(super) fn ty_param_named(&mut self, name: String, decl_file: PathBuf, decl_span: Span) -> TypeId {
+    pub(super) fn ty_param_named(
+        &mut self,
+        name: String,
+        decl_file: PathBuf,
+        decl_span: Span,
+    ) -> TypeId {
         self.types.ty_param(TypeParamType {
             name,
             decl_file,
@@ -1054,6 +1059,20 @@ impl<'a> TypeLowering<'a> {
         pointee: TypeId,
         span: Span,
     ) -> Result<(), TypeLowerError> {
+        // T1012：sysroot 的 unsafe intrinsics（例如 `ptrToUIntPtr/uintPtrToPtr`）在签名中会出现
+        // `Ptr<T>`（T 为函数 type param）。在当前阶段我们仍保持“用户代码中 `Ptr<type param>`
+        // 保守拒绝”的策略，但允许 **sysroot 文件** 中声明的 type param 通过该检查：
+        // - sysroot 的这些声明本身无函数体（intrinsic），不会在未实例化时执行不安全行为；
+        // - 真正的 use-site `Ptr<Int>` / `Ptr<String>` 仍会在类型 lowering 时被检查与拒绝。
+        if let TypeKind::Param(p) = self.type_kind(pointee) {
+            if p.decl_file
+                .components()
+                .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
+            {
+                return Ok(());
+            }
+        }
+
         let mut visiting: HashSet<TypeId> = HashSet::new();
         let mut memo: HashMap<TypeId, bool> = HashMap::new();
 
@@ -1288,10 +1307,7 @@ impl<'a> TypeLowering<'a> {
             .filter(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. }))
             .collect::<Vec<_>>();
         let ptr_pointee_arg_span = if fqn == PTR_FQN {
-            type_args
-                .first()
-                .map(|arg| arg.span())
-                .unwrap_or(path.span)
+            type_args.first().map(|arg| arg.span()).unwrap_or(path.span)
         } else {
             path.span
         };

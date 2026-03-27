@@ -77,12 +77,24 @@ pub fn check_file_override_effects(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     for item in &file.items {
         match item {
-            ast::Item::Type(ty) => {
-                check_type_decl_override_effects(source, file, ty, &pkg_prefix, index, env, &mut lower)?
-            }
-            ast::Item::Object(obj) => {
-                check_object_decl_override_effects(source, file, obj, &pkg_prefix, index, env, &mut lower)?
-            }
+            ast::Item::Type(ty) => check_type_decl_override_effects(
+                source,
+                file,
+                ty,
+                &pkg_prefix,
+                index,
+                env,
+                &mut lower,
+            )?,
+            ast::Item::Object(obj) => check_object_decl_override_effects(
+                source,
+                file,
+                obj,
+                &pkg_prefix,
+                index,
+                env,
+                &mut lower,
+            )?,
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
             | ast::Item::Val(_)
@@ -125,10 +137,28 @@ fn check_type_decl_override_effects(
     match decl.kind {
         ast::TypeKind::Class => {
             check_class_member_override_effects(source, file, decl, &type_fqn, index, env, lower)?;
-            check_type_interface_impl_effects(source, file, &type_fqn, &decl.supertypes, decl.body.as_ref(), index, env, lower)?;
+            check_type_interface_impl_effects(
+                source,
+                file,
+                &type_fqn,
+                &decl.supertypes,
+                decl.body.as_ref(),
+                index,
+                env,
+                lower,
+            )?;
         }
         ast::TypeKind::Struct | ast::TypeKind::Enum => {
-            check_type_interface_impl_effects(source, file, &type_fqn, &decl.supertypes, decl.body.as_ref(), index, env, lower)?;
+            check_type_interface_impl_effects(
+                source,
+                file,
+                &type_fqn,
+                &decl.supertypes,
+                decl.body.as_ref(),
+                index,
+                env,
+                lower,
+            )?;
         }
         ast::TypeKind::Interface | ast::TypeKind::Effect => {
             // 当前阶段不对 interface/effect 声明引入额外 override 语义检查。
@@ -140,10 +170,14 @@ fn check_type_decl_override_effects(
         for member in &body.members {
             match member {
                 ast::TypeMember::Type(nested) => {
-                    check_type_decl_override_effects(source, file, nested, &type_fqn, index, env, lower)?;
+                    check_type_decl_override_effects(
+                        source, file, nested, &type_fqn, index, env, lower,
+                    )?;
                 }
                 ast::TypeMember::Object(obj) => {
-                    check_object_decl_override_effects(source, file, obj, &type_fqn, index, env, lower)?;
+                    check_object_decl_override_effects(
+                        source, file, obj, &type_fqn, index, env, lower,
+                    )?;
                 }
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::Property(_)
@@ -185,17 +219,30 @@ fn check_object_decl_override_effects(
     };
 
     check_object_member_override_effects(source, file, obj, &obj_fqn, index, env, lower)?;
-    check_type_interface_impl_effects(source, file, &obj_fqn, &obj.supertypes, obj.body.as_ref(), index, env, lower)?;
+    check_type_interface_impl_effects(
+        source,
+        file,
+        &obj_fqn,
+        &obj.supertypes,
+        obj.body.as_ref(),
+        index,
+        env,
+        lower,
+    )?;
 
     // 递归检查 nested types / nested objects。
     if let Some(body) = &obj.body {
         for member in &body.members {
             match member {
                 ast::TypeMember::Type(nested) => {
-                    check_type_decl_override_effects(source, file, nested, &obj_fqn, index, env, lower)?;
+                    check_type_decl_override_effects(
+                        source, file, nested, &obj_fqn, index, env, lower,
+                    )?;
                 }
                 ast::TypeMember::Object(nested) => {
-                    check_object_decl_override_effects(source, file, nested, &obj_fqn, index, env, lower)?;
+                    check_object_decl_override_effects(
+                        source, file, nested, &obj_fqn, index, env, lower,
+                    )?;
                 }
                 ast::TypeMember::EnumVariant(_)
                 | ast::TypeMember::Property(_)
@@ -266,7 +313,7 @@ fn check_class_member_override_effects(
             .filter(|o| {
                 o.sig.params.len() == derived_param_len
                     && o.sig.receiver.is_some() == derived_has_receiver
-                    && o.sig.type_params_len == derived_type_params_len
+                    && o.sig.type_params.len() == derived_type_params_len
                     && o.symbol.modifiers.is_overridable()
             })
             .collect::<Vec<_>>();
@@ -338,10 +385,7 @@ fn check_object_member_override_effects(
         return Ok(());
     };
 
-    let superclass = obj
-        .supertypes
-        .iter()
-        .find(|st| st.ctor_args_span.is_some());
+    let superclass = obj.supertypes.iter().find(|st| st.ctor_args_span.is_some());
     let Some(superclass) = superclass else {
         return Ok(());
     };
@@ -381,7 +425,7 @@ fn check_object_member_override_effects(
             .filter(|o| {
                 o.sig.params.len() == derived_param_len
                     && o.sig.receiver.is_some() == derived_has_receiver
-                    && o.sig.type_params_len == derived_type_params_len
+                    && o.sig.type_params.len() == derived_type_params_len
                     && o.symbol.modifiers.is_overridable()
             })
             .collect::<Vec<_>>();
@@ -451,10 +495,9 @@ fn check_type_interface_impl_effects(
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), OverrideEffectError> {
     // 计算 direct superclass（若有），用于“继承的成员也可用于满足 interface”的最小 fallback（与 T0440 保持一致）。
-    let superclass = supertypes
-        .iter()
-        .find(|st| st.ctor_args_span.is_some());
-    let superclass_fqn = superclass.and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
+    let superclass = supertypes.iter().find(|st| st.ctor_args_span.is_some());
+    let superclass_fqn =
+        superclass.and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
     let superclass_nominal = if let Some(st) = superclass {
         let base_ty = lower.lower_type_ref(&st.ty)?;
         nominal_from_type_id(base_ty, lower)
@@ -500,7 +543,7 @@ fn check_type_interface_impl_effects(
                     if fun.receiver.is_some() != required.sig.receiver.is_some() {
                         continue;
                     }
-                    if fun.type_params.len() != required.sig.type_params_len {
+                    if fun.type_params.len() != required.sig.type_params.len() {
                         continue;
                     }
 
@@ -517,7 +560,9 @@ fn check_type_interface_impl_effects(
 
             // 若当前类型未声明实现，允许由 direct superclass 提供（与 T0440 行为一致）。
             if impl_row.is_none() {
-                let (Some(base_fqn), Some(base_nominal)) = (superclass_fqn.as_deref(), superclass_nominal.as_ref()) else {
+                let (Some(base_fqn), Some(base_nominal)) =
+                    (superclass_fqn.as_deref(), superclass_nominal.as_ref())
+                else {
                     continue;
                 };
 
@@ -531,7 +576,7 @@ fn check_type_interface_impl_effects(
                 let matching = base_overloads.iter().find(|cand| {
                     cand.sig.params.len() == required.sig.params.len()
                         && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
-                        && cand.sig.type_params_len == required.sig.type_params_len
+                        && cand.sig.type_params.len() == required.sig.type_params.len()
                 });
 
                 let Some(cand) = matching else {

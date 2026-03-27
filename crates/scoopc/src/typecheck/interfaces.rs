@@ -95,24 +95,10 @@ fn check_type_decl_interfaces(
 
     match decl.kind {
         ast::TypeKind::Class => {
-            check_class_like_interfaces(
-                source,
-                file,
-                &type_fqn,
-                &decl.supertypes,
-                index,
-                env,
-            )?;
+            check_class_like_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
         }
         ast::TypeKind::Struct | ast::TypeKind::Enum => {
-            check_value_type_interfaces(
-                source,
-                file,
-                &type_fqn,
-                &decl.supertypes,
-                index,
-                env,
-            )?;
+            check_value_type_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
         }
         ast::TypeKind::Interface => {
             check_interface_decl_supertypes(source, file, &decl.supertypes, index, env)?;
@@ -241,7 +227,10 @@ fn check_class_like_interfaces(
 
         if st.ctor_args_span.is_some() {
             // ctor call 只允许 class。
-            if !matches!(nominal_kind(env, &interface_fqn), Some(ast::TypeKind::Class)) {
+            if !matches!(
+                nominal_kind(env, &interface_fqn),
+                Some(ast::TypeKind::Class)
+            ) {
                 return Err(InterfaceError::SupertypeCtorCallNotClass {
                     found_fqn: interface_fqn,
                     span: st.ty.span().into(),
@@ -369,7 +358,7 @@ fn has_matching_member_fun(index: &Index, type_fqn: &str, required: &FunOverload
     syms.fun.iter().any(|cand| {
         cand.sig.params.len() == required.sig.params.len()
             && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
-            && cand.sig.type_params_len == required.sig.type_params_len
+            && cand.sig.type_params.len() == required.sig.type_params.len()
     })
 }
 
@@ -395,4 +384,3 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .collect::<Vec<_>>()
         .join(".")
 }
-

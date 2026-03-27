@@ -3230,11 +3230,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1012 [TODO] Typecheck：指针↔整数转换只能通过 sysroot intrinsics，且必须在 unsafe context（spec §15.9.4 / runtime §5）
+### T1012 [DONE] Typecheck：指针↔整数转换只能通过 sysroot intrinsics，且必须在 unsafe context（spec §15.9.4 / runtime §5）
 - 描述：把“pointer/int casts 的限制点”固定为：仅允许调用 sysroot 提供的转换 intrinsics（例如 `ptrToUIntPtr/uintPtrToPtr`），并要求调用点处于 unsafe context；明确 **不** 把 `as/as?` 当作指针转换。
 - 目标：先只做静态门禁与错误信息；不做 codegen（lowering 到 LLVM 留给后续任务）。
 - 验收：unsafe_nogc fixture：在非 unsafe context 调用 `ptrToUIntPtr` 报错；在 `@Unsafe { ... }` 内通过；`p as UIntPtr` 不被当作合法指针转换（按普通 cast 规则处理并产生对应诊断/required effects）。
 - 依赖：T1010、T1004、T0412
+ - 完成：
+   - `crates/scoopc/src/resolve/mod.rs`：Index 的 `FunSig` 记录函数 type params（名字+span）与内建注解 flags（`@Unsafe/@NoGC/@Extern/@Intrinsic`），供跨文件调用点查询。
+   - `crates/scoopc/src/typecheck/expr.rs`：`collect_top_level_fun_signatures_from_index` 支持从 Index lowering “单一 type param”的泛型函数签名，并把 builtin flags 写入 `FunSigOwned`，从而对 sysroot `ptrToUIntPtr` 施加 `@Unsafe` 调用门禁。
+   - `crates/scoopc/src/typecheck/lower.rs`：允许 sysroot 声明处的 type param 作为 `Ptr<T>` pointee 出现在 intrinsic 签名中（不放宽用户代码的保守策略）。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_to_uintptr_requires_unsafe_is_error.scoop`：新增 compile-fail，safe context 调用 `ptrToUIntPtr` 报错（错误码 `unsafe_call_requires_unsafe`）。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_to_uintptr_allowed_in_unsafe_block_ok.scoop`：新增 compile-pass，`@Unsafe { ... }` 内调用通过。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_as_uintptr_is_invalid_cast.scoop`：新增 compile-fail，`p as UIntPtr` 仍按普通 cast 规则报 `invalid_cast`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1013 [TODO] 注解系统：补齐内建注解与 `AnnotationTarget`（spec §15.5）
 - 描述：在 sysroot/typecheck 中补齐内建注解集合：`@TailRec`、`@AllowIntrinsic`、`@Suppress`、`@CLayout`、`@Target`、`@Retention`，并引入 `AnnotationTarget` enum。

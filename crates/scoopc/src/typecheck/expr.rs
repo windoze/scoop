@@ -3023,7 +3023,7 @@ fn infer_handle_expr_type(
                 span: arm.op.op.span.into(),
             });
         }
-        if op.sig.type_params_len != 0 {
+        if !op.sig.type_params.is_empty() {
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "handle arm（generic effect op not supported）",
                 span: arm.op.op.span.into(),
@@ -4732,16 +4732,10 @@ fn collect_top_level_fun_signatures_from_index(
         return Ok(Vec::new());
     }
 
-    // NOTE: `Index` 侧的 `FunSig` 目前只保留了“用于 overload resolution 的声明头信息”，
-    // 其中 `type_params_len` 不包含 type param 的名字，因此我们暂时无法在这里把跨文件/跨包的
-    // 泛型函数签名完整降低为 `FunSigOwned`（lowering 需要 name→TypeId 绑定）。
-    //
-    // 为避免误伤未覆盖的用例，这里先只支持非泛型函数签名（`type_params_len == 0`）。
-    //
-    // 这对于 sysroot 的最小 I/O（`println(String)`）已足够；更完整的跨文件泛型调用将由后续任务补齐。
     let mut out: Vec<FunSigOwned> = Vec::new();
     for o in &overloads {
-        if o.sig.type_params_len != 0 {
+        // T0505 v0：当前阶段的泛型调用推断仅支持单一 type param。
+        if o.sig.type_params.len() > 1 {
             continue;
         }
 
@@ -4758,6 +4752,22 @@ fn collect_top_level_fun_signatures_from_index(
             continue;
         }
 
+        let mut type_params: Vec<TypeId> = Vec::with_capacity(o.sig.type_params.len());
+        for p in &o.sig.type_params {
+            type_params.push(lower.ty_param_named(
+                p.name.clone(),
+                o.symbol.decl_file.clone(),
+                p.name_span,
+            ));
+        }
+        let type_param_bindings = o
+            .sig
+            .type_params
+            .iter()
+            .zip(type_params.iter().copied())
+            .map(|(p, ty)| (p.name.clone(), ty))
+            .collect::<Vec<_>>();
+
         let mut param_names = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
         let mut param_has_defaults =
             Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
@@ -4766,7 +4776,11 @@ fn collect_top_level_fun_signatures_from_index(
         if let Some(receiver) = &o.sig.receiver {
             param_names.push("<receiver>".to_string());
             param_has_defaults.push(false);
-            let receiver_ty = lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, receiver)?;
+            let receiver_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+                &o.symbol.decl_file,
+                type_param_bindings.iter().cloned(),
+                receiver,
+            )?;
             params.push(receiver_ty);
         }
 
@@ -4776,12 +4790,20 @@ fn collect_top_level_fun_signatures_from_index(
             };
             param_names.push(p.name.clone());
             param_has_defaults.push(p.has_default);
-            let ty = lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, ty_ref)?;
+            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+                &o.symbol.decl_file,
+                type_param_bindings.iter().cloned(),
+                ty_ref,
+            )?;
             params.push(ty);
         }
 
         let return_ty = match &o.sig.return_ty {
-            Some(ret) => lower.lower_type_ref_in_decl_file(&o.symbol.decl_file, ret)?,
+            Some(ret) => lower.lower_type_ref_in_decl_file_with_bindings(
+                &o.symbol.decl_file,
+                type_param_bindings.iter().cloned(),
+                ret,
+            )?,
             None => builtins.unit,
         };
 
@@ -4794,13 +4816,13 @@ fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             is_extension,
             is_inline,
-            is_unsafe: false,
-            is_nogc: false,
-            is_extern: false,
-            is_intrinsic: false,
+            is_unsafe: o.sig.builtin_flags.is_unsafe,
+            is_nogc: o.sig.builtin_flags.is_nogc,
+            is_extern: o.sig.builtin_flags.is_extern,
+            is_intrinsic: o.sig.builtin_flags.is_intrinsic,
             param_names,
             param_has_defaults,
-            type_params: Vec::new(),
+            type_params: type_params.clone(),
             eff_param: None,
             param_fn_effect_eff_base,
             param_nominal_eff_eff_base,
@@ -6505,7 +6527,7 @@ fn infer_effect_op_call_expr_type(
         });
     }
 
-    if op.sig.type_params_len != 0 {
+    if !op.sig.type_params.is_empty() {
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "effect op call（generic op not supported）",
             span: call_expr.span.into(),

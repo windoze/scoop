@@ -295,16 +295,71 @@ pub struct ParamSig {
     pub has_default: bool,
 }
 
+/// Index 侧记录的函数 type parameter（仅名字与 span）。
+///
+/// 说明：
+/// - `Index` 会被跨文件调用点查询，因此需要保留 type param 的名字，
+///   以便后续 typecheck lowering 将 `T` 解析为 `TypeKind::Param`（而不是顶层同名 type）。
+#[derive(Debug, Clone)]
+pub struct TypeParamSig {
+    pub name: String,
+    pub name_span: Span,
+}
+
+/// Index 侧记录的“内建注解标记位”。
+///
+/// 说明：
+/// - 仅覆盖 `@Unsafe/@NoGC/@Extern/@Intrinsic` 四个会影响早期 typecheck 的注解；
+/// - `@Extern` 在语义上隐含 `@NoGC`（spec §15.8.3），因此这里会折叠到 `is_nogc = true`。
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct BuiltinFunFlags {
+    pub is_unsafe: bool,
+    pub is_nogc: bool,
+    pub is_extern: bool,
+    pub is_intrinsic: bool,
+}
+
+fn builtin_fun_flags_from_annotations(
+    source: &SourceFile,
+    anns: &[ast::AnnotationUse],
+) -> BuiltinFunFlags {
+    let mut out = BuiltinFunFlags::default();
+
+    for ann in anns {
+        let segs = ann
+            .path
+            .iter()
+            .map(|id| id.text(source))
+            .collect::<Vec<_>>();
+
+        match segs.as_slice() {
+            ["Unsafe"] | ["scoop", "core", "Unsafe"] => out.is_unsafe = true,
+            ["NoGC"] | ["scoop", "core", "NoGC"] => out.is_nogc = true,
+            ["Extern"] | ["scoop", "core", "Extern"] => out.is_extern = true,
+            ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => out.is_intrinsic = true,
+            _ => {}
+        }
+    }
+
+    // spec §15.8.3：`@Extern` 默认视为 `@NoGC`。
+    if out.is_extern {
+        out.is_nogc = true;
+    }
+
+    out
+}
+
 /// 一个函数声明的“可用于重载决议”的签名信息（仅声明头）。
 #[derive(Debug, Clone)]
 pub struct FunSig {
     pub kind: ast::FunDeclKind,
     pub receiver: Option<ast::TypeRef>,
-    pub type_params_len: usize,
+    pub type_params: Vec<TypeParamSig>,
     pub eff_param: Option<ast::EffectRowParam>,
     pub params: Vec<ParamSig>,
     pub return_ty: Option<ast::TypeRef>,
     pub effects: Option<ast::EffectRowExpr>,
+    pub builtin_flags: BuiltinFunFlags,
 }
 
 /// fun 命名空间中的一个 overload 候选。
@@ -377,7 +432,9 @@ impl NamespacedSymbols {
         match kind {
             SymbolKind::Type => &mut self.ty,
             SymbolKind::Value => &mut self.value,
-            SymbolKind::Fun => unreachable!("fun 命名空间使用 overload set（Vec<FunOverload>）存储"),
+            SymbolKind::Fun => {
+                unreachable!("fun 命名空间使用 overload set（Vec<FunOverload>）存储")
+            }
         }
     }
 
@@ -452,7 +509,9 @@ impl Index {
     pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
         let mut index = Index::default();
         for f in files {
-            index.file_cones.insert(f.source.path().to_path_buf(), f.cone);
+            index
+                .file_cones
+                .insert(f.source.path().to_path_buf(), f.cone);
             index.add_file_in_cone(f.cone, f.source, f.file)?;
         }
         index.collect_extension_funs(files);
@@ -564,7 +623,8 @@ impl Index {
             };
             let Some(fun) = syms.any_visible_fun(use_cone, use_source) else {
                 if let Some(first) = syms.first_fun() {
-                    not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    not_visible =
+                        Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
                 }
                 continue;
             };
@@ -1167,15 +1227,17 @@ impl Index {
         // - 函数体内部的返回类型检查仍以 AST 上的 `return_ty`（T）为准（由 typecheck 处理）。
         let return_ty = if fun.modifiers.contains(&ast::Modifier::Async) {
             let synth_span = fun.return_ty.as_ref().map(|t| t.span()).unwrap_or(fun.span);
-            let inner = fun.return_ty.clone().unwrap_or_else(|| ast::TypeRef::Path(ast::TypePath {
-                span: synth_span,
-                segments: vec![
-                    ast::Ident::synthetic(synth_span, "scoop"),
-                    ast::Ident::synthetic(synth_span, "core"),
-                    ast::Ident::synthetic(synth_span, "Unit"),
-                ],
-                args: Vec::new(),
-            }));
+            let inner = fun.return_ty.clone().unwrap_or_else(|| {
+                ast::TypeRef::Path(ast::TypePath {
+                    span: synth_span,
+                    segments: vec![
+                        ast::Ident::synthetic(synth_span, "scoop"),
+                        ast::Ident::synthetic(synth_span, "core"),
+                        ast::Ident::synthetic(synth_span, "Unit"),
+                    ],
+                    args: Vec::new(),
+                })
+            });
 
             Some(ast::TypeRef::Path(ast::TypePath {
                 span: synth_span,
@@ -1193,11 +1255,19 @@ impl Index {
         let sig = FunSig {
             kind: fun.kind,
             receiver: fun.receiver.clone(),
-            type_params_len: fun.type_params.len(),
+            type_params: fun
+                .type_params
+                .iter()
+                .map(|p| TypeParamSig {
+                    name: p.name.text(source).to_string(),
+                    name_span: p.name.span,
+                })
+                .collect::<Vec<_>>(),
             eff_param: fun.eff_param.clone(),
             params,
             return_ty,
             effects: fun.effects.clone(),
+            builtin_flags: builtin_fun_flags_from_annotations(source, &fun.annotations),
         };
 
         let entry = self.by_fqn.entry(fqn).or_default();
@@ -1566,34 +1636,34 @@ fn resolve_object_decl_headers(
 
     for member in &body.members {
         match member {
-                ast::TypeMember::EnumVariant(v) => {
-                    for p in &v.params {
-                        if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, &type_params, None, ty)?;
-                        }
-                    }
-                }
-                ast::TypeMember::Property(p) => {
+            ast::TypeMember::EnumVariant(v) => {
+                for p in &v.params {
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, &type_params, None, ty)?;
                     }
                 }
+            }
+            ast::TypeMember::Property(p) => {
+                if let Some(ty) = &p.ty {
+                    resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                }
+            }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
-                    for p in &ctor.params {
-                        if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, &type_params, None, ty)?;
-                        }
+                for p in &ctor.params {
+                    if let Some(ty) = &p.ty {
+                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
                     }
                 }
-                ast::TypeMember::Fun(f) => {
-                    type_params.push_decl(source, &f.type_params)?;
-                    let eff_param = f.eff_param.as_ref().map(|p| source.slice(p.name.span));
-                    let result =
-                        (|| resolve_fun_header(source, file, index, &type_params, eff_param, f))();
-                    type_params.pop_decl();
-                    result?;
-                }
+            }
+            ast::TypeMember::Fun(f) => {
+                type_params.push_decl(source, &f.type_params)?;
+                let eff_param = f.eff_param.as_ref().map(|p| source.slice(p.name.span));
+                let result =
+                    (|| resolve_fun_header(source, file, index, &type_params, eff_param, f))();
+                type_params.pop_decl();
+                result?;
+            }
             ast::TypeMember::Type(nested) => {
                 let mut nested_type_params = TypeParamScopes::new();
                 resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
