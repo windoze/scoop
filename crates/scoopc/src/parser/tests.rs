@@ -151,6 +151,29 @@ fn parse_fun_decl_with_annotations() {
 }
 
 #[test]
+fn parse_target_annotation_with_enum_values() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\n@Target(AnnotationTarget.Field)\nannotation class Column\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Type(t) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为类型声明");
+    };
+    assert!(t.modifiers.contains(&ast::Modifier::Annotation));
+    assert_eq!(src.slice(t.name.span), "Column");
+
+    assert_eq!(t.annotations.len(), 1);
+    let ann = &t.annotations[0];
+    assert_eq!(src.slice(ann.path[0].span), "Target");
+    assert_eq!(ann.args.len(), 1);
+
+    let v = &ann.args[0].value;
+    assert!(matches!(v.kind, ast::ExprKind::MemberAccess { .. }));
+}
+
+#[test]
 fn parse_unsafe_block_expr() {
     let src = SourceFile::new_virtual("<mem>", "package a\nfun f() { @Unsafe { 1 } }\n");
     let file = parse_file(&src).unwrap();

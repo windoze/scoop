@@ -5,7 +5,7 @@
 //! - 在 `@Name(...)` 使用处验证 `Name` 必须引用一个注解类（spec §15.2~§15.3）。
 //!
 //! 非目标（留给后续任务）：
-//! - target/retention/meta-annotation 规则；
+//! - 完整的 target/retention/meta-annotation 规则（T1016）；
 //! - 注解参数类型白名单与默认值/必填规则；
 //! - 注解在表达式位置的语义（如 `@Suppress(...) expr`）；
 //! - `@Extern/@Intrinsic/@NoGC/@Unsafe` 等内建注解的特殊行为（T1003 已覆盖最小门禁；更完整规则见 TODO）。
@@ -121,6 +121,14 @@ pub enum AnnotationError {
         type_fqn: String,
         fun_name: String,
         #[label("这里不应有函数体")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("非法的 AnnotationTarget：{name}")]
+    #[diagnostic(code(scoop::typecheck::invalid_annotation_target_name))]
+    InvalidAnnotationTargetName {
+        name: String,
+        #[label("这里")]
         span: miette::SourceSpan,
     },
 }
@@ -391,7 +399,89 @@ fn check_one_annotation_use(
         });
     }
 
+    // T1013：`@Target(AnnotationTarget.X, ...)` 的最小合法性检查：
+    // - 只验证 enum variant 名是否来自 `AnnotationTarget`；
+    // - 更完整的“target 限制实际应用位置”留给 T1016。
+    if fqn == "scoop.core.Target" {
+        check_target_annotation_args(source, ann)?;
+    }
+
     Ok(())
+}
+
+fn check_target_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    for arg in &ann.args {
+        let Some((variant_name, variant_span)) = extract_annotation_target_variant(source, &arg.value)
+        else {
+            continue;
+        };
+
+        if !is_valid_annotation_target_variant(&variant_name) {
+            return Err(AnnotationError::InvalidAnnotationTargetName {
+                name: variant_name,
+                span: variant_span.into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn extract_annotation_target_variant(source: &SourceFile, expr: &ast::Expr) -> Option<(String, Span)> {
+    let mut segs: Vec<(String, Span)> = Vec::new();
+    if !collect_member_access_path(source, expr, &mut segs) {
+        return None;
+    }
+    if segs.len() < 2 {
+        return None;
+    }
+
+    // 允许：`AnnotationTarget.Field` / `scoop.core.AnnotationTarget.Field`
+    let penultimate = segs.get(segs.len().saturating_sub(2))?.0.as_str();
+    if penultimate != "AnnotationTarget" {
+        return None;
+    }
+    segs.last().cloned()
+}
+
+fn collect_member_access_path(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    out: &mut Vec<(String, Span)>,
+) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            out.push((source.slice(id.span).to_string(), id.span));
+            true
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            if !collect_member_access_path(source, receiver, out) {
+                return false;
+            }
+            out.push((source.slice(member.span).to_string(), member.span));
+            true
+        }
+        _ => false,
+    }
+}
+
+fn is_valid_annotation_target_variant(name: &str) -> bool {
+    matches!(
+        name,
+        "Function"
+            | "Property"
+            | "Field"
+            | "Param"
+            | "Type"
+            | "Constructor"
+            | "LocalVariable"
+            | "Expression"
+            | "Module"
+            | "TypeParam"
+            | "EnumVariant"
+    )
 }
 
 fn reject_builtin_annotations_on_target(

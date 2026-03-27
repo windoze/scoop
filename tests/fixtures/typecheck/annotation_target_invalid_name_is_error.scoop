@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::invalid_annotation_target_name
+// EXPECT-ERROR-AT: 11:26
+// EXPECT-ERROR: 非法
+// 目标：T1013 `@Target(...)` 中出现非法的 `AnnotationTarget` variant 名时应报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Target(AnnotationTarget.NotARealTarget)
+annotation class Bad

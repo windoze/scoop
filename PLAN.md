@@ -38,6 +38,7 @@
 - 2026-03-27：完成 T1005：typecheck 增加 `@NoGC` 的最小静态门禁（禁止调用非 `@NoGC/@Extern`、禁止已知 boxing 分配点），并新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-27：完成 T1006：LLVM codegen 支持 `@Extern("symbol")` 的符号名映射与 C ABI 调用；HIR lowering 提取 extern side table；新增 run-pass fixture `extern_symbol_println_basic` 回归。
 - 2026-03-27：完成 T1007：sysroot 新增 `@Intrinsic sizeOf` 的最小可调用声明（以 overload 形式暴露），LLVM codegen 将 `scoop.core.sizeOf` lowering 为编译期常量（按 LLVM TargetData 计算 store size），并新增 run-pass fixture `intrinsic_size_of_int_word` 回归。
+- 2026-03-28：完成 T1013：sysroot 补齐 `@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention` 与 `AnnotationTarget` enum；parser 支持 `@Target(AnnotationTarget.X, ...)` 的最小注解参数解析；typecheck 对非法 target 名给出稳定错误码，并新增 parse/typecheck fixtures 覆盖。
 - 2026-03-27：完成 T1008：sysroot 暴露 `GC.pin/GC.unpin` 并在 typecheck/codegen lowering 到 runtime `scoop_pin/scoop_unpin`；由于当前泛型 struct 布局尚未实现，`Pinned<T>` 暂降级为非泛型 `Pinned`（`value: Any`）；新增 run-pass fixture `gc_pin_unpin_basic` 与 compile-fail fixture `gc_pin_value_type_is_error` 回归。
 - 2026-03-27：完成 T1009：typecheck 支持最小 unsafe 指针原语 `addrOf/load/store` 并强制 unsafe context 门禁；新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-27：完成 T1010：sysroot 新增 `scoop.unsafe` 模块声明（`Ptr<T>` + `ptrToUIntPtr/uintPtrToPtr`），并新增 resolve fixture 覆盖 `import scoop.unsafe.*` 与符号引用。
@@ -737,9 +738,9 @@ tests/
   - 默认视为 `@NoGC`
   - 是否默认 `@Unsafe`：建议 **调用点要求 unsafe context**（更符合“外部世界不可信”）
 - [ ] 注解系统补齐：
-  - 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
-  - `AnnotationTarget` enum 与 target 合法性检查
-  - meta-annotations 与 `.cone` 导出策略
+  - [x] 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
+  - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
+  - [ ] meta-annotations 与 `.cone` 导出策略
 - [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
 - [ ] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
 - [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）

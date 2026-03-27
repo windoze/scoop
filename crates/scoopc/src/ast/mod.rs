@@ -137,7 +137,9 @@ pub struct AnnotationUse {
 pub struct AnnotationArg {
     pub span: Span,
     pub name: Option<Ident>,
-    /// 当前阶段（T1001）约束：只允许字面量值（int/string）。
+    /// 当前阶段约束（T1001 + T1013）：
+    /// - 允许字面量值（int/string）；
+    /// - 允许 `Ident(.Ident)*` 的最小枚举值引用（用于 `@Target(AnnotationTarget.X, ...)`）。
     pub value: Expr,
 }
 

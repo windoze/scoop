@@ -3246,11 +3246,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1013 [TODO] 注解系统：补齐内建注解与 `AnnotationTarget`（spec §15.5）
+### T1013 [DONE] 注解系统：补齐内建注解与 `AnnotationTarget`（spec §15.5）
 - 描述：在 sysroot/typecheck 中补齐内建注解集合：`@TailRec`、`@AllowIntrinsic`、`@Suppress`、`@CLayout`、`@Target`、`@Retention`，并引入 `AnnotationTarget` enum。
 - 目标：先固定声明面与最小合法性检查；复杂行为（如真正 TCO）后续由各子系统消费。
 - 验收：新增 parse/typecheck fixture：这些注解可被声明/使用；非法 target 名报错。
 - 依赖：T1002、T0418
+ - 完成：
+   - `sysroot/core.scoop`：新增 `AnnotationTarget` enum，并补齐内建注解声明面：`TailRec/AllowIntrinsic/Suppress/CLayout/Target/Retention`。
+   - `crates/scoopc/src/parser/decls.rs`：注解参数值解析扩展为支持 `Ident(.Ident)*` 形式（用于 `@Target(AnnotationTarget.X, ...)`）。
+   - `crates/scoopc/src/typecheck/annotations.rs`：为 `@Target(...)` 增加最小合法性检查：非法 `AnnotationTarget` variant 名报错（错误码 `scoop::typecheck::invalid_annotation_target_name`）。
+   - `crates/scoopc/src/parser/tests.rs`：新增 parser 单测覆盖 `@Target(AnnotationTarget.Field)` 解析为 member access。
+   - `tests/fixtures/parse/builtin_annotation_target_basic.scoop` + `.ast`：新增 parse fixture 覆盖 enum value 形态的注解参数解析。
+   - `tests/fixtures/typecheck/builtin_annotations_annotation_target_ok.scoop`：新增 typecheck fixture 覆盖内建注解声明/使用与合法 `@Target` 参数。
+   - `tests/fixtures/typecheck/annotation_target_invalid_name_is_error.scoop`：新增 typecheck fixture 覆盖非法 target 名诊断。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1014 [TODO] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3）
 - 描述：支持 use-site target 前缀语法，并在注解附着时区分实际目标元素。

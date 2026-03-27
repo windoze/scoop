@@ -1,0 +1,11 @@
+// EXPECT: pass
+// EXPECT-AST: builtin_annotation_target_basic.ast
+// 目标：T1013 `@Target(AnnotationTarget.X, ...)` 的解析（annotation args 支持枚举值引用）。
+
+package fixtures.parse
+
+import scoop.core.*
+
+@Target(AnnotationTarget.Field, AnnotationTarget.Property)
+annotation class Column(val name: String)
+

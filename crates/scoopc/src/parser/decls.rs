@@ -111,8 +111,11 @@ impl<'a> Parser<'a> {
 
     /// 解析单个注解使用：`@Name(...)`（spec §15.3）。
     ///
-    /// 当前阶段（T1001）约束：
-    /// - 参数值只允许字面量：int/string（不解析复杂表达式参数）。
+    /// 当前阶段约束（T1001 + T1013）：
+    /// - 仍不解析“通用表达式参数”；
+    /// - 允许最小子集：
+    ///   - int/string 字面量（原有能力）
+    ///   - `A.B` 形式的枚举值引用（用于 `@Target(AnnotationTarget.X, ...)`）。
     fn parse_annotation_use(&mut self) -> Result<ast::AnnotationUse, ParseError> {
         let at = self.expect_symbol(Symbol::At)?;
         let start = at.span.start;
@@ -225,8 +228,34 @@ impl<'a> Parser<'a> {
                     kind: ast::ExprKind::StringLit,
                 })
             }
+            TokenKind::Ident => {
+                // T1013：`@Target(AnnotationTarget.Field, ...)` 需要最小支持 enum value 形态。
+                // 这里刻意不接入完整表达式 parser，而是只支持 `Ident(.Ident)*`，并建模为
+                // `Ident` + 多层 `MemberAccess`。
+                let first = self.bump(); // ident
+                let mut expr = ast::Expr {
+                    span: first.span,
+                    kind: ast::ExprKind::Ident(ast::ValueIdent::new(first.span)),
+                };
+
+                while self.peek_symbol(Symbol::Dot) {
+                    self.bump(); // '.'
+                    let seg = self.expect_kind(TokenKind::Ident, "注解参数值（标识符）")?;
+                    let member = ast::MemberIdent::new(seg.span);
+                    let span = Span::new(expr.span.start, seg.span.end);
+                    expr = ast::Expr {
+                        span,
+                        kind: ast::ExprKind::MemberAccess {
+                            receiver: Box::new(expr),
+                            member,
+                        },
+                    };
+                }
+
+                Ok(expr)
+            }
             _ => Err(ParseError::Expected {
-                expected: "注解参数值（仅支持 int/string 字面量）",
+                expected: "注解参数值（仅支持 int/string 字面量或 `A.B` 形式的枚举值引用）",
                 found: tok.kind,
                 span: tok.span.into(),
             }),

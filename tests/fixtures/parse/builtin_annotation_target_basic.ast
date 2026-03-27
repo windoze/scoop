@@ -1,0 +1,124 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 177..199,
+            path: [
+                Ident {
+                    span: 185..193,
+                },
+                Ident {
+                    span: 194..199,
+                },
+            ],
+        },
+    ),
+    imports: [
+        ImportDecl {
+            span: 201..220,
+            path: [
+                Ident {
+                    span: 208..213,
+                },
+                Ident {
+                    span: 214..218,
+                },
+            ],
+            has_star: true,
+            alias: None,
+        },
+    ],
+    items: [
+        Type(
+            TypeDecl {
+                span: 222..322,
+                annotations: [
+                    AnnotationUse {
+                        span: 222..280,
+                        path: [
+                            Ident {
+                                span: 223..229,
+                            },
+                        ],
+                        args: [
+                            AnnotationArg {
+                                span: 230..252,
+                                value: Expr {
+                                    span: 230..252,
+                                    kind: MemberAccess {
+                                        receiver: Expr {
+                                            span: 230..246,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 230..246,
+                                                },
+                                            ),
+                                        },
+                                        member: Ident {
+                                            span: 247..252,
+                                        },
+                                    },
+                                },
+                            },
+                            AnnotationArg {
+                                span: 254..279,
+                                value: Expr {
+                                    span: 254..279,
+                                    kind: MemberAccess {
+                                        receiver: Expr {
+                                            span: 254..270,
+                                            kind: Ident(
+                                                Ident {
+                                                    span: 254..270,
+                                                },
+                                            ),
+                                        },
+                                        member: Ident {
+                                            span: 271..279,
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+                modifiers: [
+                    Annotation,
+                ],
+                kind: Class,
+                name: Ident {
+                    span: 298..304,
+                },
+                type_params: [],
+                primary_ctor: Some(
+                    PrimaryCtorDecl {
+                        params_span: 304..322,
+                        params: [
+                            Param {
+                                name: Ident {
+                                    span: 309..313,
+                                },
+                                kind: Some(
+                                    Val,
+                                ),
+                                ty: Some(
+                                    Path(
+                                        TypePath {
+                                            span: 315..321,
+                                            segments: [
+                                                Ident {
+                                                    span: 315..321,
+                                                },
+                                            ],
+                                            args: [],
+                                        },
+                                    ),
+                                ),
+                            },
+                        ],
+                    },
+                ),
+                body: None,
+            },
+        ),
+    ],
+}

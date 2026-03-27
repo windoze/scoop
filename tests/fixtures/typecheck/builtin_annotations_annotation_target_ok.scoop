@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T1013 内建注解 + `AnnotationTarget` 声明面可用，并对 `@Target` 参数做最小合法性检查（合法 case）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Target(AnnotationTarget.Field, AnnotationTarget.Property)
+@Retention("cone")
+annotation class Column(val name: String)
+
+@TailRec
+fun f(x: Int): Int { return x }
+
+@AllowIntrinsic
+fun allowIntrinsicMarker() {}
+
+@Suppress("unchecked")
+fun g() {}
+
+@CLayout
+struct CPoint(val x: Int, val y: Int)
+

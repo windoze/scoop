@@ -19,6 +19,35 @@ class String
 struct Unit
 enum Nothing
 
+// Built-in annotations（spec §15.5）。
+//
+// 说明：
+// - 这些注解由编译器识别并在不同子系统中被消费（typecheck/lowering/codegen/...）；
+// - sysroot 在这里提供“声明面”，用于名字解析、类型检查与工具链可见性；
+// - 当前阶段（T1013）先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
+//   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
+
+enum AnnotationTarget {
+    Function,
+    Property,
+    Field,
+    Param,
+    Type,
+    Constructor,
+    LocalVariable,
+    Expression,
+    Module,
+    TypeParam,
+    EnumVariant,
+}
+
+annotation class TailRec
+annotation class AllowIntrinsic
+annotation class Suppress(val warning: String)
+annotation class CLayout
+annotation class Target(val targets: AnnotationTarget)
+annotation class Retention(val policy: String)
+
 // I/O（最小表面，早期阶段）。
 //
 // 说明：
