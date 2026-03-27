@@ -1,0 +1,8 @@
+after handle
+thread
+Foo.init
+1
+42
+main
+1
+

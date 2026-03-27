@@ -3016,11 +3016,20 @@
    - `cargo test --all` 通过；
    - `cargo test -p scoop_runtime --test task_executor_minimal` 通过。
 
-### T0918 [TODO] runtime：`object` / `companion object` 的 once 初始化原语（Appendix B.9）
+### T0918 [DONE] runtime：`object` / `companion object` 的 once 初始化原语（Appendix B.9）
 - 描述：若 codegen 采用 runtime 辅助初始化，则提供 once/guard 原语以支持 `object` / `companion object` 的一次初始化。
 - 目标：先只支持单进程内初始化一次；跨 DLL / 动态链接细节后续。
 - 验收：新增 run-pass fixture：多次并发前的重复访问不会重复初始化；初始化副作用只出现一次。
 - 依赖：T0901
+ - 完成：
+   - `runtime/c/scoop_once.c`：新增 once/guard 原语 `scoop_once_begin/scoop_once_end`（uint64 guard + 原子操作，支持同线程重入与跨线程等待）。
+   - `crates/scoop_runtime/build.rs`：把 `scoop_once.c` 纳入 C runtime 编译列表。
+   - `crates/scoop_runtime/tests/once_guard.rs`：新增多线程回归测试，保证 init 最多执行一次且重入不死锁。
+   - `crates/scoopc/src/llvm/codegen.rs`：object init guard 升级为 `uint64_t` word，并接入 runtime once API（避免并发访问下的 data race）。
+   - `tests/fixtures/run-pass/object_once_init_cross_thread.*`：新增跨线程访问 object 的 run-pass fixture，验证 `init` 副作用只出现一次。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（未启用 `scoop` 的 `llvm` feature 时 run-pass pass fixtures 会被跳过执行，但仍会被发现与计数）。
 
 ### T0919 [TODO] runtime：`object` / `companion object` 的跨 DLL / 动态链接一次初始化
 - 描述：补齐单例 once 初始化在动态链接场景下的语义：同一逻辑单例跨动态库加载边界的身份、初始化竞争、以及导出/导入侧的可见性策略。

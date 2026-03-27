@@ -7401,6 +7401,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         obj: &hir::ObjectInit,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
+        let err_span = obj
+            .steps
+            .first()
+            .map(|step| match step {
+                hir::ObjectInitStep::PropertyInit { init, .. } => init.span,
+                hir::ObjectInitStep::InitBlock { block } => block.span,
+            })
+            .unwrap_or(crate::span::Span::new(0, 0));
+
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
@@ -7408,24 +7417,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
 
         let guard = self.declare_object_init_guard(&obj.fqn);
-        let guard_val = self
-            .builder
-            .build_load(
-                self.context.bool_type(),
-                guard.as_pointer_value(),
-                "load_guard",
-            )?
-            .into_int_value();
-        self.builder
-            .build_conditional_branch(guard_val, done_bb, init_bb)?;
+        let once_begin = self.declare_runtime_once_begin();
+        let call = self.builder.build_call(
+            once_begin,
+            &[guard.as_pointer_value().into()],
+            "once_begin",
+        )?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "object init once begin return value",
+                at: err_span.into(),
+            })?;
+        let BasicValueEnum::IntValue(should_init) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "object init once begin return type",
+                at: err_span.into(),
+            });
+        };
+        let i32_ty = self.context.i32_type();
+        let cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            should_init,
+            i32_ty.const_int(0, false),
+            "should_init",
+        )?;
+        self.builder.build_conditional_branch(cond, init_bb, done_bb)?;
 
         self.builder.position_at_end(init_bb);
-
-        // 单线程最小语义：先写入 guard，避免递归初始化导致的重复执行。
-        let _ = self.builder.build_store(
-            guard.as_pointer_value(),
-            self.context.bool_type().const_int(1, false),
-        )?;
 
         self.env.push_scope();
         for step in &obj.steps {
@@ -7470,6 +7490,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         self.env.pop_scope();
 
+        let once_end = self.declare_runtime_once_end();
+        let _ = self
+            .builder
+            .build_call(once_end, &[guard.as_pointer_value().into()], "once_end")?;
         self.builder.build_unconditional_branch(done_bb)?;
 
         self.builder.position_at_end(done_bb);
@@ -7483,11 +7507,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        let gv = self
-            .module
-            .add_global(self.context.bool_type(), None, &name);
+        // 说明：
+        // - 该 guard 由 runtime 的 `scoop_once_begin/end` 维护（TODO T0918）；
+        // - 布局约定：单个 `uint64_t` word（低 2 bit 状态 + 其余 bit 为 owner thread id）。
+        let gv = self.module.add_global(self.context.i64_type(), None, &name);
         gv.set_linkage(Linkage::Internal);
-        gv.set_initializer(&self.context.bool_type().const_int(0, false));
+        gv.set_initializer(&self.context.i64_type().const_int(0, false));
         gv
     }
 
@@ -8456,6 +8481,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_once_begin(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_once_begin";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_once_begin(uint64_t* guard_word)`（TODO T0918）
+        let i32_ty = self.context.i32_type();
+        let i64_ptr_ty = self.context.i64_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_once_end(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_once_end";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_once_end(uint64_t* guard_word)`（TODO T0918）
+        let i64_ptr_ty = self.context.i64_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

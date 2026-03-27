@@ -1,0 +1,49 @@
+// EXPECT: pass
+// RUN-STDOUT: object_once_init_cross_thread.stdout
+//
+// T0918：runtime once 原语：`object` 初始化在跨线程访问下仍只执行一次。
+
+import scoop.core.*
+
+object Foo {
+    init {
+        println("Foo.init")
+    }
+
+    val x: Int = 1
+}
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    // 注意：当前阶段 `None` 作为“裸标识符值”尚不可用；用 `None()` 走 enum variant ctor 路径。
+    var saved: Continuation<Int>? = None()
+
+    // handle body 在 perform 处暂停；arm 把 k 存起来并返回。
+    // 之后在新线程中 resume continuation，让 `Foo` 的首次访问发生在另一个线程上。
+    val ignore: Unit = handle {
+        val v: Int = Yield.next()
+        println("thread")
+        println(Foo.x)
+        println(v)
+    } with {
+        Yield.next(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after handle")
+
+    when (saved) {
+        Some(k) -> {
+            __scoop_thread_spawn_join_resume_u64(k, 42)
+
+            println("main")
+            println(Foo.x)
+        }
+        None -> println("missing")
+    }
+}
+
