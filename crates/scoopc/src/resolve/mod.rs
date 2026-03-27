@@ -1406,6 +1406,9 @@ pub fn check_file_headers(
     // T0303：构建 import 表并验证 import 目标存在性（type/value 两套命名空间）。
     let imports = ImportTable::build(source, file, index)?;
 
+    // T1015：命名空间注解（`@A.B`）的最小存在性解析。
+    resolve_namespaced_annotations(source, file, index, &file.file_annotations)?;
+
     // T0309：声明级 type params 作用域（用于签名中的 TypeRef 解析）。
     let mut type_params = TypeParamScopes::new();
 
@@ -1414,6 +1417,7 @@ pub fn check_file_headers(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
+                resolve_namespaced_annotations(source, file, index, &ta.annotations)?;
                 resolve_type_ref(source, file, index, &type_params, None, &ta.ty)?
             }
             ast::Item::Fun(fun) => {
@@ -1427,6 +1431,7 @@ pub fn check_file_headers(
             ast::Item::ExtensionProperty(p) => {
                 type_params.push_decl(source, &p.type_params)?;
                 let result = (|| {
+                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                     resolve_type_ref(source, file, index, &type_params, None, &p.receiver)?;
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, &type_params, None, ty)?;
@@ -1437,6 +1442,7 @@ pub fn check_file_headers(
                 result?;
             }
             ast::Item::Val(v) => {
+                resolve_namespaced_annotations(source, file, index, &v.annotations)?;
                 if let Some(ty) = &v.ty {
                     resolve_type_ref(source, file, index, &type_params, None, ty)?;
                 }
@@ -1464,6 +1470,48 @@ pub fn check_file_bodies(
     Ok(())
 }
 
+fn resolve_namespaced_annotations(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    anns: &[ast::AnnotationUse],
+) -> Result<(), ResolveError> {
+    for ann in anns {
+        resolve_namespaced_annotation_use(source, file, index, ann)?;
+    }
+    Ok(())
+}
+
+fn resolve_namespaced_annotation_use(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ann: &ast::AnnotationUse,
+) -> Result<(), ResolveError> {
+    // T1015：仅对 `@A.B` 这类“命名空间注解”做最小存在性解析：
+    // - `@A`（单段）仍由后续更完整的注解/typecheck 规则统一处理，避免破坏当前 fixtures 的默认行为。
+    if ann.path.len() <= 1 {
+        return Ok(());
+    }
+
+    let Some(first) = ann.path.first() else {
+        return Ok(());
+    };
+    let Some(last) = ann.path.last() else {
+        return Ok(());
+    };
+
+    let path = ast::TypePath {
+        span: Span::new(first.span.start, last.span.end),
+        segments: ann.path.clone(),
+        args: Vec::new(),
+    };
+
+    // 注解名解析不引入声明级 type param 作用域（它解析的是注解类的名字路径）。
+    let type_params = TypeParamScopes::new();
+    resolve_type_path(source, file, index, &type_params, None, &path)
+}
+
 fn resolve_fun_header(
     source: &SourceFile,
     file: &ast::File,
@@ -1472,6 +1520,11 @@ fn resolve_fun_header(
     eff_param: Option<&str>,
     fun: &ast::FunDecl,
 ) -> Result<(), ResolveError> {
+    resolve_namespaced_annotations(source, file, index, &fun.annotations)?;
+    for p in &fun.params {
+        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+    }
+
     if let Some(receiver) = &fun.receiver {
         resolve_type_ref(source, file, index, type_params, eff_param, receiver)?;
     }
@@ -1500,6 +1553,7 @@ fn resolve_type_decl_headers(
     type_params.push_decl(source, &ty.type_params)?;
 
     let result = (|| {
+        resolve_namespaced_annotations(source, file, index, &ty.annotations)?;
         let ty_eff_param = ty.eff_param.as_ref().map(|p| source.slice(p.name.span));
 
         if let Some(w) = &ty.where_clause {
@@ -1509,6 +1563,7 @@ fn resolve_type_decl_headers(
         // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
+                resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                 if let Some(ty) = &p.ty {
                     resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                 }
@@ -1528,15 +1583,18 @@ fn resolve_type_decl_headers(
         for member in &body.members {
             match member {
                 ast::TypeMember::EnumVariant(v) => {
+                    resolve_namespaced_annotations(source, file, index, &v.annotations)?;
                     // enum variant payload 字段类型也属于 “签名里的类型引用” 范畴；
                     // 这里复用 TypeRef 的存在性解析规则（包含 type params）。
                     for p in &v.params {
+                        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                         if let Some(ty) = &p.ty {
                             resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                         }
                     }
                 }
                 ast::TypeMember::Property(p) => {
+                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                     }
@@ -1545,9 +1603,11 @@ fn resolve_type_decl_headers(
                     // init block 的类型/值解析属于初始化执行体语境（T0313），当前阶段先跳过。
                 }
                 ast::TypeMember::SecondaryCtor(ctor) => {
+                    resolve_namespaced_annotations(source, file, index, &ctor.annotations)?;
                     // 次构造器参数类型也属于“签名里的类型引用”范畴；
                     // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
                     for p in &ctor.params {
+                        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                         if let Some(ty) = &p.ty {
                             resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
                         }
@@ -1625,6 +1685,8 @@ fn resolve_object_decl_headers(
     // object 自身不引入类型参数作用域（当前语法不支持 object 的 `<T>`）；成员可各自声明 type params。
     let mut type_params = TypeParamScopes::new();
 
+    resolve_namespaced_annotations(source, file, index, &obj.annotations)?;
+
     // 超类型列表：解析类型引用（若存在）。
     for st in &obj.supertypes {
         resolve_type_ref(source, file, index, &type_params, None, &st.ty)?;
@@ -1637,20 +1699,25 @@ fn resolve_object_decl_headers(
     for member in &body.members {
         match member {
             ast::TypeMember::EnumVariant(v) => {
+                resolve_namespaced_annotations(source, file, index, &v.annotations)?;
                 for p in &v.params {
+                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, &type_params, None, ty)?;
                     }
                 }
             }
             ast::TypeMember::Property(p) => {
+                resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                 if let Some(ty) = &p.ty {
                     resolve_type_ref(source, file, index, &type_params, None, ty)?;
                 }
             }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
+                resolve_namespaced_annotations(source, file, index, &ctor.annotations)?;
                 for p in &ctor.params {
+                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
                     if let Some(ty) = &p.ty {
                         resolve_type_ref(source, file, index, &type_params, None, ty)?;
                     }

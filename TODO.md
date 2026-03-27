@@ -3279,11 +3279,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1015 [TODO] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
+### T1015 [DONE] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 - 描述：支持命名空间注解的解析与绑定：例如 `@Serialization.Rename("x")`。
 - 目标：先只支持以 path 形式引用注解类；命名空间对象本身的完整语义可与 object 任务联动。
 - 验收：新增 parse+resolve fixture：namespaced annotation 可解析并绑定；未定义路径时报错。
 - 依赖：T1001、T0258、T0317
+ - 完成：
+   - `crates/scoopc/src/resolve/mod.rs`：resolve 阶段对 `@A.B` 形式的注解名路径做最小存在性解析（复用 `resolve_type_path`），覆盖 file/type/object/fun/property/param/enum variant/ctor 等注解载体。
+   - `tests/fixtures/parse/namespaced_annotation_basic.*`：新增 parse fixture + AST golden 覆盖 `@Serialization.Rename("...")` 解析。
+   - `tests/fixtures/resolve/namespaced_annotation_ok.scoop`：新增 resolve fixture（pass）。
+   - `tests/fixtures/resolve/namespaced_annotation_unresolved_is_error.scoop`：新增 resolve fixture（fail），断言错误码与位置。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1016 [TODO] meta-annotations：`@Target/@Retention` 合法性与导出策略（spec §15.5）
 - 描述：实现 meta-annotations 的最小规则：`@Target` 限制注解可应用位置，`@Retention` 决定是否仅编译期可见或保留到 `.cone` 元数据。

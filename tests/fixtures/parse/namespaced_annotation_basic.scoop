@@ -1,0 +1,15 @@
+// EXPECT: pass
+// EXPECT-AST: namespaced_annotation_basic.ast
+// 目标：T1015 namespaced annotations：`@Namespace.Annotation(...)` 能解析为注解路径（`path = ["Namespace", "Annotation"]`）。
+
+package fixtures.parse
+
+object Serialization {
+    annotation class Rename(val key: String)
+}
+
+struct User {
+    @Serialization.Rename("created_at")
+    val createdAt: String
+}
+

@@ -743,7 +743,7 @@ tests/
   - [ ] meta-annotations 与 `.cone` 导出策略
 - [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
 - [x] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3，已支持解析与挂载；get/set 仍为纯语法存储）
-- [ ] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
+- [x] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）
 - [ ] 后期 runtime / std 阶段的 intrinsic 预算规则：
   - 默认不再新增 intrinsic，优先用纯 Scoop 库补 runtime/stdlib 缺口
   - 若审计证明缺少底层 primitive，则单独立项增加最小 intrinsic，并与上层库任务拆开推进

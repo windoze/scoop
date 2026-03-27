@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的类型
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 14:6
+// 目标：T1015 namespaced annotations：未定义的注解路径在 resolve 阶段应报错（复用 unresolved_type）。
+
+package fixtures.resolve
+
+object Serialization {
+    annotation class Rename(val key: String)
+}
+
+struct User {
+    @Serialization.Missing("x")
+    val createdAt: String
+}
+

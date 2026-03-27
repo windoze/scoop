@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T1015 namespaced annotations：`@Namespace.Annotation(...)` 在 resolve 阶段可解析到嵌套注解类符号。
+
+package fixtures.resolve
+
+object Serialization {
+    annotation class Rename(val key: String)
+}
+
+struct User {
+    @Serialization.Rename("created_at")
+    val createdAt: String
+}
+

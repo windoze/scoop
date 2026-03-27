@@ -1,0 +1,142 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 206..228,
+            path: [
+                Ident {
+                    span: 214..222,
+                },
+                Ident {
+                    span: 223..228,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        Object(
+            ObjectDecl {
+                span: 230..299,
+                kind: Object,
+                name: Some(
+                    Ident {
+                        span: 237..250,
+                    },
+                ),
+                body: Some(
+                    TypeBody {
+                        span: 251..299,
+                        members: [
+                            Type(
+                                TypeDecl {
+                                    span: 257..297,
+                                    modifiers: [
+                                        Annotation,
+                                    ],
+                                    kind: Class,
+                                    name: Ident {
+                                        span: 274..280,
+                                    },
+                                    type_params: [],
+                                    primary_ctor: Some(
+                                        PrimaryCtorDecl {
+                                            params_span: 280..297,
+                                            params: [
+                                                Param {
+                                                    name: Ident {
+                                                        span: 285..288,
+                                                    },
+                                                    kind: Some(
+                                                        Val,
+                                                    ),
+                                                    ty: Some(
+                                                        Path(
+                                                            TypePath {
+                                                                span: 290..296,
+                                                                segments: [
+                                                                    Ident {
+                                                                        span: 290..296,
+                                                                    },
+                                                                ],
+                                                                args: [],
+                                                            },
+                                                        ),
+                                                    ),
+                                                },
+                                            ],
+                                        },
+                                    ),
+                                    body: None,
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+        Type(
+            TypeDecl {
+                span: 301..382,
+                kind: Struct,
+                name: Ident {
+                    span: 308..312,
+                },
+                type_params: [],
+                body: Some(
+                    TypeBody {
+                        span: 313..382,
+                        members: [
+                            Property(
+                                PropertyDecl {
+                                    span: 319..380,
+                                    annotations: [
+                                        AnnotationUse {
+                                            span: 319..354,
+                                            path: [
+                                                Ident {
+                                                    span: 320..333,
+                                                },
+                                                Ident {
+                                                    span: 334..340,
+                                                },
+                                            ],
+                                            args: [
+                                                AnnotationArg {
+                                                    span: 341..353,
+                                                    value: Expr {
+                                                        span: 341..353,
+                                                        kind: StringLit,
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    kind: Val,
+                                    name: Ident {
+                                        span: 363..372,
+                                    },
+                                    ty: Some(
+                                        Path(
+                                            TypePath {
+                                                span: 374..380,
+                                                segments: [
+                                                    Ident {
+                                                        span: 374..380,
+                                                    },
+                                                ],
+                                                args: [],
+                                            },
+                                        ),
+                                    ),
+                                    init: None,
+                                    getter: None,
+                                    setter: None,
+                                },
+                            ),
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}
