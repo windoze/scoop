@@ -28,6 +28,13 @@
 #include <stdint.h>
 #include <string.h>
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <dlfcn.h>
+#define SCOOP_ONCE_HAS_DLSYM 1
+#else
+#define SCOOP_ONCE_HAS_DLSYM 0
+#endif
+
 enum {
   SCOOP_ONCE_STATE_UNINITIALIZED = 0u,
   SCOOP_ONCE_STATE_INITIALIZING = 1u,
@@ -71,6 +78,42 @@ static uint64_t scoop_once_current_thread_id62(void) {
 
 static inline void scoop_once_yield(void) {
   (void)sched_yield();
+}
+
+// 为动态链接场景提供“canonical guard”：
+//
+// - 当同一逻辑单例被编译进多个动态库时，可能出现多个同名 guard（不同地址）。
+// - 通过 `dlsym(RTLD_DEFAULT, symbol_name)` 选取“进程内 canonical 的那一个”guard 地址，
+//   让所有动态库最终对同一 guard 做原子状态机操作，从而保证 init 只执行一次。
+//
+// 约束/注意：
+// - `symbol_name` 必须是 **guard 的符号名**（即 codegen 的 global 名称），并具有 default 可见性；
+// - 在 macOS 上，RTLD_DEFAULT 不会搜索通过 `dlopen(..., RTLD_LOCAL)` 加载的 image；
+//   因此若使用 dlopen 插件模型，需要确保插件以 RTLD_GLOBAL 加载（或改为显式 handle 查找）。
+uint64_t *scoop_once_guard_canonicalize(const char *symbol_name,
+                                       uint64_t *fallback_guard_word) {
+  if (fallback_guard_word == 0) {
+    return 0;
+  }
+
+#if SCOOP_ONCE_HAS_DLSYM
+  if (symbol_name == 0 || symbol_name[0] == '\0') {
+    return fallback_guard_word;
+  }
+
+  // 清掉旧错误，避免把之前的 dlerror 误判为本次 dlsym 的错误。
+  (void)dlerror();
+  void *addr = dlsym(RTLD_DEFAULT, symbol_name);
+  if (addr == 0) {
+    (void)dlerror();
+    return fallback_guard_word;
+  }
+
+  return (uint64_t *)addr;
+#else
+  (void)symbol_name;
+  return fallback_guard_word;
+#endif
 }
 
 // 尝试进入 once 初始化区间：

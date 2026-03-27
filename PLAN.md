@@ -30,6 +30,7 @@
 - 2026-03-27：完成 T0625：LLVM codegen 支持最小自定义 non-resuming effect（slot 1-word payload）的 `perform/handle`，并新增 run-pass fixture `effect_custom_nonresuming_nested_nearest_and_arm_outside_scope` 回归嵌套 handler 的最近匹配与 arm re-perform 不自捕获。
 - 2026-03-27：完成 T0917：runtime 增加最小 `Task<T>`/executor 原语（task 状态机 + continuation 入队/恢复 + completion 回调 + 显式 start），并新增 `scoop_runtime` 集成测试回归回调顺序与状态转换。
 - 2026-03-27：完成 T0918：runtime 增加 once/guard 原语（`scoop_once_begin/scoop_once_end`），LLVM object/companion init 接入该原语，并新增跨线程访问的 run-pass fixture 与 `scoop_runtime` 多线程回归测试。
+- 2026-03-27：完成 T0919：runtime 增加 `scoop_once_guard_canonicalize`（基于 `dlsym(RTLD_DEFAULT, ...)` 选取进程内 canonical guard），并新增 `scoop_runtime` 集成测试 `once_guard_cross_dylib` 覆盖“先访问后 dlopen”的动态链接场景（Linux 同步补齐 `-ldl`）。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。

@@ -3031,11 +3031,18 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（未启用 `scoop` 的 `llvm` feature 时 run-pass pass fixtures 会被跳过执行，但仍会被发现与计数）。
 
-### T0919 [TODO] runtime：`object` / `companion object` 的跨 DLL / 动态链接一次初始化
+### T0919 [DONE] runtime：`object` / `companion object` 的跨 DLL / 动态链接一次初始化
 - 描述：补齐单例 once 初始化在动态链接场景下的语义：同一逻辑单例跨动态库加载边界的身份、初始化竞争、以及导出/导入侧的可见性策略。
 - 目标：先覆盖主机平台支持的动态链接模型；静态链接路径保持与 T0918 一致。
 - 验收：新增运行期测试或平台 fixture：跨动态库重复访问不会导致重复初始化，且可观测副作用只发生一次。
 - 依赖：T0918
+ - 完成：
+   - `runtime/c/scoop_once.c`：新增 `scoop_once_guard_canonicalize(symbol_name, fallback)`：通过 `dlsym(RTLD_DEFAULT, symbol_name)` 选取进程内 canonical guard 地址，使多个动态库对同一 guard word 做原子状态机操作；并在注释中记录 macOS 的 symbol name 与 `RTLD_GLOBAL` 约束。
+   - `crates/scoop_runtime/build.rs`：Linux 下补齐 `cargo:rustc-link-lib=dl`（dlsym/dlerror 依赖）。
+   - `crates/scoop_runtime/tests/once_guard_cross_dylib.rs`：新增集成测试：运行时用 `clang` 生成两个 dylib（同名 guard），先访问 A 再加载 B，断言 init 只发生一次且 canonical guard 不随新 dylib 加载漂移。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test -p scoop_runtime --test once_guard_cross_dylib` 通过。
 
 ---
 

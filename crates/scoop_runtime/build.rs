@@ -11,6 +11,13 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.h");
 
+    // `scoop_once_guard_canonicalize` 在 Linux 需要链接 libdl。
+    // macOS 的 dlsym/dlerror 位于 libSystem，无需额外 link-lib。
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "linux" {
+        println!("cargo:rustc-link-lib=dl");
+    }
+
     // cc crate 会把 `compile("name")` 产物作为静态库链接给依赖该 crate 的目标。
     // 注意：driver（编译器）本身不需要链接 runtime；但我们先把 runtime
     // 作为独立构建单元放在这里，后续用于链接用户程序时复用其产物/源码。
