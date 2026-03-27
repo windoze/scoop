@@ -3130,11 +3130,24 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
-### T1006 [TODO] `@Extern`：FFI 符号名与 ABI 约定（spec §15.8.3）
+### T1006 [DONE] `@Extern`：FFI 符号名与 ABI 约定（spec §15.8.3）
 - 描述：为 `@Extern` 函数定义名称映射（如 `@Extern("puts")`）与最小 ABI（C ABI）。
 - 目标：先只支持简单参数/返回类型（Int/ptr）；结构体传递后续。
 - 验收：新增 run-pass fixture：调用 `@Extern("puts")` 打印字符串（或调用自带 runtime 打印 API）；输出正确。
 - 依赖：T1001、T0810、T0106b2
+ - 完成：
+   - `crates/scoopc/src/hir/mod.rs`：新增 `ExternFun/ExternAbi/ExternFunIndex` side table（不影响 dump-hir 输出稳定性）。
+   - `crates/scoopc/src/hir/lower.rs`：lowering 阶段提取 `@Extern("symbol")` 的符号名与 ABI，写入 `LoweredHir.extern_funs`。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - `declare_top_level_fun`：对 `@Extern` 以 `symbol` 作为 LLVM function name 声明，并设置 C ABI（callconv 0）；
+     - `codegen_top_level_fun_call`：对 extern callee 使用 symbol name 查找/声明；补齐 ptr-return（`String`/`Ref`）的 call-site 返回值处理。
+   - `crates/scoopc/src/syntax/string_literal.rs`：抽出最小字符串字面量解码（供 codegen 与 `@Extern` 提取共享）。
+   - `tests/fixtures/run-pass/extern_symbol_println_basic.*`：新增 run-pass 用例，通过 `@Extern("scoop_println")` 直接调用 runtime 打印，回归符号名映射与 C ABI。
+   - `tests/fixtures/run-pass/object_once_init_cross_thread.stdout`：修复 golden 文件尾部多余空行，保证 `scoop test --features llvm` 下 run-pass 输出一致。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test --all --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T1007 [TODO] `@Intrinsic`：sysroot 声明与编译器 lowering（spec §15.7）
 - 描述：在 sysroot 中声明 intrinsic，并在 lowering/codegen 阶段把它们替换为内建操作（例如算术、类型反射）。

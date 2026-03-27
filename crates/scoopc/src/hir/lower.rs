@@ -15,6 +15,7 @@ use crate::resolve::{Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
@@ -51,6 +52,8 @@ pub struct LoweredHir {
     pub struct_layouts: StructLayoutIndex,
     /// 由本次 lowering 过程中收集到的 enum variant 布局信息（供早期 LLVM codegen 查询）。
     pub enum_layouts: EnumLayoutIndex,
+    /// `@Extern` 外部函数信息（供 LLVM codegen 声明正确的符号名与 ABI）。
+    pub extern_funs: super::ExternFunIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
 }
@@ -1934,6 +1937,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
     let object_inits = collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
 
+    // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
+    let extern_funs = collect_extern_funs(source, &ast);
+
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
     let struct_layouts = collect_struct_layouts(&pairs, &index);
     // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
@@ -1943,6 +1949,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         types,
         struct_layouts,
         enum_layouts,
+        extern_funs,
         object_inits,
     })
 }
@@ -2143,6 +2150,69 @@ fn join_prefix(prefix: &str, name: &str) -> String {
     } else {
         format!("{prefix}.{name}")
     }
+}
+
+fn collect_extern_funs(source: &SourceFile, file: &ast::File) -> super::ExternFunIndex {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut out: super::ExternFunIndex = HashMap::new();
+
+    for item in &file.items {
+        let ast::Item::Fun(fun) = item else {
+            continue;
+        };
+
+        let Some(extern_fun) = extern_fun_of_decl(source, fun) else {
+            continue;
+        };
+
+        let name = fun.name.text(source).to_string();
+        let fqn = if pkg_prefix.is_empty() {
+            name
+        } else {
+            format!("{pkg_prefix}.{name}")
+        };
+
+        out.insert(fqn, extern_fun);
+    }
+
+    out
+}
+
+fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::ExternFun> {
+    // 说明：
+    // - `@Extern` 在语义上由 typecheck 校验（参数个数/类型等）；
+    // - HIR lowering 只做“提取已校验信息”的 best-effort，避免把错误传播面扩到 HIR/LLVM 层。
+    let name = fun.name.text(source);
+
+    for ann in &fun.annotations {
+        if !is_builtin_extern_annotation(source, ann) {
+            continue;
+        }
+
+        let symbol = match ann.args.as_slice() {
+            // `@Extern`：缺省用函数名作为链接符号名。
+            [] => name.to_string(),
+            // `@Extern("foo")`：单一位置参数（字符串字面量）。
+            [arg] if arg.name.is_none() => {
+                let text = source.slice(arg.value.span);
+                parse_string_literal_utf8(text).unwrap_or_else(|_| name.to_string())
+            }
+            // 其它形态（如命名参数/多参数）在 typecheck 阶段应报错；这里按缺省兜底。
+            _ => name.to_string(),
+        };
+
+        return Some(super::ExternFun {
+            abi: super::ExternAbi::C,
+            symbol,
+        });
+    }
+
+    None
+}
+
+fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
+    let segs = ann.path.iter().map(|id| id.text(source)).collect::<Vec<_>>();
+    matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
 }
 
 /// 收集当前编译单元（sysroot + 当前文件）里出现的 struct 字段布局信息。

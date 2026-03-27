@@ -3,5 +3,5 @@
 //! 当前阶段只实现 lexer。
 
 pub mod lexer;
+pub mod string_literal;
 pub mod token;
-

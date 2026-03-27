@@ -40,6 +40,9 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::SourceFile;
+use crate::syntax::string_literal::{
+    StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
+};
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
@@ -237,6 +240,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
+    extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
@@ -286,6 +290,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         struct_layouts: &'a hir::StructLayoutIndex,
         enum_layouts: &'a hir::EnumLayoutIndex,
         object_inits: &'a hir::ObjectInitIndex,
+        extern_funs: &'a hir::ExternFunIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
         Self {
@@ -297,6 +302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             types,
             struct_layouts,
             enum_layouts,
+            extern_funs,
             object_inits,
             fun_index,
             env: Env::default(),
@@ -366,7 +372,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        if let Some(existing) = self.module.get_function(&fun.fqn) {
+        let llvm_name = self
+            .extern_funs
+            .get(&fun.fqn)
+            .map(|e| e.symbol.as_str())
+            .unwrap_or(fun.fqn.as_str());
+
+        if let Some(existing) = self.module.get_function(llvm_name) {
             return Ok(existing);
         }
 
@@ -387,7 +399,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+            CgTy::String => self
+                .llvm_scoop_string_ptr_type()
+                .fn_type(&llvm_params, false),
+            CgTy::Ref => self
+                .context
+                .i8_type()
+                .ptr_type(AddressSpace::default())
+                .fn_type(&llvm_params, false),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function return type",
                     at: fun.span.into(),
@@ -395,7 +415,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
-        Ok(self.module.add_function(&fun.fqn, fn_ty, None))
+        let linkage = if self.extern_funs.contains_key(&fun.fqn) {
+            Some(Linkage::External)
+        } else {
+            None
+        };
+        let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
+        // 当前阶段（T1006）：extern 函数 ABI 固定为 C ABI（LLVM callconv 0）。
+        llvm_fun.set_call_conventions(0);
+        Ok(llvm_fun)
     }
 
     pub(crate) fn codegen_top_level_fun(
@@ -2762,6 +2790,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.struct_layouts,
                 self.enum_layouts,
                 self.object_inits,
+                self.extern_funs,
                 self.fun_index,
             );
 
@@ -4333,7 +4362,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
         }
 
-        let llvm_fun = match self.module.get_function(fqn) {
+        let llvm_name = self
+            .extern_funs
+            .get(fqn)
+            .map(|e| e.symbol.as_str())
+            .unwrap_or(fqn);
+
+        let llvm_fun = match self.module.get_function(llvm_name) {
             Some(f) => f,
             None => self.declare_top_level_fun(sig_fun)?,
         };
@@ -4374,12 +4409,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .into_int_value();
                 Ok(CgValue::int(value, int_ty))
             }
-            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call return type",
-                    at: span.into(),
+            CgTy::String | CgTy::Ref => {
+                let raw = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(ptr.into()),
                 })
             }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "call return type",
+                at: span.into(),
+            }),
         }
     }
 
@@ -6613,7 +6665,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 });
             }
-            Err(StringLiteralParseError::Invalid) => {
+            Err(StringLiteralParseError::Invalid | StringLiteralParseError::InvalidUtf8) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "invalid string literal",
                     at: span.into(),
@@ -7385,6 +7437,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.struct_layouts,
             self.enum_layouts,
             self.object_inits,
+            self.extern_funs,
             self.fun_index,
         );
         init_codegen.codegen_object_init_fun_body(obj, llvm_fun)?;
@@ -9200,103 +9253,6 @@ fn mask_to_bits(value: u128, bits: u32) -> u128 {
     }
     let mask = (1u128 << bits) - 1;
     value & mask
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StringLiteralParseError {
-    Invalid,
-    Interpolated,
-}
-
-fn parse_string_literal_bytes(text: &str) -> Result<Vec<u8>, StringLiteralParseError> {
-    // f-string：留给 T0823 lowering；这里避免误把它当作普通字符串直接输出。
-    if text.starts_with("f\"") || text.starts_with("f\"\"\"") {
-        return Err(StringLiteralParseError::Interpolated);
-    }
-
-    // raw string：""" ... """
-    if let Some(rest) = text.strip_prefix("\"\"\"") {
-        let inner = rest
-            .strip_suffix("\"\"\"")
-            .ok_or(StringLiteralParseError::Invalid)?;
-        return Ok(inner.as_bytes().to_vec());
-    }
-
-    // normal string：" ... "（支持最小转义）
-    let inner = text
-        .strip_prefix('"')
-        .and_then(|s| s.strip_suffix('"'))
-        .ok_or(StringLiteralParseError::Invalid)?;
-
-    parse_normal_string_bytes(inner)
-}
-
-fn parse_normal_string_bytes(inner: &str) -> Result<Vec<u8>, StringLiteralParseError> {
-    let mut out: Vec<u8> = Vec::with_capacity(inner.len());
-    let mut chars = inner.chars();
-
-    while let Some(ch) = chars.next() {
-        if ch != '\\' {
-            let mut buf = [0u8; 4];
-            let s = ch.encode_utf8(&mut buf);
-            out.extend_from_slice(s.as_bytes());
-            continue;
-        }
-
-        let Some(esc) = chars.next() else {
-            return Err(StringLiteralParseError::Invalid);
-        };
-
-        match esc {
-            '\\' => out.push(b'\\'),
-            '"' => out.push(b'"'),
-            'n' => out.push(b'\n'),
-            'r' => out.push(b'\r'),
-            't' => out.push(b'\t'),
-            '0' => out.push(b'\0'),
-            // `\u{...}`（Kotlin-like，early stage）
-            'u' => {
-                let Some('{') = chars.next() else {
-                    return Err(StringLiteralParseError::Invalid);
-                };
-
-                let mut hex = String::new();
-                let mut closed = false;
-                while let Some(c) = chars.next() {
-                    if c == '}' {
-                        closed = true;
-                        break;
-                    }
-                    hex.push(c);
-                    if hex.len() > 6 {
-                        return Err(StringLiteralParseError::Invalid);
-                    }
-                }
-
-                if !closed || hex.is_empty() {
-                    return Err(StringLiteralParseError::Invalid);
-                }
-
-                let cp =
-                    u32::from_str_radix(&hex, 16).map_err(|_| StringLiteralParseError::Invalid)?;
-                let Some(ch) = char::from_u32(cp) else {
-                    return Err(StringLiteralParseError::Invalid);
-                };
-
-                let mut buf = [0u8; 4];
-                let s = ch.encode_utf8(&mut buf);
-                out.extend_from_slice(s.as_bytes());
-            }
-            // fallback：保守策略——把未知转义当作“转义后字符本身”（便于早期跑通）。
-            other => {
-                let mut buf = [0u8; 4];
-                let s = other.encode_utf8(&mut buf);
-                out.extend_from_slice(s.as_bytes());
-            }
-        }
-    }
-
-    Ok(out)
 }
 
 fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLiteralParseError> {

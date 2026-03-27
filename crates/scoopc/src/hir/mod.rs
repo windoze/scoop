@@ -445,6 +445,27 @@ pub type EnumLayoutIndex = HashMap<String, EnumLayout>;
 ///   - `init { ... }` 初始化块
 pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 
+/// 外部函数（`@Extern`）的最小后端视图。
+///
+/// 说明：
+/// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
+/// - 当前阶段（T1006）仅支持 C ABI；
+/// - `symbol` 为最终参与链接的符号名（例如 `@Extern("puts")` / `@Extern("scoop_println")`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternFun {
+    pub abi: ExternAbi,
+    pub symbol: String,
+}
+
+/// `@Extern` 的 ABI 约定（当前阶段只落地 C ABI）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternAbi {
+    C,
+}
+
+/// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type ExternFunIndex = HashMap<String, ExternFun>;
+
 /// 一个 object（含 companion object）的初始化顺序与成员信息。
 #[derive(Debug, Clone)]
 pub struct ObjectInit {
