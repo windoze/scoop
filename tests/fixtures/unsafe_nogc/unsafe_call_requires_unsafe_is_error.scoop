@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsafe_call_requires_unsafe
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+@Unsafe
+fun dangerous(): Unit {}
+
+fun safe() {
+    dangerous()
+}
+

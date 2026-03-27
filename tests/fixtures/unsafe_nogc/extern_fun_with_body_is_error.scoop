@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_must_have_no_body
+// EXPECT-ERROR-AT: 10:1
+// EXPECT-ERROR: 必须省略函数体
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: String): Unit
+{
+    println(value)
+}
+

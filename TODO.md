@@ -3078,11 +3078,24 @@
    - `cargo test --all` 通过；
    - `cargo run -p scoop -- test` 通过。
 
-### T1003 [TODO] Typecheck：内建注解 `@Unsafe/@NoGC/@Extern/@Intrinsic` 的合法性检查（PLAN §11）
+### T1003 [DONE] Typecheck：内建注解 `@Unsafe/@NoGC/@Extern/@Intrinsic` 的合法性检查（PLAN §11）
 - 描述：实现基础规则：`@Extern` 隐含 `@NoGC`；调用点需要 unsafe context（按 PLAN 建议）。
 - 目标：先只做静态检查，不生成任何 codegen 行为。
 - 验收：新增 `tests/fixtures/unsafe_nogc/*`：违规路径 compile-fail；合法路径 pass。
 - 依赖：T0101、T1001、T0404
+ - 完成：
+   - `crates/scoopc/src/typecheck/builtin_annotations.rs`：新增内建注解识别与标记位提取（不依赖 `annotation class`）。
+   - `crates/scoopc/src/typecheck/annotations.rs`：
+     - 允许 `@Unsafe/@NoGC/@Extern/@Intrinsic` 作为内建注解通过解析；
+     - 增加最小合法性检查：target 限制、`@Extern/@Intrinsic` 必须省略函数体、`@Extern` 仅允许 0/1 个字符串字面量参数。
+   - `crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/expr.rs`：
+     - 引入 unsafe context 深度；
+     - 调用点门禁：非 unsafe context 禁止调用 `@Extern/@Unsafe` 函数（当前阶段仅函数级 unsafe）。
+   - `crates/scoop/src/fixtures/mod.rs`：将 `tests/fixtures/unsafe_nogc/**` 路由到 typecheck phase。
+   - `tests/fixtures/unsafe_nogc/*`：新增 pass/fail fixtures 覆盖 `@Extern` 调用门禁与 extern body 约束。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T1004 [TODO] Typecheck：`@Unsafe { ... }` 块语法与上下文传播（spec §15.9.2）
 - 描述：在表达式/语句层支持 unsafe block，并让检查器在该区域放宽限制。

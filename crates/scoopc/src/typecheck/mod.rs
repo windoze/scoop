@@ -8,6 +8,7 @@
 //! 提供起点。
 
 mod type_env;
+mod builtin_annotations;
 mod annotations;
 mod lower;
 mod assignable;

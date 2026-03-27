@@ -39,6 +39,7 @@ use super::val_pat;
 use super::when_exhaustiveness;
 use super::when_pat;
 use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
+use super::builtin_annotations::BuiltinAnnotationFlags;
 
 const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
 const TASK_FQN: &str = "scoop.core.Task";
@@ -306,6 +307,22 @@ pub enum ExprTypeError {
     #[error("没有匹配的重载：{callee}")]
     #[diagnostic(code(scoop::typecheck::no_matching_overload))]
     NoMatchingOverload {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用 `@Extern` 函数需要 unsafe context：{callee}")]
+    #[diagnostic(code(scoop::typecheck::extern_call_requires_unsafe))]
+    ExternCallRequiresUnsafeContext {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用 `@Unsafe` 函数需要 unsafe context：{callee}")]
+    #[diagnostic(code(scoop::typecheck::unsafe_call_requires_unsafe))]
+    UnsafeCallRequiresUnsafeContext {
         callee: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -816,6 +833,24 @@ struct FunSigOwned {
     /// 说明：当前阶段不做任何 inlining 优化，该标记仅用于：
     /// - lambda non-local return 的静态门禁（只有 inline lambda 实参允许 `return`）
     is_inline: bool,
+    /// 是否为 `@Unsafe` 函数（spec §15.9.1）。
+    ///
+    /// 说明：当前阶段（T1003）仅用于调用门禁：非 unsafe context 禁止调用 `@Unsafe`。
+    is_unsafe: bool,
+    /// 是否为 `@NoGC` 函数（spec §15.8）。
+    ///
+    /// 说明：当前阶段不实现 “可能分配” 分析；但 `@Extern` 会隐含 `@NoGC`（在收集阶段折叠）。
+    #[allow(dead_code)]
+    is_nogc: bool,
+    /// 是否为 `@Extern` 函数（spec §15.8.3）。
+    ///
+    /// 说明：当前阶段（T1003）仅用于调用门禁：非 unsafe context 禁止调用 `@Extern`。
+    is_extern: bool,
+    /// 是否为 `@Intrinsic` 函数（spec §15.7）。
+    ///
+    /// 说明：当前阶段仅记录该标记，供后续 lowering/codegen 使用。
+    #[allow(dead_code)]
+    is_intrinsic: bool,
     /// 形参名列表（与 `params` 对齐）。
     ///
     /// 用途：
@@ -1347,6 +1382,12 @@ fn check_class_member_fun_body_exprs(
     } else {
         false
     };
+
+    let unsafe_ctx_pushed = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations).is_unsafe;
+    if unsafe_ctx_pushed {
+        lower.push_unsafe_context();
+    }
+
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
         let mut locals: HashMap<Span, TypeId> = HashMap::new();
@@ -1456,6 +1497,9 @@ fn check_class_member_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
+    }
+    if unsafe_ctx_pushed {
+        lower.pop_unsafe_context();
     }
     lower.pop_type_params(&fun.type_params);
     result
@@ -2981,6 +3025,10 @@ fn infer_handle_expr_type(
             decl_span: op.symbol.span,
             is_extension: false,
             is_inline: false,
+            is_unsafe: false,
+            is_nogc: false,
+            is_extern: false,
+            is_intrinsic: false,
             param_names,
             param_has_defaults: vec![false; param_count],
             type_params: type_params.clone(),
@@ -4691,6 +4739,10 @@ fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             is_extension,
             is_inline,
+            is_unsafe: false,
+            is_nogc: false,
+            is_extern: false,
+            is_intrinsic: false,
             param_names,
             param_has_defaults,
             type_params: Vec::new(),
@@ -4706,6 +4758,27 @@ fn collect_top_level_fun_signatures_from_index(
     }
 
     Ok(out)
+}
+
+fn check_unsafe_call_gate(
+    callee_fqn: &str,
+    sig: &FunSigOwned,
+    call_span: Span,
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if sig.is_extern && !lower.in_unsafe_context() {
+        return Err(ExprTypeError::ExternCallRequiresUnsafeContext {
+            callee: callee_fqn.to_string(),
+            span: call_span.into(),
+        });
+    }
+    if sig.is_unsafe && !lower.in_unsafe_context() {
+        return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+            callee: callee_fqn.to_string(),
+            span: call_span.into(),
+        });
+    }
+    Ok(())
 }
 
 fn infer_call_expr_type(
@@ -4820,6 +4893,7 @@ fn infer_call_expr_type(
             // 只有一个可用候选：沿用旧的“给出精确 arity/type mismatch 诊断”的路径，
             // 但补齐命名实参的形参映射（T0453）。
             if direct_call_candidates.len() == 1 {
+                check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 let call_args = collect_call_arg_infos(
                     source,
                     args,
@@ -5409,6 +5483,8 @@ fn infer_call_expr_type(
                     matched.swap_remove(idx)
                 }
             };
+
+            check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
@@ -6135,6 +6211,10 @@ fn infer_effect_op_call_expr_type(
         decl_span: op.symbol.span,
         is_extension: false,
         is_inline: false,
+        is_unsafe: false,
+        is_nogc: false,
+        is_extern: false,
+        is_intrinsic: false,
         param_names,
         param_has_defaults: vec![false; param_count],
         type_params,
@@ -6489,6 +6569,7 @@ fn infer_member_call_expr_type(
 
     // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
     if ext_candidates.len() == 1 {
+        check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         let expected_args = sig.params.len().saturating_sub(1);
         if call_args.len() > expected_args {
             return Err(ExprTypeError::CallArityMismatch {
@@ -7180,6 +7261,8 @@ fn infer_member_call_expr_type(
         }
     };
 
+    check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+
     // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
     let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
     lower.push_type_param_bindings(type_param_bindings);
@@ -7285,6 +7368,7 @@ fn collect_top_level_fun_signatures(
             format!("{pkg_prefix}.{local_name}")
         };
         let decl_span = fun.name.span;
+        let builtin_flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
 
         // fun 自身的 type params 在签名 lowering 语境内可见。
         lower.push_type_params(&fun.type_params);
@@ -7435,6 +7519,10 @@ fn collect_top_level_fun_signatures(
                 decl_span,
                 is_extension,
                 is_inline,
+                is_unsafe: builtin_flags.is_unsafe,
+                is_nogc: builtin_flags.is_nogc,
+                is_extern: builtin_flags.is_extern,
+                is_intrinsic: builtin_flags.is_intrinsic,
                 param_names,
                 param_has_defaults,
                 type_params,
@@ -8471,6 +8559,12 @@ fn check_fun_body_exprs(
     } else {
         false
     };
+
+    let unsafe_ctx_pushed = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations).is_unsafe;
+    if unsafe_ctx_pushed {
+        lower.push_unsafe_context();
+    }
+
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
         // 函数级的“局部值类型表”（binder decl span → TypeId）。
@@ -8594,6 +8688,9 @@ fn check_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
+    }
+    if unsafe_ctx_pushed {
+        lower.pop_unsafe_context();
     }
     lower.pop_type_params(&fun.type_params);
     result

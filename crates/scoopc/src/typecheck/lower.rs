@@ -239,6 +239,14 @@ pub(super) struct TypeLowering<'a> {
     /// - typecheck 阶段遇到“泛型函数调用”时会把 (callee, type args) 记录下来，
     ///   供后续 monomorph pass 生成专用实例并做去重缓存。
     monomorph_requests: Option<MonomorphRequests>,
+
+    /// unsafe 上下文深度（T1003/T1004）。
+    ///
+    /// 说明：
+    /// - 在 `@Unsafe` 函数体内，调用 `@Extern/@Unsafe` 函数是允许的；
+    /// - 在非 unsafe context 中，这类调用会在表达式 typecheck 阶段报错（T1003）；
+    /// - 未来 `@Unsafe { ... }` block（T1004）会复用同一机制做局部 push/pop。
+    unsafe_context_depth: usize,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -293,6 +301,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
             monomorph_requests: None,
+            unsafe_context_depth: 0,
         }
     }
 
@@ -302,6 +311,19 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn env(&self) -> &TypeEnv {
         self.env
+    }
+
+    pub(super) fn push_unsafe_context(&mut self) {
+        self.unsafe_context_depth += 1;
+    }
+
+    pub(super) fn pop_unsafe_context(&mut self) {
+        debug_assert!(self.unsafe_context_depth > 0);
+        self.unsafe_context_depth = self.unsafe_context_depth.saturating_sub(1);
+    }
+
+    pub(super) fn in_unsafe_context(&self) -> bool {
+        self.unsafe_context_depth > 0
     }
 
     /// 开启 monomorph 请求收集（T0712）。

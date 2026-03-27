@@ -20,6 +20,7 @@
 //! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/typecheck_cone/<case>/<cone>/**` → typecheck（多 cone：每个 cone 子目录作为独立可见性边界）
+//! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
@@ -122,7 +123,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
         Some(name) if name == "build" => FixturePhase::Build,
         Some(name) if name == "resolve" => FixturePhase::Resolve,
-        Some(name) if name == "typecheck" => FixturePhase::Typecheck,
+        Some(name) if name == "typecheck" || name == "unsafe_nogc" => FixturePhase::Typecheck,
         Some(name) if name == "infer" => FixturePhase::Infer,
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(name) if name == "hir" => FixturePhase::Hir,

@@ -1,0 +1,12 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: String): Unit
+
+@Unsafe
+fun ok() {
+    puts("hi")
+}
+

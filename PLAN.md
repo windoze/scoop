@@ -33,6 +33,7 @@
 - 2026-03-27：完成 T0919：runtime 增加 `scoop_once_guard_canonicalize`（基于 `dlsym(RTLD_DEFAULT, ...)` 选取进程内 canonical guard），并新增 `scoop_runtime` 集成测试 `once_guard_cross_dylib` 覆盖“先访问后 dlopen”的动态链接场景（Linux 同步补齐 `-ldl`）。
 - 2026-03-27：完成 T1001：parser 支持声明注解使用 `@Name(...)` 并写入 AST（最小支持无参/字面量参数），新增 parse fixture `annotation_use_fun_basic` 与更新相关 AST golden 回归。
 - 2026-03-27：完成 T1002：typecheck 增加 `annotation class` 识别与 `@Name(...)` 引用校验（data-only 形态约束 + 非注解类用作注解报错），并新增 typecheck fixtures 覆盖。
+- 2026-03-27：完成 T1003：typecheck 增加内建注解 `@Unsafe/@NoGC/@Extern/@Intrinsic` 的最小合法性检查；并对 `@Extern/@Unsafe` 调用点施加 unsafe context 门禁；新增 `tests/fixtures/unsafe_nogc/*` 回归。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。
@@ -705,10 +706,11 @@ tests/
 
 - [ ] 通用注解系统（spec §15）：
   - [x] 解析注解声明（`annotation class`）
-  - [ ] 解析注解使用（`@Name(...)`）
+  - [x] 解析注解使用（`@Name(...)`）
   - 注解 target（函数/类型/字段/参数/表达式块等）与合法性检查
   - 注解仅编译期存在（不进运行时布局）
   - 内建注解：`@Intrinsic/@Extern/@Inline/@Deprecated`（具体名字按 sysroot 定义）
+- [x] T1003：内建注解最小门禁（`@Unsafe/@NoGC/@Extern/@Intrinsic`）
 - [ ] `@Unsafe`：
   - 函数级与块级 `@Unsafe { ... }`
   - 非 unsafe context 禁止：指针运算/unsafe 原语/调用 `@Unsafe` 函数/调用 `@Extern`

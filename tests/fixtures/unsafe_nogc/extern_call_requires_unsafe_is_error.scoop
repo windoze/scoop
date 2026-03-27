@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_call_requires_unsafe
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: String): Unit
+
+fun safe() {
+    puts("hi")
+}
+
