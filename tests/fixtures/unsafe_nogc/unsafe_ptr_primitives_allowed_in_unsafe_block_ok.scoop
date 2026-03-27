@@ -1,0 +1,15 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+struct Ptr<T>
+
+fun demo() {
+    var x: Int = 1
+    @Unsafe {
+        val p = addrOf(x)
+        val y = load(p)
+        store(p, y + 1)
+    }
+}
+

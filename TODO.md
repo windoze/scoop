@@ -3183,11 +3183,23 @@
    - `cargo test --all --features llvm`
    - `cargo run -p scoop --features llvm -- test`（fixtures: ok）
 
-### T1009 [TODO] `@Unsafe`：最小 unsafe 原语（`Ptr<T>`/内存读写/地址转换）的语法与门禁
+### T1009 [DONE] `@Unsafe`：最小 unsafe 原语（`Ptr<T>`/内存读写/地址转换）的语法与门禁
 - 描述：引入最小 unsafe 原语（例如 `Ptr<T>`、`load/store`、`addrOf`、指针↔整数转换），并确保只能在 unsafe context 使用。
 - 目标：先只提供极小集合以支撑 runtime/FFI；完整系统编程能力后续逐步补齐。
 - 验收：unsafe_nogc fixture：在非 unsafe context 使用 ptr 操作报错；unsafe block 内通过。
 - 依赖：T1004
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：为未解析的调用点引入三个位于语言层的 unsafe 指针原语：
+     - `addrOf(x)` → `Ptr<T>`（T 为 `x` 的类型）；
+     - `load(p)`：要求 `p: Ptr<T>`，返回 `T`；
+     - `store(p, v)`：要求 `p: Ptr<T>` 且 `v` 可赋值给 `T`，返回 `Unit`；
+     同时增加门禁：非 unsafe context 直接报错（新错误码 `scoop::typecheck::unsafe_ptr_primitive_requires_unsafe`）。
+     约定：优先识别未来 sysroot 的 `scoop.unsafe.Ptr`；若尚不存在，则允许 fixtures 在当前包内声明 `struct Ptr<T>` 作为最小落点。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_primitives_require_unsafe_is_error.scoop`：新增 compile-fail，回归“非 unsafe context 使用 ptr 原语报错”。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_primitives_allowed_in_unsafe_block_ok.scoop`：新增 compile-pass，回归“unsafe block 内可用 addrOf/load/store”。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过（fixtures: ok）。
 
 ### T1010 [TODO] sysroot：新增 `scoop.unsafe` 模块声明（`Ptr<T>` + 指针/整数转换 intrinsics）（spec §15.9.4）
 - 描述：在 sysroot 增加专门的 unsafe 模块（建议 `package scoop.unsafe`），声明：

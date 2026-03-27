@@ -39,6 +39,7 @@
 - 2026-03-27：完成 T1006：LLVM codegen 支持 `@Extern("symbol")` 的符号名映射与 C ABI 调用；HIR lowering 提取 extern side table；新增 run-pass fixture `extern_symbol_println_basic` 回归。
 - 2026-03-27：完成 T1007：sysroot 新增 `@Intrinsic sizeOf` 的最小可调用声明（以 overload 形式暴露），LLVM codegen 将 `scoop.core.sizeOf` lowering 为编译期常量（按 LLVM TargetData 计算 store size），并新增 run-pass fixture `intrinsic_size_of_int_word` 回归。
 - 2026-03-27：完成 T1008：sysroot 暴露 `GC.pin/GC.unpin` 并在 typecheck/codegen lowering 到 runtime `scoop_pin/scoop_unpin`；由于当前泛型 struct 布局尚未实现，`Pinned<T>` 暂降级为非泛型 `Pinned`（`value: Any`）；新增 run-pass fixture `gc_pin_unpin_basic` 与 compile-fail fixture `gc_pin_value_type_is_error` 回归。
+- 2026-03-27：完成 T1009：typecheck 支持最小 unsafe 指针原语 `addrOf/load/store` 并强制 unsafe context 门禁；新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。
@@ -716,9 +717,12 @@ tests/
   - 注解仅编译期存在（不进运行时布局）
   - 内建注解：`@Intrinsic/@Extern/@Inline/@Deprecated`（具体名字按 sysroot 定义）
 - [x] T1003：内建注解最小门禁（`@Unsafe/@NoGC/@Extern/@Intrinsic`）
-- [ ] `@Unsafe`：
+- [x] T1004：`@Unsafe { ... }` 块语法与 unsafe context 传播
+- [x] T1005：`@NoGC` 最小静态门禁（保守拒绝可能分配/装箱的路径）
+- [x] T1009：最小 unsafe 指针原语（`addrOf/load/store`）的语法落点与门禁（unsafe_nogc fixtures 回归）
+- [x] `@Unsafe`（最小落地）：
   - 函数级与块级 `@Unsafe { ... }`
-  - 非 unsafe context 禁止：指针运算/unsafe 原语/调用 `@Unsafe` 函数/调用 `@Extern`
+  - 非 unsafe context 禁止：调用 `@Unsafe` 函数/调用 `@Extern`/使用最小 ptr 原语（`addrOf/load/store`）
 - [ ] `Ptr<T>` / `UIntPtr` 与指针整数转换（spec §15.9.4 / runtime §4~§5）
   - `UIntPtr` 仅为 `UInt` 的别名（类型本身不 unsafe）
   - 指针 ↔ 整数转换必须在 unsafe context，且通过 sysroot intrinsics（不通过 `as/as?`）

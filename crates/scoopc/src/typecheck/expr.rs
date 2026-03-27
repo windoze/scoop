@@ -31,6 +31,7 @@ use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStor
 
 use super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::branch_merge;
+use super::builtin_annotations::BuiltinAnnotationFlags;
 use super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
@@ -39,7 +40,6 @@ use super::val_pat;
 use super::when_exhaustiveness;
 use super::when_pat;
 use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
-use super::builtin_annotations::BuiltinAnnotationFlags;
 
 const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
 const TASK_FQN: &str = "scoop.core.Task";
@@ -324,6 +324,23 @@ pub enum ExprTypeError {
     #[diagnostic(code(scoop::typecheck::unsafe_call_requires_unsafe))]
     UnsafeCallRequiresUnsafeContext {
         callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("使用 unsafe 指针原语需要 unsafe context：{primitive}")]
+    #[diagnostic(code(scoop::typecheck::unsafe_ptr_primitive_requires_unsafe))]
+    UnsafePtrPrimitiveRequiresUnsafeContext {
+        primitive: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("unsafe 指针原语 `{primitive}` 需要 `Ptr<T>` 类型，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::unsafe_ptr_primitive_requires_ptr))]
+    UnsafePtrPrimitiveRequiresPtrType {
+        primitive: String,
+        found: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -966,16 +983,7 @@ pub fn check_file_exprs(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    let _ = check_file_exprs_impl(
-        source,
-        file,
-        index,
-        imports,
-        env,
-        types,
-        builtins,
-        false,
-    )?;
+    let _ = check_file_exprs_impl(source, file, index, imports, env, types, builtins, false)?;
     Ok(())
 }
 
@@ -993,16 +1001,7 @@ pub fn check_file_exprs_with_monomorph_keys(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<Vec<MonomorphKey>, ExprTypeError> {
-    check_file_exprs_impl(
-        source,
-        file,
-        index,
-        imports,
-        env,
-        types,
-        builtins,
-        true,
-    )
+    check_file_exprs_impl(source, file, index, imports, env, types, builtins, true)
 }
 
 fn check_file_exprs_impl(
@@ -2392,7 +2391,10 @@ fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
-        ast::ExprKind::Await { await_span: _, expr: inner } => infer_await_expr_type(
+        ast::ExprKind::Await {
+            await_span: _,
+            expr: inner,
+        } => infer_await_expr_type(
             source,
             expr,
             inner,
@@ -2597,11 +2599,7 @@ fn infer_spawn_expr_type(
     // T0622：为 `spawn/await` 引入 `Task<T>` 的最小类型模型：
     // - 当前阶段仍只支持 `T = Int` 的可执行落点；
     // - `Task<T>` 的运行期语义（lazy/executor/取消）由后续 runtime 任务补齐（T0917）。
-    Ok(lower.lower_type_fqn_with_args(
-        TASK_FQN.to_string(),
-        vec![expected_ty],
-        spawn_expr.span,
-    )?)
+    Ok(lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![expected_ty], spawn_expr.span)?)
 }
 
 fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
@@ -2698,11 +2696,8 @@ fn infer_join_expr_type(
     )?;
 
     let Some(result_ty) = task_inner_type(found_ty, lower) else {
-        let expected_task = lower.lower_type_fqn_with_args(
-            TASK_FQN.to_string(),
-            vec![builtins.any],
-            join_span,
-        )?;
+        let expected_task =
+            lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![builtins.any], join_span)?;
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: "join".to_string(),
             index: 1,
@@ -2712,11 +2707,8 @@ fn infer_join_expr_type(
         });
     };
 
-    let async_effect = lower.lower_type_fqn_with_args(
-        ASYNC_EFFECT_FQN.to_string(),
-        Vec::new(),
-        join_span,
-    )?;
+    let async_effect =
+        lower.lower_type_fqn_with_args(ASYNC_EFFECT_FQN.to_string(), Vec::new(), join_span)?;
     lower.record_performed_effect(async_effect, join_span);
 
     Ok(result_ty)
@@ -2931,7 +2923,8 @@ fn infer_assign_expr_type(
 
     if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
         // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-        if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(expected_ty, lower, builtins)
+        if matches!(rhs.kind, ast::ExprKind::IntLit)
+            && is_integer_type(expected_ty, lower, builtins)
         {
             return Ok(builtins.unit);
         }
@@ -3239,18 +3232,12 @@ fn infer_handle_expr_type(
     let has_non_resuming = arms
         .iter()
         .any(|a| matches!(a.kind, ast::HandleArmKind::NonResuming));
-    let has_immediate_resume = arms.iter().any(|a| {
-        matches!(
-            a.kind,
-            ast::HandleArmKind::ImmediateResume { .. }
-        )
-    });
-    let has_escape_continuation = arms.iter().any(|a| {
-        matches!(
-            a.kind,
-            ast::HandleArmKind::EscapeContinuation { .. }
-        )
-    });
+    let has_immediate_resume = arms
+        .iter()
+        .any(|a| matches!(a.kind, ast::HandleArmKind::ImmediateResume { .. }));
+    let has_escape_continuation = arms
+        .iter()
+        .any(|a| matches!(a.kind, ast::HandleArmKind::EscapeContinuation { .. }));
 
     if (has_non_resuming && has_immediate_resume)
         || (has_escape_continuation && (has_non_resuming || has_immediate_resume))
@@ -4928,6 +4915,22 @@ fn infer_call_expr_type(
         ast::ExprKind::Ident(id) => {
             let callee_name = source.slice(id.span);
             let Some(resolved) = &id.resolved else {
+                // T1009：unsafe 指针原语（最小集合）。
+                if let Some(ty) = infer_unsafe_ptr_primitive_call_expr_type(
+                    source,
+                    call_expr,
+                    callee_name,
+                    args,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )? {
+                    return Ok(ty);
+                }
+
                 // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
                 // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在“未 resolve 的 ident”
                 // 情况下尝试按 enum variant ctor 处理。
@@ -5228,7 +5231,13 @@ fn infer_call_expr_type(
                     let found_ty = checked_arg_tys[arg_idx];
 
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
-                        check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+                        check_nogc_boxing_gate(
+                            found_ty,
+                            expected_ty,
+                            arg.expr.span,
+                            lower,
+                            builtins,
+                        )?;
                         continue;
                     }
 
@@ -5272,7 +5281,11 @@ fn infer_call_expr_type(
                 }
 
                 // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
-                lower.record_monomorph_call(callee_fqn.clone(), sig.decl_span, &instantiated.type_args);
+                lower.record_monomorph_call(
+                    callee_fqn.clone(),
+                    sig.decl_span,
+                    &instantiated.type_args,
+                );
 
                 return Ok(instantiated.return_ty);
             }
@@ -5630,7 +5643,10 @@ fn infer_call_expr_type(
             // - 若某个实参是值类型（或 type param 占位），且被期望类型吸收到引用类型，则需要 boxing；
             // - 在 `@NoGC` 上下文中应当保守拒绝。
             for (arg_idx, arg) in call_args.iter().enumerate() {
-                let expected_ty = *chosen.expected_arg_tys.get(arg_idx).unwrap_or(&builtins.nothing);
+                let expected_ty = *chosen
+                    .expected_arg_tys
+                    .get(arg_idx)
+                    .unwrap_or(&builtins.nothing);
                 if expected_ty == builtins.nothing {
                     continue;
                 }
@@ -5717,6 +5733,185 @@ fn infer_call_expr_type(
             kind: expr_kind_name(other),
             span: callee.span.into(),
         }),
+    }
+}
+
+fn infer_unsafe_ptr_primitive_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee_name: &str,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let primitive = match callee_name {
+        "addrOf" | "load" | "store" => callee_name,
+        _ => return Ok(None),
+    };
+
+    if !lower.in_unsafe_context() {
+        return Err(ExprTypeError::UnsafePtrPrimitiveRequiresUnsafeContext {
+            primitive: primitive.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    // 当前阶段（T1009）实现为“语言内建函数”形态：
+    // - `addrOf(x)`：返回 `Ptr<T>`（T 为 x 的类型）
+    // - `load(p)`：`p: Ptr<T>` 时返回 `T`
+    // - `store(p, v)`：`p: Ptr<T>` 且 `v: T`，返回 `Unit`
+    let ptr_fqn = pick_ptr_type_fqn(lower);
+
+    match primitive {
+        "addrOf" => {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: primitive.to_string(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let pointee_ty = infer_expr_type(
+                source,
+                &args[0],
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let ptr_ty = lower.lower_type_fqn_with_args(
+                ptr_fqn.clone(),
+                vec![pointee_ty],
+                call_expr.span,
+            )?;
+            Ok(Some(ptr_ty))
+        }
+        "load" => {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: primitive.to_string(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let ptr_arg_ty = infer_expr_type(
+                source,
+                &args[0],
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let Some(pointee) = extract_ptr_pointee(ptr_arg_ty, &ptr_fqn, lower) else {
+                return Err(ExprTypeError::UnsafePtrPrimitiveRequiresPtrType {
+                    primitive: primitive.to_string(),
+                    found: lower.fmt_type(ptr_arg_ty),
+                    span: args[0].span.into(),
+                });
+            };
+
+            Ok(Some(pointee))
+        }
+        "store" => {
+            if args.len() != 2 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: primitive.to_string(),
+                    expected: 2,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let ptr_arg_ty = infer_expr_type(
+                source,
+                &args[0],
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let Some(pointee) = extract_ptr_pointee(ptr_arg_ty, &ptr_fqn, lower) else {
+                return Err(ExprTypeError::UnsafePtrPrimitiveRequiresPtrType {
+                    primitive: primitive.to_string(),
+                    found: lower.fmt_type(ptr_arg_ty),
+                    span: args[0].span.into(),
+                });
+            };
+
+            let value_ty = infer_expr_type_in_expected_context(
+                source,
+                &args[1],
+                pointee,
+                ExpectedTypeFrom::new("store 的 pointee 类型".to_string()),
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            if !is_type_assignable(value_ty, pointee, lower, builtins) {
+                return Err(ExprTypeError::AssignmentTypeMismatch {
+                    expected: lower.fmt_type(pointee),
+                    found: lower.fmt_type(value_ty),
+                    span: args[1].span.into(),
+                });
+            }
+
+            Ok(Some(builtins.unit))
+        }
+        _ => Ok(None),
+    }
+}
+
+fn pick_ptr_type_fqn(lower: &TypeLowering<'_>) -> String {
+    // 优先使用未来 sysroot 预计提供的 `scoop.unsafe.Ptr`（T1010）。
+    if lower.env().type_symbol("scoop.unsafe.Ptr").is_some() {
+        return "scoop.unsafe.Ptr".to_string();
+    }
+
+    // T1009 阶段允许 fixtures 在“当前包”内声明一个 `struct Ptr<T>` 作为最小落点。
+    let pkg = lower.pkg_prefix();
+    if pkg.is_empty() {
+        return "Ptr".to_string();
+    }
+
+    let local = format!("{pkg}.Ptr");
+    if lower.env().type_symbol(&local).is_some() {
+        return local;
+    }
+
+    // 回退：交给后续 lowering 报更贴近语义的错误。
+    "Ptr".to_string()
+}
+
+fn extract_ptr_pointee(ptr_ty: TypeId, ptr_fqn: &str, lower: &TypeLowering<'_>) -> Option<TypeId> {
+    match lower.type_kind(ptr_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) if n.fqn == ptr_fqn && n.args.len() == 1 => {
+            Some(n.args[0])
+        }
+        TypeKind::Ref(RefTypeKind::Nominal(n)) if n.fqn == ptr_fqn && n.args.len() == 1 => {
+            Some(n.args[0])
+        }
+        _ => None,
     }
 }
 
@@ -6695,9 +6890,11 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["obj".to_string()];
             let param_has_defaults = vec![false];
-            let Some(mapping) =
-                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
-            else {
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
                     callee: fqn.clone(),
                     span: call_expr.span.into(),
@@ -6720,8 +6917,11 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let pinned_ty =
-                lower.lower_type_fqn_with_args("scoop.core.Pinned".to_string(), Vec::new(), call_expr.span)?;
+            let pinned_ty = lower.lower_type_fqn_with_args(
+                "scoop.core.Pinned".to_string(),
+                Vec::new(),
+                call_expr.span,
+            )?;
             return Ok(pinned_ty);
         }
 
@@ -6754,9 +6954,11 @@ fn infer_member_call_expr_type(
 
             let param_names = vec!["pinned".to_string()];
             let param_has_defaults = vec![false];
-            let Some(mapping) =
-                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
-            else {
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
                 return Err(ExprTypeError::NoMatchingOverload {
                     callee: fqn.clone(),
                     span: call_expr.span.into(),
@@ -6772,7 +6974,8 @@ fn infer_member_call_expr_type(
             };
 
             let pinned_ty = call_args[arg_idx].ty;
-            let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(pinned_ty) else {
+            let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(pinned_ty)
+            else {
                 return Err(ExprTypeError::GcUnpinRequiresRefType {
                     found: lower.fmt_type(pinned_ty),
                     span: call_args[arg_idx].expr.span.into(),
@@ -7572,7 +7775,10 @@ fn infer_member_call_expr_type(
         builtins,
     )?;
     for (arg_idx, arg) in call_args.iter().enumerate() {
-        let expected_ty = *chosen.expected_arg_tys.get(arg_idx).unwrap_or(&builtins.nothing);
+        let expected_ty = *chosen
+            .expected_arg_tys
+            .get(arg_idx)
+            .unwrap_or(&builtins.nothing);
         if expected_ty == builtins.nothing {
             continue;
         }
@@ -7827,7 +8033,13 @@ fn collect_top_level_fun_signatures(
                         lower,
                     )?
                 } else {
-                    build_eff_row_var_subst_plan(ret_ref, return_ty, &eff_param.name, source, lower)?
+                    build_eff_row_var_subst_plan(
+                        ret_ref,
+                        return_ty,
+                        &eff_param.name,
+                        source,
+                        lower,
+                    )?
                 }
             } else {
                 EffRowVarSubstPlan::None
@@ -10343,9 +10555,11 @@ fn infer_member_access_expr_type(
                     .iter()
                     .any(|v| v.name == variant_name && v.fields.is_empty())
                 {
-                    return Ok(
-                        lower.lower_type_fqn_with_args(enum_fqn.to_string(), Vec::new(), member.span)?
-                    );
+                    return Ok(lower.lower_type_fqn_with_args(
+                        enum_fqn.to_string(),
+                        Vec::new(),
+                        member.span,
+                    )?);
                 }
             }
         }
@@ -10403,10 +10617,13 @@ fn infer_member_access_expr_type(
                 });
             };
 
-            let ty = elements.get(idx).copied().ok_or_else(|| ExprTypeError::UnsupportedExpr {
-                kind: "tuple element access（index out of bounds）",
-                span: member.span.into(),
-            })?;
+            let ty = elements
+                .get(idx)
+                .copied()
+                .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                    kind: "tuple element access（index out of bounds）",
+                    span: member.span.into(),
+                })?;
             Ok(ty)
         }
         Some(ast::ResolvedMemberRef::Value { fqn }) => {
@@ -10428,7 +10645,8 @@ fn infer_member_access_expr_type(
                         span: member.span.into(),
                     });
                 };
-                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(receiver_ty)
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+                    lower.type_kind(receiver_ty)
                 {
                     if nominal.fqn == "scoop.core.Pinned" {
                         return Ok(builtins.any);
@@ -10447,12 +10665,10 @@ fn infer_member_access_expr_type(
             ast::ResolvedMemberRef::Fun { fqn }
             | ast::ResolvedMemberRef::ExtensionValue { fqn }
             | ast::ResolvedMemberRef::ExtensionFun { fqn },
-        ) => {
-            Err(ExprTypeError::UnsupportedMemberAccess {
-                fqn: fqn.clone(),
-                span: member.span.into(),
-            })
-        }
+        ) => Err(ExprTypeError::UnsupportedMemberAccess {
+            fqn: fqn.clone(),
+            span: member.span.into(),
+        }),
     }
 }
 

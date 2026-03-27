@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsafe_ptr_primitive_requires_unsafe
+// EXPECT-ERROR-AT: 12:13
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+struct Ptr<T>
+
+fun demo() {
+    var x: Int = 1
+    val p = addrOf(x)
+}
+
