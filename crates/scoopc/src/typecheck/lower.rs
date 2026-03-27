@@ -25,6 +25,8 @@ use crate::ty::{
 use super::assignable::is_type_assignable;
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
+const PTR_FQN: &str = "scoop.unsafe.Ptr";
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeLowerError {
     #[error("未解析的类型：{name}")]
@@ -121,6 +123,14 @@ pub enum TypeLowerError {
         arg: String,
         bound: String,
         #[label("这里的类型实参不满足 where 约束")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`Ptr<T>` 的类型实参必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}")]
+    #[diagnostic(code(scoop::typecheck::ptr_pointee_must_be_gc_free))]
+    PtrPointeeMustBeGcFree {
+        found: String,
+        #[label("这里的 T 不是 GC-free 值类型")]
         span: miette::SourceSpan,
     },
 }
@@ -929,6 +939,13 @@ impl<'a> TypeLowering<'a> {
             });
         }
 
+        // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
+        if fqn == PTR_FQN {
+            if let Some(pointee) = args.first().copied() {
+                self.check_ptr_pointee_gc_free(pointee, span)?;
+            }
+        }
+
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
         let Some(sym) = self.env.type_symbol(&fqn) else {
             return Err(TypeLowerError::MissingTypeSymbolInEnv {
@@ -1032,6 +1049,209 @@ impl<'a> TypeLowering<'a> {
         Ok(())
     }
 
+    fn check_ptr_pointee_gc_free(
+        &mut self,
+        pointee: TypeId,
+        span: Span,
+    ) -> Result<(), TypeLowerError> {
+        let mut visiting: HashSet<TypeId> = HashSet::new();
+        let mut memo: HashMap<TypeId, bool> = HashMap::new();
+
+        if self.is_gc_free_value_type_inner(pointee, &mut visiting, &mut memo)? {
+            return Ok(());
+        }
+
+        Err(TypeLowerError::PtrPointeeMustBeGcFree {
+            found: self.fmt_type(pointee),
+            span: span.into(),
+        })
+    }
+
+    fn is_gc_free_value_type_inner(
+        &mut self,
+        id: TypeId,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        if let Some(v) = memo.get(&id).copied() {
+            return Ok(v);
+        }
+
+        // 防御性：遇到循环类型（直接或间接）时保守拒绝。
+        if !visiting.insert(id) {
+            memo.insert(id, false);
+            return Ok(false);
+        }
+
+        let ok = match self.type_kind(id) {
+            TypeKind::Ref(_) => false,
+            // 保守：类型参数可能实例化为引用类型，因此视为 non-GC-free。
+            TypeKind::Param(_) => false,
+            TypeKind::Value(v) => match v {
+                ValueTypeKind::Unit
+                | ValueTypeKind::Nothing
+                | ValueTypeKind::Bool
+                | ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_) => true,
+                ValueTypeKind::Option(inner) => {
+                    self.is_gc_free_value_type_inner(inner, visiting, memo)?
+                }
+                ValueTypeKind::Tuple(elements) => {
+                    let mut ok = true;
+                    for e in elements {
+                        if !self.is_gc_free_value_type_inner(e, visiting, memo)? {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    ok
+                }
+                ValueTypeKind::Nominal(nominal) => {
+                    self.is_gc_free_nominal_value_type(&nominal, visiting, memo)?
+                }
+            },
+        };
+
+        visiting.remove(&id);
+        memo.insert(id, ok);
+        Ok(ok)
+    }
+
+    fn is_gc_free_nominal_value_type(
+        &mut self,
+        nominal: &NominalType,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        // `Ptr<T>` 本身也递归施加同样的 GC-free 约束：
+        // - `Ptr<String>` 直接非法；
+        // - `Ptr<Ptr<String>>` 也应当非法（否则可在内存中间接存放 GC 引用）。
+        if nominal.fqn == PTR_FQN {
+            let Some(pointee) = nominal.args.first().copied() else {
+                return Ok(false);
+            };
+            return self.is_gc_free_value_type_inner(pointee, visiting, memo);
+        }
+
+        let kind = self.nominal_decl_kind(&nominal.fqn);
+        match kind {
+            Some(ast::TypeKind::Struct) => self.is_gc_free_nominal_struct(nominal, visiting, memo),
+            Some(ast::TypeKind::Enum) => self.is_gc_free_nominal_enum(nominal, visiting, memo),
+            // 理论上 nominal value type 只会是 struct/enum；其它情况保守拒绝。
+            _ => Ok(false),
+        }
+    }
+
+    fn is_gc_free_nominal_enum(
+        &mut self,
+        nominal: &NominalType,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        let Some(decl) = self.env.enum_decl(&nominal.fqn) else {
+            return Ok(false);
+        };
+        let Some(sym) = self.env.type_symbol(&nominal.fqn) else {
+            return Ok(false);
+        };
+
+        // name -> concrete type arg
+        let bindings = sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(nominal.args.iter().copied())
+            .collect::<Vec<_>>();
+
+        for v in &decl.variants {
+            for f in &v.fields {
+                let field_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &decl.decl_file,
+                    bindings.iter().cloned(),
+                    &f.ty,
+                )?;
+                if !self.is_gc_free_value_type_inner(field_ty, visiting, memo)? {
+                    return Ok(false);
+                }
+            }
+        }
+
+        Ok(true)
+    }
+
+    fn is_gc_free_nominal_struct(
+        &mut self,
+        nominal: &NominalType,
+        visiting: &mut HashSet<TypeId>,
+        memo: &mut HashMap<TypeId, bool>,
+    ) -> Result<bool, TypeLowerError> {
+        let Some(sym) = self.env.type_symbol(&nominal.fqn) else {
+            return Ok(false);
+        };
+
+        let Some(decl_source) = self.env.source(&sym.decl_file) else {
+            return Ok(false);
+        };
+
+        let Ok(file) = crate::parser::parse_file(decl_source) else {
+            // 理论上不会发生：该文件已在 index/env 构建时成功 parse 过；这里保守拒绝。
+            return Ok(false);
+        };
+
+        let Some(decl) = find_type_decl_by_fqn(decl_source, &file, &nominal.fqn) else {
+            return Ok(false);
+        };
+
+        // name -> concrete type arg
+        let bindings = sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(nominal.args.iter().copied())
+            .collect::<Vec<_>>();
+
+        // 1) primary ctor params：对 struct 视作字段（与 resolver/typecheck 现阶段语义一致）。
+        if let Some(primary) = &decl.primary_ctor {
+            for p in &primary.params {
+                let Some(ty_ref) = p.ty.as_ref() else {
+                    return Ok(false);
+                };
+                let field_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &sym.decl_file,
+                    bindings.iter().cloned(),
+                    ty_ref,
+                )?;
+                if !self.is_gc_free_value_type_inner(field_ty, visiting, memo)? {
+                    return Ok(false);
+                }
+            }
+        }
+
+        // 2) body properties：对 struct 同样视作字段声明（保守：全部参与 GC-free 判定）。
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Property(p) = member else {
+                    continue;
+                };
+                let Some(ty_ref) = p.ty.as_ref() else {
+                    return Ok(false);
+                };
+                let field_ty = self.lower_type_ref_in_decl_file_with_bindings(
+                    &sym.decl_file,
+                    bindings.iter().cloned(),
+                    ty_ref,
+                )?;
+                if !self.is_gc_free_value_type_inner(field_ty, visiting, memo)? {
+                    return Ok(false);
+                }
+            }
+        }
+
+        Ok(true)
+    }
+
     fn lower_type_path(&mut self, path: &ast::TypePath) -> Result<TypeId, TypeLowerError> {
         // 单段名且无实参：优先解析为当前作用域的 type parameter（它会 shadow 顶层同名 type）。
         if path.segments.len() == 1 && path.args.is_empty() {
@@ -1067,6 +1287,14 @@ impl<'a> TypeLowering<'a> {
             .iter()
             .filter(|a| !matches!(a, ast::TypeRef::EffectRowArg { .. }))
             .collect::<Vec<_>>();
+        let ptr_pointee_arg_span = if fqn == PTR_FQN {
+            type_args
+                .first()
+                .map(|arg| arg.span())
+                .unwrap_or(path.span)
+        } else {
+            path.span
+        };
 
         // 先对少数 builtin/special-case 做 lowering（不依赖 sysroot 声明/TypeEnv）。
         match fqn.as_str() {
@@ -1189,6 +1417,13 @@ impl<'a> TypeLowering<'a> {
             .iter()
             .map(|a| self.lower_type_ref(a))
             .collect::<Result<Vec<_>, _>>()?;
+
+        // T1011：`Ptr<T>` 的 pointee 必须是 GC-free 值类型（保守：宁可拒绝也不放过）。
+        if fqn == PTR_FQN {
+            if let Some(pointee) = args.first().copied() {
+                self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
+            }
+        }
 
         match sym.kind {
             TypeSymbolKind::TypeAlias => {
@@ -1819,6 +2054,128 @@ impl<'a> TypeLowering<'a> {
             span: use_span.into(),
         })
     }
+}
+
+fn find_type_decl_by_fqn<'a>(
+    source: &SourceFile,
+    file: &'a ast::File,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+    for item in &file.items {
+        match item {
+            ast::Item::Type(ty) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, ty, &pkg_prefix, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::Object(obj) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, obj, &pkg_prefix, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::Item::TypeAlias(_)
+            | ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_) => {}
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_in_type_decl<'a>(
+    source: &SourceFile,
+    decl: &'a ast::TypeDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let local_name = source.slice(decl.name.span);
+    let type_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    if type_fqn == target_fqn {
+        return Some(decl);
+    }
+
+    let Some(body) = &decl.body else {
+        return None;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, nested, &type_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(obj) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, obj, &type_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+fn find_type_decl_in_object_decl<'a>(
+    source: &SourceFile,
+    obj: &'a ast::ObjectDecl,
+    prefix: &str,
+    target_fqn: &str,
+) -> Option<&'a ast::TypeDecl> {
+    let local_name = match (&obj.name, obj.kind) {
+        (Some(name), _) => source.slice(name.span).to_string(),
+        (None, ast::ObjectKind::Companion) => "Companion".to_string(),
+        (None, ast::ObjectKind::Object) => return None,
+    };
+
+    let obj_fqn = if prefix.is_empty() {
+        local_name.to_string()
+    } else {
+        format!("{prefix}.{local_name}")
+    };
+
+    let Some(body) = &obj.body else {
+        return None;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                if let Some(found) =
+                    find_type_decl_in_type_decl(source, nested, &obj_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            ast::TypeMember::Object(nested_obj) => {
+                if let Some(found) =
+                    find_type_decl_in_object_decl(source, nested_obj, &obj_fqn, target_fqn)
+                {
+                    return Some(found);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 fn is_symbol_visible_from(source: &SourceFile, symbol: &crate::resolve::Symbol) -> bool {

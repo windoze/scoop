@@ -41,6 +41,7 @@
 - 2026-03-27：完成 T1008：sysroot 暴露 `GC.pin/GC.unpin` 并在 typecheck/codegen lowering 到 runtime `scoop_pin/scoop_unpin`；由于当前泛型 struct 布局尚未实现，`Pinned<T>` 暂降级为非泛型 `Pinned`（`value: Any`）；新增 run-pass fixture `gc_pin_unpin_basic` 与 compile-fail fixture `gc_pin_value_type_is_error` 回归。
 - 2026-03-27：完成 T1009：typecheck 支持最小 unsafe 指针原语 `addrOf/load/store` 并强制 unsafe context 门禁；新增 unsafe_nogc fixtures 覆盖。
 - 2026-03-27：完成 T1010：sysroot 新增 `scoop.unsafe` 模块声明（`Ptr<T>` + `ptrToUIntPtr/uintPtrToPtr`），并新增 resolve fixture 覆盖 `import scoop.unsafe.*` 与符号引用。
+- 2026-03-27：完成 T1011：typecheck 为 `scoop.unsafe.Ptr<T>` 增加 pointee 必须为 GC-free 值类型的 well-formedness 校验（含新错误码），并新增 unsafe_nogc fixtures 覆盖 `Ptr<Int>`/`Ptr<String>`/`Ptr<Option<String>>`。
 - 2026-03-25：完成 T0902：runtime `scoop_alloc` 改为基于 `malloc` 的最小可用实现，并新增 `scoop_runtime` 集成测试覆盖。
 - 2026-03-25：完成 T0819：`scoop build` 支持 `--emit-llvm/--emit-obj/--emit-asm`，fixtures runner 新增 build phase 与 `emit_llvm_basic` 用例（产物写入 `target/fixtures`）。
 - 2026-03-25：完成 T0821：runtime 最小字符串承载（`ScoopString`）与 `scoop_print/scoop_println`（C），并新增 clang 链接 smoke test 覆盖输出行为。

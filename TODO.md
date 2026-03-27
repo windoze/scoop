@@ -3216,11 +3216,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1011 [TODO] Typecheck：`Ptr<T>` 的 GC-free pointee 限制（spec §15.9.4 / runtime §4.1）
+### T1011 [DONE] Typecheck：`Ptr<T>` 的 GC-free pointee 限制（spec §15.9.4 / runtime §4.1）
 - 描述：实现 `Ptr<T>` 的 well-formedness：`T` 必须是 GC-free value type（不允许直接/间接包含 GC ref），并在违反时给出清晰诊断。
 - 目标：先做保守检查（宁可拒绝也不放过）；对 `Option<RefType>` 这类也应拒绝（因为表示里含 GC pointer）。
 - 验收：unsafe_nogc/typecheck fixture：`Ptr<Int>` 通过；`Ptr<String>`、`Ptr<Option<String>>` 报错（新错误码）并指向 `Ptr<...>` 的类型参数位置。
 - 依赖：T0402、T0403、T1003
+ - 完成：
+   - `crates/scoopc/src/typecheck/lower.rs`：在 nominal type instantiation 时为 `scoop.unsafe.Ptr<T>` 增加 well-formedness 校验：pointee 必须是 GC-free 值类型；新增错误码 `scoop::typecheck::ptr_pointee_must_be_gc_free`，并尽量把 span 指向 `Ptr<...>` 的类型实参位置。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_gc_free_int_ok.scoop`：新增 compile-pass：`Ptr<Int>` 合法。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_string_is_error.scoop`：新增 compile-fail：`Ptr<String>` 报错并断言错误码/位置。
+   - `tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_option_of_string_is_error.scoop`：新增 compile-fail：`Ptr<Option<String>>` 报错并断言错误码/位置（为避免 lexer 将 `>>` 视为 shift token，使用 `Ptr<Option<String> >` 的写法）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1012 [TODO] Typecheck：指针↔整数转换只能通过 sysroot intrinsics，且必须在 unsafe context（spec §15.9.4 / runtime §5）
 - 描述：把“pointer/int casts 的限制点”固定为：仅允许调用 sysroot 提供的转换 intrinsics（例如 `ptrToUIntPtr/uintPtrToPtr`），并要求调用点处于 unsafe context；明确 **不** 把 `as/as?` 当作指针转换。

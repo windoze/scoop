@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+import scoop.unsafe.*
+import scoop.core.*
+
+fun ok(p: Ptr<Int>): Unit {
+    return ()
+}
+
