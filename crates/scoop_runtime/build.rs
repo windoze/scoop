@@ -6,6 +6,7 @@
 fn main() {
     // runtime 源码位于 crate 目录之外，需显式声明变更依赖，否则 cargo 无法自动触发重编译。
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_runtime.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_task_executor.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.h");
 
@@ -15,6 +16,7 @@ fn main() {
     cc::Build::new()
         .compiler("clang")
         .file("../../runtime/c/scoop_runtime.c")
+        .file("../../runtime/c/scoop_task_executor.c")
         .file("../../runtime/c/scoop_gc.c")
         .warnings(true)
         .extra_warnings(true)

@@ -3003,13 +3003,14 @@
 ### T0917 [DONE] runtime：`Task<T>` / executor 最小原语（spec §5.7）
 - 描述：提供支撑 `Task<T>` / `async` / `spawn` 的最小 runtime 原语：任务状态、入队/恢复、完成回调、可选显式 start。
 - 目标：先只实现 cooperative、最小可观测版本；取消与复杂调度后续。
-- 验收：新增运行期测试：创建 task、入队、完成后恢复 continuation；状态转换与回调顺序稳定。
-- 依赖：T0906、T0914、T0622
+ - 验收：新增运行期测试：创建 task、入队、完成后恢复 continuation；状态转换与回调顺序稳定。
+ - 依赖：T0906、T0914、T0622
  - 完成：
-   - `runtime/c/scoop_runtime.c`：新增最小 `ScoopExecutor` 队列 + `ScoopTaskU64` 状态机：
+   - `runtime/c/scoop_task_executor.c`：新增最小 `ScoopExecutor` 队列 + `ScoopTaskU64` 状态机：
      - continuation 入队/恢复（u64 payload），并用 `scoop_pin/unpin` 保证 GC 期间不被 sweep；
      - task waiters：完成后按注册顺序把 continuation 入队到指定 executor；
      - 显式 `try_start`：把 task body 入队到 executor 运行并完成。
+   - `crates/scoop_runtime/build.rs`：把 `scoop_task_executor.c` 纳入 C runtime 编译列表。
    - `crates/scoop_runtime/tests/task_executor_minimal.rs`：新增集成测试，回归 task start→complete→按序恢复 waiters 的顺序与状态转换。
  - 验收：
    - `cargo test --all` 通过；
