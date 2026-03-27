@@ -100,6 +100,19 @@ typealias Long = Int64
 typealias ULong = UInt64
 typealias UIntPtr = UInt
 
+// Compiler intrinsics（spec §15.7 / §6.4）。
+//
+// 说明：
+// - 规范中的 `sizeOf<T>()` 是隐式 `const fun` 的反射 intrinsic；
+// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的“跨文件泛型函数签名 lowering”
+//   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
+//   - `sizeOf(1)` / `sizeOf("s")`
+// - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
+@Intrinsic
+fun sizeOf(value: Int): Int
+@Intrinsic
+fun sizeOf(value: String): Int
+
 // Option / nullable sugar
 enum Option<T> {
     Some(val value: T),

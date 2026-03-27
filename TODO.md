@@ -3149,11 +3149,22 @@
    - `cargo test --all --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T1007 [TODO] `@Intrinsic`：sysroot 声明与编译器 lowering（spec §15.7）
+### T1007 [DONE] `@Intrinsic`：sysroot 声明与编译器 lowering（spec §15.7）
 - 描述：在 sysroot 中声明 intrinsic，并在 lowering/codegen 阶段把它们替换为内建操作（例如算术、类型反射）。
 - 目标：先只实现 1~2 个 intrinsic（例如 `sizeOf<T>()`/`panic()`）。
 - 验收：新增 comptime/typecheck fixture：调用 intrinsic 通过；codegen 侧不产生真正函数调用。
-- 依赖：T0418、T1204
+- 依赖：T0418
+ - 完成：
+   - `sysroot/core.scoop`：新增 `@Intrinsic fun sizeOf(...)` 声明（以 overload 形式暴露 Int/String 的最小可调用表面）。
+   - `crates/scoopc/src/llvm/mod.rs`：基于 module data layout 创建 `TargetData` 并注入 `MainCodegen`。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - `codegen_call`：识别 `scoop.core.sizeOf` 并走内建 lowering；
+     - `codegen_sysroot_size_of`：把 `sizeOf(x)` 降为编译期常量（LLVM TargetData store size），不生成对 `scoop.core.sizeOf` 的真实函数调用。
+   - `tests/fixtures/codegen/intrinsic_size_of_int_word.*`：新增 run-pass fixture，回归 `println(sizeOf(1))` 的输出与链接可用性。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo test --all --features llvm` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
 ### T1008 [TODO] pin/unpin 语言层 API：从 sysroot 暴露到 runtime（spec §15.10）
 - 描述：在 sysroot 增加 `pin/unpin` 声明，并在 codegen 中 lower 到 runtime 的 `scoop_pin/scoop_unpin`。

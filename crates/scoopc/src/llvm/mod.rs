@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
+use inkwell::targets::TargetData;
 use inkwell::targets::FileType;
 use miette::Diagnostic;
 use thiserror::Error;
@@ -180,6 +181,7 @@ fn build_minimal_main_module<'ctx>(
 
     // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
     let target_info = target::configure_module_for_host(&module)?;
+    let target_data = TargetData::create(&target_info.data_layout);
 
     let lowered = hir::lower_for_dump(session, source)?;
 
@@ -213,6 +215,7 @@ fn build_minimal_main_module<'ctx>(
         context,
         &module,
         &builder,
+        &target_data,
         &target_info,
         source,
         &lowered.types,
@@ -244,6 +247,7 @@ fn build_minimal_main_module<'ctx>(
             context,
             &module,
             &builder,
+            &target_data,
             &target_info,
             source,
             &lowered.types,
@@ -279,6 +283,7 @@ fn build_minimal_main_module<'ctx>(
         context,
         &module,
         &builder,
+        &target_data,
         &target_info,
         source,
         &lowered.types,

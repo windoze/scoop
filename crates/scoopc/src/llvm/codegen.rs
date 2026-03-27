@@ -24,6 +24,7 @@ use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Linkage;
 use inkwell::module::Module;
+use inkwell::targets::TargetData;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
@@ -235,6 +236,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     context: &'ctx Context,
     module: &'a Module<'ctx>,
     builder: &'a Builder<'ctx>,
+    target_data: &'a TargetData,
     host: &'a HostTargetInfo,
     source: &'a SourceFile,
     types: &'a TypeStore,
@@ -284,6 +286,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         context: &'ctx Context,
         module: &'a Module<'ctx>,
         builder: &'a Builder<'ctx>,
+        target_data: &'a TargetData,
         host: &'a HostTargetInfo,
         source: &'a SourceFile,
         types: &'a TypeStore,
@@ -297,6 +300,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             context,
             module,
             builder,
+            target_data,
             host,
             source,
             types,
@@ -2784,6 +2788,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.context,
                 self.module,
                 self.builder,
+                self.target_data,
                 self.host,
                 self.source,
                 self.types,
@@ -3307,6 +3312,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_sysroot_effect_intrinsics(span, callee.span, fqn, args);
             }
 
+            // T1007：`@Intrinsic fun sizeOf<T>(value: T): Int`（early stage）。
+            if fqn == "scoop.core.sizeOf" {
+                return self.codegen_sysroot_size_of(span, callee.span, args);
+            }
+
             // T0822：最小 I/O（sysroot `print/println(String)`）直接映射到 runtime 符号。
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
@@ -3682,6 +3692,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn store_size_bytes_of_basic_type(&self, ty: BasicTypeEnum<'ctx>) -> u64 {
+        match ty {
+            BasicTypeEnum::ArrayType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::FloatType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::IntType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::PointerType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::StructType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::VectorType(t) => self.target_data.get_store_size(&t),
+            BasicTypeEnum::ScalableVectorType(t) => self.target_data.get_store_size(&t),
+        }
+    }
+
+    fn codegen_sysroot_size_of(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 语义：`sizeOf(x)` 在当前阶段返回 `x` 的静态类型在目标 ABI 下的 store size（bytes）。
+        //
+        // 说明：
+        // - 规范中的 `sizeOf<T>()` 是 comptime 反射 intrinsic（spec §6.4）；
+        // - 当前阶段尚未实现 comptime 执行链路，因此该 intrinsic 先作为 codegen 内建：
+        //   直接把结果 lowering 为编译期常量（不产生对 `scoop.core.sizeOf` 的函数调用）。
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sizeOf() arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sizeOf() named arg",
+                at: span.into(),
+            });
+        };
+
+        let arg_cg =
+            self.cg_ty_of(expr.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sizeOf() arg type",
+                    at: callee_span.into(),
+                })?;
+        let llvm_ty = self.llvm_basic_type_of(expr.span, arg_cg)?;
+        let bytes = self.store_size_bytes_of_basic_type(llvm_ty);
+
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(bytes, false);
+        Ok(CgValue::int(raw, value_word))
     }
 
     fn codegen_sysroot_effect_intrinsics(
@@ -7431,6 +7496,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context,
             self.module,
             self.builder,
+            self.target_data,
             self.host,
             self.source,
             self.types,

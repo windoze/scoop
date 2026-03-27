@@ -1,0 +1,13 @@
+// EXPECT: pass
+// RUN-STDOUT: intrinsic_size_of_int_word.stdout.txt
+// 目标：T1007 `@Intrinsic sizeOf` 的最小 codegen lowering 回归：
+// - `sizeOf(1)` 会被 lowering 为编译期常量（不生成对 `scoop.core.sizeOf` 的真实函数调用）。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun main() {
+    println(sizeOf(1))
+}
+
