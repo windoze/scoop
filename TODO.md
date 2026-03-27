@@ -3321,18 +3321,6 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
-- 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
-- 目标：默认结论应是“无新增 intrinsic”；只有审计证明无法表达时，才允许进入 T1018。
-- 验收：输出一份分层清单：`pure_scoop_ok` / `needs_runtime_lib` / `needs_new_intrinsic`；每个 `needs_new_intrinsic` 都必须附带无法用现有机制实现的理由。
-- 依赖：T1217、T1314
-
-### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
-- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
-- 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
-- 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
-- 依赖：T1017
-
 ### T1019 [TODO] 注解参数：支持常量表达式 / 数组 / enum / class-literal 参数
 - 描述：把注解参数从“仅无参或字面量”扩展到更完整的常量参数模型：常量表达式、数组字面量、enum 值、类字面量等，并在 typecheck 中验证参数类型与可求值性。
 - 目标：先只接受编译期可确定的参数；不允许运行期依赖值混入注解参数。
@@ -3622,6 +3610,18 @@
 - 目标：不盲目追求 1:1 复制 Kotlin/JVM runtime；只补对 Scoop 语言模型成立、且对用户价值高的部分。
 - 验收：产出一份 capability matrix，列出候选模块、优先级、是否纯 Scoop 可实现，以及是否需要走 T1017/T1018 通道。
 - 依赖：T1311、T1312、T1217
+
+### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
+- 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
+- 目标：默认结论应是“无新增 intrinsic”；只有审计证明无法表达时，才允许进入 T1018。
+- 验收：输出一份分层清单：`pure_scoop_ok` / `needs_runtime_lib` / `needs_new_intrinsic`；每个 `needs_new_intrinsic` 都必须附带无法用现有机制实现的理由。
+- 依赖：T1217、T1314
+
+### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
+- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
+- 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
+- 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
+- 依赖：T1017
 
 ### T1315 [TODO] 纯 Scoop 补齐 Kotlin runtime 适用缺口（不新增 intrinsic）
 - 描述：根据 T1314 的审计结果，用纯 Scoop 实现可补齐的核心 runtime 库能力，例如文本/集合辅助、ranges/progressions helpers、sequence-like utilities、常见 runtime support APIs 等。
