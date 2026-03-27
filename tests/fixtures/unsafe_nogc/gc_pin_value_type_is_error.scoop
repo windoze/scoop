@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::gc_pin_requires_ref
+// EXPECT-ERROR-AT: 12:25
+// EXPECT-ERROR: 仅支持引用类型
+
+package fixtures.unsafe_nogc
+
+import scoop.core.*
+
+fun main(): Unit {
+    @Unsafe {
+        val _p = GC.pin(1)
+    }
+}
+

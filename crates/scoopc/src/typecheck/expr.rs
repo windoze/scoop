@@ -345,6 +345,22 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("GC.pin 当前阶段仅支持引用类型（heap/box 对象）：{found}")]
+    #[diagnostic(code(scoop::typecheck::gc_pin_requires_ref))]
+    GcPinRequiresRefType {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("GC.unpin 当前阶段仅支持 `Pinned<引用类型>`：{found}")]
+    #[diagnostic(code(scoop::typecheck::gc_unpin_requires_ref))]
+    GcUnpinRequiresRefType {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {
@@ -6643,6 +6659,136 @@ fn infer_member_call_expr_type(
         return Ok(builtins.string);
     }
 
+    // spec §15.10：GC pin/unpin（early stage）。
+    //
+    // 说明：
+    // - 当前阶段尚未接入“普通成员函数调用”（class/object methods），这里只对 sysroot 的 `GC.pin/unpin`
+    //   做最小落点：让前端可以通过 typecheck，并由后端 intrinsic lowering 映射到 runtime；
+    // - 语义约束（TODO T1008）：仅允许 pin 引用类型/box 对象；值类型（含 type param）暂不支持。
+    if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+        if fqn == "scoop.core.GC.pin" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            if call_args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let param_names = vec!["obj".to_string()];
+            let param_has_defaults = vec![false];
+            let Some(mapping) =
+                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
+            else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+
+            let obj_ty = call_args[arg_idx].ty;
+            if !matches!(lower.type_kind(obj_ty), TypeKind::Ref(_)) {
+                return Err(ExprTypeError::GcPinRequiresRefType {
+                    found: lower.fmt_type(obj_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            let pinned_ty =
+                lower.lower_type_fqn_with_args("scoop.core.Pinned".to_string(), Vec::new(), call_expr.span)?;
+            return Ok(pinned_ty);
+        }
+
+        if fqn == "scoop.core.GC.unpin" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            if call_args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let param_names = vec!["pinned".to_string()];
+            let param_has_defaults = vec![false];
+            let Some(mapping) =
+                map_call_args_to_params_with_defaults(&call_args, &param_names, &param_has_defaults)
+            else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+
+            let pinned_ty = call_args[arg_idx].ty;
+            let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(pinned_ty) else {
+                return Err(ExprTypeError::GcUnpinRequiresRefType {
+                    found: lower.fmt_type(pinned_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            };
+            if nominal.fqn != "scoop.core.Pinned" || !nominal.args.is_empty() {
+                return Err(ExprTypeError::GcUnpinRequiresRefType {
+                    found: lower.fmt_type(pinned_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            return Ok(builtins.unit);
+        }
+    }
+
     // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
@@ -10267,6 +10413,27 @@ fn infer_member_access_expr_type(
             // `TypeName.NestedObject` / `Obj.NestedObject`：成员本身是一个 object 单例值。
             if lower.is_object_type(fqn) {
                 return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?);
+            }
+
+            // spec §15.10：`Pinned.value`（early stage）。
+            //
+            // 说明：
+            // - 当前阶段 `struct_field_types` 只收集“当前文件内”的 struct 字段类型；
+            // - sysroot 的 `Pinned` 属于跨文件类型，因此这里对它做一个最小特判，以便
+            //   `pinned.value` 在用户代码里可通过 typecheck（并支撑 T1008 的 run-pass fixture）。
+            if fqn == "scoop.core.Pinned.value" {
+                let Some(receiver_ty) = receiver_ty else {
+                    return Err(ExprTypeError::UnsupportedMemberAccess {
+                        fqn: fqn.clone(),
+                        span: member.span.into(),
+                    });
+                };
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(receiver_ty)
+                {
+                    if nominal.fqn == "scoop.core.Pinned" {
+                        return Ok(builtins.any);
+                    }
+                }
             }
 
             struct_field_types.get(fqn).copied().ok_or_else(|| {

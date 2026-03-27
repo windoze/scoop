@@ -3166,11 +3166,22 @@
    - `cargo test --all --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（fixtures: ok）。
 
-### T1008 [TODO] pin/unpin 语言层 API：从 sysroot 暴露到 runtime（spec §15.10）
+### T1008 [DONE] pin/unpin 语言层 API：从 sysroot 暴露到 runtime（spec §15.10）
 - 描述：在 sysroot 增加 `pin/unpin` 声明，并在 codegen 中 lower 到 runtime 的 `scoop_pin/scoop_unpin`。
 - 目标：先只支持对引用类型/box 对象；value types 不允许 pin。
 - 验收：新增 run-pass fixture：pin 后在 GC collect 过程中对象不移动（非移动 GC 下可用“仍可访问”替代验证）；unpin 后仍可访问。
 - 依赖：T0912、T0817
+ - 完成：
+   - `sysroot/core.scoop`：新增 `@Intrinsic object GC`，暴露 `@NoGC @Unsafe fun pin(obj: Any): Pinned` 与 `@NoGC @Unsafe fun unpin(pinned: Pinned): Unit`；新增 `struct Pinned(val value: Any)`。
+   - `crates/scoopc/src/typecheck/expr.rs`：对 `scoop.core.GC.pin/unpin` 做门禁与类型检查（unsafe context + pin 仅允许 ref type + unpin 参数必须是 `Pinned`），并补齐错误码 `scoop::typecheck::gc_pin_requires_ref` / `scoop::typecheck::gc_unpin_requires_ref`；同时为 `Pinned.value` 提供 sysroot 字段类型 fallback。
+   - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.core.GC.pin/unpin` lowering 到 runtime `scoop_pin/scoop_unpin`，并生成 `Pinned` 结构体返回值/参数解构；补齐 `scoop.core.Any` 的 codegen 类型映射。
+   - 约束：由于当前 LLVM struct layout 暂不支持泛型 struct（`type_params` 非空的 struct 会被跳过布局收集），本任务将 spec 的 `Pinned<T>` 暂降级为非泛型 `Pinned`（内部字段 `value: Any`）。
+   - `tests/fixtures/unsafe_nogc/gc_pin_value_type_is_error.scoop`：新增 compile-fail，用于断言对 value type 的 `GC.pin(1)` 报错。
+   - `tests/fixtures/run-pass/gc_pin_unpin_basic.*`：新增 run-pass，用于端到端回归 pin/unpin 的保活语义与 stdout。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test --all --features llvm`
+   - `cargo run -p scoop --features llvm -- test`（fixtures: ok）
 
 ### T1009 [TODO] `@Unsafe`：最小 unsafe 原语（`Ptr<T>`/内存读写/地址转换）的语法与门禁
 - 描述：引入最小 unsafe 原语（例如 `Ptr<T>`、`load/store`、`addrOf`、指针↔整数转换），并确保只能在 unsafe context 使用。

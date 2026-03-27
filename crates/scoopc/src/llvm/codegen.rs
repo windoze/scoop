@@ -3340,6 +3340,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - `trimIndent` 在语言层面是 `String` 的 `const fun`（spec §8.4）；
         // - 编译期折叠由 TODO T1216 负责；此处只负责运行期 fallback：调用 runtime 实现。
         if let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind {
+            // T1008：GC pin/unpin（spec §15.10）。
+            if let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() {
+                if fqn == "scoop.core.GC.pin" {
+                    return self.codegen_sysroot_gc_pin(span, member.span, args, expected);
+                }
+                if fqn == "scoop.core.GC.unpin" {
+                    return self.codegen_sysroot_gc_unpin(span, member.span, args);
+                }
+            }
+
             // spec §5.5：`k.resume(value)`（escape continuation）。
             if member.name == "resume" {
                 return self.codegen_continuation_resume_call(span, receiver, args);
@@ -3616,6 +3626,242 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy::String,
             value: Some(out_ptr.into()),
         })
+    }
+
+    fn codegen_sysroot_gc_pin(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin arity mismatch",
+                at: span.into(),
+            });
+        }
+        let hir::CallArg::Positional(obj_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin named arg",
+                at: span.into(),
+            });
+        };
+
+        let Some(CgTy::Struct(pinned_ty)) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin call without expected pinned type",
+                at: callee_span.into(),
+            });
+        };
+
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", callee_span)?;
+
+        let obj_v = self.codegen_expr_in_expected_context(obj_expr, Some(field_cg_ty))?;
+        let obj_v = self.coerce_value(obj_expr.span, obj_v, field_cg_ty)?;
+
+        // 运行期 pin 需要 `void*`：统一使用 `i8*`。
+        let obj_ref = self.coerce_value(obj_expr.span, obj_v, CgTy::Ref)?;
+        let Some(obj_raw) = obj_ref.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin arg value",
+                at: obj_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = obj_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin arg type",
+                at: obj_expr.span.into(),
+            });
+        };
+
+        let rt_pin = self.declare_runtime_gc_pin();
+        let call = self.builder.build_call(rt_pin, &[obj_ptr.into()], "gc_pin")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(ok_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "gc_pin_ok",
+        )?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "gc_pin_ok_bb");
+        let err_bb = self.context.append_basic_block(func, "gc_pin_err_bb");
+        let cont_bb = self.context.append_basic_block(func, "gc_pin_cont_bb");
+        self.builder.build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+
+        // --- err ---
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        // --- ok ---
+        self.builder.position_at_end(ok_bb);
+        let llvm_struct_ty = self.llvm_struct_type(span, pinned_ty)?;
+        let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
+        let raw_field: BasicValueEnum<'ctx> = match field_cg_ty {
+            CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+            _ => obj_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.pin field value",
+                at: obj_expr.span.into(),
+            })?,
+        };
+        agg = self
+            .builder
+            .build_insert_value(agg, raw_field, field_idx, "pinned_value")?;
+        self.builder.build_unconditional_branch(cont_bb)?;
+
+        // --- cont ---
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue {
+            ty: CgTy::Struct(pinned_ty),
+            value: Some(agg.as_basic_value_enum()),
+        })
+    }
+
+    fn codegen_sysroot_gc_unpin(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let _ = callee_span;
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin arity mismatch",
+                at: span.into(),
+            });
+        }
+        let hir::CallArg::Positional(pinned_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin named arg",
+                at: span.into(),
+            });
+        };
+
+        let pinned_v = self.codegen_expr(pinned_expr)?;
+        let CgTy::Struct(pinned_ty) = pinned_v.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin arg type",
+                at: pinned_expr.span.into(),
+            });
+        };
+        let Some(raw) = pinned_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin arg value",
+                at: pinned_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::StructValue(struct_v) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin arg value type",
+                at: pinned_expr.span.into(),
+            });
+        };
+
+        let (field_idx, field_cg_ty) =
+            self.lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", pinned_expr.span)?;
+        let extracted = self
+            .builder
+            .build_extract_value(struct_v, field_idx, "pinned_value")?;
+        let field_v = self.cg_value_from_loaded(pinned_expr.span, field_cg_ty, extracted)?;
+        let field_ref = self.coerce_value(pinned_expr.span, field_v, CgTy::Ref)?;
+
+        let Some(field_raw) = field_ref.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin value",
+                at: pinned_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = field_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin value type",
+                at: pinned_expr.span.into(),
+            });
+        };
+
+        let rt_unpin = self.declare_runtime_gc_unpin();
+        let call = self
+            .builder
+            .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(ok_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "GC.unpin return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "gc_unpin_ok",
+        )?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "gc_unpin_ok_bb");
+        let err_bb = self.context.append_basic_block(func, "gc_unpin_err_bb");
+        let cont_bb = self.context.append_basic_block(func, "gc_unpin_cont_bb");
+        self.builder.build_conditional_branch(ok_cond, ok_bb, err_bb)?;
+
+        // --- err ---
+        self.builder.position_at_end(err_bb);
+        self.emit_exit_with_code(span, 3)?;
+
+        // --- ok ---
+        self.builder.position_at_end(ok_bb);
+        self.builder.build_unconditional_branch(cont_bb)?;
+
+        // --- cont ---
+        self.builder.position_at_end(cont_bb);
+        Ok(CgValue::unit())
     }
 
     fn codegen_sysroot_print_like(
@@ -8393,6 +8639,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ty_fqn {
             "scoop.core.Unit" => Ok(CgTy::Unit),
             "scoop.core.Bool" => Ok(CgTy::Bool),
+            "scoop.core.Any" => Ok(CgTy::Ref),
             "scoop.core.String" => Ok(CgTy::String),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
@@ -8675,6 +8922,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_gc_collect(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_pin(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_pin";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_pin(void* obj)`
+        let i32_ty = self.context.i32_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_unpin(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_unpin";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_unpin(void* obj)`
+        let i32_ty = self.context.i32_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

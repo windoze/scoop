@@ -47,6 +47,24 @@ fun __scoop_gc_collect(): Unit
 fun __scoop_gc_debug_heap_object_count(): Int
 fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
 
+// GC pinning API（spec §15.10）。
+//
+// 说明：
+// - 该 API 用于把某个 heap 对象标记为 pinned，供把对象地址交给外部系统（FFI/异步 I/O）时使用；
+// - v0（非移动 mark-sweep）阶段 pin 的主要效果是：把对象视为额外 roots，避免在无 shadow stack 引用时被 sweep；
+// - `Pinned<T>` 是值类型 handle：丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
+@Intrinsic
+object GC {
+    @NoGC @Unsafe
+    fun pin(obj: Any): Pinned
+
+    @NoGC @Unsafe
+    fun unpin(pinned: Pinned): Unit
+}
+
+// Value type handle. Exact fields are implementation-defined (spec §15.10).
+struct Pinned(val value: Any)
+
 // Effect runtime（测试辅助）。
 //
 // 说明：
