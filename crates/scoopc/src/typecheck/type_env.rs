@@ -27,6 +27,91 @@ pub enum TypeSymbolKind {
     TypeAlias,
 }
 
+/// 注解可附着的目标（spec §15.5 `AnnotationTarget`）。
+///
+/// 说明：
+/// - 该枚举用于 typecheck 阶段对 `@Target(...)` 的语义约束（T1016a）；
+/// - 名字与 sysroot 的 `enum AnnotationTarget { ... }` 保持一致，便于诊断与 fixtures 编写；
+/// - 当前实现只会在“注解类声明头”里缓存其 meta-annotations 的提取结果，
+///   具体 enforcement 发生在 `typecheck::annotations`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AnnotationTargetKind {
+    Function,
+    Property,
+    Field,
+    Param,
+    Type,
+    Constructor,
+    LocalVariable,
+    Expression,
+    Module,
+    TypeParam,
+    EnumVariant,
+}
+
+impl AnnotationTargetKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AnnotationTargetKind::Function => "Function",
+            AnnotationTargetKind::Property => "Property",
+            AnnotationTargetKind::Field => "Field",
+            AnnotationTargetKind::Param => "Param",
+            AnnotationTargetKind::Type => "Type",
+            AnnotationTargetKind::Constructor => "Constructor",
+            AnnotationTargetKind::LocalVariable => "LocalVariable",
+            AnnotationTargetKind::Expression => "Expression",
+            AnnotationTargetKind::Module => "Module",
+            AnnotationTargetKind::TypeParam => "TypeParam",
+            AnnotationTargetKind::EnumVariant => "EnumVariant",
+        }
+    }
+
+    pub fn from_variant_name(name: &str) -> Option<Self> {
+        match name {
+            "Function" => Some(AnnotationTargetKind::Function),
+            "Property" => Some(AnnotationTargetKind::Property),
+            "Field" => Some(AnnotationTargetKind::Field),
+            "Param" => Some(AnnotationTargetKind::Param),
+            "Type" => Some(AnnotationTargetKind::Type),
+            "Constructor" => Some(AnnotationTargetKind::Constructor),
+            "LocalVariable" => Some(AnnotationTargetKind::LocalVariable),
+            "Expression" => Some(AnnotationTargetKind::Expression),
+            "Module" => Some(AnnotationTargetKind::Module),
+            "TypeParam" => Some(AnnotationTargetKind::TypeParam),
+            "EnumVariant" => Some(AnnotationTargetKind::EnumVariant),
+            _ => None,
+        }
+    }
+}
+
+/// 注解保留策略（spec §15.5 `@Retention(policy)`，T1016a）。
+///
+/// 当前阶段只定义两档：
+/// - `ComptimeOnly`：仅编译期可见；
+/// - `ConePreserved`：会被导出到 `.cone`（导出行为由后续任务 T1016b 实现）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnnotationRetentionPolicy {
+    ComptimeOnly,
+    ConePreserved,
+}
+
+impl AnnotationRetentionPolicy {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AnnotationRetentionPolicy::ComptimeOnly => "comptime",
+            AnnotationRetentionPolicy::ConePreserved => "cone",
+        }
+    }
+
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "comptime" | "comptime-only" | "comptime_only" => Some(AnnotationRetentionPolicy::ComptimeOnly),
+            "cone" | "cone-preserved" | "cone_preserved" => Some(AnnotationRetentionPolicy::ConePreserved),
+            _ => None,
+        }
+    }
+}
+
 /// typecheck 使用的“类型符号声明头”信息。
 ///
 /// 当前阶段（T0402）只保留最小集合：
@@ -42,6 +127,16 @@ pub struct TypeSymbol {
     /// - 该标记用于在 typecheck 阶段验证 `@Name(...)` 的 `Name` 必须引用一个注解类；
     /// - “target/retention/参数类型限制”等更完整规则留给后续任务实现（见 TODO T10xx）。
     pub is_annotation_class: bool,
+    /// 若该类型是注解类，记录其 `@Target(...)` 约束（T1016a）。
+    ///
+    /// 说明：
+    /// - `None`：未声明 `@Target`，默认允许出现在所有 annotatable elements 上（spec §15.3）；
+    /// - `Some([])`：显式声明了空集合，表示该注解不可被使用（可用于“仅作为标记/保留”的占位，或在更高层报错）。
+    pub annotation_targets: Option<Vec<AnnotationTargetKind>>,
+    /// 若该类型是注解类，记录其 `@Retention(policy)`（T1016a）。
+    ///
+    /// 注意：导出到 `.cone` 的行为留给 T1016b；此处仅做“声明头收集”供后续阶段查询。
+    pub annotation_retention: Option<AnnotationRetentionPolicy>,
     pub type_param_count: usize,
     /// 是否包含 `eff` effect row 参数（spec §3.4 / §5.8）。
     ///
@@ -300,11 +395,13 @@ impl TypeEnv {
                 ast::Item::TypeAlias(ta) => {
                     let name = source.slice(ta.name.span).to_string();
                     let fqn = join_prefix(&pkg_prefix, &name);
-                    self.insert_symbol(
+                        self.insert_symbol(
                         fqn.clone(),
                         TypeSymbol {
                             kind: TypeSymbolKind::TypeAlias,
                             is_annotation_class: false,
+                            annotation_targets: None,
+                            annotation_retention: None,
                             type_param_count: 0,
                             eff_param: None,
                             type_param_names: Vec::new(),
@@ -378,12 +475,21 @@ impl TypeEnv {
             }
         }
 
+        let is_annotation_class = decl.kind == ast::TypeKind::Class
+            && decl.modifiers.contains(&ast::Modifier::Annotation);
+        let (annotation_targets, annotation_retention) = if is_annotation_class {
+            extract_annotation_class_meta(source, file, decl, index)
+        } else {
+            (None, None)
+        };
+
         self.insert_symbol(
             fqn.clone(),
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(decl.kind),
-                is_annotation_class: decl.kind == ast::TypeKind::Class
-                    && decl.modifiers.contains(&ast::Modifier::Annotation),
+                is_annotation_class,
+                annotation_targets,
+                annotation_retention,
                 type_param_count: decl.type_params.len(),
                 eff_param: decl.eff_param.as_ref().map(|p| EffParamInfo {
                     span: p.span,
@@ -394,7 +500,7 @@ impl TypeEnv {
                 type_param_variances,
                 where_constraints,
                 span: decl.name.span,
-                decl_file: source.path().to_path_buf(),
+                    decl_file: source.path().to_path_buf(),
             },
         )?;
 
@@ -538,6 +644,8 @@ impl TypeEnv {
             TypeSymbol {
                 kind: TypeSymbolKind::Nominal(ast::TypeKind::Class),
                 is_annotation_class: false,
+                annotation_targets: None,
+                annotation_retention: None,
                 type_param_count: 0,
                 eff_param: None,
                 type_param_names: Vec::new(),
@@ -595,6 +703,120 @@ impl TypeEnv {
         self.by_fqn.insert(fqn, symbol);
         Ok(())
     }
+}
+
+fn extract_annotation_class_meta(
+    source: &SourceFile,
+    file: &ast::File,
+    decl: &ast::TypeDecl,
+    index: &Index,
+) -> (Option<Vec<AnnotationTargetKind>>, Option<AnnotationRetentionPolicy>) {
+    let mut targets: Option<Vec<AnnotationTargetKind>> = None;
+    let mut retention: Option<AnnotationRetentionPolicy> = None;
+
+    for ann in &decl.annotations {
+        let Some(meta_fqn) = annotation_use_to_fqn(source, file, index, ann) else {
+            continue;
+        };
+        match meta_fqn.as_str() {
+            "scoop.core.Target" => {
+                let mut out: Vec<AnnotationTargetKind> = Vec::new();
+                for arg in &ann.args {
+                    let Some((variant_name, _span)) =
+                        extract_annotation_target_variant(source, &arg.value)
+                    else {
+                        continue;
+                    };
+                    let Some(kind) = AnnotationTargetKind::from_variant_name(&variant_name) else {
+                        continue;
+                    };
+                    if out.contains(&kind) {
+                        continue;
+                    }
+                    out.push(kind);
+                }
+                targets = Some(out);
+            }
+            "scoop.core.Retention" => {
+                let Some(arg) = ann.args.first() else {
+                    continue;
+                };
+                let Some(text) = extract_string_literal_text(source, &arg.value) else {
+                    continue;
+                };
+                retention = AnnotationRetentionPolicy::parse(text.as_str());
+            }
+            _ => {}
+        }
+    }
+
+    (targets, retention)
+}
+
+fn annotation_use_to_fqn(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ann: &ast::AnnotationUse,
+) -> Option<String> {
+    let ty = ast::TypeRef::Path(ast::TypePath {
+        span: ann.span,
+        segments: ann.path.clone(),
+        args: Vec::new(),
+    });
+    index.type_ref_to_fqn_in_file(source, file, &ty)
+}
+
+fn extract_annotation_target_variant(source: &SourceFile, expr: &ast::Expr) -> Option<(String, Span)> {
+    let mut segs: Vec<(String, Span)> = Vec::new();
+    if !collect_member_access_path(source, expr, &mut segs) {
+        return None;
+    }
+    if segs.len() < 2 {
+        return None;
+    }
+
+    // 允许：`AnnotationTarget.Field` / `scoop.core.AnnotationTarget.Field`
+    let penultimate = segs.get(segs.len().saturating_sub(2))?.0.as_str();
+    if penultimate != "AnnotationTarget" {
+        return None;
+    }
+    segs.last().cloned()
+}
+
+fn collect_member_access_path(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    out: &mut Vec<(String, Span)>,
+) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            out.push((source.slice(id.span).to_string(), id.span));
+            true
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            if !collect_member_access_path(source, receiver, out) {
+                return false;
+            }
+            out.push((source.slice(member.span).to_string(), member.span));
+            true
+        }
+        _ => false,
+    }
+}
+
+fn extract_string_literal_text<'a>(source: &'a SourceFile, expr: &ast::Expr) -> Option<String> {
+    if !matches!(expr.kind, ast::ExprKind::StringLit) {
+        return None;
+    }
+    // 当前 AST 的 StringLit 仅保留 span；这里做最小切片解析即可满足 `"cone"` / `"comptime"`。
+    let raw = source.slice(expr.span);
+    let s = raw
+        .strip_prefix("\"\"\"")
+        .and_then(|t| t.strip_suffix("\"\"\""))
+        .or_else(|| raw.strip_prefix('\"').and_then(|t| t.strip_suffix('\"')))
+        .unwrap_or(raw);
+    Some(s.to_string())
 }
 
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {

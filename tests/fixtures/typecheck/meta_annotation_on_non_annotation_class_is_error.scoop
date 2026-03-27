@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::meta_annotation_invalid_target
+// EXPECT-ERROR-AT: 10:2
+// EXPECT-ERROR: annotation class
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Target(AnnotationTarget.Function)
+class Foo
+

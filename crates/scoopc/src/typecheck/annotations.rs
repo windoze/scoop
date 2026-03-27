@@ -19,7 +19,31 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 use super::builtin_annotations::{BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind};
-use super::TypeEnv;
+use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
+
+#[derive(Debug, Clone, Copy)]
+struct AnnotationSite {
+    /// 该语法位置的“默认目标”（未写 use-site target 时的含义）。
+    primary_target: AnnotationTargetKind,
+    /// 该语法位置是否为 `annotation class` 声明（用于限制 `@Target/@Retention` 的合法位置）。
+    is_annotation_class_decl: bool,
+}
+
+impl AnnotationSite {
+    fn new(primary_target: AnnotationTargetKind) -> Self {
+        Self {
+            primary_target,
+            is_annotation_class_decl: false,
+        }
+    }
+
+    fn annotation_class_decl() -> Self {
+        Self {
+            primary_target: AnnotationTargetKind::Type,
+            is_annotation_class_decl: true,
+        }
+    }
+}
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum AnnotationError {
@@ -131,6 +155,33 @@ pub enum AnnotationError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("注解 `{annotation}` 只能用于 {allowed}，但这里出现在 {found} 上")]
+    #[diagnostic(code(scoop::typecheck::annotation_invalid_target))]
+    AnnotationInvalidTarget {
+        annotation: String,
+        allowed: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("meta-annotation `{annotation}` 只能用于 `annotation class`，但这里出现在 {found} 上")]
+    #[diagnostic(code(scoop::typecheck::meta_annotation_invalid_target))]
+    MetaAnnotationInvalidTarget {
+        annotation: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("非法的 Retention policy：{policy}（仅支持 \"comptime\" / \"cone\"）")]
+    #[diagnostic(code(scoop::typecheck::invalid_annotation_retention_policy))]
+    InvalidAnnotationRetentionPolicy {
+        policy: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内的注解相关最小规则。
@@ -147,26 +198,61 @@ pub fn check_file_annotations(
     let pkg_prefix = package_prefix(source, file.package.as_ref());
 
     // 文件级注解：`@file:...`
-    check_annotation_uses(source, file, index, env, &file.file_annotations)?;
+    check_annotation_uses(
+        source,
+        file,
+        index,
+        env,
+        &file.file_annotations,
+        AnnotationSite::new(AnnotationTargetKind::Module),
+    )?;
     reject_builtin_annotations_on_target(source, &file.file_annotations, "file")?;
 
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
-                check_annotation_uses(source, file, index, env, &ta.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &ta.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Type),
+                )?;
                 reject_builtin_annotations_on_target(source, &ta.annotations, "typealias")?;
             }
             ast::Item::Fun(fun) => {
-                check_annotation_uses(source, file, index, env, &fun.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &fun.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Function),
+                )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
                 check_param_list_annotations(source, file, index, env, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
-                check_annotation_uses(source, file, index, env, &p.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &p.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Property),
+                )?;
                 reject_builtin_annotations_on_target(source, &p.annotations, "extension property")?;
             }
             ast::Item::Val(v) => {
-                check_annotation_uses(source, file, index, env, &v.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &v.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Property),
+                )?;
                 reject_builtin_annotations_on_target(source, &v.annotations, "val/var")?;
             }
             ast::Item::Type(ty) => {
@@ -194,7 +280,13 @@ fn check_type_decl_annotations(
     let type_fqn = join_prefix(prefix, local);
 
     // 1) 注解使用：`@Foo` / `@Foo(...)`。
-    check_annotation_uses(source, file, index, env, &decl.annotations)?;
+    let site = if decl.kind == ast::TypeKind::Class && decl.modifiers.contains(&ast::Modifier::Annotation)
+    {
+        AnnotationSite::annotation_class_decl()
+    } else {
+        AnnotationSite::new(AnnotationTargetKind::Type)
+    };
+    check_annotation_uses(source, file, index, env, &decl.annotations, site)?;
     check_builtin_annotations_on_type_decl(source, decl, &type_fqn)?;
 
     // 2) 注解类自身的最小形态约束（data-only）。
@@ -214,20 +306,48 @@ fn check_type_decl_annotations(
     for member in &body.members {
         match member {
             ast::TypeMember::EnumVariant(v) => {
-                check_annotation_uses(source, file, index, env, &v.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &v.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::EnumVariant),
+                )?;
                 reject_builtin_annotations_on_target(source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
-                check_annotation_uses(source, file, index, env, &p.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &p.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Property),
+                )?;
                 reject_builtin_annotations_on_target(source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
-                check_annotation_uses(source, file, index, env, &ctor.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &ctor.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Constructor),
+                )?;
                 reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
                 check_param_list_annotations(source, file, index, env, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
-                check_annotation_uses(source, file, index, env, &fun.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &fun.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Function),
+                )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
                 check_param_list_annotations(source, file, index, env, &fun.params)?;
             }
@@ -253,7 +373,13 @@ fn check_param_list_annotations(
     params: &[ast::Param],
 ) -> Result<(), AnnotationError> {
     for p in params {
-        check_annotation_uses(source, file, index, env, &p.annotations)?;
+        let site = if p.kind.is_some() {
+            // `val/var` 构造参数的主目标是 property；`@param:` 可覆盖到 Param。
+            AnnotationSite::new(AnnotationTargetKind::Property)
+        } else {
+            AnnotationSite::new(AnnotationTargetKind::Param)
+        };
+        check_annotation_uses(source, file, index, env, &p.annotations, site)?;
         reject_builtin_annotations_on_target(source, &p.annotations, "param")?;
     }
     Ok(())
@@ -269,7 +395,14 @@ fn check_object_decl_annotations(
     prefix: &str,
 ) -> Result<(), AnnotationError> {
     // object 自身的注解使用。
-    check_annotation_uses(source, file, index, env, &obj.annotations)?;
+    check_annotation_uses(
+        source,
+        file,
+        index,
+        env,
+        &obj.annotations,
+        AnnotationSite::new(AnnotationTargetKind::Type),
+    )?;
     check_builtin_annotations_on_object_decl(source, obj)?;
 
     let Some(body) = &obj.body else {
@@ -292,19 +425,47 @@ fn check_object_decl_annotations(
     for member in &body.members {
         match member {
             ast::TypeMember::EnumVariant(v) => {
-                check_annotation_uses(source, file, index, env, &v.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &v.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::EnumVariant),
+                )?;
                 reject_builtin_annotations_on_target(source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
-                check_annotation_uses(source, file, index, env, &p.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &p.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Property),
+                )?;
                 reject_builtin_annotations_on_target(source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
-                check_annotation_uses(source, file, index, env, &ctor.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &ctor.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Constructor),
+                )?;
                 reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
             }
             ast::TypeMember::Fun(fun) => {
-                check_annotation_uses(source, file, index, env, &fun.annotations)?;
+                check_annotation_uses(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &fun.annotations,
+                    AnnotationSite::new(AnnotationTargetKind::Function),
+                )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
             }
             ast::TypeMember::Type(nested) => {
@@ -374,9 +535,10 @@ fn check_annotation_uses(
     index: &Index,
     env: &TypeEnv,
     annotations: &[ast::AnnotationUse],
+    site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
     for a in annotations {
-        check_one_annotation_use(source, file, index, env, a)?;
+        check_one_annotation_use(source, file, index, env, a, site)?;
     }
     Ok(())
 }
@@ -388,6 +550,7 @@ fn check_one_annotation_use(
     index: &Index,
     env: &TypeEnv,
     ann: &ast::AnnotationUse,
+    site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
     let (name, name_span) = annotation_name_and_span(source, ann);
 
@@ -426,11 +589,42 @@ fn check_one_annotation_use(
         });
     }
 
-    // T1013：`@Target(AnnotationTarget.X, ...)` 的最小合法性检查：
-    // - 只验证 enum variant 名是否来自 `AnnotationTarget`；
-    // - 更完整的“target 限制实际应用位置”留给 T1016。
+    let effective_target = effective_annotation_target(source, ann, site.primary_target);
+
+    // T1016a：meta-annotations 的合法位置与最小参数检查。
     if fqn == "scoop.core.Target" {
+        if !site.is_annotation_class_decl {
+            return Err(AnnotationError::MetaAnnotationInvalidTarget {
+                annotation: "@Target".to_string(),
+                found: effective_target.as_str().to_string(),
+                span: name_span.into(),
+            });
+        }
         check_target_annotation_args(source, ann)?;
+        return Ok(());
+    }
+    if fqn == "scoop.core.Retention" {
+        if !site.is_annotation_class_decl {
+            return Err(AnnotationError::MetaAnnotationInvalidTarget {
+                annotation: "@Retention".to_string(),
+                found: effective_target.as_str().to_string(),
+                span: name_span.into(),
+            });
+        }
+        check_retention_annotation_args(source, ann)?;
+        return Ok(());
+    }
+
+    // T1016a：若注解类声明了 `@Target(...)`，则在使用点强制执行目标限制。
+    if let Some(allowed) = &sym.annotation_targets {
+        if !allowed.contains(&effective_target) {
+            return Err(AnnotationError::AnnotationInvalidTarget {
+                annotation: fqn,
+                allowed: join_target_list(allowed),
+                found: effective_target.as_str().to_string(),
+                span: name_span.into(),
+            });
+        }
     }
 
     Ok(())
@@ -454,6 +648,45 @@ fn check_target_annotation_args(
         }
     }
     Ok(())
+}
+
+fn check_retention_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    let Some(arg) = ann.args.first() else {
+        // 早期阶段：不做“必填参数/默认值”强制，只在存在参数时做合法性检查。
+        return Ok(());
+    };
+    let Some(policy_text) = extract_string_literal_text(source, &arg.value) else {
+        return Ok(());
+    };
+    if AnnotationRetentionPolicy::parse(policy_text.as_str()).is_none() {
+        return Err(AnnotationError::InvalidAnnotationRetentionPolicy {
+            policy: policy_text,
+            span: arg.value.span.into(),
+        });
+    }
+    Ok(())
+}
+
+fn effective_annotation_target(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+    primary: AnnotationTargetKind,
+) -> AnnotationTargetKind {
+    let Some(t) = ann.use_site_target.as_ref() else {
+        return primary;
+    };
+    match t.text(source) {
+        "file" => AnnotationTargetKind::Module,
+        "property" => AnnotationTargetKind::Property,
+        "field" => AnnotationTargetKind::Field,
+        "param" => AnnotationTargetKind::Param,
+        // 当前阶段（T1014）：`get:`/`set:` 仅做语法存储；这里按 property 处理以避免过早引入 accessor 目标。
+        "get" | "set" => AnnotationTargetKind::Property,
+        _ => primary,
+    }
 }
 
 fn extract_annotation_target_variant(source: &SourceFile, expr: &ast::Expr) -> Option<(String, Span)> {
@@ -509,6 +742,27 @@ fn is_valid_annotation_target_variant(name: &str) -> bool {
             | "TypeParam"
             | "EnumVariant"
     )
+}
+
+fn join_target_list(targets: &[AnnotationTargetKind]) -> String {
+    targets
+        .iter()
+        .map(|t| t.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn extract_string_literal_text<'a>(source: &'a SourceFile, expr: &ast::Expr) -> Option<String> {
+    if !matches!(expr.kind, ast::ExprKind::StringLit) {
+        return None;
+    }
+    let raw = source.slice(expr.span);
+    let s = raw
+        .strip_prefix("\"\"\"")
+        .and_then(|t| t.strip_suffix("\"\"\""))
+        .or_else(|| raw.strip_prefix('\"').and_then(|t| t.strip_suffix('\"')))
+        .unwrap_or(raw);
+    Some(s.to_string())
 }
 
 fn reject_builtin_annotations_on_target(

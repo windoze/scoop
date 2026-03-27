@@ -28,7 +28,10 @@ mod overloads;
 mod where_clause;
 mod eff_row_subst;
 
-pub use type_env::{TypeEnv, TypeEnvError, TypeSymbol, TypeSymbolKind};
+pub use type_env::{
+    AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv, TypeEnvError, TypeSymbol,
+    TypeSymbolKind,
+};
 pub use annotations::{check_file_annotations, AnnotationError};
 pub use lower::{check_file_type_refs, TypeLowerError};
 pub use headers::{check_file_headers, TypeHeaderError};

@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::invalid_annotation_retention_policy
+// EXPECT-ERROR-AT: 10:12
+// EXPECT-ERROR: Retention policy
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Retention("runtime")
+annotation class Foo
+

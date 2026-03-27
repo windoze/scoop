@@ -3298,7 +3298,7 @@
 - 目标：先只支持 comptime-only 与 cone-preserved 两档；更细粒度 policy 后续再补。
 - 备注：为保证 TODO 顺序“首个 `[TODO]` 可直接实现”，把“typecheck 合法性”和“.cone 导出/下游可见性”拆分为两步（后者依赖 Cone 基础设施）。
 
-### T1016a [TODO] meta-annotations：typecheck enforce `@Target/@Retention`（不含 `.cone`）
+### T1016a [DONE] meta-annotations：typecheck enforce `@Target/@Retention`（不含 `.cone`）
 - 描述：在 typecheck 阶段读取注解类上的 meta-annotations，并在所有注解使用点强制执行：
   - `@Target(AnnotationTarget.X, ...)` 限制注解可出现的目标；
   - `@Target/@Retention` 自身只能用于 `annotation class` 声明；
@@ -3310,6 +3310,16 @@
   - `@Retention` policy 非法时报错；
   - `cargo run -p scoop -- test`（fixtures: ok）
 - 依赖：T1013
+ - 完成：
+   - `crates/scoopc/src/typecheck/type_env.rs`：在 `TypeSymbol` 中缓存注解类的 meta 信息（`annotation_targets` / `annotation_retention`），并在构建 type env 时从注解类声明头提取 `@Target/@Retention`。
+   - `crates/scoopc/src/typecheck/annotations.rs`：在所有注解使用点强制执行 `@Target` 目标限制；限制 `@Target/@Retention` 只能用于 `annotation class`；对 `@Retention("comptime"|"cone")` 做最小 policy 合法性检查，并提供稳定错误码。
+   - `tests/fixtures/typecheck/*`：新增 4 个 fixtures 覆盖：
+     - `@Target` 禁止目标（fun/`@param:` override）；
+     - `@Target` 用在非注解类上报错；
+     - `@Retention` policy 非法时报错。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1016b [TODO] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
 - 描述：把标记为 cone-preserved 的注解写入 `.cone` 元数据（或 scoopir），并在下游编译/反射中可读；comptime-only 不导出。

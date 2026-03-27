@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_invalid_target
+// EXPECT-ERROR-AT: 14:12
+// EXPECT-ERROR: 只能用于 Property
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Target(AnnotationTarget.Property)
+annotation class Column(val name: String)
+
+class C(
+    @param:Column("x") val x: Int,
+)
+
