@@ -3342,7 +3342,7 @@
 
 ## T11：Cone（包/稳定 IR/分发）（阶段 10）
 
-### T1101 [TODO] Cone.toml：解析 manifest（spec §13.7、PLAN §12）
+### T1101 [DONE] Cone.toml：解析 manifest（spec §13.7、PLAN §12）
 - 描述：实现 `Cone.toml` 的解析（可用 toml crate），并暴露结构体给 driver。
 - 目标：先只解析 package name/version/deps；不实现构建图。
 - 验收：新增单测：解析最小 Cone.toml；新增 fixture：带 `Cone.toml` 的 package 目录可被发现。

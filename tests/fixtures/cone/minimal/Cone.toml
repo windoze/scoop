@@ -1,0 +1,6 @@
+[cone]
+name = "fixture-minimal"
+version = "0.0.0"
+
+[dependencies]
+scoop-core = "0.1.0"

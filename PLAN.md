@@ -775,6 +775,7 @@ fixtures：
 
 - [ ] archive（可先用 zip/tar，后续换自定义格式）
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
+  - [x] 读取 `Cone.toml`（name/version/deps，T1101）
 - [ ] 预编译实例（pre-specialize）：cache key 与选择规则
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
