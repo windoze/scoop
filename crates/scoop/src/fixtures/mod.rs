@@ -25,6 +25,7 @@
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
+//! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
@@ -128,6 +129,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" => FixturePhase::Mir,
+        Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
 
@@ -140,6 +142,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
+        FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
             fixture: rel.display().to_string(),
@@ -167,6 +170,7 @@ enum FixturePhase {
     RunPass,
     Hir,
     Mir,
+    ScoopIr,
     Unimplemented(String),
 }
 
@@ -274,6 +278,33 @@ struct MirGoldenReadFailed {
 struct MirGoldenMismatch {
     path: String,
     fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 ScoopIR golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::scoopir_golden_read_failed))]
+struct ScoopIrGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("ScoopIR snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::scoopir_golden_mismatch))]
+struct ScoopIrGoldenMismatch {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("ScoopIR JSON 序列化失败：{fixture}")]
+#[diagnostic(code(scoop::fixtures::scoopir_json_serialize_failed))]
+struct ScoopIrJsonSerializeFailed {
+    fixture: String,
+    #[source]
+    source: serde_json::Error,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -505,6 +536,56 @@ fn mir_fixture(
 
     if expected != actual {
         return Err(box_diagnostic(MirGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn scoopir_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    // v0：导出 public type/fun header，不包含函数体。
+    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+
+    let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    pairs.push((source, &ast));
+    let index = scoopc::resolve::Index::build(&pairs).map_err(box_diagnostic)?;
+
+    let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index).map_err(box_diagnostic)?;
+    env.extend_from_file(source, &ast, &index).map_err(box_diagnostic)?;
+
+    let hir = scoopc::hir::lower_for_dump(session, source).map_err(box_diagnostic)?;
+    let ir = scoopc::cone::scoopir::export_public_api_for_source(source, &index, &env, &hir)
+        .map_err(box_diagnostic)?;
+
+    let actual_raw = serde_json::to_string_pretty(&ir).map_err(|e| {
+        box_diagnostic(ScoopIrJsonSerializeFailed {
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let actual = normalize_newlines(&format!("{actual_raw}\n"));
+
+    let golden_path = fixture_path.with_extension("scoopir.json");
+    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(ScoopIrGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let expected = normalize_newlines(&expected_raw);
+
+    if expected != actual {
+        return Err(box_diagnostic(ScoopIrGoldenMismatch {
             path: golden_path.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));

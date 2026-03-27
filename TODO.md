@@ -3361,11 +3361,19 @@
  - 验收：
    - `cargo test --all`
 
-### T1103 [TODO] scoopir v0：定义稳定 IR schema（仅 public API）
+### T1103 [DONE] scoopir v0：定义稳定 IR schema（仅 public API）
 - 描述：定义一个最小可序列化 schema（JSON/CBOR/自定义）表达 public API（类型/函数签名）。
 - 目标：先只覆盖 type + fun header；不包含函数体。
 - 验收：新增单测：从 HIR/type env 导出 scoopir；快照测试保证 schema 稳定（带版本号）。
 - 依赖：T0702
+ - 完成：
+   - `crates/scoopc/src/cone/scoopir/*`：新增 ScoopIR v0 schema（JSON/serde）与导出器（从 HIR + TypeEnv 导出 public API）。
+   - `tests/fixtures/scoopir/public_api_filter.scoop`：新增 fixture 覆盖可见性过滤（只导出 `public` type/fun）。
+   - `tests/fixtures/scoopir/public_api_filter.scoopir.json`：新增 JSON golden，单测回归 schema 稳定性与版本号。
+   - `crates/scoop/src/fixtures/mod.rs`：`scoop test` 新增 `scoopir` phase（对 `.scoopir.json` 做 golden 比对）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1104 [TODO] `.cone` 归档 v0：打包 scoopir 与元数据（PLAN §12.2）
 - 描述：用 zip/tar 实现最小归档：包含 `Cone.toml`、`api.scoopir`、sources hash。

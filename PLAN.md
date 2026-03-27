@@ -25,6 +25,7 @@
 - 2026-03-27：`TODO.md` 中 T0915b（跨线程 resume 的端到端 run-pass fixture）依赖 T0618（跨线程 `resume` 语义/接入），但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0915b 移动到 T0618 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1016b（meta-annotations 导出到 `.cone`）依赖 T1103/T1209，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1016b 移动到 T1209 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
+- 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。

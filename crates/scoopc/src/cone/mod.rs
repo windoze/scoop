@@ -6,6 +6,7 @@
 
 pub mod manifest;
 pub mod package;
+pub mod scoopir;
 
 pub use manifest::{CONE_TOML_FILE_NAME, ConeManifest, ConeSection, discover_cone_manifest_path, discover_cone_root};
 pub use package::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package};
