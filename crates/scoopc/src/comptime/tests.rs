@@ -37,10 +37,22 @@ fn mk_int(ty: ConstIntTy, raw: u128) -> ConstValue {
     ConstValue::Int(ConstInt::new(ty, raw))
 }
 
-fn mk_type_meta(name: &str) -> ConstValue {
+fn mk_type_kind(variant: &str) -> ConstValue {
+    ConstValue::Enum(ConstEnum {
+        ty: Some("TypeKind".to_string()),
+        variant: variant.to_string(),
+        payload: Vec::new(),
+    })
+}
+
+fn mk_type_meta(name: &str, kind: &str) -> ConstValue {
     ConstValue::Struct(ConstStruct {
         ty: "TypeMeta".to_string(),
-        fields: BTreeMap::from([("name".to_string(), ConstValue::String(name.to_string()))]),
+        fields: BTreeMap::from([
+            ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
+            ("kind".to_string(), mk_type_kind(kind)),
+            ("name".to_string(), ConstValue::String(name.to_string())),
+        ]),
     })
 }
 
@@ -48,9 +60,34 @@ fn mk_field_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> 
     ConstValue::Struct(ConstStruct {
         ty: "FieldMeta".to_string(),
         fields: BTreeMap::from([
+            ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
             ("index".to_string(), mk_int(int_ty, index)),
             ("name".to_string(), ConstValue::String(name.to_string())),
-            ("type".to_string(), mk_type_meta(ty_name)),
+            ("type".to_string(), mk_type_meta(ty_name, "Primitive")),
+        ]),
+    })
+}
+
+fn mk_param_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "ParamMeta".to_string(),
+        fields: BTreeMap::from([
+            ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
+            ("index".to_string(), mk_int(int_ty, index)),
+            ("name".to_string(), ConstValue::String(name.to_string())),
+            ("type".to_string(), mk_type_meta(ty_name, "Primitive")),
+        ]),
+    })
+}
+
+fn mk_variant_meta(int_ty: ConstIntTy, name: &str, fields: Vec<ConstValue>, index: u128) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "VariantMeta".to_string(),
+        fields: BTreeMap::from([
+            ("annotations".to_string(), ConstValue::Tuple(Vec::new())),
+            ("fields".to_string(), ConstValue::Tuple(fields)),
+            ("index".to_string(), mk_int(int_ty, index)),
+            ("name".to_string(), ConstValue::String(name.to_string())),
         ]),
     })
 }
@@ -549,13 +586,17 @@ class C() : I {}
 
 enum Color { Red, Blue }
 
+enum E { A(val x: Int, val y: String), B }
+
 fun add(a: Int, b: String): Int { return 0 }
 
 const val A: Int = alignOf<Int32>()
 const val ST = superTypesOf<C>()
 const val ST0: String = superTypesOf<C>()._0.name
 const val VS = variantsOf<Color>()
-const val V0: String = variantsOf<Color>()._0
+const val V0: String = variantsOf<Color>()._0.name
+const val EV = variantsOf<E>()
+const val EV0F0: String = variantsOf<E>()._0.fields._0.name
 const val P = paramsOf(FunctionMeta { name: "add" })
 const val P0N: String = paramsOf(FunctionMeta { name: "add" })._0.name
 const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
@@ -571,7 +612,7 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
             },
             ConstBinding {
                 name: "ST".to_string(),
-                value: ConstValue::Tuple(vec![mk_type_meta("I")]),
+                value: ConstValue::Tuple(vec![mk_type_meta("I", "Interface")]),
             },
             ConstBinding {
                 name: "ST0".to_string(),
@@ -580,8 +621,8 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
             ConstBinding {
                 name: "VS".to_string(),
                 value: ConstValue::Tuple(vec![
-                    ConstValue::String("Red".to_string()),
-                    ConstValue::String("Blue".to_string()),
+                    mk_variant_meta(ty, "Red", Vec::new(), 0),
+                    mk_variant_meta(ty, "Blue", Vec::new(), 1),
                 ]),
             },
             ConstBinding {
@@ -589,10 +630,26 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
                 value: ConstValue::String("Red".to_string()),
             },
             ConstBinding {
+                name: "EV".to_string(),
+                value: ConstValue::Tuple(vec![
+                    mk_variant_meta(
+                        ty,
+                        "A",
+                        vec![mk_field_meta(ty, "x", "Int", 0), mk_field_meta(ty, "y", "String", 1)],
+                        0,
+                    ),
+                    mk_variant_meta(ty, "B", Vec::new(), 1),
+                ]),
+            },
+            ConstBinding {
+                name: "EV0F0".to_string(),
+                value: ConstValue::String("x".to_string()),
+            },
+            ConstBinding {
                 name: "P".to_string(),
                 value: ConstValue::Tuple(vec![
-                    mk_field_meta(ty, "a", "Int", 0),
-                    mk_field_meta(ty, "b", "String", 1),
+                    mk_param_meta(ty, "a", "Int", 0),
+                    mk_param_meta(ty, "b", "String", 1),
                 ]),
             },
             ConstBinding {

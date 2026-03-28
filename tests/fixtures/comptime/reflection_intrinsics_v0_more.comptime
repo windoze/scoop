@@ -1,9 +1,11 @@
 A = 4
-ST = (TypeMeta { name: "I" })
+ST = (TypeMeta { annotations: (), kind: TypeKind.Interface, name: "I" })
 ST0 = "I"
-VS = ("Red", "Blue")
+VS = (VariantMeta { annotations: (), fields: (), index: 0, name: "Red" }, VariantMeta { annotations: (), fields: (), index: 1, name: "Blue" })
 V0 = "Red"
-P = (FieldMeta { index: 0, name: "a", type: TypeMeta { name: "Int" } }, FieldMeta { index: 1, name: "b", type: TypeMeta { name: "String" } })
+EV = (VariantMeta { annotations: (), fields: (FieldMeta { annotations: (), index: 0, name: "x", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "Int" } }, FieldMeta { annotations: (), index: 1, name: "y", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "String" } }), index: 0, name: "A" }, VariantMeta { annotations: (), fields: (), index: 1, name: "B" })
+EV0F0 = "x"
+P = (ParamMeta { annotations: (), index: 0, name: "a", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "Int" } }, ParamMeta { annotations: (), index: 1, name: "b", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "String" } })
 P0N = "a"
 P1T = "String"
 AN = (AnnotationMeta { args: (AnnotationArgMeta { name: "msg", value: "x" }), name: "Deprecated" })

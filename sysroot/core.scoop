@@ -134,19 +134,48 @@ fun __scoop_effect_slot_read_word(index: Int): Int
 // - 这些类型只在编译期可用：
 //   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
 //   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
-// - 当前阶段（TODO T1208）先实现“最小字段集合”：
-//   - `TypeMeta`：类型名
-//   - `FieldMeta`：字段名 + 字段类型 + 字段序号
+// - 当前阶段已实现“可回归的最小集合”（T1208/T1209/T1215）：
+//   - `TypeMeta`：类型名 + kind + 注解列表
+//   - `FieldMeta`：字段名 + 字段类型 + 字段序号 + 注解列表
+//   - `VariantMeta`：enum variant 名 + 字段列表 + 序号 + 注解列表
+//   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
 //   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
-// - 注解/更丰富的 type kind 等元信息由后续任务（T1209/T1215）逐步补齐。
+// - 说明：注解参数值仅保证“compile-time constant”可读；更复杂表达式与导出规则后续任务补齐。
+enum TypeKind {
+    Struct,
+    Enum,
+    Class,
+    Interface,
+    Effect,
+    Tuple,
+    Primitive,
+}
+
 struct TypeMeta {
     val name: String
+    val kind: TypeKind
+    val annotations: ComptimeList<AnnotationMeta>
 }
 
 struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct VariantMeta {
+    val name: String
+    val fields: ComptimeList<FieldMeta>
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
+}
+
+struct ParamMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+    val annotations: ComptimeList<AnnotationMeta>
 }
 
 struct PropertyMeta {
@@ -159,7 +188,8 @@ struct PropertyMeta {
 //
 // 说明：
 // - v0 阶段先只暴露“函数名”作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
-// - 更完整的 `FunctionMeta/ParamMeta/VariantMeta` 结构将由后续任务逐步补齐（TODO T1215）。
+// - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
+//   但应保持“可用 name 构造句柄”这一能力（避免影响工具链/fixtures）。
 struct FunctionMeta {
     val name: String
 }
@@ -230,13 +260,13 @@ const fun <T> alignOf(): Int
 @Intrinsic
 const fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
-const fun <T> variantsOf(): ComptimeList<String>
+const fun <T> variantsOf(): ComptimeList<VariantMeta>
 @Intrinsic
 const fun <T> superTypesOf(): ComptimeList<TypeMeta>
 @Intrinsic
 const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
-const fun paramsOf(fn: FunctionMeta): ComptimeList<FieldMeta>
+const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
 
 // Option / nullable sugar
 enum Option<T> {

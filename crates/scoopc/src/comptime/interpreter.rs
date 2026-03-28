@@ -333,7 +333,7 @@ impl<'a> ConstInterpreter<'a> {
                             });
                         }
                         let index = fields.len();
-                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index));
+                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index, &p.annotations)?);
                     }
                 }
 
@@ -355,7 +355,7 @@ impl<'a> ConstInterpreter<'a> {
                             });
                         }
                         let index = fields.len();
-                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index));
+                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index, &p.annotations)?);
                     }
                 }
 
@@ -388,7 +388,8 @@ impl<'a> ConstInterpreter<'a> {
                 if let Some(body) = decl.body.as_ref() {
                     for m in &body.members {
                         let ast::TypeMember::EnumVariant(v) = m else { continue };
-                        variants.push(ConstValue::String(v.name.text(self.ctx.source).to_string()));
+                        let index = variants.len();
+                        variants.push(self.mk_variant_meta(v, index)?);
                     }
                 }
                 Ok(ConstValue::Tuple(variants))
@@ -410,11 +411,10 @@ impl<'a> ConstInterpreter<'a> {
                     }
                 };
 
-                let supers = decl
-                    .supertypes
-                    .iter()
-                    .map(|st| self.mk_type_meta(Some(&st.ty)))
-                    .collect::<Vec<_>>();
+                let mut supers: Vec<ConstValue> = Vec::with_capacity(decl.supertypes.len());
+                for st in &decl.supertypes {
+                    supers.push(self.mk_type_meta(Some(&st.ty))?);
+                }
                 Ok(ConstValue::Tuple(supers))
             }
             "annotationsOf" => {
@@ -508,34 +508,99 @@ impl<'a> ConstInterpreter<'a> {
 
         let mut params: Vec<ConstValue> = Vec::with_capacity(fun.params.len());
         for (idx, p) in fun.params.iter().enumerate() {
-            let pname = p.name.text(self.ctx.source).to_string();
-            params.push(self.mk_field_meta(pname, p.ty.as_ref(), idx));
+            params.push(self.mk_param_meta(p, idx)?);
         }
         Ok(ConstValue::Tuple(params))
     }
 
-    /// 把一个类型引用“降级”为 TypeMeta（v0：仅保留类型名字符串）。
+    fn mk_type_kind(&self, variant: &'static str) -> ConstValue {
+        ConstValue::Enum(super::ConstEnum {
+            ty: Some("TypeKind".to_string()),
+            variant: variant.to_string(),
+            payload: Vec::new(),
+        })
+    }
+
+    fn mk_annotation_list(
+        &self,
+        anns: &[ast::AnnotationUse],
+        ignore_use_site_target: bool,
+    ) -> Result<Vec<ConstValue>, ConstEvalError> {
+        let mut out: Vec<ConstValue> = Vec::new();
+        for a in anns {
+            if ignore_use_site_target && a.use_site_target.is_some() {
+                continue;
+            }
+            out.push(self.mk_annotation_meta(a)?);
+        }
+        Ok(out)
+    }
+
+    fn lookup_unique_type_decl(&self, simple_name: &str) -> Option<&'a ast::TypeDecl> {
+        let decls = self.types_by_name.get(simple_name)?;
+        match decls.as_slice() {
+            [one] => Some(*one),
+            _ => None,
+        }
+    }
+
+    /// 把一个类型引用“降级”为 TypeMeta。
     ///
     /// 说明：
-    /// - const 解释器在当前阶段没有完整的 name resolution / type env，因此这里采用保守策略：
-    ///   - 可格式化的 `TypeRef` → `TypeMeta { name: "<pretty>" }`
-    ///   - 其它情况（缺失/暂不支持）→ `TypeMeta { name: "Any" }`
-    /// - 这保证了 fixtures 可以稳定读取 `field.type.name`，并把“精确元信息”留给后续任务补齐。
-    fn mk_type_meta(&self, ty: Option<&ast::TypeRef>) -> ConstValue {
+    /// - const 解释器在当前阶段没有完整的 name resolution / type env，因此这里采用“尽力而为”的策略：
+    ///   - `name`：基于 AST 的稳定 pretty string（不保证全限定名）；
+    ///   - `kind/annotations`：仅当该类型在当前文件中有唯一声明时补齐；否则回退为 `Primitive` + 空注解；
+    /// - 这保证了 fixtures 可以稳定读取 `field.type.name`，并把“精确元信息”留给后续任务（resolve/typecheck）补齐。
+    fn mk_type_meta(&self, ty: Option<&ast::TypeRef>) -> Result<ConstValue, ConstEvalError> {
         let name = ty
             .and_then(|t| self.type_ref_to_string(t))
             .unwrap_or_else(|| "Any".to_string());
 
+        let (kind, annotations) = match ty {
+            Some(ast::TypeRef::Tuple(t)) if t.elements.is_empty() => {
+                (self.mk_type_kind("Tuple"), Vec::new())
+            }
+            Some(ast::TypeRef::Path(p)) => {
+                let simple = p
+                    .segments
+                    .last()
+                    .map(|s| s.text(self.ctx.source))
+                    .unwrap_or("");
+                if let Some(decl) = self.lookup_unique_type_decl(simple) {
+                    let kind = match decl.kind {
+                        ast::TypeKind::Struct => self.mk_type_kind("Struct"),
+                        ast::TypeKind::Enum => self.mk_type_kind("Enum"),
+                        ast::TypeKind::Class => self.mk_type_kind("Class"),
+                        ast::TypeKind::Interface => self.mk_type_kind("Interface"),
+                        ast::TypeKind::Effect => self.mk_type_kind("Effect"),
+                    };
+                    let annotations = self.mk_annotation_list(&decl.annotations, true)?;
+                    (kind, annotations)
+                } else {
+                    (self.mk_type_kind("Primitive"), Vec::new())
+                }
+            }
+            Some(_) | None => (self.mk_type_kind("Primitive"), Vec::new()),
+        };
+
         let mut fields = std::collections::BTreeMap::new();
         fields.insert("name".to_string(), ConstValue::String(name));
-        ConstValue::Struct(super::ConstStruct {
+        fields.insert("kind".to_string(), kind);
+        fields.insert("annotations".to_string(), ConstValue::Tuple(annotations));
+        Ok(ConstValue::Struct(super::ConstStruct {
             ty: "TypeMeta".to_string(),
             fields,
-        })
+        }))
     }
 
-    /// 构造一个 FieldMeta 常量值（供 `fieldsOf<T>()` 返回）。
-    fn mk_field_meta(&self, name: String, ty: Option<&ast::TypeRef>, index: usize) -> ConstValue {
+    /// 构造一个 FieldMeta 常量值（供 `fieldsOf<T>()` / `variantsOf<T>()` 返回）。
+    fn mk_field_meta(
+        &self,
+        name: String,
+        ty: Option<&ast::TypeRef>,
+        index: usize,
+        annotations: &[ast::AnnotationUse],
+    ) -> Result<ConstValue, ConstEvalError> {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
@@ -545,11 +610,71 @@ impl<'a> ConstInterpreter<'a> {
             )),
         );
         fields.insert("name".to_string(), ConstValue::String(name));
-        fields.insert("type".to_string(), self.mk_type_meta(ty));
-        ConstValue::Struct(super::ConstStruct {
+        fields.insert("type".to_string(), self.mk_type_meta(ty)?);
+        fields.insert(
+            "annotations".to_string(),
+            ConstValue::Tuple(self.mk_annotation_list(annotations, false)?),
+        );
+        Ok(ConstValue::Struct(super::ConstStruct {
             ty: "FieldMeta".to_string(),
             fields,
-        })
+        }))
+    }
+
+    fn mk_param_meta(&self, p: &ast::Param, index: usize) -> Result<ConstValue, ConstEvalError> {
+        let pname = p.name.text(self.ctx.source).to_string();
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert(
+            "index".to_string(),
+            ConstValue::Int(super::ConstInt::new(
+                self.ctx.default_int_ty,
+                index as u128,
+            )),
+        );
+        fields.insert("name".to_string(), ConstValue::String(pname));
+        fields.insert("type".to_string(), self.mk_type_meta(p.ty.as_ref())?);
+        fields.insert(
+            "annotations".to_string(),
+            ConstValue::Tuple(self.mk_annotation_list(&p.annotations, false)?),
+        );
+        Ok(ConstValue::Struct(super::ConstStruct {
+            ty: "ParamMeta".to_string(),
+            fields,
+        }))
+    }
+
+    fn mk_variant_meta(
+        &self,
+        v: &ast::EnumVariantDecl,
+        index: usize,
+    ) -> Result<ConstValue, ConstEvalError> {
+        let vname = v.name.text(self.ctx.source).to_string();
+
+        let mut field_metas: Vec<ConstValue> = Vec::with_capacity(v.params.len());
+        for (idx, p) in v.params.iter().enumerate() {
+            let fname = p.name.text(self.ctx.source).to_string();
+            field_metas.push(self.mk_field_meta(fname, p.ty.as_ref(), idx, &p.annotations)?);
+        }
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert(
+            "index".to_string(),
+            ConstValue::Int(super::ConstInt::new(
+                self.ctx.default_int_ty,
+                index as u128,
+            )),
+        );
+        fields.insert("name".to_string(), ConstValue::String(vname));
+        fields.insert("fields".to_string(), ConstValue::Tuple(field_metas));
+        fields.insert(
+            "annotations".to_string(),
+            ConstValue::Tuple(self.mk_annotation_list(&v.annotations, false)?),
+        );
+        Ok(ConstValue::Struct(super::ConstStruct {
+            ty: "VariantMeta".to_string(),
+            fields,
+        }))
     }
 
     fn mk_annotation_meta(&self, a: &ast::AnnotationUse) -> Result<ConstValue, ConstEvalError> {
@@ -565,10 +690,64 @@ impl<'a> ConstInterpreter<'a> {
             .map(|id| id.text(self.ctx.source).to_string())
             .unwrap_or_default();
 
-        let mut args: Vec<ConstValue> = Vec::with_capacity(a.args.len());
-        for (idx, arg) in a.args.iter().enumerate() {
-            args.push(self.mk_annotation_arg_meta(&simple, idx, arg)?);
+        // spec §15.6：`AnnotationMeta.args` 应当是“按参数名解析后的 arguments（含默认值）”。
+        //
+        // 说明：
+        // - v0 阶段只保证 compile-time constant 形态可读；
+        // - 若无法定位到唯一的 annotation class 声明，则回退为“仅按语法顺序读取提供的 args”。
+        let ctor_params = self.lookup_annotation_ctor_params(&simple);
+        let mut positional_index: usize = 0;
+        let mut provided_order: Vec<(String, ConstValue)> = Vec::with_capacity(a.args.len());
+        let mut provided_by_name: std::collections::BTreeMap<String, ConstValue> = std::collections::BTreeMap::new();
+
+        for arg in &a.args {
+            let arg_name = match arg.name {
+                Some(id) => id.text(self.ctx.source).to_string(),
+                None => {
+                    let name = ctor_params
+                        .and_then(|ps| ps.get(positional_index))
+                        .map(|p| p.name.text(self.ctx.source).to_string())
+                        .unwrap_or_else(|| format!("_{positional_index}"));
+                    positional_index += 1;
+                    name
+                }
+            };
+
+            // T1209：当前阶段只支持字面量/常量表达式参数；复杂表达式后续任务再补齐。
+            let value = eval_const_expr(self.ctx, &arg.value)?;
+            provided_by_name.insert(arg_name.clone(), value.clone());
+            provided_order.push((arg_name, value));
         }
+
+        let args: Vec<ConstValue> = match ctor_params {
+            Some(params) => {
+                let mut remaining = provided_by_name;
+                let mut out: Vec<ConstValue> = Vec::new();
+
+                // 1) 按 ctor 参数顺序输出（含默认值）。
+                for p in params {
+                    let pname = p.name.text(self.ctx.source).to_string();
+                    if let Some(v) = remaining.remove(&pname) {
+                        out.push(self.mk_annotation_arg_meta_value(pname, v));
+                        continue;
+                    }
+                    if let Some(default_value) = p.default_value.as_ref() {
+                        let v = eval_const_expr(self.ctx, default_value)?;
+                        out.push(self.mk_annotation_arg_meta_value(pname, v));
+                    }
+                }
+
+                // 2) 未能匹配到 ctor 参数名的 args：为了稳定性，按名字排序追加。
+                for (k, v) in remaining {
+                    out.push(self.mk_annotation_arg_meta_value(k, v));
+                }
+                out
+            }
+            None => provided_order
+                .into_iter()
+                .map(|(k, v)| self.mk_annotation_arg_meta_value(k, v))
+                .collect(),
+        };
 
         let mut fields = std::collections::BTreeMap::new();
         fields.insert("name".to_string(), ConstValue::String(name));
@@ -579,32 +758,17 @@ impl<'a> ConstInterpreter<'a> {
         }))
     }
 
-    fn mk_annotation_arg_meta(
-        &self,
-        annotation_simple_name: &str,
-        index: usize,
-        arg: &ast::AnnotationArg,
-    ) -> Result<ConstValue, ConstEvalError> {
-        let arg_name = match arg.name {
-            Some(id) => id.text(self.ctx.source).to_string(),
-            None => self
-                .lookup_annotation_ctor_param_name(annotation_simple_name, index)
-                .unwrap_or_else(|| format!("_{index}")),
-        };
-
-        // T1209：当前阶段只支持字面量/常量表达式参数；复杂表达式后续任务再补齐。
-        let value = eval_const_expr(self.ctx, &arg.value)?;
-
+    fn mk_annotation_arg_meta_value(&self, arg_name: String, value: ConstValue) -> ConstValue {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert("name".to_string(), ConstValue::String(arg_name));
         fields.insert("value".to_string(), value);
-        Ok(ConstValue::Struct(super::ConstStruct {
+        ConstValue::Struct(super::ConstStruct {
             ty: "AnnotationArgMeta".to_string(),
             fields,
-        }))
+        })
     }
 
-    fn lookup_annotation_ctor_param_name(&self, annotation_simple_name: &str, index: usize) -> Option<String> {
+    fn lookup_annotation_ctor_params(&self, annotation_simple_name: &str) -> Option<&'a [ast::Param]> {
         let decls = self.types_by_name.get(annotation_simple_name)?;
         let decl = match decls.as_slice() {
             [one] => *one,
@@ -614,8 +778,7 @@ impl<'a> ConstInterpreter<'a> {
             return None;
         }
         let ctor = decl.primary_ctor.as_ref()?;
-        let param = ctor.params.get(index)?;
-        Some(param.name.text(self.ctx.source).to_string())
+        Some(ctor.params.as_slice())
     }
 
     /// 把 `TypeRef` 格式化为稳定的字符串（用于 `TypeMeta.name`）。

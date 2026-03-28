@@ -1,5 +1,5 @@
 N = "Point"
 S = 8
-F = (FieldMeta { index: 0, name: "x", type: TypeMeta { name: "Int" } }, FieldMeta { index: 1, name: "y", type: TypeMeta { name: "Int" } }, FieldMeta { index: 2, name: "tag", type: TypeMeta { name: "String" } })
+F = (FieldMeta { annotations: (), index: 0, name: "x", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "Int" } }, FieldMeta { annotations: (), index: 1, name: "y", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "Int" } }, FieldMeta { annotations: (), index: 2, name: "tag", type: TypeMeta { annotations: (), kind: TypeKind.Primitive, name: "String" } })
 F0N = "x"
 F0T = "Int"

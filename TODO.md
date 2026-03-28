@@ -3962,11 +3962,27 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1215 [TODO] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
+### T1215 [DONE] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - 描述：补齐反射所需的元数据结构，并让它们可在 comptime 中被访问和迭代。
 - 目标：先只支持只读 metadata；不支持运行期动态修改。
 - 验收：comptime fixture：`variantsOf<T>()` 返回 `VariantMeta`；`paramsOf(fn)` 返回 `ParamMeta`；注解参数可通过 `AnnotationArgMeta` 读取。
 - 依赖：T1208、T1214
+ - 完成：
+   - `sysroot/core.scoop`：
+     - 新增 `TypeKind` 与 `VariantMeta/ParamMeta`；
+     - `TypeMeta/FieldMeta` 补齐 `kind/annotations` 与 `annotations` 字段；
+     - `variantsOf<T>()` 签名升级为 `ComptimeList<VariantMeta>`；
+     - `paramsOf(fn)` 签名升级为 `ComptimeList<ParamMeta>`。
+   - `crates/scoopc/src/comptime/interpreter.rs`：
+     - `variantsOf<T>()` 在 comptime 执行时返回 `VariantMeta { name, fields, index, annotations }`；
+     - `paramsOf(fn)` 返回 `ParamMeta { name, type, index, annotations }`；
+     - `TypeMeta` v0 补齐 `kind/annotations`（仅当当前文件内存在唯一声明时可识别非 Primitive kind）；
+     - `AnnotationMeta.args` 按 ctor 参数名解析并补齐默认值（无法定位 annotation class 时回退为“仅读取提供的 args”）。
+   - `crates/scoopc/src/comptime/tests.rs`：更新/扩展单测覆盖 `VariantMeta/ParamMeta/TypeKind` 与 enum variant fields。
+   - `tests/fixtures/comptime/reflection_intrinsics_v0_{basic,more}.*`：更新 fixtures 与 `.comptime` golden 回归覆盖 `VariantMeta/ParamMeta`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1216 [TODO] `trimIndent()`：编译期求值 + 普通运行期回退约定（spec §8.4 / §6.2）
 - 描述：把 `trimIndent()` 纳入 `String` 的 `const fun` 语义：接收者是编译期常量时在编译期求值，否则保留为普通运行期调用。

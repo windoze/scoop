@@ -28,6 +28,7 @@
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。
+- 2026-03-29：完成 T1215：补齐编译期元数据（`TypeKind/VariantMeta/ParamMeta` 等），升级 `variantsOf/paramsOf` 返回值并在 const 解释器侧产出可读字段（含 annotations/default args 的最小回归），更新 comptime fixtures + 单测回归覆盖。
 - 2026-03-29：规范更新：补齐 value-only enum、`@CLayout(aligned, packed)`、`@ThreadLocal/@Global`、`@Extern(lib, name)`、`@CallingConvention`、`@Safe`、`Platform/getPlatform()`、type descriptor release callback、`Ptr/FunPtr/stackAlloc/addressOf` 与 internal atomics、以及 `Cone.toml` 的平台选择器；并同步更新 `PLAN.md`/`TODO.md` 对应任务拆分。
 - 2026-03-29：完成 T1020：扩展内建 `@Extern`（支持 `lib/name` 参数 + extern 顶层变量声明），并在 driver clang 链接阶段透传 `-l<lib>`；新增 typecheck fixtures 与 driver 单测回归。
 - 2026-03-29：完成 T1022：对顶层 `var` 强制要求 `@ThreadLocal/@Global` 显式标注，并在 typecheck 阶段门禁其类型必须为 GC-free 值类型；新增 typecheck fixtures 回归。
@@ -841,11 +842,11 @@ fixtures：
   - [x] T1207：`comptime for` 最小语句级执行（v0：整数范围 `a..b` + tuple/array；break/continue 后置）
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [x] `comptime { ... }` 执行上下文（v0：仅 const 解释器路径；限制 effect：必须 `Pure`）
-- [x] 反射 intrinsics v0：`fieldsOf/nameOf/sizeOf`（fieldsOf v0 返回字段名列表）
+- [x] 反射 intrinsics v0：`fieldsOf/nameOf/sizeOf`（fieldsOf v0 返回 `FieldMeta` 列表）
 - [x] splice operator v0：`value.[field]`（const eval + typecheck 最小语义）
-- [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
+- [x] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - [ ] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
-- [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
+- [x] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [ ] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）
 - [ ] sysroot/stdlib：补齐 scope functions（§11）；delegated property API surface 已在 sysroot 落地（spec §10.4）
