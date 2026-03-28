@@ -23,6 +23,8 @@ pub struct ConstEvalCtx<'a> {
 }
 
 impl<'a> ConstEvalCtx<'a> {
+    /// 用默认配置创建一个求值上下文：
+    /// - Int 默认为宿主机 word-sized signed（与当前后端 Int 映射一致）。
     pub fn new(source: &'a SourceFile) -> Self {
         Self {
             source,
@@ -81,6 +83,7 @@ pub enum ConstEvalError {
     },
 }
 
+/// 对 AST 表达式做最小常量求值（T1202a）。
 pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstValue, ConstEvalError> {
     match &expr.kind {
         ast::ExprKind::Missing => Err(ConstEvalError::UnsupportedExpr {
@@ -217,6 +220,7 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
     }
 }
 
+/// 求值一元运算（`!`/`-`/`~`）。
 fn eval_unary(span: crate::span::Span, op: ast::UnaryOp, v: ConstValue) -> Result<ConstValue, ConstEvalError> {
     match op {
         ast::UnaryOp::Not => match v {
@@ -255,6 +259,7 @@ fn eval_unary(span: crate::span::Span, op: ast::UnaryOp, v: ConstValue) -> Resul
     }
 }
 
+/// 求值二元运算（入口）：负责处理 short-circuit（`&&`/`||`）。
 fn eval_binary(
     ctx: ConstEvalCtx<'_>,
     span: crate::span::Span,
@@ -315,6 +320,7 @@ fn eval_binary(
     }
 }
 
+/// 求值二元运算（eager）：假设两侧都需要被求值。
 fn eval_binary_eager(
     span: crate::span::Span,
     op: ast::BinaryOp,
@@ -397,6 +403,7 @@ fn eval_binary_eager(
     }
 }
 
+/// 求值“两个整数”的二元运算（算术/位运算/比较等）。
 fn eval_int_binary(
     span: crate::span::Span,
     op: ast::BinaryOp,
@@ -498,6 +505,7 @@ fn eval_int_binary(
     Ok(out)
 }
 
+/// 计算 shift amount（拒绝负数；并返回非负的 u128 值）。
 fn shift_amount(span: crate::span::Span, rhs: ConstInt) -> Result<u128, ConstEvalError> {
     let value = rhs.as_i128();
     if value < 0 {
@@ -509,6 +517,10 @@ fn shift_amount(span: crate::span::Span, rhs: ConstInt) -> Result<u128, ConstEva
     Ok(value as u128)
 }
 
+/// 解析十进制整数字面量（允许 `_` 分隔符）。
+///
+/// 说明：当前 lexer 只产出十进制 IntLiteral，因此这里先实现最小十进制解析；
+/// 若后续引入 `0x`/`0b` 等进制，可在此扩展并保持调用点不变。
 fn parse_int_literal_decimal(text: &str) -> u128 {
     let mut out: u128 = 0;
     for ch in text.chars() {
@@ -522,6 +534,7 @@ fn parse_int_literal_decimal(text: &str) -> u128 {
     out
 }
 
+/// 返回给定位宽对应的 mask（低 bits 位为 1）。
 fn mask_for(bits: u32) -> u128 {
     if bits == 0 {
         return 0;
@@ -532,6 +545,7 @@ fn mask_for(bits: u32) -> u128 {
     (1u128 << bits) - 1
 }
 
+/// 将 const value 映射为“用户可读的类型类别”字符串（用于诊断）。
 fn value_kind(v: &ConstValue) -> &'static str {
     match v {
         ConstValue::Unit => "Unit",
@@ -541,6 +555,7 @@ fn value_kind(v: &ConstValue) -> &'static str {
     }
 }
 
+/// 将二元操作数映射为“组合类别”字符串（用于诊断）。
 fn binary_found_kind(lhs: &ConstValue, rhs: &ConstValue) -> &'static str {
     match (lhs, rhs) {
         (ConstValue::Bool(_), ConstValue::Bool(_)) => "Bool",

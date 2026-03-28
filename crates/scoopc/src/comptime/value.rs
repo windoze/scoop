@@ -42,6 +42,7 @@ pub struct ConstInt {
 }
 
 impl ConstInt {
+    /// 构造一个 const 整数，并按 `ty.bits` 自动 mask。
     pub fn new(ty: ConstIntTy, raw_bits: u128) -> Self {
         let masked = mask_to_bits(raw_bits, ty.bits);
         Self {
@@ -50,18 +51,22 @@ impl ConstInt {
         }
     }
 
+    /// 返回该整数类型下的 0。
     pub fn zero(ty: ConstIntTy) -> Self {
         Self::new(ty, 0)
     }
 
+    /// 返回该整数类型下的 1。
     pub fn one(ty: ConstIntTy) -> Self {
         Self::new(ty, 1)
     }
 
+    /// 以无符号方式读取原始位模式（已按位宽 mask）。
     pub fn as_u128(self) -> u128 {
         self.raw_bits
     }
 
+    /// 以有符号方式解释原始位模式（两补码 + sign-extend）。
     pub fn as_i128(self) -> i128 {
         if self.ty.bits == 0 {
             return 0;
@@ -78,6 +83,7 @@ impl ConstInt {
     }
 }
 
+/// 把整数值截断到给定 bit 宽度（低位保留，高位清零）。
 pub(crate) fn mask_to_bits(value: u128, bits: u32) -> u128 {
     if bits == 0 {
         return 0;
@@ -88,4 +94,3 @@ pub(crate) fn mask_to_bits(value: u128, bits: u32) -> u128 {
     let mask = (1u128 << bits) - 1;
     value & mask
 }
-
