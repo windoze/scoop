@@ -12,7 +12,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 
-use super::value::{ConstInt, ConstIntTy, ConstValue, mask_to_bits};
+use super::value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue, mask_to_bits};
 
 /// 求值上下文（v0）。
 #[derive(Debug, Clone, Copy)]
@@ -81,6 +81,23 @@ pub enum ConstEvalError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("未知的成员：{name}")]
+    #[diagnostic(code(scoop::comptime::unknown_member))]
+    UnknownMember {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("tuple 元素索引越界：{index}（tuple 长度为 {len}）")]
+    #[diagnostic(code(scoop::comptime::tuple_index_out_of_bounds))]
+    TupleIndexOutOfBounds {
+        index: usize,
+        len: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 对 AST 表达式做最小常量求值（T1202a）。
@@ -136,11 +153,14 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
         }
         ast::ExprKind::Binary { lhs, op, rhs, .. } => eval_binary(ctx, expr.span, *op, lhs, rhs),
 
-        // 明确拒绝：本子任务只做“纯表达式最小子集”。
-        ast::ExprKind::TupleLit { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "tuple literal",
-            span: expr.span.into(),
-        }),
+        // aggregates（T1202b）
+        ast::ExprKind::TupleLit { elements } => {
+            let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
+            for e in elements {
+                out.push(eval_const_expr(ctx, e)?);
+            }
+            Ok(ConstValue::Tuple(out))
+        }
         ast::ExprKind::ArrayLit { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "array literal",
             span: expr.span.into(),
@@ -159,10 +179,6 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
         }),
         ast::ExprKind::Lambda(_) => Err(ConstEvalError::UnsupportedExpr {
             kind: "lambda",
-            span: expr.span.into(),
-        }),
-        ast::ExprKind::StructLit { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "struct literal",
             span: expr.span.into(),
         }),
         ast::ExprKind::ClassLit { .. } => Err(ConstEvalError::UnsupportedExpr {
@@ -185,10 +201,44 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
             kind: "async expression",
             span: expr.span.into(),
         }),
-        ast::ExprKind::Call { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "call expression",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::StructLit { ty, fields } => {
+            let ty_name = type_path_name(ctx.source, ty);
+            let mut out_fields = std::collections::BTreeMap::<String, ConstValue>::new();
+            for f in fields {
+                let name = f.name.text(ctx.source).to_string();
+                let value = eval_const_expr(ctx, &f.value)?;
+                out_fields.insert(name, value);
+            }
+            Ok(ConstValue::Struct(ConstStruct {
+                ty: ty_name,
+                fields: out_fields,
+            }))
+        }
+
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            // enum unit variant 值：`EnumName.Variant`
+            //
+            // 说明：
+            // - 该表达式的 receiver 在语义上是“类型名/命名空间入口”，并非运行期值；
+            // - const eval 早期阶段没有完整 name resolution/type env，因此这里用非常保守的启发式：
+            //   当 receiver 与 member 都是 “TypeLike” 名称（首字母大写）时，将其视为 unit variant 构造。
+            if let ast::ExprKind::Ident(id) = &receiver.kind {
+                let enum_name = ctx.source.slice(id.span);
+                let variant_name = ctx.source.slice(member.span);
+                if looks_like_type_name(enum_name) && looks_like_type_name(variant_name) {
+                    return Ok(ConstValue::Enum(ConstEnum {
+                        ty: Some(enum_name.to_string()),
+                        variant: variant_name.to_string(),
+                        payload: Vec::new(),
+                    }));
+                }
+            }
+
+            let recv = eval_const_expr(ctx, receiver)?;
+            eval_member_access(ctx, recv, member, expr.span)
+        }
+
+        ast::ExprKind::Call { callee, args } => eval_enum_ctor_call(ctx, expr.span, callee, args),
         ast::ExprKind::NamedArg { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "named arg",
             span: expr.span.into(),
@@ -218,6 +268,144 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
             span: expr.span.into(),
         }),
     }
+}
+
+fn eval_member_access(
+    ctx: ConstEvalCtx<'_>,
+    receiver: ConstValue,
+    member: &ast::MemberIdent,
+    whole_expr_span: crate::span::Span,
+) -> Result<ConstValue, ConstEvalError> {
+    let member_name = ctx.source.slice(member.span);
+
+    match receiver {
+        ConstValue::Tuple(elements) => {
+            let Some(index) = parse_tuple_member_index(member_name) else {
+                return Err(ConstEvalError::UnknownMember {
+                    name: member_name.to_string(),
+                    span: member.span.into(),
+                });
+            };
+            let Some(v) = elements.get(index) else {
+                return Err(ConstEvalError::TupleIndexOutOfBounds {
+                    index,
+                    len: elements.len(),
+                    span: member.span.into(),
+                });
+            };
+            Ok(v.clone())
+        }
+        ConstValue::Struct(s) => s
+            .fields
+            .get(member_name)
+            .cloned()
+            .ok_or_else(|| ConstEvalError::UnknownMember {
+                name: member_name.to_string(),
+                span: member.span.into(),
+            }),
+        ConstValue::Enum(e) => {
+            // 早期阶段把 enum payload 当作“位置字段”，并沿用 tuple 的 `_0/_1/...` 访问语法。
+            let Some(index) = parse_tuple_member_index(member_name) else {
+                return Err(ConstEvalError::UnknownMember {
+                    name: member_name.to_string(),
+                    span: member.span.into(),
+                });
+            };
+            let Some(v) = e.payload.get(index) else {
+                return Err(ConstEvalError::TupleIndexOutOfBounds {
+                    index,
+                    len: e.payload.len(),
+                    span: member.span.into(),
+                });
+            };
+            Ok(v.clone())
+        }
+        other => Err(ConstEvalError::UnsupportedExpr {
+            kind: match other {
+                ConstValue::Unit | ConstValue::Bool(_) | ConstValue::Int(_) | ConstValue::String(_) => {
+                    "member access（非 aggregate）"
+                }
+                ConstValue::Tuple(_) | ConstValue::Struct(_) | ConstValue::Enum(_) => unreachable!(),
+            },
+            span: whole_expr_span.into(),
+        }),
+    }
+}
+
+fn eval_enum_ctor_call(
+    ctx: ConstEvalCtx<'_>,
+    call_span: crate::span::Span,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+) -> Result<ConstValue, ConstEvalError> {
+    let (ty, variant) = match &callee.kind {
+        // `Some(1)`：缺少 expected type 时无法静态消歧，先允许 ty 为空。
+        ast::ExprKind::Ident(id) => {
+            let variant = ctx.source.slice(id.span);
+            if !looks_like_type_name(variant) {
+                return Err(ConstEvalError::UnsupportedExpr {
+                    kind: "call expression",
+                    span: call_span.into(),
+                });
+            }
+            (None, variant.to_string())
+        }
+        // `Option.Some(1)`：显式指定 enum 名称（或命名空间入口）。
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            let ast::ExprKind::Ident(receiver_id) = &receiver.kind else {
+                return Err(ConstEvalError::UnsupportedExpr {
+                    kind: "call expression",
+                    span: call_span.into(),
+                });
+            };
+            let enum_name = ctx.source.slice(receiver_id.span);
+            let variant = ctx.source.slice(member.span);
+            if !looks_like_type_name(enum_name) || !looks_like_type_name(variant) {
+                return Err(ConstEvalError::UnsupportedExpr {
+                    kind: "call expression",
+                    span: call_span.into(),
+                });
+            }
+            (Some(enum_name.to_string()), variant.to_string())
+        }
+        _ => {
+            return Err(ConstEvalError::UnsupportedExpr {
+                kind: "call expression",
+                span: call_span.into(),
+            });
+        }
+    };
+
+    let mut payload: Vec<ConstValue> = Vec::with_capacity(args.len());
+    for a in args {
+        payload.push(eval_const_expr(ctx, a)?);
+    }
+
+    Ok(ConstValue::Enum(ConstEnum { ty, variant, payload }))
+}
+
+fn type_path_name(source: &SourceFile, ty: &ast::TypePath) -> String {
+    ty.segments
+        .iter()
+        .map(|id| id.text(source))
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+fn looks_like_type_name(name: &str) -> bool {
+    // Kotlin 风格：类型/enum variant 使用大写开头，函数/变量通常小写开头。
+    name.chars().next().is_some_and(|ch| ch.is_ascii_uppercase())
+}
+
+fn parse_tuple_member_index(text: &str) -> Option<usize> {
+    let digits = text.strip_prefix('_')?;
+    if digits.is_empty() {
+        return None;
+    }
+    if !digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse::<usize>().ok()
 }
 
 /// 求值一元运算（`!`/`-`/`~`）。
@@ -552,6 +740,9 @@ fn value_kind(v: &ConstValue) -> &'static str {
         ConstValue::Bool(_) => "Bool",
         ConstValue::Int(_) => "整数",
         ConstValue::String(_) => "String",
+        ConstValue::Tuple(_) => "Tuple",
+        ConstValue::Struct(_) => "Struct",
+        ConstValue::Enum(_) => "Enum",
     }
 }
 

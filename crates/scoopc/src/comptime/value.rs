@@ -4,6 +4,8 @@
 //! - 该值模型用于“解释器内部的值”，与 MIR/LLVM 的常量表示解耦；
 //! - 早期阶段优先保证：结构简单、错误可诊断、语义可扩展。
 
+use std::collections::BTreeMap;
+
 /// 解释器中的“编译期值”（v0：只覆盖少量字面量与整数）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstValue {
@@ -11,6 +13,28 @@ pub enum ConstValue {
     Bool(bool),
     Int(ConstInt),
     String(String),
+    Tuple(Vec<ConstValue>),
+    Struct(ConstStruct),
+    Enum(ConstEnum),
+}
+
+/// struct 值（字段名 → const value）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstStruct {
+    pub ty: String,
+    pub fields: BTreeMap<String, ConstValue>,
+}
+
+/// enum 值（variant + payload）。
+///
+/// 说明：
+/// - `ty` 在缺少类型信息时允许为 `None`（例如未消歧的 `Some(1)`）；
+/// - `payload` 目前只保留“位置参数”形态，字段名映射留给后续 typecheck/解释器接入时补齐。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstEnum {
+    pub ty: Option<String>,
+    pub variant: String,
+    pub payload: Vec<ConstValue>,
 }
 
 /// const 整数类型信息（位宽 + 符号位）。

@@ -3552,11 +3552,18 @@
  - 验收：
    - `cargo test -p scoopc`
 
-### T1202b [TODO] const interpreter：支持 tuple/struct/enum 的值构造与访问（最小）
+### T1202b [DONE] const interpreter：支持 tuple/struct/enum 的值构造与访问（最小）
 - 描述：在 `ConstValue` 中补齐 tuple/struct/enum 表示，并在求值器中支持最小构造（如 tuple/struct literal、enum ctor）。
 - 目标：先只做“构造 + 读取”所需最小语义；不做模式匹配与复杂布局。
 - 验收：新增单元测试覆盖 tuple/struct/enum 的构造与字段读取；`cargo test -p scoopc` 通过。
 - 依赖：T1202a
+ - 完成：
+   - `crates/scoopc/src/comptime/value.rs`：`ConstValue` 扩展 tuple/struct/enum 变体与最小数据结构。
+   - `crates/scoopc/src/comptime/eval.rs`：支持 tuple/struct literal、enum ctor（含 unit variant）与成员访问（`_0/_1/...`、struct 字段）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 tuple/struct/enum 的构造与字段读取。
+ - 验收：
+   - `cargo test -p scoopc`
+   - `cargo test --all`
 
 ### T1202c [TODO] const interpreter：支持 `const fun` 调用（仅 Pure）并接入 `tests/fixtures/comptime`
 - 描述：实现 const fun 的 body 求值（局部 `val`、表达式返回、最小 block），并在 fixtures runner 中新增 `comptime` phase 以回归 const 求值结果。

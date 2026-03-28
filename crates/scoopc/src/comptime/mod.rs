@@ -5,7 +5,6 @@
 //! - 在不依赖 LLVM 后端的前端阶段完成常量求值与错误诊断。
 //!
 //! 非目标（留给后续子任务 T1202b/T1202c）：
-//! - tuple/struct/enum 的完整值语义与字段访问；
 //! - `const fun` 的调用/栈帧/局部变量；
 //! - 控制流（`if/when`）、effects、循环等复杂语义。
 
@@ -13,8 +12,7 @@ mod eval;
 mod value;
 
 pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
-pub use value::{ConstInt, ConstIntTy, ConstValue};
+pub use value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue};
 
 #[cfg(test)]
 mod tests;
-

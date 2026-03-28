@@ -1,4 +1,6 @@
-use crate::comptime::{ConstEvalCtx, ConstIntTy, ConstValue, eval_const_expr};
+use std::collections::BTreeMap;
+
+use crate::comptime::{ConstEnum, ConstEvalCtx, ConstInt, ConstIntTy, ConstStruct, ConstValue, eval_const_expr};
 use crate::parser;
 use crate::source::SourceFile;
 
@@ -28,14 +30,18 @@ fn eval_expr(expr_src: &str, default_int_ty: ConstIntTy) -> ConstValue {
     eval_const_expr(ctx, init).expect("eval")
 }
 
+fn mk_int(ty: ConstIntTy, raw: u128) -> ConstValue {
+    ConstValue::Int(ConstInt::new(ty, raw))
+}
+
 #[test]
 fn const_eval_int_arithmetic_and_bitwise() {
     let v = eval_expr("1 + 2 * 3", ConstIntTy::host_word(true));
-    assert_eq!(v, ConstValue::Int(crate::comptime::ConstInt::new(ConstIntTy::host_word(true), 7)));
+    assert_eq!(v, mk_int(ConstIntTy::host_word(true), 7));
 
     let v = eval_expr("~0", ConstIntTy { bits: 8, signed: true });
     // 8-bit ~0 == 0xff
-    assert_eq!(v, ConstValue::Int(crate::comptime::ConstInt::new(ConstIntTy { bits: 8, signed: true }, 0xff)));
+    assert_eq!(v, mk_int(ConstIntTy { bits: 8, signed: true }, 0xff));
 }
 
 #[test]
@@ -54,13 +60,74 @@ fn const_eval_shift_respects_signedness() {
     let v = eval_expr("-1 >> 1", ConstIntTy { bits: 8, signed: false });
     assert_eq!(
         v,
-        ConstValue::Int(crate::comptime::ConstInt::new(ConstIntTy { bits: 8, signed: false }, 0x7f))
+        mk_int(ConstIntTy { bits: 8, signed: false }, 0x7f)
     );
 
     // 8-bit signed arithmetic shift: -1 >> 1 == -1 (0xff)
     let v = eval_expr("-1 >> 1", ConstIntTy { bits: 8, signed: true });
     assert_eq!(
         v,
-        ConstValue::Int(crate::comptime::ConstInt::new(ConstIntTy { bits: 8, signed: true }, 0xff))
+        mk_int(ConstIntTy { bits: 8, signed: true }, 0xff)
     );
+}
+
+#[test]
+fn const_eval_tuple_construct_and_access() {
+    let ty = ConstIntTy::host_word(true);
+
+    let v = eval_expr("(1, 2)", ty);
+    assert_eq!(v, ConstValue::Tuple(vec![mk_int(ty, 1), mk_int(ty, 2)]));
+
+    let v = eval_expr("(1, 2)._0", ty);
+    assert_eq!(v, mk_int(ty, 1));
+
+    let v = eval_expr("(1, 2)._1", ty);
+    assert_eq!(v, mk_int(ty, 2));
+}
+
+#[test]
+fn const_eval_struct_construct_and_access() {
+    let ty = ConstIntTy::host_word(true);
+
+    let v = eval_expr("Point { x: 1, y: 2 }", ty);
+    let fields: BTreeMap<String, ConstValue> =
+        BTreeMap::from([("x".to_string(), mk_int(ty, 1)), ("y".to_string(), mk_int(ty, 2))]);
+    assert_eq!(
+        v,
+        ConstValue::Struct(ConstStruct {
+            ty: "Point".to_string(),
+            fields
+        })
+    );
+
+    let v = eval_expr("Point { x: 1, y: 2 }.x", ty);
+    assert_eq!(v, mk_int(ty, 1));
+}
+
+#[test]
+fn const_eval_enum_construct_and_access() {
+    let ty = ConstIntTy::host_word(true);
+
+    let v = eval_expr("Opt.None", ty);
+    assert_eq!(
+        v,
+        ConstValue::Enum(ConstEnum {
+            ty: Some("Opt".to_string()),
+            variant: "None".to_string(),
+            payload: Vec::new()
+        })
+    );
+
+    let v = eval_expr("Opt.Some(42)", ty);
+    assert_eq!(
+        v,
+        ConstValue::Enum(ConstEnum {
+            ty: Some("Opt".to_string()),
+            variant: "Some".to_string(),
+            payload: vec![mk_int(ty, 42)]
+        })
+    );
+
+    let v = eval_expr("Opt.Some(42)._0", ty);
+    assert_eq!(v, mk_int(ty, 42));
 }

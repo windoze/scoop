@@ -802,7 +802,7 @@ fixtures：
 - [x] Parser 语法：支持 `const` 修饰符、`comptime { ... }` / `comptime if` / `comptime for`、以及 splice `value.[field]`（见 TODO T0246）
 - [ ] `const fun` 解释器（先支持 value types/纯计算；`String` 作为特例允许——具有值语义）
   - [x] T1202a：值模型 + 纯表达式求值 v0
-  - [ ] T1202b：tuple/struct/enum 的值构造与访问
+  - [x] T1202b：tuple/struct/enum 的值构造与访问
   - [ ] T1202c：`const fun` 调用 + `tests/fixtures/comptime` 接入
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
