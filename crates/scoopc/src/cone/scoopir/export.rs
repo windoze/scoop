@@ -18,7 +18,7 @@ use crate::ty::{
     EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, UnionType,
     ValueTypeKind,
 };
-use crate::typecheck::{TypeEnv, TypeSymbolKind};
+use crate::typecheck::{AnnotationRetentionPolicy, TypeEnv, TypeSymbolKind};
 
 use super::schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,
@@ -173,6 +173,18 @@ fn export_public_types_for_source(
         let symbol = env
             .type_symbol(fqn)
             .ok_or_else(|| ScoopIrExportError::MissingTypeSymbol { fqn: fqn.clone() })?;
+
+        // T1016b：comptime-only annotation classes 不导出到 `.cone` 的 public API。
+        //
+        // 说明：
+        // - annotation class 默认视为 comptime-only，只有显式标记 `@Retention("cone")`
+        //   才会跨 cone 导出；
+        // - 该过滤会让下游 `.cone` 依赖无法引用 comptime-only 注解类（符合“不可见”的语义边界）。
+        if symbol.is_annotation_class
+            && symbol.annotation_retention != Some(AnnotationRetentionPolicy::ConePreserved)
+        {
+            continue;
+        }
 
         let kind = match symbol.kind {
             TypeSymbolKind::Nominal(k) => match k {

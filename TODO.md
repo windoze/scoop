@@ -3702,11 +3702,20 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1016b [TODO] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
+### T1016b [DONE] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
 - 描述：把标记为 cone-preserved 的注解写入 `.cone` 元数据（或 scoopir），并在下游编译/反射中可读；comptime-only 不导出。
 - 目标：先只保证“下游可见/不可见”的边界；注解参数复杂表达式留给 T1019/T1209 之后再补。
 - 验收：新增 cone fixture：cone-preserved 注解在下游可见；comptime-only 注解在下游不可见（或为空）。
 - 依赖：T1103、T1209、T1016a
+ - 完成：
+   - `crates/scoopc/src/cone/annotations.rs`：新增 `ANNOTATION_CLASSES.json`（schema v0）与导出/解析逻辑；仅导出 `@Retention("cone")` 的 public annotation classes。
+   - `crates/scoopc/src/cone/scoopir/export.rs`：ScoopIR 导出时过滤掉 comptime-only annotation classes（默认 comptime-only，只有显式 `cone` 才导出）。
+   - `crates/scoopc/src/cone/archive.rs`：`.cone` 打包写入 `ANNOTATION_CLASSES.json`。
+   - `crates/scoopc/src/cone/consume.rs`：`.cone` 读取并注入注解类元信息：下游可识别 `annotation class`，并按导出集实现“可见/不可见”边界。
+   - `tests/fixtures/typecheck_cone_archive/annotation_retention_export/*`：新增真实 `.cone` 依赖 fixtures：`cone` 注解类可用；`comptime` 注解类不可见（报 `unresolved_annotation_type`）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1210 [TODO] 委托属性 lowering 所需：生成 `PropertyMeta` 常量并传参（spec §10.4）
 - 描述：为 delegated property 生成静态 `PropertyMeta` 常量，并在 getter/setter 转发时传入。

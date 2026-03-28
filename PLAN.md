@@ -58,6 +58,7 @@
 - 2026-03-27：完成 T1007：sysroot 新增 `@Intrinsic sizeOf` 的最小可调用声明（以 overload 形式暴露），LLVM codegen 将 `scoop.core.sizeOf` lowering 为编译期常量（按 LLVM TargetData 计算 store size），并新增 run-pass fixture `intrinsic_size_of_int_word` 回归。
 - 2026-03-28：完成 T1013：sysroot 补齐 `@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention` 与 `AnnotationTarget` enum；parser 支持 `@Target(AnnotationTarget.X, ...)` 的最小注解参数解析；typecheck 对非法 target 名给出稳定错误码，并新增 parse/typecheck fixtures 覆盖。
 - 2026-03-28：完成 T1016a：typecheck 读取注解类上的 `@Target/@Retention` 并在使用点强制执行；限制 `@Target/@Retention` 只能用于 `annotation class`；对 `@Retention("comptime"|"cone")` 做最小合法性检查；新增 typecheck fixtures 覆盖。
+- 2026-03-28：完成 T1016b：`.cone` 新增 `ANNOTATION_CLASSES.json`（schema v0）导出 cone-preserved 注解类元信息，并在消费侧注入为 `annotation class`；同时从 `api.scoopir` 过滤 comptime-only 注解类；新增 typecheck_cone_archive fixtures 回归覆盖可见性边界。
 - 2026-03-28：完成 T1019：注解参数解析支持常量表达式/数组字面量/enum 值/class literal；typecheck 在注解使用点执行“参数绑定 + 编译期常量判定 + 类型匹配”，并新增 parse/typecheck fixtures 覆盖（含非常量参数报错）。
 - 2026-03-28：完成 T1102：实现 cone source package 加载（`src/**/*.scoop` + `src/main.scoop`），并让 `scoop build/run` 支持输入包目录；新增 `scoop` 单测覆盖。
 - 2026-03-27：完成 T1008：sysroot 暴露 `GC.pin/GC.unpin` 并在 typecheck/codegen lowering 到 runtime `scoop_pin/scoop_unpin`；由于当前泛型 struct 布局尚未实现，`Pinned<T>` 暂降级为非泛型 `Pinned`（`value: Any`）；新增 run-pass fixture `gc_pin_unpin_basic` 与 compile-fail fixture `gc_pin_value_type_is_error` 回归。
@@ -763,7 +764,7 @@ tests/
   - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
   - [ ] meta-annotations（拆分）：
     - [x] typecheck enforce `@Target/@Retention`
-    - [ ] `.cone` 导出策略（cone-preserved 注解下游可见）
+    - [x] `.cone` 导出策略（cone-preserved 注解下游可见）
 - [ ] 注解参数补齐：常量表达式、数组/enum/class-literal 等非纯字面量参数的解析与合法性检查
 - [x] 注解 use-site targets：`field:/property:/param:/get:/set:/file:`（spec §15.3，已支持解析与挂载；get/set 仍为纯语法存储）
 - [x] namespaced annotations：`@Namespace.Annotation(...)`（spec §15.4）

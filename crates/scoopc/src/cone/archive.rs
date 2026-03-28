@@ -7,6 +7,7 @@
 //! v0 归档内容（顶层文件）：
 //! - `Cone.toml`：原始 manifest（文本）；
 //! - `api.scoopir`：public API 的 ScoopIR（JSON，schema v0）；
+//! - `ANNOTATION_CLASSES.json`：可跨 cone 导出的注解类元信息（JSON，schema v0；TODO T1016b）；
 //! - `SYMBOL_VISIBILITY.json`：非 public 符号的“存在性 + 可见性层级”（JSON，schema v0；用于下游 not_visible 诊断）；
 //! - `PRE_SPECIALIZE.json`：预编译函数实例索引（JSON，schema v0；TODO T1108）；
 //! - `SOURCES_SHA256`：源文件内容哈希（逐文件 sha256，按相对路径排序）。
@@ -49,6 +50,16 @@ pub fn write_cone_archive_v0(
         .wrap_err("序列化 api.scoopir（JSON）失败")?;
     let api_json = ensure_trailing_newline(api_json);
 
+    let annotation_classes =
+        super::annotations::collect_cone_preserved_annotation_classes_for_cone_sources(
+            session, &sources,
+        )
+        .wrap_err("导出 ANNOTATION_CLASSES.json 失败")?;
+    let annotation_classes_json = serde_json::to_vec_pretty(&annotation_classes)
+        .into_diagnostic()
+        .wrap_err("序列化 ANNOTATION_CLASSES.json（JSON）失败")?;
+    let annotation_classes_json = ensure_trailing_newline(annotation_classes_json);
+
     let symbol_visibility =
         super::visibility::collect_non_public_symbols_for_cone_sources(session, &sources)
             .wrap_err("导出 SYMBOL_VISIBILITY.json 失败")?;
@@ -76,6 +87,10 @@ pub fn write_cone_archive_v0(
     let mut owned_entries: Vec<(&'static str, Vec<u8>)> = Vec::new();
     owned_entries.push((super::CONE_TOML_FILE_NAME, cone_toml));
     owned_entries.push((CONE_API_SCOOPIR_FILE_NAME, api_json));
+    owned_entries.push((
+        super::annotations::CONE_ANNOTATION_CLASSES_FILE_NAME,
+        annotation_classes_json,
+    ));
     owned_entries.push((
         super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
         symbol_visibility_json,

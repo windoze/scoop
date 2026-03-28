@@ -27,6 +27,9 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
+use super::annotations::{
+    ConeAnnotationClassesFile, CONE_ANNOTATION_CLASSES_FILE_NAME, parse_annotation_classes_file,
+};
 use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
 use super::pre_specialize::{
     ConePreSpecializeFile, CONE_PRE_SPECIALIZE_FILE_NAME, parse_pre_specialize_file,
@@ -45,6 +48,8 @@ pub struct ConeArchiveApi {
     pub path: PathBuf,
     pub manifest: ConeManifest,
     pub api: ScoopIrFile,
+    /// 可选：注解类元信息（用于下游识别 `annotation class` 与 @Target/@Retention）。
+    pub annotation_classes: Option<ConeAnnotationClassesFile>,
     /// 可选：非 public 符号可见性索引（用于 not_visible 诊断）。
     pub symbol_visibility: Option<ConeSymbolVisibilityFile>,
     /// 可选：pre-specialize 预编译实例索引（TODO T1108）。
@@ -123,15 +128,31 @@ pub fn load_cone_archive_api(path: impl AsRef<Path>) -> Result<ConeArchiveApi> {
     let path = path.as_ref().to_path_buf();
     let manifest = read_cone_manifest_from_archive(&path)?;
     let api = read_cone_api_scoopir_from_archive(&path)?;
+    let annotation_classes = read_cone_annotation_classes_from_archive(&path)?;
     let symbol_visibility = read_cone_symbol_visibility_from_archive(&path)?;
     let pre_specialize = read_cone_pre_specialize_from_archive(&path)?;
     Ok(ConeArchiveApi {
         path,
         manifest,
         api,
+        annotation_classes,
         symbol_visibility,
         pre_specialize,
     })
+}
+
+/// 从 `.cone` 读取并解析 `ANNOTATION_CLASSES.json`（可选；用于注解类识别与 meta 信息）。
+pub fn read_cone_annotation_classes_from_archive(
+    path: impl AsRef<Path>,
+) -> Result<Option<ConeAnnotationClassesFile>> {
+    let path = path.as_ref();
+    let Some(bytes) = super::try_read_cone_archive_entry(path, CONE_ANNOTATION_CLASSES_FILE_NAME)?
+    else {
+        return Ok(None);
+    };
+
+    let file = parse_annotation_classes_file(&bytes)?;
+    Ok(Some(file))
 }
 
 /// 从 `.cone` 读取并解析 `SYMBOL_VISIBILITY.json`（可选；用于 not_visible 诊断）。
@@ -182,6 +203,15 @@ pub fn inject_cone_dependency_public_api(
     // 约束：这些 span 并不对应真实源代码位置，因此诊断 label 仅用于稳定/可读性，不追求精确定位。
     let mut synth = SyntheticSourceBuilder::default();
 
+    // 注解类元信息（v0：仅 cone-preserved）。
+    let mut annotation_classes_by_fqn: std::collections::HashMap<&str, &super::annotations::ConeAnnotationClassEntry> =
+        std::collections::HashMap::new();
+    if let Some(file) = dep.annotation_classes.as_ref() {
+        for a in &file.annotations {
+            annotation_classes_by_fqn.insert(a.fqn.as_str(), a);
+        }
+    }
+
     // 1) types：注入 Index + TypeEnv。
     for ty in &dep.api.types {
         let fqn = ty.fqn.clone();
@@ -212,13 +242,28 @@ pub fn inject_cone_dependency_public_api(
             })
             .collect::<Vec<_>>();
 
+        let (is_annotation_class, annotation_targets, annotation_retention) =
+            if let Some(meta) = annotation_classes_by_fqn.get(fqn.as_str()) {
+                let targets = meta.targets.as_ref().map(|ts| {
+                    ts.iter()
+                        .filter_map(|t| crate::typecheck::AnnotationTargetKind::from_variant_name(t))
+                        .collect::<Vec<_>>()
+                });
+                let retention = crate::typecheck::AnnotationRetentionPolicy::parse(&meta.retention);
+                let is_annotation_class =
+                    retention == Some(crate::typecheck::AnnotationRetentionPolicy::ConePreserved);
+                (is_annotation_class, targets, retention)
+            } else {
+                (false, None, None)
+            };
+
         env.insert_external_type_symbol(
             fqn.clone(),
             TypeSymbol {
                 kind: type_kind,
-                is_annotation_class: false,
-                annotation_targets: None,
-                annotation_retention: None,
+                is_annotation_class,
+                annotation_targets,
+                annotation_retention,
                 annotation_params: Vec::new(),
                 type_param_count: type_param_names.len(),
                 eff_param: None,

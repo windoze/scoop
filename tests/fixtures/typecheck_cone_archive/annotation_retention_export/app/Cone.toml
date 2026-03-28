@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-anno-app"
+version = "0.0.0"
+
+[dependencies]
+fixture-anno-lib = "0.0.0"
+

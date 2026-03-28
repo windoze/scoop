@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T1016b：标记为 `@Retention("cone")` 的注解类应被导出到 `.cone`，并在下游可见（可作为注解使用）。
+
+package fixtures.typecheck_cone_archive.annotation_retention_export.app
+
+import scoop.core.*
+import fixtures.typecheck_cone_archive.annotation_retention_export.lib.*
+
+@ConePreserved
+public fun f() / Pure! {
+    ()
+}
+

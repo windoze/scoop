@@ -1,0 +1,10 @@
+// 说明：本 cone 为 consumer（包含依赖），本文件仅用于满足 `load_cone_source_package` 的入口要求。
+
+package fixtures.typecheck_cone_archive.annotation_retention_export.app
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    ()
+}
+

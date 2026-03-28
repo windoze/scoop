@@ -1,0 +1,10 @@
+package fixtures.typecheck_cone_archive.annotation_retention_export.lib
+
+import scoop.core.*
+
+@Retention("cone")
+public annotation class ConePreserved
+
+@Retention("comptime")
+public annotation class ComptimeOnly
+

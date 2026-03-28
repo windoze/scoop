@@ -5,6 +5,7 @@
 //! - T1102：source package 的加载规则（cone root → sources 列表 + main 入口定位）。
 
 pub mod archive;
+pub mod annotations;
 pub mod consume;
 pub mod manifest;
 pub mod package;
@@ -15,6 +16,10 @@ pub mod visibility;
 pub use archive::{
     CONE_API_SCOOPIR_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME, list_cone_archive_entries,
     read_cone_archive_entry, try_read_cone_archive_entry, write_cone_archive_v0,
+};
+pub use annotations::{
+    CONE_ANNOTATION_CLASSES_FILE_NAME, ConeAnnotationClassesFile, ConeAnnotationClassEntry,
+    collect_cone_preserved_annotation_classes_for_cone_sources, parse_annotation_classes_file,
 };
 pub use consume::{
     ConeArchiveApi, inject_cone_dependency_public_api, load_cone_archive_api,
