@@ -33,6 +33,7 @@
 - 2026-03-28：完成 T0322：resolver 支持跨包 extension 导入与发现（显式 import / star import / 可见性过滤），并把可见 extension 候选写入调用点候选集；新增 resolve_cone fixtures `extension_imports` 回归。
 - 2026-03-28：完成 T1109：pre-specialize 扩展到类型实例（`[pre-specialize].types`）；`PRE_SPECIALIZE.json` 新增 `types` 索引，并在 typecheck_cone_archive fixtures 中新增 hit/miss 回归用例。
 - 2026-03-28：完成 T1201：HIR `FunDecl` 增加 `is_const` 标记并从 AST 传播；typecheck headers 为 `const fun` 增加最小门禁（禁止 non-Pure effect row 与 `eff` 参数）；新增 hir/typecheck fixtures 回归。
+- 2026-03-28：完成 T1202c：const 解释器支持 `const fun` 调用（局部 `val`/`return`/block 末尾表达式返回 + 递归上限），并把 `tests/fixtures/comptime/**` 接入 `scoop test` 新 phase（`.comptime` golden 回归），新增 pass/fail fixtures 覆盖。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。
@@ -803,7 +804,7 @@ fixtures：
 - [ ] `const fun` 解释器（先支持 value types/纯计算；`String` 作为特例允许——具有值语义）
   - [x] T1202a：值模型 + 纯表达式求值 v0
   - [x] T1202b：tuple/struct/enum 的值构造与访问
-  - [ ] T1202c：`const fun` 调用 + `tests/fixtures/comptime` 接入
+  - [x] T1202c：`const fun` 调用 + `tests/fixtures/comptime` 接入
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）

@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
+use miette::Diagnostic;
+
 use crate::comptime::{ConstEnum, ConstEvalCtx, ConstInt, ConstIntTy, ConstStruct, ConstValue, eval_const_expr};
+use crate::comptime::{ConstBinding, eval_const_bindings_in_file};
 use crate::parser;
 use crate::source::SourceFile;
 
@@ -32,6 +35,12 @@ fn eval_expr(expr_src: &str, default_int_ty: ConstIntTy) -> ConstValue {
 
 fn mk_int(ty: ConstIntTy, raw: u128) -> ConstValue {
     ConstValue::Int(ConstInt::new(ty, raw))
+}
+
+fn eval_file_consts(file_src: &str) -> Vec<ConstBinding> {
+    let source = SourceFile::new_virtual("<mem>", file_src.to_string());
+    let file = parser::parse_file(&source).expect("parse");
+    eval_const_bindings_in_file(&source, &file).expect("eval file consts")
 }
 
 #[test]
@@ -130,4 +139,76 @@ fn const_eval_enum_construct_and_access() {
 
     let v = eval_expr("Opt.Some(42)._0", ty);
     assert_eq!(v, mk_int(ty, 42));
+}
+
+#[test]
+fn const_eval_const_fun_call_and_const_val_fold() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+const fun add(a: Int, b: Int): Int {
+    val c = a + b
+    c
+}
+
+const fun add3(x: Int): Int {
+    val y = x + 2
+    y + 1
+}
+
+const val A: Int = add(1, 2)
+const val B: Int = add3(10)
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(ty, 3),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: mk_int(ty, 13),
+            }
+        ]
+    );
+}
+
+#[test]
+fn const_eval_calling_non_const_fun_is_error() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+fun add(a: Int, b: Int): Int { return a + b }
+const val X: Int = add(1, 2)
+"#
+        .to_string(),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    assert_eq!(
+        err.code().unwrap().to_string(),
+        "scoop::comptime::callee_not_const_fun"
+    );
+}
+
+#[test]
+fn const_eval_recursion_limit_has_stable_code() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+const fun loop(): Int { loop() }
+const val X: Int = loop()
+"#
+        .to_string(),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    assert_eq!(
+        err.code().unwrap().to_string(),
+        "scoop::comptime::recursion_limit_exceeded"
+    );
 }

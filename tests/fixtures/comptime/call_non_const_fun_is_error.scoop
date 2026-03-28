@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::comptime::callee_not_const_fun
+// EXPECT-ERROR: 只能调用 const fun
+// EXPECT-ERROR-AT: 12:20
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+fun add(a: Int, b: Int): Int { return a + b }
+
+const val X: Int = add(1, 2)

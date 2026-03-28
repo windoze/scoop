@@ -3565,11 +3565,21 @@
    - `cargo test -p scoopc`
    - `cargo test --all`
 
-### T1202c [TODO] const interpreter：支持 `const fun` 调用（仅 Pure）并接入 `tests/fixtures/comptime`
+### T1202c [DONE] const interpreter：支持 `const fun` 调用（仅 Pure）并接入 `tests/fixtures/comptime`
 - 描述：实现 const fun 的 body 求值（局部 `val`、表达式返回、最小 block），并在 fixtures runner 中新增 `comptime` phase 以回归 const 求值结果。
 - 目标：先保守：不支持闭包/lambda、不支持 `perform/handle`、不支持循环；对递归设定上限避免无限求值。
 - 验收：新增 `tests/fixtures/comptime/*`：const 计算结果可用于类型/代码生成位置（可先以编译期常量折叠为目标）；`cargo run -p scoop -- test` 通过。
 - 依赖：T1202b、T0702
+ - 完成：
+   - `crates/scoopc/src/comptime/eval.rs`：引入 `ConstEvalHost` + `eval_const_expr_with_host`，为解释器注入“名字解析/函数调用”能力；call 表达式在 enum ctor 与 `const fun` 之间做最小分流。
+   - `crates/scoopc/src/comptime/interpreter.rs`：实现 `const fun` 调用（按 name+arity 最小选择）、局部 `val`、`return`、block 末尾表达式返回；并对递归深度设上限（稳定错误码）。
+   - `crates/scoopc/src/comptime/mod.rs`：导出 `eval_const_bindings_in_file`/`ConstBinding` 作为 fixtures/后续阶段接入点。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 const fun 调用、调用非 const fun 的稳定错误码、递归深度超限的稳定错误码。
+   - `crates/scoop/src/fixtures/mod.rs`：新增 fixtures `comptime` phase，执行 `const val` 常量折叠并与 `.comptime` golden 比对。
+   - `tests/fixtures/comptime/*`：新增 pass/fail fixtures 回归覆盖 const fun 调用与诊断。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1203 [TODO] `comptime { ... }` block 语法与执行入口（spec §6.3）
 - 描述：解析 comptime block 并在编译时执行（Pure 限制）。

@@ -98,10 +98,123 @@ pub enum ConstEvalError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("暂不支持的常量语句：{kind}")]
+    #[diagnostic(code(scoop::comptime::unsupported_stmt))]
+    UnsupportedStmt {
+        kind: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("{kind} 缺少 initializer")]
+    #[diagnostic(code(scoop::comptime::missing_initializer))]
+    MissingInitializer {
+        kind: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("未找到可调用的 const fun：{name}")]
+    #[diagnostic(code(scoop::comptime::unknown_const_fun))]
+    UnknownConstFun {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("只能调用 const fun：{name}")]
+    #[diagnostic(code(scoop::comptime::callee_not_const_fun))]
+    CalleeNotConstFun {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 参数个数不匹配：{name} 期望 {expected} 个参数，但得到 {found} 个")]
+    #[diagnostic(code(scoop::comptime::const_fun_arity_mismatch))]
+    ConstFunArityMismatch {
+        name: String,
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 调用歧义：{name}（参数个数为 {arity}）")]
+    #[diagnostic(code(scoop::comptime::const_fun_ambiguous))]
+    ConstFunAmbiguous {
+        name: String,
+        arity: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 递归深度超限：{name}（limit={limit}）")]
+    #[diagnostic(code(scoop::comptime::recursion_limit_exceeded))]
+    RecursionLimitExceeded {
+        name: String,
+        limit: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("暂不支持的 const fun 签名：{reason}")]
+    #[diagnostic(code(scoop::comptime::unsupported_const_fun_signature))]
+    UnsupportedConstFunSignature {
+        reason: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
-/// 对 AST 表达式做最小常量求值（T1202a）。
+/// 常量求值时用于“外部交互”的宿主接口：
+/// - 解释器可通过它解析局部/全局名字；
+/// - 并把 `f(...)` 的调用委托给宿主（用于 `const fun`）。
+pub(crate) trait ConstEvalHost {
+    fn resolve_ident(&mut self, name: &str) -> Option<ConstValue>;
+    fn call_fun(
+        &mut self,
+        call_span: crate::span::Span,
+        callee_name: &str,
+        args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError>;
+}
+
+struct NoHost;
+
+impl ConstEvalHost for NoHost {
+    fn resolve_ident(&mut self, _name: &str) -> Option<ConstValue> {
+        None
+    }
+
+    fn call_fun(
+        &mut self,
+        call_span: crate::span::Span,
+        _callee_name: &str,
+        _args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError> {
+        Err(ConstEvalError::UnsupportedExpr {
+            kind: "call expression",
+            span: call_span.into(),
+        })
+    }
+}
+
+/// 对 AST 表达式做最小常量求值（T1202a/T1202b）。
+///
+/// 说明：该函数不支持 `const fun` 调用；调用/局部变量由解释器（T1202c）通过
+/// `eval_const_expr_with_host` 注入环境与调用能力。
 pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstValue, ConstEvalError> {
+    let mut host = NoHost;
+    eval_const_expr_with_host(ctx, &mut host, expr)
+}
+
+pub(crate) fn eval_const_expr_with_host(
+    ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
+    expr: &ast::Expr,
+) -> Result<ConstValue, ConstEvalError> {
     match &expr.kind {
         ast::ExprKind::Missing => Err(ConstEvalError::UnsupportedExpr {
             kind: "missing",
@@ -140,24 +253,27 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
             match name {
                 "true" => Ok(ConstValue::Bool(true)),
                 "false" => Ok(ConstValue::Bool(false)),
-                _ => Err(ConstEvalError::UnknownIdent {
-                    name: name.to_string(),
-                    span: id.span.into(),
-                }),
+                other => match host.resolve_ident(other) {
+                    Some(v) => Ok(v),
+                    None => Err(ConstEvalError::UnknownIdent {
+                        name: name.to_string(),
+                        span: id.span.into(),
+                    }),
+                },
             }
         }
 
         ast::ExprKind::Unary { op, expr: inner, .. } => {
-            let v = eval_const_expr(ctx, inner)?;
+            let v = eval_const_expr_with_host(ctx, host, inner)?;
             eval_unary(expr.span, *op, v)
         }
-        ast::ExprKind::Binary { lhs, op, rhs, .. } => eval_binary(ctx, expr.span, *op, lhs, rhs),
+        ast::ExprKind::Binary { lhs, op, rhs, .. } => eval_binary(ctx, host, expr.span, *op, lhs, rhs),
 
         // aggregates（T1202b）
         ast::ExprKind::TupleLit { elements } => {
             let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
             for e in elements {
-                out.push(eval_const_expr(ctx, e)?);
+                out.push(eval_const_expr_with_host(ctx, host, e)?);
             }
             Ok(ConstValue::Tuple(out))
         }
@@ -206,7 +322,7 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
             let mut out_fields = std::collections::BTreeMap::<String, ConstValue>::new();
             for f in fields {
                 let name = f.name.text(ctx.source).to_string();
-                let value = eval_const_expr(ctx, &f.value)?;
+                let value = eval_const_expr_with_host(ctx, host, &f.value)?;
                 out_fields.insert(name, value);
             }
             Ok(ConstValue::Struct(ConstStruct {
@@ -234,11 +350,29 @@ pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstV
                 }
             }
 
-            let recv = eval_const_expr(ctx, receiver)?;
+            let recv = eval_const_expr_with_host(ctx, host, receiver)?;
             eval_member_access(ctx, recv, member, expr.span)
         }
 
-        ast::ExprKind::Call { callee, args } => eval_enum_ctor_call(ctx, expr.span, callee, args),
+        ast::ExprKind::Call { callee, args } => {
+            // enum ctor（T1202b）：`Opt.Some(1)` / `Some(1)`
+            //
+            // 规则：
+            // - 当 callee 看起来像“类型/variant 名”（大写开头）时，走 enum ctor；
+            // - 否则当 callee 为普通 Ident（小写开头）时，委托给宿主做 `const fun` 调用。
+            if let ast::ExprKind::Ident(id) = &callee.kind {
+                let name = ctx.source.slice(id.span);
+                if !looks_like_type_name(name) {
+                    let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
+                    for a in args {
+                        argv.push(eval_const_expr_with_host(ctx, host, a)?);
+                    }
+                    return host.call_fun(expr.span, name, argv);
+                }
+            }
+
+            eval_enum_ctor_call(ctx, host, expr.span, callee, args)
+        }
         ast::ExprKind::NamedArg { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "named arg",
             span: expr.span.into(),
@@ -334,6 +468,7 @@ fn eval_member_access(
 
 fn eval_enum_ctor_call(
     ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
     call_span: crate::span::Span,
     callee: &ast::Expr,
     args: &[ast::Expr],
@@ -378,7 +513,7 @@ fn eval_enum_ctor_call(
 
     let mut payload: Vec<ConstValue> = Vec::with_capacity(args.len());
     for a in args {
-        payload.push(eval_const_expr(ctx, a)?);
+        payload.push(eval_const_expr_with_host(ctx, host, a)?);
     }
 
     Ok(ConstValue::Enum(ConstEnum { ty, variant, payload }))
@@ -450,6 +585,7 @@ fn eval_unary(span: crate::span::Span, op: ast::UnaryOp, v: ConstValue) -> Resul
 /// 求值二元运算（入口）：负责处理 short-circuit（`&&`/`||`）。
 fn eval_binary(
     ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
     span: crate::span::Span,
     op: ast::BinaryOp,
     lhs: &ast::Expr,
@@ -457,7 +593,7 @@ fn eval_binary(
 ) -> Result<ConstValue, ConstEvalError> {
     match op {
         ast::BinaryOp::LogAnd => {
-            let l = eval_const_expr(ctx, lhs)?;
+            let l = eval_const_expr_with_host(ctx, host, lhs)?;
             let ConstValue::Bool(lb) = l else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -468,7 +604,7 @@ fn eval_binary(
             if !lb {
                 return Ok(ConstValue::Bool(false));
             }
-            let r = eval_const_expr(ctx, rhs)?;
+            let r = eval_const_expr_with_host(ctx, host, rhs)?;
             let ConstValue::Bool(rb) = r else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -479,7 +615,7 @@ fn eval_binary(
             Ok(ConstValue::Bool(rb))
         }
         ast::BinaryOp::LogOr => {
-            let l = eval_const_expr(ctx, lhs)?;
+            let l = eval_const_expr_with_host(ctx, host, lhs)?;
             let ConstValue::Bool(lb) = l else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -490,7 +626,7 @@ fn eval_binary(
             if lb {
                 return Ok(ConstValue::Bool(true));
             }
-            let r = eval_const_expr(ctx, rhs)?;
+            let r = eval_const_expr_with_host(ctx, host, rhs)?;
             let ConstValue::Bool(rb) = r else {
                 return Err(ConstEvalError::OperandTypeMismatch {
                     expected: "Bool",
@@ -501,8 +637,8 @@ fn eval_binary(
             Ok(ConstValue::Bool(rb))
         }
         _ => {
-            let l = eval_const_expr(ctx, lhs)?;
-            let r = eval_const_expr(ctx, rhs)?;
+            let l = eval_const_expr_with_host(ctx, host, lhs)?;
+            let r = eval_const_expr_with_host(ctx, host, rhs)?;
             eval_binary_eager(span, op, l, r)
         }
     }

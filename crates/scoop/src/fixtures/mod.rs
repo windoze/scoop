@@ -9,6 +9,7 @@
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
+//! - comptime fixtures：执行 `const val` 的常量折叠（`const fun` 解释器 v0，T1202c）
 //! - build fixtures：调用 `scoop build`（产出 `.ll`/`.o`/`.s` 等单文件，用于排查）
 //! - run-pass fixtures：通过 `scoop run` 真正执行，并做 stdout/stderr golden 比对（需要启用 `scoop` 的 `llvm` feature）
 //!
@@ -22,6 +23,7 @@
 //! - `tests/fixtures/typecheck_cone/<case>/<cone>/**` → typecheck（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_cone_archive/<case>/<pkg>/**` → typecheck（真实 `.cone` 依赖：先打包依赖，再注入 `api.scoopir`）
 //! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
+//! - `tests/fixtures/comptime/**` → comptime（执行 `const val` 常量折叠并与 `.comptime` golden 比对）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
@@ -140,6 +142,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "resolve" => FixturePhase::Resolve,
         Some(name) if name == "typecheck" || name == "unsafe_nogc" => FixturePhase::Typecheck,
         Some(name) if name == "infer" => FixturePhase::Infer,
+        Some(name) if name == "comptime" => FixturePhase::Comptime,
         Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" => FixturePhase::Mir,
@@ -153,6 +156,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source),
         FixturePhase::Infer => infer_fixture(session, &source),
+        FixturePhase::Comptime => comptime_fixture(&source, path),
         FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
@@ -181,6 +185,7 @@ enum FixturePhase {
     Resolve,
     Typecheck,
     Infer,
+    Comptime,
     RunPass,
     Hir,
     Mir,
@@ -304,6 +309,24 @@ struct AstGoldenReadFailed {
 #[error("AST snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::ast_golden_mismatch))]
 struct AstGoldenMismatch {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 comptime golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::comptime_golden_read_failed))]
+struct ComptimeGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("comptime snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::comptime_golden_mismatch))]
+struct ComptimeGoldenMismatch {
     path: String,
     fixture: String,
 }
@@ -550,6 +573,101 @@ fn parse_fixture(
     }
 
     Ok(())
+}
+
+fn comptime_fixture(
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let bindings = scoopc::comptime::eval_const_bindings_in_file(source, &ast).map_err(box_diagnostic)?;
+
+    let actual = normalize_newlines(&format_const_bindings_for_fixture(&bindings));
+
+    let golden_path = fixture_path.with_extension("comptime");
+    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
+        box_diagnostic(ComptimeGoldenReadFailed {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+            source: e,
+        })
+    })?;
+    let expected = normalize_newlines(&expected_raw);
+
+    if expected != actual {
+        return Err(box_diagnostic(ComptimeGoldenMismatch {
+            path: golden_path.display().to_string(),
+            fixture: fixture_path.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn format_const_bindings_for_fixture(bindings: &[scoopc::comptime::ConstBinding]) -> String {
+    let mut out = String::new();
+    for b in bindings {
+        out.push_str(&b.name);
+        out.push_str(" = ");
+        out.push_str(&format_const_value_for_fixture(&b.value));
+        out.push('\n');
+    }
+    out
+}
+
+fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
+    use scoopc::comptime::{ConstEnum, ConstStruct, ConstValue};
+
+    match v {
+        ConstValue::Unit => "()".to_string(),
+        ConstValue::Bool(b) => b.to_string(),
+        ConstValue::Int(i) => {
+            if i.ty.signed {
+                i.as_i128().to_string()
+            } else {
+                i.as_u128().to_string()
+            }
+        }
+        ConstValue::String(s) => format!("{s:?}"),
+        ConstValue::Tuple(items) => {
+            let inner = items
+                .iter()
+                .map(format_const_value_for_fixture)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("({inner})")
+        }
+        ConstValue::Struct(ConstStruct { ty, fields }) => {
+            if fields.is_empty() {
+                return format!("{ty} {{}}");
+            }
+            let inner = fields
+                .iter()
+                .map(|(k, v)| format!("{k}: {}", format_const_value_for_fixture(v)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{ty} {{ {inner} }}")
+        }
+        ConstValue::Enum(ConstEnum { ty, variant, payload }) => {
+            let mut out = String::new();
+            if let Some(ty) = ty {
+                out.push_str(ty);
+                out.push('.');
+            }
+            out.push_str(variant);
+            if !payload.is_empty() {
+                let inner = payload
+                    .iter()
+                    .map(format_const_value_for_fixture)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push('(');
+                out.push_str(&inner);
+                out.push(')');
+            }
+            out
+        }
+    }
 }
 
 fn hir_fixture(
