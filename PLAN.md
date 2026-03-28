@@ -848,7 +848,7 @@ fixtures：
 - [ ] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
 - [x] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
-- [ ] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）
+- [x] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）
 - [ ] sysroot/stdlib：补齐 scope functions（§11）；delegated property API surface 已在 sysroot 落地（spec §10.4）
 
 fixtures：

@@ -509,6 +509,36 @@ pub(crate) fn eval_const_expr_with_host(
         }
 
         ast::ExprKind::Call { callee, args } => {
+            // spec §8.4：`trimIndent()` 是 `String` 的 `const fun`。
+            //
+            // 约定（early stage）：
+            // - 仅当 receiver 为编译期常量（ConstValue::String）时，在编译期执行并折叠；
+            // - 否则（运行期语境）保持为普通调用（由 typecheck/codegen 的 fallback 路径处理）。
+            if let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind {
+                let member_name = ctx.source.slice(member.span);
+                if member_name == "trimIndent" {
+                    if !args.is_empty() {
+                        return Err(ConstEvalError::ConstFunArityMismatch {
+                            name: "trimIndent".to_string(),
+                            expected: 0,
+                            found: args.len(),
+                            span: expr.span.into(),
+                        });
+                    }
+
+                    let recv = eval_const_expr_with_host(ctx, host, receiver)?;
+                    let ConstValue::String(s) = recv else {
+                        return Err(ConstEvalError::OperandTypeMismatch {
+                            expected: "String",
+                            found: value_kind(&recv),
+                            span: receiver.span.into(),
+                        });
+                    };
+
+                    return Ok(ConstValue::String(string_trim_indent_kotlin_like(&s)));
+                }
+            }
+
             // 显式类型实参调用（T1204）：`nameOf<T>()` / `fieldsOf<T>()` / `sizeOf<T>()`。
             if let ast::ExprKind::TypeApply {
                 callee: inner,
@@ -726,6 +756,120 @@ fn parse_tuple_member_index(text: &str) -> Option<usize> {
         return None;
     }
     digits.parse::<usize>().ok()
+}
+
+fn is_trim_indent_ws(b: u8) -> bool {
+    // Kotlin 风格：缩进只考虑空格/Tab（raw string 的常见场景）。
+    b == b' ' || b == b'\t'
+}
+
+fn is_trim_blank_ws(b: u8) -> bool {
+    // “空白行”判断：把 CR 也视为可忽略空白，以兼容 CRLF 输入。
+    is_trim_indent_ws(b) || b == b'\r'
+}
+
+fn is_blank_line(bytes: &[u8], start: usize, end: usize) -> bool {
+    bytes[start..end].iter().copied().all(is_trim_blank_ws)
+}
+
+/// `trimIndent()`：去掉所有行的公共缩进，并剥离首尾空白行（spec §8.4）。
+///
+/// 该实现与 `runtime/c/scoop_runtime.c:scoop_string_trim_indent` 保持一致：
+/// - 按 `\n` 分割行，并对每行剥离末尾 `\r`（兼容 CRLF）；
+/// - 缩进仅识别 ASCII 空格/Tab；
+/// - 空白行判定把 `\r` 也视为可忽略空白；
+/// - 空白行在输出中会被规范化为真正的空行（不保留空格）。
+fn string_trim_indent_kotlin_like(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+
+    let bytes = s.as_bytes();
+
+    // 1) 记录每一行的 [start, end)（end 不含 '\n'；若行尾是 '\r' 则剥离）。
+    let mut starts: Vec<usize> = Vec::new();
+    let mut ends: Vec<usize> = Vec::new();
+
+    let mut cur_start = 0usize;
+    for (i, b) in bytes.iter().copied().enumerate() {
+        if b != b'\n' {
+            continue;
+        }
+
+        let mut end = i;
+        if end > cur_start && bytes[end - 1] == b'\r' {
+            end -= 1;
+        }
+        starts.push(cur_start);
+        ends.push(end);
+        cur_start = i + 1;
+    }
+
+    // last line
+    let mut end = bytes.len();
+    if end > cur_start && bytes[end - 1] == b'\r' {
+        end -= 1;
+    }
+    starts.push(cur_start);
+    ends.push(end);
+
+    // 2) 剥离首尾空白行。
+    let mut first = 0usize;
+    while first < starts.len() && is_blank_line(bytes, starts[first], ends[first]) {
+        first += 1;
+    }
+    if first == starts.len() {
+        return String::new();
+    }
+
+    let mut last = starts.len() - 1;
+    while last > first && is_blank_line(bytes, starts[last], ends[last]) {
+        last -= 1;
+    }
+
+    // 3) 计算最小公共缩进（仅在非空白行上统计）。
+    let mut min_indent = usize::MAX;
+    for li in first..=last {
+        let s0 = starts[li];
+        let e0 = ends[li];
+        if is_blank_line(bytes, s0, e0) {
+            continue;
+        }
+
+        let mut indent = 0usize;
+        while s0 + indent < e0 && is_trim_indent_ws(bytes[s0 + indent]) {
+            indent += 1;
+        }
+        min_indent = min_indent.min(indent);
+    }
+
+    if min_indent == usize::MAX {
+        min_indent = 0;
+    }
+
+    // 4) 输出：对每行 drop `min_indent`，并把剩余空白行规范化为真正的空行。
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    for li in first..=last {
+        let s0 = starts[li];
+        let e0 = ends[li];
+
+        let mut drop = 0usize;
+        while drop < min_indent && s0 + drop < e0 && is_trim_indent_ws(bytes[s0 + drop]) {
+            drop += 1;
+        }
+        let ts = s0 + drop;
+
+        if !is_blank_line(bytes, ts, e0) {
+            out.extend_from_slice(&bytes[ts..e0]);
+        }
+
+        if li != last {
+            out.push(b'\n');
+        }
+    }
+
+    // safety: 输入为合法 UTF-8；trimIndent 仅删除/插入 ASCII 字节，不会破坏 UTF-8。
+    String::from_utf8(out).expect("trimIndent result should be valid UTF-8")
 }
 
 /// 求值一元运算（`!`/`-`/`~`）。

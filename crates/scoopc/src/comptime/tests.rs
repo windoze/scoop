@@ -139,6 +139,20 @@ fn const_eval_bool_and_short_circuit() {
 }
 
 #[test]
+fn const_eval_string_trim_indent_folds() {
+    let ty = ConstIntTy::host_word(true);
+    let v = eval_expr(
+        r#""""
+    a
+      b
+    c
+""".trimIndent()"#,
+        ty,
+    );
+    assert_eq!(v, ConstValue::String("a\n  b\nc".to_string()));
+}
+
+#[test]
 fn const_eval_shift_respects_signedness() {
     // 8-bit unsigned: -1 == 0xff; 0xff >> 1 == 0x7f
     let v = eval_expr("-1 >> 1", ConstIntTy { bits: 8, signed: false });

@@ -3984,11 +3984,18 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1216 [TODO] `trimIndent()`：编译期求值 + 普通运行期回退约定（spec §8.4 / §6.2）
+### T1216 [DONE] `trimIndent()`：编译期求值 + 普通运行期回退约定（spec §8.4 / §6.2）
 - 描述：把 `trimIndent()` 纳入 `String` 的 `const fun` 语义：接收者是编译期常量时在编译期求值，否则保留为普通运行期调用。
 - 目标：先只覆盖 raw string 与普通 string 的常见路径；不做额外字符串 API 扩展。
 - 验收：新增 comptime fixture：raw string `.trimIndent()` 在编译期折叠；运行期 fixture 由 T0827 验证 fallback 路径。
 - 依赖：T1202、T1211
+ - 完成：
+   - `crates/scoopc/src/comptime/eval.rs`：在 const eval 中支持 `String.trimIndent()` 折叠，并实现与 runtime 一致的 trim 算法（含 CRLF 兼容与空白行规范化）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 raw string `.trimIndent()` 编译期折叠。
+   - `tests/fixtures/comptime/string_trim_indent_const_fold_basic.*`：新增 comptime fixture + `.comptime` golden 回归。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1217 [TODO] sysroot/stdlib：标准 delegated properties API surface（spec §10.4）
 - 描述：在 sysroot 或标准库层补齐 delegated properties 的 API surface：`scoop.delegates.lazy`、`observable`、`vetoable`，以及 map-backed delegate 所需接口。
