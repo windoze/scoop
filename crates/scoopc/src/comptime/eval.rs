@@ -202,7 +202,7 @@ pub enum ConstEvalError {
         span: miette::SourceSpan,
     },
 
-    #[error("暂不支持对该类型执行反射：{name}（期望 struct）")]
+    #[error("暂不支持对该类型执行反射：{name}（期望 struct/class）")]
     #[diagnostic(code(scoop::comptime::reflection_unsupported_target))]
     ReflectionUnsupportedTarget {
         name: String,

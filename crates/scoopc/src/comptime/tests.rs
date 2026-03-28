@@ -37,6 +37,24 @@ fn mk_int(ty: ConstIntTy, raw: u128) -> ConstValue {
     ConstValue::Int(ConstInt::new(ty, raw))
 }
 
+fn mk_type_meta(name: &str) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "TypeMeta".to_string(),
+        fields: BTreeMap::from([("name".to_string(), ConstValue::String(name.to_string()))]),
+    })
+}
+
+fn mk_field_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "FieldMeta".to_string(),
+        fields: BTreeMap::from([
+            ("index".to_string(), mk_int(int_ty, index)),
+            ("name".to_string(), ConstValue::String(name.to_string())),
+            ("type".to_string(), mk_type_meta(ty_name)),
+        ]),
+    })
+}
+
 fn eval_file_consts(file_src: &str) -> Vec<ConstBinding> {
     let source = SourceFile::new_virtual("<mem>", file_src.to_string());
     let file = parser::parse_file(&source).expect("parse");
@@ -375,6 +393,8 @@ struct Point(val x: Int, val y: Int) {
 const val N: String = nameOf<Point>()
 const val S: Int = sizeOf<Int64>()
 const val F = fieldsOf<Point>()
+const val F0N: String = fieldsOf<Point>()._0.name
+const val F0T: String = fieldsOf<Point>()._0.type.name
 "#,
     );
 
@@ -392,11 +412,47 @@ const val F = fieldsOf<Point>()
             ConstBinding {
                 name: "F".to_string(),
                 value: ConstValue::Tuple(vec![
-                    ConstValue::String("x".to_string()),
-                    ConstValue::String("y".to_string()),
-                    ConstValue::String("tag".to_string()),
+                    mk_field_meta(ty, "x", "Int", 0),
+                    mk_field_meta(ty, "y", "Int", 1),
+                    mk_field_meta(ty, "tag", "String", 2),
                 ]),
             },
+            ConstBinding {
+                name: "F0N".to_string(),
+                value: ConstValue::String("x".to_string()),
+            },
+            ConstBinding {
+                name: "F0T".to_string(),
+                value: ConstValue::String("Int".to_string()),
+            },
         ]
+    );
+}
+
+#[test]
+fn const_eval_fields_of_supports_class_fields_v0() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+class C(val x: Int) {
+    val y: String
+    // 计算属性：fieldsOf 不应把它当作字段。
+    val computed: Int get() = 0
+}
+
+const val F = fieldsOf<C>()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![ConstBinding {
+            name: "F".to_string(),
+            value: ConstValue::Tuple(vec![
+                mk_field_meta(ty, "x", "Int", 0),
+                mk_field_meta(ty, "y", "String", 1),
+            ]),
+        }]
     );
 }

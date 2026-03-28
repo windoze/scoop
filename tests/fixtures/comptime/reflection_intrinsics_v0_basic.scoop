@@ -3,7 +3,8 @@
 // - 覆盖：
 //   - `nameOf<T>()`：返回类型名
 //   - `sizeOf<T>()`：返回基础类型的大小（字节）
-//   - `fieldsOf<T>()`：返回 struct 字段名列表（v0：tuple of strings）
+//   - `fieldsOf<T>()`：返回 struct/class 字段元数据列表（v0：tuple of FieldMeta）
+//   - `FieldMeta.type`：可读取字段类型名（`TypeMeta.name`）
 
 package fixtures.comptime_
 
@@ -18,4 +19,5 @@ struct Point(val x: Int, val y: Int) {
 const val N: String = nameOf<Point>()
 const val S: Int = sizeOf<Int64>()
 const val F = fieldsOf<Point>()
-
+const val F0N: String = fieldsOf<Point>()._0.name
+const val F0T: String = fieldsOf<Point>()._0.type.name

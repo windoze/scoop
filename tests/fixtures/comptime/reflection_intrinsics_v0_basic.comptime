@@ -1,3 +1,5 @@
 N = "Point"
 S = 8
-F = ("x", "y", "tag")
+F = (FieldMeta { index: 0, name: "x", type: TypeMeta { name: "Int" } }, FieldMeta { index: 1, name: "y", type: TypeMeta { name: "Int" } }, FieldMeta { index: 2, name: "tag", type: TypeMeta { name: "String" } })
+F0N = "x"
+F0T = "Int"

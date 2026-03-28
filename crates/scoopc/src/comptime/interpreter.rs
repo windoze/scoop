@@ -294,14 +294,14 @@ impl<'a> ConstInterpreter<'a> {
                         });
                     }
                 };
-                if decl.kind != ast::TypeKind::Struct {
+                if decl.kind != ast::TypeKind::Struct && decl.kind != ast::TypeKind::Class {
                     return Err(ConstEvalError::ReflectionUnsupportedTarget {
                         name: full_name.clone(),
                         span: ty_span.into(),
                     });
                 }
 
-                let mut fields: Vec<String> = Vec::new();
+                let mut fields: Vec<ConstValue> = Vec::new();
                 let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
 
                 // 1) 主构造 `val/var` 参数声明的字段
@@ -317,7 +317,8 @@ impl<'a> ConstInterpreter<'a> {
                                 span: ty_span.into(),
                             });
                         }
-                        fields.push(fname);
+                        let index = fields.len();
+                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index));
                     }
                 }
 
@@ -338,19 +339,93 @@ impl<'a> ConstInterpreter<'a> {
                                 span: ty_span.into(),
                             });
                         }
-                        fields.push(fname);
+                        let index = fields.len();
+                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index));
                     }
                 }
 
-                Ok(ConstValue::Tuple(
-                    fields.into_iter().map(ConstValue::String).collect(),
-                ))
+                Ok(ConstValue::Tuple(fields))
             }
             _ => Err(ConstEvalError::ReflectionBadCall {
                 name: name.to_string(),
                 reason: "unknown reflection intrinsic",
                 span: call_span.into(),
             }),
+        }
+    }
+
+    /// 把一个类型引用“降级”为 TypeMeta（v0：仅保留类型名字符串）。
+    ///
+    /// 说明：
+    /// - const 解释器在当前阶段没有完整的 name resolution / type env，因此这里采用保守策略：
+    ///   - 可格式化的 `TypeRef` → `TypeMeta { name: "<pretty>" }`
+    ///   - 其它情况（缺失/暂不支持）→ `TypeMeta { name: "Any" }`
+    /// - 这保证了 fixtures 可以稳定读取 `field.type.name`，并把“精确元信息”留给后续任务补齐。
+    fn mk_type_meta(&self, ty: Option<&ast::TypeRef>) -> ConstValue {
+        let name = ty
+            .and_then(|t| self.type_ref_to_string(t))
+            .unwrap_or_else(|| "Any".to_string());
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("name".to_string(), ConstValue::String(name));
+        ConstValue::Struct(super::ConstStruct {
+            ty: "TypeMeta".to_string(),
+            fields,
+        })
+    }
+
+    /// 构造一个 FieldMeta 常量值（供 `fieldsOf<T>()` 返回）。
+    fn mk_field_meta(&self, name: String, ty: Option<&ast::TypeRef>, index: usize) -> ConstValue {
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert(
+            "index".to_string(),
+            ConstValue::Int(super::ConstInt::new(
+                self.ctx.default_int_ty,
+                index as u128,
+            )),
+        );
+        fields.insert("name".to_string(), ConstValue::String(name));
+        fields.insert("type".to_string(), self.mk_type_meta(ty));
+        ConstValue::Struct(super::ConstStruct {
+            ty: "FieldMeta".to_string(),
+            fields,
+        })
+    }
+
+    /// 把 `TypeRef` 格式化为稳定的字符串（用于 `TypeMeta.name`）。
+    ///
+    /// 说明：
+    /// - 这里输出的是“语法层面”的名字（基于 AST），并不保证是全限定名；
+    /// - 后续接入 resolve/typecheck 后，可把它升级为 FQN + 泛型实例信息。
+    fn type_ref_to_string(&self, ty: &ast::TypeRef) -> Option<String> {
+        match ty {
+            ast::TypeRef::Path(p) => {
+                let mut out = p
+                    .segments
+                    .iter()
+                    .map(|id| id.text(self.ctx.source))
+                    .collect::<Vec<_>>()
+                    .join(".");
+                if !p.args.is_empty() {
+                    let inner = p
+                        .args
+                        .iter()
+                        .filter_map(|a| self.type_ref_to_string(a))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    out.push('<');
+                    out.push_str(&inner);
+                    out.push('>');
+                }
+                Some(out)
+            }
+            ast::TypeRef::Nullable { inner, .. } => self.type_ref_to_string(inner).map(|s| format!("{s}?")),
+            ast::TypeRef::Tuple(t) if t.elements.is_empty() => Some("Unit".to_string()),
+            // v0：不支持把这些类型表达成 TypeMeta。
+            ast::TypeRef::Tuple(_)
+            | ast::TypeRef::Star { .. }
+            | ast::TypeRef::EffectRowArg { .. }
+            | ast::TypeRef::Function(_) => None,
         }
     }
 

@@ -126,13 +126,31 @@ fun __scoop_effect_slot_write2(opTag: Int, word0: Int, word1: Int): Unit
 fun __scoop_effect_slot_read_len_words(): Int
 fun __scoop_effect_slot_read_word(index: Int): Int
 
-// Delegated property metadata（spec §10.4）。
+// Compile-time metadata（spec §6.4 / §10.4）。
 //
 // 说明：
-// - `PropertyMeta` 未来会在 comptime/反射（spec §6.4）中变得更完整（见 TODO T1208）；
-// - 当前阶段仅需要它作为 delegated property 的 `getValue/setValue` 签名中的占位类型（T0434b）。
+// - 这些类型只在编译期可用：
+//   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
+//   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
+// - 当前阶段（TODO T1208）先实现“最小字段集合”：
+//   - `TypeMeta`：类型名
+//   - `FieldMeta`：字段名 + 字段类型 + 字段序号
+//   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
+// - 注解/更丰富的 type kind 等元信息由后续任务（T1209/T1215）补齐。
+struct TypeMeta {
+    val name: String
+}
+
+struct FieldMeta {
+    val name: String
+    val type: TypeMeta
+    val index: Int
+}
+
 struct PropertyMeta {
     val name: String
+    val type: TypeMeta
+    val owner: TypeMeta
 }
 
 // Integers（spec §2.3.4 / runtime §3）
@@ -176,13 +194,13 @@ fun sizeOf(value: String): Int
 //
 // 说明：
 // - 这些函数在规范中“隐式 const”，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
-// - v0 阶段 `fieldsOf<T>()` 先返回字段名列表（`ComptimeList<String>`），FieldMeta 等元数据类型将在 T1208 补齐。
+// - 当前阶段（TODO T1208）`fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
 @Intrinsic
 const fun <T> nameOf(): String
 @Intrinsic
 const fun <T> sizeOf(): Int
 @Intrinsic
-const fun <T> fieldsOf(): ComptimeList<String>
+const fun <T> fieldsOf(): ComptimeList<FieldMeta>
 
 // Option / nullable sugar
 enum Option<T> {

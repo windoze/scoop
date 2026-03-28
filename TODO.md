@@ -3673,11 +3673,20 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1208 [TODO] 编译期元数据类型：`TypeMeta/FieldMeta/PropertyMeta`（spec §6.4、§10.4）
+### T1208 [DONE] 编译期元数据类型：`TypeMeta/FieldMeta/PropertyMeta`（spec §6.4、§10.4）
 - 描述：实现编译期可用的元数据结构（字段名/类型/属性名/owner 等），供反射与委托属性生成使用。
 - 目标：先只支持 struct 字段与 class 属性；注解信息后续任务补。
 - 验收：comptime fixture：`fieldsOf<T>()` 返回 FieldMeta 列表；并能读取 name/type。
 - 依赖：T1204、T0409
+ - 完成：
+   - `sysroot/core.scoop`：新增 `TypeMeta/FieldMeta/PropertyMeta` 声明；`fieldsOf<T>()` 签名升级为 `ComptimeList<FieldMeta>`。
+   - `crates/scoopc/src/comptime/interpreter.rs`：`fieldsOf<T>()` 在 comptime 执行时返回 `FieldMeta { name, type: TypeMeta, index }` 列表，并允许 target 为 `struct/class`。
+   - `crates/scoopc/src/comptime/eval.rs`：更新 `ReflectionUnsupportedTarget` 的错误消息为 `struct/class`。
+   - `crates/scoopc/src/comptime/tests.rs`：更新反射 intrinsics 单测，并新增 class 覆盖用例。
+   - `tests/fixtures/comptime/reflection_intrinsics_v0_basic.*`：更新 `.comptime` golden，并新增读取 `field.type.name` 的常量断言。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1209 [TODO] 编译期注解访问（spec §15.6）
 - 描述：在 comptime/reflection API 中暴露读取注解的能力（限定在编译期使用）。
