@@ -1382,6 +1382,9 @@ impl<'a> HirLowering<'a> {
                 }
             }
 
+            // range/progression：语义由 stdlib/lowering 补齐；HIR dump 阶段先降级为 Any。
+            ast::BinaryOp::RangeInclusive => self.builtins.any,
+
             // elvis not lowered in current HIR dump mode
             ast::BinaryOp::Elvis => self.builtins.any,
         }

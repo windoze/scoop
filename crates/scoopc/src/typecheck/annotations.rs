@@ -1035,6 +1035,7 @@ fn infer_annotation_const_expr_type(
                     }
                 }
 
+                ast::BinaryOp::RangeInclusive => Err(not_const()),
                 ast::BinaryOp::Elvis => Err(not_const()),
             }
         }

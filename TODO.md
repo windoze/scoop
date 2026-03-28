@@ -3653,11 +3653,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- dump-rtti tests/fixtures/typecheck/struct_lit_ok.scoop --type Point`
 
-### T1207 [TODO] `comptime for`：编译期循环（spec §6.3.1）
+### T1207 [DONE] `comptime for`：编译期循环（spec §6.3.1）
 - 描述：实现 `comptime for` 的语法与执行（对编译期常量范围/列表迭代）。
 - 目标：先只支持整数范围与固定数组；break/continue 后置。
 - 验收：comptime fixture：用 comptime for 生成重复的字段/函数；生成代码能通过 parse/typecheck。
 - 依赖：T1203
+ - 完成：
+   - `crates/scoopc/src/syntax/token.rs`：新增 `Symbol::DotDot`（`..`）。
+   - `crates/scoopc/src/syntax/lexer.rs`：lexer 支持 `..` token。
+   - `crates/scoopc/src/ast/mod.rs`：新增 `BinaryOp::RangeInclusive`（`a..b`）。
+   - `crates/scoopc/src/parser/expr.rs`：二元运算解析支持 `..`（range）。
+   - `crates/scoopc/src/parser/pattern.rs`、`crates/scoopc/src/parser/expr.rs`：更新 `..` rest pattern 解析以兼容新 token（tuple/struct/when patterns）。
+   - `crates/scoopc/src/comptime/eval.rs`：const eval 支持 `ArrayLit`（v0 以 `ConstValue::Tuple` 承载）。
+   - `crates/scoopc/src/comptime/interpreter.rs`：const 解释器支持执行 `comptime for`（整数范围 `a..b` + tuple/array 迭代）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 range/array/tuple 迭代。
+   - `tests/fixtures/comptime/comptime_for_range_and_array_basic.*`：新增 comptime fixture 回归覆盖。
+   - `crates/scoopc/src/typecheck/expr.rs`、`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/hir/lower.rs`：补齐 `RangeInclusive` 的最小处理，保持 workspace 可编译。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1208 [TODO] 编译期元数据类型：`TypeMeta/FieldMeta/PropertyMeta`（spec §6.4、§10.4）
 - 描述：实现编译期可用的元数据结构（字段名/类型/属性名/owner 等），供反射与委托属性生成使用。

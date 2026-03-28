@@ -1875,8 +1875,9 @@ impl<'a> Parser<'a> {
                     // `..` rest：仅允许出现一次，并且必须是最后一个参数。
                     if rest_span.is_some() {
                         let tok = *self.peek();
-                        if self.peek_symbol(Symbol::Dot)
-                            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                        if self.peek_symbol(Symbol::DotDot)
+                            || (self.peek_symbol(Symbol::Dot)
+                                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                         {
                             let err = ParseError::Expected {
                                 expected: "when variant pattern：`..` 只能出现一次",
@@ -1903,12 +1904,17 @@ impl<'a> Parser<'a> {
                         return Err(err);
                     }
 
-                    if self.peek_symbol(Symbol::Dot)
-                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                    if self.peek_symbol(Symbol::DotDot)
+                        || (self.peek_symbol(Symbol::Dot)
+                            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                     {
-                        let dot1 = self.bump();
-                        let dot2 = self.bump();
-                        let span = Span::new(dot1.span.start, dot2.span.end);
+                        let span = if self.peek_symbol(Symbol::DotDot) {
+                            self.bump().span
+                        } else {
+                            let dot1 = self.bump();
+                            let dot2 = self.bump();
+                            Span::new(dot1.span.start, dot2.span.end)
+                        };
                         rest_span = Some(span);
                         args.push(ast::WhenPat::Rest { span });
                     } else {
@@ -1983,8 +1989,8 @@ impl<'a> Parser<'a> {
             // `..` rest：仅允许出现一次，并且必须是最后一个元素。
             if rest_span.is_some() {
                 let tok = *self.peek();
-                if self.peek_symbol(Symbol::Dot)
-                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                if self.peek_symbol(Symbol::DotDot)
+                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "when tuple pattern：`..` 只能出现一次",
@@ -2011,12 +2017,16 @@ impl<'a> Parser<'a> {
                 return Err(err);
             }
 
-            if self.peek_symbol(Symbol::Dot)
-                && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            if self.peek_symbol(Symbol::DotDot)
+                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
-                let dot1 = self.bump();
-                let dot2 = self.bump();
-                let span = Span::new(dot1.span.start, dot2.span.end);
+                let span = if self.peek_symbol(Symbol::DotDot) {
+                    self.bump().span
+                } else {
+                    let dot1 = self.bump();
+                    let dot2 = self.bump();
+                    Span::new(dot1.span.start, dot2.span.end)
+                };
                 rest_span = Some(span);
                 elements.push(ast::WhenPat::Rest { span });
             } else {
@@ -2668,6 +2678,10 @@ fn binary_binding_power(sym: Symbol) -> Option<(u8, u8, ast::BinaryOp)> {
 
         Symbol::LtLt => Some((9, 10, ast::BinaryOp::Shl)),
         Symbol::GtGt => Some((9, 10, ast::BinaryOp::Shr)),
+
+        // range：`a..b`（Appendix B.12）。
+        // v0：先把它放在“与比较同级、低于移位/算术”的层级，后续再对齐 Kotlin 的完整优先级表。
+        Symbol::DotDot => Some((8, 9, ast::BinaryOp::RangeInclusive)),
 
         Symbol::Lt => Some((8, 9, ast::BinaryOp::Lt)),
         Symbol::LtEq => Some((8, 9, ast::BinaryOp::Le)),

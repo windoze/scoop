@@ -347,6 +347,10 @@ impl<'a> Lexer<'a> {
             self.bump_bytes(2);
             return Some(Symbol::Elvis);
         }
+        if self.peek_bytes2() == Some([b'.', b'.']) {
+            self.bump_bytes(2);
+            return Some(Symbol::DotDot);
+        }
 
         // single-char
         let ch = self.peek_char()?;

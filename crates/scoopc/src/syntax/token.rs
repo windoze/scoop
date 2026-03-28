@@ -112,6 +112,8 @@ pub enum Symbol {
     Colon,
     Semicolon,
     Dot,
+    /// `..`（range/rest pattern，Appendix B.12 / Appendix B.11）。
+    DotDot,
     Plus,
     Minus,
     Star,

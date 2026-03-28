@@ -318,6 +318,49 @@ const val X: Int = bad()
 }
 
 #[test]
+fn const_eval_comptime_for_supports_range_and_array_and_tuple() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+const fun lastRange(): Int {
+    comptime for (i in 1..3) { i }
+}
+
+const fun lastArray(): Int {
+    comptime for (x in [10, 20, 30]) { x }
+}
+
+const fun lastTuple(): Int {
+    comptime for (x in (7, 8, 9)) { x }
+}
+
+const val A: Int = lastRange()
+const val B: Int = lastArray()
+const val C: Int = lastTuple()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(ty, 3),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: mk_int(ty, 30),
+            },
+            ConstBinding {
+                name: "C".to_string(),
+                value: mk_int(ty, 9),
+            },
+        ]
+    );
+}
+
+#[test]
 fn const_eval_reflection_intrinsics_v0_basic() {
     let ty = ConstIntTy::host_word(true);
 

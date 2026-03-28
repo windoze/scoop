@@ -1921,6 +1921,7 @@ fn binary_op_text(op: ast::BinaryOp) -> &'static str {
         ast::BinaryOp::Mul => "*",
         ast::BinaryOp::Div => "/",
         ast::BinaryOp::Rem => "%",
+        ast::BinaryOp::RangeInclusive => "..",
         ast::BinaryOp::Shl => "<<",
         ast::BinaryOp::Shr => ">>",
         ast::BinaryOp::BitAnd => "&",
@@ -2135,6 +2136,9 @@ fn infer_builtin_scalar_binary_expr_type(
             kind: "elvis expression（internal）",
             span: op_span.into(),
         }),
+
+        // range/progression（Appendix B.12）：语义由 stdlib/lowering 补齐；v0 先放行以服务 comptime for（T1207）。
+        ast::BinaryOp::RangeInclusive => Ok(builtins.any),
     }
 }
 

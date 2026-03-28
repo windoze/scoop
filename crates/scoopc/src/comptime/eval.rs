@@ -338,10 +338,16 @@ pub(crate) fn eval_const_expr_with_host(
             }
             Ok(ConstValue::Tuple(out))
         }
-        ast::ExprKind::ArrayLit { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "array literal",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::ArrayLit { elements } => {
+            // v0：编译期执行侧先把 array literal 视为“可迭代的常量序列”。
+            // 目前 ConstValue 未区分 tuple/array（两者都用 Tuple 承载），
+            // 主要用于 `comptime for` 的迭代对象（T1207）。
+            let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
+            for e in elements {
+                out.push(eval_const_expr_with_host(ctx, host, e)?);
+            }
+            Ok(ConstValue::Tuple(out))
+        }
         ast::ExprKind::InterpolatedString { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "interpolated string",
             span: expr.span.into(),
@@ -848,6 +854,10 @@ fn eval_binary_eager(
         },
 
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => unreachable!("short-circuit 已在上层处理"),
+        ast::BinaryOp::RangeInclusive => Err(ConstEvalError::UnsupportedExpr {
+            kind: "range (..)",
+            span: span.into(),
+        }),
         ast::BinaryOp::Elvis => Err(ConstEvalError::UnsupportedExpr {
             kind: "elvis (?:)",
             span: span.into(),

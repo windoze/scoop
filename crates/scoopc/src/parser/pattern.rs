@@ -111,8 +111,8 @@ impl<'a> Parser<'a> {
             // `..` rest：仅允许出现一次，并且必须是最后一个元素。
             if rest_span.is_some() {
                 let tok = *self.peek();
-                if self.peek_symbol(Symbol::Dot)
-                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                if self.peek_symbol(Symbol::DotDot)
+                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "tuple pattern：`..` 只能出现一次",
@@ -131,11 +131,16 @@ impl<'a> Parser<'a> {
                 return Err(err);
             }
 
-            if self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            if self.peek_symbol(Symbol::DotDot)
+                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
-                let dot1 = self.bump();
-                let dot2 = self.bump();
-                let span = Span::new(dot1.span.start, dot2.span.end);
+                let span = if self.peek_symbol(Symbol::DotDot) {
+                    self.bump().span
+                } else {
+                    let dot1 = self.bump();
+                    let dot2 = self.bump();
+                    Span::new(dot1.span.start, dot2.span.end)
+                };
                 rest_span = Some(span);
                 elements.push(ast::Pattern {
                     span,
@@ -184,8 +189,8 @@ impl<'a> Parser<'a> {
             // `..` rest：仅允许出现一次，并且必须是最后一个字段。
             if rest_span.is_some() {
                 let tok = *self.peek();
-                if self.peek_symbol(Symbol::Dot)
-                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+                if self.peek_symbol(Symbol::DotDot)
+                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "struct pattern：`..` 只能出现一次",
@@ -206,11 +211,17 @@ impl<'a> Parser<'a> {
                 return Err(err);
             }
 
-            if self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot)
+            if self.peek_symbol(Symbol::DotDot)
+                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
-                let dot1 = self.bump();
-                let dot2 = self.bump();
-                rest_span = Some(Span::new(dot1.span.start, dot2.span.end));
+                let span = if self.peek_symbol(Symbol::DotDot) {
+                    self.bump().span
+                } else {
+                    let dot1 = self.bump();
+                    let dot2 = self.bump();
+                    Span::new(dot1.span.start, dot2.span.end)
+                };
+                rest_span = Some(span);
 
                 if self.eat_symbol(Symbol::Comma) {
                     // allow trailing comma

@@ -561,6 +561,7 @@ fn sym_name(sym: Symbol) -> &'static str {
         Symbol::Colon => "`:`",
         Symbol::Semicolon => "`;`",
         Symbol::Dot => "`.`",
+        Symbol::DotDot => "`..`",
         Symbol::Plus => "`+`",
         Symbol::Minus => "`-`",
         Symbol::Star => "`*`",

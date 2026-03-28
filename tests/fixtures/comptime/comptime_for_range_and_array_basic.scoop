@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T1207：`comptime for` 在 const 解释器路径可执行（整数范围 + array/tuple 迭代）。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun lastRange(): Int {
+    comptime for (i in 1..3) { i }
+}
+
+const fun lastArray(): Int {
+    comptime for (x in [10, 20, 30]) { x }
+}
+
+const fun lastTuple(): Int {
+    comptime for (x in (7, 8, 9)) { x }
+}
+
+const val A: Int = lastRange()
+const val B: Int = lastArray()
+const val C: Int = lastTuple()
+

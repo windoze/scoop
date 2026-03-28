@@ -531,10 +531,10 @@ impl<'a> ConstInterpreter<'a> {
                 ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
                 ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
             },
-            ast::StmtKind::ComptimeFor(_) => Err(ConstEvalError::UnsupportedStmt {
-                kind: "comptime for",
-                span: stmt.span.into(),
-            }),
+            ast::StmtKind::ComptimeFor(cf) => match self.eval_comptime_for(cf)? {
+                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+            },
             ast::StmtKind::Missing => Err(ConstEvalError::UnsupportedStmt {
                 kind: "missing stmt",
                 span: stmt.span.into(),
@@ -567,6 +567,133 @@ impl<'a> ConstInterpreter<'a> {
                 ast::ComptimeIfElse::If(nested) => self.eval_comptime_if(nested),
             },
         }
+    }
+
+    fn eval_comptime_for(
+        &mut self,
+        cf: &ast::ComptimeFor,
+    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+        // `comptime for (x in xs) { ... }`：
+        // - 先在编译期求值 iter；
+        // - 对可迭代对象进行“展开执行”，每次迭代把 binder 绑定到当前元素；
+        // - v0：仅支持整数范围 `a..b` 与 tuple/array（以 ConstValue::Tuple 承载）。
+        let binder_name = cf.binder.text(self.ctx.source).to_string();
+
+        // 1) 整数范围：`a..b`
+        if let ast::ExprKind::Binary {
+            lhs,
+            op: ast::BinaryOp::RangeInclusive,
+            rhs,
+            ..
+        } = &cf.iter.kind
+        {
+            let lv = eval_const_expr_with_host(self.ctx, self, lhs)?;
+            let li = match lv {
+                ConstValue::Int(i) => i,
+                other => {
+                    return Err(ConstEvalError::OperandTypeMismatch {
+                        expected: "整数",
+                        found: value_kind(&other),
+                        span: lhs.span.into(),
+                    });
+                }
+            };
+
+            let rv = eval_const_expr_with_host(self.ctx, self, rhs)?;
+            let ri = match rv {
+                ConstValue::Int(i) => i,
+                other => {
+                    return Err(ConstEvalError::OperandTypeMismatch {
+                        expected: "整数",
+                        found: value_kind(&other),
+                        span: rhs.span.into(),
+                    });
+                }
+            };
+            if li.ty != ri.ty {
+                return Err(ConstEvalError::OperandTypeMismatch {
+                    expected: "相同的整数类型",
+                    found: "不同位宽/符号位的整数",
+                    span: cf.iter.span.into(),
+                });
+            }
+
+            let mut last_value = ConstValue::Unit;
+
+            if li.ty.signed {
+                let mut cur = li.as_i128();
+                let end = ri.as_i128();
+                while cur <= end {
+                    self.push_scope();
+                    self.define_local(binder_name.clone(), ConstValue::Int(super::ConstInt::new(li.ty, cur as u128)));
+                    match self.eval_block(&cf.body)? {
+                        ControlFlow::Break(ret) => {
+                            self.pop_scope();
+                            return Ok(ControlFlow::Break(ret));
+                        }
+                        ControlFlow::Continue(v) => {
+                            last_value = v;
+                        }
+                    }
+                    self.pop_scope();
+
+                    let Some(next) = cur.checked_add(1) else { break };
+                    cur = next;
+                }
+            } else {
+                let mut cur = li.as_u128();
+                let end = ri.as_u128();
+                while cur <= end {
+                    self.push_scope();
+                    self.define_local(binder_name.clone(), ConstValue::Int(super::ConstInt::new(li.ty, cur)));
+                    match self.eval_block(&cf.body)? {
+                        ControlFlow::Break(ret) => {
+                            self.pop_scope();
+                            return Ok(ControlFlow::Break(ret));
+                        }
+                        ControlFlow::Continue(v) => {
+                            last_value = v;
+                        }
+                    }
+                    self.pop_scope();
+
+                    let Some(next) = cur.checked_add(1) else { break };
+                    cur = next;
+                }
+            }
+
+            return Ok(ControlFlow::Continue(last_value));
+        }
+
+        // 2) tuple/array（v0：统一用 Tuple 承载，见 comptime::eval）
+        let iter_v = eval_const_expr_with_host(self.ctx, self, &cf.iter)?;
+        let ConstValue::Tuple(items) = iter_v else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Tuple（可迭代）",
+                found: value_kind(&iter_v),
+                span: cf.iter.span.into(),
+            });
+        };
+
+        let mut last_value = ConstValue::Unit;
+        for item in items {
+            self.push_scope();
+            self.define_local(binder_name.clone(), item);
+
+            match self.eval_block(&cf.body)? {
+                ControlFlow::Break(ret) => {
+                    self.pop_scope();
+                    return Ok(ControlFlow::Break(ret));
+                }
+                ControlFlow::Continue(v) => {
+                    last_value = v;
+                }
+            }
+
+            self.pop_scope();
+        }
+
+        Ok(ControlFlow::Continue(last_value))
     }
 }
 

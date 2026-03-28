@@ -824,6 +824,10 @@ pub enum BinaryOp {
     Div,
     Rem,
 
+    // ranges
+    /// `a..b`（Appendix B.12）：语法级 range/progression（语义由后续 lowering/stdlib 决定）。
+    RangeInclusive,
+
     // shifts
     Shl,
     Shr,
