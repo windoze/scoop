@@ -35,7 +35,7 @@ Types
 └── Value types (inline, copy semantics, immutable)
     ├── built-in scalar types (e.g., Int/UInt, Int32/UInt32, ...)
     ├── struct
-    ├── enum (rich, tagged union)
+    ├── enum (rich tagged union / value-only "C enum")
     ├── tuple
     └── Unit (0-arity tuple)
 ```
@@ -151,6 +151,32 @@ enum Result<T, E> {
   - `Option<Bool>` uses value `2` for `None`.
   - Nested niche (e.g., `Option<Option<RefType>>`) uses illegal address values (e.g., `0x1`).
   - `Option<ValueType>` where no niche exists uses an explicit tag.
+
+##### 2.3.2.1 Value-only Enum (C-like Enum)
+
+A **value-only enum** is an enum whose variants carry **no associated data** and whose in-memory representation is exactly an **integral underlying type**. This form is intended primarily for C interop and low-level runtime code.
+
+Syntax:
+
+```kotlin
+enum SomeEnum: Int {
+    A = 0
+    B = 1
+    C = 2
+}
+```
+
+Rules:
+
+- The underlying type is specified after `:` and must be an **integral scalar type** (e.g., `Byte`, `UByte`, `Int`, `UInt`, `Int64`, `UInt64`, ...).
+- Variants in a value-only enum may not declare fields.
+- Each variant has an **integral value** of the underlying type. (The exact rules for implicit auto-numbering are implementation-defined; this specification recommends requiring explicit values for FFI-facing enums.)
+- The enum is still a distinct nominal type in the type system (it is not implicitly interchangeable with its underlying type), but its **ABI / memory layout is identical** to the underlying type.
+
+FFI guarantee:
+
+- A value-only enum has **exactly the same memory layout** as its underlying integral type.
+- It may be used in `@Extern` function signatures and in `@CLayout` structs without requiring any additional annotations for layout compatibility.
 
 #### 2.3.3 Tuple
 
@@ -1114,6 +1140,30 @@ const fun annotationsOf<T>(): ComptimeList<AnnotationMeta>  // type-level annota
 const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>  // function parameters
 ```
 
+#### Platform Introspection
+
+The sysroot defines a `Platform` value type that represents a target platform using an LLVM triple and its decomposed components:
+
+```kotlin
+struct Platform {
+    val triple: String
+    val arch: String
+    val vendor: String
+    val os: String
+    val env: String
+}
+
+// Available at both comptime and runtime.
+const fun getPlatform(): Platform
+```
+
+Semantics:
+
+- When evaluated at **compile time** (e.g. inside `comptime { ... }`, or in a `const val` initializer), `getPlatform()` returns the **compilation target** platform.
+- When called at **runtime**, `getPlatform()` returns the platform of the **current execution environment**.
+
+The canonical format of `Platform.triple` follows the LLVM target triple conventions (implementation-defined validation).
+
 #### Compile-time Metadata Types
 
 ```kotlin
@@ -1754,9 +1804,58 @@ types = [
 
 [targets]
 platforms = ["linux-x64", "macos-arm64", "windows-x64"]
+
+# Optional platform-based source selection rules.
+# (Extensible: future versions may add feature flags and richer conditions.)
+[[select]]
+when = { platform = "windows-x64" }
+include = ["src/platform/windows/**.scoop"]
+exclude = ["src/platform/posix/**.scoop"]
 ```
 
 The `[pre-specialize]` section lets cone authors declare which type combinations to pre-compile, minimizing downstream compilation work for consumers.
+
+### 13.8 Cone Source Layout
+
+By convention, a cone's source files live under a `src/` directory:
+
+```
+MyCone/
+├── Cone.toml
+└── src/
+    ├── main.scoop
+    └── ...
+```
+
+- `Cone.toml` is located at the cone root.
+- Source discovery defaults to `src/**/*.scoop`.
+- The conventional entry file for executable cones is `src/main.scoop` (the actual entry point is still the program boundary `main` function; see §5.10).
+
+### 13.9 Platform-based Selection in `Cone.toml`
+
+Some cones need to include different source sets for different target platforms (e.g. POSIX vs Windows). Scoop supports a platform-based selector mechanism in `Cone.toml` to include or exclude source files based on the compilation target.
+
+Design goals:
+
+- **Manifest-driven** selection (no preprocessor in the language).
+- **Extensible conditions** (today: platform; future: features, toolchains, environment predicates).
+- **Deterministic source graph** for `.cone` packaging and IR stability.
+
+Selector format (v0):
+
+```toml
+[[select]]
+when = { platform = "linux-x64" }
+include = ["src/platform/posix/**.scoop"]
+exclude = ["src/platform/windows/**.scoop"]
+```
+
+Rules (v0):
+
+- Each `[[select]]` entry is evaluated against the compilation target platform.
+- If `when` matches, the `include` globs are added to the source set and the `exclude` globs are removed from the source set.
+- If multiple selectors match, they are applied in file order.
+- Exact glob syntax is implementation-defined, but it must be stable and platform-independent (forward slashes, UTF-8 paths).
 
 ## 14. Type Inference
 
@@ -1973,7 +2072,12 @@ annotation class Deprecated(
 )
 
 annotation class Inline
-annotation class Extern(val lib: String = "")
+annotation class Extern(val lib: String = "", val name: String = "")
+annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
+annotation class ThreadLocal
+annotation class Global
+annotation class CallingConvention(val name: String)
+annotation class Safe
 annotation class Intrinsic
 annotation class NoGC
 annotation class Unsafe
@@ -1985,6 +2089,8 @@ annotation class Unsafe
 - Parameters may have default values. Parameters without defaults are required at the use site.
 - Annotation classes cannot have methods, computed properties, or implement interfaces.
 - Annotation classes cannot be instantiated with constructor syntax outside of annotation position (`@Name(...)`).
+
+Annotation class primary-constructor `val` parameters define the annotation's **member variables** (properties). At compile time, an annotation instance conceptually has a value for each such property, either from the use-site arguments or from the property's default value.
 
 ### 15.3 Annotation Usage
 
@@ -2063,15 +2169,19 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | Annotation | Target | Description |
 |---|---|---|
 | `@Intrinsic` | Functions, types | Implementation provided by the compiler/runtime |
-| `@Extern(lib)` | Functions, objects | Links to external C function/library; treated as `@NoGC` and requires an unsafe context to call (see §15.8 and §15.9) |
+| `@Extern(lib?, name?)` | Functions, global variables | Links to an external symbol (function or variable), optionally specifying the library and symbol name (see §15.5.1). Treated as `@NoGC` and requires an unsafe context to call/access (see §15.8 and §15.9) |
 | `@Deprecated(message, replaceWith)` | Any | Marks declaration as deprecated; compiler emits warning on use |
 | `@Inline` | Functions | Hint to inline the function body at call sites |
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
 | `@AllowIntrinsic` | Modules/files | Permits `@Intrinsic` declarations in user code |
 | `@Suppress(warnings...)` | Any | Suppresses specific compiler warnings |
-| `@CLayout` | Structs | Forces C-compatible field layout for FFI |
+| `@CLayout(aligned?, packed?)` | Structs | Forces C-compatible field layout for FFI and optionally customizes alignment/packing (see §15.5.2) |
+| `@ThreadLocal` | Global variables | Declares a mutable global GC-free variable as thread-local storage (TLS) (see §15.5.3) |
+| `@Global` | Global variables | Declares a mutable global GC-free variable as process-global storage (see §15.5.3) |
+| `@CallingConvention(name)` | Functions, type aliases | Specifies the calling convention for FFI / function pointers (see §15.5.4) |
 | `@NoGC` | Functions | Requires the function to be allocation-free (no GC-managed heap allocations) and restricts calls to other `@NoGC` / `@Extern` functions (see §15.8) |
 | `@Unsafe` | Functions, expressions | Enables unsafe raw memory operations (pointer arithmetic, unchecked loads/stores) within an unsafe context (see §15.9) |
+| `@Safe` | Functions, expressions | Marks a region as safe (unsafe primitives forbidden) even inside an enclosing unsafe context (see §15.9.5) |
 | `@Target(targets...)` | Annotation classes | Restricts which declaration kinds an annotation can appear on |
 | `@Retention(policy)` | Annotation classes | Controls whether annotation is available at comptime only or preserved in `.cone` |
 
@@ -2086,6 +2196,95 @@ enum AnnotationTarget {
 @Target(AnnotationTarget.Field, AnnotationTarget.Property)
 annotation class Column(val name: String)
 ```
+
+#### 15.5.1 `@Extern` (External Symbols and Libraries)
+
+`@Extern` declares that a function or global variable is defined outside of Scoop (typically in C) and will be resolved by the linker.
+
+```kotlin
+@Extern(lib = "mylib", name = "myfunc")
+fun myFunc(): Int
+```
+
+Parameters:
+
+- `name`: the symbol name in the native object/library. If omitted (empty string), the compiler uses the Scoop declaration name.
+- `lib`: an optional native library name. If specified, the compiler must pass a link directive for that library when producing an executable (exact flags are implementation-defined; library search paths are out of scope for this specification).
+
+`@Extern` may also be applied to global variables (GC-free types only):
+
+```kotlin
+@Extern(name = "errno")
+@ThreadLocal
+var errno: Int
+```
+
+Rules:
+
+- An `@Extern` variable declaration must not have an initializer (it is a declaration, not a definition).
+- Accessing an `@Extern` variable requires an unsafe context (see §15.9.1).
+- `@Extern` may be combined with `@ThreadLocal` to refer to an externally-defined TLS variable.
+
+#### 15.5.2 `@CLayout` (C-compatible Struct Layout)
+
+`@CLayout` forces a `struct` to use a C-compatible field layout, and optionally customizes alignment and packing.
+
+```kotlin
+@CLayout(aligned = 4)
+struct MyStruct {
+    val field1: Int
+    val field2: Byte
+}
+```
+
+Parameters:
+
+- `aligned`: minimum alignment in bytes for the struct (must be a power of two). If omitted or set to `0`, the compiler chooses the natural alignment based on the fields and target ABI.
+- `packed`: maximum alignment in bytes for struct fields (similar to C `#pragma pack` / `packed`). If omitted or set to `0`, the compiler chooses the natural packing based on the fields and target ABI.
+
+Rules:
+
+- A `@CLayout` struct must be **GC-free** (it must not contain GC-managed references, directly or transitively).
+- The computed layout must match the target C ABI rules for the given `aligned`/`packed` configuration.
+
+#### 15.5.3 `@ThreadLocal` / `@Global` (Mutable Global GC-free Variables)
+
+Scoop permits mutable global variables only when they are explicitly marked as either thread-local or process-global. This restriction makes the risk of race conditions and global mutable state more visible.
+
+```kotlin
+@ThreadLocal
+var threadLocalCounter: Int = 0
+
+@CLayout(aligned = 4)
+struct MyStruct {
+    val field1: Int
+    val field2: Byte
+}
+
+@Global
+var myStructInstance: MyStruct = MyStruct{ field1 = 42, field2 = 1 }
+```
+
+Rules:
+
+- A mutable global variable (`var` at module/file scope) must have either `@ThreadLocal` or `@Global`, otherwise it is a compile error.
+- Such variables must be **GC-free**.
+- A `@ThreadLocal` variable has a distinct instance per OS thread (TLS).
+- A `@Global` variable has a single instance shared by all threads.
+
+Initialization of global variables is implementation-defined. This specification recommends restricting `@ThreadLocal`/`@Global` initializers to compile-time constants for the early runtime.
+
+#### 15.5.4 `@CallingConvention` (Calling Convention)
+
+`@CallingConvention(name)` specifies the calling convention used for a function or function pointer type.
+
+```kotlin
+@CallingConvention("stdcall")
+@Extern(name = "MessageBoxA", lib = "user32")
+fun messageBoxA(hwnd: UIntPtr, text: Ptr<Byte>, caption: Ptr<Byte>, flags: UInt32): Int
+```
+
+The set of supported calling convention names is implementation-defined. The default calling convention is the platform C ABI.
 
 ### 15.6 Compile-time Annotation Access
 
@@ -2140,7 +2339,7 @@ struct FunctionMeta {
 
 struct AnnotationMeta {
     val name: String                              // e.g. "Serialization.Rename"
-    val args: ComptimeList<AnnotationArgMeta>     // named arguments
+    val args: ComptimeList<AnnotationArgMeta>     // resolved named arguments (including defaults)
 }
 
 struct AnnotationArgMeta {
@@ -2345,7 +2544,31 @@ The sysroot may expose a raw pointer type:
 
 ```kotlin
 @Intrinsic
-struct Ptr<T>
+struct Ptr<T> {
+    // Unsafe pointer casts. The caller must uphold all invariants.
+    @NoGC @Unsafe fun <U> cast(): Ptr<U>
+
+    // Unsafe memory operations. The caller must ensure the pointer is valid.
+    @NoGC @Unsafe fun load(): T
+    @NoGC @Unsafe fun store(value: T)
+
+    // Pointer arithmetic in units of T (not bytes).
+    @NoGC @Unsafe operator fun plus(offset: Int): Ptr<T>
+    @NoGC @Unsafe operator fun minus(offset: Int): Ptr<T>
+}
+
+// Address-of intrinsic: takes the address of a variable slot.
+// The `var` parameter position indicates the argument must be an addressable variable (an lvalue).
+@Intrinsic @NoGC @Unsafe
+fun <T> addressOf(var: T): Ptr<T>
+
+// Stack allocation intrinsic: allocates space for a GC-free T on the stack and returns its address.
+@Intrinsic @NoGC @Unsafe
+fun <T> stackAlloc(): Ptr<T>
+
+// Function pointers.
+@Intrinsic
+struct FunPtr<F>
 ```
 
 `Ptr<T>` is a low-level primitive intended for runtime/FFI code. Unsafe pointer operations (such as dereferencing, raw memory loads/stores, pointer arithmetic, and pointer/integer casts) must only be permitted within an unsafe context (see §15.9.1).
@@ -2388,6 +2611,53 @@ Note: these conversions are **not** expressed via `as` / `as?` (those are runtim
 
 Note: using a raw pointer into GC-managed memory requires pinning (see §15.10) if the pointed-to object may move.
 
+Function pointers:
+
+- `FunPtr<F>` represents an opaque native function pointer for the function type `F` (e.g. `F = (Int, Int) -> Int`).
+- Calling a function pointer is unsafe and must require an unsafe context.
+- `@CallingConvention(...)` may be used to specify the calling convention of a `FunPtr` alias.
+
+Example:
+
+```kotlin
+@CallingConvention("stdcall")
+typealias MyFuncPtr = FunPtr<(Int, Int) -> Int>
+
+@Unsafe {
+    val funcPtr: MyFuncPtr = /* get function pointer from somewhere */
+    val result = funcPtr.invoke(1, 2)
+}
+```
+
+Internal atomic value types (FFI-oriented):
+
+- The sysroot/runtime may define internal atomic value types such as `__AtomicInt`, `__AtomicLong`, `__AtomicBoolean`, ...
+- These types are GC-free and have the same memory layout as their underlying scalar types.
+- Atomic operations (load/store/CAS/etc.) are compiler intrinsics that generate LLVM IR directly.
+
+#### 15.9.5 `@Safe` (Safe Regions Inside Unsafe Context)
+
+`@Safe` marks a function body or block as **safe**, even if it appears syntactically inside an enclosing unsafe context.
+
+This is useful for APIs that accept callbacks and want to guarantee that the callback itself does not perform unsafe operations, even if the caller is currently in unsafe code.
+
+```kotlin
+@Unsafe
+fun unsafeFunction() {
+    // unsafe operations allowed here
+
+    someFunTakesTrailingLambda @Safe {
+        // Unsafe operations are NOT allowed here.
+        // Calling @Extern or @Unsafe functions is a compile error unless re-wrapped in @Unsafe { ... }.
+    }
+}
+```
+
+Rules:
+
+- The body of a `@Safe` function or block is type-checked as if it were **not** in an unsafe context.
+- Nested `@Unsafe { ... }` blocks inside a `@Safe` region re-enable unsafe operations locally.
+
 ### 15.10 GC Pinning API (`pin` / `unpin`)
 
 To support low-level runtime code and proactive-style I/O APIs (e.g., `io_uring`), Scoop exposes a GC pinning API that prevents the GC from moving a heap object while a foreign subsystem retains a raw pointer into it.
@@ -2422,6 +2692,23 @@ Semantics:
 - Pinning is per-object. The object whose address is shared with a foreign subsystem must be the object that is pinned; pinning a wrapper object does not automatically pin other objects it references.
 
 Pinning does not imply that the GC will not run; it only constrains object movement. Excessive or long-lived pinning may reduce GC compaction effectiveness (implementation-defined).
+
+### 15.11 Type Descriptor Release Callback (FFI-managed Resources)
+
+Scoop does not support general-purpose finalizers. However, for FFI and managed-unmanaged interop, the runtime may associate an optional **release callback** with a GC-managed object type.
+
+Semantics (high-level):
+
+- Each GC-managed type has an implementation-defined type descriptor used by the GC for scanning and layout.
+- The type descriptor may optionally include a `release_callback: (ptr: Ptr<Byte>) -> Unit` function pointer.
+- When the GC determines that an object is unreachable and is about to be reclaimed, it calls the release callback (if present) with a pointer to the object's storage.
+- The callback is intended for releasing **unmanaged** resources associated with the object (e.g. memory in a non-GC arena, OS handles), and must not assume any ordering relative to other objects.
+
+Important restrictions:
+
+- This is **not** a user-facing language feature in Scoop 0.1: the callback is **auto-synthesized by the compiler** for specific runtime/library types.
+- The callback must not resurrect the object or depend on other GC-managed objects being alive.
+- The exact calling context and allowed operations are implementation-defined; implementations should treat the callback as `@NoGC` and `@Unsafe`-like.
 
 ## 16. Other Features
 

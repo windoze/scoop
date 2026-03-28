@@ -27,6 +27,7 @@
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
+- 2026-03-29：规范更新：补齐 value-only enum、`@CLayout(aligned, packed)`、`@ThreadLocal/@Global`、`@Extern(lib, name)`、`@CallingConvention`、`@Safe`、`Platform/getPlatform()`、type descriptor release callback、`Ptr/FunPtr/stackAlloc/addressOf` 与 internal atomics、以及 `Cone.toml` 的平台选择器；并同步更新 `PLAN.md`/`TODO.md` 对应任务拆分。
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T1106：为 `api.scoopir` 的 schema.version 增加版本协商（允许读取 <= 当前版本；更高版本给出稳定错误码 `scoop::cone::scoopir_schema_version_not_supported`），并新增单测覆盖。
 - 2026-03-28：完成 T1107：`scoop build` 支持读取 consumer `Cone.toml` 的 `.cone` 依赖图（DAG；循环依赖报错），并在启用 `llvm` 时复用“同一编译单元” lowering 结果生成目标产物（避免后端二次 parse/resolve）；新增单测覆盖 build+deps 与（llvm 下）运行 stdout。
@@ -576,8 +577,10 @@
 
 - [ ] 值类型（struct/tuple/enum）按 LLVM struct layout 映射
   - [x] struct：布局 + 字段访问（T0811）
+  - [ ] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局与对齐/pack 控制（用于 FFI 与全局变量 ABI）
   - [x] tuple：布局 + `._0` / `._1` 元素访问（T0812）
   - [ ] enum：tagged union 布局（T0813）
+  - [ ] value-only enum（`enum E: Int { ... }`）：底层整型同布局（无 tag/union），用于 C interop
 - [ ] 引用类型：对象头（type descriptor 指针 + flags + size 等）
 - [ ] interface/虚表：最小可行实现（先只支持接口方法调用与装箱）
 
@@ -618,6 +621,7 @@
   - [ ] v1：可选移动/压缩（pin/unpin 在移动 GC 上才真正有意义，但 API/错误检查语义已固定）
 - [ ] 类型描述（type descriptor）：
   - pointer bitmap 或 trace 回调
+  - release callback（非通用 finalizer）：对象释放/回收时用于 FFI-managed 资源释放（spec §15.11）
   - 用于扫描对象内的引用字段（struct/enum/closure env）
 - [x] 线程注册：新线程必须注册到 runtime 以便 GC stop-the-world 扫描其 shadow stack（T0911）
   - [x] v0：`scoop_thread_register/unregister` 占位 + TLS 骨架（T0903）
@@ -749,22 +753,32 @@ tests/
 - [x] T1003：内建注解最小门禁（`@Unsafe/@NoGC/@Extern/@Intrinsic`）
 - [x] T1004：`@Unsafe { ... }` 块语法与 unsafe context 传播
 - [x] T1005：`@NoGC` 最小静态门禁（保守拒绝可能分配/装箱的路径）
-- [x] T1009：最小 unsafe 指针原语（`addrOf/load/store`）的语法落点与门禁（unsafe_nogc fixtures 回归）
+- [x] T1009：最小 unsafe 指针原语（`addrOf/load/store`；后续按 spec §15.9.4 演进为 `addressOf` + `Ptr<T>.load/store` 等）语法落点与门禁（unsafe_nogc fixtures 回归）
 - [x] `@Unsafe`（最小落地）：
   - 函数级与块级 `@Unsafe { ... }`
-  - 非 unsafe context 禁止：调用 `@Unsafe` 函数/调用 `@Extern`/使用最小 ptr 原语（`addrOf/load/store`）
+  - 非 unsafe context 禁止：调用 `@Unsafe` 函数/调用 `@Extern`/使用最小 ptr 原语（`addressOf`/`Ptr.load/store` 或等价 sysroot intrinsics）
+- [ ] `@Safe`：允许在 unsafe context 内显式“收窄”为 safe 区域（禁止 `@Extern`/`@Unsafe` 调用与 unsafe primitives），用于 callback/闭包场景
 - [ ] `Ptr<T>` / `UIntPtr` 与指针整数转换（spec §15.9.4 / runtime §4~§5）
   - `UIntPtr` 仅为 `UInt` 的别名（类型本身不 unsafe）
   - 指针 ↔ 整数转换必须在 unsafe context，且通过 sysroot intrinsics（不通过 `as/as?`）
   - `Ptr<T>` 的 `T` 必须是 GC-free value type（不允许直接/间接包含 GC ref）
+  - `Ptr<T>` API：`cast/load/store` 与基于元素的 `plus/minus` 指针算术
+  - `addressOf(var: T): Ptr<T>`：取局部/全局变量 slot 的地址（lvalue gate）
+  - `stackAlloc<T>(): Ptr<T>`：栈上分配 GC-free `T`（生命周期受限于当前函数）
+  - `FunPtr<F>`：FFI 函数指针类型（支持 `invoke` + 与 `Ptr` 的 unsafe cast）
+  - internal atomics（`__AtomicInt/__AtomicLong/...`）：值类型、同底层布局、LLVM IR 原子指令直接生成（用于 FFI + 全局状态）
 - [ ] `@NoGC`：
   - 禁止 GC 堆分配；只能调用 `@NoGC` 与 `@Extern`
   - 编译器证明不了“无分配”就必须报错（保守）
 - [ ] `@Extern`：
   - 默认视为 `@NoGC`
   - 是否默认 `@Unsafe`：建议 **调用点要求 unsafe context**（更符合“外部世界不可信”）
+  - 扩展参数：`@Extern(lib, name)`（`lib` 进入链接参数；符号名可显式指定）
+  - 允许 extern 变量声明；`@Extern + @ThreadLocal` 可声明外部 TLS 变量
+- [ ] 全局可变变量（GC-free）：仅允许显式标注 `@ThreadLocal` 或 `@Global`；否则 compile-fail（让风险可见）
 - [ ] 注解系统补齐：
   - [x] 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
+  - [ ] 内建注解：`@ThreadLocal/@Global/@CallingConvention/@Safe`，以及 `@Extern(lib, name)`、`@CLayout(aligned, packed)` 参数语义
   - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
   - [ ] meta-annotations（拆分）：
     - [x] typecheck enforce `@Target/@Retention`
@@ -800,6 +814,7 @@ fixtures：
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
   - [x] 读取 `Cone.toml`（name/version/deps，T1101）
   - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）
+  - [ ] `Cone.toml` 平台选择器（`[[select]]`）：按 target platform include/exclude sources（可扩展到 feature/更复杂条件）
 - [x] 预编译实例（pre-specialize）：cache key 与选择规则（v0：函数实例 + `.cone/PRE_SPECIALIZE.json`）
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
@@ -824,6 +839,7 @@ fixtures：
 - [x] 反射 intrinsics v0：`fieldsOf/nameOf/sizeOf`（fieldsOf v0 返回字段名列表）
 - [x] splice operator v0：`value.[field]`（const eval + typecheck 最小语义）
 - [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
+- [ ] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
 - [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [ ] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）

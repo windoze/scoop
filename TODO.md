@@ -2293,6 +2293,18 @@
    - `cargo test -p scoop --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-sys + clang）。
 
+### T0813b [BLOCKED] value-only enum：`enum E: Int { ... }`（C enum 同布局）（spec §2.3.2.1）
+- 描述：实现 value-only enum（仅有枚举值、无 associated data）的完整链路：parser/typecheck/lowering/codegen。
+- 目标：
+  - 语法：`enum E: Int { A = 0, B = 1 }`（底层类型必须为整型标量）；
+  - 语义：枚举类型保持名义类型，但 ABI/内存布局与底层整型完全一致；
+  - 允许在 `@Extern` 签名与 `@CLayout` struct 中直接使用（不需要额外注解）。
+- 验收：
+  - 新增 parse fixture：底层类型 + 显式值列表可解析；
+  - 新增 typecheck fixture：非整型底层类型报错（稳定错误码）；
+  - 新增 run-pass fixture：构造 value-only enum、`when` 匹配分支并断言结果；可选追加：传入 `@Extern`（或 runtime helper）并验证 ABI 不变。
+- 依赖：T0236、T1020
+
 ### T0814 [DONE] codegen：`when` lowering（switch + pattern tests）
 - 描述：把 `when`（至少 enum/Bool）降到 LLVM switch；tuple/struct pattern 用字段比较实现。
 - 目标：先不支持 or-pattern/guard；后续再扩展。
@@ -3044,6 +3056,17 @@
    - `cargo test --all` 通过；
    - `cargo test -p scoop_runtime --test once_guard_cross_dylib` 通过。
 
+### T0920 [BLOCKED] runtime/codegen：type descriptor 增加 release callback（非通用 finalizer）（spec §15.11）
+- 描述：在类型描述（type descriptor）中增加一个可选的 release callback 函数指针，并在对象被 GC 回收（sweep/free）时调用该回调，主要用于 FFI-managed 资源释放（ManagedArena 等）。
+- 目标：
+  - 明确它不是通用 finalizer：不保证顺序，不允许对象复活，不依赖其他对象存活；
+  - 只用于 compiler 自动合成/内部类型（0.1 不对用户开放“自定义 finalizer”语法）；
+  - callback 视为 `@NoGC`/`@Unsafe` 语义的受限环境（实现上应尽量避免分配与 re-enter GC）。
+- 验收：
+  - runtime 集成测试：构造一个带 release callback 的对象类型（可用测试专用 type desc），回收时回调被调用且仅一次；
+  - run-pass fixture（可选）：创建对象并触发一次 `GC.collect`（或 debug collect），验证回调 side effect 可观测。
+- 依赖：T0907、T0910、T1025
+
 ---
 
 ## T10：注解系统与系统编程通道（阶段 9）
@@ -3338,6 +3361,93 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
+### T1020 [TODO] `@Extern` 扩展：支持 `lib`/`name` 参数 + extern 变量声明（spec §15.5.1）
+- 描述：扩展 `@Extern` 注解的语义：
+  - 支持 `@Extern(lib = "...", name = "...")` 显式指定库名与符号名；
+  - 允许 `@Extern` 标注全局变量（GC-free）作为外部符号声明；
+  - 当 `lib` 指定时，driver 链接阶段自动加入 `-l<lib>`（先假设标准库路径，无需新增 library path 配置）。
+- 目标：
+  - 不改变现有 extern codegen（仍走 C ABI 调用/符号解析）；
+  - 先把“link 参数收集/透传”与“extern var 的语义门禁”做出来；
+  - 先不做跨平台复杂链接选项（`-L`/rpath 等后续再立项）。
+- 验收：
+  - 新增 typecheck fixture：`@Extern(name="x") var v: Int`（无 initializer）允许；带 initializer 报错（稳定错误码）；
+  - 新增 driver 单测：收集到 `@Extern(lib="m")` 后，clang 参数包含 `-lm`（或等价形式）；
+  - `cargo test --all` 通过。
+- 依赖：T1006、T1019、T0806
+
+### T1021 [TODO] `@Safe`：在 unsafe context 内显式“收窄”为 safe 区域（spec §15.9.5）
+- 描述：支持 `@Safe { ... }`（以及函数级 `@Safe`）语义：即使外层处于 unsafe context，也要在 `@Safe` 区域内禁止 unsafe primitives / 调用 `@Extern` / 调用 `@Unsafe` 函数。
+- 目标：
+  - 只做 typecheck 层面的上下文传播与门禁；
+  - `@Safe` 内仍允许嵌套 `@Unsafe { ... }` 重新开启 unsafe（局部化）。
+- 验收：
+  - 新增 unsafe_nogc fixtures：
+    - `@Unsafe fun f(){ @Safe { addrOf(x) } }` 报错；
+    - `@Unsafe fun f(){ @Safe { @Unsafe { addrOf(x) } } }` 通过；
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T1004、T1009
+
+### T1022 [TODO] 全局可变 GC-free 变量门禁：`@ThreadLocal` / `@Global`（spec §15.5.3）
+- 描述：新增全局 `var` 的显式标注规则：
+  - 顶层 `var`（module/file scope）必须带 `@ThreadLocal` 或 `@Global`；
+  - 仅允许 GC-free 类型（标量/GC-free struct/GC-free enum 等；实现可先保守）。
+- 目标：先只做 typecheck 门禁与稳定诊断；不要求立刻支持 codegen/运行期访问。
+- 验收：
+  - 新增 typecheck fixtures：
+    - 顶层 `var x: Int = 0`（无注解）报错；
+    - `@ThreadLocal var x: Int = 0` 通过；
+    - `@Global var y: String = "x"` 报错（非 GC-free）；
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T0404、T1019
+
+### T1023 [BLOCKED] `@ThreadLocal` / `@Global`：codegen + runtime 存储与初始化（spec §15.5.3）
+- 描述：为 GC-free 全局可变变量生成：
+  - TLS（`@ThreadLocal`）或进程全局（`@Global`）的静态存储；
+  - 最小可用的初始化策略（早期可限制为编译期常量 initializer）。
+- 目标：
+  - 先只支持 GC-free 标量与 GC-free `@CLayout` struct；
+  - 不引入 GC root（全局变量本身是 GC-free，不需要扫描）；
+  - 并发语义（数据竞争）不在编译期自动解决，仅保证 ABI/访问可用。
+- 验收：新增 run-pass fixture：在两个函数中读写 `@ThreadLocal` 计数器并断言输出/exit code；`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1022
+
+### T1024 [BLOCKED] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局控制（spec §15.5.2）
+- 描述：扩展 `@CLayout`：
+  - 支持 `aligned = N` 与 `packed = M` 参数；
+  - struct 必须是 GC-free；
+  - codegen 侧在 LLVM struct type 上设置对齐/pack（或等价 data layout 行为），确保与目标 C ABI 一致。
+- 目标：先覆盖 `packed=1` 与显式 `aligned` 的常见组合；其余复杂 ABI 细节可后置，但必须给出稳定错误/限制说明。
+- 验收：新增 run-pass fixture（或 `--emit-llvm` golden）：对 `@CLayout(packed=1)` struct 的字段 offset/align 与预期一致；并新增 compile-fail fixture：`@CLayout` 用在非 GC-free struct 上报错。
+- 依赖：T1022、T0811
+
+### T1025 [BLOCKED] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
+- 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：
+  - `addressOf(var: T): Ptr<T>`
+  - `Ptr<T>.cast/load/store`
+  - `Ptr<T>` 的元素级 `plus/minus`
+  - `stackAlloc<T>(): Ptr<T>`（GC-free）
+- 目标：
+  - 兼容迁移期：允许 sysroot 同时提供旧名（`addrOf/load/store`）与新名一段时间；
+  - typecheck 必须保持 unsafe context 门禁与 `Ptr<T>` 的 GC-free 限制不被绕过。
+- 验收：新增 unsafe_nogc fixtures 覆盖新 API 的 pass/fail；并保持旧 fixtures 仍可回归（或提供自动迁移脚本后一次性更新 fixtures）。
+- 依赖：T1017、T1018
+
+### T1026 [BLOCKED] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
+- 描述：新增 `FunPtr<F>`（值类型、GC-free）与调用约定：
+  - 支持 `@CallingConvention("stdcall" | "cdecl" | ...)` 影响 codegen；
+  - 允许与 `Ptr<T>` 互相 unsafe cast；
+  - 提供 `invoke`/`()` 调用形态（sysroot 定义，编译器提供 lowering/codegen）。
+- 目标：先只覆盖 host 平台常见 calling convention；不做跨平台全量覆盖。
+- 验收：新增 run-pass fixture：从 `@Extern` 获取函数指针并通过 `FunPtr` 调用（可用 runtime/c 的测试导出函数）；并新增 compile-fail fixture：在 safe context 调用 `FunPtr` 报错。
+- 依赖：T1017、T1018、T1025
+
+### T1027 [BLOCKED] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
+- 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
+- 目标：与对外暴露的 `AtomicInt`（若存在）区分：这些是**值类型**，且 API 面向 runtime/interop，不作为通用高层并发库承诺。
+- 验收：新增 run-pass fixture：对 `__AtomicInt` 做原子 load/store/CAS（多线程可先用单线程语义/模型测试；并发正确性可后续补）。
+- 依赖：T1017、T1018
+
 ---
 
 ## T11：Cone（包/稳定 IR/分发）（阶段 10）
@@ -3360,6 +3470,27 @@
    - `crates/scoop/src/commands/build.rs`：新增单测覆盖“包目录 build”。
  - 验收：
    - `cargo test --all`
+
+### T1110 [TODO] Cone.toml：平台选择器 `[[select]]` 的 manifest 解析（spec §13.9）
+- 描述：在 `Cone.toml` 中新增 `[[select]]` 条目解析（v0 仅支持 platform 条件），用于按 target platform include/exclude sources。
+- 目标：
+  - 解析 `when = { platform = "linux-x64" }`（后续可扩展到 feature/toolchain 等条件）；
+  - 解析 `include = ["..."]` / `exclude = ["..."]` 的 glob 列表；
+  - 不在本任务实现 glob 语义与真正筛选，仅把结构化数据暴露给 package loader。
+- 验收：新增单测：解析包含 2 个 `[[select]]` 的 Cone.toml，结构体字段正确；`cargo test --all` 通过。
+- 依赖：T1101
+
+### T1111 [BLOCKED] 包加载：按 `[[select]]`（platform selector）对 sources 做 include/exclude（spec §13.9）
+- 描述：在 cone source 发现阶段应用 platform selector：
+  - `when` 匹配当前 target platform 时，按顺序应用 include/exclude；
+  - 保证结果 sources 列表稳定排序与跨平台一致（路径分隔符/大小写策略需明确）。
+- 目标：
+  - 先只支持 `src/**/*.scoop` 下的路径 glob；
+  - 先只支持 host target（交叉编译 target 参数后续再补），但接口要可扩展。
+- 验收：
+  - 新增 cone fixtures：同一 package 在不同 platform selector 下挑选不同文件集合（可用新增 `EXPECT-SOURCES:` golden 或 `scoop dump-sources` 专用子命令）；
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T1110、T1102、T0803
 
 ### T1103 [DONE] scoopir v0：定义稳定 IR schema（仅 public API）
 - 描述：定义一个最小可序列化 schema（JSON/CBOR/自定义）表达 public API（类型/函数签名）。
@@ -3813,6 +3944,18 @@
 - 目标：读取结果应与 T1019 的注解参数语义保持一致；不暴露未归一化的 parser 细节。
 - 验收：新增 comptime fixtures：读取 `@Anno(1 + 2, [Color.Red], String::class)` 得到稳定元数据；输出与下游 `.cone` 元数据一致。
 - 依赖：T1019、T1209、T1215
+
+### T1219 [TODO] 平台反射：`Platform` struct + `getPlatform(): Platform`（spec §6.4）
+- 描述：在 sysroot 中新增 `Platform` 值类型，并提供 `const fun getPlatform(): Platform`：
+  - comptime 下返回编译 target 的 LLVM triple 与拆分字段；
+  - runtime 下返回当前执行环境平台（早期阶段可先等同于编译 target）。
+- 目标：
+  - 先只覆盖 host target（与 T0803 一致）；交叉编译后续再扩展；
+  - 字段拆分规则以 LLVM triple 为准，无法解析时给出稳定错误或空字段策略（需规范化）。
+- 验收：
+  - 新增 comptime fixture：`const val p = getPlatform(); p.arch/p.os` 可被读取并输出稳定（可用 `.comptime` golden）；
+  - 新增 typecheck fixture：运行期语境调用 `getPlatform()` 可通过（遵循 const fun fallback 规则）。
+- 依赖：T0803、T1202、T1204
 
 ---
 
