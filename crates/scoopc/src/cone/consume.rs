@@ -19,8 +19,8 @@ use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
 use crate::ast;
 use crate::resolve::{
-    BuiltinFunFlags, ConeId, FunOverload, FunSig, ModifierSet, NamespacedSymbols, ParamSig, Symbol,
-    SymbolKind, TypeParamSig, Visibility,
+    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, NamespacedSymbols,
+    ParamSig, Symbol, SymbolKind, TypeParamSig, Visibility,
 };
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -259,9 +259,33 @@ pub fn inject_cone_dependency_public_api(
 
         let entry = index
             .by_fqn
-            .entry(fqn)
+            .entry(fqn.clone())
             .or_insert_with(NamespacedSymbols::default);
         entry.fun.push(overload);
+
+        // T0322：跨包 extension 导入需要 resolver 能在依赖 cone 的 API 里发现 extension fun。
+        //
+        // 说明：
+        // - `.cone` 侧我们通过 ScoopIR 的 `receiver` 字段来识别“扩展函数”；
+        // - 当前阶段仅在 receiver 是名义类型（Named）时记录其 FQN，便于 resolver 做最小匹配：
+        //   - receiver 完全相等，或 receiver 为 `scoop.core.Any`（通配）。
+        let receiver_ty_fqn = fun.receiver.as_ref().and_then(|ty| match ty {
+            IrType::Named { fqn, .. } => Some(fqn.clone()),
+            _ => None,
+        });
+        if receiver_ty_fqn.is_some() {
+            let pkg_prefix = fqn
+                .rsplit_once('.')
+                .map(|(p, _)| p.to_string())
+                .unwrap_or_default();
+            index.extension_funs.push(ExtensionFunSymbol {
+                fqn: fqn.clone(),
+                pkg_prefix,
+                decl_cone,
+                name: local.to_string(),
+                receiver_ty_fqn,
+            });
+        }
     }
 
     // 2.5) 注入非 public 符号占位符：仅用于在使用点生成 not_visible 诊断。

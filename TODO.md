@@ -3418,11 +3418,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
+### T0322 [DONE] Resolver：跨包 extension 导入与候选收集
 - 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。
 - 目标：先固定“能否发现某个 imported extension”的规则；最终 overload 决议与 receiver specificity 仍交给 typecheck/infer。
 - 验收：新增多包 fixtures：显式导入的 extension 可被发现，未导入时不可见；star import 与本地成员同名时仍遵守 member 优先。
 - 依赖：T0312、T0319、T0321
+ - 完成：
+   - `crates/scoopc/src/resolve/scopes.rs`：新增 `extension_fun_candidates`，把 extension 发现规则扩展到“同包（同 cone）+ 显式 import（含 alias）+ star import”，并接入 `resolve_member_access_on_value_receiver`；同时在 member call 写回“可见 extension 候选集合”到 `MemberIdent.call`（供后续 typecheck/infer 决议）。
+   - `crates/scoopc/src/cone/consume.rs`：`.cone` API 注入时同步把 extension fun 元信息写入 `Index::extension_funs`，使下游可通过 import 发现依赖 cone 的 extension。
+   - `crates/scoopc/src/resolve/mod.rs`：移除旧的“仅同包” extension 查找辅助函数（避免死代码与规则分叉）。
+   - `tests/fixtures/resolve_cone/extension_imports/**`：新增 fixtures 覆盖显式导入可见/未导入不可见/star import 规则与 member 优先（含 member 不可见时不回退）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1106 [TODO] IR 稳定性与版本协商（spec §13.4）
 - 描述：为 scoopir 增加显式版本号，并实现“旧版本可读/不兼容报错”的策略。

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR: 未解析的成员
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_member
+// EXPECT-ERROR-AT: 12:7
+// 目标：未导入 extension 时不可见（T0322）。
+
+package app
+
+import lib.Point
+
+fun use_missing_import(p: Point) {
+    p.ext()
+}
+

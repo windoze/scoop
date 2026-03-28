@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR: 符号不可见
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR-AT: 12:7
+// 目标：star import 引入同名 extension 时仍遵守 member 优先（即便 member 不可见也不回退）（T0322）。
+
+package app
+
+import lib.*
+
+fun use_star_import_member_prefers_member(p: WithMember) {
+    p.ext()
+}
+

@@ -27,6 +27,7 @@
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T0321b：`.cone` 增加 `SYMBOL_VISIBILITY.json` 并在消费侧注入 non-public 符号占位符，使下游引用依赖的 `internal/private` 得到稳定诊断 `scoop::resolve::not_visible`（新增 typecheck_cone_archive fixtures 回归）。
+- 2026-03-28：完成 T0322：resolver 支持跨包 extension 导入与发现（显式 import / star import / 可见性过滤），并把可见 extension 候选写入调用点候选集；新增 resolve_cone fixtures `extension_imports` 回归。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。

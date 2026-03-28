@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：显式导入的 extension 可被发现（T0322）。
+
+package app
+
+import lib.Point
+import lib.ext
+
+fun use_explicit_import(p: Point) {
+    p.ext()
+}
+

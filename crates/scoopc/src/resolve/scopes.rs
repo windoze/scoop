@@ -834,9 +834,11 @@ impl<'a> BlockScopeChecker<'a> {
     ) -> Result<(), ResolveError> {
         match &mut callee.kind {
             ast::ExprKind::Ident(id) => self.resolve_call_ident_callee(id, args),
-            ast::ExprKind::MemberAccess { member, .. }
-            | ast::ExprKind::SafeMemberAccess { member, .. } => {
-                self.resolve_call_member_callee(member, args)
+            ast::ExprKind::MemberAccess { receiver, member } => {
+                self.resolve_call_member_callee(receiver, member, args)
+            }
+            ast::ExprKind::SafeMemberAccess { receiver, member, .. } => {
+                self.resolve_call_member_callee(receiver, member, args)
             }
             _ => Ok(()),
         }
@@ -903,6 +905,7 @@ impl<'a> BlockScopeChecker<'a> {
 
     fn resolve_call_member_callee(
         &self,
+        receiver: &ast::Expr,
         member: &mut ast::MemberIdent,
         args: &[ast::Expr],
     ) -> Result<(), ResolveError> {
@@ -914,19 +917,48 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         };
 
-        let fqn = match resolved {
-            ast::ResolvedMemberRef::Fun { fqn } | ast::ResolvedMemberRef::ExtensionFun { fqn } => {
-                fqn.clone()
+        let candidates: Vec<ast::CallCandidate> = match resolved {
+            ast::ResolvedMemberRef::Fun { fqn } => vec![ast::CallCandidate::Fun { fqn: fqn.clone() }],
+            ast::ResolvedMemberRef::ExtensionFun { fqn } => {
+                // T0322：跨包 extension 导入与候选收集。
+                //
+                // 说明：
+                // - member access 解析阶段会把 `receiver.member` 绑定为某个 `ExtensionFun { fqn }`，
+                //   以保持旧的 typecheck 增量（依赖单一 fqn）可用；
+                // - 但在调用点层面，我们需要把“当前作用域内可见的 extension 候选集合”写回，
+                //   以便后续 typecheck/infer 做 most-specific/歧义诊断。
+                let fqns: Vec<String> = match self.infer_member_receiver_kind(receiver) {
+                    Some(MemberReceiverKind::Value { ty_fqn }) => {
+                        let name = self.source.slice(member.span);
+                        let mut fqns = self.extension_fun_candidates(&ty_fqn, name, member.span)?;
+                        if fqns.is_empty() {
+                            fqns.push(fqn.clone());
+                        }
+                        fqns
+                    }
+                    _ => vec![fqn.clone()],
+                };
+
+                fqns.into_iter()
+                    .map(|fqn| ast::CallCandidate::Fun { fqn })
+                    .collect()
             }
-            ast::ResolvedMemberRef::Value { .. }
-            | ast::ResolvedMemberRef::ExtensionValue { .. } => {
+            ast::ResolvedMemberRef::Value { .. } | ast::ResolvedMemberRef::ExtensionValue { .. } => {
                 // `p.x()`：此时 callee 是一个 value member，是否可调用取决于其类型（留给 typecheck）。
                 return Ok(());
             }
         };
 
+        if candidates.is_empty() {
+            return Ok(());
+        }
+
+        let mut candidates = candidates;
+        candidates.sort_by(|a, b| call_candidate_sort_key(a).cmp(&call_candidate_sort_key(b)));
+        candidates.dedup();
+
         member.call = Some(ast::ResolvedCall {
-            candidates: vec![ast::CallCandidate::Fun { fqn }],
+            candidates,
             shape: self.call_shape(args),
         });
 
@@ -1358,13 +1390,9 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         // T0312：若不存在同名 member，则尝试在同包可见的 extension fun 中按 receiver 类型匹配。
-        if let Some(fqn) = self.index.find_extension_fun_fqn(
-            self.source,
-            &self.pkg_prefix,
-            receiver_ty_fqn,
-            member_name,
-            member.span,
-        )? {
+        let ext_candidates =
+            self.extension_fun_candidates(receiver_ty_fqn, member_name, member.span)?;
+        if let Some(fqn) = ext_candidates.first().cloned() {
             member.resolved = Some(ast::ResolvedMemberRef::ExtensionFun { fqn });
             return Ok(());
         }
@@ -1395,6 +1423,146 @@ impl<'a> BlockScopeChecker<'a> {
             name: member_fqn,
             span: member.span.into(),
         })
+    }
+
+    /// 查找“在当前文件作用域内可见”的 extension fun 候选集合（T0322）。
+    ///
+    /// 规则（当前阶段最小落地）：
+    /// - 同包（同 cone）声明的 extension 无需 import 可见；
+    /// - 显式 import（含 alias）与 star import（`import pkg.*`）可引入跨包/跨 cone 的 extension；
+    /// - 可见性过滤沿用统一规则：public 跨 cone 可见，internal 仅 cone 内可见，private 仅文件内可见；
+    /// - receiver 类型匹配规则保持与 T0312 一致：
+    ///   - receiver 完全相等，或
+    ///   - extension receiver 为 `scoop.core.Any`（通配）。
+    fn extension_fun_candidates(
+        &self,
+        receiver_ty_fqn: &str,
+        member_name: &str,
+        use_span: Span,
+    ) -> Result<Vec<String>, ResolveError> {
+        let mut candidates: Vec<String> = Vec::new();
+        let mut not_visible: Option<(String, Visibility, Span)> = None;
+
+        // 1) 同包（同 cone）隐式可见。
+        for ext in &self.index.extension_funs {
+            if ext.decl_cone != self.use_cone {
+                continue;
+            }
+            if ext.pkg_prefix != self.pkg_prefix {
+                continue;
+            }
+            if ext.name != member_name {
+                continue;
+            }
+
+            let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
+                continue;
+            };
+            if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                continue;
+            }
+
+            let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                continue;
+            };
+            if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
+                candidates.push(ext.fqn.clone());
+                continue;
+            }
+
+            if not_visible.is_none() {
+                if let Some(first) = syms.first_fun() {
+                    not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                }
+            }
+        }
+
+        // 2) star import：`import pkg.*` 引入该 package 下的 extension。
+        for prefix in &self.imports.star {
+            for ext in &self.index.extension_funs {
+                if ext.pkg_prefix != *prefix {
+                    continue;
+                }
+                if ext.name != member_name {
+                    continue;
+                }
+
+                let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
+                    continue;
+                };
+                if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                    continue;
+                }
+
+                let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                    continue;
+                };
+                if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
+                    candidates.push(ext.fqn.clone());
+                    continue;
+                }
+
+                if not_visible.is_none() {
+                    if let Some(first) = syms.first_fun() {
+                        not_visible =
+                            Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    }
+                }
+            }
+        }
+
+        // 3) 显式 import（含 alias）：通过 local 名字 → fqn 查找 extension。
+        if let Some(imported) = self.imports.value.explicit.get(member_name) {
+            for imported_fqn in imported {
+                for ext in self
+                    .index
+                    .extension_funs
+                    .iter()
+                    .filter(|e| e.fqn == *imported_fqn)
+                {
+                    let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
+                        continue;
+                    };
+                    if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                        continue;
+                    }
+
+                    let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                        continue;
+                    };
+                    if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
+                        candidates.push(ext.fqn.clone());
+                        continue;
+                    }
+
+                    if not_visible.is_none() {
+                        if let Some(first) = syms.first_fun() {
+                            not_visible = Some((
+                                ext.fqn.clone(),
+                                first.symbol.visibility,
+                                first.symbol.span,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        if candidates.is_empty() {
+            if let Some((name, visibility, def_span)) = not_visible {
+                return Err(ResolveError::NotVisible {
+                    name,
+                    visibility,
+                    use_span: use_span.into(),
+                    def_span: def_span.into(),
+                });
+            }
+        }
+
+        Ok(candidates)
     }
 
     fn resolve_member_access_on_type_receiver(

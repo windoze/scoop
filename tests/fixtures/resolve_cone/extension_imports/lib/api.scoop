@@ -1,0 +1,15 @@
+package lib
+
+public struct Point {}
+
+// public extension：供 app 侧通过显式 import / star import 发现（T0322）。
+public fun Point.ext() {}
+
+public struct WithMember {
+    // member 优先于 extension（即便 member 不可见，也不回退）。
+    private fun ext() {}
+}
+
+// 同名 extension：用于验证“star import 引入 extension”时仍遵守 member 优先（T0322）。
+public fun WithMember.ext() {}
+

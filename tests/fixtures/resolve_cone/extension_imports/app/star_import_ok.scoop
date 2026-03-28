@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：star import 可引入跨包 extension（T0322）。
+
+package app
+
+import lib.*
+
+fun use_star_import(p: Point) {
+    p.ext()
+}
+
