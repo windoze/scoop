@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-vis-app"
+version = "0.0.0"
+
+[dependencies]
+fixture-vis-lib = "0.0.0"
+

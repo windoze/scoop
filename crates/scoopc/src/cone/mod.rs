@@ -9,10 +9,11 @@ pub mod consume;
 pub mod manifest;
 pub mod package;
 pub mod scoopir;
+pub mod visibility;
 
 pub use archive::{
     CONE_API_SCOOPIR_FILE_NAME, CONE_SOURCES_SHA256_FILE_NAME, list_cone_archive_entries,
-    read_cone_archive_entry, write_cone_archive_v0,
+    read_cone_archive_entry, try_read_cone_archive_entry, write_cone_archive_v0,
 };
 pub use consume::{
     ConeArchiveApi, inject_cone_dependency_public_api, load_cone_archive_api,

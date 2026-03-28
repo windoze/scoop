@@ -3404,11 +3404,19 @@
 
 > 注：以下 resolver 任务原位于 T03（包与名字解析）章节；因依赖 `.cone` 读取（T1105），已移动至此处以保持依赖顺序。
 
-### T0321b [TODO] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
+### T0321b [DONE] Resolver：接入 `.cone` 依赖的可见性过滤（真实下游）
 - 描述：当依赖来自 `.cone` 时，下游只能看到依赖 cone 的 `public` API；`internal/private` 必须在 resolver/typecheck 阶段一致地被拒绝。
 - 目标：只打通“加载依赖 API → resolve 可见性过滤 → 稳定诊断”主路径；friend module 等高级规则不做。
 - 验收：新增 cone fixture：B 依赖 A（`.cone`），可引用 A 的 `public` 类型/函数；引用 A 的 `internal/private` 报 `not_visible` 且定位稳定。
 - 依赖：T0321a、T1105
+ - 完成：
+   - `crates/scoopc/src/cone/visibility.rs`：新增 `SYMBOL_VISIBILITY.json`（仅记录非 public 符号的存在性 + 可见性层级）生成/解析，用于下游稳定产出 `not_visible`。
+   - `crates/scoopc/src/cone/archive.rs`：打包时写入 `SYMBOL_VISIBILITY.json`；新增 `try_read_cone_archive_entry` 以支持可选元数据向前兼容。
+   - `crates/scoopc/src/cone/consume.rs`：读取 `SYMBOL_VISIBILITY.json` 并把 non-public 符号以“不可见占位符”注入 resolver `Index`（不注入 TypeEnv），从而在使用点统一报 `scoop::resolve::not_visible`。
+   - `tests/fixtures/typecheck_cone_archive/deps_visibility_filter/*`：新增真实 `.cone` 依赖 fixtures：public API 可用；internal type/private fun 报 `not_visible`（带稳定 code+位置断言）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T0322 [TODO] Resolver：跨包 extension 导入与候选收集
 - 描述：补齐 extension 在跨包场景下的导入与发现规则：显式 import、star import、可见性过滤、shadowing，以及把可见候选写入调用点候选集。

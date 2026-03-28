@@ -9,7 +9,9 @@
 //!
 //! 当前阶段限制：
 //! - 仅支持 schema v0（版本协商见 TODO T1106）；
-//! - 仅注入 public API（internal/private 在 `.cone` 中不会出现；真实下游可见性过滤见 TODO T0321b）。
+//! - 下游除注入 `api.scoopir` 的 public API 外，还会读取 `SYMBOL_VISIBILITY.json`：
+//!   仅用于把依赖 cone 的非 public 符号以“不可见占位符”注入 resolver `Index`，
+//!   以便在使用点给出稳定的 `scoop::resolve::not_visible`（TODO T0321b）。
 
 use std::path::{Path, PathBuf};
 
@@ -29,12 +31,18 @@ use super::scoopir::{
     IrFunDeclKind, IrType, IrTypeDeclKind, IrVariance, SCOOPIR_SCHEMA_NAME, SCOOPIR_SCHEMA_VERSION,
     ScoopIrFile,
 };
+use super::visibility::{
+    ConeSymbolKind, ConeSymbolVisibilityFile, CONE_SYMBOL_VISIBILITY_FILE_NAME,
+    parse_symbol_visibility_file,
+};
 
 #[derive(Debug, Clone)]
 pub struct ConeArchiveApi {
     pub path: PathBuf,
     pub manifest: ConeManifest,
     pub api: ScoopIrFile,
+    /// 可选：非 public 符号可见性索引（用于 not_visible 诊断）。
+    pub symbol_visibility: Option<ConeSymbolVisibilityFile>,
 }
 
 /// 从 `.cone` 读取并解析 `Cone.toml`（manifest）。
@@ -83,11 +91,27 @@ pub fn load_cone_archive_api(path: impl AsRef<Path>) -> Result<ConeArchiveApi> {
     let path = path.as_ref().to_path_buf();
     let manifest = read_cone_manifest_from_archive(&path)?;
     let api = read_cone_api_scoopir_from_archive(&path)?;
+    let symbol_visibility = read_cone_symbol_visibility_from_archive(&path)?;
     Ok(ConeArchiveApi {
         path,
         manifest,
         api,
+        symbol_visibility,
     })
+}
+
+/// 从 `.cone` 读取并解析 `SYMBOL_VISIBILITY.json`（可选；用于 not_visible 诊断）。
+pub fn read_cone_symbol_visibility_from_archive(
+    path: impl AsRef<Path>,
+) -> Result<Option<ConeSymbolVisibilityFile>> {
+    let path = path.as_ref();
+    let Some(bytes) = super::try_read_cone_archive_entry(path, CONE_SYMBOL_VISIBILITY_FILE_NAME)?
+    else {
+        return Ok(None);
+    };
+
+    let file = parse_symbol_visibility_file(&bytes)?;
+    Ok(Some(file))
 }
 
 /// 将一个依赖 cone 的 public API 注入到当前编译单元的 `Index` 与 `TypeEnv`。
@@ -240,8 +264,101 @@ pub fn inject_cone_dependency_public_api(
         entry.fun.push(overload);
     }
 
+    // 2.5) 注入非 public 符号占位符：仅用于在使用点生成 not_visible 诊断。
+    if let Some(vis) = &dep.symbol_visibility {
+        inject_non_public_symbols_into_index(index, &mut synth, decl_cone, &decl_file, vis)?;
+    }
+
     // 3) 最后注入合成 source，确保 lowering 能在 `decl_file` 上取到文本切片。
     env.insert_external_source(SourceFile::new_virtual(decl_file, synth.finish()));
+
+    Ok(())
+}
+
+fn inject_non_public_symbols_into_index(
+    index: &mut crate::resolve::Index,
+    synth: &mut SyntheticSourceBuilder,
+    decl_cone: ConeId,
+    decl_file: &Path,
+    file: &ConeSymbolVisibilityFile,
+) -> Result<()> {
+    // v0：`SYMBOL_VISIBILITY.json` 只应该包含非 public 项；这里做一层防御性过滤。
+    for sym in &file.symbols {
+        let visibility: Visibility = sym.visibility.into();
+        if visibility == Visibility::Public {
+            continue;
+        }
+
+        let fqn = sym.fqn.as_str();
+        let local = last_segment(fqn);
+        let local_span = synth.alloc(local);
+
+        let entry = index
+            .by_fqn
+            .entry(fqn.to_string())
+            .or_insert_with(NamespacedSymbols::default);
+
+        match sym.kind {
+            ConeSymbolKind::Type => {
+                if entry.ty.is_some() {
+                    continue;
+                }
+                entry.ty = Some(Symbol {
+                    kind: SymbolKind::Type,
+                    name: local.to_string(),
+                    span: local_span,
+                    decl_file: decl_file.to_path_buf(),
+                    decl_cone,
+                    visibility,
+                    modifiers: ModifierSet::default(),
+                });
+            }
+            ConeSymbolKind::Value => {
+                if entry.value.is_some() {
+                    continue;
+                }
+                entry.value = Some(Symbol {
+                    kind: SymbolKind::Value,
+                    name: local.to_string(),
+                    span: local_span,
+                    decl_file: decl_file.to_path_buf(),
+                    decl_cone,
+                    visibility,
+                    modifiers: ModifierSet::default(),
+                });
+            }
+            ConeSymbolKind::Fun => {
+                // 若该 FQN 已有 public overload（来自 api.scoopir），则不额外注入不可见占位符，
+                // 避免在后续阶段引入“public/hidden overload 混合”的模糊语义。
+                if entry.fun.iter().any(|o| o.symbol.visibility == Visibility::Public) {
+                    continue;
+                }
+
+                entry.fun.push(FunOverload {
+                    symbol: Symbol {
+                        kind: SymbolKind::Fun,
+                        name: local.to_string(),
+                        span: local_span,
+                        decl_file: decl_file.to_path_buf(),
+                        decl_cone,
+                        visibility,
+                        modifiers: ModifierSet::default(),
+                    },
+                    sig: FunSig {
+                        kind: ast::FunDeclKind::Regular,
+                        receiver: None,
+                        type_params: Vec::new(),
+                        eff_param: None,
+                        params: Vec::new(),
+                        return_ty: None,
+                        effects: None,
+                        builtin_flags: BuiltinFunFlags::default(),
+                    },
+                    has_body: false,
+                });
+            }
+        }
+    }
 
     Ok(())
 }

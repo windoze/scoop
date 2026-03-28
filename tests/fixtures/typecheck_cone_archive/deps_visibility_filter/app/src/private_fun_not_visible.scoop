@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR-CONTAINS: private
+// EXPECT-ERROR-AT: 12:5
+
+package fixtures.typecheck_cone_archive.visibility_filter.app
+
+import scoop.core.*
+import fixtures.typecheck_cone_archive.visibility_filter.lib.*
+
+public fun main() / Pure! {
+    makePrivateToken(1)
+}
+

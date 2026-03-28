@@ -7,6 +7,7 @@
 //! v0 归档内容（顶层文件）：
 //! - `Cone.toml`：原始 manifest（文本）；
 //! - `api.scoopir`：public API 的 ScoopIR（JSON，schema v0）；
+//! - `SYMBOL_VISIBILITY.json`：非 public 符号的“存在性 + 可见性层级”（JSON，schema v0；用于下游 not_visible 诊断）；
 //! - `SOURCES_SHA256`：源文件内容哈希（逐文件 sha256，按相对路径排序）。
 
 use std::io::{Cursor, Read as _};
@@ -38,12 +39,22 @@ pub fn write_cone_archive_v0(
         .into_diagnostic()
         .wrap_err_with(|| format!("读取 Cone.toml 失败：{}", pkg.manifest_path.display()))?;
 
-    let api = super::scoopir::export_public_api_for_cone_sources(session, &load_pkg_sources(pkg)?)
+    let sources = load_pkg_sources(pkg)?;
+
+    let api = super::scoopir::export_public_api_for_cone_sources(session, &sources)
         .wrap_err("导出 api.scoopir 失败")?;
     let api_json = serde_json::to_vec_pretty(&api)
         .into_diagnostic()
         .wrap_err("序列化 api.scoopir（JSON）失败")?;
     let api_json = ensure_trailing_newline(api_json);
+
+    let symbol_visibility =
+        super::visibility::collect_non_public_symbols_for_cone_sources(session, &sources)
+            .wrap_err("导出 SYMBOL_VISIBILITY.json 失败")?;
+    let symbol_visibility_json = serde_json::to_vec_pretty(&symbol_visibility)
+        .into_diagnostic()
+        .wrap_err("序列化 SYMBOL_VISIBILITY.json（JSON）失败")?;
+    let symbol_visibility_json = ensure_trailing_newline(symbol_visibility_json);
 
     let sources_sha256 = build_sources_sha256_text(pkg)?.into_bytes();
 
@@ -52,6 +63,10 @@ pub fn write_cone_archive_v0(
         [
             (super::CONE_TOML_FILE_NAME, cone_toml.as_slice()),
             (CONE_API_SCOOPIR_FILE_NAME, api_json.as_slice()),
+            (
+                super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
+                symbol_visibility_json.as_slice(),
+            ),
             (CONE_SOURCES_SHA256_FILE_NAME, sources_sha256.as_slice()),
         ],
     )?;
@@ -101,6 +116,33 @@ pub fn read_cone_archive_entry(path: &Path, entry_name: &str) -> Result<Vec<u8>>
         "归档中未找到条目：{entry_name}（归档：{}）",
         path.display()
     ))
+}
+
+/// 从 `.cone` 归档中尝试读取指定条目的全部内容（用于可选元数据的向前兼容）。
+///
+/// - 找到条目：`Ok(Some(bytes))`
+/// - 未找到条目：`Ok(None)`
+pub fn try_read_cone_archive_entry(path: &Path, entry_name: &str) -> Result<Option<Vec<u8>>> {
+    let file = std::fs::File::open(path)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("打开归档失败：{}", path.display()))?;
+
+    let mut archive = tar::Archive::new(file);
+    for entry in archive.entries().into_diagnostic()? {
+        let mut entry = entry.into_diagnostic()?;
+        let name = entry
+            .path()
+            .into_diagnostic()?
+            .to_string_lossy()
+            .to_string();
+        if name == entry_name {
+            let mut buf = Vec::new();
+            entry.read_to_end(&mut buf).into_diagnostic()?;
+            return Ok(Some(buf));
+        }
+    }
+
+    Ok(None)
 }
 
 fn load_pkg_sources(pkg: &ConeSourcePackage) -> Result<Vec<crate::source::SourceFile>> {
