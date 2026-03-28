@@ -212,3 +212,95 @@ const val X: Int = loop()
         "scoop::comptime::recursion_limit_exceeded"
     );
 }
+
+#[test]
+fn const_eval_comptime_block_and_if_executes_selected_branch_only() {
+    let ty = ConstIntTy::host_word(true);
+
+    // 未选中分支包含除以 0：只要 comptime if 正确裁剪分支，就不应报错。
+    let consts = eval_file_consts(
+        r#"
+const fun choose(flag: Bool): Int {
+    comptime {
+        comptime if (flag) {
+            10 + 1
+        } else {
+            1 / 0
+        }
+    }
+}
+
+const val A: Int = choose(true)
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![ConstBinding {
+            name: "A".to_string(),
+            value: mk_int(ty, 11),
+        }]
+    );
+}
+
+#[test]
+fn const_eval_comptime_if_supports_else_if_chain() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+const fun pick(x: Int): Int {
+    comptime if (x == 0) {
+        0
+    } else comptime if (x == 1) {
+        10
+    } else {
+        20
+    }
+}
+
+const val A: Int = pick(0)
+const val B: Int = pick(1)
+const val C: Int = pick(2)
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(ty, 0),
+            },
+            ConstBinding {
+                name: "B".to_string(),
+                value: mk_int(ty, 10),
+            },
+            ConstBinding {
+                name: "C".to_string(),
+                value: mk_int(ty, 20),
+            },
+        ]
+    );
+}
+
+#[test]
+fn const_eval_comptime_if_condition_must_be_bool() {
+    let source = SourceFile::new_virtual(
+        "<mem>",
+        r#"
+const fun bad(): Int {
+    comptime if (1) { 1 } else { 2 }
+}
+
+const val X: Int = bad()
+"#
+        .to_string(),
+    );
+    let file = parser::parse_file(&source).expect("parse");
+    let err = eval_const_bindings_in_file(&source, &file).unwrap_err();
+    assert_eq!(
+        err.code().unwrap().to_string(),
+        "scoop::comptime::operand_type_mismatch"
+    );
+}

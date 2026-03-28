@@ -16,7 +16,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 
-use super::eval::{ConstEvalHost, eval_const_expr_with_host};
+use super::eval::{ConstEvalHost, eval_const_expr_with_host, value_kind};
 use super::{ConstEvalCtx, ConstEvalError, ConstValue};
 
 /// const 解释器配置项（v0）。
@@ -347,14 +347,14 @@ impl<'a> ConstInterpreter<'a> {
                 kind: "continue",
                 span: stmt.span.into(),
             }),
-            ast::StmtKind::ComptimeBlock { .. } => Err(ConstEvalError::UnsupportedStmt {
-                kind: "comptime block",
-                span: stmt.span.into(),
-            }),
-            ast::StmtKind::ComptimeIf(_) => Err(ConstEvalError::UnsupportedStmt {
-                kind: "comptime if",
-                span: stmt.span.into(),
-            }),
+            ast::StmtKind::ComptimeBlock { body, .. } => match self.eval_block(body)? {
+                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+            },
+            ast::StmtKind::ComptimeIf(ci) => match self.eval_comptime_if(ci)? {
+                ControlFlow::Break(ret) => Ok(ControlFlow::Break(ret)),
+                ControlFlow::Continue(v) => Ok(ControlFlow::Continue(Some(v))),
+            },
             ast::StmtKind::ComptimeFor(_) => Err(ConstEvalError::UnsupportedStmt {
                 kind: "comptime for",
                 span: stmt.span.into(),
@@ -363,6 +363,33 @@ impl<'a> ConstInterpreter<'a> {
                 kind: "missing stmt",
                 span: stmt.span.into(),
             }),
+        }
+    }
+
+    fn eval_comptime_if(
+        &mut self,
+        ci: &ast::ComptimeIf,
+    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+        // `comptime if`：在编译期求值条件，仅执行被选中的分支（未选中分支不求值）。
+        let cond_v = eval_const_expr_with_host(self.ctx, self, &ci.cond)?;
+        let ConstValue::Bool(cond_b) = cond_v else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Bool",
+                found: value_kind(&cond_v),
+                span: ci.cond.span.into(),
+            });
+        };
+
+        if cond_b {
+            return self.eval_block(&ci.then_branch);
+        }
+
+        match &ci.else_branch {
+            None => Ok(ControlFlow::Continue(ConstValue::Unit)),
+            Some(else_branch) => match &**else_branch {
+                ast::ComptimeIfElse::Block(b) => self.eval_block(b),
+                ast::ComptimeIfElse::If(nested) => self.eval_comptime_if(nested),
+            },
         }
     }
 }
@@ -381,4 +408,3 @@ impl ConstEvalHost for ConstInterpreter<'_> {
         self.call_const_fun(call_span, callee_name, args)
     }
 }
-

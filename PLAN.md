@@ -34,6 +34,7 @@
 - 2026-03-28：完成 T1109：pre-specialize 扩展到类型实例（`[pre-specialize].types`）；`PRE_SPECIALIZE.json` 新增 `types` 索引，并在 typecheck_cone_archive fixtures 中新增 hit/miss 回归用例。
 - 2026-03-28：完成 T1201：HIR `FunDecl` 增加 `is_const` 标记并从 AST 传播；typecheck headers 为 `const fun` 增加最小门禁（禁止 non-Pure effect row 与 `eff` 参数）；新增 hir/typecheck fixtures 回归。
 - 2026-03-28：完成 T1202c：const 解释器支持 `const fun` 调用（局部 `val`/`return`/block 末尾表达式返回 + 递归上限），并把 `tests/fixtures/comptime/**` 接入 `scoop test` 新 phase（`.comptime` golden 回归），新增 pass/fail fixtures 覆盖。
+- 2026-03-28：完成 T1203：const 解释器支持执行 `comptime { ... }` 与 `comptime if`（含 else-if 链），并新增单测 + `tests/fixtures/comptime` 回归覆盖。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。
@@ -805,8 +806,9 @@ fixtures：
   - [x] T1202a：值模型 + 纯表达式求值 v0
   - [x] T1202b：tuple/struct/enum 的值构造与访问
   - [x] T1202c：`const fun` 调用 + `tests/fixtures/comptime` 接入
+  - [x] T1203：`comptime { ... }` / `comptime if` 最小语句级执行（含 else-if；未选中分支不求值）
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
-- [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
+- [x] `comptime { ... }` 执行上下文（v0：仅 const 解释器路径；限制 effect：必须 `Pure`）
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）
 - [ ] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - [ ] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）

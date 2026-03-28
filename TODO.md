@@ -3581,11 +3581,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1203 [TODO] `comptime { ... }` block 语法与执行入口（spec §6.3）
+### T1203 [DONE] `comptime { ... }` block 语法与执行入口（spec §6.3）
 - 描述：解析 comptime block 并在编译时执行（Pure 限制）。
 - 目标：先只支持 block 内 `val` 与 `comptime if`（spec §6.3.2）；`comptime for` 后续。
 - 验收：comptime fixture：生成若干声明/常量（即使仅影响常量值）；失败时诊断可读。
 - 依赖：T1202
+ - 完成：
+   - `crates/scoopc/src/comptime/interpreter.rs`：const 解释器支持执行 `comptime { ... }` 与 `comptime if`（含 else-if 链），条件必须为 Bool，未选中分支不求值。
+   - `crates/scoopc/src/comptime/eval.rs`：导出 `value_kind` 供解释器复用（保持诊断一致性）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖：
+     - comptime if 分支裁剪（未选中分支含除以 0 也不报错）；
+     - else-if 链求值；
+     - 条件非 Bool 的稳定错误码。
+   - `tests/fixtures/comptime/*`：新增 pass fixture `comptime_block_and_if_basic` 与 fail fixture `comptime_if_condition_not_bool_is_error` 回归覆盖。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1204 [TODO] 反射 intrinsics v0：`nameOf/sizeOf/fieldsOf` 的声明与解释器支持（spec §6.4）
 - 描述：在 sysroot 中声明内建反射函数，并在 comptime 执行时实现其行为。

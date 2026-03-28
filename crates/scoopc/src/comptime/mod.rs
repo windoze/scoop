@@ -1,16 +1,17 @@
 //! 编译期执行（comptime / const）相关基础设施。
 //!
-//! 当前阶段（TODO T1202a/T1202b/T1202c）落地：
+//! 当前阶段（TODO T1202a/T1202b/T1202c/T1203）落地：
 //! - 最小值模型（ConstValue）
 //! - 纯表达式求值（字面量/一元/二元/aggregate）
 //! - `const fun` 的最小解释器入口（调用 + 局部 val + return + block 最后表达式返回）
 //! - `const val` initializer 的常量折叠（用于 fixtures 回归）
+//! - `comptime { ... }` / `comptime if` 的最小语句级执行（仅在 const 解释器求值路径内）
 //! - 为后续 `const fun` 解释器与 `comptime { ... }` 执行提供可复用的底座；
 //! - 在不依赖 LLVM 后端的前端阶段完成常量求值与错误诊断。
 //!
-//! 非目标（留给后续子任务 T1203+）：
-//! - `comptime { ... }` 的执行上下文与语句级执行；
-//! - 控制流（`if/when`）、effects、循环等复杂语义；
+//! 非目标（留给后续子任务 T1204+）：
+//! - `comptime for` 的执行与展开；
+//! - 更通用的控制流（`if/when`）与循环（`while/for`）等复杂语义；
 //! - 更完整的 `const fun` 静态约束（例如禁止闭包捕获）。
 
 mod eval;

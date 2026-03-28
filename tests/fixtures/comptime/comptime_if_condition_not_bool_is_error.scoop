@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::comptime::operand_type_mismatch
+// EXPECT-ERROR: 期望 Bool
+// EXPECT-ERROR-AT: 11:18
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun bad(): Int {
+    comptime if (1) { 1 } else { 2 }
+}
+
+const val X: Int = bad()

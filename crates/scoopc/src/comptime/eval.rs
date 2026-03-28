@@ -870,7 +870,7 @@ fn mask_for(bits: u32) -> u128 {
 }
 
 /// 将 const value 映射为“用户可读的类型类别”字符串（用于诊断）。
-fn value_kind(v: &ConstValue) -> &'static str {
+pub(crate) fn value_kind(v: &ConstValue) -> &'static str {
     match v {
         ConstValue::Unit => "Unit",
         ConstValue::Bool(_) => "Bool",
