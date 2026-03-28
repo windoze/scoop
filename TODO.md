@@ -3638,11 +3638,20 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1206 [TODO] RTTI v0：为类型生成运行期描述符（spec §6.6）
+### T1206 [DONE] RTTI v0：为类型生成运行期描述符（spec §6.6）
 - 描述：定义运行期类型信息结构（type id/field layout），先能在调试/反射中使用。
 - 目标：先只生成静态表；GC trace bitmap 后续。
 - 验收：新增 `--dump-rtti`（或测试）可打印某个类型的 RTTI；输出稳定。
 - 依赖：T0802、T0409
+ - 完成：
+   - `crates/scoopc/src/rtti/mod.rs`：新增 RTTI v0（type id + size/align + struct 字段 offset）与单测。
+   - `crates/scoopc/src/lib.rs`：导出 `scoopc::rtti` 模块。
+   - `crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/typecheck/mod.rs`：开放 `TypeLowering` 供 crate 内工具复用。
+   - `crates/scoop/src/cli.rs`：新增 `scoop dump-rtti` 子命令（支持 `--type` 过滤单个类型）。
+   - `crates/scoop/src/commands/dump_rtti.rs`、`crates/scoop/src/commands/mod.rs`：接入子命令实现与 dispatch。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- dump-rtti tests/fixtures/typecheck/struct_lit_ok.scoop --type Point`
 
 ### T1207 [TODO] `comptime for`：编译期循环（spec §6.3.1）
 - 描述：实现 `comptime for` 的语法与执行（对编译期常量范围/列表迭代）。

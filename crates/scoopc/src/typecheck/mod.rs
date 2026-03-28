@@ -37,6 +37,7 @@ pub use lower::{
     TypeInstantiationKey, TypeLowerError, check_file_type_refs,
     check_file_type_refs_with_type_instantiation_keys,
 };
+pub(crate) use lower::TypeLowering;
 pub use headers::{check_file_headers, TypeHeaderError};
 pub use expr::{
     check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,

@@ -24,6 +24,7 @@ pub mod syntax;
 pub mod sysroot;
 pub mod ty;
 pub mod typecheck;
+pub mod rtti;
 
 /// LLVM 后端（inkwell）。
 ///

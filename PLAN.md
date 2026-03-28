@@ -37,6 +37,7 @@
 - 2026-03-28：完成 T1203：const 解释器支持执行 `comptime { ... }` 与 `comptime if`（含 else-if 链），并新增单测 + `tests/fixtures/comptime` 回归覆盖。
 - 2026-03-28：完成 T1204：sysroot 补齐反射 intrinsics v0（`nameOf/sizeOf/fieldsOf`）声明；parser 支持 `callee<T>()` 显式类型实参调用；const 解释器内建实现 `nameOf/sizeOf/fieldsOf`（v0：struct 字段名列表 + 基础类型 size）；新增单测与 comptime fixture 回归覆盖。
 - 2026-03-28：完成 T1205：splice operator `value.[field]` 最小实现：const eval 支持按字段名/`{name:String}` 读取 struct 常量字段；typecheck 支持字符串字面量字段 splice，并对非字面量 field 保守退化为 `Any`；新增单测与 fixtures 回归覆盖。
+- 2026-03-28：完成 T1206：新增 RTTI v0（type id + size/align + struct 字段 offset）与 `scoop dump-rtti` 子命令（支持 `--type`）；新增单测覆盖。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。

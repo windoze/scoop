@@ -9,6 +9,7 @@ mod dump_ast;
 mod dump_hir;
 mod dump_ir;
 mod dump_mir;
+mod dump_rtti;
 mod package;
 mod run;
 pub(crate) mod temp;
@@ -37,6 +38,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::DumpHir { input } => dump_hir::run(input),
         Command::DumpMir { input } => dump_mir::run(input),
         Command::DumpIr { input } => dump_ir::run(input),
+        Command::DumpRtti { input, type_name } => dump_rtti::run(input, type_name),
         Command::Build {
             input,
             output,

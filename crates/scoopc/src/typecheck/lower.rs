@@ -304,7 +304,7 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
     Ok(ctx.take_type_instantiation_keys())
 }
 
-pub(super) struct TypeLowering<'a> {
+pub(crate) struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
     imports: ImportTable,
@@ -363,7 +363,7 @@ pub(super) struct TypeLowering<'a> {
 }
 
 impl<'a> TypeLowering<'a> {
-    pub(super) fn new(
+    pub(crate) fn new(
         source: &'a SourceFile,
         file: &'a ast::File,
         index: &'a Index,
@@ -703,7 +703,7 @@ impl<'a> TypeLowering<'a> {
     /// - 与 `push_type_params` 相比，这里不分配新的 `TypeParamType`，而是把 `T` 直接映射到
     ///   “已实例化的实参类型”；
     /// - 该能力主要用于“在非 AST 语境内重用 TypeLowering”（例如 layout/metadata 计算）。
-    pub(super) fn push_type_param_bindings(
+    pub(crate) fn push_type_param_bindings(
         &mut self,
         bindings: impl IntoIterator<Item = (String, TypeId)>,
     ) {
@@ -714,11 +714,11 @@ impl<'a> TypeLowering<'a> {
         self.type_param_scopes.push(scope);
     }
 
-    pub(super) fn pop_type_param_bindings(&mut self) {
+    pub(crate) fn pop_type_param_bindings(&mut self) {
         let _ = self.type_param_scopes.pop();
     }
 
-    pub(super) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
+    pub(crate) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),
             ast::TypeRef::Tuple(t) => {

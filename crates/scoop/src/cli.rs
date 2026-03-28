@@ -46,6 +46,15 @@ pub enum Command {
         input: PathBuf,
     },
 
+    /// 解析/resolve/typecheck 输入并打印 RTTI（v0：type id + struct 字段布局）
+    DumpRtti {
+        /// 输入源文件路径
+        input: PathBuf,
+        /// 指定要打印的类型名（FQN 或 simple name；省略则打印文件内所有可生成 RTTI 的类型）
+        #[arg(long = "type", value_name = "TYPE")]
+        type_name: Option<String>,
+    },
+
     /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
     Build {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
