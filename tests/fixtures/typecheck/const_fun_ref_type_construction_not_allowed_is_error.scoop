@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::const_fun_ref_type_construction_not_allowed
+// EXPECT-ERROR: const fun 中不允许构造引用类型实例（class）
+// EXPECT-ERROR-AT: 14:13
+// 目标：T1211：`const fun` 禁止创建引用类型实例（class ctor 需要堆分配；`String` 例外）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box(val x: Int)
+
+const fun bad(): Int {
+    val b = Box(1)
+    return 0
+}

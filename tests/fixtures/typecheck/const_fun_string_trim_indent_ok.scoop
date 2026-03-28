@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：T1211：`String` 虽为引用类型，但在 `const fun` 语义中允许作为“值语义特例”使用。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+const fun banner(): String {
+    val s: String = """
+        a
+          b
+        c
+    """.trimIndent()
+    return s
+}
+
+fun main() {
+    println(banner())
+}
+

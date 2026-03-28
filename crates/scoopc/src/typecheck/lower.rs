@@ -360,6 +360,13 @@ pub(crate) struct TypeLowering<'a> {
     /// - 目前我们只实现最小静态门禁（调用点/已知装箱点），更完整分析留给后续任务；
     /// - 使用 depth 而不是 bool，便于未来扩展局部 `@NoGC { ... }` 或其它可嵌套语境。
     nogc_context_depth: usize,
+
+    /// `const fun` 上下文深度（TODO T1211）。
+    ///
+    /// 说明：
+    /// - `const fun` 的限制更接近“编译期可执行”的静态门禁（禁止调用非 const、禁止闭包、禁止分配等）；
+    /// - 使用 depth 而不是 bool，便于未来扩展局部 `const { ... }` / `comptime` 等可嵌套语境。
+    const_context_depth: usize,
 }
 
 impl<'a> TypeLowering<'a> {
@@ -417,6 +424,7 @@ impl<'a> TypeLowering<'a> {
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
             nogc_context_depth: 0,
+            const_context_depth: 0,
         }
     }
 
@@ -466,6 +474,19 @@ impl<'a> TypeLowering<'a> {
         let out = f(self);
         self.nogc_context_depth = saved;
         out
+    }
+
+    pub(super) fn push_const_context(&mut self) {
+        self.const_context_depth += 1;
+    }
+
+    pub(super) fn pop_const_context(&mut self) {
+        debug_assert!(self.const_context_depth > 0);
+        self.const_context_depth = self.const_context_depth.saturating_sub(1);
+    }
+
+    pub(super) fn in_const_context(&self) -> bool {
+        self.const_context_depth > 0
     }
 
     /// 开启 monomorph 请求收集（T0712）。

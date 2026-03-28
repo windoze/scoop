@@ -3731,11 +3731,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1211 [TODO] `const fun` 规则：allowed/prohibited 清单的静态 enforcement（spec §6.2）
+### T1211 [DONE] `const fun` 规则：allowed/prohibited 清单的静态 enforcement（spec §6.2）
 - 描述：实现 const fun 的限制：禁止 perform/分配/IO/闭包等；允许纯计算、value types 操作与 `String`（值语义特例）。
 - 目标：先保守（宁可多报错）；后续逐步放宽。
 - 验收：comptime fixture：在 const fun 中调用非 const fun 报错；在 const fun 中进行纯算术通过；`String` 操作通过；使用闭包/lambda 报错。
 - 依赖：T1201、T1005
+ - 完成：
+   - `crates/scoopc/src/resolve/mod.rs`：`Index` 的 `FunSig` 增加 `is_const`，用于跨文件调用点判断 const 性质。
+   - `crates/scoopc/src/typecheck/lower.rs`：`TypeLowering` 增加 `const` 上下文深度（push/pop/in），供表达式 typecheck 使用。
+   - `crates/scoopc/src/typecheck/expr.rs`：
+     - 在 `const fun` 函数体内 push/pop const 上下文；
+     - 新增调用门禁：`const fun` 只能调用 `const fun` 或 `@Intrinsic`（稳定错误码 `scoop::typecheck::const_fun_call_forbidden`）；
+     - 禁止 lambda（稳定错误码 `scoop::typecheck::const_fun_lambda_not_allowed`）；
+     - 禁止 class ctor（稳定错误码 `scoop::typecheck::const_fun_ref_type_construction_not_allowed`）；
+     - 禁止“可能分配”的 boxing（稳定错误码 `scoop::typecheck::const_fun_boxing_forbidden`）。
+   - `crates/scoopc/src/cone/consume.rs`：在从 `.cone` 构建 `FunSig` 时补齐 `is_const`（v0 先置为 `false`；后续可随 ScoopIR schema 扩展导出该信息）。
+   - `tests/fixtures/typecheck/const_fun_*`：新增 pass/fail fixtures 覆盖 non-const call、lambda、String 特例与 class ctor。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1212 [TODO] 运行期值上的反射回退路径（spec §6.4 末尾说明）
 - 描述：当反射 API 的 receiver 是运行期值时，遵循 const fun 规则回退为普通运行期调用（不做编译器特殊处理）。

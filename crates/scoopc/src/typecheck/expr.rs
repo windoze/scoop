@@ -400,6 +400,46 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("const fun 只能调用 const fun/编译器 intrinsic：{callee}")]
+    #[diagnostic(code(scoop::typecheck::const_fun_call_forbidden))]
+    ConstFunCallForbidden {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 中不允许使用闭包/lambda")]
+    #[diagnostic(code(scoop::typecheck::const_fun_lambda_not_allowed))]
+    ConstFunLambdaNotAllowed {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 中不允许调用函数值/闭包：{callee}")]
+    #[diagnostic(code(scoop::typecheck::const_fun_function_value_call_not_allowed))]
+    ConstFunFunctionValueCallNotAllowed {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 中禁止装箱（可能堆分配）：{from} -> {to}")]
+    #[diagnostic(code(scoop::typecheck::const_fun_boxing_forbidden))]
+    ConstFunBoxingForbidden {
+        from: String,
+        to: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 中不允许构造引用类型实例（class）：{ty}")]
+    #[diagnostic(code(scoop::typecheck::const_fun_ref_type_construction_not_allowed))]
+    ConstFunRefTypeConstructionNotAllowed {
+        ty: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("GC.pin 当前阶段仅支持引用类型（heap/box 对象）：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_pin_requires_ref))]
     GcPinRequiresRefType {
@@ -921,6 +961,13 @@ struct FunSigOwned {
     /// 说明：当前阶段不做任何 inlining 优化，该标记仅用于：
     /// - lambda non-local return 的静态门禁（只有 inline lambda 实参允许 `return`）
     is_inline: bool,
+    /// 是否为 `const fun`（spec §6.2）。
+    ///
+    /// 用途：
+    /// - TODO T1211：在 `const fun` 语境中禁止调用非 const（但允许 const/intrinsic）；
+    /// - 该标记会在“当前文件内”从 AST modifiers 收集；在“跨文件调用”路径中从 `Index` 的 `FunSig.is_const`
+    ///   读取（resolver 已把该信息写入索引）。
+    is_const: bool,
     /// 是否为 `@Unsafe` 函数（spec §15.9.1）。
     ///
     /// 说明：当前阶段（T1003）仅用于调用门禁：非 unsafe context 禁止调用 `@Unsafe`。
@@ -1512,6 +1559,10 @@ fn check_class_member_fun_body_exprs(
     if nogc_ctx_pushed {
         lower.push_nogc_context();
     }
+    let const_ctx_pushed = fun.modifiers.contains(&ast::Modifier::Const);
+    if const_ctx_pushed {
+        lower.push_const_context();
+    }
 
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
@@ -1628,6 +1679,9 @@ fn check_class_member_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
+    }
+    if const_ctx_pushed {
+        lower.pop_const_context();
     }
     if nogc_ctx_pushed {
         lower.pop_nogc_context();
@@ -2583,6 +2637,12 @@ fn infer_expr_type(
             ),
         },
         ast::ExprKind::Lambda(lam) => {
+            if lower.in_const_context() {
+                return Err(ExprTypeError::ConstFunLambdaNotAllowed {
+                    span: expr.span.into(),
+                });
+            }
+
             // T0510：lambda 参数推断失败诊断（最小可读解释）。
             //
             // 说明：
@@ -3183,6 +3243,7 @@ fn infer_handle_expr_type(
             decl_span: op.symbol.span,
             is_extension: false,
             is_inline: false,
+            is_const: false,
             is_unsafe: false,
             is_nogc: false,
             is_extern: false,
@@ -3730,6 +3791,11 @@ fn infer_expr_type_in_expected_context(
     // 说明：lambda 的参数类型通常由“期望的函数类型”向下传播而来，因此这里在存在 expected type 时
     // 优先尝试用该信息推断 lambda 的参数类型与返回类型。
     if let ast::ExprKind::Lambda(lam) = &expr.kind {
+        if lower.in_const_context() {
+            return Err(ExprTypeError::ConstFunLambdaNotAllowed {
+                span: expr.span.into(),
+            });
+        }
         if let Some(ty) = try_infer_lambda_expr_type_by_expected(
             source,
             expr,
@@ -4706,6 +4772,14 @@ fn infer_function_value_call_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    // spec §6.2：`const fun` 禁止闭包/lambda；因此也禁止调用“函数值”（无论其来源是参数还是局部绑定）。
+    if lower.in_const_context() {
+        return Err(ExprTypeError::ConstFunFunctionValueCallNotAllowed {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
     // `@NoGC`：保守门禁。
     //
     // 说明：当前阶段我们无法证明“某个函数值/闭包”是否为 `@NoGC`，
@@ -4925,6 +4999,7 @@ fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             is_extension,
             is_inline,
+            is_const: o.sig.is_const,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
             is_extern: o.sig.builtin_flags.is_extern,
@@ -4992,6 +5067,29 @@ fn check_nogc_call_gate(
     })
 }
 
+fn check_const_fun_call_gate(
+    callee_fqn: &str,
+    sig: &FunSigOwned,
+    call_span: Span,
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    if !lower.in_const_context() {
+        return Ok(());
+    }
+
+    // spec §6.2：`const fun` 允许调用：
+    // - 其它 `const fun`
+    // - 编译器 intrinsics（即便 sysroot 声明未显式标记为 const）
+    if sig.is_const || sig.is_intrinsic {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::ConstFunCallForbidden {
+        callee: callee_fqn.to_string(),
+        span: call_span.into(),
+    })
+}
+
 fn check_nogc_boxing_gate(
     found: TypeId,
     expected: TypeId,
@@ -4999,7 +5097,8 @@ fn check_nogc_boxing_gate(
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    if !lower.in_nogc_context() {
+    let forbid_alloc = lower.in_nogc_context() || lower.in_const_context();
+    if !forbid_alloc {
         return Ok(());
     }
 
@@ -5023,7 +5122,15 @@ fn check_nogc_boxing_gate(
         return Ok(());
     }
 
-    Err(ExprTypeError::NoGcBoxingForbidden {
+    if lower.in_nogc_context() {
+        return Err(ExprTypeError::NoGcBoxingForbidden {
+            from: lower.fmt_type(found),
+            to: lower.fmt_type(expected),
+            span: at.into(),
+        });
+    }
+
+    Err(ExprTypeError::ConstFunBoxingForbidden {
         from: lower.fmt_type(found),
         to: lower.fmt_type(expected),
         span: at.into(),
@@ -5160,6 +5267,7 @@ fn infer_call_expr_type(
             if direct_call_candidates.len() == 1 {
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+                check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 let call_args = collect_call_arg_infos(
                     source,
                     args,
@@ -5766,6 +5874,7 @@ fn infer_call_expr_type(
 
             check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+            check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
 
             // `@NoGC`：已知分配点（boxing）门禁。
             //
@@ -6098,6 +6207,15 @@ fn infer_class_constructor_call_expr_type(
     });
     if ctor_types.is_empty() {
         return Ok(None);
+    }
+
+    // spec §6.2：`const fun` 禁止创建引用类型实例（class 构造需要堆分配）；`String` 是唯一例外，
+    // 但当前阶段并不通过 ctor 调用构造 `String`（字符串字面量已覆盖 `String` 的 const 语义）。
+    if lower.in_const_context() {
+        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
+            ty: source.slice(callee.span).to_string(),
+            span: call_expr.span.into(),
+        });
     }
 
     let call_args = collect_call_arg_infos(
@@ -6690,6 +6808,7 @@ fn infer_effect_op_call_expr_type(
         decl_span: op.symbol.span,
         is_extension: false,
         is_inline: false,
+        is_const: false,
         is_unsafe: false,
         is_nogc: false,
         is_extern: false,
@@ -7188,6 +7307,7 @@ fn infer_member_call_expr_type(
     if ext_candidates.len() == 1 {
         check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
+        check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         let expected_args = sig.params.len().saturating_sub(1);
         if call_args.len() > expected_args {
             return Err(ExprTypeError::CallArityMismatch {
@@ -7896,6 +8016,7 @@ fn infer_member_call_expr_type(
 
     check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
     check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
+    check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
 
     // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。
     check_nogc_boxing_gate(
@@ -8065,6 +8186,7 @@ fn collect_top_level_fun_signatures(
             // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
             let is_extension = fun.receiver.is_some();
             let is_inline = fun.modifiers.contains(&ast::Modifier::Inline);
+            let is_const = fun.modifiers.contains(&ast::Modifier::Const);
             if let Some(receiver) = &fun.receiver {
                 // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
                 param_names.push("<receiver>".to_string());
@@ -8180,6 +8302,7 @@ fn collect_top_level_fun_signatures(
                 decl_span,
                 is_extension,
                 is_inline,
+                is_const,
                 is_unsafe: builtin_flags.is_unsafe,
                 is_nogc: builtin_flags.is_nogc,
                 is_extern: builtin_flags.is_extern,
@@ -9271,6 +9394,10 @@ fn check_fun_body_exprs(
     if nogc_ctx_pushed {
         lower.push_nogc_context();
     }
+    let const_ctx_pushed = fun.modifiers.contains(&ast::Modifier::Const);
+    if const_ctx_pushed {
+        lower.push_const_context();
+    }
 
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = (|| {
@@ -9403,6 +9530,9 @@ fn check_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
+    }
+    if const_ctx_pushed {
+        lower.pop_const_context();
     }
     if nogc_ctx_pushed {
         lower.pop_nogc_context();
