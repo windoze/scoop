@@ -10,6 +10,7 @@
 
 pub mod ast;
 pub mod cone;
+pub mod comptime;
 pub mod hir;
 pub mod infer;
 pub mod mir;

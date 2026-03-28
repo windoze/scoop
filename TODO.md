@@ -3535,7 +3535,7 @@
 - 目标：不支持堆分配（`String` 除外）、不支持 effects、不支持循环（可先限制）。
 - 备注：该任务涉及“值模型 + 求值器 + 调用/环境 + fixtures 接入”，为保证每步都可单独验证，拆分为以下子任务。
 
-### T1202a [TODO] const interpreter：值模型 + 纯表达式求值 v0（字面量/一元/二元）
+### T1202a [DONE] const interpreter：值模型 + 纯表达式求值 v0（字面量/一元/二元）
 - 描述：新增 `crates/scoopc::comptime`，提供最小的 `ConstValue` 与表达式求值器，覆盖：
   - 字面量：Int/Bool/Unit/String（从 `SourceFile + Span` 解析源码）
   - 一元：`!`/`-`/`~`
@@ -3543,6 +3543,14 @@
 - 目标：暂不支持函数调用、tuple/struct/enum aggregate、控制流（`if/when`）、effects 与循环。
 - 验收：新增单元测试覆盖上述求值；`cargo test -p scoopc` 通过。
 - 依赖：T1201
+ - 完成：
+   - `crates/scoopc/src/lib.rs`：新增 `pub mod comptime;`，暴露编译期求值模块。
+   - `crates/scoopc/src/comptime/mod.rs`：新增模块骨架与对外 API（`ConstValue`/`eval_const_expr`）。
+   - `crates/scoopc/src/comptime/value.rs`：实现 `ConstValue`/`ConstInt`/`ConstIntTy`（支持位宽 wrap/mask）。
+   - `crates/scoopc/src/comptime/eval.rs`：实现纯表达式常量求值（字面量 + 一元/二元运算，含短路）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单元测试覆盖算术/位运算/短路与有符号/无符号右移。
+ - 验收：
+   - `cargo test -p scoopc`
 
 ### T1202b [TODO] const interpreter：支持 tuple/struct/enum 的值构造与访问（最小）
 - 描述：在 `ConstValue` 中补齐 tuple/struct/enum 表示，并在求值器中支持最小构造（如 tuple/struct literal、enum ctor）。
