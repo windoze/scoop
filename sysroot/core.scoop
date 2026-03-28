@@ -22,6 +22,12 @@ class String
 // - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
 // - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
 class Array<T>
+// 编译期列表（spec §6.4）。
+//
+// 说明：
+// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的“编译期数据结构”；
+// - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续 comptime 执行与 lowering 补齐。
+class ComptimeList<T>
 struct Unit
 enum Nothing
 
@@ -165,6 +171,18 @@ typealias UIntPtr = UInt
 fun sizeOf(value: Int): Int
 @Intrinsic
 fun sizeOf(value: String): Int
+
+// Reflection intrinsics v0（spec §6.4 / TODO T1204）。
+//
+// 说明：
+// - 这些函数在规范中“隐式 const”，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
+// - v0 阶段 `fieldsOf<T>()` 先返回字段名列表（`ComptimeList<String>`），FieldMeta 等元数据类型将在 T1208 补齐。
+@Intrinsic
+const fun <T> nameOf(): String
+@Intrinsic
+const fun <T> sizeOf(): Int
+@Intrinsic
+const fun <T> fieldsOf(): ComptimeList<String>
 
 // Option / nullable sugar
 enum Option<T> {

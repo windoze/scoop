@@ -3598,11 +3598,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1204 [TODO] 反射 intrinsics v0：`nameOf/sizeOf/fieldsOf` 的声明与解释器支持（spec §6.4）
+### T1204 [DONE] 反射 intrinsics v0：`nameOf/sizeOf/fieldsOf` 的声明与解释器支持（spec §6.4）
 - 描述：在 sysroot 中声明内建反射函数，并在 comptime 执行时实现其行为。
 - 目标：先只支持 struct 的字段列表与基本类型 size；RTTI 后续。
 - 验收：comptime fixture：基于 `fieldsOf<T>()` 生成序列化代码片段（可先只打印/导出元数据）。
 - 依赖：T1203、T0010
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ExprKind::TypeApply`，用于承载 `callee<T>` 的显式类型实参（避免改动 `Call` 形态导致 AST golden 漂移）。
+   - `crates/scoopc/src/parser/expr.rs`：支持解析 `callee<T>()`（仅在 `>` 后紧跟 `(` 时生效，避免与 `<` 比较运算歧义）；生成 `TypeApply + Call` 结构。
+   - `crates/scoopc/src/comptime/eval.rs`：`ConstEvalHost::call_fun` 增加 `type_args`；支持 `TypeApply` 作为 call callee，并把类型实参传给宿主。
+   - `crates/scoopc/src/comptime/interpreter.rs`：在 const 解释器中内建实现 `nameOf/sizeOf/fieldsOf`：
+     - `nameOf<T>()` 返回类型名字符串；
+     - `sizeOf<T>()` 支持基础类型（Bool/Unit/Int/Int8/Int64...）与 `String`（指针大小）；
+     - `fieldsOf<T>()` 支持 struct：收集主构造 `val/var` 字段 + 无 getter/setter/delegate 的 body 属性字段（v0 返回字段名 tuple）。
+   - `sysroot/core.scoop`：补齐 `ComptimeList<T>` 声明，并新增 `const fun <T> nameOf/sizeOf/fieldsOf` 的 sysroot 表面（v0：`fieldsOf<T>() -> ComptimeList<String>`）。
+   - `tests/fixtures/comptime/reflection_intrinsics_v0_basic.*`：新增 comptime fixture 回归覆盖三个 intrinsics。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 `nameOf/sizeOf/fieldsOf` 的 v0 语义与字段过滤规则。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1205 [TODO] Splice operator（`value.[field]`）最小实现（spec §6.4）
 - 描述：支持 `.[field]` 语法，在 comptime for 中通过 FieldMeta 访问值的特定字段（先限用于声明位置）。

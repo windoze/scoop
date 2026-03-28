@@ -1227,6 +1227,17 @@ pub enum ExprKind {
         op_span: Span,
         member: MemberIdent,
     },
+    /// 显式类型实参应用：`callee<T1, T2, ...>`（Kotlin-like）。
+    ///
+    /// 说明：
+    /// - 该节点用于把“值位置的 callee”与一组显式类型实参绑定在一起；
+    /// - 典型用法是紧跟一次调用：`nameOf<T>()` / `fieldsOf<T>()`；
+    /// - 为避免修改 `ExprKind::Call` 的 Debug 形态导致大量 AST golden 漂移，
+    ///   这里选择引入独立的 `TypeApply` 节点作为轻量承载。
+    TypeApply {
+        callee: Box<Expr>,
+        args: Vec<TypeRef>,
+    },
     /// 调用表达式：`callee(args...)`（postfix）。
     ///
     /// 当前阶段：

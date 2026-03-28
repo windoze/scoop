@@ -182,7 +182,7 @@ impl<'a> Parser<'a> {
         }))
     }
 
-    fn parse_type_args(&mut self) -> Result<(Vec<ast::TypeRef>, usize), ParseError> {
+    pub(super) fn parse_type_args(&mut self) -> Result<(Vec<ast::TypeRef>, usize), ParseError> {
         let _lt = self.expect_symbol(Symbol::Lt)?;
         let mut args = Vec::new();
 

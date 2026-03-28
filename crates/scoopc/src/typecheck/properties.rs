@@ -679,6 +679,9 @@ fn field_use_span_in_expr(
         ast::ExprKind::SafeMemberAccess { receiver, .. } => {
             field_use_span_in_expr(source, backing_field_decl_span, receiver)
         }
+        ast::ExprKind::TypeApply { callee, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, callee)
+        }
         ast::ExprKind::Call { callee, args } => {
             field_use_span_in_expr(source, backing_field_decl_span, callee).or_else(|| {
                 args.iter()

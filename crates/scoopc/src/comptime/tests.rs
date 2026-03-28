@@ -304,3 +304,44 @@ const val X: Int = bad()
         "scoop::comptime::operand_type_mismatch"
     );
 }
+
+#[test]
+fn const_eval_reflection_intrinsics_v0_basic() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+struct Point(val x: Int, val y: Int) {
+    val tag: String
+    // 计算属性：v0 的 fieldsOf 不应把它当作字段。
+    val computed: Int get() = 0
+}
+
+const val N: String = nameOf<Point>()
+const val S: Int = sizeOf<Int64>()
+const val F = fieldsOf<Point>()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "N".to_string(),
+                value: ConstValue::String("Point".to_string()),
+            },
+            ConstBinding {
+                name: "S".to_string(),
+                value: mk_int(ty, 8),
+            },
+            ConstBinding {
+                name: "F".to_string(),
+                value: ConstValue::Tuple(vec![
+                    ConstValue::String("x".to_string()),
+                    ConstValue::String("y".to_string()),
+                    ConstValue::String("tag".to_string()),
+                ]),
+            },
+        ]
+    );
+}

@@ -62,6 +62,8 @@ struct ConstInterpreter<'a> {
     scopes: Vec<HashMap<String, ConstValue>>,
     /// 该文件中所有顶层函数（按名称聚合；用于判断“存在但非 const”）。
     funs_by_name: HashMap<String, Vec<&'a ast::FunDecl>>,
+    /// 该文件中所有顶层类型声明（按名称聚合；用于反射 intrinsics v0）。
+    types_by_name: HashMap<String, Vec<&'a ast::TypeDecl>>,
 }
 
 impl<'a> ConstInterpreter<'a> {
@@ -72,14 +74,26 @@ impl<'a> ConstInterpreter<'a> {
             call_depth: 0,
             scopes: vec![HashMap::new()],
             funs_by_name: HashMap::new(),
+            types_by_name: HashMap::new(),
         }
     }
 
     fn register_file(&mut self, file: &'a ast::File) {
         for item in &file.items {
-            let ast::Item::Fun(fun) = item else { continue };
-            let name = fun.name.text(self.ctx.source).to_string();
-            self.funs_by_name.entry(name).or_default().push(fun);
+            match item {
+                ast::Item::Fun(fun) => {
+                    let name = fun.name.text(self.ctx.source).to_string();
+                    self.funs_by_name.entry(name).or_default().push(fun);
+                }
+                ast::Item::Type(ty) => {
+                    let name = ty.name.text(self.ctx.source).to_string();
+                    self.types_by_name.entry(name).or_default().push(ty);
+                }
+                ast::Item::TypeAlias(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::Object(_)
+                | ast::Item::Val(_) => {}
+            }
         }
     }
 
@@ -204,6 +218,168 @@ impl<'a> ConstInterpreter<'a> {
         };
 
         self.eval_fun_call(call_span, fun, args)
+    }
+
+    fn call_fun_or_intrinsic(
+        &mut self,
+        call_span: Span,
+        callee_name: &str,
+        type_args: Vec<ast::TypeRef>,
+        args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError> {
+        // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
+        match callee_name {
+            "nameOf" | "sizeOf" | "fieldsOf" => {
+                return self.call_reflection_intrinsics(call_span, callee_name, type_args, args);
+            }
+            _ => {}
+        }
+
+        // v0：解释器不支持泛型 const fun；显式 type args 只允许用于 intrinsics。
+        if !type_args.is_empty() {
+            return Err(ConstEvalError::UnsupportedConstFunSignature {
+                reason: "explicit type args",
+                span: call_span.into(),
+            });
+        }
+
+        self.call_const_fun(call_span, callee_name, args)
+    }
+
+    fn call_reflection_intrinsics(
+        &mut self,
+        call_span: Span,
+        name: &str,
+        type_args: Vec<ast::TypeRef>,
+        args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError> {
+        if type_args.len() != 1 || !args.is_empty() {
+            return Err(ConstEvalError::ReflectionBadCall {
+                name: name.to_string(),
+                reason: "期望形态为 `<T>()`（1 个类型实参 + 0 个值实参）",
+                span: call_span.into(),
+            });
+        }
+
+        let ty_arg = &type_args[0];
+        let (full_name, simple_name, ty_span) = self.type_ref_path_name_and_simple(ty_arg)?;
+
+        match name {
+            "nameOf" => Ok(ConstValue::String(full_name)),
+            "sizeOf" => {
+                let Some(size) = size_of_builtin_ty_bytes(&simple_name) else {
+                    return Err(ConstEvalError::ReflectionSizeOfUnsupportedType {
+                        name: full_name,
+                        span: ty_span.into(),
+                    });
+                };
+                Ok(ConstValue::Int(super::ConstInt::new(
+                    self.ctx.default_int_ty,
+                    size as u128,
+                )))
+            }
+            "fieldsOf" => {
+                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
+                    ConstEvalError::ReflectionUnknownType {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    }
+                })?;
+                let decl = match decls.as_slice() {
+                    [one] => *one,
+                    _ => {
+                        return Err(ConstEvalError::ReflectionAmbiguousType {
+                            name: full_name.clone(),
+                            span: ty_span.into(),
+                        });
+                    }
+                };
+                if decl.kind != ast::TypeKind::Struct {
+                    return Err(ConstEvalError::ReflectionUnsupportedTarget {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    });
+                }
+
+                let mut fields: Vec<String> = Vec::new();
+                let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+
+                // 1) 主构造 `val/var` 参数声明的字段
+                if let Some(ctor) = decl.primary_ctor.as_ref() {
+                    for p in &ctor.params {
+                        if p.kind.is_none() {
+                            continue;
+                        }
+                        let fname = p.name.text(self.ctx.source).to_string();
+                        if !seen.insert(fname.clone()) {
+                            return Err(ConstEvalError::ReflectionDuplicateField {
+                                field: fname,
+                                span: ty_span.into(),
+                            });
+                        }
+                        fields.push(fname);
+                    }
+                }
+
+                // 2) type body 里“看起来像 backing field 的属性声明”
+                if let Some(body) = decl.body.as_ref() {
+                    for m in &body.members {
+                        let ast::TypeMember::Property(p) = m else { continue };
+
+                        // v0：只把“无 delegate、无自定义 getter/setter”的属性当作字段。
+                        if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
+                            continue;
+                        }
+
+                        let fname = p.name.text(self.ctx.source).to_string();
+                        if !seen.insert(fname.clone()) {
+                            return Err(ConstEvalError::ReflectionDuplicateField {
+                                field: fname,
+                                span: ty_span.into(),
+                            });
+                        }
+                        fields.push(fname);
+                    }
+                }
+
+                Ok(ConstValue::Tuple(
+                    fields.into_iter().map(ConstValue::String).collect(),
+                ))
+            }
+            _ => Err(ConstEvalError::ReflectionBadCall {
+                name: name.to_string(),
+                reason: "unknown reflection intrinsic",
+                span: call_span.into(),
+            }),
+        }
+    }
+
+    fn type_ref_path_name_and_simple(
+        &self,
+        ty: &ast::TypeRef,
+    ) -> Result<(String, String, Span), ConstEvalError> {
+        let ast::TypeRef::Path(p) = ty else {
+            return Err(ConstEvalError::ReflectionTypeArgNotSupported {
+                found: "non-path type",
+                span: ty.span().into(),
+            });
+        };
+
+        let mut full = String::new();
+        for (idx, seg) in p.segments.iter().enumerate() {
+            if idx > 0 {
+                full.push('.');
+            }
+            full.push_str(seg.text(self.ctx.source));
+        }
+
+        let simple = p
+            .segments
+            .last()
+            .map(|s| s.text(self.ctx.source).to_string())
+            .unwrap_or_default();
+
+        Ok((full, simple, p.span))
     }
 
     fn eval_fun_call(
@@ -394,6 +570,25 @@ impl<'a> ConstInterpreter<'a> {
     }
 }
 
+fn size_of_builtin_ty_bytes(name: &str) -> Option<usize> {
+    match name {
+        // scalar/value types
+        "Bool" => Some(std::mem::size_of::<bool>()),
+        "Unit" => Some(std::mem::size_of::<()>()),
+        "Int" => Some(std::mem::size_of::<isize>()),
+        "UInt" | "UIntPtr" => Some(std::mem::size_of::<usize>()),
+        "Int8" | "UInt8" | "Byte" => Some(1),
+        "Int16" | "UInt16" | "Short" | "UShort" => Some(2),
+        "Int32" | "UInt32" => Some(4),
+        "Int64" | "UInt64" | "Long" | "ULong" => Some(8),
+
+        // 引用类型：v0 先把它们视为“指针大小”。
+        "String" => Some(std::mem::size_of::<usize>()),
+
+        _ => None,
+    }
+}
+
 impl ConstEvalHost for ConstInterpreter<'_> {
     fn resolve_ident(&mut self, name: &str) -> Option<ConstValue> {
         self.lookup(name)
@@ -403,8 +598,9 @@ impl ConstEvalHost for ConstInterpreter<'_> {
         &mut self,
         call_span: Span,
         callee_name: &str,
+        type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
-        self.call_const_fun(call_span, callee_name, args)
+        self.call_fun_or_intrinsic(call_span, callee_name, type_args, args)
     }
 }

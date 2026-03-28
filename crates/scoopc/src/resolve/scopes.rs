@@ -723,6 +723,10 @@ impl<'a> BlockScopeChecker<'a> {
                 // T0620：`join expr` 只是一层前缀语法糖，递归检查其操作数即可。
                 self.check_expr(expr.as_mut())?;
             }
+            ast::ExprKind::TypeApply { callee, .. } => {
+                // `callee<T>`：type args 本身在该阶段不参与名字解析（TypeRef 解析由其它入口负责）。
+                self.check_expr(callee.as_mut())?;
+            }
             ast::ExprKind::MemberAccess { receiver, member } => {
                 // `TypeName.member` 允许作为 companion member access：
                 // receiver 可能不是一个 value ident（例如 class 名称），因此这里对
@@ -752,6 +756,16 @@ impl<'a> BlockScopeChecker<'a> {
                         Ok(()) => {}
                         Err(ResolveError::UnresolvedValue { .. }) => {}
                         Err(other) => return Err(other),
+                    },
+                    ast::ExprKind::TypeApply {
+                        callee: inner, ..
+                    } => match &mut inner.kind {
+                        ast::ExprKind::Ident(id) => match self.resolve_value_ident(id) {
+                            Ok(()) => {}
+                            Err(ResolveError::UnresolvedValue { .. }) => {}
+                            Err(other) => return Err(other),
+                        },
+                        _ => self.check_expr(inner.as_mut())?,
                     },
                     _ => self.check_expr(callee.as_mut())?,
                 }
@@ -833,6 +847,7 @@ impl<'a> BlockScopeChecker<'a> {
         args: &[ast::Expr],
     ) -> Result<(), ResolveError> {
         match &mut callee.kind {
+            ast::ExprKind::TypeApply { callee, .. } => self.resolve_call_site(callee.as_mut(), args),
             ast::ExprKind::Ident(id) => self.resolve_call_ident_callee(id, args),
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.resolve_call_member_callee(receiver, member, args)

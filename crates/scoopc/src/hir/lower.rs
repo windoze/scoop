@@ -613,6 +613,12 @@ impl<'a> HirLowering<'a> {
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
+            ast::ExprKind::TypeApply { callee, .. } => {
+                // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
+                // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
+                let inner = self.lower_expr(pkg_prefix, callee);
+                (inner.kind, inner.ty)
+            }
             ast::ExprKind::Call { callee, args } => {
                 if let Some((kind, ty)) =
                     self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)

@@ -142,6 +142,17 @@ impl<'a> Parser<'a> {
                 expr = self.parse_with_update_expr(expr)?;
                 continue;
             }
+            // Kotlin-like 显式类型实参（T1204）：`callee<T>()`
+            //
+            // 说明：
+            // - `<` 同时也是二元运算符，因此这里必须做 lookahead 消歧；
+            // - 当前阶段只在 `>` 后紧跟 `(` 时才把它解释为 “type args + call” 的前半段，
+            //   以避免把普通比较表达式误判为类型实参应用。
+            if self.looks_like_type_apply_then_call() {
+                last_postfix_was_trailing_lambda = false;
+                expr = self.parse_type_apply_expr(expr)?;
+                continue;
+            }
             // Kotlin-like class literal：`TypeName::class`（T1019）。
             //
             // 说明：
@@ -193,6 +204,28 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(expr))
+    }
+
+    fn looks_like_type_apply_then_call(&self) -> bool {
+        if !self.peek_symbol(Symbol::Lt) {
+            return false;
+        }
+        let Some(end) = scan_type_args_end(&self.tokens, self.i) else {
+            return false;
+        };
+        matches!(kind_at(&self.tokens, end), TokenKind::Symbol(Symbol::LParen))
+    }
+
+    fn parse_type_apply_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let start = callee.span.start;
+        let (args, end) = self.parse_type_args()?;
+        Ok(ast::Expr {
+            span: Span::new(start, end),
+            kind: ast::ExprKind::TypeApply {
+                callee: Box::new(callee),
+                args,
+            },
+        })
     }
 
     fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {

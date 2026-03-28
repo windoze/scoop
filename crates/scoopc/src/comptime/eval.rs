@@ -166,6 +166,65 @@ pub enum ConstEvalError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    // --- reflection intrinsics（T1204） ---
+
+    #[error("反射 intrinsic `{name}` 调用不合法：{reason}")]
+    #[diagnostic(code(scoop::comptime::reflection_bad_call))]
+    ReflectionBadCall {
+        name: String,
+        reason: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("反射 intrinsic 的类型实参暂不支持：{found}")]
+    #[diagnostic(code(scoop::comptime::reflection_type_arg_not_supported))]
+    ReflectionTypeArgNotSupported {
+        found: &'static str,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("未找到可反射的类型：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_unknown_type))]
+    ReflectionUnknownType {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("类型名歧义：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_ambiguous_type))]
+    ReflectionAmbiguousType {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("暂不支持对该类型执行反射：{name}（期望 struct）")]
+    #[diagnostic(code(scoop::comptime::reflection_unsupported_target))]
+    ReflectionUnsupportedTarget {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("sizeOf<T>() 暂不支持该类型：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_sizeof_unsupported_type))]
+    ReflectionSizeOfUnsupportedType {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("fieldsOf<T>() 发现重复字段：{field}")]
+    #[diagnostic(code(scoop::comptime::reflection_duplicate_field))]
+    ReflectionDuplicateField {
+        field: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 常量求值时用于“外部交互”的宿主接口：
@@ -177,6 +236,7 @@ pub(crate) trait ConstEvalHost {
         &mut self,
         call_span: crate::span::Span,
         callee_name: &str,
+        type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError>;
 }
@@ -192,6 +252,7 @@ impl ConstEvalHost for NoHost {
         &mut self,
         call_span: crate::span::Span,
         _callee_name: &str,
+        _type_args: Vec<ast::TypeRef>,
         _args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
         Err(ConstEvalError::UnsupportedExpr {
@@ -355,6 +416,27 @@ pub(crate) fn eval_const_expr_with_host(
         }
 
         ast::ExprKind::Call { callee, args } => {
+            // 显式类型实参调用（T1204）：`nameOf<T>()` / `fieldsOf<T>()` / `sizeOf<T>()`。
+            if let ast::ExprKind::TypeApply {
+                callee: inner,
+                args: type_args,
+            } = &callee.kind
+            {
+                let ast::ExprKind::Ident(id) = &inner.kind else {
+                    return Err(ConstEvalError::UnsupportedExpr {
+                        kind: "generic call callee",
+                        span: callee.span.into(),
+                    });
+                };
+                let name = ctx.source.slice(id.span);
+
+                let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
+                for a in args {
+                    argv.push(eval_const_expr_with_host(ctx, host, a)?);
+                }
+                return host.call_fun(expr.span, name, type_args.clone(), argv);
+            }
+
             // enum ctor（T1202b）：`Opt.Some(1)` / `Some(1)`
             //
             // 规则：
@@ -367,7 +449,7 @@ pub(crate) fn eval_const_expr_with_host(
                     for a in args {
                         argv.push(eval_const_expr_with_host(ctx, host, a)?);
                     }
-                    return host.call_fun(expr.span, name, argv);
+                    return host.call_fun(expr.span, name, Vec::new(), argv);
                 }
             }
 
