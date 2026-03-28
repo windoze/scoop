@@ -3618,11 +3618,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1205 [TODO] Splice operator（`value.[field]`）最小实现（spec §6.4）
+### T1205 [DONE] Splice operator（`value.[field]`）最小实现（spec §6.4）
 - 描述：支持 `.[field]` 语法，在 comptime for 中通过 FieldMeta 访问值的特定字段（先限用于声明位置）。
 - 目标：先只做“生成声明列表”；不做表达式 splice。
 - 验收：comptime fixture：通过 splice 生成一个函数/struct，后续解析/类型检查通过。
 - 依赖：T1203、T0201
+ - 完成：
+   - `crates/scoopc/src/comptime/eval.rs`：const eval 支持 `ExprKind::SpliceField`：
+     - `field` 为 `String`（字段名）时读取 struct 字段；
+     - `field` 为包含 `name: String` 的 struct 值时读取该字段（为后续 FieldMeta 兼容预留）。
+   - `crates/scoopc/src/typecheck/expr.rs`：typecheck 支持 `ExprKind::SpliceField`：
+     - `field` 为字符串字面量时，按 `receiverTy.<name>` 推导字段类型；
+     - `field` 非字面量时，当前阶段保守退化为 `Any`（留给后续 comptime 展开/元数据补齐）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 splice 字段读取（字符串字面量 + `name` 结构体形态）。
+   - `tests/fixtures/comptime/splice_field_access_v0_basic.*`：新增 comptime fixture 回归覆盖 splice 字段读取。
+   - `tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop`：新增 typecheck fixture 回归覆盖字符串字面量字段 splice。
+   - `tests/fixtures/typecheck/splice_field_unknown_field_is_error.scoop`：新增 typecheck fail fixture：未知字段返回稳定错误码。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1206 [TODO] RTTI v0：为类型生成运行期描述符（spec §6.6）
 - 描述：定义运行期类型信息结构（type id/field layout），先能在调试/反射中使用。

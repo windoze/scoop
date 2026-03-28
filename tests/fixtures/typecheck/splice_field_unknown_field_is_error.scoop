@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-AT: 13:15
+// EXPECT-ERROR: Point.nope
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+fun bad(p: Point): Int {
+    return p.["nope"]
+}

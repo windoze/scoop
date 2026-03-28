@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T1205 splice 字段访问（`value.[field]`）在 const eval 路径可用：
+// - `field` 为字符串字面量：`p.["x"]`
+// - `field` 为包含 `name: String` 的 struct 值：`p.[FieldMeta { name: "y" }]`（为后续 FieldMeta 兼容预留）
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+const val P = Point { x: 1, y: 2 }
+const val X: Int = P.["x"]
+const val Y: Int = P.[FieldMeta { name: "y" }]
+

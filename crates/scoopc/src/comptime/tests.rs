@@ -114,6 +114,18 @@ fn const_eval_struct_construct_and_access() {
 }
 
 #[test]
+fn const_eval_splice_field_access() {
+    let ty = ConstIntTy::host_word(true);
+
+    let v = eval_expr("Point { x: 1, y: 2 }.[\"x\"]", ty);
+    assert_eq!(v, mk_int(ty, 1));
+
+    // 为后续 FieldMeta 兼容预留：允许 `{ name: \"y\" }` 形态提供字段名。
+    let v = eval_expr("Point { x: 1, y: 2 }.[FieldMeta { name: \"y\" }]", ty);
+    assert_eq!(v, mk_int(ty, 2));
+}
+
+#[test]
 fn const_eval_enum_construct_and_access() {
     let ty = ConstIntTy::host_word(true);
 

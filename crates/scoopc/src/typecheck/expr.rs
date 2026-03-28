@@ -27,6 +27,7 @@ use crate::monomorph::MonomorphKey;
 use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
@@ -2232,6 +2233,17 @@ fn infer_expr_type(
             source,
             receiver.as_ref(),
             member,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        ),
+        ast::ExprKind::SpliceField { receiver, field } => infer_splice_field_expr_type(
+            source,
+            receiver.as_ref(),
+            field.as_ref(),
             lower,
             builtins,
             locals,
@@ -10691,6 +10703,95 @@ fn infer_not_null_assert_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn infer_splice_field_expr_type(
+    source: &SourceFile,
+    receiver: &ast::Expr,
+    field: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    // splice 字段访问：`receiver.[field]`（spec §6.4）
+    //
+    // v0 语义（与 TODO T1204 的 fieldsOf v0 保持一致）：
+    // - 当 `field` 为字符串字面量时：等价于普通成员访问 `receiver.<name>` 并返回该字段类型；
+    // - 其它情况（例如未来的 FieldMeta / comptime for binder）：当前阶段先保守退化为 `Any`，
+    //   留给后续 comptime 展开/元数据补齐后再做更精确的约束与推导。
+    let receiver_ty = infer_expr_type(
+        source,
+        receiver,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
+    let _ = infer_expr_type(
+        source,
+        field,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    let field_name: Option<String> = match &field.kind {
+        ast::ExprKind::StringLit => {
+            let raw = source.slice(field.span);
+            match parse_string_literal_utf8(raw) {
+                Ok(s) => Some(s),
+                Err(StringLiteralParseError::Invalid)
+                | Err(StringLiteralParseError::InvalidUtf8)
+                | Err(StringLiteralParseError::Interpolated) => {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "splice field access（非法字符串字面量）",
+                        span: field.span.into(),
+                    });
+                }
+            }
+        }
+        _ => None,
+    };
+
+    let Some(field_name) = field_name else {
+        return Ok(builtins.any);
+    };
+
+    let receiver_fqn = match lower.type_kind(receiver_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn.clone(),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn.clone(),
+        TypeKind::Param(_) => return Ok(builtins.any),
+        _ => {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "splice field access（receiver 必须为名义类型）",
+                span: receiver.span.into(),
+            });
+        }
+    };
+
+    let field_fqn = format!("{receiver_fqn}.{field_name}");
+
+    // sysroot 跨文件特判：Pinned.value（与 infer_member_access_expr_type 保持一致）。
+    if field_fqn == "scoop.core.Pinned.value" {
+        return Ok(builtins.any);
+    }
+
+    struct_field_types.get(&field_fqn).copied().ok_or_else(|| {
+        ExprTypeError::UnsupportedMemberAccess {
+            fqn: field_fqn,
+            span: field.span.into(),
+        }
+    })
 }
 
 fn infer_member_access_expr_type(

@@ -415,6 +415,52 @@ pub(crate) fn eval_const_expr_with_host(
             eval_member_access(ctx, recv, member, expr.span)
         }
 
+        ast::ExprKind::SpliceField { receiver, field } => {
+            // splice 字段访问：`receiver.[field]`（spec §6.4）
+            //
+            // v0：先允许 field 为以下两类编译期值：
+            // - `String`：字段名
+            // - `Struct` 且包含 `name: String`：为后续 FieldMeta 兼容预留
+            let recv = eval_const_expr_with_host(ctx, host, receiver)?;
+            let field_v = eval_const_expr_with_host(ctx, host, field)?;
+
+            let field_name: String = match &field_v {
+                ConstValue::String(s) => s.clone(),
+                ConstValue::Struct(ConstStruct { fields, .. }) => match fields.get("name") {
+                    Some(ConstValue::String(s)) => s.clone(),
+                    _ => {
+                        return Err(ConstEvalError::OperandTypeMismatch {
+                            expected: "String（字段名）或 FieldMeta{name:String}",
+                            found: value_kind(&field_v),
+                            span: field.span.into(),
+                        });
+                    }
+                },
+                _ => {
+                    return Err(ConstEvalError::OperandTypeMismatch {
+                        expected: "String（字段名）或 FieldMeta{name:String}",
+                        found: value_kind(&field_v),
+                        span: field.span.into(),
+                    });
+                }
+            };
+
+            match recv {
+                ConstValue::Struct(s) => s
+                    .fields
+                    .get(&field_name)
+                    .cloned()
+                    .ok_or_else(|| ConstEvalError::UnknownMember {
+                        name: field_name,
+                        span: field.span.into(),
+                    }),
+                _ => Err(ConstEvalError::UnsupportedExpr {
+                    kind: "splice field access（receiver 必须为 struct 常量）",
+                    span: expr.span.into(),
+                }),
+            }
+        }
+
         ast::ExprKind::Call { callee, args } => {
             // 显式类型实参调用（T1204）：`nameOf<T>()` / `fieldsOf<T>()` / `sizeOf<T>()`。
             if let ast::ExprKind::TypeApply {
