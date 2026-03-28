@@ -3751,11 +3751,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1212 [TODO] 运行期值上的反射回退路径（spec §6.4 末尾说明）
+### T1212 [DONE] 运行期值上的反射回退路径（spec §6.4 末尾说明）
 - 描述：当反射 API 的 receiver 是运行期值时，遵循 const fun 规则回退为普通运行期调用（不做编译器特殊处理）。
 - 目标：先在文档与测试中固定该行为；实现上不需要特殊 case。
 - 验收：新增文档/fixture：同一个反射调用在 comptime 与 runtime 下分别走不同路径但语义一致。
 - 依赖：T1204
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：typecheck 支持 `Call(TypeApply(...))` 的显式类型实参调用，并在函数调用实例化处接入 explicit type args（不依赖“反射特判”）。
+   - `SCOOP_FULL_SPEC.md`：在 §6.4 增加 “Runtime Fallback (No Special-Case)” 小节，明确遵循 §6.2 的 `const fun` 规则。
+   - `tests/fixtures/comptime/reflection_runtime_fallback_v0.*`：新增 comptime fixture，回归 `const val` 中的 `nameOf<Point>()` 常量折叠结果。
+   - `tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`：新增 typecheck fixture，回归运行期语境下 `nameOf<Point>()` 可通过 typecheck。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1213 [TODO] sysroot：补齐 scope functions 的 effect-polymorphic 签名（spec §11）
 - 描述：在 sysroot 中声明 `let/run/also/apply` 的推荐签名（含 `<eff E = Pure>` 与 receiver function type）。

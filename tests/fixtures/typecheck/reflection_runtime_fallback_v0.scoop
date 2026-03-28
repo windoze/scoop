@@ -1,0 +1,21 @@
+// EXPECT: pass
+// 目标：T1212：运行期值上的反射回退路径（spec §6.4 末尾说明）。
+//
+// 回归点：
+// - `nameOf<Point>()` 作为显式 type args 调用，在普通运行期语境中可通过 typecheck；
+// - 同一个调用形态也可用于 `const val`（其常量折叠由 comptime phase 覆盖）。
+
+package fixtures.typecheck_
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+const val CT: String = nameOf<Point>()
+
+val RT: String = nameOf<Point>()
+fun runtime(p: Point): String {
+    val y: String = nameOf<Point>()
+    return y
+}
+

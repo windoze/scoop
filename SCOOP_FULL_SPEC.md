@@ -1168,6 +1168,25 @@ comptime for (field in fieldsOf<T>()) {
 
 This is only valid inside `comptime for` blocks where `field` is a `FieldMeta` from the current iteration.
 
+#### Runtime Fallback (No Special-Case)
+
+Reflection intrinsics are `const fun` (§6.2): they may be evaluated at compile time when their inputs are compile-time constants, and otherwise remain normal runtime calls.
+
+- If evaluated in a compile-time context (e.g. a `const val` initializer), the compiler executes the intrinsic and embeds the result.
+- If the receiver / inputs are runtime values, the call falls back to a normal runtime call.
+- This is not special-cased for reflection; it follows the standard `const fun` evaluation rules from §6.2.
+
+```kotlin
+struct Point(val x: Int)
+
+const val CT: String = nameOf<Point>()      // compile-time evaluation
+
+fun runtime(p: Point): String {
+    val rt: String = nameOf<Point>()        // normal runtime call (semantically the same)
+    return rt
+}
+```
+
 ### 6.5 Complete Example: Generic JSON Serialization
 
 ```kotlin

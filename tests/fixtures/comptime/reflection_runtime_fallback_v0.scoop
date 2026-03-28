@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T1212：运行期值上的反射回退路径（spec §6.4 末尾说明）。
+// - `nameOf<T>()` 是 `const fun` 反射 intrinsic：
+//   - 在 `const val` initializer 中会被 comptime 解释器执行并折叠；
+//   - 当处于普通运行期语境时，不做编译器特殊处理：保留为普通运行期调用（遵循 const fun 规则）。
+// - 说明：本 phase 仅回归 const 折叠输出；运行期调用的 typecheck 覆盖见 `tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+const val CT: String = nameOf<Point>()
+
+// 运行期路径（不参与 const 折叠；仅作为示例存在）。
+val RT: String = nameOf<Point>()
+fun runtime(p: Point): String {
+    val y: String = nameOf<Point>()
+    return y
+}
+

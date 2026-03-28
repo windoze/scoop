@@ -503,6 +503,16 @@ pub enum ExprTypeError {
         previous: miette::SourceSpan,
     },
 
+    #[error("显式类型实参数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
+    #[diagnostic(code(scoop::typecheck::generic_type_arg_arity_mismatch))]
+    GenericTypeArgArityMismatch {
+        callee: String,
+        expected: usize,
+        found: usize,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("enum variant 构造歧义：{name} 同时匹配 {candidates}")]
     #[diagnostic(code(scoop::typecheck::ambiguous_enum_variant_ctor))]
     AmbiguousEnumVariantCtor {
@@ -5149,7 +5159,25 @@ fn infer_call_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    match &callee.kind {
+    // 显式类型实参（T1204）：`callee<T>()` 在 AST 中表示为 `Call(TypeApply(callee, type_args), args)`。
+    //
+    // 说明：
+    // - `TypeApply` 本身不是一个可求值的表达式（暂不支持把 `callee<T>` 当作值来传递）；
+    // - 但当它作为 `Call` 的 callee 出现时，我们需要把显式 type args 传给泛型函数实例化逻辑。
+    let mut explicit_type_args: Option<Vec<TypeId>> = None;
+    let callee_expr: &ast::Expr = match &callee.kind {
+        ast::ExprKind::TypeApply { callee: inner, args } => {
+            let lowered = args
+                .iter()
+                .map(|a| lower.lower_type_ref(a))
+                .collect::<Result<Vec<_>, _>>()?;
+            explicit_type_args = Some(lowered);
+            inner.as_ref()
+        }
+        _ => callee,
+    };
+
+    match &callee_expr.kind {
         ast::ExprKind::Ident(id) => {
             let callee_name = source.slice(id.span);
             let Some(resolved) = &id.resolved else {
@@ -5313,33 +5341,42 @@ fn infer_call_expr_type(
                     });
                 };
 
-                let mut instantiated = instantiate_fun_sig_for_call(
-                    &callee_fqn,
-                    call_expr.span,
-                    sig,
-                    mapping
-                        .iter()
-                        .copied()
-                        .enumerate()
-                        .filter_map(|(param_idx, arg_idx)| {
-                            let Some(arg_idx) = arg_idx else {
-                                return None;
-                            };
-                            let arg = &call_args[arg_idx];
-                            Some(GenericArgConstraint {
-                                expected: sig.params[param_idx],
-                                found: arg.ty,
-                                found_is_placeholder: matches!(
-                                    arg.expr.kind,
-                                    ast::ExprKind::Lambda(_)
-                                ),
-                                from: format!("第 {} 个实参", arg_idx + 1),
-                                span: arg.expr.span,
-                            })
-                        }),
-                    lower,
-                    builtins,
-                )?;
+                let mut instantiated = match &explicit_type_args {
+                    Some(explicit_type_args) => instantiate_fun_sig_for_call_with_explicit_type_args(
+                        &callee_fqn,
+                        call_expr.span,
+                        sig,
+                        explicit_type_args,
+                        lower,
+                    )?,
+                    None => instantiate_fun_sig_for_call(
+                        &callee_fqn,
+                        call_expr.span,
+                        sig,
+                        mapping
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .filter_map(|(param_idx, arg_idx)| {
+                                let Some(arg_idx) = arg_idx else {
+                                    return None;
+                                };
+                                let arg = &call_args[arg_idx];
+                                Some(GenericArgConstraint {
+                                    expected: sig.params[param_idx],
+                                    found: arg.ty,
+                                    found_is_placeholder: matches!(
+                                        arg.expr.kind,
+                                        ast::ExprKind::Lambda(_)
+                                    ),
+                                    from: format!("第 {} 个实参", arg_idx + 1),
+                                    span: arg.expr.span,
+                                })
+                            }),
+                        lower,
+                        builtins,
+                    )?,
+                };
 
                 // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
                 let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
@@ -5622,35 +5659,49 @@ fn infer_call_expr_type(
                     continue;
                 };
 
-                let mut instantiated = match instantiate_fun_sig_for_call(
-                    &callee_fqn,
-                    call_expr.span,
-                    cand,
-                    mapping
-                        .iter()
-                        .copied()
-                        .enumerate()
-                        .filter_map(|(param_idx, arg_idx)| {
-                            let Some(arg_idx) = arg_idx else {
-                                return None;
-                            };
-                            let arg = &call_args[arg_idx];
-                            Some(GenericArgConstraint {
-                                expected: cand.params[param_idx],
-                                found: arg.ty,
-                                found_is_placeholder: matches!(
-                                    arg.expr.kind,
-                                    ast::ExprKind::Lambda(_)
-                                ),
-                                from: format!("第 {} 个实参", arg_idx + 1),
-                                span: arg.expr.span,
-                            })
-                        }),
-                    lower,
-                    builtins,
-                ) {
-                    Ok(s) => s,
-                    Err(_) => continue,
+                let mut instantiated = match &explicit_type_args {
+                    Some(explicit_type_args) => {
+                        match instantiate_fun_sig_for_call_with_explicit_type_args(
+                            &callee_fqn,
+                            call_expr.span,
+                            cand,
+                            explicit_type_args,
+                            lower,
+                        ) {
+                            Ok(s) => s,
+                            Err(_) => continue,
+                        }
+                    }
+                    None => match instantiate_fun_sig_for_call(
+                        &callee_fqn,
+                        call_expr.span,
+                        cand,
+                        mapping
+                            .iter()
+                            .copied()
+                            .enumerate()
+                            .filter_map(|(param_idx, arg_idx)| {
+                                let Some(arg_idx) = arg_idx else {
+                                    return None;
+                                };
+                                let arg = &call_args[arg_idx];
+                                Some(GenericArgConstraint {
+                                    expected: cand.params[param_idx],
+                                    found: arg.ty,
+                                    found_is_placeholder: matches!(
+                                        arg.expr.kind,
+                                        ast::ExprKind::Lambda(_)
+                                    ),
+                                    from: format!("第 {} 个实参", arg_idx + 1),
+                                    span: arg.expr.span,
+                                })
+                            }),
+                        lower,
+                        builtins,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    },
                 };
 
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
@@ -8957,6 +9008,56 @@ fn substitute_type_args_in_effect_row(
     }
 
     Ok(EffectRow::new(out_terms))
+}
+
+/// 用显式类型实参实例化一个函数签名（`callee<T>()`）。
+///
+/// 说明：
+/// - 该路径只做 substitution，不做类型实参推断；
+/// - 主要用于“无值实参可用于推断”的调用（例如反射 intrinsics：`nameOf<T>()`）。
+fn instantiate_fun_sig_for_call_with_explicit_type_args(
+    callee: &str,
+    call_span: Span,
+    sig: &FunSigOwned,
+    explicit_type_args: &[TypeId],
+    lower: &mut TypeLowering<'_>,
+) -> Result<InstantiatedFunSig, ExprTypeError> {
+    if sig.type_params.len() != explicit_type_args.len() {
+        return Err(ExprTypeError::GenericTypeArgArityMismatch {
+            callee: callee.to_string(),
+            expected: sig.type_params.len(),
+            found: explicit_type_args.len(),
+            span: call_span.into(),
+        });
+    }
+
+    if sig.type_params.is_empty() {
+        return Ok(InstantiatedFunSig {
+            params: sig.params.clone(),
+            return_ty: sig.return_ty,
+            type_args: Vec::new(),
+        });
+    }
+
+    let mut params = sig.params.clone();
+    let mut return_ty = sig.return_ty;
+    for (param_ty, arg_ty) in sig
+        .type_params
+        .iter()
+        .copied()
+        .zip(explicit_type_args.iter().copied())
+    {
+        for p in &mut params {
+            *p = substitute_single_type_param(*p, param_ty, arg_ty, lower, call_span)?;
+        }
+        return_ty = substitute_single_type_param(return_ty, param_ty, arg_ty, lower, call_span)?;
+    }
+
+    Ok(InstantiatedFunSig {
+        params,
+        return_ty,
+        type_args: explicit_type_args.to_vec(),
+    })
 }
 
 fn instantiate_fun_sig_for_call(
