@@ -59,6 +59,8 @@ annotation class Suppress(val warning: String)
 annotation class CLayout
 annotation class Target(val targets: AnnotationTarget)
 annotation class Retention(val policy: String)
+annotation class ThreadLocal
+annotation class Global
 
 // I/O（最小表面，早期阶段）。
 //

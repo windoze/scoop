@@ -3406,7 +3406,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1022 [TODO] 全局可变 GC-free 变量门禁：`@ThreadLocal` / `@Global`（spec §15.5.3）
+### T1022 [DONE] 全局可变 GC-free 变量门禁：`@ThreadLocal` / `@Global`（spec §15.5.3）
 - 描述：新增全局 `var` 的显式标注规则：
   - 顶层 `var`（module/file scope）必须带 `@ThreadLocal` 或 `@Global`；
   - 仅允许 GC-free 类型（标量/GC-free struct/GC-free enum 等；实现可先保守）。
@@ -3418,6 +3418,13 @@
     - `@Global var y: String = "x"` 报错（非 GC-free）；
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T0404、T1019
+ - 完成：
+   - `sysroot/core.scoop`：补齐 `@ThreadLocal/@Global` 的注解声明面（供解析/绑定）。
+   - `crates/scoopc/src/typecheck/annotations.rs`：对顶层 `var` 强制 `@ThreadLocal/@Global`，并在非 GC-free 类型时报稳定错误码。
+   - `tests/fixtures/typecheck/*`：新增 3 个 fixtures 覆盖 missing/ok/non-gc-free 三种场景。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1023 [BLOCKED] `@ThreadLocal` / `@Global`：codegen + runtime 存储与初始化（spec §15.5.3）
 - 描述：为 GC-free 全局可变变量生成：

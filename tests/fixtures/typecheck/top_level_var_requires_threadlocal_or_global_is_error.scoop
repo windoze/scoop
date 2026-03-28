@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::top_level_var_requires_threadlocal_or_global
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: 必须显式标注
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+var x: Int = 0
+

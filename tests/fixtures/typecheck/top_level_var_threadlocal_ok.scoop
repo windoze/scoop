@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T1022 顶层 var 需要显式标注 `@ThreadLocal/@Global`，并且类型必须是 GC-free。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@ThreadLocal
+var x: Int = 0
+

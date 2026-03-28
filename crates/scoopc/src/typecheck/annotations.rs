@@ -155,6 +155,22 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`：{var_name}")]
+    #[diagnostic(code(scoop::typecheck::top_level_var_requires_threadlocal_or_global))]
+    TopLevelVarRequiresThreadLocalOrGlobal {
+        var_name: String,
+        #[label("这里的顶层 var 需要标注 `@ThreadLocal` 或 `@Global`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("顶层 `var` 类型必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}")]
+    #[diagnostic(code(scoop::typecheck::top_level_var_type_must_be_gc_free))]
+    TopLevelVarTypeMustBeGcFree {
+        found: String,
+        #[label("这里的类型不是 GC-free 值类型")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`@Intrinsic` 函数必须省略函数体（实现由编译器/运行时提供）：{fun_name}")]
     #[diagnostic(code(scoop::typecheck::intrinsic_fun_must_have_no_body))]
     IntrinsicFunMustHaveNoBody {
@@ -364,6 +380,7 @@ pub fn check_file_annotations(
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
                 check_builtin_annotations_on_top_level_val_decl(source, v, &mut lower)?;
+                check_top_level_var_storage_and_gc_free(source, file, index, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
                 check_type_decl_annotations(
@@ -1545,6 +1562,94 @@ fn check_builtin_annotations_on_top_level_val_decl(
     }
 
     Ok(())
+}
+
+fn check_top_level_var_storage_and_gc_free(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    v: &ast::ValDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    if v.kind != ast::ValKind::Var {
+        return Ok(());
+    }
+
+    // `@Extern var` 的语义由 T1020 处理：
+    // - 不要求 `@ThreadLocal/@Global`（存储由外部系统提供）；
+    // - GC-free 限制与 initializer 门禁由 `check_builtin_annotations_on_top_level_val_decl` 覆盖。
+    let builtin_flags = BuiltinAnnotationFlags::from_annotations(source, &v.annotations);
+    if builtin_flags.is_extern {
+        return Ok(());
+    }
+
+    const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
+    const GLOBAL_FQN: &str = "scoop.core.Global";
+
+    let is_thread_local = v.annotations.iter().any(|ann| {
+        annotation_use_resolves_to_fqn(source, file, index, ann, THREAD_LOCAL_FQN)
+    });
+    let is_global =
+        v.annotations
+            .iter()
+            .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, GLOBAL_FQN));
+
+    if !is_thread_local && !is_global {
+        let (var_name, span) = match &v.binding {
+            ast::ValBinding::Name(name) => (name.text(source).to_string(), name.span),
+            ast::ValBinding::Pattern(_) => ("<pattern>".to_string(), v.span),
+        };
+        return Err(AnnotationError::TopLevelVarRequiresThreadLocalOrGlobal {
+            var_name,
+            span: span.into(),
+        });
+    }
+
+    let Some(ty_ref) = &v.ty else {
+        // 顶层 var 缺少 `: Type` 会在 headers check（T0404）中报错；
+        // 这里保持健壮性，不重复报错。
+        return Ok(());
+    };
+
+    let ty = match lower.lower_type_ref(ty_ref) {
+        Ok(ty) => ty,
+        Err(_e) => return Ok(()),
+    };
+
+    let is_gc_free = match lower.is_gc_free_value_type(ty) {
+        Ok(v) => v,
+        Err(_e) => return Ok(()),
+    };
+
+    if !is_gc_free {
+        return Err(AnnotationError::TopLevelVarTypeMustBeGcFree {
+            found: lower.fmt_type(ty),
+            span: ty_ref.span().into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn annotation_use_resolves_to_fqn(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ann: &ast::AnnotationUse,
+    expected_fqn: &str,
+) -> bool {
+    // 复用 Index 的“按 package/import 规则解析类型名”的逻辑来解析注解类型名；
+    // 这能避免仅按未限定名匹配导致的误判（同名但不同包的注解类）。
+    let ty = ast::TypeRef::Path(ast::TypePath {
+        span: ann.span,
+        segments: ann.path.clone(),
+        args: Vec::new(),
+    });
+
+    matches!(
+        index.type_ref_to_fqn_in_file(source, file, &ty),
+        Some(fqn) if fqn == expected_fqn
+    )
 }
 
 fn check_extern_builtin_annotation_args(
