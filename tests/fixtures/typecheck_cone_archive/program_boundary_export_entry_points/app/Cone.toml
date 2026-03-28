@@ -1,0 +1,17 @@
+[cone]
+name = "fixture-program-boundary-app"
+version = "0.0.0"
+
+[dependencies]
+fixture-program-boundary-lib = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_ok",
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_ok2",
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_missing_row",
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_open_row",
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_non_pure",
+  "fixtures.typecheck_cone_archive.program_boundary_export_entry_points.app.export_unhandled_raise",
+]
+
