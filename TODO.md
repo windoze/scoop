@@ -3432,11 +3432,16 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1106 [TODO] IR 稳定性与版本协商（spec §13.4）
+### T1106 [DONE] IR 稳定性与版本协商（spec §13.4）
 - 描述：为 scoopir 增加显式版本号，并实现“旧版本可读/不兼容报错”的策略。
 - 目标：先只做版本号检查；不实现自动升级。
 - 验收：新增单测：构造一个旧版本 header 读取成功或按规则失败；错误码稳定。
 - 依赖：T1103、T1105
+ - 完成：
+   - `crates/scoopc/src/cone/consume.rs`：实现 `api.scoopir` schema version 协商（允许读取 <= 当前版本；更高版本报错），并为 schema name/version mismatch 增加稳定错误码；新增单测覆盖“当前版本 OK / 更高版本失败且 code 稳定”。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1107 [TODO] consumer 编译与链接流程（多包）（spec §13.3）
 - 描述：实现 `scoop build` 能处理依赖图：先加载依赖 cone，再编译当前包，最后链接。

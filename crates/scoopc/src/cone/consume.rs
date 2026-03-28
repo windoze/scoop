@@ -8,14 +8,15 @@
 //!   - `typecheck::TypeEnv`：用于 TypeRef lowering 与类型检查。
 //!
 //! 当前阶段限制：
-//! - 仅支持 schema v0（版本协商见 TODO T1106）；
+//! - 支持读取 schema v0（向后兼容：新编译器可读旧版本；若遇到更高版本则报错）；
 //! - 下游除注入 `api.scoopir` 的 public API 外，还会读取 `SYMBOL_VISIBILITY.json`：
 //!   仅用于把依赖 cone 的非 public 符号以“不可见占位符”注入 resolver `Index`，
 //!   以便在使用点给出稳定的 `scoop::resolve::not_visible`（TODO T0321b）。
 
 use std::path::{Path, PathBuf};
 
-use miette::{Context as _, IntoDiagnostic as _, Result, miette};
+use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
+use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::{
@@ -45,6 +46,28 @@ pub struct ConeArchiveApi {
     pub symbol_visibility: Option<ConeSymbolVisibilityFile>,
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "api.scoopir schema.name 不匹配：期望 `{expected}`，但得到 `{found}`（归档：{archive}）"
+)]
+#[diagnostic(code(scoop::cone::scoopir_schema_name_mismatch))]
+struct ScoopIrSchemaNameMismatch {
+    expected: String,
+    found: String,
+    archive: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "api.scoopir schema.version 不支持：当前编译器最多支持 v{max_supported}，但得到 v{found}（归档：{archive}）"
+)]
+#[diagnostic(code(scoop::cone::scoopir_schema_version_not_supported))]
+struct ScoopIrSchemaVersionNotSupported {
+    max_supported: u32,
+    found: u32,
+    archive: String,
+}
+
 /// 从 `.cone` 读取并解析 `Cone.toml`（manifest）。
 pub fn read_cone_manifest_from_archive(path: impl AsRef<Path>) -> Result<ConeManifest> {
     let path = path.as_ref();
@@ -69,18 +92,22 @@ pub fn read_cone_api_scoopir_from_archive(path: impl AsRef<Path>) -> Result<Scoo
         .wrap_err_with(|| format!("解析 api.scoopir 失败（归档：{}）", path.display()))?;
 
     if api.schema.name != SCOOPIR_SCHEMA_NAME {
-        return Err(miette!(
-            "api.scoopir schema.name 不匹配：期望 `{SCOOPIR_SCHEMA_NAME}`，但得到 `{}`（归档：{}）",
-            api.schema.name,
-            path.display()
-        ));
+        return Err(ScoopIrSchemaNameMismatch {
+            expected: SCOOPIR_SCHEMA_NAME.to_string(),
+            found: api.schema.name.clone(),
+            archive: path.display().to_string(),
+        }
+        .into());
     }
-    if api.schema.version != SCOOPIR_SCHEMA_VERSION {
-        return Err(miette!(
-            "api.scoopir schema.version 不支持：期望 v{SCOOPIR_SCHEMA_VERSION}，但得到 v{}（归档：{}）",
-            api.schema.version,
-            path.display()
-        ));
+    // v{api.schema.version} <= v{SCOOPIR_SCHEMA_VERSION}：允许向后兼容；
+    // v{api.schema.version} >  v{SCOOPIR_SCHEMA_VERSION}：当前编译器无法读取（需升级编译器）。
+    if api.schema.version > SCOOPIR_SCHEMA_VERSION {
+        return Err(ScoopIrSchemaVersionNotSupported {
+            max_supported: SCOOPIR_SCHEMA_VERSION,
+            found: api.schema.version,
+            archive: path.display().to_string(),
+        }
+        .into());
     }
 
     Ok(api)
@@ -453,6 +480,85 @@ impl SyntheticSourceBuilder {
 
     fn finish(self) -> String {
         self.text
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+
+    fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir =
+            std::env::temp_dir().join(format!("scoopc_{prefix}_{}_{}", std::process::id(), nanos));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_cone_archive_with_api_scoopir(cone_path: &Path, api_json: &[u8]) {
+        let file = std::fs::File::create(cone_path).unwrap();
+        let mut builder = tar::Builder::new(file);
+
+        let mut header = tar::Header::new_gnu();
+        header.set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME).unwrap();
+        header.set_size(api_json.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+
+        builder.append(&header, api_json).unwrap();
+        builder.finish().unwrap();
+    }
+
+    #[test]
+    fn read_cone_api_scoopir_allows_current_version() {
+        let dir = make_temp_dir("read_cone_api_scoopir_allows_current_version");
+        let cone_path = dir.join("dep.cone");
+
+        let api_json = format!(
+            r#"{{
+  "schema": {{ "name": "{name}", "version": {version} }},
+  "types": [],
+  "funs": []
+}}"#,
+            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION,
+        );
+        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
+
+        let api = read_cone_api_scoopir_from_archive(&cone_path).unwrap();
+        assert_eq!(api.schema.version, crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn read_cone_api_scoopir_rejects_newer_version_with_stable_code() {
+        let dir = make_temp_dir("read_cone_api_scoopir_rejects_newer_version_with_stable_code");
+        let cone_path = dir.join("dep.cone");
+
+        let api_json = format!(
+            r#"{{
+  "schema": {{ "name": "{name}", "version": {version} }},
+  "types": [],
+  "funs": []
+}}"#,
+            name = crate::cone::scoopir::SCOOPIR_SCHEMA_NAME,
+            version = crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION + 1,
+        );
+        write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
+
+        let err = read_cone_api_scoopir_from_archive(&cone_path).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::cone::scoopir_schema_version_not_supported"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
 
