@@ -3496,7 +3496,7 @@
  - 验收：
    - `cargo test --all`
 
-### T1110 [TODO] Cone.toml：平台选择器 `[[select]]` 的 manifest 解析（spec §13.9）
+### T1110 [DONE] Cone.toml：平台选择器 `[[select]]` 的 manifest 解析（spec §13.9）
 - 描述：在 `Cone.toml` 中新增 `[[select]]` 条目解析（v0 仅支持 platform 条件），用于按 target platform include/exclude sources。
 - 目标：
   - 解析 `when = { platform = "linux-x64" }`（后续可扩展到 feature/toolchain 等条件）；
@@ -3504,6 +3504,10 @@
   - 不在本任务实现 glob 语义与真正筛选，仅把结构化数据暴露给 package loader。
 - 验收：新增单测：解析包含 2 个 `[[select]]` 的 Cone.toml，结构体字段正确；`cargo test --all` 通过。
 - 依赖：T1101
+ - 完成：
+   - `crates/scoopc/src/cone/manifest.rs`：新增 `ConeSelectEntry/ConeSelectWhen` 与 `selectors` 字段，解析 `[[select]]`（when/include/exclude）。
+ - 验收：
+   - `cargo test --all`
 
 ### T1111 [BLOCKED] 包加载：按 `[[select]]`（platform selector）对 sources 做 include/exclude（spec §13.9）
 - 描述：在 cone source 发现阶段应用 platform selector：

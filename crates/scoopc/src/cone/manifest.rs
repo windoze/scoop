@@ -1,6 +1,7 @@
 //! `Cone.toml` manifest 的最小解析与发现。
 //!
 //! 规范参考：`SCOOP_FULL_SPEC.md` §13.7。
+//! - T1110：补齐 `[[select]]`（platform selector）解析：规范 §13.9。
 //!
 //! 设计取舍（T1101）：
 //! - 只解析 `[cone].name/[cone].version` 与 `[dependencies]`；
@@ -20,6 +21,28 @@ pub const CONE_TOML_FILE_NAME: &str = "Cone.toml";
 pub struct ConeSection {
     pub name: String,
     pub version: String,
+}
+
+/// `[[select]]`：平台选择器的 `when` 条件（spec §13.9）。
+///
+/// v0 约定（T1110）：
+/// - 仅支持 `when = { platform = "linux-x64" }`；
+/// - future：可扩展到 feature/toolchain 等条件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConeSelectWhen {
+    pub platform: String,
+}
+
+/// `[[select]]`：平台选择器条目（spec §13.9）。
+///
+/// v0 约定（T1110）：
+/// - 只解析并结构化保存 `when/include/exclude`；
+/// - 不在本任务实现 glob 语义与真正筛选（T1111）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConeSelectEntry {
+    pub when: ConeSelectWhen,
+    pub include: Vec<String>,
+    pub exclude: Vec<String>,
 }
 
 /// `Cone.toml` 的最小可用 manifest。
@@ -48,6 +71,10 @@ pub struct ConeManifest {
     /// - 每一项为函数的 FQN（例如 `my.pkg.init`）
     /// - 语义：被列出的函数在 typecheck 中会按“入口（entry point）”规则强制为 `Pure!`（T0629b）
     pub export_entry_points: Vec<String>,
+    /// 平台选择器（`[[select]]`，spec §13.9）。
+    ///
+    /// v0 约定（T1110）：仅解析，不在本任务应用 include/exclude 规则（T1111）。
+    pub selectors: Vec<ConeSelectEntry>,
 }
 
 impl ConeManifest {
@@ -95,6 +122,7 @@ impl ConeManifest {
 
         let export_entry_points = parse_export_entry_points(root)?;
         let (pre_specialize_functions, pre_specialize_types) = parse_pre_specialize(root)?;
+        let selectors = parse_selectors(root)?;
 
         Ok(Self {
             cone: ConeSection { name, version },
@@ -102,6 +130,7 @@ impl ConeManifest {
             pre_specialize_functions,
             pre_specialize_types,
             export_entry_points,
+            selectors,
         })
     }
 
@@ -244,6 +273,69 @@ fn parse_pre_specialize(root: &toml::Table) -> Result<(Vec<String>, Vec<String>)
     Ok((functions, types))
 }
 
+fn parse_selectors(root: &toml::Table) -> Result<Vec<ConeSelectEntry>> {
+    let Some(value) = root.get("select") else {
+        return Ok(Vec::new());
+    };
+
+    let arr = value
+        .as_array()
+        .ok_or_else(|| miette!("`[[select]]` 必须是 array（table array）"))?;
+
+    fn parse_optional_string_array(
+        table: &toml::Table,
+        key: &str,
+        section: &str,
+        idx: usize,
+    ) -> Result<Vec<String>> {
+        let Some(value) = table.get(key) else {
+            return Ok(Vec::new());
+        };
+
+        let arr = value
+            .as_array()
+            .ok_or_else(|| miette!("`{section}[{idx}].{key}` 必须是字符串数组"))?;
+
+        let mut out = Vec::with_capacity(arr.len());
+        for (item_idx, item) in arr.iter().enumerate() {
+            let Some(s) = item.as_str() else {
+                return Err(miette!(
+                    "`{section}[{idx}].{key}[{item_idx}]` 必须是字符串"
+                ));
+            };
+            out.push(s.to_owned());
+        }
+        Ok(out)
+    }
+
+    let mut out = Vec::with_capacity(arr.len());
+    for (idx, item) in arr.iter().enumerate() {
+        let Some(table) = item.as_table() else {
+            return Err(miette!("`select[{idx}]` 必须是 table（`[[select]]` 条目）"));
+        };
+
+        let when = table
+            .get("when")
+            .and_then(|value| value.as_table())
+            .ok_or_else(|| miette!("`select[{idx}].when` 必须是 inline table / table"))?;
+
+        let platform = get_required_string(when, "platform")
+            .wrap_err_with(|| format!("读取 `select[{idx}].when.platform` 失败"))?
+            .to_owned();
+
+        let include = parse_optional_string_array(table, "include", "select", idx)?;
+        let exclude = parse_optional_string_array(table, "exclude", "select", idx)?;
+
+        out.push(ConeSelectEntry {
+            when: ConeSelectWhen { platform },
+            include,
+            exclude,
+        });
+    }
+
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,6 +368,7 @@ scoop-io = "1.2.0"
         assert!(manifest.pre_specialize_functions.is_empty());
         assert!(manifest.pre_specialize_types.is_empty());
         assert!(manifest.export_entry_points.is_empty());
+        assert!(manifest.selectors.is_empty());
     }
 
     #[test]
@@ -315,6 +408,49 @@ types = ["a.b.List<Int>"]
             vec!["a.b.id<Int>", "a.b.id<String>"]
         );
         assert_eq!(manifest.pre_specialize_types, vec!["a.b.List<Int>"]);
+        assert!(manifest.selectors.is_empty());
+    }
+
+    #[test]
+    fn parse_selectors_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+
+[[select]]
+when = { platform = "linux-x64" }
+include = ["src/platform/posix/**.scoop"]
+exclude = ["src/platform/windows/**.scoop"]
+
+[[select]]
+when = { platform = "windows-x64" }
+include = ["src/platform/windows/**.scoop"]
+exclude = ["src/platform/posix/**.scoop"]
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.selectors,
+            vec![
+                ConeSelectEntry {
+                    when: ConeSelectWhen {
+                        platform: "linux-x64".to_owned(),
+                    },
+                    include: vec!["src/platform/posix/**.scoop".to_owned()],
+                    exclude: vec!["src/platform/windows/**.scoop".to_owned()],
+                },
+                ConeSelectEntry {
+                    when: ConeSelectWhen {
+                        platform: "windows-x64".to_owned(),
+                    },
+                    include: vec!["src/platform/windows/**.scoop".to_owned()],
+                    exclude: vec!["src/platform/posix/**.scoop".to_owned()],
+                },
+            ]
+        );
     }
 
     #[test]
