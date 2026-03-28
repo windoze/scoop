@@ -30,6 +30,18 @@ pub struct ConeManifest {
     ///
     /// 注意：T1101 先把版本要求当作纯字符串保存，不做 semver/范围解析。
     pub dependencies: BTreeMap<String, String>,
+    /// pre-specialize：需要预编译的“常用单态化实例”（T1108）。
+    ///
+    /// v0 约定：
+    /// - 来源：`[pre-specialize].functions`（字符串数组）
+    /// - 每一项形如：`my.pkg.id<Int>`（函数 FQN + `<...>` 类型实参）
+    /// - 当前阶段仅解析并原样保存；具体的实例生成与 `.cone` 写入由 T1108 落地。
+    pub pre_specialize_functions: Vec<String>,
+    /// pre-specialize：类型实例（TODO T1109）。
+    ///
+    /// 说明：spec §13.7 示例使用 `types = [...]`，为保持向前兼容，这里先解析并保存，
+    /// 但不会在本阶段真正参与打包/消费。
+    pub pre_specialize_types: Vec<String>,
     /// program boundary：库导出入口（host/embedded entry points）。
     ///
     /// v0 约定：
@@ -83,10 +95,13 @@ impl ConeManifest {
         };
 
         let export_entry_points = parse_export_entry_points(root)?;
+        let (pre_specialize_functions, pre_specialize_types) = parse_pre_specialize(root)?;
 
         Ok(Self {
             cone: ConeSection { name, version },
             dependencies,
+            pre_specialize_functions,
+            pre_specialize_types,
             export_entry_points,
         })
     }
@@ -183,6 +198,53 @@ fn parse_export_entry_points(root: &toml::Table) -> Result<Vec<String>> {
     Ok(exports)
 }
 
+fn parse_pre_specialize(root: &toml::Table) -> Result<(Vec<String>, Vec<String>)> {
+    // `pre-specialize` 与 `pre_specialize` 作为同义 key。
+    let table = match root
+        .get("pre-specialize")
+        .or_else(|| root.get("pre_specialize"))
+    {
+        None => return Ok((Vec::new(), Vec::new())),
+        Some(value) => value
+            .as_table()
+            .ok_or_else(|| miette!("`[pre-specialize]` 必须是 table"))?,
+    };
+
+    fn parse_string_array(
+        table: &toml::Table,
+        key: &str,
+        section: &str,
+    ) -> Result<Vec<String>> {
+        let Some(value) = table.get(key) else {
+            return Ok(Vec::new());
+        };
+        let arr = value.as_array().ok_or_else(|| {
+            miette!("`[{section}].{key}` 必须是字符串数组")
+        })?;
+
+        let mut out = Vec::with_capacity(arr.len());
+        for (idx, item) in arr.iter().enumerate() {
+            let Some(s) = item.as_str() else {
+                return Err(miette!(
+                    "`[{section}].{key}[{idx}]` 必须是字符串"
+                ));
+            };
+            out.push(s.to_owned());
+        }
+        Ok(out)
+    }
+
+    // 为了便于写 TOML，这里同时支持 `functions` 与更短的 `funs`。
+    let mut functions = parse_string_array(table, "functions", "pre-specialize")?;
+    if functions.is_empty() {
+        functions = parse_string_array(table, "funs", "pre-specialize")?;
+    }
+
+    let types = parse_string_array(table, "types", "pre-specialize")?;
+
+    Ok((functions, types))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +274,8 @@ scoop-io = "1.2.0"
             manifest.dependencies.get("scoop-io").map(String::as_str),
             Some("1.2.0")
         );
+        assert!(manifest.pre_specialize_functions.is_empty());
+        assert!(manifest.pre_specialize_types.is_empty());
         assert!(manifest.export_entry_points.is_empty());
     }
 
@@ -230,6 +294,28 @@ exports = ["a.b.init", "a.b.entry"]
         .unwrap();
 
         assert_eq!(manifest.export_entry_points, vec!["a.b.init", "a.b.entry"]);
+    }
+
+    #[test]
+    fn parse_pre_specialize_functions_and_types_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+
+[pre-specialize]
+functions = ["a.b.id<Int>", "a.b.id<String>"]
+types = ["a.b.List<Int>"]
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.pre_specialize_functions,
+            vec!["a.b.id<Int>", "a.b.id<String>"]
+        );
+        assert_eq!(manifest.pre_specialize_types, vec!["a.b.List<Int>"]);
     }
 
     #[test]

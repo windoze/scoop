@@ -251,6 +251,22 @@ struct TypecheckConeArchiveConsumerNotUnique {
 }
 
 #[derive(Debug, Error, Diagnostic)]
+#[error("EXPECT-MONOMORPH-HIT 不匹配：期望 {expected}，但得到 {found}")]
+#[diagnostic(code(scoop::fixtures::monomorph_hit_mismatch))]
+struct MonomorphHitMismatch {
+    expected: usize,
+    found: usize,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("EXPECT-MONOMORPH-MISS 不匹配：期望 {expected}，但得到 {found}")]
+#[diagnostic(code(scoop::fixtures::monomorph_miss_mismatch))]
+struct MonomorphMissMismatch {
+    expected: usize,
+    found: usize,
+}
+
+#[derive(Debug, Error, Diagnostic)]
 #[error("fixtures phase `{phase}` 未实现（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::unimplemented_phase))]
 struct UnimplementedPhase {
@@ -1291,6 +1307,9 @@ fn run_typecheck_cone_archive_case(
     // - 1：consumer
     // - 2+：按依赖在 Cone.toml 中出现顺序分配（稳定）
     let mut next_dep_cone: u32 = 2;
+    let mut pre_specialized_fun_keys: std::collections::HashSet<
+        scoopc::cone::pre_specialize::PreSpecializedFunKey,
+    > = std::collections::HashSet::new();
     for dep_name in consumer_pkg.manifest.dependencies.keys() {
         let Some(path) = cone_paths.get(dep_name) else {
             return Err(miette!(
@@ -1303,6 +1322,9 @@ fn run_typecheck_cone_archive_case(
         let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
         next_dep_cone += 1;
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, &dep)?;
+        if let Some(file) = dep.pre_specialize.as_ref() {
+            pre_specialized_fun_keys.extend(file.fun_key_set());
+        }
     }
 
     let mut types = scoopc::ty::TypeStore::new();
@@ -1380,16 +1402,70 @@ fn run_typecheck_cone_archive_case(
                 builtins,
             )
             .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_exprs(
-                source,
-                ast,
-                &index,
-                &headers.imports,
-                &env,
-                &mut types,
-                builtins,
-            )
-            .map_err(box_diagnostic)?;
+
+            // T1108：若 fixture 声明了 monomorph 命中/缺失计数，则在本文件的表达式 typecheck 中
+            // 额外收集 `MonomorphKey` 并做断言（依赖 pre-specialize 的 `.cone` 元数据）。
+            let want_monomorph_counts = exp.expect_monomorph_hit.is_some()
+                || exp.expect_monomorph_miss.is_some();
+            if want_monomorph_counts {
+                let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+                    source,
+                    ast,
+                    &index,
+                    &headers.imports,
+                    &env,
+                    &mut types,
+                    builtins,
+                )
+                .map_err(box_diagnostic)?;
+
+                let mut hit = 0usize;
+                let mut miss = 0usize;
+                for k in keys {
+                    let key = scoopc::cone::pre_specialize::PreSpecializedFunKey {
+                        fqn: k.symbol.fqn,
+                        type_args: k
+                            .type_args
+                            .iter()
+                            .copied()
+                            .map(|id| types.display(id).to_string())
+                            .collect(),
+                    };
+                    if pre_specialized_fun_keys.contains(&key) {
+                        hit += 1;
+                    } else {
+                        miss += 1;
+                    }
+                }
+
+                if let Some(expected) = exp.expect_monomorph_hit {
+                    if hit != expected {
+                        return Err(box_diagnostic(MonomorphHitMismatch {
+                            expected,
+                            found: hit,
+                        }));
+                    }
+                }
+                if let Some(expected) = exp.expect_monomorph_miss {
+                    if miss != expected {
+                        return Err(box_diagnostic(MonomorphMissMismatch {
+                            expected,
+                            found: miss,
+                        }));
+                    }
+                }
+            } else {
+                scoopc::typecheck::check_file_exprs(
+                    source,
+                    ast,
+                    &index,
+                    &headers.imports,
+                    &env,
+                    &mut types,
+                    builtins,
+                )
+                .map_err(box_diagnostic)?;
+            }
             Ok(())
         })();
 

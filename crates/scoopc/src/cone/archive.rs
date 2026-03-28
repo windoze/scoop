@@ -8,6 +8,7 @@
 //! - `Cone.toml`：原始 manifest（文本）；
 //! - `api.scoopir`：public API 的 ScoopIR（JSON，schema v0）；
 //! - `SYMBOL_VISIBILITY.json`：非 public 符号的“存在性 + 可见性层级”（JSON，schema v0；用于下游 not_visible 诊断）；
+//! - `PRE_SPECIALIZE.json`：预编译函数实例索引（JSON，schema v0；TODO T1108）；
 //! - `SOURCES_SHA256`：源文件内容哈希（逐文件 sha256，按相对路径排序）。
 
 use std::io::{Cursor, Read as _};
@@ -58,18 +59,37 @@ pub fn write_cone_archive_v0(
 
     let sources_sha256 = build_sources_sha256_text(pkg)?.into_bytes();
 
-    write_tar_archive(
-        output,
-        [
-            (super::CONE_TOML_FILE_NAME, cone_toml.as_slice()),
-            (CONE_API_SCOOPIR_FILE_NAME, api_json.as_slice()),
-            (
-                super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
-                symbol_visibility_json.as_slice(),
-            ),
-            (CONE_SOURCES_SHA256_FILE_NAME, sources_sha256.as_slice()),
-        ],
-    )?;
+    // T1108：可选 pre-specialize 元数据（默认不写入，以保持 v0 最小包的体积与兼容性）。
+    let pre_specialize_json = super::pre_specialize::build_pre_specialize_file_for_cone_sources(
+        session,
+        &sources,
+        &pkg.manifest,
+    )?
+    .map(|file| {
+        let json = serde_json::to_vec_pretty(&file)
+            .into_diagnostic()
+            .wrap_err("序列化 PRE_SPECIALIZE.json（JSON）失败")?;
+        Ok::<Vec<u8>, miette::Report>(ensure_trailing_newline(json))
+    })
+    .transpose()?;
+
+    let mut owned_entries: Vec<(&'static str, Vec<u8>)> = Vec::new();
+    owned_entries.push((super::CONE_TOML_FILE_NAME, cone_toml));
+    owned_entries.push((CONE_API_SCOOPIR_FILE_NAME, api_json));
+    owned_entries.push((
+        super::visibility::CONE_SYMBOL_VISIBILITY_FILE_NAME,
+        symbol_visibility_json,
+    ));
+    if let Some(bytes) = pre_specialize_json {
+        owned_entries.push((super::pre_specialize::CONE_PRE_SPECIALIZE_FILE_NAME, bytes));
+    }
+    owned_entries.push((CONE_SOURCES_SHA256_FILE_NAME, sources_sha256));
+
+    let borrowed_entries: Vec<(&str, &[u8])> = owned_entries
+        .iter()
+        .map(|(name, bytes)| (*name, bytes.as_slice()))
+        .collect();
+    write_tar_archive(output, &borrowed_entries)?;
 
     Ok(())
 }
@@ -203,7 +223,7 @@ fn ensure_trailing_newline(mut bytes: Vec<u8>) -> Vec<u8> {
     bytes
 }
 
-fn write_tar_archive<const N: usize>(path: &Path, entries: [(&str, &[u8]); N]) -> Result<()> {
+fn write_tar_archive(path: &Path, entries: &[(&str, &[u8])]) -> Result<()> {
     let file = std::fs::File::create(path)
         .into_diagnostic()
         .wrap_err_with(|| format!("创建归档失败：{}", path.display()))?;

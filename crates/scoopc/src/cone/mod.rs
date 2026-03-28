@@ -8,6 +8,7 @@ pub mod archive;
 pub mod consume;
 pub mod manifest;
 pub mod package;
+pub mod pre_specialize;
 pub mod scoopir;
 pub mod visibility;
 
@@ -25,3 +26,4 @@ pub use manifest::{
 pub use package::{
     CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package,
 };
+pub use pre_specialize::{CONE_PRE_SPECIALIZE_FILE_NAME, ConePreSpecializeFile};

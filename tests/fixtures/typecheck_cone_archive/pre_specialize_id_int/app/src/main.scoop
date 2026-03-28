@@ -1,0 +1,13 @@
+// EXPECT: pass
+// EXPECT-MONOMORPH-HIT: 1
+// EXPECT-MONOMORPH-MISS: 0
+package fixtures.t1108.app
+
+import scoop.core.*
+import fixtures.t1108.lib.*
+
+public fun main() / Pure! {
+    val x = id(1)
+    println(x)
+}
+

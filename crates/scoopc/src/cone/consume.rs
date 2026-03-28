@@ -28,6 +28,9 @@ use crate::span::Span;
 use crate::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
+use super::pre_specialize::{
+    ConePreSpecializeFile, CONE_PRE_SPECIALIZE_FILE_NAME, parse_pre_specialize_file,
+};
 use super::scoopir::{
     IrFunDeclKind, IrType, IrTypeDeclKind, IrVariance, SCOOPIR_SCHEMA_NAME, SCOOPIR_SCHEMA_VERSION,
     ScoopIrFile,
@@ -44,6 +47,8 @@ pub struct ConeArchiveApi {
     pub api: ScoopIrFile,
     /// 可选：非 public 符号可见性索引（用于 not_visible 诊断）。
     pub symbol_visibility: Option<ConeSymbolVisibilityFile>,
+    /// 可选：pre-specialize 预编译实例索引（TODO T1108）。
+    pub pre_specialize: Option<ConePreSpecializeFile>,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -119,11 +124,13 @@ pub fn load_cone_archive_api(path: impl AsRef<Path>) -> Result<ConeArchiveApi> {
     let manifest = read_cone_manifest_from_archive(&path)?;
     let api = read_cone_api_scoopir_from_archive(&path)?;
     let symbol_visibility = read_cone_symbol_visibility_from_archive(&path)?;
+    let pre_specialize = read_cone_pre_specialize_from_archive(&path)?;
     Ok(ConeArchiveApi {
         path,
         manifest,
         api,
         symbol_visibility,
+        pre_specialize,
     })
 }
 
@@ -138,6 +145,20 @@ pub fn read_cone_symbol_visibility_from_archive(
     };
 
     let file = parse_symbol_visibility_file(&bytes)?;
+    Ok(Some(file))
+}
+
+/// 从 `.cone` 读取并解析 `PRE_SPECIALIZE.json`（可选；用于单态化缓存命中）。
+pub fn read_cone_pre_specialize_from_archive(
+    path: impl AsRef<Path>,
+) -> Result<Option<ConePreSpecializeFile>> {
+    let path = path.as_ref();
+    let Some(bytes) = super::try_read_cone_archive_entry(path, CONE_PRE_SPECIALIZE_FILE_NAME)?
+    else {
+        return Ok(None);
+    };
+
+    let file = parse_pre_specialize_file(&bytes)?;
     Ok(Some(file))
 }
 

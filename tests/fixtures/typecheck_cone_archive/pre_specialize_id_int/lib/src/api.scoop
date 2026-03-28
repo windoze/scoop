@@ -1,0 +1,8 @@
+package fixtures.t1108.lib
+
+import scoop.core.*
+
+public fun id<T>(x: T): T / Pure! {
+    return x
+}
+

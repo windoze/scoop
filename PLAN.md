@@ -785,7 +785,7 @@ fixtures：
 - [ ] 读写 `Cone.toml`、依赖解析、目标平台信息
   - [x] 读取 `Cone.toml`（name/version/deps，T1101）
   - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）
-- [ ] 预编译实例（pre-specialize）：cache key 与选择规则
+- [x] 预编译实例（pre-specialize）：cache key 与选择规则（v0：函数实例 + `.cone/PRE_SPECIALIZE.json`）
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
 fixtures：

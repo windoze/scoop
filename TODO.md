@@ -3476,11 +3476,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1108 [TODO] pre-specialize：从 Cone.toml 指定常用单态化实例（spec §13.7）
+### T1108 [DONE] pre-specialize：从 Cone.toml 指定常用单态化实例（spec §13.7）
 - 描述：支持在 Cone.toml 中列出需要预编译的泛型实例，并在打包时写入 `.cone`。
 - 目标：先只支持函数实例；类型实例后续。
 - 验收：新增 cone fixture：指定 `id<Int>` 预编译；下游消费时无需再次单态化（可用 dump 日志/计数验证）。
 - 依赖：T0712、T1104
+ - 完成：
+   - `crates/scoopc/src/cone/manifest.rs`：解析 `[pre-specialize].functions`（兼容 `funs`）与 `types` 并写入 `ConeManifest`（types 暂只保存，留给 T1109）。
+   - `crates/scoopc/src/cone/pre_specialize.rs`：新增 `PRE_SPECIALIZE.json`（schema v0）以及基于 sources 的预编译实例生成（当前以 MIR Debug 文本占位产物）。
+   - `crates/scoopc/src/cone/archive.rs`：打包 `.cone` 时按需写入 `PRE_SPECIALIZE.json`（未声明则保持不写入）。
+   - `crates/scoopc/src/cone/consume.rs`：下游读取 `.cone` 时可选加载 `PRE_SPECIALIZE.json` 到 `ConeArchiveApi`。
+   - `crates/scoop/src/fixtures/expectations.rs`：新增 `EXPECT-MONOMORPH-HIT/MISS` 指令解析。
+   - `crates/scoop/src/fixtures/mod.rs`：在 `typecheck_cone_archive` runner 中注入依赖 `.cone` 的 pre-specialize 索引，并在表达式 typecheck 时收集 `MonomorphKey` 做命中/缺失计数断言。
+   - `tests/fixtures/typecheck_cone_archive/pre_specialize_id_int/**`：新增真实 `.cone` 依赖 fixture：lib 在 `Cone.toml` 预编译 `id<Int>`；consumer 断言命中 1、缺失 0。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1109 [TODO] pre-specialize：类型实例的导出与消费
 - 描述：把 pre-specialize 从“仅函数实例”扩展到类型实例：泛型 struct/class/enum 的常用实例可被预编译、打包进 `.cone`，并被下游直接复用。
