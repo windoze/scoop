@@ -16,14 +16,16 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::Index;
 use crate::resolve::ImportTable;
+use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::builtin_annotations::{BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind};
 use super::assignable::is_type_assignable;
+use super::builtin_annotations::{
+    BuiltinAnnotationFlags, BuiltinAnnotationKind, builtin_annotation_kind,
+};
 use super::lower::TypeLowering;
 use super::{AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv};
 
@@ -327,7 +329,15 @@ pub fn check_file_annotations(
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
-                check_param_list_annotations(source, file, index, env, &mut lower, builtins, &fun.params)?;
+                check_param_list_annotations(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &mut lower,
+                    builtins,
+                    &fun.params,
+                )?;
             }
             ast::Item::ExtensionProperty(p) => {
                 check_annotation_uses(
@@ -356,10 +366,28 @@ pub fn check_file_annotations(
                 check_builtin_annotations_on_top_level_val_decl(source, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
-                check_type_decl_annotations(source, file, index, env, &mut lower, builtins, ty, &pkg_prefix)?;
+                check_type_decl_annotations(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &mut lower,
+                    builtins,
+                    ty,
+                    &pkg_prefix,
+                )?;
             }
             ast::Item::Object(obj) => {
-                check_object_decl_annotations(source, file, index, env, &mut lower, builtins, obj, &pkg_prefix)?;
+                check_object_decl_annotations(
+                    source,
+                    file,
+                    index,
+                    env,
+                    &mut lower,
+                    builtins,
+                    obj,
+                    &pkg_prefix,
+                )?;
             }
         }
     }
@@ -382,13 +410,23 @@ fn check_type_decl_annotations(
     let type_fqn = join_prefix(prefix, local);
 
     // 1) 注解使用：`@Foo` / `@Foo(...)`。
-    let site = if decl.kind == ast::TypeKind::Class && decl.modifiers.contains(&ast::Modifier::Annotation)
+    let site = if decl.kind == ast::TypeKind::Class
+        && decl.modifiers.contains(&ast::Modifier::Annotation)
     {
         AnnotationSite::annotation_class_decl()
     } else {
         AnnotationSite::new(AnnotationTargetKind::Type)
     };
-    check_annotation_uses(source, file, index, env, lower, builtins, &decl.annotations, site)?;
+    check_annotation_uses(
+        source,
+        file,
+        index,
+        env,
+        lower,
+        builtins,
+        &decl.annotations,
+        site,
+    )?;
     check_builtin_annotations_on_type_decl(source, decl, &type_fqn)?;
 
     // 2) 注解类自身的最小形态约束（data-only）。
@@ -398,7 +436,15 @@ fn check_type_decl_annotations(
 
     // 2.5) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
     if let Some(primary_ctor) = &decl.primary_ctor {
-        check_param_list_annotations(source, file, index, env, lower, builtins, &primary_ctor.params)?;
+        check_param_list_annotations(
+            source,
+            file,
+            index,
+            env,
+            lower,
+            builtins,
+            &primary_ctor.params,
+        )?;
     }
 
     // 3) 递归检查类型体成员（包含 nested types）。
@@ -445,7 +491,15 @@ fn check_type_decl_annotations(
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
                 reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
-                check_param_list_annotations(source, file, index, env, lower, builtins, &ctor.params)?;
+                check_param_list_annotations(
+                    source,
+                    file,
+                    index,
+                    env,
+                    lower,
+                    builtins,
+                    &ctor.params,
+                )?;
             }
             ast::TypeMember::Fun(fun) => {
                 check_annotation_uses(
@@ -459,13 +513,25 @@ fn check_type_decl_annotations(
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun)?;
-                check_param_list_annotations(source, file, index, env, lower, builtins, &fun.params)?;
+                check_param_list_annotations(
+                    source,
+                    file,
+                    index,
+                    env,
+                    lower,
+                    builtins,
+                    &fun.params,
+                )?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(source, file, index, env, lower, builtins, nested, &type_fqn)?;
+                check_type_decl_annotations(
+                    source, file, index, env, lower, builtins, nested, &type_fqn,
+                )?;
             }
             ast::TypeMember::Object(obj) => {
-                check_object_decl_annotations(source, file, index, env, lower, builtins, obj, &type_fqn)?;
+                check_object_decl_annotations(
+                    source, file, index, env, lower, builtins, obj, &type_fqn,
+                )?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -491,7 +557,16 @@ fn check_param_list_annotations(
         } else {
             AnnotationSite::new(AnnotationTargetKind::Param)
         };
-        check_annotation_uses(source, file, index, env, lower, builtins, &p.annotations, site)?;
+        check_annotation_uses(
+            source,
+            file,
+            index,
+            env,
+            lower,
+            builtins,
+            &p.annotations,
+            site,
+        )?;
         reject_builtin_annotations_on_target(source, &p.annotations, "param")?;
     }
     Ok(())
@@ -593,10 +668,14 @@ fn check_object_decl_annotations(
                 check_builtin_annotations_on_fun_decl(source, fun)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(source, file, index, env, lower, builtins, nested, &obj_fqn)?;
+                check_type_decl_annotations(
+                    source, file, index, env, lower, builtins, nested, &obj_fqn,
+                )?;
             }
             ast::TypeMember::Object(nested) => {
-                check_object_decl_annotations(source, file, index, env, lower, builtins, nested, &obj_fqn)?;
+                check_object_decl_annotations(
+                    source, file, index, env, lower, builtins, nested, &obj_fqn,
+                )?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -766,7 +845,8 @@ fn check_target_annotation_args(
     ann: &ast::AnnotationUse,
 ) -> Result<(), AnnotationError> {
     for arg in &ann.args {
-        let Some((variant_name, variant_span)) = extract_annotation_target_variant(source, &arg.value)
+        let Some((variant_name, variant_span)) =
+            extract_annotation_target_variant(source, &arg.value)
         else {
             continue;
         };
@@ -950,7 +1030,9 @@ fn infer_annotation_const_expr_type(
             "true" | "false" => Ok(builtins.bool_),
             _ => Err(not_const()),
         },
-        ast::ExprKind::Unary { op, expr: inner, .. } => {
+        ast::ExprKind::Unary {
+            op, expr: inner, ..
+        } => {
             let operand_ty = infer_annotation_const_expr_type(
                 source,
                 file,
@@ -1011,22 +1093,27 @@ fn infer_annotation_const_expr_type(
                 | ast::BinaryOp::Rem
                 | ast::BinaryOp::BitAnd
                 | ast::BinaryOp::BitXor
-                | ast::BinaryOp::BitOr => unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
-                    .ok_or_else(not_const),
+                | ast::BinaryOp::BitOr => {
+                    unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+                        .ok_or_else(not_const)
+                }
 
                 ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
-                    if is_integer_type_for_const_expr(lhs_ty, lower, builtins) && rhs_ty == builtins.int {
+                    if is_integer_type_for_const_expr(lhs_ty, lower, builtins)
+                        && rhs_ty == builtins.int
+                    {
                         Ok(lhs_ty)
                     } else {
                         Err(not_const())
                     }
                 }
 
-                ast::BinaryOp::Lt
-                | ast::BinaryOp::Le
-                | ast::BinaryOp::Gt
-                | ast::BinaryOp::Ge => {
-                    if unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins).is_some() {
+                ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+                    if unify_integer_operands_for_const_expr(
+                        lhs, lhs_ty, rhs, rhs_ty, lower, builtins,
+                    )
+                    .is_some()
+                    {
                         Ok(builtins.bool_)
                     } else {
                         Err(not_const())
@@ -1037,7 +1124,11 @@ fn infer_annotation_const_expr_type(
                     if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
                         return Ok(builtins.bool_);
                     }
-                    if unify_integer_operands_for_const_expr(lhs, lhs_ty, rhs, rhs_ty, lower, builtins).is_some() {
+                    if unify_integer_operands_for_const_expr(
+                        lhs, lhs_ty, rhs, rhs_ty, lower, builtins,
+                    )
+                    .is_some()
+                    {
                         return Ok(builtins.bool_);
                     }
                     Err(not_const())
@@ -1055,8 +1146,10 @@ fn infer_annotation_const_expr_type(
                 ast::BinaryOp::Elvis => Err(not_const()),
             }
         }
-        ast::ExprKind::MemberAccess { .. } => infer_enum_unit_variant_const_type(source, file, index, env, lower, expr)
-            .ok_or_else(not_const),
+        ast::ExprKind::MemberAccess { .. } => {
+            infer_enum_unit_variant_const_type(source, file, index, env, lower, expr)
+                .ok_or_else(not_const)
+        }
         ast::ExprKind::ArrayLit { elements } => {
             let first = elements.first().ok_or_else(not_const)?;
             let mut elem_ty = infer_annotation_const_expr_type(
@@ -1169,7 +1262,11 @@ fn infer_enum_unit_variant_const_type(
         .ok()
 }
 
-fn is_integer_type_for_const_expr(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+fn is_integer_type_for_const_expr(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
     if ty == builtins.int || ty == builtins.uint {
         return true;
     }
@@ -1203,10 +1300,14 @@ fn unify_integer_operands_for_const_expr(
         return Some(lhs_ty);
     }
 
-    if matches!(&lhs.kind, ast::ExprKind::IntLit) && is_integer_type_for_const_expr(rhs_ty, lower, builtins) {
+    if matches!(&lhs.kind, ast::ExprKind::IntLit)
+        && is_integer_type_for_const_expr(rhs_ty, lower, builtins)
+    {
         return Some(rhs_ty);
     }
-    if matches!(&rhs.kind, ast::ExprKind::IntLit) && is_integer_type_for_const_expr(lhs_ty, lower, builtins) {
+    if matches!(&rhs.kind, ast::ExprKind::IntLit)
+        && is_integer_type_for_const_expr(lhs_ty, lower, builtins)
+    {
         return Some(lhs_ty);
     }
 
@@ -1232,7 +1333,10 @@ fn effective_annotation_target(
     }
 }
 
-fn extract_annotation_target_variant(source: &SourceFile, expr: &ast::Expr) -> Option<(String, Span)> {
+fn extract_annotation_target_variant(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Option<(String, Span)> {
     let mut segs: Vec<(String, Span)> = Vec::new();
     if !collect_member_access_path(source, expr, &mut segs) {
         return None;
@@ -1342,6 +1446,7 @@ fn check_builtin_annotations_on_fun_decl(
         match kind {
             BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
             BuiltinAnnotationKind::Unsafe
+            | BuiltinAnnotationKind::Safe
             | BuiltinAnnotationKind::NoGC
             | BuiltinAnnotationKind::Intrinsic => {
                 if !ann.args.is_empty() {

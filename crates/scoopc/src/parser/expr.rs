@@ -213,7 +213,10 @@ impl<'a> Parser<'a> {
         let Some(end) = scan_type_args_end(&self.tokens, self.i) else {
             return false;
         };
-        matches!(kind_at(&self.tokens, end), TokenKind::Symbol(Symbol::LParen))
+        matches!(
+            kind_at(&self.tokens, end),
+            TokenKind::Symbol(Symbol::LParen)
+        )
     }
 
     fn parse_type_apply_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
@@ -230,19 +233,21 @@ impl<'a> Parser<'a> {
 
     fn try_parse_expr_prefix(&mut self) -> Result<Option<ast::Expr>, ParseError> {
         // spec §15.9.2：`@Unsafe { ... }`（unsafe block）。
+        // spec §15.9.5：`@Safe { ... }`（safe block：在 unsafe context 内收窄为 safe）。
         //
         // 说明：
         // - 该语法位于表达式/语句层：作为一个“局部 unsafe context”区域；
-        // - 当前阶段仅支持内建 `Unsafe`，不支持任意注解作为 block 前缀；
-        // - 必须紧跟一个 block：`@Unsafe { ... }`。
-        if self.peek_symbol(Symbol::At)
-            && self.peek_n(1).kind == TokenKind::Ident
-            && self
+        // - 当前阶段仅支持内建 `Unsafe/Safe`，不支持任意注解作为 block 前缀；
+        // - 必须紧跟一个 block：`@Unsafe { ... }` / `@Safe { ... }`。
+        if self.peek_symbol(Symbol::At) && self.peek_n(1).kind == TokenKind::Ident {
+            match self
                 .source_text
                 .get(self.peek_n(1).span.start..self.peek_n(1).span.end)
-                == Some("Unsafe")
-        {
-            return Ok(Some(self.parse_unsafe_block_expr()?));
+            {
+                Some("Unsafe") => return Ok(Some(self.parse_unsafe_block_expr()?)),
+                Some("Safe") => return Ok(Some(self.parse_safe_block_expr()?)),
+                _ => {}
+            }
         }
 
         // spec §5.7：`spawn { ... }`（结构化并发语法糖，T0620）。
@@ -358,6 +363,24 @@ impl<'a> Parser<'a> {
                 at_unsafe_span,
                 body,
             },
+        })
+    }
+
+    fn parse_safe_block_expr(&mut self) -> Result<ast::Expr, ParseError> {
+        let at = self.expect_symbol(Symbol::At)?;
+        let start = at.span.start;
+
+        let safe_kw = self.expect_kind(TokenKind::Ident, "`Safe`（safe block 注解名）")?;
+        debug_assert_eq!(
+            self.source_text.get(safe_kw.span.start..safe_kw.span.end),
+            Some("Safe")
+        );
+        let at_safe_span = Span::new(start, safe_kw.span.end);
+
+        let body = self.parse_block()?;
+        Ok(ast::Expr {
+            span: Span::new(start, body.span.end),
+            kind: ast::ExprKind::SafeBlock { at_safe_span, body },
         })
     }
 
@@ -775,7 +798,11 @@ impl<'a> Parser<'a> {
 
         Ok(ast::Expr {
             span: Span::new(start, end),
-            kind: ast::ExprKind::Handle { body, arms, finally },
+            kind: ast::ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            },
         })
     }
 
@@ -914,7 +941,8 @@ impl<'a> Parser<'a> {
         //
         // 注意：`resume` 在 lexer 层仍是 ident；这里以“`resume` + `{`”的形态做语法判别，
         // 避免把它误解析为普通 call 表达式（Kotlin 风格的 trailing lambda）。
-        if self.peek_ident_text("resume") && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
+        if self.peek_ident_text("resume")
+            && self.peek_n(1).kind == TokenKind::Symbol(Symbol::LBrace)
         {
             let resume_tok = self.bump(); // `resume`（ident）
             let resume_span = resume_tok.span;
@@ -978,10 +1006,7 @@ impl<'a> Parser<'a> {
             .expect("segments.len()>=2 已保证存在 op segment");
 
         let effect_start = segments.first().map(|x| x.span.start).unwrap_or(start);
-        let effect_end = segments
-            .last()
-            .map(|x| x.span.end)
-            .unwrap_or(op.span.end);
+        let effect_end = segments.last().map(|x| x.span.end).unwrap_or(op.span.end);
 
         let effect = ast::TypePath {
             span: Span::new(effect_start, effect_end),
@@ -1811,7 +1836,10 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_when_pat_atom_internal(&mut self, allow_else: bool) -> Result<ast::WhenPat, ParseError> {
+    fn parse_when_pat_atom_internal(
+        &mut self,
+        allow_else: bool,
+    ) -> Result<ast::WhenPat, ParseError> {
         if allow_else && self.peek_keyword(Keyword::Else) {
             let tok = self.bump();
             return Ok(ast::WhenPat::Else { span: tok.span });
@@ -1990,7 +2018,8 @@ impl<'a> Parser<'a> {
             if rest_span.is_some() {
                 let tok = *self.peek();
                 if self.peek_symbol(Symbol::DotDot)
-                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                    || (self.peek_symbol(Symbol::Dot)
+                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "when tuple pattern：`..` 只能出现一次",
@@ -2018,7 +2047,8 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_symbol(Symbol::DotDot)
-                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                || (self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
                 let span = if self.peek_symbol(Symbol::DotDot) {
                     self.bump().span

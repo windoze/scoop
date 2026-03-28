@@ -1112,6 +1112,17 @@ pub enum ExprKind {
         at_unsafe_span: Span,
         body: Block,
     },
+    /// `@Safe { ... }`（spec §15.9.5）：在 unsafe context 内显式“收窄”为 safe 的区域。
+    ///
+    /// 说明：
+    /// - 该节点只表达“在该 block 内禁止需要 unsafe context 的操作”；
+    /// - typecheck 会在进入该 block 时暂时抑制外层 unsafe context；
+    /// - `@Safe` 内仍允许嵌套 `@Unsafe { ... }` 局部重新开启 unsafe（TODO T1021）。
+    SafeBlock {
+        /// `@Safe` 的 span（不包含 `{ ... }`）。
+        at_safe_span: Span,
+        body: Block,
+    },
     /// Lambda 表达式：`{ params -> body }` / `{ body }`（spec §12）。
     ///
     /// 当前任务（T0221）仅引入 AST 节点建模；解析与 `{}` 歧义消解见后续任务（T0222/T0225）。

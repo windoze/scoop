@@ -2,7 +2,7 @@
 //!
 //! 说明：
 //! - 这些注解由编译器“硬编码识别”，不依赖用户代码中存在对应的 `annotation class` 声明；
-//! - 目前仅覆盖 T1003 所需的四个内建注解：`@Unsafe/@NoGC/@Extern/@Intrinsic`；
+//! - 目前覆盖 `@Unsafe/@Safe/@NoGC/@Extern/@Intrinsic` 的最小语义（更多规则见 TODO）；
 //! - 更完整的 `@Target/@Retention/@AllowIntrinsic/...` 规则留给后续任务（见 TODO）。
 
 use crate::ast;
@@ -11,6 +11,7 @@ use crate::source::SourceFile;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum BuiltinAnnotationKind {
     Unsafe,
+    Safe,
     NoGC,
     Extern,
     Intrinsic,
@@ -20,6 +21,7 @@ impl BuiltinAnnotationKind {
     pub(crate) const fn name(self) -> &'static str {
         match self {
             BuiltinAnnotationKind::Unsafe => "Unsafe",
+            BuiltinAnnotationKind::Safe => "Safe",
             BuiltinAnnotationKind::NoGC => "NoGC",
             BuiltinAnnotationKind::Extern => "Extern",
             BuiltinAnnotationKind::Intrinsic => "Intrinsic",
@@ -29,6 +31,7 @@ impl BuiltinAnnotationKind {
     pub(crate) const fn allowed_targets_hint(self) -> &'static str {
         match self {
             BuiltinAnnotationKind::Unsafe => "函数（以及表达式块；见 TODO T1004）",
+            BuiltinAnnotationKind::Safe => "函数（以及表达式块；见 TODO T1021）",
             BuiltinAnnotationKind::NoGC => "函数",
             BuiltinAnnotationKind::Extern => "函数 / 顶层 val/var / object",
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
@@ -45,9 +48,14 @@ pub(crate) fn builtin_annotation_kind(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
 ) -> Option<BuiltinAnnotationKind> {
-    let segs = ann.path.iter().map(|id| id.text(source)).collect::<Vec<_>>();
+    let segs = ann
+        .path
+        .iter()
+        .map(|id| id.text(source))
+        .collect::<Vec<_>>();
     match segs.as_slice() {
         ["Unsafe"] | ["scoop", "core", "Unsafe"] => Some(BuiltinAnnotationKind::Unsafe),
+        ["Safe"] | ["scoop", "core", "Safe"] => Some(BuiltinAnnotationKind::Safe),
         ["NoGC"] | ["scoop", "core", "NoGC"] => Some(BuiltinAnnotationKind::NoGC),
         ["Extern"] | ["scoop", "core", "Extern"] => Some(BuiltinAnnotationKind::Extern),
         ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => Some(BuiltinAnnotationKind::Intrinsic),
@@ -63,6 +71,7 @@ pub(crate) fn builtin_annotation_kind(
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct BuiltinAnnotationFlags {
     pub(crate) is_unsafe: bool,
+    pub(crate) is_safe: bool,
     pub(crate) is_nogc: bool,
     pub(crate) is_extern: bool,
     pub(crate) is_intrinsic: bool,
@@ -74,6 +83,7 @@ impl BuiltinAnnotationFlags {
         for ann in anns {
             match builtin_annotation_kind(source, ann) {
                 Some(BuiltinAnnotationKind::Unsafe) => out.is_unsafe = true,
+                Some(BuiltinAnnotationKind::Safe) => out.is_safe = true,
                 Some(BuiltinAnnotationKind::NoGC) => out.is_nogc = true,
                 Some(BuiltinAnnotationKind::Extern) => out.is_extern = true,
                 Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,

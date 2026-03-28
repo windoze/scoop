@@ -641,6 +641,7 @@ impl<'a> BlockScopeChecker<'a> {
             }
             ast::ExprKind::Block(b) => self.check_block(b)?,
             ast::ExprKind::UnsafeBlock { body, .. } => self.check_block(body)?,
+            ast::ExprKind::SafeBlock { body, .. } => self.check_block(body)?,
             ast::ExprKind::Lambda(lam) => {
                 // lambda 的参数在其 body 内可见；暂不记录 capture 信息（非目标）。
                 self.push_scope();
@@ -682,7 +683,11 @@ impl<'a> BlockScopeChecker<'a> {
                     self.pop_scope();
                 }
             }
-            ast::ExprKind::Handle { body, arms, finally } => {
+            ast::ExprKind::Handle {
+                body,
+                arms,
+                finally,
+            } => {
                 // handle body 是一个 block；handler arms 的 binder 仅在各自 arm body 内可见。
                 self.check_block(body)?;
 
@@ -757,9 +762,7 @@ impl<'a> BlockScopeChecker<'a> {
                         Err(ResolveError::UnresolvedValue { .. }) => {}
                         Err(other) => return Err(other),
                     },
-                    ast::ExprKind::TypeApply {
-                        callee: inner, ..
-                    } => match &mut inner.kind {
+                    ast::ExprKind::TypeApply { callee: inner, .. } => match &mut inner.kind {
                         ast::ExprKind::Ident(id) => match self.resolve_value_ident(id) {
                             Ok(()) => {}
                             Err(ResolveError::UnresolvedValue { .. }) => {}
@@ -847,14 +850,16 @@ impl<'a> BlockScopeChecker<'a> {
         args: &[ast::Expr],
     ) -> Result<(), ResolveError> {
         match &mut callee.kind {
-            ast::ExprKind::TypeApply { callee, .. } => self.resolve_call_site(callee.as_mut(), args),
+            ast::ExprKind::TypeApply { callee, .. } => {
+                self.resolve_call_site(callee.as_mut(), args)
+            }
             ast::ExprKind::Ident(id) => self.resolve_call_ident_callee(id, args),
             ast::ExprKind::MemberAccess { receiver, member } => {
                 self.resolve_call_member_callee(receiver, member, args)
             }
-            ast::ExprKind::SafeMemberAccess { receiver, member, .. } => {
-                self.resolve_call_member_callee(receiver, member, args)
-            }
+            ast::ExprKind::SafeMemberAccess {
+                receiver, member, ..
+            } => self.resolve_call_member_callee(receiver, member, args),
             _ => Ok(()),
         }
     }
@@ -933,7 +938,9 @@ impl<'a> BlockScopeChecker<'a> {
         };
 
         let candidates: Vec<ast::CallCandidate> = match resolved {
-            ast::ResolvedMemberRef::Fun { fqn } => vec![ast::CallCandidate::Fun { fqn: fqn.clone() }],
+            ast::ResolvedMemberRef::Fun { fqn } => {
+                vec![ast::CallCandidate::Fun { fqn: fqn.clone() }]
+            }
             ast::ResolvedMemberRef::ExtensionFun { fqn } => {
                 // T0322：跨包 extension 导入与候选收集。
                 //
@@ -958,7 +965,8 @@ impl<'a> BlockScopeChecker<'a> {
                     .map(|fqn| ast::CallCandidate::Fun { fqn })
                     .collect()
             }
-            ast::ResolvedMemberRef::Value { .. } | ast::ResolvedMemberRef::ExtensionValue { .. } => {
+            ast::ResolvedMemberRef::Value { .. }
+            | ast::ResolvedMemberRef::ExtensionValue { .. } => {
                 // `p.x()`：此时 callee 是一个 value member，是否可调用取决于其类型（留给 typecheck）。
                 return Ok(());
             }
@@ -1491,7 +1499,8 @@ impl<'a> BlockScopeChecker<'a> {
 
             if not_visible.is_none() {
                 if let Some(first) = syms.first_fun() {
-                    not_visible = Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    not_visible =
+                        Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
                 }
             }
         }
@@ -1564,11 +1573,8 @@ impl<'a> BlockScopeChecker<'a> {
 
                     if not_visible.is_none() {
                         if let Some(first) = syms.first_fun() {
-                            not_visible = Some((
-                                ext.fqn.clone(),
-                                first.symbol.visibility,
-                                first.symbol.span,
-                            ));
+                            not_visible =
+                                Some((ext.fqn.clone(), first.symbol.visibility, first.symbol.span));
                         }
                     }
                 }
@@ -1643,11 +1649,7 @@ impl<'a> BlockScopeChecker<'a> {
                     return Ok(());
                 }
                 if not_visible.is_none() {
-                    not_visible = Some((
-                        direct_fqn.clone(),
-                        o.symbol.visibility,
-                        o.symbol.span,
-                    ));
+                    not_visible = Some((direct_fqn.clone(), o.symbol.visibility, o.symbol.span));
                 }
             }
 

@@ -1,0 +1,10 @@
+// EXPECT: pass
+
+package fixtures.unsafe_nogc
+
+@Unsafe
+fun f() {
+    var x: Int = 1
+    @Safe { @Unsafe { addrOf(x) } }
+}
+

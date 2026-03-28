@@ -168,7 +168,6 @@ pub enum ConstEvalError {
     },
 
     // --- reflection intrinsics（T1204） ---
-
     #[error("反射 intrinsic `{name}` 调用不合法：{reason}")]
     #[diagnostic(code(scoop::comptime::reflection_bad_call))]
     ReflectionBadCall {
@@ -266,7 +265,10 @@ impl ConstEvalHost for NoHost {
 ///
 /// 说明：该函数不支持 `const fun` 调用；调用/局部变量由解释器（T1202c）通过
 /// `eval_const_expr_with_host` 注入环境与调用能力。
-pub fn eval_const_expr(ctx: ConstEvalCtx<'_>, expr: &ast::Expr) -> Result<ConstValue, ConstEvalError> {
+pub fn eval_const_expr(
+    ctx: ConstEvalCtx<'_>,
+    expr: &ast::Expr,
+) -> Result<ConstValue, ConstEvalError> {
     let mut host = NoHost;
     eval_const_expr_with_host(ctx, &mut host, expr)
 }
@@ -301,9 +303,10 @@ pub(crate) fn eval_const_expr_with_host(
                     });
                 }
             };
-            let s = String::from_utf8(bytes).map_err(|_e| ConstEvalError::InvalidStringLiteral {
-                span: expr.span.into(),
-            })?;
+            let s =
+                String::from_utf8(bytes).map_err(|_e| ConstEvalError::InvalidStringLiteral {
+                    span: expr.span.into(),
+                })?;
             Ok(ConstValue::String(s))
         }
         ast::ExprKind::UnitLit => Ok(ConstValue::Unit),
@@ -324,11 +327,15 @@ pub(crate) fn eval_const_expr_with_host(
             }
         }
 
-        ast::ExprKind::Unary { op, expr: inner, .. } => {
+        ast::ExprKind::Unary {
+            op, expr: inner, ..
+        } => {
             let v = eval_const_expr_with_host(ctx, host, inner)?;
             eval_unary(expr.span, *op, v)
         }
-        ast::ExprKind::Binary { lhs, op, rhs, .. } => eval_binary(ctx, host, expr.span, *op, lhs, rhs),
+        ast::ExprKind::Binary { lhs, op, rhs, .. } => {
+            eval_binary(ctx, host, expr.span, *op, lhs, rhs)
+        }
 
         // aggregates（T1202b）
         ast::ExprKind::TupleLit { elements } => {
@@ -358,6 +365,10 @@ pub(crate) fn eval_const_expr_with_host(
         }),
         ast::ExprKind::UnsafeBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "@Unsafe block",
+            span: expr.span.into(),
+        }),
+        ast::ExprKind::SafeBlock { .. } => Err(ConstEvalError::UnsupportedExpr {
+            kind: "@Safe block",
             span: expr.span.into(),
         }),
         ast::ExprKind::Lambda(_) => Err(ConstEvalError::UnsupportedExpr {
@@ -452,14 +463,12 @@ pub(crate) fn eval_const_expr_with_host(
             };
 
             match recv {
-                ConstValue::Struct(s) => s
-                    .fields
-                    .get(&field_name)
-                    .cloned()
-                    .ok_or_else(|| ConstEvalError::UnknownMember {
+                ConstValue::Struct(s) => s.fields.get(&field_name).cloned().ok_or_else(|| {
+                    ConstEvalError::UnknownMember {
                         name: field_name,
                         span: field.span.into(),
-                    }),
+                    }
+                }),
                 _ => Err(ConstEvalError::UnsupportedExpr {
                     kind: "splice field access（receiver 必须为 struct 常量）",
                     span: expr.span.into(),
@@ -563,14 +572,15 @@ fn eval_member_access(
             };
             Ok(v.clone())
         }
-        ConstValue::Struct(s) => s
-            .fields
-            .get(member_name)
-            .cloned()
-            .ok_or_else(|| ConstEvalError::UnknownMember {
-                name: member_name.to_string(),
-                span: member.span.into(),
-            }),
+        ConstValue::Struct(s) => {
+            s.fields
+                .get(member_name)
+                .cloned()
+                .ok_or_else(|| ConstEvalError::UnknownMember {
+                    name: member_name.to_string(),
+                    span: member.span.into(),
+                })
+        }
         ConstValue::Enum(e) => {
             // 早期阶段把 enum payload 当作“位置字段”，并沿用 tuple 的 `_0/_1/...` 访问语法。
             let Some(index) = parse_tuple_member_index(member_name) else {
@@ -590,10 +600,13 @@ fn eval_member_access(
         }
         other => Err(ConstEvalError::UnsupportedExpr {
             kind: match other {
-                ConstValue::Unit | ConstValue::Bool(_) | ConstValue::Int(_) | ConstValue::String(_) => {
-                    "member access（非 aggregate）"
+                ConstValue::Unit
+                | ConstValue::Bool(_)
+                | ConstValue::Int(_)
+                | ConstValue::String(_) => "member access（非 aggregate）",
+                ConstValue::Tuple(_) | ConstValue::Struct(_) | ConstValue::Enum(_) => {
+                    unreachable!()
                 }
-                ConstValue::Tuple(_) | ConstValue::Struct(_) | ConstValue::Enum(_) => unreachable!(),
             },
             span: whole_expr_span.into(),
         }),
@@ -650,7 +663,11 @@ fn eval_enum_ctor_call(
         payload.push(eval_const_expr_with_host(ctx, host, a)?);
     }
 
-    Ok(ConstValue::Enum(ConstEnum { ty, variant, payload }))
+    Ok(ConstValue::Enum(ConstEnum {
+        ty,
+        variant,
+        payload,
+    }))
 }
 
 fn type_path_name(source: &SourceFile, ty: &ast::TypePath) -> String {
@@ -663,7 +680,9 @@ fn type_path_name(source: &SourceFile, ty: &ast::TypePath) -> String {
 
 fn looks_like_type_name(name: &str) -> bool {
     // Kotlin 风格：类型/enum variant 使用大写开头，函数/变量通常小写开头。
-    name.chars().next().is_some_and(|ch| ch.is_ascii_uppercase())
+    name.chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_uppercase())
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {
@@ -678,7 +697,11 @@ fn parse_tuple_member_index(text: &str) -> Option<usize> {
 }
 
 /// 求值一元运算（`!`/`-`/`~`）。
-fn eval_unary(span: crate::span::Span, op: ast::UnaryOp, v: ConstValue) -> Result<ConstValue, ConstEvalError> {
+fn eval_unary(
+    span: crate::span::Span,
+    op: ast::UnaryOp,
+    v: ConstValue,
+) -> Result<ConstValue, ConstEvalError> {
     match op {
         ast::UnaryOp::Not => match v {
             ConstValue::Bool(b) => Ok(ConstValue::Bool(!b)),
@@ -913,14 +936,14 @@ fn eval_int_binary(
                 let a = lhs.as_i128();
                 let b = rhs.as_i128();
                 if op == ast::BinaryOp::Div {
-                    let q = a.checked_div(b).ok_or(ConstEvalError::IntDivByZero {
-                        span: span.into(),
-                    })?;
+                    let q = a
+                        .checked_div(b)
+                        .ok_or(ConstEvalError::IntDivByZero { span: span.into() })?;
                     mk_int(q as u128)
                 } else {
-                    let r = a.checked_rem(b).ok_or(ConstEvalError::IntDivByZero {
-                        span: span.into(),
-                    })?;
+                    let r = a
+                        .checked_rem(b)
+                        .ok_or(ConstEvalError::IntDivByZero { span: span.into() })?;
                     mk_int(r as u128)
                 }
             } else if op == ast::BinaryOp::Div {
@@ -929,10 +952,7 @@ fn eval_int_binary(
                 mk_int((lhs.raw_bits % rhs.raw_bits) & mask)
             }
         }
-        ast::BinaryOp::Lt
-        | ast::BinaryOp::Le
-        | ast::BinaryOp::Gt
-        | ast::BinaryOp::Ge => {
+        ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
             let ok = if ty.signed {
                 let a = lhs.as_i128();
                 let b = rhs.as_i128();

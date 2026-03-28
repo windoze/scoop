@@ -3384,7 +3384,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1021 [TODO] `@Safe`：在 unsafe context 内显式“收窄”为 safe 区域（spec §15.9.5）
+### T1021 [DONE] `@Safe`：在 unsafe context 内显式“收窄”为 safe 区域（spec §15.9.5）
 - 描述：支持 `@Safe { ... }`（以及函数级 `@Safe`）语义：即使外层处于 unsafe context，也要在 `@Safe` 区域内禁止 unsafe primitives / 调用 `@Extern` / 调用 `@Unsafe` 函数。
 - 目标：
   - 只做 typecheck 层面的上下文传播与门禁；
@@ -3395,6 +3395,16 @@
     - `@Unsafe fun f(){ @Safe { @Unsafe { addrOf(x) } } }` 通过；
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T1004、T1009
+ - 完成：
+   - `crates/scoopc/src/parser/expr.rs`：解析 `@Safe { ... }` 为专用表达式节点（safe block）。
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ExprKind::SafeBlock`。
+   - `crates/scoopc/src/typecheck/lower.rs`：新增 `with_unsafe_context_suspended`，用于 `@Safe` 临时抑制 unsafe context。
+   - `crates/scoopc/src/typecheck/builtin_annotations.rs`：把 `@Safe` 纳入内建注解识别与 flags。
+   - `crates/scoopc/src/typecheck/expr.rs`：在 safe block / `@Safe` 函数体内禁止 unsafe primitives 与 `@Extern/@Unsafe` 调用，并允许嵌套 `@Unsafe` 重新开启。
+   - `tests/fixtures/unsafe_nogc/*`：新增 2 个 fixtures 覆盖 `@Safe` 收窄规则。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1022 [TODO] 全局可变 GC-free 变量门禁：`@ThreadLocal` / `@Global`（spec §15.5.3）
 - 描述：新增全局 `var` 的显式标注规则：

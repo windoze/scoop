@@ -758,7 +758,7 @@ tests/
 - [x] `@Unsafe`（最小落地）：
   - 函数级与块级 `@Unsafe { ... }`
   - 非 unsafe context 禁止：调用 `@Unsafe` 函数/调用 `@Extern`/使用最小 ptr 原语（`addressOf`/`Ptr.load/store` 或等价 sysroot intrinsics）
-- [ ] `@Safe`：允许在 unsafe context 内显式“收窄”为 safe 区域（禁止 `@Extern`/`@Unsafe` 调用与 unsafe primitives），用于 callback/闭包场景
+- [x] `@Safe`：允许在 unsafe context 内显式“收窄”为 safe 区域（禁止 `@Extern`/`@Unsafe` 调用与 unsafe primitives），用于 callback/闭包场景
 - [ ] `Ptr<T>` / `UIntPtr` 与指针整数转换（spec §15.9.4 / runtime §4~§5）
   - `UIntPtr` 仅为 `UInt` 的别名（类型本身不 unsafe）
   - 指针 ↔ 整数转换必须在 unsafe context，且通过 sysroot intrinsics（不通过 `as/as?`）

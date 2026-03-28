@@ -449,6 +449,19 @@ impl<'a> TypeLowering<'a> {
         self.unsafe_context_depth > 0
     }
 
+    /// 在一个临时区域中“抑制 unsafe 上下文”（spec §15.9.5）。
+    ///
+    /// 用途：
+    /// - `@Safe { ... }`：即使处于外层 unsafe context，也要在该区域内禁止 unsafe primitives / `@Extern` / `@Unsafe` 调用；
+    /// - `@Safe` 内仍允许嵌套 `@Unsafe { ... }` 重新开启 unsafe（局部化）。
+    pub(super) fn with_unsafe_context_suspended<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = self.unsafe_context_depth;
+        self.unsafe_context_depth = 0;
+        let out = f(self);
+        self.unsafe_context_depth = saved;
+        out
+    }
+
     pub(super) fn push_nogc_context(&mut self) {
         self.nogc_context_depth += 1;
     }

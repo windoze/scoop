@@ -698,6 +698,13 @@ impl<'a> HirLowering<'a> {
                 let ty = b.ty;
                 (ExprKind::Block(b), ty)
             }
+            ast::ExprKind::SafeBlock { body, .. } => {
+                // `@Safe { ... }` 同样仅影响 typecheck 的 unsafe context，
+                // 在 HIR/codegen 层面当前可按普通 block 表达式处理（T1021）。
+                let b = self.lower_block(pkg_prefix, body);
+                let ty = b.ty;
+                (ExprKind::Block(b), ty)
+            }
             ast::ExprKind::TypeApply { callee, .. } => {
                 // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
                 // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
@@ -1126,8 +1133,11 @@ impl<'a> HirLowering<'a> {
                 let receiver = self.lower_expr(pkg_prefix, receiver);
                 let this_ref = receiver.clone();
 
-                let delegate =
-                    self.lower_delegated_property_delegate_access_expr(member.span, receiver, &info);
+                let delegate = self.lower_delegated_property_delegate_access_expr(
+                    member.span,
+                    receiver,
+                    &info,
+                );
                 let callee = Expr {
                     span: member.span,
                     ty: self.builtins.any,
@@ -1186,7 +1196,9 @@ impl<'a> HirLowering<'a> {
                     span,
                     name: format!("{}$delegate", info.name),
                     resolved: Some(MemberRef::Value {
-                        id: self.symbols.intern_top_level(info.delegate_field_fqn.clone()),
+                        id: self
+                            .symbols
+                            .intern_top_level(info.delegate_field_fqn.clone()),
                         fqn: info.delegate_field_fqn.clone(),
                     }),
                 },
@@ -2417,20 +2429,10 @@ fn collect_delegated_properties(pairs: &[(&SourceFile, &ast::File)]) -> Delegate
         for item in &file.items {
             match item {
                 ast::Item::Type(ty) => {
-                    collect_delegated_properties_in_type_decl(
-                        source,
-                        ty,
-                        &pkg_prefix,
-                        &mut out,
-                    );
+                    collect_delegated_properties_in_type_decl(source, ty, &pkg_prefix, &mut out);
                 }
                 ast::Item::Object(obj) => {
-                    collect_delegated_properties_in_object_decl(
-                        source,
-                        obj,
-                        &pkg_prefix,
-                        &mut out,
-                    );
+                    collect_delegated_properties_in_object_decl(source, obj, &pkg_prefix, &mut out);
                 }
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
@@ -2561,7 +2563,10 @@ struct ExternAnnotationArgs {
     lib: Option<String>,
 }
 
-fn parse_extern_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) -> ExternAnnotationArgs {
+fn parse_extern_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> ExternAnnotationArgs {
     let mut out = ExternAnnotationArgs::default();
     let mut seen_named = false;
 
@@ -2647,11 +2652,7 @@ fn collect_extern_libs(pairs: &[(&SourceFile, &ast::File)]) -> Vec<String> {
     out
 }
 
-fn collect_extern_libs_in_file(
-    source: &SourceFile,
-    file: &ast::File,
-    out: &mut HashSet<String>,
-) {
+fn collect_extern_libs_in_file(source: &SourceFile, file: &ast::File, out: &mut HashSet<String>) {
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
@@ -2676,7 +2677,11 @@ fn collect_extern_libs_in_file(
     }
 }
 
-fn collect_extern_libs_in_type_decl(source: &SourceFile, decl: &ast::TypeDecl, out: &mut HashSet<String>) {
+fn collect_extern_libs_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    out: &mut HashSet<String>,
+) {
     collect_extern_libs_in_annotations(source, &decl.annotations, out);
 
     let Some(body) = &decl.body else {
@@ -2684,8 +2689,12 @@ fn collect_extern_libs_in_type_decl(source: &SourceFile, decl: &ast::TypeDecl, o
     };
     for member in &body.members {
         match member {
-            ast::TypeMember::EnumVariant(v) => collect_extern_libs_in_annotations(source, &v.annotations, out),
-            ast::TypeMember::Property(p) => collect_extern_libs_in_annotations(source, &p.annotations, out),
+            ast::TypeMember::EnumVariant(v) => {
+                collect_extern_libs_in_annotations(source, &v.annotations, out)
+            }
+            ast::TypeMember::Property(p) => {
+                collect_extern_libs_in_annotations(source, &p.annotations, out)
+            }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
                 collect_extern_libs_in_annotations(source, &ctor.annotations, out);
@@ -2693,7 +2702,9 @@ fn collect_extern_libs_in_type_decl(source: &SourceFile, decl: &ast::TypeDecl, o
                     collect_extern_libs_in_annotations(source, &p.annotations, out);
                 }
             }
-            ast::TypeMember::Fun(fun) => collect_extern_libs_in_annotations(source, &fun.annotations, out),
+            ast::TypeMember::Fun(fun) => {
+                collect_extern_libs_in_annotations(source, &fun.annotations, out)
+            }
             ast::TypeMember::Type(nested) => collect_extern_libs_in_type_decl(source, nested, out),
             ast::TypeMember::Object(obj) => collect_extern_libs_in_object_decl(source, obj, out),
         }
@@ -2712,8 +2723,12 @@ fn collect_extern_libs_in_object_decl(
     };
     for member in &body.members {
         match member {
-            ast::TypeMember::EnumVariant(v) => collect_extern_libs_in_annotations(source, &v.annotations, out),
-            ast::TypeMember::Property(p) => collect_extern_libs_in_annotations(source, &p.annotations, out),
+            ast::TypeMember::EnumVariant(v) => {
+                collect_extern_libs_in_annotations(source, &v.annotations, out)
+            }
+            ast::TypeMember::Property(p) => {
+                collect_extern_libs_in_annotations(source, &p.annotations, out)
+            }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
                 collect_extern_libs_in_annotations(source, &ctor.annotations, out);
@@ -2721,9 +2736,13 @@ fn collect_extern_libs_in_object_decl(
                     collect_extern_libs_in_annotations(source, &p.annotations, out);
                 }
             }
-            ast::TypeMember::Fun(fun) => collect_extern_libs_in_annotations(source, &fun.annotations, out),
+            ast::TypeMember::Fun(fun) => {
+                collect_extern_libs_in_annotations(source, &fun.annotations, out)
+            }
             ast::TypeMember::Type(nested) => collect_extern_libs_in_type_decl(source, nested, out),
-            ast::TypeMember::Object(nested) => collect_extern_libs_in_object_decl(source, nested, out),
+            ast::TypeMember::Object(nested) => {
+                collect_extern_libs_in_object_decl(source, nested, out)
+            }
         }
     }
 }

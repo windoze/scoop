@@ -28,8 +28,8 @@ use thiserror::Error;
 
 use std::collections::{HashMap, HashSet};
 
-use super::type_env::FileTypeContext;
 use super::TypeEnv;
+use super::type_env::FileTypeContext;
 use crate::ast;
 use crate::resolve::{FunOverload, Index};
 use crate::source::SourceFile;
@@ -59,7 +59,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("值类型（struct/enum）computed 属性不允许 initializer（会生成 backing field）：{type_fqn}.{property}")]
+    #[error(
+        "值类型（struct/enum）computed 属性不允许 initializer（会生成 backing field）：{type_fqn}.{property}"
+    )]
     #[diagnostic(code(scoop::typecheck::value_type_property_initializer_not_allowed))]
     ValueTypePropertyInitializerNotAllowed {
         type_fqn: String,
@@ -95,7 +97,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("`var` 扩展属性必须显式声明 setter（computed，无默认 accessor）：{receiver}.{property}")]
+    #[error(
+        "`var` 扩展属性必须显式声明 setter（computed，无默认 accessor）：{receiver}.{property}"
+    )]
     #[diagnostic(code(scoop::typecheck::extension_property_setter_required))]
     ExtensionPropertySetterRequired {
         receiver: String,
@@ -131,7 +135,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("委托属性的 delegate 缺少 `getValue`：{class_fqn}.{property}（delegate: {delegate_ty}）")]
+    #[error(
+        "委托属性的 delegate 缺少 `getValue`：{class_fqn}.{property}（delegate: {delegate_ty}）"
+    )]
     #[diagnostic(code(scoop::typecheck::delegated_property_missing_get_value))]
     DelegatedPropertyMissingGetValue {
         class_fqn: String,
@@ -141,7 +147,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("`var` 委托属性的 delegate 缺少 `setValue`：{class_fqn}.{property}（delegate: {delegate_ty}）")]
+    #[error(
+        "`var` 委托属性的 delegate 缺少 `setValue`：{class_fqn}.{property}（delegate: {delegate_ty}）"
+    )]
     #[diagnostic(code(scoop::typecheck::delegated_property_missing_set_value))]
     DelegatedPropertyMissingSetValue {
         class_fqn: String,
@@ -151,7 +159,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("委托属性的 delegate 未找到匹配的 `getValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）")]
+    #[error(
+        "委托属性的 delegate 未找到匹配的 `getValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）"
+    )]
     #[diagnostic(code(scoop::typecheck::delegated_property_get_value_signature_mismatch))]
     DelegatedPropertyGetValueSignatureMismatch {
         class_fqn: String,
@@ -163,7 +173,9 @@ pub enum PropertyDeclError {
         span: miette::SourceSpan,
     },
 
-    #[error("委托属性的 delegate 未找到匹配的 `setValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）")]
+    #[error(
+        "委托属性的 delegate 未找到匹配的 `setValue` 签名：{class_fqn}.{property}（delegate: {delegate_ty}，期望 {expected}，实际 {found}）"
+    )]
     #[diagnostic(code(scoop::typecheck::delegated_property_set_value_signature_mismatch))]
     DelegatedPropertySetValueSignatureMismatch {
         class_fqn: String,
@@ -497,8 +509,10 @@ fn check_one_extension_property(
 
     // 无 backing field：禁止引用 `field`。
     let backing_field_decl_span = p.name.span;
-    if let Some(span) = field_use_span_in_accessor(source, backing_field_decl_span, p.getter.as_ref())
-        .or_else(|| field_use_span_in_accessor(source, backing_field_decl_span, p.setter.as_ref()))
+    if let Some(span) =
+        field_use_span_in_accessor(source, backing_field_decl_span, p.getter.as_ref()).or_else(
+            || field_use_span_in_accessor(source, backing_field_decl_span, p.setter.as_ref()),
+        )
     {
         return Err(PropertyDeclError::ExtensionPropertyFieldNotAllowed {
             receiver,
@@ -554,8 +568,10 @@ fn field_use_span_in_stmt(
         ast::StmtKind::Return { value, .. } => value
             .as_ref()
             .and_then(|e| field_use_span_in_expr(source, backing_field_decl_span, e)),
-        ast::StmtKind::While { cond, body, .. } => field_use_span_in_expr(source, backing_field_decl_span, cond)
-            .or_else(|| field_use_span_in_block(source, backing_field_decl_span, body)),
+        ast::StmtKind::While { cond, body, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, cond)
+                .or_else(|| field_use_span_in_block(source, backing_field_decl_span, body))
+        }
         ast::StmtKind::ComptimeBlock { body, .. } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }
@@ -627,36 +643,54 @@ fn field_use_span_in_expr(
         ast::ExprKind::UnsafeBlock { body, .. } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }
-        ast::ExprKind::Lambda(l) => field_use_span_in_expr(source, backing_field_decl_span, &l.body),
-        ast::ExprKind::StructLit { fields, .. } => fields.iter().find_map(|f| {
-            field_use_span_in_expr(source, backing_field_decl_span, &f.value)
-        }),
-        ast::ExprKind::If { cond, then_branch, else_branch } => {
-            field_use_span_in_expr(source, backing_field_decl_span, cond)
-                .or_else(|| field_use_span_in_expr(source, backing_field_decl_span, then_branch))
-                .or_else(|| else_branch.as_ref().and_then(|e| field_use_span_in_expr(source, backing_field_decl_span, e)))
+        ast::ExprKind::SafeBlock { body, .. } => {
+            field_use_span_in_block(source, backing_field_decl_span, body)
         }
+        ast::ExprKind::Lambda(l) => {
+            field_use_span_in_expr(source, backing_field_decl_span, &l.body)
+        }
+        ast::ExprKind::StructLit { fields, .. } => fields
+            .iter()
+            .find_map(|f| field_use_span_in_expr(source, backing_field_decl_span, &f.value)),
+        ast::ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => field_use_span_in_expr(source, backing_field_decl_span, cond)
+            .or_else(|| field_use_span_in_expr(source, backing_field_decl_span, then_branch))
+            .or_else(|| {
+                else_branch
+                    .as_ref()
+                    .and_then(|e| field_use_span_in_expr(source, backing_field_decl_span, e))
+            }),
         ast::ExprKind::When { subject, arms } => {
             field_use_span_in_expr(source, backing_field_decl_span, subject).or_else(|| {
                 arms.iter().find_map(|arm| {
-                    field_use_span_in_expr(source, backing_field_decl_span, &arm.body)
-                        .or_else(|| arm.guard.as_ref().and_then(|g| field_use_span_in_expr(source, backing_field_decl_span, g)))
+                    field_use_span_in_expr(source, backing_field_decl_span, &arm.body).or_else(
+                        || {
+                            arm.guard.as_ref().and_then(|g| {
+                                field_use_span_in_expr(source, backing_field_decl_span, g)
+                            })
+                        },
+                    )
                 })
             })
         }
-        ast::ExprKind::Handle { body, arms, finally } => {
-            field_use_span_in_block(source, backing_field_decl_span, body)
-                .or_else(|| {
-                    arms.iter().find_map(|arm| {
-                        field_use_span_in_expr(source, backing_field_decl_span, &arm.body)
-                    })
+        ast::ExprKind::Handle {
+            body,
+            arms,
+            finally,
+        } => field_use_span_in_block(source, backing_field_decl_span, body)
+            .or_else(|| {
+                arms.iter().find_map(|arm| {
+                    field_use_span_in_expr(source, backing_field_decl_span, &arm.body)
                 })
-                .or_else(|| {
-                    finally
-                        .as_ref()
-                        .and_then(|b| field_use_span_in_block(source, backing_field_decl_span, b))
-                })
-        }
+            })
+            .or_else(|| {
+                finally
+                    .as_ref()
+                    .and_then(|b| field_use_span_in_block(source, backing_field_decl_span, b))
+            }),
         ast::ExprKind::Async { body } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }
@@ -713,9 +747,9 @@ fn field_use_span_in_expr(
         }
         ast::ExprKind::WithUpdate { base, updates, .. } => {
             field_use_span_in_expr(source, backing_field_decl_span, base).or_else(|| {
-                updates.iter().find_map(|u| {
-                    field_use_span_in_expr(source, backing_field_decl_span, &u.value)
-                })
+                updates
+                    .iter()
+                    .find_map(|u| field_use_span_in_expr(source, backing_field_decl_span, &u.value))
             })
         }
     }
@@ -869,16 +903,18 @@ fn check_delegated_property_get_value_signature(
         }
     }
 
-    Err(PropertyDeclError::DelegatedPropertyGetValueSignatureMismatch {
-        class_fqn: class_fqn.to_string(),
-        property: property.to_string(),
-        delegate_ty: delegate_ty.to_string(),
-        expected: format!(
-            "getValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}): {property_ty_fqn}"
-        ),
-        found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
-        span: use_span.into(),
-    })
+    Err(
+        PropertyDeclError::DelegatedPropertyGetValueSignatureMismatch {
+            class_fqn: class_fqn.to_string(),
+            property: property.to_string(),
+            delegate_ty: delegate_ty.to_string(),
+            expected: format!(
+                "getValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}): {property_ty_fqn}"
+            ),
+            found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
+            span: use_span.into(),
+        },
+    )
 }
 
 fn check_delegated_property_set_value_signature(
@@ -906,16 +942,18 @@ fn check_delegated_property_set_value_signature(
         }
     }
 
-    Err(PropertyDeclError::DelegatedPropertySetValueSignatureMismatch {
-        class_fqn: class_fqn.to_string(),
-        property: property.to_string(),
-        delegate_ty: delegate_ty.to_string(),
-        expected: format!(
-            "setValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}, value: {property_ty_fqn}): {UNIT_FQN}"
-        ),
-        found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
-        span: use_span.into(),
-    })
+    Err(
+        PropertyDeclError::DelegatedPropertySetValueSignatureMismatch {
+            class_fqn: class_fqn.to_string(),
+            property: property.to_string(),
+            delegate_ty: delegate_ty.to_string(),
+            expected: format!(
+                "setValue(thisRef: {class_fqn}|{ANY_FQN}, property: {PROPERTY_META_FQN}, value: {property_ty_fqn}): {UNIT_FQN}"
+            ),
+            found: found_sig.unwrap_or_else(|| "<no overload>".to_string()),
+            span: use_span.into(),
+        },
+    )
 }
 
 fn delegated_get_value_overload_matches(
@@ -1033,23 +1071,17 @@ fn delegated_set_value_overload_matches(
     }
 }
 
-fn fmt_fun_sig(
-    env: &TypeEnv,
-    index: &Index,
-    name: &str,
-    overload: &FunOverload,
-) -> String {
+fn fmt_fun_sig(env: &TypeEnv, index: &Index, name: &str, overload: &FunOverload) -> String {
     let Some((decl_source, decl_ctx)) = overload_decl_source_and_ctx(env, overload) else {
         return format!("{name}(<unknown decl>): {UNIT_FQN}");
     };
 
     let mut params = Vec::with_capacity(overload.sig.params.len());
     for p in &overload.sig.params {
-        let ty = p
-            .ty
-            .as_ref()
-            .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
-            .unwrap_or_else(|| "_".to_string());
+        let ty =
+            p.ty.as_ref()
+                .and_then(|t| type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, t))
+                .unwrap_or_else(|| "_".to_string());
         params.push(format!("{ty}"));
     }
 
