@@ -1,0 +1,10 @@
+// EXPECT: pass
+// 目标：T1020 `@Extern` 扩展：允许 extern 顶层变量声明（无 initializer）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern(name = "x")
+var v: Int
+

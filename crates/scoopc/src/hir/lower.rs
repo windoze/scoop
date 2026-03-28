@@ -64,6 +64,12 @@ pub struct LoweredHir {
     pub enum_layouts: EnumLayoutIndex,
     /// `@Extern` 外部函数信息（供 LLVM codegen 声明正确的符号名与 ABI）。
     pub extern_funs: super::ExternFunIndex,
+    /// 链接阶段需要额外加入的外部库（来自 `@Extern(lib = "...")`；去重 + 稳定排序）。
+    ///
+    /// 说明：
+    /// - 该信息作为后端/driver side table 保存，不影响 `dump-hir` 的输出稳定性；
+    /// - 当前阶段仅支持最小 `-l<name>` 形式（不处理 `-L`/rpath 等）。
+    pub extern_libs: Vec<String>,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
 }
@@ -2114,6 +2120,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
+    let extern_libs = collect_extern_libs(&pairs);
 
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
     let struct_layouts = collect_struct_layouts(&pairs, &index);
@@ -2125,6 +2132,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         struct_layouts,
         enum_layouts,
         extern_funs,
+        extern_libs,
         object_inits,
     })
 }
@@ -2167,6 +2175,7 @@ pub fn lower_for_compilation_unit(
 
     let object_inits = collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
     let extern_funs = collect_extern_funs(source, file);
+    let extern_libs = collect_extern_libs(compilation_unit);
     let struct_layouts = collect_struct_layouts(compilation_unit, index);
     let enum_layouts = collect_enum_layouts(compilation_unit, index);
 
@@ -2176,6 +2185,7 @@ pub fn lower_for_compilation_unit(
         struct_layouts,
         enum_layouts,
         extern_funs,
+        extern_libs,
         object_inits,
     })
 }
@@ -2545,6 +2555,62 @@ fn collect_extern_funs(source: &SourceFile, file: &ast::File) -> super::ExternFu
     out
 }
 
+#[derive(Debug, Default, Clone)]
+struct ExternAnnotationArgs {
+    name: Option<String>,
+    lib: Option<String>,
+}
+
+fn parse_extern_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) -> ExternAnnotationArgs {
+    let mut out = ExternAnnotationArgs::default();
+    let mut seen_named = false;
+
+    for arg in &ann.args {
+        // 兼容两种“命名参数”形态：
+        // - `name: "..."`（AnnotationArg.name）
+        // - `name = "..."`（赋值表达式；更贴近 Kotlin 风格）
+        let (key, value) = match &arg.name {
+            Some(name_id) => (Some(name_id.text(source)), Some(&arg.value)),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => match &lhs.kind {
+                    ast::ExprKind::Ident(id) => (Some(source.slice(id.span)), Some(rhs.as_ref())),
+                    _ => (None, None),
+                },
+                _ => (None, None),
+            },
+        };
+
+        if let (Some(key), Some(value)) = (key, value) {
+            seen_named = true;
+            if !matches!(value.kind, ast::ExprKind::StringLit) {
+                continue;
+            }
+            let text = source.slice(value.span);
+            match key {
+                "name" => out.name = parse_string_literal_utf8(text).ok(),
+                "lib" => out.lib = parse_string_literal_utf8(text).ok(),
+                _ => {}
+            }
+            continue;
+        }
+
+        // 位置参数：`@Extern("symbol")`（仅在未出现命名参数前生效）。
+        if seen_named {
+            continue;
+        }
+        if out.name.is_some() {
+            continue;
+        }
+        if !matches!(arg.value.kind, ast::ExprKind::StringLit) {
+            continue;
+        }
+        let text = source.slice(arg.value.span);
+        out.name = parse_string_literal_utf8(text).ok();
+    }
+
+    out
+}
+
 fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::ExternFun> {
     // 说明：
     // - `@Extern` 在语义上由 typecheck 校验（参数个数/类型等）；
@@ -2556,17 +2622,9 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::
             continue;
         }
 
-        let symbol = match ann.args.as_slice() {
-            // `@Extern`：缺省用函数名作为链接符号名。
-            [] => name.to_string(),
-            // `@Extern("foo")`：单一位置参数（字符串字面量）。
-            [arg] if arg.name.is_none() => {
-                let text = source.slice(arg.value.span);
-                parse_string_literal_utf8(text).unwrap_or_else(|_| name.to_string())
-            }
-            // 其它形态（如命名参数/多参数）在 typecheck 阶段应报错；这里按缺省兜底。
-            _ => name.to_string(),
-        };
+        // `@Extern`：缺省用函数名作为链接符号名；若显式提供 `name = "..."`（或位置参数），则覆写。
+        let args = parse_extern_annotation_args(source, ann);
+        let symbol = args.name.unwrap_or_else(|| name.to_string());
 
         return Some(super::ExternFun {
             abi: super::ExternAbi::C,
@@ -2575,6 +2633,117 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::
     }
 
     None
+}
+
+fn collect_extern_libs(pairs: &[(&SourceFile, &ast::File)]) -> Vec<String> {
+    let mut libs: HashSet<String> = HashSet::new();
+
+    for (source, file) in pairs {
+        collect_extern_libs_in_file(source, file, &mut libs);
+    }
+
+    let mut out = libs.into_iter().collect::<Vec<_>>();
+    out.sort();
+    out
+}
+
+fn collect_extern_libs_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    out: &mut HashSet<String>,
+) {
+    for item in &file.items {
+        match item {
+            ast::Item::TypeAlias(ta) => {
+                collect_extern_libs_in_annotations(source, &ta.annotations, out);
+            }
+            ast::Item::Fun(fun) => {
+                collect_extern_libs_in_annotations(source, &fun.annotations, out);
+            }
+            ast::Item::ExtensionProperty(p) => {
+                collect_extern_libs_in_annotations(source, &p.annotations, out);
+            }
+            ast::Item::Val(v) => {
+                collect_extern_libs_in_annotations(source, &v.annotations, out);
+            }
+            ast::Item::Type(ty) => {
+                collect_extern_libs_in_type_decl(source, ty, out);
+            }
+            ast::Item::Object(obj) => {
+                collect_extern_libs_in_object_decl(source, obj, out);
+            }
+        }
+    }
+}
+
+fn collect_extern_libs_in_type_decl(source: &SourceFile, decl: &ast::TypeDecl, out: &mut HashSet<String>) {
+    collect_extern_libs_in_annotations(source, &decl.annotations, out);
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::EnumVariant(v) => collect_extern_libs_in_annotations(source, &v.annotations, out),
+            ast::TypeMember::Property(p) => collect_extern_libs_in_annotations(source, &p.annotations, out),
+            ast::TypeMember::InitBlock(_b) => {}
+            ast::TypeMember::SecondaryCtor(ctor) => {
+                collect_extern_libs_in_annotations(source, &ctor.annotations, out);
+                for p in &ctor.params {
+                    collect_extern_libs_in_annotations(source, &p.annotations, out);
+                }
+            }
+            ast::TypeMember::Fun(fun) => collect_extern_libs_in_annotations(source, &fun.annotations, out),
+            ast::TypeMember::Type(nested) => collect_extern_libs_in_type_decl(source, nested, out),
+            ast::TypeMember::Object(obj) => collect_extern_libs_in_object_decl(source, obj, out),
+        }
+    }
+}
+
+fn collect_extern_libs_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    out: &mut HashSet<String>,
+) {
+    collect_extern_libs_in_annotations(source, &obj.annotations, out);
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+    for member in &body.members {
+        match member {
+            ast::TypeMember::EnumVariant(v) => collect_extern_libs_in_annotations(source, &v.annotations, out),
+            ast::TypeMember::Property(p) => collect_extern_libs_in_annotations(source, &p.annotations, out),
+            ast::TypeMember::InitBlock(_b) => {}
+            ast::TypeMember::SecondaryCtor(ctor) => {
+                collect_extern_libs_in_annotations(source, &ctor.annotations, out);
+                for p in &ctor.params {
+                    collect_extern_libs_in_annotations(source, &p.annotations, out);
+                }
+            }
+            ast::TypeMember::Fun(fun) => collect_extern_libs_in_annotations(source, &fun.annotations, out),
+            ast::TypeMember::Type(nested) => collect_extern_libs_in_type_decl(source, nested, out),
+            ast::TypeMember::Object(nested) => collect_extern_libs_in_object_decl(source, nested, out),
+        }
+    }
+}
+
+fn collect_extern_libs_in_annotations(
+    source: &SourceFile,
+    annotations: &[ast::AnnotationUse],
+    out: &mut HashSet<String>,
+) {
+    for ann in annotations {
+        if !is_builtin_extern_annotation(source, ann) {
+            continue;
+        }
+        let args = parse_extern_annotation_args(source, ann);
+        if let Some(lib) = args.lib {
+            if !lib.is_empty() {
+                out.insert(lib);
+            }
+        }
+    }
 }
 
 fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {

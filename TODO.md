@@ -3361,7 +3361,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1020 [TODO] `@Extern` 扩展：支持 `lib`/`name` 参数 + extern 变量声明（spec §15.5.1）
+### T1020 [DONE] `@Extern` 扩展：支持 `lib`/`name` 参数 + extern 变量声明（spec §15.5.1）
 - 描述：扩展 `@Extern` 注解的语义：
   - 支持 `@Extern(lib = "...", name = "...")` 显式指定库名与符号名；
   - 允许 `@Extern` 标注全局变量（GC-free）作为外部符号声明；
@@ -3375,6 +3375,14 @@
   - 新增 driver 单测：收集到 `@Extern(lib="m")` 后，clang 参数包含 `-lm`（或等价形式）；
   - `cargo test --all` 通过。
 - 依赖：T1006、T1019、T0806
+ - 完成：
+   - `crates/scoopc/src/typecheck/annotations.rs`：扩展内建 `@Extern` 参数解析（支持 `name/lib`，兼容位置参数），允许 extern 顶层变量声明，并对 initializer 给出稳定错误码。
+   - `crates/scoopc/src/hir/lower.rs`：收集 `@Extern(lib = "...")` 的外部库依赖（稳定排序去重），并让 extern 函数符号名支持 `name = "..."`。
+   - `crates/scoop/src/toolchain.rs`：clang 链接参数支持透传 `-l<lib>`；新增单测覆盖。
+   - `tests/fixtures/typecheck/*`：新增 extern 顶层变量 pass/fail fixtures。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`（fixtures: ok）
 
 ### T1021 [TODO] `@Safe`：在 unsafe context 内显式“收窄”为 safe 区域（spec §15.9.5）
 - 描述：支持 `@Safe { ... }`（以及函数级 `@Safe`）语义：即使外层处于 unsafe context，也要在 `@Safe` 区域内禁止 unsafe primitives / 调用 `@Extern` / 调用 `@Unsafe` 函数。

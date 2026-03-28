@@ -44,15 +44,8 @@ pub enum LinkError {
 /// 当前阶段实现策略：
 /// - 直接把 `runtime/c/*.c` 作为输入交给 clang，让其编译并参与链接；
 /// - 避免依赖 Cargo build 输出路径（后续若要复用 `scoop_runtime` crate 产物再重构）。
-pub fn link_obj_with_runtime(obj: &Path, output: &Path) -> Result<(), LinkError> {
-    let runtime_sources = runtime_c_sources()?;
-
-    let mut cmd = Command::new("clang");
-    cmd.arg(obj);
-    for src in &runtime_sources {
-        cmd.arg(src);
-    }
-    cmd.arg("-o").arg(output);
+pub fn link_obj_with_runtime(obj: &Path, output: &Path, libs: &[String]) -> Result<(), LinkError> {
+    let mut cmd = clang_link_command_with_runtime(obj, output, libs)?;
 
     let output_res = cmd.output();
     let output_res = match output_res {
@@ -71,6 +64,28 @@ pub fn link_obj_with_runtime(obj: &Path, output: &Path) -> Result<(), LinkError>
     }
 
     Ok(())
+}
+
+fn clang_link_command_with_runtime(
+    obj: &Path,
+    output: &Path,
+    libs: &[String],
+) -> Result<Command, LinkError> {
+    let runtime_sources = runtime_c_sources()?;
+
+    let mut cmd = Command::new("clang");
+    cmd.arg(obj);
+    for src in &runtime_sources {
+        cmd.arg(src);
+    }
+    for lib in libs {
+        if lib.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(format!("-l{}", lib.trim()));
+    }
+    cmd.arg("-o").arg(output);
+    Ok(cmd)
 }
 
 fn runtime_c_dir() -> PathBuf {
@@ -150,7 +165,7 @@ mod tests {
         assert!(status.success(), "clang -c 应成功");
 
         let out = dir.path().join(format!("a{}", std::env::consts::EXE_EXTENSION));
-        link_obj_with_runtime(&main_o, &out).unwrap();
+        link_obj_with_runtime(&main_o, &out, &[]).unwrap();
         assert!(out.is_file(), "应生成可执行文件");
 
         let status = Command::new(&out).status().unwrap();
@@ -199,7 +214,7 @@ int main(void) {
         assert!(status.success(), "clang -c 应成功");
 
         let out = dir.path().join(format!("a{}", std::env::consts::EXE_EXTENSION));
-        link_obj_with_runtime(&main_o, &out).unwrap();
+        link_obj_with_runtime(&main_o, &out, &[]).unwrap();
         assert!(out.is_file(), "应生成可执行文件");
 
         let output = Command::new(&out).output().unwrap();
@@ -208,6 +223,41 @@ int main(void) {
             String::from_utf8_lossy(&output.stdout),
             "hi\n",
             "stdout 应匹配"
+        );
+    }
+
+    #[test]
+    fn clang_link_command_includes_extern_libs() {
+        let dir = tempfile::tempdir().unwrap();
+        let src = dir.path().join("main.scoop");
+        std::fs::write(
+            &src,
+            r#"
+package fixtures.t1020
+import scoop.core.*
+
+@Extern(lib = "m")
+fun cos(x: Int): Int
+"#,
+        )
+        .unwrap();
+
+        let source = scoopc::source::SourceFile::load(&src).unwrap();
+        let session = scoopc::session::Session::new().unwrap();
+        let lowered = scoopc::hir::lower_for_dump(&session, &source).unwrap();
+
+        assert_eq!(lowered.extern_libs, vec!["m".to_string()]);
+
+        let obj = dir.path().join("main.o");
+        let out = dir.path().join("a.out");
+        let cmd = clang_link_command_with_runtime(&obj, &out, &lowered.extern_libs).unwrap();
+        let args = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        assert!(
+            args.iter().any(|a| a == "-lm"),
+            "clang args 应包含 -lm，实际：{args:?}"
         );
     }
 }

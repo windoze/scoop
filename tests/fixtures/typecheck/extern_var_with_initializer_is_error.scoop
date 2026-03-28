@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_var_initializer_not_allowed
+// EXPECT-ERROR-AT: 12:14
+// EXPECT-ERROR: 必须省略 initializer
+// 目标：T1020 `@Extern` 扩展：extern 顶层变量声明不允许 initializer（外部符号由链接提供）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern(name = "x")
+var v: Int = 1

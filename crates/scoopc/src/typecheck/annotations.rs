@@ -122,7 +122,7 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@Extern` 暂仅支持 0 或 1 个字符串字面量参数")]
+    #[error("`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`（字符串字面量）")]
     #[diagnostic(code(scoop::typecheck::extern_annotation_args_invalid))]
     ExternAnnotationArgsInvalid {
         #[label("这里")]
@@ -134,6 +134,22 @@ pub enum AnnotationError {
     ExternFunMustHaveNoBody {
         fun_name: String,
         #[label("这里不应有函数体")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 顶层变量声明必须省略 initializer：{var_name}")]
+    #[diagnostic(code(scoop::typecheck::extern_var_initializer_not_allowed))]
+    ExternVarInitializerNotAllowed {
+        var_name: String,
+        #[label("这里不应有 initializer")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 顶层变量类型必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}")]
+    #[diagnostic(code(scoop::typecheck::extern_var_type_must_be_gc_free))]
+    ExternVarTypeMustBeGcFree {
+        found: String,
+        #[label("这里的类型不是 GC-free 值类型")]
         span: miette::SourceSpan,
     },
 
@@ -337,7 +353,7 @@ pub fn check_file_annotations(
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(source, &v.annotations, "val/var")?;
+                check_builtin_annotations_on_top_level_val_decl(source, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
                 check_type_decl_annotations(source, file, index, env, &mut lower, builtins, ty, &pkg_prefix)?;
@@ -1318,33 +1334,13 @@ fn check_builtin_annotations_on_fun_decl(
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
 
-    // 1) `@Unsafe/@NoGC/@Intrinsic` 当前不支持参数；`@Extern` 允许最多一个字符串字面量参数。
+    // 1) `@Unsafe/@NoGC/@Intrinsic` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数（见 TODO T1020）。
     for ann in &fun.annotations {
         let Some(kind) = builtin_annotation_kind(source, ann) else {
             continue;
         };
         match kind {
-            BuiltinAnnotationKind::Extern => {
-                if ann.args.is_empty() {
-                    continue;
-                }
-                if ann.args.len() != 1 {
-                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
-                        span: ann.span.into(),
-                    });
-                }
-                let arg = &ann.args[0];
-                if arg.name.is_some() {
-                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
-                        span: arg.span.into(),
-                    });
-                }
-                if !matches!(arg.value.kind, ast::ExprKind::StringLit) {
-                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
-                        span: arg.span.into(),
-                    });
-                }
-            }
+            BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
             BuiltinAnnotationKind::Unsafe
             | BuiltinAnnotationKind::NoGC
             | BuiltinAnnotationKind::Intrinsic => {
@@ -1377,6 +1373,165 @@ fn check_builtin_annotations_on_fun_decl(
                 span: b.span.into(),
             });
         }
+    }
+
+    Ok(())
+}
+
+fn check_builtin_annotations_on_top_level_val_decl(
+    source: &SourceFile,
+    v: &ast::ValDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    let flags = BuiltinAnnotationFlags::from_annotations(source, &v.annotations);
+
+    for ann in &v.annotations {
+        let Some(kind) = builtin_annotation_kind(source, ann) else {
+            continue;
+        };
+        if kind != BuiltinAnnotationKind::Extern {
+            let (_, name_span) = annotation_name_and_span(source, ann);
+            return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                annotation: format!("@{}", kind.name()),
+                allowed: kind.allowed_targets_hint(),
+                found: "val/var",
+                span: name_span.into(),
+            });
+        }
+        check_extern_builtin_annotation_args(source, ann)?;
+    }
+
+    if !flags.is_extern {
+        return Ok(());
+    }
+
+    if let Some(init) = &v.init {
+        let var_name = v
+            .name()
+            .map(|id| id.text(source).to_string())
+            .unwrap_or_else(|| "<pattern>".to_string());
+        return Err(AnnotationError::ExternVarInitializerNotAllowed {
+            var_name,
+            span: init.span.into(),
+        });
+    }
+
+    let Some(ty_ref) = &v.ty else {
+        // 顶层 val/var 的 `: Type` 缺失由 `check_file_headers` 处理；
+        // 这里保持健壮性，不重复报错。
+        return Ok(());
+    };
+
+    let ty = match lower.lower_type_ref(ty_ref) {
+        Ok(ty) => ty,
+        Err(_e) => return Ok(()),
+    };
+
+    let is_gc_free = match lower.is_gc_free_value_type(ty) {
+        Ok(v) => v,
+        Err(_e) => return Ok(()),
+    };
+
+    if !is_gc_free {
+        return Err(AnnotationError::ExternVarTypeMustBeGcFree {
+            found: lower.fmt_type(ty),
+            span: ty_ref.span().into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_extern_builtin_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    if ann.args.is_empty() {
+        return Ok(());
+    }
+
+    let mut positional: Option<Span> = None;
+    let mut name_arg: Option<Span> = None;
+    let mut lib_arg: Option<Span> = None;
+    let mut seen_named = false;
+
+    for arg in &ann.args {
+        // 允许两种“命名参数”写法：
+        // - `lib: "m"`（AnnotationArg.name 形式；与普通注解参数一致）
+        // - `lib = "m"`（赋值表达式；与 Kotlin 风格 `name = expr` 对齐）
+        //
+        // 注意：`@Extern` 是内建注解，不走通用注解参数绑定规则，因此这里单独解析。
+        let (key, key_span, value) = match &arg.name {
+            Some(name_id) => (name_id.text(source), name_id.span, &arg.value),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => {
+                    let ast::ExprKind::Ident(id) = &lhs.kind else {
+                        return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                            span: lhs.span.into(),
+                        });
+                    };
+                    (source.slice(id.span), id.span, rhs.as_ref())
+                }
+                _ => {
+                    // 位置参数：仅允许单个字符串字面量（作为 symbol/name）。
+                    if seen_named {
+                        return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                            span: arg.span.into(),
+                        });
+                    }
+                    if positional.is_some() {
+                        return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                            span: arg.span.into(),
+                        });
+                    }
+                    if !matches!(arg.value.kind, ast::ExprKind::StringLit) {
+                        return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                            span: arg.value.span.into(),
+                        });
+                    }
+                    positional = Some(arg.span);
+                    continue;
+                }
+            },
+        };
+
+        seen_named = true;
+        if !matches!(value.kind, ast::ExprKind::StringLit) {
+            return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                span: value.span.into(),
+            });
+        }
+
+        match key {
+            "name" => {
+                if name_arg.is_some() {
+                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                        span: key_span.into(),
+                    });
+                }
+                name_arg = Some(key_span);
+            }
+            "lib" => {
+                if lib_arg.is_some() {
+                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                        span: key_span.into(),
+                    });
+                }
+                lib_arg = Some(key_span);
+            }
+            _ => {
+                return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                    span: key_span.into(),
+                });
+            }
+        }
+    }
+
+    // `@Extern("puts", name = "...")` 这类同时指定符号名的形态当前不支持（避免歧义）。
+    if positional.is_some() && name_arg.is_some() {
+        return Err(AnnotationError::ExternAnnotationArgsInvalid {
+            span: ann.span.into(),
+        });
     }
 
     Ok(())
@@ -1453,21 +1608,7 @@ fn check_builtin_annotations_on_object_decl(
                 span: name_span.into(),
             });
         }
-        // `@Extern` 目前仅允许：无参或单字符串字面量（保留给后续 FFI/链接语义）。
-        if ann.args.is_empty() {
-            continue;
-        }
-        if ann.args.len() != 1 {
-            return Err(AnnotationError::ExternAnnotationArgsInvalid {
-                span: ann.span.into(),
-            });
-        }
-        let arg = &ann.args[0];
-        if arg.name.is_some() || !matches!(arg.value.kind, ast::ExprKind::StringLit) {
-            return Err(AnnotationError::ExternAnnotationArgsInvalid {
-                span: arg.span.into(),
-            });
-        }
+        check_extern_builtin_annotation_args(source, ann)?;
     }
 
     Ok(())

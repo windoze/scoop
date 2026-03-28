@@ -30,7 +30,7 @@ impl BuiltinAnnotationKind {
         match self {
             BuiltinAnnotationKind::Unsafe => "函数（以及表达式块；见 TODO T1004）",
             BuiltinAnnotationKind::NoGC => "函数",
-            BuiltinAnnotationKind::Extern => "函数或 object",
+            BuiltinAnnotationKind::Extern => "函数 / 顶层 val/var / object",
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
         }
     }
@@ -89,4 +89,3 @@ impl BuiltinAnnotationFlags {
         out
     }
 }
-

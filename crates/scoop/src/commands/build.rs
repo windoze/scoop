@@ -413,7 +413,7 @@ fn run_codegen_and_link(
         &lowered,
         &obj,
     )?;
-    crate::toolchain::link_obj_with_runtime(&obj, output)?;
+    crate::toolchain::link_obj_with_runtime(&obj, output, &lowered.extern_libs)?;
 
     let _ = std::fs::remove_dir_all(&dir);
     Ok(())

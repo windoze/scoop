@@ -1278,6 +1278,12 @@ impl<'a> TypeLowering<'a> {
         })
     }
 
+    pub(crate) fn is_gc_free_value_type(&mut self, ty: TypeId) -> Result<bool, TypeLowerError> {
+        let mut visiting: HashSet<TypeId> = HashSet::new();
+        let mut memo: HashMap<TypeId, bool> = HashMap::new();
+        self.is_gc_free_value_type_inner(ty, &mut visiting, &mut memo)
+    }
+
     fn is_gc_free_value_type_inner(
         &mut self,
         id: TypeId,
