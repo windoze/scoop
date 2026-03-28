@@ -14,8 +14,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
-use inkwell::targets::TargetData;
 use inkwell::targets::FileType;
+use inkwell::targets::TargetData;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -99,6 +99,20 @@ pub fn emit_minimal_main_ir(
     Ok(module.print_to_string().to_string())
 }
 
+/// 基于“已完成 resolver 的 AST lowering 结果”（`hir::LoweredHir`）生成 LLVM IR。
+///
+/// 用途（T1107）：
+/// - `scoop build` 在多包（cone 依赖）场景下，需要复用同一套“已注入 `.cone` 依赖”的编译单元，
+///   避免后端再次独立 parse/resolve 导致 import 失败或语义分叉。
+pub fn emit_minimal_main_ir_from_lowered_hir(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+) -> Result<String, LlvmEmitError> {
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+    Ok(module.print_to_string().to_string())
+}
+
 /// 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
 pub fn emit_minimal_main_ir_to_file(
     session: &Session,
@@ -112,6 +126,20 @@ pub fn emit_minimal_main_ir_to_file(
         source: e,
     })?;
 
+    Ok(())
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（通常为 `.ll`）。
+pub fn emit_minimal_main_ir_to_file_from_lowered_hir(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    let ir = emit_minimal_main_ir_from_lowered_hir(source, lowered)?;
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
     Ok(())
 }
 
@@ -143,6 +171,31 @@ pub fn emit_minimal_main_obj_to_file(
     Ok(())
 }
 
+/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
+pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 /// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
 pub fn emit_minimal_main_asm_to_file(
     session: &Session,
@@ -171,10 +224,44 @@ pub fn emit_minimal_main_asm_to_file(
     Ok(())
 }
 
+/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
+pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    target_machine
+        .write_to_file(&module, FileType::Assembly, output)
+        .map_err(|e| LlvmEmitError::WriteAsmFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
 fn build_minimal_main_module<'ctx>(
     session: &Session,
     source: &SourceFile,
     context: &'ctx Context,
+) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    let lowered = hir::lower_for_dump(session, source)?;
+    build_main_module_from_lowered_hir(source, context, &lowered)
+}
+
+fn build_main_module_from_lowered_hir<'ctx>(
+    source: &SourceFile,
+    context: &'ctx Context,
+    lowered: &hir::LoweredHir,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
@@ -182,8 +269,6 @@ fn build_minimal_main_module<'ctx>(
     // T0803：用 host target machine 配置 module（triple + data layout），并暴露 target 信息。
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
-
-    let lowered = hir::lower_for_dump(session, source)?;
 
     let hir_main = lowered
         .file

@@ -3443,11 +3443,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1107 [TODO] consumer 编译与链接流程（多包）（spec §13.3）
+### T1107 [DONE] consumer 编译与链接流程（多包）（spec §13.3）
 - 描述：实现 `scoop build` 能处理依赖图：先加载依赖 cone，再编译当前包，最后链接。
 - 目标：先不做增量；先只支持 DAG，无循环依赖。
 - 验收：cone fixture：两包依赖编译并链接成可执行，运行输出正确。
 - 依赖：T1105、T0806
+ - 完成：
+   - `crates/scoop/src/commands/build/deps.rs`：实现 `.cone` 依赖图解析（DAG 拓扑序 + 循环检测 + 版本字符串精确匹配），支持通过 `SCOOP_CONE_PATH` 或 consumer 包目录下 `cone/`、`deps/` 搜索依赖归档。
+   - `crates/scoop/src/commands/build.rs`：`scoop build` 在 cone 包模式下注入依赖 `.cone` 的 public API（resolver/typecheck），并在启用 `llvm` 时复用同一编译单元 lowering 结果生成 `.ll`/`.o`/`.s`/可执行文件；新增单测覆盖“带 `.cone` 依赖的 build 前端通过 +（llvm 下）可执行输出与 stdout”。
+   - `crates/scoopc/src/llvm/mod.rs`：新增基于 `hir::LoweredHir` 的 emit 入口（IR/obj/asm），避免后端二次 parse/resolve 导致多包依赖 import 失效。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoop --features llvm`
+   - `cargo run -p scoop -- test`
 
 ### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
 - 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。
