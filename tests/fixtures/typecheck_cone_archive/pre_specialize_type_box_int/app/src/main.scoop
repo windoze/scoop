@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-TYPE-MONOMORPH-HIT: 1
+// EXPECT-TYPE-MONOMORPH-MISS: 0
+package fixtures.t1109.app
+
+import scoop.core.*
+import fixtures.t1109.lib.*
+
+public fun useBox(x: Box<Int>) / Pure! {
+    // body intentionally empty; the purpose is to instantiate `Box<Int>` in type position.
+}
+
+public fun main() / Pure! {
+    println(1)
+}
+

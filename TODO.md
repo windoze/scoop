@@ -3493,11 +3493,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1109 [TODO] pre-specialize：类型实例的导出与消费
+### T1109 [DONE] pre-specialize：类型实例的导出与消费
 - 描述：把 pre-specialize 从“仅函数实例”扩展到类型实例：泛型 struct/class/enum 的常用实例可被预编译、打包进 `.cone`，并被下游直接复用。
 - 目标：先覆盖无递归或有限递归的常见类型实例；不要求一次处理所有互递归图。
 - 验收：新增 cone fixtures：预编译 `Vec<Int>` 或等价类型实例后，下游消费不再重新生成相同实例；dump 日志或计数可证明命中缓存。
 - 依赖：T1108、T0712
+ - 完成：
+   - `crates/scoopc/src/cone/pre_specialize.rs`：扩展 `PRE_SPECIALIZE.json` v0 schema，新增 `types` 条目；支持从 `Cone.toml` 的 `[pre-specialize].types` 生成并写入类型实例索引，并在消费侧提供 `type_key_set()` 供下游做命中计数。
+   - `crates/scoopc/src/typecheck/lower.rs`：在 `TypeLowering` 中引入可选的“泛型类型实例化 key”收集（去重 + 稳定顺序），并新增 `check_file_type_refs_with_type_instantiation_keys` 入口用于 fixtures。
+   - `crates/scoopc/src/typecheck/expr.rs`：表达式 typecheck 新增可选的“类型实例化 key”收集入口，并提供同时收集 monomorph+type inst 的组合函数，避免重复执行 typecheck。
+   - `crates/scoop/src/fixtures/expectations.rs`：新增 `EXPECT-TYPE-MONOMORPH-HIT/MISS` 指令解析。
+   - `crates/scoop/src/fixtures/mod.rs`：typecheck_cone_archive runner 读取依赖 `.cone` 的 `PRE_SPECIALIZE.json` 类型索引，并对 consumer 文件收集到的类型实例做 hit/miss 断言。
+   - `tests/fixtures/typecheck_cone_archive/pre_specialize_type_box_int/**`：新增真实 `.cone` 依赖 fixture：lib 在 `Cone.toml` 预生成 `Box<Int>`；consumer 断言 type hit 1、miss 0。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ---
 

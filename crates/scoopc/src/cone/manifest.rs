@@ -39,8 +39,7 @@ pub struct ConeManifest {
     pub pre_specialize_functions: Vec<String>,
     /// pre-specialize：类型实例（TODO T1109）。
     ///
-    /// 说明：spec §13.7 示例使用 `types = [...]`，为保持向前兼容，这里先解析并保存，
-    /// 但不会在本阶段真正参与打包/消费。
+    /// 说明：spec §13.7 示例使用 `types = [...]`。
     pub pre_specialize_types: Vec<String>,
     /// program boundary：库导出入口（host/embedded entry points）。
     ///

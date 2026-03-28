@@ -267,6 +267,22 @@ struct MonomorphMissMismatch {
 }
 
 #[derive(Debug, Error, Diagnostic)]
+#[error("EXPECT-TYPE-MONOMORPH-HIT 不匹配：期望 {expected}，但得到 {found}")]
+#[diagnostic(code(scoop::fixtures::type_monomorph_hit_mismatch))]
+struct TypeMonomorphHitMismatch {
+    expected: usize,
+    found: usize,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("EXPECT-TYPE-MONOMORPH-MISS 不匹配：期望 {expected}，但得到 {found}")]
+#[diagnostic(code(scoop::fixtures::type_monomorph_miss_mismatch))]
+struct TypeMonomorphMissMismatch {
+    expected: usize,
+    found: usize,
+}
+
+#[derive(Debug, Error, Diagnostic)]
 #[error("fixtures phase `{phase}` 未实现（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::unimplemented_phase))]
 struct UnimplementedPhase {
@@ -1310,6 +1326,9 @@ fn run_typecheck_cone_archive_case(
     let mut pre_specialized_fun_keys: std::collections::HashSet<
         scoopc::cone::pre_specialize::PreSpecializedFunKey,
     > = std::collections::HashSet::new();
+    let mut pre_specialized_type_keys: std::collections::HashSet<
+        scoopc::cone::pre_specialize::PreSpecializedTypeKey,
+    > = std::collections::HashSet::new();
     for dep_name in consumer_pkg.manifest.dependencies.keys() {
         let Some(path) = cone_paths.get(dep_name) else {
             return Err(miette!(
@@ -1324,6 +1343,7 @@ fn run_typecheck_cone_archive_case(
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, &dep)?;
         if let Some(file) = dep.pre_specialize.as_ref() {
             pre_specialized_fun_keys.extend(file.fun_key_set());
+            pre_specialized_type_keys.extend(file.type_key_set());
         }
     }
 
@@ -1372,16 +1392,38 @@ fn run_typecheck_cone_archive_case(
                 builtins,
             )
             .map_err(box_diagnostic)?;
-            scoopc::typecheck::check_file_type_refs(
-                source,
-                ast,
-                &index,
-                &headers.imports,
-                &env,
-                &mut types,
-                builtins,
-            )
-            .map_err(box_diagnostic)?;
+
+            let want_monomorph_counts = exp.expect_monomorph_hit.is_some()
+                || exp.expect_monomorph_miss.is_some();
+            let want_type_monomorph_counts = exp.expect_type_monomorph_hit.is_some()
+                || exp.expect_type_monomorph_miss.is_some();
+
+            let type_inst_keys_from_type_refs = if want_type_monomorph_counts {
+                Some(
+                    scoopc::typecheck::check_file_type_refs_with_type_instantiation_keys(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .map_err(box_diagnostic)?,
+                )
+            } else {
+                scoopc::typecheck::check_file_type_refs(
+                    source,
+                    ast,
+                    &index,
+                    &headers.imports,
+                    &env,
+                    &mut types,
+                    builtins,
+                )
+                .map_err(box_diagnostic)?;
+                None
+            };
             scoopc::typecheck::check_file_where_clauses(
                 source,
                 ast,
@@ -1403,12 +1445,11 @@ fn run_typecheck_cone_archive_case(
             )
             .map_err(box_diagnostic)?;
 
-            // T1108：若 fixture 声明了 monomorph 命中/缺失计数，则在本文件的表达式 typecheck 中
-            // 额外收集 `MonomorphKey` 并做断言（依赖 pre-specialize 的 `.cone` 元数据）。
-            let want_monomorph_counts = exp.expect_monomorph_hit.is_some()
-                || exp.expect_monomorph_miss.is_some();
-            if want_monomorph_counts {
-                let keys = scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+            let (monomorph_keys, type_inst_keys_from_exprs) = match (
+                want_monomorph_counts,
+                want_type_monomorph_counts,
+            ) {
+                (true, true) => scoopc::typecheck::check_file_exprs_with_monomorph_and_type_instantiation_keys(
                     source,
                     ast,
                     &index,
@@ -1417,11 +1458,52 @@ fn run_typecheck_cone_archive_case(
                     &mut types,
                     builtins,
                 )
-                .map_err(box_diagnostic)?;
+                .map_err(box_diagnostic)?,
+                (true, false) => (
+                    scoopc::typecheck::check_file_exprs_with_monomorph_keys(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .map_err(box_diagnostic)?,
+                    Vec::new(),
+                ),
+                (false, true) => (
+                    Vec::new(),
+                    scoopc::typecheck::check_file_exprs_with_type_instantiation_keys(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .map_err(box_diagnostic)?,
+                ),
+                (false, false) => {
+                    scoopc::typecheck::check_file_exprs(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .map_err(box_diagnostic)?;
+                    (Vec::new(), Vec::new())
+                }
+            };
 
+            if want_monomorph_counts {
                 let mut hit = 0usize;
                 let mut miss = 0usize;
-                for k in keys {
+                for k in monomorph_keys {
                     let key = scoopc::cone::pre_specialize::PreSpecializedFunKey {
                         fqn: k.symbol.fqn,
                         type_args: k
@@ -1454,17 +1536,62 @@ fn run_typecheck_cone_archive_case(
                         }));
                     }
                 }
-            } else {
-                scoopc::typecheck::check_file_exprs(
-                    source,
-                    ast,
-                    &index,
-                    &headers.imports,
-                    &env,
-                    &mut types,
-                    builtins,
-                )
-                .map_err(box_diagnostic)?;
+            }
+
+            if want_type_monomorph_counts {
+                let mut used: std::collections::HashSet<
+                    scoopc::cone::pre_specialize::PreSpecializedTypeKey,
+                > = std::collections::HashSet::new();
+
+                for k in type_inst_keys_from_type_refs.into_iter().flatten() {
+                    used.insert(scoopc::cone::pre_specialize::PreSpecializedTypeKey {
+                        fqn: k.fqn,
+                        type_args: k
+                            .type_args
+                            .iter()
+                            .copied()
+                            .map(|id| types.display(id).to_string())
+                            .collect(),
+                    });
+                }
+                for k in type_inst_keys_from_exprs {
+                    used.insert(scoopc::cone::pre_specialize::PreSpecializedTypeKey {
+                        fqn: k.fqn,
+                        type_args: k
+                            .type_args
+                            .iter()
+                            .copied()
+                            .map(|id| types.display(id).to_string())
+                            .collect(),
+                    });
+                }
+
+                let mut hit = 0usize;
+                let mut miss = 0usize;
+                for k in used {
+                    if pre_specialized_type_keys.contains(&k) {
+                        hit += 1;
+                    } else {
+                        miss += 1;
+                    }
+                }
+
+                if let Some(expected) = exp.expect_type_monomorph_hit {
+                    if hit != expected {
+                        return Err(box_diagnostic(TypeMonomorphHitMismatch {
+                            expected,
+                            found: hit,
+                        }));
+                    }
+                }
+                if let Some(expected) = exp.expect_type_monomorph_miss {
+                    if miss != expected {
+                        return Err(box_diagnostic(TypeMonomorphMissMismatch {
+                            expected,
+                            found: miss,
+                        }));
+                    }
+                }
             }
             Ok(())
         })();

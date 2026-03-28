@@ -135,6 +135,17 @@ pub enum TypeLowerError {
     },
 }
 
+/// 泛型名义类型实例化的稳定 key（T1109：用于 `.cone` pre-specialize 类型实例命中计数）。
+///
+/// 说明：
+/// - 该 key 使用 `(type_fqn, type_args)` 表示一个具体的 use-site 实例；
+/// - 当前阶段不包含 use-site effect row 实参（`eff ...`）的区分（后续任务再补齐）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeInstantiationKey {
+    pub fqn: String,
+    pub type_args: Vec<TypeId>,
+}
+
 /// 对一个文件内出现的所有 “type position” 的 `TypeRef` 执行 lowering 并做最小校验。
 ///
 /// 说明：
@@ -216,6 +227,83 @@ pub fn check_file_type_refs(
     Ok(())
 }
 
+/// 对一个文件内出现的所有 “type position” 的 `TypeRef` 执行 lowering，并返回“泛型类型实例化”的集合（T1109）。
+pub fn check_file_type_refs_with_type_instantiation_keys(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Result<Vec<TypeInstantiationKey>, TypeLowerError> {
+    let mut ctx = TypeLowering::new(source, file, index, imports, env, types, builtins);
+    ctx.enable_type_instantiation_collection();
+
+    for item in &file.items {
+        match item {
+            ast::Item::TypeAlias(ta) => {
+                let _ = ctx.lower_type_ref(&ta.ty)?;
+            }
+            ast::Item::Fun(fun) => {
+                ctx.push_type_params(&fun.type_params);
+                let eff_binding = if let Some(eff_param) = &fun.eff_param {
+                    let name = source.slice(eff_param.name.span).to_string();
+                    let default = match eff_param.default.as_ref() {
+                        Some(expr) => ctx.lower_effect_row_expr(Some(expr))?,
+                        None => EffectRow::pure(),
+                    };
+                    ctx.push_effect_row_param_binding(name.clone(), default);
+                    Some(name)
+                } else {
+                    None
+                };
+                if let Some(receiver) = &fun.receiver {
+                    let _ = ctx.lower_type_ref(receiver)?;
+                }
+                for p in &fun.params {
+                    if let Some(ty) = &p.ty {
+                        let _ = ctx.lower_type_ref(ty)?;
+                    }
+                }
+                if let Some(ret) = &fun.return_ty {
+                    let _ = ctx.lower_type_ref(ret)?;
+                }
+                if let Some(w) = &fun.where_clause {
+                    for c in &w.constraints {
+                        let _ = ctx.lower_type_ref(&c.bound)?;
+                    }
+                }
+                ctx.pop_type_params(&fun.type_params);
+                if eff_binding.is_some() {
+                    ctx.pop_effect_row_param_binding();
+                }
+            }
+            ast::Item::ExtensionProperty(p) => {
+                ctx.push_type_params(&p.type_params);
+                let _ = ctx.lower_type_ref(&p.receiver)?;
+                if let Some(ty) = &p.ty {
+                    let _ = ctx.lower_type_ref(ty)?;
+                }
+                ctx.pop_type_params(&p.type_params);
+            }
+            ast::Item::Val(v) => {
+                if let Some(ty) = &v.ty {
+                    let _ = ctx.lower_type_ref(ty)?;
+                }
+            }
+            ast::Item::Type(ty) => {
+                ctx.check_type_decl_headers(ty)?;
+            }
+            ast::Item::Object(obj) => {
+                ctx.check_object_decl_headers(obj)?;
+            }
+        }
+    }
+
+    Ok(ctx.take_type_instantiation_keys())
+}
+
 pub(super) struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
@@ -249,6 +337,13 @@ pub(super) struct TypeLowering<'a> {
     /// - typecheck 阶段遇到“泛型函数调用”时会把 (callee, type args) 记录下来，
     ///   供后续 monomorph pass 生成专用实例并做去重缓存。
     monomorph_requests: Option<MonomorphRequests>,
+
+    /// 泛型类型实例化请求收集器（T1109）。
+    ///
+    /// 说明：
+    /// - 该字段仅在“需要统计类型实例命中/缺失”的入口中启用；
+    /// - 记录目标为：名义类型（nominal）+ 非空 type args。
+    type_instantiation_requests: Option<TypeInstantiationRequests>,
 
     /// unsafe 上下文深度（T1003/T1004）。
     ///
@@ -319,6 +414,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
             monomorph_requests: None,
+            type_instantiation_requests: None,
             unsafe_context_depth: 0,
             nogc_context_depth: 0,
         }
@@ -385,6 +481,32 @@ impl<'a> TypeLowering<'a> {
             .take()
             .map(|r| r.into_vec())
             .unwrap_or_default()
+    }
+
+    /// 开启“泛型类型实例化”请求收集（T1109）。
+    pub(super) fn enable_type_instantiation_collection(&mut self) {
+        self.type_instantiation_requests = Some(TypeInstantiationRequests::default());
+    }
+
+    /// 取出并清空当前收集到的 type instantiation keys。
+    pub(super) fn take_type_instantiation_keys(&mut self) -> Vec<TypeInstantiationKey> {
+        self.type_instantiation_requests
+            .take()
+            .map(|r| r.into_vec())
+            .unwrap_or_default()
+    }
+
+    fn record_type_instantiation(&mut self, fqn: &str, type_args: &[TypeId]) {
+        let Some(req) = self.type_instantiation_requests.as_mut() else {
+            return;
+        };
+        if type_args.is_empty() {
+            return;
+        }
+        req.record(TypeInstantiationKey {
+            fqn: fqn.to_string(),
+            type_args: type_args.to_vec(),
+        });
     }
 
     /// 记录一次“泛型函数实例化调用”的 monomorph key（T0712）。
@@ -979,6 +1101,7 @@ impl<'a> TypeLowering<'a> {
                         )?)
                     }
                 };
+                self.record_type_instantiation(&fqn, &args);
                 let nominal = NominalType { fqn, args, eff };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
@@ -1476,6 +1599,7 @@ impl<'a> TypeLowering<'a> {
                         )?)
                     }
                 };
+                self.record_type_instantiation(&fqn, &args);
                 let nominal = NominalType { fqn, args, eff };
                 let id = match kind {
                     ast::TypeKind::Struct | ast::TypeKind::Enum => self
@@ -2217,6 +2341,25 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
 struct MonomorphRequests {
     seen: HashSet<MonomorphKey>,
     ordered: Vec<MonomorphKey>,
+}
+
+/// 泛型类型实例化请求集合：去重 + 保留稳定顺序（T1109）。
+#[derive(Debug, Default)]
+struct TypeInstantiationRequests {
+    seen: HashSet<TypeInstantiationKey>,
+    ordered: Vec<TypeInstantiationKey>,
+}
+
+impl TypeInstantiationRequests {
+    fn record(&mut self, key: TypeInstantiationKey) {
+        if self.seen.insert(key.clone()) {
+            self.ordered.push(key);
+        }
+    }
+
+    fn into_vec(self) -> Vec<TypeInstantiationKey> {
+        self.ordered
+    }
 }
 
 impl MonomorphRequests {

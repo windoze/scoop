@@ -1,0 +1,8 @@
+package fixtures.t1109.lib
+
+import scoop.core.*
+
+public struct Box<T> {
+    val v: T
+}
+

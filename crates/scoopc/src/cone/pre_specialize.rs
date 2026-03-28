@@ -1,12 +1,15 @@
-//! `.cone` 归档中的 pre-specialize 元数据（v0，TODO T1108）。
+//! `.cone` 归档中的 pre-specialize 元数据（v0，T1108/T1109）。
 //!
 //! 目标（当前阶段）：
 //! - 支持 Cone.toml 的 `[pre-specialize].functions` 声明；
-//! - 在打包 `.cone` 时把“预编译函数实例”的索引写入归档（JSON）；
+//! - 支持 Cone.toml 的 `[pre-specialize].types` 声明；
+//! - 在打包 `.cone` 时把“预编译（预生成）实例”的索引写入归档（JSON）；
 //! - 下游读取时加载该索引，供后续 monomorph/codegen 复用（当前仅用于回归与计数验证）。
 //!
 //! 说明：
-//! - 本模块只实现“函数实例”（`fun`）的 pre-specialize；类型实例（`types`）留给 TODO T1109。
+//! - 当前阶段的产物仍以“可回归/可验证”为目标：
+//!   - 函数实例：导出 MIR debug 文本占位；
+//!   - 类型实例：导出稳定 key（用于下游命中/缺失计数），不生成真实 codegen 产物。
 
 use std::collections::{HashMap, HashSet};
 
@@ -60,14 +63,40 @@ pub struct PreSpecializedFunInstance {
     pub mir_debug: String,
 }
 
+/// 一个“预生成类型实例”的稳定键（v0）。
+///
+/// 说明：
+/// - `fqn` 指向泛型名义类型的 FQN（例如 `my.pkg.Box`）；
+/// - `type_args` 使用 canonical 文本，与 `TypeStore::display` 对齐（例如 `Int` / `a.b.Token`）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PreSpecializedTypeKey {
+    /// 泛型名义类型的 FQN（例如 `my.pkg.Box`）。
+    pub fqn: String,
+    /// 类型实参（canonical 文本）。
+    pub type_args: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreSpecializedTypeInstance {
+    pub key: PreSpecializedTypeKey,
+    /// 单态化实例的内部符号名（当前阶段沿用 `::<...>` 命名约定）。
+    pub instance_fqn: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConePreSpecializeFile {
     pub schema: ConePreSpecializeSchema,
+    #[serde(default)]
     pub funs: Vec<PreSpecializedFunInstance>,
+    #[serde(default)]
+    pub types: Vec<PreSpecializedTypeInstance>,
 }
 
 impl ConePreSpecializeFile {
-    pub fn new_v0(mut funs: Vec<PreSpecializedFunInstance>) -> Self {
+    pub fn new_v0(
+        mut funs: Vec<PreSpecializedFunInstance>,
+        mut types: Vec<PreSpecializedTypeInstance>,
+    ) -> Self {
         funs.sort_by(|a, b| {
             a.key
                 .fqn
@@ -75,17 +104,31 @@ impl ConePreSpecializeFile {
                 .then(a.instance_fqn.cmp(&b.instance_fqn))
         });
         funs.dedup_by(|a, b| a.key == b.key);
+
+        types.sort_by(|a, b| {
+            a.key
+                .fqn
+                .cmp(&b.key.fqn)
+                .then(a.instance_fqn.cmp(&b.instance_fqn))
+        });
+        types.dedup_by(|a, b| a.key == b.key);
+
         Self {
             schema: ConePreSpecializeSchema {
                 name: CONE_PRE_SPECIALIZE_SCHEMA_NAME.to_string(),
                 version: CONE_PRE_SPECIALIZE_SCHEMA_VERSION,
             },
             funs,
+            types,
         }
     }
 
     pub fn fun_key_set(&self) -> HashSet<PreSpecializedFunKey> {
         self.funs.iter().map(|f| f.key.clone()).collect()
+    }
+
+    pub fn type_key_set(&self) -> HashSet<PreSpecializedTypeKey> {
+        self.types.iter().map(|t| t.key.clone()).collect()
     }
 }
 
@@ -94,6 +137,10 @@ pub enum PreSpecializeError {
     #[error("`[pre-specialize].functions` 的条目必须形如 `fqn<TypeArgs...>`，但得到：{spec}")]
     #[diagnostic(code(scoop::cone::pre_specialize_invalid_fun_spec))]
     InvalidFunSpec { spec: String },
+
+    #[error("`[pre-specialize].types` 的条目必须形如 `TypeFqn<TypeArgs...>`，但得到：{spec}")]
+    #[diagnostic(code(scoop::cone::pre_specialize_invalid_type_spec))]
+    InvalidTypeSpec { spec: String },
 
     #[error("pre-specialize 找不到函数声明：{fqn}")]
     #[diagnostic(code(scoop::cone::pre_specialize_fun_not_found))]
@@ -114,6 +161,14 @@ pub enum PreSpecializeError {
     #[error("pre-specialize 找不到类型：{fqn}")]
     #[diagnostic(code(scoop::cone::pre_specialize_type_not_found))]
     TypeNotFound { fqn: String },
+
+    #[error("pre-specialize 找不到类型声明：{fqn}")]
+    #[diagnostic(code(scoop::cone::pre_specialize_type_decl_not_found))]
+    TypeDeclNotFound { fqn: String },
+
+    #[error("pre-specialize 目标类型存在重复声明：{fqn}")]
+    #[diagnostic(code(scoop::cone::pre_specialize_type_decl_duplicated))]
+    TypeDeclDuplicated { fqn: String },
 
     #[error("pre-specialize 只支持名义类型（path）类型实参：{text}")]
     #[diagnostic(code(scoop::cone::pre_specialize_unsupported_type_syntax))]
@@ -154,7 +209,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
     sources: &[SourceFile],
     manifest: &ConeManifest,
 ) -> Result<Option<ConePreSpecializeFile>> {
-    if manifest.pre_specialize_functions.is_empty() {
+    if manifest.pre_specialize_functions.is_empty() && manifest.pre_specialize_types.is_empty() {
         return Ok(None);
     }
 
@@ -205,9 +260,10 @@ pub fn build_pre_specialize_file_for_cone_sources(
 
     // 5) 扫描顶层 fun decls：FQN → (decl_source_idx, decl_ptr)。
     let fun_decl_index = index_compilation_unit_fun_decls(sources, &asts);
+    let type_decl_index = index_compilation_unit_type_decls(sources, &asts);
 
     // 6) 逐条生成实例（并写出 v0 JSON）。
-    let mut out: Vec<PreSpecializedFunInstance> = Vec::new();
+    let mut out_funs: Vec<PreSpecializedFunInstance> = Vec::new();
     for spec in &manifest.pre_specialize_functions {
         let (fqn, raw_type_args) = parse_fun_instance_spec(spec)
             .map_err(|_| PreSpecializeError::InvalidFunSpec { spec: spec.clone() })?;
@@ -268,7 +324,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
         };
         let mir_file = mir::lower_hir_file_for_dump(builtins, &mut types, &hir_file);
 
-        out.push(PreSpecializedFunInstance {
+        out_funs.push(PreSpecializedFunInstance {
             key: PreSpecializedFunKey {
                 fqn: fqn.clone(),
                 type_args: type_args_text,
@@ -278,7 +334,51 @@ pub fn build_pre_specialize_file_for_cone_sources(
         });
     }
 
-    Ok(Some(ConePreSpecializeFile::new_v0(out)))
+    let mut out_types: Vec<PreSpecializedTypeInstance> = Vec::new();
+    for spec in &manifest.pre_specialize_types {
+        let path = parse_type_path(spec)
+            .map_err(|_| PreSpecializeError::InvalidTypeSpec { spec: spec.clone() })?;
+
+        let base_fqn = path.fqn.clone();
+        let decl = type_decl_index
+            .get(&base_fqn)
+            .ok_or_else(|| PreSpecializeError::TypeDeclNotFound {
+                fqn: base_fqn.clone(),
+            })?;
+        if decl.len() != 1 {
+            return Err(PreSpecializeError::TypeDeclDuplicated { fqn: base_fqn }.into());
+        }
+        let (_source, _file, decl) = decl[0];
+
+        let expected = decl.type_params.len();
+        let found = path.args.len();
+        if expected != found {
+            return Err(PreSpecializeError::TypeArgArityMismatch { fqn: base_fqn, expected, found }
+                .into());
+        }
+
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        let mut type_args: Vec<TypeId> = Vec::with_capacity(path.args.len());
+        let mut type_args_text: Vec<String> = Vec::with_capacity(path.args.len());
+        for a in &path.args {
+            let id = intern_type_path(&mut types, builtins, &type_kinds, a)?;
+            type_args_text.push(types.display(id).to_string());
+            type_args.push(id);
+        }
+
+        let instance_fqn = monomorph_instance_fqn(&path.fqn, &type_args, &types);
+        out_types.push(PreSpecializedTypeInstance {
+            key: PreSpecializedTypeKey {
+                fqn: path.fqn,
+                type_args: type_args_text,
+            },
+            instance_fqn,
+        });
+    }
+
+    Ok(Some(ConePreSpecializeFile::new_v0(out_funs, out_types)))
 }
 
 fn parse_fun_instance_spec(spec: &str) -> std::result::Result<(String, Vec<String>), ()> {
@@ -364,6 +464,32 @@ fn index_compilation_unit_fun_decls<'a>(
                 format!("{pkg_prefix}.{local}")
             };
             out.entry(fqn).or_default().push((source, file, fun));
+        }
+    }
+
+    out
+}
+
+/// 收集编译单元中的顶层 `type` 声明：FQN → (source, file, type_decl) 列表。
+fn index_compilation_unit_type_decls<'a>(
+    sources: &'a [SourceFile],
+    asts: &'a [ast::File],
+) -> HashMap<String, Vec<(&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)>> {
+    let mut out: HashMap<String, Vec<(&SourceFile, &ast::File, &ast::TypeDecl)>> = HashMap::new();
+
+    for (source, file) in sources.iter().zip(asts.iter()) {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else {
+                continue;
+            };
+            let local = ty.name.text(source);
+            let fqn = if pkg_prefix.is_empty() {
+                local.to_string()
+            } else {
+                format!("{pkg_prefix}.{local}")
+            };
+            out.entry(fqn).or_default().push((source, file, ty));
         }
     }
 

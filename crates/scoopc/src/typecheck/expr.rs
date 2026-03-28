@@ -35,7 +35,7 @@ use super::builtin_annotations::BuiltinAnnotationFlags;
 use super::eff_row_subst::{
     EffRowVarSubstPlan, apply_eff_row_var_subst_plan, build_eff_row_var_subst_plan,
 };
-use super::lower::{TypeLowerError, TypeLowering};
+use super::lower::{TypeInstantiationKey, TypeLowerError, TypeLowering};
 use super::val_pat;
 use super::when_exhaustiveness;
 use super::when_pat;
@@ -1020,7 +1020,9 @@ pub fn check_file_exprs(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    let _ = check_file_exprs_impl(source, file, index, imports, env, types, builtins, false)?;
+    let _ = check_file_exprs_impl(
+        source, file, index, imports, env, types, builtins, false, false,
+    )?;
     Ok(())
 }
 
@@ -1038,7 +1040,39 @@ pub fn check_file_exprs_with_monomorph_keys(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Result<Vec<MonomorphKey>, ExprTypeError> {
-    check_file_exprs_impl(source, file, index, imports, env, types, builtins, true)
+    let (monomorph, _) =
+        check_file_exprs_impl(source, file, index, imports, env, types, builtins, true, false)?;
+    Ok(monomorph)
+}
+
+/// 对一个文件的表达式做最小类型检查，并在成功时返回“泛型类型实例化”的集合（T1109）。
+pub fn check_file_exprs_with_type_instantiation_keys(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Result<Vec<TypeInstantiationKey>, ExprTypeError> {
+    let (_, type_insts) =
+        check_file_exprs_impl(source, file, index, imports, env, types, builtins, false, true)?;
+    Ok(type_insts)
+}
+
+/// 对一个文件的表达式做最小类型检查，并在成功时同时返回：
+/// - monomorph keys（泛型函数调用实例化）
+/// - type instantiation keys（泛型类型实例化）
+pub fn check_file_exprs_with_monomorph_and_type_instantiation_keys(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    imports: &ImportTable,
+    env: &TypeEnv,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
+    check_file_exprs_impl(source, file, index, imports, env, types, builtins, true, true)
 }
 
 fn check_file_exprs_impl(
@@ -1050,10 +1084,14 @@ fn check_file_exprs_impl(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
     collect_monomorph: bool,
-) -> Result<Vec<MonomorphKey>, ExprTypeError> {
+    collect_type_insts: bool,
+) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     if collect_monomorph {
         lower.enable_monomorph_collection();
+    }
+    if collect_type_insts {
+        lower.enable_type_instantiation_collection();
     }
 
     // 这里单独拷贝一份 package 前缀，避免在借用 `lower` 的同时再借用其字段导致借用冲突。
@@ -1135,7 +1173,9 @@ fn check_file_exprs_impl(
         }
     }
 
-    Ok(lower.take_monomorph_keys())
+    let monomorph = lower.take_monomorph_keys();
+    let type_insts = lower.take_type_instantiation_keys();
+    Ok((monomorph, type_insts))
 }
 
 fn try_infer_fun_return_ty_from_block(

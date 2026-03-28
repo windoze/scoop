@@ -33,9 +33,16 @@ pub use type_env::{
     TypeSymbolKind,
 };
 pub use annotations::{check_file_annotations, AnnotationError};
-pub use lower::{check_file_type_refs, TypeLowerError};
+pub use lower::{
+    TypeInstantiationKey, TypeLowerError, check_file_type_refs,
+    check_file_type_refs_with_type_instantiation_keys,
+};
 pub use headers::{check_file_headers, TypeHeaderError};
-pub use expr::{check_file_exprs, check_file_exprs_with_monomorph_keys, ExprTypeError};
+pub use expr::{
+    check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
+    check_file_exprs_with_monomorph_keys, check_file_exprs_with_type_instantiation_keys,
+    ExprTypeError,
+};
 pub use structs::{check_file_struct_decls, StructDeclError};
 pub use properties::{check_file_properties, PropertyDeclError};
 pub use inheritance::{check_file_inheritance, InheritanceError};

@@ -17,6 +17,8 @@
 //! - `// TIMEOUT: <ms>`（run-pass fixtures：超时毫秒）
 //! - `// EXPECT-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的实例数量）
 //! - `// EXPECT-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的实例数量）
+//! - `// EXPECT-TYPE-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的类型实例数量）
+//! - `// EXPECT-TYPE-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的类型实例数量）
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
@@ -41,6 +43,8 @@ pub struct FixtureExpectation<'a> {
     pub timeout_ms: Option<u64>,
     pub expect_monomorph_hit: Option<usize>,
     pub expect_monomorph_miss: Option<usize>,
+    pub expect_type_monomorph_hit: Option<usize>,
+    pub expect_type_monomorph_miss: Option<usize>,
 }
 
 impl<'a> FixtureExpectation<'a> {
@@ -61,6 +65,8 @@ impl<'a> FixtureExpectation<'a> {
         let mut timeout_ms = None;
         let mut expect_monomorph_hit = None;
         let mut expect_monomorph_miss = None;
+        let mut expect_type_monomorph_hit = None;
+        let mut expect_type_monomorph_miss = None;
 
         // 只扫描开头若干行，避免把正文里的 `// EXPECT:` 误判为指令。
         for line in text.lines().take(32) {
@@ -138,6 +144,14 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("EXPECT-MONOMORPH-MISS:") {
                 expect_monomorph_miss = rest.trim().parse::<usize>().ok();
             }
+
+            if let Some(rest) = directive.strip_prefix("EXPECT-TYPE-MONOMORPH-HIT:") {
+                expect_type_monomorph_hit = rest.trim().parse::<usize>().ok();
+            }
+
+            if let Some(rest) = directive.strip_prefix("EXPECT-TYPE-MONOMORPH-MISS:") {
+                expect_type_monomorph_miss = rest.trim().parse::<usize>().ok();
+            }
         }
 
         Self {
@@ -156,6 +170,8 @@ impl<'a> FixtureExpectation<'a> {
             timeout_ms,
             expect_monomorph_hit,
             expect_monomorph_miss,
+            expect_type_monomorph_hit,
+            expect_type_monomorph_miss,
         }
     }
 }
@@ -199,6 +215,8 @@ mod tests {
         assert_eq!(exp.timeout_ms, None);
         assert_eq!(exp.expect_monomorph_hit, None);
         assert_eq!(exp.expect_monomorph_miss, None);
+        assert_eq!(exp.expect_type_monomorph_hit, None);
+        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -221,6 +239,8 @@ mod tests {
         assert_eq!(exp.timeout_ms, None);
         assert_eq!(exp.expect_monomorph_hit, None);
         assert_eq!(exp.expect_monomorph_miss, None);
+        assert_eq!(exp.expect_type_monomorph_hit, None);
+        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -242,6 +262,8 @@ mod tests {
         assert_eq!(exp.timeout_ms, None);
         assert_eq!(exp.expect_monomorph_hit, None);
         assert_eq!(exp.expect_monomorph_miss, None);
+        assert_eq!(exp.expect_type_monomorph_hit, None);
+        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -285,5 +307,14 @@ mod tests {
         );
         assert_eq!(exp.expect_monomorph_hit, Some(2));
         assert_eq!(exp.expect_monomorph_miss, Some(1));
+    }
+
+    #[test]
+    fn parse_type_monomorph_expectations() {
+        let exp = FixtureExpectation::from_source(
+            "// EXPECT-TYPE-MONOMORPH-HIT: 1\n// EXPECT-TYPE-MONOMORPH-MISS: 3\nfun main() {}\n",
+        );
+        assert_eq!(exp.expect_type_monomorph_hit, Some(1));
+        assert_eq!(exp.expect_type_monomorph_miss, Some(3));
     }
 }
