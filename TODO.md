@@ -3530,11 +3530,31 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1202 [TODO] const interpreter v0：只支持 value types + 纯表达式（PLAN §13）
+### T1202 const interpreter v0（拆分为子任务，PLAN §13）
 - 描述：实现解释器能执行：整数运算、tuple/struct/enum 构造、`String` 操作、函数调用（仅 const）。`String` 虽为引用类型，但具备值语义，在 comptime 中特殊处理。
 - 目标：不支持堆分配（`String` 除外）、不支持 effects、不支持循环（可先限制）。
-- 验收：新增 `tests/fixtures/comptime/*`：const 计算结果可用于类型/代码生成位置（可先以编译期常量折叠为目标）。
-- 依赖：T1201、T0702
+- 备注：该任务涉及“值模型 + 求值器 + 调用/环境 + fixtures 接入”，为保证每步都可单独验证，拆分为以下子任务。
+
+### T1202a [TODO] const interpreter：值模型 + 纯表达式求值 v0（字面量/一元/二元）
+- 描述：新增 `crates/scoopc::comptime`，提供最小的 `ConstValue` 与表达式求值器，覆盖：
+  - 字面量：Int/Bool/Unit/String（从 `SourceFile + Span` 解析源码）
+  - 一元：`!`/`-`/`~`
+  - 二元：算术/位运算/比较/逻辑（按整数位宽做 wrap/mask；逻辑运算保持短路）
+- 目标：暂不支持函数调用、tuple/struct/enum aggregate、控制流（`if/when`）、effects 与循环。
+- 验收：新增单元测试覆盖上述求值；`cargo test -p scoopc` 通过。
+- 依赖：T1201
+
+### T1202b [TODO] const interpreter：支持 tuple/struct/enum 的值构造与访问（最小）
+- 描述：在 `ConstValue` 中补齐 tuple/struct/enum 表示，并在求值器中支持最小构造（如 tuple/struct literal、enum ctor）。
+- 目标：先只做“构造 + 读取”所需最小语义；不做模式匹配与复杂布局。
+- 验收：新增单元测试覆盖 tuple/struct/enum 的构造与字段读取；`cargo test -p scoopc` 通过。
+- 依赖：T1202a
+
+### T1202c [TODO] const interpreter：支持 `const fun` 调用（仅 Pure）并接入 `tests/fixtures/comptime`
+- 描述：实现 const fun 的 body 求值（局部 `val`、表达式返回、最小 block），并在 fixtures runner 中新增 `comptime` phase 以回归 const 求值结果。
+- 目标：先保守：不支持闭包/lambda、不支持 `perform/handle`、不支持循环；对递归设定上限避免无限求值。
+- 验收：新增 `tests/fixtures/comptime/*`：const 计算结果可用于类型/代码生成位置（可先以编译期常量折叠为目标）；`cargo run -p scoop -- test` 通过。
+- 依赖：T1202b、T0702
 
 ### T1203 [TODO] `comptime { ... }` block 语法与执行入口（spec §6.3）
 - 描述：解析 comptime block 并在编译时执行（Pure 限制）。

@@ -800,7 +800,7 @@ fixtures：
 ## 13. 编译期执行与反射（阶段 11：comptime）
 
 - [x] Parser 语法：支持 `const` 修饰符、`comptime { ... }` / `comptime if` / `comptime for`、以及 splice `value.[field]`（见 TODO T0246）
-- [ ] `const fun` 解释器（先支持 value types/纯计算；`String` 作为特例允许——具有值语义）
+- [ ] `const fun` 解释器（T1202a/T1202b/T1202c：先支持 value types/纯计算；`String` 作为特例允许——具有值语义）
 - [ ] `const fun` 静态检查：禁止闭包/lambda（捕获环境导致 const 语义难以验证）
 - [ ] `comptime { ... }` 执行上下文（限制 effect：必须 `Pure`）
 - [ ] 反射 intrinsics：`fieldsOf/nameOf/sizeOf` 等（先从 sysroot 声明开始）
