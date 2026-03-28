@@ -229,8 +229,11 @@ impl<'a> ConstInterpreter<'a> {
     ) -> Result<ConstValue, ConstEvalError> {
         // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
         match callee_name {
-            "nameOf" | "sizeOf" | "fieldsOf" | "annotationsOf" => {
+            "nameOf" | "sizeOf" | "alignOf" | "fieldsOf" | "variantsOf" | "superTypesOf" | "annotationsOf" => {
                 return self.call_reflection_intrinsics(call_span, callee_name, type_args, args);
+            }
+            "paramsOf" => {
+                return self.call_params_of_intrinsic(call_span, type_args, args);
             }
             _ => {}
         }
@@ -276,6 +279,18 @@ impl<'a> ConstInterpreter<'a> {
                 Ok(ConstValue::Int(super::ConstInt::new(
                     self.ctx.default_int_ty,
                     size as u128,
+                )))
+            }
+            "alignOf" => {
+                let Some(align) = align_of_builtin_ty_bytes(&simple_name) else {
+                    return Err(ConstEvalError::ReflectionAlignOfUnsupportedType {
+                        name: full_name,
+                        span: ty_span.into(),
+                    });
+                };
+                Ok(ConstValue::Int(super::ConstInt::new(
+                    self.ctx.default_int_ty,
+                    align as u128,
                 )))
             }
             "fieldsOf" => {
@@ -346,6 +361,62 @@ impl<'a> ConstInterpreter<'a> {
 
                 Ok(ConstValue::Tuple(fields))
             }
+            "variantsOf" => {
+                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
+                    ConstEvalError::ReflectionUnknownType {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    }
+                })?;
+                let decl = match decls.as_slice() {
+                    [one] => *one,
+                    _ => {
+                        return Err(ConstEvalError::ReflectionAmbiguousType {
+                            name: full_name.clone(),
+                            span: ty_span.into(),
+                        });
+                    }
+                };
+                if decl.kind != ast::TypeKind::Enum {
+                    return Err(ConstEvalError::ReflectionVariantsOfUnsupportedTarget {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    });
+                }
+
+                let mut variants: Vec<ConstValue> = Vec::new();
+                if let Some(body) = decl.body.as_ref() {
+                    for m in &body.members {
+                        let ast::TypeMember::EnumVariant(v) = m else { continue };
+                        variants.push(ConstValue::String(v.name.text(self.ctx.source).to_string()));
+                    }
+                }
+                Ok(ConstValue::Tuple(variants))
+            }
+            "superTypesOf" => {
+                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
+                    ConstEvalError::ReflectionUnknownType {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    }
+                })?;
+                let decl = match decls.as_slice() {
+                    [one] => *one,
+                    _ => {
+                        return Err(ConstEvalError::ReflectionAmbiguousType {
+                            name: full_name.clone(),
+                            span: ty_span.into(),
+                        });
+                    }
+                };
+
+                let supers = decl
+                    .supertypes
+                    .iter()
+                    .map(|st| self.mk_type_meta(Some(&st.ty)))
+                    .collect::<Vec<_>>();
+                Ok(ConstValue::Tuple(supers))
+            }
             "annotationsOf" => {
                 let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
                     ConstEvalError::ReflectionUnknownType {
@@ -379,6 +450,68 @@ impl<'a> ConstInterpreter<'a> {
                 span: call_span.into(),
             }),
         }
+    }
+
+    fn call_params_of_intrinsic(
+        &mut self,
+        call_span: Span,
+        type_args: Vec<ast::TypeRef>,
+        args: Vec<ConstValue>,
+    ) -> Result<ConstValue, ConstEvalError> {
+        if !type_args.is_empty() || args.len() != 1 {
+            return Err(ConstEvalError::ReflectionBadCall {
+                name: "paramsOf".to_string(),
+                reason: "期望形态为 `(fn)`（0 个类型实参 + 1 个值实参）",
+                span: call_span.into(),
+            });
+        }
+
+        // v0：允许两种形态提供“函数句柄”：
+        // - `FunctionMeta { name: \"foo\" }`（与 sysroot 声明一致）
+        // - `"foo"`（便于 tests/fixtures 写最小用例）
+        let fn_name: String = match &args[0] {
+            ConstValue::String(s) => s.clone(),
+            ConstValue::Struct(super::ConstStruct { fields, .. }) => match fields.get("name") {
+                Some(ConstValue::String(s)) => s.clone(),
+                _ => {
+                    return Err(ConstEvalError::OperandTypeMismatch {
+                        expected: "FunctionMeta{name:String} 或 String",
+                        found: value_kind(&args[0]),
+                        span: call_span.into(),
+                    });
+                }
+            },
+            _ => {
+                return Err(ConstEvalError::OperandTypeMismatch {
+                    expected: "FunctionMeta{name:String} 或 String",
+                    found: value_kind(&args[0]),
+                    span: call_span.into(),
+                });
+            }
+        };
+
+        let decls = self.funs_by_name.get(&fn_name).ok_or_else(|| {
+            ConstEvalError::ReflectionUnknownFunction {
+                name: fn_name.clone(),
+                span: call_span.into(),
+            }
+        })?;
+        let fun = match decls.as_slice() {
+            [one] => *one,
+            _ => {
+                return Err(ConstEvalError::ReflectionAmbiguousFunction {
+                    name: fn_name.clone(),
+                    span: call_span.into(),
+                });
+            }
+        };
+
+        let mut params: Vec<ConstValue> = Vec::with_capacity(fun.params.len());
+        for (idx, p) in fun.params.iter().enumerate() {
+            let pname = p.name.text(self.ctx.source).to_string();
+            params.push(self.mk_field_meta(pname, p.ty.as_ref(), idx));
+        }
+        Ok(ConstValue::Tuple(params))
     }
 
     /// 把一个类型引用“降级”为 TypeMeta（v0：仅保留类型名字符串）。
@@ -879,6 +1012,25 @@ fn size_of_builtin_ty_bytes(name: &str) -> Option<usize> {
 
         // 引用类型：v0 先把它们视为“指针大小”。
         "String" => Some(std::mem::size_of::<usize>()),
+
+        _ => None,
+    }
+}
+
+fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {
+    match name {
+        // scalar/value types
+        "Bool" => Some(std::mem::align_of::<bool>()),
+        "Unit" => Some(std::mem::align_of::<()>()),
+        "Int" => Some(std::mem::align_of::<isize>()),
+        "UInt" | "UIntPtr" => Some(std::mem::align_of::<usize>()),
+        "Int8" | "UInt8" | "Byte" => Some(std::mem::align_of::<u8>()),
+        "Int16" | "UInt16" | "Short" | "UShort" => Some(std::mem::align_of::<u16>()),
+        "Int32" | "UInt32" => Some(std::mem::align_of::<u32>()),
+        "Int64" | "UInt64" | "Long" | "ULong" => Some(std::mem::align_of::<u64>()),
+
+        // 引用类型：v0 先把它们视为“指针”。
+        "String" => Some(std::mem::align_of::<usize>()),
 
         _ => None,
     }

@@ -155,6 +155,15 @@ struct PropertyMeta {
     val owner: TypeMeta
 }
 
+// Function meta（spec §6.4）。
+//
+// 说明：
+// - v0 阶段先只暴露“函数名”作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
+// - 更完整的 `FunctionMeta/ParamMeta/VariantMeta` 结构将由后续任务逐步补齐（TODO T1215）。
+struct FunctionMeta {
+    val name: String
+}
+
 // Compile-time annotation metadata（spec §15.6）。
 //
 // 说明：
@@ -217,9 +226,17 @@ const fun <T> nameOf(): String
 @Intrinsic
 const fun <T> sizeOf(): Int
 @Intrinsic
+const fun <T> alignOf(): Int
+@Intrinsic
 const fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
+const fun <T> variantsOf(): ComptimeList<String>
+@Intrinsic
+const fun <T> superTypesOf(): ComptimeList<TypeMeta>
+@Intrinsic
 const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+@Intrinsic
+const fun paramsOf(fn: FunctionMeta): ComptimeList<FieldMeta>
 
 // Option / nullable sugar
 enum Option<T> {

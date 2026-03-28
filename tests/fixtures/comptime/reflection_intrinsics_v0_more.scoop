@@ -1,0 +1,35 @@
+// EXPECT: pass
+// 目标：T1214：补齐反射 intrinsics（v0 最小可回归）。
+// - 覆盖：
+//   - `variantsOf<T>()`：读取 enum variant 名列表
+//   - `alignOf<T>()`：读取基础类型对齐（字节）
+//   - `superTypesOf<T>()`：读取 class/interface 的继承/实现列表
+//   - `paramsOf(fn)`：读取函数参数列表（v0：返回 FieldMeta 视图）
+//   - `annotationsOf<T>()`：读取类型注解列表（作为组合用例回归）
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+annotation class Deprecated(val msg: String)
+
+interface I {}
+
+@Deprecated("x")
+class C() : I {}
+
+enum Color { Red, Blue }
+
+fun add(a: Int, b: String): Int { return 0 }
+
+const val A: Int = alignOf<Int32>()
+const val ST = superTypesOf<C>()
+const val ST0: String = superTypesOf<C>()._0.name
+const val VS = variantsOf<Color>()
+const val V0: String = variantsOf<Color>()._0
+const val P = paramsOf(FunctionMeta { name: "add" })
+const val P0N: String = paramsOf(FunctionMeta { name: "add" })._0.name
+const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
+const val AN = annotationsOf<C>()
+const val AN0N: String = annotationsOf<C>()._0.name
+

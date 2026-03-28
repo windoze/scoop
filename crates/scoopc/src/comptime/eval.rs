@@ -217,6 +217,38 @@ pub enum ConstEvalError {
         span: miette::SourceSpan,
     },
 
+    #[error("alignOf<T>() 暂不支持该类型：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_alignof_unsupported_type))]
+    ReflectionAlignOfUnsupportedType {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("variantsOf<T>() 暂不支持该类型：{name}（期望 enum）")]
+    #[diagnostic(code(scoop::comptime::reflection_variants_of_unsupported_target))]
+    ReflectionVariantsOfUnsupportedTarget {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("未找到可反射的函数：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_unknown_function))]
+    ReflectionUnknownFunction {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("函数名歧义：{name}")]
+    #[diagnostic(code(scoop::comptime::reflection_ambiguous_function))]
+    ReflectionAmbiguousFunction {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("fieldsOf<T>() 发现重复字段：{field}")]
     #[diagnostic(code(scoop::comptime::reflection_duplicate_field))]
     ReflectionDuplicateField {

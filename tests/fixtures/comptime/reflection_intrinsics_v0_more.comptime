@@ -1,0 +1,10 @@
+A = 4
+ST = (TypeMeta { name: "I" })
+ST0 = "I"
+VS = ("Red", "Blue")
+V0 = "Red"
+P = (FieldMeta { index: 0, name: "a", type: TypeMeta { name: "Int" } }, FieldMeta { index: 1, name: "b", type: TypeMeta { name: "String" } })
+P0N = "a"
+P1T = "String"
+AN = (AnnotationMeta { args: (AnnotationArgMeta { name: "msg", value: "x" }), name: "Deprecated" })
+AN0N = "Deprecated"

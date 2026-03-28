@@ -3944,11 +3944,23 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1214 [TODO] 反射 intrinsics 完整化：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
+### T1214 [DONE] 反射 intrinsics 完整化：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - 描述：在 sysroot + comptime evaluator 中补齐缺失的反射 intrinsic：`variantsOf<T>()`、`alignOf<T>()`、`superTypesOf<T>()`、`annotationsOf<T>()`、`paramsOf(fn)`。
 - 目标：先只覆盖 language spec 已列出的最小集合；复杂跨包元数据后续与 Cone 联动。
 - 验收：新增 comptime fixture：读取 enum variants、alignment、super types、函数参数与注解列表；输出稳定。
 - 依赖：T1204、T1209、T0418
+ - 完成：
+   - `sysroot/core.scoop`：新增 `FunctionMeta`（v0：仅 `name` 字段）并补齐 `alignOf/variantsOf/superTypesOf/paramsOf` 的 sysroot 声明面。
+   - `crates/scoopc/src/comptime/interpreter.rs`：const 解释器内建实现：
+     - `alignOf<T>()`（v0：builtin/指针对齐）；
+     - `variantsOf<T>()`（v0：返回 enum variant 名列表）；
+     - `superTypesOf<T>()`（返回 `TypeMeta` 列表，基于声明处 supertypes）；
+     - `paramsOf(fn)`（v0：以 `FunctionMeta { name }` 或字符串提供句柄，返回 `FieldMeta` 列表视图）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖上述 intrinsics 的最小可回归语义。
+   - `tests/fixtures/comptime/reflection_intrinsics_v0_more.*`：新增 comptime fixture + `.comptime` golden 回归覆盖 enum variants / align / supertypes / params / annotations 组合用例。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1215 [TODO] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - 描述：补齐反射所需的元数据结构，并让它们可在 comptime 中被访问和迭代。

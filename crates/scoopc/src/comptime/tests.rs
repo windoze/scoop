@@ -536,3 +536,73 @@ const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
         ]
     );
 }
+
+#[test]
+fn const_eval_reflection_intrinsics_v0_more() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+interface I {}
+
+class C() : I {}
+
+enum Color { Red, Blue }
+
+fun add(a: Int, b: String): Int { return 0 }
+
+const val A: Int = alignOf<Int32>()
+const val ST = superTypesOf<C>()
+const val ST0: String = superTypesOf<C>()._0.name
+const val VS = variantsOf<Color>()
+const val V0: String = variantsOf<Color>()._0
+const val P = paramsOf(FunctionMeta { name: "add" })
+const val P0N: String = paramsOf(FunctionMeta { name: "add" })._0.name
+const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: mk_int(ty, std::mem::align_of::<u32>() as u128),
+            },
+            ConstBinding {
+                name: "ST".to_string(),
+                value: ConstValue::Tuple(vec![mk_type_meta("I")]),
+            },
+            ConstBinding {
+                name: "ST0".to_string(),
+                value: ConstValue::String("I".to_string()),
+            },
+            ConstBinding {
+                name: "VS".to_string(),
+                value: ConstValue::Tuple(vec![
+                    ConstValue::String("Red".to_string()),
+                    ConstValue::String("Blue".to_string()),
+                ]),
+            },
+            ConstBinding {
+                name: "V0".to_string(),
+                value: ConstValue::String("Red".to_string()),
+            },
+            ConstBinding {
+                name: "P".to_string(),
+                value: ConstValue::Tuple(vec![
+                    mk_field_meta(ty, "a", "Int", 0),
+                    mk_field_meta(ty, "b", "String", 1),
+                ]),
+            },
+            ConstBinding {
+                name: "P0N".to_string(),
+                value: ConstValue::String("a".to_string()),
+            },
+            ConstBinding {
+                name: "P1T".to_string(),
+                value: ConstValue::String("String".to_string()),
+            },
+        ]
+    );
+}
