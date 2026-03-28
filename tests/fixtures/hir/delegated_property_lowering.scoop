@@ -1,0 +1,20 @@
+package a
+
+import scoop.core.*
+
+class Delegate {
+  fun getValue(thisRef: Any, property: PropertyMeta): Int { 0 }
+  fun setValue(thisRef: Any, property: PropertyMeta, value: Int): Unit { () }
+}
+
+class C {
+  var p: Int by Delegate()
+}
+
+fun main() {
+  val c: C = C()
+  val x: Int = c.p
+  c.p = 1
+  x
+}
+

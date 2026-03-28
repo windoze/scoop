@@ -1,0 +1,306 @@
+File {
+    items: [
+        Todo {
+            span: 32..192,
+            kind: "type",
+        },
+        Todo {
+            span: 194..232,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 234..298,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    7,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 245..298,
+                        ty: TypeId(
+                            0,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 249..263,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 249..263,
+                                        id: Some(
+                                            S0,
+                                        ),
+                                        name: Some(
+                                            "c",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            8,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 260..263,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Call {
+                                                    callee: Expr {
+                                                        span: 260..261,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: UnresolvedIdent {
+                                                            name: "C",
+                                                        },
+                                                    },
+                                                    args: [],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 266..282,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 266..282,
+                                        id: Some(
+                                            S3,
+                                        ),
+                                        name: Some(
+                                            "x",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 279..282,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Call {
+                                                    callee: Expr {
+                                                        span: 281..282,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: MemberAccess {
+                                                            receiver: Expr {
+                                                                span: 281..282,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: MemberAccess {
+                                                                    receiver: Expr {
+                                                                        span: 279..280,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: VarRef(
+                                                                            Local {
+                                                                                id: S0,
+                                                                                name: "c",
+                                                                                decl_span: 253..254,
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    member: MemberAccess {
+                                                                        span: 281..282,
+                                                                        name: "p$delegate",
+                                                                        resolved: Some(
+                                                                            Value {
+                                                                                id: S1,
+                                                                                fqn: "a.C.p$delegate",
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                },
+                                                            },
+                                                            member: MemberAccess {
+                                                                span: 281..282,
+                                                                name: "getValue",
+                                                                resolved: None,
+                                                            },
+                                                        },
+                                                    },
+                                                    args: [
+                                                        Positional(
+                                                            Expr {
+                                                                span: 279..280,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S0,
+                                                                        name: "c",
+                                                                        decl_span: 253..254,
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ),
+                                                        Positional(
+                                                            Expr {
+                                                                span: 281..282,
+                                                                ty: TypeId(
+                                                                    9,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    TopLevel {
+                                                                        id: S2,
+                                                                        fqn: "a.C.$PropertyMeta$p",
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ),
+                                                    ],
+                                                },
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 285..292,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 285..292,
+                                        ty: TypeId(
+                                            2,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 287..288,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: MemberAccess {
+                                                    receiver: Expr {
+                                                        span: 287..288,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: MemberAccess {
+                                                            receiver: Expr {
+                                                                span: 285..286,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: VarRef(
+                                                                    Local {
+                                                                        id: S0,
+                                                                        name: "c",
+                                                                        decl_span: 253..254,
+                                                                    },
+                                                                ),
+                                                            },
+                                                            member: MemberAccess {
+                                                                span: 287..288,
+                                                                name: "p$delegate",
+                                                                resolved: Some(
+                                                                    Value {
+                                                                        id: S1,
+                                                                        fqn: "a.C.p$delegate",
+                                                                    },
+                                                                ),
+                                                            },
+                                                        },
+                                                    },
+                                                    member: MemberAccess {
+                                                        span: 287..288,
+                                                        name: "setValue",
+                                                        resolved: None,
+                                                    },
+                                                },
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 285..286,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: VarRef(
+                                                            Local {
+                                                                id: S0,
+                                                                name: "c",
+                                                                decl_span: 253..254,
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                                Positional(
+                                                    Expr {
+                                                        span: 287..288,
+                                                        ty: TypeId(
+                                                            9,
+                                                        ),
+                                                        kind: VarRef(
+                                                            TopLevel {
+                                                                id: S2,
+                                                                fqn: "a.C.$PropertyMeta$p",
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                                Positional(
+                                                    Expr {
+                                                        span: 291..292,
+                                                        ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Literal(
+                                                            Int,
+                                                        ),
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 295..296,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 295..296,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: VarRef(
+                                            Local {
+                                                id: S3,
+                                                name: "x",
+                                                decl_span: 270..271,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

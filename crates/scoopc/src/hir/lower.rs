@@ -30,6 +30,15 @@ use super::{
     ValueRef, WhenArm, WhenPat,
 };
 
+#[derive(Debug, Clone)]
+struct DelegatedPropertyInfo {
+    name: String,
+    delegate_field_fqn: String,
+    property_meta_fqn: String,
+}
+
+type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
+
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
 #[derive(Debug, Error, Diagnostic)]
 pub enum HirLowerError {
@@ -104,6 +113,15 @@ struct HirLowering<'a> {
     index: &'a Index,
     /// `type fqn -> ast::TypeKind` 的最小索引，用于决定 nominal type 是 ref 还是 value。
     type_kinds: &'a HashMap<String, ast::TypeKind>,
+    /// delegated property（spec §10.4）索引：`Owner.prop` → lowering 所需的合成符号信息。
+    ///
+    /// 用途：
+    /// - `receiver.prop` 读取：降糖为 `receiver.prop$delegate.getValue(receiver, PropertyMeta)`；
+    /// - `receiver.prop = value` 写入：降糖为 `receiver.prop$delegate.setValue(receiver, PropertyMeta, value)`。
+    ///
+    /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
+    /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
+    delegated_properties: DelegatedPropertyIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -122,12 +140,14 @@ impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
     const TASK_SPAWN_INT_FQN: &'static str = "scoop.core.__scoop_task_spawn_int";
     const TASK_JOIN_INT_FQN: &'static str = "scoop.core.__scoop_task_join_int";
+    const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
 
     fn new(
         source: &'a SourceFile,
         file: &'a ast::File,
         index: &'a Index,
         type_kinds: &'a HashMap<String, ast::TypeKind>,
+        delegated_properties: DelegatedPropertyIndex,
         types: &'a mut TypeStore,
         builtins: BuiltinTypes,
     ) -> Self {
@@ -136,6 +156,7 @@ impl<'a> HirLowering<'a> {
             file,
             index,
             type_kinds,
+            delegated_properties,
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -514,16 +535,22 @@ impl<'a> HirLowering<'a> {
             ast::StmtKind::Expr(e) => {
                 // 赋值在 AST 中以表达式节点承载，但在 HIR 中视为语句（便于后续 MIR lowering）。
                 if let ast::ExprKind::Assign { lhs, eq_span, rhs } = &e.kind {
-                    let lhs = self.lower_expr(pkg_prefix, lhs);
-                    let rhs = self.lower_expr(pkg_prefix, rhs);
-                    (
-                        StmtKind::Assign {
-                            lhs,
-                            eq_span: *eq_span,
-                            rhs,
-                        },
-                        self.builtins.unit,
-                    )
+                    if let Some(call) =
+                        self.try_lower_delegated_property_assign(pkg_prefix, e.span, lhs, rhs)
+                    {
+                        (StmtKind::Expr(call), self.builtins.unit)
+                    } else {
+                        let lhs = self.lower_expr(pkg_prefix, lhs);
+                        let rhs = self.lower_expr(pkg_prefix, rhs);
+                        (
+                            StmtKind::Assign {
+                                lhs,
+                                eq_span: *eq_span,
+                                rhs,
+                            },
+                            self.builtins.unit,
+                        )
+                    }
                 } else {
                     let e = self.lower_expr(pkg_prefix, e);
                     (StmtKind::Expr(e), self.builtins.unit)
@@ -569,6 +596,58 @@ impl<'a> HirLowering<'a> {
             ty,
             kind,
         }
+    }
+
+    fn try_lower_delegated_property_assign(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Option<Expr> {
+        let ast::ExprKind::MemberAccess { receiver, member } = &lhs.kind else {
+            return None;
+        };
+        let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() else {
+            return None;
+        };
+        let info = self.delegated_properties.get(fqn).cloned()?;
+
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        let this_ref = receiver.clone();
+        let delegate = self.lower_delegated_property_delegate_access_expr(
+            member.span,
+            receiver.clone(),
+            &info,
+        );
+        let callee = Expr {
+            span: member.span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(delegate),
+                member: MemberAccess {
+                    span: member.span,
+                    name: "setValue".to_string(),
+                    resolved: None,
+                },
+            },
+        };
+
+        let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+        let value = self.lower_expr(pkg_prefix, rhs);
+
+        Some(Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: vec![
+                    CallArg::Positional(this_ref),
+                    CallArg::Positional(meta),
+                    CallArg::Positional(value),
+                ],
+            },
+        })
     }
 
     fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
@@ -1034,6 +1113,39 @@ impl<'a> HirLowering<'a> {
         receiver: &ast::Expr,
         member: &ast::MemberIdent,
     ) -> (ExprKind, TypeId) {
+        // delegated property lowering（spec §10.4）：
+        // `receiver.prop` → `receiver.prop$delegate.getValue(receiver, <PropertyMeta const>)`
+        if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() {
+            if let Some(info) = self.delegated_properties.get(fqn).cloned() {
+                let receiver = self.lower_expr(pkg_prefix, receiver);
+                let this_ref = receiver.clone();
+
+                let delegate =
+                    self.lower_delegated_property_delegate_access_expr(member.span, receiver, &info);
+                let callee = Expr {
+                    span: member.span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::MemberAccess {
+                        receiver: Box::new(delegate),
+                        member: MemberAccess {
+                            span: member.span,
+                            name: "getValue".to_string(),
+                            resolved: None,
+                        },
+                    },
+                };
+                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+
+                return (
+                    ExprKind::Call {
+                        callee: Box::new(callee),
+                        args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
+                    },
+                    self.builtins.any,
+                );
+            }
+        }
+
         let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
 
         let resolved = member
@@ -1051,6 +1163,41 @@ impl<'a> HirLowering<'a> {
             ExprKind::MemberAccess { receiver, member },
             self.builtins.any,
         )
+    }
+
+    fn lower_delegated_property_delegate_access_expr(
+        &mut self,
+        span: Span,
+        receiver: Expr,
+        info: &DelegatedPropertyInfo,
+    ) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: MemberAccess {
+                    span,
+                    name: format!("{}$delegate", info.name),
+                    resolved: Some(MemberRef::Value {
+                        id: self.symbols.intern_top_level(info.delegate_field_fqn.clone()),
+                        fqn: info.delegate_field_fqn.clone(),
+                    }),
+                },
+            },
+        }
+    }
+
+    fn lower_property_meta_ref_expr(&mut self, span: Span, fqn: &str) -> Expr {
+        let ty = self.intern_nominal(Self::PROPERTY_META_FQN.to_string(), Vec::new(), None);
+        Expr {
+            span,
+            ty,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.to_string()),
+                fqn: fqn.to_string(),
+            }),
+        }
     }
 
     fn lower_resolved_member_ref(&mut self, resolved: &ast::ResolvedMemberRef) -> MemberRef {
@@ -1942,13 +2089,22 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     }
     pairs.push((source, &ast));
     let type_kinds = collect_type_decl_kinds(&pairs);
+    let delegated_properties = collect_delegated_properties(&pairs);
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let file = {
-        let mut ctx = HirLowering::new(source, &ast, &index, &type_kinds, &mut types, builtins);
+        let mut ctx = HirLowering::new(
+            source,
+            &ast,
+            &index,
+            &type_kinds,
+            delegated_properties,
+            &mut types,
+            builtins,
+        );
         ctx.lower_file()
     };
 
@@ -1990,13 +2146,22 @@ pub fn lower_for_compilation_unit(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit);
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let file_hir = {
-        let mut ctx = HirLowering::new(source, file, index, &type_kinds, &mut types, builtins);
+        let mut ctx = HirLowering::new(
+            source,
+            file,
+            index,
+            &type_kinds,
+            delegated_properties,
+            &mut types,
+            builtins,
+        );
         ctx.lower_file()
     };
 
@@ -2031,7 +2196,17 @@ pub(crate) fn lower_fun_with_type_bindings(
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
 ) -> FunDecl {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let mut ctx = HirLowering::new(source, file, index, type_kinds, types, builtins);
+    let compilation_unit = [(source, file)];
+    let delegated_properties = collect_delegated_properties(&compilation_unit);
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        type_kinds,
+        delegated_properties,
+        types,
+        builtins,
+    );
     ctx.push_type_param_bindings(type_bindings);
     let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
     ctx.pop_type_params();
@@ -2082,7 +2257,15 @@ fn collect_object_inits(
     builtins: BuiltinTypes,
 ) -> ObjectInitIndex {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let mut ctx = HirLowering::new(source, file, index, type_kinds, types, builtins);
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        type_kinds,
+        DelegatedPropertyIndex::new(),
+        types,
+        builtins,
+    );
 
     let mut out: ObjectInitIndex = HashMap::new();
     for item in &file.items {
@@ -2213,6 +2396,126 @@ fn join_prefix(prefix: &str, name: &str) -> String {
         name.to_string()
     } else {
         format!("{prefix}.{name}")
+    }
+}
+
+fn collect_delegated_properties(pairs: &[(&SourceFile, &ast::File)]) -> DelegatedPropertyIndex {
+    let mut out: DelegatedPropertyIndex = HashMap::new();
+
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            match item {
+                ast::Item::Type(ty) => {
+                    collect_delegated_properties_in_type_decl(
+                        source,
+                        ty,
+                        &pkg_prefix,
+                        &mut out,
+                    );
+                }
+                ast::Item::Object(obj) => {
+                    collect_delegated_properties_in_object_decl(
+                        source,
+                        obj,
+                        &pkg_prefix,
+                        &mut out,
+                    );
+                }
+                ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::TypeAlias(_) => {}
+            }
+        }
+    }
+
+    out
+}
+
+fn collect_delegated_properties_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    prefix: &str,
+    out: &mut DelegatedPropertyIndex,
+) {
+    let local_name = source.slice(decl.name.span);
+    let owner_fqn = join_prefix(prefix, local_name);
+
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) if p.delegate.is_some() => {
+                    let name = source.slice(p.name.span).to_string();
+                    let prop_fqn = format!("{owner_fqn}.{name}");
+                    let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
+                    let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                    out.entry(prop_fqn).or_insert(DelegatedPropertyInfo {
+                        name,
+                        delegate_field_fqn,
+                        property_meta_fqn,
+                    });
+                }
+                ast::TypeMember::Type(nested) => {
+                    collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);
+                }
+                ast::TypeMember::Object(obj) => {
+                    collect_delegated_properties_in_object_decl(source, obj, &owner_fqn, out);
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Property(_)
+                | ast::TypeMember::InitBlock(_)
+                | ast::TypeMember::SecondaryCtor(_)
+                | ast::TypeMember::Fun(_) => {}
+            }
+        }
+    }
+}
+
+fn collect_delegated_properties_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    prefix: &str,
+    out: &mut DelegatedPropertyIndex,
+) {
+    let obj_name = match &obj.name {
+        Some(name) => source.slice(name.span).to_string(),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => "Companion".to_string(),
+            ast::ObjectKind::Object => return,
+        },
+    };
+
+    let owner_fqn = join_prefix(prefix, &obj_name);
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Property(p) if p.delegate.is_some() => {
+                let name = source.slice(p.name.span).to_string();
+                let prop_fqn = format!("{owner_fqn}.{name}");
+                let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
+                let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                out.entry(prop_fqn).or_insert(DelegatedPropertyInfo {
+                    name,
+                    delegate_field_fqn,
+                    property_meta_fqn,
+                });
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_delegated_properties_in_object_decl(source, nested, &owner_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
     }
 }
 

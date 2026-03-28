@@ -41,6 +41,7 @@
 - 2026-03-28：完成 T1207：const 解释器支持执行 `comptime for`（v0：整数范围 `a..b` + tuple/array 迭代；暂不支持 break/continue），并新增单测 + comptime fixture 回归覆盖。
 - 2026-03-28：完成 T1208：sysroot 新增 `TypeMeta/FieldMeta/PropertyMeta` 并将 `fieldsOf<T>()` 升级为返回 `FieldMeta` 列表；const 解释器内建产出字段 `name/type/index`（`TypeMeta.name` 可读），并允许 target 为 `struct/class`；新增单测与 comptime fixture 回归覆盖。
 - 2026-03-28：完成 T1209：sysroot 新增 `AnnotationMeta/AnnotationArgMeta` 与 `annotationsOf<T>()` 声明；const 解释器内建实现 type-level `annotationsOf<T>()`（读注解名与字面量/常量表达式参数），并新增单测与 comptime fixture `annotation_access_v0_basic` 回归覆盖。
+- 2026-03-28：完成 T1210：HIR lowering 为 delegated property 生成合成 `PropertyMeta` 常量引用，并在 `getValue/setValue` 调用处传参；新增 HIR fixture `delegated_property_lowering` 回归覆盖。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
 - 2026-03-27：完成 T0915b：复用 `effect_escape_continuation_resume_cross_thread` 用例，并回填 `TODO.md` 状态与验收命令。
 - 2026-03-27：完成 T0621：新增 run-pass fixture `generator_yield_iter_int_basic`，用 effect + escape continuation（`, k ->`）构造最小 yield/迭代器 demo，并用 stdout golden 回归输出顺序。

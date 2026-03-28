@@ -3717,11 +3717,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1210 [TODO] 委托属性 lowering 所需：生成 `PropertyMeta` 常量并传参（spec §10.4）
+### T1210 [DONE] 委托属性 lowering 所需：生成 `PropertyMeta` 常量并传参（spec §10.4）
 - 描述：为 delegated property 生成静态 `PropertyMeta` 常量，并在 getter/setter 转发时传入。
 - 目标：先只生成元数据与调用形状；delegate 的具体库实现不要求存在。
 - 验收：typecheck/IR fixture：delegated property lowering 后 getter 调用包含 `PropertyMeta` 参数（可用 dump-hir 验证）。
 - 依赖：T0434、T1208
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：HIR lowering 预扫描 delegated properties（`Owner.prop`），并把
+     - `receiver.prop` 降糖为 `receiver.prop$delegate.getValue(receiver, Owner.$PropertyMeta$prop)`；
+     - `receiver.prop = v` 降糖为 `receiver.prop$delegate.setValue(receiver, Owner.$PropertyMeta$prop, v)`。
+   - `tests/fixtures/hir/delegated_property_lowering.*`：新增 HIR golden fixture，回归验证 `getValue/setValue` 的第二参为合成的 `PropertyMeta` 常量引用。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1211 [TODO] `const fun` 规则：allowed/prohibited 清单的静态 enforcement（spec §6.2）
 - 描述：实现 const fun 的限制：禁止 perform/分配/IO/闭包等；允许纯计算、value types 操作与 `String`（值语义特例）。
