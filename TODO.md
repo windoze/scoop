@@ -3457,11 +3457,24 @@
    - `cargo test -p scoop --features llvm`
    - `cargo run -p scoop -- test`
 
-### T0629b [TODO] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
+### T0629b [DONE] program boundary：库导出入口 + host/embedded entry points（需要 build 链路）
 - 描述：定义并实现“库导出入口”（例如作为 `.cone` 动态/嵌入式入口）与 host callback 的 entry point 集合，并固定哪些入口必须显式 `Pure!`。
 - 目标：入口集合来源可配置（例如 Cone.toml 或 `scoop build --entry ...`）；不做运行时动态扫描。
 - 验收：新增 cone fixtures：多个 entry point 共存时规则稳定；导出入口若声明非 `Pure` 或漏处理 effect 会被拒绝。
 - 依赖：T1107
+ - 完成：
+   - `crates/scoopc/src/cone/manifest.rs`：解析 `Cone.toml` 可选段 `[entry-points].exports`，并在 `ConeManifest` 中保存 `export_entry_points`。
+   - `crates/scoopc/src/resolve/mod.rs`：`Index` 增加导出入口集合，并提供 `set_export_entry_points/is_export_entry_point` 供 typecheck 判定。
+   - `crates/scoopc/src/typecheck/expr.rs`：当函数 FQN 命中导出入口集合时，按 entry point 规则强制其显式声明 `/ Pure!`；新增稳定诊断：
+     - `scoop::typecheck::export_entry_point_must_declare_closed_pure`
+     - `scoop::typecheck::export_entry_point_must_be_pure`
+     - `scoop::typecheck::export_entry_point_must_be_closed_pure`
+   - `crates/scoop/src/commands/build.rs`：cone 包模式下将 `Cone.toml` 的导出入口配置注入 `Index`。
+   - `crates/scoop/src/fixtures/mod.rs`：`typecheck_cone_archive` runner 注入导出入口配置，便于用真实 cone fixtures 回归。
+   - `tests/fixtures/typecheck_cone_archive/program_boundary_export_entry_points/**`：新增用例覆盖“多导出入口共存”与“non-Pure/漏处理 effect 被拒绝”。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1108 [TODO] pre-specialize：从 Cone.toml 指定常用单态化实例（spec §13.7）
 - 描述：支持在 Cone.toml 中列出需要预编译的泛型实例，并在打包时写入 `.cone`。

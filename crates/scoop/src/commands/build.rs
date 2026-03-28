@@ -261,6 +261,12 @@ fn run_frontend(
     let mut index =
         scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::from)?;
 
+    // T0629b：program boundary 的“库导出入口 / host entry points”由 Cone.toml 指定，
+    // 在 typecheck 阶段按 entry point 规则强制 `Pure!`。
+    if let Some(manifest) = input.cone_manifest.as_ref() {
+        index.set_export_entry_points(manifest.export_entry_points.clone());
+    }
+
     // T1107：注入 `.cone` 依赖的 public API（用于 import/类型检查）。
     //
     // cone id 分配约定：

@@ -28,6 +28,7 @@
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T1106：为 `api.scoopir` 的 schema.version 增加版本协商（允许读取 <= 当前版本；更高版本给出稳定错误码 `scoop::cone::scoopir_schema_version_not_supported`），并新增单测覆盖。
 - 2026-03-28：完成 T1107：`scoop build` 支持读取 consumer `Cone.toml` 的 `.cone` 依赖图（DAG；循环依赖报错），并在启用 `llvm` 时复用“同一编译单元” lowering 结果生成目标产物（避免后端二次 parse/resolve）；新增单测覆盖 build+deps 与（llvm 下）运行 stdout。
+- 2026-03-28：完成 T0629b：Cone.toml 支持 `[entry-points].exports` 配置库导出入口，并在 typecheck 阶段按 entry point 规则强制其显式声明 `/ Pure!`；新增 typecheck_cone_archive fixtures 回归覆盖多入口与错误场景。
 - 2026-03-28：完成 T0321b：`.cone` 增加 `SYMBOL_VISIBILITY.json` 并在消费侧注入 non-public 符号占位符，使下游引用依赖的 `internal/private` 得到稳定诊断 `scoop::resolve::not_visible`（新增 typecheck_cone_archive fixtures 回归）。
 - 2026-03-28：完成 T0322：resolver 支持跨包 extension 导入与发现（显式 import / star import / 可见性过滤），并把可见 extension 候选写入调用点候选集；新增 resolve_cone fixtures `extension_imports` 回归。
 - 2026-03-27：完成 T0618：新增 `__scoop_thread_spawn_join_resume_u64`（sysroot + LLVM codegen 映射 + runtime pthread helper），并新增 run-pass fixture `effect_escape_continuation_resume_cross_thread` 回归跨线程 resume。
@@ -508,7 +509,7 @@
 - [ ] Appendix A 一致性：嵌套 handler 必须支持“最近匹配 handler”分发，不能停留在单层 handler 模型
 - [ ] program boundary 不只 `main`：库导出入口、多 entry point 与 host/embedded 边界规则（TODO T0629）
   - [x] cone-aware entry point：仅 consumer cone 的 `main` 视为 entry point（TODO T0629a）
-  - [ ] 库导出入口 + host/embedded entry points（TODO T0629b，依赖 T1107）
+  - [x] 库导出入口 + host/embedded entry points（TODO T0629b，依赖 T1107）
 - [x] perform slot ABI：从单 slot 扩展到可承载复杂 payload / 多 effect op 的稳定表示（T0630）
 
 **本阶段 DoD**

@@ -1272,6 +1272,10 @@ fn run_typecheck_cone_archive_case(
     let mut index =
         scoopc::resolve::Index::build_with_cones(&indexed).map_err(miette::Report::new)?;
 
+    // T0629b：cone archive fixtures 使用真实 `Cone.toml`，因此可在这里注入导出入口配置，
+    // 让 typecheck 按 entry point 规则强制 `Pure!`。
+    index.set_export_entry_points(consumer_pkg.manifest.export_entry_points.clone());
+
     // type env：sysroot + consumer files（用于当前 cone 的 TypeRef lowering）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::new)?;

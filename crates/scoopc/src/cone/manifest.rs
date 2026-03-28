@@ -4,7 +4,8 @@
 //!
 //! 设计取舍（T1101）：
 //! - 只解析 `[cone].name/[cone].version` 与 `[dependencies]`；
-//! - 其它字段（例如 `scoop/ir_version/targets/pre-specialize`）后续任务再补齐。
+//! - 其它字段（例如 `scoop/ir_version/targets/pre-specialize`）后续任务再补齐；
+//! - T0629b：额外解析可选的 `[entry-points].exports`（库导出入口 / host entry points）。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -29,6 +30,13 @@ pub struct ConeManifest {
     ///
     /// 注意：T1101 先把版本要求当作纯字符串保存，不做 semver/范围解析。
     pub dependencies: BTreeMap<String, String>,
+    /// program boundary：库导出入口（host/embedded entry points）。
+    ///
+    /// v0 约定：
+    /// - 来源：`[entry-points].exports`（字符串数组）
+    /// - 每一项为函数的 FQN（例如 `my.pkg.init`）
+    /// - 语义：被列出的函数在 typecheck 中会按“入口（entry point）”规则强制为 `Pure!`（T0629b）
+    pub export_entry_points: Vec<String>,
 }
 
 impl ConeManifest {
@@ -64,7 +72,9 @@ impl ConeManifest {
                 let mut out = BTreeMap::new();
                 for (dep_name, dep_value) in table {
                     let req = dep_value.as_str().ok_or_else(|| {
-                        miette!("`[dependencies].{dep_name}` 必须是字符串版本要求（例如 \"1.0.0\"）")
+                        miette!(
+                            "`[dependencies].{dep_name}` 必须是字符串版本要求（例如 \"1.0.0\"）"
+                        )
                     })?;
                     out.insert(dep_name.to_owned(), req.to_owned());
                 }
@@ -72,9 +82,12 @@ impl ConeManifest {
             }
         };
 
+        let export_entry_points = parse_export_entry_points(root)?;
+
         Ok(Self {
             cone: ConeSection { name, version },
             dependencies,
+            export_entry_points,
         })
     }
 
@@ -135,6 +148,41 @@ fn get_required_string<'a>(table: &'a toml::Table, key: &str) -> Result<&'a str>
         .ok_or_else(|| miette!("字段 `{key}` 必须是字符串"))
 }
 
+fn parse_export_entry_points(root: &toml::Table) -> Result<Vec<String>> {
+    // `entry-points` 与 `entry_points` 作为同义 key（便于 TOML 书写风格兼容）。
+    let table = match root
+        .get("entry-points")
+        .or_else(|| root.get("entry_points"))
+    {
+        None => return Ok(Vec::new()),
+        Some(value) => value
+            .as_table()
+            .ok_or_else(|| miette!("`[entry-points]` 必须是 table"))?,
+    };
+
+    let exports = match table.get("exports") {
+        None => Vec::new(),
+        Some(value) => {
+            let arr = value
+                .as_array()
+                .ok_or_else(|| miette!("`[entry-points].exports` 必须是字符串数组"))?;
+
+            let mut out = Vec::with_capacity(arr.len());
+            for (idx, item) in arr.iter().enumerate() {
+                let Some(s) = item.as_str() else {
+                    return Err(miette!(
+                        "`[entry-points].exports[{idx}]` 必须是字符串（函数 FQN）"
+                    ));
+                };
+                out.push(s.to_owned());
+            }
+            out
+        }
+    };
+
+    Ok(exports)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,12 +212,30 @@ scoop-io = "1.2.0"
             manifest.dependencies.get("scoop-io").map(String::as_str),
             Some("1.2.0")
         );
+        assert!(manifest.export_entry_points.is_empty());
+    }
+
+    #[test]
+    fn parse_entry_points_exports_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+
+[entry-points]
+exports = ["a.b.init", "a.b.entry"]
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(manifest.export_entry_points, vec!["a.b.init", "a.b.entry"]);
     }
 
     #[test]
     fn discover_cone_manifest_path_finds_repo_fixture() {
-        let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/cone/minimal");
+        let fixture_dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/cone/minimal");
 
         let found = discover_cone_manifest_path(&fixture_dir).expect("应找到 Cone.toml");
         let found = found.canonicalize().unwrap();

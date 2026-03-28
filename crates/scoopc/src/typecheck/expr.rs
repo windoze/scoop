@@ -44,6 +44,15 @@ use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
 const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
 const TASK_FQN: &str = "scoop.core.Task";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProgramBoundaryKind {
+    None,
+    /// 可执行入口：`fun main`（runtime entry point，spec §5.10）。
+    Main,
+    /// 库导出入口 / host entry point（T0629b：由 Cone.toml 或 driver 配置指定）。
+    Export,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum ExprTypeError {
     #[error(transparent)]
@@ -90,6 +99,34 @@ pub enum ExprTypeError {
     )]
     #[diagnostic(code(scoop::typecheck::entry_point_must_be_closed_pure))]
     EntryPointMustBeClosedPure {
+        declared: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("导出入口 `{entry}` 必须显式声明闭合 effect row：`Pure!`")]
+    #[diagnostic(code(scoop::typecheck::export_entry_point_must_declare_closed_pure))]
+    ExportEntryPointMustDeclareClosedPure {
+        entry: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("导出入口 `{entry}` 必须为 Pure（不能声明为 {declared}）")]
+    #[diagnostic(code(scoop::typecheck::export_entry_point_must_be_pure))]
+    ExportEntryPointMustBePure {
+        entry: String,
+        declared: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "导出入口 `{entry}` 必须为闭合 effect row：`Pure!`（这里写的是 {declared}，请在 row 末尾加 `!`）"
+    )]
+    #[diagnostic(code(scoop::typecheck::export_entry_point_must_be_closed_pure))]
+    ExportEntryPointMustBeClosedPure {
+        entry: String,
         declared: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -1055,16 +1092,26 @@ fn check_file_exprs_impl(
                 } else {
                     format!("{pkg_prefix}.{local_name}")
                 };
-                let is_entry_point = file_cone == consumer_cone
+                let program_boundary = if file_cone == consumer_cone
                     && fun.kind == ast::FunDeclKind::Regular
                     && fun.receiver.is_none()
-                    && local_name == "main";
+                {
+                    if local_name == "main" {
+                        ProgramBoundaryKind::Main
+                    } else if index.is_export_entry_point(&fun_fqn) {
+                        ProgramBoundaryKind::Export
+                    } else {
+                        ProgramBoundaryKind::None
+                    }
+                } else {
+                    ProgramBoundaryKind::None
+                };
 
                 check_fun_body_exprs(
                     source,
                     &fun_fqn,
                     fun,
-                    is_entry_point,
+                    program_boundary,
                     &mut lower,
                     builtins,
                     &top_level_types,
@@ -1527,7 +1574,13 @@ fn check_class_member_fun_body_exprs(
                 performed_effects.clone()
             };
 
-            check_required_effects_for_fun_decl(fun, &performed_for_decl, false, lower)?;
+            check_required_effects_for_fun_decl(
+                fun,
+                &performed_for_decl,
+                ProgramBoundaryKind::None,
+                None,
+                lower,
+            )?;
             Ok(())
         }
         Err(e) => Err(e),
@@ -9006,25 +9059,60 @@ fn visibility_from_modifiers(modifiers: &[ast::Modifier]) -> Visibility {
 fn check_required_effects_for_fun_decl(
     fun: &ast::FunDecl,
     performed: &[(TypeId, Span)],
-    is_entry_point: bool,
+    program_boundary: ProgramBoundaryKind,
+    fun_fqn: Option<&str>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
-    // spec §5.10：entry point 由 runtime 在无 ambient handler 的边界调用，
-    // 因此其 effect row 必须是 `Pure`（不能显式声明 non-Pure，也不能通过 internal/private 推断出效果）。
-    if is_entry_point {
-        if let Some(expr) = fun.effects.as_ref() {
+    match program_boundary {
+        ProgramBoundaryKind::None => {}
+        // spec §5.10：entry point 由 runtime 在无 ambient handler 的边界调用，
+        // 因此其 effect row 必须是 `Pure`（不能显式声明 non-Pure，也不能通过 internal/private 推断出效果）。
+        ProgramBoundaryKind::Main => {
+            if let Some(expr) = fun.effects.as_ref() {
+                let row = lower.lower_effect_row_expr(Some(expr))?;
+                if !row.terms.is_empty() {
+                    return Err(ExprTypeError::EntryPointMustBePure {
+                        declared: fmt_effect_row(&row, lower),
+                        span: expr.span.into(),
+                    });
+                }
+                // spec §5.8.4：entry point 属于 system boundary，必须是闭合 effect row（`Pure!`）。
+                // 说明：省略 effects 标注时仍会按 entry point 的规则强制 Pure；这里仅对“显式写了 open row `/ Pure`”
+                // 给出更明确的诊断，避免用户误以为 open row 能封住 callback/transitive effects。
+                if !expr.closed {
+                    return Err(ExprTypeError::EntryPointMustBeClosedPure {
+                        declared: fmt_effect_row(&row, lower),
+                        span: expr.span.into(),
+                    });
+                }
+            }
+        }
+        // T0629b：库导出入口 / host entry points。
+        //
+        // 约束：
+        // - 必须显式声明 `/ Pure!`（避免默认 `/ Pure` 的 open row 语义误用在 program boundary 上）
+        // - 不允许声明 non-Pure row
+        ProgramBoundaryKind::Export => {
+            let entry = fun_fqn.unwrap_or("<unknown>").to_string();
+
+            let Some(expr) = fun.effects.as_ref() else {
+                return Err(ExprTypeError::ExportEntryPointMustDeclareClosedPure {
+                    entry,
+                    span: fun.name.span.into(),
+                });
+            };
+
             let row = lower.lower_effect_row_expr(Some(expr))?;
             if !row.terms.is_empty() {
-                return Err(ExprTypeError::EntryPointMustBePure {
+                return Err(ExprTypeError::ExportEntryPointMustBePure {
+                    entry,
                     declared: fmt_effect_row(&row, lower),
                     span: expr.span.into(),
                 });
             }
-            // spec §5.8.4：entry point 属于 system boundary，必须是闭合 effect row（`Pure!`）。
-            // 说明：省略 effects 标注时仍会按 entry point 的规则强制 Pure；这里仅对“显式写了 open row `/ Pure`”
-            // 给出更明确的诊断，避免用户误以为 open row 能封住 callback/transitive effects。
             if !expr.closed {
-                return Err(ExprTypeError::EntryPointMustBeClosedPure {
+                return Err(ExprTypeError::ExportEntryPointMustBeClosedPure {
+                    entry,
                     declared: fmt_effect_row(&row, lower),
                     span: expr.span.into(),
                 });
@@ -9035,7 +9123,7 @@ fn check_required_effects_for_fun_decl(
     // 即使函数体没有 perform（`performed.is_empty()`），也需要对“显式写出的 effects row”做最小语义校验：
     // - effect row item 必须是 effect 类型
     // - 闭合 row 不能直接引用 row 变量（例如 `E!`，T0628b）
-    if !is_entry_point {
+    if matches!(program_boundary, ProgramBoundaryKind::None) {
         if let Some(expr) = fun.effects.as_ref() {
             let _ = lower.lower_effect_row_expr(Some(expr))?;
         }
@@ -9046,25 +9134,28 @@ fn check_required_effects_for_fun_decl(
     }
 
     // T0508：effect row 推断入口：
-    // - entry point：强制为 Pure（spec §5.10）。
+    // - entry point：强制为 Pure（spec §5.10；T0629b 的 export entry point 同理）。
     // - public：缺省效果强制为 Pure（perform 任何 effect 都必须显式标注 row 或被 handler 捕获）
     // - private/internal：允许省略 `/ RowExpr`，由函数体内 “立即执行的 perform” 推断出 required effects。
-    let declared = if is_entry_point {
-        EffectRow::pure()
-    } else if fun.effects.is_some() {
-        lower.lower_effect_row_expr(fun.effects.as_ref())?
-    } else {
-        match visibility_from_modifiers(&fun.modifiers) {
-            Visibility::Public => EffectRow::pure(),
-            Visibility::Internal | Visibility::Private => {
-                let mut seen: HashSet<TypeId> = HashSet::new();
-                let mut terms: Vec<TypeId> = Vec::new();
-                for (effect, _) in performed.iter().copied() {
-                    if seen.insert(effect) {
-                        terms.push(effect);
+    let declared = match program_boundary {
+        ProgramBoundaryKind::Main | ProgramBoundaryKind::Export => EffectRow::pure(),
+        ProgramBoundaryKind::None => {
+            if fun.effects.is_some() {
+                lower.lower_effect_row_expr(fun.effects.as_ref())?
+            } else {
+                match visibility_from_modifiers(&fun.modifiers) {
+                    Visibility::Public => EffectRow::pure(),
+                    Visibility::Internal | Visibility::Private => {
+                        let mut seen: HashSet<TypeId> = HashSet::new();
+                        let mut terms: Vec<TypeId> = Vec::new();
+                        for (effect, _) in performed.iter().copied() {
+                            if seen.insert(effect) {
+                                terms.push(effect);
+                            }
+                        }
+                        EffectRow::new(terms)
                     }
                 }
-                EffectRow::new(terms)
             }
         }
     };
@@ -9088,7 +9179,7 @@ fn check_fun_body_exprs(
     source: &SourceFile,
     fun_fqn: &str,
     fun: &ast::FunDecl,
-    is_entry_point: bool,
+    program_boundary: ProgramBoundaryKind,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     top_level_types: &HashMap<String, TypeId>,
@@ -9241,7 +9332,15 @@ fn check_fun_body_exprs(
                 performed_effects.clone()
             };
 
-            check_required_effects_for_fun_decl(fun, &performed_for_decl, is_entry_point, lower)?;
+            let boundary_fqn =
+                matches!(program_boundary, ProgramBoundaryKind::Export).then_some(fun_fqn);
+            check_required_effects_for_fun_decl(
+                fun,
+                &performed_for_decl,
+                program_boundary,
+                boundary_fqn,
+                lower,
+            )?;
             Ok(())
         }
         Err(e) => Err(e),

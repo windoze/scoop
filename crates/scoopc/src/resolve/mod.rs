@@ -468,6 +468,12 @@ pub struct Index {
     pub by_fqn: HashMap<String, NamespacedSymbols>,
     /// 每个源文件所属的 cone（用于可见性过滤）。
     file_cones: HashMap<PathBuf, ConeId>,
+    /// program boundary：额外的入口函数集合（库导出入口 / host entry points，T0629b）。
+    ///
+    /// 说明：
+    /// - 该集合的来源由 driver 决定（例如 Cone.toml 的 `[entry-points].exports`）；
+    /// - 当前仅在 typecheck 阶段用于决定哪些顶层 `fun` 需要按 entry point 规则强制 `Pure!`。
+    export_entry_points: HashSet<String>,
     /// 构造函数 overload set：type FQN → primary/secondary constructors（T0318）。
     pub constructors: HashMap<String, Vec<ConstructorOverload>>,
     /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
@@ -516,6 +522,19 @@ impl Index {
         }
         index.collect_extension_funs(files);
         Ok(index)
+    }
+
+    /// 设置“导出入口（export entry points）”集合（T0629b）。
+    pub fn set_export_entry_points<I, S>(&mut self, fqns: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.export_entry_points = fqns.into_iter().map(Into::into).collect();
+    }
+
+    pub fn is_export_entry_point(&self, fqn: &str) -> bool {
+        self.export_entry_points.contains(fqn)
     }
 
     fn collect_extension_funs(&mut self, files: &[IndexedFile<'_>]) {
