@@ -1,0 +1,21 @@
+// EXPECT: pass
+// 目标：T1209：编译期注解访问（v0：type-level）。
+// - 覆盖：
+//   - `annotationsOf<T>()` 返回类型注解列表（tuple of AnnotationMeta）
+//   - `AnnotationMeta.name` / `AnnotationMeta.args`
+//   - positional 参数名从 `annotation class` 主构造参数名推导（`msg`）
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+annotation class Deprecated(val msg: String)
+
+@Deprecated("x")
+struct Foo(val x: Int)
+
+const val A = annotationsOf<Foo>()
+const val A0N: String = annotationsOf<Foo>()._0.name
+const val A0AN: String = annotationsOf<Foo>()._0.args._0.name
+const val A0AV: String = annotationsOf<Foo>()._0.args._0.value
+

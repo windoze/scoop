@@ -1,0 +1,4 @@
+A = (AnnotationMeta { args: (AnnotationArgMeta { name: "msg", value: "x" }), name: "Deprecated" })
+A0N = "Deprecated"
+A0AN = "msg"
+A0AV = "x"

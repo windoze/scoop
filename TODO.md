@@ -3688,11 +3688,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1209 [TODO] 编译期注解访问（spec §15.6）
+### T1209 [DONE] 编译期注解访问（spec §15.6）
 - 描述：在 comptime/reflection API 中暴露读取注解的能力（限定在编译期使用）。
 - 目标：先只支持读取注解名与字面量参数；复杂表达式参数后置。
 - 验收：comptime fixture：读取 `@Deprecated("x")` 的参数并生成代码/诊断；输出稳定。
 - 依赖：T1001、T1208
+ - 完成：
+   - `sysroot/core.scoop`：新增 `AnnotationMeta/AnnotationArgMeta` 与 `annotationsOf<T>()` 的声明面。
+   - `crates/scoopc/src/comptime/interpreter.rs`：const 解释器内建实现 `annotationsOf<T>()`（v0：type-level），支持读取注解名与字面量/常量表达式参数；positional 参数名优先从 `annotation class` 主构造参数名推导。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测覆盖 `annotationsOf<T>()` 的注解读取（positional + named）。
+   - `tests/fixtures/comptime/annotation_access_v0_basic.*`：新增 comptime fixture + `.comptime` golden 回归覆盖。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1016b [TODO] meta-annotations：按 `@Retention` 导出到 `.cone` 并在下游可见
 - 描述：把标记为 cone-preserved 的注解写入 `.cone` 元数据（或 scoopir），并在下游编译/反射中可读；comptime-only 不导出。

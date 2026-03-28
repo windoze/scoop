@@ -16,7 +16,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 
-use super::eval::{ConstEvalHost, eval_const_expr_with_host, value_kind};
+use super::eval::{ConstEvalHost, eval_const_expr, eval_const_expr_with_host, value_kind};
 use super::{ConstEvalCtx, ConstEvalError, ConstValue};
 
 /// const 解释器配置项（v0）。
@@ -229,7 +229,7 @@ impl<'a> ConstInterpreter<'a> {
     ) -> Result<ConstValue, ConstEvalError> {
         // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
         match callee_name {
-            "nameOf" | "sizeOf" | "fieldsOf" => {
+            "nameOf" | "sizeOf" | "fieldsOf" | "annotationsOf" => {
                 return self.call_reflection_intrinsics(call_span, callee_name, type_args, args);
             }
             _ => {}
@@ -346,6 +346,33 @@ impl<'a> ConstInterpreter<'a> {
 
                 Ok(ConstValue::Tuple(fields))
             }
+            "annotationsOf" => {
+                let decls = self.types_by_name.get(&simple_name).ok_or_else(|| {
+                    ConstEvalError::ReflectionUnknownType {
+                        name: full_name.clone(),
+                        span: ty_span.into(),
+                    }
+                })?;
+                let decl = match decls.as_slice() {
+                    [one] => *one,
+                    _ => {
+                        return Err(ConstEvalError::ReflectionAmbiguousType {
+                            name: full_name.clone(),
+                            span: ty_span.into(),
+                        });
+                    }
+                };
+
+                let mut anns: Vec<ConstValue> = Vec::new();
+                for a in &decl.annotations {
+                    // `annotationsOf<T>()` 只返回“类型本身”的注解：忽略 use-site target。
+                    if a.use_site_target.is_some() {
+                        continue;
+                    }
+                    anns.push(self.mk_annotation_meta(a)?);
+                }
+                Ok(ConstValue::Tuple(anns))
+            }
             _ => Err(ConstEvalError::ReflectionBadCall {
                 name: name.to_string(),
                 reason: "unknown reflection intrinsic",
@@ -390,6 +417,72 @@ impl<'a> ConstInterpreter<'a> {
             ty: "FieldMeta".to_string(),
             fields,
         })
+    }
+
+    fn mk_annotation_meta(&self, a: &ast::AnnotationUse) -> Result<ConstValue, ConstEvalError> {
+        let name = a
+            .path
+            .iter()
+            .map(|id| id.text(self.ctx.source))
+            .collect::<Vec<_>>()
+            .join(".");
+        let simple = a
+            .path
+            .last()
+            .map(|id| id.text(self.ctx.source).to_string())
+            .unwrap_or_default();
+
+        let mut args: Vec<ConstValue> = Vec::with_capacity(a.args.len());
+        for (idx, arg) in a.args.iter().enumerate() {
+            args.push(self.mk_annotation_arg_meta(&simple, idx, arg)?);
+        }
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("name".to_string(), ConstValue::String(name));
+        fields.insert("args".to_string(), ConstValue::Tuple(args));
+        Ok(ConstValue::Struct(super::ConstStruct {
+            ty: "AnnotationMeta".to_string(),
+            fields,
+        }))
+    }
+
+    fn mk_annotation_arg_meta(
+        &self,
+        annotation_simple_name: &str,
+        index: usize,
+        arg: &ast::AnnotationArg,
+    ) -> Result<ConstValue, ConstEvalError> {
+        let arg_name = match arg.name {
+            Some(id) => id.text(self.ctx.source).to_string(),
+            None => self
+                .lookup_annotation_ctor_param_name(annotation_simple_name, index)
+                .unwrap_or_else(|| format!("_{index}")),
+        };
+
+        // T1209：当前阶段只支持字面量/常量表达式参数；复杂表达式后续任务再补齐。
+        let value = eval_const_expr(self.ctx, &arg.value)?;
+
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("name".to_string(), ConstValue::String(arg_name));
+        fields.insert("value".to_string(), value);
+        Ok(ConstValue::Struct(super::ConstStruct {
+            ty: "AnnotationArgMeta".to_string(),
+            fields,
+        }))
+    }
+
+    fn lookup_annotation_ctor_param_name(&self, annotation_simple_name: &str, index: usize) -> Option<String> {
+        let decls = self.types_by_name.get(annotation_simple_name)?;
+        let decl = match decls.as_slice() {
+            [one] => *one,
+            _ => return None,
+        };
+        if !decl.modifiers.contains(&ast::Modifier::Annotation) {
+            return None;
+        }
+        let ctor = decl.primary_ctor.as_ref()?;
+        let param = ctor.params.get(index)?;
+        Some(param.name.text(self.ctx.source).to_string())
     }
 
     /// 把 `TypeRef` 格式化为稳定的字符串（用于 `TypeMeta.name`）。

@@ -55,6 +55,26 @@ fn mk_field_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> 
     })
 }
 
+fn mk_annotation_arg_meta(name: &str, value: ConstValue) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "AnnotationArgMeta".to_string(),
+        fields: BTreeMap::from([
+            ("name".to_string(), ConstValue::String(name.to_string())),
+            ("value".to_string(), value),
+        ]),
+    })
+}
+
+fn mk_annotation_meta(name: &str, args: Vec<ConstValue>) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "AnnotationMeta".to_string(),
+        fields: BTreeMap::from([
+            ("args".to_string(), ConstValue::Tuple(args)),
+            ("name".to_string(), ConstValue::String(name.to_string())),
+        ]),
+    })
+}
+
 fn eval_file_consts(file_src: &str) -> Vec<ConstBinding> {
     let source = SourceFile::new_virtual("<mem>", file_src.to_string());
     let file = parser::parse_file(&source).expect("parse");
@@ -454,5 +474,65 @@ const val F = fieldsOf<C>()
                 mk_field_meta(ty, "y", "String", 1),
             ]),
         }]
+    );
+}
+
+#[test]
+fn const_eval_reflection_annotations_of_v0_basic() {
+    let consts = eval_file_consts(
+        r#"
+annotation class Deprecated(val msg: String)
+
+@Deprecated("x")
+@Deprecated(msg: "y")
+struct Foo(val x: Int)
+
+const val A = annotationsOf<Foo>()
+const val A0N: String = annotationsOf<Foo>()._0.name
+const val A0AN: String = annotationsOf<Foo>()._0.args._0.name
+const val A0AV: String = annotationsOf<Foo>()._0.args._0.value
+const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: ConstValue::Tuple(vec![
+                    mk_annotation_meta(
+                        "Deprecated",
+                        vec![mk_annotation_arg_meta(
+                            "msg",
+                            ConstValue::String("x".to_string()),
+                        )],
+                    ),
+                    mk_annotation_meta(
+                        "Deprecated",
+                        vec![mk_annotation_arg_meta(
+                            "msg",
+                            ConstValue::String("y".to_string()),
+                        )],
+                    ),
+                ]),
+            },
+            ConstBinding {
+                name: "A0N".to_string(),
+                value: ConstValue::String("Deprecated".to_string()),
+            },
+            ConstBinding {
+                name: "A0AN".to_string(),
+                value: ConstValue::String("msg".to_string()),
+            },
+            ConstBinding {
+                name: "A0AV".to_string(),
+                value: ConstValue::String("x".to_string()),
+            },
+            ConstBinding {
+                name: "A1AV".to_string(),
+                value: ConstValue::String("y".to_string()),
+            },
+        ]
     );
 }
