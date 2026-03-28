@@ -3765,11 +3765,24 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1213 [TODO] sysroot：补齐 scope functions 的 effect-polymorphic 签名（spec §11）
+### T1213 [DONE] sysroot：补齐 scope functions 的 effect-polymorphic 签名（spec §11）
 - 描述：在 sysroot 中声明 `let/run/also/apply` 的推荐签名（含 `<eff E = Pure>` 与 receiver function type）。
 - 目标：先只做声明；标准库实现可后置。
 - 验收：typecheck fixture：调用 `x.run { ... }` 的 effect row 会传播（在推断/required effects 上可观测）。
 - 依赖：T0509、T0219
+ - 完成：
+   - `sysroot/core.scoop`：新增 `let/run/also/apply` 的 scope functions 声明，包含 `<eff E = Pure>` 与 receiver function type；
+     - v0 限制：由于当前泛型调用推断仅支持单一 type param，`let/run` 的返回类型先使用 `Any` 作为擦除视图（保持 effect row 传播）。
+   - `crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/resolve/scopes.rs`：resolver 支持“receiver 为声明处 type param（例如 `<T> T.ext()`）”的扩展函数参与候选匹配（通配）。
+   - `crates/scoopc/src/typecheck/lower.rs`：新增 `lower_type_ref_in_decl_file_with_scopes()`，用于跨文件 `<eff E>` 签名 lowering。
+   - `crates/scoopc/src/typecheck/expr.rs`：
+     - 扩展函数调用在缺失当前文件签名时回退到 `Index`（并支持跨文件 `<eff E>`）；
+     - lambda expected-context 推断支持 receiver function type；
+     - `FunSigOwned` 增加 `decl_file`，required effects 处使用 decl_file 上下文 lower effects，避免跨文件 span slice panic。
+   - `tests/fixtures/typecheck/scope_functions_run_effect_propagates_missing_is_error.scoop`：新增 fail fixture，断言 `x.run { Raise.raise(1) }` 会触发 `scoop::typecheck::required_effect_not_declared`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1214 [TODO] 反射 intrinsics 完整化：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - 描述：在 sysroot + comptime evaluator 中补齐缺失的反射 intrinsic：`variantsOf<T>()`、`alignOf<T>()`、`superTypesOf<T>()`、`annotationsOf<T>()`、`paramsOf(fn)`。

@@ -26,6 +26,7 @@
 - 2026-03-28：`TODO.md` 中 T1016b（meta-annotations 导出到 `.cone`）依赖 T1103/T1209，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1016b 移动到 T1209 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
+- 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T1106：为 `api.scoopir` 的 schema.version 增加版本协商（允许读取 <= 当前版本；更高版本给出稳定错误码 `scoop::cone::scoopir_schema_version_not_supported`），并新增单测覆盖。
 - 2026-03-28：完成 T1107：`scoop build` 支持读取 consumer `Cone.toml` 的 `.cone` 依赖图（DAG；循环依赖报错），并在启用 `llvm` 时复用“同一编译单元” lowering 结果生成目标产物（避免后端二次 parse/resolve）；新增单测覆盖 build+deps 与（llvm 下）运行 stdout。

@@ -378,6 +378,7 @@ pub fn inject_cone_dependency_public_api(
                 decl_cone,
                 name: local.to_string(),
                 receiver_ty_fqn,
+                receiver_is_type_param: false,
             });
         }
     }

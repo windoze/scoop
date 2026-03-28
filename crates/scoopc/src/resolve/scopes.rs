@@ -1470,10 +1470,14 @@ impl<'a> BlockScopeChecker<'a> {
                 continue;
             }
 
-            let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
-                continue;
+            let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                Some(ext_receiver) => {
+                    ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                }
+                // `fun <T> T.ext()`：receiver 是 type param（通配）。
+                None => ext.receiver_is_type_param,
             };
-            if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+            if !receiver_matches {
                 continue;
             }
 
@@ -1502,10 +1506,14 @@ impl<'a> BlockScopeChecker<'a> {
                     continue;
                 }
 
-                let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
-                    continue;
+                let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                    Some(ext_receiver) => {
+                        ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                    }
+                    // `fun <T> T.ext()`：receiver 是 type param（通配）。
+                    None => ext.receiver_is_type_param,
                 };
-                if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                if !receiver_matches {
                     continue;
                 }
 
@@ -1535,10 +1543,14 @@ impl<'a> BlockScopeChecker<'a> {
                     .iter()
                     .filter(|e| e.fqn == *imported_fqn)
                 {
-                    let Some(ext_receiver) = ext.receiver_ty_fqn.as_deref() else {
-                        continue;
+                    let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                        Some(ext_receiver) => {
+                            ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                        }
+                        // `fun <T> T.ext()`：receiver 是 type param（通配）。
+                        None => ext.receiver_is_type_param,
                     };
-                    if ext_receiver != receiver_ty_fqn && ext_receiver != "scoop.core.Any" {
+                    if !receiver_matches {
                         continue;
                     }
 

@@ -419,6 +419,13 @@ pub struct ExtensionFunSymbol {
     pub name: String,
     /// receiver 的类型 FQN（例如 `a.Point` / `scoop.core.Any`）；无法解析时为 None。
     pub receiver_ty_fqn: Option<String>,
+    /// receiver 是否为声明处的类型参数（例如 `fun <T> T.ext()`）。
+    ///
+    /// 说明：
+    /// - 当前 resolver 的扩展函数匹配主要依赖 receiver 的类型 FQN；
+    /// - 但当 receiver 是 type param 时无法映射到具体 FQN（`receiver_ty_fqn=None`），
+    ///   语义上它应当可作用于任意 receiver，因此这里把它标记为“通配 receiver”以参与候选收集。
+    pub receiver_is_type_param: bool,
 }
 
 /// 同一个 FQN 下按命名空间（type/value/fun）分组的符号集合。
@@ -567,6 +574,29 @@ impl Index {
                 };
 
                 let receiver_ty_fqn = self.type_ref_to_fqn_in_file(f.source, f.file, receiver);
+                let receiver_is_type_param = receiver_ty_fqn.is_none()
+                    && match receiver {
+                        ast::TypeRef::Path(p) => {
+                            // `fun <T> T.ext()`：receiver 是 type param（通配）。
+                            if p.segments.len() != 1 || !p.args.is_empty() {
+                                false
+                            } else {
+                                let seg = &p.segments[0];
+                                let receiver_name = match seg.text {
+                                    Some(t) => t,
+                                    None => f.source.slice(seg.span),
+                                };
+                                fun.type_params.iter().any(|tp| {
+                                    let tp_name = match tp.name.text {
+                                        Some(t) => t,
+                                        None => f.source.slice(tp.name.span),
+                                    };
+                                    tp_name == receiver_name
+                                })
+                            }
+                        }
+                        _ => false,
+                    };
 
                 self.extension_funs.push(ExtensionFunSymbol {
                     fqn,
@@ -574,6 +604,7 @@ impl Index {
                     decl_cone: f.cone,
                     name,
                     receiver_ty_fqn,
+                    receiver_is_type_param,
                 });
             }
         }

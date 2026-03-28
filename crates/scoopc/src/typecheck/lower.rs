@@ -718,6 +718,54 @@ impl<'a> TypeLowering<'a> {
         out
     }
 
+    /// 在“声明处文件”的 package/import 上下文中 lower 一个 TypeRef，并同时注入：
+    /// - use-site type param 绑定（`T` → 具体 TypeId）
+    /// - effect row param 绑定（`E` → 具体 EffectRow）
+    ///
+    /// 用途：
+    /// - 跨文件（sysroot / cone 依赖）的函数签名收集：当参数/返回类型里出现 `/ E` 时，
+    ///   需要在 lowering 阶段先把 `E` 绑定到默认值（缺省 Pure），以便类型可以被正确构造，
+    ///   并在调用点再用推断出的 `E_arg` 做实例化替换。
+    pub(super) fn lower_type_ref_in_decl_file_with_scopes(
+        &mut self,
+        decl_file: &Path,
+        type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+        eff_bindings: impl IntoIterator<Item = (String, EffectRow)>,
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+
+        ctx.push_type_param_bindings(type_bindings);
+        let mut pushed_eff = 0usize;
+        for (name, row) in eff_bindings {
+            ctx.push_effect_row_param_binding(name, row);
+            pushed_eff += 1;
+        }
+
+        let out = ctx.lower_type_ref(ty);
+
+        for _ in 0..pushed_eff {
+            ctx.pop_effect_row_param_binding();
+        }
+        ctx.pop_type_param_bindings();
+
+        out
+    }
+
     /// 直接注入一组“使用点 type param 绑定”（name → TypeId）。
     ///
     /// 说明：

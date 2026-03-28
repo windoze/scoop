@@ -225,6 +225,20 @@ enum Option<T> {
     None
 }
 
+// Scope functions（spec §11）。
+//
+// 说明：
+// - 这些函数是库定义的（非编译器内建）；sysroot 只提供“声明表面”，便于 resolver/typecheck 可见。
+// - 关键点：它们应当是 effect-polymorphic：
+//   - lambda body 中 perform 的 effects 会通过 `<eff E>` 推断并传播到调用点的 required effects；
+//   - 从而促使外层函数显式声明 `/ E`（或被 handle/try 消解）。
+// - v0 限制：当前泛型调用推断仅支持单一 type param，因此 `let/run` 的返回类型先使用 `Any`
+//   作为“擦除视图”（仍保持 effect row 传播）；后续可升级为 `<T, R, eff E = Pure> ...: R / E`。
+fun <T, eff E = Pure> T.let(block: (T) -> Any / E): Any / E
+fun <T, eff E = Pure> T.run(block: T.() -> Any / E): Any / E
+fun <T, eff E = Pure> T.also(block: (T) -> Unit / E): T / E
+fun <T, eff E = Pure> T.apply(block: T.() -> Unit / E): T / E
+
 // Continuation（spec §5.5）
 //
 // 说明：

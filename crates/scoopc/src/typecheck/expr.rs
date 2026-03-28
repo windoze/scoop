@@ -959,6 +959,8 @@ struct FunSigOwned {
     /// 声明处 name 的 span：用于把“某个具体 overload”与 AST 节点对应起来，
     /// 以便在后续 pass 中回写（例如返回类型推断，T0507）。
     decl_span: Span,
+    /// 该签名所属的声明文件（用于在正确的 source/package/import 上下文中 lower row/type）。
+    decl_file: std::path::PathBuf,
     /// 是否为扩展函数（`fun Receiver.name(...)`）。
     ///
     /// 说明：
@@ -3251,6 +3253,7 @@ fn infer_handle_expr_type(
         let param_count = op_params.len();
         let sig = FunSigOwned {
             decl_span: op.symbol.span,
+            decl_file: op.symbol.decl_file.clone(),
             is_extension: false,
             is_inline: false,
             is_const: false,
@@ -3960,10 +3963,8 @@ fn try_infer_lambda_expr_type_by_expected(
 
     // 当前阶段目标（T0504/T0509）：
     // - 支持 0/1 参数 lambda（`() -> T` / `(A) -> T`）
-    // - 不支持 receiver function type
-    if expected_fun.receiver.is_some() {
-        return Ok(None);
-    }
+    // - 支持 receiver function type（`T.() -> R`）：把 receiver 写入 lambda 的函数类型；
+    //   注意：当前阶段 resolver 尚未为 lambda body 引入 `this` 绑定，因此这里不额外注入局部 `this`。
 
     let mut lambda_locals = locals.clone();
     let mut param_tys: Vec<TypeId> = Vec::new();
@@ -4018,7 +4019,7 @@ fn try_infer_lambda_expr_type_by_expected(
             .map(|(effect, _)| effect)
             .collect(),
     );
-    let lam_ty = lower.ty_function(None, param_tys, body_ty, effects);
+    let lam_ty = lower.ty_function(expected_fun.receiver, param_tys, body_ty, effects);
     Ok(Some(lam_ty))
 }
 
@@ -4927,7 +4928,7 @@ fn collect_top_level_fun_signatures_from_index(
 
     let mut out: Vec<FunSigOwned> = Vec::new();
     for o in &overloads {
-        // T0505 v0：当前阶段的泛型调用推断仅支持单一 type param。
+        // T0505 v0：当前阶段的泛型调用推断仅支持单一 type param（隐式推断路径）。
         if o.sig.type_params.len() > 1 {
             continue;
         }
@@ -4939,11 +4940,14 @@ fn collect_top_level_fun_signatures_from_index(
         // 不包含 `inline`。跨文件顶层函数调用暂按 `inline = false` 处理即可（对 println 这类 sysroot API 足够）。
         let is_inline = false;
 
-        // 当前实现只用于“可调用性/参数检查/重载决议”，因此暂不支持跨文件 `eff` 参数与
-        // 更复杂的 `E + ...` 替换计划。
-        if o.sig.eff_param.is_some() {
-            continue;
-        }
+        let decl_source = lower
+            .env()
+            .source(&o.symbol.decl_file)
+            .cloned()
+            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "cross-file signature lowering（missing decl source）",
+                span: o.symbol.span.into(),
+            })?;
 
         let mut type_params: Vec<TypeId> = Vec::with_capacity(o.sig.type_params.len());
         for p in &o.sig.type_params {
@@ -4961,6 +4965,31 @@ fn collect_top_level_fun_signatures_from_index(
             .map(|(p, ty)| (p.name.clone(), ty))
             .collect::<Vec<_>>();
 
+        // T0509：effect row 参数（`<eff E = Pure>`）。
+        //
+        // 说明：
+        // - 跨文件签名里可能出现 `(...) -> T / E`；因此这里需要先把 `E` 绑定到默认值（缺省 Pure），
+        //   让类型能顺利 lowering；
+        // - 调用点会再根据 lambda body 推断出 `E_arg` 并实例化替换。
+        let eff_param_sig = if let Some(eff_param) = &o.sig.eff_param {
+            let name = eff_param.name.text(&decl_source).to_string();
+            let default = match eff_param.default.as_ref() {
+                Some(expr) => lower.lower_effect_row_expr_in_decl_file_with_bindings(
+                    &o.symbol.decl_file,
+                    type_param_bindings.iter().cloned(),
+                    Some(expr),
+                )?,
+                None => EffectRow::pure(),
+            };
+            Some(EffParamSig { name, default })
+        } else {
+            None
+        };
+        let eff_bindings: Vec<(String, EffectRow)> = eff_param_sig
+            .as_ref()
+            .map(|p| vec![(p.name.clone(), p.default.clone())])
+            .unwrap_or_default();
+
         let mut param_names = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
         let mut param_has_defaults =
             Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
@@ -4969,9 +4998,10 @@ fn collect_top_level_fun_signatures_from_index(
         if let Some(receiver) = &o.sig.receiver {
             param_names.push("<receiver>".to_string());
             param_has_defaults.push(false);
-            let receiver_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let receiver_ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
+                eff_bindings.clone(),
                 receiver,
             )?;
             params.push(receiver_ty);
@@ -4983,30 +5013,90 @@ fn collect_top_level_fun_signatures_from_index(
             };
             param_names.push(p.name.clone());
             param_has_defaults.push(p.has_default);
-            let ty = lower.lower_type_ref_in_decl_file_with_bindings(
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
+                eff_bindings.clone(),
                 ty_ref,
             )?;
             params.push(ty);
         }
 
         let return_ty = match &o.sig.return_ty {
-            Some(ret) => lower.lower_type_ref_in_decl_file_with_bindings(
+            Some(ret) => lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
+                eff_bindings.clone(),
                 ret,
             )?,
             None => builtins.unit,
         };
 
-        let param_fn_effect_eff_base: Vec<Option<EffectRow>> = vec![None; params.len()];
-        let param_nominal_eff_eff_base: Vec<Option<EffectRow>> = vec![None; params.len()];
-        let param_eff_row_var_subst: Vec<EffRowVarSubstPlan> =
-            vec![EffRowVarSubstPlan::None; params.len()];
+        // T0509/T0628b：为跨文件签名补齐 `eff` row 参数相关的基底与替换计划，
+        // 以便调用点可以从 lambda body 推断 `E` 并实例化替换。
+        let mut param_fn_effect_eff_base: Vec<Option<EffectRow>> = Vec::with_capacity(params.len());
+        let mut param_nominal_eff_eff_base: Vec<Option<EffectRow>> =
+            Vec::with_capacity(params.len());
+        let mut param_eff_row_var_subst: Vec<EffRowVarSubstPlan> = Vec::with_capacity(params.len());
+
+        if let Some(receiver_ref) = &o.sig.receiver {
+            param_fn_effect_eff_base.push(None);
+            let nominal_eff_base = if let Some(eff_param) = &eff_param_sig {
+                type_ref_nominal_eff_eff_base(receiver_ref, &eff_param.name, &decl_source, lower)?
+            } else {
+                None
+            };
+            param_nominal_eff_eff_base.push(nominal_eff_base);
+            let subst_plan = if let Some(eff_param) = &eff_param_sig {
+                build_eff_row_var_subst_plan(
+                    receiver_ref,
+                    params[0],
+                    &eff_param.name,
+                    &decl_source,
+                    lower,
+                )?
+            } else {
+                EffRowVarSubstPlan::None
+            };
+            param_eff_row_var_subst.push(subst_plan);
+        }
+
+        let mut param_pos = usize::from(is_extension);
+        for p in &o.sig.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            let param_ty = params[param_pos];
+            param_pos += 1;
+            let fn_eff_base = if let Some(eff_param) = &eff_param_sig {
+                type_ref_fn_effect_eff_base(ty_ref, &eff_param.name, &decl_source, lower)?
+            } else {
+                None
+            };
+            let nominal_eff_base = if let Some(eff_param) = &eff_param_sig {
+                type_ref_nominal_eff_eff_base(ty_ref, &eff_param.name, &decl_source, lower)?
+            } else {
+                None
+            };
+            param_fn_effect_eff_base.push(fn_eff_base);
+            param_nominal_eff_eff_base.push(nominal_eff_base);
+            let subst_plan = if let Some(eff_param) = &eff_param_sig {
+                build_eff_row_var_subst_plan(
+                    ty_ref,
+                    param_ty,
+                    &eff_param.name,
+                    &decl_source,
+                    lower,
+                )?
+            } else {
+                EffRowVarSubstPlan::None
+            };
+            param_eff_row_var_subst.push(subst_plan);
+        }
 
         out.push(FunSigOwned {
             decl_span: o.symbol.span,
+            decl_file: o.symbol.decl_file.clone(),
             is_extension,
             is_inline,
             is_const: o.sig.is_const,
@@ -5017,7 +5107,7 @@ fn collect_top_level_fun_signatures_from_index(
             param_names,
             param_has_defaults,
             type_params: type_params.clone(),
-            eff_param: None,
+            eff_param: eff_param_sig.clone(),
             param_fn_effect_eff_base,
             param_nominal_eff_eff_base,
             param_eff_row_var_subst,
@@ -5533,18 +5623,17 @@ fn infer_call_expr_type(
 
                 // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
                 let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
-                lower.push_type_param_bindings(type_param_bindings);
-                let eff_binding_pushed = if let Some(eff_param) = &sig.eff_param {
-                    lower.push_effect_row_param_binding(eff_param.name.clone(), eff_arg.clone());
-                    true
-                } else {
-                    false
-                };
-                let lowered_effects = lower.lower_effect_row_expr(sig.effects.as_ref());
-                if eff_binding_pushed {
-                    lower.pop_effect_row_param_binding();
-                }
-                lower.pop_type_param_bindings();
+                let eff_bindings: Vec<(String, EffectRow)> = sig
+                    .eff_param
+                    .as_ref()
+                    .map(|p| vec![(p.name.clone(), eff_arg.clone())])
+                    .unwrap_or_default();
+                let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+                    &sig.decl_file,
+                    type_param_bindings,
+                    eff_bindings,
+                    sig.effects.as_ref(),
+                );
                 let call_effects = substitute_type_args_in_effect_row(
                     lowered_effects?,
                     &sig.type_params,
@@ -5948,18 +6037,18 @@ fn infer_call_expr_type(
 
             // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
             let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
-            lower.push_type_param_bindings(type_param_bindings);
-            let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
-                lower.push_effect_row_param_binding(eff_param.name.clone(), chosen.eff_arg.clone());
-                true
-            } else {
-                false
-            };
-            let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
-            if eff_binding_pushed {
-                lower.pop_effect_row_param_binding();
-            }
-            lower.pop_type_param_bindings();
+            let eff_bindings: Vec<(String, EffectRow)> = chosen
+                .sig
+                .eff_param
+                .as_ref()
+                .map(|p| vec![(p.name.clone(), chosen.eff_arg.clone())])
+                .unwrap_or_default();
+            let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+                &chosen.sig.decl_file,
+                type_param_bindings,
+                eff_bindings,
+                chosen.sig.effects.as_ref(),
+            );
             let call_effects = substitute_type_args_in_effect_row(
                 lowered_effects?,
                 &chosen.sig.type_params,
@@ -6857,6 +6946,7 @@ fn infer_effect_op_call_expr_type(
     let param_count = params.len();
     let sig = FunSigOwned {
         decl_span: op.symbol.span,
+        decl_file: op.symbol.decl_file.clone(),
         is_extension: false,
         is_inline: false,
         is_const: false,
@@ -7317,11 +7407,22 @@ fn infer_member_call_expr_type(
         }
     };
 
-    let Some(sigs) = top_level_funs.get(&callee_fqn) else {
-        return Err(ExprTypeError::CalleeNotCallable {
-            callee: callee_fqn,
-            span: member.span.into(),
-        });
+    // 当前阶段：优先使用“当前文件内”的函数签名信息；缺失时回退到 `Index`
+    //（用于 sysroot / 跨文件扩展函数调用）。
+    let sigs_from_index: Vec<FunSigOwned>;
+    let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
+        Some(s) => s.as_slice(),
+        None => {
+            sigs_from_index =
+                collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
+            if sigs_from_index.is_empty() {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: callee_fqn,
+                    span: member.span.into(),
+                });
+            }
+            sigs_from_index.as_slice()
+        }
     };
 
     // 只选择扩展函数候选（同名顶层普通函数不参与 `receiver.member()`）。
@@ -7643,18 +7744,17 @@ fn infer_member_call_expr_type(
 
         // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
         let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
-        lower.push_type_param_bindings(type_param_bindings);
-        let eff_binding_pushed = if let Some(eff_param) = &sig.eff_param {
-            lower.push_effect_row_param_binding(eff_param.name.clone(), eff_arg.clone());
-            true
-        } else {
-            false
-        };
-        let lowered_effects = lower.lower_effect_row_expr(sig.effects.as_ref());
-        if eff_binding_pushed {
-            lower.pop_effect_row_param_binding();
-        }
-        lower.pop_type_param_bindings();
+        let eff_bindings: Vec<(String, EffectRow)> = sig
+            .eff_param
+            .as_ref()
+            .map(|p| vec![(p.name.clone(), eff_arg.clone())])
+            .unwrap_or_default();
+        let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+            &sig.decl_file,
+            type_param_bindings,
+            eff_bindings,
+            sig.effects.as_ref(),
+        );
         let call_effects = substitute_type_args_in_effect_row(
             lowered_effects?,
             &sig.type_params,
@@ -8092,18 +8192,18 @@ fn infer_member_call_expr_type(
 
     // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
     let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
-    lower.push_type_param_bindings(type_param_bindings);
-    let eff_binding_pushed = if let Some(eff_param) = &chosen.sig.eff_param {
-        lower.push_effect_row_param_binding(eff_param.name.clone(), chosen.eff_arg.clone());
-        true
-    } else {
-        false
-    };
-    let lowered_effects = lower.lower_effect_row_expr(chosen.sig.effects.as_ref());
-    if eff_binding_pushed {
-        lower.pop_effect_row_param_binding();
-    }
-    lower.pop_type_param_bindings();
+    let eff_bindings: Vec<(String, EffectRow)> = chosen
+        .sig
+        .eff_param
+        .as_ref()
+        .map(|p| vec![(p.name.clone(), chosen.eff_arg.clone())])
+        .unwrap_or_default();
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+        &chosen.sig.decl_file,
+        type_param_bindings,
+        eff_bindings,
+        chosen.sig.effects.as_ref(),
+    );
     let call_effects = substitute_type_args_in_effect_row(
         lowered_effects?,
         &chosen.sig.type_params,
@@ -8351,6 +8451,7 @@ fn collect_top_level_fun_signatures(
 
             map.entry(fqn).or_default().push(FunSigOwned {
                 decl_span,
+                decl_file: source.path().to_path_buf(),
                 is_extension,
                 is_inline,
                 is_const,
