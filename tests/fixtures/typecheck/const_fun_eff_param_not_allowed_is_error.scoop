@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::const_fun_eff_param_not_allowed
+// EXPECT-ERROR: const fun 不允许声明 effect row 参数
+// EXPECT-ERROR-AT: 11:12
+// 目标：T1201：`const fun` 禁止声明 effect row 参数（`<eff E = ...>`），避免解释器入口/实例化复杂化。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+const fun <eff E = Pure> bad(): Int / E { return 0 }
+

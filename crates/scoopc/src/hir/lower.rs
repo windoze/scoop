@@ -233,6 +233,7 @@ impl<'a> HirLowering<'a> {
         // - 早期 HIR 里 task 先用 word-sized `UInt` 句柄承载（与 `spawn/join` 一致）；
         // - 真正的 `Task<T>` nominal type lowering 与 ABI 会在后续任务中补齐。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let _inner_return_ty = fun
             .return_ty
             .as_ref()
@@ -270,6 +271,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            is_const: is_const_fun,
             ty,
             params,
             return_ty,
@@ -319,6 +321,7 @@ impl<'a> HirLowering<'a> {
         //
         // T0623：monomorph/hir 视图下同样把 `async fun` 的返回类型降为 task handle（`UInt`）。
         let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let _inner_return_ty = fun
             .return_ty
             .as_ref()
@@ -354,6 +357,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            is_const: is_const_fun,
             ty,
             params,
             return_ty,

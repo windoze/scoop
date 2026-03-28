@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::const_fun_effects_not_allowed
+// EXPECT-ERROR: const fun 不允许声明非 Pure 的 effect row
+// EXPECT-ERROR-AT: 11:24
+// 目标：T1201：`const fun` 必须为纯计算，禁止在签名上声明非 Pure 的 effect row。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+const fun bad(): Int / Raise<Int> { return 0 }
+

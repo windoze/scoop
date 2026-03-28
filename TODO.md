@@ -3513,11 +3513,22 @@
 
 ## T12：编译期执行与反射（阶段 11）
 
-### T1201 [TODO] const fun：在 AST/HIR 中标记 `const fun`（spec §6.2）
+### T1201 [DONE] const fun：在 AST/HIR 中标记 `const fun`（spec §6.2）
 - 描述：解析并在 HIR 中标记 const 函数，便于后续解释器选择入口。
 - 目标：先只做标记与语法限制检查（如禁止 effect）。
 - 验收：新增 parse/typecheck fixture：`const fun add(a:Int,b:Int):Int { ... }`；非法操作在 typecheck 报错（规则可先简化）。
 - 依赖：T0246、T0404
+ - 完成：
+   - `crates/scoopc/src/hir/mod.rs`：HIR `FunDecl` 新增 `is_const` 字段，并在 Debug 输出中仅当 `true` 时打印（保持既有 `.hir` golden 稳定）。
+   - `crates/scoopc/src/hir/lower.rs`：从 AST `Modifier::Const` 传播到 HIR `is_const`。
+   - `crates/scoopc/src/typecheck/headers.rs`：新增 const fun 的最小门禁：
+     - 禁止声明 effect row 参数（稳定错误码 `scoop::typecheck::const_fun_eff_param_not_allowed`）。
+     - 禁止声明非 Pure 的 effect row（稳定错误码 `scoop::typecheck::const_fun_effects_not_allowed`）。
+   - `tests/fixtures/hir/const_fun_basic.*`：新增 HIR golden 回归覆盖 `is_const: true`。
+   - `tests/fixtures/typecheck/const_fun_*`：新增 typecheck pass/fail fixtures 覆盖 const fun 允许 Pure、禁止 non-Pure effects 与 eff param。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1202 [TODO] const interpreter v0：只支持 value types + 纯表达式（PLAN §13）
 - 描述：实现解释器能执行：整数运算、tuple/struct/enum 构造、`String` 操作、函数调用（仅 const）。`String` 虽为引用类型，但具备值语义，在 comptime 中特殊处理。

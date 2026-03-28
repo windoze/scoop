@@ -1,0 +1,10 @@
+package a
+
+const fun add(a: Int, b: Int): Int {
+  return a + b
+}
+
+fun main(): Int {
+  return add(1, 2)
+}
+

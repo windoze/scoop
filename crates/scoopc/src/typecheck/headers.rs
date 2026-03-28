@@ -30,6 +30,27 @@ pub enum TypeHeaderError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    /// `const fun` 的语法限制：当前阶段要求其 effect row 只能为 Pure（或缺省）。
+    ///
+    /// 说明：
+    /// - spec §6.2：const 计算应为纯计算；
+    /// - 早期阶段先做“声明级”的最小门禁，避免后续解释器入口难以界定；
+    /// - 更细粒度的规则（例如禁止在 body 内 perform/raise 等）可在 comptime 解释器任务中逐步补齐。
+    #[error("const fun 不允许声明非 Pure 的 effect row")]
+    #[diagnostic(code(scoop::typecheck::const_fun_effects_not_allowed))]
+    ConstFunEffectsNotAllowed {
+        #[label("const fun 必须为 Pure（或不写 effect row）")]
+        span: miette::SourceSpan,
+    },
+
+    /// `const fun` 不允许声明 effect row 参数（`<eff E = ...>`）。
+    #[error("const fun 不允许声明 effect row 参数")]
+    #[diagnostic(code(scoop::typecheck::const_fun_eff_param_not_allowed))]
+    ConstFunEffParamNotAllowed {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内的“声明头”是否满足当前 typecheck 阶段的最小约束。
@@ -55,6 +76,29 @@ pub fn check_file_headers(source: &SourceFile, file: &ast::File) -> Result<(), T
 }
 
 fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeHeaderError> {
+    let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
+    if is_const_fun {
+        if let Some(eff_param) = &fun.eff_param {
+            return Err(TypeHeaderError::ConstFunEffParamNotAllowed {
+                span: eff_param.span.into(),
+            });
+        }
+
+        if let Some(effects) = &fun.effects {
+            // 允许：
+            // - 缺省（None）
+            // - 显式 Pure（`/ Pure` 或 `/ Pure!`）：`terms.is_empty()`
+            //
+            // 不允许：
+            // - 任何非空 effect row（例如 `/ Raise<E>` / `/ IO+State!`）
+            if !effects.terms.is_empty() {
+                return Err(TypeHeaderError::ConstFunEffectsNotAllowed {
+                    span: effects.span.into(),
+                });
+            }
+        }
+    }
+
     for p in &fun.params {
         if p.ty.is_none() {
             let name = source.slice(p.name.span).to_string();

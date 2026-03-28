@@ -83,16 +83,39 @@ pub enum Item {
 }
 
 /// 函数声明（顶层或方法；当前阶段只做顶层 fun 的最小承载）。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FunDecl {
     pub span: Span,
     pub fqn: String,
     pub name: String,
+    /// 是否为 `const fun`（spec §6.2）。
+    pub is_const: bool,
     /// 函数本身的类型（函数类型）。
     pub ty: TypeId,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub body: Option<Block>,
+}
+
+impl fmt::Debug for FunDecl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // 说明：
+        // - 该 Debug 输出用于 `scoop dump-hir` 与 `tests/fixtures/hir/*.hir` golden 回归；
+        // - 为保持现有输出稳定，`is_const=false` 时不打印该字段；
+        // - 当 `is_const=true` 时才显式输出，便于后续 comptime/解释器阶段接入。
+        let mut s = f.debug_struct("FunDecl");
+        s.field("span", &self.span);
+        s.field("fqn", &self.fqn);
+        s.field("name", &self.name);
+        if self.is_const {
+            s.field("is_const", &true);
+        }
+        s.field("ty", &self.ty);
+        s.field("params", &self.params);
+        s.field("return_ty", &self.return_ty);
+        s.field("body", &self.body);
+        s.finish()
+    }
 }
 
 /// 函数参数（HIR 视图）。

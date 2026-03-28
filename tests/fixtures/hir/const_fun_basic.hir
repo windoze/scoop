@@ -1,0 +1,170 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..64,
+                fqn: "a.add",
+                name: "add",
+                is_const: true,
+                ty: TypeId(
+                    7,
+                ),
+                params: [
+                    Param {
+                        span: 25..26,
+                        id: S0,
+                        name: "a",
+                        ty: TypeId(
+                            0,
+                        ),
+                    },
+                    Param {
+                        span: 33..34,
+                        id: S1,
+                        name: "b",
+                        ty: TypeId(
+                            0,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 46..64,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 50..62,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 57..62,
+                                            ty: TypeId(
+                                                0,
+                                            ),
+                                            kind: Binary {
+                                                lhs: Expr {
+                                                    span: 57..58,
+                                                    ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: VarRef(
+                                                        Local {
+                                                            id: S0,
+                                                            name: "a",
+                                                            decl_span: 25..26,
+                                                        },
+                                                    ),
+                                                },
+                                                op: Add,
+                                                op_span: 59..60,
+                                                rhs: Expr {
+                                                    span: 61..62,
+                                                    ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: VarRef(
+                                                        Local {
+                                                            id: S1,
+                                                            name: "b",
+                                                            decl_span: 33..34,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 66..104,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    8,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 82..104,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 86..102,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 93..102,
+                                            ty: TypeId(
+                                                0,
+                                            ),
+                                            kind: Call {
+                                                callee: Expr {
+                                                    span: 93..96,
+                                                    ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            id: S2,
+                                                            fqn: "a.add",
+                                                        },
+                                                    ),
+                                                },
+                                                args: [
+                                                    Positional(
+                                                        Expr {
+                                                            span: 97..98,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                    ),
+                                                    Positional(
+                                                        Expr {
+                                                            span: 100..101,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            kind: Literal(
+                                                                Int,
+                                                            ),
+                                                        },
+                                                    ),
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}
