@@ -39,6 +39,28 @@ struct DelegatedPropertyInfo {
 
 type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
 
+/// 一个顶层函数的“默认参数信息”（用于在 HIR lowering 阶段做 call-site 默认参数补齐）。
+///
+/// 说明：
+/// - 当前阶段（TODO T1305）只支持 **尾部默认参数**；
+/// - 为避免向 HIR items 注入合成 wrapper 函数（会影响 `.cone` 的 public API 导出），
+///   我们把 `f(a0, a1)` 这类“少传参数”的调用点改写为 block：先按参数名把实参/默认值绑定为局部 `val`，
+///   再调用原函数的完整参数形态。
+#[derive(Debug, Clone)]
+struct DefaultArgFunInfo {
+    /// 最少需要提供的实参数量（即：总参数 - trailing defaults）。
+    required: usize,
+    params: Vec<DefaultArgParamInfo>,
+}
+
+#[derive(Debug, Clone)]
+struct DefaultArgParamInfo {
+    decl_span: Span,
+    name: String,
+    ty_ref: Option<ast::TypeRef>,
+    default_value: Option<ast::Expr>,
+}
+
 /// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
 #[derive(Debug, Error, Diagnostic)]
 pub enum HirLowerError {
@@ -128,6 +150,8 @@ struct HirLowering<'a> {
     /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
     /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
     delegated_properties: DelegatedPropertyIndex,
+    /// 顶层函数默认参数信息索引：`fqn -> params(default)`（用于 call-site 默认参数补齐，T1305）。
+    default_arg_funs: HashMap<String, DefaultArgFunInfo>,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -163,6 +187,7 @@ impl<'a> HirLowering<'a> {
             index,
             type_kinds,
             delegated_properties,
+            default_arg_funs: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -190,6 +215,7 @@ impl<'a> HirLowering<'a> {
 
     fn lower_file(&mut self) -> File {
         let pkg_prefix = package_prefix(self.source, self.file.package.as_ref());
+        self.default_arg_funs = self.collect_default_arg_funs(&pkg_prefix);
         let mut items = Vec::with_capacity(self.file.items.len());
 
         for item in &self.file.items {
@@ -197,6 +223,69 @@ impl<'a> HirLowering<'a> {
         }
 
         File { items }
+    }
+
+    /// 扫描当前源文件内的顶层 `fun` 声明，收集“尾部默认参数”信息（供 call-site 默认参数补齐使用）。
+    ///
+    /// 注意：
+    /// - 这里只服务于早期单文件 codegen，因此只索引“当前文件内”的顶层函数；
+    /// - 不尝试处理 overload set（同名重载）与泛型函数（它们需要 typecheck 的最终决议信息）。
+    fn collect_default_arg_funs(&mut self, pkg_prefix: &str) -> HashMap<String, DefaultArgFunInfo> {
+        let mut out: HashMap<String, DefaultArgFunInfo> = HashMap::new();
+
+        for item in &self.file.items {
+            let ast::Item::Fun(fun) = item else {
+                continue;
+            };
+
+            // 当前阶段：默认参数补齐仅针对“非泛型 + 非 receiver”的顶层函数。
+            if fun.receiver.is_some() || !fun.type_params.is_empty() {
+                continue;
+            }
+
+            let name = fun.name.text(self.source).to_string();
+            let fqn = if pkg_prefix.is_empty() {
+                name
+            } else {
+                format!("{pkg_prefix}.{name}")
+            };
+
+            // 过滤 overload set：同一个 fqn 出现多次时不做索引（避免与 typecheck 的 overload 决议冲突）。
+            if out.contains_key(&fqn) {
+                let _ = out.remove(&fqn);
+                continue;
+            }
+
+            let mut params: Vec<DefaultArgParamInfo> = Vec::with_capacity(fun.params.len());
+            for p in &fun.params {
+                let name = p.name.text(self.source).to_string();
+                params.push(DefaultArgParamInfo {
+                    decl_span: p.name.span,
+                    name,
+                    ty_ref: p.ty.clone(),
+                    default_value: p.default_value.clone(),
+                });
+            }
+
+            // 只支持尾部默认参数：从右往左统计连续默认值个数。
+            let mut trailing_defaults = 0usize;
+            for p in params.iter().rev() {
+                if p.default_value.is_some() {
+                    trailing_defaults += 1;
+                } else {
+                    break;
+                }
+            }
+
+            if trailing_defaults == 0 {
+                continue;
+            }
+
+            let required = params.len().saturating_sub(trailing_defaults);
+            out.insert(fqn, DefaultArgFunInfo { required, params });
+        }
+
+        out
     }
 
     fn lower_item(&mut self, pkg_prefix: &str, item: &ast::Item) -> Item {
@@ -715,6 +804,10 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::Call { callee, args } => {
                 if let Some((kind, ty)) =
                     self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
+                {
+                    (kind, ty)
+                } else if let Some((kind, ty)) =
+                    self.try_lower_default_args_call_expr(pkg_prefix, e.span, callee, args)
                 {
                     (kind, ty)
                 } else {
@@ -1419,6 +1512,172 @@ impl<'a> HirLowering<'a> {
             },
             _ => CallArg::Positional(self.lower_expr(pkg_prefix, arg)),
         }
+    }
+
+    /// 若该调用点满足“尾部默认参数可补齐”的规则，则把调用表达式 lowering 为一个 block：
+    ///
+    /// ```text
+    /// f(a0, a1)   // 省略尾部默认参数
+    /// =>
+    /// {
+    ///   val p0 = a0
+    ///   val p1 = a1
+    ///   val p2 = <default>
+    ///   val p3 = <default>
+    ///   f(p0, p1, p2, p3)
+    /// }
+    /// ```
+    ///
+    /// 说明：
+    /// - 这样可以保证 default value 里对“更早参数”的引用能工作（通过局部 `val` 绑定）；
+    /// - 也能保证“实参表达式”不会因简单替换而被重复求值（求值顺序与一次性语义可控）。
+    fn try_lower_default_args_call_expr(
+        &mut self,
+        pkg_prefix: &str,
+        call_span: Span,
+        callee: &ast::Expr,
+        args: &[ast::Expr],
+    ) -> Option<(ExprKind, TypeId)> {
+        // 仅处理：顶层函数直接调用 `foo(...)`。
+        let callee = match &callee.kind {
+            // `callee<T>()`：HIR v0 视为透明包装（同 `lower_expr(TypeApply)`）。
+            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
+            _ => callee,
+        };
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            return None;
+        };
+        let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+            return None;
+        };
+        let info = self.default_arg_funs.get(fqn).cloned()?;
+
+        // 当前阶段（T1305 目标约束）：不在此处支持命名实参（与 T1306 的后续任务对齐）。
+        if args
+            .iter()
+            .any(|a| matches!(a.kind, ast::ExprKind::NamedArg { .. }))
+        {
+            return None;
+        }
+
+        let provided = args.len();
+        let total = info.params.len();
+        if provided >= total {
+            return None;
+        }
+        if provided < info.required {
+            return None;
+        }
+
+        // 仅支持尾部默认参数：未提供的部分必须全部存在 default value。
+        for param in info.params.get(provided..)? {
+            if param.default_value.is_none() {
+                return None;
+            }
+        }
+
+        // 1) 先把“已提供的实参表达式”按参数名绑定为局部 val，避免重复求值。
+        // 2) 再按顺序求值缺失的默认参数，并同样绑定为局部 val（供后续默认值引用）。
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(total + 1);
+
+        for (idx, arg) in args.iter().enumerate() {
+            let Some(param) = info.params.get(idx) else {
+                return None;
+            };
+            let init = self.lower_expr(pkg_prefix, arg);
+            let param_ty = param
+                .ty_ref
+                .as_ref()
+                .map(|t| self.lower_type_ref(t))
+                .unwrap_or(self.builtins.any);
+            let id = self.intern_local_symbol(param.decl_span, false);
+            let decl = ValDecl {
+                span: call_span,
+                id: Some(id),
+                name: Some(param.name.clone()),
+                mutable: false,
+                ty: param_ty,
+                init: Some(init),
+            };
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(decl),
+            });
+        }
+
+        for param in info.params.iter().skip(provided) {
+            let default_value = param.default_value.as_ref()?;
+            let init = self.lower_expr(pkg_prefix, default_value);
+            let param_ty = param
+                .ty_ref
+                .as_ref()
+                .map(|t| self.lower_type_ref(t))
+                .unwrap_or(self.builtins.any);
+            let id = self.intern_local_symbol(param.decl_span, false);
+            let decl = ValDecl {
+                span: call_span,
+                id: Some(id),
+                name: Some(param.name.clone()),
+                mutable: false,
+                ty: param_ty,
+                init: Some(init),
+            };
+            stmts.push(Stmt {
+                span: call_span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Val(decl),
+            });
+        }
+
+        // 最后一条语句：调用“完整参数形态”的原函数。
+        let callee_id = self.symbols.intern_top_level(fqn.clone());
+        let callee_expr = Expr {
+            span: callee.span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: callee_id,
+                fqn: fqn.clone(),
+            }),
+        };
+
+        let mut full_args: Vec<CallArg> = Vec::with_capacity(total);
+        for param in &info.params {
+            let id = self.intern_local_symbol(param.decl_span, false);
+            let vref = ValueRef::Local {
+                id,
+                name: param.name.clone(),
+                decl_span: param.decl_span,
+            };
+            full_args.push(CallArg::Positional(Expr {
+                span: param.decl_span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(vref),
+            }));
+        }
+
+        let call_expr = Expr {
+            span: call_span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(callee_expr),
+                args: full_args,
+            },
+        };
+        stmts.push(Stmt {
+            span: call_span,
+            ty: call_expr.ty,
+            kind: StmtKind::Expr(call_expr),
+        });
+
+        Some((
+            ExprKind::Block(Block {
+                span: call_span,
+                ty: self.builtins.any,
+                stmts,
+            }),
+            self.builtins.any,
+        ))
     }
 
     fn lower_ident_expr(&mut self, id: &ast::ValueIdent) -> (ExprKind, TypeId) {

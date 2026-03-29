@@ -477,6 +477,17 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("默认参数值类型不匹配：{fun} 的形参 `{param}` 期望 {expected}，但默认值为 {found}")]
+    #[diagnostic(code(scoop::typecheck::default_param_value_type_mismatch))]
+    DefaultParamValueTypeMismatch {
+        fun: String,
+        param: String,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("无法推断泛型类型实参：{callee} 的 `{param}`（缺少可用于推断的调用点约束）")]
     #[diagnostic(code(scoop::typecheck::generic_type_arg_not_inferred))]
     GenericTypeArgNotInferred {
@@ -1660,6 +1671,47 @@ fn check_class_member_fun_body_exprs(
                 let ty = lower.lower_type_ref(ty_ref)?;
                 locals.insert(p.name.span, ty);
                 stable_bindings.insert(p.name.span);
+
+                // T1305：默认参数的默认值表达式需要在声明处通过类型检查。
+                //
+                // 说明：
+                // - 默认值会在调用点求值（Kotlin-like），但其语义与可见性依赖于函数声明本身；
+                // - 因此这里在“函数体 typecheck”的入口处把默认值纳入最小 expr typecheck 覆盖，
+                //   避免后端/fixture 通过后才在 codegen 阶段暴露不一致行为。
+                if let Some(default_value) = &p.default_value {
+                    let fun_name = fun.name.text(source).to_string();
+                    let param_name = p.name.text(source).to_string();
+                    let found_ty = infer_expr_type_in_expected_context(
+                        source,
+                        default_value,
+                        ty,
+                        ExpectedTypeFrom::new(format!(
+                            "`{}` 的形参 `{}` 的默认值",
+                            fun_name, param_name
+                        )),
+                        lower,
+                        builtins,
+                        &locals,
+                        top_level_types,
+                        &*top_level_funs,
+                        struct_field_types,
+                    )?;
+
+                    if is_type_assignable(found_ty, ty, lower, builtins)
+                        || (matches!(default_value.kind, ast::ExprKind::IntLit)
+                            && is_integer_type(ty, lower, builtins))
+                    {
+                        continue;
+                    }
+
+                    return Err(ExprTypeError::DefaultParamValueTypeMismatch {
+                        fun: fun_name,
+                        param: param_name,
+                        expected: lower.fmt_type(ty),
+                        found: lower.fmt_type(found_ty),
+                        span: default_value.span.into(),
+                    });
+                }
             }
 
             // 函数的期望返回类型：用于 `return expr?` 的检查。
@@ -10324,6 +10376,41 @@ fn check_fun_body_exprs(
                 let ty = lower.lower_type_ref(ty_ref)?;
                 locals.insert(p.name.span, ty);
                 stable_bindings.insert(p.name.span);
+
+                // T1305：默认参数的默认值表达式需要在声明处通过类型检查（按形参类型做可赋值检查）。
+                if let Some(default_value) = &p.default_value {
+                    let param_name = p.name.text(source).to_string();
+                    let found_ty = infer_expr_type_in_expected_context(
+                        source,
+                        default_value,
+                        ty,
+                        ExpectedTypeFrom::new(format!(
+                            "`{}` 的形参 `{}` 的默认值",
+                            fun_fqn, param_name
+                        )),
+                        lower,
+                        builtins,
+                        &locals,
+                        top_level_types,
+                        &*top_level_funs,
+                        struct_field_types,
+                    )?;
+
+                    if is_type_assignable(found_ty, ty, lower, builtins)
+                        || (matches!(default_value.kind, ast::ExprKind::IntLit)
+                            && is_integer_type(ty, lower, builtins))
+                    {
+                        continue;
+                    }
+
+                    return Err(ExprTypeError::DefaultParamValueTypeMismatch {
+                        fun: fun_fqn.to_string(),
+                        param: param_name,
+                        expected: lower.fmt_type(ty),
+                        found: lower.fmt_type(found_ty),
+                        span: default_value.span.into(),
+                    });
+                }
             }
 
             // 该函数的期望返回类型（T0417）：用于 `return expr?` 的类型检查。

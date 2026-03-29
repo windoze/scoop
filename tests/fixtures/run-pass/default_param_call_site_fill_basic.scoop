@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: default_param_call_site_fill_basic.stdout
+//
+// T1305: 默认参数语义：调用点补齐默认值（尾部默认参数最小实现）
+
+import scoop.core.*
+
+fun f(x: Int = 1, y: Int = 2): Int {
+    return x + y
+}
+
+fun main() {
+    println(f())
+}
+

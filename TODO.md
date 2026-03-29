@@ -4133,11 +4133,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1305 [TODO] 默认参数语义：调用点补齐默认值（Appendix B.5.2）
+### T1305 [DONE] 默认参数语义：调用点补齐默认值（Appendix B.5.2）
 - 描述：在类型检查/调用解析阶段实现默认参数：调用时省略参数自动补齐默认值表达式。
 - 目标：先只支持尾部参数默认值；中间省略与命名参数结合后续。
 - 验收：typecheck+run-pass fixture：`fun f(x:Int=1,y:Int=2)` 调用 `f()` 输出 3（或等价行为）。
 - 依赖：T0230、T0810
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：在 HIR lowering 阶段对“少传尾部默认参数”的顶层函数调用做语义补齐；把调用点改写为 block（按参数名绑定实参/默认值为局部 `val`，再调用完整参数形态），保证默认值可引用更早参数且实参不会被重复求值。
+   - `crates/scoopc/src/typecheck/expr.rs`：把函数形参默认值表达式纳入 typecheck（按形参类型做 expected-context 推断 + 可赋值检查），并新增稳定诊断 `default_param_value_type_mismatch`。
+   - fixtures：
+     - `tests/fixtures/run-pass/default_param_call_site_fill_basic.scoop`（stdout golden：`3`）
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1306 [TODO] 命名参数语义：重排与混用规则（Appendix B.5.3）
 - 描述：实现命名参数：按参数名匹配并重排；禁止与位置参数混用的非法形式（按 Kotlin 规则）。
