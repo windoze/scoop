@@ -862,13 +862,26 @@ fn delegate_expr_nominal_type_fqn(
 
 fn top_level_fun_return_type_fqn(index: &Index, env: &TypeEnv, fun_fqn: &str) -> Option<String> {
     let overloads = index.by_fqn.get(fun_fqn).map(|syms| syms.fun.as_slice())?;
-    if overloads.len() != 1 {
-        return None;
+    // 对 delegated property 而言，我们只需要“返回的名义类型”（用于检查 `getValue/setValue`）。
+    //
+    // 允许同一 overload set 存在多个重载，但要求它们的返回名义类型一致：
+    // - 标准 delegates（`lazy/observable/vetoable`）会通过重载提供不同调用形态，
+    //   但它们的 delegate nominal type 应当稳定一致。
+    let mut return_ty_fqn: Option<String> = None;
+
+    for overload in overloads {
+        let ret = overload.sig.return_ty.as_ref()?;
+        let (decl_source, decl_ctx) = overload_decl_source_and_ctx(env, overload)?;
+        let fqn = type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, ret)?;
+
+        match &return_ty_fqn {
+            None => return_ty_fqn = Some(fqn),
+            Some(prev) if prev == &fqn => {}
+            Some(_) => return None,
+        }
     }
-    let overload = &overloads[0];
-    let ret = overload.sig.return_ty.as_ref()?;
-    let (decl_source, decl_ctx) = overload_decl_source_and_ctx(env, overload)?;
-    type_ref_to_fqn_in_ctx(decl_source, decl_ctx, index, ret)
+
+    return_ty_fqn
 }
 
 fn type_has_method_named(index: &Index, env: &TypeEnv, ty_fqn: &str, method: &str) -> bool {

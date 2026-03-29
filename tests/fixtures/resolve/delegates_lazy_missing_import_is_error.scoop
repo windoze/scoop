@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_value
+// EXPECT-ERROR: lazy
+// EXPECT-ERROR-AT: 10:9
+
+package fixtures.resolve
+
+import scoop.core.*
+
+val f = lazy

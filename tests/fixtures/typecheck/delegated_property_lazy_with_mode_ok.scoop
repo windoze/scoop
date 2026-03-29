@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T1217 标准 delegates 表面：`lazy(mode)` 可用于 delegated property。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Example {
+    val config: String by lazy(LazyThreadSafetyMode.None) { "" }
+}
+

@@ -28,9 +28,11 @@ enum LazyThreadSafetyMode {
 /// lazy：首次读取时计算并缓存（实现语义后续补齐）。
 fun <V> lazy(initializer: () -> V): ReadOnlyProperty<Any, V>
 
+/// lazy：指定线程安全策略（实现语义后续补齐）。
+fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): ReadOnlyProperty<Any, V>
+
 /// observable：每次写入触发回调（实现语义后续补齐）。
 fun <V> observable(initial: V, onChange: (V, V) -> Unit): ReadWriteProperty<Any, V>
 
 /// vetoable：写入前触发回调，返回 false 时拒绝（实现语义后续补齐）。
 fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): ReadWriteProperty<Any, V>
-

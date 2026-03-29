@@ -3997,11 +3997,19 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1217 [TODO] sysroot/stdlib：标准 delegated properties API surface（spec §10.4）
+### T1217 [DONE] sysroot/stdlib：标准 delegated properties API surface（spec §10.4）
 - 描述：在 sysroot 或标准库层补齐 delegated properties 的 API surface：`scoop.delegates.lazy`、`observable`、`vetoable`，以及 map-backed delegate 所需接口。
 - 目标：先只固定声明面与最小文档/fixture；行为实现与线程安全语义后续补齐。
 - 验收：新增 resolve/typecheck fixture：引用 `scoop.delegates.lazy` 等 API 可通过；缺失导入时报错。
 - 依赖：T0451、T1210
+ - 完成：
+   - `sysroot/delegates.scoop`：为 `lazy` 补齐 `lazy(mode, initializer)` 重载（匹配 spec §10.4 示例）。
+   - `crates/scoopc/src/typecheck/properties.rs`：允许同一 overload set 在“返回名义类型一致”时仍可推导 delegate nominal type，避免标准 delegates 因重载而跳过 `getValue/setValue` 签名检查。
+   - `tests/fixtures/typecheck/delegated_property_lazy_with_mode_ok.scoop`：新增 typecheck fixture 覆盖 `lazy(LazyThreadSafetyMode.None) { ... }`。
+   - `tests/fixtures/resolve/delegates_lazy_missing_import_is_error.scoop`：新增 resolve fixture：未导入 `scoop.delegates.*` 时引用 `lazy` 报 `unresolved_value`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1218 [TODO] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal
 - 描述：在 comptime/reflection API 中补齐对复杂注解参数的读取：不仅能拿到字面量，还能读取常量表达式求值结果、数组参数、enum 值与类字面量。
