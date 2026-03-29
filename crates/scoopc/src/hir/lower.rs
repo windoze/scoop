@@ -33,10 +33,58 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-struct DelegatedPropertyInfo {
+struct GenericDelegatedPropertyInfo {
     name: String,
     delegate_field_fqn: String,
     property_meta_fqn: String,
+}
+
+#[derive(Debug, Clone)]
+struct LazyDelegatedPropertyInfo {
+    name: String,
+    /// 属性类型（用于生成缓存字段的类型与 lazy initializer 的返回类型上下文）。
+    ty: Option<ast::TypeRef>,
+    /// lazy 缓存值字段（class field fqn）。
+    value_field_fqn: String,
+    /// lazy 初始化标记字段（class field fqn）。
+    inited_field_fqn: String,
+    /// initializer lambda 的 body（我们在 getter 内 inline 这段表达式，避免依赖 closure codegen）。
+    initializer_body: ast::Expr,
+}
+
+#[derive(Debug, Clone)]
+struct ObservableDelegatedPropertyInfo {
+    name: String,
+    ty: Option<ast::TypeRef>,
+    on_change: ast::LambdaExpr,
+}
+
+#[derive(Debug, Clone)]
+struct VetoableDelegatedPropertyInfo {
+    name: String,
+    ty: Option<ast::TypeRef>,
+    on_change: ast::LambdaExpr,
+}
+
+#[derive(Debug, Clone)]
+enum DelegatedPropertyInfo {
+    /// 通用 delegated property lowering：仍按 spec 生成 `getValue/setValue` 调用形状（T1210）。
+    ///
+    /// 注意：当前 LLVM 后端不要求该路径可执行（主要用于 dump-hir/fixtures 稳定输出）。
+    Generic(GenericDelegatedPropertyInfo),
+    /// 标准 delegates：`lazy`（spec §10.4）。
+    Lazy(LazyDelegatedPropertyInfo),
+    /// 标准 delegates：`observable`（spec §10.4）。
+    Observable(ObservableDelegatedPropertyInfo),
+    /// 标准 delegates：`vetoable`（spec §10.4）。
+    Vetoable(VetoableDelegatedPropertyInfo),
+    /// map-backed delegated properties（spec §10.4）。
+    ///
+    /// 早期阶段的实现策略：
+    /// - 在 class 初始化阶段把 `val p by data` 的值“拷贝”到真实字段 `p`；
+    /// - 读取 `p` 直接走字段访问；
+    /// - 这避免了 `PropertyMeta` 运行期构造与 Map 查找（当前阶段尚未实现）。
+    MapBacked,
 }
 
 type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
@@ -721,41 +769,69 @@ impl<'a> HirLowering<'a> {
         };
         let info = self.delegated_properties.get(fqn).cloned()?;
 
-        let receiver = self.lower_expr(pkg_prefix, receiver);
-        let this_ref = receiver.clone();
-        let delegate = self.lower_delegated_property_delegate_access_expr(
-            member.span,
-            receiver.clone(),
-            &info,
-        );
-        let callee = Expr {
-            span: member.span,
-            ty: self.builtins.any,
-            kind: ExprKind::MemberAccess {
-                receiver: Box::new(delegate),
-                member: MemberAccess {
+        match info {
+            DelegatedPropertyInfo::Observable(info) => {
+                self.lower_observable_delegated_property_assign(
+                    pkg_prefix,
+                    span,
+                    member.span,
+                    receiver,
+                    rhs,
+                    fqn,
+                    &info,
+                )
+            }
+            DelegatedPropertyInfo::Vetoable(info) => {
+                self.lower_vetoable_delegated_property_assign(
+                    pkg_prefix,
+                    span,
+                    member.span,
+                    receiver,
+                    rhs,
+                    fqn,
+                    &info,
+                )
+            }
+            DelegatedPropertyInfo::Generic(info) => {
+                let receiver = self.lower_expr(pkg_prefix, receiver);
+                let this_ref = receiver.clone();
+                let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+                    member.span,
+                    receiver.clone(),
+                    &info,
+                );
+                let callee = Expr {
                     span: member.span,
-                    name: "setValue".to_string(),
-                    resolved: None,
-                },
-            },
-        };
+                    ty: self.builtins.any,
+                    kind: ExprKind::MemberAccess {
+                        receiver: Box::new(delegate),
+                        member: MemberAccess {
+                            span: member.span,
+                            name: "setValue".to_string(),
+                            resolved: None,
+                        },
+                    },
+                };
 
-        let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
-        let value = self.lower_expr(pkg_prefix, rhs);
+                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+                let value = self.lower_expr(pkg_prefix, rhs);
 
-        Some(Expr {
-            span,
-            ty: self.builtins.unit,
-            kind: ExprKind::Call {
-                callee: Box::new(callee),
-                args: vec![
-                    CallArg::Positional(this_ref),
-                    CallArg::Positional(meta),
-                    CallArg::Positional(value),
-                ],
-            },
-        })
+                Some(Expr {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: ExprKind::Call {
+                        callee: Box::new(callee),
+                        args: vec![
+                            CallArg::Positional(this_ref),
+                            CallArg::Positional(meta),
+                            CallArg::Positional(value),
+                        ],
+                    },
+                })
+            }
+
+            DelegatedPropertyInfo::Lazy(_) | DelegatedPropertyInfo::MapBacked => None,
+        }
     }
 
     fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
@@ -1262,35 +1338,62 @@ impl<'a> HirLowering<'a> {
         // `receiver.prop` → `receiver.prop$delegate.getValue(receiver, <PropertyMeta const>)`
         if let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() {
             if let Some(info) = self.delegated_properties.get(fqn).cloned() {
-                let receiver = self.lower_expr(pkg_prefix, receiver);
-                let this_ref = receiver.clone();
+                match info {
+                    DelegatedPropertyInfo::Lazy(info) => {
+                        return (
+                            self.lower_lazy_delegated_property_get(
+                                pkg_prefix,
+                                member.span,
+                                receiver,
+                                &info,
+                            ),
+                            self.builtins.any,
+                        );
+                    }
+                    DelegatedPropertyInfo::Generic(info) => {
+                        let receiver = self.lower_expr(pkg_prefix, receiver);
+                        let this_ref = receiver.clone();
 
-                let delegate = self.lower_delegated_property_delegate_access_expr(
-                    member.span,
-                    receiver,
-                    &info,
-                );
-                let callee = Expr {
-                    span: member.span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::MemberAccess {
-                        receiver: Box::new(delegate),
-                        member: MemberAccess {
+                        let delegate = self.lower_generic_delegated_property_delegate_access_expr(
+                            member.span,
+                            receiver,
+                            &info,
+                        );
+                        let callee = Expr {
                             span: member.span,
-                            name: "getValue".to_string(),
-                            resolved: None,
-                        },
-                    },
-                };
-                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+                            ty: self.builtins.any,
+                            kind: ExprKind::MemberAccess {
+                                receiver: Box::new(delegate),
+                                member: MemberAccess {
+                                    span: member.span,
+                                    name: "getValue".to_string(),
+                                    resolved: None,
+                                },
+                            },
+                        };
+                        let meta =
+                            self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
 
-                return (
-                    ExprKind::Call {
-                        callee: Box::new(callee),
-                        args: vec![CallArg::Positional(this_ref), CallArg::Positional(meta)],
-                    },
-                    self.builtins.any,
-                );
+                        return (
+                            ExprKind::Call {
+                                callee: Box::new(callee),
+                                args: vec![
+                                    CallArg::Positional(this_ref),
+                                    CallArg::Positional(meta),
+                                ],
+                            },
+                            self.builtins.any,
+                        );
+                    }
+                    DelegatedPropertyInfo::Observable(_)
+                    | DelegatedPropertyInfo::Vetoable(_)
+                    | DelegatedPropertyInfo::MapBacked => {
+                        // 标准 delegates（lazy/observable/vetoable）与 map-backed：
+                        // - 当前阶段我们不走 `getValue/setValue` 的运行期调用；
+                        // - `lazy` 在 getter 内 inline initializer（见 `lower_lazy_delegated_property_get`）；
+                        // - `observable/vetoable/map-backed` 的读取走普通字段访问（初始化/写入由其它 lowering 负责）。
+                    }
+                }
             }
         }
 
@@ -1313,11 +1416,398 @@ impl<'a> HirLowering<'a> {
         )
     }
 
-    fn lower_delegated_property_delegate_access_expr(
+    fn delegated_property_ty(&mut self, ty: Option<&ast::TypeRef>) -> TypeId {
+        ty.map(|t| self.lower_type_ref(t)).unwrap_or(self.builtins.any)
+    }
+
+    fn member_access_to_class_field(
         &mut self,
         span: Span,
         receiver: Expr,
-        info: &DelegatedPropertyInfo,
+        member_name: String,
+        field_fqn: String,
+    ) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(receiver),
+                member: MemberAccess {
+                    span,
+                    name: member_name,
+                    resolved: Some(MemberRef::Value {
+                        id: self.symbols.intern_top_level(field_fqn.clone()),
+                        fqn: field_fqn,
+                    }),
+                },
+            },
+        }
+    }
+
+    fn lower_lazy_delegated_property_get(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        receiver: &ast::Expr,
+        info: &LazyDelegatedPropertyInfo,
+    ) -> ExprKind {
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+
+        let inited_name = format!("{}$lazy_inited", info.name);
+        let value_name = format!("{}$lazy_value", info.name);
+
+        let subject = self.member_access_to_class_field(
+            span,
+            receiver.clone(),
+            inited_name,
+            info.inited_field_fqn.clone(),
+        );
+
+        let true_body = self.member_access_to_class_field(
+            span,
+            receiver.clone(),
+            value_name.clone(),
+            info.value_field_fqn.clone(),
+        );
+
+        let init_value = self.lower_expr(pkg_prefix, &info.initializer_body);
+        let assign_value = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Assign {
+                lhs: self.member_access_to_class_field(
+                    span,
+                    receiver.clone(),
+                    value_name.clone(),
+                    info.value_field_fqn.clone(),
+                ),
+                eq_span: span,
+                rhs: init_value,
+            },
+        };
+
+        let assign_inited = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Assign {
+                lhs: self.member_access_to_class_field(
+                    span,
+                    receiver.clone(),
+                    format!("{}$lazy_inited", info.name),
+                    info.inited_field_fqn.clone(),
+                ),
+                eq_span: span,
+                rhs: Expr {
+                    span,
+                    ty: self.builtins.bool_,
+                    kind: ExprKind::Literal(LiteralKind::Bool(true)),
+                },
+            },
+        };
+
+        let tail = Stmt {
+            span,
+            ty: self.builtins.any,
+            kind: StmtKind::Expr(self.member_access_to_class_field(
+                span,
+                receiver,
+                value_name,
+                info.value_field_fqn.clone(),
+            )),
+        };
+
+        let false_body = Expr {
+            span,
+            ty: self.delegated_property_ty(info.ty.as_ref()),
+            kind: ExprKind::Block(Block {
+                span,
+                ty: self.builtins.any,
+                stmts: vec![assign_value, assign_inited, tail],
+            }),
+        };
+
+        ExprKind::When {
+            subject: Box::new(subject),
+            arms: vec![
+                WhenArm {
+                    span,
+                    pat: WhenPat::BoolLit { span, value: true },
+                    guard: None,
+                    arrow_span: span,
+                    body: true_body,
+                },
+                WhenArm {
+                    span,
+                    pat: WhenPat::BoolLit { span, value: false },
+                    guard: None,
+                    arrow_span: span,
+                    body: false_body,
+                },
+            ],
+        }
+    }
+
+    fn lower_observable_delegated_property_assign(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        member_span: Span,
+        receiver: &ast::Expr,
+        rhs: &ast::Expr,
+        property_fqn: &str,
+        info: &ObservableDelegatedPropertyInfo,
+    ) -> Option<Expr> {
+        if info.on_change.params.len() != 2 {
+            return None;
+        }
+
+        let value_ty = self.delegated_property_ty(info.ty.as_ref());
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+
+        let old_param = &info.on_change.params[0];
+        let new_param = &info.on_change.params[1];
+        let old_name = old_param.name.text(self.source).to_string();
+        let new_name = new_param.name.text(self.source).to_string();
+
+        let old_id = self.intern_local_symbol(old_param.name.span, false);
+        let new_id = self.intern_local_symbol(new_param.name.span, false);
+
+        let field_access = |this: &mut Self, recv: Expr| -> Expr {
+            this.member_access_to_class_field(
+                member_span,
+                recv,
+                info.name.clone(),
+                property_fqn.to_string(),
+            )
+        };
+
+        let old_decl = ValDecl {
+            span: old_param.name.span,
+            id: Some(old_id),
+            name: Some(old_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(field_access(self, receiver.clone())),
+        };
+
+        let new_decl = ValDecl {
+            span: new_param.name.span,
+            id: Some(new_id),
+            name: Some(new_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(self.lower_expr(pkg_prefix, rhs)),
+        };
+
+        let assign = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Assign {
+                lhs: field_access(self, receiver.clone()),
+                eq_span: member_span,
+                rhs: Expr {
+                    span,
+                    ty: value_ty,
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id: new_id,
+                        name: new_name,
+                        decl_span: new_param.name.span,
+                    }),
+                },
+            },
+        };
+
+        let callback_body = self.lower_expr(pkg_prefix, &info.on_change.body);
+
+        let block = Block {
+            span,
+            ty: self.builtins.unit,
+            stmts: vec![
+                Stmt {
+                    span: old_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(old_decl),
+                },
+                Stmt {
+                    span: new_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(new_decl),
+                },
+                assign,
+                Stmt {
+                    span: callback_body.span,
+                    ty: callback_body.ty,
+                    kind: StmtKind::Expr(callback_body),
+                },
+            ],
+        };
+
+        Some(Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Block(block),
+        })
+    }
+
+    fn lower_vetoable_delegated_property_assign(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        member_span: Span,
+        receiver: &ast::Expr,
+        rhs: &ast::Expr,
+        property_fqn: &str,
+        info: &VetoableDelegatedPropertyInfo,
+    ) -> Option<Expr> {
+        if info.on_change.params.len() != 2 {
+            return None;
+        }
+
+        let value_ty = self.delegated_property_ty(info.ty.as_ref());
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+
+        let old_param = &info.on_change.params[0];
+        let new_param = &info.on_change.params[1];
+        let old_name = old_param.name.text(self.source).to_string();
+        let new_name = new_param.name.text(self.source).to_string();
+
+        let old_id = self.intern_local_symbol(old_param.name.span, false);
+        let new_id = self.intern_local_symbol(new_param.name.span, false);
+
+        let field_access = |this: &mut Self, recv: Expr| -> Expr {
+            this.member_access_to_class_field(
+                member_span,
+                recv,
+                info.name.clone(),
+                property_fqn.to_string(),
+            )
+        };
+
+        let old_decl = ValDecl {
+            span: old_param.name.span,
+            id: Some(old_id),
+            name: Some(old_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(field_access(self, receiver.clone())),
+        };
+
+        let new_decl = ValDecl {
+            span: new_param.name.span,
+            id: Some(new_id),
+            name: Some(new_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(self.lower_expr(pkg_prefix, rhs)),
+        };
+
+        let ok_expr = self.lower_expr(pkg_prefix, &info.on_change.body);
+
+        let new_ref = Expr {
+            span,
+            ty: value_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: new_id,
+                name: new_name,
+                decl_span: new_param.name.span,
+            }),
+        };
+
+        let assign_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Assign {
+                lhs: field_access(self, receiver.clone()),
+                eq_span: member_span,
+                rhs: new_ref,
+            },
+        };
+
+        let true_block = Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: self.builtins.unit,
+                stmts: vec![
+                    assign_stmt,
+                    Stmt {
+                        span,
+                        ty: self.builtins.unit,
+                        kind: StmtKind::Expr(Expr {
+                            span,
+                            ty: self.builtins.unit,
+                            kind: ExprKind::Literal(LiteralKind::Unit),
+                        }),
+                    },
+                ],
+            }),
+        };
+
+        let false_unit = Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Literal(LiteralKind::Unit),
+        };
+
+        let when_expr = Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::When {
+                subject: Box::new(ok_expr),
+                arms: vec![
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: true },
+                        guard: None,
+                        arrow_span: span,
+                        body: true_block,
+                    },
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: false },
+                        guard: None,
+                        arrow_span: span,
+                        body: false_unit,
+                    },
+                ],
+            },
+        };
+
+        let block = Block {
+            span,
+            ty: self.builtins.unit,
+            stmts: vec![
+                Stmt {
+                    span: old_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(old_decl),
+                },
+                Stmt {
+                    span: new_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(new_decl),
+                },
+                Stmt {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Expr(when_expr),
+                },
+            ],
+        };
+
+        Some(Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::Block(block),
+        })
+    }
+
+    fn lower_generic_delegated_property_delegate_access_expr(
+        &mut self,
+        span: Span,
+        receiver: Expr,
+        info: &GenericDelegatedPropertyInfo,
     ) -> Expr {
         Expr {
             span,
@@ -2900,18 +3390,155 @@ fn collect_class_decl_init(
         for member in &body.members {
             match member {
                 ast::TypeMember::Property(p) => {
-                    // v0：只收集“具备 backing field” 的属性；delegate/getter/setter 的完整语义留到后续任务。
-                    if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
+                    // v0：仍跳过显式 getter/setter（computed/accessor codegen 需要 function-level CFG）。
+                    if p.getter.is_some() || p.setter.is_some() {
                         continue;
                     }
 
                     let name = p.name.text(ctx.source).to_string();
-                    let field_fqn = format!("{class_fqn}.{name}");
-                    let mutable = matches!(p.kind, ast::ValKind::Var);
                     let ty =
                         p.ty.as_ref()
                             .map(|t| ctx.lower_type_ref(t))
                             .unwrap_or(ctx.builtins.any);
+
+                    // delegated property（spec §10.4）：标准 delegates（lazy/observable/vetoable）与 map-backed。
+                    if let Some(delegate_expr) = p.delegate.as_ref() {
+                        match parse_std_delegate_expr(delegate_expr) {
+                            Some(ParsedStdDelegateExpr::Lazy { .. }) => {
+                                // lazy：为属性生成两个隐藏字段：
+                                // - `<name>$lazy_inited: Bool`
+                                // - `<name>$lazy_value: T`
+                                //
+                                // getter 会在首次访问时写入 `<name>$lazy_value` 并把 `<name>$lazy_inited` 置 true。
+                                let inited_fqn = format!("{class_fqn}.{name}$lazy_inited");
+                                let value_fqn = format!("{class_fqn}.{name}$lazy_value");
+
+                                insert_field(
+                                    &mut init,
+                                    ClassField {
+                                        fqn: inited_fqn.clone(),
+                                        name: format!("{name}$lazy_inited"),
+                                        mutable: true,
+                                        ty: ctx.builtins.bool_,
+                                    },
+                                );
+                                insert_field(
+                                    &mut init,
+                                    ClassField {
+                                        fqn: value_fqn,
+                                        name: format!("{name}$lazy_value"),
+                                        mutable: true,
+                                        ty,
+                                    },
+                                );
+
+                                init.steps.push(ClassInitStep::PropertyInit {
+                                    field_fqn: inited_fqn,
+                                    init: Expr {
+                                        span: p.name.span,
+                                        ty: ctx.builtins.bool_,
+                                        kind: ExprKind::Literal(LiteralKind::Bool(false)),
+                                    },
+                                });
+                            }
+                            Some(ParsedStdDelegateExpr::Observable { initial, .. })
+                            | Some(ParsedStdDelegateExpr::Vetoable { initial, .. }) => {
+                                // observable/vetoable：把当前值落到真实字段 `<name>`，并在初始化时写入 `initial`。
+                                let field_fqn = format!("{class_fqn}.{name}");
+                                insert_field(
+                                    &mut init,
+                                    ClassField {
+                                        fqn: field_fqn.clone(),
+                                        name,
+                                        mutable: true,
+                                        ty,
+                                    },
+                                );
+                                let lowered = ctx.lower_expr(pkg_prefix, &initial);
+                                init.steps.push(ClassInitStep::PropertyInit {
+                                    field_fqn,
+                                    init: lowered,
+                                });
+                            }
+                            Some(ParsedStdDelegateExpr::MapBacked { delegate }) => {
+                                // map-backed：早期阶段在初始化时把 `by data` 的值写入真实字段 `<name>`。
+                                //
+                                // 约束：目前只支持 delegate 为 `this.data` 这类“class 字段访问”，
+                                // 并要求 delegate 类型存在同名字段（`data.<name>`）。
+                                let field_fqn = format!("{class_fqn}.{name}");
+                                insert_field(
+                                    &mut init,
+                                    ClassField {
+                                        fqn: field_fqn.clone(),
+                                        name: name.clone(),
+                                        mutable: false,
+                                        ty,
+                                    },
+                                );
+
+                                let delegate_field_fqn = match &delegate.kind {
+                                    ast::ExprKind::MemberAccess { member, .. } => {
+                                        let Some(ast::ResolvedMemberRef::Value { fqn }) =
+                                            member.resolved.as_ref()
+                                        else {
+                                            continue;
+                                        };
+                                        fqn.clone()
+                                    }
+                                    _ => continue,
+                                };
+
+                                let Some(idx) = init.field_indices.get(&delegate_field_fqn).copied() else {
+                                    continue;
+                                };
+                                let Some(delegate_field) = init.fields.get(idx as usize) else {
+                                    continue;
+                                };
+
+                                let delegate_ty_fqn = match ctx.types.kind(delegate_field.ty) {
+                                    TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                                        nominal.fqn.clone()
+                                    }
+                                    TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                                        nominal.fqn.clone()
+                                    }
+                                    _ => continue,
+                                };
+
+                                let delegate_member_fqn = format!("{delegate_ty_fqn}.{name}");
+                                let delegate_recv = ctx.lower_expr(pkg_prefix, &delegate);
+                                let init_expr = Expr {
+                                    span: p.name.span,
+                                    ty: ctx.builtins.any,
+                                    kind: ExprKind::MemberAccess {
+                                        receiver: Box::new(delegate_recv),
+                                        member: MemberAccess {
+                                            span: p.name.span,
+                                            name: name.clone(),
+                                            resolved: Some(MemberRef::Value {
+                                                id: ctx
+                                                    .symbols
+                                                    .intern_top_level(delegate_member_fqn.clone()),
+                                                fqn: delegate_member_fqn,
+                                            }),
+                                        },
+                                    },
+                                };
+                                init.steps.push(ClassInitStep::PropertyInit {
+                                    field_fqn,
+                                    init: init_expr,
+                                });
+                            }
+                            None => {
+                                // 非标准 delegated property：当前阶段不纳入 class init side table。
+                            }
+                        }
+                        continue;
+                    }
+
+                    // v0：只收集“具备 backing field” 的属性；delegate/getter/setter 的完整语义留到后续任务。
+                    let field_fqn = format!("{class_fqn}.{name}");
+                    let mutable = matches!(p.kind, ast::ValKind::Var);
 
                     insert_field(
                         &mut init,
@@ -2991,6 +3618,97 @@ fn join_prefix(prefix: &str, name: &str) -> String {
     }
 }
 
+#[derive(Debug, Clone)]
+enum ParsedStdDelegateExpr {
+    Lazy { initializer_body: ast::Expr },
+    Observable { initial: ast::Expr, on_change: ast::LambdaExpr },
+    Vetoable { initial: ast::Expr, on_change: ast::LambdaExpr },
+    MapBacked { delegate: ast::Expr },
+}
+
+fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+
+    // 优先使用 resolver 写回的 call candidates（比 `resolved` 更稳健；可覆盖 overload set）。
+    if let Some(call) = id.call.as_ref() {
+        let mut funs: Vec<String> = call
+            .candidates
+            .iter()
+            .filter_map(|c| match c {
+                ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                ast::CallCandidate::Constructor { .. } => None,
+            })
+            .collect();
+        funs.sort();
+        funs.dedup();
+        if funs.len() == 1 {
+            return Some(funs[0].clone());
+        }
+    }
+
+    // fallback：若 resolver 已把 callee 绑定为唯一顶层函数，同样可用。
+    match id.resolved.as_ref() {
+        Some(ast::ResolvedValueRef::TopLevel { fqn }) => Some(fqn.clone()),
+        _ => None,
+    }
+}
+
+fn parse_std_delegate_expr(delegate_expr: &ast::Expr) -> Option<ParsedStdDelegateExpr> {
+    match &delegate_expr.kind {
+        ast::ExprKind::Call { callee, args } => {
+            let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
+
+            // lazy：`lazy { ... }` / `lazy(mode) { ... }`
+            if fqn == "scoop.delegates.lazy" {
+                let last = args.last()?;
+                let ast::ExprKind::Lambda(lam) = &last.kind else {
+                    return None;
+                };
+                return Some(ParsedStdDelegateExpr::Lazy {
+                    initializer_body: (*lam.body).clone(),
+                });
+            }
+
+            // observable/vetoable：`observable(init) { old, new -> ... }`
+            if fqn == "scoop.delegates.observable" || fqn == "scoop.delegates.vetoable" {
+                if args.len() < 2 {
+                    return None;
+                }
+                let initial = args.first()?.clone();
+                let last = args.last()?;
+                let ast::ExprKind::Lambda(lam) = &last.kind else {
+                    return None;
+                };
+
+                return if fqn == "scoop.delegates.observable" {
+                    Some(ParsedStdDelegateExpr::Observable {
+                        initial,
+                        on_change: lam.clone(),
+                    })
+                } else {
+                    Some(ParsedStdDelegateExpr::Vetoable {
+                        initial,
+                        on_change: lam.clone(),
+                    })
+                };
+            }
+
+            None
+        }
+
+        // map-backed：`val x: T by data`
+        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => Some(
+            ParsedStdDelegateExpr::MapBacked {
+                delegate: delegate_expr.clone(),
+            },
+        ),
+
+        _ => None,
+    }
+}
+
 fn collect_delegated_properties(pairs: &[(&SourceFile, &ast::File)]) -> DelegatedPropertyIndex {
     let mut out: DelegatedPropertyIndex = HashMap::new();
 
@@ -3030,13 +3748,47 @@ fn collect_delegated_properties_in_type_decl(
                 ast::TypeMember::Property(p) if p.delegate.is_some() => {
                     let name = source.slice(p.name.span).to_string();
                     let prop_fqn = format!("{owner_fqn}.{name}");
-                    let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
-                    let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
-                    out.entry(prop_fqn).or_insert(DelegatedPropertyInfo {
-                        name,
-                        delegate_field_fqn,
-                        property_meta_fqn,
-                    });
+                    let Some(delegate_expr) = p.delegate.as_ref() else {
+                        continue;
+                    };
+
+                    let info = match parse_std_delegate_expr(delegate_expr) {
+                        Some(ParsedStdDelegateExpr::Lazy { initializer_body }) => {
+                            DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
+                                name: name.clone(),
+                                ty: p.ty.clone(),
+                                value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
+                                inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
+                                initializer_body,
+                            })
+                        }
+                        Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
+                            DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
+                                name: name.clone(),
+                                ty: p.ty.clone(),
+                                on_change,
+                            })
+                        }
+                        Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
+                            DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
+                                name: name.clone(),
+                                ty: p.ty.clone(),
+                                on_change,
+                            })
+                        }
+                        Some(ParsedStdDelegateExpr::MapBacked { .. }) => DelegatedPropertyInfo::MapBacked,
+                        None => {
+                            let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
+                            let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                            DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
+                                name: name.clone(),
+                                delegate_field_fqn,
+                                property_meta_fqn,
+                            })
+                        }
+                    };
+
+                    out.entry(prop_fqn).or_insert(info);
                 }
                 ast::TypeMember::Type(nested) => {
                     collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);
@@ -3078,13 +3830,47 @@ fn collect_delegated_properties_in_object_decl(
             ast::TypeMember::Property(p) if p.delegate.is_some() => {
                 let name = source.slice(p.name.span).to_string();
                 let prop_fqn = format!("{owner_fqn}.{name}");
-                let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
-                let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
-                out.entry(prop_fqn).or_insert(DelegatedPropertyInfo {
-                    name,
-                    delegate_field_fqn,
-                    property_meta_fqn,
-                });
+                let Some(delegate_expr) = p.delegate.as_ref() else {
+                    continue;
+                };
+
+                let info = match parse_std_delegate_expr(delegate_expr) {
+                    Some(ParsedStdDelegateExpr::Lazy { initializer_body }) => {
+                        DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
+                            name: name.clone(),
+                            ty: p.ty.clone(),
+                            value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
+                            inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
+                            initializer_body,
+                        })
+                    }
+                    Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
+                        DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
+                            name: name.clone(),
+                            ty: p.ty.clone(),
+                            on_change,
+                        })
+                    }
+                    Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
+                        DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
+                            name: name.clone(),
+                            ty: p.ty.clone(),
+                            on_change,
+                        })
+                    }
+                    Some(ParsedStdDelegateExpr::MapBacked { .. }) => DelegatedPropertyInfo::MapBacked,
+                    None => {
+                        let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
+                        let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
+                        DelegatedPropertyInfo::Generic(GenericDelegatedPropertyInfo {
+                            name: name.clone(),
+                            delegate_field_fqn,
+                            property_meta_fqn,
+                        })
+                    }
+                };
+
+                out.entry(prop_fqn).or_insert(info);
             }
             ast::TypeMember::Type(nested) => {
                 collect_delegated_properties_in_type_decl(source, nested, &owner_fqn, out);

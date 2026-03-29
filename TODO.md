@@ -4275,11 +4275,25 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1313 [TODO] 标准 delegated properties：`lazy` / `observable` / `vetoable` / map-backed（spec §10.4）
+### T1313 [DONE] 标准 delegated properties：`lazy` / `observable` / `vetoable` / map-backed（spec §10.4）
 - 描述：在语言兼容层补齐标准 delegated properties 的行为与示例，确保 `by` 不只停留在语法和最小接口层。
 - 目标：先覆盖最常见的行为：lazy 首次访问缓存、observable/vetoable 回调、map-backed 属性读取；更复杂线程安全语义后续。
 - 验收：language/run-pass fixture：`lazy` 只初始化一次；`observable` / `vetoable` 回调按预期触发；map-backed delegate 可读取字段。
 - 依赖：T1217、T0434
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：
+     - 在 lowering 阶段对标准 delegates 做特判（early strategy：避免依赖 `$delegate` 字段、`PropertyMeta` 运行期构造与闭包调用等尚未落地链路）；
+     - `lazy`：为属性生成隐藏 `inited/value` 字段，并将 getter lower 成“首次访问初始化一次 + 缓存”；
+     - `observable` / `vetoable`：将回调体 inline 到赋值 lowering；vetoable 先判定是否允许赋值，再决定是否写入与触发回调；
+     - map-backed（early）：在 class init 阶段把 `by this.data` 读取改写成从 `this.data.p` 拷贝到真实字段 `p`（读取走字段，后续可升级为真实 map lookup）。
+   - fixtures：
+     - `tests/fixtures/run-pass/delegated_property_lazy_init_once_basic.*`
+     - `tests/fixtures/run-pass/delegated_property_observable_vetoable_basic.*`
+     - `tests/fixtures/run-pass/delegated_property_map_backed_basic.*`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1314 [TODO] Kotlin runtime / Scoop core runtime gap 审计（when applicable）
 - 描述：盘点 Scoop core runtime / stdlib 与 Kotlin runtime 之间“语义上值得补齐、且与 JVM 绑定无关”的缺口，并按“纯 Scoop 可实现 / 需要 runtime libs / 需要新 intrinsic”三类归档。

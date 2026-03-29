@@ -1,0 +1,8 @@
+start
+score: 0 -> 1
+score: 1 -> 2
+2
+age try: 0 -> 5
+5
+age try: 5 -> -1
+5

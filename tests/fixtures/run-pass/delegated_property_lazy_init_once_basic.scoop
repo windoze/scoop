@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_lazy_init_once_basic.stdout
+//
+// T1313：标准 delegated properties（spec §10.4）
+// - lazy 的 initializer 只应在首次访问时执行一次，后续访问走缓存。
+
+import scoop.core.*
+import scoop.delegates.*
+
+class C() {
+    val x: Int by lazy {
+        println("init")
+        7
+    }
+}
+
+fun main(): Int {
+    val c: C = C()
+    println("before")
+    println(c.x)
+    println(c.x)
+    return 0
+}

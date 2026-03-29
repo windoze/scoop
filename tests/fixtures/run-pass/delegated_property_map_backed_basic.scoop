@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_map_backed_basic.stdout
+//
+// T1313：map-backed delegated properties（spec §10.4）
+// - 早期阶段用“初始化时拷贝值到真实字段”的策略回归：`val p: T by this.data`。
+
+import scoop.core.*
+
+class Data(val name: String, val age: Int) {
+    // 为满足 delegated property 的最小静态规则（T0434b），提供 `getValue` overload。
+    // 运行期当前不会走 `getValue` 调用路径（T1313 的 early lowering 会把值拷贝到字段）。
+    fun getValue(thisRef: Any, property: PropertyMeta): (Int, Int) { (0, 0) }
+}
+
+class JsonObject(val data: Data) {
+    val name: String by this.data
+    val age: Int by this.data
+}
+
+fun main(): Int {
+    val d: Data = Data("Alice", 42)
+    val obj: JsonObject = JsonObject(d)
+    println(obj.name)
+    println(obj.age)
+    return 0
+}

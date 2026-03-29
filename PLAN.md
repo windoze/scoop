@@ -35,6 +35,7 @@
 - 2026-03-29：完成 T1310：import alias 补齐 shadowing 与显式 import 的优先级（同包/本地声明 > 显式 import（含 alias）> star import），并新增 resolve fixtures 回归覆盖（alias shadowing + alias vs star）。
 - 2026-03-29：完成 T1311：object/companion object 语义补齐——支持单例值在表达式位置引用并触发 once 初始化；并把 companion 自身可见性作为 `TypeName.member` 的访问上界，新增 run-pass/typecheck_multi fixtures 回归覆盖。
 - 2026-03-29：完成 T1312：类初始化顺序补齐——支持 class ctor call 与实例字段读取/写入；初始化按 Kotlin-like 顺序执行（property initializer → `init {}` blocks → secondary ctor body），并新增 run-pass fixture 回归覆盖（含 primary ctor `val` 参数属性在 init 阶段可通过 `this.x` 访问）。
+- 2026-03-29：完成 T1313：标准 delegated properties（`lazy/observable/vetoable/map-backed`）最小可执行语义——通过 HIR lowering 特判 + class init side table 注入落地，避免依赖运行期 `PropertyMeta` 与闭包调用；新增 3 个 run-pass fixtures 覆盖 lazy 初始化一次、observable/vetoable 回调顺序与 map-backed 读取。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。

@@ -1,0 +1,33 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_observable_vetoable_basic.stdout
+//
+// T1313：标准 delegated properties（spec §10.4）
+// - observable：每次写入触发回调（old/new）
+// - vetoable：写入前触发回调，返回 false 时拒绝更新
+
+import scoop.core.*
+import scoop.delegates.*
+
+class C() {
+    var score: Int by observable(0) { old, new ->
+        println(f"score: {old} -> {new}")
+    }
+
+    var age: Int by vetoable(0) { old, new ->
+        println(f"age try: {old} -> {new}")
+        new >= 0
+    }
+}
+
+fun main(): Int {
+    val c: C = C()
+    println("start")
+    c.score = 1
+    c.score = 2
+    println(c.score)
+    c.age = 5
+    println(c.age)
+    c.age = -1
+    println(c.age)
+    return 0
+}
