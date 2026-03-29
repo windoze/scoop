@@ -1,0 +1,9 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::cyclic_type_alias
+// EXPECT-ERROR: 循环的类型别名
+// 目标：T1302：跨包（多文件）循环 typealias 仍应报错（不要求精确位置断言）。
+
+package fixtures.typecheck_multi.typealias_cross_package_cycle.a
+
+typealias A = fixtures.typecheck_multi.typealias_cross_package_cycle.b.B
+

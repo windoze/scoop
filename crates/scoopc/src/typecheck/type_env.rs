@@ -377,6 +377,28 @@ impl TypeEnv {
         self.insert_symbol(fqn, symbol)
     }
 
+    /// 注入一个外部 `typealias` 的声明信息（用于别名展开）。
+    ///
+    /// 用途（T1302）：
+    /// - `.cone` 依赖会在注入 public API 时，把 `typealias` 的 RHS 一并带入；
+    /// - 下游在 typecheck lowering 阶段需要据此展开别名（包括泛型实例化）。
+    ///
+    /// 约定：
+    /// - 若同名 alias 已存在（极少发生），保留第一次注入的版本（与 `insert_external_source` 一致）。
+    pub(crate) fn insert_external_type_alias(
+        &mut self,
+        fqn: String,
+        decl_file: PathBuf,
+        name_span: Span,
+        ty: ast::TypeRef,
+    ) {
+        self.type_aliases.entry(fqn).or_insert(TypeAliasInfo {
+            decl_file,
+            name_span,
+            ty,
+        });
+    }
+
     /// 返回给定源文件的 type lowering 上下文（package/import）。
     pub fn file_type_context(&self, path: &Path) -> Option<&FileTypeContext> {
         self.file_ctx.get(path)
@@ -435,6 +457,17 @@ impl TypeEnv {
                 ast::Item::TypeAlias(ta) => {
                     let name = source.slice(ta.name.span).to_string();
                     let fqn = join_prefix(&pkg_prefix, &name);
+
+                    let type_param_names = ta
+                        .type_params
+                        .iter()
+                        .map(|p| source.slice(p.name.span).to_string())
+                        .collect::<Vec<_>>();
+                    let type_param_variances = ta
+                        .type_params
+                        .iter()
+                        .map(|p| p.variance)
+                        .collect::<Vec<_>>();
                     self.insert_symbol(
                         fqn.clone(),
                         TypeSymbol {
@@ -443,10 +476,10 @@ impl TypeEnv {
                             annotation_targets: None,
                             annotation_retention: None,
                             annotation_params: Vec::new(),
-                            type_param_count: 0,
+                            type_param_count: type_param_names.len(),
                             eff_param: None,
-                            type_param_names: Vec::new(),
-                            type_param_variances: Vec::new(),
+                            type_param_names,
+                            type_param_variances,
                             where_constraints: Vec::new(),
                             span: ta.name.span,
                             decl_file: source.path().to_path_buf(),

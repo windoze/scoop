@@ -655,10 +655,6 @@ impl<'a> Parser<'a> {
     }
 
     /// 解析顶层 `typealias Name = Type` 声明（Appendix B.10）。
-    ///
-    /// 当前阶段（T0251）约束：
-    /// - 仅支持顶层（由 `parse_file` 调用点保证）
-    /// - 仅支持非泛型 typealias（不允许 `typealias Name<T> = ...`）
     pub(super) fn parse_typealias_decl(&mut self) -> Result<ast::TypeAliasDecl, ParseError> {
         let start = self.peek().span.start;
         let (annotations, modifiers) = self.parse_decl_prefix()?;
@@ -668,6 +664,17 @@ impl<'a> Parser<'a> {
         let name_tok = self.expect_kind(TokenKind::Ident, "类型别名名（标识符）")?;
         let name = ast::Ident::new(name_tok.span);
 
+        // Kotlin-like：`typealias Name<T> = ...`
+        // 当前阶段只支持常规 type params；不支持 `eff` 参数（避免把 effect-polymorphic 语义提前引入 typealias）。
+        let (_type_params_span, type_params, eff_param) = self.parse_type_params_opt()?;
+        if let Some(eff_param) = eff_param {
+            return Err(ParseError::Expected {
+                expected: "类型参数名（typealias 的泛型列表不支持 `eff` 参数）",
+                found: TokenKind::Ident,
+                span: eff_param.span.into(),
+            });
+        }
+
         self.expect_symbol(Symbol::Eq)?;
         let ty = self.parse_type_ref()?;
 
@@ -676,6 +683,7 @@ impl<'a> Parser<'a> {
             annotations,
             modifiers,
             name,
+            type_params,
             ty,
         })
     }

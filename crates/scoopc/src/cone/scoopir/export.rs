@@ -14,11 +14,12 @@ use crate::hir::{Item as HirItem, LoweredHir};
 use crate::resolve::{Index, Visibility};
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::span::Span;
 use crate::ty::{
-    EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, UnionType,
-    ValueTypeKind,
+    BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType,
+    TypeStore, UnionType, ValueTypeKind,
 };
-use crate::typecheck::{AnnotationRetentionPolicy, TypeEnv, TypeSymbolKind};
+use crate::typecheck::{AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind};
 
 use super::schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,
@@ -30,6 +31,33 @@ pub enum ScoopIrExportError {
     #[error("无法在 TypeEnv 中查询类型符号：{fqn}")]
     #[diagnostic(code(scoop::scoopir::missing_type_symbol))]
     MissingTypeSymbol { fqn: String },
+
+    #[error("无法在 TypeEnv 中查询 typealias 声明信息：{fqn}")]
+    #[diagnostic(code(scoop::scoopir::missing_typealias_info))]
+    MissingTypeAliasInfo { fqn: String },
+
+    #[error("导出 typealias 失败：无法 lowering RHS：{fqn}")]
+    #[diagnostic(code(scoop::scoopir::typealias_rhs_lowering_failed))]
+    TypeAliasRhsLoweringFailed {
+        fqn: String,
+        #[source]
+        #[diagnostic_source]
+        source: crate::typecheck::TypeLowerError,
+    },
+
+    #[error("导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了非 public 类型：{referenced_fqn}")]
+    #[diagnostic(code(scoop::scoopir::typealias_exposes_non_public_type))]
+    TypeAliasExposesNonPublicType {
+        alias_fqn: String,
+        referenced_fqn: String,
+    },
+
+    #[error("导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了未知类型：{referenced_fqn}")]
+    #[diagnostic(code(scoop::scoopir::typealias_references_unknown_type))]
+    TypeAliasReferencesUnknownType {
+        alias_fqn: String,
+        referenced_fqn: String,
+    },
 
     #[error("HIR 中函数类型不是 function type：{fqn}")]
     #[diagnostic(code(scoop::scoopir::unexpected_fun_type))]
@@ -214,10 +242,160 @@ fn export_public_types_for_source(
             fqn: fqn.clone(),
             kind,
             type_params,
+            alias_of: match symbol.kind {
+                TypeSymbolKind::TypeAlias => Some(export_type_alias_rhs_ir_type(index, env, symbol, fqn)?),
+                _ => None,
+            },
         });
     }
 
     Ok(out)
+}
+
+/// 为 public `typealias` 导出其 RHS 类型表达式（ScoopIR IrType）。
+///
+/// v0 策略（T1302）：
+/// - 在导出侧把 RHS lowering 到 `TypeId` 再转换为 `IrType`；
+/// - 这样 RHS 会按 typecheck 的别名展开策略被规范化（避免把 internal alias 链暴露到下游）；
+/// - 同时校验 public typealias 的 RHS 不得引用非 public 类型，否则下游无法通过 `.cone` 使用该别名。
+fn export_type_alias_rhs_ir_type(
+    index: &Index,
+    env: &TypeEnv,
+    alias_sym: &TypeSymbol,
+    alias_fqn: &str,
+) -> Result<IrType, ScoopIrExportError> {
+    let info = env
+        .type_alias(alias_fqn)
+        .ok_or_else(|| ScoopIrExportError::MissingTypeAliasInfo {
+            fqn: alias_fqn.to_string(),
+        })?;
+
+    let decl_source = env.source(&info.decl_file).ok_or_else(|| {
+        ScoopIrExportError::MissingTypeSymbol {
+            fqn: alias_fqn.to_string(),
+        }
+    })?;
+
+    let (pkg_prefix, imports) = env
+        .file_type_context(&info.decl_file)
+        .map(|ctx| (ctx.pkg_prefix.clone(), ctx.imports.clone()))
+        .unwrap_or_else(|| (String::new(), crate::resolve::ImportTable::default()));
+
+    // 为 alias 的 type params 构造占位的 param TypeId（用于 RHS lowering 时识别 `T`）。
+    let decl_span = Span::new(0, 0);
+    let mut types = TypeStore::new();
+    let builtins: BuiltinTypes = types.intern_builtins();
+    let param_ids = alias_sym
+        .type_param_names
+        .iter()
+        .map(|name| {
+            types.ty_param(TypeParamType {
+                name: name.clone(),
+                decl_file: info.decl_file.clone(),
+                decl_span,
+            })
+        })
+        .collect::<Vec<_>>();
+    let bindings = alias_sym
+        .type_param_names
+        .iter()
+        .cloned()
+        .zip(param_ids.iter().copied())
+        .collect::<Vec<_>>();
+
+    let rhs_id = {
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            index,
+            env,
+            &mut types,
+            builtins,
+            pkg_prefix,
+            imports,
+        );
+
+        ctx.push_type_param_bindings(bindings);
+        let out = ctx.lower_type_ref(&info.ty);
+        ctx.pop_type_param_bindings();
+
+        out.map_err(|source| ScoopIrExportError::TypeAliasRhsLoweringFailed {
+            fqn: alias_fqn.to_string(),
+            source,
+        })?
+    };
+
+    let ir = to_ir_type(&types, rhs_id, 0);
+    assert_typealias_rhs_is_public(index, alias_fqn, &ir)?;
+    Ok(ir)
+}
+
+fn assert_typealias_rhs_is_public(
+    index: &Index,
+    alias_fqn: &str,
+    ty: &IrType,
+) -> Result<(), ScoopIrExportError> {
+    match ty {
+        IrType::Named { fqn, args, eff } => {
+            let Some(syms) = index.by_fqn.get(fqn) else {
+                return Err(ScoopIrExportError::TypeAliasReferencesUnknownType {
+                    alias_fqn: alias_fqn.to_string(),
+                    referenced_fqn: fqn.clone(),
+                });
+            };
+            let Some(sym) = syms.ty.as_ref() else {
+                return Err(ScoopIrExportError::TypeAliasReferencesUnknownType {
+                    alias_fqn: alias_fqn.to_string(),
+                    referenced_fqn: fqn.clone(),
+                });
+            };
+            if sym.visibility != Visibility::Public {
+                return Err(ScoopIrExportError::TypeAliasExposesNonPublicType {
+                    alias_fqn: alias_fqn.to_string(),
+                    referenced_fqn: fqn.clone(),
+                });
+            }
+            for a in args {
+                assert_typealias_rhs_is_public(index, alias_fqn, a)?;
+            }
+            if let Some(row) = eff {
+                for t in &row.terms {
+                    assert_typealias_rhs_is_public(index, alias_fqn, t)?;
+                }
+            }
+            Ok(())
+        }
+        IrType::Param { .. } => Ok(()),
+        IrType::Tuple { elements } => {
+            for e in elements {
+                assert_typealias_rhs_is_public(index, alias_fqn, e)?;
+            }
+            Ok(())
+        }
+        IrType::Function {
+            receiver,
+            params,
+            return_ty,
+            effects,
+        } => {
+            if let Some(r) = receiver.as_ref() {
+                assert_typealias_rhs_is_public(index, alias_fqn, r)?;
+            }
+            for p in params {
+                assert_typealias_rhs_is_public(index, alias_fqn, p)?;
+            }
+            assert_typealias_rhs_is_public(index, alias_fqn, return_ty)?;
+            for t in &effects.terms {
+                assert_typealias_rhs_is_public(index, alias_fqn, t)?;
+            }
+            Ok(())
+        }
+        IrType::Union { variants } => {
+            for v in variants {
+                assert_typealias_rhs_is_public(index, alias_fqn, v)?;
+            }
+            Ok(())
+        }
+    }
 }
 
 /// 收集某个源文件内声明的 `public` 函数（fun header）。

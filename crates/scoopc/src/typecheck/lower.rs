@@ -165,7 +165,10 @@ pub fn check_file_type_refs(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
+                // typealias 的 RHS 允许引用其自身的 type params（例如 `typealias Handler<T> = (T) -> Unit`）。
+                ctx.push_type_params(&ta.type_params);
                 let _ = ctx.lower_type_ref(&ta.ty)?;
+                ctx.pop_type_params(&ta.type_params);
             }
             ast::Item::Fun(fun) => {
                 ctx.push_type_params(&fun.type_params);
@@ -318,8 +321,12 @@ pub(crate) struct TypeLowering<'a> {
     effect_row_param_scopes: Vec<HashMap<String, EffectRow>>,
     /// typealias 展开栈（用于循环检测；存储 alias FQN）。
     type_alias_stack: Vec<String>,
-    /// 已展开 typealias 的缓存（alias FQN → lowered TypeId）。
-    type_alias_cache: HashMap<String, TypeId>,
+    /// 已展开 typealias 的缓存（(alias FQN + type args) → lowered TypeId）。
+    ///
+    /// 说明：
+    /// - 非泛型 alias：`type_args` 为空；
+    /// - 泛型 alias：同一个 alias 在不同 type args 下展开结果不同，因此 cache key 必须包含 type args。
+    type_alias_cache: HashMap<TypeInstantiationKey, TypeId>,
     /// 当前是否处于“required effects 收集”模式（T0604）。
     ///
     /// 说明：只在检查函数体时启用；其它 typecheck phase 默认关闭，避免改变现有行为。
@@ -396,7 +403,7 @@ impl<'a> TypeLowering<'a> {
     /// 用途：
     /// - typealias 展开时切换到“别名声明处文件”的上下文（T0446）
     /// - enum layout/metadata 计算时按“enum 声明处文件”的上下文降低 variant 字段类型（T0449）
-    pub(super) fn new_with_ctx(
+    pub(crate) fn new_with_ctx(
         source: &'a SourceFile,
         index: &'a Index,
         env: &'a TypeEnv,
@@ -1164,7 +1171,7 @@ impl<'a> TypeLowering<'a> {
         };
 
         match sym.kind {
-            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, span),
+            TypeSymbolKind::TypeAlias => self.lower_type_alias_fqn(&fqn, &args, span),
             TypeSymbolKind::Nominal(kind) => {
                 self.check_where_constraints_on_instantiation(&fqn, sym, &args, span)?;
                 let eff = match &sym.eff_param {
@@ -1660,7 +1667,7 @@ impl<'a> TypeLowering<'a> {
                         span: path.span.into(),
                     });
                 }
-                self.lower_type_alias_fqn(&fqn, path.span)
+                self.lower_type_alias_fqn(&fqn, &args, path.span)
             }
             TypeSymbolKind::Nominal(kind) => {
                 self.check_where_constraints_on_instantiation(&fqn, sym, &args, path.span)?;
@@ -1705,9 +1712,14 @@ impl<'a> TypeLowering<'a> {
     fn lower_type_alias_fqn(
         &mut self,
         fqn: &str,
+        type_args: &[TypeId],
         use_span: Span,
     ) -> Result<TypeId, TypeLowerError> {
-        if let Some(id) = self.type_alias_cache.get(fqn).copied() {
+        let key = TypeInstantiationKey {
+            fqn: fqn.to_string(),
+            type_args: type_args.to_vec(),
+        };
+        if let Some(id) = self.type_alias_cache.get(&key).copied() {
             return Ok(id);
         }
 
@@ -1760,39 +1772,61 @@ impl<'a> TypeLowering<'a> {
             });
         };
 
-        let Some(decl_ctx) = self.env.file_type_context(&info.decl_file) else {
-            return Err(TypeLowerError::MissingTypeSymbolInEnv {
+        // 对 `.cone` 注入的合成 source：它可能只有文本切片能力，但不一定有 package/import 上下文。
+        // 为保证下游仍可展开别名，这里在缺省时使用空上下文：
+        // - rhs 类型在 ScoopIR 中会被导出为 FQN（不依赖 imports）；
+        // - type params 通过 `type_args` 做显式绑定，不应捕获 use-site 的 scope。
+        let (decl_pkg_prefix, decl_imports) = self
+            .env
+            .file_type_context(&info.decl_file)
+            .map(|ctx| (ctx.pkg_prefix.clone(), ctx.imports.clone()))
+            .unwrap_or_else(|| (String::new(), ImportTable::default()));
+
+        let alias_sym = self.env.type_symbol(fqn).ok_or_else(|| {
+            TypeLowerError::MissingTypeSymbolInEnv {
                 fqn: fqn.to_string(),
                 span: use_span.into(),
-            });
-        };
+            }
+        })?;
+        let type_bindings = alias_sym
+            .type_param_names
+            .iter()
+            .cloned()
+            .zip(type_args.iter().copied())
+            .collect::<Vec<_>>();
 
         self.type_alias_stack.push(fqn.to_string());
 
         // 在“别名声明处文件”的 package/import 规则下展开 RHS。
         //
-        // 注意：typealias 当前阶段（T0251）是顶层且非泛型，因此不应捕获使用点的 type param scope。
+        // 注意：
+        // - typealias 只允许通过 `Name<...>` 的显式 type args 实例化；
+        // - 展开时不应捕获 use-site 的 type/effect param scopes（否则会把 RHS 里的同名标识符错误解析为外层参数）。
         let saved_source = self.source;
         let saved_pkg_prefix = std::mem::take(&mut self.pkg_prefix);
         let saved_imports = std::mem::take(&mut self.imports);
-        let saved_scopes = std::mem::take(&mut self.type_param_scopes);
+        let saved_type_param_scopes = std::mem::take(&mut self.type_param_scopes);
+        let saved_eff_param_scopes = std::mem::take(&mut self.effect_row_param_scopes);
 
         self.source = decl_source;
-        self.pkg_prefix = decl_ctx.pkg_prefix.clone();
-        self.imports = decl_ctx.imports.clone();
+        self.pkg_prefix = decl_pkg_prefix;
+        self.imports = decl_imports;
+        self.push_type_param_bindings(type_bindings);
 
         let lowered_rhs = self.lower_type_ref(&info.ty);
 
         // 恢复 use-site 上下文（无论 RHS lowering 成功与否）。
+        self.pop_type_param_bindings();
         self.source = saved_source;
         self.pkg_prefix = saved_pkg_prefix;
         self.imports = saved_imports;
-        self.type_param_scopes = saved_scopes;
+        self.type_param_scopes = saved_type_param_scopes;
+        self.effect_row_param_scopes = saved_eff_param_scopes;
 
         let _ = self.type_alias_stack.pop();
 
         let rhs_id = lowered_rhs?;
-        self.type_alias_cache.insert(fqn.to_string(), rhs_id);
+        self.type_alias_cache.insert(key, rhs_id);
         Ok(rhs_id)
     }
 

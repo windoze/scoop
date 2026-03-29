@@ -1410,7 +1410,10 @@ pub fn check_file_headers(
         match item {
             ast::Item::TypeAlias(ta) => {
                 resolve_namespaced_annotations(source, file, index, &ta.annotations)?;
-                resolve_type_ref(source, file, index, &type_params, None, &ta.ty)?
+                type_params.push_decl(source, &ta.type_params)?;
+                let result = resolve_type_ref(source, file, index, &type_params, None, &ta.ty);
+                type_params.pop_decl();
+                result?
             }
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;

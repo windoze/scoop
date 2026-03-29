@@ -34,6 +34,7 @@
 - 2026-03-29：规范更新：补齐 value-only enum、`@CLayout(aligned, packed)`、`@ThreadLocal/@Global`、`@Extern(lib, name)`、`@CallingConvention`、`@Safe`、`Platform/getPlatform()`、type descriptor release callback、`Ptr/FunPtr/stackAlloc/addressOf` 与 internal atomics、以及 `Cone.toml` 的平台选择器；并同步更新 `PLAN.md`/`TODO.md` 对应任务拆分。
 - 2026-03-29：完成 T1020：扩展内建 `@Extern`（支持 `lib/name` 参数 + extern 顶层变量声明），并在 driver clang 链接阶段透传 `-l<lib>`；新增 typecheck fixtures 与 driver 单测回归。
 - 2026-03-29：完成 T1022：对顶层 `var` 强制要求 `@ThreadLocal/@Global` 显式标注，并在 typecheck 阶段门禁其类型必须为 GC-free 值类型；新增 typecheck fixtures 回归。
+- 2026-03-29：完成 T1302：typealias 补齐泛型实例化与跨包循环检测，并把 typealias RHS 作为 `alias_of` 导出到 `.cone`（ScoopIR）；下游注入 RHS 后可在 typecheck lowering 阶段展开；新增 typecheck/typecheck_multi/typecheck_cone_archive fixtures 回归覆盖。
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T1106：为 `api.scoopir` 的 schema.version 增加版本协商（允许读取 <= 当前版本；更高版本给出稳定错误码 `scoop::cone::scoopir_schema_version_not_supported`），并新增单测覆盖。
 - 2026-03-28：完成 T1107：`scoop build` 支持读取 consumer `Cone.toml` 的 `.cone` 依赖图（DAG；循环依赖报错），并在启用 `llvm` 时复用“同一编译单元” lowering 结果生成目标产物（避免后端二次 parse/resolve）；新增单测覆盖 build+deps 与（llvm 下）运行 stdout。

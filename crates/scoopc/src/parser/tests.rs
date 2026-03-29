@@ -250,11 +250,34 @@ fn parse_top_level_typealias() {
     };
     assert_eq!(src.slice(ta.name.span), "Byte");
     assert!(ta.modifiers.is_empty());
+    assert!(ta.type_params.is_empty());
 
     let ast::TypeRef::Path(p) = &ta.ty else {
         panic!("期望 typealias RHS 为路径类型引用");
     };
     assert_eq!(src.slice(p.segments[0].span), "UInt8");
+}
+
+#[test]
+fn parse_top_level_generic_typealias() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\ntypealias Handler<T> = (T) -> Unit\n",
+    );
+    let file = parse_file(&src).unwrap();
+    assert_eq!(file.items.len(), 1);
+
+    let ast::Item::TypeAlias(ta) = &file.items[0] else {
+        panic!("期望顶层第一个 item 为 typealias 声明");
+    };
+    assert_eq!(src.slice(ta.name.span), "Handler");
+    assert_eq!(ta.type_params.len(), 1);
+    assert_eq!(src.slice(ta.type_params[0].name.span), "T");
+
+    let ast::TypeRef::Function(fun) = &ta.ty else {
+        panic!("期望 typealias RHS 为函数类型引用");
+    };
+    assert_eq!(fun.params.len(), 1);
 }
 
 #[test]

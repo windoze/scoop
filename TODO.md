@@ -4066,11 +4066,31 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1302 [TODO] typealias：完善语义（泛型 alias / 跨包导出 / Cone 交互）（Appendix B.10）
+### T1302 [DONE] typealias：完善语义（泛型 alias / 跨包导出 / Cone 交互）（Appendix B.10）
 - 描述：在已有“最小 typealias 展开”（见 T0446）的基础上，补齐 Kotlin 风格的 typealias 能力：支持泛型 typealias、跨包引用与可见性/导出规则（与 Cone 的 public API 对齐）。
 - 目标：不改变既有别名展开语义；重点解决：泛型参数作用域、跨包循环检测、以及在 `.cone` 导出时的表现形式（展开还是保留 alias，需固定策略）。
 - 验收：typecheck + cone fixtures：A 包导出 `typealias`，B 包依赖并使用；泛型 alias 可被正确实例化；非法循环在跨包时仍能报错。
 - 依赖：T0446、T0218、T1105
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：`TypeAliasDecl` 增加 `type_params`，允许 `typealias Name<T> = ...`。
+   - `crates/scoopc/src/parser/decls.rs`：typealias 支持解析泛型参数列表；并显式拒绝 `eff` 参数（保持阶段边界）。
+   - `crates/scoopc/src/resolve/mod.rs`：resolver headers phase 为 typealias 建立声明级 type param scope，使 RHS 中 `T` 可解析。
+   - `crates/scoopc/src/typecheck/type_env.rs`：TypeEnv 收集 typealias 的 type params（arity + variances）。
+   - `crates/scoopc/src/typecheck/lower.rs`：
+     - typealias 展开支持泛型实例化：在 decl 文件上下文中用 `type_args` 绑定 alias 的 type params；
+     - cache key 升级为 `(alias fqn, type args)`，避免不同实例互相污染；
+     - 展开时不捕获 use-site 的 type/effect param scopes；
+     - 对 `.cone` 注入的合成 source：缺省使用空 package/import 上下文，保证 RHS 可展开。
+   - `crates/scoopc/src/cone/scoopir/schema.rs`：ScoopIR `IrTypeDecl` 为 `typealias` 增加可选 `alias_of`（RHS）。
+   - `crates/scoopc/src/cone/scoopir/export.rs`：导出 public typealias 的 RHS（按 typecheck lowering 规范化），并校验 RHS 不得暴露非 public 类型。
+   - `crates/scoopc/src/cone/consume.rs`：注入依赖 `.cone` 的 typealias RHS 到 TypeEnv，供下游展开。
+   - fixtures：
+     - `tests/fixtures/typecheck/typealias_generic_handler_ok.scoop`：泛型 typealias 在同文件通过。
+     - `tests/fixtures/typecheck_multi/typealias_cross_package_cycle/*`：跨包循环别名报 `cyclic_type_alias`。
+     - `tests/fixtures/typecheck_cone_archive/typealias_export_generic/*`：真实 `.cone` 依赖下导出/消费 typealias（含泛型）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1303 [TODO] object / companion object（Appendix B.9）
 - 描述：按需支持 singleton 对象声明与伴生对象。

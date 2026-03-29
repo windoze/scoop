@@ -81,6 +81,14 @@ pub struct IrTypeDecl {
     pub fqn: String,
     pub kind: IrTypeDeclKind,
     pub type_params: Vec<IrTypeParam>,
+    /// 若为 `typealias`，额外携带其 RHS（已在导出侧解析到 FQN，且按策略可能已展开）。
+    ///
+    /// 说明：
+    /// - v0 的 `api.scoopir` 仅导出 public API 的“声明头”；但 typealias 若不携带 RHS，
+    ///   下游无法在 typecheck lowering 阶段展开别名；
+    /// - 该字段是可选的：老版本 `.cone`（或测试构造的最小文件）缺省为 None。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias_of: Option<IrType>,
 }
 
 /// effect row（v0：仅保留 term 集合，空表示 `Pure`）。
@@ -145,4 +153,3 @@ pub struct IrFunDecl {
     pub return_ty: IrType,
     pub effects: IrEffectRow,
 }
-

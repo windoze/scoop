@@ -1,0 +1,10 @@
+package fixtures.typecheck_cone_archive.typealias_export_generic.lib
+
+import scoop.core.*
+
+public typealias UserId = Int
+public typealias Handler<T> = (T) -> Unit
+
+public fun takes(h: Handler<UserId>) / Pure! {
+}
+

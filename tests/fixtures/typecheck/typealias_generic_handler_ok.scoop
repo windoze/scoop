@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：T1302：支持泛型 typealias，并在使用点按 type args 正确展开。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+typealias Handler<T> = (T) -> Unit
+
+public fun takes(h: Handler<Int>) / Pure! {
+}
+

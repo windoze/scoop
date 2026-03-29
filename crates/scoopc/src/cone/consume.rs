@@ -277,6 +277,18 @@ pub fn inject_cone_dependency_public_api(
         .map_err(miette::Report::new)
         .wrap_err_with(|| format!("注入依赖 cone type 符号失败：{fqn}"))?;
 
+        // T1302：typealias 需要携带 RHS 才能在下游 typecheck lowering 阶段展开。
+        if matches!(ty.kind, IrTypeDeclKind::TypeAlias) {
+            if let Some(rhs) = ty.alias_of.as_ref() {
+                env.insert_external_type_alias(
+                    fqn.clone(),
+                    decl_file.clone(),
+                    local_span,
+                    ir_type_to_type_ref(&mut synth, rhs),
+                );
+            }
+        }
+
         inject_type_symbol_into_index(
             index,
             &fqn,

@@ -70,10 +70,8 @@ pub enum Item {
 
 /// 类型别名声明：`typealias Name = Type`（Appendix B.10）。
 ///
-/// 当前阶段（T0251）仅支持：
-/// - 顶层声明
-/// - 非泛型 typealias（不支持 `typealias Name<T> = ...`）
-/// - 语义（展开/循环检测）留给 resolver/typecheck
+/// 说明：
+/// - typealias 的语义（展开/循环检测/跨包导出等）在 resolver/typecheck 阶段实现（见 TODO T0446/T1302）。
 #[derive(Clone)]
 pub struct TypeAliasDecl {
     pub span: Span,
@@ -83,6 +81,11 @@ pub struct TypeAliasDecl {
     pub annotations: Vec<AnnotationUse>,
     pub modifiers: Vec<Modifier>,
     pub name: Ident,
+    /// typealias 的泛型参数列表：`typealias Name<T> = ...`（Appendix B.10）。
+    ///
+    /// 说明：与 `fun`/`type` 的 type params 一样，当前阶段仅做语法解析与结构化存储；
+    /// 具体“作用域/实例化/导出”规则由 typecheck/cone 阶段决定。
+    pub type_params: Vec<TypeParam>,
     pub ty: TypeRef,
 }
 
@@ -97,6 +100,9 @@ impl std::fmt::Debug for TypeAliasDecl {
             s.field("modifiers", &self.modifiers);
         }
         s.field("name", &self.name);
+        if !self.type_params.is_empty() {
+            s.field("type_params", &self.type_params);
+        }
         s.field("ty", &self.ty);
         s.finish()
     }
