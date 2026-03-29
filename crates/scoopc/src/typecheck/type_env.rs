@@ -590,7 +590,15 @@ impl TypeEnv {
         // - 当前只存储 “解析后的 FQN”，不存储 type args（更完整的泛型超类型实例化留给后续任务）。
         // - 不包含隐式 `Any`；`Any` 的顶类型语义由 typecheck 单独处理。
         let mut supers: Vec<String> = Vec::new();
-        for st in &decl.supertypes {
+        let skip_first_super = matches!(decl.kind, ast::TypeKind::Enum)
+            && !decl.supertypes.is_empty()
+            && decl.body.as_ref().is_some_and(|body| {
+                body.members.iter().any(|m| {
+                    matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some())
+                })
+            });
+
+        for st in decl.supertypes.iter().skip(if skip_first_super { 1 } else { 0 }) {
             if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
                 supers.push(st_fqn);
             }

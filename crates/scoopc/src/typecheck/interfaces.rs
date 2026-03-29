@@ -97,8 +97,11 @@ fn check_type_decl_interfaces(
         ast::TypeKind::Class => {
             check_class_like_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
         }
-        ast::TypeKind::Struct | ast::TypeKind::Enum => {
+        ast::TypeKind::Struct => {
             check_value_type_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
+        }
+        ast::TypeKind::Enum => {
+            check_enum_decl_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
         }
         ast::TypeKind::Interface => {
             check_interface_decl_supertypes(source, file, &decl.supertypes, index, env)?;
@@ -289,6 +292,33 @@ fn check_value_type_interfaces(
     }
 
     Ok(())
+}
+
+fn check_enum_decl_interfaces(
+    source: &SourceFile,
+    file: &ast::File,
+    type_fqn: &str,
+    supertypes: &[ast::SuperType],
+    index: &Index,
+    env: &TypeEnv,
+) -> Result<(), InterfaceError> {
+    // spec §2.3.2.1：value-only enum 的 `:` 后第一个类型是“底层整型表示”，并非 interface。
+    //
+    // 说明：
+    // - 这里根据“第一个 supertype 是否为 interface”做最小消歧：
+    //   - 非 interface：视为 value-only enum 的底层类型 → 跳过；
+    //   - interface：视为普通 interface 实现列表 → 不跳过；
+    // - 底层类型是否为整型标量由 `typecheck::check_file_type_refs`（TypeLowerError）负责门禁。
+    let should_skip_first = supertypes.first().is_some_and(|st| {
+        let Some(first_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) else {
+            return false;
+        };
+        !is_interface(env, &first_fqn)
+    });
+
+    let interface_supertypes = if should_skip_first { &supertypes[1..] } else { supertypes };
+
+    check_value_type_interfaces(source, file, type_fqn, interface_supertypes, index, env)
 }
 
 fn check_one_interface_impl(

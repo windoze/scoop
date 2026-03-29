@@ -1,0 +1,17 @@
+// EXPECT: pass
+// EXPECT-AST: enum_value_only_basic.ast
+//
+// T0813b: value-only enum（spec §2.3.2.1）
+// 目标：parser 能解析 `enum E: Int { A = 0, ... }`（底层类型 + 显式判别值列表）。
+
+package fixtures.parse
+
+import scoop.core.*
+
+enum Color: Int {
+    Red = 0,
+    Green = 1,
+}
+
+fun main() {}
+

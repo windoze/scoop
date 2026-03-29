@@ -133,6 +133,39 @@ pub enum TypeLowerError {
         #[label("这里的 T 不是 GC-free 值类型")]
         span: miette::SourceSpan,
     },
+
+    #[error("value-only enum 的底层类型必须是整型标量：{enum_name} 的底层类型为 {found}")]
+    #[diagnostic(code(scoop::typecheck::value_only_enum_underlying_not_integral))]
+    ValueOnlyEnumUnderlyingNotIntegral {
+        enum_name: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("value-only enum 的 variant 不允许声明字段：{variant_name}")]
+    #[diagnostic(code(scoop::typecheck::value_only_enum_variant_fields_not_allowed))]
+    ValueOnlyEnumVariantFieldsNotAllowed {
+        variant_name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("value-only enum 的 variant 必须显式指定判别值：{variant_name}")]
+    #[diagnostic(code(scoop::typecheck::value_only_enum_variant_missing_discriminant))]
+    ValueOnlyEnumVariantMissingDiscriminant {
+        variant_name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("value-only enum 的判别值必须是整型常量：{variant_name}")]
+    #[diagnostic(code(scoop::typecheck::value_only_enum_variant_discriminant_not_int_const))]
+    ValueOnlyEnumVariantDiscriminantNotIntConst {
+        variant_name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 泛型名义类型实例化的稳定 key（T1109：用于 `.cone` pre-specialize 类型实例命中计数）。
@@ -985,6 +1018,25 @@ impl<'a> TypeLowering<'a> {
     /// - 是否为名义值类型（struct/enum）
     pub(super) fn type_kind(&self, id: TypeId) -> TypeKind {
         self.types.kind(id).clone()
+    }
+
+    fn is_integral_scalar_type(&self, id: TypeId) -> bool {
+        matches!(
+            self.type_kind(id),
+            TypeKind::Value(ValueTypeKind::Int)
+                | TypeKind::Value(ValueTypeKind::UInt)
+                | TypeKind::Value(ValueTypeKind::IntN(_))
+                | TypeKind::Value(ValueTypeKind::UIntN(_))
+        )
+    }
+
+    fn is_interface_type(&self, id: TypeId) -> bool {
+        match self.type_kind(id) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                matches!(self.nominal_decl_kind(&nominal.fqn), Some(ast::TypeKind::Interface))
+            }
+            _ => false,
+        }
     }
 
     /// 若给定 FQN 对应 nominal type，返回其声明的 `TypeKind`（struct/enum/class/interface/effect）。
@@ -1864,9 +1916,49 @@ impl<'a> TypeLowering<'a> {
             }
         }
 
-        // 继承/实现列表类型
-        for st in &ty.supertypes {
-            let _ = self.lower_type_ref(&st.ty)?;
+        // 继承/实现列表类型。
+        //
+        // spec §2.3.2.1：value-only enum 使用 `enum E: Int { ... }` 的 `:` 后类型作为“底层整型表示”。
+        // 这不是继承关系，因此这里做最小门禁：
+        // - 仍会对该 TypeRef 做 lowering（保证存在性/arity 等），但会额外要求其为整型标量；
+        // - 具体“是否允许额外 interface supertypes”留给后续任务细化（当前不需要）。
+        let mut first_super: Option<(TypeId, Span)> = None;
+        for (idx, st) in ty.supertypes.iter().enumerate() {
+            let id = self.lower_type_ref(&st.ty)?;
+            if idx == 0 {
+                first_super = Some((id, st.ty.span()));
+            }
+        }
+
+        let is_value_only_enum = matches!(ty.kind, ast::TypeKind::Enum)
+            && first_super.is_some()
+            && {
+                let first_is_interface =
+                    first_super.is_some_and(|(id, _)| self.is_interface_type(id));
+                let has_discriminant = ty.body.as_ref().is_some_and(|body| {
+                    body.members.iter().any(|m| {
+                        matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some())
+                    })
+                });
+                // 消歧策略：
+                // - 若第一个 supertype 是 interface，默认视为 interface 实现列表；
+                // - 否则视为 value-only enum 的底层类型（并要求其为整型标量）；
+                // - 若出现 `A = 0` 判别值语法，则强制走 value-only enum 路径（即使底层类型写错了，也给出更直接的诊断）。
+                !first_is_interface || has_discriminant
+            };
+
+        if is_value_only_enum {
+            let Some((underlying, span)) = first_super else {
+                unreachable!("is_value_only_enum implies first_super exists");
+            };
+            if !self.is_integral_scalar_type(underlying) {
+                let enum_name = self.source.slice(ty.name.span).to_string();
+                return Err(TypeLowerError::ValueOnlyEnumUnderlyingNotIntegral {
+                    enum_name,
+                    found: self.fmt_type(underlying),
+                    span: span.into(),
+                });
+            }
         }
 
         // 成员签名类型（property/fun/nested type）
@@ -1878,6 +1970,30 @@ impl<'a> TypeLowering<'a> {
         for member in &body.members {
             match member {
                 ast::TypeMember::EnumVariant(v) => {
+                    if is_value_only_enum {
+                        let variant_name = self.source.slice(v.name.span).to_string();
+                        if !v.params.is_empty() {
+                            return Err(TypeLowerError::ValueOnlyEnumVariantFieldsNotAllowed {
+                                variant_name,
+                                span: v.name.span.into(),
+                            });
+                        }
+
+                        let Some(discriminant) = &v.discriminant else {
+                            return Err(TypeLowerError::ValueOnlyEnumVariantMissingDiscriminant {
+                                variant_name,
+                                span: v.name.span.into(),
+                            });
+                        };
+
+                        if !is_int_const_expr(discriminant) {
+                            return Err(TypeLowerError::ValueOnlyEnumVariantDiscriminantNotIntConst {
+                                variant_name,
+                                span: discriminant.span.into(),
+                            });
+                        }
+                    }
+
                     for p in &v.params {
                         if let Some(ty) = &p.ty {
                             let _ = self.lower_type_ref(ty)?;
@@ -2567,4 +2683,16 @@ fn check_arity(fqn: &str, expected: usize, found: usize, span: Span) -> Result<(
         found,
         span: span.into(),
     })
+}
+
+fn is_int_const_expr(expr: &ast::Expr) -> bool {
+    match &expr.kind {
+        ast::ExprKind::IntLit => true,
+        ast::ExprKind::Unary {
+            op: ast::UnaryOp::Neg,
+            expr: inner,
+            ..
+        } => matches!(inner.kind, ast::ExprKind::IntLit),
+        _ => false,
+    }
 }

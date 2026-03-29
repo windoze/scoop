@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::value_only_enum_underlying_not_integral
+// EXPECT-ERROR-AT: 10:11
+// EXPECT-ERROR: 底层类型必须是整型标量
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum Bad: String {
+    A = 0,
+}
+

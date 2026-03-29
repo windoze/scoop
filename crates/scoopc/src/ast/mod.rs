@@ -459,6 +459,12 @@ pub struct EnumVariantDecl {
     ///
     /// 注意：语法上要求 `val field: T`；当前 parser 会消费 `val` 关键字并写入 `Param.kind = Some(Val)`。
     pub params: Vec<Param>,
+    /// value-only enum 的判别值：`A = 0` 中的 `0`（spec §2.3.2.1）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅做语法解析与结构化存储；
+    /// - 判别值必须是可编译期求值的整型常量（语义检查/常量求值由 typecheck 负责）。
+    pub discriminant: Option<Expr>,
 }
 
 impl std::fmt::Debug for EnumVariantDecl {
@@ -471,6 +477,9 @@ impl std::fmt::Debug for EnumVariantDecl {
         s.field("name", &self.name);
         if !self.params.is_empty() {
             s.field("params", &self.params);
+        }
+        if self.discriminant.is_some() {
+            s.field("discriminant", &self.discriminant);
         }
         s.finish()
     }

@@ -23,7 +23,7 @@ use crate::ty::{
 
 use super::{
     Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
-    EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
+    EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
     HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
     ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind,
     StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
@@ -4233,20 +4233,60 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
             }
 
             let mut variants: Vec<EnumVariantLayout> = Vec::new();
+            let mut repr: EnumRepr = EnumRepr::TaggedUnion;
+
             let Some(body) = &ty.body else {
-                out.insert(fqn.clone(), EnumLayout { fqn, variants });
+                out.insert(
+                    fqn.clone(),
+                    EnumLayout {
+                        fqn,
+                        repr,
+                        variants,
+                    },
+                );
                 continue;
             };
 
-            let mut next_tag: u32 = 0;
+            // spec §2.3.2.1：value-only enum。
+            //
+            // 当前阶段的判定策略（避免与 “enum implements interfaces” 的 `:` 语法冲突）：
+            // - 只有当 enum body 内出现了显式判别值（`A = 0`）时，才把第一个 supertype 视为底层整型表示。
+            if !ty.supertypes.is_empty()
+                && body.members.iter().any(|m| {
+                    matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some())
+                })
+            {
+                let underlying_ty_fqn = ty
+                    .supertypes
+                    .first()
+                    .and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
+                repr = EnumRepr::ValueOnly { underlying_ty_fqn };
+            }
+
+            let mut next_tag: u64 = 0;
             for member in &body.members {
                 let ast::TypeMember::EnumVariant(v) = member else {
                     continue;
                 };
 
                 let variant_name = v.name.text(source).to_string();
-                let tag = next_tag;
-                next_tag = next_tag.saturating_add(1);
+                let tag = match repr {
+                    EnumRepr::TaggedUnion => {
+                        let tag = next_tag;
+                        next_tag = next_tag.saturating_add(1);
+                        tag
+                    }
+                    EnumRepr::ValueOnly { .. } => v
+                        .discriminant
+                        .as_ref()
+                        .and_then(|e| eval_value_only_enum_discriminant(source, e))
+                        .map(|v| v as u64)
+                        .unwrap_or_else(|| {
+                            let tag = next_tag;
+                            next_tag = next_tag.saturating_add(1);
+                            tag
+                        }),
+                };
 
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
@@ -4269,11 +4309,37 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
                 });
             }
 
-            out.insert(fqn.clone(), EnumLayout { fqn, variants });
+            out.insert(
+                fqn.clone(),
+                EnumLayout {
+                    fqn,
+                    repr,
+                    variants,
+                },
+            );
         }
     }
 
     out
+}
+
+fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {
+    match &expr.kind {
+        ast::ExprKind::IntLit => {
+            let raw = source.slice(expr.span);
+            let text: String = raw.chars().filter(|c| *c != '_').collect();
+            text.parse::<i128>().ok()
+        }
+        ast::ExprKind::Unary {
+            op: ast::UnaryOp::Neg,
+            expr: inner,
+            ..
+        } => {
+            let v = eval_value_only_enum_discriminant(source, inner)?;
+            Some(-v)
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,33 @@
+// EXPECT: pass
+// EXPECT-EXIT: 21
+//
+// T0813b: value-only enum（spec §2.3.2.1）
+//
+// 说明：
+// - 当前阶段用 exit code 断言结果（尚未依赖 sysroot I/O）。
+// - 使用“非连续判别值”验证：when 分派使用判别值（而非声明顺序 tag）。
+
+import scoop.core.*
+
+enum Color: Int {
+    Red = 7,
+    Green = 42,
+}
+
+fun main(): Int {
+    val a: Color = Color.Red
+    val b: Color = Color.Green
+
+    val x: Int = when (a) {
+        Red -> 1
+        Green -> 2
+    }
+
+    val y: Int = when (b) {
+        Red -> 10
+        Green -> 20
+    }
+
+    return x + y
+}
+

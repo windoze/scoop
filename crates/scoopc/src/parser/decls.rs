@@ -1768,6 +1768,7 @@ impl<'a> Parser<'a> {
 
         let mut last_end = name.span.end;
         let mut params: Vec<ast::Param> = Vec::new();
+        let mut discriminant: Option<ast::Expr> = None;
 
         if self.peek_symbol(Symbol::LParen) {
             self.bump(); // '('
@@ -1824,11 +1825,24 @@ impl<'a> Parser<'a> {
             last_end = close.span.end;
         }
 
+        // spec §2.3.2.1：value-only enum variant：`A = 0`
+        if self.eat_symbol(Symbol::Eq) {
+            let tok = *self.peek();
+            let expr = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "enum variant 判别值表达式",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+            last_end = last_end.max(expr.span.end);
+            discriminant = Some(expr);
+        }
+
         Ok(ast::EnumVariantDecl {
             span: Span::new(start, last_end),
             annotations,
             name,
             params,
+            discriminant,
         })
     }
 

@@ -2293,7 +2293,7 @@
    - `cargo test -p scoop --features llvm` 通过；
    - `cargo run -p scoop --features llvm -- test` 通过（含新 run-pass fixture；需要 LLVM/llvm-sys + clang）。
 
-### T0813b [BLOCKED] value-only enum：`enum E: Int { ... }`（C enum 同布局）（spec §2.3.2.1）
+### T0813b [DONE] value-only enum：`enum E: Int { ... }`（C enum 同布局）（spec §2.3.2.1）
 - 描述：实现 value-only enum（仅有枚举值、无 associated data）的完整链路：parser/typecheck/lowering/codegen。
 - 目标：
   - 语法：`enum E: Int { A = 0, B = 1 }`（底层类型必须为整型标量）；
@@ -2304,6 +2304,25 @@
   - 新增 typecheck fixture：非整型底层类型报错（稳定错误码）；
   - 新增 run-pass fixture：构造 value-only enum、`when` 匹配分支并断言结果；可选追加：传入 `@Extern`（或 runtime helper）并验证 ABI 不变。
 - 依赖：T0236、T1020
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：`EnumVariantDecl` 新增 `discriminant: Option<Expr>`，并保持 Debug 输出对旧 fixtures 兼容（仅在 Some 时打印）。
+   - `crates/scoopc/src/parser/decls.rs`：enum variant 支持 `A = 0` 形式（解析判别值表达式）。
+   - `crates/scoopc/src/typecheck/lower.rs`：对 value-only enum 做最小门禁：
+     - 底层类型必须是整型标量（稳定错误码 `scoop::typecheck::value_only_enum_underlying_not_integral`）；
+     - variant 不允许字段；判别值必须存在且为整型常量（IntLit / `-IntLit`）。
+   - `crates/scoopc/src/typecheck/interfaces.rs`：对 enum 的 supertypes 做最小消歧，避免把 value-only enum 的底层类型当作 interface 报错。
+   - `crates/scoopc/src/typecheck/type_env.rs`：value-only enum 不把底层类型写入 direct supertypes（避免错误子类型关系）。
+   - `crates/scoopc/src/hir/{mod.rs,lower.rs}`：HIR side table 记录 enum repr（tagged-union vs value-only）与显式判别值。
+   - `crates/scoopc/src/llvm/codegen.rs`：value-only enum codegen：
+     - enum 运行期类型直接映射为底层整型；
+     - `EnumName.Variant` 常量与 `when` 分派按判别值工作（含非连续判别值）。
+   - `tests/fixtures/parse/enum_value_only_basic.scoop`：新增 parse fixture + golden。
+   - `tests/fixtures/typecheck/enum_value_only_underlying_not_integral_is_error.scoop`：新增 typecheck fixture（错误码稳定）。
+   - `tests/fixtures/run-pass/enum_value_only_when_basic.scoop`：新增 run-pass fixture（exit code 断言）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过；
+   - `cargo run -p scoop --features llvm -- test` 通过（需要 LLVM/clang 环境）。
 
 ### T0814 [DONE] codegen：`when` lowering（switch + pattern tests）
 - 描述：把 `when`（至少 enum/Bool）降到 LLVM switch；tuple/struct pattern 用字段比较实现。

@@ -433,8 +433,21 @@ pub type StructLayoutIndex = HashMap<String, StructLayout>;
 ///   - payload 字段的类型（仅对 `TypeRef::Path` 可解析；其它类型留空）。
 /// - 更复杂的布局策略（niche / boxing / size disparity lint）留给后续任务（T0826）。
 #[derive(Debug, Clone)]
+pub enum EnumRepr {
+    /// 常规 rich enum：tagged union（tag 由编译器按声明顺序分配）。
+    TaggedUnion,
+    /// value-only enum：ABI/内存布局与某个整型标量完全一致（spec §2.3.2.1）。
+    ValueOnly {
+        /// 底层整型类型的 FQN（例如 `scoop.core.Int` / `scoop.core.UInt8`）。
+        underlying_ty_fqn: Option<String>,
+    },
+}
+
+/// enum 的布局摘要（供后端查询）。
+#[derive(Debug, Clone)]
 pub struct EnumLayout {
     pub fqn: String,
+    pub repr: EnumRepr,
     pub variants: Vec<EnumVariantLayout>,
 }
 
@@ -443,7 +456,10 @@ pub struct EnumLayout {
 pub struct EnumVariantLayout {
     pub span: Span,
     pub name: String,
-    pub tag: u32,
+    /// variant 的判别值：
+    /// - 对于 `EnumRepr::TaggedUnion`：按声明顺序分配的 tag（从 0 开始）；
+    /// - 对于 `EnumRepr::ValueOnly`：来自源码 `A = 0` 的显式判别值（以 u64 bits 存储）。
+    pub tag: u64,
     pub fields: Vec<EnumVariantFieldLayout>,
 }
 

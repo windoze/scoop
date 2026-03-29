@@ -104,12 +104,16 @@ enum CgEnumRepr {
         storage: NicheStorage,
         none_value: u64,
     },
+    /// value-only enum：运行期表示就是底层整型标量（spec §2.3.2.1）。
+    ValueOnly {
+        underlying: IntTy,
+    },
 }
 
 #[derive(Debug, Clone)]
 struct CgEnumVariant {
     name: String,
-    tag: u32,
+    tag: u64,
     boxed: bool,
     fields: Vec<CgTy>,
 }
@@ -5444,6 +5448,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 )?;
 
+                let mut repr = CgEnumRepr::TaggedUnion;
+                if let hir::EnumRepr::ValueOnly { underlying_ty_fqn } = &hir_layout.repr {
+                    let Some(underlying_ty_fqn) = underlying_ty_fqn.as_deref() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "value-only enum underlying type",
+                            at: at.into(),
+                        });
+                    };
+
+                    let underlying_cg =
+                        self.cg_ty_of_type_fqn(at, Some(underlying_ty_fqn))?;
+                    let CgTy::Int(underlying) = underlying_cg else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "value-only enum underlying type",
+                            at: at.into(),
+                        });
+                    };
+
+                    repr = CgEnumRepr::ValueOnly { underlying };
+                }
+
                 let mut variants: Vec<CgEnumVariant> =
                     Vec::with_capacity(hir_layout.variants.len());
                 let mut payload_layouts: Vec<TypeLayout> =
@@ -5454,38 +5479,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let cg = self.cg_ty_of_type_fqn(f.span, f.ty_fqn.as_deref())?;
                         fields.push(cg);
                     }
-                    payload_layouts.push(self.aggregate_fields_layout_for_cg_tys(&fields)?);
                     variants.push(CgEnumVariant {
                         name: v.name.clone(),
                         tag: v.tag,
                         boxed: false,
                         fields,
                     });
+
+                    // value-only enum 的 ABI/layout 由底层整型决定：不做 payload/boxing 决策。
+                    if !matches!(repr, CgEnumRepr::ValueOnly { .. }) {
+                        payload_layouts.push(self.aggregate_fields_layout_for_cg_tys(&variants.last().expect("just pushed").fields)?);
+                    }
                 }
 
                 // boxing：复用 typecheck 的启发式规则（ratio + inline threshold）。
-                let target = self.target_layout();
-                let (max_size, second_size) = largest_two_sizes(&payload_layouts);
-                let inline_threshold = target
-                    .pointer_size
-                    .saturating_mul(ENUM_BOX_INLINE_THRESHOLD_WORDS);
-                let disparity = if second_size == 0 {
-                    max_size >= inline_threshold
-                } else {
-                    max_size >= inline_threshold
-                        && max_size >= second_size.saturating_mul(ENUM_BOX_DISPARITY_RATIO)
-                };
+                if !matches!(repr, CgEnumRepr::ValueOnly { .. }) {
+                    let target = self.target_layout();
+                    let (max_size, second_size) = largest_two_sizes(&payload_layouts);
+                    let inline_threshold = target
+                        .pointer_size
+                        .saturating_mul(ENUM_BOX_INLINE_THRESHOLD_WORDS);
+                    let disparity = if second_size == 0 {
+                        max_size >= inline_threshold
+                    } else {
+                        max_size >= inline_threshold
+                            && max_size >= second_size.saturating_mul(ENUM_BOX_DISPARITY_RATIO)
+                    };
 
-                if disparity {
-                    for (v, payload) in variants.iter_mut().zip(payload_layouts.iter()) {
-                        if payload.size == max_size && max_size > target.pointer_size {
-                            v.boxed = true;
+                    if disparity {
+                        for (v, payload) in variants.iter_mut().zip(payload_layouts.iter()) {
+                            if payload.size == max_size && max_size > target.pointer_size {
+                                v.boxed = true;
+                            }
                         }
                     }
                 }
 
                 Ok(CgEnumLayout {
-                    repr: CgEnumRepr::TaggedUnion,
+                    repr,
                     variants,
                 })
             }
@@ -5619,7 +5650,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         enum_ty: TypeId,
-        tag: u32,
+        tag: u64,
         payload: Option<IntValue<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 注意：`cg_enum_layout(...)` 返回的是对缓存表的引用；为了避免与后续 `&mut self` 调用产生借用冲突，
@@ -5647,7 +5678,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 agg = self.builder.build_insert_value(
                     agg,
-                    tag_ty.const_int(u64::from(tag), false),
+                    tag_ty.const_int(tag, false),
                     0,
                     "enum_tag",
                 )?;
@@ -5699,6 +5730,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue {
                     ty: CgTy::Enum(enum_ty),
                     value: Some(raw),
+                })
+            }
+            CgEnumRepr::ValueOnly { underlying } => {
+                let llvm_ty = self.int_type(underlying);
+                let v = llvm_ty.const_int(tag, false);
+                Ok(CgValue {
+                    ty: CgTy::Enum(enum_ty),
+                    value: Some(v.into()),
                 })
             }
         }
@@ -5941,9 +5980,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             .build_select(is_none, none_tag, some_tag, "option_tag")?
                             .into_int_value()
                     }
+                    CgEnumRepr::ValueOnly { .. } => subject_raw.into_int_value(),
                 };
 
-                let tag_ty = self.context.i32_type();
+                let tag_ty = tag.get_type();
                 let default_bb = self.context.append_basic_block(func, "when_no_match");
 
                 let mut cases: Vec<(IntValue<'ctx>, inkwell::basic_block::BasicBlock<'ctx>)> =
@@ -5958,7 +5998,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     };
                     cases.push((
-                        tag_ty.const_int(u64::from(variant.tag), false),
+                        tag_ty.const_int(variant.tag, false),
                         arm_bbs[target_idx],
                     ));
                 }
@@ -6651,6 +6691,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_select(is_none, none_tag, some_tag, "option_tag")?
                     .into_int_value()
             }
+            CgEnumRepr::ValueOnly { .. } => loaded.into_int_value(),
         };
 
         self.codegen_when_pat_cond_for_enum_with_tag(at, &variants, tag, pat)
@@ -6676,10 +6717,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let _ = args;
 
-                let expected = self
-                    .context
-                    .i32_type()
-                    .const_int(u64::from(variant.tag), false);
+                let expected = tag.get_type().const_int(variant.tag, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
                     tag,
@@ -9970,6 +10008,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 NicheStorage::U8 => Ok(self.context.i8_type().into()),
             },
+            CgEnumRepr::ValueOnly { underlying } => Ok(self.int_type(underlying).into()),
         }
     }
 
