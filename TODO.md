@@ -4314,11 +4314,15 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1314 [TODO] Kotlin runtime / Scoop core runtime gap 审计（when applicable）
+### T1314 [DONE] Kotlin runtime / Scoop core runtime gap 审计（when applicable）
 - 描述：盘点 Scoop core runtime / stdlib 与 Kotlin runtime 之间“语义上值得补齐、且与 JVM 绑定无关”的缺口，并按“纯 Scoop 可实现 / 需要 runtime libs / 需要新 intrinsic”三类归档。
 - 目标：不盲目追求 1:1 复制 Kotlin/JVM runtime；只补对 Scoop 语言模型成立、且对用户价值高的部分。
 - 验收：产出一份 capability matrix，列出候选模块、优先级、是否纯 Scoop 可实现，以及是否需要走 T1017/T1018 通道。
 - 依赖：T1311、T1312、T1217
+ - 完成：
+   - `KOTLIN_RUNTIME_GAP_AUDIT.md`：新增 capability matrix（pure_scoop_ok / needs_runtime_lib / needs_new_intrinsic 候选）与对后续 T1315/T1316/T1317/T1017 的落点建议。
+ - 验收：
+   - `cargo test --all`
 
 ### T1307b [TODO] trailing lambda：run-pass（lambda 被调用）回归（Appendix B.5.4）
 - 描述：补齐可执行链路：让 `takes { it }` 在运行期能真正调用 lambda 并产生可观测结果（stdout 或 exit code 断言）。

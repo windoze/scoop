@@ -9,6 +9,7 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（早期用 C，后续迁移到 Scoop）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
+Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 
 ## 快速开始
 
