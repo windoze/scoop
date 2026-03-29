@@ -4746,21 +4746,30 @@ fn try_infer_lambda_expr_type_by_expected(
             }
         }
         1 => {
-            if lam.params.len() != 1 {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
-                    span: lam_expr.span.into(),
-                });
-            }
-
             let expected_param_ty = expected_fun.params[0];
-            let param = &lam.params[0];
-            let param_ty = match &param.ty {
-                Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
-                None => expected_param_ty,
-            };
-            lambda_locals.insert(param.name.span, param_ty);
-            param_tys.push(param_ty);
+
+            // Kotlin-like：`{ body }` 形式的 lambda 在期望函数类型为 `(T) -> R` 时，
+            // 允许省略形参列表，并隐式引入单参数 `it: T`（T1307a）。
+            if lam.params.is_empty() && lam.arrow_span.is_none() {
+                let implicit_it_decl_span = Span::new(lam_expr.span.start, lam_expr.span.start);
+                lambda_locals.insert(implicit_it_decl_span, expected_param_ty);
+                param_tys.push(expected_param_ty);
+            } else {
+                if lam.params.len() != 1 {
+                    return Err(ExprTypeError::UnsupportedExpr {
+                        kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
+                        span: lam_expr.span.into(),
+                    });
+                }
+
+                let param = &lam.params[0];
+                let param_ty = match &param.ty {
+                    Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
+                    None => expected_param_ty,
+                };
+                lambda_locals.insert(param.name.span, param_ty);
+                param_tys.push(param_ty);
+            }
         }
         _ => return Ok(None),
     }

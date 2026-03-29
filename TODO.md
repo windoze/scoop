@@ -4173,11 +4173,18 @@
 - 备注：当前 LLVM `main` codegen 仍未支持 `ExprKind::Closure` 与“调用局部函数值”，因此 run-pass 需要后置到后端接入（见 `crates/scoopc/src/llvm/codegen.rs`）。
 - 依赖：T0232、T0504
 
-### T1307a [TODO] trailing lambda：隐式 `it` + 期望类型下推（Appendix B.5.4）
+### T1307a [DONE] trailing lambda：隐式 `it` + 期望类型下推（Appendix B.5.4）
 - 描述：在 `{ body }` 形式 lambda 中引入 Kotlin-like 隐式单参数 `it`：当期望函数类型为 `(T) -> R` 时，`takes { it }` 可推断通过。
 - 目标：只改 resolver/typecheck；不要求后端可执行。
 - 验收：infer fixture：`takes { it }` 推断成功（`it` 类型由期望类型下推）。
 - 依赖：T0232、T0504
+ - 完成：
+   - `crates/scoopc/src/resolve/scopes.rs`：对 `{ body }` lambda 预注入隐式 `it` 局部绑定，并让 scope 声明使用 `Ident::text(..)` 以支持合成标识符。
+   - `crates/scoopc/src/typecheck/expr.rs`：当期望函数类型为单参数时，把 `{ body }` 视作“隐式 `it` 单参 lambda”，并在 lambda locals 中注入 `it: T` 完成 body typecheck。
+   - fixtures：新增 `tests/fixtures/infer/lambda_implicit_it_param_type_is_propagated_from_expected.scoop` 回归用例。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1308 [TODO] varargs：`vararg` 参数与 spread（Appendix B.5.5）
 - 描述：解析/类型检查 `vararg` 参数，并支持调用点 `*arr` spread（若语言采用同语法）。

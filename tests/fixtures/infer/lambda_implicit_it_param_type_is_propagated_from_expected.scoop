@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T1307a trailing lambda + 隐式 it：当期望函数类型为 `(Int) -> Int` 时，`takes { it + 1 }` 可推断通过。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun takes(f: (Int) -> Int) { }
+
+fun f() {
+    val u = takes { it + 1 }
+}
+

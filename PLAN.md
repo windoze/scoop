@@ -29,6 +29,7 @@
   - T1307a：前端（resolver/typecheck）补齐隐式 `it` + 期望类型下推推断；
   - T1307b：后端/run-pass 回归（lambda 被调用）。
   并将 T1307b 移动到 T1314 之后，避免阻塞“首个 `[TODO]` 可直接实现”的顺序。
+- 2026-03-29：完成 T1307a：resolver 在 `{ body }` lambda 作用域内预注入隐式 `it` 绑定；typecheck 在期望函数类型为单参数时将其解释为隐式 `it: T`，并新增 infer fixture 回归 `takes { it + 1 }` 可推断通过。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。

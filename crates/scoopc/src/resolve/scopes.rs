@@ -658,6 +658,17 @@ impl<'a> BlockScopeChecker<'a> {
             ast::ExprKind::Lambda(lam) => {
                 // lambda 的参数在其 body 内可见；暂不记录 capture 信息（非目标）。
                 self.push_scope();
+                // Kotlin-like：`{ body }` 形式的 lambda 可能在期望类型为 `(T) -> R` 时拥有隐式单参数 `it`（T1307a）。
+                //
+                // 说明：
+                // - resolve 阶段无法得知期望函数类型，因此这里先把 `it` 当作一个“潜在的局部绑定”引入作用域；
+                // - typecheck 会在存在期望函数类型语境时决定它是否成立，并写入具体类型；若期望为 `() -> R` 则使用 `it`
+                //   会在 typecheck 阶段报错（缺少局部类型信息）。
+                if lam.params.is_empty() && lam.arrow_span.is_none() {
+                    let implicit_it_span = Span::new(expr.span.start, expr.span.start);
+                    let implicit_it = ast::Ident::synthetic(implicit_it_span, "it");
+                    self.declare_ident(&implicit_it)?;
+                }
                 for p in &mut lam.params {
                     self.declare_ident(&p.name)?;
                     if let Some(default) = &mut p.default_value {
@@ -1273,7 +1284,7 @@ impl<'a> BlockScopeChecker<'a> {
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
-        let name = self.source.slice(id.span).to_string();
+        let name = id.text(self.source).to_string();
         self.declare_name(name, id.span, None)
     }
 
@@ -1282,7 +1293,7 @@ impl<'a> BlockScopeChecker<'a> {
         id: &ast::Ident,
         ty: Option<ast::TypeRef>,
     ) -> Result<(), ResolveError> {
-        let name = self.source.slice(id.span).to_string();
+        let name = id.text(self.source).to_string();
         self.declare_name(name, id.span, ty)
     }
 
