@@ -1,0 +1,62 @@
+// EXPECT: pass
+// RUN-STDOUT: object_companion_value_named_nested_init_basic.stdout
+//
+// T1311: object / companion object
+// - 单例值在表达式位置引用会触发一次初始化；
+// - nested object / named companion 的初始化与成员访问可回归；
+// - 多路径访问（TypeName.member 与 TypeName.Named.member）应共享同一份 once 初始化。
+
+import scoop.core.*
+
+object Foo {
+    init {
+        println("Foo.init")
+    }
+
+    val x: Int = 1
+}
+
+class Outer() {
+    object Nested {
+        init {
+            println("Outer.Nested.init")
+        }
+
+        val x: Int = 3
+    }
+}
+
+class C() {
+    companion object Named {
+        init {
+            println("C.Named.init")
+        }
+
+        val x: Int = 2
+    }
+}
+
+fun main(): Int {
+    // 单例值引用：应触发 init（且只触发一次）。
+    val _a = Foo
+    val _b = Foo
+
+    // nested object 值引用：应触发 init（且只触发一次）。
+    val _n1 = Outer.Nested
+    val _n2 = Outer.Nested
+
+    // named companion 值引用：应触发 init（且只触发一次）。
+    val _c1 = C.Named
+    val _c2 = C.Named
+
+    println("start")
+
+    // member access：应不重复执行 init，并能得到稳定值。
+    println(Foo.x)
+    println(Outer.Nested.x)
+    println(C.x)
+    println(C.Named.x)
+    println(C.Named.x)
+    return 0
+}
+

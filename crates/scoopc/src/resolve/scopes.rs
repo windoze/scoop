@@ -1774,6 +1774,24 @@ impl<'a> BlockScopeChecker<'a> {
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
         for c in companions {
+            // T1311：`TypeName.member` 经 companion object 分发时，companion 自身的可见性是上界：
+            // - 若 companion object 对 use-site 不可见，则其成员不应通过 `TypeName.member` 被访问到；
+            // - 这避免了 “private companion object 但成员 public” 这类绕过可见性的情况。
+            if let Some(companion_syms) = self.index.by_fqn.get(c) {
+                if let Some(companion_value) = companion_syms.get(SymbolKind::Value) {
+                    if !is_symbol_visible_from(self.use_cone, self.source, companion_value) {
+                        if not_visible.is_none() {
+                            not_visible = Some((
+                                format!("{c}.{member_name}"),
+                                companion_value.visibility,
+                                companion_value.span,
+                            ));
+                        }
+                        continue;
+                    }
+                }
+            }
+
             let fqn = format!("{c}.{member_name}");
             let Some(syms) = self.index.by_fqn.get(&fqn) else {
                 continue;

@@ -4236,11 +4236,24 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1311 [TODO] `object` / `companion object`：补齐类型检查、静态访问与初始化语义（Appendix B.9）
+### T1311 [DONE] `object` / `companion object`：补齐类型检查、静态访问与初始化语义（Appendix B.9）
 - 描述：在已有 parse/resolve 任务基础上，补齐 `object` / `companion object` 的语言级行为：单例语义、通过类名访问 companion 成员、初始化时机与可见性。
 - 目标：不修改既有 T1303；本任务专门把它从“语法/解析”推进到“完整语言语义”。
 - 验收：language fixture：top-level object、nested object、named/unnamed companion object 的成员访问和初始化行为符合预期。
 - 依赖：T1303、T0452、T0828
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - 支持 object/companion object 的“单例值”在表达式位置被引用（`val a = Foo` / `val b = C.Named`）；
+     - 读取单例值会触发 once 初始化（复用既有 `__scoop_object_init__*`）；
+     - 为单例值引入 module-local 的稳定“实例指针”全局（`__scoop_object_instance__*`），用于提供唯一身份。
+   - `crates/scoopc/src/resolve/scopes.rs`：`TypeName.member` 经 companion object 分发时，把 companion 自身可见性作为访问上界，避免 “private companion 但成员 public” 绕过。
+   - fixtures：
+     - `tests/fixtures/run-pass/object_companion_value_named_nested_init_basic.*`：覆盖 object 单例值引用、nested object、named companion 多路径访问共享 once 初始化；
+     - `tests/fixtures/typecheck_multi/companion_visibility_private_companion/*`：跨文件回归 companion 可见性上界（`C.x` 应报 `not_visible`）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1312 [TODO] 类初始化语义：property initializer / `init` / secondary constructor 顺序（Appendix B.2.2）
 - 描述：补齐 Kotlin-like 类初始化顺序与规则：属性初始化、多个 `init` block、secondary constructor body 的执行顺序和可见性边界。

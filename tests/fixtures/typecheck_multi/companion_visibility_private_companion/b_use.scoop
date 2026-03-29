@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR-AT: 12:16
+// EXPECT-ERROR: 不可见
+//
+// T1311: `TypeName.member` 经 companion 解析时，应受 companion 自身可见性约束。
+
+package fixtures.typecheck_multi.companion_visibility_private_companion
+
+import scoop.core.*
+
+val y: Int = C.x

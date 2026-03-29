@@ -1,0 +1,16 @@
+// EXPECT: pass
+//
+// T1311: companion object 可见性上界回归（定义侧）。
+
+package fixtures.typecheck_multi.companion_visibility_private_companion
+
+import scoop.core.*
+
+class C() {
+    // companion 自身是 private（文件内可见）；其成员默认 public。
+    // 另一文件尝试 `C.x` 访问时应被拒绝（见 b_use.scoop）。
+    private companion object {
+        val x: Int = 1
+    }
+}
+

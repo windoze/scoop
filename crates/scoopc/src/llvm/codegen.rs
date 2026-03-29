@@ -7241,11 +7241,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         v: &hir::ValueRef,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let hir::ValueRef::Local { id, .. } = v else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level value ref",
-                at: span.into(),
-            });
+        let id = match v {
+            hir::ValueRef::Local { id, .. } => id,
+            hir::ValueRef::TopLevel { fqn, .. } => {
+                // T1311：object/companion object 单例值在表达式位置可用：
+                // - 读取单例值应触发一次初始化（init block / 属性 init）；
+                // - 运行期用一个 module-local 的唯一地址作为“单例实例指针”（ref type）。
+                if self.object_inits.contains_key(fqn) {
+                    return self.codegen_object_value_access(span, fqn);
+                }
+
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "top-level value ref",
+                    at: span.into(),
+                });
+            }
         };
 
         let local = self
@@ -7477,6 +7487,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match member.resolved.as_ref() {
             Some(hir::MemberRef::Value { fqn, .. }) => {
+                // T1311：`TypeName.NestedObject` / `Obj.NestedObject` 的“object 值”访问。
+                if self.object_inits.contains_key(fqn) {
+                    return self.codegen_object_value_access(member.span, fqn);
+                }
+
                 // T0828：`object` / `companion object` 静态成员访问（backing field 读取）。
                 if self.lookup_object_property_by_fqn(fqn).is_some() {
                     return self.codegen_object_property_access(member.span, fqn);
@@ -7881,6 +7896,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv
     }
 
+    fn declare_object_instance_global(&self, object_fqn: &str) -> GlobalValue<'ctx> {
+        let name = object_instance_global_name(object_fqn);
+        if let Some(existing) = self.module.get_global(&name) {
+            return existing;
+        }
+
+        // 说明：
+        // - 早期阶段我们用一个 module-local 的唯一地址充当 object 单例实例的“身份”（指针值）；
+        // - 该地址不参与 GC，也不承载字段布局；静态属性仍单独走 `__scoop_object_prop__*` 全局存储。
+        let gv = self.module.add_global(self.context.i8_type(), None, &name);
+        gv.set_linkage(Linkage::Internal);
+        gv.set_initializer(&self.context.i8_type().const_int(0, false));
+        gv
+    }
+
+    fn codegen_object_value_access(
+        &mut self,
+        _at: crate::span::Span,
+        object_fqn: &str,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
+        let _ = self.builder.build_call(init_fn, &[], "obj_init")?;
+
+        let instance = self.declare_object_instance_global(object_fqn);
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(instance.as_pointer_value().into()),
+        })
+    }
+
     fn declare_object_property_global(
         &mut self,
         at: crate::span::Span,
@@ -8080,6 +8125,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
                 self.codegen_bool_logic(span, op, lhs, rhs)
             }
+
+            ast::BinaryOp::RangeInclusive => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "range operator",
+                at: span.into(),
+            }),
 
             ast::BinaryOp::Elvis => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "elvis operator",
@@ -9500,6 +9550,10 @@ fn object_init_fn_name(object_fqn: &str) -> String {
 
 fn object_guard_global_name(object_fqn: &str) -> String {
     format!("__scoop_object_guard__{object_fqn}")
+}
+
+fn object_instance_global_name(object_fqn: &str) -> String {
+    format!("__scoop_object_instance__{object_fqn}")
 }
 
 fn object_prop_global_name(prop_fqn: &str) -> String {
