@@ -1,0 +1,7 @@
+// EXPECT: pass
+// 目标：提供 star import 的同名类型，用于验证 alias import 的优先级（T1310）。
+
+package fixtures.resolve_multi.import_alias_precedence_star.a
+
+struct X {}
+

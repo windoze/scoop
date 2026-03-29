@@ -1828,7 +1828,7 @@ fn resolve_type_path(
     }
 
     let pkg = package_prefix(source, file.package.as_ref());
-    let mut candidates = Vec::new();
+    let mut candidates: Vec<String> = Vec::new();
 
     // 1) 同包优先：pkg + local
     if !pkg.is_empty() {
@@ -1841,37 +1841,55 @@ fn resolve_type_path(
     // 3) 对单段名字，应用 import 规则（显式 import / star import）
     if segments.len() == 1 {
         let name = segments[0];
+
+        // T1310：显式 import（含 alias）优先于 star import，且不依赖 import 语句的先后顺序。
         for import in &file.imports {
+            if import.has_star {
+                continue;
+            }
+
+            let import_local = import
+                .alias
+                .as_ref()
+                .map(|id| source.slice(id.span))
+                .or_else(|| import.path.last().map(|id| source.slice(id.span)))
+                .unwrap_or("");
+            if import_local != name {
+                continue;
+            }
+
             let import_path = import
                 .path
                 .iter()
                 .map(|id| source.slice(id.span))
                 .collect::<Vec<_>>()
                 .join(".");
+            candidates.push(import_path);
+        }
 
-            if import.has_star {
-                candidates.push(format!("{import_path}.{name}"));
-            } else {
-                let local = import
-                    .alias
-                    .as_ref()
-                    .map(|id| source.slice(id.span))
-                    .or_else(|| import.path.last().map(|id| source.slice(id.span)))
-                    .unwrap_or("");
-                if local == name {
-                    candidates.push(import_path);
-                }
+        for import in &file.imports {
+            if !import.has_star {
+                continue;
             }
+
+            let import_path = import
+                .path
+                .iter()
+                .map(|id| source.slice(id.span))
+                .collect::<Vec<_>>()
+                .join(".");
+            candidates.push(format!("{import_path}.{name}"));
         }
     }
 
-    // 去重并尝试匹配 type namespace
-    candidates.sort();
-    candidates.dedup();
-
+    // 依赖顺序 + 去重后尝试匹配 type namespace
     let mut not_visible: Option<(String, Visibility, Span)> = None;
     let use_cone = index.cone_of_source(source);
+    let mut seen: HashSet<String> = HashSet::new();
     for fqn in candidates {
+        if !seen.insert(fqn.clone()) {
+            continue;
+        }
         let Some(syms) = index.by_fqn.get(&fqn) else {
             continue;
         };

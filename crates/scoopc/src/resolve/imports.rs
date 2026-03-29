@@ -42,11 +42,10 @@ impl ImportTable {
     ) -> Result<Self, ResolveError> {
         let mut table = ImportTable::default();
 
-        // T0315：import alias 需要参与冲突检查。
-        // 规则（当前阶段最小落地）：
+        // T0315/T1310：import alias 需要参与冲突检查。
+        // 规则：
         // - alias 名字在对应命名空间下必须唯一（不能与其它 import 的 local 名冲突）
-        // - alias 名字不能与当前文件的顶层声明同名（避免“看起来可用但实际被 shadow”的困惑）
-        let top_level = collect_top_level_decl_names(source, file);
+        // - 允许 alias 与当前文件的顶层声明同名：由“同包/本地声明优先”的 shadowing 规则处理（T1310）
         let mut import_locals_ty: HashMap<String, ImportLocalInfo> = HashMap::new();
         let mut import_locals_value: HashMap<String, ImportLocalInfo> = HashMap::new();
 
@@ -78,16 +77,6 @@ impl ImportTable {
             let (local, local_span, is_alias) = local_name_and_span(source, import);
 
             if syms.get(SymbolKind::Type).is_some() {
-                if is_alias {
-                    if let Some(prev) = top_level.ty.get(local).copied() {
-                        return Err(ResolveError::DuplicateDefinition {
-                            name: local.to_string(),
-                            first: prev.into(),
-                            second: local_span.into(),
-                        });
-                    }
-                }
-
                 check_import_alias_conflicts(
                     &mut import_locals_ty,
                     local,
@@ -105,16 +94,6 @@ impl ImportTable {
 
             // value namespace：fun/value 任一存在即认为该 import 对 value 解析有意义。
             if syms.has_fun() || syms.get(SymbolKind::Value).is_some() {
-                if is_alias {
-                    if let Some(prev) = top_level.value.get(local).copied() {
-                        return Err(ResolveError::DuplicateDefinition {
-                            name: local.to_string(),
-                            first: prev.into(),
-                            second: local_span.into(),
-                        });
-                    }
-                }
-
                 check_import_alias_conflicts(
                     &mut import_locals_value,
                     local,
@@ -139,60 +118,6 @@ impl ImportTable {
 struct ImportLocalInfo {
     first_span: Span,
     has_alias: bool,
-}
-
-#[derive(Debug, Default)]
-struct TopLevelDeclNames {
-    ty: HashMap<String, Span>,
-    value: HashMap<String, Span>,
-}
-
-fn collect_top_level_decl_names(source: &SourceFile, file: &ast::File) -> TopLevelDeclNames {
-    let mut names = TopLevelDeclNames::default();
-
-    for item in &file.items {
-        match item {
-            ast::Item::TypeAlias(ta) => {
-                let name = source.slice(ta.name.span).to_string();
-                names.ty.insert(name, ta.name.span);
-            }
-            ast::Item::Fun(fun) => {
-                let name = source.slice(fun.name.span).to_string();
-                names.value.insert(name, fun.name.span);
-            }
-            ast::Item::Type(ty) => {
-                let name = source.slice(ty.name.span).to_string();
-                names.ty.insert(name.clone(), ty.name.span);
-
-                // 与 `Index::add_type_decl` 保持一致：enum 也会引入同名 value 符号（便于限定名访问）。
-                if matches!(ty.kind, ast::TypeKind::Enum) {
-                    names.value.insert(name, ty.name.span);
-                }
-            }
-            ast::Item::Object(obj) => {
-                let Some(name) = &obj.name else {
-                    // 未命名 companion object 不会引入顶层可引用符号（T0317 再定义语义）。
-                    continue;
-                };
-                let local = source.slice(name.span).to_string();
-                // Kotlin-like：object 同时引入 type 与 value 名字。
-                names.ty.insert(local.clone(), name.span);
-                names.value.insert(local, name.span);
-            }
-            ast::Item::Val(v) => {
-                if let Some(name) = v.name() {
-                    let local = source.slice(name.span).to_string();
-                    names.value.insert(local, name.span);
-                }
-            }
-            ast::Item::ExtensionProperty(_p) => {
-                // 顶层扩展属性不引入“顶层可引用 value 名字”，因此当前阶段不参与 import table 的 decl 收集。
-                // TODO：若未来支持 `import pkg.extProp` 形式的扩展导入，需要在这里扩展规则。
-            }
-        }
-    }
-
-    names
 }
 
 fn local_name_and_span<'a>(source: &'a SourceFile, import: &'a ast::ImportDecl) -> (&'a str, Span, bool) {
@@ -342,16 +267,22 @@ mod tests {
     }
 
     #[test]
-    fn import_alias_conflicts_with_local_top_level_is_error() {
-        let s = SourceFile::new_virtual(
+    fn import_alias_can_be_shadowed_by_local_top_level() {
+        let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}");
+        let s2 = SourceFile::new_virtual(
             "<b>",
-            "package b\nimport b.X as X\nstruct X {}\nfun use(x: X) {}",
+            "package b\nimport a.Foo as Foo\nstruct Foo {}\nfun use(x: Foo) {}",
         );
-        let ast = parse_file(&s).unwrap();
+        let a1 = parse_file(&s1).unwrap();
+        let a2 = parse_file(&s2).unwrap();
 
-        let index = Index::build(&[(&s, &ast)]).unwrap();
-        let err = ImportTable::build(&s, &ast, &index).unwrap_err();
+        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let table = ImportTable::build(&s2, &a2, &index).unwrap();
 
-        assert!(matches!(err, ResolveError::DuplicateDefinition { .. }));
+        // alias 与本地声明同名在此阶段允许：由后续解析规则决定 shadowing（T1310）。
+        assert_eq!(
+            table.ty.explicit.get("Foo").unwrap(),
+            &vec!["a.Foo".to_string()]
+        );
     }
 }

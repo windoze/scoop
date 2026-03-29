@@ -1090,56 +1090,79 @@ impl<'a> BlockScopeChecker<'a> {
         name: &str,
         use_span: Span,
     ) -> Result<Option<String>, ResolveError> {
-        let mut candidates: Vec<String> = Vec::new();
-
-        if !self.pkg_prefix.is_empty() {
-            candidates.push(format!("{}.{}", self.pkg_prefix, name));
-        }
-        // 允许用户引用 root package 下的符号（无 package 声明时也可匹配）。
-        candidates.push(name.to_string());
-
-        if let Some(fqns) = self.imports.value.explicit.get(name) {
-            candidates.extend(fqns.iter().cloned());
-        }
-        for prefix in &self.imports.star {
-            candidates.push(format!("{prefix}.{name}"));
-        }
-
-        candidates.sort();
-        candidates.dedup();
-
+        // T1310：import alias / wildcard import 的交互需要固定“查找优先级”，避免解析结果依赖 fqn 字典序。
+        //
+        // 优先级（高 → 低）：
+        // 1) 同包（含 root package）
+        // 2) 显式 import（含 alias）
+        // 3) star import（`import pkg.*`）
+        //
+        // 若高优先级存在同名但不可见，应继续尝试低优先级的可见候选；
+        // 只有当完全没有可见候选时才报 `NotVisible`。
+        let mut seen: HashSet<String> = HashSet::new();
         let mut not_visible: Option<(String, Visibility, Span)> = None;
-        for fqn in candidates {
-            let Some(syms) = self.index.by_fqn.get(&fqn) else {
-                continue;
+
+        let mut probe = |fqn: &str| -> Result<Option<String>, ResolveError> {
+            if !seen.insert(fqn.to_string()) {
+                return Ok(None);
+            }
+
+            let Some(syms) = self.index.by_fqn.get(fqn) else {
+                return Ok(None);
             };
 
             // value namespace：fun/value 任一存在即匹配（与 T0304/T0305 旧逻辑保持一致）。
             let sym_val = syms.get(SymbolKind::Value);
             if !syms.has_fun() && sym_val.is_none() {
-                continue;
+                return Ok(None);
             }
 
             if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
-                // fun overload set：任一 overload 可见即可匹配该 FQN。
-                return Ok(Some(fqn));
-            } else if syms.has_fun() {
-                // 记录“只有不可见候选”的情况，用于在最终无匹配时给出 NotVisible（优先于 UnresolvedValue）。
+                return Ok(Some(fqn.to_string()));
+            } else if syms.has_fun() && not_visible.is_none() {
                 if let Some(first) = syms.first_fun() {
-                    if not_visible.is_none() {
-                        not_visible =
-                            Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
-                    }
+                    not_visible =
+                        Some((fqn.to_string(), first.symbol.visibility, first.symbol.span));
                 }
             }
 
             if let Some(sym) = sym_val {
                 if is_symbol_visible_from(self.use_cone, self.source, sym) {
-                    return Ok(Some(fqn));
+                    return Ok(Some(fqn.to_string()));
                 }
                 if not_visible.is_none() {
-                    not_visible = Some((fqn.clone(), sym.visibility, sym.span));
+                    not_visible = Some((fqn.to_string(), sym.visibility, sym.span));
                 }
+            }
+
+            Ok(None)
+        };
+
+        // 1) 同包（含 root package）
+        if !self.pkg_prefix.is_empty() {
+            let cand = format!("{}.{}", self.pkg_prefix, name);
+            if let Some(found) = probe(&cand)? {
+                return Ok(Some(found));
+            }
+        }
+        if let Some(found) = probe(name)? {
+            return Ok(Some(found));
+        }
+
+        // 2) 显式 import（含 alias）
+        if let Some(fqns) = self.imports.value.explicit.get(name) {
+            for fqn in fqns {
+                if let Some(found) = probe(fqn)? {
+                    return Ok(Some(found));
+                }
+            }
+        }
+
+        // 3) star import（`import pkg.*`）
+        for prefix in &self.imports.star {
+            let cand = format!("{prefix}.{name}");
+            if let Some(found) = probe(&cand)? {
+                return Ok(Some(found));
             }
         }
 
@@ -1160,56 +1183,79 @@ impl<'a> BlockScopeChecker<'a> {
         name: &str,
         use_span: Span,
     ) -> Result<Vec<String>, ResolveError> {
-        let mut candidates: Vec<String> = Vec::new();
-
-        if !self.pkg_prefix.is_empty() {
-            candidates.push(format!("{}.{}", self.pkg_prefix, name));
-        }
-        // 允许用户引用 root package 下的符号（无 package 声明时也可匹配）。
-        candidates.push(name.to_string());
-
-        if let Some(fqns) = self.imports.value.explicit.get(name) {
-            candidates.extend(fqns.iter().cloned());
-        }
-        for prefix in &self.imports.star {
-            candidates.push(format!("{prefix}.{name}"));
-        }
-
-        candidates.sort();
-        candidates.dedup();
-
-        let mut matches: Vec<String> = Vec::new();
+        let mut seen: HashSet<String> = HashSet::new();
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-        for fqn in candidates {
-            let Some(syms) = self.index.by_fqn.get(&fqn) else {
-                continue;
-            };
+        let mut matches: Vec<String> = Vec::new();
 
-            if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
-                matches.push(fqn);
-            } else if syms.has_fun() && not_visible.is_none() {
-                if let Some(first) = syms.first_fun() {
-                    not_visible = Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+        let mut probe_group = |cands: &[String]| {
+            matches.clear();
+            for fqn in cands {
+                if !seen.insert(fqn.clone()) {
+                    continue;
+                }
+
+                let Some(syms) = self.index.by_fqn.get(fqn) else {
+                    continue;
+                };
+
+                if let Some(_fun) = syms.any_visible_fun(self.use_cone, self.source) {
+                    matches.push(fqn.clone());
+                } else if syms.has_fun() && not_visible.is_none() {
+                    if let Some(first) = syms.first_fun() {
+                        not_visible =
+                            Some((fqn.clone(), first.symbol.visibility, first.symbol.span));
+                    }
                 }
             }
+
+            !matches.is_empty()
+        };
+
+        // 1) 同包（含 root package）
+        let mut group_pkg: Vec<String> = Vec::new();
+        if !self.pkg_prefix.is_empty() {
+            group_pkg.push(format!("{}.{}", self.pkg_prefix, name));
+        }
+        group_pkg.push(name.to_string());
+        if probe_group(&group_pkg) {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
         }
 
-        if matches.is_empty() {
-            if let Some((name, visibility, def_span)) = not_visible {
-                return Err(ResolveError::NotVisible {
-                    name,
-                    visibility,
-                    use_span: use_span.into(),
-                    def_span: def_span.into(),
-                });
+        // 2) 显式 import（含 alias）
+        if let Some(fqns) = self.imports.value.explicit.get(name) {
+            if probe_group(fqns) {
+                matches.sort();
+                matches.dedup();
+                return Ok(matches);
             }
-            return Ok(Vec::new());
         }
 
-        matches.sort();
-        matches.dedup();
-        Ok(matches)
+        // 3) star import（`import pkg.*`）
+        let group_star = self
+            .imports
+            .star
+            .iter()
+            .map(|prefix| format!("{prefix}.{name}"))
+            .collect::<Vec<_>>();
+        if probe_group(&group_star) {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
+        }
+
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: use_span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Ok(Vec::new())
     }
 
     fn top_level_constructor_candidates(
@@ -1217,74 +1263,95 @@ impl<'a> BlockScopeChecker<'a> {
         name: &str,
         use_span: Span,
     ) -> Result<Vec<String>, ResolveError> {
-        // 1) 先按 type 命名空间解析“同名类型”候选（同包 / import / star import），保留全部可见项。
-        let mut candidates: Vec<String> = Vec::new();
-
-        if !self.pkg_prefix.is_empty() {
-            candidates.push(format!("{}.{}", self.pkg_prefix, name));
-        }
-        candidates.push(name.to_string());
-
-        if let Some(fqns) = self.imports.ty.explicit.get(name) {
-            candidates.extend(fqns.iter().cloned());
-        }
-        for prefix in &self.imports.star {
-            candidates.push(format!("{prefix}.{name}"));
-        }
-
-        candidates.sort();
-        candidates.dedup();
-
+        let mut seen: HashSet<String> = HashSet::new();
         let mut matches: Vec<String> = Vec::new();
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
-        for ty_fqn in candidates {
-            let Some(syms) = self.index.by_fqn.get(&ty_fqn) else {
-                continue;
-            };
-            let Some(sym) = syms.get(SymbolKind::Type) else {
-                continue;
-            };
-            if !is_symbol_visible_from(self.use_cone, self.source, sym) {
-                if not_visible.is_none() {
-                    not_visible = Some((ty_fqn.clone(), sym.visibility, sym.span));
+        let mut probe_group = |cands: &[String]| {
+            matches.clear();
+            for ty_fqn in cands {
+                if !seen.insert(ty_fqn.clone()) {
+                    continue;
                 }
-                continue;
+
+                let Some(syms) = self.index.by_fqn.get(ty_fqn) else {
+                    continue;
+                };
+                let Some(sym) = syms.get(SymbolKind::Type) else {
+                    continue;
+                };
+                if !is_symbol_visible_from(self.use_cone, self.source, sym) {
+                    if not_visible.is_none() {
+                        not_visible = Some((ty_fqn.clone(), sym.visibility, sym.span));
+                    }
+                    continue;
+                }
+
+                let Some(ctors) = self.index.constructors.get(ty_fqn) else {
+                    // 当前阶段（T0319）只把“显式收集到 constructors overload set” 的类型纳入构造候选；
+                    // 隐式默认构造器规则留给后续 typecheck/语义任务补齐。
+                    continue;
+                };
+
+                if ctors
+                    .iter()
+                    .any(|c| is_ctor_visible_from(self.use_cone, self.source, c))
+                {
+                    matches.push(ty_fqn.clone());
+                } else if not_visible.is_none() {
+                    if let Some(first) = ctors.first() {
+                        not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
+                    }
+                }
             }
 
-            let Some(ctors) = self.index.constructors.get(&ty_fqn) else {
-                // 当前阶段（T0319）只把“显式收集到 constructors overload set” 的类型纳入构造候选；
-                // 隐式默认构造器规则留给后续 typecheck/语义任务补齐。
-                continue;
-            };
+            !matches.is_empty()
+        };
 
-            if ctors
-                .iter()
-                .any(|c| is_ctor_visible_from(self.use_cone, self.source, c))
-            {
-                matches.push(ty_fqn);
-            } else if not_visible.is_none() {
-                if let Some(first) = ctors.first() {
-                    not_visible = Some((ty_fqn.clone(), first.visibility, first.span));
-                }
+        // 1) 同包（含 root package）
+        let mut group_pkg: Vec<String> = Vec::new();
+        if !self.pkg_prefix.is_empty() {
+            group_pkg.push(format!("{}.{}", self.pkg_prefix, name));
+        }
+        group_pkg.push(name.to_string());
+        if probe_group(&group_pkg) {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
+        }
+
+        // 2) 显式 import（含 alias）
+        if let Some(fqns) = self.imports.ty.explicit.get(name) {
+            if probe_group(fqns) {
+                matches.sort();
+                matches.dedup();
+                return Ok(matches);
             }
         }
 
-        if matches.is_empty() {
-            if let Some((name, visibility, def_span)) = not_visible {
-                return Err(ResolveError::NotVisible {
-                    name,
-                    visibility,
-                    use_span: use_span.into(),
-                    def_span: def_span.into(),
-                });
-            }
-            return Ok(Vec::new());
+        // 3) star import（`import pkg.*`）
+        let group_star = self
+            .imports
+            .star
+            .iter()
+            .map(|prefix| format!("{prefix}.{name}"))
+            .collect::<Vec<_>>();
+        if probe_group(&group_star) {
+            matches.sort();
+            matches.dedup();
+            return Ok(matches);
         }
 
-        matches.sort();
-        matches.dedup();
-        Ok(matches)
+        if let Some((name, visibility, def_span)) = not_visible {
+            return Err(ResolveError::NotVisible {
+                name,
+                visibility,
+                use_span: use_span.into(),
+                def_span: def_span.into(),
+            });
+        }
+
+        Ok(Vec::new())
     }
 
     fn declare_ident(&mut self, id: &ast::Ident) -> Result<(), ResolveError> {
@@ -1860,33 +1927,48 @@ impl<'a> BlockScopeChecker<'a> {
     }
 
     fn type_name_to_fqn(&self, name: &str) -> Option<String> {
-        let mut candidates: Vec<String> = Vec::new();
+        // 与 `top_level_value_fqn` 一致：按优先级逐层查找，避免解析结果依赖 fqn 字典序。
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut probe = |fqn: &str| -> Option<String> {
+            if !seen.insert(fqn.to_string()) {
+                return None;
+            }
 
-        if !self.pkg_prefix.is_empty() {
-            candidates.push(format!("{}.{}", self.pkg_prefix, name));
-        }
-        // 允许用户引用 root package 下的符号（无 package 声明时也可匹配）。
-        candidates.push(name.to_string());
-
-        if let Some(fqns) = self.imports.ty.explicit.get(name) {
-            candidates.extend(fqns.iter().cloned());
-        }
-        for prefix in &self.imports.star {
-            candidates.push(format!("{prefix}.{name}"));
-        }
-
-        candidates.sort();
-        candidates.dedup();
-
-        for fqn in candidates {
-            let Some(syms) = self.index.by_fqn.get(&fqn) else {
-                continue;
+            let Some(syms) = self.index.by_fqn.get(fqn) else {
+                return None;
             };
             let Some(sym) = syms.get(SymbolKind::Type) else {
-                continue;
+                return None;
             };
-            if is_symbol_visible_from(self.use_cone, self.source, sym) {
-                return Some(fqn);
+            is_symbol_visible_from(self.use_cone, self.source, sym)
+                .then_some(fqn.to_string())
+        };
+
+        // 1) 同包（含 root package）
+        if !self.pkg_prefix.is_empty() {
+            let cand = format!("{}.{}", self.pkg_prefix, name);
+            if let Some(found) = probe(&cand) {
+                return Some(found);
+            }
+        }
+        if let Some(found) = probe(name) {
+            return Some(found);
+        }
+
+        // 2) 显式 import（含 alias）
+        if let Some(fqns) = self.imports.ty.explicit.get(name) {
+            for fqn in fqns {
+                if let Some(found) = probe(fqn) {
+                    return Some(found);
+                }
+            }
+        }
+
+        // 3) star import（`import pkg.*`）
+        for prefix in &self.imports.star {
+            let cand = format!("{prefix}.{name}");
+            if let Some(found) = probe(&cand) {
+                return Some(found);
             }
         }
 
@@ -1907,42 +1989,54 @@ impl<'a> BlockScopeChecker<'a> {
             .map(|id| self.source.slice(id.span))
             .collect::<Vec<_>>();
         let local = segments.join(".");
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut probe = |fqn: &str| -> Option<String> {
+            if !seen.insert(fqn.to_string()) {
+                return None;
+            }
 
-        let mut candidates: Vec<String> = Vec::new();
+            let Some(syms) = self.index.by_fqn.get(fqn) else {
+                return None;
+            };
+            let Some(sym) = syms.get(SymbolKind::Type) else {
+                return None;
+            };
+            is_symbol_visible_from(self.use_cone, self.source, sym)
+                .then_some(fqn.to_string())
+        };
 
         // 1) 同包优先：pkg + local
         if !self.pkg_prefix.is_empty() {
-            candidates.push(format!("{}.{}", self.pkg_prefix, local));
+            let cand = format!("{}.{}", self.pkg_prefix, local);
+            if let Some(found) = probe(&cand) {
+                return Some(found);
+            }
         }
 
         // 2) 直接使用 local（允许显式写 FQN：`scoop.core.Any`）
-        candidates.push(local.clone());
+        if let Some(found) = probe(&local) {
+            return Some(found);
+        }
 
         // 3) 对单段名字，应用 import 规则（显式 import / star import）
         if segments.len() == 1 {
             let name = segments[0];
 
+            // 3.1) 显式 import（含 alias）优先于 star import（T1310）
             if let Some(fqns) = self.imports.ty.explicit.get(name) {
-                candidates.extend(fqns.iter().cloned());
+                for fqn in fqns {
+                    if let Some(found) = probe(fqn) {
+                        return Some(found);
+                    }
+                }
             }
 
+            // 3.2) star import
             for prefix in &self.imports.star {
-                candidates.push(format!("{prefix}.{name}"));
-            }
-        }
-
-        candidates.sort();
-        candidates.dedup();
-
-        for fqn in candidates {
-            let Some(syms) = self.index.by_fqn.get(&fqn) else {
-                continue;
-            };
-            let Some(sym) = syms.get(SymbolKind::Type) else {
-                continue;
-            };
-            if is_symbol_visible_from(self.use_cone, self.source, sym) {
-                return Some(fqn);
+                let cand = format!("{prefix}.{name}");
+                if let Some(found) = probe(&cand) {
+                    return Some(found);
+                }
             }
         }
 

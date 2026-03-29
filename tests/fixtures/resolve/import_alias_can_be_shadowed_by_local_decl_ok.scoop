@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：alias import 允许被同文件顶层声明 shadow；解析时应优先同包声明（T1310）。
+
+package fixtures.resolve
+
+import scoop.core.Any as Foo
+
+struct Foo {
+    object P {}
+}
+
+fun use_shadowing() {
+    Foo.P
+}
+

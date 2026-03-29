@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：alias import 的 local 名应当 shadow star import 同名类型（T1310）。
+
+package fixtures.resolve_multi.import_alias_precedence_star.b
+
+import fixtures.resolve_multi.import_alias_precedence_star.z.Qux as X
+import fixtures.resolve_multi.import_alias_precedence_star.a.*
+
+fun use() {
+    X.P
+}
+

@@ -4221,11 +4221,20 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1310 [TODO] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
+### T1310 [DONE] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - 描述：在 Kotlin 兼容层补齐 alias import 的完整语义：可见性、shadowing、与普通 import / wildcard import 的交互。
 - 目标：在 parser/resolve 子任务基础上补齐语言级规则；不改变既有 import 语义。
 - 验收：language fixture：alias import 与普通 import 混用时解析正确；冲突时报清晰诊断。
 - 依赖：T0254、T0315
+ - 完成：
+   - `crates/scoopc/src/resolve/imports.rs`：允许 alias 与同文件顶层声明同名（由后续 shadowing 规则处理），并更新单测覆盖。
+   - `crates/scoopc/src/resolve/scopes.rs` / `crates/scoopc/src/resolve/mod.rs`：修正单段名字解析优先级：同包（含 root）> 显式 import（含 alias）> star import，避免解析结果依赖 fqn 字典序。
+   - fixtures：
+     - `tests/fixtures/resolve/import_alias_can_be_shadowed_by_local_decl_ok.scoop`
+     - `tests/fixtures/resolve_multi/import_alias_precedence_star/**`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1311 [TODO] `object` / `companion object`：补齐类型检查、静态访问与初始化语义（Appendix B.9）
 - 描述：在已有 parse/resolve 任务基础上，补齐 `object` / `companion object` 的语言级行为：单例语义、通过类名访问 companion 成员、初始化时机与可见性。

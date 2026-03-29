@@ -1,0 +1,9 @@
+// EXPECT: pass
+// 目标：提供 alias import 的目标类型（含 nested object），用于验证显式 import（含 alias）优先于 star import（T1310）。
+
+package fixtures.resolve_multi.import_alias_precedence_star.z
+
+struct Qux {
+    object P {}
+}
+
