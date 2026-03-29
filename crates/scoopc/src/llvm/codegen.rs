@@ -244,6 +244,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     enum_layouts: &'a hir::EnumLayoutIndex,
     extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
+    class_inits: &'a hir::ClassInitIndex,
+    ctor_call_sites: &'a hir::CtorCallSiteIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
@@ -293,6 +295,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         struct_layouts: &'a hir::StructLayoutIndex,
         enum_layouts: &'a hir::EnumLayoutIndex,
         object_inits: &'a hir::ObjectInitIndex,
+        class_inits: &'a hir::ClassInitIndex,
+        ctor_call_sites: &'a hir::CtorCallSiteIndex,
         extern_funs: &'a hir::ExternFunIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     ) -> Self {
@@ -308,6 +312,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             enum_layouts,
             extern_funs,
             object_inits,
+            class_inits,
+            ctor_call_sites,
             fun_index,
             env: Env::default(),
             type_layout_cache: HashMap::new(),
@@ -922,41 +928,94 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<(), LlvmEmitError> {
-        let hir::ExprKind::VarRef(vref) = &lhs.kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
+        match &lhs.kind {
+            hir::ExprKind::VarRef(vref) => {
+                let hir::ValueRef::Local { id, .. } = vref else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment to non-local",
+                        at: lhs.span.into(),
+                    });
+                };
+
+                let local = self
+                    .env
+                    .get(*id)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "unknown local value",
+                        at: lhs.span.into(),
+                    })?;
+
+                if !local.mutable {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment to immutable local",
+                        at: eq_span.into(),
+                    });
+                }
+
+                let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
+                let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
+                if let Some(slot_ptr) = local.gc_root_slot {
+                    self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
+                }
+                Ok(())
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment lhs member target",
+                        at: lhs.span.into(),
+                    });
+                };
+
+                let Some((class, field_idx, field_cg)) =
+                    self.lookup_class_field_by_fqn(fqn, member.span)?
+                else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment lhs",
+                        at: lhs.span.into(),
+                    });
+                };
+
+                let field = class
+                    .fields
+                    .get(field_idx as usize)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment class field index",
+                        at: lhs.span.into(),
+                    })?;
+                if !field.mutable {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment to immutable class field",
+                        at: eq_span.into(),
+                    });
+                }
+
+                let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+                let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment class receiver value",
+                        at: receiver.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "assignment class receiver type",
+                        at: receiver.span.into(),
+                    });
+                };
+
+                let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(field_cg))?;
+                let field_ptr =
+                    self.codegen_class_field_ptr(eq_span, &class, obj_ptr, field_idx)?;
+                let _stored = self.store_local_value(eq_span, field_ptr, field_cg, rhs_v)?;
+                Ok(())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "assignment lhs",
                 at: lhs.span.into(),
-            });
-        };
-
-        let hir::ValueRef::Local { id, .. } = vref else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "assignment to non-local",
-                at: lhs.span.into(),
-            });
-        };
-
-        let local = self
-            .env
-            .get(*id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown local value",
-                at: lhs.span.into(),
-            })?;
-
-        if !local.mutable {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "assignment to immutable local",
-                at: eq_span.into(),
-            });
+            }),
         }
-
-        let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
-        let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
-        if let Some(slot_ptr) = local.gc_root_slot {
-            self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
-        }
-        Ok(())
     }
 
     fn codegen_expr(&mut self, expr: &hir::Expr) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -2795,6 +2854,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.struct_layouts,
                 self.enum_layouts,
                 self.object_inits,
+                self.class_inits,
+                self.ctor_call_sites,
                 self.extern_funs,
                 self.fun_index,
             );
@@ -3362,6 +3423,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，
         //    需要依赖“期望类型语境”才能决定属于哪个 enum。
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
+            // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
+            // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
+            if let Some(candidates) = self.ctor_call_sites.get(&callee.span) {
+                return self.codegen_class_ctor_call(span, callee.span, name, args, candidates);
+            }
+
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "enum variant ctor call without expected enum type",
@@ -3374,6 +3441,325 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Err(LlvmEmitError::UnsupportedMainBody {
             kind: "call callee",
             at: callee.span.into(),
+        })
+    }
+
+    /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
+    ///
+    /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
+    /// - 仅支持位置参数（positional args），不支持 named args / default args；
+    /// - ctor 选择规则：按“参数个数”在已收集 ctor 集合中匹配；若不唯一则报错；
+    /// - secondary ctor 的 delegation call 语义暂未接入（parser 尚未解析实参表达式），
+    ///   这里只保证其 body 在 primary init steps 之后执行。
+    fn codegen_class_ctor_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        _name: &str,
+        args: &[hir::CallArg],
+        candidates: &[String],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 1) 选择唯一可用的 class candidate（HIR side table 里必须存在该 class 的 init 信息）。
+        let mut class_candidates: Vec<&String> = candidates
+            .iter()
+            .filter(|fqn| self.class_inits.contains_key(*fqn))
+            .collect();
+        class_candidates.sort();
+        class_candidates.dedup();
+
+        let class_fqn = match class_candidates.as_slice() {
+            [one] => (*one).clone(),
+            [] => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call candidate class",
+                    at: callee_span.into(),
+                });
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor call candidate class (ambiguous)",
+                    at: callee_span.into(),
+                });
+            }
+        };
+        let class = self
+            .class_inits
+            .get(&class_fqn)
+            .cloned()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor call candidate class",
+                at: callee_span.into(),
+            })?;
+
+        // 2) 仅支持 positional args，并按源码顺序求值。
+        let mut positional_args: Vec<&hir::Expr> = Vec::with_capacity(args.len());
+        for arg in args {
+            match arg {
+                hir::CallArg::Positional(expr) => positional_args.push(expr),
+                hir::CallArg::Named { .. } => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor call named arg",
+                        at: span.into(),
+                    });
+                }
+            }
+        }
+
+        // 3) 在 ctor 集合中选择匹配项（按参数个数）；若 class 未显式声明任何 ctor，则视为隐式 0-参 primary ctor。
+        let matching: Vec<Option<&hir::ClassCtor>> = if class.ctors.is_empty() {
+            if positional_args.is_empty() {
+                vec![None]
+            } else {
+                Vec::new()
+            }
+        } else {
+            class
+                .ctors
+                .iter()
+                .filter(|ctor| ctor.params.len() == positional_args.len())
+                .map(Some)
+                .collect()
+        };
+
+        if matching.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor call overload mismatch",
+                at: callee_span.into(),
+            });
+        }
+        if matching.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor call overload ambiguous",
+                at: callee_span.into(),
+            });
+        }
+
+        let selected_ctor = matching[0];
+        let (ctor_kind, ctor_params, ctor_body) = match selected_ctor {
+            Some(ctor) => (ctor.kind, ctor.params.as_slice(), ctor.body.as_ref()),
+            None => (hir::ClassCtorKind::Primary, &[][..], None),
+        };
+
+        // 4) 分配对象（header 由 runtime 初始化）；payload 先清零，避免读取未初始化字段导致的非确定性。
+        let obj_ty = self.llvm_class_object_type(span, &class)?;
+        let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
+
+        let rt_alloc = self.declare_runtime_alloc();
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_class")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let obj_ptr_ty = obj_ty.ptr_type(AddressSpace::default());
+        let typed_obj = self
+            .builder
+            .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
+        let payload_ptr = self
+            .builder
+            .build_struct_gep(obj_ty, typed_obj, 1, "class_payload_gep")?;
+        let payload_ty = self.llvm_class_payload_type(span, &class)?;
+        let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
+        if payload_size_bytes > 0 {
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let payload_i8 = self
+                .builder
+                .build_bit_cast(payload_ptr, i8_ptr_ty, "class_payload_i8")?
+                .into_pointer_value();
+            let size_ty = self
+                .target_data
+                .ptr_sized_int_type_in_context(self.context, None);
+            let size_v = size_ty.const_int(payload_size_bytes, false);
+            let zero = self.context.i8_type().const_int(0, false);
+            let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
+        }
+
+        // 5) 在执行 init steps / ctor body 期间，把 `this` 临时放进一个 1-slot GC frame，避免显式 GC 导致对象被回收。
+        let tmp_gc_frame_ty = self.llvm_gc_frame_type(1);
+        let tmp_gc_frame_ptr =
+            self.create_entry_alloca_raw(span, "class_gc_frame", tmp_gc_frame_ty.into())?;
+
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let prev_ptr = self.builder.build_struct_gep(
+            tmp_gc_frame_ty,
+            tmp_gc_frame_ptr,
+            0,
+            "class_gc_prev_gep",
+        )?;
+        let root_count_ptr = self.builder.build_struct_gep(
+            tmp_gc_frame_ty,
+            tmp_gc_frame_ptr,
+            1,
+            "class_gc_root_count_gep",
+        )?;
+        let reserved_ptr = self.builder.build_struct_gep(
+            tmp_gc_frame_ty,
+            tmp_gc_frame_ptr,
+            2,
+            "class_gc_reserved_gep",
+        )?;
+        let _ = self.builder.build_store(prev_ptr, i8_ptr_ty.const_null())?;
+        let _ = self
+            .builder
+            .build_store(root_count_ptr, i32_ty.const_int(1, false))?;
+        let _ = self.builder.build_store(reserved_ptr, i32_ty.const_zero())?;
+
+        let roots_arr_ptr = self.builder.build_struct_gep(
+            tmp_gc_frame_ty,
+            tmp_gc_frame_ptr,
+            3,
+            "class_gc_roots_arr_gep",
+        )?;
+        let roots_base = self.builder.build_pointer_cast(
+            roots_arr_ptr,
+            i8_ptr_ty.ptr_type(AddressSpace::default()),
+            "class_gc_roots_base",
+        )?;
+        let slot_ptr = unsafe {
+            self.builder.build_in_bounds_gep(
+                i8_ptr_ty,
+                roots_base,
+                &[i32_ty.const_zero()],
+                "class_gc_root_slot_0",
+            )?
+        };
+        let _ = self.builder.build_store(slot_ptr, obj_ptr)?;
+
+        let push = self.declare_runtime_gc_frame_push();
+        let frame_i8 =
+            self.builder
+                .build_pointer_cast(tmp_gc_frame_ptr, i8_ptr_ty, "class_gc_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(push, &[frame_i8.into()], "class_gc_frame_push")?;
+
+        // 6) 以 locals 的形式注入 `this` 与 ctor params，并执行初始化顺序：
+        //   1) primary ctor 的 `val/var` 参数属性赋值（来自调用点 args）
+        //   2) property initializer / init blocks（按源码顺序）
+        //   3) secondary ctor body（若选中 secondary）
+        self.env.push_scope();
+
+        // this local
+        let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
+        let _ = self.builder.build_store(this_ptr, obj_ptr)?;
+        self.env.insert(
+            class.this_id,
+            CgLocal {
+                ty: CgTy::Ref,
+                ptr: this_ptr,
+                mutable: false,
+                gc_root_slot: None,
+            },
+        );
+
+        // ctor params locals（同时做 primary ctor 参数属性赋值）
+        for (param, arg_expr) in ctor_params.iter().zip(positional_args.iter()) {
+            let param_cg =
+                self.cg_ty_of(param.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor param type",
+                        at: callee_span.into(),
+                    })?;
+            let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+            let arg_v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
+            let stored = self.store_local_value(arg_expr.span, param_ptr, param_cg, arg_v)?;
+            self.env.insert(
+                param.id,
+                CgLocal {
+                    ty: param_cg,
+                    ptr: param_ptr,
+                    mutable: false,
+                    gc_root_slot: None,
+                },
+            );
+
+            if param.is_property {
+                let Some(field_fqn) = param.property_field_fqn.as_deref() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor param property fqn",
+                        at: callee_span.into(),
+                    });
+                };
+                let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor param property field index",
+                        at: callee_span.into(),
+                    });
+                };
+                let field_ptr =
+                    self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
+                let _ = self.store_local_value(span, field_ptr, param_cg, stored)?;
+            }
+        }
+
+        // primary init steps（property initializer + init blocks）
+        for step in &class.steps {
+            match step {
+                hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                    let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class property init field index",
+                            at: init.span.into(),
+                        });
+                    };
+                    let field = class.fields.get(field_idx as usize).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "class property init field",
+                            at: init.span.into(),
+                        },
+                    )?;
+                    let field_cg =
+                        self.cg_ty_of(field.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class property init field type",
+                                at: init.span.into(),
+                            })?;
+
+                    let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                    let field_ptr =
+                        self.codegen_class_field_ptr(init.span, &class, obj_ptr, field_idx)?;
+                    let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
+                }
+                hir::ClassInitStep::InitBlock { block } => {
+                    let _ = self.codegen_block_value(block)?;
+                }
+            }
+        }
+
+        // secondary ctor body（若适用）
+        if ctor_kind == hir::ClassCtorKind::Secondary {
+            if let Some(body) = ctor_body {
+                let _ = self.codegen_block_value(body)?;
+            }
+        }
+
+        self.env.pop_scope();
+
+        // pop 临时 GC frame
+        let pop = self.declare_runtime_gc_frame_pop();
+        let frame_i8 =
+            self.builder
+                .build_pointer_cast(tmp_gc_frame_ptr, i8_ptr_ty, "class_gc_frame_i8")?;
+        let _ = self
+            .builder
+            .build_call(pop, &[frame_i8.into()], "class_gc_frame_pop")?;
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(obj_ptr.into()),
         })
     }
 
@@ -7504,6 +7890,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(v);
                 }
 
+                // T1312：class 实例字段访问（`this.x` / `obj.x`）。
+                if let Some((class, field_idx, field_cg)) =
+                    self.lookup_class_field_by_fqn(fqn, member.span)?
+                {
+                    if field_cg == CgTy::Unit {
+                        return Ok(CgValue::unit());
+                    }
+
+                    let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
+                    let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
+                    let Some(raw) = recv.value else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class field receiver value",
+                            at: receiver.span.into(),
+                        });
+                    };
+                    let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class field receiver type",
+                            at: receiver.span.into(),
+                        });
+                    };
+
+                    let field_ptr = self.codegen_class_field_ptr(
+                        member.span,
+                        &class,
+                        obj_ptr,
+                        field_idx,
+                    )?;
+                    let llvm_ty = self.llvm_basic_type_of(member.span, field_cg)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_ty, field_ptr, "load_class_field")?;
+                    return self.cg_value_from_loaded(member.span, field_cg, loaded);
+                }
+
                 // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
                 if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
                     if let Some(local) = self.env.get(*id) {
@@ -7680,6 +8102,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Some((obj, prop))
     }
 
+    /// 若 `field_fqn` 指向一个 class 的实例字段，则返回该字段的布局/类型信息。
+    ///
+    /// 返回值：
+    /// - `class`：对应 class 的初始化信息（字段列表/初始化步骤）
+    /// - `field_idx`：字段在 payload struct 中的稳定索引
+    /// - `field_cg`：字段的 codegen 类型（用于 load/store）
+    fn lookup_class_field_by_fqn(
+        &self,
+        field_fqn: &str,
+        at: crate::span::Span,
+    ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
+        let Some((owner_fqn, _name)) = field_fqn.rsplit_once('.') else {
+            return Ok(None);
+        };
+        let Some(class) = self.class_inits.get(owner_fqn).cloned() else {
+            return Ok(None);
+        };
+        let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+            return Ok(None);
+        };
+        let field = class
+            .fields
+            .get(field_idx as usize)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "class field index",
+                at: at.into(),
+            })?;
+        let field_cg = self.cg_ty_of(field.ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "class field type",
+            at: at.into(),
+        })?;
+        Ok(Some((class, field_idx, field_cg)))
+    }
+
     fn codegen_object_property_access(
         &mut self,
         at: crate::span::Span,
@@ -7764,6 +8220,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.struct_layouts,
             self.enum_layouts,
             self.object_inits,
+            self.class_inits,
+            self.ctor_call_sites,
             self.extern_funs,
             self.fun_index,
         );
@@ -7993,6 +8451,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field = &layout.fields[idx];
         let field_ty = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
         Ok((idx as u32, field_ty))
+    }
+
+    /// 计算 class 对象中某个字段的地址。
+    ///
+    /// 约定：
+    /// - `obj_ptr` 指向对象头（即 runtime `scoop_alloc` 的返回值，`ScoopGcObjectHeader*` 起始地址）；
+    /// - 对象布局在 LLVM 侧表示为 `{ ScoopGcObjectHeader, ClassPayload }`；
+    /// - 字段位于 `ClassPayload` 内部，索引由 `hir::ClassInit.fields` 的稳定顺序决定。
+    fn codegen_class_field_ptr(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::ClassInit,
+        obj_ptr: PointerValue<'ctx>,
+        field_idx: u32,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if field_idx as usize >= class.fields.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class field index out of bounds",
+                at: at.into(),
+            });
+        }
+
+        let obj_ty = self.llvm_class_object_type(at, class)?;
+        let obj_ptr_ty = obj_ty.ptr_type(AddressSpace::default());
+        let typed_obj = self
+            .builder
+            .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
+
+        let payload_ptr = self
+            .builder
+            .build_struct_gep(obj_ty, typed_obj, 1, "class_payload_gep")?;
+
+        let payload_ty = self.llvm_class_payload_type(at, class)?;
+        let field_ptr = self
+            .builder
+            .build_struct_gep(payload_ty, payload_ptr, field_idx, "class_field_gep")?;
+        Ok(field_ptr)
     }
 
     fn lookup_tuple_element(
@@ -9337,6 +9832,85 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         struct_ty.set_body(&llvm_fields, false);
         Ok(struct_ty)
+    }
+
+    /// 生成（或获取）某个 class 的 payload struct 类型：`{ field0, field1, ... }`。
+    ///
+    /// 说明：
+    /// - payload 不包含对象头（header）；header 由 `llvm_class_object_type` 负责；
+    /// - 当前阶段 fields 的顺序来自 `hir::ClassInit.fields`（stable order），用于可回归的字段索引；
+    /// - 该类型名使用 runtime 命名空间前缀，避免与用户类型冲突。
+    fn llvm_class_payload_type(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::ClassInit,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let name = format!(
+            "scoop.runtime.ClassPayload__{}",
+            sanitize_llvm_ident(&class.fqn)
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            if existing.is_opaque() {
+                let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> =
+                    Vec::with_capacity(class.fields.len());
+                for field in &class.fields {
+                    let field_cg =
+                        self.cg_ty_of(field.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class field type",
+                                at: at.into(),
+                            })?;
+                    llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
+                }
+                existing.set_body(&llvm_fields, false);
+            }
+            return Ok(existing);
+        }
+
+        let payload_ty = self.context.opaque_struct_type(&name);
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(class.fields.len());
+        for field in &class.fields {
+            let field_cg = self
+                .cg_ty_of(field.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class field type",
+                    at: at.into(),
+                })?;
+            llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
+        }
+        payload_ty.set_body(&llvm_fields, false);
+        Ok(payload_ty)
+    }
+
+    /// 生成（或获取）某个 class 的“对象布局”类型：`{ header, payload }`。
+    ///
+    /// 说明：
+    /// - runtime `scoop_alloc(size)` 返回值指向对象头起始地址；
+    /// - codegen 侧通过把该 `i8*` cast 为该 struct 指针，再用 `struct_gep` 访问 payload/field；
+    /// - 该类型名仅用于 LLVM module 内部布局推导与 GEP，不直接暴露到语言层面。
+    fn llvm_class_object_type(
+        &mut self,
+        at: crate::span::Span,
+        class: &hir::ClassInit,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let name = format!(
+            "scoop.runtime.ClassObject__{}",
+            sanitize_llvm_ident(&class.fqn)
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            if existing.is_opaque() {
+                let header_ty = self.llvm_gc_object_header_type();
+                let payload_ty = self.llvm_class_payload_type(at, class)?;
+                existing.set_body(&[header_ty.into(), payload_ty.into()], false);
+            }
+            return Ok(existing);
+        }
+
+        let obj_ty = self.context.opaque_struct_type(&name);
+        let header_ty = self.llvm_gc_object_header_type();
+        let payload_ty = self.llvm_class_payload_type(at, class)?;
+        obj_ty.set_body(&[header_ty.into(), payload_ty.into()], false);
+        Ok(obj_ty)
     }
 
     fn llvm_enum_value_type(

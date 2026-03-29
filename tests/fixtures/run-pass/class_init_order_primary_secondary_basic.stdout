@@ -1,0 +1,14 @@
+start
+Primary.a
+7
+Primary.init1
+7
+Primary.b
+Primary.init2
+after_primary
+Secondary.a
+Secondary.init1
+Secondary.b
+Secondary.init2
+Secondary.ctor
+after_secondary

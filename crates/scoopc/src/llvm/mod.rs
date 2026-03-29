@@ -307,6 +307,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.struct_layouts,
         &lowered.enum_layouts,
         &lowered.object_inits,
+        &lowered.class_inits,
+        &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
     );
@@ -339,6 +341,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
             &lowered.struct_layouts,
             &lowered.enum_layouts,
             &lowered.object_inits,
+            &lowered.class_inits,
+            &lowered.ctor_call_sites,
             &lowered.extern_funs,
             &fun_index,
         )
@@ -375,6 +379,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.struct_layouts,
         &lowered.enum_layouts,
         &lowered.object_inits,
+        &lowered.class_inits,
+        &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
     )

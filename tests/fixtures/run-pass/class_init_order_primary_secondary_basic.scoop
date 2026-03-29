@@ -1,0 +1,65 @@
+// EXPECT: pass
+// RUN-STDOUT: class_init_order_primary_secondary_basic.stdout
+//
+// T1312：类初始化顺序（Appendix B.2.2）
+// - primary ctor 的 `val/var` 参数属性应在 property initializer / init blocks 之前可用；
+// - property initializer 与 `init {}` 按源码顺序交错执行；
+// - secondary ctor body 在 primary init steps 之后执行。
+
+import scoop.core.*
+
+class Primary(val x: Int) {
+    val a: Int = @Safe {
+        println("Primary.a")
+        println(this.x)
+        1
+    }
+
+    init {
+        println("Primary.init1")
+        println(this.x)
+    }
+
+    val b: Int = @Safe {
+        println("Primary.b")
+        2
+    }
+
+    init {
+        println("Primary.init2")
+    }
+}
+
+class Secondary {
+    val a: Int = @Safe {
+        println("Secondary.a")
+        10
+    }
+
+    init {
+        println("Secondary.init1")
+    }
+
+    val b: Int = @Safe {
+        println("Secondary.b")
+        20
+    }
+
+    init {
+        println("Secondary.init2")
+    }
+
+    constructor() {
+        println("Secondary.ctor")
+    }
+}
+
+fun main(): Int {
+    println("start")
+    val _p: Primary = Primary(7)
+    println("after_primary")
+    val _s: Secondary = Secondary()
+    println("after_secondary")
+    return 0
+}
+

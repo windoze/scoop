@@ -28,6 +28,8 @@ use super::{
     ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind,
     StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
     ValueRef, WhenArm, WhenPat,
+    ClassCtor, ClassCtorKind, ClassCtorParam, ClassField, ClassInit, ClassInitIndex, ClassInitStep,
+    CtorCallSiteIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -94,6 +96,10 @@ pub struct LoweredHir {
     pub extern_libs: Vec<String>,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
+    /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
+    pub class_inits: ClassInitIndex,
+    /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
+    pub ctor_call_sites: CtorCallSiteIndex,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -152,6 +158,11 @@ struct HirLowering<'a> {
     delegated_properties: DelegatedPropertyIndex,
     /// 顶层函数默认参数信息索引：`fqn -> params(default)`（用于 call-site 默认参数补齐，T1305）。
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
+    /// ctor 调用点候选集合：callee span → candidate type fqns。
+    ///
+    /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
+    /// 把 resolver 的 call candidates 保留下来，供 LLVM codegen 决定“这是 ctor call”。
+    ctor_call_sites: CtorCallSiteIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -188,6 +199,7 @@ impl<'a> HirLowering<'a> {
             type_kinds,
             delegated_properties,
             default_arg_funs: HashMap::new(),
+            ctor_call_sites: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -811,6 +823,30 @@ impl<'a> HirLowering<'a> {
                 {
                     (kind, ty)
                 } else {
+                    // T1312：class ctor call 仍会被降低为 `UnresolvedIdent`，
+                    // 但 codegen 需要知道它的 ctor candidates（来自 resolver 的 `ValueIdent.call`）。
+                    if let ast::ExprKind::Ident(id) = &callee.kind {
+                        if let Some(call) = id.call.as_ref() {
+                            let mut ctor_candidates: Vec<String> = call
+                                .candidates
+                                .iter()
+                                .filter_map(|c| match c {
+                                    ast::CallCandidate::Constructor { ty_fqn } => {
+                                        Some(ty_fqn.clone())
+                                    }
+                                    ast::CallCandidate::Fun { .. } => None,
+                                })
+                                .collect();
+                            if !ctor_candidates.is_empty() {
+                                ctor_candidates.sort();
+                                ctor_candidates.dedup();
+                                self.ctor_call_sites
+                                    .entry(id.span)
+                                    .or_insert(ctor_candidates);
+                            }
+                        }
+                    }
+
                     let callee = Box::new(self.lower_expr(pkg_prefix, callee));
                     let args = args
                         .iter()
@@ -2375,7 +2411,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
-    let file = {
+    let (file, ctor_call_sites) = {
         let mut ctx = HirLowering::new(
             source,
             &ast,
@@ -2385,12 +2421,16 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             &mut types,
             builtins,
         );
-        ctx.lower_file()
+        let file = ctx.lower_file();
+        let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        (file, ctor_call_sites)
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
     let object_inits =
         collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    // T1312：收集 class 初始化信息（Appendix B.2.2）。
+    let class_inits = collect_class_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -2408,6 +2448,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         extern_funs,
         extern_libs,
         object_inits,
+        class_inits,
+        ctor_call_sites,
     })
 }
 
@@ -2434,7 +2476,7 @@ pub fn lower_for_compilation_unit(
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
-    let file_hir = {
+    let (file_hir, ctor_call_sites) = {
         let mut ctx = HirLowering::new(
             source,
             file,
@@ -2444,10 +2486,13 @@ pub fn lower_for_compilation_unit(
             &mut types,
             builtins,
         );
-        ctx.lower_file()
+        let file_hir = ctx.lower_file();
+        let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+        (file_hir, ctor_call_sites)
     };
 
     let object_inits = collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+    let class_inits = collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let struct_layouts = collect_struct_layouts(compilation_unit, index);
@@ -2461,6 +2506,8 @@ pub fn lower_for_compilation_unit(
         extern_funs,
         extern_libs,
         object_inits,
+        class_inits,
+        ctor_call_sites,
     })
 }
 
@@ -2663,6 +2710,267 @@ fn collect_object_decl_inits(
     }
 
     out.entry(fqn).or_insert(init);
+}
+
+fn collect_class_inits(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> ClassInitIndex {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        type_kinds,
+        DelegatedPropertyIndex::new(),
+        types,
+        builtins,
+    );
+
+    let mut out: ClassInitIndex = HashMap::new();
+    for item in &file.items {
+        match item {
+            ast::Item::Type(ty) => {
+                collect_classes_in_type_decl(&mut ctx, &pkg_prefix, &pkg_prefix, ty, &mut out);
+            }
+            ast::Item::Object(obj) => {
+                collect_classes_in_object_decl(&mut ctx, &pkg_prefix, &pkg_prefix, obj, &mut out);
+            }
+            ast::Item::Fun(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::TypeAlias(_) => {}
+        }
+    }
+    out
+}
+
+fn collect_classes_in_type_decl(
+    ctx: &mut HirLowering<'_>,
+    pkg_prefix: &str,
+    owner_prefix: &str,
+    decl: &ast::TypeDecl,
+    out: &mut ClassInitIndex,
+) {
+    let name = decl.name.text(ctx.source).to_string();
+    let type_fqn = join_prefix(owner_prefix, &name);
+
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        collect_class_decl_init(ctx, pkg_prefix, &type_fqn, decl, out);
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_classes_in_type_decl(ctx, pkg_prefix, &type_fqn, nested, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_classes_in_object_decl(ctx, pkg_prefix, &type_fqn, obj, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_classes_in_object_decl(
+    ctx: &mut HirLowering<'_>,
+    pkg_prefix: &str,
+    owner_prefix: &str,
+    obj: &ast::ObjectDecl,
+    out: &mut ClassInitIndex,
+) {
+    let Some(name) = object_decl_name(ctx.source, obj) else {
+        return;
+    };
+    let obj_fqn = join_prefix(owner_prefix, &name);
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_classes_in_type_decl(ctx, pkg_prefix, &obj_fqn, nested, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_classes_in_object_decl(ctx, pkg_prefix, &obj_fqn, nested, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_class_decl_init(
+    ctx: &mut HirLowering<'_>,
+    pkg_prefix: &str,
+    class_fqn: &str,
+    decl: &ast::TypeDecl,
+    out: &mut ClassInitIndex,
+) {
+    // resolver 使用 class name 的 span 作为 `this` 的 decl_span（T0313），因此这里提前 intern，
+    // 以便后续 lowering 的 init blocks/ctor bodies 与 codegen 使用同一个 `SymbolId`。
+    let this_id = ctx.intern_local_symbol(decl.name.span, false);
+
+    let mut init = ClassInit {
+        fqn: class_fqn.to_string(),
+        this_id,
+        fields: Vec::new(),
+        field_indices: HashMap::new(),
+        steps: Vec::new(),
+        ctors: Vec::new(),
+    };
+
+    let insert_field = |init: &mut ClassInit, field: ClassField| {
+        if init.field_indices.contains_key(&field.fqn) {
+            return;
+        }
+        let idx = init.fields.len() as u32;
+        init.field_indices.insert(field.fqn.clone(), idx);
+        init.fields.push(field);
+    };
+
+    // primary ctor（若存在）。注意：resolver 当前只会把“显式 primary ctor”加入 constructors overload set，
+    // 因此这里也只收集显式 primary ctor。
+    if let Some(primary) = &decl.primary_ctor {
+        let mut params: Vec<ClassCtorParam> = Vec::with_capacity(primary.params.len());
+        for p in &primary.params {
+            let name = p.name.text(ctx.source).to_string();
+            let id = ctx.intern_local_symbol(p.name.span, false);
+            let ty =
+                p.ty.as_ref()
+                    .map(|t| ctx.lower_type_ref(t))
+                    .unwrap_or(ctx.builtins.any);
+            let is_property = p.kind.is_some();
+            let property_field_fqn = is_property.then(|| format!("{class_fqn}.{name}"));
+
+            params.push(ClassCtorParam {
+                id,
+                name: name.clone(),
+                decl_span: p.name.span,
+                ty,
+                has_default: p.default_value.is_some(),
+                is_property,
+                property_field_fqn: property_field_fqn.clone(),
+            });
+
+            // `class C(val x: T)`：`x` 同时声明字段/属性，因此需要参与实例 layout，
+            // 并在 ctor 执行时先从实参写入该字段（顺序由 codegen 决定）。
+            if let Some(field_fqn) = property_field_fqn {
+                let mutable = matches!(p.kind, Some(ast::ValKind::Var));
+                insert_field(
+                    &mut init,
+                    ClassField {
+                        fqn: field_fqn.clone(),
+                        name,
+                        mutable,
+                        ty,
+                    },
+                );
+            }
+        }
+
+        init.ctors.push(ClassCtor {
+            kind: ClassCtorKind::Primary,
+            span: primary.params_span,
+            params,
+            delegation: None,
+            body: None,
+        });
+    }
+
+    // type body：property initializer / init blocks / secondary ctors
+    if let Some(body) = &decl.body {
+        for member in &body.members {
+            match member {
+                ast::TypeMember::Property(p) => {
+                    // v0：只收集“具备 backing field” 的属性；delegate/getter/setter 的完整语义留到后续任务。
+                    if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
+                        continue;
+                    }
+
+                    let name = p.name.text(ctx.source).to_string();
+                    let field_fqn = format!("{class_fqn}.{name}");
+                    let mutable = matches!(p.kind, ast::ValKind::Var);
+                    let ty =
+                        p.ty.as_ref()
+                            .map(|t| ctx.lower_type_ref(t))
+                            .unwrap_or(ctx.builtins.any);
+
+                    insert_field(
+                        &mut init,
+                        ClassField {
+                            fqn: field_fqn.clone(),
+                            name,
+                            mutable,
+                            ty,
+                        },
+                    );
+
+                    if let Some(expr) = p.init.as_ref() {
+                        let lowered = ctx.lower_expr(pkg_prefix, expr);
+                        init.steps.push(ClassInitStep::PropertyInit { field_fqn, init: lowered });
+                    }
+                }
+                ast::TypeMember::InitBlock(b) => {
+                    let block = ctx.lower_block(pkg_prefix, &b.body);
+                    init.steps.push(ClassInitStep::InitBlock { block });
+                }
+                ast::TypeMember::SecondaryCtor(ctor) => {
+                    let mut params: Vec<ClassCtorParam> = Vec::with_capacity(ctor.params.len());
+                    for p in &ctor.params {
+                        let name = p.name.text(ctx.source).to_string();
+                        let id = ctx.intern_local_symbol(p.name.span, false);
+                        let ty =
+                            p.ty.as_ref()
+                                .map(|t| ctx.lower_type_ref(t))
+                                .unwrap_or(ctx.builtins.any);
+                        params.push(ClassCtorParam {
+                            id,
+                            name,
+                            decl_span: p.name.span,
+                            ty,
+                            has_default: p.default_value.is_some(),
+                            is_property: false,
+                            property_field_fqn: None,
+                        });
+                    }
+
+                    let delegation = ctor.delegation_call.as_ref().map(|d| d.kind);
+                    let body = ctx.lower_block(pkg_prefix, &ctor.body);
+                    init.ctors.push(ClassCtor {
+                        kind: ClassCtorKind::Secondary,
+                        span: ctor.span,
+                        params,
+                        delegation,
+                        body: Some(body),
+                    });
+                }
+                ast::TypeMember::EnumVariant(_)
+                | ast::TypeMember::Fun(_)
+                | ast::TypeMember::Type(_)
+                | ast::TypeMember::Object(_) => {}
+            }
+        }
+    }
+
+    out.entry(class_fqn.to_string()).or_insert(init);
 }
 
 fn object_decl_name(source: &SourceFile, obj: &ast::ObjectDecl) -> Option<String> {

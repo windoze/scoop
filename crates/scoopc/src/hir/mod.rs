@@ -468,6 +468,92 @@ pub type EnumLayoutIndex = HashMap<String, EnumLayout>;
 ///   - `init { ... }` 初始化块
 pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 
+/// `class` 的初始化信息索引（Appendix B.2.2）。
+///
+/// 说明：
+/// - 与 `ObjectInitIndex` 类似，该索引作为后端 side table 使用，不影响 `dump-hir` 的输出稳定性；
+/// - 当前阶段主要用于 LLVM 后端在“构造调用点”内执行 Kotlin-like 初始化顺序：
+///   - 先初始化 primary ctor 的 `val/var` 参数属性；
+///   - 再按源码顺序执行 property initializer 与 `init {}` blocks；
+///   - 最后执行 secondary ctor body（若调用点选择了 secondary ctor）。
+pub type ClassInitIndex = HashMap<String, ClassInit>;
+
+/// 一个 class 的初始化顺序、字段信息与构造器集合。
+#[derive(Debug, Clone)]
+pub struct ClassInit {
+    pub fqn: String,
+    /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
+    pub this_id: SymbolId,
+    /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
+    pub fields: Vec<ClassField>,
+    /// `field fqn -> fields[] index` 的快速索引。
+    pub field_indices: HashMap<String, u32>,
+    /// primary ctor 的初始化步骤（按源码顺序执行；不包含 ctor 参数属性赋值）。
+    pub steps: Vec<ClassInitStep>,
+    /// 该 class 的构造器集合（primary + secondary）。
+    ///
+    /// 说明：当前阶段用它来在 codegen 时按“参数形状”选择要执行的 ctor。
+    pub ctors: Vec<ClassCtor>,
+}
+
+/// class 的一个字段（最小后端视图）。
+#[derive(Debug, Clone)]
+pub struct ClassField {
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+}
+
+/// class 初始化的一步（按源码顺序执行）。
+#[derive(Debug, Clone)]
+pub enum ClassInitStep {
+    /// 执行某个 property 的 initializer，并写入字段。
+    PropertyInit { field_fqn: String, init: Expr },
+    /// 执行 `init { ... }` block。
+    InitBlock { block: Block },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCtorKind {
+    Primary,
+    Secondary,
+}
+
+/// 一个 class 构造器（primary 或 secondary）的最小后端视图。
+#[derive(Debug, Clone)]
+pub struct ClassCtor {
+    pub kind: ClassCtorKind,
+    pub span: Span,
+    pub params: Vec<ClassCtorParam>,
+    /// secondary ctor 的 delegation（`this(...)` / `super(...)`）；primary ctor 为 None。
+    pub delegation: Option<ast::CtorDelegationKind>,
+    /// ctor body：secondary ctor 为 Some；primary ctor 为 None（其执行体由 `steps` 描述）。
+    pub body: Option<Block>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassCtorParam {
+    pub id: SymbolId,
+    pub name: String,
+    pub decl_span: Span,
+    pub ty: TypeId,
+    pub has_default: bool,
+    /// 该参数是否同时声明为 `val/var` 参数属性（仅 primary ctor 适用）。
+    pub is_property: bool,
+    /// 当 `is_property=true` 时，该属性对应的字段 FQN。
+    pub property_field_fqn: Option<String>,
+}
+
+/// 调用点的“构造候选集合”索引：callee span → candidate type fqns。
+///
+/// 说明：
+/// - resolver 会在 `ValueIdent.call` 中写回 call candidates（T0319），但 HIR v0 仍会把 ctor 调用
+///   的 callee 降为 `UnresolvedIdent`，以保持 dump 输出稳定；
+/// - LLVM codegen 需要知道“该 UnresolvedIdent 实际上是 ctor 调用”，因此这里把候选集合以 side table
+///   的形式保留下来。
+pub type CtorCallSiteIndex = HashMap<Span, Vec<String>>;
+
 /// 外部函数（`@Extern`）的最小后端视图。
 ///
 /// 说明：

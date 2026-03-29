@@ -172,6 +172,15 @@ impl<'a> BlockScopeChecker<'a> {
         // - property initializer / init block 只能访问在其之前已完成初始化的属性；
         // - method（fun namespace）不受该限制（Kotlin-like）。
         let mut init_visible_value_members: HashSet<String> = HashSet::new();
+        if matches!(ty.kind, ast::TypeKind::Class) {
+            // Kotlin-like：primary ctor 的 `val/var` 参数属性在进入 type body 之前就已“就绪”，
+            // 因此它们不应被 class init 的 forward reference 规则拦截。
+            for p in ctor_params {
+                if p.kind.is_some() {
+                    init_visible_value_members.insert(self.source.slice(p.name.span).to_string());
+                }
+            }
+        }
 
         for member in &mut body.members {
             match member {

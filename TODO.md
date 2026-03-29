@@ -4255,11 +4255,25 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1312 [TODO] 类初始化语义：property initializer / `init` / secondary constructor 顺序（Appendix B.2.2）
+### T1312 [DONE] 类初始化语义：property initializer / `init` / secondary constructor 顺序（Appendix B.2.2）
 - 描述：补齐 Kotlin-like 类初始化顺序与规则：属性初始化、多个 `init` block、secondary constructor body 的执行顺序和可见性边界。
 - 目标：先覆盖单类/单继承常见情况；复杂继承链细节后续扩展。
 - 验收：language fixture：初始化顺序输出稳定；非法在初始化早期访问未就绪成员时报错。
 - 依赖：T0256、T0257、T0448
+ - 完成：
+   - `crates/scoopc/src/hir/mod.rs`：引入 class 初始化 side table（`ClassInitIndex` / `ClassInitStep` / `ClassCtor` 等）与 ctor call-site candidates 索引（`CtorCallSiteIndex`），不影响 `dump-hir` 输出稳定性。
+   - `crates/scoopc/src/hir/lower.rs`：收集 class 字段/初始化步骤/构造器，并在 lowering 时记录 ctor 调用点候选集合供 LLVM codegen 使用。
+   - `crates/scoopc/src/resolve/scopes.rs`：初始化阶段的 forward-reference 可见集合预置 primary ctor `val/var` 参数属性，允许在 class init 期通过 `this.x` 访问它们。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - 支持 class ctor call：分配对象、按 Kotlin-like 顺序执行 property initializer + `init {}` blocks，并在选择 secondary ctor 时最后执行其 body；
+     - 支持 class 实例字段读取与写入（`this.x` / `obj.x` 以及 `this.x = ...`）。
+   - `crates/scoopc/src/llvm/mod.rs`：把 `class_inits` / `ctor_call_sites` 接线传入 `MainCodegen`。
+   - fixtures：
+     - `tests/fixtures/run-pass/class_init_order_primary_secondary_basic.*`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1313 [TODO] 标准 delegated properties：`lazy` / `observable` / `vetoable` / map-backed（spec §10.4）
 - 描述：在语言兼容层补齐标准 delegated properties 的行为与示例，确保 `by` 不只停留在语法和最小接口层。
