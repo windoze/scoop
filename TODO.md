@@ -4092,11 +4092,24 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1303 [TODO] object / companion object（Appendix B.9）
+### T1303 [DONE] object / companion object（Appendix B.9）
 - 描述：按需支持 singleton 对象声明与伴生对象。
 - 目标：先只实现语法与 name resolution；codegen 可后置。
 - 验收：parse+resolve fixture：object 声明可解析；引用解析正确。
 - 依赖：T0201、T0301
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ObjectDecl/ObjectKind`，并纳入顶层 `Item` 与 `TypeMember`。
+   - `crates/scoopc/src/parser/file.rs`：支持顶层 `object Name { ... }` 解析。
+   - `crates/scoopc/src/parser/decls.rs`：支持 `object Name { ... }` 与 `companion object [Name] { ... }`（并限制 `companion object` 只能出现在 class body）。
+   - `crates/scoopc/src/resolve/mod.rs`：object 同时进入 type/value 命名空间；未命名 companion object 使用隐式名 `Companion` 建立索引；并记录 class→companion object 关系用于后续解析。
+   - fixtures：
+     - `tests/fixtures/parse/object_and_companion_object_basic.scoop`（含 AST golden）
+     - `tests/fixtures/resolve/object_member_access_ok.scoop`
+     - `tests/fixtures/resolve/companion_member_access_via_class_name_ok.scoop`
+     - `tests/fixtures/resolve/missing_companion_object_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1304 [TODO] 范围与 for 协议（Appendix B.12）
 - 描述：实现 `for (x in range)` 语法与 lowering 到迭代协议（如 `iterator/next/hasNext`）。
