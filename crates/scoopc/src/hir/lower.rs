@@ -819,6 +819,8 @@ impl<'a> HirLowering<'a> {
                     (ExprKind::Call { callee, args }, self.builtins.any)
                 }
             }
+            // Appendix B.5.5：spread 仅在调用实参语境下有意义；HIR v0 暂不承载该语义。
+            ast::ExprKind::SpreadArg { .. } => (ExprKind::Todo("spread_arg"), self.builtins.any),
             ast::ExprKind::NamedArg { .. } => (ExprKind::Todo("named_arg"), self.builtins.any),
             ast::ExprKind::TupleLit { elements } => {
                 let elements: Vec<Expr> = elements

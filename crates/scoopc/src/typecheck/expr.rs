@@ -503,6 +503,31 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("spread 实参只能用于 vararg 形参：{callee}")]
+    #[diagnostic(code(scoop::typecheck::spread_arg_requires_vararg))]
+    SpreadArgRequiresVararg {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("spread 实参类型不支持：期望 Array/tuple，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::vararg_spread_requires_array_or_tuple))]
+    VarargSpreadRequiresArrayOrTuple {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("spread 实参的元素类型不匹配：期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::vararg_spread_element_type_mismatch))]
+    VarargSpreadElementTypeMismatch {
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("默认参数值类型不匹配：{fun} 的形参 `{param}` 期望 {expected}，但默认值为 {found}")]
     #[diagnostic(code(scoop::typecheck::default_param_value_type_mismatch))]
     DefaultParamValueTypeMismatch {
@@ -1099,6 +1124,12 @@ struct FunSigOwned {
     /// - 对于扩展函数，`params[0]` 是 receiver，占位为 `false`；
     /// - 当前阶段这里只需要“是否存在默认值”，不复制默认值表达式本体。
     param_has_defaults: Vec<bool>,
+    /// 形参是否为 `vararg`（与 `params` 对齐）。
+    ///
+    /// 说明：
+    /// - 当前阶段仅支持“至多一个 vararg，且必须为最后一个形参”（Kotlin-like；见 TODO T1308）；
+    /// - 对于扩展函数，receiver 占位参数恒为 `false`。
+    param_is_vararg: Vec<bool>,
     /// 函数级 type params（按声明顺序）。
     ///
     /// 用途（T0505）：
@@ -2359,6 +2390,7 @@ fn collect_member_method_signatures_from_index(
             is_intrinsic: o.sig.builtin_flags.is_intrinsic,
             param_names,
             param_has_defaults,
+            param_is_vararg: vec![false; params.len()],
             type_params,
             eff_param: None,
             param_fn_effect_eff_base,
@@ -2666,12 +2698,14 @@ fn infer_add_sub_binary_expr_type(
             expr: lhs,
             ty: lhs_ty,
             is_int_lit: matches!(lhs.kind, ast::ExprKind::IntLit),
+            is_spread: false,
         },
         CallArgInfo {
             kind: CallArgKind::Positional,
             expr: rhs,
             ty: rhs_ty_for_selection,
             is_int_lit: matches!(rhs.kind, ast::ExprKind::IntLit),
+            is_spread: false,
         },
     ];
 
@@ -4030,6 +4064,7 @@ fn infer_handle_expr_type(
             is_intrinsic: false,
             param_names,
             param_has_defaults: vec![false; param_count],
+            param_is_vararg: vec![false; param_count],
             type_params: type_params.clone(),
             eff_param: None,
             param_fn_effect_eff_base: vec![None; param_count],
@@ -5362,6 +5397,7 @@ struct CallArgInfo<'a> {
     expr: &'a ast::Expr,
     ty: TypeId,
     is_int_lit: bool,
+    is_spread: bool,
 }
 
 /// 把 AST 的调用实参列表归一化为“用于重载筛选”的结构，并预先推导每个实参表达式的类型。
@@ -5389,13 +5425,17 @@ fn collect_call_arg_infos<'a>(
                 let name_text = source.slice(name.span).to_string();
                 let name_span = name.span;
                 let expr = value.as_ref();
-                let ty = match expr.kind {
+                let (expr_for_ty, is_spread) = match &expr.kind {
+                    ast::ExprKind::SpreadArg { expr: inner, .. } => (inner.as_ref(), true),
+                    _ => (expr, false),
+                };
+                let ty = match expr_for_ty.kind {
                     // lambda 的类型通常依赖 expected type；在“预收集实参信息”阶段先用占位类型，
                     // 以便后续在“已选定签名”的语境下重新 typecheck（T0504）。
                     ast::ExprKind::Lambda(_) => builtins.any,
                     _ => infer_expr_type(
                         source,
-                        expr,
+                        expr_for_ty,
                         lower,
                         builtins,
                         locals,
@@ -5411,15 +5451,20 @@ fn collect_call_arg_infos<'a>(
                     },
                     expr,
                     ty,
-                    is_int_lit: matches!(expr.kind, ast::ExprKind::IntLit),
+                    is_int_lit: matches!(expr_for_ty.kind, ast::ExprKind::IntLit),
+                    is_spread,
                 });
             }
             _ => {
-                let ty = match arg.kind {
+                let (expr_for_ty, is_spread) = match &arg.kind {
+                    ast::ExprKind::SpreadArg { expr: inner, .. } => (inner.as_ref(), true),
+                    _ => (arg, false),
+                };
+                let ty = match expr_for_ty.kind {
                     ast::ExprKind::Lambda(_) => builtins.any,
                     _ => infer_expr_type(
                         source,
-                        arg,
+                        expr_for_ty,
                         lower,
                         builtins,
                         locals,
@@ -5432,7 +5477,8 @@ fn collect_call_arg_infos<'a>(
                     kind: CallArgKind::Positional,
                     expr: arg,
                     ty,
-                    is_int_lit: matches!(arg.kind, ast::ExprKind::IntLit),
+                    is_int_lit: matches!(expr_for_ty.kind, ast::ExprKind::IntLit),
+                    is_spread,
                 });
             }
         }
@@ -5660,6 +5706,179 @@ fn map_call_args_to_params_with_defaults(
     Some(mapping)
 }
 
+#[derive(Debug, Clone)]
+enum ParamArgBinding {
+    /// 该形参由默认值补齐（调用点未提供实参）。
+    Default,
+    /// 单个实参绑定到该形参。
+    Single(usize),
+    /// `vararg` 形参：绑定到 0..N 个实参（按调用点顺序）。
+    Vararg(Vec<usize>),
+}
+
+fn vararg_param_index(param_is_vararg: &[bool]) -> Option<usize> {
+    let mut found: Option<usize> = None;
+    for (idx, is_vararg) in param_is_vararg.iter().copied().enumerate() {
+        if !is_vararg {
+            continue;
+        }
+        if found.is_some() {
+            // 当前阶段：只支持一个 vararg；多于一个视为“无法映射”。
+            return None;
+        }
+        found = Some(idx);
+    }
+    found
+}
+
+fn expand_param_arg_pairs(mapping: &[ParamArgBinding]) -> Vec<(usize, usize)> {
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for (param_idx, binding) in mapping.iter().enumerate() {
+        match binding {
+            ParamArgBinding::Default => {}
+            ParamArgBinding::Single(arg_idx) => out.push((param_idx, *arg_idx)),
+            ParamArgBinding::Vararg(arg_idxs) => {
+                out.extend(arg_idxs.iter().copied().map(|arg_idx| (param_idx, arg_idx)));
+            }
+        }
+    }
+    out
+}
+
+fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -> Option<usize> {
+    if param_has_defaults.len() != param_is_vararg.len() {
+        return None;
+    }
+
+    let mut required = 0usize;
+    for (has_default, is_vararg) in param_has_defaults.iter().copied().zip(param_is_vararg.iter().copied()) {
+        if is_vararg {
+            // Kotlin-like：vararg 可接受 0 个参数，因此不计入 required。
+            continue;
+        }
+        if !has_default {
+            required += 1;
+        }
+    }
+    Some(required)
+}
+
+fn map_call_args_to_params_with_defaults_and_varargs(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+    param_is_vararg: &[bool],
+) -> Option<Vec<ParamArgBinding>> {
+    if param_names.len() != param_has_defaults.len() || param_names.len() != param_is_vararg.len() {
+        return None;
+    }
+
+    let vararg_idx = vararg_param_index(param_is_vararg);
+    if let Some(vararg_idx) = vararg_idx {
+        // 当前阶段最小规则：vararg 必须为最后一个形参。
+        if vararg_idx + 1 != param_names.len() {
+            return None;
+        }
+    }
+
+    // 无 vararg 时：默认参数允许“少传”，但不能“多传”。
+    if vararg_idx.is_none() && call_args.len() > param_names.len() {
+        return None;
+    }
+
+    let required = required_param_count(param_has_defaults, param_is_vararg)?;
+    if call_args.len() < required {
+        return None;
+    }
+
+    // Kotlin-like：命名实参之后不能再出现位置实参（该规则已由 `check_call_arg_named_rules` 检查）。
+    // 这里仅用于找到“位置实参段”的长度。
+    let mut positional_count = 0usize;
+    for arg in call_args {
+        match arg.kind {
+            CallArgKind::Positional => positional_count += 1,
+            CallArgKind::Named { .. } => break,
+        }
+    }
+
+    let mut mapping: Vec<ParamArgBinding> = vec![ParamArgBinding::Default; param_names.len()];
+    let mut vararg_args: Vec<usize> = Vec::new();
+
+    // 1) 位置实参：按从左到右依次绑定到形参（不跳槽）。
+    let mut next_param = 0usize;
+    for arg_idx in 0..positional_count {
+        let Some(v_idx) = vararg_idx else {
+            if next_param >= param_names.len() {
+                return None;
+            }
+            mapping[next_param] = ParamArgBinding::Single(arg_idx);
+            next_param += 1;
+            continue;
+        };
+
+        if next_param < v_idx {
+            mapping[next_param] = ParamArgBinding::Single(arg_idx);
+            next_param += 1;
+            continue;
+        }
+
+        // `vararg` 形参：接收剩余全部位置实参。
+        vararg_args.push(arg_idx);
+    }
+
+    // 2) 命名实参：按 name 匹配形参槽位。
+    for (arg_idx, arg) in call_args.iter().enumerate().skip(positional_count) {
+        let CallArgKind::Named { name, .. } = &arg.kind else {
+            return None;
+        };
+
+        let slot_idx = param_names.iter().position(|p| p == name)?;
+        if Some(slot_idx) == vararg_idx {
+            vararg_args.push(arg_idx);
+            continue;
+        }
+
+        match mapping.get(slot_idx) {
+            Some(ParamArgBinding::Default) => {}
+            _ => return None, // 同一形参不能被重复赋值（位置 + 命名）
+        }
+        mapping[slot_idx] = ParamArgBinding::Single(arg_idx);
+    }
+
+    // 3) 未填充的非-vararg 槽位必须有默认值。
+    for (idx, binding) in mapping.iter().enumerate() {
+        if Some(idx) == vararg_idx {
+            continue;
+        }
+        if !matches!(binding, ParamArgBinding::Default) {
+            continue;
+        }
+        if !param_has_defaults.get(idx).copied().unwrap_or(false) {
+            return None;
+        }
+    }
+
+    // 4) 写回 vararg 槽位（可为空）。
+    if let Some(vararg_idx) = vararg_idx {
+        mapping[vararg_idx] = ParamArgBinding::Vararg(vararg_args);
+    }
+
+    Some(mapping)
+}
+
+fn spread_operand_element_types(operand_ty: TypeId, lower: &TypeLowering<'_>) -> Option<Vec<TypeId>> {
+    match lower.type_kind(operand_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+            if n.fqn == "scoop.core.Array" && n.args.len() == 1 {
+                return Some(vec![n.args[0]]);
+            }
+            None
+        }
+        TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
+        _ => None,
+    }
+}
+
 fn infer_function_value_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -5883,11 +6102,14 @@ fn collect_top_level_fun_signatures_from_index(
         let mut param_names = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
         let mut param_has_defaults =
             Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
+        let mut param_is_vararg =
+            Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
         let mut params = Vec::with_capacity(o.sig.params.len() + usize::from(is_extension));
 
         if let Some(receiver) = &o.sig.receiver {
             param_names.push("<receiver>".to_string());
             param_has_defaults.push(false);
+            param_is_vararg.push(false);
             let receiver_ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
@@ -5903,6 +6125,7 @@ fn collect_top_level_fun_signatures_from_index(
             };
             param_names.push(p.name.clone());
             param_has_defaults.push(p.has_default);
+            param_is_vararg.push(false);
             let ty = lower.lower_type_ref_in_decl_file_with_scopes(
                 &o.symbol.decl_file,
                 type_param_bindings.iter().cloned(),
@@ -5996,6 +6219,7 @@ fn collect_top_level_fun_signatures_from_index(
             is_intrinsic: o.sig.builtin_flags.is_intrinsic,
             param_names,
             param_has_defaults,
+            param_is_vararg,
             type_params: type_params.clone(),
             eff_param: eff_param_sig.clone(),
             param_fn_effect_eff_base,
@@ -6300,81 +6524,160 @@ fn infer_call_expr_type(
                 //
                 // 注意：当前阶段只做“候选可用性/形参映射/类型检查”，不在 AST/HIR 层补齐默认值表达式
                 //（默认值补齐语义留给后续任务 T1305）。
-                if call_args.len() > sig.params.len() {
-                    return Err(ExprTypeError::CallArityMismatch {
-                        callee: callee_fqn,
-                        expected: sig.params.len(),
-                        found: call_args.len(),
-                        span: call_expr.span.into(),
-                    });
-                }
+                let has_vararg = vararg_param_index(&sig.param_is_vararg).is_some();
 
-                let required = sig.param_has_defaults.iter().filter(|d| !**d).count();
-                if call_args.len() < required {
-                    return Err(ExprTypeError::CallArityMismatch {
-                        callee: callee_fqn,
-                        expected: required,
-                        found: call_args.len(),
-                        span: call_expr.span.into(),
-                    });
-                }
+                let mapping: Vec<ParamArgBinding> = if !has_vararg {
+                    // 旧路径：保持原有 arity mismatch 诊断行为。
+                    if call_args.len() > sig.params.len() {
+                        return Err(ExprTypeError::CallArityMismatch {
+                            callee: callee_fqn,
+                            expected: sig.params.len(),
+                            found: call_args.len(),
+                            span: call_expr.span.into(),
+                        });
+                    }
 
-                let Some(mapping) = map_call_args_to_params_with_defaults(
-                    &call_args,
-                    &sig.param_names,
-                    &sig.param_has_defaults,
-                ) else {
-                    return Err(ExprTypeError::NoMatchingOverload {
-                        callee: callee_fqn,
-                        span: call_expr.span.into(),
-                    });
+                    let required = sig.param_has_defaults.iter().filter(|d| !**d).count();
+                    if call_args.len() < required {
+                        return Err(ExprTypeError::CallArityMismatch {
+                            callee: callee_fqn,
+                            expected: required,
+                            found: call_args.len(),
+                            span: call_expr.span.into(),
+                        });
+                    }
+
+                    let Some(mapping) = map_call_args_to_params_with_defaults(
+                        &call_args,
+                        &sig.param_names,
+                        &sig.param_has_defaults,
+                    ) else {
+                        return Err(ExprTypeError::NoMatchingOverload {
+                            callee: callee_fqn,
+                            span: call_expr.span.into(),
+                        });
+                    };
+
+                    mapping
+                        .into_iter()
+                        .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
+                        .collect()
+                } else {
+                    // vararg：允许“多传”，并把多余的实参归入 vararg 槽位。
+                    let required = required_param_count(&sig.param_has_defaults, &sig.param_is_vararg)
+                        .unwrap_or_else(|| sig.param_has_defaults.iter().filter(|d| !**d).count());
+                    if call_args.len() < required {
+                        return Err(ExprTypeError::CallArityMismatch {
+                            callee: callee_fqn,
+                            expected: required,
+                            found: call_args.len(),
+                            span: call_expr.span.into(),
+                        });
+                    }
+
+                    let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                        &call_args,
+                        &sig.param_names,
+                        &sig.param_has_defaults,
+                        &sig.param_is_vararg,
+                    ) else {
+                        return Err(ExprTypeError::NoMatchingOverload {
+                            callee: callee_fqn,
+                            span: call_expr.span.into(),
+                        });
+                    };
+                    mapping
                 };
 
-                let mut instantiated =
-                    match &explicit_type_args {
-                        Some(explicit_type_args) => {
-                            instantiate_fun_sig_for_call_with_explicit_type_args(
-                                &callee_fqn,
-                                call_expr.span,
-                                sig,
-                                explicit_type_args,
-                                lower,
-                            )?
+                // spread 实参只能绑定到 vararg 形参（Appendix B.5.5）。
+                for (param_idx, binding) in mapping.iter().enumerate() {
+                    match binding {
+                        ParamArgBinding::Default => {}
+                        ParamArgBinding::Single(arg_idx) => {
+                            if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                                return Err(ExprTypeError::SpreadArgRequiresVararg {
+                                    callee: callee_fqn.clone(),
+                                    span: call_args[*arg_idx].expr.span.into(),
+                                });
+                            }
                         }
-                        None => instantiate_fun_sig_for_call(
-                            &callee_fqn,
-                            call_expr.span,
-                            sig,
-                            mapping.iter().copied().enumerate().filter_map(
-                                |(param_idx, arg_idx)| {
-                                    let Some(arg_idx) = arg_idx else {
-                                        return None;
-                                    };
-                                    let arg = &call_args[arg_idx];
-                                    Some(GenericArgConstraint {
-                                        expected: sig.params[param_idx],
-                                        found: arg.ty,
-                                        found_is_placeholder: matches!(
-                                            arg.expr.kind,
-                                            ast::ExprKind::Lambda(_)
-                                        ),
-                                        from: format!("第 {} 个实参", arg_idx + 1),
-                                        span: arg.expr.span,
-                                    })
-                                },
-                            ),
-                            lower,
-                            builtins,
-                        )?,
-                    };
+                        ParamArgBinding::Vararg(_) => {
+                            // ok
+                            let _ = param_idx;
+                        }
+                    }
+                }
+
+                let mapping_pairs = expand_param_arg_pairs(&mapping);
+
+                let mut generic_constraints: Vec<GenericArgConstraint> =
+                    Vec::with_capacity(mapping_pairs.len());
+                if explicit_type_args.is_none() {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
+                            if !sig.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                                return Err(ExprTypeError::SpreadArgRequiresVararg {
+                                    callee: callee_fqn.clone(),
+                                    span: arg.expr.span.into(),
+                                });
+                            }
+
+                            let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                                return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
+                                    found: lower.fmt_type(arg.ty),
+                                    span: arg.expr.span.into(),
+                                });
+                            };
+                            for found_elem in elem_tys {
+                                generic_constraints.push(GenericArgConstraint {
+                                    expected: sig.params[param_idx],
+                                    found: found_elem,
+                                    found_is_placeholder: false,
+                                    from: format!("第 {} 个实参（spread）", arg_idx + 1),
+                                    span: arg.expr.span,
+                                });
+                            }
+                            continue;
+                        }
+
+                        generic_constraints.push(GenericArgConstraint {
+                            expected: sig.params[param_idx],
+                            found: arg.ty,
+                            found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                            from: format!("第 {} 个实参", arg_idx + 1),
+                            span: arg.expr.span,
+                        });
+                    }
+                }
+
+                let mut instantiated = match &explicit_type_args {
+                    Some(explicit_type_args) => instantiate_fun_sig_for_call_with_explicit_type_args(
+                        &callee_fqn,
+                        call_expr.span,
+                        sig,
+                        explicit_type_args,
+                        lower,
+                    )?,
+                    None => instantiate_fun_sig_for_call(
+                        &callee_fqn,
+                        call_expr.span,
+                        sig,
+                        generic_constraints,
+                        lower,
+                        builtins,
+                    )?,
+                };
 
                 // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
-                let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
-                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                    let Some(arg_idx) = arg_idx else {
-                        continue;
-                    };
+                let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
+                    if arg.is_spread {
+                        // spread operand 在 `collect_call_arg_infos` 中已经被 typecheck，这里无需再次进入 expected-context。
+                        continue;
+                    }
+
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = infer_expr_type_in_expected_context(
                         source,
@@ -6405,10 +6708,11 @@ fn infer_call_expr_type(
                     // T0624/T0628a：从 `Type<eff Row>` 的“实参类型”中提取 row 约束。
                     //
                     // 约束形态：`found ⊆ (E + base)`，因此对 `E` 的最小贡献为 `found - base`。
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
                             continue;
-                        };
+                        }
                         let Some(base) = sig
                             .param_nominal_eff_eff_base
                             .get(param_idx)
@@ -6433,10 +6737,11 @@ fn infer_call_expr_type(
                     }
 
                     // T0509/T0628a：从 lambda body 的 required effects 推断 `E`（同样按 `found - base` 提取增量）。
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
                             continue;
-                        };
+                        }
                         let Some(base) = sig
                             .param_fn_effect_eff_base
                             .get(param_idx)
@@ -6445,7 +6750,6 @@ fn infer_call_expr_type(
                             continue;
                         };
 
-                        let arg = &call_args[arg_idx];
                         if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                             continue;
                         }
@@ -6488,13 +6792,38 @@ fn infer_call_expr_type(
                 )?;
 
                 // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
-                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                    let Some(arg_idx) = arg_idx else {
-                        continue;
-                    };
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
+
+                    if arg.is_spread {
+                        if !sig.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                            return Err(ExprTypeError::SpreadArgRequiresVararg {
+                                callee: callee_fqn.clone(),
+                                span: arg.expr.span.into(),
+                            });
+                        }
+
+                        let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                            return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
+                                found: lower.fmt_type(found_ty),
+                                span: arg.expr.span.into(),
+                            });
+                        };
+
+                        for elem_ty in elem_tys {
+                            if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                                continue;
+                            }
+                            return Err(ExprTypeError::VarargSpreadElementTypeMismatch {
+                                expected: lower.fmt_type(expected_ty),
+                                found: lower.fmt_type(elem_ty),
+                                span: arg.expr.span.into(),
+                            });
+                        }
+                        continue;
+                    }
 
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         check_nogc_boxing_gate(
@@ -6648,67 +6977,106 @@ fn infer_call_expr_type(
 
             let mut matched: Vec<MatchedFunOverload<'_>> = Vec::new();
             for cand in direct_call_candidates {
-                let Some(mapping) = map_call_args_to_params_with_defaults(
+                let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
                     &call_args,
                     &cand.param_names,
                     &cand.param_has_defaults,
+                    &cand.param_is_vararg,
                 ) else {
                     continue;
                 };
 
-                let mut instantiated =
-                    match &explicit_type_args {
-                        Some(explicit_type_args) => {
-                            match instantiate_fun_sig_for_call_with_explicit_type_args(
-                                &callee_fqn,
-                                call_expr.span,
-                                cand,
-                                explicit_type_args,
-                                lower,
-                            ) {
-                                Ok(s) => s,
-                                Err(_) => continue,
+                // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
+                let mut ok = true;
+                for binding in mapping.iter() {
+                    match binding {
+                        ParamArgBinding::Default => {}
+                        ParamArgBinding::Single(arg_idx) => {
+                            if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                                ok = false;
+                                break;
                             }
                         }
-                        None => match instantiate_fun_sig_for_call(
-                            &callee_fqn,
-                            call_expr.span,
-                            cand,
-                            mapping.iter().copied().enumerate().filter_map(
-                                |(param_idx, arg_idx)| {
-                                    let Some(arg_idx) = arg_idx else {
-                                        return None;
-                                    };
-                                    let arg = &call_args[arg_idx];
-                                    Some(GenericArgConstraint {
-                                        expected: cand.params[param_idx],
-                                        found: arg.ty,
-                                        found_is_placeholder: matches!(
-                                            arg.expr.kind,
-                                            ast::ExprKind::Lambda(_)
-                                        ),
-                                        from: format!("第 {} 个实参", arg_idx + 1),
-                                        span: arg.expr.span,
-                                    })
-                                },
-                            ),
-                            lower,
-                            builtins,
-                        ) {
-                            Ok(s) => s,
-                            Err(_) => continue,
-                        },
-                    };
+                        ParamArgBinding::Vararg(_) => {}
+                    }
+                }
+                if !ok {
+                    continue;
+                }
+
+                let mapping_pairs = expand_param_arg_pairs(&mapping);
+
+                let mut generic_constraints: Vec<GenericArgConstraint> =
+                    Vec::with_capacity(mapping_pairs.len());
+                if explicit_type_args.is_none() {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
+                            if !cand.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                                ok = false;
+                                break;
+                            }
+                            let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                                ok = false;
+                                break;
+                            };
+                            for found_elem in elem_tys {
+                                generic_constraints.push(GenericArgConstraint {
+                                    expected: cand.params[param_idx],
+                                    found: found_elem,
+                                    found_is_placeholder: false,
+                                    from: format!("第 {} 个实参（spread）", arg_idx + 1),
+                                    span: arg.expr.span,
+                                });
+                            }
+                            continue;
+                        }
+
+                        generic_constraints.push(GenericArgConstraint {
+                            expected: cand.params[param_idx],
+                            found: arg.ty,
+                            found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                            from: format!("第 {} 个实参", arg_idx + 1),
+                            span: arg.expr.span,
+                        });
+                    }
+                }
+                if !ok {
+                    continue;
+                }
+
+                let mut instantiated = match &explicit_type_args {
+                    Some(explicit_type_args) => match instantiate_fun_sig_for_call_with_explicit_type_args(
+                        &callee_fqn,
+                        call_expr.span,
+                        cand,
+                        explicit_type_args,
+                        lower,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    },
+                    None => match instantiate_fun_sig_for_call(
+                        &callee_fqn,
+                        call_expr.span,
+                        cand,
+                        generic_constraints,
+                        lower,
+                        builtins,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    },
+                };
 
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
-                let mut ok = true;
                 let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
-                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                    let Some(arg_idx) = arg_idx else {
-                        continue;
-                    };
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
+                    if arg.is_spread {
+                        continue;
+                    }
                     if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                         continue;
                     }
@@ -6749,10 +7117,11 @@ fn infer_call_expr_type(
                 let eff_arg = if let Some(eff_param) = &cand.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
                             continue;
-                        };
+                        }
                         let Some(base) = cand
                             .param_nominal_eff_eff_base
                             .get(param_idx)
@@ -6779,10 +7148,11 @@ fn infer_call_expr_type(
                         }
                     }
 
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else {
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                        let arg = &call_args[arg_idx];
+                        if arg.is_spread {
                             continue;
-                        };
+                        }
                         let Some(base) = cand
                             .param_fn_effect_eff_base
                             .get(param_idx)
@@ -6791,7 +7161,6 @@ fn infer_call_expr_type(
                             continue;
                         };
 
-                        let arg = &call_args[arg_idx];
                         if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                             continue;
                         }
@@ -6846,13 +7215,32 @@ fn infer_call_expr_type(
                 if !ok {
                     continue;
                 }
-                for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                    let Some(arg_idx) = arg_idx else {
-                        continue;
-                    };
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
                     let found_ty = checked_arg_tys[arg_idx];
+
+                    if arg.is_spread {
+                        if !cand.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                            ok = false;
+                            break;
+                        }
+                        let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                            ok = false;
+                            break;
+                        };
+                        for elem_ty in elem_tys {
+                            if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                                continue;
+                            }
+                            ok = false;
+                            break;
+                        }
+                        if !ok {
+                            break;
+                        }
+                        continue;
+                    }
 
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         continue;
@@ -6865,12 +7253,12 @@ fn infer_call_expr_type(
                 }
 
                 if ok {
-                    let defaults_used = mapping.iter().filter(|x| x.is_none()).count();
+                    let defaults_used = mapping
+                        .iter()
+                        .filter(|b| matches!(b, ParamArgBinding::Default))
+                        .count();
                     let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
-                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                        let Some(arg_idx) = arg_idx else {
-                            continue;
-                        };
+                    for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                         expected_arg_tys[arg_idx] = instantiated.params[param_idx];
                     }
 
@@ -7899,6 +8287,7 @@ fn infer_effect_op_call_expr_type(
         is_intrinsic: false,
         param_names,
         param_has_defaults: vec![false; param_count],
+        param_is_vararg: vec![false; param_count],
         type_params,
         eff_param: None,
         param_fn_effect_eff_base: vec![None; param_count],
@@ -8428,14 +8817,6 @@ fn infer_member_call_expr_type(
         check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         let expected_args = sig.params.len().saturating_sub(1);
-        if call_args.len() > expected_args {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: callee_fqn,
-                expected: expected_args,
-                found: call_args.len(),
-                span: call_expr.span.into(),
-            });
-        }
 
         let Some(param_names) = sig.param_names.get(1..) else {
             // 健壮性：扩展函数至少应该包含 receiver 的占位形参名。
@@ -8450,8 +8831,29 @@ fn infer_member_call_expr_type(
                 span: member.span.into(),
             });
         };
+        let Some(param_is_vararg) = sig.param_is_vararg.get(1..) else {
+            return Err(ExprTypeError::CalleeNotCallable {
+                callee: callee_fqn,
+                span: member.span.into(),
+            });
+        };
 
-        let required = param_has_defaults.iter().filter(|d| !**d).count();
+        let has_vararg = vararg_param_index(param_is_vararg).is_some();
+        if !has_vararg && call_args.len() > expected_args {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: callee_fqn,
+                expected: expected_args,
+                found: call_args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+
+        let required = if has_vararg {
+            required_param_count(param_has_defaults, param_is_vararg)
+                .unwrap_or_else(|| param_has_defaults.iter().filter(|d| !**d).count())
+        } else {
+            param_has_defaults.iter().filter(|d| !**d).count()
+        };
         if call_args.len() < required {
             return Err(ExprTypeError::CallArityMismatch {
                 callee: callee_fqn,
@@ -8461,14 +8863,90 @@ fn infer_member_call_expr_type(
             });
         }
 
-        let Some(mapping) =
-            map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
-        else {
-            return Err(ExprTypeError::NoMatchingOverload {
-                callee: callee_fqn,
-                span: call_expr.span.into(),
-            });
+        let mapping: Vec<ParamArgBinding> = if !has_vararg {
+            let Some(mapping) =
+                map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
+            else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_fqn,
+                    span: call_expr.span.into(),
+                });
+            };
+            mapping
+                .into_iter()
+                .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
+                .collect()
+        } else {
+            let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                &call_args,
+                param_names,
+                param_has_defaults,
+                param_is_vararg,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: callee_fqn,
+                    span: call_expr.span.into(),
+                });
+            };
+            mapping
         };
+
+        // spread 实参只能绑定到 vararg 形参。
+        for binding in mapping.iter() {
+            if let ParamArgBinding::Single(arg_idx) = binding {
+                if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                    return Err(ExprTypeError::SpreadArgRequiresVararg {
+                        callee: callee_fqn.clone(),
+                        span: call_args[*arg_idx].expr.span.into(),
+                    });
+                }
+            }
+        }
+        let mapping_pairs = expand_param_arg_pairs(&mapping);
+
+        let mut arg_constraints: Vec<GenericArgConstraint> = Vec::new();
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+            let sig_param_idx = param_idx + 1; // 跳过 receiver
+            let arg = &call_args[arg_idx];
+            if arg.is_spread {
+                if !sig
+                    .param_is_vararg
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    return Err(ExprTypeError::SpreadArgRequiresVararg {
+                        callee: callee_fqn.clone(),
+                        span: arg.expr.span.into(),
+                    });
+                }
+
+                let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                    return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
+                        found: lower.fmt_type(arg.ty),
+                        span: arg.expr.span.into(),
+                    });
+                };
+                for found_elem in elem_tys {
+                    arg_constraints.push(GenericArgConstraint {
+                        expected: sig.params[sig_param_idx],
+                        found: found_elem,
+                        found_is_placeholder: false,
+                        from: format!("第 {} 个实参（spread）", arg_idx + 1),
+                        span: arg.expr.span,
+                    });
+                }
+                continue;
+            }
+
+            arg_constraints.push(GenericArgConstraint {
+                expected: sig.params[sig_param_idx],
+                found: arg.ty,
+                found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                from: format!("第 {} 个实参", arg_idx + 1),
+                span: arg.expr.span,
+            });
+        }
 
         let mut instantiated = instantiate_fun_sig_for_call(
             &callee_fqn,
@@ -8481,21 +8959,7 @@ fn infer_member_call_expr_type(
                 from: "接收者（receiver）".to_string(),
                 span: receiver.span,
             })
-            .chain(mapping.iter().copied().enumerate().filter_map(
-                |(param_idx, arg_idx)| {
-                    let Some(arg_idx) = arg_idx else {
-                        return None;
-                    };
-                    let arg = &call_args[arg_idx];
-                    Some(GenericArgConstraint {
-                        expected: sig.params[param_idx + 1],
-                        found: arg.ty,
-                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
-                        from: format!("第 {} 个实参", arg_idx + 1),
-                        span: arg.expr.span,
-                    })
-                },
-            )),
+            .chain(arg_constraints.into_iter()),
             lower,
             builtins,
         )?;
@@ -8533,13 +8997,13 @@ fn infer_member_call_expr_type(
         }
 
         // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
-        let mut checked_arg_tys: Vec<TypeId> = vec![builtins.nothing; call_args.len()];
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
+        let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
+            if arg.is_spread {
+                continue;
+            }
             let found_ty = infer_expr_type_in_expected_context(
                 source,
                 arg.expr,
@@ -8585,10 +9049,11 @@ fn infer_member_call_expr_type(
                 }
             }
 
-            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                let Some(arg_idx) = arg_idx else {
+            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                let arg = &call_args[arg_idx];
+                if arg.is_spread {
                     continue;
-                };
+                }
                 let sig_param_idx = param_idx + 1; // 跳过 receiver
 
                 // `Type<eff Row>` 形参约束。
@@ -8618,7 +9083,6 @@ fn infer_member_call_expr_type(
                 else {
                     continue;
                 };
-                let arg = &call_args[arg_idx];
                 if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                     continue;
                 }
@@ -8682,13 +9146,43 @@ fn infer_member_call_expr_type(
         }
 
         // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
             let found_ty = checked_arg_tys[arg_idx];
+
+            if arg.is_spread {
+                let sig_param_idx = param_idx + 1;
+                if !sig
+                    .param_is_vararg
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    return Err(ExprTypeError::SpreadArgRequiresVararg {
+                        callee: callee_fqn.clone(),
+                        span: arg.expr.span.into(),
+                    });
+                }
+
+                let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                    return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
+                        found: lower.fmt_type(found_ty),
+                        span: arg.expr.span.into(),
+                    });
+                };
+                for elem_ty in elem_tys {
+                    if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                        continue;
+                    }
+                    return Err(ExprTypeError::VarargSpreadElementTypeMismatch {
+                        expected: lower.fmt_type(expected_ty),
+                        found: lower.fmt_type(elem_ty),
+                        span: arg.expr.span.into(),
+                    });
+                }
+                continue;
+            }
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
@@ -8822,11 +9316,80 @@ fn infer_member_call_expr_type(
         let Some(param_has_defaults) = cand.param_has_defaults.get(1..) else {
             continue;
         };
-        let Some(mapping) =
-            map_call_args_to_params_with_defaults(&call_args, param_names, param_has_defaults)
-        else {
+        let Some(param_is_vararg) = cand.param_is_vararg.get(1..) else {
             continue;
         };
+
+        let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+            &call_args,
+            param_names,
+            param_has_defaults,
+            param_is_vararg,
+        ) else {
+            continue;
+        };
+
+        // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
+        let mut ok = true;
+        for binding in mapping.iter() {
+            match binding {
+                ParamArgBinding::Default => {}
+                ParamArgBinding::Single(arg_idx) => {
+                    if call_args.get(*arg_idx).is_some_and(|a| a.is_spread) {
+                        ok = false;
+                        break;
+                    }
+                }
+                ParamArgBinding::Vararg(_) => {}
+            }
+        }
+        if !ok {
+            continue;
+        }
+
+        let mapping_pairs = expand_param_arg_pairs(&mapping);
+
+        let mut arg_constraints: Vec<GenericArgConstraint> = Vec::new();
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+            let sig_param_idx = param_idx + 1; // 跳过 receiver
+            let arg = &call_args[arg_idx];
+            if arg.is_spread {
+                if !cand
+                    .param_is_vararg
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    ok = false;
+                    break;
+                }
+                let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                    ok = false;
+                    break;
+                };
+                for found_elem in elem_tys {
+                    arg_constraints.push(GenericArgConstraint {
+                        expected: cand.params[sig_param_idx],
+                        found: found_elem,
+                        found_is_placeholder: false,
+                        from: format!("第 {} 个实参（spread）", arg_idx + 1),
+                        span: arg.expr.span,
+                    });
+                }
+                continue;
+            }
+
+            arg_constraints.push(GenericArgConstraint {
+                expected: cand.params[sig_param_idx],
+                found: arg.ty,
+                found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                from: format!("第 {} 个实参", arg_idx + 1),
+                span: arg.expr.span,
+            });
+        }
+        if !ok {
+            continue;
+        }
 
         let mut instantiated = match instantiate_fun_sig_for_call(
             &callee_fqn,
@@ -8839,21 +9402,7 @@ fn infer_member_call_expr_type(
                 from: "接收者（receiver）".to_string(),
                 span: receiver.span,
             })
-            .chain(mapping.iter().copied().enumerate().filter_map(
-                |(param_idx, arg_idx)| {
-                    let Some(arg_idx) = arg_idx else {
-                        return None;
-                    };
-                    let arg = &call_args[arg_idx];
-                    Some(GenericArgConstraint {
-                        expected: cand.params[param_idx + 1],
-                        found: arg.ty,
-                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
-                        from: format!("第 {} 个实参", arg_idx + 1),
-                        span: arg.expr.span,
-                    })
-                },
-            )),
+            .chain(arg_constraints.into_iter()),
             lower,
             builtins,
         ) {
@@ -8887,11 +9436,11 @@ fn infer_member_call_expr_type(
         // 只在需要时（lambda）进入 expected-context typecheck（与 direct call 多候选路径保持一致）。
         let mut ok = true;
         let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let arg = &call_args[arg_idx];
+            if arg.is_spread {
+                continue;
+            }
             if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                 continue;
             }
@@ -8953,10 +9502,11 @@ fn infer_member_call_expr_type(
                 }
             }
 
-            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                let Some(arg_idx) = arg_idx else {
+            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                let arg = &call_args[arg_idx];
+                if arg.is_spread {
                     continue;
-                };
+                }
                 let sig_param_idx = param_idx + 1; // 跳过 receiver
 
                 if let Some(base) = cand
@@ -8988,7 +9538,6 @@ fn infer_member_call_expr_type(
                 else {
                     continue;
                 };
-                let arg = &call_args[arg_idx];
                 if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
                     continue;
                 }
@@ -9059,13 +9608,38 @@ fn infer_member_call_expr_type(
         }
 
         // 参数可赋值检查（跳过 receiver；只检查显式实参）。
-        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-            let Some(arg_idx) = arg_idx else {
-                continue;
-            };
+        for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
             let found_ty = checked_arg_tys[arg_idx];
+
+            if arg.is_spread {
+                let sig_param_idx = param_idx + 1;
+                if !cand
+                    .param_is_vararg
+                    .get(sig_param_idx)
+                    .copied()
+                    .unwrap_or(false)
+                {
+                    ok = false;
+                    break;
+                }
+                let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                    ok = false;
+                    break;
+                };
+                for elem_ty in elem_tys {
+                    if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                        continue;
+                    }
+                    ok = false;
+                    break;
+                }
+                if !ok {
+                    break;
+                }
+                continue;
+            }
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;
@@ -9078,12 +9652,12 @@ fn infer_member_call_expr_type(
         }
 
         if ok {
-            let defaults_used = mapping.iter().filter(|x| x.is_none()).count();
+            let defaults_used = mapping
+                .iter()
+                .filter(|b| matches!(b, ParamArgBinding::Default))
+                .count();
             let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
-            for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
-                let Some(arg_idx) = arg_idx else {
-                    continue;
-                };
+            for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                 expected_arg_tys[arg_idx] = instantiated.params[param_idx + 1];
             }
 
@@ -9292,6 +9866,7 @@ fn collect_top_level_fun_signatures(
 
             let mut param_names = Vec::with_capacity(fun.params.len() + 1);
             let mut param_has_defaults = Vec::with_capacity(fun.params.len() + 1);
+            let mut param_is_vararg = Vec::with_capacity(fun.params.len() + 1);
             let mut params = Vec::with_capacity(fun.params.len() + 1);
             let mut param_fn_effect_eff_base: Vec<Option<EffectRow>> =
                 Vec::with_capacity(fun.params.len() + 1);
@@ -9309,6 +9884,7 @@ fn collect_top_level_fun_signatures(
                 // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
                 param_names.push("<receiver>".to_string());
                 param_has_defaults.push(false);
+                param_is_vararg.push(false);
                 let receiver_ty = lower.lower_type_ref(receiver)?;
                 params.push(receiver_ty);
                 param_fn_effect_eff_base.push(None);
@@ -9349,6 +9925,7 @@ fn collect_top_level_fun_signatures(
                 };
                 param_names.push(source.slice(p.name.span).to_string());
                 param_has_defaults.push(p.default_value.is_some());
+                param_is_vararg.push(p.is_vararg);
                 let ty = lower.lower_type_ref(ty_ref)?;
                 params.push(ty);
                 param_fn_effect_eff_base.push(fn_eff_base);
@@ -9428,6 +10005,7 @@ fn collect_top_level_fun_signatures(
                 is_intrinsic: builtin_flags.is_intrinsic,
                 param_names,
                 param_has_defaults,
+                param_is_vararg,
                 type_params,
                 eff_param: eff_param_sig.clone(),
                 param_fn_effect_eff_base,
@@ -12018,6 +12596,7 @@ fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::SafeMemberAccess { .. } => "safe member access",
         ast::ExprKind::TypeApply { .. } => "type apply",
         ast::ExprKind::Call { .. } => "call",
+        ast::ExprKind::SpreadArg { .. } => "spread argument",
         ast::ExprKind::NamedArg { .. } => "named argument",
         ast::ExprKind::NotNullAssert { .. } => "not-null assertion",
         ast::ExprKind::Unary { .. } => "unary expression",

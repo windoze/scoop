@@ -1123,6 +1123,14 @@ impl<'a> Parser<'a> {
                 annotations.push(self.parse_annotation_use()?);
             }
 
+            // Appendix B.5.5：`vararg` 参数（Kotlin-like）。
+            let is_vararg = if self.peek_keyword(Keyword::Vararg) {
+                self.bump(); // `vararg`
+                true
+            } else {
+                false
+            };
+
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
             let name = ast::Ident::new(name_tok.span);
 
@@ -1147,6 +1155,7 @@ impl<'a> Parser<'a> {
             params.push(ast::Param {
                 annotations,
                 kind: None,
+                is_vararg,
                 name,
                 ty,
                 default_value,
@@ -1188,16 +1197,29 @@ impl<'a> Parser<'a> {
                 annotations.push(self.parse_annotation_use()?);
             }
 
-            // Kotlin 风格：`class C(val x: Int)` / `class C(var x: Int)`
-            let kind = if self.peek_keyword(Keyword::Val) {
-                self.bump();
-                Some(ast::ValKind::Val)
-            } else if self.peek_keyword(Keyword::Var) {
-                self.bump();
-                Some(ast::ValKind::Var)
-            } else {
-                None
-            };
+            // Kotlin 风格：`class C(val x: Int)` / `class C(var x: Int)` / `class C(vararg xs: Int)`
+            //
+            // 说明：val/var 与 vararg 都是“参数修饰符”，语法上允许任意顺序；这里用循环宽松解析。
+            let mut kind: Option<ast::ValKind> = None;
+            let mut is_vararg = false;
+            loop {
+                if self.peek_keyword(Keyword::Val) {
+                    self.bump();
+                    kind = Some(ast::ValKind::Val);
+                    continue;
+                }
+                if self.peek_keyword(Keyword::Var) {
+                    self.bump();
+                    kind = Some(ast::ValKind::Var);
+                    continue;
+                }
+                if self.peek_keyword(Keyword::Vararg) {
+                    self.bump();
+                    is_vararg = true;
+                    continue;
+                }
+                break;
+            }
 
             let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
             let name = ast::Ident::new(name_tok.span);
@@ -1223,6 +1245,7 @@ impl<'a> Parser<'a> {
             params.push(ast::Param {
                 annotations,
                 kind,
+                is_vararg,
                 name,
                 ty,
                 default_value,
@@ -1779,6 +1802,7 @@ impl<'a> Parser<'a> {
                     params.push(ast::Param {
                         annotations: Vec::new(),
                         kind: Some(ast::ValKind::Val),
+                        is_vararg: false,
                         name: field_name,
                         ty: Some(ty),
                         default_value: None,

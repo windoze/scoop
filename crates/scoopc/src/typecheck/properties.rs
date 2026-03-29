@@ -635,6 +635,9 @@ fn field_use_span_in_expr(
         ast::ExprKind::ArrayLit { elements } => elements
             .iter()
             .find_map(|e| field_use_span_in_expr(source, backing_field_decl_span, e)),
+        ast::ExprKind::SpreadArg { expr, .. } => {
+            field_use_span_in_expr(source, backing_field_decl_span, expr)
+        }
         ast::ExprKind::InterpolatedString { parts, .. } => parts.iter().find_map(|p| match p {
             ast::InterpolatedStringPart::Text { .. } => None,
             ast::InterpolatedStringPart::Expr { expr } => {

@@ -1632,6 +1632,7 @@ impl<'a> Parser<'a> {
             params.push(ast::Param {
                 annotations: Vec::new(),
                 kind: None,
+                is_vararg: false,
                 name,
                 ty,
                 default_value: None,
@@ -2111,12 +2112,30 @@ impl<'a> Parser<'a> {
                 let name_tok = self.bump();
                 let eq = self.expect_symbol(Symbol::Eq)?;
 
-                let tok = *self.peek();
-                let value = self.try_parse_expr()?.ok_or(ParseError::Expected {
-                    expected: "表达式（命名参数值）",
-                    found: tok.kind,
-                    span: tok.span.into(),
-                })?;
+                // Appendix B.5.5：spread（Kotlin-like）：`name = *arr`
+                let value = if self.peek_symbol(Symbol::Star) {
+                    let star = self.bump();
+                    let tok = *self.peek();
+                    let inner = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                        expected: "表达式（spread 实参）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?;
+                    ast::Expr {
+                        span: Span::new(star.span.start, inner.span.end),
+                        kind: ast::ExprKind::SpreadArg {
+                            star_span: star.span,
+                            expr: Box::new(inner),
+                        },
+                    }
+                } else {
+                    let tok = *self.peek();
+                    self.try_parse_expr()?.ok_or(ParseError::Expected {
+                        expected: "表达式（命名参数值）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?
+                };
 
                 ast::Expr {
                     span: Span::new(name_tok.span.start, value.span.end),
@@ -2127,12 +2146,30 @@ impl<'a> Parser<'a> {
                     },
                 }
             } else {
-                let tok = *self.peek();
-                self.try_parse_expr()?.ok_or(ParseError::Expected {
-                    expected: "表达式（参数）",
-                    found: tok.kind,
-                    span: tok.span.into(),
-                })?
+                // Appendix B.5.5：spread（Kotlin-like）：`*arr`
+                if self.peek_symbol(Symbol::Star) {
+                    let star = self.bump();
+                    let tok = *self.peek();
+                    let inner = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                        expected: "表达式（spread 实参）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?;
+                    ast::Expr {
+                        span: Span::new(star.span.start, inner.span.end),
+                        kind: ast::ExprKind::SpreadArg {
+                            star_span: star.span,
+                            expr: Box::new(inner),
+                        },
+                    }
+                } else {
+                    let tok = *self.peek();
+                    self.try_parse_expr()?.ok_or(ParseError::Expected {
+                        expected: "表达式（参数）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    })?
+                }
             };
             args.push(arg);
 

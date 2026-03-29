@@ -1269,6 +1269,15 @@ pub enum ExprKind {
         callee: Box<Expr>,
         args: Vec<Expr>,
     },
+    /// spread 参数实参：`*expr`（Appendix B.5.5，Kotlin-like）。
+    ///
+    /// 说明：
+    /// - 该节点只应出现在 `ExprKind::Call.args`（含命名参数的 value）内；
+    /// - 语义（仅允许用于 vararg 参数、可 spread 的容器类型等）由 typecheck 负责（TODO T1308）。
+    SpreadArg {
+        star_span: Span,
+        expr: Box<Expr>,
+    },
     /// 命名参数实参：`name = expr`（Appendix B.5.3）。
     ///
     /// 说明：
@@ -1694,6 +1703,12 @@ pub struct Param {
     /// - 对于 `class C(val x: Int)`，`kind = Some(Val)` 表示该参数同时声明一个同名字段/属性；
     /// - 对于 `class C(x: Int)`，`kind = None` 表示它只是构造参数（仅在初始化语境与成员体内可见）。
     pub kind: Option<ValKind>,
+    /// `vararg` 参数标记（Appendix B.5.5）。
+    ///
+    /// 说明：
+    /// - `vararg x: T` 在调用点可接受 0..N 个实参；
+    /// - 更完整的“spread / collection 转换”语义由 typecheck 逐步补齐（见 TODO T1308）。
+    pub is_vararg: bool,
     pub name: Ident,
     pub ty: Option<TypeRef>,
     pub default_value: Option<Expr>,
@@ -1708,6 +1723,9 @@ impl std::fmt::Debug for Param {
         s.field("name", &self.name);
         if self.kind.is_some() {
             s.field("kind", &self.kind);
+        }
+        if self.is_vararg {
+            s.field("is_vararg", &self.is_vararg);
         }
         s.field("ty", &self.ty);
         if self.default_value.is_some() {
@@ -1932,6 +1950,7 @@ mod tests {
                 params: vec![Param {
                     annotations: Vec::new(),
                     kind: None,
+                    is_vararg: false,
                     name: Ident::new(Span::new(1, 2)),
                     ty: None,
                     default_value: None,

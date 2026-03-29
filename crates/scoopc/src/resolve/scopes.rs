@@ -644,6 +644,10 @@ impl<'a> BlockScopeChecker<'a> {
                     self.check_expr(e)?;
                 }
             }
+            ast::ExprKind::SpreadArg { expr: inner, .. } => {
+                // spread 仅在 call args 语境下有效；resolver 只需要递归解析其 operand。
+                self.check_expr(inner.as_mut())?;
+            }
             ast::ExprKind::Ident(id) => self.resolve_value_ident(id)?,
             ast::ExprKind::InterpolatedString { parts, .. } => {
                 for p in parts {

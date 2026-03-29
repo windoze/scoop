@@ -51,6 +51,20 @@ pub enum TypeHeaderError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("`vararg` 参数只能出现一次")]
+    #[diagnostic(code(scoop::typecheck::vararg_param_multiple_not_allowed))]
+    VarargParamMultipleNotAllowed {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`vararg` 参数必须是最后一个形参")]
+    #[diagnostic(code(scoop::typecheck::vararg_param_must_be_last))]
+    VarargParamMustBeLast {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内的“声明头”是否满足当前 typecheck 阶段的最小约束。
@@ -99,6 +113,8 @@ fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeH
         }
     }
 
+    check_vararg_params(fun.params.as_slice())?;
+
     for p in &fun.params {
         if p.ty.is_none() {
             let name = source.slice(p.name.span).to_string();
@@ -109,6 +125,31 @@ fn check_fun_header(source: &SourceFile, fun: &ast::FunDecl) -> Result<(), TypeH
             });
         }
     }
+    Ok(())
+}
+
+fn check_vararg_params(params: &[ast::Param]) -> Result<(), TypeHeaderError> {
+    let mut vararg_pos: Option<usize> = None;
+    for (idx, p) in params.iter().enumerate() {
+        if !p.is_vararg {
+            continue;
+        }
+        if vararg_pos.is_some() {
+            return Err(TypeHeaderError::VarargParamMultipleNotAllowed {
+                span: p.name.span.into(),
+            });
+        }
+        vararg_pos = Some(idx);
+    }
+
+    if let Some(idx) = vararg_pos {
+        if idx + 1 != params.len() {
+            return Err(TypeHeaderError::VarargParamMustBeLast {
+                span: params[idx].name.span.into(),
+            });
+        }
+    }
+
     Ok(())
 }
 
@@ -152,6 +193,7 @@ fn check_top_level_val_header(source: &SourceFile, v: &ast::ValDecl) -> Result<(
 fn check_type_decl_headers(source: &SourceFile, ty: &ast::TypeDecl) -> Result<(), TypeHeaderError> {
     // 主构造头参数类型：class/struct 等语法位置强依赖类型注解（当前阶段不做推断）。
     if let Some(primary_ctor) = &ty.primary_ctor {
+        check_vararg_params(primary_ctor.params.as_slice())?;
         for p in &primary_ctor.params {
             if p.ty.is_none() {
                 let name = source.slice(p.name.span).to_string();
@@ -191,6 +233,7 @@ fn check_type_decl_headers(source: &SourceFile, ty: &ast::TypeDecl) -> Result<()
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
                 // 次构造器参数类型：同函数参数一样，当前阶段要求显式 `: Type`。
+                check_vararg_params(ctor.params.as_slice())?;
                 for p in &ctor.params {
                     if p.ty.is_none() {
                         let name = source.slice(p.name.span).to_string();

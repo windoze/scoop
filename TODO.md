@@ -4186,11 +4186,23 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1308 [TODO] varargs：`vararg` 参数与 spread（Appendix B.5.5）
+### T1308 [DONE] varargs：`vararg` 参数与 spread（Appendix B.5.5）
 - 描述：解析/类型检查 `vararg` 参数，并支持调用点 `*arr` spread（若语言采用同语法）。
 - 目标：先只支持数组/tuple 的最小 spread；集合转换后置。
 - 验收：typecheck fixture：vararg 调用通过；不支持 spread 的类型时报错。
 - 依赖：T0218、T0407
+ - 完成：
+   - lexer：新增 `vararg` 关键字（`Keyword::Vararg`）。
+   - AST：`Param` 增加 `is_vararg`；调用实参增加 `ExprKind::SpreadArg`（`*expr`）。
+   - parser：函数/构造参数列表支持 `vararg`；调用实参支持 `*expr` spread（含命名实参 value）。
+   - typecheck：`vararg` 形参映射支持 0..N 实参；spread 支持 `Array<T>`/tuple（元素逐一做可赋值检查）。
+   - headers：`vararg` 只能出现一次且必须为最后一个形参（最小门禁）。
+   - fixtures：
+     - `tests/fixtures/typecheck/vararg_call_ok.scoop`
+     - `tests/fixtures/typecheck/vararg_spread_non_array_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1309 [TODO] 操作符重载：补齐位运算/移位映射（`& | ^ ~ << >>` → `and/or/xor/inv/shl/shr`）（Appendix B.8）
 - 描述：在已实现的操作符重载绑定机制上，加入位运算与移位的 operator→方法名映射，并对 unary `~` 映射到 `inv()`。

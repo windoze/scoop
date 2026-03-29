@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             "inline" => Some(Keyword::Inline),
             "override" => Some(Keyword::Override),
             "const" => Some(Keyword::Const),
+            "vararg" => Some(Keyword::Vararg),
             "annotation" => Some(Keyword::Annotation),
             "package" => Some(Keyword::Package),
             "import" => Some(Keyword::Import),

@@ -44,6 +44,10 @@ pub enum Keyword {
     Inline,
     Override,
     Const,
+    /// `vararg`（Appendix B.5.5）。
+    ///
+    /// 说明：该关键字目前仅在“形参位置”作为修饰符使用；语义由 typecheck 负责。
+    Vararg,
     /// `annotation`（用于 `annotation class`）。
     ///
     /// 说明：当前阶段把它当作 modifier 解析与存储；语义限制（只能用于 class 等）

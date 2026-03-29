@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T1308 vararg 参数 + spread（最小子集：tuple spread）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun sum(vararg xs: Int): Int {
+    // 当前阶段只回归“调用点语义”，不要求在函数体内访问 `xs`。
+    return 0
+}
+
+val a: Int = sum()
+val b: Int = sum(1, 2, 3)
+val c: Int = sum(*(1, 2, 3))
+

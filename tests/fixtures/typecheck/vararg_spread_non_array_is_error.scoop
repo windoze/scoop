@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::vararg_spread_requires_array_or_tuple
+// EXPECT-ERROR-AT: 15:18
+// EXPECT-ERROR: spread 实参类型不支持
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun sum(vararg xs: Int): Int {
+    return 0
+}
+
+val x: Int = 1
+val y: Int = sum(*x)

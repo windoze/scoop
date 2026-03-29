@@ -492,6 +492,7 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Inline => "`inline`",
         Keyword::Override => "`override`",
         Keyword::Const => "`const`",
+        Keyword::Vararg => "`vararg`",
         Keyword::Annotation => "`annotation`",
         Keyword::Package => "`package`",
         Keyword::Import => "`import`",
