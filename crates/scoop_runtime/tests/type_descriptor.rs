@@ -8,6 +8,7 @@ use core::ptr;
 type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
 type ScoopTypeTraceFn =
     Option<unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64>;
+type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
 // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopTypeDescriptor`（TODO T0907）。
 #[repr(C)]
@@ -20,6 +21,7 @@ struct ScoopTypeDescriptor {
     _reserved_u32: u32,
     trace_bitmap: *const u64,
     trace_fn: ScoopTypeTraceFn,
+    release_fn: ScoopTypeReleaseFn,
 }
 
 #[repr(C)]
@@ -82,6 +84,7 @@ fn type_descriptor_trace_bitmap_only_visits_marked_slots() {
             _reserved_u32: 0,
             trace_bitmap: bitmap.as_ptr(),
             trace_fn: None,
+            release_fn: None,
         };
 
         let mut ctx = VisitCtx {
@@ -189,6 +192,7 @@ mod unix_guard_page {
                 _reserved_u32: 0,
                 trace_bitmap: bitmap.as_ptr(),
                 trace_fn: None,
+                release_fn: None,
             };
 
             let mut ctx = VisitCtx {

@@ -3075,7 +3075,7 @@
    - `cargo test --all` 通过；
    - `cargo test -p scoop_runtime --test once_guard_cross_dylib` 通过。
 
-### T0920 [BLOCKED] runtime/codegen：type descriptor 增加 release callback（非通用 finalizer）（spec §15.11）
+### T0920 [DONE] runtime/codegen：type descriptor 增加 release callback（非通用 finalizer）（spec §15.11）
 - 描述：在类型描述（type descriptor）中增加一个可选的 release callback 函数指针，并在对象被 GC 回收（sweep/free）时调用该回调，主要用于 FFI-managed 资源释放（ManagedArena 等）。
 - 目标：
   - 明确它不是通用 finalizer：不保证顺序，不允许对象复活，不依赖其他对象存活；
@@ -3084,7 +3084,16 @@
 - 验收：
   - runtime 集成测试：构造一个带 release callback 的对象类型（可用测试专用 type desc），回收时回调被调用且仅一次；
   - run-pass fixture（可选）：创建对象并触发一次 `GC.collect`（或 debug collect），验证回调 side effect 可观测。
-- 依赖：T0907、T0910、T1025
+- 依赖：T0907、T0910
+ - 完成：
+   - `runtime/c/scoop_gc.h`：`ScoopTypeDescriptor` 增加可选 `release_fn` 与 `ScoopTypeReleaseFn`，并补齐“非通用 finalizer”的语义注释。
+   - `runtime/c/scoop_gc.c`：GC sweep 回收对象时，在 `free` 前调用 `release_fn`（若存在）。
+   - `runtime/c/scoop_runtime.c`：continuation type desc 显式初始化 `release_fn = NULL`。
+   - `crates/scoop_runtime/tests/type_descriptor.rs`：同步 `ScoopTypeDescriptor` 的 Rust 对齐结构体布局。
+   - `crates/scoop_runtime/tests/type_descriptor_release_callback.rs`：新增集成测试：对象被 roots 保活时不调用；变为 unreachable 后回收时仅调用一次。
+ - 验收：
+   - `cargo test -p scoop_runtime` 通过；
+   - `cargo test --all` 通过。
 
 ---
 

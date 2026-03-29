@@ -560,6 +560,14 @@ void scoop_gc_collect(void) {
 
     // unreachable：从链表摘除并释放
     *link = obj->next;
+
+    // 若该类型提供 release 回调，则在释放对象内存前调用它。
+    //
+    // 注意：该回调运行在 GC 锁 + stop-the-world 的受限上下文中；应避免分配与 re-enter GC。
+    if (obj->type_desc != 0 && obj->type_desc->release_fn != 0) {
+      obj->type_desc->release_fn((void *)obj);
+    }
+
     heap->bytes_freed += obj->size;
     free(obj);
   }

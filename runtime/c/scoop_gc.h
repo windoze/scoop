@@ -30,6 +30,17 @@ typedef void (*ScoopGcTraceVisitor)(void **slot, void *ctx);
 // 返回值为调用 visitor 的次数。
 typedef uint64_t (*ScoopTypeTraceFn)(void *object, ScoopGcTraceVisitor visitor, void *ctx);
 
+// release 回调：当对象在 sweep 阶段被回收（free）前调用。
+//
+// 说明（early stage 语义约定）：
+// - 这不是通用 finalizer：不保证顺序，不允许对象复活，不应依赖其它对象仍存活；
+// - callback 运行在 GC 的受限上下文中（实现上通常持有 GC 锁 + stop-the-world）：
+//   - 应避免分配；
+//   - 应避免调用可能触发 GC 或持有同一把锁的 runtime API；
+//   - 不应对对象内存本身做 free（对象内存由 GC 负责释放）。
+// - `object` 指向 heap 对象的起始地址（即 `ScoopGcObjectHeader*`）。
+typedef void (*ScoopTypeReleaseFn)(void *object);
+
 typedef struct ScoopTypeDescriptor {
   // ABI 版本（预留）：便于后续演进时做兼容分支；v0 固定为 0。
   uint32_t abi_version;
@@ -59,6 +70,10 @@ typedef struct ScoopTypeDescriptor {
 
   // 自定义 trace 回调：可为 NULL（表示使用 trace_bitmap）。
   ScoopTypeTraceFn trace_fn;
+
+  // 可选 release 回调：对象被 sweep/free 前调用（用于 FFI-managed 资源释放）。
+  // 可为 NULL（表示无需释放）。
+  ScoopTypeReleaseFn release_fn;
 } ScoopTypeDescriptor;
 
 // Shadow stack（精确根集）帧。

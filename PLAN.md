@@ -148,6 +148,7 @@
 - 2026-03-24：完成 T0814：LLVM codegen 将 enum/bool 的 `when` 降到 LLVM `switch`（保持“按源码顺序”的首个匹配 arm 语义），并支持 tuple `when` 的字段比较与 binder；新增 run-pass fixture 覆盖 enum/bool/tuple 三类 `when` 并用 exit code 断言结果。
 - 2026-03-30：完成 T0813b：支持 value-only enum（`enum E: Int { A = 0, ... }`）端到端链路：parser 增加判别值 AST；typecheck 在 TypeLower 阶段门禁底层类型必须为整型标量；HIR side table 记录 enum repr（tagged-union vs value-only）与判别值；LLVM codegen 将 value-only enum 直接表示为底层整型，并让 `EnumName.Variant` 常量与 `when` 分派按显式判别值工作；新增 parse/typecheck/run-pass fixtures 回归覆盖。
 - 2026-03-30：完成 T1314：新增 Kotlin runtime gap 审计文档 `KOTLIN_RUNTIME_GAP_AUDIT.md`，产出 capability matrix（pure_scoop_ok / needs_runtime_lib / needs_new_intrinsic 候选）并给出对 T1315/T1316/T1317 与 T1017/T1018 的落点建议。
+- 2026-03-30：完成 T0920：`ScoopTypeDescriptor` 增加可选 `release_fn`，GC sweep 回收对象时在 `free` 前回调一次（用于 FFI-managed 资源释放）；新增 `scoop_runtime` 集成测试回归“仅调用一次”语义。
 - 2026-03-25：完成 T0815：生成的 `i32 @main()` 在执行 Scoop `fun main` 前调用 `scoop_runtime_init()`，并更新 LLVM 单测断言 IR 含该调用。
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。
 - 2026-03-25：完成 T0904：引入 mark-sweep GC 的数据结构骨架（heap/object header/free list）与最小自检，并让 clang 链接覆盖 `runtime/c/*.c`。

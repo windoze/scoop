@@ -476,6 +476,7 @@ static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
     ._reserved_u32 = 0,
     .trace_bitmap = 0,
     .trace_fn = scoop_continuation_trace,
+    .release_fn = 0,
 };
 
 // `scoop_alloc` 在文件后部定义；这里提供前置声明以避免隐式声明警告/错误。
