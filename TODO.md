@@ -4147,11 +4147,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1306 [TODO] 命名参数语义：重排与混用规则（Appendix B.5.3）
+### T1306 [DONE] 命名参数语义：重排与混用规则（Appendix B.5.3）
 - 描述：实现命名参数：按参数名匹配并重排；禁止与位置参数混用的非法形式（按 Kotlin 规则）。
 - 目标：先不支持 varargs 与命名参数组合。
 - 验收：typecheck fixture：`f(y=2,x=1)` 通过；重复命名/不存在参数名报错并指向 name span。
 - 依赖：T0231、T1305
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：在函数/构造/扩展调用的 typecheck 路径中加入 Kotlin-like 命名参数规则检查：
+     - 命名参数之后禁止再出现位置参数；
+     - 同名命名参数禁止重复；
+     - 对重载候选集合预检查“命名参数名是否存在于任一候选签名”，并在 name span 上报稳定诊断。
+   - `crates/scoopc/src/typecheck/expr.rs`：更新形参映射逻辑为“位置参数按序绑定 + 命名参数按 name 重排”，不再允许在命名参数存在时通过位置参数“跳槽”。
+   - fixtures：
+     - `tests/fixtures/typecheck/call_named_args_reorder_ok.scoop`
+     - `tests/fixtures/typecheck/call_named_args_duplicate_is_error.scoop`
+     - `tests/fixtures/typecheck/call_named_args_unknown_is_error.scoop`
+     - `tests/fixtures/typecheck/call_named_args_positional_after_named_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1307 [TODO] trailing lambda 与类型推断联动（Appendix B.5.4）
 - 描述：当 call 最后一个参数是 lambda 时，支持 `f { ... }`/`f(1) { ... }` 并正确进行 lambda 参数下推推断。

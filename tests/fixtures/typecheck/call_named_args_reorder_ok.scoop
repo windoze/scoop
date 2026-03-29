@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T1306 命名参数语义：按参数名匹配并允许重排（Appendix B.5.3）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int, y: String): String {
+    return y
+}
+
+val ok: String = f(y = "hi", x = 1)
+

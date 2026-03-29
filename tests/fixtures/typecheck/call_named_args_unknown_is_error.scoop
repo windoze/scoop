@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unknown_call_arg_name
+// EXPECT-ERROR-AT: 15:18
+// EXPECT-ERROR: 没有名为
+// 目标：T1306 不存在的命名参数应在 name span 报错（Appendix B.5.3）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int, y: Int): Int {
+    return x
+}
+
+val bad: Int = f(z = 1, x = 2)
+

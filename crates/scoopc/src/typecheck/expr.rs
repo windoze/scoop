@@ -466,6 +466,32 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用 `{callee}` 没有名为 `{name}` 的参数")]
+    #[diagnostic(code(scoop::typecheck::unknown_call_arg_name))]
+    UnknownCallArgName {
+        callee: String,
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用 `{callee}` 的参数 `{name}` 被重复赋值")]
+    #[diagnostic(code(scoop::typecheck::call_arg_duplicate))]
+    CallArgDuplicate {
+        callee: String,
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("调用 `{callee}` 命名参数之后不能再使用位置参数")]
+    #[diagnostic(code(scoop::typecheck::call_arg_positional_after_named))]
+    CallArgPositionalAfterNamed {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数类型不匹配：{callee} 第 {index} 个参数期望 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::call_arg_type_mismatch))]
     CallArgTypeMismatch {
@@ -5318,7 +5344,7 @@ fn infer_value_ident_type(
 #[derive(Debug, Clone)]
 enum CallArgKind {
     Positional,
-    Named { name: String },
+    Named { name: String, name_span: Span },
 }
 
 #[derive(Debug, Clone)]
@@ -5351,7 +5377,8 @@ fn collect_call_arg_infos<'a>(
     for arg in args {
         match &arg.kind {
             ast::ExprKind::NamedArg { name, value, .. } => {
-                let name = source.slice(name.span).to_string();
+                let name_text = source.slice(name.span).to_string();
+                let name_span = name.span;
                 let expr = value.as_ref();
                 let ty = match expr.kind {
                     // lambda 的类型通常依赖 expected type；在“预收集实参信息”阶段先用占位类型，
@@ -5369,7 +5396,10 @@ fn collect_call_arg_infos<'a>(
                     )?,
                 };
                 out.push(CallArgInfo {
-                    kind: CallArgKind::Named { name },
+                    kind: CallArgKind::Named {
+                        name: name_text,
+                        name_span,
+                    },
                     expr,
                     ty,
                     is_int_lit: matches!(expr.kind, ast::ExprKind::IntLit),
@@ -5402,6 +5432,87 @@ fn collect_call_arg_infos<'a>(
     Ok(out)
 }
 
+fn call_args_have_named(call_args: &[CallArgInfo<'_>]) -> bool {
+    call_args
+        .iter()
+        .any(|a| matches!(a.kind, CallArgKind::Named { .. }))
+}
+
+/// 检查调用点的命名参数规则（Kotlin-like）。
+///
+/// 当前阶段（T1306）强约束：
+/// - 命名参数之后不能再出现位置参数；
+/// - 同名命名参数不允许出现两次（无论是否能匹配到重载）。
+fn check_call_arg_named_rules(
+    callee: &str,
+    call_args: &[CallArgInfo<'_>],
+) -> Result<(), ExprTypeError> {
+    let mut seen_named = false;
+    let mut seen_names: HashSet<&str> = HashSet::new();
+
+    for arg in call_args {
+        match &arg.kind {
+            CallArgKind::Positional => {
+                if seen_named {
+                    return Err(ExprTypeError::CallArgPositionalAfterNamed {
+                        callee: callee.to_string(),
+                        span: arg.expr.span.into(),
+                    });
+                }
+            }
+            CallArgKind::Named { name, name_span } => {
+                seen_named = true;
+                if !seen_names.insert(name.as_str()) {
+                    return Err(ExprTypeError::CallArgDuplicate {
+                        callee: callee.to_string(),
+                        name: name.clone(),
+                        span: (*name_span).into(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// 若调用点包含命名实参，则检查这些 name 是否至少能匹配到一个候选签名的形参名集合。
+///
+/// 说明：
+/// - 对于重载集合：若某个 name 不存在于任何候选签名的形参名中，则该调用必然非法；
+/// - 这样可以在“重载筛选失败”之前给出更精确的 name-span 诊断（满足 fixtures 断言）。
+fn check_call_named_args_exist_in_any_candidate<'a>(
+    callee: &str,
+    call_args: &[CallArgInfo<'_>],
+    candidate_param_names: impl IntoIterator<Item = &'a [String]>,
+) -> Result<(), ExprTypeError> {
+    if !call_args_have_named(call_args) {
+        return Ok(());
+    }
+
+    let mut all_names: HashSet<String> = HashSet::new();
+    for params in candidate_param_names {
+        for p in params {
+            all_names.insert(p.clone());
+        }
+    }
+
+    for arg in call_args {
+        let CallArgKind::Named { name, name_span } = &arg.kind else {
+            continue;
+        };
+        if !all_names.contains(name) {
+            return Err(ExprTypeError::UnknownCallArgName {
+                callee: callee.to_string(),
+                name: name.clone(),
+                span: (*name_span).into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 /// 将调用点的“位置/命名实参”映射到某个候选签名的形参槽位。
 ///
 /// 当前阶段（T0453）最小规则：
@@ -5416,28 +5527,43 @@ fn map_call_args_to_params(
         return None;
     }
 
-    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
-    let mut next_positional = 0usize;
-
-    for (arg_idx, arg) in call_args.iter().enumerate() {
+    // Kotlin-like：一旦出现命名实参，后续实参必须全部为命名。
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+    for arg in call_args {
         match &arg.kind {
             CallArgKind::Positional => {
-                while next_positional < mapping.len() && mapping[next_positional].is_some() {
-                    next_positional += 1;
-                }
-                let slot = mapping.get_mut(next_positional)?;
-                *slot = Some(arg_idx);
-                next_positional += 1;
-            }
-            CallArgKind::Named { name } => {
-                let slot_idx = param_names.iter().position(|p| p == name)?;
-                let slot = mapping.get_mut(slot_idx)?;
-                if slot.is_some() {
+                if seen_named {
                     return None;
                 }
-                *slot = Some(arg_idx);
+                positional_count += 1;
+            }
+            CallArgKind::Named { .. } => {
+                seen_named = true;
             }
         }
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+
+    // 位置实参：按从左到右依次绑定到形参（不跳槽）。
+    for arg_idx in 0..positional_count {
+        let slot = mapping.get_mut(arg_idx)?;
+        *slot = Some(arg_idx);
+    }
+
+    // 命名实参：按 name 匹配形参槽位。
+    for (arg_idx, arg) in call_args.iter().enumerate().skip(positional_count) {
+        let CallArgKind::Named { name, .. } = &arg.kind else {
+            // 已被 `seen_named` 规则拒绝；防御性处理。
+            return None;
+        };
+        let slot_idx = param_names.iter().position(|p| p == name)?;
+        let slot = mapping.get_mut(slot_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(arg_idx);
     }
 
     if mapping.iter().any(|x| x.is_none()) {
@@ -5474,28 +5600,42 @@ fn map_call_args_to_params_with_defaults(
         return None;
     }
 
-    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
-    let mut next_positional = 0usize;
-
-    for (arg_idx, arg) in call_args.iter().enumerate() {
+    // Kotlin-like：一旦出现命名实参，后续实参必须全部为命名。
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+    for arg in call_args {
         match &arg.kind {
             CallArgKind::Positional => {
-                while next_positional < mapping.len() && mapping[next_positional].is_some() {
-                    next_positional += 1;
-                }
-                let slot = mapping.get_mut(next_positional)?;
-                *slot = Some(arg_idx);
-                next_positional += 1;
-            }
-            CallArgKind::Named { name } => {
-                let slot_idx = param_names.iter().position(|p| p == name)?;
-                let slot = mapping.get_mut(slot_idx)?;
-                if slot.is_some() {
+                if seen_named {
                     return None;
                 }
-                *slot = Some(arg_idx);
+                positional_count += 1;
+            }
+            CallArgKind::Named { .. } => {
+                seen_named = true;
             }
         }
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+
+    // 位置实参：按从左到右依次绑定到形参（不跳槽）。
+    for arg_idx in 0..positional_count {
+        let slot = mapping.get_mut(arg_idx)?;
+        *slot = Some(arg_idx);
+    }
+
+    // 命名实参：按 name 匹配形参槽位。
+    for (arg_idx, arg) in call_args.iter().enumerate().skip(positional_count) {
+        let CallArgKind::Named { name, .. } = &arg.kind else {
+            return None;
+        };
+        let slot_idx = param_names.iter().position(|p| p == name)?;
+        let slot = mapping.get_mut(slot_idx)?;
+        if slot.is_some() {
+            return None;
+        }
+        *slot = Some(arg_idx);
     }
 
     // 未填充的槽位必须有默认值。
@@ -6140,6 +6280,12 @@ fn infer_call_expr_type(
                     top_level_funs,
                     struct_field_types,
                 )?;
+                check_call_arg_named_rules(&callee_fqn, &call_args)?;
+                check_call_named_args_exist_in_any_candidate(
+                    &callee_fqn,
+                    &call_args,
+                    std::iter::once(sig.param_names.as_slice()),
+                )?;
 
                 // 默认参数（T0512）：允许省略带默认值的形参。
                 //
@@ -6410,6 +6556,14 @@ fn infer_call_expr_type(
                 top_level_types,
                 top_level_funs,
                 struct_field_types,
+            )?;
+            check_call_arg_named_rules(&callee_fqn, &call_args)?;
+            check_call_named_args_exist_in_any_candidate(
+                &callee_fqn,
+                &call_args,
+                direct_call_candidates
+                    .iter()
+                    .map(|c| c.param_names.as_slice()),
             )?;
 
             #[derive(Debug, Clone)]
@@ -7115,6 +7269,42 @@ fn infer_class_constructor_call_expr_type(
 
     let use_cone = lower.index().cone_of_source(source);
     let callee_name = source.slice(callee.span).to_string();
+    check_call_arg_named_rules(&callee_name, &call_args)?;
+
+    if call_args_have_named(&call_args) {
+        // 预检查：如果某个命名实参的 name 在所有可见 ctor 中都不存在，则该调用必然非法。
+        //
+        // 说明：class ctor 的候选集合来自 resolver 的 call candidates（可能包含多个类型），
+        // 因此这里按“所有可见 ctor 的形参名并集”做一次 name existence 检查，便于给出
+        // name-span 的稳定诊断（fixtures 断言）。
+        let mut all_names: HashSet<String> = HashSet::new();
+        for ty_fqn in ctor_types.iter() {
+            let Some(ctors) = lower.index().constructors.get(ty_fqn) else {
+                continue;
+            };
+            for ctor in ctors
+                .iter()
+                .filter(|c| is_ctor_visible_from(use_cone, source, c))
+            {
+                for p in &ctor.params {
+                    all_names.insert(p.name.clone());
+                }
+            }
+        }
+
+        for arg in &call_args {
+            let CallArgKind::Named { name, name_span } = &arg.kind else {
+                continue;
+            };
+            if !all_names.contains(name) {
+                return Err(ExprTypeError::UnknownCallArgName {
+                    callee: callee_name.clone(),
+                    name: name.clone(),
+                    span: (*name_span).into(),
+                });
+            }
+        }
+    }
 
     let mut matched: Vec<(String, String)> = Vec::new(); // (type fqn, ctor signature)
 
@@ -7721,6 +7911,12 @@ fn infer_effect_op_call_expr_type(
         top_level_funs,
         struct_field_types,
     )?;
+    check_call_arg_named_rules(&callee_fqn, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        &callee_fqn,
+        &call_args,
+        std::iter::once(sig.param_names.as_slice()),
+    )?;
 
     if call_args.len() != sig.params.len() {
         return Err(ExprTypeError::CallArityMismatch {
@@ -8014,6 +8210,7 @@ fn infer_member_call_expr_type(
                 top_level_funs,
                 struct_field_types,
             )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
                     callee: fqn.clone(),
@@ -8024,6 +8221,11 @@ fn infer_member_call_expr_type(
             }
 
             let param_names = vec!["obj".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
             let param_has_defaults = vec![false];
             let Some(mapping) = map_call_args_to_params_with_defaults(
                 &call_args,
@@ -8078,6 +8280,7 @@ fn infer_member_call_expr_type(
                 top_level_funs,
                 struct_field_types,
             )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
                     callee: fqn.clone(),
@@ -8088,6 +8291,11 @@ fn infer_member_call_expr_type(
             }
 
             let param_names = vec!["pinned".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
             let param_has_defaults = vec![false];
             let Some(mapping) = map_call_args_to_params_with_defaults(
                 &call_args,
@@ -8189,6 +8397,12 @@ fn infer_member_call_expr_type(
         top_level_types,
         top_level_funs,
         struct_field_types,
+    )?;
+    check_call_arg_named_rules(&callee_fqn, &call_args)?;
+    check_call_named_args_exist_in_any_candidate(
+        &callee_fqn,
+        &call_args,
+        ext_candidates.iter().filter_map(|c| c.param_names.get(1..)),
     )?;
 
     let Some(expected_receiver_ty) = sig.params.first().copied() else {

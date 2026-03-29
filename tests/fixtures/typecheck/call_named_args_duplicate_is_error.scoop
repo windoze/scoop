@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_duplicate
+// EXPECT-ERROR-AT: 15:25
+// EXPECT-ERROR: 重复
+// 目标：T1306 命名参数重复应在 name span 报错（Appendix B.5.3）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int, y: Int): Int {
+    return x
+}
+
+val bad: Int = f(x = 1, x = 2)
+

@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arg_positional_after_named
+// EXPECT-ERROR-AT: 15:25
+// EXPECT-ERROR: 命名参数之后
+// 目标：T1306 命名参数之后不能再使用位置参数（Kotlin-like，Appendix B.5.3）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(x: Int, y: Int): Int {
+    return x
+}
+
+val bad: Int = f(x = 1, 2)
+

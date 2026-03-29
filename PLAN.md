@@ -37,6 +37,7 @@
 - 2026-03-29：完成 T1303：确认并回填 TODO 状态：`object`/`companion object` 的语法与 name resolution 已实现，并由 parse/resolve fixtures 回归覆盖。
 - 2026-03-29：完成 T1304：支持 `for (x in xs) { ... }` 语句解析，并在 typecheck 中按迭代协议（`iterator/hasNext/next`）做最小语义检查；新增 typecheck fixtures 回归覆盖 pass + 缺失方法报错。
 - 2026-03-29：完成 T1305：实现尾部默认参数的调用点补齐：HIR lowering 将“少传默认参数”的调用改写为 block（局部 `val` 绑定 + 完整调用），并在 typecheck 中纳入形参默认值表达式的类型检查；新增 run-pass fixture 回归 `f()` 输出 `3`。
+- 2026-03-29：完成 T1306：实现命名参数语义：命名实参按形参名匹配并允许重排；命名参数之后禁止位置参数；重复/未知 name 在 name span 报稳定诊断；新增 typecheck fixtures 回归覆盖。
 - 2026-03-29：完成 T1302：typealias 补齐泛型实例化与跨包循环检测，并把 typealias RHS 作为 `alias_of` 导出到 `.cone`（ScoopIR）；下游注入 RHS 后可在 typecheck lowering 阶段展开；新增 typecheck/typecheck_multi/typecheck_cone_archive fixtures 回归覆盖。
 - 2026-03-28：完成 T1103：新增 `scoopc::cone::scoopir`（public API 的稳定 JSON schema + 导出器），并把 `tests/fixtures/scoopir/**` 接入 `scoop test` 作为新 phase（`.scoopir.json` golden 回归）。
 - 2026-03-28：完成 T1106：为 `api.scoopir` 的 schema.version 增加版本协商（允许读取 <= 当前版本；更高版本给出稳定错误码 `scoop::cone::scoopir_schema_version_not_supported`），并新增单测覆盖。
