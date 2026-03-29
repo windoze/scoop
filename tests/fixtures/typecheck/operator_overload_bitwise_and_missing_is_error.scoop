@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::operator_overload_not_found
+// EXPECT-ERROR-AT: 15:21
+// EXPECT-ERROR: 操作符 `&` 未找到可用的重载
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Bits {
+    val v: Int
+}
+
+fun ops(a: Bits, b: Bits): Bits {
+    val c: Bits = a & b
+    return c
+}

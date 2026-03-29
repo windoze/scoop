@@ -810,6 +810,16 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("操作符 `{op}` 未找到可用的重载：期望 `{receiver}.{method}()`")]
+    #[diagnostic(code(scoop::typecheck::unary_operator_overload_not_found))]
+    UnaryOperatorOverloadNotFound {
+        op: String,
+        receiver: String,
+        method: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不可赋值：`{name}` 不是可变变量（必须声明为 `var`）")]
     #[diagnostic(code(scoop::typecheck::assignment_target_not_mutable))]
     AssignmentTargetNotMutable {
@@ -2218,7 +2228,19 @@ fn operator_overload_method_name(op: ast::BinaryOp) -> Option<&'static str> {
     match op {
         ast::BinaryOp::Add => Some("plus"),
         ast::BinaryOp::Sub => Some("minus"),
+        ast::BinaryOp::BitAnd => Some("and"),
+        ast::BinaryOp::BitOr => Some("or"),
+        ast::BinaryOp::BitXor => Some("xor"),
+        ast::BinaryOp::Shl => Some("shl"),
+        ast::BinaryOp::Shr => Some("shr"),
         _ => None,
+    }
+}
+
+fn builtin_binary_op_expected_text(op: ast::BinaryOp) -> &'static str {
+    match op {
+        ast::BinaryOp::Shl | ast::BinaryOp::Shr => "lhs 为整数且 rhs 为 Int",
+        _ => "相同的整数类型",
     }
 }
 
@@ -2522,7 +2544,7 @@ fn infer_unary_expr_type(
                 span: op_span.into(),
             })
         }
-        ast::UnaryOp::Neg | ast::UnaryOp::BitNot => {
+        ast::UnaryOp::Neg => {
             if is_integer_type(operand_ty, lower, builtins) {
                 return Ok(operand_ty);
             }
@@ -2534,10 +2556,76 @@ fn infer_unary_expr_type(
                 span: op_span.into(),
             })
         }
+        ast::UnaryOp::BitNot => {
+            if is_integer_type(operand_ty, lower, builtins) {
+                return Ok(operand_ty);
+            }
+
+            let Some((receiver_fqn, receiver_args)) =
+                try_extract_nominal_fqn_and_args(operand_ty, lower)
+            else {
+                return Err(ExprTypeError::UnaryOpOperandTypeMismatch {
+                    op: unary_op_text(op).to_string(),
+                    expected: "整数".to_string(),
+                    found: lower.fmt_type(operand_ty),
+                    span: op_span.into(),
+                });
+            };
+
+            // 只对 struct/class 启用 operator overloading（T1301 目标约束）。
+            if !matches!(
+                lower.nominal_decl_kind(&receiver_fqn),
+                Some(ast::TypeKind::Struct | ast::TypeKind::Class)
+            ) {
+                return Err(ExprTypeError::UnaryOpOperandTypeMismatch {
+                    op: unary_op_text(op).to_string(),
+                    expected: "整数".to_string(),
+                    found: lower.fmt_type(operand_ty),
+                    span: op_span.into(),
+                });
+            }
+
+            let method = "inv";
+            let callee_fqn = format!("{receiver_fqn}.{method}");
+            let Some(sig) = collect_unique_zero_arg_member_method_sig(
+                source,
+                operand_ty,
+                &receiver_fqn,
+                &receiver_args,
+                method,
+                op_span,
+                lower,
+                builtins,
+            )?
+            else {
+                return Err(ExprTypeError::UnaryOperatorOverloadNotFound {
+                    op: unary_op_text(op).to_string(),
+                    receiver: lower.fmt_type(operand_ty),
+                    method: method.to_string(),
+                    span: op_span.into(),
+                });
+            };
+
+            // operator method 调用：禁止 unsafe/nogc/const 门禁绕过，沿用普通调用的 gate。
+            check_unsafe_call_gate(&callee_fqn, &sig, op_span, lower)?;
+            check_nogc_call_gate(&callee_fqn, &sig, op_span, lower)?;
+            check_const_fun_call_gate(&callee_fqn, &sig, op_span, lower)?;
+
+            // required effects：把被调用方法的 effect row 计入当前函数体的 performed effects。
+            record_member_method_effects_as_performed(
+                &receiver_fqn,
+                &receiver_args,
+                &sig,
+                op_span,
+                lower,
+            )?;
+
+            Ok(sig.return_ty)
+        }
     }
 }
 
-fn infer_add_sub_binary_expr_type(
+fn infer_operator_overload_binary_expr_type(
     source: &SourceFile,
     binary_expr: &ast::Expr,
     lhs: &ast::Expr,
@@ -2562,9 +2650,7 @@ fn infer_add_sub_binary_expr_type(
         struct_field_types,
     )?;
 
-    // Kotlin-like：`+/-` 对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/minus`）。
-    //
-    // 注意：这里复用 `unify_integer_operands_for_same_type_rule` 允许整数字面量被上下文整数类型吸收。
+    // Kotlin-like：对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/and/shl/...`）。
     if is_integer_type(lhs_ty, lower, builtins) {
         let rhs_ty = infer_expr_type(
             source,
@@ -2577,24 +2663,47 @@ fn infer_add_sub_binary_expr_type(
             struct_field_types,
         )?;
 
-        let Some(ty) =
-            unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
-        else {
-            return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
-                op: binary_op_text(op).to_string(),
-                expected: "相同的整数类型".to_string(),
-                lhs: lower.fmt_type(lhs_ty),
-                rhs: lower.fmt_type(rhs_ty),
-                span: op_span.into(),
-            });
-        };
+        match op {
+            ast::BinaryOp::Add
+            | ast::BinaryOp::Sub
+            | ast::BinaryOp::BitAnd
+            | ast::BinaryOp::BitXor
+            | ast::BinaryOp::BitOr => {
+                // 注意：复用 `unify_integer_operands_for_same_type_rule` 允许整数字面量被上下文整数类型吸收。
+                let Some(ty) = unify_integer_operands_for_same_type_rule(
+                    lhs, lhs_ty, rhs, rhs_ty, lower, builtins,
+                ) else {
+                    return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                        op: binary_op_text(op).to_string(),
+                        expected: "相同的整数类型".to_string(),
+                        lhs: lower.fmt_type(lhs_ty),
+                        rhs: lower.fmt_type(rhs_ty),
+                        span: op_span.into(),
+                    });
+                };
 
-        return Ok(ty);
+                return Ok(ty);
+            }
+            ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                if rhs_ty == builtins.int {
+                    return Ok(lhs_ty);
+                }
+
+                return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                    op: binary_op_text(op).to_string(),
+                    expected: "lhs 为整数且 rhs 为 Int".to_string(),
+                    lhs: lower.fmt_type(lhs_ty),
+                    rhs: lower.fmt_type(rhs_ty),
+                    span: op_span.into(),
+                });
+            }
+            _ => {}
+        }
     }
 
     let Some(method) = operator_overload_method_name(op) else {
         return Err(ExprTypeError::UnsupportedExpr {
-            kind: "binary operator overload（non add/sub）",
+            kind: "binary operator overload（unsupported op）",
             span: op_span.into(),
         });
     };
@@ -2615,7 +2724,7 @@ fn infer_add_sub_binary_expr_type(
             )?;
             return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                 op: binary_op_text(op).to_string(),
-                expected: "相同的整数类型".to_string(),
+                expected: builtin_binary_op_expected_text(op).to_string(),
                 lhs: lower.fmt_type(lhs_ty),
                 rhs: lower.fmt_type(rhs_ty),
                 span: op_span.into(),
@@ -2640,7 +2749,7 @@ fn infer_add_sub_binary_expr_type(
         )?;
         return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
             op: binary_op_text(op).to_string(),
-            expected: "相同的整数类型".to_string(),
+            expected: builtin_binary_op_expected_text(op).to_string(),
             lhs: lower.fmt_type(lhs_ty),
             rhs: lower.fmt_type(rhs_ty),
             span: op_span.into(),
@@ -3421,7 +3530,13 @@ fn infer_expr_type(
                 top_level_funs,
                 struct_field_types,
             ),
-            ast::BinaryOp::Add | ast::BinaryOp::Sub => infer_add_sub_binary_expr_type(
+            ast::BinaryOp::Add
+            | ast::BinaryOp::Sub
+            | ast::BinaryOp::BitAnd
+            | ast::BinaryOp::BitXor
+            | ast::BinaryOp::BitOr
+            | ast::BinaryOp::Shl
+            | ast::BinaryOp::Shr => infer_operator_overload_binary_expr_type(
                 source,
                 expr,
                 lhs.as_ref(),

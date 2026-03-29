@@ -4204,11 +4204,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1309 [TODO] 操作符重载：补齐位运算/移位映射（`& | ^ ~ << >>` → `and/or/xor/inv/shl/shr`）（Appendix B.8）
+### T1309 [DONE] 操作符重载：补齐位运算/移位映射（`& | ^ ~ << >>` → `and/or/xor/inv/shl/shr`）（Appendix B.8）
 - 描述：在已实现的操作符重载绑定机制上，加入位运算与移位的 operator→方法名映射，并对 unary `~` 映射到 `inv()`。
 - 目标：只做“绑定规则”补齐；不引入新的优先级（优先级在 parser 已固定）；不处理复合赋值（如 `shlAssign`）除非 spec 明确要求。
 - 验收：language fixture：自定义 `and`/`shl`/`inv` 后 `a & b`/`a << 1`/`~a` 可通过；缺少方法时报错并指向操作符。
 - 依赖：T1301、T0211、T0252
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：
+     - 扩展二元操作符重载映射：`& | ^ << >>` → `and/or/xor/shl/shr`；
+     - 补齐 unary `~` 的重载：对 struct/class 绑定到 `inv()`；并新增稳定诊断 `scoop::typecheck::unary_operator_overload_not_found`。
+   - fixtures：
+     - `tests/fixtures/typecheck/operator_overload_bitwise_shift_inv_ok.scoop`：覆盖 `& | ^ << >> ~` 的通过用例；
+     - `tests/fixtures/typecheck/operator_overload_bitwise_and_missing_is_error.scoop`：缺少 `and` 方法时报错；
+     - `tests/fixtures/typecheck/operator_overload_bitwise_inv_missing_is_error.scoop`：缺少 `inv` 方法时报错。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1310 [TODO] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - 描述：在 Kotlin 兼容层补齐 alias import 的完整语义：可见性、shadowing、与普通 import / wildcard import 的交互。

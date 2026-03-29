@@ -1,0 +1,44 @@
+// EXPECT: pass
+// 目标：T1309 操作符重载：`& | ^ << >> ~` 绑定到 `and/or/xor/shl/shr/inv`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Bits {
+    val v: Int
+
+    fun and(other: Bits): Bits {
+        return other
+    }
+
+    fun or(other: Bits): Bits {
+        return other
+    }
+
+    fun xor(other: Bits): Bits {
+        return other
+    }
+
+    fun shl(count: Int): Bits {
+        return this
+    }
+
+    fun shr(count: Int): Bits {
+        return this
+    }
+
+    fun inv(): Bits {
+        return this
+    }
+}
+
+fun ops(a: Bits, b: Bits): Bits {
+    val c: Bits = a & b
+    val d: Bits = a | b
+    val e: Bits = a ^ b
+    val f: Bits = a << 1
+    val g: Bits = a >> 1
+    val h: Bits = ~a
+    return c
+}

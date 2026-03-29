@@ -31,6 +31,7 @@
   并将 T1307b 移动到 T1314 之后，避免阻塞“首个 `[TODO]` 可直接实现”的顺序。
 - 2026-03-29：完成 T1307a：resolver 在 `{ body }` lambda 作用域内预注入隐式 `it` 绑定；typecheck 在期望函数类型为单参数时将其解释为隐式 `it: T`，并新增 infer fixture 回归 `takes { it + 1 }` 可推断通过。
 - 2026-03-29：完成 T1308：支持 `vararg` 参数与调用点 `*expr` spread（最小语义：最多一个 vararg 且必须为最后一个形参；spread operand 仅支持 `scoop.core.Array<T>` 或 tuple，并逐元素做可赋值检查），新增 typecheck fixtures 回归覆盖。
+- 2026-03-29：完成 T1309：操作符重载补齐位运算/移位（`& | ^ << >>`）到 `and/or/xor/shl/shr` 的映射，并支持 unary `~` 绑定到 `inv()`；新增 typecheck fixtures 回归覆盖与稳定诊断。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。
