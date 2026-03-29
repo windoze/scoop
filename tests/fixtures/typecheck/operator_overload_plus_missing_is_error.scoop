@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::operator_overload_not_found
+// EXPECT-ERROR-AT: 16:21
+// EXPECT-ERROR: 操作符 `+` 未找到可用的重载
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Vec2 {
+    val x: Int
+    val y: Int
+}
+
+fun add(a: Vec2, b: Vec2): Vec2 {
+    val c: Vec2 = a + b
+    return c
+}

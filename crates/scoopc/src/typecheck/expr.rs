@@ -737,6 +737,17 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("操作符 `{op}` 未找到可用的重载：期望 `{receiver}.{method}({rhs})`")]
+    #[diagnostic(code(scoop::typecheck::operator_overload_not_found))]
+    OperatorOverloadNotFound {
+        op: String,
+        receiver: String,
+        method: String,
+        rhs: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("不可赋值：`{name}` 不是可变变量（必须声明为 `var`）")]
     #[diagnostic(code(scoop::typecheck::assignment_target_not_mutable))]
     AssignmentTargetNotMutable {
@@ -2062,6 +2073,196 @@ fn unify_integer_operands_for_same_type_rule(
     None
 }
 
+fn operator_overload_method_name(op: ast::BinaryOp) -> Option<&'static str> {
+    match op {
+        ast::BinaryOp::Add => Some("plus"),
+        ast::BinaryOp::Sub => Some("minus"),
+        _ => None,
+    }
+}
+
+fn is_symbol_visible_from_source(
+    use_cone: ConeId,
+    use_source: &SourceFile,
+    symbol: &crate::resolve::Symbol,
+) -> bool {
+    match symbol.visibility {
+        Visibility::Public => true,
+        Visibility::Internal => symbol.decl_cone == use_cone,
+        Visibility::Private => symbol.decl_file == use_source.path(),
+    }
+}
+
+fn collect_nominal_type_param_bindings(
+    nominal_fqn: &str,
+    nominal_args: &[TypeId],
+    lower: &TypeLowering<'_>,
+) -> Vec<(String, TypeId)> {
+    let Some(sym) = lower.env().type_symbol(nominal_fqn) else {
+        return Vec::new();
+    };
+
+    if sym.type_param_names.len() != nominal_args.len() {
+        return Vec::new();
+    }
+
+    sym.type_param_names
+        .iter()
+        .cloned()
+        .zip(nominal_args.iter().copied())
+        .collect()
+}
+
+fn collect_member_method_signatures_from_index(
+    source: &SourceFile,
+    receiver_ty: TypeId,
+    receiver_fqn: &str,
+    receiver_args: &[TypeId],
+    callee_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<Vec<FunSigOwned>, ExprTypeError> {
+    // 只用于 operator overloading：限制范围，避免“隐式 receiver 注入”扩散到其它调用路径。
+    let overloads = match lower.index().by_fqn.get(callee_fqn) {
+        Some(syms) => syms.fun.clone(),
+        None => Vec::new(),
+    };
+    if overloads.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let use_cone = lower.index().cone_of_source(source);
+    let base_type_bindings =
+        collect_nominal_type_param_bindings(receiver_fqn, receiver_args, lower);
+
+    let mut out: Vec<FunSigOwned> = Vec::new();
+    for o in overloads {
+        if !is_symbol_visible_from_source(use_cone, source, &o.symbol) {
+            continue;
+        }
+
+        // 只允许“类型体内的普通成员方法”：不支持 extension receiver，也不支持 effect op。
+        if o.sig.kind != ast::FunDeclKind::Regular {
+            continue;
+        }
+        if o.sig.receiver.is_some() {
+            continue;
+        }
+
+        // 当前阶段的泛型调用推断仅支持单一 type param；与跨文件顶层函数调用保持一致。
+        if o.sig.type_params.len() > 1 {
+            continue;
+        }
+
+        // operator overloading 当前不接入 `<eff E>`（可在后续任务中补齐）。
+        if o.sig.eff_param.is_some() {
+            continue;
+        }
+
+        let decl_source = lower
+            .env()
+            .source(&o.symbol.decl_file)
+            .cloned()
+            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "cross-file signature lowering（missing decl source）",
+                span: o.symbol.span.into(),
+            })?;
+
+        // 函数级 type params：用于在 lowering 阶段把 `T` 解析为 `TypeKind::Param`。
+        let mut type_params: Vec<TypeId> = Vec::with_capacity(o.sig.type_params.len());
+        let mut type_param_bindings: Vec<(String, TypeId)> = base_type_bindings.clone();
+        for p in &o.sig.type_params {
+            let ty = lower.ty_param_named(p.name.clone(), o.symbol.decl_file.clone(), p.name_span);
+            type_param_bindings.push((p.name.clone(), ty));
+            type_params.push(ty);
+        }
+
+        // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
+        // 不包含 `inline`。跨文件 member method 调用暂按 `inline = false` 处理即可。
+        let is_inline = false;
+
+        let mut param_names: Vec<String> = Vec::with_capacity(o.sig.params.len() + 1);
+        let mut param_has_defaults: Vec<bool> = Vec::with_capacity(o.sig.params.len() + 1);
+        let mut params: Vec<TypeId> = Vec::with_capacity(o.sig.params.len() + 1);
+
+        // 隐式 receiver：作为第一个参数注入。
+        param_names.push("<receiver>".to_string());
+        param_has_defaults.push(false);
+        params.push(receiver_ty);
+
+        for p in &o.sig.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            param_names.push(p.name.clone());
+            param_has_defaults.push(p.has_default);
+            let ty = lower.lower_type_ref_in_decl_file_with_scopes(
+                &o.symbol.decl_file,
+                type_param_bindings.iter().cloned(),
+                Vec::new(),
+                ty_ref,
+            )?;
+            params.push(ty);
+        }
+
+        let return_ty = match &o.sig.return_ty {
+            Some(ret) => lower.lower_type_ref_in_decl_file_with_scopes(
+                &o.symbol.decl_file,
+                type_param_bindings.iter().cloned(),
+                Vec::new(),
+                ret,
+            )?,
+            None => builtins.unit,
+        };
+
+        // 对 operator method：receiver 不参与 eff var substitution 推断，因此这里按“无基底/无替换”处理。
+        let mut param_fn_effect_eff_base: Vec<Option<EffectRow>> = Vec::with_capacity(params.len());
+        let mut param_nominal_eff_eff_base: Vec<Option<EffectRow>> =
+            Vec::with_capacity(params.len());
+        let mut param_eff_row_var_subst: Vec<EffRowVarSubstPlan> = Vec::with_capacity(params.len());
+
+        param_fn_effect_eff_base.push(None);
+        param_nominal_eff_eff_base.push(None);
+        param_eff_row_var_subst.push(EffRowVarSubstPlan::None);
+
+        for p in &o.sig.params {
+            let Some(ty_ref) = &p.ty else {
+                continue;
+            };
+            // operator overloading 当前不支持 `<eff E>`，因此这里不计算相关基底与替换计划。
+            let _ = (ty_ref, &decl_source);
+            param_fn_effect_eff_base.push(None);
+            param_nominal_eff_eff_base.push(None);
+            param_eff_row_var_subst.push(EffRowVarSubstPlan::None);
+        }
+
+        out.push(FunSigOwned {
+            decl_span: o.symbol.span,
+            decl_file: o.symbol.decl_file.clone(),
+            is_extension: false,
+            is_inline,
+            is_const: o.sig.is_const,
+            is_unsafe: o.sig.builtin_flags.is_unsafe,
+            is_nogc: o.sig.builtin_flags.is_nogc,
+            is_extern: o.sig.builtin_flags.is_extern,
+            is_intrinsic: o.sig.builtin_flags.is_intrinsic,
+            param_names,
+            param_has_defaults,
+            type_params,
+            eff_param: None,
+            param_fn_effect_eff_base,
+            param_nominal_eff_eff_base,
+            param_eff_row_var_subst,
+            return_eff_row_var_subst: EffRowVarSubstPlan::None,
+            params,
+            return_ty,
+            effects: o.sig.effects.clone(),
+        });
+    }
+
+    Ok(out)
+}
+
 fn infer_unary_expr_type(
     source: &SourceFile,
     op: ast::UnaryOp,
@@ -2111,6 +2312,343 @@ fn infer_unary_expr_type(
             })
         }
     }
+}
+
+fn infer_add_sub_binary_expr_type(
+    source: &SourceFile,
+    binary_expr: &ast::Expr,
+    lhs: &ast::Expr,
+    op: ast::BinaryOp,
+    op_span: Span,
+    rhs: &ast::Expr,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let lhs_ty = infer_expr_type(
+        source,
+        lhs,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    // Kotlin-like：`+/-` 对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/minus`）。
+    //
+    // 注意：这里复用 `unify_integer_operands_for_same_type_rule` 允许整数字面量被上下文整数类型吸收。
+    if is_integer_type(lhs_ty, lower, builtins) {
+        let rhs_ty = infer_expr_type(
+            source,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        let Some(ty) =
+            unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+        else {
+            return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                op: binary_op_text(op).to_string(),
+                expected: "相同的整数类型".to_string(),
+                lhs: lower.fmt_type(lhs_ty),
+                rhs: lower.fmt_type(rhs_ty),
+                span: op_span.into(),
+            });
+        };
+
+        return Ok(ty);
+    }
+
+    let Some(method) = operator_overload_method_name(op) else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "binary operator overload（non add/sub）",
+            span: op_span.into(),
+        });
+    };
+
+    let (receiver_fqn, receiver_args) = match lower.type_kind(lhs_ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => (n.fqn, n.args),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn, n.args),
+        _ => {
+            let rhs_ty = infer_expr_type(
+                source,
+                rhs,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                op: binary_op_text(op).to_string(),
+                expected: "相同的整数类型".to_string(),
+                lhs: lower.fmt_type(lhs_ty),
+                rhs: lower.fmt_type(rhs_ty),
+                span: op_span.into(),
+            });
+        }
+    };
+
+    // 只对 struct/class 启用 operator overloading（T1301 目标约束）。
+    if !matches!(
+        lower.nominal_decl_kind(&receiver_fqn),
+        Some(ast::TypeKind::Struct | ast::TypeKind::Class)
+    ) {
+        let rhs_ty = infer_expr_type(
+            source,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+        return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+            op: binary_op_text(op).to_string(),
+            expected: "相同的整数类型".to_string(),
+            lhs: lower.fmt_type(lhs_ty),
+            rhs: lower.fmt_type(rhs_ty),
+            span: op_span.into(),
+        });
+    }
+
+    let callee_fqn = format!("{receiver_fqn}.{method}");
+    let sigs = collect_member_method_signatures_from_index(
+        source,
+        lhs_ty,
+        &receiver_fqn,
+        &receiver_args,
+        &callee_fqn,
+        lower,
+        builtins,
+    )?;
+
+    if sigs.is_empty() {
+        let rhs_ty = infer_expr_type(
+            source,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+        return Err(ExprTypeError::OperatorOverloadNotFound {
+            op: binary_op_text(op).to_string(),
+            receiver: lower.fmt_type(lhs_ty),
+            method: method.to_string(),
+            rhs: lower.fmt_type(rhs_ty),
+            span: op_span.into(),
+        });
+    }
+
+    // operator overloading 的 call args：隐式 receiver + rhs（仅位置实参）。
+    let rhs_ty_for_selection = match rhs.kind {
+        ast::ExprKind::Lambda(_) => builtins.any,
+        _ => infer_expr_type(
+            source,
+            rhs,
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?,
+    };
+    let call_args: Vec<CallArgInfo<'_>> = vec![
+        CallArgInfo {
+            kind: CallArgKind::Positional,
+            expr: lhs,
+            ty: lhs_ty,
+            is_int_lit: matches!(lhs.kind, ast::ExprKind::IntLit),
+        },
+        CallArgInfo {
+            kind: CallArgKind::Positional,
+            expr: rhs,
+            ty: rhs_ty_for_selection,
+            is_int_lit: matches!(rhs.kind, ast::ExprKind::IntLit),
+        },
+    ];
+
+    let mut matched: Vec<(FunSigOwned, InstantiatedFunSig)> = Vec::new();
+    for sig in sigs.iter() {
+        // operator method 调用：禁止 unsafe/nogc/const 门禁绕过，沿用普通调用的 gate。
+        check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+        check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+        check_const_fun_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
+
+        let Some(mapping) = map_call_args_to_params_with_defaults(
+            &call_args,
+            &sig.param_names,
+            &sig.param_has_defaults,
+        ) else {
+            continue;
+        };
+
+        let instantiated = instantiate_fun_sig_for_call(
+            &callee_fqn,
+            binary_expr.span,
+            sig,
+            mapping
+                .iter()
+                .copied()
+                .enumerate()
+                .filter_map(|(param_idx, arg_idx)| {
+                    let Some(arg_idx) = arg_idx else {
+                        return None;
+                    };
+                    let arg = &call_args[arg_idx];
+                    Some(GenericArgConstraint {
+                        expected: sig.params[param_idx],
+                        found: arg.ty,
+                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        from: format!("第 {} 个实参", arg_idx + 1),
+                        span: arg.expr.span,
+                    })
+                }),
+            lower,
+            builtins,
+        )?;
+
+        let mut ok = true;
+        for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                ok = false;
+                break;
+            };
+            let expected_ty = instantiated.params[param_idx];
+            let arg = &call_args[arg_idx];
+            let found_ty = arg.ty;
+
+            if !is_type_assignable(found_ty, expected_ty, lower, builtins)
+                && !(arg.is_int_lit && is_integer_type(expected_ty, lower, builtins))
+            {
+                ok = false;
+                break;
+            }
+        }
+
+        if ok {
+            matched.push((sig.clone(), instantiated));
+        }
+    }
+
+    let (sig, instantiated) = match matched.len() {
+        0 => {
+            let rhs_ty = infer_expr_type(
+                source,
+                rhs,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            return Err(ExprTypeError::OperatorOverloadNotFound {
+                op: binary_op_text(op).to_string(),
+                receiver: lower.fmt_type(lhs_ty),
+                method: method.to_string(),
+                rhs: lower.fmt_type(rhs_ty),
+                span: op_span.into(),
+            });
+        }
+        1 => matched.remove(0),
+        _ => {
+            let candidates = matched
+                .iter()
+                .map(|(sig, _)| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(
+                        method,
+                        receiver_ty,
+                        sig.params.get(1..).unwrap_or_default(),
+                        lower,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: op_span.into(),
+            });
+        }
+    };
+
+    // rhs 最终类型检查：在期望类型语境下覆盖（lambda 下推推断等）。
+    if let Some(expected_rhs_ty) = instantiated.params.get(1).copied() {
+        let found_rhs_ty = infer_expr_type_in_expected_context(
+            source,
+            rhs,
+            expected_rhs_ty,
+            ExpectedTypeFrom::new(format!(
+                "`{}` 的第 2 个形参 `{}`",
+                callee_fqn,
+                sig.param_names
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| "<arg>".to_string())
+            )),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+        if !is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, builtins)
+            && !(matches!(rhs.kind, ast::ExprKind::IntLit)
+                && is_integer_type(expected_rhs_ty, lower, builtins))
+        {
+            return Err(ExprTypeError::OperatorOverloadNotFound {
+                op: binary_op_text(op).to_string(),
+                receiver: lower.fmt_type(lhs_ty),
+                method: method.to_string(),
+                rhs: lower.fmt_type(found_rhs_ty),
+                span: op_span.into(),
+            });
+        }
+
+        check_nogc_boxing_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
+    }
+
+    // required effects：把被调用方法的 effect row 计入当前函数体的 performed effects。
+    let mut type_param_bindings =
+        collect_nominal_type_param_bindings(&receiver_fqn, &receiver_args, lower);
+    for p in sig.type_params.iter().copied() {
+        type_param_bindings.push((type_param_name(p, lower), p));
+    }
+    let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_bindings(
+        &sig.decl_file,
+        type_param_bindings,
+        sig.effects.as_ref(),
+    );
+    let call_effects = substitute_type_args_in_effect_row(
+        lowered_effects?,
+        &sig.type_params,
+        &instantiated.type_args,
+        lower,
+        binary_expr.span,
+    )?;
+    for effect in call_effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, binary_expr.span);
+    }
+
+    Ok(instantiated.return_ty)
 }
 
 fn infer_builtin_scalar_binary_expr_type(
@@ -2651,6 +3189,20 @@ fn infer_expr_type(
                 source,
                 lhs,
                 rhs,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            ),
+            ast::BinaryOp::Add | ast::BinaryOp::Sub => infer_add_sub_binary_expr_type(
+                source,
+                expr,
+                lhs.as_ref(),
+                *op,
+                *op_span,
+                rhs.as_ref(),
                 lower,
                 builtins,
                 locals,
@@ -11302,7 +11854,8 @@ fn infer_member_access_expr_type(
                         span: member.span.into(),
                     });
                 };
-                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(receiver_ty)
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+                    lower.type_kind(receiver_ty)
                 {
                     if nominal.fqn == "scoop.core.Platform" {
                         return Ok(builtins.string);

@@ -863,7 +863,7 @@ fixtures：
 spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需求拆分落地，每一项都要配 fixtures：
 
 - [ ] 操作符重载（operator overloading）
-  - 解析 `a + b` → 解析/绑定到 `plus`/`minus` 等约定方法（按 Kotlin 规则）
+  - [x] `a + b` / `a - b` → 绑定到 `plus` / `minus`（T1301）
   - 补齐位运算与移位：`and/or/xor/inv/shl/shr`（Appendix B.8）
   - 运行期与值类型/引用类型的 codegen 覆盖
 - [ ] `object` 与 companion object（如需要）

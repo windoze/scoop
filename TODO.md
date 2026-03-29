@@ -4053,11 +4053,18 @@
 
 ## T13：Kotlin 语义兼容项（阶段 11+，按需补齐）
 
-### T1301 [TODO] 操作符重载：解析 `a + b` 到约定方法名（Appendix B.8 / PLAN §14）
+### T1301 [DONE] 操作符重载：解析 `a + b` 到约定方法名（Appendix B.8 / PLAN §14）
 - 描述：在 typecheck/bind 阶段把二元运算映射到 `plus/minus/...`。
 - 目标：先只实现 `+` 与 `-`；只对 struct/class 方法生效。
 - 验收：language fixture：自定义 `plus` 后 `a + b` 通过；缺少方法时报错。
 - 依赖：T0211、T0302、T0407
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：对 `BinaryOp::Add/Sub` 增加 operator overloading：当 lhs 为 struct/class 时，尝试绑定到 `{Type}.plus/minus` 成员方法；同时保留整数 `+/-` 的内建规则；新增稳定诊断 `scoop::typecheck::operator_overload_not_found`。
+   - `tests/fixtures/typecheck/operator_overload_plus_minus_ok.scoop`：新增通过用例覆盖 `a + b`/`a - b`。
+   - `tests/fixtures/typecheck/operator_overload_plus_missing_is_error.scoop`：新增失败用例覆盖缺少 `plus` 方法时报错。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1302 [TODO] typealias：完善语义（泛型 alias / 跨包导出 / Cone 交互）（Appendix B.10）
 - 描述：在已有“最小 typealias 展开”（见 T0446）的基础上，补齐 Kotlin 风格的 typealias 能力：支持泛型 typealias、跨包引用与可见性/导出规则（与 Cone 的 public API 对齐）。

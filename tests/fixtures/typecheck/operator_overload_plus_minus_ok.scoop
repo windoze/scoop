@@ -1,0 +1,26 @@
+// EXPECT: pass
+// 目标：T1301 操作符重载：`a + b` / `a - b` 绑定到 `a.plus(b)` / `a.minus(b)`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Vec2 {
+    val x: Int
+    val y: Int
+
+    fun plus(other: Vec2): Vec2 {
+        return other
+    }
+
+    fun minus(other: Vec2): Vec2 {
+        return other
+    }
+}
+
+fun add(a: Vec2, b: Vec2): Vec2 {
+    val c: Vec2 = a + b
+    val d: Vec2 = a - b
+    return c
+}
+
