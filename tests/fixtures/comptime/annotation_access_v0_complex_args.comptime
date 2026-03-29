@@ -1,0 +1,4 @@
+A = (AnnotationMeta { args: (AnnotationArgMeta { name: "a", value: 3 }, AnnotationArgMeta { name: "colors", value: (Color.Red) }, AnnotationArgMeta { name: "cls", value: "String" }), name: "Anno" })
+V0 = 3
+V1 = (Color.Red)
+V2 = "String"

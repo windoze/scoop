@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T1218：编译期注解访问补齐复杂注解参数：
+// - 常量表达式求值：`1 + 2`
+// - 数组字面量：`[Color.Red]`（v0 以 tuple 承载）
+// - enum 常量：`Color.Red`
+// - class literal：`String::class`（v0 视为类型名字符串常量）
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+enum Color { Red, Blue }
+
+annotation class Anno(val a: Int, val colors: Array<Color>, val cls: String)
+
+@Anno(1 + 2, [Color.Red], String::class)
+struct Foo(val x: Int)
+
+const val A = annotationsOf<Foo>()
+const val V0: Int = annotationsOf<Foo>()._0.args._0.value
+const val V1 = annotationsOf<Foo>()._0.args._1.value
+const val V2: String = annotationsOf<Foo>()._0.args._2.value
+
