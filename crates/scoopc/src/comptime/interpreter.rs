@@ -227,6 +227,29 @@ impl<'a> ConstInterpreter<'a> {
         type_args: Vec<ast::TypeRef>,
         args: Vec<ConstValue>,
     ) -> Result<ConstValue, ConstEvalError> {
+        // T1219：平台反射 `getPlatform()`：既可在 comptime 求值，也可在运行期查询。
+        //
+        // 说明：
+        // - const 解释器只负责“编译期求值”路径；运行期调用由后续 lowering/codegen 处理。
+        // - 当前阶段先把 runtime 视为等同于 compile target（host）。
+        if callee_name == "getPlatform" {
+            if !type_args.is_empty() {
+                return Err(ConstEvalError::UnsupportedConstFunSignature {
+                    reason: "explicit type args",
+                    span: call_span.into(),
+                });
+            }
+            if !args.is_empty() {
+                return Err(ConstEvalError::ConstFunArityMismatch {
+                    name: "getPlatform".to_string(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_span.into(),
+                });
+            }
+            return Ok(host_platform_const_value());
+        }
+
         // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
         match callee_name {
             "nameOf" | "sizeOf" | "alignOf" | "fieldsOf" | "variantsOf" | "superTypesOf" | "annotationsOf" => {
@@ -1201,6 +1224,67 @@ fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {
 
         _ => None,
     }
+}
+
+/// 返回当前编译目标（v0：host target）的平台信息（spec §6.4 / TODO T1219）。
+///
+/// 设计说明：
+/// - LLVM 后端（inkwell）默认关闭；CI 也不要求安装 LLVM，因此这里不能依赖 LLVM API。
+/// - v0 先用 Cargo 提供的目标 cfg 信息构造一个“LLVM 风格”的 triple 字符串；
+/// - 之后再按 `arch-vendor-os-env` 的惯例做拆分，缺失字段则回退为空串。
+fn host_platform_const_value() -> ConstValue {
+    let triple = host_target_triple_string();
+    let (arch, vendor, os, env) = decompose_llvm_like_triple(&triple);
+
+    let mut fields: std::collections::BTreeMap<String, ConstValue> = std::collections::BTreeMap::new();
+    fields.insert("triple".to_string(), ConstValue::String(triple));
+    fields.insert("arch".to_string(), ConstValue::String(arch));
+    fields.insert("vendor".to_string(), ConstValue::String(vendor));
+    fields.insert("os".to_string(), ConstValue::String(os));
+    fields.insert("env".to_string(), ConstValue::String(env));
+
+    ConstValue::Struct(super::ConstStruct {
+        ty: "Platform".to_string(),
+        fields,
+    })
+}
+
+fn host_target_triple_string() -> String {
+    let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or("unknown");
+    let vendor = option_env!("CARGO_CFG_TARGET_VENDOR").unwrap_or("unknown");
+    let os_cfg = option_env!("CARGO_CFG_TARGET_OS").unwrap_or("unknown");
+    let os = normalize_target_os_for_llvm_triple(os_cfg);
+    let env = option_env!("CARGO_CFG_TARGET_ENV").unwrap_or("");
+
+    if env.is_empty() {
+        format!("{arch}-{vendor}-{os}")
+    } else {
+        format!("{arch}-{vendor}-{os}-{env}")
+    }
+}
+
+fn normalize_target_os_for_llvm_triple(os_cfg: &str) -> &str {
+    // Rust `cfg(target_os = "macos")` 的字符串与 LLVM triple 的 OS 段并不一致：
+    // - Rust: macos
+    // - LLVM: darwin
+    match os_cfg {
+        "macos" => "darwin",
+        other => other,
+    }
+}
+
+fn decompose_llvm_like_triple(triple: &str) -> (String, String, String, String) {
+    // LLVM triple 约定形态：arch-vendor-os[-env]。
+    //
+    // 说明：
+    // - 本函数不做严格校验（spec 允许 implementation-defined validation）；
+    // - 多余段落（如 `arch-vendor-os-env-abi`）目前忽略，保留最常用的前四段。
+    let mut parts = triple.split('-');
+    let arch = parts.next().unwrap_or("").to_string();
+    let vendor = parts.next().unwrap_or("").to_string();
+    let os = parts.next().unwrap_or("").to_string();
+    let env = parts.next().unwrap_or("").to_string();
+    (arch, vendor, os, env)
 }
 
 impl ConstEvalHost for ConstInterpreter<'_> {

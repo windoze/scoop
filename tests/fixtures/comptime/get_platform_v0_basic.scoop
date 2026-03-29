@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T1219：平台反射 `getPlatform()` 在编译期可求值，并可读取拆分字段。
+//
+// 说明：
+// - 该 fixture 只断言“字段可读 + 非空性”等跨平台稳定性质，避免把 host triple 写死到 golden；
+// - 具体 triple/arch/os 的精确值由 Rust 单测覆盖（见 `crates/scoopc/src/comptime/tests.rs`）。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const val ARCH_NONEMPTY: Bool = getPlatform().arch != ""
+const val OS_NONEMPTY: Bool = getPlatform().os != ""
+const val VENDOR_NONEMPTY: Bool = getPlatform().vendor != ""
+const val TRIPLE_NONEMPTY: Bool = getPlatform().triple != ""
+
+// env 在部分目标上可能为空（例如 apple-darwin），这里只验证字段可访问且比较可用。
+const val ENV_ACCESSIBLE: Bool = getPlatform().env == getPlatform().env
+

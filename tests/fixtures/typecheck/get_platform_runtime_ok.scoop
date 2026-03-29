@@ -1,0 +1,14 @@
+// EXPECT: pass
+// 目标：T1219：`getPlatform()` 可在运行期语境调用（遵循 const fun fallback 规则），并返回 Platform 值类型。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun runtimeUse(): String {
+    val p: Platform = getPlatform()
+    return p.os
+}
+
+val a: String = runtimeUse()
+

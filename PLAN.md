@@ -847,7 +847,7 @@ fixtures：
 - [x] 反射 intrinsics v0：`fieldsOf/nameOf/sizeOf`（fieldsOf v0 返回 `FieldMeta` 列表）
 - [x] splice operator v0：`value.[field]`（const eval + typecheck 最小语义）
 - [x] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
-- [ ] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
+- [x] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
 - [x] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [x] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）

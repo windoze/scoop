@@ -11288,6 +11288,28 @@ fn infer_member_access_expr_type(
                 return Ok(lower.lower_type_fqn_with_args(fqn.clone(), Vec::new(), member.span)?);
             }
 
+            // sysroot 跨文件特判：Platform.*（spec §6.4 / TODO T1219）。
+            //
+            // 说明：
+            // - 当前阶段 `struct_field_types` 只收集“当前文件内”的字段类型；
+            // - `Platform` 定义在 sysroot，且其字段都是 `String`；
+            // - 为了让 `getPlatform().arch/os/...` 在运行期语境可通过 typecheck，
+            //   这里先做最小特判（后续可统一升级为“跨文件字段表”）。
+            if fqn.starts_with("scoop.core.Platform.") {
+                let Some(receiver_ty) = receiver_ty else {
+                    return Err(ExprTypeError::UnsupportedMemberAccess {
+                        fqn: fqn.clone(),
+                        span: member.span.into(),
+                    });
+                };
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(receiver_ty)
+                {
+                    if nominal.fqn == "scoop.core.Platform" {
+                        return Ok(builtins.string);
+                    }
+                }
+            }
+
             // spec §15.10：`Pinned.value`（early stage）。
             //
             // 说明：

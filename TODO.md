@@ -4027,7 +4027,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1219 [TODO] 平台反射：`Platform` struct + `getPlatform(): Platform`（spec §6.4）
+### T1219 [DONE] 平台反射：`Platform` struct + `getPlatform(): Platform`（spec §6.4）
 - 描述：在 sysroot 中新增 `Platform` 值类型，并提供 `const fun getPlatform(): Platform`：
   - comptime 下返回编译 target 的 LLVM triple 与拆分字段；
   - runtime 下返回当前执行环境平台（早期阶段可先等同于编译 target）。
@@ -4038,6 +4038,16 @@
   - 新增 comptime fixture：`const val p = getPlatform(); p.arch/p.os` 可被读取并输出稳定（可用 `.comptime` golden）；
   - 新增 typecheck fixture：运行期语境调用 `getPlatform()` 可通过（遵循 const fun fallback 规则）。
 - 依赖：T0803、T1202、T1204
+ - 完成：
+   - `sysroot/core.scoop`：新增 `Platform` 值类型与 `@Intrinsic const fun getPlatform(): Platform` 声明。
+   - `crates/scoopc/src/comptime/interpreter.rs`：为 const 解释器内建实现 `getPlatform()`（v0：基于 Cargo cfg 构造 host target triple，并按 `arch-vendor-os-env` 拆分）。
+   - `crates/scoopc/src/typecheck/expr.rs`：补齐 sysroot 跨文件特判：`Platform.*` 字段成员访问返回 `String`（避免 `struct_field_types` 仅收集当前文件导致 runtime 使用被拒）。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测 `const_eval_get_platform_intrinsic_v0` 覆盖 triple 与拆分字段一致性。
+   - `tests/fixtures/comptime/get_platform_v0_basic.*`：新增 comptime fixture + `.comptime` golden（跨平台稳定：只断言字段可访问与非空性）。
+   - `tests/fixtures/typecheck/get_platform_runtime_ok.scoop`：新增 typecheck fixture：运行期语境调用 `getPlatform()` 并读取 `p.os` 可通过。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ---
 

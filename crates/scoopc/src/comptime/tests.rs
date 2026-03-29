@@ -112,6 +112,19 @@ fn mk_annotation_meta(name: &str, args: Vec<ConstValue>) -> ConstValue {
     })
 }
 
+fn mk_platform(triple: &str, arch: &str, vendor: &str, os: &str, env: &str) -> ConstValue {
+    ConstValue::Struct(ConstStruct {
+        ty: "Platform".to_string(),
+        fields: BTreeMap::from([
+            ("arch".to_string(), ConstValue::String(arch.to_string())),
+            ("env".to_string(), ConstValue::String(env.to_string())),
+            ("os".to_string(), ConstValue::String(os.to_string())),
+            ("triple".to_string(), ConstValue::String(triple.to_string())),
+            ("vendor".to_string(), ConstValue::String(vendor.to_string())),
+        ]),
+    })
+}
+
 fn eval_file_consts(file_src: &str) -> Vec<ConstBinding> {
     let source = SourceFile::new_virtual("<mem>", file_src.to_string());
     let file = parser::parse_file(&source).expect("parse");
@@ -734,6 +747,62 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
             ConstBinding {
                 name: "P1T".to_string(),
                 value: ConstValue::String("String".to_string()),
+            },
+        ]
+    );
+}
+
+#[test]
+fn const_eval_get_platform_intrinsic_v0() {
+    let consts = eval_file_consts(
+        r#"
+const val P = getPlatform()
+const val T: String = getPlatform().triple
+const val A: String = getPlatform().arch
+const val V: String = getPlatform().vendor
+const val O: String = getPlatform().os
+const val E: String = getPlatform().env
+"#,
+    );
+
+    // 注意：这里的期望值来自 Cargo 编译期 cfg（与解释器的实现保持一致）。
+    let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or("unknown");
+    let vendor = option_env!("CARGO_CFG_TARGET_VENDOR").unwrap_or("unknown");
+    let os_cfg = option_env!("CARGO_CFG_TARGET_OS").unwrap_or("unknown");
+    let os = if os_cfg == "macos" { "darwin" } else { os_cfg };
+    let env = option_env!("CARGO_CFG_TARGET_ENV").unwrap_or("");
+    let triple = if env.is_empty() {
+        format!("{arch}-{vendor}-{os}")
+    } else {
+        format!("{arch}-{vendor}-{os}-{env}")
+    };
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "P".to_string(),
+                value: mk_platform(&triple, arch, vendor, os, env),
+            },
+            ConstBinding {
+                name: "T".to_string(),
+                value: ConstValue::String(triple.clone()),
+            },
+            ConstBinding {
+                name: "A".to_string(),
+                value: ConstValue::String(arch.to_string()),
+            },
+            ConstBinding {
+                name: "V".to_string(),
+                value: ConstValue::String(vendor.to_string()),
+            },
+            ConstBinding {
+                name: "O".to_string(),
+                value: ConstValue::String(os.to_string()),
+            },
+            ConstBinding {
+                name: "E".to_string(),
+                value: ConstValue::String(env.to_string()),
             },
         ]
     );

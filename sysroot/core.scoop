@@ -269,6 +269,23 @@ const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
 const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
 
+// Platform Introspection（spec §6.4）。
+//
+// 说明：
+// - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
+// - `getPlatform()` 既可在 comptime 求值，也可在运行期查询当前执行环境；
+// - 当前阶段（TODO T1219）先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
+struct Platform {
+    val triple: String
+    val arch: String
+    val vendor: String
+    val os: String
+    val env: String
+}
+
+@Intrinsic
+const fun getPlatform(): Platform
+
 // Option / nullable sugar
 enum Option<T> {
     Some(val value: T),
