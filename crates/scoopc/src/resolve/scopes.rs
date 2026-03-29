@@ -558,6 +558,7 @@ impl<'a> BlockScopeChecker<'a> {
                 self.check_expr(cond)?;
                 self.check_block(body)?;
             }
+            ast::StmtKind::For(f) => self.check_for(f)?,
             ast::StmtKind::ComptimeBlock { body, .. } => self.check_block(body)?,
             ast::StmtKind::ComptimeIf(ci) => self.check_comptime_if(ci)?,
             ast::StmtKind::ComptimeFor(cf) => self.check_comptime_for(cf)?,
@@ -590,6 +591,18 @@ impl<'a> BlockScopeChecker<'a> {
         self.push_scope();
         self.declare_ident(&cf.binder)?;
         self.check_block(&mut cf.body)?;
+        self.pop_scope();
+
+        Ok(())
+    }
+
+    fn check_for(&mut self, f: &mut ast::ForStmt) -> Result<(), ResolveError> {
+        self.check_expr(&mut f.iter)?;
+
+        // `for (x in xs) { ... }` 的 binder 在 body 作用域内可见（与 Kotlin 规则一致）。
+        self.push_scope();
+        self.declare_ident(&f.binder)?;
+        self.check_block(&mut f.body)?;
         self.pop_scope();
 
         Ok(())

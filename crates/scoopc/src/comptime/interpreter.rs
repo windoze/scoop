@@ -28,7 +28,9 @@ pub struct ConstEvalOptions {
 
 impl Default for ConstEvalOptions {
     fn default() -> Self {
-        Self { recursion_limit: 64 }
+        Self {
+            recursion_limit: 64,
+        }
     }
 }
 
@@ -48,7 +50,8 @@ pub fn eval_const_bindings_in_file<'a>(
     source: &'a SourceFile,
     file: &'a ast::File,
 ) -> Result<Vec<ConstBinding>, ConstEvalError> {
-    let mut interp = ConstInterpreter::with_options(ConstEvalCtx::new(source), ConstEvalOptions::default());
+    let mut interp =
+        ConstInterpreter::with_options(ConstEvalCtx::new(source), ConstEvalOptions::default());
     interp.register_file(file);
     interp.eval_const_bindings(file)
 }
@@ -97,7 +100,10 @@ impl<'a> ConstInterpreter<'a> {
         }
     }
 
-    fn eval_const_bindings(&mut self, file: &'a ast::File) -> Result<Vec<ConstBinding>, ConstEvalError> {
+    fn eval_const_bindings(
+        &mut self,
+        file: &'a ast::File,
+    ) -> Result<Vec<ConstBinding>, ConstEvalError> {
         let mut out = Vec::new();
 
         for item in &file.items {
@@ -252,7 +258,8 @@ impl<'a> ConstInterpreter<'a> {
 
         // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
         match callee_name {
-            "nameOf" | "sizeOf" | "alignOf" | "fieldsOf" | "variantsOf" | "superTypesOf" | "annotationsOf" => {
+            "nameOf" | "sizeOf" | "alignOf" | "fieldsOf" | "variantsOf" | "superTypesOf"
+            | "annotationsOf" => {
                 return self.call_reflection_intrinsics(call_span, callee_name, type_args, args);
             }
             "paramsOf" => {
@@ -340,7 +347,8 @@ impl<'a> ConstInterpreter<'a> {
                 }
 
                 let mut fields: Vec<ConstValue> = Vec::new();
-                let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+                let mut seen: std::collections::BTreeSet<String> =
+                    std::collections::BTreeSet::new();
 
                 // 1) 主构造 `val/var` 参数声明的字段
                 if let Some(ctor) = decl.primary_ctor.as_ref() {
@@ -356,14 +364,21 @@ impl<'a> ConstInterpreter<'a> {
                             });
                         }
                         let index = fields.len();
-                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index, &p.annotations)?);
+                        fields.push(self.mk_field_meta(
+                            fname,
+                            p.ty.as_ref(),
+                            index,
+                            &p.annotations,
+                        )?);
                     }
                 }
 
                 // 2) type body 里“看起来像 backing field 的属性声明”
                 if let Some(body) = decl.body.as_ref() {
                     for m in &body.members {
-                        let ast::TypeMember::Property(p) = m else { continue };
+                        let ast::TypeMember::Property(p) = m else {
+                            continue;
+                        };
 
                         // v0：只把“无 delegate、无自定义 getter/setter”的属性当作字段。
                         if p.delegate.is_some() || p.getter.is_some() || p.setter.is_some() {
@@ -378,7 +393,12 @@ impl<'a> ConstInterpreter<'a> {
                             });
                         }
                         let index = fields.len();
-                        fields.push(self.mk_field_meta(fname, p.ty.as_ref(), index, &p.annotations)?);
+                        fields.push(self.mk_field_meta(
+                            fname,
+                            p.ty.as_ref(),
+                            index,
+                            &p.annotations,
+                        )?);
                     }
                 }
 
@@ -410,7 +430,9 @@ impl<'a> ConstInterpreter<'a> {
                 let mut variants: Vec<ConstValue> = Vec::new();
                 if let Some(body) = decl.body.as_ref() {
                     for m in &body.members {
-                        let ast::TypeMember::EnumVariant(v) = m else { continue };
+                        let ast::TypeMember::EnumVariant(v) = m else {
+                            continue;
+                        };
                         let index = variants.len();
                         variants.push(self.mk_variant_meta(v, index)?);
                     }
@@ -627,10 +649,7 @@ impl<'a> ConstInterpreter<'a> {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(
-                self.ctx.default_int_ty,
-                index as u128,
-            )),
+            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(name));
         fields.insert("type".to_string(), self.mk_type_meta(ty)?);
@@ -650,10 +669,7 @@ impl<'a> ConstInterpreter<'a> {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(
-                self.ctx.default_int_ty,
-                index as u128,
-            )),
+            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(pname));
         fields.insert("type".to_string(), self.mk_type_meta(p.ty.as_ref())?);
@@ -683,10 +699,7 @@ impl<'a> ConstInterpreter<'a> {
         let mut fields = std::collections::BTreeMap::new();
         fields.insert(
             "index".to_string(),
-            ConstValue::Int(super::ConstInt::new(
-                self.ctx.default_int_ty,
-                index as u128,
-            )),
+            ConstValue::Int(super::ConstInt::new(self.ctx.default_int_ty, index as u128)),
         );
         fields.insert("name".to_string(), ConstValue::String(vname));
         fields.insert("fields".to_string(), ConstValue::Tuple(field_metas));
@@ -721,7 +734,8 @@ impl<'a> ConstInterpreter<'a> {
         let ctor_params = self.lookup_annotation_ctor_params(&simple);
         let mut positional_index: usize = 0;
         let mut provided_order: Vec<(String, ConstValue)> = Vec::with_capacity(a.args.len());
-        let mut provided_by_name: std::collections::BTreeMap<String, ConstValue> = std::collections::BTreeMap::new();
+        let mut provided_by_name: std::collections::BTreeMap<String, ConstValue> =
+            std::collections::BTreeMap::new();
 
         for arg in &a.args {
             let arg_name = match arg.name {
@@ -795,7 +809,10 @@ impl<'a> ConstInterpreter<'a> {
         })
     }
 
-    fn lookup_annotation_ctor_params(&self, annotation_simple_name: &str) -> Option<&'a [ast::Param]> {
+    fn lookup_annotation_ctor_params(
+        &self,
+        annotation_simple_name: &str,
+    ) -> Option<&'a [ast::Param]> {
         let decls = self.types_by_name.get(annotation_simple_name)?;
         let decl = match decls.as_slice() {
             [one] => *one,
@@ -835,7 +852,9 @@ impl<'a> ConstInterpreter<'a> {
                 }
                 Some(out)
             }
-            ast::TypeRef::Nullable { inner, .. } => self.type_ref_to_string(inner).map(|s| format!("{s}?")),
+            ast::TypeRef::Nullable { inner, .. } => {
+                self.type_ref_to_string(inner).map(|s| format!("{s}?"))
+            }
             ast::TypeRef::Tuple(t) if t.elements.is_empty() => Some("Unit".to_string()),
             // v0：不支持把这些类型表达成 TypeMeta。
             ast::TypeRef::Tuple(_)
@@ -941,7 +960,10 @@ impl<'a> ConstInterpreter<'a> {
         Ok(ret)
     }
 
-    fn eval_block(&mut self, block: &ast::Block) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
+    fn eval_block(
+        &mut self,
+        block: &ast::Block,
+    ) -> Result<ControlFlow<ConstValue, ConstValue>, ConstEvalError> {
         // block 自带一个子作用域（与 resolver/typecheck 的“block 内声明仅在该 block 内可见”一致）。
         self.push_scope();
 
@@ -1004,6 +1026,10 @@ impl<'a> ConstInterpreter<'a> {
             }
             ast::StmtKind::While { .. } => Err(ConstEvalError::UnsupportedStmt {
                 kind: "while",
+                span: stmt.span.into(),
+            }),
+            ast::StmtKind::For(_) => Err(ConstEvalError::UnsupportedStmt {
+                kind: "for",
                 span: stmt.span.into(),
             }),
             ast::StmtKind::Break { .. } => Err(ConstEvalError::UnsupportedStmt {
@@ -1116,7 +1142,10 @@ impl<'a> ConstInterpreter<'a> {
                 let end = ri.as_i128();
                 while cur <= end {
                     self.push_scope();
-                    self.define_local(binder_name.clone(), ConstValue::Int(super::ConstInt::new(li.ty, cur as u128)));
+                    self.define_local(
+                        binder_name.clone(),
+                        ConstValue::Int(super::ConstInt::new(li.ty, cur as u128)),
+                    );
                     match self.eval_block(&cf.body)? {
                         ControlFlow::Break(ret) => {
                             self.pop_scope();
@@ -1128,7 +1157,9 @@ impl<'a> ConstInterpreter<'a> {
                     }
                     self.pop_scope();
 
-                    let Some(next) = cur.checked_add(1) else { break };
+                    let Some(next) = cur.checked_add(1) else {
+                        break;
+                    };
                     cur = next;
                 }
             } else {
@@ -1136,7 +1167,10 @@ impl<'a> ConstInterpreter<'a> {
                 let end = ri.as_u128();
                 while cur <= end {
                     self.push_scope();
-                    self.define_local(binder_name.clone(), ConstValue::Int(super::ConstInt::new(li.ty, cur)));
+                    self.define_local(
+                        binder_name.clone(),
+                        ConstValue::Int(super::ConstInt::new(li.ty, cur)),
+                    );
                     match self.eval_block(&cf.body)? {
                         ControlFlow::Break(ret) => {
                             self.pop_scope();
@@ -1148,7 +1182,9 @@ impl<'a> ConstInterpreter<'a> {
                     }
                     self.pop_scope();
 
-                    let Some(next) = cur.checked_add(1) else { break };
+                    let Some(next) = cur.checked_add(1) else {
+                        break;
+                    };
                     cur = next;
                 }
             }
@@ -1236,7 +1272,8 @@ fn host_platform_const_value() -> ConstValue {
     let triple = host_target_triple_string();
     let (arch, vendor, os, env) = decompose_llvm_like_triple(&triple);
 
-    let mut fields: std::collections::BTreeMap<String, ConstValue> = std::collections::BTreeMap::new();
+    let mut fields: std::collections::BTreeMap<String, ConstValue> =
+        std::collections::BTreeMap::new();
     fields.insert("triple".to_string(), ConstValue::String(triple));
     fields.insert("arch".to_string(), ConstValue::String(arch));
     fields.insert("vendor".to_string(), ConstValue::String(vendor));

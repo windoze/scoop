@@ -215,6 +215,51 @@ impl<'a> Parser<'a> {
             });
         }
 
+        // `for (x in xs) { ... }` 循环语句（Appendix B.12 / T1304）。
+        if self.peek_keyword(Keyword::For) {
+            let for_tok = self.bump();
+            let for_span = for_tok.span;
+
+            self.expect_symbol(Symbol::LParen)?;
+            let binder_tok = self.expect_kind(TokenKind::Ident, "循环变量名（标识符）")?;
+            let binder = ast::Ident::new(binder_tok.span);
+
+            let in_tok = self.expect_keyword(Keyword::In)?;
+            let in_span = in_tok.span;
+
+            let tok = *self.peek();
+            let iter = self.try_parse_expr()?.ok_or(ParseError::Expected {
+                expected: "表达式（for 迭代对象）",
+                found: tok.kind,
+                span: tok.span.into(),
+            })?;
+            self.expect_symbol(Symbol::RParen)?;
+
+            // 当前阶段仅支持 block body：`{ ... }`。
+            let body = self.parse_block()?;
+
+            let for_stmt = ast::ForStmt {
+                span: Span::new(for_span.start, body.span.end),
+                for_span,
+                binder,
+                in_span,
+                iter,
+                body,
+            };
+
+            let mut span = for_stmt.span;
+            // Kotlin 风格也允许 `;` 作为可选分隔符；若存在则把它纳入 stmt span。
+            if self.peek_symbol(Symbol::Semicolon) {
+                let semi = self.bump();
+                span = Span::new(span.start, semi.span.end);
+            }
+
+            return Ok(ast::Stmt {
+                span,
+                kind: ast::StmtKind::For(for_stmt),
+            });
+        }
+
         // 先尝试“表达式语句”：当前阶段的表达式仍是受限子集（postfix + 常见二元优先级），
         // 因此语句边界也就天然落在该表达式结束处。
         if let Some(expr) = self.try_parse_expr()? {

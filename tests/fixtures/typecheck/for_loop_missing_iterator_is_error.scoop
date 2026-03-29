@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::for_missing_iterator_method
+// EXPECT-ERROR-AT: 14:15
+// EXPECT-ERROR: iterator()
+// 目标：T1304 缺少 `iterator()` 时应报错（而不是静默通过或崩溃）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface NotIterable<T> {}
+
+fun use(xs: NotIterable<Int>) {
+    for (x in xs) {
+        println(x)
+    }
+}
+

@@ -464,6 +464,7 @@ impl<'a> Parser<'a> {
                     | Keyword::Comptime
                     | Keyword::If
                     | Keyword::When
+                    | Keyword::For
                     | Keyword::While
                     | Keyword::Break
                     | Keyword::Continue

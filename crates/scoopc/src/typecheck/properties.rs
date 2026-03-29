@@ -572,6 +572,8 @@ fn field_use_span_in_stmt(
             field_use_span_in_expr(source, backing_field_decl_span, cond)
                 .or_else(|| field_use_span_in_block(source, backing_field_decl_span, body))
         }
+        ast::StmtKind::For(f) => field_use_span_in_expr(source, backing_field_decl_span, &f.iter)
+            .or_else(|| field_use_span_in_block(source, backing_field_decl_span, &f.body)),
         ast::StmtKind::ComptimeBlock { body, .. } => {
             field_use_span_in_block(source, backing_field_decl_span, body)
         }

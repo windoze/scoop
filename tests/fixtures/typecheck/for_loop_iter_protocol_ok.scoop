@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T1304 `for (x in xs)` 语法 + 迭代协议（iterator/hasNext/next）最小类型检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface MyIterator<T> {
+    fun hasNext(): Bool
+    fun next(): T
+}
+
+interface MyIterable<T> {
+    fun iterator(): MyIterator<T>
+}
+
+fun use(xs: MyIterable<Int>) {
+    for (x in xs) {
+        println(x)
+    }
+}
+

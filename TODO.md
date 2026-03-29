@@ -4111,11 +4111,27 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1304 [TODO] 范围与 for 协议（Appendix B.12）
+### T1304 [DONE] 范围与 for 协议（Appendix B.12）
 - 描述：实现 `for (x in range)` 语法与 lowering 到迭代协议（如 `iterator/next/hasNext`）。
 - 目标：先只做语法 + typecheck 规则；运行时库后续。
 - 验收：language fixture：for 语法可解析并类型检查；缺少迭代协议方法时报错。
 - 依赖：T0207、T0407
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `ForStmt` 与 `StmtKind::For`。
+   - `crates/scoopc/src/parser/stmt.rs`：支持解析 `for (x in xs) { ... }`。
+   - `crates/scoopc/src/parser/cursor.rs`：把 `for` 纳入 `is_stmt_start`（用于错误恢复与 `return` 边界）。
+   - `crates/scoopc/src/resolve/scopes.rs`：for binder 仅在 loop body 作用域内可见，并写回 `ResolvedValueRef::Local`。
+   - `crates/scoopc/src/typecheck/expr.rs`：实现迭代协议类型检查（`iterator/hasNext/next`）+ 稳定诊断码，并将隐式调用的 effects 计入 performed effects。
+   - `crates/scoopc/src/typecheck/properties.rs`：把 `for` 纳入 backing-field 逃逸检查的语句遍历。
+   - `crates/scoopc/src/comptime/interpreter.rs`：const eval 中将 `for` 视为不支持语句（与 `while` 对齐）。
+   - `crates/scoopc/src/hir/lower.rs`：HIR lowering 暂以 `Todo("for")` 占位（语义 lowering 留给后续 codegen 任务）。
+   - fixtures：
+     - `tests/fixtures/typecheck/for_loop_iter_protocol_ok.scoop`
+     - `tests/fixtures/typecheck/for_loop_missing_iterator_is_error.scoop`
+     - `tests/fixtures/typecheck/for_loop_missing_has_next_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1305 [TODO] 默认参数语义：调用点补齐默认值（Appendix B.5.2）
 - 描述：在类型检查/调用解析阶段实现默认参数：调用时省略参数自动补齐默认值表达式。

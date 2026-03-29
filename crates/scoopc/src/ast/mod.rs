@@ -1606,6 +1606,21 @@ pub struct ComptimeFor {
     pub body: Block,
 }
 
+/// `for (x in xs) { ... }` 语句（Kotlin-like，Appendix B.12）。
+///
+/// 说明：
+/// - 语义上会被 lowering 为迭代协议（`iterator`/`hasNext`/`next`）；
+/// - 当前阶段仅做语法建模；实际 lowering 留给后续阶段（T08xx codegen）。
+#[derive(Debug, Clone)]
+pub struct ForStmt {
+    pub span: Span,
+    pub for_span: Span,
+    pub binder: Ident,
+    pub in_span: Span,
+    pub iter: Expr,
+    pub body: Block,
+}
+
 /// 语句（最小骨架）。
 ///
 /// 目前阶段仅为后续 block 解析预留结构；T0207/T0208 会逐步扩展其子集。
@@ -1646,6 +1661,8 @@ pub enum StmtKind {
     Continue {
         continue_span: Span,
     },
+    /// `for (x in xs) { ... }`（Appendix B.12）。
+    For(ForStmt),
     /// `comptime { ... }` 执行块（spec §6）。
     ///
     /// 说明：当前阶段仅做语法建模；真正的编译期执行入口在后续阶段实现（见 TODO T12xx）。

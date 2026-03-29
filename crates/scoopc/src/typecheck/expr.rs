@@ -957,6 +957,38 @@ pub enum ExprTypeError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("`for` 迭代对象类型 {found} 不支持迭代：缺少 `iterator()`")]
+    #[diagnostic(code(scoop::typecheck::for_missing_iterator_method))]
+    ForMissingIteratorMethod {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`for` 迭代器类型 {found} 缺少 `hasNext()`")]
+    #[diagnostic(code(scoop::typecheck::for_missing_has_next_method))]
+    ForMissingHasNextMethod {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`hasNext()` 返回类型必须是 Bool，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::for_has_next_not_bool))]
+    ForHasNextNotBool {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`for` 迭代器类型 {found} 缺少 `next()`")]
+    #[diagnostic(code(scoop::typecheck::for_missing_next_method))]
+    ForMissingNextMethod {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -2122,7 +2154,8 @@ fn collect_member_method_signatures_from_index(
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<Vec<FunSigOwned>, ExprTypeError> {
-    // 只用于 operator overloading：限制范围，避免“隐式 receiver 注入”扩散到其它调用路径。
+    // 仅用于语法糖（operator overloading / for 协议）：限制范围，避免“隐式 receiver 注入”
+    // 扩散到普通 member call 路径（普通 `a.b()` 仍走 extension fun 的最小子集）。
     let overloads = match lower.index().by_fqn.get(callee_fqn) {
         Some(syms) => syms.fun.clone(),
         None => Vec::new(),
@@ -2261,6 +2294,86 @@ fn collect_member_method_signatures_from_index(
     }
 
     Ok(out)
+}
+
+fn try_extract_nominal_fqn_and_args(
+    ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> Option<(String, Vec<TypeId>)> {
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(n)) => Some((n.fqn, n.args)),
+        TypeKind::Ref(RefTypeKind::Nominal(n)) => Some((n.fqn, n.args)),
+        _ => None,
+    }
+}
+
+fn collect_unique_zero_arg_member_method_sig(
+    source: &SourceFile,
+    receiver_ty: TypeId,
+    receiver_fqn: &str,
+    receiver_args: &[TypeId],
+    method: &str,
+    call_site_span: Span,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<Option<FunSigOwned>, ExprTypeError> {
+    let callee_fqn = format!("{receiver_fqn}.{method}");
+    let sigs = collect_member_method_signatures_from_index(
+        source,
+        receiver_ty,
+        receiver_fqn,
+        receiver_args,
+        &callee_fqn,
+        lower,
+        builtins,
+    )?;
+
+    // for/操作符语法糖当前只支持无实参（除隐式 receiver 外）的方法。
+    let mut filtered: Vec<FunSigOwned> = sigs
+        .into_iter()
+        .filter(|s| s.params.len() == 1 && s.type_params.is_empty() && s.eff_param.is_none())
+        .collect();
+
+    match filtered.len() {
+        0 => Ok(None),
+        1 => Ok(Some(filtered.remove(0))),
+        _ => {
+            let candidates = filtered
+                .iter()
+                .map(|sig| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(method, receiver_ty, &[], lower)
+                })
+                .collect::<Vec<_>>();
+            Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: call_site_span.into(),
+            })
+        }
+    }
+}
+
+fn record_member_method_effects_as_performed(
+    receiver_fqn: &str,
+    receiver_args: &[TypeId],
+    sig: &FunSigOwned,
+    call_site_span: Span,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let type_param_bindings =
+        collect_nominal_type_param_bindings(receiver_fqn, receiver_args, lower);
+    let call_effects = lower.lower_effect_row_expr_in_decl_file_with_bindings(
+        &sig.decl_file,
+        type_param_bindings,
+        sig.effects.as_ref(),
+    )?;
+
+    for effect in call_effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_site_span);
+    }
+
+    Ok(())
 }
 
 fn infer_unary_expr_type(
@@ -10513,6 +10626,151 @@ fn check_stmt_exprs(
                     span: (*continue_span).into(),
                 });
             }
+        }
+        ast::StmtKind::For(f) => {
+            // Kotlin-like：`for (x in xs)` 按迭代协议降糖：
+            // - `xs.iterator(): Iter`
+            // - `Iter.hasNext(): Bool`
+            // - `Iter.next(): Elem`
+            //
+            // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
+            let iter_ty = infer_expr_type(
+                source,
+                &f.iter,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            let Some((iter_fqn, iter_args)) = try_extract_nominal_fqn_and_args(iter_ty, lower)
+            else {
+                return Err(ExprTypeError::ForMissingIteratorMethod {
+                    found: lower.fmt_type(iter_ty),
+                    span: f.iter.span.into(),
+                });
+            };
+
+            let Some(iterator_sig) = collect_unique_zero_arg_member_method_sig(
+                source,
+                iter_ty,
+                &iter_fqn,
+                &iter_args,
+                "iterator",
+                f.iter.span,
+                lower,
+                builtins,
+            )?
+            else {
+                return Err(ExprTypeError::ForMissingIteratorMethod {
+                    found: lower.fmt_type(iter_ty),
+                    span: f.iter.span.into(),
+                });
+            };
+
+            record_member_method_effects_as_performed(
+                &iter_fqn,
+                &iter_args,
+                &iterator_sig,
+                f.for_span,
+                lower,
+            )?;
+            let iterator_ty = iterator_sig.return_ty;
+
+            let Some((iterator_fqn, iterator_args)) =
+                try_extract_nominal_fqn_and_args(iterator_ty, lower)
+            else {
+                return Err(ExprTypeError::ForMissingHasNextMethod {
+                    found: lower.fmt_type(iterator_ty),
+                    span: f.iter.span.into(),
+                });
+            };
+
+            let Some(has_next_sig) = collect_unique_zero_arg_member_method_sig(
+                source,
+                iterator_ty,
+                &iterator_fqn,
+                &iterator_args,
+                "hasNext",
+                f.iter.span,
+                lower,
+                builtins,
+            )?
+            else {
+                return Err(ExprTypeError::ForMissingHasNextMethod {
+                    found: lower.fmt_type(iterator_ty),
+                    span: f.iter.span.into(),
+                });
+            };
+            record_member_method_effects_as_performed(
+                &iterator_fqn,
+                &iterator_args,
+                &has_next_sig,
+                f.for_span,
+                lower,
+            )?;
+
+            if !is_type_assignable(has_next_sig.return_ty, builtins.bool_, lower, builtins) {
+                return Err(ExprTypeError::ForHasNextNotBool {
+                    found: lower.fmt_type(has_next_sig.return_ty),
+                    span: f.iter.span.into(),
+                });
+            }
+
+            let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
+                source,
+                iterator_ty,
+                &iterator_fqn,
+                &iterator_args,
+                "next",
+                f.iter.span,
+                lower,
+                builtins,
+            )?
+            else {
+                return Err(ExprTypeError::ForMissingNextMethod {
+                    found: lower.fmt_type(iterator_ty),
+                    span: f.iter.span.into(),
+                });
+            };
+            record_member_method_effects_as_performed(
+                &iterator_fqn,
+                &iterator_args,
+                &next_sig,
+                f.for_span,
+                lower,
+            )?;
+            let elem_ty = next_sig.return_ty;
+
+            // binder 仅在 body 作用域内可见：进入时注入，退出时回滚。
+            let saved_locals = locals.clone();
+            let saved_stable = stable_bindings.clone();
+            let saved_mutable = mutable_bindings.clone();
+
+            locals.insert(f.binder.span, elem_ty);
+            stable_bindings.insert(f.binder.span);
+
+            check_block_exprs(
+                source,
+                &f.body,
+                lower,
+                builtins,
+                locals,
+                stable_bindings,
+                mutable_bindings,
+                loop_depth + 1,
+                expected_return_ty,
+                top_level_types,
+                top_level_funs,
+                member_mutabilities,
+                struct_field_types,
+            )?;
+
+            *locals = saved_locals;
+            *stable_bindings = saved_stable;
+            *mutable_bindings = saved_mutable;
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
             check_block_exprs(

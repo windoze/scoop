@@ -578,6 +578,7 @@ impl<'a> HirLowering<'a> {
                 },
                 self.builtins.unit,
             ),
+            ast::StmtKind::For(_) => (StmtKind::Todo("for"), self.builtins.unit),
             ast::StmtKind::Break { break_span } => (
                 StmtKind::Break {
                     break_span: *break_span,
