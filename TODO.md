@@ -4324,11 +4324,21 @@
  - 验收：
    - `cargo test --all`
 
-### T1307b [TODO] trailing lambda：run-pass（lambda 被调用）回归（Appendix B.5.4）
+### T1307b [DONE] trailing lambda：run-pass（lambda 被调用）回归（Appendix B.5.4）
 - 描述：补齐可执行链路：让 `takes { it }` 在运行期能真正调用 lambda 并产生可观测结果（stdout 或 exit code 断言）。
 - 目标：先只做最小可执行落点（可先限制为不捕获 lambda）；捕获闭包可复用既有 HIR/MIR 结构（T0710/T0711/T0714）。
 - 验收：新增 run-pass fixture：lambda 被正确调用（stdout 或 exit code 断言）。
 - 依赖：T1307a、T0710、T0810
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：实现最小函数值运行期表示与调用：
+     - lambda 表达式 lowering 为 heap `closure object`（`{ header, env_ptr, fn_ptr }`，当前 env 固定为 NULL）；
+     - 支持调用局部函数值（function value / 闭包参数），生成 indirect call；
+     - 支持 `{ body }` 形式的隐式 `it`：将 resolver 注入的 `it` 捕获视作单参 lambda 的参数绑定（仍限制为不捕获闭包）。
+   - fixtures：新增 `tests/fixtures/run-pass/trailing_lambda_implicit_it_called_basic.*`（stdout：`42`）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
 - 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。

@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: trailing_lambda_implicit_it_called_basic.stdout
+//
+// T1307b: trailing lambda：run-pass（lambda 被调用）
+
+import scoop.core.*
+
+fun takes(f: (Int) -> Int): Int {
+    return f(41)
+}
+
+fun main() {
+    println(takes { it + 1 })
+}
+
