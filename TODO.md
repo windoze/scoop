@@ -4011,11 +4011,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1218 [TODO] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal
+### T1218 [DONE] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal
 - 描述：在 comptime/reflection API 中补齐对复杂注解参数的读取：不仅能拿到字面量，还能读取常量表达式求值结果、数组参数、enum 值与类字面量。
 - 目标：读取结果应与 T1019 的注解参数语义保持一致；不暴露未归一化的 parser 细节。
 - 验收：新增 comptime fixtures：读取 `@Anno(1 + 2, [Color.Red], String::class)` 得到稳定元数据；输出与下游 `.cone` 元数据一致。
 - 依赖：T1019、T1209、T1215
+ - 完成：
+   - `crates/scoopc/src/comptime/eval.rs`：
+     - const eval 支持 `TypeName::class`（v0：返回类型名字符串常量）；
+     - enum unit variant 常量识别升级为支持 `pkg.Enum.Variant` 形式，并避免在路径首段可解析为运行期值时误判。
+   - `crates/scoopc/src/comptime/tests.rs`：新增单测 `const_eval_reflection_annotations_of_v0_complex_args` 覆盖 `1 + 2` / `[Color.Red]` / `Color.Red` / `String::class` 四类参数读取。
+   - `tests/fixtures/comptime/annotation_access_v0_complex_args.*`：新增 comptime fixture + `.comptime` golden 回归覆盖复杂注解参数读取。
+   - `sysroot/core.scoop`、`crates/scoopc/src/comptime/interpreter.rs`：更新注释，明确 v0 可读的 compile-time constant 注解参数形态。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1219 [TODO] 平台反射：`Platform` struct + `getPlatform(): Platform`（spec §6.4）
 - 描述：在 sysroot 中新增 `Platform` 值类型，并提供 `const fun getPlatform(): Platform`：

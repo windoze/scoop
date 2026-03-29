@@ -589,6 +589,67 @@ const val A1AV: String = annotationsOf<Foo>()._1.args._0.value
 }
 
 #[test]
+fn const_eval_reflection_annotations_of_v0_complex_args() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+annotation class Anno(val a: Int, val colors: Array<Color>, val cls: String)
+
+enum Color { Red, Blue }
+
+@Anno(1 + 2, [Color.Red], String::class)
+struct Foo(val x: Int)
+
+const val A = annotationsOf<Foo>()
+const val V0: Int = annotationsOf<Foo>()._0.args._0.value
+const val V1 = annotationsOf<Foo>()._0.args._1.value
+const val V2: String = annotationsOf<Foo>()._0.args._2.value
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "A".to_string(),
+                value: ConstValue::Tuple(vec![mk_annotation_meta(
+                    "Anno",
+                    vec![
+                        mk_annotation_arg_meta("a", mk_int(ty, 3)),
+                        mk_annotation_arg_meta(
+                            "colors",
+                            ConstValue::Tuple(vec![ConstValue::Enum(ConstEnum {
+                                ty: Some("Color".to_string()),
+                                variant: "Red".to_string(),
+                                payload: Vec::new(),
+                            })]),
+                        ),
+                        mk_annotation_arg_meta("cls", ConstValue::String("String".to_string())),
+                    ],
+                )]),
+            },
+            ConstBinding {
+                name: "V0".to_string(),
+                value: mk_int(ty, 3),
+            },
+            ConstBinding {
+                name: "V1".to_string(),
+                value: ConstValue::Tuple(vec![ConstValue::Enum(ConstEnum {
+                    ty: Some("Color".to_string()),
+                    variant: "Red".to_string(),
+                    payload: Vec::new(),
+                })]),
+            },
+            ConstBinding {
+                name: "V2".to_string(),
+                value: ConstValue::String("String".to_string()),
+            },
+        ]
+    );
+}
+
+#[test]
 fn const_eval_reflection_intrinsics_v0_more() {
     let ty = ConstIntTy::host_word(true);
 

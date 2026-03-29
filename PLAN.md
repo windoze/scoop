@@ -29,6 +29,7 @@
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。
 - 2026-03-29：完成 T1215：补齐编译期元数据（`TypeKind/VariantMeta/ParamMeta` 等），升级 `variantsOf/paramsOf` 返回值并在 const 解释器侧产出可读字段（含 annotations/default args 的最小回归），更新 comptime fixtures + 单测回归覆盖。
+- 2026-03-29：完成 T1218：编译期注解访问补齐复杂注解参数（常量表达式/数组/enum/class-literal）求值与读取，并新增 comptime fixture + 单测回归覆盖。
 - 2026-03-29：完成 T1217：sysroot `scoop.delegates.lazy` 补齐 `lazy(mode, initializer)` 重载，并新增 fixtures 覆盖 `lazy(LazyThreadSafetyMode.None) { ... }` 与“缺失导入时报错”；同时修复 delegated property 的 delegate nominal type 推导，使其在 overload set 返回名义类型一致时仍可工作。
 - 2026-03-29：规范更新：补齐 value-only enum、`@CLayout(aligned, packed)`、`@ThreadLocal/@Global`、`@Extern(lib, name)`、`@CallingConvention`、`@Safe`、`Platform/getPlatform()`、type descriptor release callback、`Ptr/FunPtr/stackAlloc/addressOf` 与 internal atomics、以及 `Cone.toml` 的平台选择器；并同步更新 `PLAN.md`/`TODO.md` 对应任务拆分。
 - 2026-03-29：完成 T1020：扩展内建 `@Extern`（支持 `lib/name` 参数 + extern 顶层变量声明），并在 driver clang 链接阶段透传 `-l<lib>`；新增 typecheck fixtures 与 driver 单测回归。

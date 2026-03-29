@@ -407,10 +407,21 @@ pub(crate) fn eval_const_expr_with_host(
             kind: "lambda",
             span: expr.span.into(),
         }),
-        ast::ExprKind::ClassLit { .. } => Err(ConstEvalError::UnsupportedExpr {
-            kind: "class literal",
-            span: expr.span.into(),
-        }),
+        ast::ExprKind::ClassLit { ty } => {
+            // T1019/T1218：class literal 视为“编译期可用的类型名常量”。
+            //
+            // 说明：
+            // - 早期阶段 const eval 不接入完整 name resolution/type env；
+            // - 因此这里输出的是“语法层面”的稳定名字（基于 TypeRef），用于注解参数与回归测试；
+            // - 后续若接入 resolver/typecheck，可升级为 FQN / TypeMeta 等更强语义。
+            let Some(name) = type_ref_name_for_class_literal(ctx.source, ty) else {
+                return Err(ConstEvalError::UnsupportedExpr {
+                    kind: "class literal",
+                    span: expr.span.into(),
+                });
+            };
+            Ok(ConstValue::String(name))
+        }
         ast::ExprKind::If { .. } => Err(ConstEvalError::UnsupportedExpr {
             kind: "if expression",
             span: expr.span.into(),
@@ -447,17 +458,16 @@ pub(crate) fn eval_const_expr_with_host(
             // 说明：
             // - 该表达式的 receiver 在语义上是“类型名/命名空间入口”，并非运行期值；
             // - const eval 早期阶段没有完整 name resolution/type env，因此这里用非常保守的启发式：
-            //   当 receiver 与 member 都是 “TypeLike” 名称（首字母大写）时，将其视为 unit variant 构造。
-            if let ast::ExprKind::Ident(id) = &receiver.kind {
-                let enum_name = ctx.source.slice(id.span);
-                let variant_name = ctx.source.slice(member.span);
-                if looks_like_type_name(enum_name) && looks_like_type_name(variant_name) {
-                    return Ok(ConstValue::Enum(ConstEnum {
-                        ty: Some(enum_name.to_string()),
-                        variant: variant_name.to_string(),
-                        payload: Vec::new(),
-                    }));
-                }
+            //   当最后两段（type + variant）都长得像 “TypeLike”（首字母大写）时，将其视为 unit variant 构造。
+            //
+            // 额外约束：
+            // - 若路径首段能被 host 解析为一个运行期值，则优先把它当作普通 member access（避免误判）。
+            if let Some((ty, variant)) = try_parse_enum_unit_variant_path(ctx.source, host, expr) {
+                return Ok(ConstValue::Enum(ConstEnum {
+                    ty: Some(ty),
+                    variant,
+                    payload: Vec::new(),
+                }));
             }
 
             let recv = eval_const_expr_with_host(ctx, host, receiver)?;
@@ -745,6 +755,96 @@ fn looks_like_type_name(name: &str) -> bool {
     name.chars()
         .next()
         .is_some_and(|ch| ch.is_ascii_uppercase())
+}
+
+/// 把一个 `TypeRef` 格式化为稳定字符串（用于 class literal：`TypeName::class`）。
+///
+/// 说明：
+/// - 这里输出的是“语法层面”的名字（基于 AST），并不保证是全限定名；
+/// - 仅覆盖当前阶段注解参数/fixtures 需要的子集。
+fn type_ref_name_for_class_literal(source: &SourceFile, ty: &ast::TypeRef) -> Option<String> {
+    match ty {
+        ast::TypeRef::Path(p) => {
+            let mut out = p
+                .segments
+                .iter()
+                .map(|id| id.text(source))
+                .collect::<Vec<_>>()
+                .join(".");
+            if !p.args.is_empty() {
+                let inner = p
+                    .args
+                    .iter()
+                    .filter_map(|a| type_ref_name_for_class_literal(source, a))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push('<');
+                out.push_str(&inner);
+                out.push('>');
+            }
+            Some(out)
+        }
+        ast::TypeRef::Nullable { inner, .. } => {
+            type_ref_name_for_class_literal(source, inner).map(|s| format!("{s}?"))
+        }
+        ast::TypeRef::Tuple(t) if t.elements.is_empty() => Some("Unit".to_string()),
+        // v0：不支持把这些类型表达成“可稳定序列化的 class literal 名字”。
+        ast::TypeRef::Tuple(_)
+        | ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+/// 尝试把 `A.B` / `pkg.Enum.Variant` 识别为 enum unit variant 常量。
+///
+/// 返回 `(ty_path, variant)`，其中 `ty_path` 为去掉最后一段后的 `.` 连接字符串。
+fn try_parse_enum_unit_variant_path(
+    source: &SourceFile,
+    host: &mut impl ConstEvalHost,
+    expr: &ast::Expr,
+) -> Option<(String, String)> {
+    let mut segs: Vec<&str> = Vec::new();
+    collect_simple_member_access_path(source, expr, &mut segs)?;
+    if segs.len() < 2 {
+        return None;
+    }
+
+    // 若首段是已绑定的值（局部/参数/const val），优先按“普通 member access”处理。
+    if host.resolve_ident(segs[0]).is_some() {
+        return None;
+    }
+
+    let variant = *segs.last()?;
+    let type_name = segs.get(segs.len().saturating_sub(2)).copied()?;
+    if !looks_like_type_name(type_name) || !looks_like_type_name(variant) {
+        return None;
+    }
+
+    let ty = segs[..segs.len() - 1].join(".");
+    Some((ty, variant.to_string()))
+}
+
+/// 收集一个“纯路径形式”的 member access：`a.b.c` → `["a","b","c"]`。
+///
+/// 仅接受由 `Ident` 与 `MemberAccess` 组成的链；遇到其它表达式形态返回 None。
+fn collect_simple_member_access_path<'a>(
+    source: &'a SourceFile,
+    expr: &'a ast::Expr,
+    out: &mut Vec<&'a str>,
+) -> Option<()> {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            out.push(source.slice(id.span));
+            Some(())
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            collect_simple_member_access_path(source, receiver, out)?;
+            out.push(source.slice(member.span));
+            Some(())
+        }
+        _ => None,
+    }
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {

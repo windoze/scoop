@@ -198,7 +198,8 @@ struct FunctionMeta {
 //
 // 说明：
 // - 用于在编译期读取注解名与参数（`annotationsOf<T>()` 等）；参数值为 compile-time constant；
-// - v0 阶段先要求“注解名 + 字面量/常量表达式参数”可回归；更复杂的表达式与导出规则后续补齐。
+// - v0 阶段先要求“注解名 + compile-time constant 参数”可回归：字面量/常量表达式/数组字面量/enum 常量/class literal；
+// - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
 struct AnnotationMeta {
     val name: String
     val args: ComptimeList<AnnotationArgMeta>

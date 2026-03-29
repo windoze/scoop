@@ -713,7 +713,11 @@ impl<'a> ConstInterpreter<'a> {
                 }
             };
 
-            // T1209：当前阶段只支持字面量/常量表达式参数；复杂表达式后续任务再补齐。
+            // T1209/T1218：当前阶段只保证“compile-time constant”形态可读：
+            // - 字面量 / 常量表达式
+            // - 数组字面量（v0 用 tuple 承载）
+            // - enum unit variant（`Enum.Variant`）
+            // - class literal（`TypeName::class`，v0 视为类型名字符串常量）
             let value = eval_const_expr(self.ctx, &arg.value)?;
             provided_by_name.insert(arg_name.clone(), value.clone());
             provided_order.push((arg_name, value));
