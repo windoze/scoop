@@ -1,0 +1,29 @@
+// Scoop stdlib（pure scoop）：prelude v0
+//
+// 说明：
+// - 本目录下的 `.scoop` 文件会被 driver 在 `scoop build/run` 时注入到编译单元（TODO T1315a）；
+// - 早期阶段后端仍以“单源文件切片”读取字面量文本（Span -> SourceFile），因此这里尽量避免直接使用
+//   数值/字符串字面量，防止跨文件 codegen 误读文本。
+
+package scoop.core
+
+// Kotlin-like preconditions（early stage）。
+//
+// 说明：
+// - Kotlin 的 `require/check` 通常抛出不同异常类型；Scoop 0.1 当前阶段先复用 `Raise<RuntimeError>`
+//   作为最小可执行落点；
+// - 更精细的错误类型与 message（String）承载可在后续 `std` 任务中补齐。
+fun require(condition: Bool): Unit / Raise<RuntimeError> {
+    when (condition) {
+        true -> ()
+        false -> Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+fun check(condition: Bool): Unit / Raise<RuntimeError> {
+    when (condition) {
+        true -> ()
+        false -> Raise.raise(RuntimeError.ClassCastFailed)
+    }
+}
+

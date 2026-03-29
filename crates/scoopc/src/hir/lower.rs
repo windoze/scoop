@@ -121,6 +121,10 @@ pub enum HirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
+
+    #[error("multi-file lowering 暂不支持在非入口文件中出现需要源文本切片的字面量：{path}")]
+    #[diagnostic(code(scoop::hir::multi_file_non_entry_source_backed_literal))]
+    MultiFileNonEntrySourceBackedLiteral { path: String },
 }
 
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。
@@ -203,7 +207,7 @@ struct HirLowering<'a> {
     ///
     /// 注意：HIR lowering 的目标是 `dump-hir`/fixtures 的稳定输出，因此这里仅生成“调用形状”，
     /// 不要求 `$delegate` 字段/`PropertyMeta` 常量在后端可执行（真实 codegen 留给后续任务）。
-    delegated_properties: DelegatedPropertyIndex,
+    delegated_properties: &'a DelegatedPropertyIndex,
     /// 顶层函数默认参数信息索引：`fqn -> params(default)`（用于 call-site 默认参数补齐，T1305）。
     default_arg_funs: HashMap<String, DefaultArgFunInfo>,
     /// ctor 调用点候选集合：callee span → candidate type fqns。
@@ -236,7 +240,7 @@ impl<'a> HirLowering<'a> {
         file: &'a ast::File,
         index: &'a Index,
         type_kinds: &'a HashMap<String, ast::TypeKind>,
-        delegated_properties: DelegatedPropertyIndex,
+        delegated_properties: &'a DelegatedPropertyIndex,
         types: &'a mut TypeStore,
         builtins: BuiltinTypes,
     ) -> Self {
@@ -2907,7 +2911,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             &ast,
             &index,
             &type_kinds,
-            delegated_properties,
+            &delegated_properties,
             &mut types,
             builtins,
         );
@@ -2972,7 +2976,7 @@ pub fn lower_for_compilation_unit(
             file,
             index,
             &type_kinds,
-            delegated_properties,
+            &delegated_properties,
             &mut types,
             builtins,
         );
@@ -3001,6 +3005,240 @@ pub fn lower_for_compilation_unit(
     })
 }
 
+/// 在“给定编译单元（多个源文件）”的上下文中，把多个文件一起 lowering 为一个 `LoweredHir`。
+///
+/// 用途（T1315a）：
+/// - `scoop build/run` 注入 `stdlib/*.scoop` 后，需要让这些文件里的顶层函数在后端可见；
+/// - 当前 LLVM 后端仍以“单一 SourceFile”切片读取字面量文本（Span -> SourceFile），
+///   因此本入口会拒绝 **非入口文件** 中出现 `Int/String/插值文本` 等“需要源文本切片”的字面量，
+///   避免 silent miscompile。
+pub fn lower_for_compilation_unit_multi_files(
+    entry_source: &SourceFile,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    files_to_lower: &[(&SourceFile, &ast::File)],
+) -> Result<LoweredHir, HirLowerError> {
+    let type_kinds = collect_type_decl_kinds(compilation_unit);
+    let delegated_properties = collect_delegated_properties(compilation_unit);
+
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+
+    let mut items: Vec<Item> = Vec::new();
+    let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
+
+    for (source, file) in files_to_lower {
+        let (file_hir, file_ctor_call_sites) = {
+            let mut ctx = HirLowering::new(
+                source,
+                file,
+                index,
+                &type_kinds,
+                &delegated_properties,
+                &mut types,
+                builtins,
+            );
+            let file_hir = ctx.lower_file();
+            let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+            (file_hir, ctor_call_sites)
+        };
+
+        if source.path() != entry_source.path() && file_contains_source_backed_literals(&file_hir) {
+            return Err(HirLowerError::MultiFileNonEntrySourceBackedLiteral {
+                path: source.path().display().to_string(),
+            });
+        }
+
+        // `CtorCallSiteIndex` 当前以 `Span` 作为 key（offset-only，不含文件标识）。
+        // 为避免跨文件 span 冲突导致错误 codegen，当前阶段只保留入口文件的 ctor call-sites。
+        if source.path() == entry_source.path() {
+            ctor_call_sites.extend(file_ctor_call_sites);
+        }
+
+        items.extend(file_hir.items);
+    }
+
+    // side tables：保持与 `lower_for_compilation_unit` 一致的收集逻辑（先降 HIR，再补充 layout/init/extern）。
+    let extern_funs = files_to_lower
+        .iter()
+        .flat_map(|(source, file)| collect_extern_funs(source, file))
+        .collect();
+    let extern_libs = collect_extern_libs(compilation_unit);
+    let struct_layouts = collect_struct_layouts(compilation_unit, index);
+    let enum_layouts = collect_enum_layouts(compilation_unit, index);
+
+    let mut object_inits = ObjectInitIndex::new();
+    let mut class_inits = ClassInitIndex::new();
+    for (source, file) in files_to_lower {
+        object_inits.extend(collect_object_inits(
+            source,
+            file,
+            index,
+            &type_kinds,
+            &mut types,
+            builtins,
+        ));
+        class_inits.extend(collect_class_inits(
+            source,
+            file,
+            index,
+            &type_kinds,
+            &mut types,
+            builtins,
+        ));
+    }
+
+    Ok(LoweredHir {
+        file: File { items },
+        types,
+        struct_layouts,
+        enum_layouts,
+        extern_funs,
+        extern_libs,
+        object_inits,
+        class_inits,
+        ctor_call_sites,
+    })
+}
+
+fn file_contains_source_backed_literals(file: &File) -> bool {
+    for item in &file.items {
+        match item {
+            Item::Fun(fun) => {
+                if let Some(body) = fun.body.as_ref() {
+                    if block_contains_source_backed_literals(body) {
+                        return true;
+                    }
+                }
+            }
+            Item::Val(decl) => {
+                if let Some(init) = decl.init.as_ref() {
+                    if expr_contains_source_backed_literals(init) {
+                        return true;
+                    }
+                }
+            }
+            Item::Todo { .. } => {}
+        }
+    }
+    false
+}
+
+fn block_contains_source_backed_literals(block: &Block) -> bool {
+    for stmt in &block.stmts {
+        match &stmt.kind {
+            StmtKind::Empty => {}
+            StmtKind::Expr(expr) => {
+                if expr_contains_source_backed_literals(expr) {
+                    return true;
+                }
+            }
+            StmtKind::Val(decl) => {
+                if let Some(init) = decl.init.as_ref() {
+                    if expr_contains_source_backed_literals(init) {
+                        return true;
+                    }
+                }
+            }
+            StmtKind::Assign { lhs, rhs, .. } => {
+                if expr_contains_source_backed_literals(lhs) || expr_contains_source_backed_literals(rhs) {
+                    return true;
+                }
+            }
+            StmtKind::Return { value } => {
+                if let Some(expr) = value.as_ref() {
+                    if expr_contains_source_backed_literals(expr) {
+                        return true;
+                    }
+                }
+            }
+            StmtKind::While { cond, body } => {
+                if expr_contains_source_backed_literals(cond) || block_contains_source_backed_literals(body) {
+                    return true;
+                }
+            }
+            StmtKind::Break { .. } | StmtKind::Continue { .. } | StmtKind::Todo(_) => {}
+        }
+    }
+    false
+}
+
+fn expr_contains_source_backed_literals(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Missing
+        | ExprKind::VarRef(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::Todo(_) => false,
+
+        ExprKind::Literal(LiteralKind::Int | LiteralKind::String) => true,
+        ExprKind::Literal(LiteralKind::Unit | LiteralKind::Bool(_)) => false,
+
+        ExprKind::StructLit { fields, .. } => fields
+            .iter()
+            .any(|f| expr_contains_source_backed_literals(&f.value)),
+        ExprKind::TupleLit { elements } => elements
+            .iter()
+            .any(|e| expr_contains_source_backed_literals(e)),
+        ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|p| match p {
+            super::InterpolatedStringPart::Text { .. } => true,
+            super::InterpolatedStringPart::Expr { expr } => expr_contains_source_backed_literals(expr),
+        }),
+        ExprKind::Unary { expr, .. } => expr_contains_source_backed_literals(expr),
+        ExprKind::Binary { lhs, rhs, .. } => {
+            expr_contains_source_backed_literals(lhs) || expr_contains_source_backed_literals(rhs)
+        }
+        ExprKind::Block(block) => block_contains_source_backed_literals(block),
+        ExprKind::Call { callee, args } => {
+            if expr_contains_source_backed_literals(callee) {
+                return true;
+            }
+            args.iter().any(|a| match a {
+                CallArg::Positional(e) => expr_contains_source_backed_literals(e),
+                CallArg::Named { value, .. } => expr_contains_source_backed_literals(value),
+            })
+        }
+        ExprKind::Closure(c) => expr_contains_source_backed_literals(&c.body),
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            expr_contains_source_backed_literals(cond)
+                || expr_contains_source_backed_literals(then_branch)
+                || else_branch
+                    .as_ref()
+                    .is_some_and(|e| expr_contains_source_backed_literals(e))
+        }
+        ExprKind::When { subject, arms } => {
+            if expr_contains_source_backed_literals(subject) {
+                return true;
+            }
+            arms.iter().any(|arm| {
+                arm.guard
+                    .as_ref()
+                    .is_some_and(|g| expr_contains_source_backed_literals(g))
+                    || expr_contains_source_backed_literals(&arm.body)
+            })
+        }
+        ExprKind::MemberAccess { receiver, .. } => expr_contains_source_backed_literals(receiver),
+        ExprKind::Perform { args, .. } => args.iter().any(|a| match a {
+            CallArg::Positional(e) => expr_contains_source_backed_literals(e),
+            CallArg::Named { value, .. } => expr_contains_source_backed_literals(value),
+        }),
+        ExprKind::Handle(h) => {
+            if block_contains_source_backed_literals(&h.body) {
+                return true;
+            }
+            if h.arms.iter().any(|arm| expr_contains_source_backed_literals(&arm.body)) {
+                return true;
+            }
+            h.finally
+                .as_ref()
+                .is_some_and(|f| block_contains_source_backed_literals(f))
+        }
+    }
+}
+
 /// 将给定的 `ast::FunDecl` 在“已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
 ///
 /// 说明：
@@ -3024,7 +3262,7 @@ pub(crate) fn lower_fun_with_type_bindings(
         file,
         index,
         type_kinds,
-        delegated_properties,
+        &delegated_properties,
         types,
         builtins,
     );
@@ -3078,12 +3316,13 @@ fn collect_object_inits(
     builtins: BuiltinTypes,
 ) -> ObjectInitIndex {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let delegated_properties = DelegatedPropertyIndex::new();
     let mut ctx = HirLowering::new(
         source,
         file,
         index,
         type_kinds,
-        DelegatedPropertyIndex::new(),
+        &delegated_properties,
         types,
         builtins,
     );
@@ -3211,12 +3450,13 @@ fn collect_class_inits(
     builtins: BuiltinTypes,
 ) -> ClassInitIndex {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let delegated_properties = DelegatedPropertyIndex::new();
     let mut ctx = HirLowering::new(
         source,
         file,
         index,
         type_kinds,
-        DelegatedPropertyIndex::new(),
+        &delegated_properties,
         types,
         builtins,
     );
@@ -4345,6 +4585,7 @@ fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::path::PathBuf;
 
     #[test]
@@ -4462,5 +4703,75 @@ mod tests {
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn lower_for_compilation_unit_multi_files_includes_non_entry_top_level_funs() {
+        let sess = Session::new().unwrap();
+
+        let src_lib = SourceFile::new_virtual(
+            "<lib>",
+            r#"
+package fixtures.t1315a
+
+import scoop.core.*
+
+fun id(x: Int): Int { return x }
+"#,
+        );
+        let src_main = SourceFile::new_virtual(
+            "<main>",
+            r#"
+package fixtures.t1315a
+
+import scoop.core.*
+
+fun main(): Int { return id(1) }
+"#,
+        );
+
+        let mut ast_lib = parse_file(&src_lib).unwrap();
+        let mut ast_main = parse_file(&src_main).unwrap();
+
+        let index = {
+            let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+            for f in &sess.sysroot().files {
+                pairs.push((&f.source, &f.ast));
+            }
+            pairs.push((&src_lib, &ast_lib));
+            pairs.push((&src_main, &ast_main));
+            Index::build(&pairs).unwrap()
+        };
+
+        let h_lib = crate::resolve::check_file_headers(&src_lib, &ast_lib, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_lib, &mut ast_lib, &index, &h_lib).unwrap();
+
+        let h_main = crate::resolve::check_file_headers(&src_main, &ast_main, &index).unwrap();
+        crate::resolve::check_file_bodies(&src_main, &mut ast_main, &index, &h_main).unwrap();
+
+        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in &sess.sysroot().files {
+            unit.push((&f.source, &f.ast));
+        }
+        unit.push((&src_lib, &ast_lib));
+        unit.push((&src_main, &ast_main));
+
+        let files_to_lower = vec![(&src_lib, &ast_lib), (&src_main, &ast_main)];
+        let lowered =
+            lower_for_compilation_unit_multi_files(&src_main, &index, &unit, &files_to_lower)
+                .unwrap();
+
+        let fun_fqns: HashSet<&str> = lowered
+            .file
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) => Some(fun.fqn.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        assert!(fun_fqns.contains("fixtures.t1315a.id"));
+        assert!(fun_fqns.contains("fixtures.t1315a.main"));
     }
 }

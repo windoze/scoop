@@ -14,7 +14,12 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 
 #[derive(Debug)]
 struct BuildInput {
-    /// 当前编译单元的全部源文件（单文件模式为 1 个；cone 包为 `src/**/*.scoop`）。
+    /// 当前编译单元的全部源文件。
+    ///
+    /// 约定（T1315a）：
+    /// - 始终包含 stdlib 注入的 `stdlib/*.scoop`（纯 Scoop prelude）；
+    /// - 单文件模式下额外包含 1 个 user source；
+    /// - cone 包模式下额外包含 `src/**/*.scoop`。
     sources: Vec<scoopc::source::SourceFile>,
     /// 可执行入口（`main.scoop`）在 `sources` 中的下标。
     main_index: usize,
@@ -175,11 +180,16 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 }
 
 fn load_build_input(input: &Path) -> Result<BuildInput> {
+    let stdlib_sources = load_stdlib_sources()?;
+
     // 单文件模式：保持 `scoop build <file.scoop>` 的原有行为。
     if input.is_file() {
+        let mut sources = stdlib_sources;
+        let main_index = sources.len();
+        sources.push(scoopc::source::SourceFile::load(input)?);
         return Ok(BuildInput {
-            sources: vec![scoopc::source::SourceFile::load(input)?],
-            main_index: 0,
+            sources,
+            main_index,
             cone_root: None,
             cone_manifest: None,
         });
@@ -188,12 +198,14 @@ fn load_build_input(input: &Path) -> Result<BuildInput> {
     // cone 包模式：`scoop build <cone-root>`（按 T1102 规则定位 `src/main.scoop`）。
     if input.is_dir() {
         let pkg = scoopc::cone::load_cone_source_package(input)?;
-        let mut sources = Vec::with_capacity(pkg.sources.len());
+        let mut sources = stdlib_sources;
+        let stdlib_len = sources.len();
+        sources.reserve(pkg.sources.len());
         let mut main_index = None;
         for (idx, path) in pkg.sources.iter().enumerate() {
             let source = scoopc::source::SourceFile::load(path)?;
             if source.path() == pkg.main.as_path() {
-                main_index = Some(idx);
+                main_index = Some(stdlib_len + idx);
             }
             sources.push(source);
         }
@@ -217,6 +229,50 @@ fn load_build_input(input: &Path) -> Result<BuildInput> {
         "输入既不是文件也不是目录：{}",
         input.display()
     ))
+}
+
+fn default_stdlib_path() -> PathBuf {
+    // 开发期路径：相对于 `crates/scoop` 的 `../../stdlib`。
+    // 后续可随“工具链安装/分发”演进为：
+    // - `SCOOP_STDLIB` 环境变量
+    // - 或可执行文件旁的资源目录
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
+}
+
+fn load_stdlib_sources() -> Result<Vec<scoopc::source::SourceFile>> {
+    let root = default_stdlib_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 stdlib 目录（T1315a）")?;
+
+    let mut paths = Vec::new();
+    collect_scoop_files(&root, &mut paths)?;
+    paths.sort();
+
+    let mut out = Vec::with_capacity(paths.len());
+    for path in paths {
+        out.push(scoopc::source::SourceFile::load(&path)?);
+    }
+    Ok(out)
+}
+
+fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in std::fs::read_dir(dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        let ty = entry.file_type().into_diagnostic()?;
+        if ty.is_dir() {
+            collect_scoop_files(&path, out)?;
+            continue;
+        }
+        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn run_frontend(
@@ -433,11 +489,22 @@ fn lower_main_hir_for_build(
         unit.push((source, ast));
     }
 
-    scoopc::hir::lower_for_compilation_unit(
+    // T1315a：stdlib 注入后需要 multi-file lowering（否则 stdlib 顶层函数不会出现在 fun_index 中）。
+    // 说明：当前 LLVM 后端仍以“单一 SourceFile”读取字面量文本；multi-file lowering 会拒绝
+    // 非入口文件中的源文本字面量（见 `scoopc::hir::lower_for_compilation_unit_multi_files`）。
+    let files_to_lower = front
+        .input
+        .sources
+        .iter()
+        .zip(front.asts.iter())
+        .map(|(source, ast)| (source, ast))
+        .collect::<Vec<_>>();
+
+    scoopc::hir::lower_for_compilation_unit_multi_files(
         front.main_source(),
-        front.main_ast(),
         &front.index,
         &unit,
+        &files_to_lower,
     )
     .map_err(miette::Report::from)
 }

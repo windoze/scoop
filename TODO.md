@@ -4361,11 +4361,44 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1315 [TODO] 纯 Scoop 补齐 Kotlin runtime 适用缺口（不新增 intrinsic）
+### T1315 纯 Scoop 补齐 Kotlin runtime 适用缺口（不新增 intrinsic）（拆分为子任务）
 - 描述：根据 T1314 的审计结果，用纯 Scoop 实现可补齐的核心 runtime 库能力，例如文本/集合辅助、ranges/progressions helpers、sequence-like utilities、常见 runtime support APIs 等。
 - 目标：默认不得新增 intrinsic；若遇到底层 blocker，必须回流到 T1017/T1018，而不是在本任务里偷偷扩 intrinsic。
 - 验收：新增 language/run-pass fixtures：至少一组来自 Kotlin 运行库常见能力的用法可直接在 Scoop 上工作，且实现主体为 Scoop 代码。
 - 依赖：T1314、T1017
+
+### T1315a [DONE] build/run：自动注入可编译的纯 Scoop prelude（`stdlib` v0）
+- 描述：引入 `stdlib/*.scoop`，并让 `scoop build/run` 以稳定顺序把它们加入当前编译单元，使其顶层函数可被 resolver/typecheck/lowering/codegen 消费。
+- 目标：
+  - 为后续纯 Scoop runtime helpers/collections/ranges 提供落点；
+  - 不改变 sysroot 的“声明源”定位（sysroot 仍只作为 cone 0 的内建声明面）；
+  - 在后端尚不支持“跨文件 span → 源文本切片”前，`stdlib v0` 的实现不依赖数值/字符串字面量（避免 codegen 读取错误 SourceFile）。
+- 验收：
+  - 新增 run-pass fixture：调用 `stdlib` 中实现的 Kotlin-like helper（例如 `require`）并通过 `try/catch` 捕获 `RuntimeError`；
+  - `cargo test --all` 通过；
+  - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 本机通过。
+- 依赖：T1314、T1017
+ - 完成：
+   - `stdlib/prelude.scoop`：新增 Kotlin-like `require/check`（纯 Scoop）。
+   - `crates/scoop/src/commands/build.rs`：`scoop build/run` 自动注入 `stdlib/*.scoop` 到编译单元。
+   - `crates/scoopc/src/hir/lower.rs`：新增 multi-file lowering 入口 `lower_for_compilation_unit_multi_files`（并限制非入口文件不得含 source-backed literals）。
+   - `crates/scoop/src/commands/build.rs`：后端 lowering 改为 multi-file，以便 stdlib 顶层函数进入 `fun_index` 并可被 codegen。
+   - fixtures：新增 `tests/fixtures/run-pass/kotlin_require_check_basic.*`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+
+### T1315b [TODO] pure-scoop：补齐 Kotlin-like core runtime helpers（v1）
+- 描述：在 `stdlib` 中补齐更多“高频但不依赖平台”的 runtime support APIs，例如 preconditions（`check/require` 族）、`also/run/let/apply` 的早期可用形态、以及常用小工具函数。
+- 目标：优先产出 fixtures 价值高、能显著提升示例可写性的能力；默认不新增 intrinsic。
+- 验收：新增 run-pass fixtures：至少覆盖 2 组常用 helper 的可执行语义（stdout/exit code 断言）。
+- 依赖：T1315a
+
+### T1315c [TODO] pure-scoop：ranges/progressions 与 sequence-like utilities（v0）
+- 描述：基于现有语法/语义，为 `Int` 等标量类型补齐 Kotlin-like ranges/progressions helpers 与最小惰性序列/迭代 utilities（不引入新的集合底座）。
+- 目标：先以“可表达 + 可回归”为主，不追求性能最优；不引入新的 intrinsic。
+- 验收：新增 run-pass fixtures：覆盖 `range/progression` 的构造与最小迭代行为（stdout/exit code 断言）。
+- 依赖：T1315a
 
 ### T1316 [TODO] 全量 `std` 设计：分层、稳定性、能力矩阵（目标对标 Rust std）
 - 描述：设计 Scoop 的标准库分层与包边界，目标是能力与 Rust `std` 同量级、可比较，但不要求 API 相同。建议至少区分 `core` / `alloc` / `std` / 平台适配层。
