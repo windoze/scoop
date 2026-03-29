@@ -4349,11 +4349,17 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
+### T1017 [DONE] 后期 runtime/std 的 intrinsic 需求审计（gate task）
 - 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
 - 目标：默认结论应是“无新增 intrinsic”；只有审计证明无法表达时，才允许进入 T1018。
 - 验收：输出一份分层清单：`pure_scoop_ok` / `needs_runtime_lib` / `needs_new_intrinsic`；每个 `needs_new_intrinsic` 都必须附带无法用现有机制实现的理由。
 - 依赖：T1217、T1314
+ - 完成：
+   - `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`：新增审计文档，输出分层清单并给出对 T1018/T1315/T1316/T1317 的落点建议（结论：std 主线不需要新增 intrinsic）。
+   - `KOTLIN_RUNTIME_GAP_AUDIT.md`：回写 3.3 小节，记录 T1017 结论：数组 buffer/原子/identity hash 等候选项优先转为 runtime lib/ABI，不作为 intrinsic gate 理由。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。

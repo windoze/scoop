@@ -98,11 +98,12 @@
 
 ### 3.3 “疑似需要新 intrinsic”的候选（必须走 T1017/T1018）
 
-以下只是候选，是否真的需要 intrinsic 由 T1017 再次判定：
+以下条目在 T1314 阶段仅作为“疑似候选”列出，用于提醒 std 设计时避免隐性扩 intrinsic。  
+截至 2026-03-30，T1017 已完成审计（见 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`）：在 `std v1` 与 “Kotlin runtime gap 的纯 Scoop 补齐” 的目标边界下，**暂不需要新增编译器 intrinsic**；这些候选项应优先落到 runtime lib/ABI 层（或纯库层），只有出现“无法表达”的真实 blocker 时才进入 T1018。
 
-- `MutableArray` 的底层 buffer 分配/搬移/扩容（若无法用现有机制表达，且性能/安全要求高）
-- 原子与线程相关 primitive（与 GC/thread registration 强耦合）
-- 对象 identity hash / 对象地址相关能力（若 std 需要稳定语义）
+- `MutableArray` 的底层 buffer 分配/搬移/扩容：优先通过 runtime lib + type descriptor（或等价元数据）实现，不作为 intrinsic gate 理由。
+- 原子与线程相关 primitive：优先通过 runtime lib（C11 原子/平台原子库 + 线程注册）实现；若未来追求“零开销内建原子指令”再评估 intrinsic。
+- 对象 identity hash / 对象地址相关能力：属于 GC/对象头语义，优先由 runtime 提供稳定 API。
 
 ---
 
@@ -112,4 +113,3 @@
 
 - 当 T1017 得出结论（是否需要 intrinsic）时，应把结论回写到本文的 3.3 小节，并把 “needs_new_intrinsic（候选）” 改为明确结论。
 - 当 `std` 设计（T1316）确定模块边界时，应把本表按模块拆分，形成 `core/alloc/std/platform` 的能力映射。
-
