@@ -4361,12 +4361,6 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
-- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
-- 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
-- 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
-- 依赖：T1017
-
 ### T1315 [TODO] 纯 Scoop 补齐 Kotlin runtime 适用缺口（不新增 intrinsic）
 - 描述：根据 T1314 的审计结果，用纯 Scoop 实现可补齐的核心 runtime 库能力，例如文本/集合辅助、ranges/progressions helpers、sequence-like utilities、常见 runtime support APIs 等。
 - 目标：默认不得新增 intrinsic；若遇到底层 blocker，必须回流到 T1017/T1018，而不是在本任务里偷偷扩 intrinsic。
@@ -4426,6 +4420,12 @@
 - 目标：保持与 runtime backend 解耦；WASM/embedded 环境通过 adapter 或 capability gating 处理。
 - 验收：新增 std/run-pass fixtures：基础 TCP/HTTP-like adapter、async task utility、test helper 能在受支持平台工作；不支持平台有 capability matrix 覆盖。
 - 依赖：T1316、T0917、T1409
+
+### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
+- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
+- 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
+- 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
+- 依赖：T1017
 
 ### T1321 [TODO] Kotlin 风格重载决议：most specific candidate 规则收口
 - 描述：把通用 overload resolution 收口为 Kotlin 风格的用户可感知规则：最具体候选优先、member/extension/constructor 的优先级固定、歧义行为稳定。
