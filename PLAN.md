@@ -25,6 +25,10 @@
 - 2026-03-27：`TODO.md` 中 T0915b（跨线程 resume 的端到端 run-pass fixture）依赖 T0618（跨线程 `resume` 语义/接入），但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0915b 移动到 T0618 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1016b（meta-annotations 导出到 `.cone`）依赖 T1103/T1209，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1016b 移动到 T1209 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
+- 2026-03-29：`TODO.md` 中 T1307（trailing lambda）原任务同时要求前端推断与 run-pass 回归；但当前 LLVM `main` codegen 尚未支持闭包/函数值调用，因此将其拆分为：
+  - T1307a：前端（resolver/typecheck）补齐隐式 `it` + 期望类型下推推断；
+  - T1307b：后端/run-pass 回归（lambda 被调用）。
+  并将 T1307b 移动到 T1314 之后，避免阻塞“首个 `[TODO]` 可直接实现”的顺序。
 - 2026-03-29：完成 T1212：在 typecheck 中支持 `callee<T>()` 的显式类型实参调用（`Call(TypeApply(...))`），并用规范说明 + comptime/typecheck fixtures 固化“反射调用在运行期语境下遵循 const fun 规则回退”为普通调用。
 - 2026-03-29：完成 T1213：sysroot 补齐 scope functions（`let/run/also/apply`）的 effect-polymorphic 声明，并打通 `x.run { ... }` 的前端链路（resolver 泛型 receiver 扩展候选、跨文件 `<eff E>` 签名 lowering、receiver lambda expected-context 推断、跨文件 effects lowering 防 panic）。
 - 2026-03-29：完成 T1214：补齐反射 intrinsics（`alignOf/variantsOf/superTypesOf/paramsOf`）的 sysroot 声明与 const 解释器支持，并新增 comptime fixture + 单测回归覆盖。

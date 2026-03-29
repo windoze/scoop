@@ -4167,10 +4167,16 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1307 [TODO] trailing lambda 与类型推断联动（Appendix B.5.4）
+### T1307（拆分为子任务）
 - 描述：当 call 最后一个参数是 lambda 时，支持 `f { ... }`/`f(1) { ... }` 并正确进行 lambda 参数下推推断。
-- 目标：先只支持单个 trailing lambda；多 trailing lambda 后置。
-- 验收：infer fixture：`takes { it }` 推断成功；run-pass fixture：lambda 被正确调用。
+- 目标：保持“可单独实现 & 单独验证”的小步：先补齐前端推断与 `it` 语义，再补齐可执行的 run-pass 回归。
+- 备注：当前 LLVM `main` codegen 仍未支持 `ExprKind::Closure` 与“调用局部函数值”，因此 run-pass 需要后置到后端接入（见 `crates/scoopc/src/llvm/codegen.rs`）。
+- 依赖：T0232、T0504
+
+### T1307a [TODO] trailing lambda：隐式 `it` + 期望类型下推（Appendix B.5.4）
+- 描述：在 `{ body }` 形式 lambda 中引入 Kotlin-like 隐式单参数 `it`：当期望函数类型为 `(T) -> R` 时，`takes { it }` 可推断通过。
+- 目标：只改 resolver/typecheck；不要求后端可执行。
+- 验收：infer fixture：`takes { it }` 推断成功（`it` 类型由期望类型下推）。
 - 依赖：T0232、T0504
 
 ### T1308 [TODO] varargs：`vararg` 参数与 spread（Appendix B.5.5）
@@ -4214,6 +4220,12 @@
 - 目标：不盲目追求 1:1 复制 Kotlin/JVM runtime；只补对 Scoop 语言模型成立、且对用户价值高的部分。
 - 验收：产出一份 capability matrix，列出候选模块、优先级、是否纯 Scoop 可实现，以及是否需要走 T1017/T1018 通道。
 - 依赖：T1311、T1312、T1217
+
+### T1307b [TODO] trailing lambda：run-pass（lambda 被调用）回归（Appendix B.5.4）
+- 描述：补齐可执行链路：让 `takes { it }` 在运行期能真正调用 lambda 并产生可观测结果（stdout 或 exit code 断言）。
+- 目标：先只做最小可执行落点（可先限制为不捕获 lambda）；捕获闭包可复用既有 HIR/MIR 结构（T0710/T0711/T0714）。
+- 验收：新增 run-pass fixture：lambda 被正确调用（stdout 或 exit code 断言）。
+- 依赖：T1307a、T0710、T0810
 
 ### T1017 [TODO] 后期 runtime/std 的 intrinsic 需求审计（gate task）
 - 描述：针对“纯 Scoop 补齐 Kotlin runtime gap 与全量 std”做一次底层 primitive 审计，明确哪些能力可以完全用现有 runtime/API 实现，哪些能力确实缺少 primitive。
