@@ -1,0 +1,86 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_iter_algorithms_basic.stdout
+// EXPECT-EXIT: 0
+//
+// 目标：T1317f3（stdlib：Array/MutableArray/List/MutableList 迭代/算法 v0）
+
+import scoop.core.*
+import scoop.core.array.*
+import scoop.core.mutable_array.*
+
+fun dumpList(xs: List<Int>): Unit {
+    println(xs.size())
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun main(): Int {
+    // --- Array ---
+    val xs: Array<Int> = [1, 2, 3, 4]
+
+    println("array.forEach")
+    xs.forEach { println(it) }
+
+    println("array.map +10")
+    val ys: List<Int> = xs.map { it + 10 }
+    dumpList(ys)
+
+    println("array.filter even")
+    val zs: List<Int> = xs.filter { it % 2 == 0 }
+    dumpList(zs)
+
+    println("array.fold sum")
+    val sum: Int = xs.fold(0) { acc, x -> acc + x }
+    println(sum)
+
+    // List 是 `Array` 的 typealias（sysroot/core.scoop）。
+    println("list.alias.forEach")
+    val ls: List<Int> = xs
+    ls.forEach { println(it) }
+
+    println("list.alias.map *2")
+    val ls2: List<Int> = ls.map { it * 2 }
+    dumpList(ls2)
+
+    println("list.alias.filter odd")
+    val ls3: List<Int> = ls.filter { it % 2 == 1 }
+    dumpList(ls3)
+
+    println("list.alias.fold sum")
+    val lsum: Int = ls.fold(0) { acc, x -> acc + x }
+    println(lsum)
+
+    // --- MutableArray ---
+    val mx: MutableArray<Int> = [1, 2, 3, 4]
+
+    println("mutable_array.forEach")
+    mx.forEach { println(it) }
+
+    println("mutable_array.map +100")
+    val my: List<Int> = mx.map { it + 100 }
+    dumpList(my)
+
+    println("mutable_array.filter <3")
+    val mz: List<Int> = mx.filter { it % 2 == 0 }
+    dumpList(mz)
+
+    println("mutable_array.fold sum")
+    val msum: Int = mx.fold(0) { acc, x -> acc + x }
+    println(msum)
+
+    // MutableList 是 `MutableArray` 的 typealias（sysroot/core.scoop）。
+    println("mutable_list.alias.map *3")
+    val ml: MutableList<Int> = mx
+    val ml2: List<Int> = ml.map { it * 3 }
+    dumpList(ml2)
+
+    println("mutable_list.alias.fold sum")
+    val mlsum: Int = ml.fold(0) { acc, x -> acc + x }
+    println(mlsum)
+
+    println("done")
+    return 0
+}

@@ -1,0 +1,60 @@
+array.forEach
+1
+2
+3
+4
+array.map +10
+4
+11
+12
+13
+14
+array.filter even
+2
+2
+4
+array.fold sum
+10
+list.alias.forEach
+1
+2
+3
+4
+list.alias.map *2
+4
+2
+4
+6
+8
+list.alias.filter odd
+2
+1
+3
+list.alias.fold sum
+10
+mutable_array.forEach
+1
+2
+3
+4
+mutable_array.map +100
+4
+101
+102
+103
+104
+mutable_array.filter <3
+2
+2
+4
+mutable_array.fold sum
+10
+mutable_list.alias.map *3
+4
+3
+6
+9
+12
+mutable_list.alias.fold sum
+10
+done

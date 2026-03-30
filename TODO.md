@@ -4594,11 +4594,21 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1317f3 [TODO] stdlib：迭代/算法 v0（`forEach`/`map`/`filter`/`fold`）
+### T1317f3 [DONE] stdlib：迭代/算法 v0（`forEach`/`map`/`filter`/`fold`）
 - 描述：在 `Array/MutableArray/List/MutableList` 上提供最小迭代/算法 API，优先覆盖 `Int` 版本，并保持 effect-polymorphic 形态。
 - 目标：不追求性能；不新增 intrinsic；保证 stdout/exit 码可回归。
 - 验收：新增 run-pass fixtures：`forEach/map/filter/fold` 的行为正确；`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1317f2
+ - 完成：
+   - `stdlib/array_iter.scoop`：为 `Array<Int>`/`List<Int>` 提供 `forEach/map/filter/fold`（`<eff E = Pure>`）。
+   - `stdlib/mutable_array_iter.scoop`：为 `MutableArray<Int>`/`MutableList<Int>` 提供 `forEach/map/filter/fold`（`<eff E = Pure>`）。
+   - `crates/scoopc/src/typecheck/expr.rs`：lambda 期望类型下推推断扩展到 2 参数（支持 `(A, B) -> R`），以解锁 `fold(0) { acc, x -> ... }`。
+   - `crates/scoopc/src/resolve/scopes.rs`：lambda 形参带类型注解时写入 local binding，便于后续成员访问解析（例如 `step.field`）。
+   - fixtures：新增 `tests/fixtures/run-pass/stdlib_iter_algorithms_basic.scoop/.stdout`，覆盖 `Array/List/MutableArray/MutableList` 的 `forEach/map/filter/fold`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1317f4 [TODO] stdlib：`Set/Map`（含 mutable）v0（基于 `MutableArray`，先做 `Int` 落点）
 - 描述：基于 `MutableArray` 在 pure Scoop 中实现 `MutableSet<Int>`/`MutableMap<Int, V>`（必要时先固定 `Int->Int`）与只读 `Set/Map` 视图；与 delegated property 所需的 `scoop.collections.Map` 表面保持兼容。

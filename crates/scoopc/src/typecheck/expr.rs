@@ -4953,18 +4953,20 @@ fn try_infer_lambda_expr_type_by_expected(
     };
 
     // 当前阶段目标（T0504/T0509）：
-    // - 支持 0/1 参数 lambda（`() -> T` / `(A) -> T`）
+    // - 支持 0/1/2 参数 lambda（`() -> T` / `(A) -> T` / `(A, B) -> T`）
     // - 支持 receiver function type（`T.() -> R`）：把 receiver 写入 lambda 的函数类型；
     //   注意：当前阶段 resolver 尚未为 lambda body 引入 `this` 绑定，因此这里不额外注入局部 `this`。
 
     let mut lambda_locals = locals.clone();
     let mut param_tys: Vec<TypeId> = Vec::new();
+    let kind_param_count_limit =
+        "lambda（当前仅支持 0/1/2 参数，且参数类型需来自期望函数类型）";
 
     match expected_fun.params.len() {
         0 => {
             if !lam.params.is_empty() {
                 return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
+                    kind: kind_param_count_limit,
                     span: lam_expr.span.into(),
                 });
             }
@@ -4981,12 +4983,34 @@ fn try_infer_lambda_expr_type_by_expected(
             } else {
                 if lam.params.len() != 1 {
                     return Err(ExprTypeError::UnsupportedExpr {
-                        kind: "lambda（当前仅支持 0/1 参数，且参数类型需来自期望函数类型）",
+                        kind: kind_param_count_limit,
                         span: lam_expr.span.into(),
                     });
                 }
 
                 let param = &lam.params[0];
+                let param_ty = match &param.ty {
+                    Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
+                    None => expected_param_ty,
+                };
+                lambda_locals.insert(param.name.span, param_ty);
+                param_tys.push(param_ty);
+            }
+        }
+        2 => {
+            if lam.params.len() != 2 {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: kind_param_count_limit,
+                    span: lam_expr.span.into(),
+                });
+            }
+
+            for (idx, param) in lam.params.iter().enumerate() {
+                let expected_param_ty = expected_fun
+                    .params
+                    .get(idx)
+                    .copied()
+                    .expect("expected_fun.params.len() == 2");
                 let param_ty = match &param.ty {
                     Some(ty_ref) => lower.lower_type_ref(ty_ref)?,
                     None => expected_param_ty,

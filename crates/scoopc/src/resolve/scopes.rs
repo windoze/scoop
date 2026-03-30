@@ -683,7 +683,9 @@ impl<'a> BlockScopeChecker<'a> {
                     self.declare_ident(&implicit_it)?;
                 }
                 for p in &mut lam.params {
-                    self.declare_ident(&p.name)?;
+                    // 若 lambda 参数带有类型注解，把该信息写入 local binding，
+                    // 以便后续成员访问解析能获知 receiver 的名义类型（例如 `step.acc`）。
+                    self.declare_ident_typed(&p.name, p.ty.clone())?;
                     if let Some(default) = &mut p.default_value {
                         self.check_expr(default)?;
                     }
