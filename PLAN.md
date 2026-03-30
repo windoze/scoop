@@ -152,6 +152,7 @@
 - 2026-03-30：完成 T1017：新增 intrinsic gate 审计文档 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`（结论：std 主线不需要新增 intrinsic），并回写 `KOTLIN_RUNTIME_GAP_AUDIT.md` 3.3 记录落点。
 - 2026-03-30：T1315（纯 Scoop 补齐 Kotlin runtime gap）范围过大，已拆分为 T1315a/T1315b/T1315c：本轮先落地 T1315a（`stdlib` prelude 注入 + 可回归的最小可执行 helper），为后续纯 Scoop runtime/std 代码提供稳定落点。
 - 2026-03-30：完成 T1315a：新增 `stdlib/prelude.scoop`（`require/check`），并让 `scoop build/run` 自动注入 `stdlib/*.scoop`；后端 HIR lowering 支持 multi-file（并限制非入口文件不得含 source-backed literals），新增 run-pass fixture 回归 `require/check` 可被 try/catch 捕获。
+- 2026-03-30：完成 T1315b：补齐 `stdlib` v1 的 Kotlin-like helpers：`requireLazy/checkLazy` 与 `Int.{also,let,run,apply}`；同时补齐 typecheck/HLIR lowering 支撑“sysroot 声明 + stdlib 实现”与 extension call/receiver 的后端可执行链路，并新增 run-pass fixtures 回归覆盖。
 - 2026-03-30：完成 T0920：`ScoopTypeDescriptor` 增加可选 `release_fn`，GC sweep 回收对象时在 `free` 前回调一次（用于 FFI-managed 资源释放）；新增 `scoop_runtime` 集成测试回归“仅调用一次”语义。
 - 2026-03-25：完成 T0815：生成的 `i32 @main()` 在执行 Scoop `fun main` 前调用 `scoop_runtime_init()`，并更新 LLVM 单测断言 IR 含该调用。
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。

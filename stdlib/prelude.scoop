@@ -1,4 +1,4 @@
-// Scoop stdlib（pure scoop）：prelude v0
+// Scoop stdlib（pure scoop）：prelude v1
 //
 // 说明：
 // - 本目录下的 `.scoop` 文件会被 driver 在 `scoop build/run` 时注入到编译单元（TODO T1315a）；
@@ -27,3 +27,51 @@ fun check(condition: Bool): Unit / Raise<RuntimeError> {
     }
 }
 
+// Kotlin-like preconditions：lazy message variants（early stage）。
+//
+// 说明：
+// - 当前 LLVM codegen 的顶层函数仍不支持同名 overload 的稳定 ABI/mangling，因此这里用不同函数名承载；
+// - message 仅在失败分支求值（lazy），失败分支通过 `Raise<RuntimeError>` 抛出最小错误载体。
+fun requireLazy(condition: Bool, lazyMessage: () -> Unit): Unit / Raise<RuntimeError> {
+    when (condition) {
+        true -> ()
+        false -> {
+            lazyMessage()
+            Raise.raise(RuntimeError.NullAssertionFailed)
+        }
+    }
+}
+
+fun checkLazy(condition: Bool, lazyMessage: () -> Unit): Unit / Raise<RuntimeError> {
+    when (condition) {
+        true -> ()
+        false -> {
+            lazyMessage()
+            Raise.raise(RuntimeError.ClassCastFailed)
+        }
+    }
+}
+
+// Kotlin-like scope functions（spec §11）。
+//
+// 说明：
+// - 这些函数是库定义的（非编译器内建），用于提升示例可写性；
+// - 它们应当是 effect-polymorphic：lambda body 中的 effects 会经 `<eff E>` 推断并传播到调用点；
+// - v1 限制：当前阶段仅先对 `Int` 提供最小可执行落点；更完整的 `<T>` 泛型版本后续再补齐。
+fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E {
+    return block(this)
+}
+
+fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E {
+    return block(this)
+}
+
+fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E {
+    block(this)
+    return this
+}
+
+fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E {
+    block(this)
+    return this
+}

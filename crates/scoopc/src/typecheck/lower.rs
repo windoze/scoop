@@ -348,6 +348,12 @@ pub(crate) struct TypeLowering<'a> {
     types: &'a mut TypeStore,
     builtins: BuiltinTypes,
     pkg_prefix: String,
+    /// 顶层 `val/var` 的可变性表（FQN → 是否为 `var`）。
+    ///
+    /// 说明：
+    /// - 用于表达式 typecheck 阶段对 `x = ...`（lhs 为顶层符号）做最小“可写性”门禁；
+    /// - 当前阶段该表只覆盖“创建该 TypeLowering 时传入的 file”的顶层声明（与 `top_level_types` 一致）。
+    top_level_value_mutabilities: HashMap<String, bool>,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
     /// effect row parameter 作用域栈：用于 lowering `/ E` 这类 row 变量引用（T0509）。
@@ -420,7 +426,10 @@ impl<'a> TypeLowering<'a> {
         builtins: BuiltinTypes,
     ) -> Self {
         let pkg_prefix = package_prefix(source, file.package.as_ref());
-        Self::new_with_ctx(
+        let top_level_value_mutabilities =
+            collect_top_level_value_mutabilities(source, file, &pkg_prefix);
+
+        let mut ctx = Self::new_with_ctx(
             source,
             index,
             env,
@@ -428,7 +437,9 @@ impl<'a> TypeLowering<'a> {
             builtins,
             pkg_prefix,
             imports.clone(),
-        )
+        );
+        ctx.top_level_value_mutabilities = top_level_value_mutabilities;
+        ctx
     }
 
     /// 在指定的 package/import 上下文中创建 `TypeLowering`。
@@ -453,6 +464,7 @@ impl<'a> TypeLowering<'a> {
             types,
             builtins,
             pkg_prefix,
+            top_level_value_mutabilities: HashMap::new(),
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
             type_alias_stack: Vec::new(),
@@ -470,6 +482,13 @@ impl<'a> TypeLowering<'a> {
 
     pub(super) fn pkg_prefix(&self) -> &str {
         &self.pkg_prefix
+    }
+
+    pub(super) fn is_top_level_value_mutable(&self, fqn: &str) -> bool {
+        self.top_level_value_mutabilities
+            .get(fqn)
+            .copied()
+            .unwrap_or(false)
     }
 
     pub(super) fn env(&self) -> &TypeEnv {
@@ -1033,7 +1052,10 @@ impl<'a> TypeLowering<'a> {
     fn is_interface_type(&self, id: TypeId) -> bool {
         match self.type_kind(id) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
-                matches!(self.nominal_decl_kind(&nominal.fqn), Some(ast::TypeKind::Interface))
+                matches!(
+                    self.nominal_decl_kind(&nominal.fqn),
+                    Some(ast::TypeKind::Interface)
+                )
             }
             _ => false,
         }
@@ -1834,12 +1856,13 @@ impl<'a> TypeLowering<'a> {
             .map(|ctx| (ctx.pkg_prefix.clone(), ctx.imports.clone()))
             .unwrap_or_else(|| (String::new(), ImportTable::default()));
 
-        let alias_sym = self.env.type_symbol(fqn).ok_or_else(|| {
-            TypeLowerError::MissingTypeSymbolInEnv {
-                fqn: fqn.to_string(),
-                span: use_span.into(),
-            }
-        })?;
+        let alias_sym =
+            self.env
+                .type_symbol(fqn)
+                .ok_or_else(|| TypeLowerError::MissingTypeSymbolInEnv {
+                    fqn: fqn.to_string(),
+                    span: use_span.into(),
+                })?;
         let type_bindings = alias_sym
             .type_param_names
             .iter()
@@ -1930,9 +1953,8 @@ impl<'a> TypeLowering<'a> {
             }
         }
 
-        let is_value_only_enum = matches!(ty.kind, ast::TypeKind::Enum)
-            && first_super.is_some()
-            && {
+        let is_value_only_enum =
+            matches!(ty.kind, ast::TypeKind::Enum) && first_super.is_some() && {
                 let first_is_interface =
                     first_super.is_some_and(|(id, _)| self.is_interface_type(id));
                 let has_discriminant = ty.body.as_ref().is_some_and(|body| {
@@ -1987,10 +2009,12 @@ impl<'a> TypeLowering<'a> {
                         };
 
                         if !is_int_const_expr(discriminant) {
-                            return Err(TypeLowerError::ValueOnlyEnumVariantDiscriminantNotIntConst {
-                                variant_name,
-                                span: discriminant.span.into(),
-                            });
+                            return Err(
+                                TypeLowerError::ValueOnlyEnumVariantDiscriminantNotIntConst {
+                                    variant_name,
+                                    span: discriminant.span.into(),
+                                },
+                            );
                         }
                     }
 
@@ -2572,6 +2596,35 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
         .map(|id| source.slice(id.span))
         .collect::<Vec<_>>()
         .join(".")
+}
+
+fn collect_top_level_value_mutabilities(
+    source: &SourceFile,
+    file: &ast::File,
+    pkg_prefix: &str,
+) -> HashMap<String, bool> {
+    let mut map: HashMap<String, bool> = HashMap::new();
+
+    for item in &file.items {
+        let ast::Item::Val(v) = item else {
+            continue;
+        };
+
+        let ast::ValBinding::Name(name) = &v.binding else {
+            continue;
+        };
+
+        let local_name = source.slice(name.span);
+        let fqn = if pkg_prefix.is_empty() {
+            local_name.to_string()
+        } else {
+            format!("{pkg_prefix}.{local_name}")
+        };
+
+        map.insert(fqn, v.kind == ast::ValKind::Var);
+    }
+
+    map
 }
 
 /// 单态化（monomorphization）请求集合：去重 + 保留稳定顺序。

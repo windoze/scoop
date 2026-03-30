@@ -4388,11 +4388,28 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1315b [TODO] pure-scoop：补齐 Kotlin-like core runtime helpers（v1）
+### T1315b [DONE] pure-scoop：补齐 Kotlin-like core runtime helpers（v1）
 - 描述：在 `stdlib` 中补齐更多“高频但不依赖平台”的 runtime support APIs，例如 preconditions（`check/require` 族）、`also/run/let/apply` 的早期可用形态、以及常用小工具函数。
 - 目标：优先产出 fixtures 价值高、能显著提升示例可写性的能力；默认不新增 intrinsic。
 - 验收：新增 run-pass fixtures：至少覆盖 2 组常用 helper 的可执行语义（stdout/exit code 断言）。
 - 依赖：T1315a
+ - 完成：
+   - `stdlib/prelude.scoop`：
+     - 新增 `requireLazy/checkLazy`（lazy message，失败分支求值；当前阶段 message 先用 `() -> Unit` 避免 String/aggregate return 限制）。
+     - 新增 Kotlin-like scope functions（spec §11）v1：`Int.{also,let,run,apply}`（当前先做 `Int` 专用落点，避免泛型单态化/跨文件实例生成缺口影响可执行回归）。
+   - `sysroot/core.scoop`：补齐 scope functions 的声明表面（与 stdlib v1 对齐：Int-only + effect-polymorphic）。
+   - `crates/scoopc/src/typecheck/expr.rs`：修复“sysroot 仅声明 + stdlib 提供实现”导致的重复候选/重载歧义（优先选择 has_body=true 的实现版本）。
+   - `crates/scoopc/src/hir/lower.rs`：
+     - extension call 降糖：`receiver.ext(args...)` → `ext(receiver, args...)`（便于后端识别为顶层调用）。
+     - extension receiver 显式参数化：把 `this` 作为第 0 个参数降入 HIR，避免 codegen 找不到 `this` 局部绑定。
+   - fixtures：
+     - `tests/fixtures/run-pass/kotlin_require_check_lazy_message_basic.*`
+     - `tests/fixtures/run-pass/kotlin_scope_functions_basic.*`
+     - `tests/fixtures/run-pass/kotlin_require_check_basic.stdout`：修复 stdout golden 末尾空行，避免 run-pass mismatch。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1315c [TODO] pure-scoop：ranges/progressions 与 sequence-like utilities（v0）
 - 描述：基于现有语法/语义，为 `Int` 等标量类型补齐 Kotlin-like ranges/progressions helpers 与最小惰性序列/迭代 utilities（不引入新的集合底座）。

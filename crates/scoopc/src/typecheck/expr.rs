@@ -3929,13 +3929,13 @@ fn infer_assign_expr_type(
                         name: name.clone(),
                         span: id.span.into(),
                     })?,
-                ast::ResolvedValueRef::TopLevel { .. } => {
-                    // 与 statement 语境保持一致：当前阶段先不支持顶层赋值。
-                    return Err(ExprTypeError::UnsupportedExpr {
-                        kind: "assignment lhs（top-level value）",
+                ast::ResolvedValueRef::TopLevel { fqn } => top_level_types
+                    .get(fqn)
+                    .copied()
+                    .ok_or_else(|| ExprTypeError::UnsupportedTopLevelValueType {
+                        fqn: fqn.clone(),
                         span: id.span.into(),
-                    });
-                }
+                    })?,
             }
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
@@ -5866,7 +5866,11 @@ fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -
     }
 
     let mut required = 0usize;
-    for (has_default, is_vararg) in param_has_defaults.iter().copied().zip(param_is_vararg.iter().copied()) {
+    for (has_default, is_vararg) in param_has_defaults
+        .iter()
+        .copied()
+        .zip(param_is_vararg.iter().copied())
+    {
         if is_vararg {
             // Kotlin-like：vararg 可接受 0 个参数，因此不计入 required。
             continue;
@@ -5981,7 +5985,10 @@ fn map_call_args_to_params_with_defaults_and_varargs(
     Some(mapping)
 }
 
-fn spread_operand_element_types(operand_ty: TypeId, lower: &TypeLowering<'_>) -> Option<Vec<TypeId>> {
+fn spread_operand_element_types(
+    operand_ty: TypeId,
+    lower: &TypeLowering<'_>,
+) -> Option<Vec<TypeId>> {
     match lower.type_kind(operand_ty) {
         TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
             if n.fqn == "scoop.core.Array" && n.args.len() == 1 {
@@ -6150,8 +6157,87 @@ fn collect_top_level_fun_signatures_from_index(
         return Ok(Vec::new());
     }
 
+    // sysroot 的 “declaration-only” overload（`has_body = false`）用于 resolver/typecheck 可见性；
+    // 但当当前编译单元（或其注入的 stdlib）提供了同签名的实现（`has_body = true`）时，
+    // 若把两者同时暴露给重载决议，会导致“同签名重复候选 → ambiguous overload”。
+    //
+    // 因此这里先收集一份“已有实现的签名 key”，并在生成 `FunSigOwned` 时过滤掉同 key 的无 body 声明。
+    fn normalize_sig_piece(s: &str) -> String {
+        s.split_whitespace().collect()
+    }
+
+    fn fun_overload_sig_key(o: &crate::resolve::FunOverload, decl_source: &SourceFile) -> String {
+        let mut out = String::new();
+        out.push_str(if o.sig.is_const { "const" } else { "fun" });
+        out.push('|');
+        for p in &o.sig.type_params {
+            out.push_str(&p.name);
+            out.push(',');
+        }
+        out.push('|');
+        if let Some(eff) = &o.sig.eff_param {
+            out.push_str(&normalize_sig_piece(decl_source.slice(eff.span)));
+        }
+        out.push('|');
+        if let Some(receiver) = &o.sig.receiver {
+            out.push_str(&normalize_sig_piece(decl_source.slice(receiver.span())));
+        }
+        out.push('|');
+        for p in &o.sig.params {
+            if let Some(ty) = &p.ty {
+                out.push_str(&normalize_sig_piece(decl_source.slice(ty.span())));
+            } else {
+                out.push('_');
+            }
+            out.push(';');
+        }
+        out.push('|');
+        match &o.sig.return_ty {
+            Some(ret) => out.push_str(&normalize_sig_piece(decl_source.slice(ret.span()))),
+            None => out.push_str("Unit"),
+        }
+        out.push('|');
+        if let Some(effects) = &o.sig.effects {
+            out.push_str(&normalize_sig_piece(decl_source.slice(effects.span)));
+        }
+        out
+    }
+
+    let mut implemented_keys: HashSet<String> = HashSet::new();
+    for o in &overloads {
+        if !o.has_body {
+            continue;
+        }
+
+        let decl_source = lower
+            .env()
+            .source(&o.symbol.decl_file)
+            .cloned()
+            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "cross-file signature lowering（missing decl source）",
+                span: o.symbol.span.into(),
+            })?;
+        implemented_keys.insert(fun_overload_sig_key(o, &decl_source));
+    }
+
     let mut out: Vec<FunSigOwned> = Vec::new();
     for o in &overloads {
+        let decl_source = lower
+            .env()
+            .source(&o.symbol.decl_file)
+            .cloned()
+            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
+                kind: "cross-file signature lowering（missing decl source）",
+                span: o.symbol.span.into(),
+            })?;
+
+        if !o.has_body {
+            let key = fun_overload_sig_key(o, &decl_source);
+            if implemented_keys.contains(&key) {
+                continue;
+            }
+        }
+
         // T0505 v0：当前阶段的泛型调用推断仅支持单一 type param（隐式推断路径）。
         if o.sig.type_params.len() > 1 {
             continue;
@@ -6163,15 +6249,6 @@ fn collect_top_level_fun_signatures_from_index(
         // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
         // 不包含 `inline`。跨文件顶层函数调用暂按 `inline = false` 处理即可（对 println 这类 sysroot API 足够）。
         let is_inline = false;
-
-        let decl_source = lower
-            .env()
-            .source(&o.symbol.decl_file)
-            .cloned()
-            .ok_or_else(|| ExprTypeError::UnsupportedExpr {
-                kind: "cross-file signature lowering（missing decl source）",
-                span: o.symbol.span.into(),
-            })?;
 
         let mut type_params: Vec<TypeId> = Vec::with_capacity(o.sig.type_params.len());
         for p in &o.sig.type_params {
@@ -6675,12 +6752,17 @@ fn infer_call_expr_type(
 
                     mapping
                         .into_iter()
-                        .map(|arg_idx| arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single))
+                        .map(|arg_idx| {
+                            arg_idx.map_or(ParamArgBinding::Default, ParamArgBinding::Single)
+                        })
                         .collect()
                 } else {
                     // vararg：允许“多传”，并把多余的实参归入 vararg 槽位。
-                    let required = required_param_count(&sig.param_has_defaults, &sig.param_is_vararg)
-                        .unwrap_or_else(|| sig.param_has_defaults.iter().filter(|d| !**d).count());
+                    let required =
+                        required_param_count(&sig.param_has_defaults, &sig.param_is_vararg)
+                            .unwrap_or_else(|| {
+                                sig.param_has_defaults.iter().filter(|d| !**d).count()
+                            });
                     if call_args.len() < required {
                         return Err(ExprTypeError::CallArityMismatch {
                             callee: callee_fqn,
@@ -6767,13 +6849,15 @@ fn infer_call_expr_type(
                 }
 
                 let mut instantiated = match &explicit_type_args {
-                    Some(explicit_type_args) => instantiate_fun_sig_for_call_with_explicit_type_args(
-                        &callee_fqn,
-                        call_expr.span,
-                        sig,
-                        explicit_type_args,
-                        lower,
-                    )?,
+                    Some(explicit_type_args) => {
+                        instantiate_fun_sig_for_call_with_explicit_type_args(
+                            &callee_fqn,
+                            call_expr.span,
+                            sig,
+                            explicit_type_args,
+                            lower,
+                        )?
+                    }
                     None => instantiate_fun_sig_for_call(
                         &callee_fqn,
                         call_expr.span,
@@ -7127,7 +7211,12 @@ fn infer_call_expr_type(
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                         let arg = &call_args[arg_idx];
                         if arg.is_spread {
-                            if !cand.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                            if !cand
+                                .param_is_vararg
+                                .get(param_idx)
+                                .copied()
+                                .unwrap_or(false)
+                            {
                                 ok = false;
                                 break;
                             }
@@ -7161,16 +7250,18 @@ fn infer_call_expr_type(
                 }
 
                 let mut instantiated = match &explicit_type_args {
-                    Some(explicit_type_args) => match instantiate_fun_sig_for_call_with_explicit_type_args(
-                        &callee_fqn,
-                        call_expr.span,
-                        cand,
-                        explicit_type_args,
-                        lower,
-                    ) {
-                        Ok(s) => s,
-                        Err(_) => continue,
-                    },
+                    Some(explicit_type_args) => {
+                        match instantiate_fun_sig_for_call_with_explicit_type_args(
+                            &callee_fqn,
+                            call_expr.span,
+                            cand,
+                            explicit_type_args,
+                            lower,
+                        ) {
+                            Ok(s) => s,
+                            Err(_) => continue,
+                        }
+                    }
                     None => match instantiate_fun_sig_for_call(
                         &callee_fqn,
                         call_expr.span,
@@ -7336,7 +7427,12 @@ fn infer_call_expr_type(
                     let found_ty = checked_arg_tys[arg_idx];
 
                     if arg.is_spread {
-                        if !cand.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                        if !cand
+                            .param_is_vararg
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
                             ok = false;
                             break;
                         }
@@ -9342,6 +9438,13 @@ fn infer_member_call_expr_type(
             lower.record_performed_effect(effect, call_expr.span);
         }
 
+        // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+        lower.record_monomorph_call(
+            callee_fqn.clone(),
+            sig.decl_span,
+            &instantiated.type_args,
+        );
+
         let ret = if safe {
             lower.ty_option(instantiated.return_ty)
         } else {
@@ -9870,6 +9973,13 @@ fn infer_member_call_expr_type(
     for effect in call_effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
     }
+
+    // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
+    lower.record_monomorph_call(
+        callee_fqn.clone(),
+        chosen.sig.decl_span,
+        &chosen.instantiated.type_args,
+    );
 
     let ret = if safe {
         lower.ty_option(chosen.instantiated.return_ty)
@@ -12523,12 +12633,22 @@ fn check_assign_expr_stmt(
 
                     expected_ty
                 }
-                ast::ResolvedValueRef::TopLevel { .. } => {
-                    // 目标（T0443）：先只支持局部 var（顶层 var 赋值后续再补齐）。
-                    return Err(ExprTypeError::UnsupportedExpr {
-                        kind: "assignment lhs（top-level value）",
-                        span: id.span.into(),
-                    });
+                ast::ResolvedValueRef::TopLevel { fqn } => {
+                    let expected_ty = top_level_types.get(fqn).copied().ok_or_else(|| {
+                        ExprTypeError::UnsupportedTopLevelValueType {
+                            fqn: fqn.clone(),
+                            span: id.span.into(),
+                        }
+                    })?;
+
+                    if !lower.is_top_level_value_mutable(fqn) {
+                        return Err(ExprTypeError::AssignmentTargetNotMutable {
+                            name: source.slice(id.span).to_string(),
+                            span: id.span.into(),
+                        });
+                    }
+
+                    expected_ty
                 }
             }
         }

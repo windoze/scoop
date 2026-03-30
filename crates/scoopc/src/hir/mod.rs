@@ -594,6 +594,32 @@ pub enum ExternAbi {
 /// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type ExternFunIndex = HashMap<String, ExternFun>;
 
+/// 顶层可变全局变量（`@ThreadLocal` / `@Global`）的最小后端视图（TODO T1023）。
+///
+/// 说明：
+/// - 这些变量在 typecheck 阶段已被门禁为 GC-free，因此当前不需要参与 GC roots 扫描；
+/// - 早期阶段我们只要求“可生成静态存储并在函数内读写”，更复杂的初始化语义可后续补齐。
+#[derive(Debug, Clone)]
+pub struct TopLevelVar {
+    pub fqn: String,
+    pub span: Span,
+    pub storage: TopLevelVarStorage,
+    pub ty: TypeId,
+    /// initializer（可选）：用于 codegen 阶段决定是否能落到静态常量初始化。
+    pub init: Option<Expr>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopLevelVarStorage {
+    /// `@ThreadLocal`：每个 OS 线程拥有独立的存储实例（TLS）。
+    ThreadLocal,
+    /// `@Global`：进程全局静态存储（所有线程共享）。
+    Global,
+}
+
+/// `var FQN -> TopLevelVar` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
+
 /// 一个 object（含 companion object）的初始化顺序与成员信息。
 #[derive(Debug, Clone)]
 pub struct ObjectInit {

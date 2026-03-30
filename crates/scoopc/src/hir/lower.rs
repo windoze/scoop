@@ -22,14 +22,13 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, Capture, ClosureExpr, ClosureId, EffectOpRef, EnumLayout, EnumLayoutIndex,
-    EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm,
-    HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef,
-    ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind,
-    StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
-    ValueRef, WhenArm, WhenPat,
-    ClassCtor, ClassCtorKind, ClassCtorParam, ClassField, ClassInit, ClassInitIndex, ClassInitStep,
-    CtorCallSiteIndex,
+    Block, CallArg, Capture, ClassCtor, ClassCtorKind, ClassCtorParam, ClassField, ClassInit,
+    ClassInitIndex, ClassInitStep, ClosureExpr, ClosureId, CtorCallSiteIndex, EffectOpRef,
+    EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr,
+    ExprKind, File, FunDecl, HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item,
+    LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex, ObjectInitStep,
+    ObjectProperty, Param, Stmt, StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex,
+    StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 #[derive(Debug, Clone)]
@@ -146,6 +145,8 @@ pub struct LoweredHir {
     /// - 该信息作为后端/driver side table 保存，不影响 `dump-hir` 的输出稳定性；
     /// - 当前阶段仅支持最小 `-l<name>` 形式（不处理 `-L`/rpath 等）。
     pub extern_libs: Vec<String>,
+    /// 顶层可变全局变量信息（`@ThreadLocal/@Global`），供后端生成静态存储（TODO T1023）。
+    pub top_level_vars: super::TopLevelVarIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
@@ -215,6 +216,8 @@ struct HirLowering<'a> {
     /// 说明：HIR v0 仍把 ctor 调用的 callee 降为 `UnresolvedIdent`，因此需要 side table
     /// 把 resolver 的 call candidates 保留下来，供 LLVM codegen 决定“这是 ctor call”。
     ctor_call_sites: CtorCallSiteIndex,
+    /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
+    top_level_vars: super::TopLevelVarIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -252,6 +255,7 @@ impl<'a> HirLowering<'a> {
             delegated_properties,
             default_arg_funs: HashMap::new(),
             ctor_call_sites: HashMap::new(),
+            top_level_vars: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -386,26 +390,38 @@ impl<'a> HirLowering<'a> {
             format!("{pkg_prefix}.{name}")
         };
 
-        let params: Vec<Param> = fun
-            .params
-            .iter()
-            .map(|p| {
-                let name = p.name.text(self.source).to_string();
-                let id = self.intern_local_symbol(p.name.span, false);
-                let ty =
-                    p.ty.as_ref()
-                        .map(|t| self.lower_type_ref(t))
-                        .unwrap_or(self.builtins.any);
-                Param {
-                    span: p.name.span,
-                    id,
-                    name,
-                    ty,
-                }
-            })
-            .collect();
-
         let receiver_ty = fun.receiver.as_ref().map(|t| self.lower_type_ref(t));
+
+        // 扩展函数的 receiver（`fun T.f(...)`）在 resolver 中会把 `this` 解析为一个局部绑定，
+        // 且 decl_span 取 receiver type 的 span（见 `resolve::scopes` 中 `ThisContext.decl_span`）。
+        // 为了让 codegen 能把 `this` 当作一个普通局部参数处理，这里把 receiver 显式降为第 0 个参数。
+        let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + receiver_ty.is_some() as usize);
+        if let Some(receiver) = fun.receiver.as_ref() {
+            let span = receiver.span();
+            let id = self.intern_local_symbol(span, false);
+            let ty = receiver_ty.unwrap_or(self.builtins.any);
+            params.push(Param {
+                span,
+                id,
+                name: "this".to_string(),
+                ty,
+            });
+        }
+
+        for p in &fun.params {
+            let name = p.name.text(self.source).to_string();
+            let id = self.intern_local_symbol(p.name.span, false);
+            let ty =
+                p.ty.as_ref()
+                    .map(|t| self.lower_type_ref(t))
+                    .unwrap_or(self.builtins.any);
+            params.push(Param {
+                span: p.name.span,
+                id,
+                name,
+                ty,
+            });
+        }
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         //
@@ -426,12 +442,8 @@ impl<'a> HirLowering<'a> {
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
-        let ty = self.types.ty_function(
-            receiver_ty,
-            params.iter().map(|p| p.ty).collect(),
-            return_ty,
-            effects,
-        );
+        // receiver 已作为显式参数降入 `params`，因此 HIR 的 function type 不再单独保留 receiver 位。
+        let ty = self.types.ty_function(None, params.iter().map(|p| p.ty).collect(), return_ty, effects);
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
@@ -476,26 +488,35 @@ impl<'a> HirLowering<'a> {
             format!("{pkg_prefix}.{name}")
         };
 
-        let params: Vec<Param> = fun
-            .params
-            .iter()
-            .map(|p| {
-                let name = p.name.text(self.source).to_string();
-                let id = self.intern_local_symbol(p.name.span, false);
-                let ty =
-                    p.ty.as_ref()
-                        .map(|t| self.lower_type_ref(t))
-                        .unwrap_or(self.builtins.any);
-                Param {
-                    span: p.name.span,
-                    id,
-                    name,
-                    ty,
-                }
-            })
-            .collect();
-
         let receiver_ty = fun.receiver.as_ref().map(|t| self.lower_type_ref(t));
+
+        let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + receiver_ty.is_some() as usize);
+        if let Some(receiver) = fun.receiver.as_ref() {
+            let span = receiver.span();
+            let id = self.intern_local_symbol(span, false);
+            let ty = receiver_ty.unwrap_or(self.builtins.any);
+            params.push(Param {
+                span,
+                id,
+                name: "this".to_string(),
+                ty,
+            });
+        }
+
+        for p in &fun.params {
+            let name = p.name.text(self.source).to_string();
+            let id = self.intern_local_symbol(p.name.span, false);
+            let ty =
+                p.ty.as_ref()
+                    .map(|t| self.lower_type_ref(t))
+                    .unwrap_or(self.builtins.any);
+            params.push(Param {
+                span: p.name.span,
+                id,
+                name,
+                ty,
+            });
+        }
 
         // 当前阶段：未接入返回类型推断，缺省时用 `Any` 占位。
         //
@@ -514,12 +535,7 @@ impl<'a> HirLowering<'a> {
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
-        let ty = self.types.ty_function(
-            receiver_ty,
-            params.iter().map(|p| p.ty).collect(),
-            return_ty,
-            effects,
-        );
+        let ty = self.types.ty_function(None, params.iter().map(|p| p.ty).collect(), return_ty, effects);
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
@@ -635,6 +651,7 @@ impl<'a> HirLowering<'a> {
             .or_else(|| init.as_ref().map(|e| e.ty))
             .unwrap_or(self.builtins.any);
 
+        let mut top_level_fqn: Option<String> = None;
         let (id, name) = match v.name() {
             Some(id) => {
                 let name = id.text(self.source).to_string();
@@ -645,6 +662,7 @@ impl<'a> HirLowering<'a> {
                         } else {
                             format!("{pkg_prefix}.{name}")
                         };
+                        top_level_fqn = Some(fqn.clone());
                         self.symbols.intern_top_level(fqn)
                     }
                     ValScope::Local => {
@@ -656,6 +674,44 @@ impl<'a> HirLowering<'a> {
             None => (None, None),
         };
 
+        // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
+        if scope == ValScope::TopLevel && v.kind == ast::ValKind::Var {
+            if let Some(fqn) = top_level_fqn.as_ref() {
+                const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
+                const GLOBAL_FQN: &str = "scoop.core.Global";
+
+                let is_thread_local = v
+                    .annotations
+                    .iter()
+                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, THREAD_LOCAL_FQN));
+                let is_global = v
+                    .annotations
+                    .iter()
+                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, GLOBAL_FQN));
+
+                let storage = if is_thread_local {
+                    Some(super::TopLevelVarStorage::ThreadLocal)
+                } else if is_global {
+                    Some(super::TopLevelVarStorage::Global)
+                } else {
+                    None
+                };
+
+                if let Some(storage) = storage {
+                    self.top_level_vars.insert(
+                        fqn.clone(),
+                        super::TopLevelVar {
+                            fqn: fqn.clone(),
+                            span: v.span,
+                            storage,
+                            ty,
+                            init: init.clone(),
+                        },
+                    );
+                }
+            }
+        }
+
         ValDecl {
             span: v.span,
             id,
@@ -664,6 +720,20 @@ impl<'a> HirLowering<'a> {
             ty,
             init,
         }
+    }
+
+    fn annotation_use_resolves_to_fqn(&self, ann: &ast::AnnotationUse, expected_fqn: &str) -> bool {
+        // 与 typecheck 保持一致：复用 Index 的 import/package 解析逻辑，避免仅按未限定名匹配导致误判。
+        let ty = ast::TypeRef::Path(ast::TypePath {
+            span: ann.span,
+            segments: ann.path.clone(),
+            args: Vec::new(),
+        });
+
+        matches!(
+            self.index.type_ref_to_fqn_in_file(self.source, self.file, &ty),
+            Some(fqn) if fqn == expected_fqn
+        )
     }
 
     fn lower_block(&mut self, pkg_prefix: &str, b: &ast::Block) -> Block {
@@ -774,8 +844,8 @@ impl<'a> HirLowering<'a> {
         let info = self.delegated_properties.get(fqn).cloned()?;
 
         match info {
-            DelegatedPropertyInfo::Observable(info) => {
-                self.lower_observable_delegated_property_assign(
+            DelegatedPropertyInfo::Observable(info) => self
+                .lower_observable_delegated_property_assign(
                     pkg_prefix,
                     span,
                     member.span,
@@ -783,19 +853,16 @@ impl<'a> HirLowering<'a> {
                     rhs,
                     fqn,
                     &info,
-                )
-            }
-            DelegatedPropertyInfo::Vetoable(info) => {
-                self.lower_vetoable_delegated_property_assign(
-                    pkg_prefix,
-                    span,
-                    member.span,
-                    receiver,
-                    rhs,
-                    fqn,
-                    &info,
-                )
-            }
+                ),
+            DelegatedPropertyInfo::Vetoable(info) => self.lower_vetoable_delegated_property_assign(
+                pkg_prefix,
+                span,
+                member.span,
+                receiver,
+                rhs,
+                fqn,
+                &info,
+            ),
             DelegatedPropertyInfo::Generic(info) => {
                 let receiver = self.lower_expr(pkg_prefix, receiver);
                 let this_ref = receiver.clone();
@@ -894,7 +961,48 @@ impl<'a> HirLowering<'a> {
                 (inner.kind, inner.ty)
             }
             ast::ExprKind::Call { callee, args } => {
-                if let Some((kind, ty)) =
+                // 扩展函数调用（T0312）：把 `receiver.ext(args...)` 降糖为普通顶层调用：
+                // `ext(receiver, args...)`。
+                //
+                // 说明：
+                // - 运行期 codegen 当前只直接支持 `TopLevel` callee（以及少量特殊 member call）；
+                // - 这里在 lowering 阶段提前把 extension call 改写为顶层调用，避免后端无法识别 `MemberAccess` callee。
+                if let Some((kind, ty)) = (|| {
+                    let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
+                        return None;
+                    };
+                    let ast::ResolvedMemberRef::ExtensionFun { fqn } = member.resolved.as_ref()?
+                    else {
+                        return None;
+                    };
+
+                    let receiver = self.lower_expr(pkg_prefix, receiver);
+
+                    let mut lowered_args = Vec::with_capacity(args.len() + 1);
+                    lowered_args.push(CallArg::Positional(receiver));
+                    for arg in args {
+                        lowered_args.push(self.lower_call_arg(pkg_prefix, arg));
+                    }
+
+                    let callee = Expr {
+                        span: callee.span,
+                        ty: self.builtins.any,
+                        kind: ExprKind::VarRef(ValueRef::TopLevel {
+                            id: self.symbols.intern_top_level(fqn.clone()),
+                            fqn: fqn.clone(),
+                        }),
+                    };
+
+                    Some((
+                        ExprKind::Call {
+                            callee: Box::new(callee),
+                            args: lowered_args,
+                        },
+                        self.builtins.any,
+                    ))
+                })() {
+                    (kind, ty)
+                } else if let Some((kind, ty)) =
                     self.try_lower_effect_op_call_expr(pkg_prefix, callee, args)
                 {
                     (kind, ty)
@@ -1421,7 +1529,8 @@ impl<'a> HirLowering<'a> {
     }
 
     fn delegated_property_ty(&mut self, ty: Option<&ast::TypeRef>) -> TypeId {
-        ty.map(|t| self.lower_type_ref(t)).unwrap_or(self.builtins.any)
+        ty.map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any)
     }
 
     fn member_access_to_class_field(
@@ -2905,7 +3014,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
-    let (file, ctor_call_sites) = {
+    let (file, ctor_call_sites, top_level_vars) = {
         let mut ctx = HirLowering::new(
             source,
             &ast,
@@ -2917,7 +3026,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         );
         let file = ctx.lower_file();
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
-        (file, ctor_call_sites)
+        let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+        (file, ctor_call_sites, top_level_vars)
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
@@ -2941,6 +3051,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         enum_layouts,
         extern_funs,
         extern_libs,
+        top_level_vars,
         object_inits,
         class_inits,
         ctor_call_sites,
@@ -2970,7 +3081,7 @@ pub fn lower_for_compilation_unit(
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
-    let (file_hir, ctor_call_sites) = {
+    let (file_hir, ctor_call_sites, top_level_vars) = {
         let mut ctx = HirLowering::new(
             source,
             file,
@@ -2982,7 +3093,8 @@ pub fn lower_for_compilation_unit(
         );
         let file_hir = ctx.lower_file();
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
-        (file_hir, ctor_call_sites)
+        let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+        (file_hir, ctor_call_sites, top_level_vars)
     };
 
     let object_inits = collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
@@ -2999,6 +3111,7 @@ pub fn lower_for_compilation_unit(
         enum_layouts,
         extern_funs,
         extern_libs,
+        top_level_vars,
         object_inits,
         class_inits,
         ctor_call_sites,
@@ -3026,9 +3139,10 @@ pub fn lower_for_compilation_unit_multi_files(
 
     let mut items: Vec<Item> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
+    let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
 
     for (source, file) in files_to_lower {
-        let (file_hir, file_ctor_call_sites) = {
+        let (file_hir, file_ctor_call_sites, file_top_level_vars) = {
             let mut ctx = HirLowering::new(
                 source,
                 file,
@@ -3040,7 +3154,8 @@ pub fn lower_for_compilation_unit_multi_files(
             );
             let file_hir = ctx.lower_file();
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
-            (file_hir, ctor_call_sites)
+            let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+            (file_hir, ctor_call_sites, file_top_level_vars)
         };
 
         if source.path() != entry_source.path() && file_contains_source_backed_literals(&file_hir) {
@@ -3055,6 +3170,7 @@ pub fn lower_for_compilation_unit_multi_files(
             ctor_call_sites.extend(file_ctor_call_sites);
         }
 
+        top_level_vars.extend(file_top_level_vars);
         items.extend(file_hir.items);
     }
 
@@ -3095,6 +3211,7 @@ pub fn lower_for_compilation_unit_multi_files(
         enum_layouts,
         extern_funs,
         extern_libs,
+        top_level_vars,
         object_inits,
         class_inits,
         ctor_call_sites,
@@ -3141,7 +3258,9 @@ fn block_contains_source_backed_literals(block: &Block) -> bool {
                 }
             }
             StmtKind::Assign { lhs, rhs, .. } => {
-                if expr_contains_source_backed_literals(lhs) || expr_contains_source_backed_literals(rhs) {
+                if expr_contains_source_backed_literals(lhs)
+                    || expr_contains_source_backed_literals(rhs)
+                {
                     return true;
                 }
             }
@@ -3153,7 +3272,9 @@ fn block_contains_source_backed_literals(block: &Block) -> bool {
                 }
             }
             StmtKind::While { cond, body } => {
-                if expr_contains_source_backed_literals(cond) || block_contains_source_backed_literals(body) {
+                if expr_contains_source_backed_literals(cond)
+                    || block_contains_source_backed_literals(body)
+                {
                     return true;
                 }
             }
@@ -3181,7 +3302,9 @@ fn expr_contains_source_backed_literals(expr: &Expr) -> bool {
             .any(|e| expr_contains_source_backed_literals(e)),
         ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|p| match p {
             super::InterpolatedStringPart::Text { .. } => true,
-            super::InterpolatedStringPart::Expr { expr } => expr_contains_source_backed_literals(expr),
+            super::InterpolatedStringPart::Expr { expr } => {
+                expr_contains_source_backed_literals(expr)
+            }
         }),
         ExprKind::Unary { expr, .. } => expr_contains_source_backed_literals(expr),
         ExprKind::Binary { lhs, rhs, .. } => {
@@ -3229,7 +3352,10 @@ fn expr_contains_source_backed_literals(expr: &Expr) -> bool {
             if block_contains_source_backed_literals(&h.body) {
                 return true;
             }
-            if h.arms.iter().any(|arm| expr_contains_source_backed_literals(&arm.body)) {
+            if h.arms
+                .iter()
+                .any(|arm| expr_contains_source_backed_literals(&arm.body))
+            {
                 return true;
             }
             h.finally
@@ -3728,7 +3854,9 @@ fn collect_class_decl_init(
                                     _ => continue,
                                 };
 
-                                let Some(idx) = init.field_indices.get(&delegate_field_fqn).copied() else {
+                                let Some(idx) =
+                                    init.field_indices.get(&delegate_field_fqn).copied()
+                                else {
                                     continue;
                                 };
                                 let Some(delegate_field) = init.fields.get(idx as usize) else {
@@ -3792,7 +3920,10 @@ fn collect_class_decl_init(
 
                     if let Some(expr) = p.init.as_ref() {
                         let lowered = ctx.lower_expr(pkg_prefix, expr);
-                        init.steps.push(ClassInitStep::PropertyInit { field_fqn, init: lowered });
+                        init.steps.push(ClassInitStep::PropertyInit {
+                            field_fqn,
+                            init: lowered,
+                        });
                     }
                 }
                 ast::TypeMember::InitBlock(b) => {
@@ -3860,10 +3991,20 @@ fn join_prefix(prefix: &str, name: &str) -> String {
 
 #[derive(Debug, Clone)]
 enum ParsedStdDelegateExpr {
-    Lazy { initializer_body: ast::Expr },
-    Observable { initial: ast::Expr, on_change: ast::LambdaExpr },
-    Vetoable { initial: ast::Expr, on_change: ast::LambdaExpr },
-    MapBacked { delegate: ast::Expr },
+    Lazy {
+        initializer_body: ast::Expr,
+    },
+    Observable {
+        initial: ast::Expr,
+        on_change: ast::LambdaExpr,
+    },
+    Vetoable {
+        initial: ast::Expr,
+        on_change: ast::LambdaExpr,
+    },
+    MapBacked {
+        delegate: ast::Expr,
+    },
 }
 
 fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
@@ -3939,11 +4080,11 @@ fn parse_std_delegate_expr(delegate_expr: &ast::Expr) -> Option<ParsedStdDelegat
         }
 
         // map-backed：`val x: T by data`
-        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => Some(
-            ParsedStdDelegateExpr::MapBacked {
+        ast::ExprKind::Ident(_) | ast::ExprKind::MemberAccess { .. } => {
+            Some(ParsedStdDelegateExpr::MapBacked {
                 delegate: delegate_expr.clone(),
-            },
-        ),
+            })
+        }
 
         _ => None,
     }
@@ -4016,7 +4157,9 @@ fn collect_delegated_properties_in_type_decl(
                                 on_change,
                             })
                         }
-                        Some(ParsedStdDelegateExpr::MapBacked { .. }) => DelegatedPropertyInfo::MapBacked,
+                        Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
+                            DelegatedPropertyInfo::MapBacked
+                        }
                         None => {
                             let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
                             let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
@@ -4098,7 +4241,9 @@ fn collect_delegated_properties_in_object_decl(
                             on_change,
                         })
                     }
-                    Some(ParsedStdDelegateExpr::MapBacked { .. }) => DelegatedPropertyInfo::MapBacked,
+                    Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
+                        DelegatedPropertyInfo::MapBacked
+                    }
                     None => {
                         let delegate_field_fqn = format!("{owner_fqn}.{name}$delegate");
                         let property_meta_fqn = format!("{owner_fqn}.$PropertyMeta${name}");
@@ -4492,9 +4637,9 @@ fn collect_enum_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) -> E
             // 当前阶段的判定策略（避免与 “enum implements interfaces” 的 `:` 语法冲突）：
             // - 只有当 enum body 内出现了显式判别值（`A = 0`）时，才把第一个 supertype 视为底层整型表示。
             if !ty.supertypes.is_empty()
-                && body.members.iter().any(|m| {
-                    matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some())
-                })
+                && body.members.iter().any(
+                    |m| matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some()),
+                )
             {
                 let underlying_ty_fqn = ty
                     .supertypes
