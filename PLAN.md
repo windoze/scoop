@@ -18,6 +18,7 @@
 
 ## 0.1 维护备注（TODO 顺序）
 
+- 2026-03-31：将 `TODO.md` 中 T1317f（`std`：`Hashable` + `List/Set/Map` 与迭代/算法）进一步拆分为 T1317f1～T1317f4，以保持“可单独实现 & 单独验证”的粒度（先落地 `Hashable` 约束/typecheck，再推进集合与算法 run-pass 回归）。
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：`TODO.md` 中 program boundary 的 T0629b 依赖多包 build/link（T1107），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0629b 移动到 T1107 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。

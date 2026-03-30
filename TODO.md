@@ -4551,11 +4551,40 @@
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1317f [TODO] `std`：`Hashable` + `List/Set/Map`（含 mutable）与迭代/算法 v0
+### T1317f `std`：`Hashable` + `List/Set/Map`（含 mutable）与迭代/算法 v0（拆分为子任务）
 - 描述：引入 `Hashable` 接口并为 primitive types 提供实现；在 `Array/MutableArray` 之上用纯 Scoop 实现 `List/MutableList`、`Set/Map`（含 mutable）与最小迭代/算法（`forEach`/`map`/`filter`/`fold` 等）。
 - 目标：不新增 intrinsic；以语义正确与可回归为主，性能优化后置。
 - 验收：新增 compile+run-pass fixtures：`Hashable` 可用、`Set/Map` 可运行、迭代与最小算法在 host 平台可回归。
 - 依赖：T1317e
+
+> 备注：该任务包含多个彼此相对独立、且“可单独实现 & 单独验证”的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留目标汇总。
+
+### T1317f1 [TODO] sysroot/typecheck：引入 `Hashable` 并让 primitive types 满足 `where` 约束
+- 描述：在 sysroot 增加 `Hashable` 接口，并让 `Int/Bool/...` 等内建类型声明实现该接口；新增 typecheck fixtures 回归 `where T: Hashable` 的满足性与失败诊断。
+- 目标：只保证“约束可被 typecheck 验证”，不要求本阶段可调用 interface member method（当前成员调用仍受限）；不引入新的 intrinsic。
+- 验收：
+  - 新增 typecheck fixtures：`Int` 能满足 `where T: Hashable`；自定义 `struct` 未实现时触发 `where_constraint_not_satisfied`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T1317e
+
+### T1317f2 [TODO] sysroot/stdlib：`List<T>`/`MutableList<T>` 最小表面（v0）
+- 描述：在 sysroot 声明 `typealias List<T> = Array<T>` 与 `class MutableList<T>`（或 typealias）等最小表面，并在 stdlib 基于 `MutableArray` 给出 early-stage 实现落点。
+- 目标：先以“可表达 + 可类型检查”为主；实现可先仅覆盖 `Int` 专用版本；不新增 intrinsic。
+- 验收：新增 typecheck +（可选）run-pass fixtures 覆盖 `List/MutableList` 的构造与最小操作。
+- 依赖：T1317f1、T1317e
+
+### T1317f3 [TODO] stdlib：迭代/算法 v0（`forEach`/`map`/`filter`/`fold`）
+- 描述：在 `Array/MutableArray/List/MutableList` 上提供最小迭代/算法 API，优先覆盖 `Int` 版本，并保持 effect-polymorphic 形态。
+- 目标：不追求性能；不新增 intrinsic；保证 stdout/exit 码可回归。
+- 验收：新增 run-pass fixtures：`forEach/map/filter/fold` 的行为正确；`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1317f2
+
+### T1317f4 [TODO] stdlib：`Set/Map`（含 mutable）v0（基于 `MutableArray`，先做 `Int` 落点）
+- 描述：基于 `MutableArray` 在 pure Scoop 中实现 `MutableSet<Int>`/`MutableMap<Int, V>`（必要时先固定 `Int->Int`）与只读 `Set/Map` 视图；与 delegated property 所需的 `scoop.collections.Map` 表面保持兼容。
+- 目标：先保证语义正确与可回归，允许使用线性查找；后续再用 `Hashable.hash`/开放寻址优化；不新增 intrinsic。
+- 验收：新增 run-pass fixtures 覆盖 set/map 的 `put/get/contains/remove` 等最小行为。
+- 依赖：T1317f1、T1317e
 
 ### T1318 [TODO] `std` v2：io / fs / path / process / env / time
 - 描述：实现标准库的系统接口层：文件系统、路径、进程、环境变量、时钟/时间、基础 I/O 抽象。
