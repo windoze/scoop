@@ -1,0 +1,14 @@
+// Scoop sysroot: time surface（std v2，early stage）
+//
+// 说明：
+// - 该模块提供标准库 `scoop.time` 的最小可执行表面（T1318a）。
+// - 当前阶段只要求 host 平台可用：由 LLVM codegen 直接映射到 runtime C 符号（`scoop_time_now_unix_millis`）。
+// - 更完整的 `Duration/Instant` 与 monotonic clock、WASM/embedded adapter 将在后续任务中补齐。
+
+package scoop.time
+
+import scoop.core.*
+
+/// 返回当前 UTC 时间戳（Unix epoch 毫秒）。
+fun nowUnixMillis(): Int
+

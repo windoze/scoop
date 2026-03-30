@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "scoop_gc.h"
 
@@ -1124,4 +1125,82 @@ uint64_t scoop_format_u64(uint64_t value, uint8_t *out, uint64_t cap) {
     return cap - 1;
   }
   return u;
+}
+
+// --- std v2：env / time（T1318a）---
+//
+// 说明：
+// - 这组 API 作为“平台能力”，不应新增编译器 intrinsic；
+//   由 runtime lib 提供最小 C ABI，再由 sysroot/std 表面封装（见 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`）。
+// - 当前实现仅覆盖 host POSIX/desktop 的最小 happy path；错误处理与资源释放策略后续补齐。
+
+static const ScoopString *scoop_string_from_cstr(const char *value) {
+  if (value == 0) {
+    return 0;
+  }
+  size_t n = strlen(value);
+  if (n == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+
+  uint8_t *out = (uint8_t *)malloc(n);
+  if (out == 0) {
+    return 0;
+  }
+  (void)memcpy(out, value, n);
+
+  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  if (out_str == 0) {
+    free(out);
+    return 0;
+  }
+  out_str->len = (uint64_t)n;
+  out_str->data = out;
+  return out_str;
+}
+
+// `scoop.env.get(key: String): String?`
+//
+// 约定：
+// - 返回 NULL 表示 `None`（与 `Option<RefType>` 的 niche 表示对齐）；
+// - 返回非 NULL 表示 `Some(String)`，其中 String 为 runtime `ScoopString*`。
+const ScoopString *scoop_env_get(const ScoopString *key) {
+  if (key == 0 || key->data == 0) {
+    return 0;
+  }
+
+  // getenv 需要 NUL 结尾的 key：复制一份并追加 '\0'。
+  uint64_t key_len = key->len;
+  char *key_cstr = (char *)malloc((size_t)key_len + 1);
+  if (key_cstr == 0) {
+    return 0;
+  }
+  if (key_len > 0) {
+    (void)memcpy(key_cstr, key->data, (size_t)key_len);
+  }
+  key_cstr[key_len] = '\0';
+
+  const char *value = getenv(key_cstr);
+  free(key_cstr);
+
+  return scoop_string_from_cstr(value);
+}
+
+// `scoop.time.nowUnixMillis(): Int`
+//
+// 说明：
+// - 使用 `gettimeofday` 作为跨 Unix 平台的最小实现（避免旧平台 `clock_gettime` 的链接差异）；
+// - 以 “Unix epoch 毫秒（UTC）” 表示当前时间戳；
+// - 失败时返回 0（后续可升级为 `Raise<RuntimeError>` 或 `Result`）。
+int64_t scoop_time_now_unix_millis(void) {
+  struct timeval tv;
+  int ok = gettimeofday(&tv, 0);
+  if (ok != 0) {
+    return 0;
+  }
+
+  // 注意：这里的常量仅存在于 runtime C 中，不影响 multi-file lowering 的字面量门禁。
+  int64_t sec = (int64_t)tv.tv_sec;
+  int64_t usec = (int64_t)tv.tv_usec;
+  return (sec * 1000) + (usec / 1000);
 }

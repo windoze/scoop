@@ -4626,11 +4626,61 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1318 [TODO] `std` v2：io / fs / path / process / env / time
+### T1318（拆分为子任务）
 - 描述：实现标准库的系统接口层：文件系统、路径、进程、环境变量、时钟/时间、基础 I/O 抽象。
 - 目标：保持跨平台抽象；对不支持的平台通过 capability gating 或 no_std-like 降级。
 - 验收：新增 std/run-pass fixtures：文件读写、路径操作、环境变量、时间 API 等在 host 平台可通过；不支持的平台有明确 gating/诊断。
-- 依赖：T1316、T1410
+- 依赖：T1316
+- 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
+  - 早期阶段先以 **C runtime（host platform backend）** 提供底层实现（符合 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md` 的结论：平台能力应走 runtime lib，而非新增 intrinsic）。
+  - “pure Scoop runtime 模式”与更严格的 capability matrix 收敛将由 T1410/T1409 系列承接，本组子任务先以 host POSIX/desktop 为主线落地最小可执行回归。
+
+### T1318a [DONE] `std` v2：`env/time` 最小平台 API（host）
+- 描述：提供最小可执行的 `scoop.env` 与 `scoop.time` API：读取环境变量、查询当前时间戳（或 monotonic clock）。
+- 目标：先只覆盖 host 平台 happy path；不做完整错误类型体系；不做 WASM/embedded 的 adapter。
+- 验收：新增 typecheck + run-pass fixtures：`env.getOrNull` 可读取 `// ENV:` 注入的变量；`time.now*` 可被调用并参与表达式求值；`cargo test --all` 与 `cargo run -p scoop -- test` 通过（启用 LLVM 时 run-pass 可回归）。
+- 依赖：T1316
+ - 完成：
+   - sysroot：
+     - `sysroot/env.scoop`：新增 `scoop.env.getOrNull(key: String): String?`
+     - `sysroot/time.scoop`：新增 `scoop.time.nowUnixMillis(): Int`
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_env_get`（NULL → None）与 `scoop_time_now_unix_millis`（gettimeofday）
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.env.getOrNull`/`scoop.time.nowUnixMillis` 增加 sysroot → runtime 符号映射
+   - fixtures：
+     - `tests/fixtures/typecheck/std_env_time_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_env_time_basic.scoop`
+     - `tests/fixtures/run-pass/std_env_time_basic.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo run -p scoop -- test`
+   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
+
+### T1318b [TODO] `std` v2：`fs` 读写文本 v0（UTF-8）
+- 描述：提供最小可执行的 `scoop.fs` 文件读写 API（例如 `readAllText`/`writeAllText`）。
+- 目标：先只支持 UTF-8 文本与 host 平台；先不引入流式接口与权限/元数据 API。
+- 验收：新增 run-pass fixtures：写入临时文件、再读回并断言 stdout；平台不支持时有稳定诊断。
+- 依赖：T1318a
+
+### T1318c [TODO] `std` v2：`process` 最小接口 v0（exit/args）
+- 描述：提供最小可执行的 `scoop.process`：退出码、参数读取（必要时先只支持 `args.size/get`）。
+- 目标：先不做子进程 `spawn`；只做“当前进程可观察接口”。
+- 验收：新增 run-pass fixtures：能读取 argv 并输出；能按约定退出码退出（fixtures runner 断言 `EXPECT-EXIT`）。
+- 依赖：T1318a
+
+### T1318d [TODO] `std` v2：`path` 最小接口 v0（join/basename/dirname）
+- 描述：提供最小可执行的 `scoop.path` 路径操作（join/dirname/basename/normalize 的子集）。
+- 目标：先只做 host 平台的分隔符规则；不要求与 Kotlin/Java/NIO 完全一致。
+- 验收：新增 run-pass fixtures：路径 join 与 basename/dirname 行为可回归；不支持平台有明确 gating/诊断。
+- 依赖：T1318a
+
+### T1318e [TODO] `std` v2：`io` 最小接口 v0（stdin/stdout/stderr 抽象）
+- 描述：在已有 `print/println` 基础上，引入最小 `scoop.io` 抽象（例如 `Stdout.writeString`/`Stderr.writeString`/`Stdin.readLine` 的占位或最小可执行子集）。
+- 目标：先让库 API 形状固定并可回归；更完整的 buffering/编码/错误模型后续渐进补齐。
+- 验收：新增 run-pass fixtures：stdout/stderr 可被区分断言（配合 `RUN-STDERR`）；stdin 在支持平台可读取（不支持时有稳定诊断）。
+- 依赖：T1318a
 
 ### T1319 [TODO] `std` v3：sync / thread / channels / task support
 - 描述：实现标准库中的并发与同步层：线程 API、锁、条件变量、channel、thread-local、任务/调度辅助接口。

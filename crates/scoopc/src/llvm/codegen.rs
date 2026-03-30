@@ -3710,6 +3710,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
+            // T1318a：std v2 env/time（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.env.getOrNull" {
+                return self.codegen_sysroot_env_get(span, callee.span, args);
+            }
+            if fqn == "scoop.time.nowUnixMillis" {
+                return self.codegen_sysroot_time_now_unix_millis(span, callee.span, args);
+            }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
             // 说明：
@@ -4671,6 +4678,119 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn cg_return_ty_of_top_level_fun(
+        &self,
+        at: crate::span::Span,
+        fqn: &str,
+    ) -> Result<CgTy, LlvmEmitError> {
+        let fun = self.fun_index.get(fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "unknown top-level fun",
+            at: at.into(),
+        })?;
+        self.cg_ty_of(fun.return_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "top-level fun return type",
+            at: at.into(),
+        })
+    }
+
+    fn codegen_sysroot_env_get(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(key_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull named arg",
+                at: span.into(),
+            });
+        };
+
+        let key_v = self.codegen_expr_in_expected_context(key_expr, Some(CgTy::String))?;
+        let key_v = self.coerce_value(key_expr.span, key_v, CgTy::String)?;
+        let Some(raw_key) = key_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull key value",
+                at: key_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(key_ptr) = raw_key else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull key type",
+                at: key_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_env_get();
+        let call = self
+            .builder
+            .build_call(rt, &[key_ptr.into()], "env_get")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull return value",
+                at: span.into(),
+            })?;
+
+        // 返回类型来自 sysroot：`String?`（即 `Option<String>`，niche 表示为 `ScoopString*`）。
+        let ret_cg_ty = self.cg_return_ty_of_top_level_fun(callee_span, "scoop.env.getOrNull")?;
+        Ok(CgValue {
+            ty: ret_cg_ty,
+            value: Some(raw),
+        })
+    }
+
+    fn codegen_sysroot_time_now_unix_millis(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "time.nowUnixMillis arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_time_now_unix_millis();
+        let call = self
+            .builder
+            .build_call(rt, &[], "time_now_unix_millis")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "time.nowUnixMillis return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(raw_i64) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "time.nowUnixMillis return type",
+                at: span.into(),
+            });
+        };
+
+        let from = IntTy {
+            bits: 64,
+            signed: true,
+        };
+        let to = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let casted = self.cast_int(raw_i64, from, to)?;
+        Ok(CgValue::int(casted, to))
     }
 
     fn codegen_sysroot_array_builder_intrinsics(
@@ -10824,6 +10944,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
         let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_env_get(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_env_get";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_env_get(const ScoopString* key)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_time_now_unix_millis(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_time_now_unix_millis";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `int64_t scoop_time_now_unix_millis(void)`
+        let i64_ty = self.context.i64_type();
+        let fn_ty = i64_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

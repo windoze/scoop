@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: std_env_time_basic.stdout
+// ENV: SCOOP_FIXTURE_ENV_TIME=bar
+//
+// 目标：T1318a `scoop.env.get` / `scoop.time.nowUnixMillis` 在 host 平台可执行并可回归。
+
+import scoop.core.*
+import scoop.env.*
+import scoop.time.*
+
+fun main() {
+    val v: String? = getOrNull("SCOOP_FIXTURE_ENV_TIME")
+    val out: String = when (v) {
+        Some(s) -> s
+        None -> "none"
+    }
+    println(out)
+
+    val t: Int = nowUnixMillis()
+    val ok: Bool = t == t
+    val msg: String = when (ok) {
+        true -> "time_ok"
+        false -> "time_bad"
+    }
+    println(msg)
+}
