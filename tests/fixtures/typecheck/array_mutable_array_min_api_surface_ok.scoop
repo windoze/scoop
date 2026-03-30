@@ -1,0 +1,19 @@
+// EXPECT: pass
+// 目标：T1317b 在 sysroot 中补齐 `Array<T>` / `MutableArray<T>` 的最小公开 API 声明（只声明）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun useArray(xs: Array<Int>): Unit {
+    val n: Int = xs.size()
+    val a: Int = xs.get(0)
+    return ()
+}
+
+fun useMutableArray(xs: MutableArray<Int>): Unit {
+    val n: Int = xs.size()
+    val a: Int = xs.get(0)
+    xs.set(0, a)
+    return ()
+}

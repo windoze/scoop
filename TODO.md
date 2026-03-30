@@ -4486,11 +4486,17 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1317b [TODO] sysroot/stdlib：补齐 `Array`/`MutableArray` API surface（只声明）
+### T1317b [DONE] sysroot/stdlib：补齐 `Array`/`MutableArray` API surface（只声明）
 - 描述：在 sysroot/stdlib 中补齐 `Array<T>`/`MutableArray<T>` 的最小公开 API 声明（`get/size` 与 `set` 等），为后续 lowering/codegen 统一接口落点。
 - 目标：只做“类型与签名表面”；不实现运行期语义。
 - 验收：新增 typecheck fixtures：对最小 API 的引用可解析、可类型检查（不要求 run-pass）。
 - 依赖：T1317a
+ - 完成：
+   - `sysroot/core.scoop`：为 `Array<T>`/`MutableArray<T>` 增加 `size/get`（以及 `set`）的最小声明面（以 extension fun 形式声明）。
+   - fixtures：新增 `tests/fixtures/typecheck/array_mutable_array_min_api_surface_ok.scoop` 覆盖 `size/get/set` 的解析与类型检查。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1317c [TODO] HIR：数组字面量 lowering（`[...]` → builder/intrinsics 调用）
 - 描述：为 `[...]` 增加 HIR lowering，把语法糖降到统一的 builder/intrinsic 调用形态，便于后端接入。

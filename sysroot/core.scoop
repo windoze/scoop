@@ -28,6 +28,19 @@ class Array<T>
 // - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
 // - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
 class MutableArray<T>
+
+// Array / MutableArray：最小公开 API 声明（T1317b）。
+//
+// 说明：
+// - 当前阶段 typecheck 对 class 的实例方法调用仍有门禁（例如 `receiver.method()`），
+//   因此这里先用 extension fun 的形式提供统一的 API 表面，供 resolver/typecheck/lowering 落点；
+// - 后续若引入实例方法调用语义，可以保持这些声明不变（或在不破坏现有用例的前提下提供 member 形式别名）。
+fun <T> Array<T>.size(): Int
+fun <T> Array<T>.get(index: Int): T
+
+fun <T> MutableArray<T>.size(): Int
+fun <T> MutableArray<T>.get(index: Int): T
+fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 // 编译期列表（spec §6.4）。
 //
 // 说明：
