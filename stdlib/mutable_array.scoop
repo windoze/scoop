@@ -192,9 +192,11 @@ fun MutableArray<Int>.removeAt(index: Int): MutableArray<Int> {
 
 /// `splice(start, deleteCount, insert)`：从 `start` 开始删除 `deleteCount` 个元素，并插入 `insert`。
 ///
-/// 返回：
-/// - `array`：新数组（删除 + 插入之后）；
-/// - `removed`：被删除的切片（作为 `Array<T>`）。
+/// 返回：新数组（删除 + 插入之后）。
+///
+/// 说明（early stage）：
+/// - 目前不返回被删除的切片/元素（避免引入额外的 `Option`/tuple 语义与相关 lowering/codegen 复杂度）；
+/// - 如需观测 removed，可在调用前先用 `get` 读取，再调用 `splice`。
 ///
 /// 边界策略（early stage）：
 /// - `start < 0`：按 0 处理；`start > size`：按 `size` 处理；
