@@ -4610,11 +4610,21 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1317f4 [TODO] stdlib：`Set/Map`（含 mutable）v0（基于 `MutableArray`，先做 `Int` 落点）
+### T1317f4 [DONE] stdlib：`Set/Map`（含 mutable）v0（基于 `MutableArray`，先做 `Int` 落点）
 - 描述：基于 `MutableArray` 在 pure Scoop 中实现 `MutableSet<Int>`/`MutableMap<Int, V>`（必要时先固定 `Int->Int`）与只读 `Set/Map` 视图；与 delegated property 所需的 `scoop.collections.Map` 表面保持兼容。
 - 目标：先保证语义正确与可回归，允许使用线性查找；后续再用 `Hashable.hash`/开放寻址优化；不新增 intrinsic。
 - 验收：新增 run-pass fixtures 覆盖 set/map 的 `put/get/contains/remove` 等最小行为。
 - 依赖：T1317f1、T1317e
+ - 完成：
+   - `stdlib/collections_set.scoop`：以 `typealias Set = Array<Int>` / `typealias MutableSet = MutableArray<Int>` 落地（避免 struct 持有引用字段导致 LLVM codegen 阻塞），提供 `len/contains/add/remove/asSet` 与 `mutableIntSet()` 构造。
+   - `stdlib/collections_map.scoop`：以 `typealias MapView = Array<Int>` / `typealias MutableMap = MutableArray<Int>` 落地（interleaved pairs：`[k0,v0,...]`），提供 `entryCount/put/getByKey/getOrDefault/containsKey/removeKey/asMapView` 与 `mutableIntIntMap()` 构造；保持与 sysroot 的 `scoop.collections.Map`（delegated property 表面）不冲突。
+   - fixtures：
+     - `tests/fixtures/run-pass/stdlib_set_map_basic.scoop`
+     - `tests/fixtures/run-pass/stdlib_set_map_basic.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1318 [TODO] `std` v2：io / fs / path / process / env / time
 - 描述：实现标准库的系统接口层：文件系统、路径、进程、环境变量、时钟/时间、基础 I/O 抽象。

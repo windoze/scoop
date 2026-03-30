@@ -1,0 +1,161 @@
+// Scoop stdlib（pure scoop）：Set / MutableSet v0（early stage）
+//
+// 目标（TODO T1317f4）：
+// - 基于 `MutableArray` 在 pure Scoop 中实现最小 `Set`/`MutableSet` 表面；
+// - 先只提供 `Int` 专用的可执行落点（线性查找），后续再基于 `Hashable.hash` 做优化；
+// - 不新增 intrinsic。
+//
+// 重要限制（T1315a）：
+// - LLVM 后端 multi-file lowering 仍会拒绝“非入口文件中的 source-backed literals”，
+//   因此本文件中避免出现任何 Int/String 字面量；循环常量通过 `__stdlib_int_zero/one` 派生。
+
+package scoop.collections
+
+// 说明：
+// - sysroot 与 stdlib 属于不同 cone；在 resolver 的最小规则下，跨 cone 的声明需要通过 import 引入；
+// - 这里显式 `import scoop.core.*`，用于把 sysroot 的 `Array/MutableArray.size/get` 与 stdlib 的
+//   `__stdlib_int_zero/one` / array builder helpers 引入可见范围。
+import scoop.core.*
+
+/// 只读 `Set` 视图（v0）：`Int` 专用落点。
+///
+/// 说明：
+/// - 0.1 阶段 LLVM codegen 尚未支持“struct 持有 reference fields”（例如 `Array/MutableArray`）；
+/// - 因此这里先把 `Set`/`MutableSet` 表示为 `Array<Int>` / `MutableArray<Int>` 的 typealias，
+///   并通过扩展函数提供 Kotlin-like API。
+typealias Set = Array<Int>
+
+/// 可变 `Set`（v0）：`Int` 专用落点（copy 语义：操作返回新集合）。
+typealias MutableSet = MutableArray<Int>
+
+/// Set：元素个数（v0：Int 专用）。
+///
+/// 注意：这里不叫 `size()`，避免与 sysroot 的 `Array<T>.size()` 扩展函数在同一作用域下冲突。
+fun Set.len(): Int {
+    return this.size()
+}
+
+/// Set：包含查询（v0：Int 专用，线性扫描）。
+fun Set.contains(value: Int): Bool {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var found: Bool = false
+    var i: Int = zero
+    while (i < n) {
+        // 说明：显式写出 `cur: Int`，让 codegen 在 `get` 调用点有稳定的 expected type。
+        val cur: Int = this.get(i)
+        when (cur == value) {
+            true -> {
+                found = true
+                // v0：无 `break`；用 `i = n` 退出循环。
+                i = n
+            }
+            false -> ()
+        }
+        i = i + one
+    }
+    return found
+}
+
+/// MutableSet：元素个数（v0：Int 专用）。
+///
+/// 注意：这里不叫 `size()`，避免与 sysroot 的 `MutableArray<T>.size()` 扩展函数在同一作用域下冲突。
+fun MutableSet.len(): Int {
+    return this.size()
+}
+
+/// MutableSet：包含查询（v0：Int 专用，线性扫描）。
+fun MutableSet.contains(value: Int): Bool {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var found: Bool = false
+    var i: Int = zero
+    while (i < n) {
+        val cur: Int = this.get(i)
+        when (cur == value) {
+            true -> {
+                found = true
+                i = n
+            }
+            false -> ()
+        }
+        i = i + one
+    }
+    return found
+}
+
+/// MutableSet → Set（只读视图）：复制为 `Array<Int>`（v0：Int 专用）。
+fun MutableSet.asSet(): Set {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    val b: Any = __scoop_array_builder_new()
+    var i: Int = zero
+    while (i < n) {
+        // 说明：避免把 `get(i)` 直接作为 `array_builder_push` 的实参；
+        // 该 intrinsic 的 codegen 当前不会向 value expr 传递 expected type，需要我们在此处
+        // 用显式 `val v: Int = ...` 固化解码类型（否则会报 `Array.get element type`）。
+        val v: Int = this.get(i)
+        __scoop_array_builder_push(b, v)
+        i = i + one
+    }
+
+    return __scoop_array_builder_build_array(b)
+}
+
+/// MutableSet：添加一个元素；若已存在则返回自身（v0：Int 专用）。
+fun MutableSet.add(value: Int): MutableSet {
+    var result: MutableSet = this
+    when (this.contains(value)) {
+        true -> {
+            result = this
+        }
+        false -> {
+            result = this.push(value)
+        }
+    }
+    return result
+}
+
+/// MutableSet：移除一个元素；若不存在则返回自身（v0：Int 专用）。
+fun MutableSet.remove(value: Int): MutableSet {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var idx: Int = n
+    var i: Int = zero
+    while (i < n) {
+        val cur: Int = this.get(i)
+        when (cur == value) {
+            true -> {
+                idx = i
+                i = n
+            }
+            false -> ()
+        }
+        i = i + one
+    }
+
+    var result: MutableSet = this
+    when (idx == n) {
+        true -> {
+            result = this
+        }
+        false -> {
+            result = this.removeAt(idx)
+        }
+    }
+    return result
+}
+
+/// 创建一个空 `MutableSet`（不使用字面量）。
+fun mutableIntSet(): MutableSet {
+    val b: Any = __scoop_array_builder_new()
+    return __scoop_array_builder_build_mutable_array(b)
+}

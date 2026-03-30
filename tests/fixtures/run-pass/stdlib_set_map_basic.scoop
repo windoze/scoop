@@ -1,0 +1,70 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_set_map_basic.stdout
+//
+// 目标：T1317f4 stdlib：`Set/Map`（含 mutable）v0（先做 Int 落点）。
+
+import scoop.core.*
+import scoop.collections.*
+
+fun boolToInt(b: Bool): Int {
+    return when (b) {
+        true -> 1
+        false -> 0
+    }
+}
+
+fun main(): Int {
+    println("set")
+    var s: MutableSet = mutableIntSet()
+    println(s.len())
+    println(boolToInt(s.contains(1)))
+
+    s = s.add(10)
+    s = s.add(20)
+    s = s.add(10) // duplicate: no-op
+    println(s.len())
+
+    s = s.remove(10)
+    println(s.len())
+    println(boolToInt(s.contains(10)))
+
+    val ro: Set = s.asSet()
+    println(ro.len())
+    println(boolToInt(ro.contains(20)))
+    println(boolToInt(ro.contains(10)))
+
+    println("map")
+    var m: MutableMap = mutableIntIntMap()
+    println(m.entryCount())
+    println(boolToInt(m.containsKey(1)))
+    println(m.getByKey(1))
+
+    m = m.put(1, 10)
+    println(m.entryCount())
+    println(m.getByKey(1))
+
+    m = m.put(1, 11)
+    println(m.getByKey(1))
+
+    m = m.put(2, 20)
+    println(m.entryCount())
+    println(m.getByKey(2))
+
+    m = m.removeKey(1)
+    println(m.entryCount())
+    println(boolToInt(m.containsKey(1)))
+    println(m.getByKey(1))
+    println(m.getByKey(2))
+
+    m = m.removeKey(3) // non-existing: no-op
+    println(m.entryCount())
+
+    println("map_view")
+    val mv: MapView = m.asMapView()
+    println(mv.entryCount())
+    println(boolToInt(mv.containsKey(2)))
+    println(mv.getOrDefault(2, -2))
+    println(mv.getOrDefault(42, -2))
+
+    return 0
+}

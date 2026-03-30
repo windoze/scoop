@@ -1577,6 +1577,14 @@ impl<'a> BlockScopeChecker<'a> {
             match fqn {
                 "scoop.core.List" => "scoop.core.Array",
                 "scoop.core.MutableList" => "scoop.core.MutableArray",
+                // T1317f4：stdlib `Set/MutableSet/MapView/MutableMap` 在当前阶段以
+                // `Array<Int>` / `MutableArray<Int>` 的 typealias 落地（避免 struct 持有 ref fields
+                // 对 LLVM codegen 的阻塞）。这里同样做最小归一化，使它们可复用 `size/get` 与
+                // `push/pop/...` 等数组扩展。
+                "scoop.collections.Set" => "scoop.core.Array",
+                "scoop.collections.MapView" => "scoop.core.Array",
+                "scoop.collections.MutableSet" => "scoop.core.MutableArray",
+                "scoop.collections.MutableMap" => "scoop.core.MutableArray",
                 _ => fqn,
             }
         }

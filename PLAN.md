@@ -21,6 +21,7 @@
 - 2026-03-31：将 `TODO.md` 中 T1317f（`std`：`Hashable` + `List/Set/Map` 与迭代/算法）进一步拆分为 T1317f1～T1317f4，以保持“可单独实现 & 单独验证”的粒度（先落地 `Hashable` 约束/typecheck，再推进集合与算法 run-pass 回归）。
 - 2026-03-31：完成 T1317f1：sysroot 增加 `Hashable` 接口并让 primitive types 声明实现；typecheck 在“builtin 标量 → interface”的可赋值判断中复用 sysroot FQN 的 supertypes，使 `where T: Hashable` 对 `Int/Bool/...` 生效；新增 typecheck fixtures 回归 pass/fail。
 - 2026-03-31：完成 T1317f3：stdlib 为 `Array/MutableArray/List/MutableList`（优先 `Int` 版本）提供 `forEach/map/filter/fold`（effect-polymorphic）；并扩展 typecheck 的 lambda 期望类型下推到 2 参数以解锁 `fold(0) { acc, x -> ... }`；新增 run-pass fixture `stdlib_iter_algorithms_basic.*`，在 `cargo run -p scoop --features llvm -- test` 下可回归通过。
+- 2026-03-31：完成 T1317f4：stdlib 基于 `MutableArray` 落地 `Set/MutableSet`（Int 专用）与 `MutableMap`（Int->Int 专用，线性查找 + copy 语义），并提供只读视图 `Set`/`MapView`；新增 run-pass fixture `stdlib_set_map_basic.*`，与 sysroot 的 `scoop.collections.Map`（delegated property 表面）保持兼容不冲突。
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：`TODO.md` 中 program boundary 的 T0629b 依赖多包 build/link（T1107），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0629b 移动到 T1107 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。
