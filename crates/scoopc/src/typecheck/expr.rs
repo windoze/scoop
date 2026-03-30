@@ -13485,7 +13485,8 @@ fn collect_member_mutabilities_in_object_decl(
 /// - 字段来源：
 ///   - 主构造参数（`struct Point(val x: Int)`）：在语义上等价于字段
 ///   - type body 内的 `val/var` property（`struct Point { val x: Int }`）
-/// - 当前阶段只在单文件内查找（typecheck fixtures 的编译单元即“sysroot + 单文件”）。
+/// - 当前阶段默认只扫描“当前文件”的 AST；但为支持 stdlib 注入后的跨文件 member access/struct literal，
+///   会额外从 `Index` 的 primary ctor 信息补全“跨文件 ctor 字段”（type body property 仍以当前文件为准）。
 fn collect_struct_field_types(
     source: &SourceFile,
     file: &ast::File,
@@ -13512,6 +13513,50 @@ fn collect_struct_field_types(
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
             | ast::Item::TypeAlias(_) => {}
+        }
+    }
+
+    // 补全“跨文件 ctor 字段”的 member 类型表：
+    //
+    // 背景：
+    // - `check_file_exprs` 逐文件执行，但 driver 可能注入 stdlib（多文件编译单元）；
+    // - stdlib/用户代码可能会构造或访问 sysroot/其它文件声明的 struct/class 字段；
+    // - 若只扫描当前文件，会在 struct literal / member access 处产生
+    //   `struct_lit_unknown_field` / `unsupported_member_access` 的假错误。
+    //
+    // 约定：
+    // - 只考虑 primary constructor 的参数（secondary ctor 不是字段声明来源）；
+    // - 仅当 `{TypeFqn}.{field}` 在 value namespace 中存在时才视为字段：
+    //   - struct：所有 primary ctor params 都会被 resolver 注入为 value member；
+    //   - class：仅 `val/var` ctor params 会被注入为 value member（裸参数会被过滤掉）。
+    // - 字段类型需要在“声明处文件”的 package/import 语境里 lowering（避免跨文件 span 切片错位）。
+    // NOTE: 这里需要在循环内对 `lower` 做可变借用（lowering field type ref），因此先把 constructors
+    // 拷贝出来，避免同时持有 `lower.index()` 的不可变借用导致 borrow checker 冲突。
+    let constructors = lower.index().constructors.clone();
+    for (type_fqn, ctors) in &constructors {
+        for ctor in ctors {
+            if ctor.kind != crate::resolve::ConstructorKind::Primary {
+                continue;
+            }
+            for p in &ctor.params {
+                let Some(ty_ref) = &p.ty else {
+                    continue;
+                };
+                let field_fqn = format!("{type_fqn}.{}", p.name);
+                let has_value_symbol = lower
+                    .index()
+                    .by_fqn
+                    .get(&field_fqn)
+                    .is_some_and(|syms| syms.value.is_some());
+                if !has_value_symbol {
+                    continue;
+                }
+                if map.contains_key(&field_fqn) {
+                    continue;
+                }
+                let field_ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
+                map.insert(field_fqn, field_ty);
+            }
         }
     }
 

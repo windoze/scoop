@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: kotlin_ranges_progressions_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T1315c：pure-scoop ranges/progressions 与最小惰性迭代（v0）
+//
+// 说明：
+// - 当前阶段 `..` range operator 与 `for (x in xs)` lowering 尚未打通可执行链路；
+// - v0 先通过 `Int.rangeTo/downTo + forEach` 作为可回归落点；
+// - step 由调用方显式传入，避免 stdlib 在非入口文件中引入 Int 字面量（multi-file lowering 门禁）。
+
+import scoop.core.*
+
+fun main(): Int {
+    println("up")
+    1.rangeTo(5, 2).forEach {
+        println(it)
+    }
+
+    println("down")
+    5.downTo(1, 2).forEach {
+        println(it)
+    }
+
+    println("done")
+    return 0
+}
+

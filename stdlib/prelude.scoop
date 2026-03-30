@@ -75,3 +75,52 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E {
     block(this)
     return this
 }
+
+// Kotlin-like ranges / progressions（Appendix B.12）与最小可惰性迭代（v0）。
+//
+// 说明：
+// - 当前阶段后端 multi-file lowering 对“非入口文件的 Int/String 字面量”有门禁（见 T1315a），
+//   因此这里避免引入任何 Int/String literal；range/progression 的默认 step（1/-1）由调用方显式传入。
+// - v0 只提供 Int 专用落点（与 scope functions v1 一致），后续 `std` 再推广到泛型/其它标量类型。
+
+// 注意：`IntProgression` 类型本身在 sysroot 中提供声明表面；stdlib 在此提供可执行实现。
+
+/// Kotlin-like：`start.rangeTo(endInclusive, step)`（v0：step 显式传入）。
+fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
+    return IntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: true,
+    }
+}
+
+/// Kotlin-like：`start.downTo(endInclusive, step)`（v0：step 显式传入）。
+fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
+    return IntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: false,
+    }
+}
+
+/// 最小迭代工具：`progression.forEach { ... }`（effect-polymorphic）。
+fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
+    var cur: Int = this.first
+    when (this.increasing) {
+        true -> {
+            while (cur <= this.last) {
+                action(cur)
+                cur = cur + this.step
+            }
+        }
+        false -> {
+            while (cur >= this.last) {
+                action(cur)
+                cur = cur - this.step
+            }
+        }
+    }
+    return ()
+}
