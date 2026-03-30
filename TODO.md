@@ -4522,11 +4522,20 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1317d [TODO] runtime/codegen：`Array`/`MutableArray` 最小运行期 primitive（alloc/len/get/set）
+### T1317d [DONE] runtime/codegen：`Array`/`MutableArray` 最小运行期 primitive（alloc/len/get/set）
 - 描述：实现 `Array/MutableArray` 的最小运行期表示与必要 intrinsic（分配、长度、读写），并让 LLVM codegen 能生成可执行代码。
 - 目标：intrinsic 只做 buffer 分配/搬移/长度查询等底层 primitive；策略与边界条件尽量留给 stdlib 纯 Scoop 实现。
 - 验收：新增 run-pass fixtures：覆盖 `get/set/size` 的最小可观测语义；`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1317c、T1017
+ - 完成：
+   - `runtime/c/scoop_array.c`：新增 Array/MutableArray 的最小运行期实现（word buffer）与 array literal builder（`scoop_array_builder_*`），并提供 `scoop_array_len/get_u64/set_u64` primitive。
+   - `crates/scoop_runtime/build.rs`：编译并跟踪 `runtime/c/scoop_array.c`。
+   - `crates/scoopc/src/llvm/codegen.rs`：为 sysroot `size/get/set` 与 `__scoop_array_builder_*` 增加 codegen 映射，调用 runtime C ABI 并在 `get` 时按 receiver 的 `Array<T>`/`MutableArray<T>` type args 解码 u64 word。
+   - fixtures：新增 `tests/fixtures/run-pass/array_mutable_array_min_primitive_basic.*` 回归覆盖空数组、`size/get/set` 行为。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1317e [TODO] `std`：`MutableArray` 容量策略 + `push/pop/insert/remove/splice`
 - 描述：在 `stdlib` 中用纯 Scoop 实现 `MutableArray<T>` 的扩容/搬移策略与常用操作，并保证摊还复杂度。

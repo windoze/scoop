@@ -29,6 +29,7 @@ use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
+use inkwell::types::PointerType;
 use inkwell::types::StructType;
 use inkwell::values::AggregateValueEnum;
 use inkwell::values::BasicValue;
@@ -3709,6 +3710,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
+            // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
+            //
+            // 说明：
+            // - `size/get/set` 作为 sysroot 声明的 extension fun 暴露（`Array<T>.size()` 等）；
+            // - 数组字面量 `[...]` 在 HIR lowering 中会先被降为 `__scoop_array_builder_*` 调用序列；
+            // - 这里把它们直接映射到 runtime 的 C ABI（`runtime/c/scoop_array.c`）。
+            if fqn == "scoop.core.size" || fqn == "scoop.core.get" || fqn == "scoop.core.set" {
+                return self.codegen_sysroot_array_intrinsics(span, callee.span, fqn, args, expected);
+            }
+            if fqn.starts_with("scoop.core.__scoop_array_builder_") {
+                return self.codegen_sysroot_array_builder_intrinsics(span, callee.span, fqn, args);
+            }
             // T0620：spawn/join（结构化并发最小模型）使用 runtime helper。
             if fqn == "scoop.core.__scoop_task_spawn_int"
                 || fqn == "scoop.core.__scoop_task_join_int"
@@ -4658,6 +4671,460 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_array_builder_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+
+        match fqn {
+            "scoop.core.__scoop_array_builder_new" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_new arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let rt = self.declare_runtime_array_builder_new();
+                let call = self.builder.build_call(rt, &[], "array_builder_new")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_new return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_new return type",
+                        at: span.into(),
+                    });
+                };
+                let ptr = self
+                    .builder
+                    .build_pointer_cast(ptr, i8_ptr_ty, "array_builder_i8")?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(ptr.into()),
+                })
+            }
+            "scoop.core.__scoop_array_builder_push" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_push arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(builder_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_push builder named arg",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(value_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_push value named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let builder_v =
+                    self.codegen_expr_in_expected_context(builder_expr, Some(CgTy::Ref))?;
+                let builder_v = self.coerce_value(builder_expr.span, builder_v, CgTy::Ref)?;
+                let Some(builder_raw) = builder_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_push builder value",
+                        at: builder_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_push builder type",
+                        at: builder_expr.span.into(),
+                    });
+                };
+
+                let value_v = self.codegen_expr(value_expr)?;
+                let word_u64 = self.coerce_u64_word(value_expr.span, value_v)?;
+
+                let rt = self.declare_runtime_array_builder_push_u64();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[builder_ptr.into(), word_u64.into()],
+                    "array_builder_push",
+                )?;
+                Ok(CgValue::unit())
+            }
+            "scoop.core.__scoop_array_builder_build_array"
+            | "scoop.core.__scoop_array_builder_build_mutable_array" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(builder_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build builder named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let builder_v =
+                    self.codegen_expr_in_expected_context(builder_expr, Some(CgTy::Ref))?;
+                let builder_v = self.coerce_value(builder_expr.span, builder_v, CgTy::Ref)?;
+                let Some(builder_raw) = builder_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build builder value",
+                        at: builder_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build builder type",
+                        at: builder_expr.span.into(),
+                    });
+                };
+
+                let rt = match fqn {
+                    "scoop.core.__scoop_array_builder_build_array" => {
+                        self.declare_runtime_array_builder_build_array()
+                    }
+                    "scoop.core.__scoop_array_builder_build_mutable_array" => {
+                        self.declare_runtime_array_builder_build_mutable_array()
+                    }
+                    _ => unreachable!("match arms cover all cases"),
+                };
+
+                let call = self
+                    .builder
+                    .build_call(rt, &[builder_ptr.into()], "array_builder_build")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "array_builder_build return type",
+                        at: span.into(),
+                    });
+                };
+                let ptr = self.builder.build_pointer_cast(ptr, i8_ptr_ty, "array_obj")?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(ptr.into()),
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown array builder intrinsic",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
+    fn codegen_sysroot_array_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let from_u64 = IntTy {
+            bits: 64,
+            signed: false,
+        };
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+
+        // helper：从 args[i] 取出位置参数 expr
+        let positional = |idx: usize| -> Result<&hir::Expr, LlvmEmitError> {
+            let Some(arg) = args.get(idx) else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "array intrinsic missing arg",
+                    at: span.into(),
+                });
+            };
+            match arg {
+                hir::CallArg::Positional(expr) => Ok(expr),
+                hir::CallArg::Named { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "array intrinsic named arg",
+                    at: span.into(),
+                }),
+            }
+        };
+
+        match fqn {
+            "scoop.core.size" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.size arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let recv_expr = positional(0)?;
+                let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+                let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+                let Some(recv_raw) = recv_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.size receiver value",
+                        at: recv_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arr_ptr) = recv_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.size receiver type",
+                        at: recv_expr.span.into(),
+                    });
+                };
+
+                let rt = self.declare_runtime_array_len();
+                let call = self
+                    .builder
+                    .build_call(rt, &[arr_ptr.into()], "array_len")?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.size return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(len_u64) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.size return type",
+                        at: span.into(),
+                    });
+                };
+
+                let len_word = self.cast_int(len_u64, from_u64, value_word)?;
+                Ok(CgValue::int(len_word, value_word))
+            }
+            "scoop.core.get" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let recv_expr = positional(0)?;
+                let idx_expr = positional(1)?;
+
+                let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+                let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+                let Some(recv_raw) = recv_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get receiver value",
+                        at: recv_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arr_ptr) = recv_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get receiver type",
+                        at: recv_expr.span.into(),
+                    });
+                };
+
+                let idx_v = self
+                    .codegen_expr_in_expected_context(idx_expr, Some(CgTy::Int(value_word)))?;
+                let idx_v = self.coerce_value(idx_expr.span, idx_v, CgTy::Int(value_word))?;
+                let (idx_raw, idx_from) = idx_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Array.get index value",
+                    at: idx_expr.span.into(),
+                })?;
+                let idx_to = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                let idx_i64 = self.cast_int(idx_raw, idx_from, idx_to)?;
+
+                let rt = self.declare_runtime_array_get_u64();
+                let call = self.builder.build_call(
+                    rt,
+                    &[arr_ptr.into(), idx_i64.into()],
+                    "array_get_u64",
+                )?;
+                let raw = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::IntValue(word_u64) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get return type",
+                        at: span.into(),
+                    });
+                };
+
+                let elem_ty = self
+                    .infer_array_element_word_cg_ty(recv_expr)
+                    .or_else(|| expected.filter(|ty| matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref)))
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Array.get element type",
+                        at: callee_span.into(),
+                    })?;
+
+                self.decode_u64_word_to_cg_value(span, word_u64, elem_ty, i8_ptr_ty)
+            }
+            "scoop.core.set" => {
+                if args.len() != 3 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MutableArray.set arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let recv_expr = positional(0)?;
+                let idx_expr = positional(1)?;
+                let value_expr = positional(2)?;
+
+                let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+                let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+                let Some(recv_raw) = recv_v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MutableArray.set receiver value",
+                        at: recv_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arr_ptr) = recv_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "MutableArray.set receiver type",
+                        at: recv_expr.span.into(),
+                    });
+                };
+
+                let idx_v = self
+                    .codegen_expr_in_expected_context(idx_expr, Some(CgTy::Int(value_word)))?;
+                let idx_v = self.coerce_value(idx_expr.span, idx_v, CgTy::Int(value_word))?;
+                let (idx_raw, idx_from) = idx_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "MutableArray.set index value",
+                    at: idx_expr.span.into(),
+                })?;
+                let idx_to = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                let idx_i64 = self.cast_int(idx_raw, idx_from, idx_to)?;
+
+                // 尽量使用 receiver 的静态类型（type args）来决定 value 的 codegen/编码方式；
+                // 若无法恢复，则退化为“按 value 表达式自身的 codegen 类型编码为 u64”。
+                let elem_ty = self.infer_array_element_word_cg_ty(recv_expr);
+                let value_v = match elem_ty {
+                    Some(elem_ty) => {
+                        let v =
+                            self.codegen_expr_in_expected_context(value_expr, Some(elem_ty))?;
+                        self.coerce_value(value_expr.span, v, elem_ty)?
+                    }
+                    None => self.codegen_expr(value_expr)?,
+                };
+                let word_u64 = self.coerce_u64_word(value_expr.span, value_v)?;
+
+                let rt = self.declare_runtime_array_set_u64();
+                let _ = self.builder.build_call(
+                    rt,
+                    &[arr_ptr.into(), idx_i64.into(), word_u64.into()],
+                    "array_set_u64",
+                )?;
+                Ok(CgValue::unit())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown array intrinsic",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
+    fn infer_array_element_word_cg_ty(&self, receiver: &hir::Expr) -> Option<CgTy> {
+        let receiver_ty = match &receiver.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self.env.get(*id)?.hir_ty?,
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.top_level_vars.get(fqn)?.ty
+            }
+            _ => return None,
+        };
+
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        if nominal.fqn != "scoop.core.Array" && nominal.fqn != "scoop.core.MutableArray" {
+            return None;
+        }
+        let elem_ty = *nominal.args.first()?;
+        let cg = self.cg_ty_of(elem_ty)?;
+
+        // 当前 runtime array 以 “u64 word buffer” 表示元素，因此这里限制为可编码为 u64 的类型。
+        match cg {
+            CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => Some(cg),
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => None,
+        }
+    }
+
+    fn decode_u64_word_to_cg_value(
+        &mut self,
+        at: crate::span::Span,
+        word_u64: IntValue<'ctx>,
+        to: CgTy,
+        i8_ptr_ty: PointerType<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let from_u64 = IntTy {
+            bits: 64,
+            signed: false,
+        };
+
+        match to {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool => {
+                let is_true = self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    word_u64,
+                    self.context.i64_type().const_zero(),
+                    "u64_to_bool",
+                )?;
+                Ok(CgValue::bool(is_true))
+            }
+            CgTy::Int(int_ty) => {
+                let decoded = self.cast_int(word_u64, from_u64, int_ty)?;
+                Ok(CgValue::int(decoded, int_ty))
+            }
+            CgTy::Ref => {
+                let ptr = self
+                    .builder
+                    .build_int_to_ptr(word_u64, i8_ptr_ty, "u64_to_ref")?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(ptr.into()),
+                })
+            }
+            CgTy::String => {
+                let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+                let ptr =
+                    self.builder
+                        .build_int_to_ptr(word_u64, str_ptr_ty, "u64_to_string")?;
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(ptr.into()),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "decode u64 word to composite value",
+                    at: at.into(),
+                })
+            }
+        }
     }
 
     fn store_size_bytes_of_basic_type(&self, ty: BasicTypeEnum<'ctx>) -> u64 {
@@ -10345,6 +10812,101 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
         let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_builder_new(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_builder_new";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_array_builder_new(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_builder_push_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_builder_push_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_array_builder_push_u64(void* builder, uint64_t value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_builder_build_array(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_builder_build_array";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_array_builder_build_array(void* builder)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_builder_build_mutable_array(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_builder_build_mutable_array";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_array_builder_build_mutable_array(void* builder)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_len(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_len";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_array_len(void* array_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_get_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_get_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint64_t scoop_array_get_u64(void* array_obj, int64_t index)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_array_set_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_array_set_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_array_set_u64(void* array_obj, int64_t index, uint64_t value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [i8_ptr_ty.into(), i64_ty.into(), i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

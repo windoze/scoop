@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: array_mutable_array_min_primitive_basic.stdout
+//
+// 目标：T1317d
+// - 数组字面量 `[...]`（在期望类型语境下）可被 lowering/codegen 为可执行代码；
+// - `Array<T>.size/get` 与 `MutableArray<T>.size/get/set` 具备最小可观测语义。
+
+import scoop.core.*
+
+fun main(): Int {
+    val empty: Array<Int> = []
+    println(empty.size())
+
+    val xs: Array<Int> = [1, 2, 3]
+    println(xs.size())
+    println(xs.get(0))
+    println(xs.get(2))
+
+    val ys: MutableArray<Int> = [10, 20, 30]
+    println(ys.size())
+    println(ys.get(1))
+    ys.set(1, 42)
+    println(ys.get(1))
+
+    return 0
+}
+
