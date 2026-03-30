@@ -4411,17 +4411,31 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1315c [TODO] pure-scoop：ranges/progressions 与 sequence-like utilities（v0）
+### T1315c [DONE] pure-scoop：ranges/progressions 与 sequence-like utilities（v0）
 - 描述：基于现有语法/语义，为 `Int` 等标量类型补齐 Kotlin-like ranges/progressions helpers 与最小惰性序列/迭代 utilities（不引入新的集合底座）。
 - 目标：先以“可表达 + 可回归”为主，不追求性能最优；不引入新的 intrinsic。
 - 验收：新增 run-pass fixtures：覆盖 `range/progression` 的构造与最小迭代行为（stdout/exit code 断言）。
-- 依赖：T1315a
+ - 依赖：T1315a
+ - 完成：
+   - `sysroot/core.scoop`：新增 `IntProgression` 与 `Int.rangeTo/downTo(step)`、`IntProgression.forEach` 的声明表面，供 resolver/typecheck 可见。
+   - `stdlib/prelude.scoop`：新增 `Int.rangeTo/downTo(step)` 与 `IntProgression.forEach` 的纯 Scoop 可执行实现（无新增 intrinsic、且不在 stdlib 中引入 Int/String 字面量）。
+   - `tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop`：新增 run-pass fixture 覆盖 up/down progression 的构造与最小迭代行为。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1316 [TODO] 全量 `std` 设计：分层、稳定性、能力矩阵（目标对标 Rust std）
+### T1316 [DONE] 全量 `std` 设计：分层、稳定性、能力矩阵（目标对标 Rust std）
 - 描述：设计 Scoop 的标准库分层与包边界，目标是能力与 Rust `std` 同量级、可比较，但不要求 API 相同。建议至少区分 `core` / `alloc` / `std` / 平台适配层。
 - 目标：固定模块边界、稳定性策略、目标平台 capability matrix（desktop / server / embedded / wasm）。
 - 验收：产出 `std` 模块树与 capability matrix；说明各模块依赖于哪些 runtime / platform backends。
-- 依赖：T1314、T1406
+- 依赖：T1314、T1017
+ - 完成：
+   - `STDLIB_DESIGN.md`：新增 `std` 分层（core/alloc/std/platform）、推荐模块树与 capability matrix，并明确各模块对 runtime/platform backends 的依赖边界。
+   - `README.md`：补充链接，便于从项目入口快速定位 std 设计文档。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1317 [TODO] `std` v1：collections / iterators / text / algorithms
 - 描述：实现全量 `std` 的第一层基础模块，重点先把 **collections 与 iterators** 的核心形态固定下来：以 `Array<T>` / `MutableArray<T>` 为唯一集合底座，并在其上用纯 Scoop 构建 `List/Set/Map` 等。
