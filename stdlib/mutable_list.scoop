@@ -1,0 +1,27 @@
+// Scoop stdlib（pure scoop）：MutableList 早期落点（v0）
+//
+// 目标（TODO T1317f2）：
+// - 在不引入新 intrinsic 的前提下，为 `MutableList<T>` 提供最小可执行的操作落点；
+// - 当前阶段 `MutableList<T>` 在 sysroot 中被定义为 `MutableArray<T>` 的 typealias，
+//   因此这里的实现本质上是对 `MutableArray` 扩展操作的 Kotlin-like 命名封装；
+// - 为避免泛型单态化/跨文件实例生成缺口影响可执行回归，本文件先只提供 `Int` 专用版本。
+//
+// 重要限制（T1315a）：
+// - LLVM 后端 multi-file lowering 会拒绝“非入口文件中的 source-backed literals”，
+//   因此本文件中避免出现任何 Int/String 字面量。
+
+package scoop.core
+
+// 说明：
+// - sysroot 与 stdlib 属于不同 cone；在 resolver 的最小规则下，跨 cone 的声明需要通过 import 引入；
+// - 这里显式 `import scoop.core.*`，用于把 sysroot 中的 `MutableList/Int` 等名字置于可见范围。
+import scoop.core.*
+
+/// Kotlin-like：`MutableList.add(value)`（v0：Int 专用）。
+///
+/// 语义：追加一个元素，返回新集合（copy 语义）。
+fun MutableList<Int>.add(value: Int): MutableList<Int> {
+    // `MutableList<Int>` 是 `MutableArray<Int>` 的别名：直接复用 stdlib 的 `push`。
+    return this.push(value)
+}
+

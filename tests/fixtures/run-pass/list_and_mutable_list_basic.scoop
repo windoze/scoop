@@ -1,0 +1,49 @@
+// EXPECT: pass
+// RUN-STDOUT: list_and_mutable_list_basic.stdout
+//
+// 目标：T1317f2 `List/MutableList` 最小表面（v0）：
+// - sysroot：`typealias List<T> = Array<T>`、`typealias MutableList<T> = MutableArray<T>`
+// - stdlib：`MutableList<Int>.add` 可执行落点（基于 `MutableArray<Int>.push`）
+
+import scoop.core.*
+
+fun dumpList(xs: List<Int>): Unit {
+    println(xs.size())
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun dumpMutableList(xs: MutableList<Int>): Unit {
+    println(xs.size())
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun main(): Int {
+    val xs: List<Int> = [1, 2, 3]
+    println("list")
+    dumpList(xs)
+
+    var ys: MutableList<Int> = []
+    println("mutable before")
+    dumpMutableList(ys)
+
+    ys = ys.add(10)
+    ys = ys.add(20)
+    ys = ys.add(30)
+    println("mutable after add")
+    dumpMutableList(ys)
+
+    ys = ys.push(40)
+    println("mutable after push")
+    dumpMutableList(ys)
+
+    return 0
+}
+

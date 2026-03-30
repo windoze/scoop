@@ -5059,7 +5059,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
             return None;
         };
-        if nominal.fqn != "scoop.core.Array" && nominal.fqn != "scoop.core.MutableArray" {
+        // T1317f2：`List/MutableList` 在 sysroot 中作为 `Array/MutableArray` 的 typealias。
+        // codegen 侧需要把它们视为“array-like”，否则 `xs.get(i)` 在被 `print/println` 等
+        // 以 `String` expected context 调用时，可能会错误地把元素解码为 `String`。
+        if !matches!(
+            nominal.fqn.as_str(),
+            "scoop.core.Array"
+                | "scoop.core.MutableArray"
+                | "scoop.core.List"
+                | "scoop.core.MutableList"
+        ) {
             return None;
         }
         let elem_ty = *nominal.args.first()?;

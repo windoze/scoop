@@ -4575,11 +4575,24 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1317f2 [TODO] sysroot/stdlib：`List<T>`/`MutableList<T>` 最小表面（v0）
+### T1317f2 [DONE] sysroot/stdlib：`List<T>`/`MutableList<T>` 最小表面（v0）
 - 描述：在 sysroot 声明 `typealias List<T> = Array<T>` 与 `class MutableList<T>`（或 typealias）等最小表面，并在 stdlib 基于 `MutableArray` 给出 early-stage 实现落点。
 - 目标：先以“可表达 + 可类型检查”为主；实现可先仅覆盖 `Int` 专用版本；不新增 intrinsic。
 - 验收：新增 typecheck +（可选）run-pass fixtures 覆盖 `List/MutableList` 的构造与最小操作。
 - 依赖：T1317f1、T1317e
+ - 完成：
+   - `sysroot/core.scoop`：新增 `typealias List<T> = Array<T>` 与 `typealias MutableList<T> = MutableArray<T>`。
+   - `stdlib/mutable_list.scoop`：新增 `MutableList<Int>.add`（v0：Int 专用；内部复用 `MutableArray<Int>.push`）。
+   - `crates/scoopc/src/resolve/scopes.rs`：extension receiver 匹配对 `List/MutableList` 做最小归一化（映射到 `Array/MutableArray`），避免 `xs: List<Int>` 无法调用 `size/get`、`ys: MutableList<Int>` 无法调用 `push/pop/...`。
+   - `crates/scoopc/src/hir/lower.rs`：数组字面量 expected-type hint 支持 `List/MutableList`（按别名映射到 `Array/MutableArray`）。
+   - `crates/scoopc/src/llvm/codegen.rs`：array element 类型推断把 `List/MutableList` 视为 array-like，避免 `print/println` 的 `String` expected context 导致 `get` 误解码。
+   - fixtures：
+     - `tests/fixtures/typecheck/list_and_mutable_list_alias_ok.scoop`
+     - `tests/fixtures/run-pass/list_and_mutable_list_basic.*`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1317f3 [TODO] stdlib：迭代/算法 v0（`forEach`/`map`/`filter`/`fold`）
 - 描述：在 `Array/MutableArray/List/MutableList` 上提供最小迭代/算法 API，优先覆盖 `Int` 版本，并保持 effect-polymorphic 形态。

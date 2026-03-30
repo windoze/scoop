@@ -1567,6 +1567,19 @@ impl<'a> BlockScopeChecker<'a> {
         member_name: &str,
         use_span: Span,
     ) -> Result<Vec<String>, ResolveError> {
+        // T1317f2：`List/MutableList` 在 sysroot 中是 `Array/MutableArray` 的 typealias。
+        // resolver 的 member/extension 匹配当前只看“名义类型 FQN”，因此这里对 receiver/extension
+        // receiver 做一个最小的归一化，让 `xs: List<Int>` 也能调用 `size/get`，以及让
+        // `ys: MutableList<Int>` 也能调用 `push/pop/...` 等 `MutableArray` 扩展。
+        fn normalize_collections_alias(fqn: &str) -> &str {
+            match fqn {
+                "scoop.core.List" => "scoop.core.Array",
+                "scoop.core.MutableList" => "scoop.core.MutableArray",
+                _ => fqn,
+            }
+        }
+        let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn);
+
         let mut candidates: Vec<String> = Vec::new();
         let mut not_visible: Option<(String, Visibility, Span)> = None;
 
@@ -1584,7 +1597,8 @@ impl<'a> BlockScopeChecker<'a> {
 
             let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
                 Some(ext_receiver) => {
-                    ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                    normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                        || ext_receiver == "scoop.core.Any"
                 }
                 // `fun <T> T.ext()`：receiver 是 type param（通配）。
                 None => ext.receiver_is_type_param,
@@ -1621,7 +1635,8 @@ impl<'a> BlockScopeChecker<'a> {
 
                 let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
                     Some(ext_receiver) => {
-                        ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                        normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                            || ext_receiver == "scoop.core.Any"
                     }
                     // `fun <T> T.ext()`：receiver 是 type param（通配）。
                     None => ext.receiver_is_type_param,
@@ -1658,7 +1673,8 @@ impl<'a> BlockScopeChecker<'a> {
                 {
                     let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
                         Some(ext_receiver) => {
-                            ext_receiver == receiver_ty_fqn || ext_receiver == "scoop.core.Any"
+                            normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                                || ext_receiver == "scoop.core.Any"
                         }
                         // `fun <T> T.ext()`：receiver 是 type param（通配）。
                         None => ext.receiver_is_type_param,

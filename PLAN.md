@@ -912,9 +912,9 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
     - 若需要“零拷贝把 builder 变成不可变 Array”，必须定义**显式且安全**的语义（例如 `freeze`：冻结后任何别名都不可再变更）
     - 在缺少上述语义前，**不要**对外暴露 `MutableArray -> Array` 的零拷贝转换 API（避免把“只读视图”误当成不可变值）
   - 数组字面量 `[...]`：按 expected type 推断为 `Array<T>` 或 `MutableArray<T>`，并支持 `val xs: Array<Int> = [1, 2, 3]` 这类类型注解
-  - `List<T>`：定义为 `Array<T>` 的别名（`typealias List<T> = Array<T>`）
+  - `List<T>`：定义为 `Array<T>` 的别名（`typealias List<T> = Array<T>`；T1317f2 已在 sysroot 落地）
   - `Hashable`：加入 sysroot 并为 primitive types 提供实现；`Set/Map`（含 mutable）全部用纯 Scoop 基于 `Array`/`MutableArray` 实现，不引入 intrinsics
-  - `MutableList<T>`：用 `MutableArray` 做 backing pool，以纯 Scoop 实现并追求高效（`push/pop/insert/remove` 摊还 O(1)）
+  - `MutableList<T>`：用 `MutableArray` 做 backing pool，以纯 Scoop 实现并追求高效（`push/pop/insert/remove` 摊还 O(1)；T1317f2 已先落地 typealias + `Int.add`）
 - [ ] import alias：`import foo.bar.Baz as Qux`（Appendix B.7）
 - [ ] `object` / `companion object`：从 parse/resolve 扩展到 typecheck/codegen/初始化语义（Appendix B.9）
 - [x] 类初始化语义：property initializer、`init` blocks、secondary constructors、初始化顺序（Appendix B.2.2）（T0448：最小落地）

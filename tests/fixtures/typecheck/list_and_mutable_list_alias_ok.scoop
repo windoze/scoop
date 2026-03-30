@@ -1,0 +1,36 @@
+// EXPECT: pass
+// 目标：T1317f2 `List<T>`/`MutableList<T>` 作为 `Array/MutableArray` 的 typealias：
+// - 可用于类型注解与函数签名；
+// - 可作为数组字面量 `[...]` 的 expected type（经 typealias 展开）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun takesList(xs: List<Int>): Int {
+    return xs.size()
+}
+
+fun takesMutableList(xs: MutableList<Int>): Int {
+    xs.set(0, 123)
+    return xs.get(0)
+}
+
+fun smoke(): Unit {
+    val xs: List<Int> = [1, 2, 3]
+    val ys: MutableList<Int> = [7, 8]
+
+    val a: Int = takesList(xs)
+    val b: Int = takesMutableList(ys)
+
+    // 也覆盖 `get` 在不同上下文（返回值/赋值）的类型传播。
+    val c: Int = xs.get(0)
+    val d: Int = ys.get(1)
+
+    // 避免 unused lint（当前阶段不强制，但保持示例清晰）。
+    println(a)
+    println(b)
+    println(c)
+    println(d)
+    return ()
+}

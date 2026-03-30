@@ -1471,6 +1471,10 @@ impl<'a> HirLowering<'a> {
         match fqn.as_str() {
             "scoop.core.Array" => Some(ArrayLitTarget::Array),
             "scoop.core.MutableArray" => Some(ArrayLitTarget::MutableArray),
+            // T1317f2：`List/MutableList` 在 sysroot 中作为 `Array/MutableArray` 的 typealias。
+            // lowering 阶段只需要知道“数组字面量目标容器类型”，因此这里把别名也视为等价目标。
+            "scoop.core.List" => Some(ArrayLitTarget::Array),
+            "scoop.core.MutableList" => Some(ArrayLitTarget::MutableArray),
             _ => None,
         }
     }

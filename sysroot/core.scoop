@@ -42,6 +42,16 @@ class Array<T>
 // - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
 class MutableArray<T>
 
+// Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。
+//
+// 说明：
+// - v0 先把 `List<T>`/`MutableList<T>` 作为 `Array<T>`/`MutableArray<T>` 的类型别名，
+//   以便在不引入新布局/新 intrinsic 的前提下，先把常用 API 表面固定下来；
+// - 后续若需要更强的语义区分（例如只读视图 vs 不可变值、或更丰富的接口层级），
+//   可在保持现有别名兼容的前提下逐步演进（例如增加 `scoop.collections` 的接口表面）。
+typealias List<T> = Array<T>
+typealias MutableList<T> = MutableArray<T>
+
 // Array / MutableArray：最小公开 API 声明（T1317b）。
 //
 // 说明：
