@@ -171,6 +171,70 @@ pub(super) fn is_type_assignable(
 
             nominal_is_subtype_by_fqn(&found_nominal.fqn, &expected_nominal.fqn, lower.env())
         }
+        // builtin 标量值类型（Int/Bool/...）→ interface：允许 boxing，并复用 sysroot 的继承/实现关系。
+        //
+        // 说明：
+        // - builtin 类型在 type system 中不是 `Nominal`（例如 `ValueTypeKind::Int`），因此无法走
+        //   “nominal value → nominal ref（interface）”的默认分支；
+        // - 但在语义层面它们依然可以实现 interface（spec §2.2.2 / §2.3），并且 sysroot 会提供
+        //   `struct Int : Hashable` 这类声明用于约束与工具链可见性；
+        // - 这里把 builtin 映射回其 sysroot FQN，再按 direct supertypes 做最小上转判断。
+        (
+            TypeKind::Value(ValueTypeKind::Bool),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
+                && nominal_is_subtype_by_fqn("scoop.core.Bool", &expected_nominal.fqn, lower.env())
+        }
+        (
+            TypeKind::Value(ValueTypeKind::Int),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
+                && nominal_is_subtype_by_fqn("scoop.core.Int", &expected_nominal.fqn, lower.env())
+        }
+        (
+            TypeKind::Value(ValueTypeKind::UInt),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
+                && nominal_is_subtype_by_fqn("scoop.core.UInt", &expected_nominal.fqn, lower.env())
+        }
+        (
+            TypeKind::Value(ValueTypeKind::IntN(bits)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
+                return false;
+            }
+            let found_fqn = format!("scoop.core.Int{bits}");
+            nominal_is_subtype_by_fqn(&found_fqn, &expected_nominal.fqn, lower.env())
+        }
+        (
+            TypeKind::Value(ValueTypeKind::UIntN(bits)),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            if !expected_nominal.args.is_empty() || expected_nominal.eff.is_some() {
+                return false;
+            }
+            let found_fqn = format!("scoop.core.UInt{bits}");
+            nominal_is_subtype_by_fqn(&found_fqn, &expected_nominal.fqn, lower.env())
+        }
+        (
+            TypeKind::Ref(RefTypeKind::String),
+            TypeKind::Ref(RefTypeKind::Nominal(expected_nominal)),
+        ) => {
+            expected_nominal.args.is_empty()
+                && expected_nominal.eff.is_none()
+                && nominal_is_subtype_by_fqn(
+                    "scoop.core.String",
+                    &expected_nominal.fqn,
+                    lower.env(),
+                )
+        }
         (
             TypeKind::Value(ValueTypeKind::Nominal(found_nominal)),
             TypeKind::Value(ValueTypeKind::Nominal(expected_nominal)),

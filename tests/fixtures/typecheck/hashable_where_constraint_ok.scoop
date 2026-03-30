@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：T1317f1 `Hashable` 作为 where 约束在类型实例化处可被验证（primitive types 满足）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// 通过 where 子句约束 type param 必须可上转到 `Hashable`。
+class Box<T> where T: Hashable {}
+
+fun takesIntBox(x: Box<Int>): Unit {
+    return ()
+}
+
+fun takesBoolBox(x: Box<Bool>): Unit {
+    return ()
+}

@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 15:20
+// EXPECT-ERROR: 不满足
+// 目标：T1317f1 where `T: Hashable` 在 use-site 实参不满足时给出稳定诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Box<T> where T: Hashable {}
+
+struct NotHashable(val x: Int)
+
+fun takesBadBox(x: Box<NotHashable>): Unit {
+    return ()
+}

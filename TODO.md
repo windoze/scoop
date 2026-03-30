@@ -4559,7 +4559,7 @@
 
 > 备注：该任务包含多个彼此相对独立、且“可单独实现 & 单独验证”的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留目标汇总。
 
-### T1317f1 [TODO] sysroot/typecheck：引入 `Hashable` 并让 primitive types 满足 `where` 约束
+### T1317f1 [DONE] sysroot/typecheck：引入 `Hashable` 并让 primitive types 满足 `where` 约束
 - 描述：在 sysroot 增加 `Hashable` 接口，并让 `Int/Bool/...` 等内建类型声明实现该接口；新增 typecheck fixtures 回归 `where T: Hashable` 的满足性与失败诊断。
 - 目标：只保证“约束可被 typecheck 验证”，不要求本阶段可调用 interface member method（当前成员调用仍受限）；不引入新的 intrinsic。
 - 验收：
@@ -4567,6 +4567,13 @@
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T1317e
+ - 完成：
+   - `sysroot/core.scoop`：新增 `Hashable` 接口（提供默认实现以避免 early-stage 强制补齐 member），并让 `Bool/Int/UInt/Int8.../UInt64/String` 等内建类型声明实现 `Hashable`。
+   - `crates/scoopc/src/typecheck/assignable.rs`：允许 builtin 标量（`Int/Bool/...`）在目标为 interface 时按 sysroot FQN 走最小上转（boxing）规则，使 `where T: Hashable` 对 primitive 生效。
+   - fixtures：新增 `tests/fixtures/typecheck/hashable_where_constraint_ok.scoop` 与 `tests/fixtures/typecheck/hashable_where_constraint_not_satisfied_is_error.scoop` 覆盖 pass/fail。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1317f2 [TODO] sysroot/stdlib：`List<T>`/`MutableList<T>` 最小表面（v0）
 - 描述：在 sysroot 声明 `typealias List<T> = Array<T>` 与 `class MutableList<T>`（或 typealias）等最小表面，并在 stdlib 基于 `MutableArray` 给出 early-stage 实现落点。

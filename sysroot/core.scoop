@@ -9,13 +9,26 @@ package scoop.core
 // Root types
 interface Any
 
+// 基础接口：Hashable（spec §2.2.2 / std v1）。
+//
+// 说明：
+// - 当前阶段 typecheck 尚未支持“普通成员函数调用”（class/interface methods），`receiver.hash()`
+//   仍主要走“扩展函数调用”的最小子集；但 `where T: Hashable` 等约束已经会被验证；
+// - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
+//   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
+interface Hashable {
+    fun hash(): Int {
+        return 0
+    }
+}
+
 // Built-in scalar types（声明层）。
 //
 // 说明：
 // - 这些类型的布局/语义由编译器与运行时固定；
 // - sysroot 只提供“可见声明”，用于名字解析与工具链展示。
-struct Bool
-class String
+struct Bool : Hashable
+class String : Hashable
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
@@ -232,18 +245,18 @@ struct AnnotationArgMeta {
 // Integers（spec §2.3.4 / runtime §3）
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
-struct Int
-struct UInt
+struct Int : Hashable
+struct UInt : Hashable
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
-struct Int8
-struct Int16
-struct Int32
-struct Int64
-struct UInt8
-struct UInt16
-struct UInt32
-struct UInt64
+struct Int8 : Hashable
+struct Int16 : Hashable
+struct Int32 : Hashable
+struct Int64 : Hashable
+struct UInt8 : Hashable
+struct UInt16 : Hashable
+struct UInt32 : Hashable
+struct UInt64 : Hashable
 
 // Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
 //
