@@ -8515,8 +8515,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.env.pop_scope();
                     return Ok(out);
                 }
-                hir::StmtKind::While { .. }
-                | hir::StmtKind::Break { .. }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                    tail_value = None;
+                }
+                hir::StmtKind::Break { .. }
                 | hir::StmtKind::Continue { .. }
                 | hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {

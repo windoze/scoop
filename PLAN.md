@@ -160,6 +160,7 @@
 - 2026-03-30：完成 T1317b：在 sysroot 中补齐 `Array<T>` / `MutableArray<T>` 的最小公开 API 声明（`size/get/set`），并新增 typecheck fixture 回归覆盖。
 - 2026-03-30：完成 T1317c：HIR lowering 支持数组字面量 `[...]`，降为统一的 builder/intrinsics 调用形态，并新增 `tests/fixtures/hir/array_lit_lowering.*` golden 回归覆盖 `Array`/`MutableArray`（含空数组与 call args）。
 - 2026-03-30：完成 T1317d：runtime/codegen 增加 `Array`/`MutableArray` 的最小 word-buffer primitive（alloc/len/get/set）与 array literal builder，并新增 run-pass fixture 回归 `size/get/set` 的可执行语义。
+- 2026-03-30：完成 T1317e：stdlib 增加 `MutableArray<Int>` 的 `push/pop/insert/removeAt/splice` 扩展（early stage 先对 `Int` 提供落点；不新增 intrinsic；使用 T1317d 的 builder/word-buffer primitive 完成分配与搬移；同时补齐 LLVM codegen 对顶层函数 body `while` 语句的最小支持以保证可执行），并新增 run-pass fixture 回归边界条件与 stdout golden。
 - 2026-03-30：完成 T0920：`ScoopTypeDescriptor` 增加可选 `release_fn`，GC sweep 回收对象时在 `free` 前回调一次（用于 FFI-managed 资源释放）；新增 `scoop_runtime` 集成测试回归“仅调用一次”语义。
 - 2026-03-25：完成 T0815：生成的 `i32 @main()` 在执行 Scoop `fun main` 前调用 `scoop_runtime_init()`，并更新 LLVM 单测断言 IR 含该调用。
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。

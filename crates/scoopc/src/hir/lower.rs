@@ -1026,11 +1026,18 @@ impl<'a> HirLowering<'a> {
                     };
 
                     let sig = self.fun_sig_by_fqn(fqn);
+                    // expected-type hint 目前只用于数组字面量 `[...]` 的 lowering（Array vs MutableArray）。
+                    // receiver 不是数组字面量时无需解析签名里的 receiver TypeRef，避免跨文件 span 误用。
+                    let receiver_is_array_lit =
+                        matches!(receiver.kind, ast::ExprKind::ArrayLit { .. });
                     let receiver_expected = ExpectedExpr {
-                        array_lit_target: sig
-                            .as_ref()
-                            .and_then(|sig| sig.receiver.as_ref())
-                            .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+                        array_lit_target: match receiver_is_array_lit {
+                            true => sig
+                                .as_ref()
+                                .and_then(|sig| sig.receiver.as_ref())
+                                .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+                            false => None,
+                        },
                     };
                     let receiver =
                         self.lower_expr_with_expected(pkg_prefix, receiver, receiver_expected);
@@ -1448,7 +1455,13 @@ impl<'a> HirLowering<'a> {
         // 当前 HIR lowering 仍以“单个 SourceFile 负责 span → 文本切片”为前提，因此当 span 不在
         // 当前文件范围内时，我们只能保守放弃该 hint，避免越界 panic。
         let span = ty.span();
-        if span.end > self.source.text().len() {
+        let text = self.source.text();
+        if span.end > text.len() {
+            return None;
+        }
+        // UTF-8 防线：跨文件 span（或内部 bug）可能导致 start/end 落在非字符边界上，
+        // 直接 slice 会 panic。这里同样保守放弃 hint。
+        if !text.is_char_boundary(span.start) || !text.is_char_boundary(span.end) {
             return None;
         }
 

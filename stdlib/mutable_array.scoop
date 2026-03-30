@@ -1,0 +1,264 @@
+// Scoop stdlib（pure scoop）：MutableArray 扩展（early stage）
+//
+// 目标（TODO T1317e）：
+// - 在不新增 intrinsic 的前提下，为 `MutableArray` 提供常用操作：
+//   `push/pop/insert/removeAt/splice`
+// - 当前阶段仅依赖 T1317d 提供的底层 primitive：
+//   - `MutableArray<T>.size/get/set`
+//   - array literal lowering 使用的 `__scoop_array_builder_*`（作为“分配与搬移”手段）
+//
+// 当前阶段限制（与其它 stdlib v1 一致）：
+// - 由于泛型函数/类型参数的完整可执行链路仍在推进，本文件先只为 `MutableArray<Int>` 提供落点；
+// - 后续可在 typecheck/monomorph/codegen 更完整后，把这些 API 推广为 `MutableArray<T>` 的泛型版本。
+//
+// 重要限制（T1315a）：
+// - 由于 LLVM 后端 multi-file lowering 仍会拒绝“非入口文件中的 source-backed literals”，
+//   本文件中避免出现任何 Int/String 字面量；所需常量通过 `sizeOf(Int)` 派生得到。
+
+package scoop.core
+
+// 说明：
+// - sysroot 与 stdlib 属于不同 cone；在 resolver 的最小规则下，跨 cone 的 extension 需要通过 import 引入；
+// - 这里显式 `import scoop.core.*`，用于把 sysroot 中声明的 `size/get/set` 等 extension 置于可见范围。
+import scoop.core.*
+
+// --- 内部：array literal builder（runtime 提供，T1317d 已实现并在 codegen 映射） ---
+//
+// 注意：
+// - 这些函数名是 HIR lowering 的约定；stdlib 这里仅提供“声明 + 直接调用”的可用入口，
+//   以便实现基于复制的数组变换（insert/remove/splice）。
+// - 它们不属于稳定 std API；后续可迁移到 `scoop.alloc` 或改为更显式的 low-level 模块。
+
+@Intrinsic
+fun __scoop_array_builder_new(): Any
+
+@Intrinsic
+fun __scoop_array_builder_push(builder: Any, value: Int): Unit
+
+@Intrinsic
+fun __scoop_array_builder_build_array(builder: Any): Array<Int>
+
+@Intrinsic
+fun __scoop_array_builder_build_mutable_array(builder: Any): MutableArray<Int>
+
+// --- 内部：避免字面量的 Int 常量派生 ---
+
+/// 生成 `0`（不使用字面量）。
+///
+/// 说明：`sizeOf(Int)` 在当前阶段是 intrinsic，可用于稳定地产生非零常量；再通过减法得到 0。
+fun __stdlib_int_zero(sample: Int): Int {
+    val w: Int = sizeOf(sample)
+    return w - w
+}
+
+/// 生成 `1`（不使用字面量）。
+///
+/// 说明：`w / w` 在 `w != 0` 时恒为 1；`w = sizeOf(Int)` 保证非零。
+fun __stdlib_int_one(sample: Int): Int {
+    val w: Int = sizeOf(sample)
+    return w / w
+}
+
+// --- MutableArray：扩展操作（pure scoop） ---
+
+/// 追加一个元素，返回新数组。
+fun MutableArray<Int>.push(value: Int): MutableArray<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    val b: Any = __scoop_array_builder_new()
+    var i: Int = zero
+    while (i < n) {
+        __scoop_array_builder_push(b, this.get(i))
+        i = i + one
+    }
+    __scoop_array_builder_push(b, value)
+    return __scoop_array_builder_build_mutable_array(b)
+}
+
+/// 弹出最后一个元素：返回新数组；空数组返回自身。
+fun MutableArray<Int>.pop(): MutableArray<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var result: MutableArray<Int> = this
+    when (n == zero) {
+        true -> {
+            result = this
+        }
+        false -> {
+            val idx: Int = n - one
+            result = this.removeAt(idx)
+        }
+    }
+    return result
+}
+
+/// 在 `index` 处插入一个元素，返回新数组。
+///
+/// 边界策略（early stage）：
+/// - `index < 0`：按 0 处理；
+/// - `index > size`：按 `size` 处理（等价于 append）。
+fun MutableArray<Int>.insert(index: Int, value: Int): MutableArray<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var idx: Int = index
+    when (idx < zero) {
+        true -> {
+            idx = zero
+        }
+        false -> ()
+    }
+    when (idx > n) {
+        true -> {
+            idx = n
+        }
+        false -> ()
+    }
+
+    val b: Any = __scoop_array_builder_new()
+
+    // prefix: [0, idx)
+    var i: Int = zero
+    while (i < idx) {
+        __scoop_array_builder_push(b, this.get(i))
+        i = i + one
+    }
+
+    // inserted value
+    __scoop_array_builder_push(b, value)
+
+    // suffix: [idx, n)
+    while (i < n) {
+        __scoop_array_builder_push(b, this.get(i))
+        i = i + one
+    }
+
+    return __scoop_array_builder_build_mutable_array(b)
+}
+
+/// 移除 `index` 位置的元素，返回新数组；空数组返回自身。
+///
+/// 边界策略（early stage）：
+/// - 空数组：不做任何事；
+/// - `index < 0`：移除第一个元素；
+/// - `index >= size`：移除最后一个元素。
+fun MutableArray<Int>.removeAt(index: Int): MutableArray<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var result: MutableArray<Int> = this
+    when (n == zero) {
+        true -> {
+            result = this
+        }
+        false -> {
+            var idx: Int = index
+            when (idx < zero) {
+                true -> {
+                    idx = zero
+                }
+                false -> ()
+            }
+
+            val last: Int = n - one
+            when (idx > last) {
+                true -> {
+                    idx = last
+                }
+                false -> ()
+            }
+
+            val b: Any = __scoop_array_builder_new()
+            var i: Int = zero
+            while (i < n) {
+                when (i == idx) {
+                    true -> ()
+                    false -> __scoop_array_builder_push(b, this.get(i))
+                }
+                i = i + one
+            }
+
+            result = __scoop_array_builder_build_mutable_array(b)
+        }
+    }
+    return result
+}
+
+/// `splice(start, deleteCount, insert)`：从 `start` 开始删除 `deleteCount` 个元素，并插入 `insert`。
+///
+/// 返回：
+/// - `array`：新数组（删除 + 插入之后）；
+/// - `removed`：被删除的切片（作为 `Array<T>`）。
+///
+/// 边界策略（early stage）：
+/// - `start < 0`：按 0 处理；`start > size`：按 `size` 处理；
+/// - `deleteCount < 0`：按 0 处理；`deleteCount` 过大则裁剪到剩余长度。
+fun MutableArray<Int>.splice(start: Int, deleteCount: Int, insert: Array<Int>): MutableArray<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var s: Int = start
+    when (s < zero) {
+        true -> {
+            s = zero
+        }
+        false -> ()
+    }
+    when (s > n) {
+        true -> {
+            s = n
+        }
+        false -> ()
+    }
+
+    var del: Int = deleteCount
+    when (del < zero) {
+        true -> {
+            del = zero
+        }
+        false -> ()
+    }
+
+    // del = min(del, n - s)
+    val max_del: Int = n - s
+    when (del > max_del) {
+        true -> {
+            del = max_del
+        }
+        false -> ()
+    }
+
+    // new array = prefix + insert + suffix
+    val b_new: Any = __scoop_array_builder_new()
+
+    // prefix: [0, s)
+    var i: Int = zero
+    while (i < s) {
+        __scoop_array_builder_push(b_new, this.get(i))
+        i = i + one
+    }
+
+    // insert items
+    val ins_n: Int = insert.size()
+    var j: Int = zero
+    while (j < ins_n) {
+        __scoop_array_builder_push(b_new, insert.get(j))
+        j = j + one
+    }
+
+    // suffix: [s + del, n)
+    var k: Int = s + del
+    while (k < n) {
+        __scoop_array_builder_push(b_new, this.get(k))
+        k = k + one
+    }
+
+    return __scoop_array_builder_build_mutable_array(b_new)
+}

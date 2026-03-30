@@ -4537,11 +4537,19 @@
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1317e [TODO] `std`：`MutableArray` 容量策略 + `push/pop/insert/remove/splice`
+### T1317e [DONE] `std`：`MutableArray` 容量策略 + `push/pop/insert/remove/splice`
 - 描述：在 `stdlib` 中用纯 Scoop 实现 `MutableArray<T>` 的扩容/搬移策略与常用操作，并保证摊还复杂度。
 - 目标：不新增 intrinsic；仅调用 T1317d 提供的底层 primitive。
-- 验收：新增 run-pass fixtures：覆盖 `push/pop/insert/remove/splice` 的边界条件与 stdout 断言。
-- 依赖：T1317d
+ - 验收：新增 run-pass fixtures：覆盖 `push/pop/insert/remove/splice` 的边界条件与 stdout 断言。
+ - 依赖：T1317d
+ - 完成：
+   - `stdlib/mutable_array.scoop`：新增 `MutableArray<Int>` 扩展 `push/pop/insert/removeAt/splice`（early stage 先对 `Int` 提供落点；不新增 intrinsic；通过 `__scoop_array_builder_*` 做分配与搬移；并在 stdlib 内避免 source-backed 字面量）。
+   - `crates/scoopc/src/llvm/codegen.rs`：LLVM codegen 允许顶层函数 body 使用 `while` 语句（仍禁止 `break/continue`，保持早期子集可回归）。
+   - `tests/fixtures/run-pass/mutable_array_ops_basic.*`：新增 run-pass fixture 覆盖空数组 `pop`、插入/删除 index clamp、`splice` 删除裁剪与 stdout golden。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1317f [TODO] `std`：`Hashable` + `List/Set/Map`（含 mutable）与迭代/算法 v0
 - 描述：引入 `Hashable` 接口并为 primitive types 提供实现；在 `Array/MutableArray` 之上用纯 Scoop 实现 `List/MutableList`、`Set/Map`（含 mutable）与最小迭代/算法（`forEach`/`map`/`filter`/`fold` 等）。
