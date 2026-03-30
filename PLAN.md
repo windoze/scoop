@@ -157,6 +157,7 @@
 - 2026-03-30：完成 T1316：新增 `STDLIB_DESIGN.md`，给出 `std` 分层（core/alloc/std/platform）、推荐模块树与 capability matrix，并说明各模块对 runtime/platform backends（含 GC backend）的依赖边界；同时在 `README.md` 增加入口链接。
 - 2026-03-30：将 `TODO.md` 中 T1317（std v1）拆分为 T1317a~T1317f，以保持“可单独实现 & 单独验证”的粒度；并完成 T1317a：sysroot 增加 `MutableArray<T>` 声明面，typecheck 支持数组字面量 `[...]` 在期望类型语境下推断为 `Array<T>` / `MutableArray<T>`，新增 typecheck fixture 回归覆盖。
 - 2026-03-30：完成 T1317b：在 sysroot 中补齐 `Array<T>` / `MutableArray<T>` 的最小公开 API 声明（`size/get/set`），并新增 typecheck fixture 回归覆盖。
+- 2026-03-30：完成 T1317c：HIR lowering 支持数组字面量 `[...]`，降为统一的 builder/intrinsics 调用形态，并新增 `tests/fixtures/hir/array_lit_lowering.*` golden 回归覆盖 `Array`/`MutableArray`（含空数组与 call args）。
 - 2026-03-30：完成 T0920：`ScoopTypeDescriptor` 增加可选 `release_fn`，GC sweep 回收对象时在 `free` 前回调一次（用于 FFI-managed 资源释放）；新增 `scoop_runtime` 集成测试回归“仅调用一次”语义。
 - 2026-03-25：完成 T0815：生成的 `i32 @main()` 在执行 Scoop `fun main` 前调用 `scoop_runtime_init()`，并更新 LLVM 单测断言 IR 含该调用。
 - 2026-03-25：完成 T0901：补齐 C runtime 的 `scoop_runtime_init`（一次初始化标记 + 可选 debug 日志），并新增 `scoop_runtime` 集成测试覆盖可调用性与可观察状态。

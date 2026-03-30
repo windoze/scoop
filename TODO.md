@@ -4498,11 +4498,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1317c [TODO] HIR：数组字面量 lowering（`[...]` → builder/intrinsics 调用）
+### T1317c [DONE] HIR：数组字面量 lowering（`[...]` → builder/intrinsics 调用）
 - 描述：为 `[...]` 增加 HIR lowering，把语法糖降到统一的 builder/intrinsic 调用形态，便于后端接入。
 - 目标：只落地 lowering 与 `.hir` golden 回归；不要求可执行。
 - 验收：新增 `tests/fixtures/hir/*` golden 覆盖 `Array`/`MutableArray` 的 `[...]` lowering 输出稳定。
 - 依赖：T1317b
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：为 `ExprKind::ArrayLit` 增加 expected-type hint（Array vs MutableArray），并 lowering 为统一的 builder/intrinsics block 调用形态。
+   - fixtures：新增 `tests/fixtures/hir/array_lit_lowering.scoop` + `tests/fixtures/hir/array_lit_lowering.hir`，覆盖：
+     - `val xs: Array<Int> = [...]`
+     - `val ys: MutableArray<Int> = [...]`
+     - `takesArray([...])` / `takesMutableArray([...])`
+     - `[]` 空数组字面量在两类期望类型下的 lowering
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1317d [TODO] runtime/codegen：`Array`/`MutableArray` 最小运行期 primitive（alloc/len/get/set）
 - 描述：实现 `Array/MutableArray` 的最小运行期表示与必要 intrinsic（分配、长度、读写），并让 LLVM codegen 能生成可执行代码。

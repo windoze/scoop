@@ -232,11 +232,34 @@ struct HirLowering<'a> {
     type_param_scopes: Vec<HashMap<String, TypeId>>,
 }
 
+/// `[...]` 数组字面量在 lowering 阶段需要知道“期望的容器类型”。
+///
+/// 说明：
+/// - Scoop 的数组字面量仅在“有明确期望类型”的语境下成立（见 TODO T1317a）；
+/// - `dump-hir`/HIR fixtures 当前不运行完整 typecheck，因此这里用一个极小的 hint
+///   从“语法层面的类型注解/函数签名”向下传播到 `ExprKind::ArrayLit`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ArrayLitTarget {
+    Array,
+    MutableArray,
+}
+
+/// lowering 期间的“期望类型 hint”（仅覆盖当前需要的数组字面量目标类型）。
+#[derive(Debug, Clone, Copy, Default)]
+struct ExpectedExpr {
+    array_lit_target: Option<ArrayLitTarget>,
+}
+
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
     const TASK_SPAWN_INT_FQN: &'static str = "scoop.core.__scoop_task_spawn_int";
     const TASK_JOIN_INT_FQN: &'static str = "scoop.core.__scoop_task_join_int";
     const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
+    const ARRAY_BUILDER_NEW_FQN: &'static str = "scoop.core.__scoop_array_builder_new";
+    const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
+    const ARRAY_BUILDER_BUILD_ARRAY_FQN: &'static str = "scoop.core.__scoop_array_builder_build_array";
+    const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &'static str =
+        "scoop.core.__scoop_array_builder_build_mutable_array";
 
     fn new(
         source: &'a SourceFile,
@@ -643,7 +666,17 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
-        let init = v.init.as_ref().map(|e| self.lower_expr(pkg_prefix, e));
+        // T1317c：数组字面量 `[...]` 的 lowering 依赖“期望的容器类型”（Array vs MutableArray）。
+        // 这里从显式的类型注解（若存在）向 initializer 传播该 hint。
+        let init_expected = ExpectedExpr {
+            array_lit_target: v.ty
+                .as_ref()
+                .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+        };
+        let init = v
+            .init
+            .as_ref()
+            .map(|e| self.lower_expr_with_expected(pkg_prefix, e, init_expected));
 
         let declared_ty = v.ty.as_ref().map(|t| self.lower_type_ref(t));
 
@@ -906,6 +939,19 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
+        self.lower_expr_with_expected(pkg_prefix, e, ExpectedExpr::default())
+    }
+
+    /// lowering 表达式并携带“期望类型 hint”。
+    ///
+    /// 注意：该 hint 仅用于把 `[...]` 降到稳定的 builder/intrinsics 调用形态（TODO T1317c），
+    /// 不等价于完整 typecheck 的 expected-type 推断。
+    fn lower_expr_with_expected(
+        &mut self,
+        pkg_prefix: &str,
+        e: &ast::Expr,
+        expected: ExpectedExpr,
+    ) -> Expr {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
@@ -913,7 +959,10 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
-            ast::ExprKind::ArrayLit { .. } => (ExprKind::Todo("array_lit"), self.builtins.any),
+            ast::ExprKind::ArrayLit { elements } => match expected.array_lit_target {
+                Some(target) => self.lower_array_lit_expr(pkg_prefix, e.span, elements, target),
+                None => (ExprKind::Todo("array_lit"), self.builtins.any),
+            },
             ast::ExprKind::ClassLit { .. } => (ExprKind::Todo("class_lit"), self.builtins.string),
             ast::ExprKind::InterpolatedString { raw, parts } => {
                 let parts = parts
@@ -976,12 +1025,29 @@ impl<'a> HirLowering<'a> {
                         return None;
                     };
 
-                    let receiver = self.lower_expr(pkg_prefix, receiver);
+                    let sig = self.fun_sig_by_fqn(fqn);
+                    let receiver_expected = ExpectedExpr {
+                        array_lit_target: sig
+                            .as_ref()
+                            .and_then(|sig| sig.receiver.as_ref())
+                            .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+                    };
+                    let receiver =
+                        self.lower_expr_with_expected(pkg_prefix, receiver, receiver_expected);
 
                     let mut lowered_args = Vec::with_capacity(args.len() + 1);
                     lowered_args.push(CallArg::Positional(receiver));
+                    let sig = sig;
+                    let mut positional_index = 0usize;
                     for arg in args {
-                        lowered_args.push(self.lower_call_arg(pkg_prefix, arg));
+                        let expected =
+                            self.expected_expr_for_fun_call_arg(sig.as_ref(), arg, positional_index);
+                        if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
+                            positional_index = positional_index.saturating_add(1);
+                        }
+                        lowered_args.push(self.lower_call_arg_with_expected(
+                            pkg_prefix, arg, expected,
+                        ));
                     }
 
                     let callee = Expr {
@@ -1035,12 +1101,28 @@ impl<'a> HirLowering<'a> {
                         }
                     }
 
+                    let callee_fqn = self.callee_top_level_fqn(callee);
+                    let sig = callee_fqn.and_then(|fqn| self.fun_sig_by_fqn(fqn));
                     let callee = Box::new(self.lower_expr(pkg_prefix, callee));
-                    let args = args
-                        .iter()
-                        .map(|arg| self.lower_call_arg(pkg_prefix, arg))
-                        .collect();
-                    (ExprKind::Call { callee, args }, self.builtins.any)
+                    let mut positional_index = 0usize;
+                    let mut lowered_args: Vec<CallArg> = Vec::with_capacity(args.len());
+                    for arg in args {
+                        let expected =
+                            self.expected_expr_for_fun_call_arg(sig.as_ref(), arg, positional_index);
+                        if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
+                            positional_index = positional_index.saturating_add(1);
+                        }
+                        lowered_args.push(self.lower_call_arg_with_expected(
+                            pkg_prefix, arg, expected,
+                        ));
+                    }
+                    (
+                        ExprKind::Call {
+                            callee,
+                            args: lowered_args,
+                        },
+                        self.builtins.any,
+                    )
                 }
             }
             // Appendix B.5.5：spread 仅在调用实参语境下有意义；HIR v0 暂不承载该语义。
@@ -1357,6 +1439,227 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    /// 从一个 `TypeRef` 判定数组字面量的目标容器类型（Array vs MutableArray）。
+    fn array_lit_target_from_type_ref(&self, ty: &ast::TypeRef) -> Option<ArrayLitTarget> {
+        let fqn = self
+            .index
+            .type_ref_to_fqn_in_file(self.source, self.file, ty)?;
+        match fqn.as_str() {
+            "scoop.core.Array" => Some(ArrayLitTarget::Array),
+            "scoop.core.MutableArray" => Some(ArrayLitTarget::MutableArray),
+            _ => None,
+        }
+    }
+
+    /// 根据 FQN 获取函数签名（用于从函数参数类型向下传播 expected-type hint）。
+    fn fun_sig_by_fqn(&self, fqn: &str) -> Option<crate::resolve::FunSig> {
+        let syms = self.index.by_fqn.get(fqn)?;
+        let overload = syms.fun.first()?;
+        Some(overload.sig.clone())
+    }
+
+    /// 尝试从 callee 表达式中提取“顶层函数 FQN”（用于向实参传播期望类型）。
+    fn callee_top_level_fqn<'b>(&self, callee: &'b ast::Expr) -> Option<&'b str> {
+        // `callee<T>()`：HIR v0 把 `TypeApply` 视为 callee 的透明包装。
+        let callee = match &callee.kind {
+            ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
+            _ => callee,
+        };
+        let ast::ExprKind::Ident(id) = &callee.kind else {
+            return None;
+        };
+        let ast::ResolvedValueRef::TopLevel { fqn } = id.resolved.as_ref()? else {
+            return None;
+        };
+        Some(fqn.as_str())
+    }
+
+    /// 为一次函数调用的某个实参计算 expected-type hint（目前仅用于数组字面量）。
+    fn expected_expr_for_fun_call_arg(
+        &self,
+        sig: Option<&crate::resolve::FunSig>,
+        arg: &ast::Expr,
+        positional_index: usize,
+    ) -> ExpectedExpr {
+        let array_lit_target = match (sig, &arg.kind) {
+            (Some(sig), ast::ExprKind::NamedArg { name, .. }) => {
+                let name = name.text(self.source);
+                sig.params
+                    .iter()
+                    .find(|p| p.name == name)
+                    .and_then(|p| p.ty.as_ref())
+                    .and_then(|ty| self.array_lit_target_from_type_ref(ty))
+            }
+            (Some(sig), _) => sig
+                .params
+                .get(positional_index)
+                .and_then(|p| p.ty.as_ref())
+                .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+            _ => None,
+        };
+
+        ExpectedExpr { array_lit_target }
+    }
+
+    /// 将 `[...]` 降到统一的 builder/intrinsics 调用形态（TODO T1317c）。
+    ///
+    /// 形态（概念上）：
+    /// ```text
+    /// [e0, e1, e2]
+    /// =>
+    /// {
+    ///   val __array_builder = __scoop_array_builder_new()
+    ///   __scoop_array_builder_push(__array_builder, e0)
+    ///   __scoop_array_builder_push(__array_builder, e1)
+    ///   __scoop_array_builder_push(__array_builder, e2)
+    ///   __scoop_array_builder_build_array(__array_builder) // or build_mutable_array
+    /// }
+    /// ```
+    fn lower_array_lit_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        elements: &[ast::Expr],
+        target: ArrayLitTarget,
+    ) -> (ExprKind, TypeId) {
+        // 说明：HIR v0 的 `LiteralKind::Int` 依赖 span 回切解析数值，因此这里避免生成
+        // “需要携带长度/索引常量”的形态，改用 push-based builder 语义承载元素顺序。
+        let builder_decl_span = Span::new(span.start, span.start);
+        let builder_id = self.intern_local_symbol(builder_decl_span, false);
+        let builder_name = "__array_builder".to_string();
+
+        let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
+        let new_callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(new_fqn.clone()),
+                fqn: new_fqn,
+            }),
+        };
+        let new_call = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(new_callee),
+                args: Vec::new(),
+            },
+        };
+
+        let builder_decl = ValDecl {
+            span,
+            id: Some(builder_id),
+            name: Some(builder_name.clone()),
+            mutable: false,
+            ty: self.builtins.any,
+            init: Some(new_call),
+        };
+
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(elements.len() + 2);
+        stmts.push(Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(builder_decl),
+        });
+
+        for element in elements {
+            let element_expr = self.lower_expr(pkg_prefix, element);
+            let builder_ref = Expr {
+                span: builder_decl_span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id: builder_id,
+                    name: builder_name.clone(),
+                    decl_span: builder_decl_span,
+                }),
+            };
+
+            let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
+            let push_callee = Expr {
+                span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::TopLevel {
+                    id: self.symbols.intern_top_level(push_fqn.clone()),
+                    fqn: push_fqn,
+                }),
+            };
+            let push_call = Expr {
+                span,
+                ty: self.builtins.unit,
+                kind: ExprKind::Call {
+                    callee: Box::new(push_callee),
+                    args: vec![CallArg::Positional(builder_ref), CallArg::Positional(element_expr)],
+                },
+            };
+            stmts.push(Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Expr(push_call),
+            });
+        }
+
+        let build_fqn = match target {
+            ArrayLitTarget::Array => Self::ARRAY_BUILDER_BUILD_ARRAY_FQN,
+            ArrayLitTarget::MutableArray => Self::ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN,
+        }
+        .to_string();
+        let build_callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(build_fqn.clone()),
+                fqn: build_fqn,
+            }),
+        };
+        let builder_ref = Expr {
+            span: builder_decl_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: builder_id,
+                name: builder_name,
+                decl_span: builder_decl_span,
+            }),
+        };
+        let build_call = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(build_callee),
+                args: vec![CallArg::Positional(builder_ref)],
+            },
+        };
+        stmts.push(Stmt {
+            span,
+            ty: build_call.ty,
+            kind: StmtKind::Expr(build_call),
+        });
+
+        (
+            ExprKind::Block(Block {
+                span,
+                ty: self.builtins.any,
+                stmts,
+            }),
+            self.builtins.any,
+        )
+    }
+
+    fn lower_call_arg_with_expected(
+        &mut self,
+        pkg_prefix: &str,
+        arg: &ast::Expr,
+        expected: ExpectedExpr,
+    ) -> CallArg {
+        match &arg.kind {
+            ast::ExprKind::NamedArg { name, value, .. } => CallArg::Named {
+                name: name.text(self.source).to_string(),
+                name_span: name.span,
+                value: self.lower_expr_with_expected(pkg_prefix, value, expected),
+            },
+            _ => CallArg::Positional(self.lower_expr_with_expected(pkg_prefix, arg, expected)),
         }
     }
 

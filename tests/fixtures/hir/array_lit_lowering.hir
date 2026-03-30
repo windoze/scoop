@@ -1,0 +1,1438 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 43..82,
+                fqn: "fixtures.hir.takesArray",
+                name: "takesArray",
+                ty: TypeId(
+                    8,
+                ),
+                params: [
+                    Param {
+                        span: 58..60,
+                        id: S0,
+                        name: "xs",
+                        ty: TypeId(
+                            7,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Block {
+                        span: 80..82,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 83..136,
+                fqn: "fixtures.hir.takesMutableArray",
+                name: "takesMutableArray",
+                ty: TypeId(
+                    10,
+                ),
+                params: [
+                    Param {
+                        span: 105..107,
+                        id: S1,
+                        name: "xs",
+                        ty: TypeId(
+                            9,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Block {
+                        span: 134..136,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 138..342,
+                fqn: "fixtures.hir.main",
+                name: "main",
+                ty: TypeId(
+                    11,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    0,
+                ),
+                body: Some(
+                    Block {
+                        span: 149..342,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 153..182,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 153..182,
+                                        id: Some(
+                                            S6,
+                                        ),
+                                        name: Some(
+                                            "a",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            7,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 173..182,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Block(
+                                                    Block {
+                                                        span: 173..182,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 173..182,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 173..182,
+                                                                        id: Some(
+                                                                            S2,
+                                                                        ),
+                                                                        name: Some(
+                                                                            "__array_builder",
+                                                                        ),
+                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 173..182,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 173..182,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S3,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 173..182,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 173..182,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 173..182,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S4,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 173..173,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S2,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 173..173,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 174..175,
+                                                                                        ty: TypeId(
+                                                                                            5,
+                                                                                        ),
+                                                                                        kind: Literal(
+                                                                                            Int,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 173..182,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 173..182,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 173..182,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S4,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 173..173,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S2,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 173..173,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 177..178,
+                                                                                        ty: TypeId(
+                                                                                            5,
+                                                                                        ),
+                                                                                        kind: Literal(
+                                                                                            Int,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 173..182,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 173..182,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 173..182,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S4,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 173..173,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S2,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 173..173,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 180..181,
+                                                                                        ty: TypeId(
+                                                                                            5,
+                                                                                        ),
+                                                                                        kind: Literal(
+                                                                                            Int,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 173..182,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 173..182,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 173..182,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S5,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 173..173,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S2,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 173..173,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 185..218,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 185..218,
+                                        id: Some(
+                                            S9,
+                                        ),
+                                        name: Some(
+                                            "b",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            9,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 212..218,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Block(
+                                                    Block {
+                                                        span: 212..218,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 212..218,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 212..218,
+                                                                        id: Some(
+                                                                            S7,
+                                                                        ),
+                                                                        name: Some(
+                                                                            "__array_builder",
+                                                                        ),
+                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 212..218,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 212..218,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S3,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 212..218,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 212..218,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 212..218,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S4,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 212..212,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S7,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 212..212,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 213..214,
+                                                                                        ty: TypeId(
+                                                                                            5,
+                                                                                        ),
+                                                                                        kind: Literal(
+                                                                                            Int,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 212..218,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 212..218,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 212..218,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S4,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 212..212,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S7,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 212..212,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 216..217,
+                                                                                        ty: TypeId(
+                                                                                            5,
+                                                                                        ),
+                                                                                        kind: Literal(
+                                                                                            Int,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 212..218,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 212..218,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 212..218,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S8,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 212..212,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S7,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 212..212,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 222..240,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 222..240,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 222..232,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    TopLevel {
+                                                        id: S10,
+                                                        fqn: "fixtures.hir.takesArray",
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 233..239,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Block(
+                                                            Block {
+                                                                span: 233..239,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                stmts: [
+                                                                    Stmt {
+                                                                        span: 233..239,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Val(
+                                                                            ValDecl {
+                                                                                span: 233..239,
+                                                                                id: Some(
+                                                                                    S11,
+                                                                                ),
+                                                                                name: Some(
+                                                                                    "__array_builder",
+                                                                                ),
+                                                                                mutable: false,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                init: Some(
+                                                                                    Expr {
+                                                                                        span: 233..239,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: Call {
+                                                                                            callee: Expr {
+                                                                                                span: 233..239,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    TopLevel {
+                                                                                                        id: S3,
+                                                                                                        fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                            args: [],
+                                                                                        },
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 233..239,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 233..239,
+                                                                                ty: TypeId(
+                                                                                    2,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 233..239,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S4,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 233..233,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S11,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 233..233,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 234..235,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
+                                                                                                kind: Literal(
+                                                                                                    Int,
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 233..239,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 233..239,
+                                                                                ty: TypeId(
+                                                                                    2,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 233..239,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S4,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 233..233,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S11,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 233..233,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 237..238,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
+                                                                                                kind: Literal(
+                                                                                                    Int,
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 233..239,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 233..239,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 233..239,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S5,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 233..233,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S11,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 233..233,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 243..272,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Expr(
+                                    Expr {
+                                        span: 243..272,
+                                        ty: TypeId(
+                                            0,
+                                        ),
+                                        kind: Call {
+                                            callee: Expr {
+                                                span: 243..260,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: VarRef(
+                                                    TopLevel {
+                                                        id: S12,
+                                                        fqn: "fixtures.hir.takesMutableArray",
+                                                    },
+                                                ),
+                                            },
+                                            args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 261..271,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        kind: Block(
+                                                            Block {
+                                                                span: 261..271,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                stmts: [
+                                                                    Stmt {
+                                                                        span: 261..271,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Val(
+                                                                            ValDecl {
+                                                                                span: 261..271,
+                                                                                id: Some(
+                                                                                    S13,
+                                                                                ),
+                                                                                name: Some(
+                                                                                    "__array_builder",
+                                                                                ),
+                                                                                mutable: false,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                init: Some(
+                                                                                    Expr {
+                                                                                        span: 261..271,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: Call {
+                                                                                            callee: Expr {
+                                                                                                span: 261..271,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    TopLevel {
+                                                                                                        id: S3,
+                                                                                                        fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                            args: [],
+                                                                                        },
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 261..271,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 261..271,
+                                                                                ty: TypeId(
+                                                                                    2,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 261..271,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S4,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 261..261,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S13,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 261..261,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 262..263,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
+                                                                                                kind: Literal(
+                                                                                                    Int,
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 261..271,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 261..271,
+                                                                                ty: TypeId(
+                                                                                    2,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 261..271,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S4,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 261..261,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S13,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 261..261,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 265..266,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
+                                                                                                kind: Literal(
+                                                                                                    Int,
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 261..271,
+                                                                        ty: TypeId(
+                                                                            2,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 261..271,
+                                                                                ty: TypeId(
+                                                                                    2,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 261..271,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S4,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 261..261,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S13,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 261..261,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 268..270,
+                                                                                                ty: TypeId(
+                                                                                                    5,
+                                                                                                ),
+                                                                                                kind: Literal(
+                                                                                                    Int,
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                    Stmt {
+                                                                        span: 261..271,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Expr(
+                                                                            Expr {
+                                                                                span: 261..271,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 261..271,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S8,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 261..261,
+                                                                                                ty: TypeId(
+                                                                                                    0,
+                                                                                                ),
+                                                                                                kind: VarRef(
+                                                                                                    Local {
+                                                                                                        id: S13,
+                                                                                                        name: "__array_builder",
+                                                                                                        decl_span: 261..261,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ),
+                                                    },
+                                                ),
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 276..303,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 276..303,
+                                        id: Some(
+                                            S15,
+                                        ),
+                                        name: Some(
+                                            "emptyA",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            7,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 301..303,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Block(
+                                                    Block {
+                                                        span: 301..303,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 301..303,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 301..303,
+                                                                        id: Some(
+                                                                            S14,
+                                                                        ),
+                                                                        name: Some(
+                                                                            "__array_builder",
+                                                                        ),
+                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 301..303,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 301..303,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S3,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 301..303,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 301..303,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 301..303,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S5,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 301..301,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S14,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 301..301,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 306..340,
+                                ty: TypeId(
+                                    2,
+                                ),
+                                kind: Val(
+                                    ValDecl {
+                                        span: 306..340,
+                                        id: Some(
+                                            S17,
+                                        ),
+                                        name: Some(
+                                            "emptyB",
+                                        ),
+                                        mutable: false,
+                                        ty: TypeId(
+                                            9,
+                                        ),
+                                        init: Some(
+                                            Expr {
+                                                span: 338..340,
+                                                ty: TypeId(
+                                                    0,
+                                                ),
+                                                kind: Block(
+                                                    Block {
+                                                        span: 338..340,
+                                                        ty: TypeId(
+                                                            0,
+                                                        ),
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 338..340,
+                                                                ty: TypeId(
+                                                                    2,
+                                                                ),
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 338..340,
+                                                                        id: Some(
+                                                                            S16,
+                                                                        ),
+                                                                        name: Some(
+                                                                            "__array_builder",
+                                                                        ),
+                                                                        mutable: false,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 338..340,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: Call {
+                                                                                    callee: Expr {
+                                                                                        span: 338..340,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            TopLevel {
+                                                                                                id: S3,
+                                                                                                fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                    args: [],
+                                                                                },
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 338..340,
+                                                                ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 338..340,
+                                                                        ty: TypeId(
+                                                                            0,
+                                                                        ),
+                                                                        kind: Call {
+                                                                            callee: Expr {
+                                                                                span: 338..340,
+                                                                                ty: TypeId(
+                                                                                    0,
+                                                                                ),
+                                                                                kind: VarRef(
+                                                                                    TopLevel {
+                                                                                        id: S8,
+                                                                                        fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
+                                                                                    },
+                                                                                ),
+                                                                            },
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 338..338,
+                                                                                        ty: TypeId(
+                                                                                            0,
+                                                                                        ),
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                id: S16,
+                                                                                                name: "__array_builder",
+                                                                                                decl_span: 338..338,
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

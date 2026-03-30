@@ -1,0 +1,18 @@
+package fixtures.hir
+
+import scoop.core.*
+
+fun takesArray(xs: Array<Int>): Unit {}
+fun takesMutableArray(xs: MutableArray<Int>): Unit {}
+
+fun main() {
+  val a: Array<Int> = [1, 2, 3]
+  val b: MutableArray<Int> = [4, 5]
+
+  takesArray([6, 7])
+  takesMutableArray([8, 9, 10])
+
+  val emptyA: Array<Int> = []
+  val emptyB: MutableArray<Int> = []
+}
+
