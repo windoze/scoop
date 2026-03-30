@@ -296,6 +296,16 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("数组字面量元素类型不匹配：第 {index} 个元素期望 {expected}，但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::array_lit_element_type_mismatch))]
+    ArrayLitElementTypeMismatch {
+        index: usize,
+        expected: String,
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error(
         "if 分支类型不匹配（{branch}）：期望 {expected}，但得到 {found}（约束来源：{expected_from}）"
     )]
@@ -4740,6 +4750,70 @@ fn infer_expr_type_in_expected_context(
         )? {
             return Ok(ty);
         }
+    }
+
+    // T1317a：数组字面量 `[...]` 仅在“有期望类型”的语境下生效：
+    // - `Array<T>` / `MutableArray<T>` 作为两种候选；
+    // - 若期望类型不是上述两者，则回退到常规推导路径，让现有 `unsupported_expr` 诊断保持稳定。
+    if let ast::ExprKind::ArrayLit { elements } = &expr.kind {
+        let expected_from_desc = expected_from.desc.clone();
+        let element_expected_from = ExpectedTypeFrom::new(format!(
+            "数组字面量的元素类型（约束来源：{expected_from_desc}）"
+        ));
+
+        let element_ty = match lower.type_kind(expected_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(n))
+                if (n.fqn == "scoop.core.Array" || n.fqn == "scoop.core.MutableArray")
+                    && n.args.len() == 1 =>
+            {
+                n.args[0]
+            }
+            _ => {
+                return infer_expr_type(
+                    source,
+                    expr,
+                    lower,
+                    builtins,
+                    locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                );
+            }
+        };
+
+        for (index, element) in elements.iter().enumerate() {
+            let found_ty = infer_expr_type_in_expected_context(
+                source,
+                element,
+                element_ty,
+                element_expected_from.clone(),
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+
+            if is_type_assignable(found_ty, element_ty, lower, builtins) {
+                continue;
+            }
+
+            // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
+            if matches!(element.kind, ast::ExprKind::IntLit) && is_integer_type(element_ty, lower, builtins) {
+                continue;
+            }
+
+            return Err(ExprTypeError::ArrayLitElementTypeMismatch {
+                index: index + 1,
+                expected: lower.fmt_type(element_ty),
+                found: lower.fmt_type(found_ty),
+                span: element.span.into(),
+            });
+        }
+
+        return Ok(expected_ty);
     }
 
     // T0510：分支类型不一致时，把推断失败精确映射到具体分支表达式。

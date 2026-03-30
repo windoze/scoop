@@ -22,6 +22,12 @@ class String
 // - 当前阶段主要用于注解参数（spec §15.2 / TODO T1019）中表达 `Array<T>`；
 // - 运行期布局/索引/分配等语义由后续标准库与 runtime/codegen 任务补齐。
 class Array<T>
+// 可变泛型数组类型（runtime 表面）。
+//
+// 说明：
+// - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
+// - 当前阶段先补齐声明面，具体分配/索引/扩容语义由后续 std/runtime/codegen 任务逐步补齐。
+class MutableArray<T>
 // 编译期列表（spec §6.4）。
 //
 // 说明：

@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：T1317a 数组字面量 `[...]`：在期望类型语境下可推断为 `Array<T>` / `MutableArray<T>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun takesArray(xs: Array<Int>): Unit { () }
+fun takesMutableArray(xs: MutableArray<Int>): Unit { () }
+
+val xs: Array<Int> = [1, 2, 3]
+val ys: MutableArray<Int> = [1, 2, 3]
+val empty: Array<Int> = []
+
+fun f(): Unit {
+    takesArray([1, 2])
+    takesMutableArray([1, 2])
+    ()
+}
+

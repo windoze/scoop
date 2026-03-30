@@ -4437,7 +4437,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1317 [TODO] `std` v1：collections / iterators / text / algorithms
+### T1317 [DONE] `std` v1：collections / iterators / text / algorithms（已拆分为子任务：T1317a~T1317f）
 - 描述：实现全量 `std` 的第一层基础模块，重点先把 **collections 与 iterators** 的核心形态固定下来：以 `Array<T>` / `MutableArray<T>` 为唯一集合底座，并在其上用纯 Scoop 构建 `List/Set/Map` 等。
 - 目标：
   - **最小 intrinsics**：除 `Array/MutableArray` 的必要底层 primitive 外，`List/Set/Map`（含 mutable）不新增 intrinsic；除“绝对必要”的底层 primitive 外，其它方法与操作都用 Scoop 实现（保持语义一致、便于维护）。
@@ -4466,6 +4466,55 @@
   - 迭代（`for` 协议）与从 iterable 构造；
   - `Hashable` 在 primitive 上可用，且 `Set/Map`（含 mutable）在“无新增 intrinsics”的前提下可运行。
 - 依赖：T1316、T1315
+
+> 备注：该任务范围过大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，已拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1317a [DONE] typecheck：数组字面量按 expected type 推断为 `Array<T>` / `MutableArray<T>`
+- 描述：补齐 sysroot `MutableArray<T>` 声明，并在表达式 typecheck 中支持 `[...]` 在**期望类型语境**下推断为 `Array<T>` 或 `MutableArray<T>`。
+- 目标：仅覆盖 sysroot 声明面 + typecheck；不引入 HIR lowering/codegen/runtime；不要求 `val xs = [...]`（无类型注解）可推断通过。
+- 验收：新增 typecheck fixture 覆盖：
+  - `val xs: Array<Int> = [1, 2, 3]` / `val ys: MutableArray<Int> = [1, 2, 3]`
+  - `takesArray([1, 2])` 这类“实参位置的期望类型推断”
+  - `[]` 空数组字面量在期望类型语境可用
+  - 回归：`cargo test --all`、`cargo run -p scoop -- test`
+- 依赖：T1316、T1315
+ - 完成：
+   - `sysroot/core.scoop`：新增 `class MutableArray<T>` 声明面。
+   - `crates/scoopc/src/typecheck/expr.rs`：在 expected type 语境下为 `[...]` 增加 `Array<T>`/`MutableArray<T>` 推断与元素可赋值检查。
+   - fixtures：新增 `tests/fixtures/typecheck/array_lit_expected_type_array_and_mutable_array_ok.scoop` 覆盖 initializer 与 call args 两类位置。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+
+### T1317b [TODO] sysroot/stdlib：补齐 `Array`/`MutableArray` API surface（只声明）
+- 描述：在 sysroot/stdlib 中补齐 `Array<T>`/`MutableArray<T>` 的最小公开 API 声明（`get/size` 与 `set` 等），为后续 lowering/codegen 统一接口落点。
+- 目标：只做“类型与签名表面”；不实现运行期语义。
+- 验收：新增 typecheck fixtures：对最小 API 的引用可解析、可类型检查（不要求 run-pass）。
+- 依赖：T1317a
+
+### T1317c [TODO] HIR：数组字面量 lowering（`[...]` → builder/intrinsics 调用）
+- 描述：为 `[...]` 增加 HIR lowering，把语法糖降到统一的 builder/intrinsic 调用形态，便于后端接入。
+- 目标：只落地 lowering 与 `.hir` golden 回归；不要求可执行。
+- 验收：新增 `tests/fixtures/hir/*` golden 覆盖 `Array`/`MutableArray` 的 `[...]` lowering 输出稳定。
+- 依赖：T1317b
+
+### T1317d [TODO] runtime/codegen：`Array`/`MutableArray` 最小运行期 primitive（alloc/len/get/set）
+- 描述：实现 `Array/MutableArray` 的最小运行期表示与必要 intrinsic（分配、长度、读写），并让 LLVM codegen 能生成可执行代码。
+- 目标：intrinsic 只做 buffer 分配/搬移/长度查询等底层 primitive；策略与边界条件尽量留给 stdlib 纯 Scoop 实现。
+- 验收：新增 run-pass fixtures：覆盖 `get/set/size` 的最小可观测语义；`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1317c、T1017
+
+### T1317e [TODO] `std`：`MutableArray` 容量策略 + `push/pop/insert/remove/splice`
+- 描述：在 `stdlib` 中用纯 Scoop 实现 `MutableArray<T>` 的扩容/搬移策略与常用操作，并保证摊还复杂度。
+- 目标：不新增 intrinsic；仅调用 T1317d 提供的底层 primitive。
+- 验收：新增 run-pass fixtures：覆盖 `push/pop/insert/remove/splice` 的边界条件与 stdout 断言。
+- 依赖：T1317d
+
+### T1317f [TODO] `std`：`Hashable` + `List/Set/Map`（含 mutable）与迭代/算法 v0
+- 描述：引入 `Hashable` 接口并为 primitive types 提供实现；在 `Array/MutableArray` 之上用纯 Scoop 实现 `List/MutableList`、`Set/Map`（含 mutable）与最小迭代/算法（`forEach`/`map`/`filter`/`fold` 等）。
+- 目标：不新增 intrinsic；以语义正确与可回归为主，性能优化后置。
+- 验收：新增 compile+run-pass fixtures：`Hashable` 可用、`Set/Map` 可运行、迭代与最小算法在 host 平台可回归。
+- 依赖：T1317e
 
 ### T1318 [TODO] `std` v2：io / fs / path / process / env / time
 - 描述：实现标准库的系统接口层：文件系统、路径、进程、环境变量、时钟/时间、基础 I/O 抽象。
