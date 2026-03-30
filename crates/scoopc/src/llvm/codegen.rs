@@ -26,6 +26,7 @@ use inkwell::module::Linkage;
 use inkwell::module::Module;
 use inkwell::targets::TargetData;
 use inkwell::types::BasicMetadataTypeEnum;
+use inkwell::types::BasicType;
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::IntType;
 use inkwell::types::StructType;
@@ -393,7 +394,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(crate) fn declare_top_level_fun(
-        &self,
+        &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let llvm_name = self
@@ -421,22 +422,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let fn_ty = match return_cg {
             CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
-            CgTy::Bool => self.context.bool_type().fn_type(&llvm_params, false),
-            CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_params, false),
-            CgTy::String => self
-                .llvm_scoop_string_ptr_type()
-                .fn_type(&llvm_params, false),
-            CgTy::Ref => self
-                .context
-                .i8_type()
-                .ptr_type(AddressSpace::default())
-                .fn_type(&llvm_params, false),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function return type",
-                    at: fun.span.into(),
-                });
-            }
+            other => self.llvm_basic_type_of(fun.span, other)?.fn_type(&llvm_params, false),
         };
 
         let linkage = if self.extern_funs.contains_key(&fun.fqn) {
@@ -1203,6 +1189,90 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: lhs.span.into(),
             }),
         }
+    }
+
+    fn codegen_block_stmt(&mut self, block: &hir::Block) -> Result<(), LlvmEmitError> {
+        self.env.push_scope();
+
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => self.codegen_val_decl(decl)?,
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let _ = self.codegen_expr(expr)?;
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                }
+                // 当前阶段（expr-based codegen）不支持在 block/loop 内部使用 `return/break/continue`：
+                // 这需要 function-level CFG/MIR codegen（见 PLAN §8）。
+                hir::StmtKind::Return { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
+        self.env.pop_scope();
+        Ok(())
+    }
+
+    fn codegen_while_stmt(
+        &mut self,
+        at: crate::span::Span,
+        cond: &hir::Expr,
+        body: &hir::Block,
+    ) -> Result<(), LlvmEmitError> {
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        let cond_bb = self.context.append_basic_block(func, "while_cond");
+        let body_bb = self.context.append_basic_block(func, "while_body");
+        let after_bb = self.context.append_basic_block(func, "while_after");
+
+        self.builder.build_unconditional_branch(cond_bb)?;
+
+        self.builder.position_at_end(cond_bb);
+        let cv = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+        let cb = cv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "while cond value",
+            at: cond.span.into(),
+        })?;
+        self.builder
+            .build_conditional_branch(cb, body_bb, after_bb)?;
+
+        self.builder.position_at_end(body_bb);
+        self.codegen_block_stmt(body)?;
+
+        let body_end = self.builder.get_insert_block().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "builder has no insert block",
+            at: at.into(),
+        })?;
+        if body_end.get_terminator().is_none() {
+            self.builder.build_unconditional_branch(cond_bb)?;
+        }
+
+        self.builder.position_at_end(after_bb);
+        Ok(())
     }
 
     fn codegen_expr(&mut self, expr: &hir::Expr) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -5394,9 +5464,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call return type",
-                    at: span.into(),
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "call return value",
+                        at: span.into(),
+                    },
+                )?;
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(raw),
                 })
             }
         }
@@ -7798,7 +7874,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn llvm_param_ty(
-        &self,
+        &mut self,
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
@@ -7809,23 +7885,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        Ok(match cg {
-            CgTy::Unit => self.context.i8_type().into(),
-            CgTy::Bool => self.context.bool_type().into(),
-            CgTy::Int(int_ty) => self.int_type(int_ty).into(),
-            CgTy::String => self.llvm_scoop_string_ptr_type().into(),
-            CgTy::Ref => self
-                .context
-                .i8_type()
-                .ptr_type(AddressSpace::default())
-                .into(),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "function param type",
-                    at: span.into(),
-                });
-            }
-        })
+        Ok(self.llvm_basic_type_of(span, cg)?.into())
     }
 
     fn as_llvm_arg_value(
@@ -7836,19 +7896,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
         Ok(match param_ty {
             CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => value
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => value
                 .value
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "call arg value",
                     at: span.into(),
                 })?
                 .into(),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call arg value",
-                    at: span.into(),
-                });
-            }
         })
     }
 
@@ -7915,10 +7975,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "param type",
-                        at: param.span.into(),
-                    });
+                    let raw = llvm_fun
+                        .get_nth_param(idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "missing llvm param",
+                            at: param.span.into(),
+                        })?;
+                    CgValue {
+                        ty: target_ty,
+                        value: Some(raw),
+                    }
                 }
             };
 
@@ -8090,7 +8156,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_return(None)?;
                 Ok(())
             }
-            CgTy::Bool | CgTy::Int(_) => {
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
                 let Some(raw) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "return value",
@@ -8099,12 +8171,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 self.builder.build_return(Some(&raw))?;
                 Ok(())
-            }
-            CgTy::String | CgTy::Ref | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "aggregate return type",
-                    at: span.into(),
-                })
             }
         }
     }
@@ -8129,6 +8195,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let v = self.codegen_expr(expr)?;
                     value = if is_last { v } else { CgValue::unit() };
                 }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                    value = CgValue::unit();
+                }
                 // block 作为表达式时，`return` 语义在当前阶段暂不支持（需要 function-level CFG）。
                 hir::StmtKind::Return { .. } => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -8136,10 +8206,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: stmt.span.into(),
                     });
                 }
-                hir::StmtKind::While { .. }
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+                hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } | hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement inside block expression",
                         at: stmt.span.into(),

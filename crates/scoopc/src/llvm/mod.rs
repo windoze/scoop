@@ -296,7 +296,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
     // - 避免因为文件里存在“当前后端不支持的函数签名”（例如泛型函数）而影响不相关的程序。
-    let declare = codegen::MainCodegen::new(
+    let mut declare = codegen::MainCodegen::new(
         context,
         &module,
         &builder,

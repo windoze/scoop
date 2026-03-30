@@ -3454,7 +3454,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`（fixtures: ok）
 
-### T1023 [BLOCKED] `@ThreadLocal` / `@Global`：codegen + runtime 存储与初始化（spec §15.5.3）
+### T1023 [DONE] `@ThreadLocal` / `@Global`：codegen + runtime 存储与初始化（spec §15.5.3）
 - 描述：为 GC-free 全局可变变量生成：
   - TLS（`@ThreadLocal`）或进程全局（`@Global`）的静态存储；
   - 最小可用的初始化策略（早期可限制为编译期常量 initializer）。
@@ -3464,6 +3464,14 @@
   - 并发语义（数据竞争）不在编译期自动解决，仅保证 ABI/访问可用。
 - 验收：新增 run-pass fixture：在两个函数中读写 `@ThreadLocal` 计数器并断言输出/exit code；`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1022
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：收集顶层 `@ThreadLocal/@Global var` 并写入 `LoweredHir::top_level_vars` side table。
+   - `crates/scoopc/src/llvm/codegen.rs`：为顶层 `var` 生成 TLS/全局静态存储，并支持在函数体内对其 load/store（含常量初始化与默认全零初始化）。
+   - `tests/fixtures/run-pass/top_level_var_threadlocal_global_counter_basic.scoop`：新增 run-pass fixture 回归跨函数读写。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1024 [BLOCKED] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局控制（spec §15.5.2）
 - 描述：扩展 `@CLayout`：

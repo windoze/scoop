@@ -13,16 +13,15 @@ import scoop.core.*
 
 fun main(): Int {
     println("up")
-    1.rangeTo(5, 2).forEach {
-        println(it)
-    }
+    val upStart: Int = 1
+    val up: IntProgression = upStart.rangeTo(5, 2)
+    up.forEach { println(it) }
 
     println("down")
-    5.downTo(1, 2).forEach {
-        println(it)
-    }
+    val downStart: Int = 5
+    val down: IntProgression = downStart.downTo(1, 2)
+    down.forEach { println(it) }
 
     println("done")
     return 0
 }
-

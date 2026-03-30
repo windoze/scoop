@@ -32,6 +32,7 @@
   并将 T1307b 移动到 T1314 之后，避免阻塞“首个 `[TODO]` 可直接实现”的顺序。
 - 2026-03-29：完成 T1307a：resolver 在 `{ body }` lambda 作用域内预注入隐式 `it` 绑定；typecheck 在期望函数类型为单参数时将其解释为隐式 `it: T`，并新增 infer fixture 回归 `takes { it + 1 }` 可推断通过。
 - 2026-03-30：完成 T1307b：LLVM codegen 补齐最小“函数值/闭包”可执行链路（closure object + indirect call），并新增 run-pass fixture 回归 `takes { it + 1 }` 在运行期确实调用 lambda（stdout：`42`）。
+- 2026-03-30：完成 T1023：为顶层 `@ThreadLocal/@Global var` 生成 TLS/进程全局静态存储，并新增 run-pass fixture 回归跨函数读写。
 - 2026-03-29：完成 T1308：支持 `vararg` 参数与调用点 `*expr` spread（最小语义：最多一个 vararg 且必须为最后一个形参；spread operand 仅支持 `scoop.core.Array<T>` 或 tuple，并逐元素做可赋值检查），新增 typecheck fixtures 回归覆盖。
 - 2026-03-29：完成 T1309：操作符重载补齐位运算/移位（`& | ^ << >>`）到 `and/or/xor/shl/shr` 的映射，并支持 unary `~` 绑定到 `inv()`；新增 typecheck fixtures 回归覆盖与稳定诊断。
 - 2026-03-29：完成 T1310：import alias 补齐 shadowing 与显式 import 的优先级（同包/本地声明 > 显式 import（含 alias）> star import），并新增 resolve fixtures 回归覆盖（alias shadowing + alias vs star）。

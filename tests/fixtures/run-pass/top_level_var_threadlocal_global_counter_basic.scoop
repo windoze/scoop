@@ -1,0 +1,39 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_var_threadlocal_global_counter_basic.stdout
+//
+// 目标：T1023 顶层 `@ThreadLocal/@Global var` 需要生成可读写的静态存储（TLS/进程全局）。
+//
+// 说明：
+// - 当前用单线程回归：验证跨函数读写能落到同一份存储；
+// - TLS 的“跨线程隔离”语义将由后续多线程 run-pass 用例补齐。
+
+import scoop.core.*
+
+@ThreadLocal
+var tlsCounter: Int = 0
+
+@Global
+var globalCounter: Int = 0
+
+fun bumpTls(): Int {
+    tlsCounter = tlsCounter + 1
+    return tlsCounter
+}
+
+fun bumpGlobal(): Int {
+    globalCounter = globalCounter + 10
+    return globalCounter
+}
+
+fun peekBoth(): Int {
+    return tlsCounter + globalCounter
+}
+
+fun main(): Int {
+    println(peekBoth())
+    println(bumpTls())
+    println(bumpGlobal())
+    println(peekBoth())
+    return 0
+}
+

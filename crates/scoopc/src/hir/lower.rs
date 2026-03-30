@@ -1444,6 +1444,14 @@ impl<'a> HirLowering<'a> {
 
     /// 从一个 `TypeRef` 判定数组字面量的目标容器类型（Array vs MutableArray）。
     fn array_lit_target_from_type_ref(&self, ty: &ast::TypeRef) -> Option<ArrayLitTarget> {
+        // 注意：`TypeRef` 可能来自其它源文件（例如通过 `Index::FunSig` 跨文件查询得到的签名）。
+        // 当前 HIR lowering 仍以“单个 SourceFile 负责 span → 文本切片”为前提，因此当 span 不在
+        // 当前文件范围内时，我们只能保守放弃该 hint，避免越界 panic。
+        let span = ty.span();
+        if span.end > self.source.text().len() {
+            return None;
+        }
+
         let fqn = self
             .index
             .type_ref_to_fqn_in_file(self.source, self.file, ty)?;
@@ -1484,6 +1492,22 @@ impl<'a> HirLowering<'a> {
         arg: &ast::Expr,
         positional_index: usize,
     ) -> ExpectedExpr {
+        // expected-type hint 目前只用于数组字面量 `[...]` 的 lowering（Array vs MutableArray）。
+        //
+        // 注意：`FunSig` 的参数 `TypeRef` 可能来自**其它源文件**（sysroot/stdlib/多文件编译单元），
+        // 其 span 无法用当前文件的 `SourceFile` 回切；因此我们必须避免在“非数组字面量实参”
+        // 的场景下无谓地解析参数类型，防止跨文件 span 误用导致 panic。
+        let arg_is_array_lit = match &arg.kind {
+            ast::ExprKind::ArrayLit { .. } => true,
+            ast::ExprKind::NamedArg { value, .. } => matches!(value.kind, ast::ExprKind::ArrayLit { .. }),
+            _ => false,
+        };
+        if !arg_is_array_lit {
+            return ExpectedExpr {
+                array_lit_target: None,
+            };
+        }
+
         let array_lit_target = match (sig, &arg.kind) {
             (Some(sig), ast::ExprKind::NamedArg { name, .. }) => {
                 let name = name.text(self.source);
