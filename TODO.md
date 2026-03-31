@@ -4919,11 +4919,47 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1320 [TODO] `std` v4：net / async adapters / testing & support utilities
+### T1320 `std` v4：net / async adapters / testing & support utilities（拆分为子任务）
 - 描述：补齐标准库的高阶能力：网络抽象、与 `Task`/executor 的 async adapters、测试支持工具、日志/诊断/配置等公共 utilities。
 - 目标：保持与 runtime backend 解耦；WASM/embedded 环境通过 adapter 或 capability gating 处理。
 - 验收：新增 std/run-pass fixtures：基础 TCP/HTTP-like adapter、async task utility、test helper 能在受支持平台工作；不支持平台有 capability matrix 覆盖。
 - 依赖：T1316、T0917、T1403
+- 备注：该任务范围过大。为保持“可单独实现 & 单独验证”的粒度，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1320a [TODO] `std` v4：`scoop.test` 最小断言工具（assertions）+ fixtures
+- 描述：在 `stdlib` 注入层新增 `scoop.test` 包，提供最小断言（assert）函数，方便 run-pass fixtures 书写与复用。
+- 目标：
+  - 只提供最小、可执行、无新增 runtime 依赖的断言：`assertTrue/assertFalse/assertEqInt/assertSomeInt/assertNoneInt`；
+  - 不实现字符串格式化/拼接（避免引入新的 `String` utilities 依赖）；失败时直接通过 `Raise<RuntimeError>` 终止。
+- 验收：
+  - 新增 typecheck fixture：`tests/fixtures/typecheck/std_test_assertions_api_surface_ok.scoop`；
+  - 新增 run-pass fixture：`tests/fixtures/run-pass/std_test_assertions_basic.scoop/.stdout`；
+  - `cargo test --all`；
+  - `cargo run -p scoop -- test`；
+  - `cargo run -p scoop --features llvm -- test`（若本机 LLVM 可用）。
+- 依赖：T1315a
+
+### T1320b [TODO] `std` v4：`Task`/executor async adapters v0（map/await/bridge）
+- 描述：在 stdlib 层为 `Task<T>`/`Executor` 提供最小的组合子与桥接工具（例如 `map/andThen/await` 的 v0 形态），提升异步样例可写性。
+- 目标：
+  - 先以 `Int` 专用落点为主（与现有 stdlib 策略一致），避免一次引入泛型/单态化边角；
+  - 不引入新的调度策略：仍复用 runtime executor（T0917/T1319e）。
+- 验收：新增至少 1 个 run-pass fixture 覆盖 adapter 的基本行为；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+- 依赖：T1319e
+
+### T1320c [TODO] `std` v4：测试/诊断支持 utilities v0（platform info / io helpers）
+- 描述：补齐一组“为 fixtures/示例服务”的通用工具（例如 platform/query、简单的 stdout/stderr helper），并用 fixtures 固化。
+- 目标：先提供最小可观测性；不引入复杂 logging 框架；避免把 OS 概念直透到 Scoop 侧（配合 capability matrix）。
+- 验收：新增 typecheck/run-pass fixtures 覆盖至少 2 个工具函数；不支持平台有稳定诊断或返回 `None/false`。
+- 依赖：T1318e、T1219
+
+### T1320d [TODO] `std` v4：net 抽象 v0（API surface + capability gating）
+- 描述：定义 `scoop.net` 的最小 API surface（TCP 连接/监听或更高层 adapter），并通过 capability gating 表达“不支持”。
+- 目标：
+  - 先固定 API 形状与错误模型（可先用 `Option/Result` 的简化版本），避免把 libc socket 细节暴露给 Scoop；
+  - runtime 侧实现以 platform/backends 为边界（与 T1402/T1403 对齐）。
+- 验收：新增 typecheck fixtures 固化 API surface；后续在支持平台增加 run-pass fixtures 覆盖最小 TCP roundtrip。
+- 依赖：T1403、T1404
 
 ### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
