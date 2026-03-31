@@ -1,0 +1,38 @@
+// EXPECT: pass
+// 目标：T1319a 在 sysroot 中新增 `scoop.sync` 的最小 API 声明面（只声明）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.sync.*
+
+fun useMutex(): Unit {
+    val m: Mutex = mutexCreate()
+    m.lock()
+    m.unlock()
+    m.destroy()
+    return ()
+}
+
+fun useCondVar(): Unit {
+    val m: Mutex = mutexCreate()
+    val cv: CondVar = condVarCreate()
+    m.lock()
+    cv.wait(m)
+    m.unlock()
+    cv.notifyOne()
+    cv.notifyAll()
+    cv.destroy()
+    m.destroy()
+    return ()
+}
+
+fun useOnce(): Unit {
+    val once: Once = onceCreate()
+    val d: Bool = once.isDone()
+    if (d) {
+        return ()
+    }
+    once.run { () }
+    return ()
+}

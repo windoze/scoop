@@ -4747,13 +4747,18 @@
 - 目标：桌面/服务端优先；embedded / wasm 通过 capability matrix 进行裁剪或适配。
 - 备注：该任务范围过大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1319a [TODO] `std` v3：`sync` 最小声明面 v0（Mutex/CondVar/Once）
+### T1319a [DONE] `std` v3：`sync` 最小声明面 v0（Mutex/CondVar/Once）
 - 描述：在 sysroot 中新增 `scoop.sync` 的最小 API 声明面（先只做 names/signatures），并新增 typecheck fixtures 回归。
 - 目标：只做 sysroot 声明 + typecheck 覆盖；不实现 runtime C，不接入 LLVM codegen，不新增 run-pass fixtures。
 - 验收：
   - `cargo test --all`
   - `cargo run -p scoop -- test`（typecheck fixtures 通过）
 - 依赖：T1316
+ - 完成：
+   - sysroot：
+     - `sysroot/sync.scoop`：新增 `scoop.sync` 的 `Mutex/CondVar/Once` 声明面与最小操作函数签名。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_sync_api_surface_ok.scoop`
 
 ### T1319b [TODO] `std` v3：`sync` runtime v0（pthread mutex/cond/once）+ LLVM 映射 + run-pass
 - 描述：为 `scoop.sync` 的 Mutex/CondVar/Once 提供最小可执行实现（runtime C + sysroot→runtime 映射），并新增 run-pass fixtures 回归锁/条件变量的基本行为。

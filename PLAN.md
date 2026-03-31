@@ -28,6 +28,7 @@
 - 2026-03-31：完成 T1318d：sysroot 新增 `scoop.path.normalize/join/basename/dirname`；runtime C 提供 `scoop_path_*`（最小归一化与切分）；LLVM codegen 映射到 runtime 符号；新增 typecheck + run-pass fixtures `std_path_*` 回归。
 - 2026-03-31：完成 T1318e：sysroot 新增 `scoop.io.stdoutWriteString/stderrWriteString/stdinReadLine`；runtime C 落地 `scoop_io_*`（stdout/stderr 写入 + stdin readLine）；LLVM codegen 映射到 runtime 符号；fixtures runner 新增 `RUN-STDIN` 支持并新增 `std_io_*` fixtures 回归。
 - 2026-03-31：拆分 T1319（`std` v3：sync/thread/channels/task support）为 T1319a～T1319e：先以 T1319a 固定 `scoop.sync` 的最小声明面并用 typecheck fixtures 回归，后续再逐步接入 runtime/LLVM/run-pass（避免一次性引入多线程与调度耦合）。
+- 2026-03-31：完成 T1319a：sysroot 新增 `scoop.sync`（`Mutex/CondVar/Once`）最小声明面与操作函数签名；新增 typecheck fixture `std_sync_api_surface_ok.scoop` 回归；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：`TODO.md` 中 program boundary 的 T0629b 依赖多包 build/link（T1107），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0629b 移动到 T1107 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。

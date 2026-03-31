@@ -1,0 +1,68 @@
+// Scoop sysroot: sync surface（std v3，early stage）
+//
+// 说明：
+// - 该模块提供标准库 `scoop.sync` 的最小声明表面（T1319a）。
+// - 当前阶段只固定 names/signatures，供 resolver/typecheck/工具链使用；
+// - 真实实现将由 stdlib + runtime/LLVM 映射逐步补齐（T1319b+）。
+
+package scoop.sync
+
+import scoop.core.*
+
+/// 互斥锁（opaque handle；语义由 std/runtime 约定）。
+///
+/// 说明：当前阶段先以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化。
+class Mutex
+
+/// 条件变量（与 `Mutex` 配对使用）。
+class CondVar
+
+/// 一次性初始化标记（thread-safe once）。
+class Once
+
+// --- Mutex ---
+
+/// 创建一个新的互斥锁。
+fun mutexCreate(): Mutex
+
+/// 加锁（可能阻塞）。
+fun Mutex.lock(): Unit
+
+/// 解锁。
+fun Mutex.unlock(): Unit
+
+/// 销毁互斥锁（early stage：显式资源管理；未来可演进为 RAII/finalizer）。
+fun Mutex.destroy(): Unit
+
+// --- CondVar ---
+
+/// 创建一个新的条件变量。
+fun condVarCreate(): CondVar
+
+/// 在条件变量上等待：
+/// - 会原子地解锁 `mutex` 并阻塞；
+/// - 被唤醒后在返回前重新加锁 `mutex`（语义由平台 backend 决定）。
+fun CondVar.wait(mutex: Mutex): Unit
+
+/// 唤醒一个等待者（若存在）。
+fun CondVar.notifyOne(): Unit
+
+/// 唤醒所有等待者（若存在）。
+fun CondVar.notifyAll(): Unit
+
+/// 销毁条件变量。
+fun CondVar.destroy(): Unit
+
+// --- Once ---
+
+/// 创建一个新的 once 标记。
+fun onceCreate(): Once
+
+/// 返回该 once 是否已完成。
+fun Once.isDone(): Bool
+
+/// 执行一次：若尚未完成，则运行 `block` 并把 once 标记为完成；否则直接返回。
+///
+/// 说明：该 API 的具体内存序与并发语义由 std/runtime 逐步固化；T1319a 仅提供声明面。
+fun Once.run(block: () -> Unit): Unit
+
