@@ -25,8 +25,8 @@
 
 运行时库（例如当前的 `runtime/c/` + `crates/scoop_runtime/`）负责：
 
-- GC、分配器、shadow stack roots、effect runtime 等**运行期机制**；
-- 需要 OS/ABI 的能力（时间、文件、线程、网络等）的**平台胶水**（早期可先由 C 提供，后续迁移到 Scoop）。
+- GC、分配器、roots 扫描（当前实现包含 shadow stack；目标是 LLVM stackmap/statepoint 精确根集）、effect runtime 等**运行期机制**；
+- 需要 OS/ABI 的能力（时间、文件、线程、网络等）的**平台胶水**（长期由 C runtime 的 platform/backends 层提供；不把 OS 类型泄漏到 Scoop 侧）。
 
 > 原则：能落到 runtime lib 的不要变成 intrinsic（参见 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md` 的 gate 结论）。
 
@@ -125,7 +125,7 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 ### 4.2 std（用户层）
 
 - `scoop.collections`
-  - `Iterable/Iterator`
+  - `Iterable/Iterator`（迭代协议推荐形状：`Iterator.next(): Option<T>`，避免 `hasNext()` + 内部缓存）
   - `Array/MutableArray` 的高层算法扩展（map/filter/fold/…）
   - `List/MutableList/Set/Map/MutableMap`（T1317）
 - `scoop.text`

@@ -1,6 +1,6 @@
 # TODO（Scoop 0.1：按“可单独实现 & 单独验证”的小步拆分）
 
-> 生成时间：2026-03-18  
+> 生成时间：2026-03-31（持续维护更新）  
 > 依据：`SCOOP_FULL_SPEC.md` + `PLAN.md`  
 > DONE 标记来自：对仓库现状的代码检查，并本地运行 `cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test` 均通过。
 
@@ -31,7 +31,7 @@
 - 依赖：无
 
 ### T0002 [DONE] `scoop` CLI 基础命令可运行
-- 描述：`scoop test` 与 `scoop dump-ast` 可用；`build/run` 目前为占位错误提示。
+- 描述：`scoop test`/`scoop dump-ast`/`scoop build`/`scoop run` 可用（`build/run` 需要启用 `--features llvm` 才会生成并运行二进制；默认 `build` 仅做前端检查）。
 - 目标：driver 只做 I/O/调度；编译逻辑留在 `scoopc`。
 - 验收：`cargo run -p scoop -- --help` 可输出帮助；`cargo run -p scoop -- test` 通过；`cargo run -p scoop -- dump-ast tests/fixtures/parse/hello.scoop` 能打印 AST。
 - 依赖：无
@@ -1708,13 +1708,13 @@
    - fixtures：新增 4 个用例覆盖 class override 与 interface impl 的 pass/fail（含 `Disposable<eff E>` 的实例化替换）。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0610 [DONE] Program boundary：entry point 必须 `Pure`（spec §5.10）
-- 描述：定义 entry point（例如 `fun main()`）并强制其 effect row 为 `Pure`（或可隐式推断但必须最终 Pure）。
+### T0610 [DONE] Program boundary：entry point 必须 `Pure!`（闭合纯；spec §5.10）
+- 描述：定义 entry point（例如 `fun main()`）并强制其 effect row 为 `Pure!`（闭合）。entry point 允许在函数体内使用 effects，但必须在 entry point 内部被处理（不能把未处理 effect 泄漏到 program boundary）。
 - 目标：先只检查 `main`；多 entry point（库）后续。
 - 验收：effects fixture：`main` 里 perform Raise（未处理）时报错；`main` 使用 try/catch 处理后通过。
 - 依赖：T0604、T0607
  - 完成：
-   - typecheck/expr：对 entry point（顶层 `fun main()`）强制 declared effect row 为 `Pure`，禁止 internal/private 的 effect row 推断；显式声明 non-Pure effect row 时给出稳定诊断 `scoop::typecheck::entry_point_must_be_pure`。
+   - typecheck/expr：对 entry point（顶层 `fun main()`）强制 declared effect row 为 `Pure!`，禁止 internal/private 的 effect row 推断；显式声明 non-Pure effect row 时给出稳定诊断 `scoop::typecheck::entry_point_must_be_pure`，显式声明 open `/ Pure` 时给出“需要闭合 `Pure!`”的稳定诊断（见 T0627）。
    - fixtures：新增
      - `tests/fixtures/typecheck/entry_point_main_internal_unhandled_raise_is_error.scoop`
      - `tests/fixtures/typecheck/entry_point_main_internal_try_catch_ok.scoop`
@@ -1818,12 +1818,12 @@
    - 验收：`cargo test --all`、`cargo run -p scoop -- test` 通过。
 
 ### T0629 Program boundary（拆分为子任务）
-- 描述：把 program boundary 从“仅检查 `main` 必须 `Pure`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure`。
+- 描述：把 program boundary 从“仅检查 `main` 必须 `Pure!`”扩展到库导出入口、多 entry point、host callback / embedded 入口等场景，并固定哪些边界必须显式为 `Pure!`。
 - 目标：先覆盖可静态识别的入口面；不引入运行时动态扫描。
 - 备注：该任务依赖 build/link 与多包消费链路（T1107），跨度较大。为保证每步“可单独实现 & 单独验证”，拆分为以下子任务。
 
 ### T0629a [DONE] entry point 识别：cone-aware + 多 entry point 稳定规则
-- 描述：在多 cone 编译单元中，仅将“consumer cone”的 `fun main` 视为 entry point；其它 cone 中同名 `main` 作为普通函数处理（不强制 `Pure`）。
+- 描述：在多 cone 编译单元中，仅将“consumer cone”的 `fun main` 视为 entry point；其它 cone 中同名 `main` 作为普通函数处理（不强制 `Pure!`）。
 - 目标：先只做静态判定（基于 cone id）；不引入 `Cone.toml` 或 CLI 选择 entry 的参数。
 - 验收：新增 typecheck + cone fixtures：
   - 同一用例内 app/lib 两个 cone 都有 `main` 时，仅 app 的 `main` 受 entry point `Pure!` 规则约束；
@@ -1850,6 +1850,22 @@
      - parse：新增 `tests/fixtures/parse/try_catch_multi_catch_lowering.scoop` + AST snapshot；
      - typecheck：新增 `try_catch_multi_catch_narrow_first_ok` 与 `try_catch_multi_catch_wide_first_unreachable_is_error`。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
+
+### T0632 [TODO] 函数值擦除到 `Any`：仅允许 `Pure!`（effects 不可运行时保真）
+- 描述：按 `SCOOP_FULL_SPEC.md` §7.5 “Effect erasure and casts to `Any`” 的规则，禁止把带 effects 的函数值（含 open `/ Pure`）赋给/转换为 `Any`，因为 effects 是纯编译期信息，运行时不携带也无法验证。
+- 规则（静态）：
+  - 只有函数类型 `(...)->R / Pure!` 允许：
+    - 隐式上转：`val x: Any = f`
+    - 显式 cast：`f as Any`
+  - 其它任何函数类型（包括 `(...)->R / Pure` 与 `(...)->R / Raise<...>`）都必须在 typecheck 阶段报错。
+- 验收：
+  - 新增 typecheck fixtures：
+    - pass：`val f: () -> Int / Pure! = { 1 }; val a: Any = f`
+    - fail：`val f: () -> Unit / Raise<RuntimeError> = { perform Raise.raise(...) }; val a: Any = f`
+    - fail：`val f: () -> Int / Pure = { 1 }; val a: Any = f`（open `/ Pure` 不允许）
+  - 稳定诊断码：例如 `scoop::typecheck::fn_value_to_any_requires_closed_pure`（名字可不同，但必须稳定、可 fixtures 断言）。
+  - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+- 依赖：T0627、T0608、T0451（Any/ref assignable 基础）
 
 ---
 
@@ -2573,7 +2589,7 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0905 [DONE] Shadow stack：定义 `GcFrame` 结构与 TLS 链（PLAN §8.3）
+### T0905 [DONE] Shadow stack：定义 `GcFrame` 结构与 TLS 链（bootstrap roots；将由 T15 StackMap/statepoint roots 替换）
 - 描述：在 runtime 中定义 `GcFrame { prev, roots[] }` 与 `current_frame` TLS。
 - 目标：先不做扫描；只把数据结构与 push/pop API 做出来。
 - 验收：新增测试：push/pop 两层 frame 后 `current_frame` 指针正确回退。
@@ -2586,7 +2602,7 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0816 [DONE] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（PLAN §8.3）
+### T0816 [DONE] GC 接口：shadow stack 插桩（函数 prologue/epilogue）（bootstrap；将由 T15 StackMap/statepoint 管线替换）
 - 描述：为包含 GC 引用的函数生成 `GcFrame` push/pop，并在需要处写 roots。
 - 目标：先只支持单线程；先只插桩“明显活跃的引用局部变量”。
 - 验收：新增 run-pass fixture：分配若干对象（先可用 malloc 代替 GC）并触发一次“伪 GC 扫描”（仅遍历 roots）不崩溃。
@@ -2920,6 +2936,23 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
+### T0921 [TODO] continuation：重复 `resume` 不再 `exit(3)`，改为 `Raise<RuntimeError.ContinuationAlreadyResumed>`
+- 描述：按 `SCOOP_FULL_SPEC.md` §5.5 与 §5.7 的规范，把 “one-shot 违规” 从进程级 abort/exit 改为可被语言层捕获的运行时错误：第二次 `resume` 执行 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`。
+- 目标：
+  - sysroot：`enum RuntimeError` 增加 `ContinuationAlreadyResumed`（并更新相关文档与 fixtures）。
+  - typecheck：`k.resume(value)` 的 required effects 为 `E + Raise<RuntimeError>`（其中 `E` 为 `Continuation<T, eff E>` 的 row 参数）。
+  - runtime/codegen：
+    - `scoop_continuation_try_resume`/`scoop_continuation_resume_*` 在 one-shot 检测失败时不再 `exit(3)`；
+    - 失败路径写入 perform slot（payload 为 `RuntimeError.ContinuationAlreadyResumed`）并置位 flag，走既有 Raise 的传播/捕获路径（try/catch/handle）。
+  - fixtures：
+    - 更新 `tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.*`：第二次 `resume` 用 `try/catch (e: RuntimeError)` 捕获并输出；不再依赖退出码断言；
+    - 新增 typecheck fixture：`Pure` 函数里调用 `k.resume(...)` 会要求 `Raise<RuntimeError>`（除非被 handle/try 捕获）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`（若启用 LLVM 后端）
+- 依赖：T0617、T0614、T0630、T0445、T0611
+
 ### T0915（拆分为子任务）
 - 描述：跨线程 `resume` 时需要把 continuation 捕获的 handler stack 安装到当前线程 TLS，并在返回后恢复原 TLS（spec §5.5）。
 - 目标：先不支持并发同时 resume；只支持单次跨线程。
@@ -2954,7 +2987,7 @@
      - arm body 执行前将 handler 从 TLS 栈顶摘除，避免 arm 自捕获（Appendix A.4）。
    - `tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.scoop`：新增端到端 fixture：
      - 保存 continuation 后稍后 `resume(42)`，并打印恢复后的值；
-     - 第二次 `resume` 触发 one-shot 运行期错误（固定 `exit(3)`）。
+     - 第二次 `resume` 触发 one-shot 运行期错误（v0 固定 `exit(3)`；规范已要求改为 `Raise<RuntimeError.ContinuationAlreadyResumed>`，见 T0921）。
  - 验收：
    - `cargo test --all` 通过；
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过；
@@ -3226,7 +3259,7 @@
    - `sysroot/core.scoop`：新增 `@Intrinsic object GC`，暴露 `@NoGC @Unsafe fun pin(obj: Any): Pinned` 与 `@NoGC @Unsafe fun unpin(pinned: Pinned): Unit`；新增 `struct Pinned(val value: Any)`。
    - `crates/scoopc/src/typecheck/expr.rs`：对 `scoop.core.GC.pin/unpin` 做门禁与类型检查（unsafe context + pin 仅允许 ref type + unpin 参数必须是 `Pinned`），并补齐错误码 `scoop::typecheck::gc_pin_requires_ref` / `scoop::typecheck::gc_unpin_requires_ref`；同时为 `Pinned.value` 提供 sysroot 字段类型 fallback。
    - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.core.GC.pin/unpin` lowering 到 runtime `scoop_pin/scoop_unpin`，并生成 `Pinned` 结构体返回值/参数解构；补齐 `scoop.core.Any` 的 codegen 类型映射。
-   - 约束：由于当前 LLVM struct layout 暂不支持泛型 struct（`type_params` 非空的 struct 会被跳过布局收集），本任务将 spec 的 `Pinned<T>` 暂降级为非泛型 `Pinned`（内部字段 `value: Any`）。
+  - 约束：`Pinned` 在 Scoop 0.1 中为非泛型 handle（内部字段 `value: Any`），以保持 runtime ABI 简单可审计。
    - `tests/fixtures/unsafe_nogc/gc_pin_value_type_is_error.scoop`：新增 compile-fail，用于断言对 value type 的 `GC.pin(1)` 报错。
    - `tests/fixtures/run-pass/gc_pin_unpin_basic.*`：新增 run-pass，用于端到端回归 pin/unpin 的保活语义与 stdout。
  - 验收：
@@ -4134,7 +4167,7 @@
    - `cargo run -p scoop -- test`
 
 ### T1304 [DONE] 范围与 for 协议（Appendix B.12）
-- 描述：实现 `for (x in range)` 语法与 lowering 到迭代协议（如 `iterator/next/hasNext`）。
+- 描述：实现 `for (x in range)` 语法与最小 typecheck，并把循环语义降糖到“迭代协议”。
 - 目标：先只做语法 + typecheck 规则；运行时库后续。
 - 验收：language fixture：for 语法可解析并类型检查；缺少迭代协议方法时报错。
 - 依赖：T0207、T0407
@@ -4143,7 +4176,7 @@
    - `crates/scoopc/src/parser/stmt.rs`：支持解析 `for (x in xs) { ... }`。
    - `crates/scoopc/src/parser/cursor.rs`：把 `for` 纳入 `is_stmt_start`（用于错误恢复与 `return` 边界）。
    - `crates/scoopc/src/resolve/scopes.rs`：for binder 仅在 loop body 作用域内可见，并写回 `ResolvedValueRef::Local`。
-   - `crates/scoopc/src/typecheck/expr.rs`：实现迭代协议类型检查（`iterator/hasNext/next`）+ 稳定诊断码，并将隐式调用的 effects 计入 performed effects。
+   - `crates/scoopc/src/typecheck/expr.rs`：实现迭代协议类型检查（v0：`iterator/hasNext/next`）+ 稳定诊断码，并将隐式调用的 effects 计入 performed effects。
    - `crates/scoopc/src/typecheck/properties.rs`：把 `for` 纳入 backing-field 逃逸检查的语句遍历。
    - `crates/scoopc/src/comptime/interpreter.rs`：const eval 中将 `for` 视为不支持语句（与 `while` 对齐）。
    - `crates/scoopc/src/hir/lower.rs`：HIR lowering 暂以 `Todo("for")` 占位（语义 lowering 留给后续 codegen 任务）。
@@ -4154,6 +4187,8 @@
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
+
+> 注：规范已升级迭代协议为 `Iterator.next(): Option<T>`（见 `SCOOP_FULL_SPEC.md` §16.2），不再使用 `hasNext()/next()` 二元协议；迁移任务见 T1328。
 
 ### T1305 [DONE] 默认参数语义：调用点补齐默认值（Appendix B.5.2）
 - 描述：在类型检查/调用解析阶段实现默认参数：调用时省略参数自动补齐默认值表达式。
@@ -4364,7 +4399,7 @@
 ### T1315a [DONE] build/run：自动注入可编译的纯 Scoop prelude（`stdlib` v0）
 - 描述：引入 `stdlib/*.scoop`，并让 `scoop build/run` 以稳定顺序把它们加入当前编译单元，使其顶层函数可被 resolver/typecheck/lowering/codegen 消费。
 - 目标：
-  - 为后续纯 Scoop runtime helpers/collections/ranges 提供落点；
+  - 为后续纯 Scoop stdlib/运行库（库层）helpers/collections/ranges 提供落点；
   - 不改变 sysroot 的“声明源”定位（sysroot 仍只作为 cone 0 的内建声明面）；
   - 在后端尚不支持“跨文件 span → 源文本切片”前，`stdlib v0` 的实现不依赖数值/字符串字面量（避免 codegen 读取错误 SourceFile）。
 - 验收：
@@ -4445,6 +4480,8 @@
   - 数组字面量 `[...]`：
     - 按 expected type 推断为 `Array<T>` 或 `MutableArray<T>`；
     - 支持显式类型注解：`val xs: Array<Int> = [1, 2, 3]`（以及 `val ys: MutableArray<Int> = [1, 2, 3]`）。
+    - 元素类型 `T` 为所有元素表达式类型的 LUB（最小公共父类型）；空数组 `[]` 必须依赖 expected type 才能确定 `T`（否则报错）。
+    - **禁止隐式逐元素装箱**：array literal 不会因为 expected element type 是 `Any` 就自动把 `Int` 等值类型装箱；需要显式写 `as Any`（例如 `[1 as Any, 2 as Any]`）。形如 `[1, 2 as Any]` 必须报错。
   - iterable 构造与 `MutableArray -> Array`（是否暴露转换 API）：
     - 允许实现上用内部 builder（例如内部 `MutableArray`）做增量构造；
     - 若需要“零拷贝把 builder 变成 `Array`”，必须先定义**显式且安全**的语义（例如 `freeze`：冻结后任何别名都不可再变更）；
@@ -4619,7 +4656,7 @@
 - 依赖：T1316
 - 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
   - 早期阶段先以 **C runtime（host platform backend）** 提供底层实现（符合 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md` 的结论：平台能力应走 runtime lib，而非新增 intrinsic）。
-  - “pure Scoop runtime 模式”与更严格的 capability matrix 收敛将由 T1410/T1409 系列承接，本组子任务先以 host POSIX/desktop 为主线落地最小可执行回归。
+  - 平台差异隔离/ABI 最小化/更严格 capability matrix 的收敛由 T1401～T1404 承接，本组子任务先以 host POSIX/desktop 为主线落地最小可执行回归。
 
 ### T1318a [DONE] `std` v2：`env/time` 最小平台 API（host）
 - 描述：提供最小可执行的 `scoop.env` 与 `scoop.time` API：读取环境变量、查询当前时间戳（或 monotonic clock）。
@@ -4836,10 +4873,10 @@
 - 描述：补齐标准库的高阶能力：网络抽象、与 `Task`/executor 的 async adapters、测试支持工具、日志/诊断/配置等公共 utilities。
 - 目标：保持与 runtime backend 解耦；WASM/embedded 环境通过 adapter 或 capability gating 处理。
 - 验收：新增 std/run-pass fixtures：基础 TCP/HTTP-like adapter、async task utility、test helper 能在受支持平台工作；不支持平台有 capability matrix 覆盖。
-- 依赖：T1316、T0917、T1409
+- 依赖：T1316、T0917、T1403
 
-### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop runtime/std
-- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop runtime/std 库任务解耦。
+### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
+- 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
 - 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
 - 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
 - 依赖：T1017
@@ -4913,72 +4950,302 @@
 - 验收：language fixtures：多层继承中的属性初始化、`init` 链与 secondary constructor 行为稳定；初始化期 effect 违规或异常路径有明确诊断。
 - 依赖：T1312、T0439、T0609
 
+### T1328 [TODO] `for`/迭代协议升级：`Iterator.next(): Option<T>`（移除 `hasNext()`）
+- 描述：把 `for (x in xs)` 的迭代协议从旧的三元调用（`iterator()/hasNext()/next()`）升级为单一 `next(): Option<T>`（见 `SCOOP_FULL_SPEC.md` §16.2），避免 iterator 需要内部缓存“下一元素”。
+- 目标：
+  - typecheck：`for (x in xs)` 只要求：
+    - `xs.iterator(): It`
+    - `It.next(): Option<T>`（`T` 为 loop binder `x` 的类型）
+  - 禁止继续依赖 `hasNext()`；若类型仅提供旧协议，应给出清晰迁移诊断（指出需要 `next(): Option<T>`）。
+  - `for` desugaring（HIR/MIR lowering）按 `Option` 分支展开：`Some(x)` 进入 body，`None` break。
+- 验收：
+  - 新增/更新 typecheck fixtures：
+    - pass：自定义 `iterator/next()->Option<T>` 的类型可用于 `for`；
+    - fail：缺少 `iterator`、缺少 `next`、或 `next` 返回非 `Option<T>` 时均报稳定错误码；
+    - 删除/迁移旧的 `missing_has_next` fixtures（或保留为 “旧协议不再被接受” 的 fail 用例）。
+  - 若 `for` lowering 已落地：新增 run-pass fixture：`for` 遍历一个最小可迭代对象输出序列正确。
+  - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+- 依赖：T1304、T0407、T0705（for lowering 若开启）、`SCOOP_FULL_SPEC.md` §16.2
+
 ---
 
-## T14：GC 迁移到 Scoop（阶段 12：自举路线，先铺垫再替换）
+## T14：C runtime 长期路线（平台隔离 + GC/Immix）（阶段 12：长期稳定）
 
-### T1401 [TODO] 明确自举前置条件检查清单（PLAN §15.1）
-- 描述：把 `@NoGC/@Unsafe/FFI/线程/原子` 的“必须具备项”固化成 checklist 文档/fixtures。
-- 目标：先是文档 + 测试，不需要实现 GC。
-- 验收：新增 `tests/fixtures/unsafe_nogc/checklist_*.scoop` 覆盖关键限制；文档链接到这些 fixtures。
-- 依赖：T1003
+### T1401 [TODO] runtime ABI 最小化：集中声明 + 导出符号审计（PLAN §15.1）
+- 描述：把对外导出的 runtime C 符号集中到单一头文件/清单（allowlist），并在 CI/本地测试中校验“新增导出必须显式登记”，防止 ABI 膨胀与平台细节泄漏到 Scoop 侧。
+- 目标：
+  - runtime ABI 只承载 Scoop 必需的最小能力（alloc/gc/effects/platform primitives），不把 libc/OS API 逐个映射到 sysroot；
+  - 新增符号必须同时更新文档与 codegen 映射表；
+  - 不要求一次性重构现有导出函数命名，只先建立可审计边界。
+- 验收：
+  - 新增 `runtime/c/scoop_runtime_api.h`（或等价清单）列出当前导出符号；
+  - 新增一个检查（unit test 或 `scoop_tools` 子命令）：比对 `nm`/`objdump` 的导出符号与 allowlist，出现未登记导出时失败；
+  - `cargo test --all` 通过。
+- 依赖：T0806、T0901
 
-### T1402 [TODO] Scoop 侧实现 GC 算法库骨架（仍由 C runtime 驱动）（PLAN §15.2）
-- 描述：用 Scoop 编写 mark-sweep 的算法部分（遍历、标记、清扫）并暴露 C ABI glue。
-- 目标：只迁移算法，不迁移 OS/线程暂停；保持可回退到纯 C。
-- 验收：同一套 `runtime_gc` fixtures 可在 “C-only” 与 “hybrid” 两个 runtime 模式下跑通（先可只跑少量）。
-- 依赖：T0904、T1003、T0806
+### T1402 [TODO] 平台层抽象 v0：引入 `runtime/c/platform`（POSIX backend）（PLAN §15.2）
+- 描述：在 C runtime 内部引入 platform 层 API（如 `platform.h` + `platform_posix.c`），把 `getenv/gettimeofday/open/read/write/pthread_*` 等 OS 调用收敛到 platform/backends；core/runtime 代码只调用 platform API。
+- 目标：
+  - 先以 host POSIX/pthread 为主线；Windows/其他平台只放占位接口与 build gate；
+  - 把平台相关 `#ifdef` 限制在 `runtime/c/platform/*`，不散落到 GC/effect/core；
+  - 不改变 sysroot API surface（除非发现明显平台泄漏）。
+- 验收：
+  - `runtime/c/` 下新增 `platform/` 目录与 `platform.h`；
+  - 至少将 `env/time`（T1318a）与 `io`（T1318e）路径改为走 platform API；
+  - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+- 依赖：T1318a、T1318e
 
-### T1403 [TODO] 类型描述与扫描逻辑迁移到 Scoop（PLAN §15.2）
-- 描述：把 trace bitmap/扫描函数从 C 迁移到 Scoop，并保证 ABI 稳定。
-- 目标：先只支持 struct/closure env；class/interface 后续。
-- 验收：新增 GC fixture：包含嵌套 struct 的分配与回收（需要 run-pass harness，见后续任务）。
-- 依赖：T1402、T0905
+### T1403 [TODO] 平台层扩展：thread/sync/channels/task/net 的 backend 隔离（PLAN §15.2）
+- 描述：把 `scoop_sync_*`/`scoop_thread_*`/`scoop_channels_*`/task executor/net 等平台相关实现从“直接依赖 pthread/OS API”改为调用 platform 层接口，形成清晰的 backend 边界。
+- 目标：
+  - 明确哪些能力是“必须由 runtime C 提供的平台能力”，并避免在 Scoop 侧通过 FFI/extern 直接触达 OS；
+  - 为将来 Windows backend 预留接口（不要求本任务实现 Windows）。
+- 验收：
+  - `runtime/c/platform/` 中新增 thread/sync/channel/task/net 所需的最小接口声明；
+  - 现有 POSIX/pthread backend 可构建并跑通现有 run-pass fixtures（`std_sync_*`/`std_thread_*`/`std_channels_*`/`task` 若已落地）。
+- 依赖：T1319b、T1319c、T1319d、T1319e
 
-### T1404 [TODO] 双 runtime 模式：C GC vs Scoop GC 的可切换构建（PLAN §15）
-- 描述：让构建系统支持选择 runtime 实现（环境变量/feature）：同一套 fixtures 可在两种 runtime 下跑。
-- 目标：先只支持本地切换；CI 双跑后续。
-- 验收：`SCOOP_RUNTIME=hybrid cargo run -p scoop -- test` 与默认模式都能跑过至少一组 GC fixtures。
-- 依赖：T1402、T0106b2
+### T1404 [TODO] sysroot/std 平台 API surface 审计：不泄漏 OS 概念（PLAN §15.1）
+- 描述：审计 sysroot 与 stdlib 中的平台 API（env/time/fs/path/io/process/thread/sync/channels/net），确保不暴露 `errno/FILE*/HANDLE/pthread_t` 等 OS 概念与平台差异；必要时调整为平台无关的 `Option/Result` 形状，并用 capability gating 表达“不支持”。
+- 目标：
+  - API 设计以“可移植 + 最小 surface”为优先；
+  - 错误模型先允许简化（`Option` 或 `Result<Int, RuntimeError>`），但必须可扩展；
+  - 不在 stdlib 侧引入 `cfg(target_*)` 分叉语义（由 runtime platform backend 解决）。
+- 验收：
+  - 输出一份清单：每个 sysroot 平台模块的 API surface、对应 runtime 符号、平台 backend 支持情况；
+  - 新增至少 1 个 typecheck fixture：确认平台 API 不暴露平台相关类型；
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T1316、T1318、T1319
 
-### T1405 [TODO] 最终替换 C GC：把 GC 驱动层也迁移到 Scoop（PLAN §15.2）
-- 描述：把 stop-the-world/线程枚举/OS API glue 逐步迁移，最终 C runtime 只保留极薄启动层或完全移除。
-- 目标：以“可回退”为原则，分步骤替换；每一步都有 run-pass 回归。
-- 验收：在 Scoop GC 模式下，GC fixtures 与 effect fixtures 均可通过；C runtime 中不再包含 GC 核心算法。
-- 依赖：T1404、T0911、T1009
-
-### T1406 [TODO] GC backend 抽象：编译期可替换 GC（baseline / Immix / embedded / adapter）
-- 描述：为 GC 引入稳定抽象边界，使 runtime/allocator/roots 扫描与具体 GC 算法解耦，并支持编译期选择不同 backend。
+### T1405 [TODO] GC backend 抽象：编译期可替换 GC（baseline / Immix / embedded / adapter）（PLAN §15.3）
+- 描述：为 GC 引入稳定抽象边界，使 runtime/allocator/roots 扫描与具体 GC 算法解耦，并支持编译期选择不同 backend（先 C 实现）。
 - 目标：至少支持 baseline GC、后续 Immix、高裁剪 embedded/minimal backend，以及 hosted/adapter backend（如 WASM GC adapter）的插拔。
 - 验收：构建系统可通过 feature/config 选择不同 GC backend；同一套核心 GC fixtures 可在至少两种 backend 下运行。
+- 依赖：T0904、T1505、T1506
+
+### T1406 [TODO] Immix v0：单线程、非移动 backend（PLAN §15.3）
+- 描述：在 baseline GC 之外实现 Immix（line/block allocator + mark-region）作为可选 backend（先单线程、非移动）。
+- 目标：先保证正确性与可回归；不要求第一版就替换默认 GC。
+- 验收：构建时可切换到 Immix backend；核心 GC fixtures 通过；至少一组分配/碎片化 microbench 显示优于 baseline（可先本地运行）。
 - 依赖：T1405
 
-### T1407 [TODO] Scoop GC：多线程支持（self-hosted 之后的正确性阶段）
-- 描述：在 GC 已迁移到 Scoop 之后，补齐多线程支持：线程注册、stop-the-world / 协调协议、跨线程 roots 扫描、线程局部分配路径、并发安全元数据。
-- 目标：先保证正确性与可回归性；性能优化（并行标记、局部缓存）后续渐进增强。
-- 验收：新增多线程 GC fixtures：多线程分配/回收/跨线程引用/pin-unpin 在 Scoop GC 模式下稳定通过。
-- 依赖：T1406、T0911
+### T1407 [TODO] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
+- 描述：为 Immix 增加 evacuation/compaction：在 STW 阶段把存活对象从稀疏 block 搬迁到更紧凑的区域，使用 forwarding pointer 修复引用，并与 pin/unpin/FFI 语义兼容。
+- 目标：
+  - 先支持“选择性 block evacuation”与最小 forwarding 机制；
+  - 明确并实现 pin policy（被 pin 对象不移动；必要时落入 non-moving 区域）。
+- 验收：
+  - 新增 GC fixtures：触发 compaction 后引用仍正确；被 pin 对象地址稳定；
+  - 运行 `--gc-stress` 下多轮通过（无 use-after-move/悬挂指针）。
+- 依赖：T1406、T0912、T1008、T1511
 
-### T1408 [TODO] Scoop GC：引入 Immix 作为高性能改进 backend
-- 描述：在 baseline GC 之外实现 Immix（或等价 line/block allocator）backend，作为桌面/服务端场景的高性能选项。
-- 目标：与 baseline backend 并存；不要求第一版就替换默认 GC。
-- 验收：构建时可切换到 Immix backend；同一套 GC fixtures 通过，并有至少一组分配/碎片化基准显示优于 baseline。
-- 依赖：T1406、T1407
+### T1408 [TODO] Immix：多线程正确性（PLAN §15.3）
+- 描述：在 Immix backend 下保证多线程正确性：线程注册与 root 枚举、安全点/stop-the-world 协议、跨线程引用扫描、线程本地分配路径与 GC 元数据并发安全。
+- 目标：先保证正确性与可回归；并行标记等性能优化留给后续任务。
+- 验收：新增多线程 GC fixtures：多线程分配/回收/跨线程引用在 Immix backend 下稳定通过；TSAN（可选）不报 data race。
+- 依赖：T1407、T1505
 
-### T1409 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配
+### T1409 [TODO] Immix：多线程性能（PLAN §15.3）
+- 描述：在保证正确性的基础上优化 Immix 的多线程性能：TLAB/per-thread blocks、低争用全局 block 池、并行标记/并行 sweep 的渐进引入，并建立可重复的基准与回归阈值。
+- 目标：优先降低分配路径锁争用与 STW 时间；不追求一次做到最佳。
+- 验收：新增基准或 microbench：
+  - 多线程分配吞吐在 N 线程下接近线性扩展（在合理范围内）；
+  - STW 时间与碎片化指标有可观测改进或至少不回退。
+- 依赖：T1408
+
+### T1410 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
 - 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。
 - 目标：先实现 backend 形状与 capability matrix；不要求一次覆盖所有宿主。
 - 验收：至少一条 hosted/adapter 路径可编译并通过受限能力测试；WASM target 下的 capability matrix 明确哪些模块可用/不可用。
-- 依赖：T1406、T1316
+- 依赖：T1405、T1316
 
-### T1410 [TODO] runtime 去 C 化：启动 / effect / GC / 线程 runtime 全量迁移到 Scoop
-- 描述：逐步把 runtime 核心逻辑从 C 迁移到 Scoop：启动层、effect runtime、GC runtime、线程/同步/调度 glue。允许继续直接调用 libc/OS ABI，但不再依赖 C 语言实现 runtime 逻辑。
-- 目标：最终形成“pure Scoop runtime + libc/OS ABI hooks”的结构；保留回退路径直到回归稳定。
-- 验收：在 pure-Scoop runtime 模式下，语言/GC/effects/std fixtures 可通过；仓库中 C runtime 只剩极薄兼容层或完全可选。
-- 依赖：T1407、T0916、T0917、T0918
-
-### T1411 [TODO] non-resuming effect / unwind backend：评估并接入 `libunwind`
-- 描述：为 non-resuming effect（以及其他需要栈展开的路径）评估并接入 `libunwind` 或等价后端，避免继续依赖 C runtime 自带异常/展开机制。
+### T1411 [TODO] non-resuming effect / unwind backend：接入并复用 `libunwind`
+- 描述：为 non-resuming effect（以及其他需要栈展开的路径）接入 `libunwind`（或等价后端），并与 GC 的 stack walking 共享同一套 platform/unwind 模块；避免把 unwind/ABI 细节泄漏到 Scoop 侧。
 - 目标：先支持 host 平台；Windows / embedded / wasm 可按 backend 分层处理。
-- 验收：新增 run-pass / runtime fixture：非恢复 effect 在 pure-Scoop runtime 模式下可正确展开、执行 cleanup、并生成稳定回溯/诊断（若启用）。
-- 依赖：T1410、T0614、T0707
+- 验收：新增 run-pass / runtime fixture：非恢复 effect 可正确展开、执行 cleanup，并生成稳定诊断（若启用）。
+- 依赖：T0614、T0707、T1505
+
+---
+
+## T15：引用类型 + LLVM StackMap GC（端到端，目标是“可用且可移动”的 ref runtime）
+
+> 背景：当前仓库存在 shadow stack 相关实现（T0905/T0816/T0909/T0911），但目标运行时需要以 LLVM StackMap/statepoint 为根集来源，打通引用类型（class/interface/closure/array/string/box）的对象模型、动态分发、typed alloc、精确 GC roots、以及移动 GC 的 roots 更新链路。本组任务以“完整链路”为验收标准，不依赖任何占位/手工 roots 方案。
+
+### T1501 [TODO] 固化 ref 对象模型与 runtime ABI（Object Header + TypeDescriptor + Dispatch）
+- 描述：输出一份可直接实现的 runtime ABI 规范：ref 指针表示、对象头字段与偏移、type descriptor 字段、vtable/itable 表示、RTTI（type id/parent/interface ids）与 `is/as/as?` 的运行期判定规则。
+- 目标：
+  - ref 指针在 LLVM IR 中统一为 `addrspace(1)`（GC-managed），与 `scoop.unsafe.Ptr<T>`（addrspace(0)）严格区分；
+  - 对象头必须包含：`next`、`type_desc*`、`size_bytes`、`flags`、`mark`，并用 C `_Static_assert` 固化偏移；
+  - type descriptor 必须包含：`size_bytes/align_bytes/trace_start_offset_bytes/trace_bitmap_words/trace_fn/release_fn/type_id/parent_type_desc/itable/vtable`（字段名可不同但语义必须等价）。
+- 验收：
+  - `SCOOP_RUNTIME.md` 写出完整字段表、偏移与调用约定；
+  - 新增 `crates/scoop_runtime` 集成测试：对对象头与 type descriptor 的关键偏移做断言（与 codegen 侧一致）。
+- 依赖：T0908、T0907
+
+### T1502 [TODO] 编译器：GC 指针类型统一为 `addrspace(1)` 并贯穿 Type→MIR→LLVM
+- 描述：把所有 GC-managed ref（Any/class/interface/function/closure env/array/string/box）统一建模为 `addrspace(1)` 指针，并确保 lowering/codegen 不再把 ref 混用为 `i8*`（addrspace(0)）。
+- 目标：
+  - `CgTy::Ref` 与所有“引用类 builtin”（如 `String`、`Array<T>`）在 LLVM 层统一为 `addrspace(1)`；
+  - `Option<Ref>` 的 niche 统一为 NULL（addrspace(1) null）；
+  - 任何进入 `@Extern`/C ABI 的 ref 必须通过明确的桥接 API：短期借用用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>` 显式转换，长期持有用 `GC.handleNew/handleGet/handleDrop`；禁止把 GC 指针直接透传到 native。
+- 验收：
+  - 新增 `--emit-llvm` 断言用例：IR 中出现 `addrspace(1)` 的 ref 指针类型，并且 `gc.statepoint`/stackmap 可识别这些指针；
+  - `cargo test --all`、`cargo run -p scoop -- test` 通过。
+- 依赖：T0803、T0908、T1009
+
+### T1503 [TODO] 编译器：接入 LLVM statepoint/stackmap 管线并为 safepoint 生成可定位的 metadata
+- 描述：在 LLVM 后端启用 statepoint 机制，生成 stackmap section，并保证运行时可以用 return address 精确定位到 stackmap record（用于 roots 枚举与 relocation 更新）。
+- 目标：
+  - 以 `scoop_gc_safepoint_poll/enter_native/leave_native/scoop_alloc_typed` 等 runtime helper 作为 safepoint 边界；
+  - LLVM pass pipeline 必须包含 `rewrite-statepoints-for-gc`，并确保最终产物包含 stackmap section；
+  - 为调试提供可导出的 “return_address → record” dump（`scoop dump-stackmaps`）。
+- 验收：
+  - 新增 `cargo test -p scoopc --features llvm` 单测：构建一个最小 module 后，stackmap section 非空且可解析；
+  - 新增 `scoop dump-stackmaps <bin>` 输出可读信息，并在 CI/fixtures 中断言包含至少 1 个 safepoint record。
+- 依赖：T1502、T0804、T0806
+
+### T1504 [TODO] 运行时：stackmap registry（main binary + 静态链接对象）与解析器
+- 描述：在 C runtime 中实现 LLVM StackMap 格式解析，并提供 module 注册 API，把 stackmap records 纳入统一查询表（按 return address 索引）。
+- 目标：
+  - 支持主线平台格式：Mach-O（segment `__LLVM_STACKMAPS` / section `__llvm_stackmaps`）、ELF（`.llvm_stackmaps`）、COFF（`.llvm_stackmaps`）；
+  - registry 必须支持多 module 合并（main binary + 多个静态库/对象），并能处理地址重定位后的绝对地址；
+  - 查询结构采用“按 return address 排序数组 + 二分查找”，保证确定性与可调试性。
+- 验收：
+  - `crates/scoop_runtime` 新增集成测试：给定一段内嵌/模拟 stackmap 数据，解析后能按 return address 找到 record；
+  - 在真实链接产物上运行 smoke：`scoop_runtime_init()` 后 registry 非空，并能定位到 `main` 中的 safepoint record。
+- 依赖：T1503、T0901
+
+### T1505 [TODO] 运行时：safepoint poll + 线程状态机（Running/Parked/InNative）与停世界协议（含 stack walking 上下文）
+- 描述：实现基于 statepoint/stackmap 的 stop-the-world：线程在 `scoop_gc_safepoint_poll()` 进入 Parked，线程在 `enter_native()` 进入 InNative。**GC 必须能扫描每个线程的完整调用栈（多帧）**，因此 Parked 线程必须提供可用于 stack walking 的上下文（由 runtime/c 负责，不泄漏到 Scoop 侧）。
+- 目标：
+  - `scoop_gc_safepoint_poll()`：
+    - fast path：无 GC 请求时零开销返回（仅做一次原子读）；
+    - slow path：检测到 GC 请求后，在进入 park 前捕获该线程的 unwind 上下文到 TLS（建议 `unw_context_t` 或等价结构；实现与平台绑定，必须收敛在 `runtime/c/platform/*`），随后切换状态为 Parked 并等待 GC 完成；
+    - GC 完成后清理 TLS 上下文并恢复 Running。
+  - `enter_native()` / `leave_native()`：
+    - `enter_native()` 必须把**该 callsite 的 live roots（stackmap locations）**复制到 TLS `native_roots` buffer，并切换状态为 InNative；复制完成后 native 代码不得长期持有对象地址（长期持有必须走 handle，见 T1510）；
+    - `leave_native()` 必须清理 `native_roots` 并切回 Running（必须在异常/early return 路径下配对）。
+  - 停世界协议：
+    - GC 发起方设置 `gc_requested + gc_epoch`，并等待所有线程进入 Parked 或 InNative；
+    - 必须提供可诊断的超时/卡死信息：打印未到达 safepoint 的线程 id、最后一次状态、以及其上次 safepoint epoch。
+- 验收：
+  - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 poll + 一线程触发 GC，确保两线程都能被停下并恢复；
+  - 新增 run-pass fixture：深调用链（至少 3 帧）下由内层触发 GC，但 root 仅存在于外层帧，GC 后仍可访问（验证“多帧 stack walking roots”而非仅顶帧）。
+- 依赖：T1504、T0911、T1402
+
+### T1506 [TODO] 运行时：用 stackmap roots 替换 shadow stack roots（Visitor API + 精确可更新 slots）
+- 描述：把 GC 的根集枚举从 shadow stack 改为 stackmap：对 Parked 线程使用其 TLS 保存的 unwind 上下文做 stack walking，逐帧定位 stackmap record，并以 `void** slot` 的形式枚举所有 roots（支持移动 GC 原地更新）。
+- 目标：
+  - Parked 线程 roots 枚举必须扫描**完整调用栈（多帧）**：对每一帧取得 `(return_address, stack_pointer[, frame_pointer])` 并查询 stackmap record；
+  - roots 枚举必须同时覆盖：栈 spill slots、callee-saved spill slots、以及任何 LLVM stackmap 记录的 indirect locations；
+  - 对无法转换为可更新 `void** slot` 的 stackmap location（例如寄存器 location）必须视为编译器/管线错误并给出稳定诊断（要求 codegen + statepoint 重写把 GC 指针落到可更新的 spill slot）；
+  - 对 InNative 线程，roots 枚举以 `native_roots` buffer 为根集来源；
+  - 保留 pin/unpin 语义：pinned 对象既是额外 roots，又是 relocation 禁止对象。
+- 验收：
+  - 新增 runtime 集成测试：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；
+  - 在启用移动/压缩前先通过 “非移动 GC + stackmap roots” 全量回归：`cargo test --all`、`cargo run -p scoop --features llvm -- test`。
+- 依赖：T1505、T0910、T0912
+
+### T1507 [TODO] 编译器：为 class/interface/box/closure env/array/string 生成 type descriptor（trace bitmap + dispatch tables）
+- 描述：在编译期为所有可分配 ref 类型生成 `ScoopTypeDescriptor` 常量，并在对象分配时写入对象头 `type_desc`，使 GC 能扫描对象内部引用字段并支持动态分发。
+- 目标：
+  - class：包含所有实例字段（含继承）引用位图；生成 vtable（含 override slot）；生成 itable（按 interface id）；
+  - interface：分配全局稳定 interface id，并生成 method slot 表；
+  - box：值类型装箱为 ref（Any/interface）时使用 box type descriptor，box payload 的 trace bitmap 由被装箱类型决定；
+  - closure env：capture 字段的 trace bitmap 必须覆盖所有 ref captures（含 CaptureBox）；
+  - array/string：descriptor 必须包含 element trace 规则（ref element 时扫描每个元素），并正确处理变长对象 size。
+- 验收：
+  - 新增 `scoop dump-rtti` 输出：列出每个 type 的 `type_id`、父类、interfaces、vtable slots、trace bitmap；
+  - 新增 run-pass fixtures：class 持有 ref 字段 + GC 后仍可访问；array<string> 分配 + GC 后元素仍正确。
+- 依赖：T1501、T1502、T0907、T0401、T0512
+
+### T1508 [TODO] 类型检查与 lowering：普通成员函数调用（class/interface）+ 动态分发分类
+- 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 MIR 中显式表达。
+- 目标：
+  - class：非 override 的 `final`/private 可 direct call；可 override 的走 vtable；
+  - interface：走 itable；
+  - 支持 `super.method()`（按 Kotlin-like 规则）与 `override` 的一致性校验（签名 + effect row containment）；
+  - `this` 与构造阶段调用规则必须保持 Appendix B.2.2 语义一致。
+- 验收：
+  - 新增 typecheck fixtures：member call 的 overload resolution、override 冲突、interface dispatch 的 pass/fail；
+  - 新增 run-pass fixtures：class override 调用输出正确；interface 引用调用输出正确。
+- 依赖：T0319、T0440、T1312、T1507
+
+### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
+- 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。
+- 目标：
+  - 所有对象分配统一走 `scoop_alloc_typed(type_desc, size_bytes)`，并写入对象头 type_desc（fixed-size 传常量 size；变长对象传计算后的 size）；
+  - 字段访问必须使用编译期计算的 offset（与 type descriptor 一致），并在写 ref 字段时满足 GC 的写入约束（STW 下可无 barrier，但必须保证 slot 写入是可被 GC 扫描的 `void**`）；
+  - virtual/interface 调用必须使用 vtable/itable slot，调用约定固定为：`fn(this, ...args) -> ret`；
+  - `is/as/as?` 调用必须落到 runtime type test（例如 `scoop_rtti_is_instance_of/scoop_rtti_cast`），并与 nullability/pointer-niche 规则一致。
+- 验收：
+  - 新增 run-pass fixtures：class 分配 + 字段 set/get + override call；interface 调用；`is/as/as?` 的 pass/fail；
+  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过。
+- 依赖：T1508、T1503、T1507
+
+### T1510 [TODO] GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）完整落地
+- 描述：把 `@Extern` 调用纳入 GC 协议：编译器自动插入 `enter_native/leave_native`，并为“把对象指针交给 native 并跨 safepoint 存活”的场景提供稳定方案（pin/unpin + stable handle）。
+- 目标：
+  - `@Extern` 调用前必须 `enter_native`，调用后必须 `leave_native`（异常/early return 也要保证配对）；
+  - 若 native 需要长期持有引用：必须走稳定 handle（`GC.handleNew/handleGet/handleDrop`），而不是把对象地址长期暴露给 native；pin/unpin 仅作为低层特权 API（例如短期借用或与外部 ABI 互操作）；
+  - 禁止把 `addrspace(1)` GC 指针直接当作 `Ptr<T>` 传给 native（必须显式转换）。
+- 验收：
+  - 新增 unsafe_nogc/typecheck fixtures：禁止错误的 ref→Ptr 隐式转换；
+  - 新增 run-pass fixture：调用一个模拟 extern（可在 runtime/c 提供测试符号）在 native 内部触发 GC，仍能正确访问对象。
+- 依赖：T1505、T1008、T1009、T1006
+
+### T1511 [TODO] 移动 GC：stackmap spill slots 与 heap 引用字段的统一更新（为 Immix compaction 做前置）
+- 描述：实现移动 GC 的“指针修复闭环”：对象搬迁后，必须更新所有 roots（stackmap spill slots + native_roots）与 heap 内引用字段，使程序在恢复执行后无悬挂指针。
+- 目标：
+  - relocation 更新点：stackmap spill slots（按 record locations 写回）、native_roots buffer（逐槽写回）、stable handle 表（handle->obj 指针写回，见 T1510）、heap 内部字段（trace visitor 以 `void** slot` 形式可更新）；
+  - 与 pin/unpin 一致：pinned 对象不搬迁；引用 pinned 对象的 slot 仍可正常扫描；
+  - GC 结束后，所有线程恢复执行必须只通过 relocated pointers 继续（statepoint + gc.relocate 读取到的新值）。
+- 验收：
+  - 新增 `runtime_gc` fixtures：强制触发移动（可通过 env/flag），并验证对象地址变化后引用仍正确；
+  - 在启用 Immix compaction 前，baseline moving 模式下同样一组 fixtures 通过（作为 T1407 的前置安全网）。
+- 依赖：T1506、T1510
+
+### T1512 [TODO] 回归与压力测试：ref types + stackmap GC 全量覆盖矩阵
+- 描述：为引用类型与 GC 建立持续回归套件：覆盖 class/interface/closure/array/string/box、跨线程、native 过渡、pin/unpin、moving/compaction，并为每类提供最小 pass/fail + run-pass。
+- 目标：
+  - `tests/fixtures/runtime_gc/*`：新增按主题分组的 fixtures（roots 枚举、对象内引用扫描、循环引用、跨线程、native 过渡、pin/unpin、moving）；
+  - `scoop test` 支持 `--gc-stress` / `--gc-move` / `--threads=N` 指令驱动（由 runner 注入 env/args）；
+  - 每个特性至少 1 个 compile-fail（非法用法/unsafe 违规）与 1 个 run-pass（正确行为）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
+- 依赖：T1509、T1511
+
+### T1513 [TODO] String 表示升级方案：`struct String` + `class StringData` backing（零拷贝 slicing/substring）
+- 描述：评估并落地把 `String` 从“单一 ref class”升级为“薄 value struct + 共享 back buffer”的表示，以支持零拷贝 slicing/substring（例如 `trimStart`/`trimEnd`/`trim` 等仅调整边界的操作）。
+- 目标：
+  - 语言层语义（必须写进规范）：
+    - `String` 仍是不可变、值语义（== 按内容；hash 按内容；copy 不共享可变状态）。
+    - `String` 必须可表示“子串视图”：多个 `String` 可以共享同一个 `StringData`，但拥有不同的 `(start, len)`。
+    - `trimStart/trimEnd/trim/substr/slice` 的返回值优先为 **O(1) 零拷贝**（仅调整 `(start, len)`），仅在必要时（例如需要重新编码/规范化）才分配新 `StringData`（是否需要规范化必须在 spec 中给出明确规则，而不是实现自选）。
+  - 运行时布局（必须写进运行时文档）：
+    - `struct String { data: StringData, start: Int, len: Int }`（字段名可不同，但语义必须等价；`data` 为 GC-managed ref）；
+    - `class StringData` 为不可变 back buffer：包含字节存储（建议 UTF-8）与长度，并提供“取子范围”的边界检查辅助；
+    - 明确“String 视图”如何向 native 暴露字节：短期 raw pointer 必须 pin；长期存活必须用 stable handle（复用 §15.10/§15.10.1 的规则）。
+  - 编译器/GC 约束（必须写进计划/验收）：
+    - `String` 作为 value type 含有 ref 字段，stackmap roots 与 heap trace 必须都能正确保活 `StringData`；
+    - 将 `String` 作为 `Any`/interface 时触发 boxing（分配 box 对象并携带 type descriptor），不得破坏零拷贝 slice 语义。
+- 验收：
+  - `SCOOP_FULL_SPEC.md` §8 增补 `String` 表示与 slicing/substring/trim 语义（包含：共享/边界/复杂度/是否分配的判定规则）。
+  - `SCOOP_RUNTIME.md` 增补 `String`/`StringData` 的内存布局与 GC/FFI 约束（pin/handle）。
+  - `STDLIB_DESIGN.md` 的 `scoop.text` 分层补充：哪些 API 必须零拷贝、哪些 API 允许分配（作为性能契约的一部分）。
+- 依赖：T1501、T1502、T1507、T1510、T1511
+
+### T1514 [TODO] String 表示落地：sysroot + runtime + codegen + fixtures（按 T1513 规范）
+- 描述：按 T1513 的规范，把 `String` 落地为 value struct + shared backing，并补齐 `trimStart/trimEnd/trim/substr/slice` 的端到端实现与回归。
+- 目标：
+  - sysroot：调整 `String` 的声明与最小 API（`length`/`get`/`slice`/`trim*`/`toString`/`hashCode` 等），并引入 `StringData`（仅 runtime 可构造）。
+  - runtime/c：实现 `StringData` 分配与字节存储、字符串字面量/拼接（若已支持）、以及输出/比较/哈希等底层原语（按“ABI 最小化”原则集中导出）。
+  - codegen：字符串字面量与基础字符串操作生成正确布局的 `String` 值；跨函数传参/返回与闭包捕获不破坏 `(data,start,len)`。
+  - GC：`StringData` 的 type descriptor trace bitmap 正确；moving/compaction 后 `String.data` 的指针被正确更新（含栈/堆/handles/native_roots）。
+- 验收：
+  - 新增/更新 run-pass fixtures：`trimStart/trimEnd/trim` 输出正确；`slice/substr` 在共享 backing 下语义正确；
+  - 新增 runtime_gc fixtures：在 `--gc-stress` 与 `--gc-move` 下大量 substring/trim 不产生悬挂指针；
+  - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1513、T1512

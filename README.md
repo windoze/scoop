@@ -6,7 +6,7 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - 代数效果系统（统一 async、错误处理、控制流）
 - 泛型单态化（monomorphization）
 - 编译期执行与静态反射（`const fun` / `comptime`）
-- LLVM 后端（Rust `inkwell`），自带运行时与 GC（早期用 C，后续迁移到 Scoop）
+- LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
@@ -16,7 +16,7 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 
 前提：
 - Rust（建议最新版 stable）
-- clang（用于早期 C runtime 构建）
+- clang（用于 C runtime 构建）
 - LLVM（可选：仅当启用 `scoopc` 的 `llvm` feature 时需要；需提供 `llvm-config`）
 
 构建：
@@ -50,7 +50,7 @@ PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
 cargo run -p scoop -- --help
 ```
 
-跑最小 fixtures（当前阶段只做 smoke：递归读取 `tests/fixtures/**/*.scoop`）：
+跑 fixtures（递归执行 `tests/fixtures/**`；按 phase 目录路由执行，未实现 phase 会给出清晰诊断）：
 
 ```bash
 cargo run -p scoop -- test
@@ -80,6 +80,6 @@ PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
 
 - `crates/scoop/`：命令行工具（driver）
 - `crates/scoopc/`：编译器核心库（前端/中端/后端）
-- `crates/scoop_runtime/`：早期运行时构建（C runtime 的 build glue）
-- `runtime/c/`：早期 C 运行时实现（GC/effect/线程等，逐步补齐）
+- `crates/scoop_runtime/`：运行时构建（C runtime 的 build glue）
+- `runtime/c/`：C 运行时实现（GC/effect/线程等；平台差异收敛在 platform/backends）
 - `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）

@@ -78,7 +78,7 @@ Note: `Byte` is defined as an **unsigned** 8-bit integer (`UInt8`).
 
 ## 4. Unsafe pointers (`Ptr<T>`) and GC-free types
 
-The sysroot may expose a raw pointer primitive:
+The sysroot exposes a raw pointer primitive:
 
 ```kotlin
 @Intrinsic
@@ -101,6 +101,12 @@ This is a *static* well-formedness rule. It is not enough to say “value type�
 Even if `T` is GC-free, a pointer may still point *into* GC-managed memory. For moving/compacting GCs, such pointers are only valid while the owning object is pinned.
 
 The language-level pinning API is described in `SCOOP_FULL_SPEC.md` §15.10.
+
+### 4.3 Long-lived interop: stable GC handles (no raw addresses across safepoints)
+
+For moving/compacting GCs, native code MUST NOT retain a raw address of a GC-managed object across safepoints (GC may move objects). Pinning is the mechanism for **short-lived** raw pointers into GC-managed memory (typically for the duration of a single synchronous OS call).
+
+For **long-lived** references that must survive safepoints (e.g. storing a reference in native state, async/proactive I/O completion callbacks, global caches), the toolchain must provide **stable GC handles**: an opaque token that remains stable even if the object moves. The recommended language-level API shape is specified in `SCOOP_FULL_SPEC.md` §15.10.1.
 
 ## 5. Pointer ↔ integer casts
 
@@ -132,17 +138,19 @@ Integer types MUST support:
 
 The operator-to-method mapping is described in `SCOOP_FULL_SPEC.md` Appendix B.8.
 
-## 7. Runtime ABI surface (early stage)
+## 7. Runtime ABI surface (toolchain contract)
 
-The repository currently contains an early C runtime (`runtime/c/`) built via `crates/scoop_runtime`.
+The repository contains a C runtime (`runtime/c/`) built via `crates/scoop_runtime`. This C runtime is a **long-term component** for Scoop 0.1:
 
-At this stage, the runtime ABI is expected to grow to include:
+- Platform dependencies must be isolated inside the runtime's platform/backend layer (see `PLAN.md` T14), and must not leak into the Scoop surface language (sysroot/stdlib) via OS-specific types or ad-hoc externs.
+- The runtime ABI exposed to Scoop must stay **small and auditable** (see `PLAN.md` T1401).
 
-- allocation entrypoints (e.g., `scoop_alloc`)
-- TLS state for effects (handler stack, perform slot)
-- thread registration hooks for GC
+The exact symbol allowlist is tracked in `TODO.md` and will be enforced by tooling. Until that is in place, treat any runtime symbol referenced by:
 
-This file intentionally does not freeze symbol names yet beyond what is required by current code and fixtures.
+- sysroot `@Intrinsic` / `@Extern` declarations, and
+- LLVM codegen mappings
+
+as part of the toolchain contract, and update them in lockstep with fixtures when changes are required.
 
 ## 8. Sysroot Directory Structure
 
@@ -153,17 +161,24 @@ In this repository, the sysroot is located at:
 ```
 sysroot/
   core.scoop
-  # Future (suggested):
-  # intrinsics.scoop
-  # unsafe.scoop
-  # gc.scoop
-  # io.scoop
+  delegates.scoop
+  collections.scoop
+  unsafe.scoop
+  env.scoop
+  time.scoop
+  fs.scoop
+  path.scoop
+  process.scoop
+  io.scoop
+  sync.scoop
+  thread.scoop
+  channels.scoop
 ```
 
 Conventions:
 
 - Intrinsic declarations are marked with `@Intrinsic` and must have signatures but no bodies.
-- Unsafe primitives (e.g., `Ptr<T>`, pointer/integer casts) should live in a dedicated sysroot module (suggestion: `scoop.unsafe`) so that `@Unsafe`-gated APIs are easy to audit.
+- Unsafe primitives (e.g., `Ptr<T>`, pointer/integer casts) live in `scoop.unsafe` so that `@Unsafe`-gated APIs are easy to audit.
 - The compiler parses sysroot files before user code and resolves references against sysroot declarations as if they were part of the compilation universe.
 
-The exact module layout is not yet frozen; the main requirement is that the sysroot remains a stable, tool-readable source of truth for built-in APIs.
+The sysroot module layout is part of the toolchain contract: changes must update the compiler’s prelude/import behavior, documentation, and fixtures together.

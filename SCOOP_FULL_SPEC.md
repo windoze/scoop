@@ -103,7 +103,9 @@ struct Color(val r: Byte, val g: Byte, val b: Byte, val a: Byte) : Hashable {
 - Structs can implement interfaces.
 - Structs cannot extend other structs or classes.
 - Structs can contain both value type and reference type fields.
-- The GC traces reference type fields within structs using precise stack maps.
+- Any reference-typed fields stored inside value types must remain **precisely traceable** by the GC:
+  - On the stack, the compiler provides precise stack maps (GC stack maps) for all live GC pointers, including those nested inside spilled value-typed aggregates.
+  - Inside GC heap objects, the runtime traces references via the containing object's type descriptor (trace bitmap / trace function).
 
 **Struct literal syntax**:
 
@@ -672,7 +674,7 @@ handle {
 
 #### Escape-continuation handler (`, k ->`)
 
-The continuation is captured as a first-class `Continuation<T>` value. It can be stored, passed to other functions, and resumed later — possibly after the handler has returned.
+The continuation is captured as a first-class `Continuation<T, eff E>` value. It can be stored, passed to other functions, and resumed later — possibly after the handler has returned.
 
 ```kotlin
 handle {
@@ -680,13 +682,15 @@ handle {
     println(data)
 } with {
     Async.await(task), k -> {
-        // k : Continuation<T>
+        // k : Continuation<T, eff E>
         scheduler.register(task, k)
     }
 }
 ```
 
-`resume()` is unavailable; use `k.resume(value)` explicitly. The state machine is heap-allocated (GC-managed) so it can outlive the handler scope. `k.resume()` is one-shot — calling it twice is a runtime error.
+`resume()` is unavailable; use `k.resume(value)` explicitly. The state machine is heap-allocated (GC-managed) so it can outlive the handler scope.
+
+`k.resume(value)` is **one-shot**: calling it twice performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (and therefore requires `Raise<RuntimeError>` unless handled).
 
 #### Summary
 
@@ -698,24 +702,28 @@ handle {
 
 ### 5.5 Continuation Type
 
-`Continuation<T>` is a built-in generic type representing a suspended computation that expects a value of type `T` to continue. `T` is determined by the return type of the effect operation.
+`Continuation<T, eff E = Pure>` is a built-in generic type representing a suspended computation that expects a value of type `T` to continue.
+
+- `T` is determined by the return type of the effect operation.
+- `E` is the **required effect row** of the suspended computation when it is resumed (i.e., resuming the continuation may perform effects in `E`).
 
 ```kotlin
 effect Ask {
-    fun question(prompt: String): String   // Continuation<String>
+    fun question(prompt: String): String   // continuation: Continuation<String, eff E>
 }
 
 effect Yield {
-    fun next(): Int                        // Continuation<Int>
+    fun next(): Int                        // continuation: Continuation<Int, eff E>
 }
 ```
 
 Operations:
-- `k.resume(value: T)` — resume the suspended computation with `value`. One-shot: panics if called twice.
+- `k.resume(value: T): Unit / (E + Raise<RuntimeError>)` — resume the suspended computation with `value`.
+  - One-shot: if called twice, performs `Raise.raise(RuntimeError.ContinuationAlreadyResumed)` (no panic).
 
 Resumption context:
 
-- `Continuation<T>` captures the dynamic effect context (the active handler stack; Appendix A) at the suspension point.
+- `Continuation<T, eff E>` captures the dynamic effect context (the active handler stack; Appendix A) at the suspension point.
 - Calling `k.resume(value)` resumes the computation under that captured handler stack, even if `resume` is invoked from a different OS thread.
 - Implementations typically realize this by storing the captured handler stack pointer in the continuation object and installing it into the current thread’s TLS effect state for the duration of the resumed step, then restoring the previous TLS state on return.
 
@@ -776,6 +784,7 @@ Some language constructs may fail at runtime (e.g., `!!`, `as`). These failures 
 enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
+    ContinuationAlreadyResumed,
 }
 ```
 
@@ -847,7 +856,7 @@ Key semantics:
 - `await expr` inside an async body desugars to `perform Async.await(expr)`.
 - The `/ Async` effect exists only inside the Task's computation, not on the caller's signature.
 - `Task<T>` is lazy until awaited or explicitly started.
-- The executor uses escape continuations (`Continuation<T>`) to suspend and resume tasks cooperatively.
+- The executor uses escape continuations (`Continuation<T, eff E>`) to suspend and resume tasks cooperatively.
 
 #### spawn (structured concurrency)
 
@@ -1034,9 +1043,9 @@ An entry point is a function invoked by the Scoop runtime without an explicit ca
 
 The Scoop runtime invokes the program's entry point(s) with **no ambient effect handlers**. As a result, entry points must not require any effects:
 
-- The effect row of an entry point is required to be `Pure`.
-- If an entry point declares a non-`Pure` effect row, it is a compile error.
-- If an entry point omits an effect annotation, it is treated as `/ Pure` and any unhandled effect performed by the body is a compile error (see §14.7).
+- The effect row of an entry point is required to be `Pure!` (closed pure row; see §5.8.4).
+- If an entry point declares any effect row other than `Pure!` (including open `/ Pure`), it is a compile error.
+- If an entry point omits an effect annotation, it is treated as `/ Pure!` and any unhandled effect performed by the body is a compile error (see §14.7).
 
 In other words, effects may be used inside an entry point only if they are handled within the entry point (directly via `handle` / `try`, or indirectly by calling library code that installs handlers).
 
@@ -1389,6 +1398,11 @@ A function type may optionally declare an effect row after `/`:
 - `(A, B) -> C / R`
 - `T.(A, B) -> C / R`
 
+The effect row syntax supports both open and closed rows (see §5.8.4). For example:
+
+- `(Int) -> String / Pure` (open row)
+- `(Int) -> String / Pure!` (closed row)
+
 If omitted, the effect row is `Pure`.
 
 Examples:
@@ -1409,6 +1423,29 @@ For two function types with the same parameter and return types:
 If `R1 ⊆ R2` then `(A) -> B / R1` is a subtype of `(A) -> B / R2`.
 
 This allows a pure function to be passed where a more effectful function is expected.
+
+#### Effect erasure and casts to `Any`
+
+Effect rows are **compile-time only** and are not preserved at runtime (see §5.8.3). In particular, the runtime representation of a function value does not carry enough information to reliably enforce or validate its declared effect row.
+
+As a consequence, casting/boxing a function value to `Any` is only permitted when the function type has the **closed** effect row `Pure!`:
+
+- ✅ allowed: `((A) -> B / Pure!) as Any` (and implicit upcasts/boxing to `Any`)
+- ❌ forbidden: `((A) -> B / R)` for any non-`Pure!` row `R` (including open `/ Pure`)
+
+Rationale: once the value is erased to `Any`, the effect row cannot be recovered or checked at runtime; allowing effectful function values to be stored as `Any` would permit calling them later without the required effect handling, leading to runtime failures.
+
+Example:
+
+```kotlin
+val ok: (Int) -> String / Pure! = { x -> x.toString() }
+val a: Any = ok                  // ✅ ok
+
+val bad: () -> Unit / Raise<RuntimeError> = {
+    perform Raise.raise(RuntimeError.NullAssertionFailed)
+}
+val b: Any = bad                  // ❌ compile error: cannot erase effects into Any
+```
 
 ## 8. String Literals
 
@@ -1992,7 +2029,7 @@ For a **public** function that omits an effect annotation, `R_decl` is `Pure` (s
 
 For a **private/internal** function that omits an effect annotation, the compiler infers `R_decl` from the body’s required effects.
 
-For an **entry point** (see §5.10), the declared effect row is required to be `Pure`, even if an explicit effect annotation is present. Declaring a non-`Pure` effect row on an entry point is a compile error.
+For an **entry point** (see §5.10), the declared effect row is required to be `Pure!` (closed), even if an explicit effect annotation is present. Declaring any effect row other than `Pure!` on an entry point is a compile error.
 
 Example:
 
@@ -2484,7 +2521,12 @@ Rationale:
 - FFI boundaries are opaque to the compiler.
 - Treating `@Extern` as `@NoGC` by default enables low-level runtime code (including the GC) to call OS / libc functions without accidentally depending on GC-managed allocation.
 
-If an external function needs to interact with the Scoop GC (e.g., allocate GC-managed objects, register roots, invoke callbacks into Scoop), it must use a dedicated runtime/FFI API (not specified here).
+If an external function needs to interact with GC-managed objects, it must do so via the standard GC interop mechanisms:
+
+- For **short-lived** raw pointers into GC-managed memory: use pinning (`GC.pin` / `GC.unpin`, §15.10).
+- For **long-lived** references that must survive safepoints: use stable GC handles (`GC.handleNew` / `GC.handleGet` / `GC.handleDrop`, §15.10.1).
+
+External code must not retain raw object addresses across safepoints (moving/compacting GCs may relocate objects). The toolchain/runtime defines the concrete native ABI surface for these operations (see `SCOOP_RUNTIME.md`).
 
 #### 15.8.4 Example
 
@@ -2540,7 +2582,7 @@ An unsafe block has the form `@Unsafe { ... }` and may appear wherever a block i
 
 #### 15.9.4 Raw pointers (`Ptr<T>`) and address integers (`UIntPtr`)
 
-The sysroot may expose a raw pointer type:
+The sysroot exposes a raw pointer type:
 
 ```kotlin
 @Intrinsic
@@ -2667,31 +2709,64 @@ Motivation:
 - For a synchronous OS call, a pointer to GC-managed memory is typically only used for the duration of the call.
 - For proactive/asynchronous I/O, the OS may retain the pointer beyond the call and complete the I/O later. The buffer must remain at a stable address until completion.
 
-The pinning API is provided by the sysroot/runtime (see §15.7). A typical shape is:
+The pinning API is provided by the sysroot/runtime (see §15.7). In Scoop 0.1 the standard shape is:
 
 ```kotlin
 @Intrinsic
 object GC {
     @NoGC @Unsafe
-    fun <T> pin(obj: T): Pinned<T>
+    fun pin(obj: Any): Pinned
 
     @NoGC @Unsafe
-    fun <T> unpin(pinned: Pinned<T>)
+    fun unpin(pinned: Pinned)
 }
 
-// Value type handle. Exact fields are implementation-defined.
-struct Pinned<T>(val value: T)
+// Value type handle.
+// `Pinned.value` exists so the handle keeps the object alive while pinned.
+struct Pinned(val value: Any)
 ```
 
 Semantics:
 
 - `GC.pin(obj)` marks `obj` as **pinned**: it must not be moved by the GC until it is unpinned.
-- A pinned object is treated as a GC root (kept alive) while it is pinned. Each successful `pin` must be paired with exactly one `unpin`. Dropping a `Pinned<T>` handle without calling `unpin` is a resource leak (the object remains pinned indefinitely).
-- `GC.unpin(pinned)` removes the pin associated with the `Pinned<T>` handle. Unpinning twice is a runtime error.
+- A pinned object is treated as a GC root (kept alive) while it is pinned. Each successful `pin` must be paired with exactly one `unpin`. Dropping a `Pinned` handle without calling `unpin` is a resource leak (the object remains pinned indefinitely).
+- `GC.unpin(pinned)` removes the pin associated with the `Pinned` handle. Unpinning twice is a runtime error.
 - Pinning/unpinning is an unsafe operation because early-unpin (while a foreign party still holds the pointer) can cause memory corruption.
 - Pinning is per-object. The object whose address is shared with a foreign subsystem must be the object that is pinned; pinning a wrapper object does not automatically pin other objects it references.
 
 Pinning does not imply that the GC will not run; it only constrains object movement. Excessive or long-lived pinning may reduce GC compaction effectiveness (implementation-defined).
+
+#### 15.10.1 Stable GC Handles (`handleNew` / `handleGet` / `handleDrop`)
+
+Pinning is the mechanism for **short-lived** raw pointers into GC-managed memory (typically for the duration of a single synchronous OS call). It is **not** the general mechanism for letting native code keep references across safepoints.
+
+For moving/compacting GCs, native code must not retain raw object addresses across safepoints. Instead, the runtime provides **stable GC handles**: an opaque token that remains stable even if the object moves.
+
+Standard API shape (sysroot/runtime):
+
+```kotlin
+@Intrinsic
+object GC {
+    @Unsafe
+    fun handleNew(obj: Any): GcHandle
+
+    @NoGC @Unsafe
+    fun handleGet(handle: GcHandle): Any
+
+    @NoGC @Unsafe
+    fun handleDrop(handle: GcHandle): Unit
+}
+
+// Opaque token. The concrete representation is toolchain-defined but must be stably passable to native code.
+struct GcHandle(val raw: UIntPtr)
+```
+
+Semantics:
+
+- `GC.handleNew(obj)` creates a new handle that keeps `obj` alive and returns the handle token.
+- `GC.handleGet(handle)` returns the current object reference for this handle. The returned reference may point to a different address at different times (object movement is allowed).
+- `GC.handleDrop(handle)` releases the handle. Dropping/forgetting to call `handleDrop` is a resource leak.
+- A GC handle does **not** imply pinning: it does not guarantee a stable object address. If raw pointers into the object are required, the object must additionally be pinned for that duration (see §15.10).
 
 ### 15.11 Type Descriptor Release Callback (FFI-managed Resources)
 
@@ -2711,6 +2786,81 @@ Important restrictions:
 - The exact calling context and allowed operations are implementation-defined; implementations should treat the callback as `@NoGC` and `@Unsafe`-like.
 
 ## 16. Other Features
+
+### 16.1 Array Literals (`[a, b, c]`)
+
+Scoop supports array literals:
+
+```kotlin
+val xs = [1, 2, 3]
+val ys = ["hello", "world"]
+val ps = [Point { x: 12, y: 21 }, Point { x: 3, y: 4 }]
+```
+
+#### 16.1.1 Result type (`Array<T>` vs `MutableArray<T>`)
+
+The type of an array literal is selected by the **expected type**:
+
+- If the expected type is `Array<T>`, the literal has type `Array<T>`.
+- If the expected type is `MutableArray<T>`, the literal has type `MutableArray<T>`.
+- If there is no expected type, the literal defaults to `Array<T>`.
+
+The element type `T` is inferred as the **least upper bound** (LUB) of all element expression types (see §14.8).
+
+The empty literal `[]` requires an expected type to infer `T`; otherwise it is a compile error.
+
+#### 16.1.2 No implicit boxing inside literals
+
+Array literals do **not** perform implicit boxing/conversion of individual elements.
+
+This matters when the inferred/expected element type is a reference type such as `Any`:
+
+```kotlin
+val a1 = [1 as Any, 2 as Any]   // ✅ explicit boxing per element
+val a2 = [1, 2 as Any]          // ❌ compile error (would require implicit boxing of 1)
+```
+
+Rationale: allowing implicit per-element boxing in literals makes the element type inference non-local and can hide allocations. Scoop keeps boxing explicit at the element level for array literals.
+
+#### 16.1.3 Evaluation order
+
+Element expressions are evaluated left-to-right. The array is then allocated and populated in source order.
+
+### 16.2 Iteration Protocol and `for` Loops
+
+#### 16.2.1 Iterator surface
+
+The standard iterator protocol uses `Option<T>` to avoid a separate `hasNext()` cache:
+
+```kotlin
+interface Iterable<T> {
+    fun iterator(): Iterator<T>
+}
+
+interface Iterator<T> {
+    fun next(): Option<T>
+}
+```
+
+#### 16.2.2 `for` desugaring
+
+`for (x in xs) { body }` desugars to the following (schematically):
+
+```kotlin
+val it = xs.iterator()
+while (true) {
+    when (it.next()) {
+        Some(x) -> { body }
+        None -> break
+    }
+}
+```
+
+The element binder `x` is scoped only within the loop body.
+
+Any effects required by `iterator()`, `next()`, and the loop body are handled by normal effect typing rules: the enclosing function (or handler arm) must permit the union of those effects.
+
+### 16.3 Kotlin-derived features
 
 The following features follow Kotlin semantics unless otherwise noted in this specification:
 
@@ -2755,7 +2905,7 @@ When evaluating `perform E.op(args...)`:
 1. Evaluate `args...` (in left-to-right source order) to values.
 2. Identify the **target handler** as the nearest enclosing **active handler instance** whose handled set contains `E.op`.
 3. The effect is dispatched to **only that** target handler.
-4. If there is no such active handler instance, the effect remains unhandled and propagates outward. If an unhandled effect reaches the program boundary, it is a runtime error (panic). Well-typed programs should prevent this by ensuring entry points require `Pure` (see §5.10).
+4. If there is no such active handler instance, the effect remains unhandled and propagates outward. If an unhandled effect reaches the program boundary, it is a runtime error (panic). Well-typed programs should prevent this by ensuring entry points require `Pure!` (see §5.10).
 
 This rule is independent of the handler arm form (`->`, `-> resume`, or `, k ->`).
 
