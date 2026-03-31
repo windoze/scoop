@@ -4704,11 +4704,25 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1318d [TODO] `std` v2：`path` 最小接口 v0（join/basename/dirname）
+### T1318d [DONE] `std` v2：`path` 最小接口 v0（join/basename/dirname）
 - 描述：提供最小可执行的 `scoop.path` 路径操作（join/dirname/basename/normalize 的子集）。
 - 目标：先只做 host 平台的分隔符规则；不要求与 Kotlin/Java/NIO 完全一致。
 - 验收：新增 run-pass fixtures：路径 join 与 basename/dirname 行为可回归；不支持平台有明确 gating/诊断。
 - 依赖：T1318a
+ - 完成：
+   - sysroot：
+     - `sysroot/path.scoop`：新增 `scoop.path.normalize/join/basename/dirname` 声明面（最小归一化与分隔符规则）。
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_path_normalize/join/basename/dirname`（字符串层面的最小实现：折叠重复分隔符、去除末尾分隔符、root/`.` 约定）。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.path.*` 增加 sysroot → runtime 符号映射与函数签名声明。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_path_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_path_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1318e [TODO] `std` v2：`io` 最小接口 v0（stdin/stdout/stderr 抽象）
 - 描述：在已有 `print/println` 基础上，引入最小 `scoop.io` 抽象（例如 `Stdout.writeString`/`Stderr.writeString`/`Stdin.readLine` 的占位或最小可执行子集）。

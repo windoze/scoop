@@ -77,6 +77,15 @@ _Static_assert(sizeof(ScoopString) == 16, "ScoopString size must be 16 bytes");
 #endif
 
 static const ScoopString SCOOP_EMPTY_STRING = {0, 0};
+static const uint8_t SCOOP_DOT_BYTES[1] = {'.'};
+static const ScoopString SCOOP_DOT_STRING = {1, SCOOP_DOT_BYTES};
+
+static const uint8_t SCOOP_SLASH_BYTES[1] = {'/'};
+static const ScoopString SCOOP_SLASH_STRING = {1, SCOOP_SLASH_BYTES};
+#ifdef _WIN32
+static const uint8_t SCOOP_BACKSLASH_BYTES[1] = {'\\'};
+static const ScoopString SCOOP_BACKSLASH_STRING = {1, SCOOP_BACKSLASH_BYTES};
+#endif
 
 // 运行时全局状态（early stage）。
 //
@@ -1183,6 +1192,28 @@ static const ScoopString *scoop_string_from_bytes(const uint8_t *value, uint64_t
   return out_str;
 }
 
+// 以 “转移所有权” 的方式构造 runtime String（避免二次拷贝）。
+static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len) {
+  if (len == 0) {
+    if (value != 0) {
+      free(value);
+    }
+    return &SCOOP_EMPTY_STRING;
+  }
+  if (value == 0) {
+    return 0;
+  }
+
+  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  if (out_str == 0) {
+    free(value);
+    return 0;
+  }
+  out_str->len = len;
+  out_str->data = value;
+  return out_str;
+}
+
 static char *scoop_cstr_from_scoop_string(const ScoopString *value) {
   if (value == 0) {
     return 0;
@@ -1425,4 +1456,267 @@ void *scoop_process_args_array(void) {
   void *arr = scoop_array_builder_build_array(builder);
   scoop_process_args_cache = arr;
   return arr;
+}
+
+// --- std v2：path（T1318d） ---
+//
+// 说明：
+// - 该组 API 提供“最小可执行的路径操作”：normalize/join/basename/dirname；
+// - 当前阶段仅按 host 分隔符规则处理：POSIX 用 `/`，Windows（若未来支持）用 `\\`；
+// - 该实现是 “字符串层面的最小归一化”，不尝试做完整的 filesystem 语义（例如符号链接解析）。
+
+static uint8_t scoop_path_sep_byte(void) {
+#ifdef _WIN32
+  return (uint8_t)'\\';
+#else
+  return (uint8_t)'/';
+#endif
+}
+
+static int scoop_path_is_sep(uint8_t b) {
+#ifdef _WIN32
+  return b == (uint8_t)'/' || b == (uint8_t)'\\';
+#else
+  return b == (uint8_t)'/';
+#endif
+}
+
+#ifdef _WIN32
+static int scoop_path_is_alpha(uint8_t b) {
+  return (b >= (uint8_t)'A' && b <= (uint8_t)'Z') || (b >= (uint8_t)'a' && b <= (uint8_t)'z');
+}
+#endif
+
+static int scoop_path_is_absolute(const uint8_t *data, uint64_t len) {
+  if (data == 0 || len == 0) {
+    return 0;
+  }
+  if (scoop_path_is_sep(data[0])) {
+    return 1;
+  }
+#ifdef _WIN32
+  // 简化：把 `C:\...` / `C:...` 视为绝对（更严格规则留给后续任务）。
+  if (len >= 2 && scoop_path_is_alpha(data[0]) && data[1] == (uint8_t)':') {
+    return 1;
+  }
+#endif
+  return 0;
+}
+
+static const ScoopString *scoop_path_root_string(void) {
+#ifdef _WIN32
+  return &SCOOP_BACKSLASH_STRING;
+#else
+  return &SCOOP_SLASH_STRING;
+#endif
+}
+
+// `scoop.path.normalize(path: String): String`
+const ScoopString *scoop_path_normalize(const ScoopString *path) {
+  if (path == 0 || path->len == 0 || path->data == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+
+  const uint8_t *in = path->data;
+  uint64_t n = path->len;
+  if (n > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+
+  uint8_t sep = scoop_path_sep_byte();
+  uint8_t *out = (uint8_t *)malloc((size_t)n);
+  if (out == 0) {
+    return 0;
+  }
+
+  uint64_t j = 0;
+  int prev_sep = 0;
+  for (uint64_t i = 0; i < n; i++) {
+    uint8_t b = in[i];
+    if (scoop_path_is_sep(b)) {
+      if (j == 0) {
+        out[j++] = sep;
+        prev_sep = 1;
+        continue;
+      }
+      if (!prev_sep) {
+        out[j++] = sep;
+        prev_sep = 1;
+      }
+      continue;
+    }
+
+    out[j++] = b;
+    prev_sep = 0;
+  }
+
+  // trim trailing separators（保留根路径 `/`；Windows 的 `C:\` 特例也保留）
+  while (j > 1 && out[j - 1] == sep) {
+#ifdef _WIN32
+    if (j == 3 && scoop_path_is_alpha(out[0]) && out[1] == (uint8_t)':' && out[2] == sep) {
+      break;
+    }
+#endif
+    j--;
+  }
+
+  return scoop_string_from_owned_bytes(out, j);
+}
+
+// `scoop.path.join(base: String, child: String): String`
+const ScoopString *scoop_path_join(const ScoopString *base, const ScoopString *child) {
+  if (child == 0 || child->len == 0 || child->data == 0) {
+    return scoop_path_normalize(base);
+  }
+  if (base == 0 || base->len == 0 || base->data == 0) {
+    return scoop_path_normalize(child);
+  }
+
+  if (scoop_path_is_absolute(child->data, child->len)) {
+    return scoop_path_normalize(child);
+  }
+
+  const uint8_t *base_data = base->data;
+  uint64_t base_len = base->len;
+  const uint8_t *child_data = child->data;
+  uint64_t child_len = child->len;
+
+  // 去掉 base 末尾多余分隔符（保留根路径 `/`）。
+  uint64_t base_end = base_len;
+  while (base_end > 1 && scoop_path_is_sep(base_data[base_end - 1])) {
+    base_end--;
+  }
+  // 去掉 child 开头的分隔符，避免 join 出现重复分隔符。
+  uint64_t child_start = 0;
+  while (child_start < child_len && scoop_path_is_sep(child_data[child_start])) {
+    child_start++;
+  }
+
+  uint8_t sep = scoop_path_sep_byte();
+  int need_sep = 0;
+  if (base_end > 0 && child_start < child_len && !scoop_path_is_sep(base_data[base_end - 1])) {
+    need_sep = 1;
+  }
+
+  uint64_t out_len = base_end + (need_sep ? 1 : 0) + (child_len - child_start);
+  if (out_len == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+  if (out_len > (uint64_t)SIZE_MAX) {
+    return 0;
+  }
+
+  uint8_t *buf = (uint8_t *)malloc((size_t)out_len);
+  if (buf == 0) {
+    return 0;
+  }
+
+  if (base_end > 0) {
+    (void)memcpy(buf, base_data, (size_t)base_end);
+  }
+  uint64_t pos = base_end;
+  if (need_sep) {
+    buf[pos++] = sep;
+  }
+  uint64_t right_len = child_len - child_start;
+  if (right_len > 0) {
+    (void)memcpy(buf + pos, child_data + child_start, (size_t)right_len);
+  }
+
+  ScoopString tmp = {out_len, buf};
+  const ScoopString *norm = scoop_path_normalize(&tmp);
+  free(buf);
+  return norm;
+}
+
+// `scoop.path.basename(path: String): String`
+const ScoopString *scoop_path_basename(const ScoopString *path) {
+  const ScoopString *norm = scoop_path_normalize(path);
+  if (norm == 0 || norm->len == 0 || norm->data == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+
+  const uint8_t *data = norm->data;
+  uint64_t n = norm->len;
+
+  // 根路径 `/`：basename 为 `/`。
+  if (n == 1 && scoop_path_is_sep(data[0])) {
+    return norm;
+  }
+
+  // 忽略末尾分隔符。
+  while (n > 1 && scoop_path_is_sep(data[n - 1])) {
+    n--;
+  }
+
+  // 找最后一个分隔符。
+  uint64_t last_sep = (uint64_t)-1;
+  for (uint64_t i = n; i > 0; i--) {
+    if (scoop_path_is_sep(data[i - 1])) {
+      last_sep = i - 1;
+      break;
+    }
+  }
+  if (last_sep == (uint64_t)-1) {
+    return norm;
+  }
+  if (last_sep == 0 && n == 1) {
+    return norm;
+  }
+
+  uint64_t start = last_sep + 1;
+  uint64_t len = n - start;
+  if (len == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+  return scoop_string_from_bytes(data + start, len);
+}
+
+// `scoop.path.dirname(path: String): String`
+const ScoopString *scoop_path_dirname(const ScoopString *path) {
+  const ScoopString *norm = scoop_path_normalize(path);
+  if (norm == 0 || norm->len == 0 || norm->data == 0) {
+    return &SCOOP_DOT_STRING;
+  }
+
+  const uint8_t *data = norm->data;
+  uint64_t n = norm->len;
+
+  // 根路径 `/`：dirname 为 `/`。
+  if (n == 1 && scoop_path_is_sep(data[0])) {
+    return norm;
+  }
+
+  // 忽略末尾分隔符。
+  while (n > 1 && scoop_path_is_sep(data[n - 1])) {
+    n--;
+  }
+
+  // 找最后一个分隔符。
+  uint64_t last_sep = (uint64_t)-1;
+  for (uint64_t i = n; i > 0; i--) {
+    if (scoop_path_is_sep(data[i - 1])) {
+      last_sep = i - 1;
+      break;
+    }
+  }
+  if (last_sep == (uint64_t)-1) {
+    return &SCOOP_DOT_STRING;
+  }
+  if (last_sep == 0) {
+    return scoop_path_root_string();
+  }
+
+  uint64_t dir_len = last_sep;
+  // 去掉 dirname 末尾多余分隔符（保留根路径）。
+  while (dir_len > 1 && scoop_path_is_sep(data[dir_len - 1])) {
+    dir_len--;
+  }
+  if (dir_len == 0) {
+    return &SCOOP_DOT_STRING;
+  }
+  if (dir_len == 1 && scoop_path_is_sep(data[0])) {
+    return scoop_path_root_string();
+  }
+  return scoop_string_from_bytes(data, dir_len);
 }

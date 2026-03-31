@@ -3731,6 +3731,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.process.args" {
                 return self.codegen_sysroot_process_args(span, callee.span, args);
             }
+            // T1318d：std v2 path（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.path.normalize" {
+                return self.codegen_sysroot_path_normalize(span, callee.span, args);
+            }
+            if fqn == "scoop.path.join" {
+                return self.codegen_sysroot_path_join(span, callee.span, args);
+            }
+            if fqn == "scoop.path.basename" {
+                return self.codegen_sysroot_path_basename(span, callee.span, args);
+            }
+            if fqn == "scoop.path.dirname" {
+                return self.codegen_sysroot_path_dirname(span, callee.span, args);
+            }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
             // 说明：
@@ -5035,6 +5048,265 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue {
             ty: CgTy::Ref,
             value: Some(arr_ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_path_normalize(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(path_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize named arg",
+                at: span.into(),
+            });
+        };
+
+        let path_v = self.codegen_expr_in_expected_context(path_expr, Some(CgTy::String))?;
+        let path_v = self.coerce_value(path_expr.span, path_v, CgTy::String)?;
+        let Some(raw_path) = path_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize path value",
+                at: path_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(path_ptr) = raw_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize path type",
+                at: path_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_path_normalize();
+        let call = self
+            .builder
+            .build_call(rt, &[path_ptr.into()], "path_normalize")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(out_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.normalize return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(out_ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_path_join(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(base_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join named arg (base)",
+                at: span.into(),
+            });
+        };
+        let hir::CallArg::Positional(child_expr) = &args[1] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join named arg (child)",
+                at: span.into(),
+            });
+        };
+
+        let base_v = self.codegen_expr_in_expected_context(base_expr, Some(CgTy::String))?;
+        let base_v = self.coerce_value(base_expr.span, base_v, CgTy::String)?;
+        let Some(raw_base) = base_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join base value",
+                at: base_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(base_ptr) = raw_base else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join base type",
+                at: base_expr.span.into(),
+            });
+        };
+
+        let child_v = self.codegen_expr_in_expected_context(child_expr, Some(CgTy::String))?;
+        let child_v = self.coerce_value(child_expr.span, child_v, CgTy::String)?;
+        let Some(raw_child) = child_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join child value",
+                at: child_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(child_ptr) = raw_child else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join child type",
+                at: child_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_path_join();
+        let call = self.builder.build_call(
+            rt,
+            &[base_ptr.into(), child_ptr.into()],
+            "path_join",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(out_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.join return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(out_ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_path_basename(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(path_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename named arg",
+                at: span.into(),
+            });
+        };
+
+        let path_v = self.codegen_expr_in_expected_context(path_expr, Some(CgTy::String))?;
+        let path_v = self.coerce_value(path_expr.span, path_v, CgTy::String)?;
+        let Some(raw_path) = path_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename path value",
+                at: path_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(path_ptr) = raw_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename path type",
+                at: path_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_path_basename();
+        let call = self
+            .builder
+            .build_call(rt, &[path_ptr.into()], "path_basename")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(out_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.basename return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(out_ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_path_dirname(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(path_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname named arg",
+                at: span.into(),
+            });
+        };
+
+        let path_v = self.codegen_expr_in_expected_context(path_expr, Some(CgTy::String))?;
+        let path_v = self.coerce_value(path_expr.span, path_v, CgTy::String)?;
+        let Some(raw_path) = path_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname path value",
+                at: path_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(path_ptr) = raw_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname path type",
+                at: path_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_path_dirname();
+        let call = self
+            .builder
+            .build_call(rt, &[path_ptr.into()], "path_dirname")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(out_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "path.dirname return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(out_ptr.into()),
         })
     }
 
@@ -11266,6 +11538,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_process_args_array(void)`
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_path_normalize(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_path_normalize";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_path_normalize(const ScoopString* path)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_path_join(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_path_join";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_path_join(const ScoopString* base, const ScoopString* child)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [str_ptr_ty.into(), str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_path_basename(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_path_basename";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_path_basename(const ScoopString* path)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_path_dirname(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_path_dirname";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_path_dirname(const ScoopString* path)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
