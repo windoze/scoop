@@ -35,6 +35,7 @@
 - 2026-03-28：`TODO.md` 中 T1016b（meta-annotations 导出到 `.cone`）依赖 T1103/T1209，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1016b 移动到 T1209 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-28：`TODO.md` 中 T1017/T1018（intrinsic 需求审计/实现）依赖 T1314/T1217，但原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T1017/T1018 移动到 T1314 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-30：T1017 审计结论为“std 主线暂不需要新增 intrinsic”（见 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`）。为避免条件 gate（T1018）作为首个 `[TODO]` 阻塞后续可执行任务，已将 `TODO.md` 中 T1018 移动到 std v4（T1320）之后，等待出现真实 blocker case 时再开启。
+- 2026-03-31：`TODO.md` 中 T1025（unsafe 指针 API 升级）依赖 T1018，但原先位于 T1018 之前。为保持 TODO 的依赖顺序可执行，已将 T1025 调整为 `[TODO]` 并移动到 T1018 之后；同时移动 T1026 以保持其对 T1025 的顺序依赖。
 - 2026-03-29：`TODO.md` 中 T1307（trailing lambda）原任务同时要求前端推断与 run-pass 回归；但当前 LLVM `main` codegen 尚未支持闭包/函数值调用，因此将其拆分为：
   - T1307a：前端（resolver/typecheck）补齐隐式 `it` + 期望类型下推推断；
   - T1307b：后端/run-pass 回归（lambda 被调用）。

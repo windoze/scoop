@@ -3497,27 +3497,6 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
 
-### T1025 [BLOCKED] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
-- 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：
-  - `addressOf(var: T): Ptr<T>`
-  - `Ptr<T>.cast/load/store`
-  - `Ptr<T>` 的元素级 `plus/minus`
-  - `stackAlloc<T>(): Ptr<T>`（GC-free）
-- 目标：
-  - 兼容迁移期：允许 sysroot 同时提供旧名（`addrOf/load/store`）与新名一段时间；
-  - typecheck 必须保持 unsafe context 门禁与 `Ptr<T>` 的 GC-free 限制不被绕过。
-- 验收：新增 unsafe_nogc fixtures 覆盖新 API 的 pass/fail；并保持旧 fixtures 仍可回归（或提供自动迁移脚本后一次性更新 fixtures）。
-- 依赖：T1017、T1018
-
-### T1026 [BLOCKED] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
-- 描述：新增 `FunPtr<F>`（值类型、GC-free）与调用约定：
-  - 支持 `@CallingConvention("stdcall" | "cdecl" | ...)` 影响 codegen；
-  - 允许与 `Ptr<T>` 互相 unsafe cast；
-  - 提供 `invoke`/`()` 调用形态（sysroot 定义，编译器提供 lowering/codegen）。
-- 目标：先只覆盖 host 平台常见 calling convention；不做跨平台全量覆盖。
-- 验收：新增 run-pass fixture：从 `@Extern` 获取函数指针并通过 `FunPtr` 调用（可用 runtime/c 的测试导出函数）；并新增 compile-fail fixture：在 safe context 调用 `FunPtr` 报错。
-- 依赖：T1017、T1018、T1025
-
 ### T1027 [BLOCKED] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
 - 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
 - 目标：与对外暴露的 `AtomicInt`（若存在）区分：这些是**值类型**，且 API 面向 runtime/interop，不作为通用高层并发库承诺。
@@ -4780,6 +4759,27 @@
 - 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
 - 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
 - 依赖：T1017
+
+### T1025 [TODO] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
+- 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：
+  - `addressOf(var: T): Ptr<T>`
+  - `Ptr<T>.cast/load/store`
+  - `Ptr<T>` 的元素级 `plus/minus`
+  - `stackAlloc<T>(): Ptr<T>`（GC-free）
+- 目标：
+  - 兼容迁移期：允许 sysroot 同时提供旧名（`addrOf/load/store`）与新名一段时间；
+  - typecheck 必须保持 unsafe context 门禁与 `Ptr<T>` 的 GC-free 限制不被绕过。
+- 验收：新增 unsafe_nogc fixtures 覆盖新 API 的 pass/fail；并保持旧 fixtures 仍可回归（或提供自动迁移脚本后一次性更新 fixtures）。
+- 依赖：T1017、T1018
+
+### T1026 [BLOCKED] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
+- 描述：新增 `FunPtr<F>`（值类型、GC-free）与调用约定：
+  - 支持 `@CallingConvention("stdcall" | "cdecl" | ...)` 影响 codegen；
+  - 允许与 `Ptr<T>` 互相 unsafe cast；
+  - 提供 `invoke`/`()` 调用形态（sysroot 定义，编译器提供 lowering/codegen）。
+- 目标：先只覆盖 host 平台常见 calling convention；不做跨平台全量覆盖。
+- 验收：新增 run-pass fixture：从 `@Extern` 获取函数指针并通过 `FunPtr` 调用（可用 runtime/c 的测试导出函数）；并新增 compile-fail fixture：在 safe context 调用 `FunPtr` 报错。
+- 依赖：T1017、T1018、T1025
 
 ### T1321 [TODO] Kotlin 风格重载决议：most specific candidate 规则收口
 - 描述：把通用 overload resolution 收口为 Kotlin 风格的用户可感知规则：最具体候选优先、member/extension/constructor 的优先级固定、歧义行为稳定。
