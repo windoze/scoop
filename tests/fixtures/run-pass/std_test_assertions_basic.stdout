@@ -1,0 +1,7 @@
+assertTrue: ok
+assertFalse: ok
+assertEqInt: ok
+assertSomeInt: ok
+7
+assertNoneInt: ok
+ok

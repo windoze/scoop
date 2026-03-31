@@ -4926,7 +4926,7 @@
 - 依赖：T1316、T0917、T1403
 - 备注：该任务范围过大。为保持“可单独实现 & 单独验证”的粒度，拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1320a [TODO] `std` v4：`scoop.test` 最小断言工具（assertions）+ fixtures
+### T1320a [DONE] `std` v4：`scoop.test` 最小断言工具（assertions）+ fixtures
 - 描述：在 `stdlib` 注入层新增 `scoop.test` 包，提供最小断言（assert）函数，方便 run-pass fixtures 书写与复用。
 - 目标：
   - 只提供最小、可执行、无新增 runtime 依赖的断言：`assertTrue/assertFalse/assertEqInt/assertSomeInt/assertNoneInt`；
@@ -4938,6 +4938,14 @@
   - `cargo run -p scoop -- test`；
   - `cargo run -p scoop --features llvm -- test`（若本机 LLVM 可用）。
 - 依赖：T1315a
+ - 完成：
+   - sysroot：
+     - `sysroot/test.scoop`：新增 `scoop.test` 断言声明面（typecheck 可见）。
+   - stdlib：
+     - `stdlib/test.scoop`：新增断言实现（避免在 stdlib 文件中引入字面量）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_test_assertions_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_test_assertions_basic.scoop/.stdout`
 
 ### T1320b [TODO] `std` v4：`Task`/executor async adapters v0（map/await/bridge）
 - 描述：在 stdlib 层为 `Task<T>`/`Executor` 提供最小的组合子与桥接工具（例如 `map/andThen/await` 的 v0 形态），提升异步样例可写性。

@@ -1,0 +1,16 @@
+// Scoop sysroot: test surface（std v4，early stage）
+//
+// 说明：
+// - 该模块提供 `scoop.test` 的最小声明表面（TODO T1320a），用于 resolver/typecheck 可见性与工具链展示；
+// - 具体实现由 stdlib 注入层（`stdlib/test.scoop`）提供。
+
+package scoop.test
+
+import scoop.core.*
+
+fun assertTrue(condition: Bool): Unit / Raise<RuntimeError>
+fun assertFalse(condition: Bool): Unit / Raise<RuntimeError>
+fun assertEqInt(expected: Int, actual: Int): Unit / Raise<RuntimeError>
+fun assertSomeInt(value: Int?): Int / Raise<RuntimeError>
+fun assertNoneInt(value: Int?): Unit / Raise<RuntimeError>
+
