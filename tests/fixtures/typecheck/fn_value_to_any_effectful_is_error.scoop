@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::fn_value_to_any_requires_closed_pure
+// EXPECT-ERROR: Pure!
+// EXPECT-ERROR-AT: 15:18
+// 目标：T0632：带 effects 的函数值不允许擦除到 `Any`（effects 不可运行时保真）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad_effectful() {
+    val f: () -> Unit / Raise<RuntimeError> = {
+        Raise.raise(RuntimeError.ClassCastFailed)
+    }
+    val a: Any = f
+    val _ = a
+}

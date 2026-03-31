@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：T0632：函数值擦除到 `Any` 仅允许 `(...)->R / Pure!`（闭合纯）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun ok() {
+    val f: () -> Int / Pure! = { 1 }
+    val a: Any = f
+    val _ = a
+}
+

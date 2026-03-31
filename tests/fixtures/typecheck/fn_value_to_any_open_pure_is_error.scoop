@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::fn_value_to_any_requires_closed_pure
+// EXPECT-ERROR: Pure!
+// EXPECT-ERROR-AT: 13:18
+// 目标：T0632：open `/ Pure` 的函数值不允许擦除到 `Any`（必须显式闭合为 `/ Pure!`）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad_open_pure() {
+    val f: () -> Int / Pure = { 1 }
+    val a: Any = f
+    val _ = a
+}
