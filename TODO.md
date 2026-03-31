@@ -4742,11 +4742,45 @@
    - `cargo run -p scoop -- test`
    - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1319 [TODO] `std` v3：sync / thread / channels / task support
+### T1319 `std` v3：sync / thread / channels / task support（拆分为子任务）
 - 描述：实现标准库中的并发与同步层：线程 API、锁、条件变量、channel、thread-local、任务/调度辅助接口。
 - 目标：桌面/服务端优先；embedded / wasm 通过 capability matrix 进行裁剪或适配。
-- 验收：新增 std/run-pass fixtures：线程创建、锁、channel、thread-local 行为正确；平台不支持时有稳定诊断。
-- 依赖：T1316、T1407、T1410
+- 备注：该任务范围过大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1319a [TODO] `std` v3：`sync` 最小声明面 v0（Mutex/CondVar/Once）
+- 描述：在 sysroot 中新增 `scoop.sync` 的最小 API 声明面（先只做 names/signatures），并新增 typecheck fixtures 回归。
+- 目标：只做 sysroot 声明 + typecheck 覆盖；不实现 runtime C，不接入 LLVM codegen，不新增 run-pass fixtures。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（typecheck fixtures 通过）
+- 依赖：T1316
+
+### T1319b [TODO] `std` v3：`sync` runtime v0（pthread mutex/cond/once）+ LLVM 映射 + run-pass
+- 描述：为 `scoop.sync` 的 Mutex/CondVar/Once 提供最小可执行实现（runtime C + sysroot→runtime 映射），并新增 run-pass fixtures 回归锁/条件变量的基本行为。
+- 目标：先只覆盖 host 平台（pthread）；不引入原子/无锁结构；不做公平性/性能优化。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
+- 依赖：T1319a、T0807、T0911
+
+### T1319c [TODO] `std` v3：`thread` 最小接口 v0（spawn/join/sleep/yield）+ run-pass
+- 描述：新增 `scoop.thread` 的最小可执行接口：线程创建与 join、sleep/yield、线程 id（若平台支持），并新增 run-pass fixtures 回归。
+- 目标：先只做“spawn + join”等待完成；不做取消；不做 thread-local 初始化顺序保证。
+- 验收：新增 run-pass fixtures：线程启动与 join 的可观察行为正确；不支持平台有稳定诊断。
+- 依赖：T1319b
+
+### T1319d [TODO] `std` v3：`channels` 最小接口 v0（unbounded mpsc）+ run-pass
+- 描述：新增 `scoop.channels`：最小的 unbounded mpsc channel（send/recv/close），并用 run-pass fixtures 固化基本语义。
+- 目标：先只做阻塞 recv（配合 CondVar）；不做 select；不做 async adapter。
+- 验收：新增 run-pass fixtures：多线程 send/recv 顺序与 close 语义可回归；不支持平台有稳定诊断。
+- 依赖：T1319b、T1319c
+
+### T1319e [TODO] `std` v3：task/executor 支持接口 v0（对接 runtime task executor）
+- 描述：为 `Task<T>` / executor 提供 std 层适配接口（对接 `runtime/c/scoop_task_executor.c`），并新增最小 run-pass fixtures 回归。
+- 目标：先只做 “create/start/complete/onComplete” 的最小路径；不做 work-stealing/多 executor；不做 cancellation。
+- 验收：新增 run-pass fixtures：task state 与完成回调行为可回归。
+- 依赖：T0917、T1319b
 
 ### T1320 [TODO] `std` v4：net / async adapters / testing & support utilities
 - 描述：补齐标准库的高阶能力：网络抽象、与 `Task`/executor 的 async adapters、测试支持工具、日志/诊断/配置等公共 utilities。
