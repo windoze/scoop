@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use inkwell::context::Context;
 use inkwell::targets::FileType;
 use inkwell::targets::TargetData;
+use inkwell::values::InstructionValueError;
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -46,6 +47,10 @@ pub enum LlvmEmitError {
     #[error("LLVM IR 构造失败：{0}")]
     #[diagnostic(code(scoop::llvm::builder_error))]
     Builder(#[from] inkwell::builder::BuilderError),
+
+    #[error("LLVM 指令构造失败：{0}")]
+    #[diagnostic(code(scoop::llvm::instruction_error))]
+    Instruction(#[from] InstructionValueError),
 
     #[error("找不到入口函数 `main`（当前阶段仅支持顶层 `fun main() {{ ... }}`）")]
     #[diagnostic(code(scoop::llvm::missing_entry_main))]
@@ -428,6 +433,159 @@ fn build_main_module_from_lowered_hir<'ctx>(
     Ok(module)
 }
 
+#[cfg(test)]
+mod clayout_tests {
+    use super::*;
+    use inkwell::values::InstructionOpcode;
+
+    #[test]
+    fn clayout_packed_struct_has_expected_field_offsets() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_packed.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(packed = 1)
+struct Packed(val a: UInt8, val b: Int64)
+
+fun main() {
+    val s = Packed { a: 1, b: 2 }
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let data_layout = module.get_data_layout();
+        let target_data = TargetData::create(data_layout.as_str().to_str().unwrap());
+
+        let packed = context
+            .get_struct_type("fixtures.clayout.Packed")
+            .expect("missing llvm struct type for fixtures.clayout.Packed");
+        assert!(
+            packed.is_packed(),
+            "expected @CLayout(packed=1) struct to be packed in LLVM"
+        );
+        assert_eq!(
+            target_data.offset_of_element(&packed, 1).unwrap(),
+            1,
+            "expected second field offset to be 1 for packed struct"
+        );
+    }
+
+    #[test]
+    fn clayout_aligned_struct_sets_alloca_alignment() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_aligned.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(aligned = 16, packed = 1)
+struct AlignedPacked(val a: UInt8, val b: Int64)
+
+fun main() {
+    val s = AlignedPacked { a: 1, b: 2 }
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+
+        let fun = module
+            .get_function("main")
+            .expect("missing entry function main");
+        let entry = fun
+            .get_first_basic_block()
+            .expect("function has no entry block");
+
+        let mut found_align: Option<u32> = None;
+        let mut inst = entry.get_first_instruction();
+        while let Some(i) = inst {
+            if i.get_opcode() == InstructionOpcode::Alloca {
+                let name = i
+                    .get_name()
+                    .and_then(|n| n.to_str().ok())
+                    .unwrap_or("");
+                if name == "s" {
+                    found_align = Some(i.get_alignment().unwrap());
+                    break;
+                }
+            }
+            inst = i.get_next_instruction();
+        }
+
+        assert_eq!(
+            found_align,
+            Some(16),
+            "expected local alloca for `s` to have align 16 due to @CLayout(aligned=16)"
+        );
+    }
+
+    #[test]
+    fn clayout_packed_field_load_uses_align_1() {
+        let session = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<mem>/clayout_packed_field_load.scoop",
+            r#"
+package fixtures.clayout
+
+import scoop.core.*
+
+@CLayout(packed = 1)
+struct Packed(val a: UInt8, val b: Int64)
+
+fun main() {
+    val s: Packed = Packed { a: 1, b: 2 }
+    val x: Int64 = s.b
+    println(0)
+}
+"#,
+        );
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let fun = module
+            .get_function("main")
+            .expect("missing entry function main");
+
+        let mut found: Option<u32> = None;
+        for bb in fun.get_basic_blocks() {
+            let mut inst = bb.get_first_instruction();
+            while let Some(i) = inst {
+                if i.get_opcode() == InstructionOpcode::Load {
+                    let name = i
+                        .get_name()
+                        .and_then(|n| n.to_str().ok())
+                        .unwrap_or("");
+                    if name.starts_with("load_field") {
+                        found = Some(i.get_alignment().unwrap());
+                        break;
+                    }
+                }
+                inst = i.get_next_instruction();
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+
+        assert_eq!(
+            found,
+            Some(1),
+            "expected field load from @CLayout(packed=1) struct to use align 1"
+        );
+    }
+}
+
 fn collect_reachable_top_level_funs<'a>(
     entry: &'a hir::FunDecl,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
@@ -622,7 +780,8 @@ mod tests {
         let session = Session::new().unwrap();
         let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
-        assert!(ir.contains("define i32 @main()"));
+        // `main` 为 C ABI：`i32 @main(i32 argc, i8** argv)`（inkwell/LLVM 版本可能影响参数命名）。
+        assert!(ir.contains("define i32 @main("));
         assert!(
             ir.contains("call void @scoop_runtime_init()"),
             "生成的 main 应调用 scoop_runtime_init"

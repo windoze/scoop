@@ -171,6 +171,38 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@CLayout` struct 必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{struct_fqn}")]
+    #[diagnostic(code(scoop::typecheck::clayout_struct_must_be_gc_free))]
+    CLayoutStructMustBeGcFree {
+        struct_fqn: String,
+        #[label("这里的 struct 不是 GC-free")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CLayout` 参数 `{param}` 必须是整数字面量（当前阶段仅支持 int literal）")]
+    #[diagnostic(code(scoop::typecheck::clayout_param_must_be_int_literal))]
+    CLayoutParamMustBeIntLiteral {
+        param: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CLayout(packed = ...)` 当前阶段仅支持 `packed = 1`（得到 {value}）")]
+    #[diagnostic(code(scoop::typecheck::clayout_packed_value_not_supported))]
+    CLayoutPackedValueNotSupported {
+        value: u64,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CLayout(aligned = ...)` 必须是正的 2 的幂（得到 {value}）")]
+    #[diagnostic(code(scoop::typecheck::clayout_aligned_value_invalid))]
+    CLayoutAlignedValueInvalid {
+        value: u64,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`@Intrinsic` 函数必须省略函数体（实现由编译器/运行时提供）：{fun_name}")]
     #[diagnostic(code(scoop::typecheck::intrinsic_fun_must_have_no_body))]
     IntrinsicFunMustHaveNoBody {
@@ -445,6 +477,14 @@ fn check_type_decl_annotations(
         site,
     )?;
     check_builtin_annotations_on_type_decl(source, decl, &type_fqn)?;
+
+    // 1.5) `@CLayout(aligned, packed)`：GC-free struct 的 ABI 布局控制（spec §15.5.2）。
+    //
+    // 说明：
+    // - `@CLayout` 是 sysroot 声明的内建注解类（`scoop.core.CLayout`），但其约束是“结构体布局语义”，
+    //   因此不放进 `BuiltinAnnotationKind`（它们主要是执行模型/门禁类注解）。
+    // - 这里在 typecheck 阶段做最小门禁与参数合法性检查；后端（LLVM）会消费这些参数生成 packed/aligned layout。
+    check_clayout_struct_decl(source, file, index, decl, &type_fqn, lower)?;
 
     // 2) 注解类自身的最小形态约束（data-only）。
     if decl.modifiers.contains(&ast::Modifier::Annotation) {
@@ -1629,6 +1669,165 @@ fn check_top_level_var_storage_and_gc_free(
     }
 
     Ok(())
+}
+
+/// 检查 `@CLayout(aligned, packed)` 在 struct 声明上的最小语义约束（spec §15.5.2）。
+///
+/// 当前阶段约束（为保证可单独回归、并避免过早引入复杂 ABI 规则）：
+/// - 仅当注解解析到 `scoop.core.CLayout` 时才生效（避免同名注解误判）；
+/// - struct 必须是 GC-free（直接/间接不含 GC 引用）；
+/// - `packed`：仅支持 `packed = 1`（其它值给出稳定错误码）；
+/// - `aligned`：必须是正的 2 的幂；`aligned = 0` 表示未指定（使用默认 ABI 对齐）。
+fn check_clayout_struct_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    decl: &ast::TypeDecl,
+    type_fqn: &str,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    if decl.kind != ast::TypeKind::Struct {
+        return Ok(());
+    }
+
+    const CLAYOUT_FQN: &str = "scoop.core.CLayout";
+    let Some(ann) = decl
+        .annotations
+        .iter()
+        .find(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, CLAYOUT_FQN))
+    else {
+        return Ok(());
+    };
+
+    // 1) GC-free 约束：`@CLayout` struct 不允许直接/间接包含 GC 引用。
+    let ty = match lower.lower_type_fqn_with_args(type_fqn.to_string(), Vec::new(), decl.name.span)
+    {
+        Ok(ty) => ty,
+        Err(_e) => {
+            // 类型本身缺失/非法会在其它阶段给出更精确诊断；这里不重复报错。
+            return Ok(());
+        }
+    };
+    let is_gc_free = match lower.is_gc_free_value_type(ty) {
+        Ok(v) => v,
+        Err(_e) => return Ok(()),
+    };
+    if !is_gc_free {
+        return Err(AnnotationError::CLayoutStructMustBeGcFree {
+            struct_fqn: type_fqn.to_string(),
+            span: ann.span.into(),
+        });
+    }
+
+    // 2) 参数检查：只做最小解析与合法性约束；完整 ABI 行为由后端实现。
+    let (aligned, aligned_span, packed, packed_span) = parse_clayout_args(source, ann)?;
+
+    if let Some(value) = packed {
+        // v0：只支持 packed = 1；其它值后续可扩展为 pack(n) 的 data layout 行为。
+        if value != 1 {
+            return Err(AnnotationError::CLayoutPackedValueNotSupported {
+                value,
+                span: packed_span.unwrap_or(ann.span).into(),
+            });
+        }
+    }
+
+    if let Some(value) = aligned {
+        if value == 0 || !value.is_power_of_two() {
+            return Err(AnnotationError::CLayoutAlignedValueInvalid {
+                value,
+                span: aligned_span.unwrap_or(ann.span).into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// 从 `@CLayout(...)` 注解实参中提取 `aligned`/`packed`。
+///
+/// 返回：
+/// - `aligned`：`Some(N)` 表示显式指定；`None` 表示未指定或为 0；
+/// - `packed`：`Some(M)` 表示显式指定；`None` 表示未指定或为 0；
+/// - 同时返回各参数对应的 span（用于诊断定位）。
+fn parse_clayout_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(Option<u64>, Option<Span>, Option<u64>, Option<Span>), AnnotationError> {
+    let mut aligned: Option<(u64, Span)> = None;
+    let mut packed: Option<(u64, Span)> = None;
+
+    for (pos, arg) in ann.args.iter().enumerate() {
+        // 兼容三种参数形态：
+        // - `aligned: 16`（AnnotationArg.name）
+        // - `aligned = 16`（赋值表达式；更贴近 Kotlin 风格）
+        // - 位置参数：`@CLayout(16, 1)`（按顺序映射到 aligned/packed）
+        let (param, value) = match &arg.name {
+            Some(name_id) => (Some(name_id.text(source)), Some(&arg.value)),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => match &lhs.kind {
+                    ast::ExprKind::Ident(id) => (Some(source.slice(id.span)), Some(rhs.as_ref())),
+                    _ => (None, None),
+                },
+                _ => (None, Some(&arg.value)),
+            },
+        };
+        let param = match param {
+            Some(name) => name,
+            None => match pos {
+                0 => "aligned",
+                1 => "packed",
+                _ => continue,
+            },
+        };
+        let Some(value) = value else { continue };
+
+        let span = value.span;
+        if !matches!(value.kind, ast::ExprKind::IntLit) {
+            return Err(AnnotationError::CLayoutParamMustBeIntLiteral {
+                param: param.to_string(),
+                span: span.into(),
+            });
+        }
+
+        let raw = source.slice(span);
+        let value = parse_int_literal_decimal_u64(raw).unwrap_or(0);
+        // `0` 视为“未指定”；其它值保留（由调用方进一步做合法性验证）。
+        let value = if value == 0 { None } else { Some(value) };
+
+        match param {
+            "aligned" => {
+                if let Some(v) = value {
+                    aligned = Some((v, span));
+                }
+            }
+            "packed" => {
+                if let Some(v) = value {
+                    packed = Some((v, span));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok((
+        aligned.map(|(v, _)| v),
+        aligned.map(|(_, s)| s),
+        packed.map(|(v, _)| v),
+        packed.map(|(_, s)| s),
+    ))
+}
+
+fn parse_int_literal_decimal_u64(text: &str) -> Option<u64> {
+    let mut out: u128 = 0;
+    for ch in text.chars() {
+        if ch == '_' {
+            continue;
+        }
+        let d = ch.to_digit(10)?;
+        out = out.saturating_mul(10).saturating_add(u128::from(d));
+    }
+    u64::try_from(out).ok()
 }
 
 fn annotation_use_resolves_to_fqn(

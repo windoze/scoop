@@ -3473,7 +3473,7 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1024 [BLOCKED] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局控制（spec §15.5.2）
+### T1024 [DONE] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局控制（spec §15.5.2）
 - 描述：扩展 `@CLayout`：
   - 支持 `aligned = N` 与 `packed = M` 参数；
   - struct 必须是 GC-free；
@@ -3481,6 +3481,21 @@
 - 目标：先覆盖 `packed=1` 与显式 `aligned` 的常见组合；其余复杂 ABI 细节可后置，但必须给出稳定错误/限制说明。
 - 验收：新增 run-pass fixture（或 `--emit-llvm` golden）：对 `@CLayout(packed=1)` struct 的字段 offset/align 与预期一致；并新增 compile-fail fixture：`@CLayout` 用在非 GC-free struct 上报错。
 - 依赖：T1022、T0811
+ - 完成：
+   - `sysroot/core.scoop`：为 `annotation class CLayout` 补齐 `aligned/packed` 参数（带默认值），与 spec 对齐。
+   - `crates/scoopc/src/typecheck/annotations.rs`：实现 `@CLayout` 的最小语义门禁：
+     - struct 必须 GC-free；
+     - `packed` 仅支持 `1`；
+     - `aligned` 必须是正的 2 的幂；
+     - 并给出稳定错误码。
+   - `crates/scoopc/src/hir/mod.rs` + `crates/scoopc/src/hir/lower.rs`：在 `StructLayout` side table 中收集 `@CLayout` 参数，供后端消费（不影响 dump-hir 输出稳定性）。
+   - `crates/scoopc/src/llvm/codegen.rs`：对 `@CLayout(packed=1)` 生成 packed LLVM struct；对 `aligned` 透传 alloca/global alignment；并修正 packed struct 字段 load 的 alignment（避免 UB）。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 LLVM 单测回归 packed struct 的字段 offset，以及 alloca/load 对齐。
+   - `tests/fixtures/typecheck/clayout_struct_must_be_gc_free_is_error.scoop`：新增 compile-fail fixture 回归 GC-free 约束。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
 
 ### T1025 [BLOCKED] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
 - 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：

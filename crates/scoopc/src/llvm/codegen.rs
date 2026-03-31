@@ -472,6 +472,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let init = self.const_initializer_for_top_level_var(v, cg_ty, llvm_ty)?;
         gv.set_initializer(&init);
+
+        // `@CLayout(aligned = N)`：对显式对齐的值类型，在全局存储上透传 alignment。
+        if let CgTy::Struct(struct_ty) = cg_ty {
+            if let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned) {
+                gv.set_alignment(aligned);
+            }
+        }
         Ok(gv)
     }
 
@@ -10115,6 +10122,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let loaded =
                                 self.builder
                                     .build_load(llvm_field_ty, field_ptr, "load_field")?;
+                            // `@CLayout(packed = 1)`：字段地址可能是未对齐的，因此必须把 load 的 alignment
+                            // 降到 1，避免 LLVM 以 ABI 对齐假设做错误优化（UB）。
+                            if self
+                                .struct_clayout(struct_ty)
+                                .and_then(|c| c.packed)
+                                .is_some()
+                            {
+                                if let Some(inst) = loaded.as_instruction_value() {
+                                    inst.set_alignment(1)?;
+                                }
+                            }
                             return self.cg_value_from_loaded(member.span, field_ty, loaded);
                         }
                     }
@@ -10624,6 +10642,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field = &layout.fields[idx];
         let field_ty = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
         Ok((idx as u32, field_ty))
+    }
+
+    fn struct_clayout(&self, struct_ty: TypeId) -> Option<hir::StructCLayout> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return None;
+        };
+        self.struct_layouts
+            .get(&nominal.fqn)
+            .and_then(|layout| layout.c_layout)
     }
 
     /// 计算 class 对象中某个字段的地址。
@@ -12262,7 +12289,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
         }
 
-        struct_ty.set_body(&llvm_fields, false);
+        let is_packed = layout
+            .c_layout
+            .as_ref()
+            .and_then(|c| c.packed)
+            .is_some();
+        struct_ty.set_body(&llvm_fields, is_packed);
         Ok(struct_ty)
     }
 
@@ -12477,7 +12509,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: CgTy,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let alloca_ty = self.llvm_basic_type_of(at, ty)?;
-        self.create_entry_alloca_raw(at, name, alloca_ty)
+        let ptr = self.create_entry_alloca_raw(at, name, alloca_ty)?;
+        self.apply_alloca_alignment_for_ty(at, ptr, ty)?;
+        Ok(ptr)
     }
 
     fn create_entry_alloca_raw(
@@ -12513,6 +12547,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         Ok(alloca_builder.build_alloca(alloca_ty, name)?)
+    }
+
+    fn apply_alloca_alignment_for_ty(
+        &self,
+        at: crate::span::Span,
+        ptr: PointerValue<'ctx>,
+        ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        // `@CLayout(aligned = N)`：显式对齐仅对 struct 有意义，其它类型保持默认 ABI 对齐。
+        let CgTy::Struct(struct_ty) = ty else {
+            return Ok(());
+        };
+        let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned) else {
+            return Ok(());
+        };
+
+        let inst = ptr.as_instruction_value().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "alloca instruction value",
+            at: at.into(),
+        })?;
+        inst.set_alignment(aligned)?;
+        Ok(())
     }
 
     fn store_local_value(

@@ -28,7 +28,7 @@ use super::{
     ExprKind, File, FunDecl, HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item,
     LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex, ObjectInitStep,
     ObjectProperty, Param, Stmt, StmtKind, StructFieldLayout, StructLayout, StructLayoutIndex,
-    StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    StructCLayout, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 #[derive(Debug, Clone)]
@@ -4865,6 +4865,105 @@ fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -
     matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
 }
 
+fn annotation_use_resolves_to_fqn_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    ann: &ast::AnnotationUse,
+    expected_fqn: &str,
+) -> bool {
+    // 与 typecheck 阶段一致：复用 Index 的“按 package/import 规则解析类型名”的逻辑，
+    // 避免仅按未限定名匹配导致的误判（同名但不同包的注解类）。
+    let ty = ast::TypeRef::Path(ast::TypePath {
+        span: ann.span,
+        segments: ann.path.clone(),
+        args: Vec::new(),
+    });
+    matches!(
+        index.type_ref_to_fqn_in_file(source, file, &ty),
+        Some(fqn) if fqn == expected_fqn
+    )
+}
+
+fn extract_struct_clayout(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    annotations: &[ast::AnnotationUse],
+) -> Option<StructCLayout> {
+    const CLAYOUT_FQN: &str = "scoop.core.CLayout";
+    let ann = annotations
+        .iter()
+        .find(|ann| annotation_use_resolves_to_fqn_in_file(source, file, index, ann, CLAYOUT_FQN))?;
+
+    Some(parse_clayout_annotation_args(source, ann))
+}
+
+fn parse_clayout_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) -> StructCLayout {
+    // 说明：
+    // - HIR lowering（dump/fixtures）不运行完整 typecheck，因此这里按 best-effort 解析；
+    // - 实参的合法性与 GC-free 约束由 typecheck 阶段负责；
+    // - 这里仅做“形态提取”，供后端在 typecheck 成功后消费。
+    let mut aligned: Option<u32> = None;
+    let mut packed: Option<u32> = None;
+
+    for (pos, arg) in ann.args.iter().enumerate() {
+        // 兼容三种参数形态（与 `@Extern` 一致）：
+        // - `aligned: 16`（AnnotationArg.name）
+        // - `aligned = 16`（赋值表达式；更贴近 Kotlin 风格）
+        // - 位置参数：`@CLayout(16, 1)`（按顺序映射到 aligned/packed）
+        let (key, value) = match &arg.name {
+            Some(name_id) => (Some(name_id.text(source)), Some(&arg.value)),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => match &lhs.kind {
+                    ast::ExprKind::Ident(id) => (Some(source.slice(id.span)), Some(rhs.as_ref())),
+                    _ => (None, None),
+                },
+                _ => (None, Some(&arg.value)),
+            },
+        };
+
+        let key = match key {
+            Some(key) => key,
+            None => match pos {
+                0 => "aligned",
+                1 => "packed",
+                _ => continue,
+            },
+        };
+        let Some(value) = value else { continue };
+
+        let ast::ExprKind::IntLit = value.kind else {
+            continue;
+        };
+        let raw = source.slice(value.span);
+        let Some(v) = parse_int_literal_decimal_u32(raw) else {
+            continue;
+        };
+        let v = if v == 0 { None } else { Some(v) };
+
+        match key {
+            "aligned" => aligned = v,
+            "packed" => packed = v,
+            _ => {}
+        }
+    }
+
+    StructCLayout { aligned, packed }
+}
+
+fn parse_int_literal_decimal_u32(text: &str) -> Option<u32> {
+    let mut out: u128 = 0;
+    for ch in text.chars() {
+        if ch == '_' {
+            continue;
+        }
+        let d = ch.to_digit(10)?;
+        out = out.saturating_mul(10).saturating_add(u128::from(d));
+    }
+    u32::try_from(out).ok()
+}
+
 /// 收集当前编译单元（sysroot + 当前文件）里出现的 struct 字段布局信息。
 ///
 /// 说明（早期阶段约束）：
@@ -4904,6 +5003,8 @@ fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) ->
                 continue;
             }
 
+            let c_layout = extract_struct_clayout(source, file, index, &ty.annotations);
+
             let mut fields: Vec<StructFieldLayout> = Vec::new();
             if let Some(primary_ctor) = &ty.primary_ctor {
                 for p in &primary_ctor.params {
@@ -4922,7 +5023,14 @@ fn collect_struct_layouts(pairs: &[(&SourceFile, &ast::File)], index: &Index) ->
                 }
             }
 
-            out.insert(fqn.clone(), StructLayout { fqn, fields });
+            out.insert(
+                fqn.clone(),
+                StructLayout {
+                    fqn,
+                    fields,
+                    c_layout,
+                },
+            );
         }
     }
 

@@ -98,7 +98,10 @@ enum AnnotationTarget {
 annotation class TailRec
 annotation class AllowIntrinsic
 annotation class Suppress(val warning: String)
-annotation class CLayout
+// `@CLayout(aligned?, packed?)`（spec §15.5.2）：
+// - `aligned`：可选的结构体整体对齐（0 表示未指定）
+// - `packed`：可选的 pack 值（0 表示未指定；v0 仅支持 packed = 1）
+annotation class CLayout(val aligned: Int = 0, val packed: Int = 0)
 annotation class Target(val targets: AnnotationTarget)
 annotation class Retention(val policy: String)
 annotation class ThreadLocal

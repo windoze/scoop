@@ -413,6 +413,21 @@ pub enum CallArg {
 pub struct StructLayout {
     pub fqn: String,
     pub fields: Vec<StructFieldLayout>,
+    /// `@CLayout(aligned, packed)`（spec §15.5.2）附加布局信息（仅对 GC-free struct 有意义）。
+    ///
+    /// 说明：
+    /// - 该字段为 side table 信息：不影响 `dump-hir` 的输出稳定性；
+    /// - 具体 ABI 规则由 typecheck 做门禁，后端（LLVM）根据这些参数生成 packed/aligned 行为。
+    pub c_layout: Option<StructCLayout>,
+}
+
+/// `@CLayout(aligned, packed)` 的最小后端视图（供 LLVM codegen 使用）。
+#[derive(Debug, Clone, Copy)]
+pub struct StructCLayout {
+    /// 显式指定的结构体整体对齐（单位：字节）。`None` 表示未指定（使用默认 ABI）。
+    pub aligned: Option<u32>,
+    /// pack 值（单位：字节）。`None` 表示未指定；当前阶段仅支持 `Some(1)`（packed struct）。
+    pub packed: Option<u32>,
 }
 
 /// struct 的单个字段布局信息。

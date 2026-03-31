@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::clayout_struct_must_be_gc_free
+// EXPECT-ERROR: GC-free
+// EXPECT-ERROR-AT: 10:1
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CLayout
+struct Bad(val s: String)
+

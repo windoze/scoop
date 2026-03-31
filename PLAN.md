@@ -625,7 +625,7 @@
 
 - [ ] 值类型（struct/tuple/enum）按 LLVM struct layout 映射
   - [x] struct：布局 + 字段访问（T0811）
-  - [ ] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局与对齐/pack 控制（用于 FFI 与全局变量 ABI）
+  - [x] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局与对齐/pack 控制（用于 FFI 与全局变量 ABI）
   - [x] tuple：布局 + `._0` / `._1` 元素访问（T0812）
   - [ ] enum：tagged union 布局（T0813）
   - [ ] value-only enum（`enum E: Int { ... }`）：底层整型同布局（无 tag/union），用于 C interop
