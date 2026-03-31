@@ -4760,7 +4760,7 @@
    - fixtures：
      - `tests/fixtures/typecheck/std_sync_api_surface_ok.scoop`
 
-### T1319b [TODO] `std` v3：`sync` runtime v0（pthread mutex/cond/once）+ LLVM 映射 + run-pass
+### T1319b [DONE] `std` v3：`sync` runtime v0（pthread mutex/cond/once）+ LLVM 映射 + run-pass
 - 描述：为 `scoop.sync` 的 Mutex/CondVar/Once 提供最小可执行实现（runtime C + sysroot→runtime 映射），并新增 run-pass fixtures 回归锁/条件变量的基本行为。
 - 目标：先只覆盖 host 平台（pthread）；不引入原子/无锁结构；不做公平性/性能优化。
 - 验收：
@@ -4768,6 +4768,23 @@
   - `cargo run -p scoop -- test`
   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 - 依赖：T1319a、T0807、T0911
+ - 完成：
+   - runtime：
+     - `runtime/c/scoop_sync.c`：新增 `scoop_sync_*`（Mutex/CondVar/Once）pthread 实现（对象以 `scoop_alloc` 分配，显式 destroy）。
+   - runtime build：
+     - `crates/scoop_runtime/build.rs`：把 `scoop_sync.c` 纳入 clang 构建与 rerun-if-changed。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.sync.*` 映射到 runtime C 符号；并处理 `destroy` overload（按 receiver nominal 分派）。
+   - fixtures：
+     - `tests/fixtures/run-pass/std_sync_basic.scoop/.stdout`：新增 `Mutex/CondVar/Once` 最小可执行回归用例。
+   - 回归修正（为保证 `--features llvm` 下 run-pass 可回归）：
+     - `tests/fixtures/run-pass/std_io_stdin_read_line_basic.scoop`：避免使用关键字 `out` 作为变量名。
+     - `tests/fixtures/run-pass/std_path_basic.stdout`：移除末尾多余空行（与实际 println 输出一致）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1319c [TODO] `std` v3：`thread` 最小接口 v0（spawn/join/sleep/yield）+ run-pass
 - 描述：新增 `scoop.thread` 的最小可执行接口：线程创建与 join、sleep/yield、线程 id（若平台支持），并新增 run-pass fixtures 回归。

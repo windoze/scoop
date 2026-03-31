@@ -1,0 +1,8 @@
+mutex: locked
+mutex: unlocked
+mutex: destroyed
+condvar: destroyed
+once: not-done
+once: init
+once: done
+ok

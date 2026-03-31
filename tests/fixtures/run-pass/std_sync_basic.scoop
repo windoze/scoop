@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: std_sync_basic.stdout
+//
+// 目标：T1319b `scoop.sync`（pthread backend）最小可执行语义可回归。
+//
+// 说明：
+// - 当前阶段缺少通用 `scoop.thread.spawn/join`，因此该用例只覆盖：
+//   - Mutex：create/lock/unlock/destroy 不崩溃；
+//   - CondVar：create/notify/destroy 不崩溃（wait 的阻塞/唤醒语义由后续 thread API 用例覆盖）；
+//   - Once：run 只执行一次（同线程重复调用应直接返回）。
+
+import scoop.core.*
+import scoop.sync.*
+
+fun main() {
+    val m: Mutex = mutexCreate()
+    m.lock()
+    println("mutex: locked")
+    m.unlock()
+    println("mutex: unlocked")
+    m.destroy()
+    println("mutex: destroyed")
+
+    val cv: CondVar = condVarCreate()
+    cv.notifyOne()
+    cv.notifyAll()
+    cv.destroy()
+    println("condvar: destroyed")
+
+    val once: Once = onceCreate()
+    when (once.isDone()) {
+        true -> println("once: done")
+        false -> println("once: not-done")
+    }
+
+    once.run { println("once: init") }
+
+    when (once.isDone()) {
+        true -> println("once: done")
+        false -> println("once: not-done")
+    }
+
+    // 第二次 run 不应再次执行 block。
+    once.run { println("once: init2") }
+
+    println("ok")
+}

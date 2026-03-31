@@ -3776,6 +3776,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.path.dirname" {
                 return self.codegen_sysroot_path_dirname(span, callee.span, args);
             }
+            // T1319b：std v3 sync（Mutex/CondVar/Once）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.sync.mutexCreate" {
+                return self.codegen_sysroot_sync_mutex_create(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.lock" {
+                return self.codegen_sysroot_sync_mutex_lock(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.unlock" {
+                return self.codegen_sysroot_sync_mutex_unlock(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.condVarCreate" {
+                return self.codegen_sysroot_sync_condvar_create(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.wait" {
+                return self.codegen_sysroot_sync_condvar_wait(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.notifyOne" {
+                return self.codegen_sysroot_sync_condvar_notify_one(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.notifyAll" {
+                return self.codegen_sysroot_sync_condvar_notify_all(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.onceCreate" {
+                return self.codegen_sysroot_sync_once_create(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.isDone" {
+                return self.codegen_sysroot_sync_once_is_done(span, callee.span, args);
+            }
+            if fqn == "scoop.sync.run" {
+                return self.codegen_sysroot_sync_once_run(span, callee.span, args);
+            }
+            // 注意：`destroy` 在 sysroot 侧为 overload set（Mutex/CondVar 均有 destroy），需在 codegen 侧按实参类型分派。
+            if fqn == "scoop.sync.destroy" {
+                return self.codegen_sysroot_sync_destroy(span, callee.span, args);
+            }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
             // 说明：
@@ -5428,6 +5463,595 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy::String,
             value: Some(out_ptr.into()),
         })
+    }
+
+    // --- std v3：sync（T1319b） ---
+
+    fn codegen_sysroot_sync_mutex_create(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.mutexCreate arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_sync_mutex_create();
+        let call = self
+            .builder
+            .build_call(rt, &[], "sync_mutex_create")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.mutexCreate return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.mutexCreate return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_sync_mutex_lock(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.lock arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(recv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.lock named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+        let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+        let Some(recv_raw) = recv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.lock receiver value",
+                at: recv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.lock receiver type",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_mutex_lock();
+        let _ = self
+            .builder
+            .build_call(rt, &[recv_ptr.into()], "sync_mutex_lock")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_mutex_unlock(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.unlock arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(recv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.unlock named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+        let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+        let Some(recv_raw) = recv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.unlock receiver value",
+                at: recv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Mutex.unlock receiver type",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_mutex_unlock();
+        let _ = self
+            .builder
+            .build_call(rt, &[recv_ptr.into()], "sync_mutex_unlock")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_condvar_create(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.condVarCreate arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_sync_condvar_create();
+        let call = self
+            .builder
+            .build_call(rt, &[], "sync_condvar_create")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.condVarCreate return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.condVarCreate return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_sync_condvar_wait(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(cv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait named arg (receiver)",
+                at: span.into(),
+            });
+        };
+        let hir::CallArg::Positional(mutex_expr) = &args[1] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait named arg (mutex)",
+                at: span.into(),
+            });
+        };
+
+        let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
+        let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
+        let Some(cv_raw) = cv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait receiver value",
+                at: cv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait receiver type",
+                at: cv_expr.span.into(),
+            });
+        };
+
+        let m_v = self.codegen_expr_in_expected_context(mutex_expr, Some(CgTy::Ref))?;
+        let m_v = self.coerce_value(mutex_expr.span, m_v, CgTy::Ref)?;
+        let Some(m_raw) = m_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait mutex value",
+                at: mutex_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(m_ptr) = m_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.wait mutex type",
+                at: mutex_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_condvar_wait();
+        let _ = self.builder.build_call(
+            rt,
+            &[cv_ptr.into(), m_ptr.into()],
+            "sync_condvar_wait",
+        )?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_condvar_notify_one(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyOne arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(cv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyOne named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
+        let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
+        let Some(cv_raw) = cv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyOne receiver value",
+                at: cv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyOne receiver type",
+                at: cv_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_condvar_notify_one();
+        let _ = self.builder.build_call(rt, &[cv_ptr.into()], "sync_condvar_notify_one")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_condvar_notify_all(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyAll arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(cv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyAll named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
+        let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
+        let Some(cv_raw) = cv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyAll receiver value",
+                at: cv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.CondVar.notifyAll receiver type",
+                at: cv_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_condvar_notify_all();
+        let _ = self.builder.build_call(rt, &[cv_ptr.into()], "sync_condvar_notify_all")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_once_create(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.onceCreate arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_sync_once_create();
+        let call = self.builder.build_call(rt, &[], "sync_once_create")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.onceCreate return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.onceCreate return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_sync_once_is_done(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(recv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+        let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+        let Some(recv_raw) = recv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone receiver value",
+                at: recv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone receiver type",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_sync_once_is_done();
+        let call = self
+            .builder
+            .build_call(rt, &[recv_ptr.into()], "sync_once_is_done")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(done_i1) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.isDone return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue::bool(done_i1))
+    }
+
+    fn codegen_sysroot_sync_once_run(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // `fun Once.run(block: () -> Unit): Unit`：`args = [once, block]`
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(once_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run named arg (receiver)",
+                at: span.into(),
+            });
+        };
+        let hir::CallArg::Positional(block_expr) = &args[1] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run named arg (block)",
+                at: span.into(),
+            });
+        };
+
+        let once_v = self.codegen_expr_in_expected_context(once_expr, Some(CgTy::Ref))?;
+        let once_v = self.coerce_value(once_expr.span, once_v, CgTy::Ref)?;
+        let Some(once_raw) = once_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run receiver value",
+                at: once_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(once_ptr) = once_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run receiver type",
+                at: once_expr.span.into(),
+            });
+        };
+
+        let block_v = match &block_expr.kind {
+            hir::ExprKind::Closure(closure) => {
+                // 说明：
+                // - `Once.run` 的参数类型在 sysroot 中固定为 `() -> Unit`；
+                // - 但 early stage 的 `fun_index` 只包含“本编译单元内有 body 的函数”，不含 sysroot 声明；
+                // - 同时 HIR v0 对 closure expr 的 `ty` 也不总是可用作 expected type（需要 MIR/CFG 才能更稳）。
+                //
+                // 因此这里从 `TypeStore` 中查找一个“无参、返回 Unit、Pure”的函数类型作为 expected context。
+                let expected_fun_ty =
+                    self.lookup_pure_unit_closure_type().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sync.Once.run block fun type",
+                        at: block_expr.span.into(),
+                    })?;
+                self.codegen_closure_expr(block_expr.span, closure, expected_fun_ty)?
+            }
+            _ => self.codegen_expr(block_expr)?,
+        };
+        let block_v = self.coerce_value(block_expr.span, block_v, CgTy::Ref)?;
+        let Some(block_raw) = block_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run block value",
+                at: block_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(block_obj_i8) = block_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.Once.run block type",
+                at: block_expr.span.into(),
+            });
+        };
+
+        // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
+        let closure_ty = self.llvm_closure_object_type();
+        let closure_ptr_ty = closure_ty.ptr_type(AddressSpace::default());
+        let closure_ptr =
+            self.builder
+                .build_pointer_cast(block_obj_i8, closure_ptr_ty, "once_block_ptr")?;
+
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let env_gep =
+            self.builder
+                .build_struct_gep(closure_ty, closure_ptr, 1, "once_env_gep")?;
+        let fn_gep =
+            self.builder
+                .build_struct_gep(closure_ty, closure_ptr, 2, "once_fn_gep")?;
+
+        let env_ptr = self
+            .builder
+            .build_load(i8_ptr_ty, env_gep, "once_env")?
+            .into_pointer_value();
+        let fn_ptr_raw = self
+            .builder
+            .build_load(i8_ptr_ty, fn_gep, "once_fn_raw")?
+            .into_pointer_value();
+
+        let init_fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[i8_ptr_ty.into()], false);
+        let init_fn_ptr_ty = init_fn_ty.ptr_type(AddressSpace::default());
+        let init_fn_ptr = self.builder.build_pointer_cast(
+            fn_ptr_raw,
+            init_fn_ptr_ty,
+            "once_fn_typed",
+        )?;
+
+        let rt = self.declare_runtime_sync_once_run();
+        let _ = self.builder.build_call(
+            rt,
+            &[once_ptr.into(), env_ptr.into(), init_fn_ptr.into()],
+            "sync_once_run",
+        )?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_sync_destroy(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(recv_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        // `destroy` 为 overload set：根据 receiver 的名义类型分派到不同 runtime 符号。
+        //
+        // 注意：HIR dump 当前阶段不保证 `expr.ty` 对 call/varref 总是精确，因此这里优先尝试
+        // 从 local 绑定的 `hir_ty` 获取类型信息。
+        let recv_hir_ty = match &recv_expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                self.env.get(*id).and_then(|l| l.hir_ty)
+            }
+            _ => Some(recv_expr.ty),
+        };
+
+        let Some(recv_hir_ty) = recv_hir_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy receiver hir type",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(recv_hir_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy receiver type kind",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
+        let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
+        let Some(recv_raw) = recv_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy receiver value",
+                at: recv_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sync.destroy receiver type",
+                at: recv_expr.span.into(),
+            });
+        };
+
+        let rt = match nominal.fqn.as_str() {
+            "scoop.sync.Mutex" => self.declare_runtime_sync_mutex_destroy(),
+            "scoop.sync.CondVar" => self.declare_runtime_sync_condvar_destroy(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "sync.destroy receiver nominal",
+                    at: recv_expr.span.into(),
+                });
+            }
+        };
+        let _ = self
+            .builder
+            .build_call(rt, &[recv_ptr.into()], "sync_destroy")?;
+        Ok(CgValue::unit())
     }
 
     fn codegen_sysroot_array_builder_intrinsics(
@@ -11369,6 +11993,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// 在当前 compilation unit 的 `TypeStore` 中查找 `() -> Unit / Pure` 的函数类型。
+    ///
+    /// 用途：
+    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 early stage 是“只有声明没有 body 的外部落点”，
+    ///   因此不在 `fun_index` 中；但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
+    fn lookup_pure_unit_closure_type(&self) -> Option<TypeId> {
+        let unit = self.types.iter_ids().find(|id| {
+            matches!(self.types.kind(*id), TypeKind::Value(ValueTypeKind::Unit))
+        })?;
+
+        self.types.iter_ids().find(|id| match self.types.kind(*id) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => {
+                fun_ty.receiver.is_none()
+                    && fun_ty.params.is_empty()
+                    && fun_ty.return_ty == unit
+                    && fun_ty.effects.is_pure()
+            }
+            _ => false,
+        })
+    }
+
     fn cg_ty_of_type_fqn(
         &self,
         at: crate::span::Span,
@@ -11742,6 +12387,168 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
         let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    // --- std v3：sync（T1319b） ---
+
+    fn declare_runtime_sync_mutex_create(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_mutex_create";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_sync_mutex_create(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_mutex_lock(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_mutex_lock";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_mutex_lock(void* mutex_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_mutex_unlock(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_mutex_unlock";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_mutex_unlock(void* mutex_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_mutex_destroy(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_mutex_destroy";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_mutex_destroy(void* mutex_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_condvar_create(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_condvar_create";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_sync_condvar_create(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_condvar_wait(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_condvar_wait";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_condvar_wait(void* condvar_obj, void* mutex_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_condvar_notify_one(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_condvar_notify_one";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_condvar_notify_one(void* condvar_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_condvar_notify_all(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_condvar_notify_all";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_condvar_notify_all(void* condvar_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_condvar_destroy(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_condvar_destroy";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_condvar_destroy(void* condvar_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_once_create(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_once_create";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_sync_once_create(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_once_is_done(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_once_is_done";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `bool scoop_sync_once_is_done(void* once_obj)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i1_ty = self.context.bool_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = i1_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_sync_once_run(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_sync_once_run";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_sync_once_run(void* once_obj, void* env_ptr, void (*fn)(void* env_ptr))`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let init_fn_ty = self
+            .context
+            .void_type()
+            .fn_type(&[i8_ptr_ty.into()], false);
+        let init_fn_ptr_ty = init_fn_ty.ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
+            [i8_ptr_ty.into(), i8_ptr_ty.into(), init_fn_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
