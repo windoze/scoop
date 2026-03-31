@@ -1,0 +1,44 @@
+// Scoop sysroot: channels surface（std v3，early stage）
+//
+// 说明：
+// - 该模块提供标准库 `scoop.channels` 的最小声明表面（T1319d）；
+// - 当前阶段先固定 names/signatures，并在启用 LLVM 后端时把这些 API 直接映射到
+//   runtime/c 的 pthread backend（unbounded mpsc queue）。
+//
+// 设计约定（early stage）：
+// - channel 句柄使用引用类型 `class Channel<T>`（opaque handle），避免值类型 copy/析构语义过早复杂化；
+// - `recv()` 为阻塞式：当队列为空时阻塞；当 channel 已 close 且队列为空时返回 `None`；
+// - `send(value)`：若 channel 已 close 则返回 `false`，否则入队并返回 `true`；
+// - 不做 select、不做 async adapter；这些属于后续任务。
+
+package scoop.channels
+
+import scoop.core.*
+
+/// unbounded mpsc channel（opaque handle；语义由 std/runtime 约定）。
+///
+/// 说明：当前阶段只保证“多线程 send + 单线程 recv”的最小语义可回归。
+class Channel<T>
+
+/// 创建一个新的 unbounded channel，并返回其句柄。
+fun <T> channelCreate(): Channel<T>
+
+/// 发送一个值到 channel。
+///
+/// 返回值约定：
+/// - `true`：成功入队；
+/// - `false`：channel 已 close（本次 send 被拒绝）。
+fun <T> Channel<T>.send(value: T): Bool
+
+/// 接收一个值（阻塞式）。
+///
+/// 返回值约定：
+/// - `Some(value)`：成功接收到一个值；
+/// - `None`：channel 已 close 且队列为空（不会再有值）。
+fun <T> Channel<T>.recv(): T?
+
+/// 关闭 channel：之后的 `send` 会返回 `false`；阻塞在 `recv` 的线程会被唤醒。
+///
+/// 说明：close 可被重复调用（幂等）。
+fun <T> Channel<T>.close(): Unit
+

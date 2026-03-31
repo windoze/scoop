@@ -3827,6 +3827,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.thread.currentId" {
                 return self.codegen_sysroot_thread_current_id(span, callee.span, args);
             }
+            // T1319d：std v3 channels（unbounded mpsc）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.channels.channelCreate" {
+                return self.codegen_sysroot_channels_channel_create(span, callee.span, args);
+            }
+            if fqn == "scoop.channels.send" {
+                return self.codegen_sysroot_channels_send(span, callee.span, args);
+            }
+            if fqn == "scoop.channels.recv" {
+                return self.codegen_sysroot_channels_recv(span, callee.span, args, expected);
+            }
+            if fqn == "scoop.channels.close" {
+                return self.codegen_sysroot_channels_close(span, callee.span, args);
+            }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
             // 说明：
@@ -6330,6 +6343,372 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::int(casted, to))
     }
 
+    // --- std v3：channels（T1319d） ---
+
+    fn codegen_sysroot_channels_channel_create(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.channelCreate arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_channels_channel_create();
+        let call = self
+            .builder
+            .build_call(rt, &[], "channels_channel_create")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.channelCreate return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.channelCreate return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(ptr.into()),
+        })
+    }
+
+    fn codegen_sysroot_channels_send(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(channel_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send named arg (receiver)",
+                at: span.into(),
+            });
+        };
+        let hir::CallArg::Positional(value_expr) = &args[1] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send named arg (value)",
+                at: span.into(),
+            });
+        };
+
+        let channel_v = self.codegen_expr_in_expected_context(channel_expr, Some(CgTy::Ref))?;
+        let channel_v = self.coerce_value(channel_expr.span, channel_v, CgTy::Ref)?;
+        let Some(channel_raw) = channel_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send receiver value",
+                at: channel_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(channel_ptr) = channel_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send receiver type",
+                at: channel_expr.span.into(),
+            });
+        };
+
+        // 优先从 receiver 的静态类型恢复 `T`，以便对 `value` 施加期望类型与编码方式。
+        let elem_cg = match self.types.kind(channel_expr.ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.channels.Channel" && nominal.args.len() == 1 =>
+            {
+                self.cg_ty_of(nominal.args[0]).filter(|ty| {
+                    matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref)
+                })
+            }
+            _ => None,
+        };
+
+        let value_v = match elem_cg {
+            Some(elem_cg) => {
+                let v = self.codegen_expr_in_expected_context(value_expr, Some(elem_cg))?;
+                self.coerce_value(value_expr.span, v, elem_cg)?
+            }
+            None => self.codegen_expr(value_expr)?,
+        };
+        let word_u64 = self.coerce_u64_word(value_expr.span, value_v)?;
+
+        let rt = self.declare_runtime_channels_send_u64();
+        let call = self.builder.build_call(
+            rt,
+            &[channel_ptr.into(), word_u64.into()],
+            "channels_send_u64",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(ok_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.send return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "channels_send_ok",
+        )?;
+        Ok(CgValue::bool(ok_cond))
+    }
+
+    fn codegen_sysroot_channels_recv(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(channel_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let channel_v = self.codegen_expr_in_expected_context(channel_expr, Some(CgTy::Ref))?;
+        let channel_v = self.coerce_value(channel_expr.span, channel_v, CgTy::Ref)?;
+        let Some(channel_raw) = channel_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv receiver value",
+                at: channel_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(channel_ptr) = channel_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv receiver type",
+                at: channel_expr.span.into(),
+            });
+        };
+
+        // 恢复 `T`：优先从 receiver 的静态类型 `Channel<T>` 得到；若无法恢复，则退化使用 expected context
+        //（例如 `val v: Int? = ch.recv()`）从 `Option<T>` 里反推 `T`。
+        let (option_ty, elem_ty) = match self.types.kind(channel_expr.ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+                if nominal.fqn == "scoop.channels.Channel" && nominal.args.len() == 1 =>
+            {
+                let elem_ty = nominal.args[0];
+                let option_ty = self
+                    .types
+                    .iter_ids()
+                    .find(|id| match self.types.kind(*id) {
+                        TypeKind::Value(ValueTypeKind::Option(inner)) => *inner == elem_ty,
+                        _ => false,
+                    })
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "channels.Channel.recv return Option<T> type",
+                        at: span.into(),
+                    })?;
+                (option_ty, elem_ty)
+            }
+            _ => match expected {
+                Some(CgTy::Enum(option_ty)) => match self.types.kind(option_ty) {
+                    TypeKind::Value(ValueTypeKind::Option(inner)) => (option_ty, *inner),
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "channels.Channel.recv expected Option<T>",
+                            at: span.into(),
+                        });
+                    }
+                },
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "channels.Channel.recv receiver nominal",
+                        at: channel_expr.span.into(),
+                    });
+                }
+            },
+        };
+
+        // gate：确保元素是 “u64 word 可编码”的类型（与 `coerce_u64_word` 对齐）。
+        let elem_cg = self.cg_ty_of(elem_ty).filter(|ty| {
+            matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref)
+        });
+        if elem_cg.is_none() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv element type",
+                at: channel_expr.span.into(),
+            });
+        }
+
+        // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
+        let i64_ty = self.context.i64_type();
+        let out_ptr = self.create_entry_alloca_raw(span, "channels_recv_out", i64_ty.into())?;
+
+        let rt = self.declare_runtime_channels_recv_u64();
+        let call = self.builder.build_call(
+            rt,
+            &[channel_ptr.into(), out_ptr.into()],
+            "channels_recv_u64",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(ok_i32) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.recv return type",
+                at: span.into(),
+            });
+        };
+
+        let ok_cond = self.builder.build_int_compare(
+            IntPredicate::NE,
+            ok_i32,
+            self.context.i32_type().const_zero(),
+            "channels_recv_ok",
+        )?;
+
+        let option_cg = CgTy::Enum(option_ty);
+        let option_llvm_ty = self.llvm_basic_type_of(span, option_cg)?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let some_bb = self.context.append_basic_block(func, "channels_recv_some");
+        let none_bb = self.context.append_basic_block(func, "channels_recv_none");
+        let merge_bb = self.context.append_basic_block(func, "channels_recv_merge");
+
+        self.builder
+            .build_conditional_branch(ok_cond, some_bb, none_bb)?;
+
+        // some branch：读取 word，构造 `Some(value)`。
+        self.builder.position_at_end(some_bb);
+        let word_u64 = self
+            .builder
+            .build_load(i64_ty, out_ptr, "channels_recv_word")?
+            .into_int_value();
+        let from = IntTy {
+            bits: 64,
+            signed: false,
+        };
+        let payload_ty = self.enum_payload_ty();
+        let payload_word = self.cast_int(word_u64, from, payload_ty)?;
+        let some_v = self.build_enum_value(span, option_ty, 0, Some(payload_word))?;
+        let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "channels.Channel.recv Some value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+        let some_end = self
+            .builder
+            .get_insert_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no insert block",
+                at: span.into(),
+            })?;
+
+        // none branch：构造 `None`。
+        self.builder.position_at_end(none_bb);
+        let none_v = self.build_enum_value(span, option_ty, 1, None)?;
+        let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "channels.Channel.recv None value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+        let none_end = self
+            .builder
+            .get_insert_block()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no insert block",
+                at: span.into(),
+            })?;
+
+        // merge：phi 合并结果。
+        self.builder.position_at_end(merge_bb);
+        let phi = self.builder.build_phi(option_llvm_ty, "channels_recv_phi")?;
+        phi.add_incoming(&[(&some_raw, some_end), (&none_raw, none_end)]);
+
+        Ok(CgValue {
+            ty: option_cg,
+            value: Some(phi.as_basic_value()),
+        })
+    }
+
+    fn codegen_sysroot_channels_close(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.close arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(channel_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.close named arg (receiver)",
+                at: span.into(),
+            });
+        };
+
+        let channel_v = self.codegen_expr_in_expected_context(channel_expr, Some(CgTy::Ref))?;
+        let channel_v = self.coerce_value(channel_expr.span, channel_v, CgTy::Ref)?;
+        let Some(channel_raw) = channel_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.close receiver value",
+                at: channel_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(channel_ptr) = channel_raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "channels.Channel.close receiver type",
+                at: channel_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_channels_close();
+        let _ = self
+            .builder
+            .build_call(rt, &[channel_ptr.into()], "channels_close")?;
+        Ok(CgValue::unit())
+    }
+
     fn codegen_sysroot_array_builder_intrinsics(
         &mut self,
         span: crate::span::Span,
@@ -7818,9 +8197,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
         let (param_bindings, captures) = self.closure_param_bindings(span, closure, fun_ty)?;
-        if !captures.is_empty() {
+        if captures.iter().any(|c| c.mutable) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "capturing lambda (not supported yet)",
+                kind: "mutable capture (not supported yet)",
                 at: span.into(),
             });
         }
@@ -7893,14 +8272,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.extern_funs,
                 self.fun_index,
             );
-            cg.codegen_closure_fun_body(closure, fun_ty, &param_bindings, llvm_fun)?;
+            // 说明：closure 捕获信息里没有类型；这里在外层 codegen 阶段用 env 中的 locals 恢复 type id，
+            // 再传给 closure fun body 用于 env layout 与绑定。
+            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
+                Vec::with_capacity(captures.len());
+            for cap in &captures {
+                let Some(local) = self.env.get(cap.id) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local not found",
+                        at: cap.decl_span.into(),
+                    });
+                };
+                let Some(ty_id) = local.hir_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local type",
+                        at: cap.decl_span.into(),
+                    });
+                };
+                capture_bindings.push((cap.id, cap.name.clone(), ty_id));
+            }
+
+            cg.codegen_closure_fun_body(
+                closure,
+                fun_ty,
+                &param_bindings,
+                &capture_bindings,
+                llvm_fun,
+            )?;
 
             // 恢复外层插入点（closure 函数 codegen 会移动 builder 的 position）。
             self.builder.position_at_end(saved_block);
             llvm_fun
         };
 
-        // 3) 创建 closure object：`{ header, env_ptr=NULL, fn_ptr=&lambda }`
+        // 3) 创建 closure object：`{ header, env_ptr, fn_ptr=&lambda }`
         let closure_obj_ty = self.llvm_closure_object_type();
         let obj_size_bytes = self.target_data.get_store_size(&closure_obj_ty);
 
@@ -7936,7 +8341,96 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_struct_gep(closure_obj_ty, obj_ptr, 2, "closure_fn_gep")?;
 
-        let _ = self.builder.build_store(env_gep, i8_ptr_ty.const_null())?;
+        // 若有捕获，则分配 env 并写入捕获值；否则 env_ptr 为 NULL。
+        let env_i8 = if captures.is_empty() {
+            i8_ptr_ty.const_null()
+        } else {
+            // 说明（early stage）：
+            // - 目前 closure object 的 type descriptor 尚未接入，GC 不会从 closure object 扫描到 env；
+            // - 为避免 env 被 mark-sweep 误回收，这里先用 libc `malloc` 分配 env（不会被 GC 管理）。
+            //   这会泄漏 env 内存，但能保持语义可回归；更完整的释放策略留给 type descriptor/release hook。
+            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
+                Vec::with_capacity(captures.len());
+            for cap in &captures {
+                let Some(local) = self.env.get(cap.id) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local not found",
+                        at: cap.decl_span.into(),
+                    });
+                };
+                let Some(ty_id) = local.hir_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local type",
+                        at: cap.decl_span.into(),
+                    });
+                };
+                capture_bindings.push((cap.id, cap.name.clone(), ty_id));
+            }
+
+            let env_ty = self.llvm_closure_env_type(span, closure.id, &capture_bindings)?;
+            let env_size_bytes = self.target_data.get_store_size(&env_ty);
+
+            let malloc = self.declare_libc_malloc();
+            let size_v = self.context.i64_type().const_int(env_size_bytes, false);
+            let call = self.builder.build_call(malloc, &[size_v.into()], "malloc_env")?;
+            let raw = call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "malloc return value",
+                    at: span.into(),
+                })?;
+            let BasicValueEnum::PointerValue(env_i8) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "malloc return type",
+                    at: span.into(),
+                });
+            };
+
+            let env_ptr_ty = env_ty.ptr_type(AddressSpace::default());
+            let env_ptr = self
+                .builder
+                .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
+
+            for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
+                let Some(local) = self.env.get(*id) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local not found",
+                        at: span.into(),
+                    });
+                };
+
+                let cg_ty = self.cg_ty_of(*ty_id).ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "capture local type",
+                    at: span.into(),
+                })?;
+                if !matches!(
+                    cg_ty,
+                    CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+                ) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local (non-scalar)",
+                        at: span.into(),
+                    });
+                }
+
+                let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local.ptr, &format!("capture_load_{name}"))?;
+
+                let field_gep = self.builder.build_struct_gep(
+                    env_ty,
+                    env_ptr,
+                    idx as u32,
+                    &format!("capture_gep_{name}"),
+                )?;
+                let _ = self.builder.build_store(field_gep, loaded)?;
+            }
+
+            env_i8
+        };
+        let _ = self.builder.build_store(env_gep, env_i8)?;
 
         let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
         let fn_i8 = self
@@ -8008,14 +8502,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
         param_bindings: &[(hir::SymbolId, String, TypeId)],
+        capture_bindings: &[(hir::SymbolId, String, TypeId)],
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        // GC roots：closure params + body locals（nested closure 自身会单独插桩）。
+        // GC roots：captures + closure params + body locals（nested closure 自身会单独插桩）。
         let mut root_ids: Vec<hir::SymbolId> = Vec::new();
         let mut seen: HashSet<hir::SymbolId> = HashSet::new();
+        for (id, _name, ty) in capture_bindings {
+            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref)) && seen.insert(*id) {
+                root_ids.push(*id);
+            }
+        }
         for (id, _name, ty) in param_bindings {
             if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref)) && seen.insert(*id) {
                 root_ids.push(*id);
@@ -8035,7 +8535,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
         self.current_fun_return_ty = Some(declared_return_cg);
 
-        // params：env（第 0 个 LLVM param）当前阶段不使用；捕获闭包后续任务再接入。
+        // captures：从 env（第 0 个 LLVM param）读取并绑定为 locals。
+        if !capture_bindings.is_empty() {
+            let env_i8 = llvm_fun
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "missing llvm lambda env param",
+                    at: closure.span.into(),
+                })?
+                .into_pointer_value();
+
+            let env_ty = self.llvm_closure_env_type(closure.span, closure.id, capture_bindings)?;
+            let env_ptr_ty = env_ty.ptr_type(AddressSpace::default());
+            let env_ptr = self
+                .builder
+                .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
+
+            for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
+                let target_ty = self
+                    .cg_ty_of(*ty_id)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture type",
+                        at: closure.span.into(),
+                    })?;
+                if !matches!(
+                    target_ty,
+                    CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+                ) {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "capture local (non-scalar)",
+                        at: closure.span.into(),
+                    });
+                }
+
+                let llvm_ty = self.llvm_basic_type_of(closure.span, target_ty)?;
+                let field_gep = self.builder.build_struct_gep(
+                    env_ty,
+                    env_ptr,
+                    idx as u32,
+                    &format!("capture_gep_{name}"),
+                )?;
+                let loaded =
+                    self.builder
+                        .build_load(llvm_ty, field_gep, &format!("capture_{name}"))?;
+
+                let ptr = self.create_entry_alloca(closure.span, name, target_ty)?;
+                let init = CgValue {
+                    ty: target_ty,
+                    value: Some(loaded),
+                };
+                let stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
+                let gc_root_slot = self.gc_root_slot_for(*id);
+                if let Some(slot_ptr) = gc_root_slot {
+                    self.store_gc_root_slot_value(closure.span, slot_ptr, stored)?;
+                }
+
+                self.env.insert(
+                    *id,
+                    CgLocal {
+                        hir_ty: Some(*ty_id),
+                        ty: target_ty,
+                        ptr,
+                        mutable: false,
+                        gc_root_slot,
+                    },
+                );
+            }
+        }
+
+        // params：env（第 0 个 LLVM param）；用户 params 从第 1 个开始。
         for (idx, (id, name, ty_id)) in param_bindings.iter().enumerate() {
             let target_ty = self
                 .cg_ty_of(*ty_id)
@@ -8140,6 +8708,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.env.pop_scope();
         Ok(())
+    }
+
+    fn llvm_closure_env_type(
+        &mut self,
+        at: crate::span::Span,
+        closure_id: hir::ClosureId,
+        capture_bindings: &[(hir::SymbolId, String, TypeId)],
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let name = format!("scoop.lambda_env${}", closure_id.as_u32());
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return Ok(existing);
+        }
+
+        let env_ty = self.context.opaque_struct_type(&name);
+        let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(capture_bindings.len());
+        for (_id, _name, ty_id) in capture_bindings {
+            let cg_ty = self.cg_ty_of(*ty_id).ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "capture type",
+                at: at.into(),
+            })?;
+            if !matches!(
+                cg_ty,
+                CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            ) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "capture local (non-scalar)",
+                    at: at.into(),
+                });
+            }
+            fields.push(self.llvm_basic_type_of(at, cg_ty)?);
+        }
+        env_ty.set_body(&fields, false);
+        Ok(env_ty)
     }
 
     fn codegen_unresolved_ident(
@@ -10255,6 +10856,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .void_type()
             .fn_type(&[self.context.i32_type().into()], false);
         self.module.add_function("exit", fn_ty, None)
+    }
+
+    fn declare_libc_malloc(&self) -> FunctionValue<'ctx> {
+        if let Some(f) = self.module.get_function("malloc") {
+            return f;
+        }
+
+        // `void* malloc(size_t size)`：这里用 `i64` 作为 size（host 64-bit 场景；32-bit 下会被 truncate）。
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let size_ty = self.context.i64_type();
+        let fn_ty = i8_ptr_ty.fn_type(&[size_ty.into()], false);
+        self.module.add_function("malloc", fn_ty, None)
     }
 
     fn emit_exit_with_code(
@@ -12895,6 +13508,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `int64_t scoop_thread_current_id(void)`
         let i64_ty = self.context.i64_type();
         let fn_ty = i64_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    // --- std v3：channels（T1319d） ---
+
+    fn declare_runtime_channels_channel_create(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_channels_channel_create";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_channels_channel_create(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_channels_send_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_channels_send_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_channels_send_u64(void* channel, uint64_t value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_channels_recv_u64(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_channels_recv_u64";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+        let i64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ptr_ty.into()];
+        let fn_ty = i32_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_channels_close(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_channels_close";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_channels_close(void* channel)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

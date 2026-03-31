@@ -1,0 +1,30 @@
+// EXPECT: pass
+// 目标：T1319d 在 sysroot 中新增 `scoop.channels` 的最小 API 声明面（unbounded mpsc：send/recv/close）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.channels.*
+
+fun useChannels(): Unit {
+    val ch: Channel<Int> = channelCreate<Int>()
+
+    val ok: Bool = ch.send(1)
+    when (ok) {
+        true -> ()
+        false -> ()
+    }
+
+    val v: Int? = ch.recv()
+    when (v) {
+        Some(x) -> {
+            val y: Int = x
+            println(y)
+        }
+        None -> ()
+    }
+
+    ch.close()
+    return ()
+}
+

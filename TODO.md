@@ -4802,11 +4802,29 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1319d [TODO] `std` v3：`channels` 最小接口 v0（unbounded mpsc）+ run-pass
+### T1319d [DONE] `std` v3：`channels` 最小接口 v0（unbounded mpsc）+ run-pass
 - 描述：新增 `scoop.channels`：最小的 unbounded mpsc channel（send/recv/close），并用 run-pass fixtures 固化基本语义。
 - 目标：先只做阻塞 recv（配合 CondVar）；不做 select；不做 async adapter。
 - 验收：新增 run-pass fixtures：多线程 send/recv 顺序与 close 语义可回归；不支持平台有稳定诊断。
 - 依赖：T1319b、T1319c
+ - 完成：
+   - sysroot：
+     - `sysroot/channels.scoop`：新增 `scoop.channels`（`Channel<T>` + `channelCreate/send/recv/close`）声明面。
+   - runtime：
+     - `runtime/c/scoop_channels.c`：新增 `scoop_channels_*`（pthread backend）：unbounded 队列 + `send/recv/close`。
+   - runtime build：
+     - `crates/scoop_runtime/build.rs`：把 `scoop_channels.c` 纳入 clang 构建与 rerun-if-changed。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.channels.*` 映射到 runtime C 符号；`recv` 返回 `Option<T>`（Some/None）。
+     - 回归修正：补齐 closure capture v0（immutable captures）：closure env 使用 `malloc` 分配并经 `env_ptr` 传入（用于 `threadSpawn` 传递 channel 到新线程）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_channels_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_channels_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1319e [TODO] `std` v3：task/executor 支持接口 v0（对接 runtime task executor）
 - 描述：为 `Task<T>` / executor 提供 std 层适配接口（对接 `runtime/c/scoop_task_executor.c`），并新增最小 run-pass fixtures 回归。
