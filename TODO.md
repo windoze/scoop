@@ -3497,14 +3497,6 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
 
-### T1027 [BLOCKED] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
-- 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
-- 目标：与对外暴露的 `AtomicInt`（若存在）区分：这些是**值类型**，且 API 面向 runtime/interop，不作为通用高层并发库承诺。
-- 验收：新增 run-pass fixture：对 `__AtomicInt` 做原子 load/store/CAS（多线程可先用单线程语义/模型测试；并发正确性可后续补）。
-- 依赖：T1017、T1018
-
----
-
 ## T11：Cone（包/稳定 IR/分发）（阶段 10）
 
 ### T1101 [DONE] Cone.toml：解析 manifest（spec §13.7、PLAN §12）
@@ -4833,6 +4825,12 @@
 - 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
 - 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
 - 依赖：T1017
+
+### T1027 [TODO] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
+- 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
+- 目标：与对外暴露的 `AtomicInt`（若存在）区分：这些是**值类型**，且 API 面向 runtime/interop，不作为通用高层并发库承诺。
+- 验收：新增 run-pass fixture：对 `__AtomicInt` 做原子 load/store/CAS（多线程可先用单线程语义/模型测试；并发正确性可后续补）。
+- 依赖：T1017、T1018
 
 ### T1025 [TODO] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
 - 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：
