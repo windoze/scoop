@@ -1,0 +1,47 @@
+// EXPECT: pass
+// 目标：T1319e 在 sysroot 中新增 `scoop.task` 的最小 task/executor 适配接口声明面。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.task.*
+
+fun useTaskExecutor(executor: Executor, k: Continuation<Int>): Unit {
+    val ex: Executor = executor
+
+    val t1: Task<Int> = taskCreate {
+        7
+    }
+
+    val t2: Task<Int> = taskCreateManual()
+
+    val s0: Int = t1.state()
+    val _r0: Int = t1.result()
+    val _p0: Int = ex.debugPendingCount()
+
+    val ok1: Bool = t1.tryStart(ex)
+    when (ok1) {
+        true -> ()
+        false -> ()
+    }
+
+    val ok2: Bool = t2.complete(1)
+    when (ok2) {
+        true -> ()
+        false -> ()
+    }
+
+    val ok3: Bool = t1.onComplete(ex, k)
+    when (ok3) {
+        true -> ()
+        false -> ()
+    }
+
+    val _ran1: Bool = ex.runNext()
+    val _ran2: Int = ex.runUntilIdle(0)
+
+    // 让 `s0` 被使用：避免未来把 warning 升级为 error 时影响回归。
+    println(s0)
+    return ()
+}
+

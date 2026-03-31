@@ -4888,11 +4888,26 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1319e [TODO] `std` v3：task/executor 支持接口 v0（对接 runtime task executor）
+### T1319e [DONE] `std` v3：task/executor 支持接口 v0（对接 runtime task executor）
 - 描述：为 `Task<T>` / executor 提供 std 层适配接口（对接 `runtime/c/scoop_task_executor.c`），并新增最小 run-pass fixtures 回归。
 - 目标：先只做 “create/start/complete/onComplete” 的最小路径；不做 work-stealing/多 executor；不做 cancellation。
 - 验收：新增 run-pass fixtures：task state 与完成回调行为可回归。
 - 依赖：T0917、T1319b
+ - 完成：
+   - sysroot：
+     - `sysroot/task.scoop`：新增 `scoop.task`（`Executor` + `executorCreate/debugPendingCount/runNext/runUntilIdle/destroy`；`Task<Int>` 的 `taskCreate/taskCreateManual/state/result/tryStart/complete/onComplete`）。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：把 `scoop.task.*` sysroot 表面映射到 `scoop_task_executor.c` 的 runtime C 符号：
+       - `Executor` 在 early stage 落到 word-sized handle（与 `Task<T>` 一致）；
+       - `taskCreate { ... }` 传递 `() -> Int` closure 的 env/fn 指针给 runtime（u64 body_fn + ctx）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_task_executor_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_task_executor_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1320 [TODO] `std` v4：net / async adapters / testing & support utilities
 - 描述：补齐标准库的高阶能力：网络抽象、与 `Task`/executor 的 async adapters、测试支持工具、日志/诊断/配置等公共 utilities。
