@@ -70,3 +70,24 @@ fun Task<Int>.complete(value: Int): Bool
 /// - continuation 由 runtime pin/unpin，避免 GC sweep 期间被回收。
 fun Task<Int>.onComplete(executor: Executor, continuation: Continuation<Int>): Bool
 
+// --- Task async adapters（stdlib v4，early stage） ---
+//
+// 说明（TODO T1320b）：
+// - 这些 API 作为“stdlib 适配层”的声明表面，便于 resolver/typecheck 可见；
+// - 真实实现由 stdlib 注入的 `stdlib/task.scoop` 提供（pure scoop）；
+// - 当前阶段仅提供 `Int` 专用落点，避免泛型/单态化边角影响可执行回归。
+
+/// bridge：创建并尝试 start 一个 task（lazy body 入队到 executor）。
+fun Executor.spawn(block: () -> Int): Task<Int>
+
+/// await：驱动 executor 直到 task 完成，并返回结果（v0：`Int` 专用）。
+///
+/// 失败语义（early stage）：若 executor 无可运行 job 但 task 仍未完成，视为 deadlock 并通过
+/// `Raise<RuntimeError>` 终止。
+fun Executor.await(task: Task<Int>): Int / Raise<RuntimeError>
+
+/// map：当 task 完成时，应用 mapper 并完成一个新的 task（v0：`Int` 专用）。
+fun Task<Int>.map(executor: Executor, mapper: (Int) -> Int): Task<Int>
+
+/// andThen（flatMap）：当 task 完成时，运行 binder 生成下一个 task，并转发其完成结果。
+fun Task<Int>.andThen(executor: Executor, binder: (Int) -> Task<Int>): Task<Int>

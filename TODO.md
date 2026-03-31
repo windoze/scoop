@@ -4947,13 +4947,21 @@
      - `tests/fixtures/typecheck/std_test_assertions_api_surface_ok.scoop`
      - `tests/fixtures/run-pass/std_test_assertions_basic.scoop/.stdout`
 
-### T1320b [TODO] `std` v4：`Task`/executor async adapters v0（map/await/bridge）
+### T1320b [DONE] `std` v4：`Task`/executor async adapters v0（map/await/bridge）
 - 描述：在 stdlib 层为 `Task<T>`/`Executor` 提供最小的组合子与桥接工具（例如 `map/andThen/await` 的 v0 形态），提升异步样例可写性。
 - 目标：
   - 先以 `Int` 专用落点为主（与现有 stdlib 策略一致），避免一次引入泛型/单态化边角；
   - 不引入新的调度策略：仍复用 runtime executor（T0917/T1319e）。
 - 验收：新增至少 1 个 run-pass fixture 覆盖 adapter 的基本行为；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T1319e
+ - 完成：
+   - sysroot：
+     - `sysroot/task.scoop`：补齐 `Executor.spawn/await` 与 `Task<Int>.map/andThen` 的声明表面（typecheck 可见）。
+   - stdlib：
+     - `stdlib/task.scoop`：落地 `spawn/await/map/andThen` 的 pure-scoop 实现（内部用 `__TaskAwaitInt` 承载 escape continuation 适配）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_task_async_adapters_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop/.stdout`
 
 ### T1320c [TODO] `std` v4：测试/诊断支持 utilities v0（platform info / io helpers）
 - 描述：补齐一组“为 fixtures/示例服务”的通用工具（例如 platform/query、简单的 stdout/stderr helper），并用 fixtures 固化。

@@ -1,0 +1,28 @@
+// EXPECT: pass
+//
+// T1320b：`std` v4 task/executor async adapters v0（API surface）
+//
+// 说明：
+// - typecheck phase 仅包含 sysroot（不注入 stdlib），因此本用例只验证“声明表面”可见且可类型检查；
+// - 可执行语义由 run-pass fixtures 覆盖（见 `std_task_async_adapters_basic.*`）。
+
+import scoop.core.*
+import scoop.task.*
+
+fun main(): Int {
+    val ex: Executor = executorCreate()
+    val exitCode: Int = try {
+        val t: Task<Int> = ex.spawn { 1 }
+        val t2: Task<Int> = t.map(ex) { v -> v + 1 }
+        val t3: Task<Int> = t2.andThen(ex) { v -> ex.spawn { v + 10 } }
+        val r: Int = ex.await(t3)
+        val _unused: Int = r
+        0
+    } catch (e: RuntimeError) {
+        val _unused: RuntimeError = e
+        1
+    }
+
+    ex.destroy()
+    return exitCode
+}

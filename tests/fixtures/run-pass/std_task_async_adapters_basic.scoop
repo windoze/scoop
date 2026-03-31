@@ -1,0 +1,51 @@
+// EXPECT: pass
+// RUN-STDOUT: std_task_async_adapters_basic.stdout
+//
+// T1320b：`std` v4 task/executor async adapters v0（spawn/await/map/andThen）
+//
+// 目标覆盖：
+// - `Executor.spawn`：create + tryStart
+// - `Task<Int>.map`：映射结果并完成新 task
+// - `Task<Int>.andThen`：链式创建 next task 并转发结果
+// - `Executor.await`：驱动 executor 直到目标 task completed
+
+import scoop.core.*
+import scoop.task.*
+
+fun main(): Int {
+    val ex: Executor = executorCreate()
+    val exitCode: Int = try {
+        println("case1")
+
+        val t: Task<Int> = ex.spawn {
+            println("t_body")
+            7
+        }
+
+        val t2: Task<Int> = t.map(ex) { v -> v + 1 }
+        val r1: Int = ex.await(t2)
+        println("r1")
+        println(r1)
+
+        println("case2")
+        val t3: Task<Int> = t.andThen(ex) { v ->
+            ex.spawn {
+                println("t3_body")
+                v + 10
+            }
+        }
+        val r2: Int = ex.await(t3)
+        println("r2")
+        println(r2)
+
+        println("done")
+        0
+    } catch (e: RuntimeError) {
+        val _unused: RuntimeError = e
+        println("caught")
+        1
+    }
+
+    ex.destroy()
+    return exitCode
+}
