@@ -1,0 +1,22 @@
+// EXPECT: pass
+// 目标：T1319c 在 sysroot 中新增 `scoop.thread` 的最小 API 声明面（spawn/join/sleep/yield/currentId）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.thread.*
+
+fun useThread(): Unit {
+    val t: Thread = threadSpawn { () }
+    t.join()
+
+    // smoke：保证函数在类型系统中可用。
+    yield()
+    sleepMillis(0)
+
+    val id: Int = currentId()
+    if (id == 0) {
+        return ()
+    }
+    return ()
+}

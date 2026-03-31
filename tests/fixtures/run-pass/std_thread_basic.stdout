@@ -1,0 +1,6 @@
+main: start
+tid: ok
+child: start
+child: end
+main: joined
+ok

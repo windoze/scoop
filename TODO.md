@@ -4786,11 +4786,29 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1319c [TODO] `std` v3：`thread` 最小接口 v0（spawn/join/sleep/yield）+ run-pass
+### T1319c [DONE] `std` v3：`thread` 最小接口 v0（spawn/join/sleep/yield）+ run-pass
 - 描述：新增 `scoop.thread` 的最小可执行接口：线程创建与 join、sleep/yield、线程 id（若平台支持），并新增 run-pass fixtures 回归。
 - 目标：先只做“spawn + join”等待完成；不做取消；不做 thread-local 初始化顺序保证。
 - 验收：新增 run-pass fixtures：线程启动与 join 的可观察行为正确；不支持平台有稳定诊断。
 - 依赖：T1319b
+ - 完成：
+   - sysroot：
+     - `sysroot/thread.scoop`：新增 `scoop.thread` 最小声明面（`Thread` + `threadSpawn/join/sleepMillis/yield/currentId`）。
+     - 说明：避免与语言内建 `spawn { ... }`（Task 语法糖）冲突，线程创建 API 采用 `threadSpawn` 命名。
+   - runtime：
+     - `runtime/c/scoop_thread.c`：新增 `scoop_thread_*`（pthread backend）：spawn/join/sleep/yield/current_id。
+   - runtime build：
+     - `crates/scoop_runtime/build.rs`：把 `scoop_thread.c` 纳入 clang 构建与 rerun-if-changed。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：将 `scoop.thread.*` 映射到 runtime C 符号，并支持传递 `() -> Unit` closure（env + fn_ptr）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_thread_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_thread_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1319d [TODO] `std` v3：`channels` 最小接口 v0（unbounded mpsc）+ run-pass
 - 描述：新增 `scoop.channels`：最小的 unbounded mpsc channel（send/recv/close），并用 run-pass fixtures 固化基本语义。

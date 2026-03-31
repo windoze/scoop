@@ -1,0 +1,37 @@
+// Scoop sysroot: thread surface（std v3，early stage）
+//
+// 说明：
+// - 该模块提供标准库 `scoop.thread` 的最小可执行表面（T1319c）。
+// - 当前阶段只覆盖 host 平台（pthread backend）：由 LLVM codegen 直接映射到 runtime C 符号（`scoop_thread_*`）。
+// - 线程句柄采用引用类型 `class Thread`（opaque handle），避免值类型 copy/析构语义在 early stage 过早复杂化。
+
+package scoop.thread
+
+import scoop.core.*
+
+/// 线程句柄（opaque handle；语义由 std/runtime 约定）。
+class Thread
+
+/// 创建一个新线程执行 `block`，并返回可用于 `join` 的句柄。
+///
+/// 说明（early stage 语义约定）：
+/// - 当前阶段只要求 "spawn + join" 的最小 happy path 可回归；
+/// - 不做取消、优先级、thread-local 初始化顺序保证等更复杂语义；
+/// - `block` 当前仅保证支持“非捕获 lambda”（与 closure v0 ABI 对齐）。
+fun threadSpawn(block: () -> Unit): Thread
+
+/// 等待该线程执行完成（join）。
+fun Thread.join(): Unit
+
+/// 让出当前线程的时间片（hint）。
+fun yield(): Unit
+
+/// 休眠当前线程指定毫秒数（<=0 则直接返回）。
+fun sleepMillis(ms: Int): Unit
+
+/// 返回当前线程的 platform thread id（若平台支持）。
+///
+/// 返回值约定：
+/// - 返回 0 表示平台不支持或获取失败；
+/// - 返回非 0 表示一个可观测但不承诺跨平台稳定的线程标识符。
+fun currentId(): Int

@@ -1,0 +1,34 @@
+// EXPECT: pass
+// RUN-STDOUT: std_thread_basic.stdout
+//
+// 目标：T1319c `scoop.thread`（pthread backend）最小可执行语义可回归。
+//
+// 说明：
+// - 输出顺序应稳定：main 打印 start → child 打印 start/end → main join 后打印 joined；
+// - `yield/sleepMillis` 仅做 smoke：不要求精确计时，仅要求不崩溃；
+// - `currentId()` 在 host 平台应返回非 0；不支持平台返回 0 并输出 stable 文本。
+
+import scoop.core.*
+import scoop.thread.*
+
+fun main() {
+    println("main: start")
+
+    val tid: Int = currentId()
+    when (tid == 0) {
+        true -> println("tid: unsupported")
+        false -> println("tid: ok")
+    }
+
+    val t: Thread = threadSpawn {
+        println("child: start")
+        yield()
+        println("child: end")
+    }
+
+    t.join()
+    sleepMillis(1)
+
+    println("main: joined")
+    println("ok")
+}
