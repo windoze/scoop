@@ -23,6 +23,7 @@
 - 2026-03-31：完成 T1317f3：stdlib 为 `Array/MutableArray/List/MutableList`（优先 `Int` 版本）提供 `forEach/map/filter/fold`（effect-polymorphic）；并扩展 typecheck 的 lambda 期望类型下推到 2 参数以解锁 `fold(0) { acc, x -> ... }`；新增 run-pass fixture `stdlib_iter_algorithms_basic.*`，在 `cargo run -p scoop --features llvm -- test` 下可回归通过。
 - 2026-03-31：完成 T1317f4：stdlib 基于 `MutableArray` 落地 `Set/MutableSet`（Int 专用）与 `MutableMap`（Int->Int 专用，线性查找 + copy 语义），并提供只读视图 `Set`/`MapView`；新增 run-pass fixture `stdlib_set_map_basic.*`，与 sysroot 的 `scoop.collections.Map`（delegated property 表面）保持兼容不冲突。
 - 2026-03-31：拆分 T1318（`std` v2：io/fs/path/process/env/time）为 T1318a～T1318e，并完成 T1318a：sysroot 新增 `scoop.env.getOrNull` 与 `scoop.time.nowUnixMillis`；LLVM codegen 映射到 runtime C（`getenv/gettimeofday`）；新增 typecheck + run-pass fixtures `std_env_time_*` 回归。
+- 2026-03-31：完成 T1318b：sysroot 新增 `scoop.fs.readAllText/writeAllText`（UTF-8）声明面；runtime C 落地为 `scoop_fs_read_all_text_utf8/scoop_fs_write_all_text_utf8`；LLVM codegen 映射到 runtime 符号；新增 run-pass fixture `std_fs_text_basic.*` 回归（并修正 run-pass fixtures 中误用关键字 `out` 的用例）。
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：`TODO.md` 中 program boundary 的 T0629b 依赖多包 build/link（T1107），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0629b 移动到 T1107 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。

@@ -4658,11 +4658,28 @@
    - `cargo run -p scoop -- test`
    - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1318b [TODO] `std` v2：`fs` 读写文本 v0（UTF-8）
+### T1318b [DONE] `std` v2：`fs` 读写文本 v0（UTF-8）
 - 描述：提供最小可执行的 `scoop.fs` 文件读写 API（例如 `readAllText`/`writeAllText`）。
 - 目标：先只支持 UTF-8 文本与 host 平台；先不引入流式接口与权限/元数据 API。
 - 验收：新增 run-pass fixtures：写入临时文件、再读回并断言 stdout；平台不支持时有稳定诊断。
 - 依赖：T1318a
+ - 完成：
+   - sysroot：
+     - `sysroot/fs.scoop`：新增 `scoop.fs.readAllText(path: String): String?` 与 `writeAllText(path: String, content: String): Int` 声明面（失败语义：`None` / 非 0）。
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_fs_read_all_text_utf8` / `scoop_fs_write_all_text_utf8`（`fopen/fread/fwrite`，失败返回 NULL / 非 0）。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.fs.readAllText/writeAllText` 增加 sysroot → runtime 符号映射；并让 `Option<String>` 返回值走 pointer niche（NULL → None）。
+   - fixtures：
+     - `tests/fixtures/run-pass/std_fs_text_basic.scoop`
+     - `tests/fixtures/run-pass/std_fs_text_basic.stdout`
+   - 修正：
+     - `tests/fixtures/run-pass/std_env_time_basic.scoop`：避免把关键字 `out` 当作变量名（改为 `result`），保证 run-pass fixtures 可在启用 LLVM 后端时执行。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1318c [TODO] `std` v2：`process` 最小接口 v0（exit/args）
 - 描述：提供最小可执行的 `scoop.process`：退出码、参数读取（必要时先只支持 `args.size/get`）。

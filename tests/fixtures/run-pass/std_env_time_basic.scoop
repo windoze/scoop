@@ -10,11 +10,11 @@ import scoop.time.*
 
 fun main() {
     val v: String? = getOrNull("SCOOP_FIXTURE_ENV_TIME")
-    val out: String = when (v) {
+    val result: String = when (v) {
         Some(s) -> s
         None -> "none"
     }
-    println(out)
+    println(result)
 
     val t: Int = nowUnixMillis()
     val ok: Bool = t == t

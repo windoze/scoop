@@ -1,0 +1,28 @@
+// EXPECT: pass
+// RUN-STDOUT: std_fs_text_basic.stdout
+//
+// 目标：T1318b `scoop.fs.readAllText/writeAllText`（UTF-8）在 host 平台可执行并可回归。
+// 说明：使用 `/tmp` + `nowUnixMillis()` 拼出临时路径，避免多次运行冲突。
+
+import scoop.core.*
+import scoop.fs.*
+import scoop.time.*
+
+fun main() {
+    val t: Int = nowUnixMillis()
+    val path: String = f"/tmp/scoop_fs_text_{t}.txt"
+
+    val code: Int = writeAllText(path, "hello_fs")
+    val code_msg: String = when (code == 0) {
+        true -> "write_ok"
+        false -> f"write_fail {code}"
+    }
+    println(code_msg)
+
+    val v: String? = readAllText(path)
+    val result: String = when (v) {
+        Some(s) -> s
+        None -> "read_none"
+    }
+    println(result)
+}

@@ -1,0 +1,24 @@
+// Scoop sysroot: fs surface（std v2，early stage）
+//
+// 说明：
+// - 该模块提供标准库 `scoop.fs` 的最小可执行表面（T1318b）。
+// - 当前阶段只要求 host 平台可用：由 LLVM codegen 直接映射到 runtime C 符号。
+// - API 先以“文本（UTF-8）一次性读写”为主；失败语义用返回值表达（`String?` / `Int`）。
+
+package scoop.fs
+
+import scoop.core.*
+
+/// 读取整个文件为 UTF-8 文本（失败则返回 `None`）。
+///
+/// 约定：
+/// - 当前阶段不做 UTF-8 校验：按字节读取并视为 UTF-8；
+/// - 返回 `None` 表示文件不存在/读取失败/平台不支持（便于在 run-pass fixtures 中稳定断言）。
+fun readAllText(path: String): String?
+
+/// 将 UTF-8 文本一次性写入文件（覆盖写；返回 0 表示成功）。
+///
+/// 约定：
+/// - 成功：返回 0；
+/// - 失败：返回非 0（例如路径非法、权限不足、平台不支持等）。
+fun writeAllText(path: String, content: String): Int

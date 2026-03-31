@@ -3712,10 +3712,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             // T1318a：std v2 env/time（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
             if fqn == "scoop.env.getOrNull" {
-                return self.codegen_sysroot_env_get(span, callee.span, args);
+                return self.codegen_sysroot_env_get(span, args, expected);
             }
             if fqn == "scoop.time.nowUnixMillis" {
                 return self.codegen_sysroot_time_now_unix_millis(span, callee.span, args);
+            }
+            // T1318b：std v2 fs（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.fs.readAllText" {
+                return self.codegen_sysroot_fs_read_all_text_utf8(span, args, expected);
+            }
+            if fqn == "scoop.fs.writeAllText" {
+                return self.codegen_sysroot_fs_write_all_text_utf8(span, callee.span, args);
             }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
@@ -4680,26 +4687,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::unit())
     }
 
-    fn cg_return_ty_of_top_level_fun(
-        &self,
-        at: crate::span::Span,
-        fqn: &str,
-    ) -> Result<CgTy, LlvmEmitError> {
-        let fun = self.fun_index.get(fqn).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "unknown top-level fun",
-            at: at.into(),
-        })?;
-        self.cg_ty_of(fun.return_ty).ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "top-level fun return type",
-            at: at.into(),
-        })
-    }
-
     fn codegen_sysroot_env_get(
         &mut self,
         span: crate::span::Span,
-        callee_span: crate::span::Span,
         args: &[hir::CallArg],
+        expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -4742,8 +4734,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        // 返回类型来自 sysroot：`String?`（即 `Option<String>`，niche 表示为 `ScoopString*`）。
-        let ret_cg_ty = self.cg_return_ty_of_top_level_fun(callee_span, "scoop.env.getOrNull")?;
+        // 返回类型依赖 expected context（HIR v0 对大部分 call expr 仍用 `Any` 占位）。
+        let Some(ret_cg_ty) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull missing expected type context",
+                at: span.into(),
+            });
+        };
+        if !matches!(ret_cg_ty, CgTy::Enum(_)) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "env.getOrNull expected Option<String>",
+                at: span.into(),
+            });
+        }
         Ok(CgValue {
             ty: ret_cg_ty,
             value: Some(raw),
@@ -4781,6 +4784,161 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        let from = IntTy {
+            bits: 64,
+            signed: true,
+        };
+        let to = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let casted = self.cast_int(raw_i64, from, to)?;
+        Ok(CgValue::int(casted, to))
+    }
+
+    fn codegen_sysroot_fs_read_all_text_utf8(
+        &mut self,
+        span: crate::span::Span,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(path_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText named arg",
+                at: span.into(),
+            });
+        };
+
+        let path_v = self.codegen_expr_in_expected_context(path_expr, Some(CgTy::String))?;
+        let path_v = self.coerce_value(path_expr.span, path_v, CgTy::String)?;
+        let Some(raw_path) = path_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText path value",
+                at: path_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(path_ptr) = raw_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText path type",
+                at: path_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_fs_read_all_text_utf8();
+        let call = self
+            .builder
+            .build_call(rt, &[path_ptr.into()], "fs_read_all_text")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText return value",
+                at: span.into(),
+            })?;
+
+        // 返回类型依赖 expected context（HIR v0 对大部分 call expr 仍用 `Any` 占位）。
+        let Some(ret_cg_ty) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText missing expected type context",
+                at: span.into(),
+            });
+        };
+        if !matches!(ret_cg_ty, CgTy::Enum(_)) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.readAllText expected Option<String>",
+                at: span.into(),
+            });
+        }
+        Ok(CgValue {
+            ty: ret_cg_ty,
+            value: Some(raw),
+        })
+    }
+
+    fn codegen_sysroot_fs_write_all_text_utf8(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(path_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText named arg (path)",
+                at: span.into(),
+            });
+        };
+        let hir::CallArg::Positional(content_expr) = &args[1] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText named arg (content)",
+                at: span.into(),
+            });
+        };
+
+        let path_v = self.codegen_expr_in_expected_context(path_expr, Some(CgTy::String))?;
+        let path_v = self.coerce_value(path_expr.span, path_v, CgTy::String)?;
+        let Some(raw_path) = path_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText path value",
+                at: path_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(path_ptr) = raw_path else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText path type",
+                at: path_expr.span.into(),
+            });
+        };
+
+        let content_v = self.codegen_expr_in_expected_context(content_expr, Some(CgTy::String))?;
+        let content_v = self.coerce_value(content_expr.span, content_v, CgTy::String)?;
+        let Some(raw_content) = content_v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText content value",
+                at: content_expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(content_ptr) = raw_content else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText content type",
+                at: content_expr.span.into(),
+            });
+        };
+
+        let rt = self.declare_runtime_fs_write_all_text_utf8();
+        let call = self.builder.build_call(
+            rt,
+            &[path_ptr.into(), content_ptr.into()],
+            "fs_write_all_text",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::IntValue(raw_i64) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "fs.writeAllText return type",
+                at: span.into(),
+            });
+        };
+
+        // runtime 返回 i64：向 host word size 的 `Int` 做一次 cast（与 time API 一致）。
         let from = IntTy {
             bits: 64,
             signed: true,
@@ -10969,6 +11127,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `int64_t scoop_time_now_unix_millis(void)`
         let i64_ty = self.context.i64_type();
         let fn_ty = i64_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_fs_read_all_text_utf8(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_fs_read_all_text_utf8";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_fs_read_all_text_utf8(const ScoopString* path)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [str_ptr_ty.into()];
+        let fn_ty = str_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_fs_write_all_text_utf8(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_fs_write_all_text_utf8";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `int64_t scoop_fs_write_all_text_utf8(const ScoopString* path, const ScoopString* content)`
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [str_ptr_ty.into(), str_ptr_ty.into()];
+        let fn_ty = i64_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

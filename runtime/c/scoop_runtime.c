@@ -1159,6 +1159,48 @@ static const ScoopString *scoop_string_from_cstr(const char *value) {
   return out_str;
 }
 
+static const ScoopString *scoop_string_from_bytes(const uint8_t *value, uint64_t len) {
+  if (value == 0) {
+    return 0;
+  }
+  if (len == 0) {
+    return &SCOOP_EMPTY_STRING;
+  }
+
+  uint8_t *out = (uint8_t *)malloc((size_t)len);
+  if (out == 0) {
+    return 0;
+  }
+  (void)memcpy(out, value, (size_t)len);
+
+  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  if (out_str == 0) {
+    free(out);
+    return 0;
+  }
+  out_str->len = len;
+  out_str->data = out;
+  return out_str;
+}
+
+static char *scoop_cstr_from_scoop_string(const ScoopString *value) {
+  if (value == 0) {
+    return 0;
+  }
+  if (value->data == 0 || value->len == 0) {
+    return 0;
+  }
+
+  uint64_t n = value->len;
+  char *out = (char *)malloc((size_t)n + 1);
+  if (out == 0) {
+    return 0;
+  }
+  (void)memcpy(out, value->data, (size_t)n);
+  out[n] = '\0';
+  return out;
+}
+
 // `scoop.env.get(key: String): String?`
 //
 // 约定：
@@ -1203,4 +1245,117 @@ int64_t scoop_time_now_unix_millis(void) {
   int64_t sec = (int64_t)tv.tv_sec;
   int64_t usec = (int64_t)tv.tv_usec;
   return (sec * 1000) + (usec / 1000);
+}
+
+// --- std v2：fs（T1318b）---
+//
+// 说明：
+// - 该组 API 提供“最小可执行的文本（UTF-8）文件读写”能力；
+// - 当前阶段不做完整错误模型：读失败返回 NULL（对应 `None`），写失败返回非 0；
+// - 实现面向 host POSIX/desktop：`fopen/fread/fwrite`。
+
+// `scoop.fs.readAllText(path: String): String?`
+//
+// 约定：
+// - 返回 NULL 表示 `None`（读失败/文件不存在/平台不支持）；
+// - 返回非 NULL 表示 `Some(String)`。
+const ScoopString *scoop_fs_read_all_text_utf8(const ScoopString *path) {
+  char *path_cstr = scoop_cstr_from_scoop_string(path);
+  if (path_cstr == 0) {
+    return 0;
+  }
+
+  FILE *f = fopen(path_cstr, "rb");
+  free(path_cstr);
+  if (f == 0) {
+    return 0;
+  }
+
+  if (fseek(f, 0, SEEK_END) != 0) {
+    (void)fclose(f);
+    return 0;
+  }
+  long n_long = ftell(f);
+  if (n_long < 0) {
+    (void)fclose(f);
+    return 0;
+  }
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    (void)fclose(f);
+    return 0;
+  }
+
+  uint64_t n = (uint64_t)n_long;
+  if (n == 0) {
+    (void)fclose(f);
+    return &SCOOP_EMPTY_STRING;
+  }
+
+  if (n > (uint64_t)SIZE_MAX) {
+    (void)fclose(f);
+    return 0;
+  }
+
+  uint8_t *buf = (uint8_t *)malloc((size_t)n);
+  if (buf == 0) {
+    (void)fclose(f);
+    return 0;
+  }
+
+  size_t got = fread(buf, 1, (size_t)n, f);
+  (void)fclose(f);
+  if (got != (size_t)n) {
+    free(buf);
+    return 0;
+  }
+
+  const ScoopString *out = scoop_string_from_bytes(buf, n);
+  free(buf);
+  return out;
+}
+
+// `scoop.fs.writeAllText(path: String, content: String): Int`
+//
+// 约定：
+// - 返回 0 表示成功；
+// - 返回非 0 表示失败。
+int64_t scoop_fs_write_all_text_utf8(const ScoopString *path, const ScoopString *content) {
+  char *path_cstr = scoop_cstr_from_scoop_string(path);
+  if (path_cstr == 0) {
+    return 1;
+  }
+
+  FILE *f = fopen(path_cstr, "wb");
+  free(path_cstr);
+  if (f == 0) {
+    return 2;
+  }
+
+  uint64_t n = 0;
+  const uint8_t *data = 0;
+  if (content != 0) {
+    n = content->len;
+    data = content->data;
+  }
+
+  if (n > 0) {
+    if (data == 0) {
+      (void)fclose(f);
+      return 3;
+    }
+    if (n > (uint64_t)SIZE_MAX) {
+      (void)fclose(f);
+      return 4;
+    }
+    size_t wrote = fwrite(data, 1, (size_t)n, f);
+    if (wrote != (size_t)n) {
+      (void)fclose(f);
+      return 5;
+    }
+  }
+
+  if (fclose(f) != 0) {
+    return 6;
+  }
+  return 0;
 }
