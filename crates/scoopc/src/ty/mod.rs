@@ -196,6 +196,12 @@ pub struct FunctionType {
     pub params: Vec<TypeId>,
     pub return_ty: TypeId,
     pub effects: EffectRow,
+    /// effect row 是否为闭合（`/ R!`，spec §5.8.4）。
+    ///
+    /// 说明：
+    /// - `closed=true` 表示该函数类型的 effects 在语义上不允许“额外未声明的 effects”逃逸；
+    /// - 当前阶段该标记主要用于 program boundary（`Pure!`）与 `Any` 擦除门禁（T0632）。
+    pub effects_closed: bool,
 }
 
 /// 值类型（copy 语义）。
@@ -323,12 +329,14 @@ impl TypeStore {
         params: Vec<TypeId>,
         return_ty: TypeId,
         effects: EffectRow,
+        effects_closed: bool,
     ) -> TypeId {
         self.intern(TypeKind::Ref(RefTypeKind::Function(FunctionType {
             receiver,
             params,
             return_ty,
             effects,
+            effects_closed,
         })))
     }
 
@@ -480,7 +488,11 @@ fn format_function_type(
 
     // 当前阶段统一显示 effect row（即使是 Pure），避免在诊断中丢失信息。
     write!(f, " / ")?;
-    format_effect_row(store, &fun.effects, f, depth + 1)
+    format_effect_row(store, &fun.effects, f, depth + 1)?;
+    if fun.effects_closed {
+        write!(f, "!")?;
+    }
+    Ok(())
 }
 
 fn format_effect_row(
@@ -568,7 +580,8 @@ mod tests {
         let mut tys = TypeStore::new();
         let builtins = tys.intern_builtins();
 
-        let pure = tys.ty_function(None, vec![builtins.any], builtins.any, EffectRow::pure());
+        let pure =
+            tys.ty_function(None, vec![builtins.any], builtins.any, EffectRow::pure(), false);
         assert_eq!(tys.display(pure).to_string(), "(Any) -> Any / Pure");
 
         let raise_any = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
@@ -581,6 +594,7 @@ mod tests {
             vec![builtins.any],
             builtins.any,
             EffectRow::new(vec![raise_any]),
+            false,
         );
         assert_eq!(
             tys.display(effectful).to_string(),

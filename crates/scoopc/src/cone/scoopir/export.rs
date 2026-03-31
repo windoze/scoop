@@ -433,12 +433,8 @@ fn export_public_funs_for_source(
             crate::ast::FunDeclKind::EffectOp => IrFunDeclKind::EffectOp,
         };
 
-        let FunctionType {
-            receiver,
-            params: _,
-            return_ty: _,
-            effects,
-        } = decode_function_type(&hir.types, fun.ty, &fun.fqn)?;
+        let FunctionType { receiver, effects, .. } =
+            decode_function_type(&hir.types, fun.ty, &fun.fqn)?;
 
         let receiver_ir = receiver.map(|id| to_ir_type(&hir.types, id, 0));
         let params = fun
@@ -545,6 +541,7 @@ fn collect_type_params_from_type_id(
             params,
             return_ty,
             effects,
+            ..
         })) => {
             if let Some(r) = receiver {
                 collect_type_params_from_type_id(store, *r, seen, out, depth + 1);

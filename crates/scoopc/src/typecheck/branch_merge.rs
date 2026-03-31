@@ -109,12 +109,16 @@ fn merge_structural_lub(
                 terms.extend(b_fun.effects.terms.iter().copied());
                 terms
             });
+            // 只有当两个分支的函数类型都是闭合 row 时，合并后的 LUB 才能保持闭合语义。
+            // 若任一分支为 open row，则保守退化为 open。
+            let effects_closed = a_fun.effects_closed && b_fun.effects_closed;
 
             Some(lower.ty_function(
                 a_fun.receiver,
                 a_fun.params.clone(),
                 ret,
                 effects,
+                effects_closed,
             ))
         }
 

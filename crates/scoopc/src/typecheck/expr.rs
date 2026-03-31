@@ -788,6 +788,16 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error(
+        "函数值擦除到 `Any` 仅允许闭合纯函数类型 `(...)->R / Pure!`（effects 不可在运行时保真）；但这里得到 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::fn_value_to_any_requires_closed_pure))]
+    FnValueToAnyRequiresClosedPure {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("一元运算符 `{op}` 的操作数类型不匹配：期望 {expected}，但得到 {found}")]
     #[diagnostic(code(scoop::typecheck::unary_op_operand_type_mismatch))]
     UnaryOpOperandTypeMismatch {
@@ -1949,6 +1959,7 @@ fn check_class_property_initializer_exprs(
     )?;
 
     if is_type_assignable(found, expected, lower, builtins) {
+        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
         return Ok(());
     }
 
@@ -2967,6 +2978,7 @@ fn infer_operator_overload_binary_expr_type(
             });
         }
 
+        check_fn_value_to_any_erasure_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
         check_nogc_boxing_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
     }
 
@@ -3283,6 +3295,10 @@ fn infer_expr_type(
                 struct_field_types,
             )?;
             let target_ty = lower.lower_type_ref(ty)?;
+
+            // spec §7.5：effects 是纯编译期信息，运行时不携带也无法验证；
+            // 因此除 `(...)->R / Pure!` 外的函数值不允许擦除/转换为 `Any`（T0632）。
+            check_fn_value_to_any_erasure_gate(from_ty, target_ty, *op_span, lower, builtins)?;
 
             if !is_cast_allowed(from_ty, target_ty, lower, builtins) {
                 return Err(ExprTypeError::InvalidCast {
@@ -4433,6 +4449,7 @@ fn infer_handle_expr_type(
                     vec![lowered.op_return_ty],
                     builtins.unit,
                     EffectRow::pure(),
+                    false,
                 );
                 arm_locals.insert(resume_span, resume_fun_ty);
 
@@ -5043,7 +5060,9 @@ fn try_infer_lambda_expr_type_by_expected(
             .map(|(effect, _)| effect)
             .collect(),
     );
-    let lam_ty = lower.ty_function(expected_fun.receiver, param_tys, body_ty, effects);
+    // lambda 本身没有 `/ R!` 的语法标注，因此这里默认视为 open row（`closed=false`）；
+    // 若用户需要把 lambda 擦除到 `Any`，必须通过显式类型注解得到 `(...)->R / Pure!`（见 T0632）。
+    let lam_ty = lower.ty_function(expected_fun.receiver, param_tys, body_ty, effects, false);
     Ok(Some(lam_ty))
 }
 
@@ -6215,6 +6234,7 @@ fn infer_function_value_call_expr_type(
     {
         let expected_ty = fun.params[idx];
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            check_fn_value_to_any_erasure_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             continue;
         }
@@ -6591,6 +6611,34 @@ fn check_const_fun_call_gate(
     Err(ExprTypeError::ConstFunCallForbidden {
         callee: callee_fqn.to_string(),
         span: call_span.into(),
+    })
+}
+
+fn check_fn_value_to_any_erasure_gate(
+    found: TypeId,
+    expected: TypeId,
+    at: Span,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Result<(), ExprTypeError> {
+    // 仅在“擦除/上转到 Any”的位置生效。
+    if expected != builtins.any {
+        return Ok(());
+    }
+
+    let TypeKind::Ref(RefTypeKind::Function(fun)) = lower.type_kind(found) else {
+        return Ok(());
+    };
+
+    // spec §7.5：effects 为编译期信息；只有闭合 `Pure!` 的函数类型允许擦除到 `Any`，
+    // 否则运行时无法验证该函数值是否真的“只可能是 Pure”。
+    if fun.effects.is_pure() && fun.effects_closed {
+        return Ok(());
+    }
+
+    Err(ExprTypeError::FnValueToAnyRequiresClosedPure {
+        found: lower.fmt_type(found),
+        span: at.into(),
     })
 }
 
@@ -7111,6 +7159,13 @@ fn infer_call_expr_type(
 
                         for elem_ty in elem_tys {
                             if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                                check_fn_value_to_any_erasure_gate(
+                                    elem_ty,
+                                    expected_ty,
+                                    arg.expr.span,
+                                    lower,
+                                    builtins,
+                                )?;
                                 continue;
                             }
                             return Err(ExprTypeError::VarargSpreadElementTypeMismatch {
@@ -7123,6 +7178,13 @@ fn infer_call_expr_type(
                     }
 
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                        check_fn_value_to_any_erasure_gate(
+                            found_ty,
+                            expected_ty,
+                            arg.expr.span,
+                            lower,
+                            builtins,
+                        )?;
                         check_nogc_boxing_gate(
                             found_ty,
                             expected_ty,
@@ -7635,6 +7697,7 @@ fn infer_call_expr_type(
                     continue;
                 }
                 if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
+                    check_fn_value_to_any_erasure_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
                     check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
                 }
             }
@@ -8452,7 +8515,14 @@ pub(super) fn lower_type_ref_with_enum_subst(
                 }
             };
 
-            Ok(lower.ty_function(receiver, params, return_ty, effects))
+            let effects_closed = f.effects.as_ref().is_some_and(|r| r.closed);
+            Ok(lower.ty_function(
+                receiver,
+                params,
+                return_ty,
+                effects,
+                effects_closed,
+            ))
         }
     }
 }
@@ -9296,6 +9366,13 @@ fn infer_member_call_expr_type(
                     span: receiver.span.into(),
                 });
             }
+            check_fn_value_to_any_erasure_gate(
+                actual_receiver_ty,
+                expected_receiver_ty,
+                receiver.span,
+                lower,
+                builtins,
+            )?;
             check_nogc_boxing_gate(
                 actual_receiver_ty,
                 expected_receiver_ty,
@@ -9445,6 +9522,13 @@ fn infer_member_call_expr_type(
                     span: receiver.span.into(),
                 });
             }
+            check_fn_value_to_any_erasure_gate(
+                actual_receiver_ty,
+                expected_receiver_ty,
+                receiver.span,
+                lower,
+                builtins,
+            )?;
             check_nogc_boxing_gate(
                 actual_receiver_ty,
                 expected_receiver_ty,
@@ -9482,6 +9566,13 @@ fn infer_member_call_expr_type(
                 };
                 for elem_ty in elem_tys {
                     if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                        check_fn_value_to_any_erasure_gate(
+                            elem_ty,
+                            expected_ty,
+                            arg.expr.span,
+                            lower,
+                            builtins,
+                        )?;
                         continue;
                     }
                     return Err(ExprTypeError::VarargSpreadElementTypeMismatch {
@@ -9494,6 +9585,13 @@ fn infer_member_call_expr_type(
             }
 
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                check_fn_value_to_any_erasure_gate(
+                    found_ty,
+                    expected_ty,
+                    arg.expr.span,
+                    lower,
+                    builtins,
+                )?;
                 check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
                 continue;
             }
@@ -10027,6 +10125,13 @@ fn infer_member_call_expr_type(
     check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
 
     // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。
+    check_fn_value_to_any_erasure_gate(
+        actual_receiver_ty,
+        chosen.receiver_ty,
+        receiver.span,
+        lower,
+        builtins,
+    )?;
     check_nogc_boxing_gate(
         actual_receiver_ty,
         chosen.receiver_ty,
@@ -10043,6 +10148,7 @@ fn infer_member_call_expr_type(
             continue;
         }
         if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
+            check_fn_value_to_any_erasure_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
             check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
         }
     }
@@ -10817,7 +10923,13 @@ fn substitute_single_type_param(
                 return Ok(ty);
             }
 
-            Ok(lower.ty_function(receiver, params, return_ty, effects))
+            Ok(lower.ty_function(
+                receiver,
+                params,
+                return_ty,
+                effects,
+                fun.effects_closed,
+            ))
         }
         TypeKind::Ref(RefTypeKind::Union(union)) => {
             let mut changed = false;
@@ -11776,6 +11888,7 @@ fn check_stmt_exprs(
                             span: v.span.into(),
                         });
                     }
+                    check_fn_value_to_any_erasure_gate(found, expected, v.span, lower, builtins)?;
                     check_nogc_boxing_gate(found, expected, v.span, lower, builtins)?;
                 }
                 None => {
@@ -12173,6 +12286,7 @@ fn check_local_val_decl_exprs(
                 });
             }
         }
+        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
         check_nogc_boxing_gate(found, expected, init.span, lower, builtins)?;
     }
 

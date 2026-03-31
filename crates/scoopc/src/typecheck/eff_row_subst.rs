@@ -525,6 +525,7 @@ pub(super) fn apply_eff_row_var_subst_plan(
                 new_params,
                 new_return,
                 new_effects,
+                fun.effects_closed,
             ))
         }
         EffRowVarSubstPlan::Nominal { args, eff_base } => match lower.type_kind(ty) {

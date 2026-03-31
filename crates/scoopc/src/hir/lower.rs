@@ -466,7 +466,13 @@ impl<'a> HirLowering<'a> {
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
         // receiver 已作为显式参数降入 `params`，因此 HIR 的 function type 不再单独保留 receiver 位。
-        let ty = self.types.ty_function(None, params.iter().map(|p| p.ty).collect(), return_ty, effects);
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            effects,
+            fun.effects.as_ref().is_some_and(|r| r.closed),
+        );
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
@@ -558,7 +564,13 @@ impl<'a> HirLowering<'a> {
         };
 
         let effects = self.lower_effect_row_expr(fun.effects.as_ref());
-        let ty = self.types.ty_function(None, params.iter().map(|p| p.ty).collect(), return_ty, effects);
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            effects,
+            fun.effects.as_ref().is_some_and(|r| r.closed),
+        );
 
         let body = match &fun.body {
             ast::FunBody::Block(b) => {
@@ -2825,7 +2837,13 @@ impl<'a> HirLowering<'a> {
                 let params = fun.params.iter().map(|p| self.lower_type_ref(p)).collect();
                 let return_ty = self.lower_type_ref(&fun.return_ty);
                 let effects = self.lower_effect_row_expr(fun.effects.as_ref());
-                self.types.ty_function(receiver, params, return_ty, effects)
+                self.types.ty_function(
+                    receiver,
+                    params,
+                    return_ty,
+                    effects,
+                    fun.effects.as_ref().is_some_and(|r| r.closed),
+                )
             }
             ast::TypeRef::Star { .. } | ast::TypeRef::EffectRowArg { .. } => self.builtins.any,
         }

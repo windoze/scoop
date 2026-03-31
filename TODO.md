@@ -1851,7 +1851,7 @@
      - typecheck：新增 `try_catch_multi_catch_narrow_first_ok` 与 `try_catch_multi_catch_wide_first_unreachable_is_error`。
    - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
-### T0632 [TODO] 函数值擦除到 `Any`：仅允许 `Pure!`（effects 不可运行时保真）
+### T0632 [DONE] 函数值擦除到 `Any`：仅允许 `Pure!`（effects 不可运行时保真）
 - 描述：按 `SCOOP_FULL_SPEC.md` §7.5 “Effect erasure and casts to `Any`” 的规则，禁止把带 effects 的函数值（含 open `/ Pure`）赋给/转换为 `Any`，因为 effects 是纯编译期信息，运行时不携带也无法验证。
 - 规则（静态）：
   - 只有函数类型 `(...)->R / Pure!` 允许：
@@ -1866,6 +1866,17 @@
   - 稳定诊断码：例如 `scoop::typecheck::fn_value_to_any_requires_closed_pure`（名字可不同，但必须稳定、可 fixtures 断言）。
   - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T0627、T0608、T0451（Any/ref assignable 基础）
+ - 完成：
+   - ty：`FunctionType` 增加 `effects_closed`，并在 `TypeDisplay` 中输出 `... / Row!` 以区分 `/ Pure` 与 `/ Pure!`。
+   - typecheck/lower：函数类型 lowering 时保留 row 的 `closed` 标记（缺省为 open）。
+   - typecheck/expr：在 initializer / call args / return / cast 等“写入 Any”的位置加入门禁：
+     - 仅允许 `(...)->R / Pure!`；
+     - 其余函数类型返回稳定错误码 `scoop::typecheck::fn_value_to_any_requires_closed_pure`。
+   - fixtures：新增 typecheck fixtures：
+     - `tests/fixtures/typecheck/fn_value_to_any_closed_pure_ok.scoop`
+     - `tests/fixtures/typecheck/fn_value_to_any_open_pure_is_error.scoop`
+     - `tests/fixtures/typecheck/fn_value_to_any_effectful_is_error.scoop`
+   - 验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check` 通过。
 
 ---
 

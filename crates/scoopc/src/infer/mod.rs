@@ -600,12 +600,14 @@ mod tests {
             vec![builtins.any],
             builtins.int,
             EffectRow::pure(),
+            false,
         );
         let f_sup = tys.ty_function(
             None,
             vec![builtins.int],
             builtins.any,
             EffectRow::pure(),
+            false,
         );
         let mut ok = Solver::new();
         ok.subtype(InferTerm::Ty(f_sub), InferTerm::Ty(f_sup));

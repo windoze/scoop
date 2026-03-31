@@ -899,7 +899,14 @@ impl<'a> TypeLowering<'a> {
                 }
                 let return_ty = self.lower_type_ref(&f.return_ty)?;
                 let effects = self.lower_effect_row_expr(f.effects.as_ref())?;
-                Ok(self.types.ty_function(receiver, params, return_ty, effects))
+                let effects_closed = f.effects.as_ref().is_some_and(|r| r.closed);
+                Ok(self.types.ty_function(
+                    receiver,
+                    params,
+                    return_ty,
+                    effects,
+                    effects_closed,
+                ))
             }
         }
     }
@@ -1095,8 +1102,10 @@ impl<'a> TypeLowering<'a> {
         params: Vec<TypeId>,
         return_ty: TypeId,
         effects: EffectRow,
+        effects_closed: bool,
     ) -> TypeId {
-        self.types.ty_function(receiver, params, return_ty, effects)
+        self.types
+            .ty_function(receiver, params, return_ty, effects, effects_closed)
     }
 
     pub(super) fn intern_type_kind(&mut self, kind: TypeKind) -> TypeId {
