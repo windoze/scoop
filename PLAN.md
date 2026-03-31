@@ -26,6 +26,7 @@
 - 2026-03-31：完成 T1318b：sysroot 新增 `scoop.fs.readAllText/writeAllText`（UTF-8）声明面；runtime C 落地为 `scoop_fs_read_all_text_utf8/scoop_fs_write_all_text_utf8`；LLVM codegen 映射到 runtime 符号；新增 run-pass fixture `std_fs_text_basic.*` 回归（并修正 run-pass fixtures 中误用关键字 `out` 的用例）。
 - 2026-03-31：完成 T1318c：sysroot 新增 `scoop.process.args/exit`；LLVM 入口 `main(argc, argv)` 保存 argv 到 runtime；runtime C 提供 `scoop_process_args_array/scoop_process_exit`；driver `scoop run` 支持 argv 透传；新增 run-pass fixture `std_process_args_exit_basic.*` 回归。
 - 2026-03-31：完成 T1318d：sysroot 新增 `scoop.path.normalize/join/basename/dirname`；runtime C 提供 `scoop_path_*`（最小归一化与切分）；LLVM codegen 映射到 runtime 符号；新增 typecheck + run-pass fixtures `std_path_*` 回归。
+- 2026-03-31：完成 T1318e：sysroot 新增 `scoop.io.stdoutWriteString/stderrWriteString/stdinReadLine`；runtime C 落地 `scoop_io_*`（stdout/stderr 写入 + stdin readLine）；LLVM codegen 映射到 runtime 符号；fixtures runner 新增 `RUN-STDIN` 支持并新增 `std_io_*` fixtures 回归。
 - 2026-03-23：`TODO.md` 中 effect lowering / async（T0613～T0625）与 effect codegen（T0818）任务原先位于其依赖（T080x/T090x/T091x）之前，导致“首个 `[TODO]` 不可直接实现”。已将这些任务移动到依赖之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-23：`TODO.md` 中 program boundary 的 T0629b 依赖多包 build/link（T1107），原先位于其依赖之前导致“首个 `[TODO]` 不可直接实现”。已将 T0629b 移动到 T1107 之后，以保持 TODO 的依赖顺序可执行。
 - 2026-03-25：`TODO.md` 中 T0816（shadow stack 插桩）原先位于其依赖（T0905/T0817）之前，导致“首个 `[TODO]` 不可直接实现”。已将 T0816 移动到 T0905 之后，以保持 TODO 的依赖顺序可执行。

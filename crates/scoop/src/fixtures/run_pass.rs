@@ -5,7 +5,7 @@
 //! - run-pass phase 的默认执行方式为：通过 `scoop run <fixture>` 作为子进程真正执行（T0106b2）。
 //! - 由于 `scoop run` 需要启用 `scoop` 的 `llvm` feature：若当前未启用，则仅校验 golden 文件可读并跳过执行。
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::thread;
@@ -49,6 +49,16 @@ struct RunStdoutMissingSubstring {
 #[error("无法读取 stderr golden 文件：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::run_stderr_read_failed))]
 struct RunStderrReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 stdin 输入文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_stdin_read_failed))]
+struct RunStdinReadFailed {
     path: String,
     fixture: String,
     #[source]
@@ -228,6 +238,21 @@ fn validate_golden_files_readable(
         })?;
     }
 
+    if let Some(stdin_rel) = exp.run_stdin {
+        let stdin_path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(stdin_rel);
+
+        std::fs::read(&stdin_path).map_err(|e| {
+            super::box_diagnostic(RunStdinReadFailed {
+                path: stdin_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+    }
+
     Ok(())
 }
 
@@ -248,7 +273,25 @@ pub(crate) fn run_fixture_command(
         cmd.env(key, value);
     }
 
-    let output = run_command_collect_output(rel_fixture, exp, &mut cmd)?;
+    // 若 fixture 指定了 stdin 文件，则在执行前读取并原样写入子进程 stdin（随后关闭）。
+    let stdin_bytes = if let Some(stdin_rel) = exp.run_stdin {
+        let stdin_path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(stdin_rel);
+
+        Some(std::fs::read(&stdin_path).map_err(|e| {
+            super::box_diagnostic(RunStdinReadFailed {
+                path: stdin_path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?)
+    } else {
+        None
+    };
+
+    let output = run_command_collect_output(rel_fixture, exp, &mut cmd, stdin_bytes.as_deref())?;
     assert_exit_status_matches(rel_fixture, exp, output.status)?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -274,9 +317,13 @@ fn run_command_collect_output(
     rel_fixture: &Path,
     exp: &FixtureExpectation<'_>,
     cmd: &mut Command,
+    stdin_bytes: Option<&[u8]>,
 ) -> std::result::Result<CommandOutput, Box<dyn miette::Diagnostic>> {
     let program = cmd.get_program().to_string_lossy().to_string();
 
+    if stdin_bytes.is_some() {
+        cmd.stdin(Stdio::piped());
+    }
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = cmd.spawn().map_err(|e| {
         super::box_diagnostic(RunExecFailed {
@@ -306,6 +353,25 @@ fn run_command_collect_output(
             ),
         })
     })?;
+
+    if let Some(stdin_bytes) = stdin_bytes {
+        let mut child_stdin = child.stdin.take().ok_or_else(|| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, "stdin 未被配置为 piped"),
+            })
+        })?;
+        child_stdin.write_all(stdin_bytes).map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: e,
+            })
+        })?;
+        // 关闭 stdin：确保被测程序能够观察到 EOF，并避免死等更多输入。
+        drop(child_stdin);
+    }
 
     let stdout_thread = thread::spawn(move || -> std::io::Result<Vec<u8>> {
         let mut buf = Vec::new();
@@ -681,6 +747,34 @@ mod tests {
         let cmd = {
             let mut cmd = Command::new("sh");
             cmd.arg("-c").arg("printf 'hello\\nworld\\n'");
+            cmd
+        };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_fixture_command_writes_stdin_from_file() {
+        let dir = make_temp_dir("run_fixture_command_writes_stdin_from_file");
+        let fixture_path = dir.join("hello.scoop");
+        let stdin_path = dir.join("in.txt");
+        let golden_path = dir.join("out.txt");
+
+        std::fs::write(
+            &fixture_path,
+            "// RUN-STDIN: in.txt\n// RUN-STDOUT: out.txt\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(&stdin_path, "hello\n").unwrap();
+        std::fs::write(&golden_path, "hello\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDIN: in.txt\n// RUN-STDOUT: out.txt\n");
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("cat");
             cmd
         };
 

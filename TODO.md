@@ -4724,11 +4724,29 @@
    - `cargo run -p scoop -- test`
    - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1318e [TODO] `std` v2：`io` 最小接口 v0（stdin/stdout/stderr 抽象）
-- 描述：在已有 `print/println` 基础上，引入最小 `scoop.io` 抽象（例如 `Stdout.writeString`/`Stderr.writeString`/`Stdin.readLine` 的占位或最小可执行子集）。
+### T1318e [DONE] `std` v2：`io` 最小接口 v0（stdin/stdout/stderr 抽象）
+- 描述：在已有 `print/println` 基础上，引入最小 `scoop.io` 抽象（`stdoutWriteString/stderrWriteString/stdinReadLine` 的占位或最小可执行子集）。
 - 目标：先让库 API 形状固定并可回归；更完整的 buffering/编码/错误模型后续渐进补齐。
-- 验收：新增 run-pass fixtures：stdout/stderr 可被区分断言（配合 `RUN-STDERR`）；stdin 在支持平台可读取（不支持时有稳定诊断）。
+- 验收：新增 run-pass fixtures：stdout/stderr 可被区分断言（配合 `RUN-STDERR`）；stdin 在支持平台可读取（fixtures runner 支持注入 stdin）。
 - 依赖：T1318a
+ - 完成：
+   - sysroot：
+     - `sysroot/io.scoop`：新增 `scoop.io.stdoutWriteString/stderrWriteString/stdinReadLine` 声明面（top-level 形式，避免早期阶段 object member call 的门禁）。
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_io_stdout_write_string/scoop_io_stderr_write_string/scoop_io_stdin_read_line_utf8`（stdout/stderr 写入 + stdin readLine，UTF-8）。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.io.*` 增加 sysroot → runtime 符号映射与 `stdinReadLine` 的返回类型（`Option<String>` pointer niche）。
+   - fixtures runner：
+     - `crates/scoop/src/fixtures/expectations.rs`：新增 `RUN-STDIN` 指令解析（stdin 输入文件）。
+     - `crates/scoop/src/fixtures/run_pass.rs`：run-pass phase 支持将 `RUN-STDIN` 文件内容写入子进程 stdin（随后关闭）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_io_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_io_stdout_stderr_basic.scoop/.stdout/.stderr`
+     - `tests/fixtures/run-pass/std_io_stdin_read_line_basic.scoop/.stdin/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1319 [TODO] `std` v3：sync / thread / channels / task support
 - 描述：实现标准库中的并发与同步层：线程 API、锁、条件变量、channel、thread-local、任务/调度辅助接口。

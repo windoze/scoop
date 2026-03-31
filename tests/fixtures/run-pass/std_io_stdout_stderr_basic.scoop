@@ -1,0 +1,13 @@
+// EXPECT: pass
+// RUN-STDOUT: std_io_stdout_stderr_basic.stdout
+// RUN-STDERR: std_io_stdout_stderr_basic.stderr
+//
+// 目标：T1318e `scoop.io`：stdout/stderr 写入可被区分断言（配合 RUN-STDERR）。
+
+import scoop.core.*
+import scoop.io.*
+
+fun main() {
+    stdoutWriteString("out\n")
+    stderrWriteString("err\n")
+}

@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDIN: std_io_stdin_read_line_basic.stdin
+// RUN-STDOUT: std_io_stdin_read_line_basic.stdout
+//
+// 目标：T1318e `scoop.io`：stdin readLine 在支持平台可读取并返回 `Some(String)`。
+
+import scoop.core.*
+import scoop.io.*
+
+fun main() {
+    val line: String? = stdinReadLine()
+    val out: String = when (line) {
+        Some(s) -> s
+        None -> "none"
+    }
+    // golden 文件按“常见命令行输出”约定包含末尾换行，因此这里显式追加 '\n'。
+    stdoutWriteString(f"{out}\n")
+}

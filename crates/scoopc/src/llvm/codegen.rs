@@ -3710,6 +3710,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
+            // T1318e：std v2 io（stdin/stdout/stderr）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.io.stdoutWriteString" {
+                return self.codegen_sysroot_io_write_string(
+                    span,
+                    callee.span,
+                    "scoop_io_stdout_write_string",
+                    args,
+                );
+            }
+            if fqn == "scoop.io.stderrWriteString" {
+                return self.codegen_sysroot_io_write_string(
+                    span,
+                    callee.span,
+                    "scoop_io_stderr_write_string",
+                    args,
+                );
+            }
+            if fqn == "scoop.io.stdinReadLine" {
+                return self.codegen_sysroot_io_stdin_read_line_utf8(
+                    span,
+                    callee.span,
+                    args,
+                    expected,
+                );
+            }
             // T1318a：std v2 env/time（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
             if fqn == "scoop.env.getOrNull" {
                 return self.codegen_sysroot_env_get(span, args, expected);
@@ -4705,6 +4730,94 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
         Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_io_write_string(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        rt_name: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "io writeString arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "io writeString named arg",
+                at: span.into(),
+            });
+        };
+
+        // v0：只支持 String 入参（与 sysroot 声明面一致）。
+        let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
+        let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "io writeString arg value",
+                at: expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(str_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "io writeString arg type",
+                at: expr.span.into(),
+            });
+        };
+
+        let rt_fun = self.declare_runtime_print_like(rt_name);
+        let _ = self
+            .builder
+            .build_call(rt_fun, &[str_ptr.into()], "rt_io_write_string")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_io_stdin_read_line_utf8(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "stdin.readLine arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_io_stdin_read_line_utf8();
+        let call = self.builder.build_call(rt, &[], "stdin_read_line")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "stdin.readLine return value",
+                at: span.into(),
+            })?;
+
+        // 返回类型依赖 expected context（HIR v0 对大部分 call expr 仍用 `Any` 占位）。
+        let Some(ret_cg_ty) = expected else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "stdin.readLine missing expected type context",
+                at: span.into(),
+            });
+        };
+        if !matches!(ret_cg_ty, CgTy::Enum(_)) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "stdin.readLine expected Option<String>",
+                at: span.into(),
+            });
+        }
+
+        Ok(CgValue {
+            ty: ret_cg_ty,
+            value: Some(raw),
+        })
     }
 
     fn codegen_sysroot_env_get(
@@ -11538,6 +11651,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `void* scoop_process_args_array(void)`
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_io_stdin_read_line_utf8(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_io_stdin_read_line_utf8";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `const ScoopString* scoop_io_stdin_read_line_utf8(void)`
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

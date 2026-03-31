@@ -1095,6 +1095,100 @@ void scoop_println(const ScoopString *value) {
   (void)fflush(stdout);
 }
 
+// 前置声明：stdin readLine 会复用本文件后续定义的字符串构造 helper。
+static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len);
+
+// --- std v2：io（T1318e） ---
+//
+// 说明：
+// - 这组 API 用于在 `print/println` 之外，提供最小的 stdin/stdout/stderr 抽象；
+// - early stage 先固定 API 形状：stdout/stderr 的写入 + stdin 的 readLine（UTF-8）；
+// - 错误模型后续可升级为 `Raise<RuntimeError>`，当前阶段统一用 NULL（None）表示失败/EOF。
+
+// `scoop.io.Stdout.writeString(value: String): Unit`
+void scoop_io_stdout_write_string(const ScoopString *value) {
+  if (value == 0) {
+    return;
+  }
+  if (value->data == 0 || value->len == 0) {
+    return;
+  }
+
+  (void)fwrite(value->data, 1, (size_t)value->len, stdout);
+  (void)fflush(stdout);
+}
+
+// `scoop.io.Stderr.writeString(value: String): Unit`
+void scoop_io_stderr_write_string(const ScoopString *value) {
+  if (value == 0) {
+    return;
+  }
+  if (value->data == 0 || value->len == 0) {
+    return;
+  }
+
+  (void)fwrite(value->data, 1, (size_t)value->len, stderr);
+  (void)fflush(stderr);
+}
+
+// `scoop.io.Stdin.readLine(): String?`
+//
+// 返回值约定：
+// - 返回 NULL 表示 `None`（EOF 或错误）；
+// - 返回非 NULL 表示 `Some(String)`，其中 String 为 runtime `ScoopString*`。
+const ScoopString *scoop_io_stdin_read_line_utf8(void) {
+  // v0：最小实现 —— 从 stdin 读取直到 '\n' 或 EOF；返回的字符串不包含行尾换行。
+  //
+  // 说明：
+  // - 这里不依赖 POSIX `getline`，避免 `ssize_t`/可用性差异；
+  // - buffer 采用 `realloc` 递增扩容；发生 OOM 时直接返回 NULL（等价于 `None`）。
+  uint8_t *buf = 0;
+  size_t cap = 0;
+  size_t len = 0;
+  int terminated_by_eof = 0;
+
+  for (;;) {
+    int ch = fgetc(stdin);
+    if (ch == EOF) {
+      terminated_by_eof = 1;
+      break;
+    }
+    if (ch == '\n') {
+      break;
+    }
+
+    if (len == cap) {
+      size_t next_cap = cap == 0 ? 64 : cap * 2;
+      uint8_t *next = (uint8_t *)realloc(buf, next_cap);
+      if (next == 0) {
+        if (buf != 0) {
+          free(buf);
+        }
+        return 0;
+      }
+      buf = next;
+      cap = next_cap;
+    }
+    buf[len++] = (uint8_t)ch;
+  }
+
+  // EOF 且未读取到任何字节：视为 `None`。
+  // 注意：空行（仅包含 '\n'）应当返回 `Some("")`，因此这里必须区分 “EOF” 与 “空行”。
+  if (len == 0 && terminated_by_eof) {
+    if (buf != 0) {
+      free(buf);
+    }
+    return 0;
+  }
+
+  // 处理 Windows 风格行尾：若内容以 '\r' 结尾（`\r\n`），去掉 '\r'。
+  if (len > 0 && buf[len - 1] == '\r') {
+    len--;
+  }
+
+  return scoop_string_from_owned_bytes(buf, (uint64_t)len);
+}
+
 // 最小格式化工具：把整数写入 UTF-8 buffer，并返回写入的字节数（不含 '\0'）。
 //
 // 说明：
