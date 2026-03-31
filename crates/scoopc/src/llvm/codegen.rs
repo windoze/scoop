@@ -3724,6 +3724,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.fs.writeAllText" {
                 return self.codegen_sysroot_fs_write_all_text_utf8(span, callee.span, args);
             }
+            // T1318c：std v2 process（host）平台接口：由 sysroot 表面直接映射到 runtime C 符号。
+            if fqn == "scoop.process.exit" {
+                return self.codegen_sysroot_process_exit(span, callee.span, args);
+            }
+            if fqn == "scoop.process.args" {
+                return self.codegen_sysroot_process_args(span, callee.span, args);
+            }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
             // 说明：
@@ -4949,6 +4956,86 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let casted = self.cast_int(raw_i64, from, to)?;
         Ok(CgValue::int(casted, to))
+    }
+
+    fn codegen_sysroot_process_exit(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.exit arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(code_expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.exit named arg",
+                at: span.into(),
+            });
+        };
+
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let code_v = self
+            .codegen_expr_in_expected_context(code_expr, Some(CgTy::Int(value_word)))?;
+        let code_v = self.coerce_value(code_expr.span, code_v, CgTy::Int(value_word))?;
+        let (code_raw, code_from) =
+            code_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.exit code value",
+                at: code_expr.span.into(),
+            })?;
+        let code_to = IntTy {
+            bits: 64,
+            signed: true,
+        };
+        let code_i64 = self.cast_int(code_raw, code_from, code_to)?;
+
+        let rt = self.declare_runtime_process_exit();
+        let _ = self
+            .builder
+            .build_call(rt, &[code_i64.into()], "process_exit")?;
+        Ok(CgValue::unit())
+    }
+
+    fn codegen_sysroot_process_args(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if !args.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.args arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let rt = self.declare_runtime_process_args_array();
+        let call = self.builder.build_call(rt, &[], "process_args")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.args return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(arr_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "process.args return type",
+                at: span.into(),
+            });
+        };
+
+        Ok(CgValue {
+            ty: CgTy::Ref,
+            value: Some(arr_ptr.into()),
+        })
     }
 
     fn codegen_sysroot_array_builder_intrinsics(
@@ -11154,6 +11241,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [str_ptr_ty.into(), str_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_process_exit(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_process_exit";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_process_exit(int64_t code)`
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_process_args_array(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_process_args_array";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_process_args_array(void)`
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let fn_ty = i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

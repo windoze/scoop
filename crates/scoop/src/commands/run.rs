@@ -17,11 +17,11 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 /// - 当未启用 `--features llvm` 时，当前阶段无法产出可执行文件，但仍会先做前端检查，
 ///   然后给出明确报错（提示开启 LLVM feature）。
 /// - 若被运行程序退出码非 0，会直接以相同退出码退出当前进程（不打印额外诊断）。
-pub fn run(input: PathBuf) -> Result<()> {
+pub fn run(input: PathBuf, args: Vec<String>) -> Result<()> {
     let dir = super::temp::make_temp_dir("scoop_run")?;
     let exe = dir.join(default_exe_name());
 
-    let result = run_for_exit_code(input, &exe);
+    let result = run_for_exit_code(input, &exe, args);
 
     // 清理临时目录（尽力而为；不影响最终结果）。
     let _ = std::fs::remove_dir_all(&dir);
@@ -32,7 +32,7 @@ pub fn run(input: PathBuf) -> Result<()> {
     }
 }
 
-fn run_for_exit_code(input: PathBuf, exe: &Path) -> Result<i32> {
+fn run_for_exit_code(input: PathBuf, exe: &Path, args: Vec<String>) -> Result<i32> {
     // 复用 build 的“前端检查 +（可选）生成二进制”逻辑。
     super::build::run(input, Some(exe.to_path_buf()), super::build::BuildOptions::default())?;
 
@@ -50,6 +50,7 @@ fn run_for_exit_code(input: PathBuf, exe: &Path) -> Result<i32> {
     }
 
     let status = Command::new(exe)
+        .args(args)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -84,7 +85,7 @@ mod tests {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
 
-        let err = super::run_for_exit_code(input, &exe).unwrap_err();
+        let err = super::run_for_exit_code(input, &exe, Vec::new()).unwrap_err();
         assert!(
             err.to_string().contains("需要启用 LLVM"),
             "应提示开启 llvm feature，实际：{err}"
@@ -100,7 +101,7 @@ mod tests {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/spec_doctest/overview_minimal_main.scoop");
 
-        let code = super::run_for_exit_code(input, &exe).unwrap();
+        let code = super::run_for_exit_code(input, &exe, Vec::new()).unwrap();
         assert_eq!(code, 0, "最小 main 应返回 0");
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! 当前阶段目标：
 //! 1) 初始化 host target（target triple + data layout）。
-//! 2) 生成一个 LLVM module，包含入口 `i32 @main()`（C ABI）：
+//! 2) 生成一个 LLVM module，包含入口 `i32 @main(i32 argc, i8** argv)`（C ABI）：
 //!    - 若源文件中存在顶层 `fun main`，则对其 body 做早期子集 codegen，并将返回值作为进程退出码；
 //!    - 同时生成/声明 `main` 调用到的顶层函数（T0810：先按简单 C ABI）。
 //!
@@ -89,7 +89,7 @@ pub enum LlvmEmitError {
 /// 当前阶段（T0808）的输出形态：
 /// - 一个 LLVM module（module name 取决于输入文件名）；
 /// - module target triple / data layout 设为 host；
-/// - `i32 @main()` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
+/// - `i32 @main(i32 argc, i8** argv)` 的 body 来自 `fun main` 的 v1 子集 codegen；若 `main` 为空则返回 0。
 pub fn emit_minimal_main_ir(
     session: &Session,
     source: &SourceFile,
@@ -352,11 +352,40 @@ fn build_main_module_from_lowered_hir<'ctx>(
     }
 
     let i32_type = context.i32_type();
-    let fn_type = i32_type.fn_type(&[], false);
+    let i8_ptr_ty = context.i8_type().ptr_type(inkwell::AddressSpace::default());
+    let i8_ptr_ptr_ty = i8_ptr_ty.ptr_type(inkwell::AddressSpace::default());
+    let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
     let main = module.add_function("main", fn_type, None);
     let entry = context.append_basic_block(main, "entry");
     builder.position_at_end(entry);
+
+    let argc = main
+        .get_nth_param(0)
+        .ok_or(LlvmEmitError::ModuleVerificationFailed {
+            message: "entry main 缺少 argc 参数".to_string(),
+        })?
+        .into_int_value();
+    let argv = main
+        .get_nth_param(1)
+        .ok_or(LlvmEmitError::ModuleVerificationFailed {
+            message: "entry main 缺少 argv 参数".to_string(),
+        })?
+        .into_pointer_value();
+    argc.set_name("argc");
+    argv.set_name("argv");
+
+    // T1318c：process.args 需要能读取 argv；在最早期保存参数指针，供 runtime 查询。
+    let process_init = module
+        .get_function("scoop_process_init")
+        .unwrap_or_else(|| {
+            module.add_function(
+                "scoop_process_init",
+                context.void_type().fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
+                None,
+            )
+        });
+    builder.build_call(process_init, &[argc.into(), argv.into()], "process_init")?;
 
     // T0815：在入口函数里调用 runtime init（当前阶段先只调用一次）。
     let rt_init = module

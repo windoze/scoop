@@ -1359,3 +1359,70 @@ int64_t scoop_fs_write_all_text_utf8(const ScoopString *path, const ScoopString 
   }
   return 0;
 }
+
+// --- std v2：process（T1318c） ---
+//
+// 说明：
+// - `scoop.process.args()` 读取启动参数（argv，不含 argv[0]）；
+// - `scoop.process.exit(code)` 主动退出当前进程；
+// - 当前阶段只做 host 平台 happy path：不处理宽字符（Windows）、不做复杂错误模型。
+
+// 进程启动参数（由 LLVM 入口 `main(argc, argv)` 在最早期写入）。
+static int32_t scoop_process_argc = 0;
+static const char **scoop_process_argv = 0;
+static void *scoop_process_args_cache = 0;
+
+// `scoop_process_init(argc, argv)`：由入口 main 调用，保存 argv 指针。
+void scoop_process_init(int32_t argc, const char **argv) {
+  scoop_process_argc = argc;
+  scoop_process_argv = argv;
+  scoop_process_args_cache = 0;
+}
+
+// `scoop.process.exit(code: Int): Unit`
+//
+// 说明：直接映射到 libc `exit(3)`；不做 unwind/清理语义。
+void scoop_process_exit(int64_t code) {
+  exit((int)code);
+}
+
+// `scoop.process.args(): Array<String>`
+//
+// 约定：
+// - 返回的数组不包含 argv[0]（与 Kotlin 的 main(args) 对齐）；
+// - 首次调用时构造并缓存（early stage：可能泄漏；后续由 GC/运行时托管补齐）。
+void *scoop_process_args_array(void) {
+  if (scoop_process_args_cache != 0) {
+    return scoop_process_args_cache;
+  }
+
+  // Array builder 由 `runtime/c/scoop_array.c` 提供。
+  void *scoop_array_builder_new(void);
+  void scoop_array_builder_push_u64(void *builder, uint64_t value);
+  void *scoop_array_builder_build_array(void *builder);
+
+  void *builder = scoop_array_builder_new();
+  if (builder == 0) {
+    return 0;
+  }
+
+  int32_t argc = scoop_process_argc;
+  const char **argv = scoop_process_argv;
+  if (argc <= 1 || argv == 0) {
+    void *arr = scoop_array_builder_build_array(builder);
+    scoop_process_args_cache = arr;
+    return arr;
+  }
+
+  // 跳过 argv[0]（程序路径），只保留用户参数。
+  for (int32_t i = 1; i < argc; i++) {
+    const char *s = argv[i];
+    const ScoopString *str = scoop_string_from_cstr(s);
+    uint64_t word = (uint64_t)(uintptr_t)str;
+    scoop_array_builder_push_u64(builder, word);
+  }
+
+  void *arr = scoop_array_builder_build_array(builder);
+  scoop_process_args_cache = arr;
+  return arr;
+}

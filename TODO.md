@@ -4681,11 +4681,28 @@
    - `cargo run -p scoop_tools -- spec-fixtures check`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1318c [TODO] `std` v2：`process` 最小接口 v0（exit/args）
+### T1318c [DONE] `std` v2：`process` 最小接口 v0（exit/args）
 - 描述：提供最小可执行的 `scoop.process`：退出码、参数读取（必要时先只支持 `args.size/get`）。
 - 目标：先不做子进程 `spawn`；只做“当前进程可观察接口”。
 - 验收：新增 run-pass fixtures：能读取 argv 并输出；能按约定退出码退出（fixtures runner 断言 `EXPECT-EXIT`）。
 - 依赖：T1318a
+ - 完成：
+   - sysroot：
+     - `sysroot/process.scoop`：新增 `scoop.process.exit(code: Int): Unit` 与 `scoop.process.args(): Array<String>`（不含 argv[0]）声明面。
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_process_init`（保存 argv 指针）、`scoop_process_args_array`（首次构造并缓存 argv 数组）、`scoop_process_exit`（映射到 `exit(3)`）。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/mod.rs`：入口 `main` 改为 `main(argc, argv)` 并调用 `scoop_process_init(argc, argv)`。
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.process.exit/args` 增加 sysroot → runtime 符号映射。
+   - driver：
+     - `scoop run <input> [-- <args...>]`：支持向被运行程序透传 argv（用于 run-pass fixtures 回归）。
+     - `crates/scoop/src/fixtures/run_pass.rs`：run-pass phase 将 fixture 的 `// ARGS:` 透传给 `scoop run`（最终成为程序 argv）。
+   - fixtures：
+     - `tests/fixtures/run-pass/std_process_args_exit_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1318d [TODO] `std` v2：`path` 最小接口 v0（join/basename/dirname）
 - 描述：提供最小可执行的 `scoop.path` 路径操作（join/dirname/basename/normalize 的子集）。

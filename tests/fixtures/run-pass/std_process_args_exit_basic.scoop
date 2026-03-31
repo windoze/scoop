@@ -1,0 +1,23 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+// RUN-STDOUT: std_process_args_exit_basic.stdout
+// ARGS: foo bar
+//
+// T1318c：std v2 `scoop.process` 最小接口回归：
+// - `args()` 能读取 argv（不含 argv[0]）
+// - `exit(code)` 能按约定退出
+
+import scoop.core.*
+import scoop.process.*
+
+fun main() {
+    val argv: Array<String> = args()
+    val n: Int = argv.size()
+    println(n)
+
+    // 断言能读取传入参数本身（避免 argv[0] 的不稳定路径影响）。
+    println(argv.get(0))
+    println(argv.get(1))
+
+    exit(7)
+}

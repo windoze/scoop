@@ -80,6 +80,9 @@ pub enum Command {
     Run {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
+        /// 传递给被运行程序的参数（建议用 `--` 与 `scoop run` 自身参数分隔）
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// 打包 cone 包为 `.cone` 归档（v0：只写包）

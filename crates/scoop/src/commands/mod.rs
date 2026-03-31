@@ -58,7 +58,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
 
             build::run(input, output, build::BuildOptions { emit })
         }
-        Command::Run { input } => run::run(input),
+        Command::Run { input, args } => run::run(input, args),
         Command::Package { input, output } => package::run(input, output),
     }
 }

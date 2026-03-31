@@ -187,6 +187,10 @@ pub(crate) fn run_fixture(
 
     let mut cmd = Command::new(exe);
     cmd.arg("run").arg(fixture_path);
+    // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
+    if !exp.args.is_empty() {
+        cmd.args(&exp.args);
+    }
     run_fixture_command(rel_fixture, fixture_path, exp, cmd)
 }
 
