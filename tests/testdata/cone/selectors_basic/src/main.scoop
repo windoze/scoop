@@ -1,0 +1,4 @@
+// fixture entry file (required by current `load_cone_source_package` rule set).
+fun main(): Int {
+  return 0
+}

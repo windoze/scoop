@@ -3589,7 +3589,7 @@
  - 验收：
    - `cargo test --all`
 
-### T1111 [BLOCKED] 包加载：按 `[[select]]`（platform selector）对 sources 做 include/exclude（spec §13.9）
+### T1111 [DONE] 包加载：按 `[[select]]`（platform selector）对 sources 做 include/exclude（spec §13.9）
 - 描述：在 cone source 发现阶段应用 platform selector：
   - `when` 匹配当前 target platform 时，按顺序应用 include/exclude；
   - 保证结果 sources 列表稳定排序与跨平台一致（路径分隔符/大小写策略需明确）。
@@ -3600,6 +3600,16 @@
   - 新增 cone fixtures：同一 package 在不同 platform selector 下挑选不同文件集合（可用新增 `EXPECT-SOURCES:` golden 或 `scoop dump-sources` 专用子命令）；
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T1110、T1102、T0803
+ - 完成：
+   - `crates/scoopc/src/cone/package.rs`：在 cone source 发现阶段应用 `[[select]]`：
+     - 初始 source set = `src/**/*.scoop`；
+     - 对匹配 platform 的 selector 按文件顺序应用 include/exclude；
+     - glob 与 path 统一为 UTF-8 + forward slashes，排序按相对路径稳定输出；
+     - 入口 `src/main.scoop` 若被排除则返回清晰诊断。
+   - `tests/testdata/cone/selectors_basic/*`：新增 cone fixture，覆盖 linux/windows/unknown 三种平台下的 source set 差异。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1103 [DONE] scoopir v0：定义稳定 IR schema（仅 public API）
 - 描述：定义一个最小可序列化 schema（JSON/CBOR/自定义）表达 public API（类型/函数签名）。

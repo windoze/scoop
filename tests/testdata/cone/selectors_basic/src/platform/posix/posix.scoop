@@ -1,0 +1,2 @@
+// POSIX-only source.
+val posix: Int = 1

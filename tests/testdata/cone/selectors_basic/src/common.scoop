@@ -1,0 +1,2 @@
+// Common source: should always be part of the source set.
+val x: Int = 1

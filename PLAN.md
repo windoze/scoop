@@ -888,7 +888,7 @@ fixtures：
   - [x] 包加载：cone root → `src/**/*.scoop` + `src/main.scoop`（T1102）
   - [ ] `Cone.toml` 平台选择器（`[[select]]`）
     - [x] manifest 解析（T1110）
-    - [ ] sources include/exclude 应用（T1111）
+    - [x] sources include/exclude 应用（T1111）
 - [x] 预编译实例（pre-specialize）：cache key 与选择规则（v0：函数实例 + `.cone/PRE_SPECIALIZE.json`）
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 

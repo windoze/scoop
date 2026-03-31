@@ -1,0 +1,27 @@
+[cone]
+name = "fixture-selectors-basic"
+version = "0.0.0"
+
+# 该 fixture 用于回归 spec §13.9：`[[select]]` 按 platform 对 sources 做 include/exclude。
+#
+# 关键点：
+# - 初始 sources 为 `src/**/*.scoop`；
+# - 先用 exclude 移除 `src/platform/**`；
+# - 再用 include 只加回当前平台需要的子集；
+# - 多个 selector 按文件顺序应用。
+
+[[select]]
+when = { platform = "linux-x64" }
+exclude = ["src/platform/**.scoop"]
+
+[[select]]
+when = { platform = "linux-x64" }
+include = ["src/platform/posix/**.scoop"]
+
+[[select]]
+when = { platform = "windows-x64" }
+exclude = ["src/platform/**.scoop"]
+
+[[select]]
+when = { platform = "windows-x64" }
+include = ["src/platform/windows/**.scoop"]
