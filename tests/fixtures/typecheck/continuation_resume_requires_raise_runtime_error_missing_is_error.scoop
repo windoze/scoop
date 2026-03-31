@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 12:5
+// 目标：T0921：`k.resume(value)` 除了 `E` 之外，还应要求 `Raise<RuntimeError>`（除非被 try/catch/handle 捕获）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(k: Continuation<Int, eff Pure>) {
+    k.resume(1)
+}
+

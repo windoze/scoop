@@ -2947,7 +2947,7 @@
    - `cargo test -p scoop_runtime` 通过；
    - `cargo test --all` 通过。
 
-### T0921 [TODO] continuation：重复 `resume` 不再 `exit(3)`，改为 `Raise<RuntimeError.ContinuationAlreadyResumed>`
+### T0921 [DONE] continuation：重复 `resume` 不再 `exit(3)`，改为 `Raise<RuntimeError.ContinuationAlreadyResumed>`
 - 描述：按 `SCOOP_FULL_SPEC.md` §5.5 与 §5.7 的规范，把 “one-shot 违规” 从进程级 abort/exit 改为可被语言层捕获的运行时错误：第二次 `resume` 执行 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`。
 - 目标：
   - sysroot：`enum RuntimeError` 增加 `ContinuationAlreadyResumed`（并更新相关文档与 fixtures）。
@@ -2963,6 +2963,20 @@
   - `cargo run -p scoop -- test`
   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`（若启用 LLVM 后端）
 - 依赖：T0617、T0614、T0630、T0445、T0611
+ - 完成：
+   - `sysroot/core.scoop`：`RuntimeError` 增加 `ContinuationAlreadyResumed`（unit variant）。
+   - `crates/scoopc/src/typecheck/expr.rs`：`k.resume(value)` required effects 从 `E` 升级为 `E + Raise<RuntimeError>`。
+   - `runtime/c/scoop_runtime.c`：重复 `resume` 不再 `exit(3)`，改为写入 Raise perform slot + set flag（payload 为 `RuntimeError.ContinuationAlreadyResumed`）。
+   - `crates/scoopc/src/llvm/codegen.rs`：`k.resume(value)` call-site 增加 effect flag 检查与 unwind（复用 Raise 的最小传播约定）。
+   - fixtures：
+     - `tests/fixtures/run-pass/effect_escape_continuation_resume_later_exit.*`：改为 try/catch 捕获并输出；不再断言退出码。
+     - `tests/fixtures/run-pass/try_catch_raise_runtime_error_basic.scoop`、`tests/fixtures/run-pass/kotlin_require_check*.scoop`：补齐 `RuntimeError` 的 `when` 穷尽分支。
+     - `tests/fixtures/run-pass/generator_yield_iter_int_basic.scoop`：`k.resume(...)` 包裹 try/catch 以满足 `Raise<RuntimeError>` 的静态要求。
+     - `tests/fixtures/typecheck/continuation_type_and_resume_pure_ok.scoop`：显式声明 `/ Raise<RuntimeError>`。
+     - `tests/fixtures/typecheck/continuation_resume_requires_raise_runtime_error_missing_is_error.scoop`：新增回归（Pure 中调用 `k.resume` 缺少 Raise 声明应报错）。
+ - 验收：
+   - `cargo test --all` 通过；
+   - `cargo run -p scoop -- test` 通过。
 
 ### T0915（拆分为子任务）
 - 描述：跨线程 `resume` 时需要把 continuation 捕获的 handler stack 安装到当前线程 TLS，并在返回后恢复原 TLS（spec §5.5）。

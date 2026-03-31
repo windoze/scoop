@@ -16,6 +16,7 @@ fun main(): Int {
         when (e) {
             NullAssertionFailed -> 10
             ClassCastFailed -> 11
+            ContinuationAlreadyResumed -> 30
         }
     }
 
@@ -26,6 +27,7 @@ fun main(): Int {
         when (e) {
             NullAssertionFailed -> 12
             ClassCastFailed -> 20
+            ContinuationAlreadyResumed -> 31
         }
     }
 
@@ -34,4 +36,3 @@ fun main(): Int {
     println("after")
     return 0
 }
-

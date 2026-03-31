@@ -4378,6 +4378,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self
             .builder
             .build_call(rt_resume, &[k_i8.into(), word.into()], "cont_resume")?;
+        // continuation resume 可能触发 `Raise<RuntimeError>`（例如 one-shot 违规），需要按 Raise 的最小约定传播。
+        self.emit_effect_unwind_if_active(span)?;
 
         Ok(CgValue::unit())
     }

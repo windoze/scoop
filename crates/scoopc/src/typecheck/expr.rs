@@ -8876,6 +8876,19 @@ fn try_infer_continuation_resume_call_expr_type(
     for effect in effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
     }
+    // spec §5.5：continuation 为 one-shot；重复 resume 为运行期错误（spec §5.7：通过 Raise 表达）。
+    // 因此 `k.resume(value)` 除了 `E` 之外，还必须要求 `Raise<RuntimeError>`（除非在 try/catch/handle 内被捕获）。
+    let runtime_error = lower.lower_type_fqn_with_args(
+        "scoop.core.RuntimeError".to_string(),
+        Vec::new(),
+        call_expr.span,
+    )?;
+    let raise_runtime_error = lower.lower_type_fqn_with_args(
+        "scoop.core.Raise".to_string(),
+        vec![runtime_error],
+        call_expr.span,
+    )?;
+    lower.record_performed_effect(raise_runtime_error, call_expr.span);
 
     let ret = if safe {
         lower.ty_option(builtins.unit)

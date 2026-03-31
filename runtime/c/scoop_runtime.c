@@ -552,7 +552,25 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
   }
 
   if (!scoop_continuation_try_resume(continuation)) {
-    exit(3);
+    // spec §5.5 / §5.7：one-shot 违规应当表现为可捕获的运行时错误：
+    // `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`（而不是进程级 exit/abort）。
+    //
+    // 说明：
+    // - runtime 侧复用既有的 Raise flag-based unwinding 机制：写入 perform slot + set flag；
+    // - 由 codegen 在 call-site 检查 flag 并跳转到最近的 try/catch/handle 边界；
+    // - 这里需要写入 `RuntimeError` 的 tag 值：当前按 sysroot `RuntimeError` 的声明顺序编码：
+    //   - 0: NullAssertionFailed
+    //   - 1: ClassCastFailed
+    //   - 2: ContinuationAlreadyResumed
+    const uint32_t OP_TAG_RAISE = 1u;
+    const uint64_t PAYLOAD_KIND_RUNTIME_ERROR = 2u;
+    const uint64_t RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED = 2u;
+    scoop_effect_perform_slot_write_u64_2(
+        OP_TAG_RAISE,
+        PAYLOAD_KIND_RUNTIME_ERROR,
+        RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED);
+    scoop_effect_set_active();
+    return;
   }
 
   ScoopContinuation *k = (ScoopContinuation *)continuation;

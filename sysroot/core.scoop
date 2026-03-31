@@ -405,6 +405,7 @@ fun __scoop_task_join_int(task: Task<Int>): Int
 enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,
+    ContinuationAlreadyResumed,
 }
 
 // Built-in effect: Raise

@@ -20,6 +20,7 @@
 ## 0.1 维护备注（TODO 顺序）
 
 - 2026-04-01：完成 T0632：类型系统为函数类型保留 effect row 的 `closed` 标记（区分 `/ Pure` 与 `/ Pure!`，并在类型显示中输出 `!`）；typecheck 在所有“写入/转换到 Any”的位置加入门禁：仅允许 `(...)->R / Pure!` 的函数值擦除到 `Any`（effects 不可运行时保真）；新增 typecheck fixtures 回归。
+- 2026-04-01：完成 T0921：`k.resume(value)` 的 one-shot 违规语义从进程级 `exit(3)` 改为 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`；sysroot `RuntimeError` 增加对应 variant；typecheck 将 `k.resume` required effects 升级为 `E + Raise<RuntimeError>`；runtime 侧在重复 resume 时写入 Raise perform slot 并置位 flag；更新 run-pass/typecheck fixtures 回归。
 - 2026-03-31：将 `TODO.md` 中 T1317f（`std`：`Hashable` + `List/Set/Map` 与迭代/算法）进一步拆分为 T1317f1～T1317f4，以保持“可单独实现 & 单独验证”的粒度（先落地 `Hashable` 约束/typecheck，再推进集合与算法 run-pass 回归）。
 - 2026-03-31：完成 T1317f1：sysroot 增加 `Hashable` 接口并让 primitive types 声明实现；typecheck 在“builtin 标量 → interface”的可赋值判断中复用 sysroot FQN 的 supertypes，使 `where T: Hashable` 对 `Int/Bool/...` 生效；新增 typecheck fixtures 回归 pass/fail。
 - 2026-03-31：完成 T1317f3：stdlib 为 `Array/MutableArray/List/MutableList`（优先 `Int` 版本）提供 `forEach/map/filter/fold`（effect-polymorphic）；并扩展 typecheck 的 lambda 期望类型下推到 2 参数以解锁 `fold(0) { acc, x -> ... }`；新增 run-pass fixture `stdlib_iter_algorithms_basic.*`，在 `cargo run -p scoop --features llvm -- test` 下可回归通过。

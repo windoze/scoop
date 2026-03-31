@@ -1,5 +1,6 @@
 // EXPECT: pass
-// 目标：T0611 Continuation 类型建模（spec §5.5）：支持 `Continuation<T, eff E>` 并能 typecheck `k.resume(value)`。
+// 目标：T0611/T0921 Continuation 类型建模（spec §5.5）：支持 `Continuation<T, eff E>` 并能 typecheck `k.resume(value)`；
+// - `k.resume(value)` 需要 `E + Raise<RuntimeError>`（one-shot 违规通过 Raise 表达为可捕获的运行时错误）。
 
 package fixtures.typecheck
 
@@ -9,7 +10,6 @@ fun id(k: Continuation<Int, eff Pure>): Continuation<Int, eff Pure> {
     return k
 }
 
-fun run(k: Continuation<Int, eff Pure>) {
+fun run(k: Continuation<Int, eff Pure>): Unit / Raise<RuntimeError> {
     k.resume(1)
 }
-

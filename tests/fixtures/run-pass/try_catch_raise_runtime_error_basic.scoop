@@ -27,6 +27,7 @@ fun main(): Int {
         val code: Int = when (e) {
             NullAssertionFailed -> 100
             ClassCastFailed -> 200
+            ContinuationAlreadyResumed -> 300
         }
         println(code)
         0
@@ -35,4 +36,3 @@ fun main(): Int {
     println("after_try")
     return x
 }
-

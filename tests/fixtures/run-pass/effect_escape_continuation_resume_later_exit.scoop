@@ -1,11 +1,10 @@
 // EXPECT: pass
-// EXPECT-EXIT: 3
 // RUN-STDOUT: effect_escape_continuation_resume_later_exit.stdout
 //
 // 目标：T0617 `, k ->`（escape continuation）：
 // - handler arm 保存 continuation；
 // - 稍后调用 `k.resume(value)` 恢复并继续执行；
-// - 重复 resume 为运行期错误（exit(3)）。
+// - 重复 resume 为运行期错误（`Raise<RuntimeError.ContinuationAlreadyResumed>`；可被 try/catch 捕获）。
 
 import scoop.core.*
 
@@ -33,9 +32,29 @@ fun main() {
 
     when (saved) {
         Some(k) -> {
-            k.resume(42)
+            // 第一次 resume：语义上应成功；但按规范它仍要求 `Raise<RuntimeError>`（one-shot 违规路径）。
+            val _resume1: Unit = try {
+                k.resume(42)
+            } catch (e: RuntimeError) {
+                // 理论上不可达：若发生则打印，便于定位回归失败原因。
+                println("unexpected_resume1")
+            }
             println("after resume")
-            k.resume(43)
+
+            // 第二次 resume：one-shot 违规应当通过 Raise 表达为可捕获的运行时错误（spec §5.5 / §5.7）。
+            val _resume2: Unit = try {
+                k.resume(43)
+                println("unreachable")
+            } catch (e: RuntimeError) {
+                println("caught")
+                val code: Int = when (e) {
+                    ContinuationAlreadyResumed -> 300
+                    NullAssertionFailed -> 100
+                    ClassCastFailed -> 200
+                }
+                println(code)
+            }
+            println("after catch")
         }
         None -> println("missing")
     }

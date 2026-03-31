@@ -45,21 +45,34 @@ fun main(): Int {
                 Yield.yield(v: Int), kk -> {
                     println("consume3")
                     println(v)
-                    kk.resume(0)
+                    val _resume3: Unit = try {
+                        kk.resume(0)
+                    } catch (e: RuntimeError) {
+                        // 理论上不可达：generator 的每个 continuation 都只 resume 一次。
+                        println("unexpected_resume3")
+                    }
                 }
             }
         } with {
             Yield.yield(v: Int), kk -> {
                 println("consume2")
                 println(v)
-                kk.resume(0)
+                val _resume2: Unit = try {
+                    kk.resume(0)
+                } catch (e: RuntimeError) {
+                    println("unexpected_resume2")
+                }
             }
         }
     } with {
         Yield.yield(v: Int), kk -> {
             println("consume1")
             println(v)
-            kk.resume(0)
+            val _resume1: Unit = try {
+                kk.resume(0)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
         }
     }
 
