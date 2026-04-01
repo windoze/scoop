@@ -32,6 +32,7 @@
 - 2026-04-01：完成 T1324：parser 支持多 trailing lambda；typecheck 放开“命名参数后多个末尾 lambda”并扩展形参映射 fallback；新增 infer/typecheck fixtures 回归。
 - 2026-04-01：将 `TODO.md` 中 T1325（varargs spread：集合/迭代器桥接与调用规则）拆分为 T1325a～T1325c，以保持“可单独实现 & 单独验证”的粒度；完成 T1325a：sysroot 增加 `MutableArray<Int>.toArray` 声明面，stdlib 落地复制实现，并新增 typecheck fixture 回归 `*xs.toArray()` spread。
 - 2026-04-01：完成 T1325b：typecheck 在 vararg spread 的非 `Array/tuple` 诊断中，对常见集合追加迁移提示（`toArray/asSet/asMapView`），并新增 typecheck fixture 回归错误信息。
+- 2026-04-01：由于依赖 T1328（迭代协议升级为 `Iterator.next(): Option<T>`），将 `TODO.md` 中 T1325c 移动到 T1328 之后以保持依赖顺序。
 - 2026-04-01：完成 T1018：基于 T1017 审计结论，`std v1` 与 Kotlin runtime gap 的“纯 Scoop 补齐”目标边界内无 `needs_new_intrinsic` blocker；T1018 作为 gate 任务以 no-op 形式完成（无新增 intrinsic/backends），保留未来出现真实 case 时再 reopen 的策略。
 - 2026-04-01：完成 T1027：sysroot 引入 `scoop.unsafe.__AtomicInt`（内部原子整型）与 `__atomicIntLoad/__atomicIntStore/__atomicIntCompareExchange`，LLVM codegen 直接生成 atomic load/store/cmpxchg（SeqCst）；新增 run-pass fixture `unsafe_atomic_int_basic.*` 回归。
 - 2026-04-01：完成 T1025：sysroot `scoop.unsafe` 补齐 raw pointer 规范 API（`addressOf/stackAlloc` + `Ptr<T>.cast/load/store/plus/minus`）并保留迁移期旧名；typecheck 支持 `var` 形参的 lvalue 门禁（用于 `addressOf(var: T)`）、成员调用显式类型实参，以及在泛型实例化/substitution 中保持 `Ptr<T>` 的 GC-free pointee 门禁；新增/更新 unsafe_nogc fixtures 回归。

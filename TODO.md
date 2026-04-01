@@ -5195,7 +5195,6 @@
 - 目标：与 T1328 的 `Iterator.next(): Option<T>` 迁移一致；不在语言层放开 `*iterable` 隐式 spread。
 - 验收：新增 typecheck +（可选）run-pass fixture 覆盖最小可迭代对象的 `toArray()` 后 spread；`cargo test --all` 通过。
 - 依赖：T1328
-
 ### T1326 [TODO] delegated properties：线程安全语义与平台 policy
 - 描述：补齐标准 delegated properties 的线程安全语义：`lazy` 的同步/发布/无锁策略，`observable`/`vetoable` 在并发场景下的可见性与回调规则，以及不同平台的 policy。
 - 目标：让 `lazy` 等 API 不只“能跑”，还要在 desktop/server/embedded/WASM 等环境下有明确行为约定。
@@ -5224,6 +5223,12 @@
   - 若 `for` lowering 已落地：新增 run-pass fixture：`for` 遍历一个最小可迭代对象输出序列正确。
   - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T1304、T0407、T0705（for lowering 若开启）、`SCOOP_FULL_SPEC.md` §16.2
+
+### T1325c [TODO] varargs spread：迭代器视图桥接（iterator → Array）
+- 描述：为满足 `iterator` 协议的视图提供显式转换为 `Array` 的 std helper（例如 `toArray()`），以支持 `*view.toArray()` 的 spread 用例。
+- 目标：与 T1328 的 `Iterator.next(): Option<T>` 迁移一致；不在语言层放开 `*iterable` 隐式 spread。
+- 验收：新增 typecheck +（可选）run-pass fixture 覆盖最小可迭代对象的 `toArray()` 后 spread；`cargo test --all` 通过。
+- 依赖：T1328
 
 ---
 
