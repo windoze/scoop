@@ -21,6 +21,7 @@
 
 - 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。
 - 2026-04-02：完成 T1326c：delegated properties 跨平台 policy（capability matrix + 编译期 gating）：引入 `TargetPlatform`（platform id + threads/mutex capabilities），typecheck 为标准 delegates（`lazy/observable/vetoable`）在无 mutex 平台给出稳定错误码与迁移提示；fixtures 支持 `// ARGS: --target-platform <id>` 覆盖目标平台并新增 typecheck 用例回归；更新 `STDLIB_DESIGN.md` 与 `sysroot/delegates.scoop` 文档说明。
+- 2026-04-02：完成 T0602b：typecheck 支持“泛型 effect op call”（`Async.await<T>`）与 handler arm head 的实例化；新增 typecheck fixtures 回归 `Async.await(task)` 推断、显式 type args 与稳定错误码（推断冲突 / not inferred）；为 `generic_type_arg_not_inferred` 增加“显式类型实参”提示；后续移除 stdlib 的 `__TaskAwaitInt` 适配层见 TODO T1320e。
 - 2026-04-01：完成 T0632：类型系统为函数类型保留 effect row 的 `closed` 标记（区分 `/ Pure` 与 `/ Pure!`，并在类型显示中输出 `!`）；typecheck 在所有“写入/转换到 Any”的位置加入门禁：仅允许 `(...)->R / Pure!` 的函数值擦除到 `Any`（effects 不可运行时保真）；新增 typecheck fixtures 回归。
 - 2026-04-01：完成 T0921：`k.resume(value)` 的 one-shot 违规语义从进程级 `exit(3)` 改为 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`；sysroot `RuntimeError` 增加对应 variant；typecheck 将 `k.resume` required effects 升级为 `E + Raise<RuntimeError>`；runtime 侧在重复 resume 时写入 Raise perform slot 并置位 flag；更新 run-pass/typecheck fixtures 回归。
 - 2026-04-01：完成 T1319e：sysroot 新增 `scoop.task`（`Executor` + `Task<Int>` 最小适配接口），LLVM codegen 将其映射到 `runtime/c/scoop_task_executor.c`；新增 typecheck + run-pass fixtures 回归 task state 与完成回调行为。
@@ -543,7 +544,7 @@
   - [x] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
  - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
-  - [ ] effect operation 调用（泛型 op）：支持 `Async.await<T>` 等带 type params 的 effect op call（以及 handler arm head 的实例化），使 stdlib 可直接表达 `Async.await` 而不需要 `__TaskAwaitInt` 适配层（TODO T0602b）
+  - [x] effect operation 调用（泛型 op）：支持 `Async.await<T>` 等带 type params 的 effect op call（以及 handler arm head 的实例化），使 stdlib 可直接表达 `Async.await` 而不需要 `__TaskAwaitInt` 适配层（TODO T0602b）
   - required effects（T0604/T0606：已实现未声明的 effect 报错；支持 non-resuming `handle` 捕获；spec §14.7.1）
   - [x] RowExpr 静态语义：默认 `Pure` + `+` 并集 + containment `R1 ⊆ R2`（T0608）
   - [x] public 默认 `/ Pure` 的强制约束（T0508）

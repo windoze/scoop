@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_type_arg_not_inferred
+// EXPECT-ERROR: 显式类型实参
+// EXPECT-ERROR-AT: 17:18
+// 目标：T0602b：当泛型 effect op 缺少可用于推断的约束（例如无参数，仅返回 `T`）时，
+//      应给出稳定的“type arg not inferred”诊断，并提示可显式提供类型实参。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+effect Make {
+    fun <T> make(): T
+}
+
+fun bad(): Int / Make {
+    val x: Int = Make.make()
+    return x
+}

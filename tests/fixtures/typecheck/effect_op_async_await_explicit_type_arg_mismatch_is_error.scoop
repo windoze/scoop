@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::generic_type_arg_inference_conflict
+// EXPECT-ERROR: 推断冲突
+// EXPECT-ERROR-AT: 13:36
+// 目标：T0602b：显式 type args 会参与泛型 effect op 的实例化；
+//      当显式 type args 与调用点约束不一致时，应给出稳定的“推断冲突”诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(task: Task<Int>): Int / Async {
+    val v: Int = Async.await<UInt>(task)
+    return v
+}

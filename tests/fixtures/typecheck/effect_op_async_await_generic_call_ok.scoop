@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：T0602b：支持泛型 effect operation 调用（generic op）：
+// - `Async.await(task)` 能从 `Task<Int>` 推断 `T = Int`；
+// - 允许显式写 `Async.await<Int>(task)`（TypeApply）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun callAsyncAwait(task: Task<Int>): Int / Async {
+    val v1: Int = Async.await(task)
+    val v2: Int = Async.await<Int>(task)
+    val _ = v2
+    return v1
+}
+

@@ -585,7 +585,9 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("无法推断泛型类型实参：{callee} 的 `{param}`（缺少可用于推断的调用点约束）")]
+    #[error(
+        "无法推断泛型类型实参：{callee} 的 `{param}`（缺少可用于推断的调用点约束；可尝试显式类型实参：`{callee}<...>(...)`）"
+    )]
     #[diagnostic(code(scoop::typecheck::generic_type_arg_not_inferred))]
     GenericTypeArgNotInferred {
         callee: String,
@@ -4182,16 +4184,22 @@ fn infer_handle_expr_type(
                 span: arm.op.op.span.into(),
             });
         }
-        if !op.sig.type_params.is_empty() {
-            return Err(ExprTypeError::UnsupportedExpr {
-                kind: "handle arm（generic effect op not supported）",
-                span: arm.op.op.span.into(),
-            });
+
+        // 4) 构造 effect op 的“可实例化签名”：其参数/返回类型允许引用：
+        // - operation 自身的 type params（例如 `fun <T> await(task: Task<T>): T` 中的 `T`）
+        // - effect type 的 type params（例如 `Raise<E>` 中的 `E`）
+        //
+        // 说明：当前 handler arm 的 v0 规则里：
+        // - effect type args 仍需要被确定（用于 handled effect 实例与捕获匹配）；
+        // - op type args 允许保持为“未实例化的 type params”（便于表达多态 handler）。
+        let mut bindings: Vec<(String, TypeId)> = Vec::new();
+        for tp in &op.sig.type_params {
+            let param_ty =
+                lower.ty_param_named(tp.name.clone(), op.symbol.decl_file.clone(), tp.name_span);
+            bindings.push((tp.name.clone(), param_ty));
         }
 
-        // 4) 构造 effect op 的“可实例化签名”：其参数/返回类型允许引用 effect type 的 type params（例如 `E`）。
         let mut type_params: Vec<TypeId> = Vec::new();
-        let mut bindings: Vec<(String, TypeId)> = Vec::new();
         if let Some(name) = effect_sym.type_param_names.first() {
             let param_ty =
                 lower.ty_param_named(name.clone(), effect_sym.decl_file.clone(), effect_sym.span);
@@ -8273,6 +8281,7 @@ fn infer_call_expr_type(
                 call_expr,
                 member,
                 args,
+                explicit_type_args.as_deref(),
                 lower,
                 builtins,
                 locals,
@@ -9173,6 +9182,7 @@ fn infer_effect_op_call_expr_type(
     call_expr: &ast::Expr,
     member: &ast::MemberIdent,
     args: &[ast::Expr],
+    explicit_type_args: Option<&[TypeId]>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
@@ -9230,15 +9240,21 @@ fn infer_effect_op_call_expr_type(
         });
     }
 
-    if !op.sig.type_params.is_empty() {
-        return Err(ExprTypeError::UnsupportedExpr {
-            kind: "effect op call（generic op not supported）",
-            span: call_expr.span.into(),
-        });
-    }
-
-    let mut type_params = Vec::new();
+    // effect op 的 type params 由两部分构成：
+    // - operation 自身的 type params：`effect Async { fun <T> await(task: Task<T>): T }`
+    // - effect type 的 type params：`effect Raise<in E> { fun raise(error: E): Nothing }`
+    //
+    // 约定：把 op type params 放在前面，使 `Async.await<Int>(...)` 这类显式 type args
+    // 按“函数泛型”的直觉绑定到 op，而不是 effect type。
+    let mut type_params: Vec<TypeId> = Vec::new();
     let mut bindings: Vec<(String, TypeId)> = Vec::new();
+
+    for tp in &op.sig.type_params {
+        let param_ty =
+            lower.ty_param_named(tp.name.clone(), op.symbol.decl_file.clone(), tp.name_span);
+        type_params.push(param_ty);
+        bindings.push((tp.name.clone(), param_ty));
+    }
 
     if let Some(name) = effect_sym.type_param_names.first() {
         let param_ty =
@@ -9337,10 +9353,11 @@ fn infer_effect_op_call_expr_type(
         });
     };
 
-    let instantiated = instantiate_fun_sig_for_call(
+    let instantiated = instantiate_fun_sig_for_call_with_optional_explicit_type_args(
         &callee_fqn,
         call_expr.span,
         &sig,
+        explicit_type_args,
         mapping
             .iter()
             .copied()
@@ -9397,11 +9414,21 @@ fn infer_effect_op_call_expr_type(
     }
 
     // required effects（T0604）：effect op call 视为“立即执行的 perform”，记录到当前函数体的 effects 集合中。
-    let effect_instance = lower.lower_type_fqn_with_args(
-        effect_ty_fqn.to_string(),
-        instantiated.type_args.clone(),
-        call_expr.span,
-    )?;
+    let effect_param_count = effect_sym.type_param_names.len();
+    let effect_type_args = if effect_param_count == 0 {
+        Vec::new()
+    } else if effect_param_count <= instantiated.type_args.len() {
+        instantiated.type_args[instantiated.type_args.len() - effect_param_count..].to_vec()
+    } else {
+        // 理论上不应发生：type params 数量不足时 instantiate 已经报错。
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "effect op call（effect type args missing after instantiation）",
+            span: call_expr.span.into(),
+        });
+    };
+
+    let effect_instance =
+        lower.lower_type_fqn_with_args(effect_ty_fqn.to_string(), effect_type_args, call_expr.span)?;
     lower.record_performed_effect(effect_instance, call_expr.span);
 
     Ok(Some(instantiated.return_ty))
@@ -13386,6 +13413,7 @@ fn check_expr_stmt(
                     expr,
                     member,
                     args,
+                    None,
                     lower,
                     builtins,
                     &*locals,
@@ -13393,6 +13421,31 @@ fn check_expr_stmt(
                     top_level_funs,
                     struct_field_types,
                 )?;
+            } else if let ast::ExprKind::TypeApply {
+                callee: inner,
+                args: type_args,
+            } = &callee.kind
+            {
+                if let ast::ExprKind::MemberAccess { member, .. } = &inner.kind {
+                    let lowered = type_args
+                        .iter()
+                        .map(|a| lower.lower_type_ref(a))
+                        .collect::<Result<Vec<_>, _>>()?;
+
+                    let _ = infer_effect_op_call_expr_type(
+                        source,
+                        expr,
+                        member,
+                        args,
+                        Some(lowered.as_slice()),
+                        lower,
+                        builtins,
+                        &*locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    )?;
+                }
             }
 
             Ok(())

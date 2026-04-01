@@ -1485,7 +1485,7 @@
    - fixtures：新增 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
-### T0602b [TODO] Typecheck：泛型 effect op 调用（generic op）+ handler arm 头部实例化
+### T0602b [DONE] Typecheck：泛型 effect op 调用（generic op）+ handler arm 头部实例化
 - 描述：补齐 effect operation 调用对“op 自身带 type params”的支持，使库代码可直接写 `Async.await(task)` 等泛型 op，而不需要额外定义 `__TaskAwaitInt` 适配 effect。
 - 目标（v0，先解决最阻塞的 stdlib case）：
   - 支持 `effect Async { fun <T> await(task: Task<T>): T }` 这类 op：
@@ -1498,6 +1498,13 @@
   - 新增 typecheck fixtures：无法推断/实参不匹配时给出稳定错误码（并明确提示当前需要显式类型实参/或不支持的形态）。
   - 后续跟进（不在本任务内实现）：清理 `stdlib/task.scoop` 的 `__TaskAwaitInt` 适配层（见 T1320b 注释）。
 - 依赖：T0602、T0606、T0505、T0513（overload resolution 基线）
+ - 完成：
+   - typecheck/expr：effect op call 支持 op 自身的 type params（例如 `Async.await<T>`），并复用既有 `TypeApply` 语法支持显式类型实参（`Async.await<Int>(task)`）。
+   - typecheck/expr：required effects 记录仍以“effect type 实例”为准；当 op 自身带 type params 时，只把 effect type 的 type args 计入 performed effects（避免把 op type args 混入 effect 实例）。
+   - typecheck/expr：handle arm head 允许泛型 effect op；在 lowering op 参数/返回类型时注入 op type params 绑定，使 `Async.await(task), k -> { ... }` 可被实例化并用于 binder arity/类型检查。
+   - diagnostics：`generic_type_arg_not_inferred` 增加“可尝试显式类型实参”的提示，便于定位并指导修复。
+   - fixtures：新增 typecheck fixtures 覆盖 `Async.await(task)` 推断、`Async.await<Int>(task)` 显式实参、`handle Async.await(...)` arm head、以及“type arg not inferred / inference conflict”的稳定错误码回归。
+   - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 
 ### T0603 [DONE] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
