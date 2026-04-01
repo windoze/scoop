@@ -3726,11 +3726,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
+            if fqn == "scoop.io.stdoutWriteLine" {
+                return self.codegen_sysroot_io_write_string(
+                    span,
+                    callee.span,
+                    "scoop_io_stdout_write_line",
+                    args,
+                );
+            }
             if fqn == "scoop.io.stderrWriteString" {
                 return self.codegen_sysroot_io_write_string(
                     span,
                     callee.span,
                     "scoop_io_stderr_write_string",
+                    args,
+                );
+            }
+            if fqn == "scoop.io.stderrWriteLine" {
+                return self.codegen_sysroot_io_write_string(
+                    span,
+                    callee.span,
+                    "scoop_io_stderr_write_line",
                     args,
                 );
             }

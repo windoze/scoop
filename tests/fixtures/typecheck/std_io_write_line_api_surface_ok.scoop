@@ -1,0 +1,14 @@
+// EXPECT: pass
+//
+// 目标：T1320c `scoop.io` utilities：`stdoutWriteLine/stderrWriteLine` 可被解析并通过类型检查。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.io.*
+
+fun main() {
+    stdoutWriteLine("hello")
+    stderrWriteLine("err")
+}
+

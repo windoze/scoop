@@ -25,6 +25,7 @@
 - 2026-04-01：将 `TODO.md` 中 T1320（`std` v4：net/async adapters/testing/utilities）拆分为 T1320a～T1320d，以保持“可单独实现 & 单独验证”的粒度。
 - 2026-04-01：完成 T1320a：sysroot/std 增加 `scoop.test` 最小断言工具（`assertTrue/assertFalse/assertEqInt/assertSomeInt/assertNoneInt`），并新增 typecheck + run-pass fixtures 回归。
 - 2026-04-01：完成 T1320b：sysroot/std 增加 `Executor.spawn/await` 与 `Task<Int>.map/andThen`（v0：Int 专用），并新增 typecheck + run-pass fixtures 回归 async adapters 的基本行为。
+- 2026-04-01：完成 T1320c：sysroot `scoop.io` 新增 `stdoutWriteLine/stderrWriteLine`（写入并追加换行），runtime C 落地并接入 LLVM codegen 映射；新增 typecheck + run-pass fixtures 回归。
 - 2026-03-31：将 `TODO.md` 中 T1317f（`std`：`Hashable` + `List/Set/Map` 与迭代/算法）进一步拆分为 T1317f1～T1317f4，以保持“可单独实现 & 单独验证”的粒度（先落地 `Hashable` 约束/typecheck，再推进集合与算法 run-pass 回归）。
 - 2026-03-31：完成 T1317f1：sysroot 增加 `Hashable` 接口并让 primitive types 声明实现；typecheck 在“builtin 标量 → interface”的可赋值判断中复用 sysroot FQN 的 supertypes，使 `where T: Hashable` 对 `Int/Bool/...` 生效；新增 typecheck fixtures 回归 pass/fail。
 - 2026-03-31：完成 T1317f3：stdlib 为 `Array/MutableArray/List/MutableList`（优先 `Int` 版本）提供 `forEach/map/filter/fold`（effect-polymorphic）；并扩展 typecheck 的 lambda 期望类型下推到 2 参数以解锁 `fold(0) { acc, x -> ... }`；新增 run-pass fixture `stdlib_iter_algorithms_basic.*`，在 `cargo run -p scoop --features llvm -- test` 下可回归通过。

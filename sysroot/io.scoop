@@ -15,8 +15,22 @@ import scoop.core.*
 /// 向 stdout 写入 UTF-8 字符串（不追加换行）。
 fun stdoutWriteString(value: String): Unit
 
+/// 向 stdout 写入 UTF-8 字符串，并追加换行（`\n`）。
+///
+/// 说明：
+/// - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c），避免在调用点手动拼接换行；
+/// - 换行语义目前固定为单个 `\n`；平台差异（例如 Windows CRLF）后续可通过 runtime backend 适配。
+fun stdoutWriteLine(value: String): Unit
+
 /// 向 stderr 写入 UTF-8 字符串（不追加换行）。
 fun stderrWriteString(value: String): Unit
+
+/// 向 stderr 写入 UTF-8 字符串，并追加换行（`\n`）。
+///
+/// 说明：
+/// - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c），避免在调用点手动拼接换行；
+/// - 换行语义目前固定为单个 `\n`；平台差异（例如 Windows CRLF）后续可通过 runtime backend 适配。
+fun stderrWriteLine(value: String): Unit
 
 /// 从 stdin 读取一行文本（去掉行尾 `\\n`/`\\r\\n`）。
 ///

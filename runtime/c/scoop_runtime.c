@@ -1136,6 +1136,19 @@ void scoop_io_stdout_write_string(const ScoopString *value) {
   (void)fflush(stdout);
 }
 
+// `scoop.io.stdoutWriteLine(value: String): Unit`
+//
+// 说明：
+// - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c）；
+// - 行尾换行目前固定为 `\n`（与 `println` 一致）；更复杂的平台差异后续通过 backend 隔离。
+void scoop_io_stdout_write_line(const ScoopString *value) {
+  if (value != 0 && value->data != 0 && value->len != 0) {
+    (void)fwrite(value->data, 1, (size_t)value->len, stdout);
+  }
+  (void)fputc('\n', stdout);
+  (void)fflush(stdout);
+}
+
 // `scoop.io.Stderr.writeString(value: String): Unit`
 void scoop_io_stderr_write_string(const ScoopString *value) {
   if (value == 0) {
@@ -1146,6 +1159,19 @@ void scoop_io_stderr_write_string(const ScoopString *value) {
   }
 
   (void)fwrite(value->data, 1, (size_t)value->len, stderr);
+  (void)fflush(stderr);
+}
+
+// `scoop.io.stderrWriteLine(value: String): Unit`
+//
+// 说明：
+// - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c）；
+// - 行尾换行目前固定为 `\n`（与 `println` 一致）；更复杂的平台差异后续通过 backend 隔离。
+void scoop_io_stderr_write_line(const ScoopString *value) {
+  if (value != 0 && value->data != 0 && value->len != 0) {
+    (void)fwrite(value->data, 1, (size_t)value->len, stderr);
+  }
+  (void)fputc('\n', stderr);
   (void)fflush(stderr);
 }
 

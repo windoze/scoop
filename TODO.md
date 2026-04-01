@@ -4963,11 +4963,26 @@
      - `tests/fixtures/typecheck/std_task_async_adapters_api_surface_ok.scoop`
      - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop/.stdout`
 
-### T1320c [TODO] `std` v4：测试/诊断支持 utilities v0（platform info / io helpers）
+### T1320c [DONE] `std` v4：测试/诊断支持 utilities v0（platform info / io helpers）
 - 描述：补齐一组“为 fixtures/示例服务”的通用工具（例如 platform/query、简单的 stdout/stderr helper），并用 fixtures 固化。
 - 目标：先提供最小可观测性；不引入复杂 logging 框架；避免把 OS 概念直透到 Scoop 侧（配合 capability matrix）。
 - 验收：新增 typecheck/run-pass fixtures 覆盖至少 2 个工具函数；不支持平台有稳定诊断或返回 `None/false`。
 - 依赖：T1318e、T1219
+ - 完成：
+   - sysroot：
+     - `sysroot/io.scoop`：新增 `stdoutWriteLine/stderrWriteLine` 声明面（写入并追加换行）。
+   - runtime：
+     - `runtime/c/scoop_runtime.c`：新增 `scoop_io_stdout_write_line/scoop_io_stderr_write_line`。
+   - LLVM codegen：
+     - `crates/scoopc/src/llvm/codegen.rs`：为 `scoop.io.stdoutWriteLine/stderrWriteLine` 增加 sysroot → runtime 符号映射。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_io_write_line_api_surface_ok.scoop`
+     - `tests/fixtures/run-pass/std_io_write_line_basic.scoop/.stdout/.stderr`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo build -p scoop --features llvm`
+   - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" target/debug/scoop run tests/fixtures/run-pass/std_io_write_line_basic.scoop`
 
 ### T1320d [TODO] `std` v4：net 抽象 v0（API surface + capability gating）
 - 描述：定义 `scoop.net` 的最小 API surface（TCP 连接/监听或更高层 adapter），并通过 capability gating 表达“不支持”。
