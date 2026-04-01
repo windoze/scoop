@@ -5117,11 +5117,25 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1323 [TODO] 默认参数：中间参数省略与命名参数联合规则
+### T1323 [DONE] 默认参数：中间参数省略与命名参数联合规则
 - 描述：把默认参数从“只省略尾部参数”推进到 Kotlin 风格的中间参数省略，只要调用点使用命名参数并满足规则，就允许跳过中间带默认值的形参。
 - 目标：不改变 T1305 的基础行为；本任务专门补齐“中间省略 + 命名参数”的语言规则与诊断。
 - 验收：language fixtures：`f(a = 1, c = 3)` 会用默认值补上 `b`；非法跳过非默认参数或与位置参数混用时报错。
 - 依赖：T1305、T1306、T1322
+ - 完成：
+   - typecheck/expr：
+     - 默认参数映射允许在命名实参存在时“跳过中间 default 形参”（Kotlin-like；既有规则固化为 fixtures）；
+     - 新增稳定诊断 `call_missing_required_args`：命名实参跳过非默认形参时报错并列出缺失形参名。
+   - hir/lower：
+     - call-site 默认参数补齐扩展为支持命名实参与中间默认参数；
+     - 默认参数索引从“仅尾部 defaults”扩展为“任意位置 defaults”（仍限制：当前文件内、非泛型、无 receiver、无 overload、无 vararg）。
+   - fixtures：
+     - pass：`tests/fixtures/typecheck/default_param_named_args_mid_omit_ok.scoop`
+     - fail：`tests/fixtures/typecheck/default_param_named_args_skip_non_default_is_error.scoop`
+     - hir：`tests/fixtures/hir/default_param_named_args_mid_omit_lowering.scoop/.hir`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1324 [TODO] 多 trailing lambda：语法、expected type 与重载联动
 - 描述：在已有单 trailing lambda 基础上，支持多个 trailing lambda（若采用 Kotlin-like 语法），并让 expected type、命名参数与 overload resolution 一起参与决议。

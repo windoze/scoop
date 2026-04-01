@@ -502,6 +502,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用 `{callee}` 缺少必需参数：{missing}")]
+    #[diagnostic(code(scoop::typecheck::call_missing_required_args))]
+    CallMissingRequiredArgs {
+        callee: String,
+        missing: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 `{callee}` 没有名为 `{name}` 的参数")]
     #[diagnostic(code(scoop::typecheck::unknown_call_arg_name))]
     UnknownCallArgName {
@@ -5751,6 +5760,73 @@ fn call_args_have_named(call_args: &[CallArgInfo<'_>]) -> bool {
         .any(|a| matches!(a.kind, CallArgKind::Named { .. }))
 }
 
+fn missing_required_param_names_in_named_call(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+) -> Option<Vec<String>> {
+    if param_names.len() != param_has_defaults.len() {
+        return None;
+    }
+    if !call_args_have_named(call_args) {
+        return None;
+    }
+
+    // Kotlin-like：一旦出现命名实参，后续实参必须全部为命名。
+    let mut seen_named = false;
+    let mut positional_count = 0usize;
+    for arg in call_args {
+        match &arg.kind {
+            CallArgKind::Positional => {
+                if seen_named {
+                    return None;
+                }
+                positional_count += 1;
+            }
+            CallArgKind::Named { .. } => {
+                seen_named = true;
+            }
+        }
+    }
+    if positional_count > param_names.len() {
+        return None;
+    }
+
+    let mut mapping: Vec<Option<usize>> = vec![None; param_names.len()];
+
+    // 位置实参：按从左到右依次绑定到形参（不跳槽）。
+    for arg_idx in 0..positional_count {
+        let slot = mapping.get_mut(arg_idx)?;
+        *slot = Some(arg_idx);
+    }
+
+    // 命名实参：按 name 匹配形参槽位。
+    for (arg_idx, arg) in call_args.iter().enumerate().skip(positional_count) {
+        let CallArgKind::Named { name, .. } = &arg.kind else {
+            return None;
+        };
+        let slot_idx = param_names.iter().position(|p| p == name)?;
+        let slot = mapping.get_mut(slot_idx)?;
+        if slot.is_some() {
+            // 同一形参不能被重复赋值（位置 + 命名 / 命名重复）。
+            return None;
+        }
+        *slot = Some(arg_idx);
+    }
+
+    let mut missing: Vec<String> = Vec::new();
+    for (idx, arg_idx) in mapping.iter().enumerate() {
+        if arg_idx.is_some() {
+            continue;
+        }
+        if !param_has_defaults.get(idx).copied().unwrap_or(false) {
+            missing.push(param_names[idx].clone());
+        }
+    }
+
+    if missing.is_empty() { None } else { Some(missing) }
+}
+
 /// 检查调用点的命名参数规则（Kotlin-like）。
 ///
 /// 当前阶段（T1306）强约束：
@@ -7318,6 +7394,17 @@ fn infer_call_expr_type(
                         &sig.param_names,
                         &sig.param_has_defaults,
                     ) else {
+                        if let Some(missing) = missing_required_param_names_in_named_call(
+                            &call_args,
+                            &sig.param_names,
+                            &sig.param_has_defaults,
+                        ) {
+                            return Err(ExprTypeError::CallMissingRequiredArgs {
+                                callee: callee_fqn,
+                                missing: missing.join(", "),
+                                span: call_expr.span.into(),
+                            });
+                        }
                         return Err(ExprTypeError::NoMatchingOverload {
                             callee: callee_fqn,
                             span: call_expr.span.into(),

@@ -91,13 +91,13 @@ type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
 /// 一个顶层函数的“默认参数信息”（用于在 HIR lowering 阶段做 call-site 默认参数补齐）。
 ///
 /// 说明：
-/// - 当前阶段（TODO T1305）只支持 **尾部默认参数**；
+/// - 当前阶段（T1305/T1323）支持“调用点省略默认参数”，并允许在使用命名参数时省略中间默认参数（Kotlin-like）；
 /// - 为避免向 HIR items 注入合成 wrapper 函数（会影响 `.cone` 的 public API 导出），
 ///   我们把 `f(a0, a1)` 这类“少传参数”的调用点改写为 block：先按参数名把实参/默认值绑定为局部 `val`，
 ///   再调用原函数的完整参数形态。
 #[derive(Debug, Clone)]
 struct DefaultArgFunInfo {
-    /// 最少需要提供的实参数量（即：总参数 - trailing defaults）。
+    /// 最少需要提供的实参数量（即：无默认值形参个数）。
     required: usize,
     params: Vec<DefaultArgParamInfo>,
 }
@@ -316,7 +316,7 @@ impl<'a> HirLowering<'a> {
         File { items }
     }
 
-    /// 扫描当前源文件内的顶层 `fun` 声明，收集“尾部默认参数”信息（供 call-site 默认参数补齐使用）。
+    /// 扫描当前源文件内的顶层 `fun` 声明，收集“默认参数”信息（供 call-site 默认参数补齐使用）。
     ///
     /// 注意：
     /// - 这里只服务于早期单文件 codegen，因此只索引“当前文件内”的顶层函数；
@@ -331,6 +331,10 @@ impl<'a> HirLowering<'a> {
 
             // 当前阶段：默认参数补齐仅针对“非泛型 + 非 receiver”的顶层函数。
             if fun.receiver.is_some() || !fun.type_params.is_empty() {
+                continue;
+            }
+            // 当前阶段：不处理 vararg（其“缺省语义”是空数组/0 个元素，而非 param default_value）。
+            if fun.params.iter().any(|p| p.is_vararg) {
                 continue;
             }
 
@@ -358,21 +362,11 @@ impl<'a> HirLowering<'a> {
                 });
             }
 
-            // 只支持尾部默认参数：从右往左统计连续默认值个数。
-            let mut trailing_defaults = 0usize;
-            for p in params.iter().rev() {
-                if p.default_value.is_some() {
-                    trailing_defaults += 1;
-                } else {
-                    break;
-                }
-            }
-
-            if trailing_defaults == 0 {
+            if !params.iter().any(|p| p.default_value.is_some()) {
                 continue;
             }
 
-            let required = params.len().saturating_sub(trailing_defaults);
+            let required = params.iter().filter(|p| p.default_value.is_none()).count();
             out.insert(fqn, DefaultArgFunInfo { required, params });
         }
 
@@ -2555,14 +2549,6 @@ impl<'a> HirLowering<'a> {
         };
         let info = self.default_arg_funs.get(fqn).cloned()?;
 
-        // 当前阶段（T1305 目标约束）：不在此处支持命名实参（与 T1306 的后续任务对齐）。
-        if args
-            .iter()
-            .any(|a| matches!(a.kind, ast::ExprKind::NamedArg { .. }))
-        {
-            return None;
-        }
-
         let provided = args.len();
         let total = info.params.len();
         if provided >= total {
@@ -2572,22 +2558,92 @@ impl<'a> HirLowering<'a> {
             return None;
         }
 
-        // 仅支持尾部默认参数：未提供的部分必须全部存在 default value。
-        for param in info.params.get(provided..)? {
+        // Kotlin-like：命名实参之后不能再出现位置实参（与 typecheck 对齐；不支持 trailing-lambda 例外）。
+        let mut seen_named = false;
+        let mut positional_count = 0usize;
+        for arg in args {
+            match &arg.kind {
+                ast::ExprKind::NamedArg { .. } => {
+                    seen_named = true;
+                }
+                _ => {
+                    if seen_named {
+                        return None;
+                    }
+                    positional_count += 1;
+                }
+            }
+        }
+        if positional_count > total {
+            return None;
+        }
+
+        // 将调用点的实参映射到形参槽位：
+        // - 位置实参：按序绑定到 [0..positional_count)
+        // - 命名实参：按 name 查找形参槽位
+        let mut param_to_arg: Vec<Option<usize>> = vec![None; total];
+        for arg_idx in 0..positional_count {
+            *param_to_arg.get_mut(arg_idx)? = Some(arg_idx);
+        }
+        for (arg_idx, arg) in args.iter().enumerate().skip(positional_count) {
+            let ast::ExprKind::NamedArg { name, .. } = &arg.kind else {
+                return None;
+            };
+            let name_text = name.text(self.source).to_string();
+            let slot_idx = info.params.iter().position(|p| p.name == name_text)?;
+            let slot = param_to_arg.get_mut(slot_idx)?;
+            if slot.is_some() {
+                // 同一形参不能被重复赋值（位置+命名/命名重复）。
+                return None;
+            }
+            *slot = Some(arg_idx);
+        }
+
+        // 未填充的槽位必须有默认值。
+        for (idx, param) in info.params.iter().enumerate() {
+            if param_to_arg.get(idx)?.is_some() {
+                continue;
+            }
             if param.default_value.is_none() {
                 return None;
             }
         }
 
+        // 反向映射：arg_idx -> param_idx（用于按调用点顺序求值实参）。
+        let mut arg_to_param: Vec<Option<usize>> = vec![None; args.len()];
+        for (param_idx, arg_idx) in param_to_arg.iter().copied().enumerate() {
+            let Some(arg_idx) = arg_idx else {
+                continue;
+            };
+            let slot = arg_to_param.get_mut(arg_idx)?;
+            if slot.is_some() {
+                return None;
+            }
+            *slot = Some(param_idx);
+        }
+        if arg_to_param.iter().any(|x| x.is_none()) {
+            return None;
+        }
+
         // 1) 先把“已提供的实参表达式”按参数名绑定为局部 val，避免重复求值。
-        // 2) 再按顺序求值缺失的默认参数，并同样绑定为局部 val（供后续默认值引用）。
+        //    - 求值顺序：严格按调用点源码顺序（positional + named 的排列）。
+        // 2) 再按形参顺序求值缺失的默认参数，并同样绑定为局部 val（供后续默认值引用）。
         let mut stmts: Vec<Stmt> = Vec::with_capacity(total + 1);
 
-        for (idx, arg) in args.iter().enumerate() {
-            let Some(param) = info.params.get(idx) else {
-                return None;
+        for (arg_idx, arg) in args.iter().enumerate() {
+            let param_idx = arg_to_param.get(arg_idx).copied().flatten()?;
+            let param = info.params.get(param_idx)?;
+            let arg_value = match &arg.kind {
+                ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
+                _ => arg,
             };
-            let init = self.lower_expr(pkg_prefix, arg);
+            let expected = ExpectedExpr {
+                array_lit_target: param
+                    .ty_ref
+                    .as_ref()
+                    .and_then(|t| self.array_lit_target_from_type_ref(t)),
+            };
+            let init = self.lower_expr_with_expected(pkg_prefix, arg_value, expected);
             let param_ty = param
                 .ty_ref
                 .as_ref()
@@ -2609,9 +2665,18 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        for param in info.params.iter().skip(provided) {
+        for (param_idx, param) in info.params.iter().enumerate() {
+            if param_to_arg.get(param_idx)?.is_some() {
+                continue;
+            }
             let default_value = param.default_value.as_ref()?;
-            let init = self.lower_expr(pkg_prefix, default_value);
+            let expected = ExpectedExpr {
+                array_lit_target: param
+                    .ty_ref
+                    .as_ref()
+                    .and_then(|t| self.array_lit_target_from_type_ref(t)),
+            };
+            let init = self.lower_expr_with_expected(pkg_prefix, default_value, expected);
             let param_ty = param
                 .ty_ref
                 .as_ref()

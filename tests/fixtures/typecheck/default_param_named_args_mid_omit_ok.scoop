@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T1323 默认参数允许在使用命名参数时省略中间参数（Kotlin-like）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(a: Int, b: Int = 2, c: Int): Int {
+    return a
+}
+
+val ok1: Int = f(a = 1, c = 3)
+val ok2: Int = f(1, c = 3)
+val ok3: Int = f(c = 3, a = 1)
+

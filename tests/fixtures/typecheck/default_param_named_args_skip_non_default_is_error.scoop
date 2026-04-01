@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_missing_required_args
+// EXPECT-ERROR-AT: 15:16
+// EXPECT-ERROR: 缺少必需参数
+// 目标：T1323 命名参数只能跳过带默认值的形参；跳过非默认参数应报稳定诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun f(a: Int = 1, b: Int, c: Int = 3): Int {
+    return b
+}
+
+val bad: Int = f(c = 3)

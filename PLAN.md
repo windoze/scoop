@@ -28,6 +28,7 @@
 - 2026-04-01：完成 T1320c：sysroot `scoop.io` 新增 `stdoutWriteLine/stderrWriteLine`（写入并追加换行），runtime C 落地并接入 LLVM codegen 映射；新增 typecheck + run-pass fixtures 回归。
 - 2026-04-01：完成 T1320d：sysroot 新增 `scoop.net` 最小声明表面（TCP handle + capability gating），并新增 typecheck fixture 回归。
 - 2026-04-01：完成 T1322：typecheck 放开“命名参数后 trailing lambda”Kotlin-like 例外，并为形参映射补齐 trailing-lambda + 默认参数的 fallback；新增 infer fixtures 覆盖 disambiguate/ambiguous 两类场景回归。
+- 2026-04-01：完成 T1323：默认参数在命名实参语境下支持“中间参数省略”（`f(a = 1, c = 3)`），并新增 typecheck + hir fixtures 回归。
 - 2026-04-01：完成 T1018：基于 T1017 审计结论，`std v1` 与 Kotlin runtime gap 的“纯 Scoop 补齐”目标边界内无 `needs_new_intrinsic` blocker；T1018 作为 gate 任务以 no-op 形式完成（无新增 intrinsic/backends），保留未来出现真实 case 时再 reopen 的策略。
 - 2026-04-01：完成 T1027：sysroot 引入 `scoop.unsafe.__AtomicInt`（内部原子整型）与 `__atomicIntLoad/__atomicIntStore/__atomicIntCompareExchange`，LLVM codegen 直接生成 atomic load/store/cmpxchg（SeqCst）；新增 run-pass fixture `unsafe_atomic_int_basic.*` 回归。
 - 2026-04-01：完成 T1025：sysroot `scoop.unsafe` 补齐 raw pointer 规范 API（`addressOf/stackAlloc` + `Ptr<T>.cast/load/store/plus/minus`）并保留迁移期旧名；typecheck 支持 `var` 形参的 lvalue 门禁（用于 `addressOf(var: T)`）、成员调用显式类型实参，以及在泛型实例化/substitution 中保持 `Ptr<T>` 的 GC-free pointee 门禁；新增/更新 unsafe_nogc fixtures 回归。
@@ -973,11 +974,11 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - collections 设计约束：以 `Array`/`MutableArray` 为底座；`List<T>` 为 `Array<T>` 别名；`Set/Map`（含 mutable）为纯 Scoop（不新增 intrinsics）
 - [ ] Kotlin 风格重载决议兼容：
   - [x] most specific candidate 规则（普通/扩展/构造：T0513 + T1321）
-  - [ ] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
+  - [x] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
   - [ ] 扩展函数、成员函数、构造函数之间的优先级与歧义处理
   - 差异（vs Kotlin）：
     - 当前阶段 resolver 对 `receiver.member(...)` 的 member/extension 优先级仅按“同名存在性”决定，不基于“参数适用性”在 member 不匹配时回退到 extension（完整语义留给 TODO T1508）。
-- [ ] 默认参数：中间参数省略与命名参数联动
+- [x] 默认参数：中间参数省略与命名参数联动
 - [ ] 多 trailing lambda：语法、expected type 与重载决议联动
 - [ ] varargs spread：集合/序列到 vararg 的桥接规则
 - [ ] delegated properties：`lazy`/`observable`/`vetoable` 的线程安全语义与平台 policy

@@ -1,0 +1,10 @@
+package fixtures.hir
+
+import scoop.core.*
+
+fun f(a: Int, b: Int = 2, c: Int): Int {
+    return a
+}
+
+val x: Int = f(a = 1, c = 3)
+
