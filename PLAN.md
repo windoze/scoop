@@ -971,9 +971,11 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - text 重点：`String` 需要支持零拷贝 slicing/substring（例如 `trimStart/trimEnd/trim`），优先考虑“薄 value struct + 共享 `StringData` backing”的表示以避免频繁分配（见 TODO T1513/T1514）
   - collections 设计约束：以 `Array`/`MutableArray` 为底座；`List<T>` 为 `Array<T>` 别名；`Set/Map`（含 mutable）为纯 Scoop（不新增 intrinsics）
 - [ ] Kotlin 风格重载决议兼容：
-  - most specific candidate 规则
-  - 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
-  - 扩展函数、成员函数、构造函数之间的优先级与歧义处理
+  - [x] most specific candidate 规则（普通/扩展/构造：T0513 + T1321）
+  - [ ] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
+  - [ ] 扩展函数、成员函数、构造函数之间的优先级与歧义处理
+  - 差异（vs Kotlin）：
+    - 当前阶段 resolver 对 `receiver.member(...)` 的 member/extension 优先级仅按“同名存在性”决定，不基于“参数适用性”在 member 不匹配时回退到 extension（完整语义留给 TODO T1508）。
 - [ ] 默认参数：中间参数省略与命名参数联动
 - [ ] 多 trailing lambda：语法、expected type 与重载决议联动
 - [ ] varargs spread：集合/序列到 vararg 的桥接规则

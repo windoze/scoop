@@ -5065,11 +5065,21 @@
 - 验收：新增 run-pass fixture：从 `@Extern` 获取函数指针并通过 `FunPtr` 调用（可用 runtime/c 的测试导出函数）；并新增 compile-fail fixture：在 safe context 调用 `FunPtr` 报错。
 - 依赖：T1017、T1018、T1025
 
-### T1321 [TODO] Kotlin 风格重载决议：most specific candidate 规则收口
+### T1321 [DONE] Kotlin 风格重载决议：most specific candidate 规则收口
 - 描述：把通用 overload resolution 收口为 Kotlin 风格的用户可感知规则：最具体候选优先、member/extension/constructor 的优先级固定、歧义行为稳定。
 - 目标：不要求与 Kotlin 每个边角完全一致，但要把 Scoop 采用的差异点写清楚并通过 fixtures 固化。
 - 验收：language fixture：`Int` vs `Any`、member vs extension、constructor overload 的最具体候选行为稳定；文档中列出与 Kotlin 不同处。
 - 依赖：T0513、T0454、T0455
+ - 完成：
+   - typecheck：
+     - `crates/scoopc/src/typecheck/expr.rs`：class ctor overload 在多匹配时引入 most-specific candidate 选择（参数更具体优先；tie-break：默认参数使用更少者优先）。
+   - fixtures：
+     - `tests/fixtures/typecheck/class_ctor_overload_most_specific_int_vs_any_ok.scoop`：覆盖 ctor overload `Int` vs `Any` 的 most-specific 选择。
+   - 文档：
+     - `PLAN.md`：补充 Kotlin overload resolution 的差异说明（member/extension 优先级当前仅按“同名存在性”决定）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1322 [TODO] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
 - 描述：把 T1305/T1306/T1307 与 overload sets 联动：调用时允许这些特性参与候选筛选与 tie-break，而不是只在“唯一目标”前提下工作。

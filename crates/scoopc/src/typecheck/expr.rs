@@ -8121,7 +8121,79 @@ fn infer_class_constructor_call_expr_type(
         }
     }
 
-    let mut matched: Vec<(String, String)> = Vec::new(); // (type fqn, ctor signature)
+    #[derive(Debug, Clone)]
+    struct MatchedCtorOverload {
+        ty_fqn: String,
+        /// `call_args[arg_idx]` 对应的“期望类型”。
+        expected_arg_tys: Vec<TypeId>,
+        /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+        defaults_used: usize,
+        /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
+        signature: String,
+    }
+
+    fn is_strictly_more_specific_ctor_overload(
+        a: &MatchedCtorOverload,
+        b: &MatchedCtorOverload,
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> bool {
+        let a_le_b = a
+            .expected_arg_tys
+            .iter()
+            .zip(b.expected_arg_tys.iter())
+            .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
+        let b_le_a = b
+            .expected_arg_tys
+            .iter()
+            .zip(a.expected_arg_tys.iter())
+            .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
+
+        a_le_b && !b_le_a
+    }
+
+    fn pick_most_specific_ctor_overload(
+        candidates: &[MatchedCtorOverload],
+        lower: &TypeLowering<'_>,
+        builtins: BuiltinTypes,
+    ) -> Option<usize> {
+        // Kotlin-like most-specific：
+        // - 若候选 A 的每个期望实参类型都可赋值到候选 B 的对应期望类型，
+        //   且至少一个位置严格更具体，则认为 A 严格更具体。
+        for (idx, cand) in candidates.iter().enumerate() {
+            let mut ok = true;
+            for (other_idx, other) in candidates.iter().enumerate() {
+                if idx == other_idx {
+                    continue;
+                }
+                if !is_strictly_more_specific_ctor_overload(cand, other, lower, builtins) {
+                    ok = false;
+                    break;
+                }
+            }
+            if ok {
+                return Some(idx);
+            }
+        }
+
+        // tie-break：默认参数更少者优先（“非默认参数优先”）。
+        let min_defaults = candidates
+            .iter()
+            .map(|c| c.defaults_used)
+            .min()
+            .unwrap_or(0);
+        let mut it = candidates
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.defaults_used == min_defaults);
+        let (idx, _) = it.next()?;
+        if it.next().is_some() {
+            return None;
+        }
+        Some(idx)
+    }
+
+    let mut matched: Vec<MatchedCtorOverload> = Vec::new();
 
     for ty_fqn in ctor_types {
         let Some(ctors) = lower.index().constructors.get(&ty_fqn).cloned() else {
@@ -8143,19 +8215,34 @@ fn infer_class_constructor_call_expr_type(
                 continue;
             };
 
+            let mut param_tys: Vec<TypeId> = Vec::with_capacity(ctor.params.len());
+            let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
             let mut ok = true;
+            for p in &ctor.params {
+                let Some(ty_ref) = p.ty.as_ref() else {
+                    ok = false;
+                    break;
+                };
+                let ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
+                param_tys.push(ty);
+                param_ty_strs.push(lower.fmt_type(ty));
+            }
+            if !ok {
+                continue;
+            }
+
+            let mut expected_arg_tys = vec![builtins.nothing; call_args.len()];
             for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
                 let Some(arg_idx) = arg_idx else {
                     continue;
                 };
 
-                let Some(expected_ty_ref) = ctor.params.get(param_idx).and_then(|p| p.ty.as_ref())
-                else {
+                let Some(expected_ty) = param_tys.get(param_idx).copied() else {
                     ok = false;
                     break;
                 };
-                let expected_ty =
-                    lower.lower_type_ref_in_decl_file(&ctor.decl_file, expected_ty_ref)?;
+
+                expected_arg_tys[arg_idx] = expected_ty;
 
                 let arg = &call_args[arg_idx];
                 let found_ty = arg.ty;
@@ -8171,45 +8258,44 @@ fn infer_class_constructor_call_expr_type(
             }
 
             if ok {
-                let mut param_tys: Vec<String> = Vec::with_capacity(ctor.params.len());
-                for p in &ctor.params {
-                    let ty =
-                        p.ty.as_ref()
-                            .map(|t| lower.lower_type_ref_in_decl_file(&ctor.decl_file, t))
-                            .transpose()?
-                            .map(|ty| lower.fmt_type(ty))
-                            .unwrap_or_else(|| "_".to_string());
-                    param_tys.push(ty);
-                }
-
-                matched.push((
-                    ty_fqn.clone(),
-                    format!("{ty_fqn}({})", param_tys.join(", ")),
-                ));
+                let defaults_used = mapping.iter().filter(|a| a.is_none()).count();
+                matched.push(MatchedCtorOverload {
+                    ty_fqn: ty_fqn.clone(),
+                    expected_arg_tys,
+                    defaults_used,
+                    signature: format!("{ty_fqn}({})", param_ty_strs.join(", ")),
+                });
             }
         }
     }
 
-    match matched.len() {
-        0 => Err(ExprTypeError::NoMatchingOverload {
+    if matched.is_empty() {
+        return Err(ExprTypeError::NoMatchingOverload {
             callee: callee_name,
             span: call_expr.span.into(),
-        }),
-        1 => {
-            let (ty_fqn, _) = matched.pop().expect("len == 1");
-            let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
-            Ok(Some(ty))
-        }
-        _ => {
-            let candidates =
-                join_overload_signatures(matched.into_iter().map(|(_, s)| s).collect());
-            Err(ExprTypeError::AmbiguousOverload {
-                callee: callee_name,
-                candidates,
-                span: call_expr.span.into(),
-            })
-        }
+        });
     }
+    if matched.len() == 1 {
+        let ty_fqn = matched
+            .pop()
+            .map(|m| m.ty_fqn)
+            .expect("len == 1");
+        let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
+        return Ok(Some(ty));
+    }
+
+    let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, builtins) else {
+        let candidates = join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+        return Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_name,
+            candidates,
+            span: call_expr.span.into(),
+        });
+    };
+
+    let chosen = matched.swap_remove(idx);
+    let ty = lower.lower_type_fqn_with_args(chosen.ty_fqn, Vec::new(), callee.span)?;
+    Ok(Some(ty))
 }
 
 fn infer_enum_variant_ctor_call_expr_type(
