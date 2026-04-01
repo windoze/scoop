@@ -26,7 +26,7 @@
 - 2026-04-01：完成 T1319e：sysroot 新增 `scoop.task`（`Executor` + `Task<Int>` 最小适配接口），LLVM codegen 将其映射到 `runtime/c/scoop_task_executor.c`；新增 typecheck + run-pass fixtures 回归 task state 与完成回调行为。
 - 2026-04-01：将 `TODO.md` 中 T1320（`std` v4：net/async adapters/testing/utilities）拆分为 T1320a～T1320d，以保持“可单独实现 & 单独验证”的粒度。
 - 2026-04-01：完成 T1320a：sysroot/std 增加 `scoop.test` 最小断言工具（`assertTrue/assertFalse/assertEqInt/assertSomeInt/assertNoneInt`），并新增 typecheck + run-pass fixtures 回归。
-- 2026-04-01：完成 T1320b：sysroot/std 增加 `Executor.spawn/await` 与 `Task<Int>.map/andThen`（v0：Int 专用），并新增 typecheck + run-pass fixtures 回归 async adapters 的基本行为。
+- 2026-04-01：完成 T1320b：sysroot/std 增加 `Executor.spawn/await` 与 `Task<Int>.map/andThen`（v0：Int 专用），并新增 typecheck + run-pass fixtures 回归 async adapters 的基本行为（当前 stdlib 内部用 `__TaskAwaitInt` 作为 escape continuation 适配层；待 TODO T0602b + T1320e 补齐泛型 effect op call 后移除）。
 - 2026-04-01：完成 T1320c：sysroot `scoop.io` 新增 `stdoutWriteLine/stderrWriteLine`（写入并追加换行），runtime C 落地并接入 LLVM codegen 映射；新增 typecheck + run-pass fixtures 回归。
 - 2026-04-01：完成 T1320d：sysroot 新增 `scoop.net` 最小声明表面（TCP handle + capability gating），并新增 typecheck fixture 回归。
 - 2026-04-01：完成 T1322：typecheck 放开“命名参数后 trailing lambda”Kotlin-like 例外，并为形参映射补齐 trailing-lambda + 默认参数的 fallback；新增 infer fixtures 覆盖 disambiguate/ambiguous 两类场景回归。

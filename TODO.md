@@ -5012,6 +5012,18 @@
    - fixtures：
      - `tests/fixtures/typecheck/std_net_tcp_api_surface_ok.scoop`
 
+### T1320e [TODO] `std` v4：移除 `__TaskAwaitInt` 适配层（改用 `Async.await` 泛型 effect op）
+- 描述：当前 `stdlib/task.scoop` 为了绕过 typecheck 对“泛型 effect op call”的限制，引入了内部 effect `__TaskAwaitInt` 来承载 `await` 的 escape continuation 适配（见 `stdlib/task.scoop` 注释）。当 TODO T0602b 落地后，应把这层 workaround 删除，改回规范形态：直接在 stdlib 里捕获/调用 `Async.await(task)`。
+- 目标：
+  - 删除 stdlib 内部 effect `__TaskAwaitInt`，以及所有对它的 `handle { ... } with { __TaskAwaitInt.await(...), k -> ... }` 形态依赖；
+  - `Executor.await/Task.map/Task.andThen` 的实现统一改为围绕 `Async.await(task)` 表达（不改变对外 API surface）；
+  - 保持现有 run-pass fixtures 的可观察行为一致（stdout golden 不变；或若必须变更，给出明确变更理由并同步更新 golden）。
+- 验收：
+  - `tests/fixtures/typecheck/std_task_async_adapters_api_surface_ok.scoop` 仍通过；
+  - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` 仍通过且输出一致；
+  - 新增至少 1 个 typecheck fixture，覆盖在 stdlib 中直接使用 `Async.await(task)` 的路径（避免未来退化回 `__TaskAwaitInt` workaround）。
+- 依赖：T0602b、T1320b
+
 ### T1018 [DONE] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
 - 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
