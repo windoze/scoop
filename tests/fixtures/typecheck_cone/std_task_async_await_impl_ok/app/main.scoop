@@ -1,0 +1,33 @@
+// EXPECT: pass
+//
+// T1320e：`std` v4：stdlib 内部改用 `Async.await(task)`（移除 `__TaskAwaitInt` workaround）
+//
+// 目标：
+// - 在 typecheck_cone 用例中模拟 sysroot（cone 0）+ stdlib（cone 2）+ app（cone 1）；
+// - 通过调用 `Executor.await/Task.map/Task.andThen` 触发对“has_body=true 实现”的选择，
+//   避免 sysroot 的 decl-only overload 与 stdlib 实现共同参与决议导致歧义；
+// - 同时确保 stdlib 的 `Async.await(task)` + handler arm head `Async.await(task), k ->` 能通过 typecheck。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.task.*
+
+fun main(): Int {
+    val ex: Executor = executorCreate()
+    val exitCode: Int = try {
+        val t: Task<Int> = ex.spawn { 1 }
+        val t2: Task<Int> = t.map(ex) { v -> v + 1 }
+        val t3: Task<Int> = t2.andThen(ex) { v -> ex.spawn { v + 10 } }
+        val r: Int = ex.await(t3)
+        val _unused: Int = r
+        0
+    } catch (e: RuntimeError) {
+        val _unused: RuntimeError = e
+        1
+    }
+
+    ex.destroy()
+    return exitCode
+}
+

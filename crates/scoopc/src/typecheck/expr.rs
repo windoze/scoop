@@ -3016,7 +3016,13 @@ fn infer_operator_overload_binary_expr_type(
             });
         }
 
-        check_fn_value_to_any_erasure_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
+        check_fn_value_to_any_erasure_gate(
+            found_rhs_ty,
+            expected_rhs_ty,
+            rhs.span,
+            lower,
+            builtins,
+        )?;
         check_nogc_boxing_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
     }
 
@@ -4191,12 +4197,16 @@ fn infer_handle_expr_type(
         //
         // 说明：当前 handler arm 的 v0 规则里：
         // - effect type args 仍需要被确定（用于 handled effect 实例与捕获匹配）；
-        // - op type args 允许保持为“未实例化的 type params”（便于表达多态 handler）。
+        // - op type args 默认允许保持为“未实例化的 type params”（便于表达多态 handler）；
+        //   但当 binder 提供了参数类型注解（`Effect.op(x: T, ...)`）时，允许用这些注解反推并实例化 op type args，
+        //   以支持编写“只处理某个具体实例”的 handler（例如在 stdlib 中只处理 `Task<Int>` 的 `Async.await`）。
         let mut bindings: Vec<(String, TypeId)> = Vec::new();
+        let mut op_type_params: Vec<TypeId> = Vec::new();
         for tp in &op.sig.type_params {
             let param_ty =
                 lower.ty_param_named(tp.name.clone(), op.symbol.decl_file.clone(), tp.name_span);
             bindings.push((tp.name.clone(), param_ty));
+            op_type_params.push(param_ty);
         }
 
         let mut type_params: Vec<TypeId> = Vec::new();
@@ -4332,7 +4342,7 @@ fn infer_handle_expr_type(
         };
 
         // 6) 基于 type args 实例化 op 参数类型，并计算 handled effect 的实例类型。
-        let instantiated = if !type_params.is_empty() && type_args.len() == type_params.len() {
+        let mut instantiated = if !type_params.is_empty() && type_args.len() == type_params.len() {
             let mut params = sig.params.clone();
             let mut return_ty = sig.return_ty;
             for (param_ty, arg_ty) in type_params.iter().copied().zip(type_args.iter().copied()) {
@@ -4358,6 +4368,103 @@ fn infer_handle_expr_type(
 
         let handled_effect =
             lower.lower_type_fqn_with_args(effect_fqn, instantiated.type_args.clone(), arm.span)?;
+
+        // 6b) 若 binder 提供了参数类型注解，尝试进一步实例化 **op 自身的** type params。
+        //
+        // 说明：
+        // - handler arm head 语法不支持 `op<T>(...)` 的显式类型实参；因此这里只能通过 binder 的类型注解反推；
+        // - 若无法从注解中推断出某个 op type param，则保留为未实例化的 type param（仍可表达多态 handler）。
+        if !op_type_params.is_empty() {
+            #[derive(Debug, Clone)]
+            struct InferredTypeArgSource {
+                from: String,
+                span: Span,
+            }
+
+            let mut inferred: HashMap<TypeId, (TypeId, InferredTypeArgSource)> = HashMap::new();
+
+            // 仅从 binder 的类型注解生成约束：未注解的 binder 仍视为多态。
+            let mut constraints: Vec<GenericArgConstraint> = Vec::new();
+            for (param_idx, binder) in arm.op.binders.iter().enumerate() {
+                let Some(ty_ref) = binder.ty.as_ref() else {
+                    continue;
+                };
+                let binder_ty = lower.lower_type_ref(ty_ref)?;
+                constraints.push(GenericArgConstraint {
+                    expected: instantiated
+                        .params
+                        .get(param_idx)
+                        .copied()
+                        .unwrap_or(builtins.unit),
+                    found: binder_ty,
+                    found_is_placeholder: false,
+                    from: format!("handler arm 第 {} 个 binder", param_idx + 1),
+                    span: binder.span,
+                });
+            }
+
+            for c in constraints {
+                for param_ty in op_type_params.iter().copied() {
+                    let mut candidates: Vec<TypeId> = Vec::new();
+                    collect_type_arg_candidates_for_single_type_param(
+                        c.expected,
+                        c.found,
+                        param_ty,
+                        &mut candidates,
+                        lower,
+                        builtins,
+                        c.found_is_placeholder,
+                    );
+
+                    for candidate in candidates {
+                        if let Some((bound, src)) = inferred.get_mut(&param_ty) {
+                            if *bound == candidate {
+                                continue;
+                            }
+
+                            let param_name = type_param_name(param_ty, lower);
+                            return Err(ExprTypeError::GenericTypeArgInferenceConflict {
+                                callee: callee_fqn.clone(),
+                                param: param_name,
+                                left: lower.fmt_type(*bound),
+                                right: lower.fmt_type(candidate),
+                                left_from: src.from.clone(),
+                                right_from: c.from.clone(),
+                                span: c.span.into(),
+                                previous: src.span.into(),
+                            });
+                        }
+
+                        inferred.insert(
+                            param_ty,
+                            (
+                                candidate,
+                                InferredTypeArgSource {
+                                    from: c.from.clone(),
+                                    span: c.span,
+                                },
+                            ),
+                        );
+                    }
+                }
+            }
+
+            for param_ty in op_type_params.iter().copied() {
+                let Some((arg_ty, _)) = inferred.get(&param_ty) else {
+                    continue;
+                };
+                for p in &mut instantiated.params {
+                    *p = substitute_single_type_param(*p, param_ty, *arg_ty, lower, arm.span)?;
+                }
+                instantiated.return_ty = substitute_single_type_param(
+                    instantiated.return_ty,
+                    param_ty,
+                    *arg_ty,
+                    lower,
+                    arm.span,
+                )?;
+            }
+        }
 
         // 7) binder 数量校验。
         if arm.op.binders.len() != instantiated.params.len() {
@@ -4862,7 +4969,9 @@ fn infer_expr_type_in_expected_context(
             }
 
             // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-            if matches!(element.kind, ast::ExprKind::IntLit) && is_integer_type(element_ty, lower, builtins) {
+            if matches!(element.kind, ast::ExprKind::IntLit)
+                && is_integer_type(element_ty, lower, builtins)
+            {
                 continue;
             }
 
@@ -5020,8 +5129,7 @@ fn try_infer_lambda_expr_type_by_expected(
 
     let mut lambda_locals = locals.clone();
     let mut param_tys: Vec<TypeId> = Vec::new();
-    let kind_param_count_limit =
-        "lambda（当前仅支持 0/1/2 参数，且参数类型需来自期望函数类型）";
+    let kind_param_count_limit = "lambda（当前仅支持 0/1/2 参数，且参数类型需来自期望函数类型）";
 
     match expected_fun.params.len() {
         0 => {
@@ -5833,7 +5941,11 @@ fn missing_required_param_names_in_named_call(
         }
     }
 
-    if missing.is_empty() { None } else { Some(missing) }
+    if missing.is_empty() {
+        None
+    } else {
+        Some(missing)
+    }
 }
 
 /// 检查调用点的命名参数规则（Kotlin-like）。
@@ -6513,7 +6625,13 @@ fn infer_function_value_call_expr_type(
     {
         let expected_ty = fun.params[idx];
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
-            check_fn_value_to_any_erasure_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+            check_fn_value_to_any_erasure_gate(
+                found_ty,
+                expected_ty,
+                arg.expr.span,
+                lower,
+                builtins,
+            )?;
             check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             continue;
         }
@@ -6683,7 +6801,13 @@ fn infer_funptr_type_call_expr_type(
     {
         let expected_ty = fun.params[idx];
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
-            check_fn_value_to_any_erasure_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+            check_fn_value_to_any_erasure_gate(
+                found_ty,
+                expected_ty,
+                arg.expr.span,
+                lower,
+                builtins,
+            )?;
             check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             continue;
         }
@@ -7030,10 +7154,9 @@ fn check_var_param_lvalue_gate(
     fn is_addressable_lvalue(expr: &ast::Expr) -> bool {
         match &expr.kind {
             ast::ExprKind::Ident(id) => id.resolved.is_some(),
-            ast::ExprKind::MemberAccess { member, .. } => matches!(
-                member.resolved,
-                Some(ast::ResolvedMemberRef::Value { .. })
-            ),
+            ast::ExprKind::MemberAccess { member, .. } => {
+                matches!(member.resolved, Some(ast::ResolvedMemberRef::Value { .. }))
+            }
             _ => false,
         }
     }
@@ -7565,15 +7688,16 @@ fn infer_call_expr_type(
                     });
                 }
 
-                let mut instantiated = instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                    &callee_fqn,
-                    call_expr.span,
-                    sig,
-                    explicit_type_args.as_deref(),
-                    generic_constraints,
-                    lower,
-                    builtins,
-                )?;
+                let mut instantiated =
+                    instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                        &callee_fqn,
+                        call_expr.span,
+                        sig,
+                        explicit_type_args.as_deref(),
+                        generic_constraints,
+                        lower,
+                        builtins,
+                    )?;
 
                 // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
                 let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
@@ -7934,7 +8058,12 @@ fn infer_call_expr_type(
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
                     if arg.is_spread {
-                        if !cand.param_is_vararg.get(param_idx).copied().unwrap_or(false) {
+                        if !cand
+                            .param_is_vararg
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
                             ok = false;
                             break;
                         }
@@ -7966,18 +8095,19 @@ fn infer_call_expr_type(
                     continue;
                 }
 
-                let mut instantiated = match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
-                    &callee_fqn,
-                    call_expr.span,
-                    cand,
-                    explicit_type_args.as_deref(),
-                    generic_constraints,
-                    lower,
-                    builtins,
-                ) {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                };
+                let mut instantiated =
+                    match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                        &callee_fqn,
+                        call_expr.span,
+                        cand,
+                        explicit_type_args.as_deref(),
+                        generic_constraints,
+                        lower,
+                        builtins,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    };
 
                 // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
@@ -8243,7 +8373,13 @@ fn infer_call_expr_type(
                     continue;
                 }
                 if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
-                    check_fn_value_to_any_erasure_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
+                    check_fn_value_to_any_erasure_gate(
+                        arg.ty,
+                        expected_ty,
+                        arg.expr.span,
+                        lower,
+                        builtins,
+                    )?;
                     check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
                 }
             }
@@ -8779,16 +8915,14 @@ fn infer_class_constructor_call_expr_type(
         });
     }
     if matched.len() == 1 {
-        let ty_fqn = matched
-            .pop()
-            .map(|m| m.ty_fqn)
-            .expect("len == 1");
+        let ty_fqn = matched.pop().map(|m| m.ty_fqn).expect("len == 1");
         let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
         return Ok(Some(ty));
     }
 
     let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, builtins) else {
-        let candidates = join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+        let candidates =
+            join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
         return Err(ExprTypeError::AmbiguousOverload {
             callee: callee_name,
             candidates,
@@ -9151,13 +9285,7 @@ pub(super) fn lower_type_ref_with_enum_subst(
             };
 
             let effects_closed = f.effects.as_ref().is_some_and(|r| r.closed);
-            Ok(lower.ty_function(
-                receiver,
-                params,
-                return_ty,
-                effects,
-                effects_closed,
-            ))
+            Ok(lower.ty_function(receiver, params, return_ty, effects, effects_closed))
         }
     }
 }
@@ -9427,8 +9555,11 @@ fn infer_effect_op_call_expr_type(
         });
     };
 
-    let effect_instance =
-        lower.lower_type_fqn_with_args(effect_ty_fqn.to_string(), effect_type_args, call_expr.span)?;
+    let effect_instance = lower.lower_type_fqn_with_args(
+        effect_ty_fqn.to_string(),
+        effect_type_args,
+        call_expr.span,
+    )?;
     lower.record_performed_effect(effect_instance, call_expr.span);
 
     Ok(Some(instantiated.return_ty))
@@ -10305,11 +10436,7 @@ fn infer_member_call_expr_type(
         }
 
         // T0712：记录该泛型扩展函数调用产生的 monomorph key（用于后续生成专用实例）。
-        lower.record_monomorph_call(
-            callee_fqn.clone(),
-            sig.decl_span,
-            &instantiated.type_args,
-        );
+        lower.record_monomorph_call(callee_fqn.clone(), sig.decl_span, &instantiated.type_args);
 
         let ret = if safe {
             lower.ty_option(instantiated.return_ty)
@@ -10819,7 +10946,13 @@ fn infer_member_call_expr_type(
             continue;
         }
         if is_type_assignable(arg.ty, expected_ty, lower, builtins) {
-            check_fn_value_to_any_erasure_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
+            check_fn_value_to_any_erasure_gate(
+                arg.ty,
+                expected_ty,
+                arg.expr.span,
+                lower,
+                builtins,
+            )?;
             check_nogc_boxing_gate(arg.ty, expected_ty, arg.expr.span, lower, builtins)?;
         }
     }
@@ -11493,9 +11626,10 @@ fn substitute_single_type_param(
                 if let Some(pointee) = args.first().copied() {
                     // 与 TypeLowering::check_ptr_pointee_gc_free 一致：允许 sysroot 内部未实例化的 `Ptr<T>` 出现在签名中。
                     if let TypeKind::Param(p) = lower.type_kind(pointee) {
-                        if p.decl_file.components().any(|c| {
-                            c.as_os_str() == std::ffi::OsStr::new("sysroot")
-                        }) {
+                        if p.decl_file
+                            .components()
+                            .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
+                        {
                             // ok
                         } else if !lower.is_gc_free_value_type(pointee)? {
                             return Err(TypeLowerError::PtrPointeeMustBeGcFree {
@@ -11563,9 +11697,10 @@ fn substitute_single_type_param(
             if nominal.fqn == PTR_FQN {
                 if let Some(pointee) = args.first().copied() {
                     if let TypeKind::Param(p) = lower.type_kind(pointee) {
-                        if p.decl_file.components().any(|c| {
-                            c.as_os_str() == std::ffi::OsStr::new("sysroot")
-                        }) {
+                        if p.decl_file
+                            .components()
+                            .any(|c| c.as_os_str() == std::ffi::OsStr::new("sysroot"))
+                        {
                             // ok
                         } else if !lower.is_gc_free_value_type(pointee)? {
                             return Err(TypeLowerError::PtrPointeeMustBeGcFree {
@@ -11646,13 +11781,7 @@ fn substitute_single_type_param(
                 return Ok(ty);
             }
 
-            Ok(lower.ty_function(
-                receiver,
-                params,
-                return_ty,
-                effects,
-                fun.effects_closed,
-            ))
+            Ok(lower.ty_function(receiver, params, return_ty, effects, fun.effects_closed))
         }
         TypeKind::Ref(RefTypeKind::Union(union)) => {
             let mut changed = false;

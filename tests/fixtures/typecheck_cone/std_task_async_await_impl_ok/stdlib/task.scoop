@@ -1,14 +1,12 @@
-// Scoop stdlib（pure scoop）：Task/executor async adapters v0
+// EXPECT: pass
 //
-// 目标（TODO T1320b）：
-// - 在 stdlib 层为 `Task<Int>`/`Executor` 提供最小的组合子与桥接工具：
-//   - `spawn`：create + tryStart
-//   - `await`：驱动 executor 直到 task 完成（早期阶段的“阻塞式等待”）
-//   - `map/andThen`：最小可组合工具，便于样例/fixtures 书写
+// T1320e：`std` v4：移除 `__TaskAwaitInt` 适配层（改用 `Async.await` 泛型 effect op）
 //
-// 重要限制（与其它 stdlib v1 一致）：
-// - 由于 LLVM 后端 multi-file lowering 仍会拒绝“非入口文件中的 source-backed literals”，
-//   本文件中避免出现任何 Int/String 字面量；所需常量通过 `sizeOf(Int)` 派生得到。
+// 说明：
+// - 该文件以“独立 cone 的 stdlib 实现”形式存在，用于在不启用 LLVM 后端的情况下回归：
+//   - stdlib 代码可直接调用 `Async.await(task)`；
+//   - stdlib 可在 handler arm head 捕获 `Async.await(task), k ->` 并把 continuation 注册到 `task.onComplete`；
+//   - `Executor.await` 可用 handler 捕获 `Async.await` 表达“阻塞式等待”语义（不再依赖自定义 effect op）。
 
 package scoop.task
 
@@ -36,11 +34,6 @@ fun Executor.spawn(block: () -> Int): Task<Int> {
 /// - 若 executor 无可运行 job 但 task 仍未完成，则视为 deadlock（或缺失 I/O driver），
 ///   通过 `Raise.raise(RuntimeError.NullAssertionFailed)` 终止。
 fun Executor.await(task: Task<Int>): Int / Raise<RuntimeError> {
-    // 说明：
-    // - 规范层面 `await` 是 `perform Async.await(task)`（见 `scoop.core.Async`）；
-    // - `Executor.await` 在 stdlib v0 阶段提供“阻塞式等待”：驱动 executor 直到 task 完成；
-    // - 为避免在 handler arm 的 block expression 内引入 `while`（当前阶段 typecheck 对该形态仍有限制），
-    //   这里先在函数体内完成“驱动 executor”工作，再用一个非恢复 arm 把最终取值统一表达为 `Async.await(task)`。
     val _ = task.tryStart(this)
 
     // runtime/c/scoop_task_executor.c:

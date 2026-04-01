@@ -4980,7 +4980,7 @@
    - sysroot：
      - `sysroot/task.scoop`：补齐 `Executor.spawn/await` 与 `Task<Int>.map/andThen` 的声明表面（typecheck 可见）。
    - stdlib：
-     - `stdlib/task.scoop`：落地 `spawn/await/map/andThen` 的 pure-scoop 实现（内部用 `__TaskAwaitInt` 承载 escape continuation 适配；根因是当前 typecheck 不支持泛型 effect op call：`Async.await<T>`，见 TODO T0602b）。
+     - `stdlib/task.scoop`：落地 `spawn/await/map/andThen` 的 pure-scoop 实现（初版为兼容旧 typecheck 曾使用 `__TaskAwaitInt` workaround；已在 T1320e 中清理并改为 `Async.await(task)`）。
    - fixtures：
      - `tests/fixtures/typecheck/std_task_async_adapters_api_surface_ok.scoop`
      - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop/.stdout`
@@ -5019,7 +5019,7 @@
    - fixtures：
      - `tests/fixtures/typecheck/std_net_tcp_api_surface_ok.scoop`
 
-### T1320e [TODO] `std` v4：移除 `__TaskAwaitInt` 适配层（改用 `Async.await` 泛型 effect op）
+### T1320e [DONE] `std` v4：移除 `__TaskAwaitInt` 适配层（改用 `Async.await` 泛型 effect op）
 - 描述：当前 `stdlib/task.scoop` 为了绕过 typecheck 对“泛型 effect op call”的限制，引入了内部 effect `__TaskAwaitInt` 来承载 `await` 的 escape continuation 适配（见 `stdlib/task.scoop` 注释）。当 TODO T0602b 落地后，应把这层 workaround 删除，改回规范形态：直接在 stdlib 里捕获/调用 `Async.await(task)`。
 - 目标：
   - 删除 stdlib 内部 effect `__TaskAwaitInt`，以及所有对它的 `handle { ... } with { __TaskAwaitInt.await(...), k -> ... }` 形态依赖；
@@ -5030,6 +5030,18 @@
   - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop` 仍通过且输出一致；
   - 新增至少 1 个 typecheck fixture，覆盖在 stdlib 中直接使用 `Async.await(task)` 的路径（避免未来退化回 `__TaskAwaitInt` workaround）。
 - 依赖：T0602b、T1320b
+ - 完成：
+   - typecheck：
+     - `crates/scoopc/src/typecheck/expr.rs`：handle arm head 支持从 binder 的类型注解反推并实例化 op 自身的 type params，使 stdlib 可写 `Async.await(task: Task<Int>), k -> { ... }` 并在 arm body 内调用 `Task<Int>.onComplete/tryStart` 等 API。
+   - stdlib：
+     - `stdlib/task.scoop`：移除 `__TaskAwaitInt`；`Task<Int>.map/andThen` 的 handler arm head 改为捕获 `Async.await(task)` 并注册 `task.onComplete(executor, k)`；`Executor.await` 用 handler 统一表达 `Async.await(task)`（驱动循环仍在函数体内）。
+   - fixtures：
+     - `tests/fixtures/typecheck_cone/std_task_async_await_impl_ok/app/main.scoop`
+     - `tests/fixtures/typecheck_cone/std_task_async_await_impl_ok/stdlib/task.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - 备注：当前环境无 `llvm-config`，因此未能执行 `cargo run -p scoop --features llvm -- test`；run-pass phase 在未启用 LLVM 后端时只做 golden 文件可读性校验。
 
 ### T1018 [DONE] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
