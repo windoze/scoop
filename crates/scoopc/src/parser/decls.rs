@@ -1131,7 +1131,20 @@ impl<'a> Parser<'a> {
                 false
             };
 
-            let name_tok = self.expect_kind(TokenKind::Ident, "参数名（标识符）")?;
+            // spec §15.9.4：`addressOf(var: T)` 这类 intrinsic 使用形参名 `var` 来表达
+            // “该实参位置必须是可寻址变量（lvalue）”的约束。
+            //
+            // 为支持 sysroot 声明此类 API，这里允许把关键字 `var` 当作参数名解析。
+            let name_tok = if self.peek_kind(TokenKind::Ident) || self.peek_keyword(Keyword::Var) {
+                self.bump()
+            } else {
+                let tok = *self.peek();
+                return Err(ParseError::Expected {
+                    expected: "参数名（标识符或 `var`）",
+                    found: tok.kind,
+                    span: tok.span.into(),
+                });
+            };
             let name = ast::Ident::new(name_tok.span);
 
             let ty = if self.eat_symbol(Symbol::Colon) {

@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ptr_pointee_must_be_gc_free
+// EXPECT-ERROR-AT: 10:18
+// EXPECT-ERROR: GC-free
+
+package fixtures.unsafe_nogc
+import scoop.unsafe.*
+fun demo() {
+    @Unsafe {
+        val _p = stackAlloc<String>()
+    }
+}

@@ -2,14 +2,20 @@
 
 package fixtures.unsafe_nogc
 
-struct Ptr<T>
+import scoop.unsafe.*
 
 fun demo() {
     var x: Int = 1
     @Unsafe {
-        val p = addrOf(x)
-        val y = load(p)
-        store(p, y + 1)
+        val p: Ptr<Int> = addressOf(x)
+        val y: Int = p.load()
+        p.store(y + 1)
+
+        val p2: Ptr<Int> = p.plus(1)
+        val _p2b: Ptr<Int> = p2.minus(1)
+        val _p3: Ptr<Int> = p.cast<Int>()
+
+        val s: Ptr<Int> = stackAlloc<Int>()
+        s.store(0)
     }
 }
-

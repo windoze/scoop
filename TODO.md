@@ -5027,7 +5027,7 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`
 
-### T1025 [TODO] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
+### T1025 [DONE] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
 - 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：
   - `addressOf(var: T): Ptr<T>`
   - `Ptr<T>.cast/load/store`
@@ -5038,6 +5038,23 @@
   - typecheck 必须保持 unsafe context 门禁与 `Ptr<T>` 的 GC-free 限制不被绕过。
 - 验收：新增 unsafe_nogc fixtures 覆盖新 API 的 pass/fail；并保持旧 fixtures 仍可回归（或提供自动迁移脚本后一次性更新 fixtures）。
 - 依赖：T1017、T1018
+ - 完成：
+   - sysroot：
+     - `sysroot/unsafe.scoop`：补齐 `addressOf/stackAlloc` 与 `Ptr<T>.cast/load/store/plus/minus` 的声明表面，并保留迁移期旧名 `addrOf/load/store`。
+   - parser：
+     - `crates/scoopc/src/parser/decls.rs`：允许在形参位置把关键字 `var` 解析为参数名，以支持 sysroot 声明 `addressOf(var: T)` 的约定语法。
+   - typecheck：
+     - `crates/scoopc/src/typecheck/expr.rs`：
+       - 新增 `var` 形参的 lvalue 门禁（错误码 `scoop::typecheck::var_param_requires_lvalue`）；
+       - 扩展成员调用支持显式类型实参（`p.cast<T>()`）；
+       - 泛型实例化支持多 type params + 迁移期“部分显式类型实参 + 其余推断”的路径；
+       - 在泛型 substitution 中补齐 `Ptr<T>` 的 GC-free pointee 门禁，避免通过 `cast/stackAlloc/uintPtrToPtr` 绕过。
+   - fixtures：
+     - 更新 `tests/fixtures/unsafe_nogc/unsafe_ptr_primitives_*` 以覆盖新 API；
+     - 新增 compile-fail fixtures：`var` 形参 lvalue 门禁、`Ptr<T>` GC-free 门禁（cast/stackAlloc）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1026 [BLOCKED] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
 - 描述：新增 `FunPtr<F>`（值类型、GC-free）与调用约定：

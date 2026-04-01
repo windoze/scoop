@@ -1,13 +1,12 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsafe_ptr_primitive_requires_unsafe
+// EXPECT-ERROR-CODE: scoop::typecheck::unsafe_call_requires_unsafe
 // EXPECT-ERROR-AT: 11:13
 // EXPECT-ERROR: 需要 unsafe context
 
 package fixtures.unsafe_nogc
-
+import scoop.unsafe.*
 @Unsafe
 fun f() {
     var x: Int = 1
-    @Safe { addrOf(x) }
+    @Safe { addressOf(x) }
 }
-

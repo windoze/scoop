@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::var_param_requires_lvalue
+// EXPECT-ERROR-AT: 11:25
+// EXPECT-ERROR: 需要传入可寻址变量
+
+package fixtures.unsafe_nogc
+
+import scoop.unsafe.*
+
+fun demo() {
+    @Unsafe { addressOf(1) }
+}

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ptr_pointee_must_be_gc_free
+// EXPECT-ERROR-AT: 12:18
+// EXPECT-ERROR: GC-free
+
+package fixtures.unsafe_nogc
+import scoop.unsafe.*
+fun demo() {
+    var x: Int = 1
+    @Unsafe {
+        val p: Ptr<Int> = addressOf(x)
+        val _q = p.cast<String>()
+    }
+}

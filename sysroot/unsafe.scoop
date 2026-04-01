@@ -13,6 +13,60 @@ import scoop.core.*
 @Intrinsic
 struct Ptr<T>
 
+// ---- Raw pointers（spec §15.9.4）----
+//
+// 说明：
+// - 当前阶段 pointer API 以 “extension fun” 的形式提供，以便在 member call lowering
+//   未完全覆盖的早期阶段也能通过 `p.load()`/`p.store(...)` 的点调用风格使用；
+// - 这些 API 均为 intrinsic：sysroot 只提供声明表面；具体 lowering/ABI/运行期语义由
+//   后续 codegen/runtime 任务补齐；
+// - 所有 raw pointer 操作均为 `@NoGC @Unsafe`：只能在 unsafe context 使用。
+
+/// Unsafe pointer casts. The caller must uphold all invariants.
+@Intrinsic @NoGC @Unsafe
+fun <U, T> Ptr<T>.cast(): Ptr<U>
+
+/// Unsafe memory load. The caller must ensure the pointer is valid.
+@Intrinsic @NoGC @Unsafe
+fun <T> Ptr<T>.load(): T
+
+/// Unsafe memory store. The caller must ensure the pointer is valid.
+@Intrinsic @NoGC @Unsafe
+fun <T> Ptr<T>.store(value: T): Unit
+
+/// Pointer arithmetic in units of `T` (not bytes).
+@Intrinsic @NoGC @Unsafe
+fun <T> Ptr<T>.plus(offset: Int): Ptr<T>
+
+/// Pointer arithmetic in units of `T` (not bytes).
+@Intrinsic @NoGC @Unsafe
+fun <T> Ptr<T>.minus(offset: Int): Ptr<T>
+
+/// Address-of intrinsic: takes the address of a variable slot.
+///
+/// 约定：参数名 `var` 表示调用点实参必须是可寻址变量（lvalue）。
+@Intrinsic @NoGC @Unsafe
+fun <T> addressOf(var: T): Ptr<T>
+
+/// Stack allocation intrinsic: allocates space for a GC-free `T` on the stack and returns its address.
+@Intrinsic @NoGC @Unsafe
+fun <T> stackAlloc(): Ptr<T>
+
+// ---- Compat（迁移期旧名）----
+//
+// 说明：
+// - 兼容早期阶段（T1009）以“自由函数”形态提供的 `addrOf/load/store`；
+// - 新代码建议使用 `addressOf` 与 `Ptr<T>.load/store`。
+
+@Intrinsic @NoGC @Unsafe
+fun <T> addrOf(var: T): Ptr<T>
+
+@Intrinsic @NoGC @Unsafe
+fun <T> load(p: Ptr<T>): T
+
+@Intrinsic @NoGC @Unsafe
+fun <T> store(p: Ptr<T>, value: T): Unit
+
 /// 指针 → UIntPtr（只能在 unsafe context 使用；spec §15.9.4）。
 @Intrinsic @NoGC @Unsafe
 fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
@@ -26,9 +80,9 @@ fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 // 说明：
 // - 这些类型/函数是 “sysroot/runtime 内部约定”，主要用于 runtime/FFI 的全局状态；
 // - `__AtomicInt` 与 `Int` 具有相同的内存布局（typealias），以便在 codegen 侧直接生成 LLVM 原子指令；
-// - 当前阶段没有引入 `addressOf(var: T)`/`Ptr<T>.load/store` 的完整规范 API（见 TODO T1025），
-//   因此这里把原子操作设计为：以“第一个实参必须是可寻址变量槽（lvalue）”为约束，由编译器在 codegen
-//   阶段直接对该变量的存储位置生成 atomic load/store/cmpxchg。
+// - raw pointers（`Ptr<T>`）的完整规范 API 已在本文件上方提供（`addressOf/stackAlloc/load/store/...`）；
+// - 但原子操作仍采用“第一个实参必须是可寻址变量槽（lvalue）”的约束，由编译器在 codegen 阶段直接对该变量
+//   的存储位置生成 atomic load/store/cmpxchg（避免引入新的原子内存布局或额外指针门禁点）。
 
 /// word-sized atomic integer. Same layout as `Int`.
 typealias __AtomicInt = Int

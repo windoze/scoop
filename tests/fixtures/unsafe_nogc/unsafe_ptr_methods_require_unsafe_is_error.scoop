@@ -1,13 +1,10 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::unsafe_call_requires_unsafe
-// EXPECT-ERROR-AT: 12:13
+// EXPECT-ERROR-AT: 9:12
 // EXPECT-ERROR: 需要 unsafe context
 
 package fixtures.unsafe_nogc
-
 import scoop.unsafe.*
-
-fun demo() {
-    var x: Int = 1
-    val p = addressOf(x)
+fun safe(p: Ptr<Int>): Int {
+    return p.load()
 }
