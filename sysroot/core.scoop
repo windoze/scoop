@@ -64,6 +64,13 @@ fun <T> Array<T>.get(index: Int): T
 fun <T> MutableArray<T>.size(): Int
 fun <T> MutableArray<T>.get(index: Int): T
 fun <T> MutableArray<T>.set(index: Int, value: T): Unit
+
+// `MutableArray` → `Array`：显式桥接（T1325a）。
+//
+// 说明：
+// - 该 API 由 stdlib 提供实现（pure scoop），sysroot 在此提供声明面用于名字解析与类型检查；
+// - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
+fun MutableArray<Int>.toArray(): Array<Int>
 // 编译期列表（spec §6.4）。
 //
 // 说明：

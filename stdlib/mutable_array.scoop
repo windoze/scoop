@@ -61,6 +61,28 @@ fun __stdlib_int_one(sample: Int): Int {
 
 // --- MutableArray：扩展操作（pure scoop） ---
 
+/// 把 `MutableArray<Int>` 拷贝为 `Array<Int>`（只读集合）。
+///
+/// 说明：
+/// - 用于 vararg spread 的显式桥接（T1325a）：`f(*xs.toArray())`；
+/// - v0 采用复制语义，避免把可变集合别名“隐式泄漏”为只读集合；
+/// - 当前阶段仅提供 `Int` 专用落点（与 stdlib 其它集合一致）。
+fun MutableArray<Int>.toArray(): Array<Int> {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    val b: Any = __scoop_array_builder_new()
+    var i: Int = zero
+    while (i < n) {
+        // 说明：显式写出 `v: Int`，让 builder push 的 expected type 稳定（与 `asSet()` 同策略）。
+        val v: Int = this.get(i)
+        __scoop_array_builder_push(b, v)
+        i = i + one
+    }
+    return __scoop_array_builder_build_array(b)
+}
+
 /// 追加一个元素，返回新数组。
 fun MutableArray<Int>.push(value: Int): MutableArray<Int> {
     val n: Int = this.size()

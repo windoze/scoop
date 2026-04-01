@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 目标：T1325a vararg spread 显式桥接（MutableArray/MutableList.toArray）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun sum(vararg xs: Int): Int {
+    // 当前阶段只回归“调用点语义”，不要求在函数体内访问 `xs`。
+    return 0
+}
+
+fun checkBridge(): Unit {
+    val xs: MutableArray<Int> = [1, 2, 3]
+    val ys: MutableList<Int> = [4, 5, 6]
+
+    val a: Int = sum(*xs.toArray())
+    val b: Int = sum(*ys.toArray())
+    return ()
+}

@@ -5162,7 +5162,7 @@
 
 > 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1325a [TODO] varargs spread：`MutableArray/MutableList` → `Array` 的显式桥接（`toArray()`）
+### T1325a [DONE] varargs spread：`MutableArray/MutableList` → `Array` 的显式桥接（`toArray()`）
 - 描述：在 stdlib 为 `MutableArray<Int>` 提供 `toArray(): Array<Int>`（复制语义），使其可在调用点通过 `*xs.toArray()` 参与 vararg spread。
 - 目标：只提供 `Int` 专用落点；不改变现有 spread 规则（仍只接受 `Array/tuple`）；不新增 intrinsic。
 - 验收：
@@ -5170,6 +5170,13 @@
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T1308、T1317
+ - 完成：
+   - `sysroot/core.scoop`：增加 `MutableArray<Int>.toArray(): Array<Int>` 声明面，供 resolver/typecheck 可见；
+   - `stdlib/mutable_array.scoop`：落地 `toArray()` 的复制实现（避免 aliasing）；
+   - fixtures：新增 `tests/fixtures/typecheck/vararg_spread_mutable_array_to_array_bridge_ok.scoop` 覆盖 `MutableArray/MutableList` 两种 receiver。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1325b [TODO] varargs spread：对常见集合提供“缺失桥接”的迁移诊断
 - 描述：当 `*xs` 的 `xs` 为 `MutableArray/MutableList/MutableSet/MutableMap` 等常见集合类型时，诊断提示应使用约定转换（例如 `toArray()/asSet()/asMapView()`）再 spread。
