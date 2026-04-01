@@ -5308,11 +5308,35 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1327 [TODO] 类初始化兼容：复杂继承链与 effect 细节
+### T1327 类初始化兼容：复杂继承链与 effect 细节（拆分为子任务）
 - 描述：在已有类初始化顺序实现基础上，补齐复杂继承链、父类初始化交错、以及初始化期间 effect/异常传播的 Kotlin-like 细节。
 - 目标：不改写 T1312 的基础顺序规则；本任务专门收敛复杂继承与异常/effect 交互的边角行为。
 - 验收：language fixtures：多层继承中的属性初始化、`init` 链与 secondary constructor 行为稳定；初始化期 effect 违规或异常路径有明确诊断。
 - 依赖：T1312、T0439、T0609
+- 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1327a [TODO] 类初始化：单继承链初始化顺序（base → derived）
+- 描述：在 class 单继承（含多层）场景下，构造调用需要按 Kotlin-like 的顺序执行各层的初始化步骤：先执行最基类的参数属性赋值（若有）/property initializer/`init` blocks，再逐层到派生类，并保证子类对象 layout 以前缀形式包含基类字段。
+- 目标：
+  - codegen：`Derived()` 会按继承链依次执行每一层的 init steps；
+  - 先只支持 `: Base()` 这类“无实参 super ctor call”的最小子集（不解析 super ctor args 表达式）。
+- 验收：
+  - 新增 run-pass fixture：三层继承的初始化顺序 stdout 与 golden 一致；
+  - `cargo test --all` 通过；
+  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1312、T0439
+
+### T1327b [TODO] 类初始化：初始化期 Raise/effect 传播的清理与诊断
+- 描述：初始化过程中发生 `Raise.raise`/custom effect unwinding 时，确保临时 GC frame/handler frame 不泄漏，并给出清晰诊断与稳定错误码（避免“部分初始化对象泄漏/GC 崩溃/诊断不明确”）。
+- 目标：在不引入 full CFG 的前提下，补齐构造调用的 cleanup path，并把诊断落点与 Kotlin-like 行为对齐。
+- 验收：新增 run-pass fixtures：在 property initializer / init block 中触发 Raise 并被外层 try/catch 捕获后，程序可继续运行且手动 GC 不崩溃；错误码稳定可断言。
+- 依赖：T1327a、T0609
+
+### T1327c [TODO] 类初始化：super ctor 实参解析 + secondary ctor super/this delegation
+- 描述：补齐 `class D(x: Int) : Base(f(x))` 这类 super ctor 实参表达式的解析与执行；并接入 secondary ctor 的 `this(...)`/`super(...)` delegation（含顺序与可见性边界）。
+- 目标：在 parser/resolve/typecheck/lowering/codegen 全链路落地，并保持与 T0448 的 Kotlin-like 规则一致。
+- 验收：language fixtures：super args 求值顺序稳定；secondary ctor delegation 行为稳定；`cargo test --all` 与（启用 LLVM 后）`scoop test` 通过。
+- 依赖：T1327a
 
 ### T1328 [TODO] `for`/迭代协议升级：`Iterator.next(): Option<T>`（移除 `hasNext()`）
 - 描述：把 `for (x in xs)` 的迭代协议从旧的三元调用（`iterator()/hasNext()/next()`）升级为单一 `next(): Option<T>`（见 `SCOOP_FULL_SPEC.md` §16.2），避免 iterator 需要内部缓存“下一元素”。
