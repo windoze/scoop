@@ -154,8 +154,8 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
         FixturePhase::Build => build_fixture(rel, path, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
-        FixturePhase::Typecheck => typecheck_fixture(session, &source),
-        FixturePhase::Infer => infer_fixture(session, &source),
+        FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
+        FixturePhase::Infer => infer_fixture(session, &source, &exp),
         FixturePhase::Comptime => comptime_fixture(&source, path),
         FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp),
         FixturePhase::Hir => hir_fixture(session, &source, path),
@@ -798,6 +798,7 @@ fn resolve_fixture(
 fn typecheck_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
+    exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
 
@@ -833,6 +834,12 @@ fn typecheck_fixture(
         .map_err(box_diagnostic)?;
     env.extend_from_file(source, &ast, &index)
         .map_err(box_diagnostic)?;
+
+    // T1326c：允许 typecheck fixtures 通过 `// ARGS: --target-platform <id>` 覆盖目标平台，
+    // 用于回归“平台能力 gate”的诊断行为（不影响默认 host 行为）。
+    if let Some(platform_id) = parse_target_platform_from_fixture_args(&exp.args) {
+        env.set_target_platform(scoopc::target::TargetPlatform::new(platform_id));
+    }
 
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
@@ -918,16 +925,37 @@ fn typecheck_fixture(
     Ok(())
 }
 
+fn parse_target_platform_from_fixture_args(args: &[String]) -> Option<String> {
+    // 目前只为 fixtures 引入一个非常小的解析器：
+    // - `--target-platform <id>`
+    // - `--target-platform=<id>`
+    //
+    // 说明：这不是 `scoop` CLI 的稳定接口；仅用于回归 typecheck 的 platform gating 行为。
+    let mut it = args.iter().peekable();
+    while let Some(arg) = it.next() {
+        if let Some(v) = arg.strip_prefix("--target-platform=") {
+            return Some(v.to_string());
+        }
+        if arg == "--target-platform" {
+            if let Some(v) = it.peek() {
+                return Some((*v).to_string());
+            }
+        }
+    }
+    None
+}
+
 fn infer_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
+    exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // 当前阶段（T0502）先让 `infer` fixtures 走与 `typecheck` 相同的 pipeline：
     // - 便于把“依赖推断的新用例”与既有 typecheck fixtures 逻辑隔离
     // - 后续在这里逐步接入 constraint generation + solving
     //
     // 说明：这不是“重复执行”，而是为 T05 预留独立入口。
-    typecheck_fixture(session, source)
+    typecheck_fixture(session, source, exp)
 }
 
 /// 运行一个 `tests/fixtures/resolve_multi/<case>/` 的多文件编译单元。

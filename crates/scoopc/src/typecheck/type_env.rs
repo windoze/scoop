@@ -17,6 +17,7 @@ use crate::resolve::{ImportTable, Index, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
+use crate::target::TargetPlatform;
 
 /// 类型符号的种类（type namespace）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -298,6 +299,8 @@ pub struct TypeEnv {
     supertypes: HashMap<String, Vec<String>>,
     file_ctx: HashMap<PathBuf, FileTypeContext>,
     type_aliases: HashMap<String, TypeAliasInfo>,
+    /// 编译目标平台（用于 capability gating；默认 host）。
+    target_platform: TargetPlatform,
 }
 
 impl TypeEnv {
@@ -354,6 +357,16 @@ impl TypeEnv {
     /// 通过文件路径获取对应的 `SourceFile`（若该文件在构建 env 时被收集过）。
     pub fn source(&self, path: &Path) -> Option<&SourceFile> {
         self.sources.get(path)
+    }
+
+    /// 获取当前编译目标平台（用于 capability gating）。
+    pub fn target_platform(&self) -> &TargetPlatform {
+        &self.target_platform
+    }
+
+    /// 覆盖编译目标平台（主要用于 fixtures/测试或未来的 cross-compile driver）。
+    pub fn set_target_platform(&mut self, target_platform: TargetPlatform) {
+        self.target_platform = target_platform;
     }
 
     /// 注入一个“外部声明来源”的 `SourceFile`。

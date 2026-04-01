@@ -375,8 +375,13 @@ fn tokenize_glob(pattern: &str) -> Vec<GlobToken> {
 /// - v0 阶段只支持 host target（与 TODO T0803 的范围一致）；
 /// - 该 id 使用 spec 中的 `linux-x64` / `macos-arm64` / `windows-x64` 命名风格（spec §13.7/§13.9）。
 fn host_target_platform_id() -> String {
-    let os = option_env!("CARGO_CFG_TARGET_OS").unwrap_or("unknown");
-    let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or("unknown");
+    // 说明：不要使用 `CARGO_CFG_TARGET_*`：
+    // - 这些环境变量通常只在 build script（build.rs）环境中可用；
+    // - 在普通 crate 编译单元里，`option_env!()` 往往拿不到，从而退化成 `unknown-unknown`。
+    //
+    // v0 阶段只支持 host target，因此直接使用 Rust 的编译期常量即可。
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
 
     let arch = match arch {
         "x86_64" => "x64",

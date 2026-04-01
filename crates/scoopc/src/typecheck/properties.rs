@@ -186,6 +186,32 @@ pub enum PropertyDeclError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error(
+        "`lazy` 的线程安全模式在目标平台 `{platform}` 上不可用：{class_fqn}.{property}（mode={mode}）"
+    )]
+    #[diagnostic(code(scoop::typecheck::lazy_thread_safety_mode_not_supported_on_platform))]
+    LazyThreadSafetyModeNotSupportedOnPlatform {
+        platform: String,
+        class_fqn: String,
+        property: String,
+        mode: String,
+        #[label("该平台缺少线程/互斥锁支持；请使用 `LazyThreadSafetyMode.None` 或按平台分发")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "委托属性在目标平台 `{platform}` 上不可用：{class_fqn}.{property}（delegate={delegate}）"
+    )]
+    #[diagnostic(code(scoop::typecheck::std_delegate_requires_mutex_not_supported_on_platform))]
+    StdDelegateRequiresMutexNotSupportedOnPlatform {
+        platform: String,
+        class_fqn: String,
+        property: String,
+        delegate: String,
+        #[label("该平台缺少线程/互斥锁支持")]
+        span: miette::SourceSpan,
+    },
 }
 
 /// 检查一个文件内所有 type 声明的属性规则（含嵌套类型）：
@@ -317,6 +343,8 @@ fn check_one_class_property(
     let property = source.slice(p.name.span).to_string();
 
     if let Some(delegate) = &p.delegate {
+        check_std_delegates_platform_policy(source, class_fqn, &property, delegate, env)?;
+
         // delegate 需要存在 `getValue`；`var` 还需要存在 `setValue`（spec §10.4）。
         //
         // 注意：
@@ -407,6 +435,102 @@ fn check_one_class_property(
             return Err(PropertyDeclError::FieldUsedWithoutBackingField {
                 class_fqn: class_fqn.to_string(),
                 property,
+                span: span.into(),
+            });
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StdLazyThreadSafetyMode {
+    None,
+    Publication,
+    Synchronized,
+}
+
+impl StdLazyThreadSafetyMode {
+    fn requires_mutex(self) -> bool {
+        matches!(self, Self::Publication | Self::Synchronized)
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ParsedStdDelegateCall {
+    Lazy {
+        mode: Option<StdLazyThreadSafetyMode>,
+        mode_text: String,
+        span: Span,
+    },
+    Observable {
+        span: Span,
+    },
+    Vetoable {
+        span: Span,
+    },
+}
+
+fn check_std_delegates_platform_policy(
+    source: &SourceFile,
+    class_fqn: &str,
+    property: &str,
+    delegate: &ast::Expr,
+    env: &TypeEnv,
+) -> Result<(), PropertyDeclError> {
+    // T1326c：delegated properties 的跨平台 policy。
+    //
+    // 早期阶段的最小落点：
+    // - `lazy`：
+    //   - `LazyThreadSafetyMode.None`：不依赖线程/Mutex，可在所有平台落地；
+    //   - `Publication/Synchronized`（以及省略 mode 的默认行为）：会被 lowering 为 `Mutex` + lock/unlock，
+    //     因此要求目标平台具备线程/互斥锁 runtime 落点；否则应在 typecheck 给出清晰诊断。
+    // - `observable/vetoable`：
+    //   - 当前实现依赖 per-property `Mutex` 保证并发可见性（T1326b），因此同样要求 mutex 能力；
+    //   - 单线程/无 mutex 平台的降级实现（不注入锁）留给后续平台 backends 任务细化。
+    if env.target_platform().supports_sync_mutex() {
+        return Ok(());
+    }
+
+    let Some(parsed) = parse_std_delegate_call(source, delegate) else {
+        return Ok(());
+    };
+
+    let platform = env.target_platform().id().to_string();
+    match parsed {
+        ParsedStdDelegateCall::Lazy {
+            mode,
+            mode_text,
+            span,
+        } => {
+            // 在无 mutex 平台上，只有明确的 `None` 才允许通过；
+            // 任何未知/非 None 的模式都保守视为“不支持”。
+            let requires_mutex = mode.map(|m| m.requires_mutex()).unwrap_or(true);
+            if requires_mutex {
+                return Err(PropertyDeclError::LazyThreadSafetyModeNotSupportedOnPlatform {
+                    platform,
+                    class_fqn: class_fqn.to_string(),
+                    property: property.to_string(),
+                    mode: mode_text,
+                    span: span.into(),
+                });
+            }
+        }
+        ParsedStdDelegateCall::Observable { span } => {
+            return Err(PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
+                platform,
+                class_fqn: class_fqn.to_string(),
+                property: property.to_string(),
+                delegate: "scoop.delegates.observable".to_string(),
+                span: span.into(),
+            });
+        }
+        ParsedStdDelegateCall::Vetoable { span } => {
+            return Err(PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
+                platform,
+                class_fqn: class_fqn.to_string(),
+                property: property.to_string(),
+                delegate: "scoop.delegates.vetoable".to_string(),
                 span: span.into(),
             });
         }
@@ -548,6 +672,110 @@ fn field_use_span_in_block(
         }
     }
     None
+}
+
+fn parse_std_delegate_call(
+    source: &SourceFile,
+    delegate_expr: &ast::Expr,
+) -> Option<ParsedStdDelegateCall> {
+    let ast::ExprKind::Call { callee, args } = &delegate_expr.kind else {
+        return None;
+    };
+
+    let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
+
+    match fqn.as_str() {
+        "scoop.delegates.lazy" => {
+            // 约定：`lazy { ... }` / `lazy(mode) { ... }`，lambda 作为最后一个参数。
+            // 我们只关心 mode（是否需要 mutex）；initializer 的语义由 lowering/codegen 处理。
+            if args.len() >= 2 {
+                let mode_expr = &args[0];
+                let mode_text = normalize_lazy_thread_safety_mode_text(source, mode_expr);
+                let mode = parse_lazy_thread_safety_mode(source, mode_expr);
+                Some(ParsedStdDelegateCall::Lazy {
+                    mode,
+                    mode_text,
+                    span: mode_expr.span,
+                })
+            } else {
+                // Kotlin-like：lazy 默认 thread-safe（Synchronized）。
+                Some(ParsedStdDelegateCall::Lazy {
+                    mode: Some(StdLazyThreadSafetyMode::Synchronized),
+                    mode_text: "LazyThreadSafetyMode.Synchronized (default)".to_string(),
+                    span: delegate_expr.span,
+                })
+            }
+        }
+        "scoop.delegates.observable" => Some(ParsedStdDelegateCall::Observable {
+            span: delegate_expr.span,
+        }),
+        "scoop.delegates.vetoable" => Some(ParsedStdDelegateCall::Vetoable {
+            span: delegate_expr.span,
+        }),
+        _ => None,
+    }
+}
+
+fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
+    let ast::ExprKind::Ident(id) = &callee.kind else {
+        return None;
+    };
+
+    // 优先使用 resolver 写回的 call candidates（比 `resolved` 更稳健；可覆盖 overload set）。
+    if let Some(call) = id.call.as_ref() {
+        let mut funs: Vec<String> = call
+            .candidates
+            .iter()
+            .filter_map(|c| match c {
+                ast::CallCandidate::Fun { fqn } => Some(fqn.clone()),
+                ast::CallCandidate::Constructor { .. } => None,
+            })
+            .collect();
+        funs.sort();
+        funs.dedup();
+        if funs.len() == 1 {
+            return Some(funs[0].clone());
+        }
+    }
+
+    // fallback：若 resolver 已把 callee 绑定为唯一顶层函数，同样可用。
+    match id.resolved.as_ref() {
+        Some(ast::ResolvedValueRef::TopLevel { fqn }) => Some(fqn.clone()),
+        _ => None,
+    }
+}
+
+fn parse_lazy_thread_safety_mode(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Option<StdLazyThreadSafetyMode> {
+    // 目前仅支持最常见的枚举常量写法（用于 delegated property 的 platform gating）：
+    // - `LazyThreadSafetyMode.None`
+    // - `LazyThreadSafetyMode.Publication`
+    // - `LazyThreadSafetyMode.Synchronized`
+    //
+    // 备注：这里优先从源文本切片解析，避免依赖 enum variant 的 resolver/typecheck 语义细节。
+    let raw = normalize_lazy_thread_safety_mode_text(source, expr);
+    match raw.as_str() {
+        "LazyThreadSafetyMode.None" => Some(StdLazyThreadSafetyMode::None),
+        "LazyThreadSafetyMode.Publication" => Some(StdLazyThreadSafetyMode::Publication),
+        "LazyThreadSafetyMode.Synchronized" => Some(StdLazyThreadSafetyMode::Synchronized),
+        _ => None,
+    }
+}
+
+fn normalize_lazy_thread_safety_mode_text(source: &SourceFile, expr: &ast::Expr) -> String {
+    let raw = source.slice(expr.span).trim();
+
+    // 支持命名参数：`mode = LazyThreadSafetyMode.None`。
+    let raw = raw
+        .split_once('=')
+        .map(|(_, rhs)| rhs.trim())
+        .unwrap_or(raw);
+
+    raw.strip_prefix("scoop.delegates.")
+        .unwrap_or(raw)
+        .to_string()
 }
 
 fn field_use_span_in_stmt(

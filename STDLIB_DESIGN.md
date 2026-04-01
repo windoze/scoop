@@ -197,6 +197,7 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 | `fs/path` | ✅ | ❌ | ⚠️ | ❌ | 文件系统 API（WASI subset；browser 无） |
 | `process/env` | ✅ | ❌ | ⚠️ | ❌ | 进程/环境（WASI subset；browser 无） |
 | `thread/sync/channels` | ✅ | ⚠️ | ⚠️ | ⚠️ | 线程/原子/TLS（平台能力差异大；需显式 feature） |
+| `delegates`（`lazy/observable/vetoable`） | ✅ | ⚠️ | ⚠️ | ⚠️ | 线程安全语义依赖 `sync.Mutex`；无线程平台需降级/报错（T1326c） |
 | `net` | ✅ | ⚠️ | ⚠️ | ⚠️ | socket/DNS/host API（WASI/JS 形态不同） |
 | `test` | ✅ | ⚠️ | ⚠️ | ⚠️ | 测试 runner 与宿主支持（通常用于 host-side） |
 
@@ -209,6 +210,22 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 - `wasm`：是否为 hosted/adapter backend（例如 WASM GC、或线性内存 + host 回调）
 
 > 上述是 **std 的需求接口**；具体如何实现（C runtime / Scoop runtime / adapter）由 `T1406/T1409` 决定。
+
+### 6.2 delegated properties 的平台策略（lazy/observable/vetoable）
+
+背景：delegated properties 的部分语义会被编译器 lowering 为对 runtime 原语的直接调用（例如 `Mutex.lock/unlock`）。
+因此在“目标平台不具备对应能力”时，**必须在编译期给出清晰诊断**，避免出现“能编译但无法链接/运行”的隐性失败。
+
+当前阶段（T1326c，early stage）策略：
+
+- `lazy(LazyThreadSafetyMode.None)`：不依赖线程/互斥锁，可在所有平台落地（语义等价于单线程 lazy cache）。
+- `lazy()` 默认模式、以及 `lazy(Publication/Synchronized)`：
+  - 会被 lowering 为 `sync.Mutex` + lock/unlock；
+  - 仅在 **desktop/server（host pthread/WinAPI 等）** 可用；
+  - 在无线程/无 mutex 平台（embedded / wasm 默认）将报错，并提示改用 `LazyThreadSafetyMode.None` 或按平台分发。
+- `observable/vetoable`：
+  - 当前实现（T1326b）依赖 per-property `Mutex` 保证并发可见性与避免 data race；
+  - 因此同样要求目标平台具备线程/互斥锁能力；无 mutex 平台将报错（未来可考虑单线程降级实现）。
 
 ---
 

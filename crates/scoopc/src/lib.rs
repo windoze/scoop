@@ -22,6 +22,7 @@ pub mod source;
 pub mod span;
 pub mod syntax;
 pub mod sysroot;
+pub mod target;
 pub mod ty;
 pub mod typecheck;
 pub mod rtti;

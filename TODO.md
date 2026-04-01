@@ -5241,11 +5241,26 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1326c [TODO] delegated properties：跨平台 policy（capability matrix + 降级策略）
+### T1326c [DONE] delegated properties：跨平台 policy（capability matrix + 降级策略）
 - 描述：为 `lazy/observable/vetoable` 在 desktop/server/embedded/WASM 等平台上给出 capability matrix，并明确“不支持线程”或“弱内存序”场景下的降级策略（例如：强制降为 `None`、禁止 `Synchronized`、或在编译期给出诊断）。
 - 目标：不引入新的平台 backend；先以文档 + sysroot/stdlib API surface 的 gating 为主。
 - 验收：更新 capability matrix 文档（可复用 `STDLIB_DESIGN.md`/`KOTLIN_RUNTIME_GAP_AUDIT.md` 的框架），并新增至少 1 个 typecheck fixture 回归“平台不支持时的清晰诊断”。
 - 依赖：T1326a、T1319
+ - 完成：
+   - `crates/scoopc/src/target/mod.rs`：引入 `TargetPlatform`（platform id + 最小 capabilities：threads/mutex），供 typecheck 做 capability gating。
+   - `crates/scoopc/src/typecheck/type_env.rs`：`TypeEnv` 增加 `target_platform` 字段与 `set_target_platform()`，默认 host。
+   - `crates/scoopc/src/typecheck/properties.rs`：对标准 delegates 做 platform policy gate：
+     - 无 mutex 平台：仅允许 `lazy(LazyThreadSafetyMode.None)`；`lazy` 默认/Publication/Synchronized 会给出稳定错误码；
+     - `observable/vetoable` 当前实现依赖 per-property `Mutex`（T1326b），因此无 mutex 平台同样给出清晰诊断。
+   - `crates/scoop/src/fixtures/mod.rs`：typecheck/infer fixtures 支持 `// ARGS: --target-platform <id>` 覆盖目标平台，用于回归 gating 诊断。
+   - fixtures：
+     - `tests/fixtures/typecheck/delegated_property_lazy_synchronized_on_wasm_is_error.scoop`：模拟 `wasm-browser` 平台，断言 `lazy(Synchronized)` 的稳定错误码与错误信息子串。
+   - 文档：
+     - `STDLIB_DESIGN.md`：能力矩阵新增 `delegates` 行，并补充 §6.2 delegated properties 平台策略。
+     - `sysroot/delegates.scoop`：补充 `lazy/observable/vetoable` 的平台 policy 注释。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1327 [TODO] 类初始化兼容：复杂继承链与 effect 细节
 - 描述：在已有类初始化顺序实现基础上，补齐复杂继承链、父类初始化交错、以及初始化期间 effect/异常传播的 Kotlin-like 细节。

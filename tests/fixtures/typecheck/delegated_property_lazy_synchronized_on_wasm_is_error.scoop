@@ -1,0 +1,16 @@
+// EXPECT: fail
+// ARGS: --target-platform wasm-browser
+// EXPECT-ERROR-CODE: scoop::typecheck::lazy_thread_safety_mode_not_supported_on_platform
+// EXPECT-ERROR: wasm-browser
+// EXPECT-ERROR: LazyThreadSafetyMode.Synchronized
+// 目标：T1326c：在不支持线程/Mutex 的平台上，`lazy` 的 thread-safe 模式应给出清晰诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.delegates.*
+
+class Example {
+    val config: String by lazy(LazyThreadSafetyMode.Synchronized) { "" }
+}
+
