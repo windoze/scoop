@@ -5190,11 +5190,50 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1326 [TODO] delegated properties：线程安全语义与平台 policy
+### T1326 delegated properties：线程安全语义与平台 policy（拆分为子任务）
 - 描述：补齐标准 delegated properties 的线程安全语义：`lazy` 的同步/发布/无锁策略，`observable`/`vetoable` 在并发场景下的可见性与回调规则，以及不同平台的 policy。
 - 目标：让 `lazy` 等 API 不只“能跑”，还要在 desktop/server/embedded/WASM 等环境下有明确行为约定。
 - 验收：language/std fixtures：支持的平台上线程安全语义可回归验证；不支持的平台有 capability matrix 或降级策略说明。
 - 依赖：T1313、T1319
+
+> 备注：该任务包含多个彼此相对独立、且“可单独实现 & 单独验证”的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1326a [DONE] lazy：线程安全模式（None/Publication/Synchronized）+ run-pass 回归
+- 描述：补齐 `lazy` 的线程安全策略语义（默认同步、显式 `None/Publication/Synchronized`），并在 host(pthread) 平台用 run-pass fixtures 回归。
+- 目标：
+  - 仅覆盖 `lazy`（不做 `observable/vetoable` 的并发语义）。
+  - 仅回归 host(pthread) 平台；跨平台 capability/policy 留给 T1326c。
+  - 不扩展 LLVM 后端能力子集：fixtures 避免依赖 `object` 成员赋值等尚未支持的 codegen 节点。
+- 依赖：T1313、T1319
+ - 完成：
+   - `crates/scoopc/src/hir/lower.rs`：
+     - `lazy { ... }` 默认按 `Synchronized` 语义执行（Kotlin-like）；
+     - 支持解析 `LazyThreadSafetyMode.None/Publication/Synchronized`；
+     - class init side table 注入 `x$lazy_inited/x$lazy_value`，并在 `Publication/Synchronized` 下额外注入 `x$lazy_mutex`（由 `mutexCreate()` 初始化）；
+     - getter lowering：`None` 无锁；`Synchronized` 持锁执行 initializer；`Publication` 允许并发执行 initializer，但只发布一次。
+   - `crates/scoopc/src/hir/lower.rs`：合并 object/class init lowering 产生的 `ctor_call_sites`，避免 object init 中的 `C()` ctor call 在 LLVM codegen 阶段被误判为 enum variant ctor。
+   - fixtures（run-pass）：
+     - `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.*`
+     - `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.*`
+     - `tests/fixtures/run-pass/delegated_property_lazy_thread_safety_publication_multi_init.*`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_none_single_thread_ok.scoop`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_publication_multi_init.scoop`
+
+### T1326b [TODO] observable/vetoable：并发可见性与回调规则
+- 描述：补齐 `observable/vetoable` 在并发访问下的可见性、回调触发顺序与 reentrancy 规则（含与 `Raise`/异常的交互）。
+- 目标：先固化 language/std 的行为约定（文档 + fixtures）；实现可先做 host(pthread) 平台最小语义落点。
+- 验收：新增 fixtures（至少 1 个 run-pass）覆盖并发下回调次数/顺序、以及 veto 失败分支的可见性；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+- 依赖：T1326a、T1319
+
+### T1326c [TODO] delegated properties：跨平台 policy（capability matrix + 降级策略）
+- 描述：为 `lazy/observable/vetoable` 在 desktop/server/embedded/WASM 等平台上给出 capability matrix，并明确“不支持线程”或“弱内存序”场景下的降级策略（例如：强制降为 `None`、禁止 `Synchronized`、或在编译期给出诊断）。
+- 目标：不引入新的平台 backend；先以文档 + sysroot/stdlib API surface 的 gating 为主。
+- 验收：更新 capability matrix 文档（可复用 `STDLIB_DESIGN.md`/`KOTLIN_RUNTIME_GAP_AUDIT.md` 的框架），并新增至少 1 个 typecheck fixture 回归“平台不支持时的清晰诊断”。
+- 依赖：T1326a、T1319
 
 ### T1327 [TODO] 类初始化兼容：复杂继承链与 effect 细节
 - 描述：在已有类初始化顺序实现基础上，补齐复杂继承链、父类初始化交错、以及初始化期间 effect/异常传播的 Kotlin-like 细节。

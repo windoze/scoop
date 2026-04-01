@@ -38,15 +38,37 @@ struct GenericDelegatedPropertyInfo {
     property_meta_fqn: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StdLazyThreadSafetyMode {
+    None,
+    Publication,
+    Synchronized,
+}
+
+impl StdLazyThreadSafetyMode {
+    fn default_for_lazy_call() -> Self {
+        // Kotlin-like：lazy 默认 thread-safe。
+        Self::Synchronized
+    }
+
+    fn requires_mutex(self) -> bool {
+        matches!(self, Self::Publication | Self::Synchronized)
+    }
+}
+
 #[derive(Debug, Clone)]
 struct LazyDelegatedPropertyInfo {
     name: String,
     /// 属性类型（用于生成缓存字段的类型与 lazy initializer 的返回类型上下文）。
     ty: Option<ast::TypeRef>,
+    /// `lazy(mode)` 的线程安全策略（默认为 `Synchronized`）。
+    mode: StdLazyThreadSafetyMode,
     /// lazy 缓存值字段（class field fqn）。
     value_field_fqn: String,
     /// lazy 初始化标记字段（class field fqn）。
     inited_field_fqn: String,
+    /// lazy 的互斥锁字段（class field fqn；仅当 mode 需要互斥锁时才存在）。
+    mutex_field_fqn: Option<String>,
     /// initializer lambda 的 body（我们在 getter 内 inline 这段表达式，避免依赖 closure codegen）。
     initializer_body: ast::Expr,
 }
@@ -258,6 +280,10 @@ impl<'a> HirLowering<'a> {
     const ARRAY_BUILDER_NEW_FQN: &'static str = "scoop.core.__scoop_array_builder_new";
     const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
     const ARRAY_BUILDER_BUILD_ARRAY_FQN: &'static str = "scoop.core.__scoop_array_builder_build_array";
+    const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
+    const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
+    const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
+    const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
     const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &'static str =
         "scoop.core.__scoop_array_builder_build_mutable_array";
 
@@ -667,6 +693,27 @@ impl<'a> HirLowering<'a> {
             kind: ExprKind::Call {
                 callee: Box::new(callee),
                 args: vec![CallArg::Positional(value)],
+            },
+        }
+    }
+
+    fn call_top_level_fun(&mut self, span: Span, fqn: &str, args: Vec<Expr>, ret_ty: TypeId) -> Expr {
+        let fqn = fqn.to_string();
+        let callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(fqn.clone()),
+                fqn,
+            }),
+        };
+
+        Expr {
+            span,
+            ty: ret_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: args.into_iter().map(CallArg::Positional).collect(),
             },
         }
     }
@@ -1925,95 +1972,396 @@ impl<'a> HirLowering<'a> {
         let inited_name = format!("{}$lazy_inited", info.name);
         let value_name = format!("{}$lazy_value", info.name);
 
-        let subject = self.member_access_to_class_field(
+        // `LazyThreadSafetyMode.None`：沿用早期阶段的“无锁 + bool 标记”实现；
+        // 其它模式：通过 `scoop.sync.Mutex` 保障并发可见性（lock/unlock 作为 acquire/release）。
+        if info.mode == StdLazyThreadSafetyMode::None {
+            let subject = self.member_access_to_class_field(
+                span,
+                receiver.clone(),
+                inited_name,
+                info.inited_field_fqn.clone(),
+            );
+
+            let true_body = self.member_access_to_class_field(
+                span,
+                receiver.clone(),
+                value_name.clone(),
+                info.value_field_fqn.clone(),
+            );
+
+            let init_value = self.lower_expr(pkg_prefix, &info.initializer_body);
+            let assign_value = Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Assign {
+                    lhs: self.member_access_to_class_field(
+                        span,
+                        receiver.clone(),
+                        value_name.clone(),
+                        info.value_field_fqn.clone(),
+                    ),
+                    eq_span: span,
+                    rhs: init_value,
+                },
+            };
+
+            let assign_inited = Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Assign {
+                    lhs: self.member_access_to_class_field(
+                        span,
+                        receiver.clone(),
+                        format!("{}$lazy_inited", info.name),
+                        info.inited_field_fqn.clone(),
+                    ),
+                    eq_span: span,
+                    rhs: Expr {
+                        span,
+                        ty: self.builtins.bool_,
+                        kind: ExprKind::Literal(LiteralKind::Bool(true)),
+                    },
+                },
+            };
+
+            let tail = Stmt {
+                span,
+                ty: self.builtins.any,
+                kind: StmtKind::Expr(self.member_access_to_class_field(
+                    span,
+                    receiver,
+                    value_name,
+                    info.value_field_fqn.clone(),
+                )),
+            };
+
+            let false_body = Expr {
+                span,
+                ty: self.delegated_property_ty(info.ty.as_ref()),
+                kind: ExprKind::Block(Block {
+                    span,
+                    ty: self.builtins.any,
+                    stmts: vec![assign_value, assign_inited, tail],
+                }),
+            };
+
+            return ExprKind::When {
+                subject: Box::new(subject),
+                arms: vec![
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: true },
+                        guard: None,
+                        arrow_span: span,
+                        body: true_body,
+                    },
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: false },
+                        guard: None,
+                        arrow_span: span,
+                        body: false_body,
+                    },
+                ],
+            };
+        }
+
+        let mutex_fqn = info.mutex_field_fqn.as_ref().cloned().unwrap_or_else(|| {
+            // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
+            format!("__missing__{}.{}$lazy_mutex", pkg_prefix, info.name)
+        });
+        let mutex_name = format!("{}$lazy_mutex", info.name);
+        let mutex_field = self.member_access_to_class_field(span, receiver.clone(), mutex_name, mutex_fqn);
+
+        let lock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_LOCK_FQN,
+                vec![mutex_field.clone()],
+                self.builtins.unit,
+            )),
+        };
+        let unlock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_UNLOCK_FQN,
+                vec![mutex_field],
+                self.builtins.unit,
+            )),
+        };
+
+        let inited_expr = self.member_access_to_class_field(
             span,
             receiver.clone(),
             inited_name,
             info.inited_field_fqn.clone(),
         );
 
-        let true_body = self.member_access_to_class_field(
+        let value_expr = self.member_access_to_class_field(
             span,
             receiver.clone(),
             value_name.clone(),
             info.value_field_fqn.clone(),
         );
 
-        let init_value = self.lower_expr(pkg_prefix, &info.initializer_body);
-        let assign_value = Stmt {
-            span,
-            ty: self.builtins.unit,
-            kind: StmtKind::Assign {
-                lhs: self.member_access_to_class_field(
-                    span,
-                    receiver.clone(),
-                    value_name.clone(),
-                    info.value_field_fqn.clone(),
-                ),
-                eq_span: span,
-                rhs: init_value,
-            },
-        };
+        let value_ty = self.delegated_property_ty(info.ty.as_ref());
 
-        let assign_inited = Stmt {
-            span,
-            ty: self.builtins.unit,
-            kind: StmtKind::Assign {
-                lhs: self.member_access_to_class_field(
-                    span,
-                    receiver.clone(),
-                    format!("{}$lazy_inited", info.name),
-                    info.inited_field_fqn.clone(),
-                ),
-                eq_span: span,
-                rhs: Expr {
-                    span,
-                    ty: self.builtins.bool_,
-                    kind: ExprKind::Literal(LiteralKind::Bool(true)),
-                },
-            },
+        // 说明：早期 LLVM codegen 的 `when` 结果合流（phi）对“arm body 内部再产生分支”的情况
+        // 仍较脆弱（会触发 dominance/CFG 校验失败）。为保证 run-pass 可回归，
+        // 这里把 lazy 的控制流拆成：
+        // 1) `lock(mutex)`
+        // 2) `when (inited) { true -> Unit; false -> <init path> }`（Unit）
+        // 3) 在锁内读取 value → `out`
+        // 4) `unlock(mutex)` 并返回 `out`
+        let out_decl_span = Span::new(span.end, span.end);
+        let out_id = self.intern_local_symbol(out_decl_span, false);
+        let out_name = "$lazy_out".to_string();
+        let out_decl = ValDecl {
+            span: out_decl_span,
+            id: Some(out_id),
+            name: Some(out_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(value_expr.clone()),
         };
-
-        let tail = Stmt {
+        let out_ref_expr = Expr {
             span,
-            ty: self.builtins.any,
-            kind: StmtKind::Expr(self.member_access_to_class_field(
-                span,
-                receiver,
-                value_name,
-                info.value_field_fqn.clone(),
-            )),
-        };
-
-        let false_body = Expr {
-            span,
-            ty: self.delegated_property_ty(info.ty.as_ref()),
-            kind: ExprKind::Block(Block {
-                span,
-                ty: self.builtins.any,
-                stmts: vec![assign_value, assign_inited, tail],
+            ty: value_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: out_id,
+                name: out_name,
+                decl_span: out_decl_span,
             }),
         };
 
-        ExprKind::When {
-            subject: Box::new(subject),
-            arms: vec![
-                WhenArm {
+        let false_arm_unit = match info.mode {
+            StdLazyThreadSafetyMode::Synchronized => {
+                // Synchronized：在锁内完成 initializer + 发布（只执行一次）。
+                let computed_span = Span::new(span.start, span.start);
+                let computed_id = self.intern_local_symbol(computed_span, false);
+                let computed_name = "$lazy_computed".to_string();
+                let computed_decl = ValDecl {
+                    span: computed_span,
+                    id: Some(computed_id),
+                    name: Some(computed_name.clone()),
+                    mutable: false,
+                    ty: value_ty,
+                    init: Some(self.lower_expr(pkg_prefix, &info.initializer_body)),
+                };
+                let computed_ref = Expr {
+                    span: computed_span,
+                    ty: value_ty,
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id: computed_id,
+                        name: computed_name,
+                        decl_span: computed_span,
+                    }),
+                };
+
+                let assign_value = Stmt {
                     span,
-                    pat: WhenPat::BoolLit { span, value: true },
-                    guard: None,
-                    arrow_span: span,
-                    body: true_body,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Assign {
+                        lhs: value_expr.clone(),
+                        eq_span: span,
+                        rhs: computed_ref,
+                    },
+                };
+                let assign_inited = Stmt {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Assign {
+                        lhs: inited_expr.clone(),
+                        eq_span: span,
+                        rhs: Expr {
+                            span,
+                            ty: self.builtins.bool_,
+                            kind: ExprKind::Literal(LiteralKind::Bool(true)),
+                        },
+                    },
+                };
+
+                Expr {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: ExprKind::Block(Block {
+                        span,
+                        ty: self.builtins.unit,
+                        stmts: vec![
+                            Stmt {
+                                span: computed_decl.span,
+                                ty: self.builtins.unit,
+                                kind: StmtKind::Val(computed_decl),
+                            },
+                            assign_value,
+                            assign_inited,
+                        ],
+                    }),
+                }
+            }
+            StdLazyThreadSafetyMode::Publication => {
+                // Publication：释放锁后执行 initializer，再二次加锁“发布”（允许 initializer 并发执行多次）。
+                let computed_span = Span::new(span.start, span.start);
+                let computed_id = self.intern_local_symbol(computed_span, false);
+                let computed_name = "$lazy_computed".to_string();
+                let computed_decl = ValDecl {
+                    span: computed_span,
+                    id: Some(computed_id),
+                    name: Some(computed_name.clone()),
+                    mutable: false,
+                    ty: value_ty,
+                    init: Some(self.lower_expr(pkg_prefix, &info.initializer_body)),
+                };
+                let computed_ref = Expr {
+                    span: computed_span,
+                    ty: value_ty,
+                    kind: ExprKind::VarRef(ValueRef::Local {
+                        id: computed_id,
+                        name: computed_name,
+                        decl_span: computed_span,
+                    }),
+                };
+
+                let assign_value = Stmt {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Assign {
+                        lhs: value_expr.clone(),
+                        eq_span: span,
+                        rhs: computed_ref,
+                    },
+                };
+                let assign_inited = Stmt {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Assign {
+                        lhs: inited_expr.clone(),
+                        eq_span: span,
+                        rhs: Expr {
+                            span,
+                            ty: self.builtins.bool_,
+                            kind: ExprKind::Literal(LiteralKind::Bool(true)),
+                        },
+                    },
+                };
+
+                let publish_when = Expr {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: ExprKind::When {
+                        subject: Box::new(inited_expr.clone()),
+                        arms: vec![
+                            WhenArm {
+                                span,
+                                pat: WhenPat::BoolLit { span, value: true },
+                                guard: None,
+                                arrow_span: span,
+                                body: Expr {
+                                    span,
+                                    ty: self.builtins.unit,
+                                    kind: ExprKind::Literal(LiteralKind::Unit),
+                                },
+                            },
+                            WhenArm {
+                                span,
+                                pat: WhenPat::BoolLit { span, value: false },
+                                guard: None,
+                                arrow_span: span,
+                                body: Expr {
+                                    span,
+                                    ty: self.builtins.unit,
+                                    kind: ExprKind::Block(Block {
+                                        span,
+                                        ty: self.builtins.unit,
+                                        stmts: vec![assign_value, assign_inited],
+                                    }),
+                                },
+                            },
+                        ],
+                    },
+                };
+
+                Expr {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: ExprKind::Block(Block {
+                        span,
+                        ty: self.builtins.unit,
+                        stmts: vec![
+                            unlock_stmt.clone(),
+                            Stmt {
+                                span: computed_decl.span,
+                                ty: self.builtins.unit,
+                                kind: StmtKind::Val(computed_decl),
+                            },
+                            lock_stmt.clone(),
+                            Stmt {
+                                span,
+                                ty: self.builtins.unit,
+                                kind: StmtKind::Expr(publish_when),
+                            },
+                        ],
+                    }),
+                }
+            }
+            StdLazyThreadSafetyMode::None => unreachable!("handled above"),
+        };
+
+        let outer_when_unit = Expr {
+            span,
+            ty: self.builtins.unit,
+            kind: ExprKind::When {
+                subject: Box::new(inited_expr.clone()),
+                arms: vec![
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: true },
+                        guard: None,
+                        arrow_span: span,
+                        body: Expr {
+                            span,
+                            ty: self.builtins.unit,
+                            kind: ExprKind::Literal(LiteralKind::Unit),
+                        },
+                    },
+                    WhenArm {
+                        span,
+                        pat: WhenPat::BoolLit { span, value: false },
+                        guard: None,
+                        arrow_span: span,
+                        body: false_arm_unit,
+                    },
+                ],
+            },
+        };
+
+        ExprKind::Block(Block {
+            span,
+            ty: value_ty,
+            stmts: vec![
+                lock_stmt,
+                Stmt {
+                    span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Expr(outer_when_unit),
                 },
-                WhenArm {
+                Stmt {
+                    span: out_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(out_decl),
+                },
+                unlock_stmt,
+                Stmt {
                     span,
-                    pat: WhenPat::BoolLit { span, value: false },
-                    guard: None,
-                    arrow_span: span,
-                    body: false_body,
+                    ty: value_ty,
+                    kind: StmtKind::Expr(out_ref_expr),
                 },
             ],
-        }
+        })
     }
 
     fn lower_observable_delegated_property_assign(
@@ -3449,7 +3797,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
-    let (file, ctor_call_sites, top_level_vars) = {
+    let (file, mut ctor_call_sites, top_level_vars) = {
         let mut ctx = HirLowering::new(
             source,
             &ast,
@@ -3466,10 +3814,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
-    let object_inits =
+    let (object_inits, object_ctor_call_sites) =
         collect_object_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    ctor_call_sites.extend(object_ctor_call_sites);
     // T1312：收集 class 初始化信息（Appendix B.2.2）。
-    let class_inits = collect_class_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    let (class_inits, class_ctor_call_sites) =
+        collect_class_inits(source, &ast, &index, &type_kinds, &mut types, builtins);
+    ctor_call_sites.extend(class_ctor_call_sites);
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
@@ -3516,7 +3867,7 @@ pub fn lower_for_compilation_unit(
     let builtins = types.intern_builtins();
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
-    let (file_hir, ctor_call_sites, top_level_vars) = {
+    let (file_hir, mut ctor_call_sites, top_level_vars) = {
         let mut ctx = HirLowering::new(
             source,
             file,
@@ -3532,8 +3883,12 @@ pub fn lower_for_compilation_unit(
         (file_hir, ctor_call_sites, top_level_vars)
     };
 
-    let object_inits = collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
-    let class_inits = collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
+    let (object_inits, object_ctor_call_sites) =
+        collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+    ctor_call_sites.extend(object_ctor_call_sites);
+    let (class_inits, class_ctor_call_sites) =
+        collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
+    ctor_call_sites.extend(class_ctor_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let struct_layouts = collect_struct_layouts(compilation_unit, index);
@@ -3621,22 +3976,19 @@ pub fn lower_for_compilation_unit_multi_files(
     let mut object_inits = ObjectInitIndex::new();
     let mut class_inits = ClassInitIndex::new();
     for (source, file) in files_to_lower {
-        object_inits.extend(collect_object_inits(
-            source,
-            file,
-            index,
-            &type_kinds,
-            &mut types,
-            builtins,
-        ));
-        class_inits.extend(collect_class_inits(
-            source,
-            file,
-            index,
-            &type_kinds,
-            &mut types,
-            builtins,
-        ));
+        let (file_object_inits, file_object_ctor_call_sites) =
+            collect_object_inits(source, file, index, &type_kinds, &mut types, builtins);
+        object_inits.extend(file_object_inits);
+        if source.path() == entry_source.path() {
+            ctor_call_sites.extend(file_object_ctor_call_sites);
+        }
+
+        let (file_class_inits, file_class_ctor_call_sites) =
+            collect_class_inits(source, file, index, &type_kinds, &mut types, builtins);
+        class_inits.extend(file_class_inits);
+        if source.path() == entry_source.path() {
+            ctor_call_sites.extend(file_class_ctor_call_sites);
+        }
     }
 
     Ok(LoweredHir {
@@ -3875,7 +4227,7 @@ fn collect_object_inits(
     type_kinds: &HashMap<String, ast::TypeKind>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
-) -> ObjectInitIndex {
+) -> (ObjectInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = DelegatedPropertyIndex::new();
     let mut ctx = HirLowering::new(
@@ -3904,7 +4256,8 @@ fn collect_object_inits(
         }
     }
 
-    out
+    let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+    (out, ctor_call_sites)
 }
 
 fn collect_objects_in_type_decl(
@@ -4009,7 +4362,7 @@ fn collect_class_inits(
     type_kinds: &HashMap<String, ast::TypeKind>,
     types: &mut TypeStore,
     builtins: BuiltinTypes,
-) -> ClassInitIndex {
+) -> (ClassInitIndex, CtorCallSiteIndex) {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = DelegatedPropertyIndex::new();
     let mut ctx = HirLowering::new(
@@ -4037,7 +4390,8 @@ fn collect_class_inits(
             | ast::Item::TypeAlias(_) => {}
         }
     }
-    out
+    let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
+    (out, ctor_call_sites)
 }
 
 fn collect_classes_in_type_decl(
@@ -4204,15 +4558,17 @@ fn collect_class_decl_init(
 
                     // delegated property（spec §10.4）：标准 delegates（lazy/observable/vetoable）与 map-backed。
                     if let Some(delegate_expr) = p.delegate.as_ref() {
-                        match parse_std_delegate_expr(delegate_expr) {
-                            Some(ParsedStdDelegateExpr::Lazy { .. }) => {
+                        match parse_std_delegate_expr(ctx.source, delegate_expr) {
+                            Some(ParsedStdDelegateExpr::Lazy { mode, .. }) => {
                                 // lazy：为属性生成两个隐藏字段：
                                 // - `<name>$lazy_inited: Bool`
                                 // - `<name>$lazy_value: T`
+                                // - （可选）`<name>$lazy_mutex: Mutex`（当 mode 需要互斥锁时）
                                 //
                                 // getter 会在首次访问时写入 `<name>$lazy_value` 并把 `<name>$lazy_inited` 置 true。
                                 let inited_fqn = format!("{class_fqn}.{name}$lazy_inited");
                                 let value_fqn = format!("{class_fqn}.{name}$lazy_value");
+                                let mutex_fqn = format!("{class_fqn}.{name}$lazy_mutex");
 
                                 insert_field(
                                     &mut init,
@@ -4232,6 +4588,32 @@ fn collect_class_decl_init(
                                         ty,
                                     },
                                 );
+
+                                if mode.requires_mutex() {
+                                    let mutex_ty = ctx.intern_nominal(
+                                        HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
+                                        Vec::new(),
+                                        None,
+                                    );
+                                    insert_field(
+                                        &mut init,
+                                        ClassField {
+                                            fqn: mutex_fqn.clone(),
+                                            name: format!("{name}$lazy_mutex"),
+                                            mutable: false,
+                                            ty: mutex_ty,
+                                        },
+                                    );
+                                    init.steps.push(ClassInitStep::PropertyInit {
+                                        field_fqn: mutex_fqn,
+                                        init: ctx.call_top_level_fun(
+                                            p.name.span,
+                                            HirLowering::SYNC_MUTEX_CREATE_FQN,
+                                            Vec::new(),
+                                            mutex_ty,
+                                        ),
+                                    });
+                                }
 
                                 init.steps.push(ClassInitStep::PropertyInit {
                                     field_fqn: inited_fqn,
@@ -4427,6 +4809,7 @@ fn join_prefix(prefix: &str, name: &str) -> String {
 #[derive(Debug, Clone)]
 enum ParsedStdDelegateExpr {
     Lazy {
+        mode: StdLazyThreadSafetyMode,
         initializer_body: ast::Expr,
     },
     Observable {
@@ -4471,7 +4854,31 @@ fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
     }
 }
 
-fn parse_std_delegate_expr(delegate_expr: &ast::Expr) -> Option<ParsedStdDelegateExpr> {
+fn parse_lazy_thread_safety_mode(source: &SourceFile, expr: &ast::Expr) -> Option<StdLazyThreadSafetyMode> {
+    // 目前仅支持最常见的枚举常量写法（用于 delegated property 的 early lowering）：
+    // - `LazyThreadSafetyMode.None`
+    // - `LazyThreadSafetyMode.Publication`
+    // - `LazyThreadSafetyMode.Synchronized`
+    //
+    // 备注：这里优先从源文本切片解析，避免依赖 enum variant 的 resolver/typecheck 语义细节。
+    let raw = source.slice(expr.span).trim();
+
+    // 支持命名参数：`mode = LazyThreadSafetyMode.None`。
+    let raw = raw
+        .split_once('=')
+        .map(|(_, rhs)| rhs.trim())
+        .unwrap_or(raw);
+
+    let raw = raw.strip_prefix("scoop.delegates.").unwrap_or(raw);
+    match raw {
+        "LazyThreadSafetyMode.None" => Some(StdLazyThreadSafetyMode::None),
+        "LazyThreadSafetyMode.Publication" => Some(StdLazyThreadSafetyMode::Publication),
+        "LazyThreadSafetyMode.Synchronized" => Some(StdLazyThreadSafetyMode::Synchronized),
+        _ => None,
+    }
+}
+
+fn parse_std_delegate_expr(source: &SourceFile, delegate_expr: &ast::Expr) -> Option<ParsedStdDelegateExpr> {
     match &delegate_expr.kind {
         ast::ExprKind::Call { callee, args } => {
             let fqn = unique_top_level_fun_fqn_from_callee(callee)?;
@@ -4482,7 +4889,15 @@ fn parse_std_delegate_expr(delegate_expr: &ast::Expr) -> Option<ParsedStdDelegat
                 let ast::ExprKind::Lambda(lam) = &last.kind else {
                     return None;
                 };
+
+                let mode = if args.len() >= 2 {
+                    parse_lazy_thread_safety_mode(source, &args[0])
+                        .unwrap_or_else(StdLazyThreadSafetyMode::default_for_lazy_call)
+                } else {
+                    StdLazyThreadSafetyMode::default_for_lazy_call()
+                };
                 return Some(ParsedStdDelegateExpr::Lazy {
+                    mode,
                     initializer_body: (*lam.body).clone(),
                 });
             }
@@ -4568,13 +4983,21 @@ fn collect_delegated_properties_in_type_decl(
                         continue;
                     };
 
-                    let info = match parse_std_delegate_expr(delegate_expr) {
-                        Some(ParsedStdDelegateExpr::Lazy { initializer_body }) => {
+                    let info = match parse_std_delegate_expr(source, delegate_expr) {
+                        Some(ParsedStdDelegateExpr::Lazy {
+                            mode,
+                            initializer_body,
+                        }) => {
+                            let mutex_field_fqn = mode
+                                .requires_mutex()
+                                .then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
                             DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
                                 name: name.clone(),
                                 ty: p.ty.clone(),
+                                mode,
                                 value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
                                 inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
+                                mutex_field_fqn,
                                 initializer_body,
                             })
                         }
@@ -4652,13 +5075,20 @@ fn collect_delegated_properties_in_object_decl(
                     continue;
                 };
 
-                let info = match parse_std_delegate_expr(delegate_expr) {
-                    Some(ParsedStdDelegateExpr::Lazy { initializer_body }) => {
+                let info = match parse_std_delegate_expr(source, delegate_expr) {
+                    Some(ParsedStdDelegateExpr::Lazy {
+                        mode,
+                        initializer_body,
+                    }) => {
+                        let mutex_field_fqn =
+                            mode.requires_mutex().then(|| format!("{owner_fqn}.{name}$lazy_mutex"));
                         DelegatedPropertyInfo::Lazy(LazyDelegatedPropertyInfo {
                             name: name.clone(),
                             ty: p.ty.clone(),
+                            mode,
                             value_field_fqn: format!("{owner_fqn}.{name}$lazy_value"),
                             inited_field_fqn: format!("{owner_fqn}.{name}$lazy_inited"),
+                            mutex_field_fqn,
                             initializer_body,
                         })
                     }
