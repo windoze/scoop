@@ -4997,11 +4997,17 @@
    - fixtures：
      - `tests/fixtures/typecheck/std_net_tcp_api_surface_ok.scoop`
 
-### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
+### T1018 [DONE] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
 - 目标：不直接在此任务实现高层库功能；只提供最小 primitive，并保持数量与语义面尽可能小。
 - 验收：每个新增 intrinsic 都有对应的 blocker 说明、fixture、以及至少一个上层库调用方从“卡住”变为“可实现”的证明。
 - 依赖：T1017
+ - 完成：
+   - 结论：根据 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`（T1017）的 §2.3 `needs_new_intrinsic`，在 `std v1` 与 Kotlin runtime gap 的“纯 Scoop 补齐”目标边界内，未发现必须新增 intrinsic/backends 的 blocker，因此本任务在 0.1 阶段以 **no-op** 形式完成（无新增 intrinsic）。
+   - `TODO.md`：将本任务标记为 `[DONE]`，并记录“未来出现真实 case 时再 reopen”的维护策略（见上文结论）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1027 [TODO] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
 - 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
