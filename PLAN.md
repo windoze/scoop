@@ -543,6 +543,7 @@
   - [x] 闭合行语法：`/ R!`（`!` 后缀作用于整个 row，不与 `+` 右操作数绑定；spec §5.8.4）
  - [ ] 规则：
   - effect operation 调用（T0602）：已支持 `Raise.raise(e)` 的限定名解析与最小类型检查
+  - [ ] effect operation 调用（泛型 op）：支持 `Async.await<T>` 等带 type params 的 effect op call（以及 handler arm head 的实例化），使 stdlib 可直接表达 `Async.await` 而不需要 `__TaskAwaitInt` 适配层（TODO T0602b）
   - required effects（T0604/T0606：已实现未声明的 effect 报错；支持 non-resuming `handle` 捕获；spec §14.7.1）
   - [x] RowExpr 静态语义：默认 `Pure` + `+` 并集 + containment `R1 ⊆ R2`（T0608）
   - [x] public 默认 `/ Pure` 的强制约束（T0508）

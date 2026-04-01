@@ -1481,8 +1481,23 @@
    - resolve/index：为 `resolve::FunSig` 补齐 `kind: FunDeclKind`，让 resolver/typecheck 能区分 effect operation 与普通 member fun。
    - resolver：允许 `EffectName.op` 直接解析到 effect body 内的 operation（不经 companion object），并写回 `MemberIdent.resolved = Fun { fqn }`。
    - typecheck：为 member call 增加 effect operation 特判，lower operation 的签名并复用既有的单一 type param 推断（`Raise<E>`）以支持 `Raise.raise(e)` 调用。
+   - 已知限制：该路径当前不支持“带 type params 的 effect op”（会报 `effect op call（generic op not supported）`），因此 stdlib 暂无法直接调用 `Async.await(task)`，需要 `__TaskAwaitInt` 之类的适配层；见 TODO T0602b。
    - fixtures：新增 `tests/fixtures/typecheck/effect_op_raise_call_ok.scoop` 回归用例。
    - 验收：`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
+
+### T0602b [TODO] Typecheck：泛型 effect op 调用（generic op）+ handler arm 头部实例化
+- 描述：补齐 effect operation 调用对“op 自身带 type params”的支持，使库代码可直接写 `Async.await(task)` 等泛型 op，而不需要额外定义 `__TaskAwaitInt` 适配 effect。
+- 目标（v0，先解决最阻塞的 stdlib case）：
+  - 支持 `effect Async { fun <T> await(task: Task<T>): T }` 这类 op：
+    - 调用点能从实参 `Task<Int>` 推断 `T = Int`，并得到返回类型 `Int`；
+    - 支持在 expected type 语境下反推 `T`（若可行）；必要时允许显式写 `Async.await<Int>(task)`（复用既有 `TypeApply` 语法）。
+  - handler arm head 可实例化泛型 op：`Async.await(task), k -> { ... }` 能用实例化后的签名校验 binders arity/类型。
+  - 保持 `Raise<E>.raise(e)` 的既有行为与错误码不回退（仍是最小基线 case）。
+- 验收（以 fixtures 固化行为，避免未来回归）：
+  - 新增 typecheck fixtures：直接调用 `Async.await(t)` / 在 handler arm head 捕获 `Async.await(task)` 通过。
+  - 新增 typecheck fixtures：无法推断/实参不匹配时给出稳定错误码（并明确提示当前需要显式类型实参/或不支持的形态）。
+  - 后续跟进（不在本任务内实现）：清理 `stdlib/task.scoop` 的 `__TaskAwaitInt` 适配层（见 T1320b 注释）。
+- 依赖：T0602、T0606、T0505、T0513（overload resolution 基线）
 
 ### T0603 [DONE] Parser：函数/函数类型上的 effect row `/ RowExpr`（spec §5.8、§7.5）
 - 描述：在声明与类型位置支持 `/ Pure` 与 `/ E1+E2`。
@@ -4958,7 +4973,7 @@
    - sysroot：
      - `sysroot/task.scoop`：补齐 `Executor.spawn/await` 与 `Task<Int>.map/andThen` 的声明表面（typecheck 可见）。
    - stdlib：
-     - `stdlib/task.scoop`：落地 `spawn/await/map/andThen` 的 pure-scoop 实现（内部用 `__TaskAwaitInt` 承载 escape continuation 适配）。
+     - `stdlib/task.scoop`：落地 `spawn/await/map/andThen` 的 pure-scoop 实现（内部用 `__TaskAwaitInt` 承载 escape continuation 适配；根因是当前 typecheck 不支持泛型 effect op call：`Async.await<T>`，见 TODO T0602b）。
    - fixtures：
      - `tests/fixtures/typecheck/std_task_async_adapters_api_surface_ok.scoop`
      - `tests/fixtures/run-pass/std_task_async_adapters_basic.scoop/.stdout`
