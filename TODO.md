@@ -4984,13 +4984,18 @@
    - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo build -p scoop --features llvm`
    - （可选）`PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" target/debug/scoop run tests/fixtures/run-pass/std_io_write_line_basic.scoop`
 
-### T1320d [TODO] `std` v4：net 抽象 v0（API surface + capability gating）
+### T1320d [DONE] `std` v4：net 抽象 v0（API surface + capability gating）
 - 描述：定义 `scoop.net` 的最小 API surface（TCP 连接/监听或更高层 adapter），并通过 capability gating 表达“不支持”。
 - 目标：
   - 先固定 API 形状与错误模型（可先用 `Option/Result` 的简化版本），避免把 libc socket 细节暴露给 Scoop；
   - runtime 侧实现以 platform/backends 为边界（与 T1402/T1403 对齐）。
 - 验收：新增 typecheck fixtures 固化 API surface；后续在支持平台增加 run-pass fixtures 覆盖最小 TCP roundtrip。
 - 依赖：T1403、T1404
+ - 完成：
+   - sysroot：
+     - `sysroot/net.scoop`：新增 `scoop.net` 最小声明表面（TCP handle + capability gating）。
+   - fixtures：
+     - `tests/fixtures/typecheck/std_net_tcp_api_surface_ok.scoop`
 
 ### T1018 [TODO] 若审计证明必要：新增最小 intrinsic/backends 以解锁纯 Scoop stdlib/运行库（库层）
 - 描述：仅针对 T1017 证明无法绕过的阻塞项，增加最小的新 intrinsic 或 backend hook；并把这部分与上层 Scoop stdlib/运行库（库层）任务解耦。
