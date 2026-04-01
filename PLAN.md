@@ -19,6 +19,7 @@
 
 ## 0.1 维护备注（TODO 顺序）
 
+- 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。
 - 2026-04-01：完成 T0632：类型系统为函数类型保留 effect row 的 `closed` 标记（区分 `/ Pure` 与 `/ Pure!`，并在类型显示中输出 `!`）；typecheck 在所有“写入/转换到 Any”的位置加入门禁：仅允许 `(...)->R / Pure!` 的函数值擦除到 `Any`（effects 不可运行时保真）；新增 typecheck fixtures 回归。
 - 2026-04-01：完成 T0921：`k.resume(value)` 的 one-shot 违规语义从进程级 `exit(3)` 改为 `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`；sysroot `RuntimeError` 增加对应 variant；typecheck 将 `k.resume` required effects 升级为 `E + Raise<RuntimeError>`；runtime 侧在重复 resume 时写入 Raise perform slot 并置位 flag；更新 run-pass/typecheck fixtures 回归。
 - 2026-04-01：完成 T1319e：sysroot 新增 `scoop.task`（`Executor` + `Task<Int>` 最小适配接口），LLVM codegen 将其映射到 `runtime/c/scoop_task_executor.c`；新增 typecheck + run-pass fixtures 回归 task state 与完成回调行为。

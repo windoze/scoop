@@ -31,8 +31,18 @@ fun <V> lazy(initializer: () -> V): ReadOnlyProperty<Any, V>
 /// lazy：指定线程安全策略（实现语义后续补齐）。
 fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): ReadOnlyProperty<Any, V>
 
-/// observable：每次写入触发回调（实现语义后续补齐）。
+/// observable：每次写入触发回调（old/new）。
+///
+/// 并发语义（T1326b，early stage）：
+/// - 编译器会为该属性注入一个内部互斥锁字段（per-property `Mutex`），用于保护 backing field 的读写，
+///   从而保证并发可见性并避免 data race；
+/// - 回调在写入完成后执行，且不在锁内执行（允许回调 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）。
 fun <V> observable(initial: V, onChange: (V, V) -> Unit): ReadWriteProperty<Any, V>
 
-/// vetoable：写入前触发回调，返回 false 时拒绝（实现语义后续补齐）。
+/// vetoable：写入前触发回调，返回 false 时拒绝更新。
+///
+/// 并发语义（T1326b，early stage）：
+/// - backing field 的读写由编译器注入的 per-property `Mutex` 保护（保证并发可见性、避免 data race）；
+/// - 回调不在锁内执行（允许回调 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；
+/// - 因此在并发场景下，回调看到的 `old` 是一次受保护读取的快照；回调返回 `true` 后的实际写入会再次加锁提交。
 fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): ReadWriteProperty<Any, V>

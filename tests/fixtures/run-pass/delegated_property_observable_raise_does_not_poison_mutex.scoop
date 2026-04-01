@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_observable_raise_does_not_poison_mutex.stdout
+// TIMEOUT: 3000
+//
+// T1326b：observable 与 Raise/异常交互（最小回归）
+// - observable 回调在写入后执行；若回调触发 Raise.raise 并被外层 try/catch 捕获，
+//   后续对同一属性的读写仍应可继续执行（不应出现“锁未释放/卡死”）。
+
+import scoop.core.*
+import scoop.delegates.*
+
+class C() {
+    var x: Int by observable(0) { old, new ->
+        if (new == 1) {
+            println("boom")
+            Raise.raise(7)
+        }
+        println(f"x: {old} -> {new}")
+    }
+}
+
+fun main(): Int {
+    val c: C = C()
+
+    try {
+        c.x = 1
+        println("unreachable")
+    } catch (e: Int) {
+        println(f"caught {e}")
+    }
+
+    println(f"after_raise={c.x}")
+    c.x = 2
+    println(f"final={c.x}")
+    println("ok")
+    return 0
+}
+

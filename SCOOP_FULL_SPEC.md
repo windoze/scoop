@@ -1679,6 +1679,18 @@ class JsonObject(private val data: Map<String, Any>) {
 }
 ```
 
+#### Concurrency Notes (Standard Delegates)
+
+In Scoop 0.1, `lazy`, `observable`, and `vetoable` are currently implemented as **compiler-known delegates** (an early-stage strategy) rather than allocating a runtime delegate object. In particular, for `observable` / `vetoable`, the compiler injects a hidden **per-property mutex** to protect the backing field.
+
+Minimal concurrency contract (host pthread backend):
+
+- Backing field reads/writes are synchronized by the injected mutex (`lock`/`unlock` act as acquire/release boundaries).
+- `observable`: the backing field is updated first, then `onChange(old, new)` is invoked **after** the write and **outside** the mutex. If `onChange` raises, the value remains updated.
+- `vetoable`: `onChange(old, new)` is invoked **before** the write and **outside** the mutex. If it returns `false` (or raises), the value is not updated.
+
+Because callbacks are invoked outside the lock, callbacks from multiple threads may interleave. Reentrant reads/writes from within a callback are permitted but may observe such interleavings.
+
 #### Delegated Properties and Value Types
 
 Delegated properties are available for **reference types** (classes) only. Value types (struct, enum) are immutable and have no identity, so delegation (which requires storing a delegate object alongside the property) does not apply. Use computed properties (§10.2) for value types instead.

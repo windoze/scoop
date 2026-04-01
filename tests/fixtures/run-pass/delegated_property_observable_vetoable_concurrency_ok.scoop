@@ -1,0 +1,105 @@
+// EXPECT: pass
+// RUN-STDOUT: delegated_property_observable_vetoable_concurrency_ok.stdout
+// TIMEOUT: 3000
+//
+// T1326b：observable/vetoable 的并发可见性与回调规则（host/pthread 最小回归）
+// - observable：写入后触发回调（old/new）；并发读写应具备可见性（无 data race）
+// - vetoable：写入前触发回调；返回 false 时拒绝更新；并发下 veto 失败分支不应污染可见值
+//
+// 说明：为保持 stdout golden 稳定，这里用 channel 控制两个线程的写入顺序。
+
+import scoop.core.*
+import scoop.delegates.*
+import scoop.thread.*
+import scoop.channels.*
+
+class C() {
+    var score: Int by observable(0) { old, new ->
+        println(f"score: {old} -> {new}")
+        val notify: Channel<Int> = Shared.scoreNotify
+        val _sent: Bool = notify.send(new)
+    }
+
+    var age: Int by vetoable(0) { old, new ->
+        println(f"age try: {old} -> {new}")
+        new >= 0
+    }
+}
+
+object Shared {
+    val c: C = C()
+    val ready: Channel<Int> = channelCreate<Int>()
+    val t1Go: Channel<Int> = channelCreate<Int>()
+    val t2Go: Channel<Int> = channelCreate<Int>()
+    val done: Channel<Int> = channelCreate<Int>()
+    val scoreNotify: Channel<Int> = channelCreate<Int>()
+}
+
+fun worker1() {
+    val ready: Channel<Int> = Shared.ready
+    val _sent: Bool = ready.send(1)
+
+    val _go: Int? = Shared.t1Go.recv()
+    val c: C = Shared.c
+    c.score = 1
+    c.age = 5
+
+    val _sent2: Bool = Shared.t2Go.send(1)
+    val _done: Bool = Shared.done.send(1)
+}
+
+fun worker2() {
+    val ready: Channel<Int> = Shared.ready
+    val _sent: Bool = ready.send(1)
+
+    val _go: Int? = Shared.t2Go.recv()
+    val c: C = Shared.c
+    c.score = 2
+    c.age = -1 // vetoable：应拒绝
+
+    val _done: Bool = Shared.done.send(1)
+}
+
+fun main(): Int {
+    val ready: Channel<Int> = Shared.ready
+    val done: Channel<Int> = Shared.done
+    val c: C = Shared.c
+
+    val t1: Thread = threadSpawn { worker1() }
+    val t2: Thread = threadSpawn { worker2() }
+
+    val _r1: Int? = ready.recv()
+    val _r2: Int? = ready.recv()
+
+    println("start")
+    Shared.t1Go.send(1)
+
+    val _d1: Int? = done.recv()
+    val _d2: Int? = done.recv()
+
+    t1.join()
+    t2.join()
+
+    // callback 次数断言：应恰好有两次 send，并在 close 后读到 None。
+    Shared.scoreNotify.close()
+    val a: Int? = Shared.scoreNotify.recv()
+    val b: Int? = Shared.scoreNotify.recv()
+    val c3: Int? = Shared.scoreNotify.recv()
+
+    when (a) {
+        Some(x) -> when (b) {
+            Some(y) -> when (c3) {
+                None -> println(f"callbacks={x}+{y}")
+                Some(z) -> println(f"callbacks=bad:{z}")
+            }
+            None -> println("callbacks=bad")
+        }
+        None -> println("callbacks=bad")
+    }
+
+    println(f"final_score={c.score}")
+    println(f"final_age={c.age}")
+    println("ok")
+    return 0
+}
+

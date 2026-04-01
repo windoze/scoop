@@ -5223,11 +5223,23 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_synchronized_once.scoop`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/delegated_property_lazy_thread_safety_publication_multi_init.scoop`
 
-### T1326b [TODO] observable/vetoable：并发可见性与回调规则
+### T1326b [DONE] observable/vetoable：并发可见性与回调规则
 - 描述：补齐 `observable/vetoable` 在并发访问下的可见性、回调触发顺序与 reentrancy 规则（含与 `Raise`/异常的交互）。
 - 目标：先固化 language/std 的行为约定（文档 + fixtures）；实现可先做 host(pthread) 平台最小语义落点。
 - 验收：新增 fixtures（至少 1 个 run-pass）覆盖并发下回调次数/顺序、以及 veto 失败分支的可见性；`cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T1326a、T1319
+ - 完成：
+   - HIR lowering：为 `observable/vetoable` 注入 per-property `Mutex` 字段（`<name>$delegate_mutex`），并在 getter/setter 读写 backing field 时加锁，保证并发可见性、避免 data race。
+   - 回调规则（early stage 固化）：
+     - `observable`：先写入 backing field，再在锁外触发回调（允许 reentrancy，并避免 `Raise`/异常导致锁泄漏）。
+     - `vetoable`：在锁外执行回调；返回 `false` 时拒绝写入；并发下 `old` 为一次受保护读取的快照，提交写入时再次加锁。
+   - fixtures（run-pass）：
+     - `tests/fixtures/run-pass/delegated_property_observable_vetoable_concurrency_ok.*`：并发回调次数/顺序 + veto 失败分支可见性；
+     - `tests/fixtures/run-pass/delegated_property_observable_raise_does_not_poison_mutex.*`：回调触发 `Raise` 被 catch 后不应卡死。
+   - 文档：更新 `sysroot/delegates.scoop` 与 `SCOOP_FULL_SPEC.md` §10.4 的并发说明。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1326c [TODO] delegated properties：跨平台 policy（capability matrix + 降级策略）
 - 描述：为 `lazy/observable/vetoable` 在 desktop/server/embedded/WASM 等平台上给出 capability matrix，并明确“不支持线程”或“弱内存序”场景下的降级策略（例如：强制降为 `None`、禁止 `Synchronized`、或在编译期给出诊断）。

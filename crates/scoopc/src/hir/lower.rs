@@ -78,6 +78,10 @@ struct ObservableDelegatedPropertyInfo {
     name: String,
     ty: Option<ast::TypeRef>,
     on_change: ast::LambdaExpr,
+    /// observable/vetoable 的内部互斥锁字段（class field fqn）。
+    ///
+    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
+    mutex_field_fqn: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +89,10 @@ struct VetoableDelegatedPropertyInfo {
     name: String,
     ty: Option<ast::TypeRef>,
     on_change: ast::LambdaExpr,
+    /// vetoable 的内部互斥锁字段（class field fqn）。
+    ///
+    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
+    mutex_field_fqn: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1900,13 +1908,31 @@ impl<'a> HirLowering<'a> {
                             self.builtins.any,
                         );
                     }
-                    DelegatedPropertyInfo::Observable(_)
-                    | DelegatedPropertyInfo::Vetoable(_)
-                    | DelegatedPropertyInfo::MapBacked => {
-                        // 标准 delegates（lazy/observable/vetoable）与 map-backed：
-                        // - 当前阶段我们不走 `getValue/setValue` 的运行期调用；
-                        // - `lazy` 在 getter 内 inline initializer（见 `lower_lazy_delegated_property_get`）；
-                        // - `observable/vetoable/map-backed` 的读取走普通字段访问（初始化/写入由其它 lowering 负责）。
+                    DelegatedPropertyInfo::Observable(info) => {
+                        return self.lower_observable_vetoable_delegated_property_get(
+                            pkg_prefix,
+                            member.span,
+                            receiver,
+                            fqn,
+                            info.name,
+                            info.ty,
+                            info.mutex_field_fqn,
+                        );
+                    }
+                    DelegatedPropertyInfo::Vetoable(info) => {
+                        return self.lower_observable_vetoable_delegated_property_get(
+                            pkg_prefix,
+                            member.span,
+                            receiver,
+                            fqn,
+                            info.name,
+                            info.ty,
+                            info.mutex_field_fqn,
+                        );
+                    }
+                    DelegatedPropertyInfo::MapBacked => {
+                        // map-backed：值在初始化时被拷贝到真实字段，后续只读；
+                        // 读取不需要额外同步，按普通字段访问处理。
                     }
                 }
             }
@@ -2364,6 +2390,100 @@ impl<'a> HirLowering<'a> {
         })
     }
 
+    fn lower_observable_vetoable_delegated_property_get(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        receiver: &ast::Expr,
+        property_fqn: &str,
+        property_name: String,
+        ty: Option<ast::TypeRef>,
+        mutex_field_fqn: Option<String>,
+    ) -> (ExprKind, TypeId) {
+        // observable/vetoable（T1326b）：
+        // - 读取需要具备并发可见性（避免 data race）；
+        // - 早期阶段通过一个 per-property 的 `Mutex` 保护 backing field 读写。
+        let receiver = self.lower_expr(pkg_prefix, receiver);
+        let value_ty = self.delegated_property_ty(ty.as_ref());
+
+        let mutex_fqn = mutex_field_fqn.unwrap_or_else(|| {
+            // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
+            format!("__missing__{}.{}$delegate_mutex", pkg_prefix, property_name)
+        });
+        let mutex_name = format!("{property_name}$delegate_mutex");
+        let mutex_field =
+            self.member_access_to_class_field(span, receiver.clone(), mutex_name, mutex_fqn);
+
+        let lock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_LOCK_FQN,
+                vec![mutex_field.clone()],
+                self.builtins.unit,
+            )),
+        };
+        let unlock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_UNLOCK_FQN,
+                vec![mutex_field],
+                self.builtins.unit,
+            )),
+        };
+
+        let out_decl_span = Span::new(span.end, span.end);
+        let out_id = self.intern_local_symbol(out_decl_span, false);
+        let out_name = "$delegate_out".to_string();
+        let out_decl = ValDecl {
+            span: out_decl_span,
+            id: Some(out_id),
+            name: Some(out_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(self.member_access_to_class_field(
+                span,
+                receiver,
+                property_name,
+                property_fqn.to_string(),
+            )),
+        };
+        let out_ref_expr = Expr {
+            span,
+            ty: value_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: out_id,
+                name: out_name,
+                decl_span: out_decl_span,
+            }),
+        };
+
+        (
+            ExprKind::Block(Block {
+                span,
+                ty: value_ty,
+                stmts: vec![
+                    lock_stmt,
+                    Stmt {
+                        span: out_decl.span,
+                        ty: self.builtins.unit,
+                        kind: StmtKind::Val(out_decl),
+                    },
+                    unlock_stmt,
+                    Stmt {
+                        span,
+                        ty: value_ty,
+                        kind: StmtKind::Expr(out_ref_expr),
+                    },
+                ],
+            }),
+            value_ty,
+        )
+    }
+
     fn lower_observable_delegated_property_assign(
         &mut self,
         pkg_prefix: &str,
@@ -2398,15 +2518,6 @@ impl<'a> HirLowering<'a> {
             )
         };
 
-        let old_decl = ValDecl {
-            span: old_param.name.span,
-            id: Some(old_id),
-            name: Some(old_name.clone()),
-            mutable: false,
-            ty: value_ty,
-            init: Some(field_access(self, receiver.clone())),
-        };
-
         let new_decl = ValDecl {
             span: new_param.name.span,
             id: Some(new_id),
@@ -2414,6 +2525,45 @@ impl<'a> HirLowering<'a> {
             mutable: false,
             ty: value_ty,
             init: Some(self.lower_expr(pkg_prefix, rhs)),
+        };
+
+        // 读写并发可见性：用 per-property mutex 保护 backing field。
+        let mutex_fqn = info.mutex_field_fqn.as_ref().cloned().unwrap_or_else(|| {
+            // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
+            format!("__missing__{}.{}$delegate_mutex", pkg_prefix, info.name)
+        });
+        let mutex_name = format!("{}$delegate_mutex", info.name);
+        let mutex_field =
+            self.member_access_to_class_field(member_span, receiver.clone(), mutex_name, mutex_fqn);
+
+        let lock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_LOCK_FQN,
+                vec![mutex_field.clone()],
+                self.builtins.unit,
+            )),
+        };
+        let unlock_stmt = Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Expr(self.call_top_level_fun(
+                span,
+                Self::SYNC_MUTEX_UNLOCK_FQN,
+                vec![mutex_field],
+                self.builtins.unit,
+            )),
+        };
+
+        let old_decl = ValDecl {
+            span: old_param.name.span,
+            id: Some(old_id),
+            name: Some(old_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(field_access(self, receiver.clone())),
         };
 
         let assign = Stmt {
@@ -2441,16 +2591,18 @@ impl<'a> HirLowering<'a> {
             ty: self.builtins.unit,
             stmts: vec![
                 Stmt {
-                    span: old_decl.span,
-                    ty: self.builtins.unit,
-                    kind: StmtKind::Val(old_decl),
-                },
-                Stmt {
                     span: new_decl.span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Val(new_decl),
                 },
+                lock_stmt,
+                Stmt {
+                    span: old_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(old_decl),
+                },
                 assign,
+                unlock_stmt,
                 Stmt {
                     span: callback_body.span,
                     ty: callback_body.ty,
@@ -2500,15 +2652,6 @@ impl<'a> HirLowering<'a> {
             )
         };
 
-        let old_decl = ValDecl {
-            span: old_param.name.span,
-            id: Some(old_id),
-            name: Some(old_name.clone()),
-            mutable: false,
-            ty: value_ty,
-            init: Some(field_access(self, receiver.clone())),
-        };
-
         let new_decl = ValDecl {
             span: new_param.name.span,
             id: Some(new_id),
@@ -2516,6 +2659,50 @@ impl<'a> HirLowering<'a> {
             mutable: false,
             ty: value_ty,
             init: Some(self.lower_expr(pkg_prefix, rhs)),
+        };
+
+        // 读写并发可见性：用 per-property mutex 保护 backing field。
+        let mutex_fqn = info.mutex_field_fqn.as_ref().cloned().unwrap_or_else(|| {
+            // 若出现缺失，回退到一个可预测的合成字段名（保持不 panic）。
+            format!("__missing__{}.{}$delegate_mutex", pkg_prefix, info.name)
+        });
+        let mutex_name = format!("{}$delegate_mutex", info.name);
+        let mutex_field =
+            self.member_access_to_class_field(member_span, receiver.clone(), mutex_name, mutex_fqn);
+
+        let lock_stmt = |this: &mut Self, mutex: Expr| -> Stmt {
+            Stmt {
+                span,
+                ty: this.builtins.unit,
+                kind: StmtKind::Expr(this.call_top_level_fun(
+                    span,
+                    Self::SYNC_MUTEX_LOCK_FQN,
+                    vec![mutex],
+                    this.builtins.unit,
+                )),
+            }
+        };
+        let unlock_stmt = |this: &mut Self, mutex: Expr| -> Stmt {
+            Stmt {
+                span,
+                ty: this.builtins.unit,
+                kind: StmtKind::Expr(this.call_top_level_fun(
+                    span,
+                    Self::SYNC_MUTEX_UNLOCK_FQN,
+                    vec![mutex],
+                    this.builtins.unit,
+                )),
+            }
+        };
+
+        // 先在锁内读取 old，再解锁执行回调（避免把用户回调放在锁内导致死锁/泄漏）。
+        let old_decl = ValDecl {
+            span: old_param.name.span,
+            id: Some(old_id),
+            name: Some(old_name.clone()),
+            mutable: false,
+            ty: value_ty,
+            init: Some(field_access(self, receiver.clone())),
         };
 
         let ok_expr = self.lower_expr(pkg_prefix, &info.on_change.body);
@@ -2547,7 +2734,9 @@ impl<'a> HirLowering<'a> {
                 span,
                 ty: self.builtins.unit,
                 stmts: vec![
+                    lock_stmt(self, mutex_field.clone()),
                     assign_stmt,
+                    unlock_stmt(self, mutex_field.clone()),
                     Stmt {
                         span,
                         ty: self.builtins.unit,
@@ -2596,15 +2785,17 @@ impl<'a> HirLowering<'a> {
             ty: self.builtins.unit,
             stmts: vec![
                 Stmt {
-                    span: old_decl.span,
-                    ty: self.builtins.unit,
-                    kind: StmtKind::Val(old_decl),
-                },
-                Stmt {
                     span: new_decl.span,
                     ty: self.builtins.unit,
                     kind: StmtKind::Val(new_decl),
                 },
+                lock_stmt(self, mutex_field.clone()),
+                Stmt {
+                    span: old_decl.span,
+                    ty: self.builtins.unit,
+                    kind: StmtKind::Val(old_decl),
+                },
+                unlock_stmt(self, mutex_field),
                 Stmt {
                     span,
                     ty: self.builtins.unit,
@@ -4626,7 +4817,36 @@ fn collect_class_decl_init(
                             }
                             Some(ParsedStdDelegateExpr::Observable { initial, .. })
                             | Some(ParsedStdDelegateExpr::Vetoable { initial, .. }) => {
-                                // observable/vetoable：把当前值落到真实字段 `<name>`，并在初始化时写入 `initial`。
+                                // observable/vetoable：在 early stage 采用“编译器内建 delegate”策略：
+                                // - 把当前值落到真实字段 `<name>`；
+                                // - 注入一个内部互斥锁字段 `<name>$delegate_mutex: Mutex`；
+                                // - 在 getter/setter lowering 时通过该 mutex 保障并发可见性（T1326b）。
+                                let mutex_fqn = format!("{class_fqn}.{name}$delegate_mutex");
+                                let mutex_ty = ctx.intern_nominal(
+                                    HirLowering::SYNC_MUTEX_TYPE_FQN.to_string(),
+                                    Vec::new(),
+                                    None,
+                                );
+                                insert_field(
+                                    &mut init,
+                                    ClassField {
+                                        fqn: mutex_fqn.clone(),
+                                        name: format!("{name}$delegate_mutex"),
+                                        mutable: false,
+                                        ty: mutex_ty,
+                                    },
+                                );
+                                init.steps.push(ClassInitStep::PropertyInit {
+                                    field_fqn: mutex_fqn,
+                                    init: ctx.call_top_level_fun(
+                                        p.name.span,
+                                        HirLowering::SYNC_MUTEX_CREATE_FQN,
+                                        Vec::new(),
+                                        mutex_ty,
+                                    ),
+                                });
+
+                                // 把当前值落到真实字段 `<name>`，并在初始化时写入 `initial`。
                                 let field_fqn = format!("{class_fqn}.{name}");
                                 insert_field(
                                     &mut init,
@@ -5002,17 +5222,23 @@ fn collect_delegated_properties_in_type_decl(
                             })
                         }
                         Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
+                            let mutex_field_fqn =
+                                Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
                                 name: name.clone(),
                                 ty: p.ty.clone(),
                                 on_change,
+                                mutex_field_fqn,
                             })
                         }
                         Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
+                            let mutex_field_fqn =
+                                Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                             DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
                                 name: name.clone(),
                                 ty: p.ty.clone(),
                                 on_change,
+                                mutex_field_fqn,
                             })
                         }
                         Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
@@ -5093,17 +5319,23 @@ fn collect_delegated_properties_in_object_decl(
                         })
                     }
                     Some(ParsedStdDelegateExpr::Observable { on_change, .. }) => {
+                        let mutex_field_fqn =
+                            Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Observable(ObservableDelegatedPropertyInfo {
                             name: name.clone(),
                             ty: p.ty.clone(),
                             on_change,
+                            mutex_field_fqn,
                         })
                     }
                     Some(ParsedStdDelegateExpr::Vetoable { on_change, .. }) => {
+                        let mutex_field_fqn =
+                            Some(format!("{owner_fqn}.{name}$delegate_mutex"));
                         DelegatedPropertyInfo::Vetoable(VetoableDelegatedPropertyInfo {
                             name: name.clone(),
                             ty: p.ty.clone(),
                             on_change,
+                            mutex_field_fqn,
                         })
                     }
                     Some(ParsedStdDelegateExpr::MapBacked { .. }) => {
