@@ -4732,6 +4732,12 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::
     // - `@Extern` 在语义上由 typecheck 校验（参数个数/类型等）；
     // - HIR lowering 只做“提取已校验信息”的 best-effort，避免把错误传播面扩到 HIR/LLVM 层。
     let name = fun.name.text(source);
+    let calling_convention = fun.annotations.iter().find_map(|ann| {
+        if !is_builtin_calling_convention_annotation(source, ann) {
+            return None;
+        }
+        parse_calling_convention_annotation_arg(source, ann)
+    });
 
     for ann in &fun.annotations {
         if !is_builtin_extern_annotation(source, ann) {
@@ -4745,6 +4751,7 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<super::
         return Some(super::ExternFun {
             abi: super::ExternAbi::C,
             symbol,
+            calling_convention: calling_convention.clone(),
         });
     }
 
@@ -4883,6 +4890,52 @@ fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -
         .map(|id| id.text(source))
         .collect::<Vec<_>>();
     matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
+}
+
+fn is_builtin_calling_convention_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
+    let segs = ann
+        .path
+        .iter()
+        .map(|id| id.text(source))
+        .collect::<Vec<_>>();
+    matches!(
+        segs.as_slice(),
+        ["CallingConvention"] | ["scoop", "core", "CallingConvention"]
+    )
+}
+
+fn parse_calling_convention_annotation_arg(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Option<String> {
+    let arg = ann.args.first()?;
+
+    // 兼容两种“命名参数”形态：
+    // - `name: "..."`（AnnotationArg.name）
+    // - `name = "..."`（赋值表达式；更贴近 Kotlin 风格）
+    let (key, value) = match &arg.name {
+        Some(name_id) => (Some(name_id.text(source)), Some(&arg.value)),
+        None => match &arg.value.kind {
+            ast::ExprKind::Assign { lhs, rhs, .. } => match &lhs.kind {
+                ast::ExprKind::Ident(id) => (Some(source.slice(id.span)), Some(rhs.as_ref())),
+                _ => (None, None),
+            },
+            _ => (None, Some(&arg.value)),
+        },
+    };
+
+    if let Some(key) = key {
+        if key != "name" {
+            return None;
+        }
+    }
+
+    if !matches!(value?.kind, ast::ExprKind::StringLit) {
+        return None;
+    }
+
+    let text = source.slice(value?.span);
+    parse_string_literal_utf8(text).ok()
 }
 
 fn annotation_use_resolves_to_fqn_in_file(

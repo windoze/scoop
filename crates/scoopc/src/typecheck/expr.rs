@@ -45,6 +45,7 @@ use super::{TypeEnv, TypeSymbolKind, type_env::EnumVariantInfo};
 const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
 const TASK_FQN: &str = "scoop.core.Task";
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
+const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProgramBoundaryKind {
@@ -377,6 +378,14 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("调用函数指针需要 unsafe context：{callee}")]
+    #[diagnostic(code(scoop::typecheck::funptr_call_requires_unsafe))]
+    FunPtrCallRequiresUnsafeContext {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用 `{callee}` 时，形参 `var` 需要传入可寻址变量（lvalue）")]
     #[diagnostic(code(scoop::typecheck::var_param_requires_lvalue))]
     VarParamRequiresLValue {
@@ -437,6 +446,14 @@ pub enum ExprTypeError {
     #[error("const fun 中不允许调用函数值/闭包：{callee}")]
     #[diagnostic(code(scoop::typecheck::const_fun_function_value_call_not_allowed))]
     ConstFunFunctionValueCallNotAllowed {
+        callee: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("const fun 中不允许调用函数指针：{callee}")]
+    #[diagnostic(code(scoop::typecheck::const_fun_funptr_call_not_allowed))]
+    ConstFunFunPtrCallNotAllowed {
         callee: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -6268,6 +6285,183 @@ fn infer_function_value_call_expr_type(
     Ok(fun.return_ty)
 }
 
+fn infer_funptr_value_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee_name: &str,
+    callee_decl_span: Span,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    let Some(callee_ty) = locals.get(&callee_decl_span).copied() else {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "函数指针调用（缺少局部绑定类型信息）",
+            span: call_expr.span.into(),
+        });
+    };
+
+    infer_funptr_type_call_expr_type(
+        source,
+        call_expr,
+        callee_name,
+        callee_ty,
+        args,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )
+}
+
+fn infer_funptr_type_call_expr_type(
+    source: &SourceFile,
+    call_expr: &ast::Expr,
+    callee_name: &str,
+    callee_ty: TypeId,
+    args: &[ast::Expr],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<TypeId, ExprTypeError> {
+    if lower.in_const_context() {
+        return Err(ExprTypeError::ConstFunFunPtrCallNotAllowed {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    if !lower.in_unsafe_context() {
+        return Err(ExprTypeError::FunPtrCallRequiresUnsafeContext {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    if args
+        .iter()
+        .any(|a| matches!(a.kind, ast::ExprKind::NamedArg { .. }))
+    {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "函数指针调用（暂不支持命名实参）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(callee_ty) else {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
+    if nominal.fqn != FUNPTR_FQN || nominal.args.len() != 1 {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    let sig_ty = nominal.args[0];
+    let TypeKind::Ref(RefTypeKind::Function(fun)) = lower.type_kind(sig_ty) else {
+        return Err(ExprTypeError::CalleeNotCallable {
+            callee: callee_name.to_string(),
+            span: call_expr.span.into(),
+        });
+    };
+
+    if fun.receiver.is_some() {
+        return Err(ExprTypeError::UnsupportedExpr {
+            kind: "函数指针调用（暂不支持 receiver function type）",
+            span: call_expr.span.into(),
+        });
+    }
+
+    let call_args = collect_call_arg_infos(
+        source,
+        args,
+        lower,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    if call_args.len() != fun.params.len() {
+        return Err(ExprTypeError::CallArityMismatch {
+            callee: callee_name.to_string(),
+            expected: fun.params.len(),
+            found: call_args.len(),
+            span: call_expr.span.into(),
+        });
+    }
+
+    let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
+    for (idx, arg) in call_args.iter().enumerate() {
+        let expected_ty = fun.params[idx];
+        let found_ty = infer_expr_type_in_expected_context(
+            source,
+            arg.expr,
+            expected_ty,
+            ExpectedTypeFrom::new(format!("函数指针 `{callee_name}` 的第 {} 个参数", idx + 1)),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+        checked_arg_tys.push(found_ty);
+    }
+
+    for (idx, (arg, found_ty)) in call_args
+        .iter()
+        .zip(checked_arg_tys.iter().copied())
+        .enumerate()
+    {
+        let expected_ty = fun.params[idx];
+        if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+            check_fn_value_to_any_erasure_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+            check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
+            continue;
+        }
+        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+            continue;
+        }
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: callee_name.to_string(),
+            index: idx + 1,
+            expected: lower.fmt_type(expected_ty),
+            found: lower.fmt_type(found_ty),
+            span: arg.expr.span.into(),
+        });
+    }
+
+    for effect in fun.effects.terms.iter().copied() {
+        lower.record_performed_effect(effect, call_expr.span);
+    }
+
+    Ok(fun.return_ty)
+}
+
+fn is_funptr_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
+    match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            nominal.fqn == FUNPTR_FQN && nominal.args.len() == 1
+        }
+        _ => false,
+    }
+}
+
 fn collect_top_level_fun_signatures_from_index(
     callee_fqn: &str,
     lower: &mut TypeLowering<'_>,
@@ -6855,6 +7049,25 @@ fn infer_call_expr_type(
             let (callee_fqn, callee_span) = match resolved {
                 ast::ResolvedValueRef::TopLevel { fqn } => (fqn.clone(), id.span),
                 ast::ResolvedValueRef::Local { decl_span, .. } => {
+                    if locals
+                        .get(decl_span)
+                        .copied()
+                        .is_some_and(|ty| is_funptr_type(ty, lower))
+                    {
+                        return infer_funptr_value_call_expr_type(
+                            source,
+                            call_expr,
+                            callee_name,
+                            *decl_span,
+                            args,
+                            lower,
+                            builtins,
+                            locals,
+                            top_level_types,
+                            top_level_funs,
+                            struct_field_types,
+                        );
+                    }
                     return infer_function_value_call_expr_type(
                         source,
                         call_expr,
@@ -6880,6 +7093,29 @@ fn infer_call_expr_type(
                     sigs_from_index =
                         collect_top_level_fun_signatures_from_index(&callee_fqn, lower, builtins)?;
                     if sigs_from_index.is_empty() {
+                        // 顶层值为函数指针：允许 `fp(args...)` 形态调用（必须在 unsafe context）。
+                        if top_level_types
+                            .get(&callee_fqn)
+                            .copied()
+                            .is_some_and(|ty| is_funptr_type(ty, lower))
+                        {
+                            return infer_funptr_type_call_expr_type(
+                                source,
+                                call_expr,
+                                callee_name,
+                                top_level_types
+                                    .get(&callee_fqn)
+                                    .copied()
+                                    .unwrap_or(builtins.any),
+                                args,
+                                lower,
+                                builtins,
+                                locals,
+                                top_level_types,
+                                top_level_funs,
+                                struct_field_types,
+                            );
+                        }
                         if id.call.is_none() && lower.is_object_type(&callee_fqn) {
                             return Err(ExprTypeError::ObjectNotConstructible {
                                 name: callee_fqn,

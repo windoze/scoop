@@ -13,6 +13,14 @@ import scoop.core.*
 @Intrinsic
 struct Ptr<T>
 
+/// 原生函数指针（intrinsic，编译器/后端固定语义）。
+///
+/// 说明：
+/// - 该类型仅承载“函数签名”这一编译期信息：`F` 必须是函数类型（例如 `(Int, Int) -> Int`）；
+/// - 运行期表示为不透明的 native function address（GC-free，值语义）。
+@Intrinsic
+struct FunPtr<F>
+
 // ---- Raw pointers（spec §15.9.4）----
 //
 // 说明：
@@ -74,6 +82,32 @@ fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
 /// UIntPtr → 指针（只能在 unsafe context 使用；spec §15.9.4）。
 @Intrinsic @NoGC @Unsafe
 fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
+
+// ---- Function pointers（spec §15.9.4）----
+//
+// 说明：
+// - `FunPtr<F>` 的调用在语义上属于 unsafe 操作（可跳出语言内存/控制流模型），因此统一要求 `@Unsafe`；
+// - v0 阶段以 “extension fun invoke(...)” 的形式暴露，便于在早期实现中复用现有的扩展函数调用路径。
+
+/// `FunPtr` → `UIntPtr`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <F> funPtrToUIntPtr(ptr: FunPtr<F>): UIntPtr
+
+/// `UIntPtr` → `FunPtr`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <F> uintPtrToFunPtr(addr: UIntPtr): FunPtr<F>
+
+/// `FunPtr<() -> R>.invoke()`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <R> FunPtr<() -> R>.invoke(): R
+
+/// `FunPtr<(A) -> R>.invoke(a0)`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <A, R> FunPtr<(A) -> R>.invoke(a0: A): R
+
+/// `FunPtr<(A, B) -> R>.invoke(a0, a1)`（只能在 unsafe context 使用）。
+@Intrinsic @NoGC @Unsafe
+fun <A, B, R> FunPtr<(A, B) -> R>.invoke(a0: A, a1: B): R
 
 // ---- Internal atomics（FFI/runtime oriented）----
 //

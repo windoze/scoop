@@ -131,6 +131,21 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@CallingConvention` 仅支持：单个字符串位置参数 / 命名参数 `name`（字符串字面量）")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_annotation_args_invalid))]
+    CallingConventionAnnotationArgsInvalid {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("暂不支持的 calling convention：{name}（当前仅支持默认 C ABI：\"c\"/\"cdecl\"）")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_not_supported))]
+    CallingConventionNotSupported {
+        name: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("`@Extern` 函数必须省略函数体（外部实现）：{fun_name}")]
     #[diagnostic(code(scoop::typecheck::extern_fun_must_have_no_body))]
     ExternFunMustHaveNoBody {
@@ -363,7 +378,7 @@ pub fn check_file_annotations(
                     &ta.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Type),
                 )?;
-                reject_builtin_annotations_on_target(source, &ta.annotations, "typealias")?;
+                check_builtin_annotations_on_type_alias_decl(source, ta)?;
             }
             ast::Item::Fun(fun) => {
                 check_annotation_uses(
@@ -1502,6 +1517,9 @@ fn check_builtin_annotations_on_fun_decl(
         };
         match kind {
             BuiltinAnnotationKind::Extern => check_extern_builtin_annotation_args(source, ann)?,
+            BuiltinAnnotationKind::CallingConvention => {
+                check_calling_convention_builtin_annotation_args(source, ann)?
+            }
             BuiltinAnnotationKind::Unsafe
             | BuiltinAnnotationKind::Safe
             | BuiltinAnnotationKind::NoGC
@@ -1537,6 +1555,33 @@ fn check_builtin_annotations_on_fun_decl(
         }
     }
 
+    Ok(())
+}
+
+fn check_builtin_annotations_on_type_alias_decl(
+    source: &SourceFile,
+    decl: &ast::TypeAliasDecl,
+) -> Result<(), AnnotationError> {
+    for ann in &decl.annotations {
+        let Some(kind) = builtin_annotation_kind(source, ann) else {
+            continue;
+        };
+
+        match kind {
+            BuiltinAnnotationKind::CallingConvention => {
+                check_calling_convention_builtin_annotation_args(source, ann)?;
+            }
+            _ => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                return Err(AnnotationError::BuiltinAnnotationInvalidTarget {
+                    annotation: format!("@{}", kind.name()),
+                    allowed: kind.allowed_targets_hint(),
+                    found: "typealias",
+                    span: name_span.into(),
+                });
+            }
+        }
+    }
     Ok(())
 }
 
@@ -1598,6 +1643,57 @@ fn check_builtin_annotations_on_top_level_val_decl(
         return Err(AnnotationError::ExternVarTypeMustBeGcFree {
             found: lower.fmt_type(ty),
             span: ty_ref.span().into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_calling_convention_builtin_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> Result<(), AnnotationError> {
+    if ann.args.len() != 1 {
+        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+            span: ann.span.into(),
+        });
+    }
+
+    let arg = &ann.args[0];
+    let (key, key_span, value) = match &arg.name {
+        Some(name_id) => (Some(name_id.text(source)), name_id.span, &arg.value),
+        None => match &arg.value.kind {
+            ast::ExprKind::Assign { lhs, rhs, .. } => {
+                let ast::ExprKind::Ident(id) = &lhs.kind else {
+                    return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                        span: lhs.span.into(),
+                    });
+                };
+                (Some(source.slice(id.span)), id.span, rhs.as_ref())
+            }
+            _ => (None, arg.span, &arg.value),
+        },
+    };
+
+    if let Some(key) = key {
+        if key != "name" {
+            return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                span: key_span.into(),
+            });
+        }
+    }
+
+    let Some(name) = extract_string_literal_text(source, value) else {
+        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+            span: value.span.into(),
+        });
+    };
+
+    let normalized = name.trim().to_ascii_lowercase();
+    if normalized != "c" && normalized != "cdecl" {
+        return Err(AnnotationError::CallingConventionNotSupported {
+            name,
+            span: value.span.into(),
         });
     }
 

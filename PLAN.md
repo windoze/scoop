@@ -845,8 +845,8 @@ tests/
   - `Ptr<T>` API：`cast/load/store` 与基于元素的 `plus/minus` 指针算术
   - `addressOf(var: T): Ptr<T>`：取局部/全局变量 slot 的地址（lvalue gate）
   - `stackAlloc<T>(): Ptr<T>`：栈上分配 GC-free `T`（生命周期受限于当前函数）
-  - `FunPtr<F>`：FFI 函数指针类型（支持 `invoke` + 与 `Ptr` 的 unsafe cast）
-  - internal atomics（`__AtomicInt/__AtomicLong/...`）：值类型、同底层布局、LLVM IR 原子指令直接生成（用于 FFI + 全局状态）
+  - [x] `FunPtr<F>`：FFI 函数指针类型（v0：支持 `fp(args...)` / `fp.invoke(args...)`；仅 C ABI）
+  - [x] internal atomics（`__AtomicInt/__AtomicLong/...`）：值类型、同底层布局、LLVM IR 原子指令直接生成（用于 FFI + 全局状态）
 - [ ] `@NoGC`：
   - 禁止 GC 堆分配；只能调用 `@NoGC` 与 `@Extern`
   - 编译器证明不了“无分配”就必须报错（保守）
@@ -858,7 +858,7 @@ tests/
 - [ ] 全局可变变量（GC-free）：仅允许显式标注 `@ThreadLocal` 或 `@Global`；否则 compile-fail（让风险可见）
 - [ ] 注解系统补齐：
   - [x] 内建注解：`@TailRec/@AllowIntrinsic/@Suppress/@CLayout/@Target/@Retention`
-  - [ ] 内建注解：`@ThreadLocal/@Global/@CallingConvention/@Safe`，以及 `@Extern(lib, name)`、`@CLayout(aligned, packed)` 参数语义
+  - [ ] 内建注解：`@ThreadLocal/@Global`，以及 `@Extern(lib, name)`、`@CLayout(aligned, packed)` 参数语义（`@CallingConvention` 已落地：仅 `c/cdecl`）
   - [x] `AnnotationTarget` enum 与最小 target 合法性检查（非法 target 名）
   - [ ] meta-annotations（拆分）：
     - [x] typecheck enforce `@Target/@Retention`

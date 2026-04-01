@@ -439,9 +439,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None
         };
         let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
-        // 当前阶段（T1006）：extern 函数 ABI 固定为 C ABI（LLVM callconv 0）。
-        llvm_fun.set_call_conventions(0);
+        // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
+        llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
         Ok(llvm_fun)
+    }
+
+    fn llvm_call_convention_for_fqn(&self, fqn: &str) -> u32 {
+        let Some(extern_fun) = self.extern_funs.get(fqn) else {
+            return 0;
+        };
+        let Some(name) = extern_fun.calling_convention.as_deref() else {
+            return 0;
+        };
+
+        match name.trim().to_ascii_lowercase().as_str() {
+            "c" | "cdecl" => 0,
+            // 其它 calling convention 名称留到后续任务再补齐（spec §15.5.4）。
+            _ => 0,
+        }
     }
 
     pub(crate) fn declare_top_level_var_globals(&mut self) -> Result<(), LlvmEmitError> {
@@ -3577,11 +3592,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         args,
                     );
                 }
+
+                // T1026：`FunPtr<F>` 的直接调用：`fp(args...)`（unsafe）。
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty) {
+                    if nominal.fqn == "scoop.unsafe.FunPtr" {
+                        let sig_ty = nominal.args.first().copied().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr signature type",
+                                at: callee.span.into(),
+                            },
+                        )?;
+                        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) =
+                            self.types.kind(sig_ty)
+                        else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr signature kind",
+                                at: callee.span.into(),
+                            });
+                        };
+
+                        let CgTy::Int(int_ty) = local.ty else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "funptr local cg type",
+                                at: callee.span.into(),
+                            });
+                        };
+                        let loaded = self
+                            .builder
+                            .build_load(
+                                self.llvm_basic_type_of(callee.span, local.ty)?,
+                                local.ptr,
+                                "load_funptr",
+                            )?
+                            .into_int_value();
+
+                        return self.codegen_funptr_value_call(
+                            span,
+                            callee.span,
+                            loaded,
+                            int_ty,
+                            fun_ty,
+                            args,
+                        );
+                    }
+                }
             }
         }
 
         // 1) 普通顶层函数调用：`foo(args...)`
         if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+            // T1026：sysroot 函数指针 intrinsics。
+            //
+            // 说明：
+            // - sysroot 的 `scoop.unsafe.*` 函数不会出现在当前 compilation unit 的 `fun_index` 中，
+            //   因此需要在 codegen 阶段以 intrinsic 形式内建 lowering；
+            // - v0 阶段只支持 `invoke` 与 `UIntPtr`/`FunPtr` 间的整数转换。
+            if fqn == "scoop.unsafe.invoke" {
+                return self.codegen_sysroot_funptr_invoke(span, callee.span, args);
+            }
+            if fqn == "scoop.unsafe.funPtrToUIntPtr" {
+                return self.codegen_sysroot_funptr_to_uintptr(span, callee.span, args);
+            }
+            if fqn == "scoop.unsafe.uintPtrToFunPtr" {
+                return self.codegen_sysroot_uintptr_to_funptr(span, callee.span, args);
+            }
+
             // TODO T0816：shadow stack 插桩回归用的 debug helper。
             if fqn == "scoop.core.__scoop_gc_debug_count_roots_current_thread" {
                 if !args.is_empty() {
@@ -3980,6 +4055,171 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "call callee",
             at: callee.span.into(),
         })
+    }
+
+    fn codegen_sysroot_funptr_invoke(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // sysroot 里 `invoke` 是一个 extension fun：
+        // - `FunPtr<...>.invoke(...)`
+        // - HIR lowering 会把它降为：`scoop.unsafe.invoke(receiver, ...args)`
+        //
+        // 约束（v0）：
+        // - receiver 必须是局部变量引用（需要借助 env.local.hir_ty 取回 `FunPtr<F>` 的精确签名）。
+        let Some((receiver_arg, call_args)) = args.split_first() else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke arity mismatch",
+                at: span.into(),
+            });
+        };
+
+        let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver (named arg)",
+                at: span.into(),
+            });
+        };
+
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver_expr.kind else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver (non-local)",
+                at: receiver_expr.span.into(),
+            });
+        };
+
+        let local = self
+            .env
+            .get(*id)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown local funptr receiver",
+                at: receiver_expr.span.into(),
+            })?;
+
+        let Some(hir_ty) = local.hir_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver type",
+                at: receiver_expr.span.into(),
+            });
+        };
+
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver kind",
+                at: receiver_expr.span.into(),
+            });
+        };
+        if nominal.fqn != "scoop.unsafe.FunPtr" {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver kind",
+                at: receiver_expr.span.into(),
+            });
+        }
+
+        let sig_ty = nominal.args.first().copied().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "funptr invoke signature type",
+            at: receiver_expr.span.into(),
+        })?;
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke signature kind",
+                at: receiver_expr.span.into(),
+            });
+        };
+
+        let CgTy::Int(int_ty) = local.ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr invoke receiver cg type",
+                at: receiver_expr.span.into(),
+            });
+        };
+        let loaded = self
+            .builder
+            .build_load(
+                self.llvm_basic_type_of(receiver_expr.span, local.ty)?,
+                local.ptr,
+                "load_funptr",
+            )?
+            .into_int_value();
+
+        self.codegen_funptr_value_call(
+            span,
+            callee_span,
+            loaded,
+            int_ty,
+            fun_ty,
+            call_args,
+        )
+    }
+
+    fn codegen_sysroot_funptr_to_uintptr(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptrToUIntPtr arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptrToUIntPtr named arg",
+                at: span.into(),
+            });
+        };
+
+        let v = self.codegen_expr(expr)?;
+        let (raw, from_ty) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "funptrToUIntPtr arg type",
+            at: expr.span.into(),
+        })?;
+
+        let to_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let casted = self.cast_int(raw, from_ty, to_ty)?;
+        Ok(CgValue::int(casted, to_ty))
+    }
+
+    fn codegen_sysroot_uintptr_to_funptr(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "uintPtrToFunPtr arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "uintPtrToFunPtr named arg",
+                at: span.into(),
+            });
+        };
+
+        let v = self.codegen_expr(expr)?;
+        let (raw, from_ty) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "uintPtrToFunPtr arg type",
+            at: expr.span.into(),
+        })?;
+
+        let to_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let casted = self.cast_int(raw, from_ty, to_ty)?;
+        Ok(CgValue::int(casted, to_ty))
     }
 
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
@@ -9212,6 +9452,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.declare_top_level_fun(sig_fun)?,
         };
         let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
+        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
         // T0614：flag-based unwinding（最小 Raise）：
         // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
         // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
@@ -9270,6 +9511,167 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "call return value",
+                        at: span.into(),
+                    },
+                )?;
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(raw),
+                })
+            }
+        }
+    }
+
+    fn codegen_funptr_value_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        funptr_addr: inkwell::values::IntValue<'ctx>,
+        funptr_int_ty: IntTy,
+        fun_ty: &crate::ty::FunctionType,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if fun_ty.receiver.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "receiver funptr call",
+                at: callee_span.into(),
+            });
+        }
+
+        if args.len() != fun_ty.params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "funptr call arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(fun_ty.params.len());
+        for ty in &fun_ty.params {
+            llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
+        }
+
+        let ret_cg =
+            self.cg_ty_of(fun_ty.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "funptr call return type",
+                    at: callee_span.into(),
+                })?;
+
+        let llvm_fun_ty = match ret_cg {
+            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            other => self
+                .llvm_basic_type_of(callee_span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+
+        // 2) 将 `word-sized address` 转换为函数指针。
+        //
+        // 说明：
+        // - 当前阶段我们把 `scoop.unsafe.FunPtr<F>` 视为 “opaque native function address”；
+        // - `fp(args...)` 会在 codegen 阶段执行 `inttoptr` 并生成 indirect call；
+        // - v0 阶段仅支持 C ABI（callconv 0）。
+        let fun_ptr_ty = llvm_fun_ty.ptr_type(AddressSpace::default());
+        let casted_addr = if funptr_int_ty.bits == self.host.word_bit_width() {
+            funptr_addr
+        } else {
+            // 理论上不会发生：`FunPtr` 的 codegen 表示就是 `word-sized`。
+            let from = funptr_int_ty;
+            let to = IntTy {
+                bits: self.host.word_bit_width(),
+                signed: false,
+            };
+            self.cast_int(funptr_addr, from, to)?
+        };
+        let typed_fn_ptr = self
+            .builder
+            .build_int_to_ptr(casted_addr, fun_ptr_ty, "funptr_typed")?;
+
+        // 3) 求值实参并执行调用。
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(args.len());
+        for (idx, arg) in args.iter().enumerate() {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "named funptr call arg",
+                    at: span.into(),
+                });
+            };
+
+            let param_ty = fun_ty.params[idx];
+            let target_cg = self
+                .cg_ty_of(param_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "funptr call arg type",
+                    at: expr.span.into(),
+                })?;
+
+            let v = match &expr.kind {
+                hir::ExprKind::Closure(closure) => {
+                    self.codegen_closure_expr(expr.span, closure, param_ty)?
+                }
+                _ => self.codegen_expr(expr)?,
+            };
+            let coerced = self.coerce_value(expr.span, v, target_cg)?;
+            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        }
+
+        let call_site = self.builder.build_indirect_call(
+            llvm_fun_ty,
+            typed_fn_ptr,
+            &llvm_args,
+            "call_funptr",
+        )?;
+        call_site.set_call_convention(0);
+        self.emit_effect_unwind_if_active(span)?;
+
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::bool(value))
+            }
+            CgTy::Int(int_ty) => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::int(value, int_ty))
+            }
+            CgTy::String | CgTy::Ref => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr call return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr call return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(ptr.into()),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "funptr call return value",
                         at: span.into(),
                     },
                 )?;
@@ -14201,6 +14603,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Some(CgTy::Int(IntTy {
                         bits: self.host.word_bit_width(),
                         signed: true,
+                    }));
+                }
+                // `UIntPtr`（typealias）：在 early stage 直接落到 word-sized unsigned int。
+                if nominal.fqn == "scoop.core.UIntPtr" {
+                    return Some(CgTy::Int(IntTy {
+                        bits: self.host.word_bit_width(),
+                        signed: false,
+                    }));
+                }
+                // T1026：`FunPtr<F>` —— 运行期表示为 word-sized address（unsigned），并作为 opaque handle 传递。
+                if nominal.fqn == "scoop.unsafe.FunPtr" {
+                    return Some(CgTy::Int(IntTy {
+                        bits: self.host.word_bit_width(),
+                        signed: false,
                     }));
                 }
                 if self.struct_layouts.contains_key(&nominal.fqn) {

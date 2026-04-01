@@ -5056,7 +5056,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1026 [BLOCKED] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
+### T1026 [DONE] `FunPtr<F>` + `@CallingConvention`：FFI 函数指针（spec §15.9.4 / §15.5.4）
 - 描述：新增 `FunPtr<F>`（值类型、GC-free）与调用约定：
   - 支持 `@CallingConvention("stdcall" | "cdecl" | ...)` 影响 codegen；
   - 允许与 `Ptr<T>` 互相 unsafe cast；
@@ -5064,6 +5064,26 @@
 - 目标：先只覆盖 host 平台常见 calling convention；不做跨平台全量覆盖。
 - 验收：新增 run-pass fixture：从 `@Extern` 获取函数指针并通过 `FunPtr` 调用（可用 runtime/c 的测试导出函数）；并新增 compile-fail fixture：在 safe context 调用 `FunPtr` 报错。
 - 依赖：T1017、T1018、T1025
+ - 完成：
+   - sysroot：
+     - `sysroot/unsafe.scoop`：新增 `@Intrinsic struct FunPtr<F>` + `funPtrToUIntPtr/uintPtrToFunPtr` + `FunPtr<...>.invoke(...)` 声明表面。
+   - typecheck：
+     - 内建注解：新增 `@CallingConvention("c"|"cdecl")`（仅允许用于 `fun`/`typealias`；其它值给出稳定错误码）。
+     - `FunPtr<F>` 良构性：`F` 必须是 non-receiver function type；并在表达式层面支持 `fp(args...)`（要求 unsafe context；const fun 内禁止）。
+   - HIR / LLVM：
+     - `@Extern` 函数携带可选 calling convention 元信息；LLVM 侧目前仅落地 C ABI（callconv 0）。
+     - `FunPtr<F>` 在 LLVM 中表示为 word-sized unsigned address，并支持 indirect call（`inttoptr` + `call`）。
+     - sysroot `scoop.unsafe.invoke(...)` 作为 intrinsic 内建 lowering（用于 `fp.invoke(...)`）。
+   - runtime：
+     - `runtime/c/scoop_test.c`：新增 `scoop_test_add_int` + `scoop_test_get_add_int_funptr`，供 fixtures 回归链接/调用。
+   - fixtures：
+     - compile-fail：`tests/fixtures/unsafe_nogc/funptr_call_requires_unsafe_is_error.scoop`
+     - run-pass：`tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/unsafe_funptr_extern_call_basic.scoop`
 
 ### T1321 [DONE] Kotlin 风格重载决议：most specific candidate 规则收口
 - 描述：把通用 overload resolution 收口为 Kotlin 风格的用户可感知规则：最具体候选优先、member/extension/constructor 的优先级固定、歧义行为稳定。

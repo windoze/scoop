@@ -26,6 +26,7 @@ use super::assignable::is_type_assignable;
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const PTR_FQN: &str = "scoop.unsafe.Ptr";
+const FUNPTR_FQN: &str = "scoop.unsafe.FunPtr";
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeLowerError {
@@ -131,6 +132,22 @@ pub enum TypeLowerError {
     PtrPointeeMustBeGcFree {
         found: String,
         #[label("这里的 T 不是 GC-free 值类型")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`FunPtr<F>` 的类型实参必须是函数类型（例如 `(Int, Int) -> Int`），但得到 {found}")]
+    #[diagnostic(code(scoop::typecheck::funptr_signature_must_be_function))]
+    FunPtrSignatureMustBeFunction {
+        found: String,
+        #[label("这里的 F 不是函数类型")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`FunPtr<F>` 暂不支持 receiver function type 作为签名：{found}")]
+    #[diagnostic(code(scoop::typecheck::funptr_receiver_signature_not_supported))]
+    FunPtrReceiverSignatureNotSupported {
+        found: String,
+        #[label("这里的 F 是 receiver function type")]
         span: miette::SourceSpan,
     },
 
@@ -1253,6 +1270,12 @@ impl<'a> TypeLowering<'a> {
                 self.check_ptr_pointee_gc_free(pointee, span)?;
             }
         }
+        // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
+        if fqn == FUNPTR_FQN {
+            if let Some(sig) = args.first().copied() {
+                self.check_funptr_signature_is_function(sig, span)?;
+            }
+        }
 
         // 一般名义类型：保留为 nominal type（早期阶段不展开/不做布局分析）。
         let Some(sym) = self.env.type_symbol(&fqn) else {
@@ -1388,6 +1411,30 @@ impl<'a> TypeLowering<'a> {
             found: self.fmt_type(pointee),
             span: span.into(),
         })
+    }
+
+    fn check_funptr_signature_is_function(
+        &mut self,
+        sig: TypeId,
+        span: Span,
+    ) -> Result<(), TypeLowerError> {
+        match self.type_kind(sig) {
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                if fun.receiver.is_some() {
+                    return Err(TypeLowerError::FunPtrReceiverSignatureNotSupported {
+                        found: self.fmt_type(sig),
+                        span: span.into(),
+                    });
+                }
+                Ok(())
+            }
+            // 允许占位 type param（例如在泛型声明内部出现 `FunPtr<F>`）。
+            TypeKind::Param(_) => Ok(()),
+            _ => Err(TypeLowerError::FunPtrSignatureMustBeFunction {
+                found: self.fmt_type(sig),
+                span: span.into(),
+            }),
+        }
     }
 
     pub(crate) fn is_gc_free_value_type(&mut self, ty: TypeId) -> Result<bool, TypeLowerError> {
@@ -1759,6 +1806,12 @@ impl<'a> TypeLowering<'a> {
         if fqn == PTR_FQN {
             if let Some(pointee) = args.first().copied() {
                 self.check_ptr_pointee_gc_free(pointee, ptr_pointee_arg_span)?;
+            }
+        }
+        // `FunPtr<F>`：F 必须是函数类型（允许占位 type param）。
+        if fqn == FUNPTR_FQN {
+            if let Some(sig) = args.first().copied() {
+                self.check_funptr_signature_is_function(sig, ptr_pointee_arg_span)?;
             }
         }
 

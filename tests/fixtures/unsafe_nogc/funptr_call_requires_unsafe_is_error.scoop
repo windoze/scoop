@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::funptr_call_requires_unsafe
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun safe(fp: FunPtr<(Int, Int) -> Int>) {
+    fp(1, 2)
+}
+

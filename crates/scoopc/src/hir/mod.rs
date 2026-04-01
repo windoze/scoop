@@ -598,6 +598,10 @@ pub type CtorCallSiteIndex = HashMap<Span, Vec<String>>;
 pub struct ExternFun {
     pub abi: ExternAbi,
     pub symbol: String,
+    /// `@CallingConvention("...")`（可选）：用于覆盖默认 C ABI（spec §15.5.4）。
+    ///
+    /// 说明：当前阶段后端只保证 `c/cdecl`；其它 calling convention 的支持留待后续扩展。
+    pub calling_convention: Option<String>,
 }
 
 /// `@Extern` 的 ABI 约定（当前阶段只落地 C ABI）。

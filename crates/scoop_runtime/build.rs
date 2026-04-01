@@ -14,6 +14,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_once.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.h");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_test.c");
 
     // `scoop_once_guard_canonicalize` 在 Linux 需要链接 libdl。
     // macOS 的 dlsym/dlerror 位于 libSystem，无需额外 link-lib。
@@ -35,6 +36,7 @@ fn main() {
         .file("../../runtime/c/scoop_task_executor.c")
         .file("../../runtime/c/scoop_once.c")
         .file("../../runtime/c/scoop_gc.c")
+        .file("../../runtime/c/scoop_test.c")
         .warnings(true)
         .extra_warnings(true)
         .compile("scooprt");

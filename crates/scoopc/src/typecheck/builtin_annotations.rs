@@ -15,6 +15,7 @@ pub(crate) enum BuiltinAnnotationKind {
     NoGC,
     Extern,
     Intrinsic,
+    CallingConvention,
 }
 
 impl BuiltinAnnotationKind {
@@ -25,6 +26,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::NoGC => "NoGC",
             BuiltinAnnotationKind::Extern => "Extern",
             BuiltinAnnotationKind::Intrinsic => "Intrinsic",
+            BuiltinAnnotationKind::CallingConvention => "CallingConvention",
         }
     }
 
@@ -35,6 +37,7 @@ impl BuiltinAnnotationKind {
             BuiltinAnnotationKind::NoGC => "函数",
             BuiltinAnnotationKind::Extern => "函数 / 顶层 val/var / object",
             BuiltinAnnotationKind::Intrinsic => "函数或类型",
+            BuiltinAnnotationKind::CallingConvention => "函数 / typealias",
         }
     }
 }
@@ -59,6 +62,9 @@ pub(crate) fn builtin_annotation_kind(
         ["NoGC"] | ["scoop", "core", "NoGC"] => Some(BuiltinAnnotationKind::NoGC),
         ["Extern"] | ["scoop", "core", "Extern"] => Some(BuiltinAnnotationKind::Extern),
         ["Intrinsic"] | ["scoop", "core", "Intrinsic"] => Some(BuiltinAnnotationKind::Intrinsic),
+        ["CallingConvention"] | ["scoop", "core", "CallingConvention"] => {
+            Some(BuiltinAnnotationKind::CallingConvention)
+        }
         _ => None,
     }
 }
@@ -87,6 +93,7 @@ impl BuiltinAnnotationFlags {
                 Some(BuiltinAnnotationKind::NoGC) => out.is_nogc = true,
                 Some(BuiltinAnnotationKind::Extern) => out.is_extern = true,
                 Some(BuiltinAnnotationKind::Intrinsic) => out.is_intrinsic = true,
+                Some(BuiltinAnnotationKind::CallingConvention) => {}
                 None => {}
             }
         }

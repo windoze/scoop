@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: unsafe_funptr_extern_call_basic.stdout
+//
+// 目标：T1026 `FunPtr<F>`：从 `@Extern` 获取函数指针并通过 `fp(args...)` 调用。
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_get_add_int_funptr")
+fun get_add_int_funptr(): FunPtr<(Int, Int) -> Int>
+
+fun main() {
+    @Unsafe {
+        val fp: FunPtr<(Int, Int) -> Int> = get_add_int_funptr()
+        println(fp(1, 2))
+        println(fp.invoke(1, 2))
+    }
+}
