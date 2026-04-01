@@ -5154,11 +5154,34 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1325 [TODO] varargs spread：集合/迭代器桥接与调用规则
+### T1325（拆分为子任务）
 - 描述：把 `vararg` spread 从“数组/tuple 的最小形式”扩展到更完整的桥接规则：允许标准集合/可迭代视图在明确转换或约定 API 下参与 spread。
 - 目标：先固定语言层/stdlib 层边界；避免隐式、不可控的大规模分配。
 - 验收：language + std fixtures：集合经约定桥接后可用于 `vararg` 调用；不满足桥接条件时报错并指出所需转换。
 - 依赖：T1308、T1317
+
+> 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1325a [TODO] varargs spread：`MutableArray/MutableList` → `Array` 的显式桥接（`toArray()`）
+- 描述：在 stdlib 为 `MutableArray<Int>` 提供 `toArray(): Array<Int>`（复制语义），使其可在调用点通过 `*xs.toArray()` 参与 vararg spread。
+- 目标：只提供 `Int` 专用落点；不改变现有 spread 规则（仍只接受 `Array/tuple`）；不新增 intrinsic。
+- 验收：
+  - 新增 typecheck fixture：`MutableArray<Int>` 经 `toArray()` 可用于 spread；
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T1308、T1317
+
+### T1325b [TODO] varargs spread：对常见集合提供“缺失桥接”的迁移诊断
+- 描述：当 `*xs` 的 `xs` 为 `MutableArray/MutableList/MutableSet/MutableMap` 等常见集合类型时，诊断提示应使用约定转换（例如 `toArray()/asSet()/asMapView()`）再 spread。
+- 目标：仅增强错误信息（保持稳定 error code）；不放开隐式 spread；不引入新的语义。
+- 验收：新增至少 1 个 fail fixture 断言错误信息包含建议转换；`cargo test --all` 通过。
+- 依赖：T1325a
+
+### T1325c [TODO] varargs spread：迭代器视图桥接（iterator → Array）
+- 描述：为满足 `iterator` 协议的视图提供显式转换为 `Array` 的 std helper（例如 `toArray()`），以支持 `*view.toArray()` 的 spread 用例。
+- 目标：与 T1328 的 `Iterator.next(): Option<T>` 迁移一致；不在语言层放开 `*iterable` 隐式 spread。
+- 验收：新增 typecheck +（可选）run-pass fixture 覆盖最小可迭代对象的 `toArray()` 后 spread；`cargo test --all` 通过。
+- 依赖：T1328
 
 ### T1326 [TODO] delegated properties：线程安全语义与平台 policy
 - 描述：补齐标准 delegated properties 的线程安全语义：`lazy` 的同步/发布/无锁策略，`observable`/`vetoable` 在并发场景下的可见性与回调规则，以及不同平台的 policy。
