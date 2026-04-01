@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ambiguous_overload
+// EXPECT-ERROR: 重载决议歧义
+// EXPECT-ERROR-AT: 21:18
+// 目标：T1322 默认参数 / trailing lambda 与重载集合的交互：
+// - 当多个候选都可用且无法消歧时，仍应报 `ambiguous_overload`（而不是“无匹配”或误选某个候选）。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun select(x: Int, tag: String = "a", block: () -> Int): Int {
+    return block()
+}
+
+fun select(x: Int, mode: Int = 0, block: () -> Int): Int {
+    return block()
+}
+
+fun bad() {
+    val a: Int = select(1) { 2 }
+}

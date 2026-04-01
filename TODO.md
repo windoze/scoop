@@ -5101,11 +5101,21 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1322 [TODO] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
+### T1322 [DONE] 默认参数 / 命名参数 / trailing lambda 与重载集合的交互
 - 描述：把 T1305/T1306/T1307 与 overload sets 联动：调用时允许这些特性参与候选筛选与 tie-break，而不是只在“唯一目标”前提下工作。
 - 目标：先覆盖最常见组合；varargs 与重载的复杂交互后续再细化。
 - 验收：language fixture：多个 overload 中，命名参数和 trailing lambda 能帮助选中正确候选；真正无法区分时仍报歧义。
 - 依赖：T1305、T1306、T1307、T0512
+ - 完成：
+   - typecheck/expr：
+     - 命名参数规则放开 Kotlin-like 例外：允许 `f(x = 1) { ... }`（trailing lambda 作为最后一个位置实参）；
+     - 形参映射补齐 trailing-lambda + 默认参数交互：当严格映射失败且最后一个实参为 lambda 时，尝试把该 lambda 绑定到最后一个形参槽位，并允许中间默认参数缺失（用于 overload sets 的候选可用性判定）。
+   - fixtures：
+     - pass：`tests/fixtures/infer/overload_resolution_named_args_trailing_lambda_disambiguate_ok.scoop`
+     - fail：`tests/fixtures/infer/overload_resolution_named_args_trailing_lambda_ambiguous_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1323 [TODO] 默认参数：中间参数省略与命名参数联合规则
 - 描述：把默认参数从“只省略尾部参数”推进到 Kotlin 风格的中间参数省略，只要调用点使用命名参数并满足规则，就允许跳过中间带默认值的形参。

@@ -5763,10 +5763,21 @@ fn check_call_arg_named_rules(
     let mut seen_named = false;
     let mut seen_names: HashSet<&str> = HashSet::new();
 
-    for arg in call_args {
+    for (idx, arg) in call_args.iter().enumerate() {
         match &arg.kind {
             CallArgKind::Positional => {
                 if seen_named {
+                    // Kotlin-like：trailing lambda 允许写在命名参数之后（作为最后一个实参）。
+                    //
+                    // 说明：
+                    // - AST 里 trailing lambda 仍是 `Call.args` 的最后一个元素；
+                    // - 因此这里放开一个“仅允许最后一个位置实参且它是 lambda”的例外，
+                    //   以支持：`f(x = 1) { ... }`。
+                    let is_last = idx + 1 == call_args.len();
+                    let is_trailing_lambda = matches!(arg.expr.kind, ast::ExprKind::Lambda(_));
+                    if is_last && is_trailing_lambda {
+                        continue;
+                    }
                     return Err(ExprTypeError::CallArgPositionalAfterNamed {
                         callee: callee.to_string(),
                         span: arg.expr.span.into(),
@@ -5893,7 +5904,7 @@ fn map_call_args_to_params(
 /// - 命名实参仅按“同名形参”匹配；
 /// - 位置实参按从左到右填充尚未被命名实参占用的槽位；
 /// - 若某个未填充的槽位没有默认值，则该候选不匹配。
-fn map_call_args_to_params_with_defaults(
+fn map_call_args_to_params_with_defaults_strict(
     call_args: &[CallArgInfo<'_>],
     param_names: &[String],
     param_has_defaults: &[bool],
@@ -5964,6 +5975,49 @@ fn map_call_args_to_params_with_defaults(
     Some(mapping)
 }
 
+fn map_call_args_to_params_with_defaults(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+) -> Option<Vec<Option<usize>>> {
+    // 先尝试严格规则（与已有 fixtures 行为保持一致）。
+    if let Some(mapping) =
+        map_call_args_to_params_with_defaults_strict(call_args, param_names, param_has_defaults)
+    {
+        return Some(mapping);
+    }
+
+    // fallback：trailing lambda + 默认参数交互（Kotlin-like）。
+    //
+    // 允许：
+    // - 调用点最后一个实参为 lambda；
+    // - lambda 绑定到“最后一个形参槽位”；
+    // - 中间缺失的槽位若有默认值则可省略（用于 `f(1) { ... }` 匹配 `f(x, y = 0, block)`）。
+    let last_arg_idx = call_args.len().checked_sub(1)?;
+    let last_arg = call_args.get(last_arg_idx)?;
+    if !matches!(last_arg.kind, CallArgKind::Positional) {
+        return None;
+    }
+    if !matches!(last_arg.expr.kind, ast::ExprKind::Lambda(_)) {
+        return None;
+    }
+    if param_names.is_empty() {
+        return None;
+    }
+
+    let prefix_args = call_args.get(..last_arg_idx)?;
+    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(1))?;
+    let prefix_param_has_defaults = param_has_defaults.get(..param_has_defaults.len().saturating_sub(1))?;
+
+    let mut mapping = map_call_args_to_params_with_defaults_strict(
+        prefix_args,
+        prefix_param_names,
+        prefix_param_has_defaults,
+    )?;
+    mapping.push(Some(last_arg_idx));
+    Some(mapping)
+}
+
 #[derive(Debug, Clone)]
 enum ParamArgBinding {
     /// 该形参由默认值补齐（调用点未提供实参）。
@@ -6026,6 +6080,74 @@ fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -
 }
 
 fn map_call_args_to_params_with_defaults_and_varargs(
+    call_args: &[CallArgInfo<'_>],
+    param_names: &[String],
+    param_has_defaults: &[bool],
+    param_is_vararg: &[bool],
+) -> Option<Vec<ParamArgBinding>> {
+    // 先尝试严格规则（保持既有行为）。
+    if let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs_strict(
+        call_args,
+        param_names,
+        param_has_defaults,
+        param_is_vararg,
+    ) {
+        return Some(mapping);
+    }
+
+    // fallback：trailing lambda（作为最后一个位置实参）尝试绑定到最后一个形参槽位；
+    // 对 vararg（必须为最后形参）则视为追加一个 vararg 元素。
+    let last_arg_idx = call_args.len().checked_sub(1)?;
+    let last_arg = call_args.get(last_arg_idx)?;
+    if !matches!(last_arg.kind, CallArgKind::Positional) {
+        return None;
+    }
+    if !matches!(last_arg.expr.kind, ast::ExprKind::Lambda(_)) {
+        return None;
+    }
+
+    let vararg_idx = vararg_param_index(param_is_vararg);
+
+    // 1) vararg：把 trailing lambda 追加到 vararg 槽位。
+    if let Some(v_idx) = vararg_idx {
+        let prefix_args = call_args.get(..last_arg_idx)?;
+        let mut mapping = map_call_args_to_params_with_defaults_and_varargs_strict(
+            prefix_args,
+            param_names,
+            param_has_defaults,
+            param_is_vararg,
+        )?;
+
+        let Some(slot) = mapping.get_mut(v_idx) else {
+            return None;
+        };
+        let ParamArgBinding::Vararg(arg_idxs) = slot else {
+            return None;
+        };
+        arg_idxs.push(last_arg_idx);
+        return Some(mapping);
+    }
+
+    // 2) no-vararg：把 trailing lambda 绑定到最后一个形参。
+    if param_names.is_empty() {
+        return None;
+    }
+    let prefix_args = call_args.get(..last_arg_idx)?;
+    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(1))?;
+    let prefix_param_has_defaults = param_has_defaults.get(..param_has_defaults.len().saturating_sub(1))?;
+    let prefix_param_is_vararg = param_is_vararg.get(..param_is_vararg.len().saturating_sub(1))?;
+
+    let mut mapping = map_call_args_to_params_with_defaults_and_varargs_strict(
+        prefix_args,
+        prefix_param_names,
+        prefix_param_has_defaults,
+        prefix_param_is_vararg,
+    )?;
+    mapping.push(ParamArgBinding::Single(last_arg_idx));
+    Some(mapping)
+}
+
+fn map_call_args_to_params_with_defaults_and_varargs_strict(
     call_args: &[CallArgInfo<'_>],
     param_names: &[String],
     param_has_defaults: &[bool],

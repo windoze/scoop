@@ -1,0 +1,23 @@
+// EXPECT: pass
+// 目标：T1322 默认参数 / 命名参数 / trailing lambda 与重载集合的交互：
+// - 同一名字的 overload set 中，命名参数能帮助筛选正确候选（`tag` vs `mode`）；
+// - trailing lambda 允许出现在命名参数之后：`f(x = 1, tag = "hi") { ... }`；
+// - 默认参数位于 trailing lambda 之前（非“尾部默认参数”），仍应允许通过“trailing lambda 绑定到最后形参 + 默认值补齐”完成形参映射。
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun select(x: Int, tag: String = "a", block: () -> Int): Int {
+    return block()
+}
+
+fun select(x: Int, mode: Int = 0, block: () -> Int): Int {
+    return block()
+}
+
+fun ok() {
+    val a: Int = select(x = 1, tag = "hi") { 2 }
+    val b: Int = select(x = 1, mode = 1) { 2 }
+}
+
