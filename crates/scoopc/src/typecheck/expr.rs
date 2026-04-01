@@ -5843,16 +5843,16 @@ fn check_call_arg_named_rules(
         match &arg.kind {
             CallArgKind::Positional => {
                 if seen_named {
-                    // Kotlin-like：trailing lambda 允许写在命名参数之后（作为最后一个实参）。
+                    // Kotlin-like：允许把 trailing lambda 写在命名参数之后。
                     //
-                    // 说明：
-                    // - AST 里 trailing lambda 仍是 `Call.args` 的最后一个元素；
-                    // - 因此这里放开一个“仅允许最后一个位置实参且它是 lambda”的例外，
-                    //   以支持：`f(x = 1) { ... }`。
-                    let is_last = idx + 1 == call_args.len();
-                    let is_trailing_lambda = matches!(arg.expr.kind, ast::ExprKind::Lambda(_));
-                    if is_last && is_trailing_lambda {
-                        continue;
+                    // T1324：支持多个 trailing lambda，因此这里放开一个更一般的例外：
+                    // - 一旦出现命名实参，后续若出现位置实参，则必须全部为“末尾连续的 lambda 实参”。
+                    let all_trailing_lambdas = call_args[idx..].iter().all(|a| {
+                        matches!(a.kind, CallArgKind::Positional)
+                            && matches!(a.expr.kind, ast::ExprKind::Lambda(_))
+                    });
+                    if all_trailing_lambdas {
+                        break;
                     }
                     return Err(ExprTypeError::CallArgPositionalAfterNamed {
                         callee: callee.to_string(),
@@ -5874,6 +5874,20 @@ fn check_call_arg_named_rules(
     }
 
     Ok(())
+}
+
+fn trailing_lambda_suffix_len(call_args: &[CallArgInfo<'_>]) -> usize {
+    let mut n = 0usize;
+    for arg in call_args.iter().rev() {
+        if !matches!(arg.kind, CallArgKind::Positional) {
+            break;
+        }
+        if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+            break;
+        }
+        n += 1;
+    }
+    n
 }
 
 /// 若调用点包含命名实参，则检查这些 name 是否至少能匹配到一个候选签名的形参名集合。
@@ -6066,31 +6080,30 @@ fn map_call_args_to_params_with_defaults(
     // fallback：trailing lambda + 默认参数交互（Kotlin-like）。
     //
     // 允许：
-    // - 调用点最后一个实参为 lambda；
-    // - lambda 绑定到“最后一个形参槽位”；
+    // - 调用点末尾连续 N 个实参为 lambda（trailing lambdas）；
+    // - 这些 lambda 绑定到“最后 N 个形参槽位”；
     // - 中间缺失的槽位若有默认值则可省略（用于 `f(1) { ... }` 匹配 `f(x, y = 0, block)`）。
-    let last_arg_idx = call_args.len().checked_sub(1)?;
-    let last_arg = call_args.get(last_arg_idx)?;
-    if !matches!(last_arg.kind, CallArgKind::Positional) {
+    let k = trailing_lambda_suffix_len(call_args);
+    if k == 0 {
         return None;
     }
-    if !matches!(last_arg.expr.kind, ast::ExprKind::Lambda(_)) {
-        return None;
-    }
-    if param_names.is_empty() {
+    if param_names.len() < k {
         return None;
     }
 
-    let prefix_args = call_args.get(..last_arg_idx)?;
-    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(1))?;
-    let prefix_param_has_defaults = param_has_defaults.get(..param_has_defaults.len().saturating_sub(1))?;
+    let prefix_args = call_args.get(..call_args.len().saturating_sub(k))?;
+    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(k))?;
+    let prefix_param_has_defaults =
+        param_has_defaults.get(..param_has_defaults.len().saturating_sub(k))?;
 
     let mut mapping = map_call_args_to_params_with_defaults_strict(
         prefix_args,
         prefix_param_names,
         prefix_param_has_defaults,
     )?;
-    mapping.push(Some(last_arg_idx));
+    for arg_idx in (call_args.len().saturating_sub(k))..call_args.len() {
+        mapping.push(Some(arg_idx));
+    }
     Some(mapping)
 }
 
@@ -6171,22 +6184,19 @@ fn map_call_args_to_params_with_defaults_and_varargs(
         return Some(mapping);
     }
 
-    // fallback：trailing lambda（作为最后一个位置实参）尝试绑定到最后一个形参槽位；
-    // 对 vararg（必须为最后形参）则视为追加一个 vararg 元素。
-    let last_arg_idx = call_args.len().checked_sub(1)?;
-    let last_arg = call_args.get(last_arg_idx)?;
-    if !matches!(last_arg.kind, CallArgKind::Positional) {
-        return None;
-    }
-    if !matches!(last_arg.expr.kind, ast::ExprKind::Lambda(_)) {
+    // fallback：trailing lambdas（末尾连续 N 个 lambda 实参）：
+    // - 对 vararg（必须为最后形参）则视为追加 N 个 vararg 元素；
+    // - 否则绑定到最后 N 个形参槽位，并允许跳过中间默认参数。
+    let k = trailing_lambda_suffix_len(call_args);
+    if k == 0 {
         return None;
     }
 
     let vararg_idx = vararg_param_index(param_is_vararg);
 
-    // 1) vararg：把 trailing lambda 追加到 vararg 槽位。
+    // 1) vararg：把 trailing lambdas 追加到 vararg 槽位。
     if let Some(v_idx) = vararg_idx {
-        let prefix_args = call_args.get(..last_arg_idx)?;
+        let prefix_args = call_args.get(..call_args.len().saturating_sub(k))?;
         let mut mapping = map_call_args_to_params_with_defaults_and_varargs_strict(
             prefix_args,
             param_names,
@@ -6200,18 +6210,21 @@ fn map_call_args_to_params_with_defaults_and_varargs(
         let ParamArgBinding::Vararg(arg_idxs) = slot else {
             return None;
         };
-        arg_idxs.push(last_arg_idx);
+        for arg_idx in (call_args.len().saturating_sub(k))..call_args.len() {
+            arg_idxs.push(arg_idx);
+        }
         return Some(mapping);
     }
 
-    // 2) no-vararg：把 trailing lambda 绑定到最后一个形参。
-    if param_names.is_empty() {
+    // 2) no-vararg：把 trailing lambdas 绑定到最后 N 个形参。
+    if param_names.len() < k {
         return None;
     }
-    let prefix_args = call_args.get(..last_arg_idx)?;
-    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(1))?;
-    let prefix_param_has_defaults = param_has_defaults.get(..param_has_defaults.len().saturating_sub(1))?;
-    let prefix_param_is_vararg = param_is_vararg.get(..param_is_vararg.len().saturating_sub(1))?;
+    let prefix_args = call_args.get(..call_args.len().saturating_sub(k))?;
+    let prefix_param_names = param_names.get(..param_names.len().saturating_sub(k))?;
+    let prefix_param_has_defaults =
+        param_has_defaults.get(..param_has_defaults.len().saturating_sub(k))?;
+    let prefix_param_is_vararg = param_is_vararg.get(..param_is_vararg.len().saturating_sub(k))?;
 
     let mut mapping = map_call_args_to_params_with_defaults_and_varargs_strict(
         prefix_args,
@@ -6219,7 +6232,9 @@ fn map_call_args_to_params_with_defaults_and_varargs(
         prefix_param_has_defaults,
         prefix_param_is_vararg,
     )?;
-    mapping.push(ParamArgBinding::Single(last_arg_idx));
+    for arg_idx in (call_args.len().saturating_sub(k))..call_args.len() {
+        mapping.push(ParamArgBinding::Single(arg_idx));
+    }
     Some(mapping)
 }
 

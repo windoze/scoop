@@ -131,14 +131,8 @@ impl<'a> Parser<'a> {
             return Ok(None);
         };
 
-        // Kotlin 风格的 trailing lambda 只能“就近”绑定到一个 call 上。
-        // 为避免把 `f() { ... } { ... }` 解析成“同一个 call 追加多个尾随 lambda”，
-        // 这里记录上一轮 postfix 是否刚消费过 trailing lambda。
-        let mut last_postfix_was_trailing_lambda = false;
-
         loop {
             if self.peek_keyword(Keyword::With) {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_with_update_expr(expr)?;
                 continue;
             }
@@ -149,7 +143,6 @@ impl<'a> Parser<'a> {
             // - 当前阶段只在 `>` 后紧跟 `(` 时才把它解释为 “type args + call” 的前半段，
             //   以避免把普通比较表达式误判为类型实参应用。
             if self.looks_like_type_apply_then_call() {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_type_apply_expr(expr)?;
                 continue;
             }
@@ -162,41 +155,31 @@ impl<'a> Parser<'a> {
                 && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Colon)
                 && self.peek_n(2).kind == TokenKind::Keyword(Keyword::Class)
             {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_class_lit_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::Dot) {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_member_access_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::QuestionDot) {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_safe_member_access_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::LParen) {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_call_expr(expr)?;
                 continue;
             }
             if self.peek_symbol(Symbol::LBrace) {
                 // Kotlin 风格 trailing lambda：`callee { ... }`（spec §12 / Appendix B.5.4）。
-                if last_postfix_was_trailing_lambda {
-                    break;
-                }
-
                 expr = if matches!(expr.kind, ast::ExprKind::Call { .. }) {
                     self.parse_trailing_lambda_append_call_expr(expr)?
                 } else {
                     self.parse_trailing_lambda_call_expr(expr)?
                 };
-                last_postfix_was_trailing_lambda = true;
                 continue;
             }
             if self.peek_symbol(Symbol::BangBang) {
-                last_postfix_was_trailing_lambda = false;
                 expr = self.parse_not_null_assert_expr(expr)?;
                 continue;
             }

@@ -5137,11 +5137,22 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1324 [TODO] 多 trailing lambda：语法、expected type 与重载联动
+### T1324 [DONE] 多 trailing lambda：语法、expected type 与重载联动
 - 描述：在已有单 trailing lambda 基础上，支持多个 trailing lambda（若采用 Kotlin-like 语法），并让 expected type、命名参数与 overload resolution 一起参与决议。
 - 目标：先固定语法与候选选择规则；不要求所有 DSL 风格写法一次覆盖。
 - 验收：language fixtures：多个 lambda 参数的调用可在 trailing 形式下通过；歧义或位置非法时报清晰错误。
 - 依赖：T1307、T1322
+ - 完成：
+   - parser/expr：放开连续 `{ ... }` postfix，使 `f { ... } { ... }`/`f(args) { ... } { ... }` 解析为同一次 call 的多个 lambda 实参。
+   - typecheck/expr：
+     - 命名参数规则扩展：允许“命名实参之后”出现多个末尾 lambda（trailing lambdas）。
+     - 形参映射 fallback 扩展：支持末尾连续 N 个 lambda，绑定到最后 N 个形参槽位；若最后形参为 vararg，则视为追加 N 个 vararg 元素。
+   - fixtures：
+     - pass：`tests/fixtures/infer/trailing_lambda_multiple_overload_and_expected_type_ok.scoop`
+     - fail：`tests/fixtures/typecheck/trailing_lambda_multiple_arity_mismatch_is_error.scoop`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1325 [TODO] varargs spread：集合/迭代器桥接与调用规则
 - 描述：把 `vararg` spread 从“数组/tuple 的最小形式”扩展到更完整的桥接规则：允许标准集合/可迭代视图在明确转换或约定 API 下参与 spread。

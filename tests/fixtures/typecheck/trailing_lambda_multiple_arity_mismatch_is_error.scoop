@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arity_mismatch
+// EXPECT-ERROR-AT: 15:16
+// EXPECT-ERROR: 参数数量不匹配
+// 目标：T1324 多 trailing lambda：当签名只接受 1 个 lambda 实参时，多余的 trailing lambda 必须报错。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun takes(f: () -> Int): Int {
+    return f()
+}
+
+val bad: Int = takes { 1 } { 2 }
+
