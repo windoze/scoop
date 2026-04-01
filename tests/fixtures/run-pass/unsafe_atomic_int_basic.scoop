@@ -1,0 +1,33 @@
+// EXPECT: pass
+// RUN-STDOUT: unsafe_atomic_int_basic.stdout
+//
+// 目标：T1027 internal atomics：`__AtomicInt` 的 atomic load/store/cmpxchg 可执行回归（单线程）。
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun main() {
+    @Unsafe {
+        var x: __AtomicInt = 0
+
+        println(__atomicIntLoad(x))
+
+        __atomicIntStore(x, 1)
+        println(__atomicIntLoad(x))
+
+        val ok1: Bool = __atomicIntCompareExchange(x, 1, 2)
+        when (ok1) {
+            true -> println("cas1_ok")
+            false -> println("cas1_fail")
+        }
+        println(__atomicIntLoad(x))
+
+        val ok2: Bool = __atomicIntCompareExchange(x, 1, 3)
+        when (ok2) {
+            true -> println("cas2_ok")
+            false -> println("cas2_fail")
+        }
+        println(__atomicIntLoad(x))
+    }
+}
+

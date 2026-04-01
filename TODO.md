@@ -5009,11 +5009,23 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1027 [TODO] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
+### T1027 [DONE] internal atomics：`__AtomicInt/__AtomicLong/...`（FFI-oriented）（spec §15.9.4）
 - 描述：新增一组内部原子值类型（GC-free，同底层布局），并用 intrinsics 直接生成 LLVM IR 原子指令（load/store/CAS 等），用于 runtime/FFI 的全局状态。
 - 目标：与对外暴露的 `AtomicInt`（若存在）区分：这些是**值类型**，且 API 面向 runtime/interop，不作为通用高层并发库承诺。
 - 验收：新增 run-pass fixture：对 `__AtomicInt` 做原子 load/store/CAS（多线程可先用单线程语义/模型测试；并发正确性可后续补）。
 - 依赖：T1017、T1018
+ - 完成：
+   - sysroot：
+     - `sysroot/unsafe.scoop`：新增 `__AtomicInt` 与 `__atomicIntLoad/__atomicIntStore/__atomicIntCompareExchange` 声明面（SeqCst）。
+   - compiler（HIR/codegen）：
+     - `crates/scoopc/src/hir/lower.rs`：将 `scoop.unsafe.__AtomicInt` 视为 `Int`（value type）以保持 ABI 一致（避免被默认降级为 ref nominal）。
+     - `crates/scoopc/src/llvm/codegen.rs`：识别并为上述 intrinsics 直接生成 LLVM atomic load/store/cmpxchg。
+   - fixtures：
+     - `tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop/.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- run tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`
 
 ### T1025 [TODO] unsafe 指针 API 升级：`addressOf` + `Ptr<T>` methods + `stackAlloc`（spec §15.9.4）
 - 描述：把当前最小原语从“自由函数形态”演进为规范中的 API：

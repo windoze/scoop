@@ -28,6 +28,7 @@
 - 2026-04-01：完成 T1320c：sysroot `scoop.io` 新增 `stdoutWriteLine/stderrWriteLine`（写入并追加换行），runtime C 落地并接入 LLVM codegen 映射；新增 typecheck + run-pass fixtures 回归。
 - 2026-04-01：完成 T1320d：sysroot 新增 `scoop.net` 最小声明表面（TCP handle + capability gating），并新增 typecheck fixture 回归。
 - 2026-04-01：完成 T1018：基于 T1017 审计结论，`std v1` 与 Kotlin runtime gap 的“纯 Scoop 补齐”目标边界内无 `needs_new_intrinsic` blocker；T1018 作为 gate 任务以 no-op 形式完成（无新增 intrinsic/backends），保留未来出现真实 case 时再 reopen 的策略。
+- 2026-04-01：完成 T1027：sysroot 引入 `scoop.unsafe.__AtomicInt`（内部原子整型）与 `__atomicIntLoad/__atomicIntStore/__atomicIntCompareExchange`，LLVM codegen 直接生成 atomic load/store/cmpxchg（SeqCst）；新增 run-pass fixture `unsafe_atomic_int_basic.*` 回归。
 - 2026-03-31：将 `TODO.md` 中 T1317f（`std`：`Hashable` + `List/Set/Map` 与迭代/算法）进一步拆分为 T1317f1～T1317f4，以保持“可单独实现 & 单独验证”的粒度（先落地 `Hashable` 约束/typecheck，再推进集合与算法 run-pass 回归）。
 - 2026-03-31：完成 T1317f1：sysroot 增加 `Hashable` 接口并让 primitive types 声明实现；typecheck 在“builtin 标量 → interface”的可赋值判断中复用 sysroot FQN 的 supertypes，使 `where T: Hashable` 对 `Int/Bool/...` 生效；新增 typecheck fixtures 回归 pass/fail。
 - 2026-03-31：完成 T1317f3：stdlib 为 `Array/MutableArray/List/MutableList`（优先 `Int` 版本）提供 `forEach/map/filter/fold`（effect-polymorphic）；并扩展 typecheck 的 lambda 期望类型下推到 2 参数以解锁 `fold(0) { acc, x -> ... }`；新增 run-pass fixture `stdlib_iter_algorithms_basic.*`，在 `cargo run -p scoop --features llvm -- test` 下可回归通过。

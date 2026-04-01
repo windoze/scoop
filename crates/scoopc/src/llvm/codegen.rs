@@ -18,6 +18,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use inkwell::AtomicOrdering;
 use inkwell::AddressSpace;
 use inkwell::IntPredicate;
 use inkwell::builder::Builder;
@@ -192,6 +193,12 @@ struct CgLocal<'ctx> {
     mutable: bool,
     /// 若该 local 是“可被 GC 扫描的引用”，则这里记录其对应的 shadow stack roots slot 指针。
     gc_root_slot: Option<PointerValue<'ctx>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AtomicIntLvalueMode {
+    ReadOnly,
+    ReadWrite,
 }
 
 /// 当前函数的 shadow stack（GC roots）插桩状态（TODO T0816）。
@@ -3892,6 +3899,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             if fqn == "scoop.task.onComplete" {
                 return self.codegen_sysroot_task_on_complete(span, callee.span, args);
+            }
+            // T1027：internal atomics（FFI/runtime oriented）
+            //
+            // 说明：
+            // - sysroot 在 `scoop.unsafe` 暴露 `__atomicInt*` 一组内建函数；
+            // - 第一个参数要求是可寻址变量槽（lvalue），codegen 直接对该槽生成 LLVM atomic 指令。
+            if fqn.starts_with("scoop.unsafe.__atomicInt") {
+                return self.codegen_sysroot_atomic_int_intrinsics(span, callee.span, fqn, args);
             }
             // T1317d：`Array`/`MutableArray` 最小运行期 primitive（len/get/set）与 array literal builder。
             //
@@ -8811,6 +8826,267 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_sysroot_atomic_int_intrinsics(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let atomic_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+
+        match fqn {
+            "scoop.unsafe.__atomicIntLoad" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntLoad arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(target_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntLoad named arg",
+                        at: span.into(),
+                    });
+                };
+
+                let ptr = self.codegen_atomic_int_lvalue_ptr(
+                    target_expr.span,
+                    target_expr,
+                    AtomicIntLvalueMode::ReadOnly,
+                )?;
+
+                let llvm_ty = self.int_type(atomic_word);
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, ptr, "atomic_int_load")?;
+                let inst = loaded.as_instruction_value().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntLoad load instruction",
+                        at: target_expr.span.into(),
+                    },
+                )?;
+                inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
+                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntLoad set ordering",
+                        at: target_expr.span.into(),
+                    })?;
+
+                let BasicValueEnum::IntValue(raw) = loaded else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntLoad return type",
+                        at: target_expr.span.into(),
+                    });
+                };
+                Ok(CgValue::int(raw, atomic_word))
+            }
+            "scoop.unsafe.__atomicIntStore" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntStore arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(target_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntStore named arg (target)",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(value_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntStore named arg (value)",
+                        at: span.into(),
+                    });
+                };
+
+                let ptr = self.codegen_atomic_int_lvalue_ptr(
+                    target_expr.span,
+                    target_expr,
+                    AtomicIntLvalueMode::ReadWrite,
+                )?;
+
+                let v = self.codegen_expr_in_expected_context(value_expr, Some(CgTy::Int(atomic_word)))?;
+                let v = self.coerce_value(value_expr.span, v, CgTy::Int(atomic_word))?;
+                let (raw_int, from) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "atomicIntStore value",
+                    at: value_expr.span.into(),
+                })?;
+                let raw_int = self.cast_int(raw_int, from, atomic_word)?;
+
+                let inst = self.builder.build_store(ptr, raw_int)?;
+                inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
+                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntStore set ordering",
+                        at: target_expr.span.into(),
+                    })?;
+                Ok(CgValue::unit())
+            }
+            "scoop.unsafe.__atomicIntCompareExchange" => {
+                if args.len() != 3 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange arity mismatch",
+                        at: span.into(),
+                    });
+                }
+
+                let hir::CallArg::Positional(target_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange named arg (target)",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(expected_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange named arg (expected)",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(desired_expr) = &args[2] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange named arg (desired)",
+                        at: span.into(),
+                    });
+                };
+
+                let ptr = self.codegen_atomic_int_lvalue_ptr(
+                    target_expr.span,
+                    target_expr,
+                    AtomicIntLvalueMode::ReadWrite,
+                )?;
+
+                let expected_v =
+                    self.codegen_expr_in_expected_context(expected_expr, Some(CgTy::Int(atomic_word)))?;
+                let expected_v =
+                    self.coerce_value(expected_expr.span, expected_v, CgTy::Int(atomic_word))?;
+                let (expected_raw, expected_from) =
+                    expected_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange expected",
+                        at: expected_expr.span.into(),
+                    })?;
+                let expected_raw = self.cast_int(expected_raw, expected_from, atomic_word)?;
+
+                let desired_v =
+                    self.codegen_expr_in_expected_context(desired_expr, Some(CgTy::Int(atomic_word)))?;
+                let desired_v = self.coerce_value(desired_expr.span, desired_v, CgTy::Int(atomic_word))?;
+                let (desired_raw, desired_from) =
+                    desired_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange desired",
+                        at: desired_expr.span.into(),
+                    })?;
+                let desired_raw = self.cast_int(desired_raw, desired_from, atomic_word)?;
+
+                // LLVM: `cmpxchg ptr, expected, desired` returns `{ T, i1 }`.
+                let cx = self.builder.build_cmpxchg(
+                    ptr,
+                    expected_raw,
+                    desired_raw,
+                    AtomicOrdering::SequentiallyConsistent,
+                    AtomicOrdering::SequentiallyConsistent,
+                )?;
+                let success = self
+                    .builder
+                    .build_extract_value(cx, 1, "cmpxchg_success")?;
+                let BasicValueEnum::IntValue(ok) = success else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicIntCompareExchange success type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::bool(ok))
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown sysroot atomicInt intrinsic callee",
+                at: callee_span.into(),
+            }),
+        }
+    }
+
+    fn codegen_atomic_int_lvalue_ptr(
+        &mut self,
+        at: crate::span::Span,
+        target_expr: &hir::Expr,
+        mode: AtomicIntLvalueMode,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let expected = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+
+        match &target_expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                let local = self
+                    .env
+                    .get(*id)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt lvalue local",
+                        at: at.into(),
+                    })?;
+
+                if mode == AtomicIntLvalueMode::ReadWrite && !local.mutable {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt requires mutable lvalue",
+                        at: at.into(),
+                    });
+                }
+
+                let CgTy::Int(int_ty) = local.ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt target type",
+                        at: at.into(),
+                    });
+                };
+                if int_ty != expected {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt target width",
+                        at: at.into(),
+                    });
+                }
+
+                Ok(local.ptr)
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                let Some(var) = self.top_level_vars.get(fqn) else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt lvalue top-level var",
+                        at: at.into(),
+                    });
+                };
+
+                let gv = self.declare_top_level_var_global(var)?;
+                let cg_ty =
+                    self.cg_ty_of(var.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "atomicInt top-level var type",
+                            at: at.into(),
+                        })?;
+                let CgTy::Int(int_ty) = cg_ty else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt top-level var type",
+                        at: at.into(),
+                    });
+                };
+                if int_ty != expected {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "atomicInt top-level var width",
+                        at: at.into(),
+                    });
+                }
+
+                Ok(gv.as_pointer_value())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "atomicInt target must be an lvalue",
+                at: target_expr.span.into(),
+            }),
+        }
+    }
+
     fn codegen_int_to_scoop_string(
         &mut self,
         at: crate::span::Span,
@@ -13660,6 +13936,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_int_z_extend(v, self.int_type(int_ty), "bool_to_int")?;
                 Ok(CgValue::int(out, int_ty))
             }
+            (CgTy::Bool, CgTy::Ref) => {
+                // early stage：允许把 `Bool` 装箱到 `Any`（与 `Int -> Any` 一致）。
+                //
+                // 注意：
+                // - 当前阶段 runtime type descriptor 仍是占位（NULL），因此这里只保证“可执行/可回归”，
+                //   不承诺后续 runtime type casts 的可观察语义；
+                // - 为复用现有 box 形态，这里把 `Bool` 扩展为 word-sized 无符号整数后按 int box 存储。
+                let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "bool value",
+                    at: at.into(),
+                })?;
+                let word = IntTy {
+                    bits: self.host.word_bit_width(),
+                    signed: false,
+                };
+                let widened = self
+                    .builder
+                    .build_int_z_extend(v, self.int_type(word), "box_bool_to_word")?;
+                let boxed = self.codegen_box_int_to_ref(at, widened, word)?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(boxed.into()),
+                })
+            }
             (CgTy::Int(from), CgTy::Int(to)) => {
                 let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "int value",
@@ -13892,6 +14192,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Option(_)) => Some(CgTy::Enum(ty)),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                // T1027：internal atomics（`__AtomicInt`）——值类型、与底层整数相同布局。
+                //
+                // 说明：
+                // - typecheck 内部会为 typealias 保留一个名义 `TypeId`（便于诊断/审计），
+                //   但后端必须把它映射到与 `Int` 完全一致的 ABI（word-sized, signed）。
+                if nominal.fqn == "scoop.unsafe.__AtomicInt" {
+                    return Some(CgTy::Int(IntTy {
+                        bits: self.host.word_bit_width(),
+                        signed: true,
+                    }));
+                }
                 if self.struct_layouts.contains_key(&nominal.fqn) {
                     return Some(CgTy::Struct(ty));
                 }

@@ -21,3 +21,26 @@ fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
 @Intrinsic @NoGC @Unsafe
 fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 
+// ---- Internal atomics（FFI/runtime oriented）----
+//
+// 说明：
+// - 这些类型/函数是 “sysroot/runtime 内部约定”，主要用于 runtime/FFI 的全局状态；
+// - `__AtomicInt` 与 `Int` 具有相同的内存布局（typealias），以便在 codegen 侧直接生成 LLVM 原子指令；
+// - 当前阶段没有引入 `addressOf(var: T)`/`Ptr<T>.load/store` 的完整规范 API（见 TODO T1025），
+//   因此这里把原子操作设计为：以“第一个实参必须是可寻址变量槽（lvalue）”为约束，由编译器在 codegen
+//   阶段直接对该变量的存储位置生成 atomic load/store/cmpxchg。
+
+/// word-sized atomic integer. Same layout as `Int`.
+typealias __AtomicInt = Int
+
+/// atomic load (SeqCst). The first argument must be an lvalue slot.
+@Intrinsic @NoGC @Unsafe
+fun __atomicIntLoad(target: __AtomicInt): Int
+
+/// atomic store (SeqCst). The first argument must be a mutable lvalue slot.
+@Intrinsic @NoGC @Unsafe
+fun __atomicIntStore(target: __AtomicInt, value: Int): Unit
+
+/// atomic compare-exchange (SeqCst). Returns `true` when swapped.
+@Intrinsic @NoGC @Unsafe
+fun __atomicIntCompareExchange(target: __AtomicInt, expected: Int, desired: Int): Bool
