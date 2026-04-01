@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::vararg_spread_requires_array_or_tuple
+// EXPECT-ERROR: toArray()
+//
+// 目标：T1325b vararg spread 的迁移诊断：对常见集合（MutableArray/MutableList/...）提示显式桥接。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun sum(vararg xs: Int): Int {
+    return 0
+}
+
+fun missingBridgeIsError(): Unit {
+    val xs: MutableArray<Int> = [1, 2, 3]
+    // 错误：spread 当前只接受 Array/tuple；应使用 `*xs.toArray()`。
+    val y: Int = sum(*xs)
+    return ()
+}
+

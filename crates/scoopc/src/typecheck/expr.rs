@@ -556,10 +556,11 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("spread 实参类型不支持：期望 Array/tuple，但得到 {found}")]
+    #[error("spread 实参类型不支持：期望 Array/tuple，但得到 {found}{hint}")]
     #[diagnostic(code(scoop::typecheck::vararg_spread_requires_array_or_tuple))]
     VarargSpreadRequiresArrayOrTuple {
         found: String,
+        hint: String,
         #[label("这里")]
         span: miette::SourceSpan,
     },
@@ -6357,6 +6358,37 @@ fn spread_operand_element_types(
     }
 }
 
+/// 为 vararg spread 的“常见集合类型”提供迁移诊断提示（T1325b）。
+///
+/// 说明：
+/// - 语言层的 spread 当前只接受 `Array<T>` 与 tuple（Appendix B.5.5）。
+/// - 对 `MutableArray/MutableList/MutableSet/MutableMap` 等集合，应在调用点通过约定 helper
+///   显式桥接为 `Array`/只读视图后再 spread（例如 `*xs.toArray()`）。
+fn vararg_spread_missing_bridge_hint(
+    operand_ty: TypeId,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> String {
+    let (TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n))) =
+        lower.type_kind(operand_ty)
+    else {
+        return String::new();
+    };
+
+    // `MutableList<T>` 等为 typealias，lowering 后通常会被展开为 `MutableArray<T>`。
+    if n.fqn != "scoop.core.MutableArray" || n.args.len() != 1 {
+        return String::new();
+    }
+
+    // 当前阶段（std v0）集合桥接以 `Int` 专用落点为主：`toArray()/asSet()/asMapView()`。
+    if n.args[0] == builtins.int {
+        return "；提示：对常见集合请先显式桥接为 Array/视图再 spread：`MutableArray/MutableList` 可用 `toArray()`（例如 `f(*xs.toArray())`），`MutableSet` 可用 `asSet()`，`MutableMap` 可用 `asMapView()`".to_string();
+    }
+
+    // 非 `Int`：当前 std v0 可能尚无现成桥接，仍给出方向性的迁移提示。
+    "；提示：对集合做 spread 前请先显式转换为 `Array<...>`（当前 std v0 的桥接多为 `Int` 专用，例如 `toArray()`）".to_string()
+}
+
 fn infer_function_value_call_expr_type(
     source: &SourceFile,
     call_expr: &ast::Expr,
@@ -7500,6 +7532,7 @@ fn infer_call_expr_type(
                         let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
                             return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
                                 found: lower.fmt_type(arg.ty),
+                                hint: vararg_spread_missing_bridge_hint(arg.ty, lower, builtins),
                                 span: arg.expr.span.into(),
                             });
                         };
@@ -7673,6 +7706,7 @@ fn infer_call_expr_type(
                         let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
                             return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
                                 found: lower.fmt_type(found_ty),
+                                hint: vararg_spread_missing_bridge_hint(found_ty, lower, builtins),
                                 span: arg.expr.span.into(),
                             });
                         };
@@ -9909,6 +9943,7 @@ fn infer_member_call_expr_type(
                 let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
                     return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
                         found: lower.fmt_type(arg.ty),
+                        hint: vararg_spread_missing_bridge_hint(arg.ty, lower, builtins),
                         span: arg.expr.span.into(),
                     });
                 };
@@ -10168,6 +10203,7 @@ fn infer_member_call_expr_type(
                 let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
                     return Err(ExprTypeError::VarargSpreadRequiresArrayOrTuple {
                         found: lower.fmt_type(found_ty),
+                        hint: vararg_spread_missing_bridge_hint(found_ty, lower, builtins),
                         span: arg.expr.span.into(),
                     });
                 };

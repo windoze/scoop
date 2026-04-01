@@ -5178,11 +5178,17 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1325b [TODO] varargs spread：对常见集合提供“缺失桥接”的迁移诊断
+### T1325b [DONE] varargs spread：对常见集合提供“缺失桥接”的迁移诊断
 - 描述：当 `*xs` 的 `xs` 为 `MutableArray/MutableList/MutableSet/MutableMap` 等常见集合类型时，诊断提示应使用约定转换（例如 `toArray()/asSet()/asMapView()`）再 spread。
 - 目标：仅增强错误信息（保持稳定 error code）；不放开隐式 spread；不引入新的语义。
 - 验收：新增至少 1 个 fail fixture 断言错误信息包含建议转换；`cargo test --all` 通过。
 - 依赖：T1325a
+ - 完成：
+   - typecheck：当 spread operand 为常见集合（lowering 后通常表现为 `MutableArray<Int>`）时，在 `scoop::typecheck::vararg_spread_requires_array_or_tuple` 的错误信息中追加迁移提示（`toArray/asSet/asMapView`）。
+   - fixtures：新增 `tests/fixtures/typecheck/vararg_spread_mutable_array_missing_bridge_suggest_to_array_is_error.scoop` 回归错误信息包含 `toArray()`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1325c [TODO] varargs spread：迭代器视图桥接（iterator → Array）
 - 描述：为满足 `iterator` 协议的视图提供显式转换为 `Array` 的 std helper（例如 `toArray()`），以支持 `*view.toArray()` 的 spread 用例。
