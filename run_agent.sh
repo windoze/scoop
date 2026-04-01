@@ -11,7 +11,12 @@ while true; do
         break
     fi
 
+    uuid=$(uuidgen)
+    uuid="${uuid,,}"    # Convert to lowercase
+    title="Scoop-Codex-$(date +%Y-%m-%d-%H-%M-%S)-$uuid"
+
     echo "Running codex with PROMPT.md..."
-    codex  exec --dangerously-bypass-approvals-and-sandbox "$(cat "$PROMPT_FILE")" >> ~/tmp/scoop_1_codex_output.txt
+    cwcli --token "$CW_TOKEN" create --project-id "$uuid" --title "$title"
+    cwcli --token "$CW_TOKEN" send -w "$uuid" "$(cat "$PROMPT_FILE")"
     "$REPO_DIR/notification.sh"
 done
