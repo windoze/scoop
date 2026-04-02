@@ -112,13 +112,16 @@ fn type_descriptor_release_callback_runs_once_on_sweep() {
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 1);
         assert_eq!(RELEASE_CALLS.load(Ordering::SeqCst), 0);
+        // moving/compaction backend（例如 Immix）可能会更新 roots 槽位到新地址；
+        // release callback 应以“对象最终被回收时的地址”为准。
+        let obj_after_gc = frame.roots[0];
 
         // 4) pop roots 后再 collect：对象应被回收，release callback 只被调用一次。
         scoop_gc_frame_pop(&mut frame);
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 0);
         assert_eq!(RELEASE_CALLS.load(Ordering::SeqCst), 1);
-        assert_eq!(LAST_RELEASED.load(Ordering::SeqCst), obj as usize);
+        assert_eq!(LAST_RELEASED.load(Ordering::SeqCst), obj_after_gc as usize);
 
         // 5) 再次 collect：不应二次调用 release callback。
         scoop_gc_collect();
@@ -127,4 +130,3 @@ fn type_descriptor_release_callback_runs_once_on_sweep() {
         scoop_thread_unregister();
     }
 }
-

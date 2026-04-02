@@ -5667,7 +5667,7 @@
    - `tools/gc_microbench.sh throughput`
    - `tools/gc_microbench.sh fragmentation`
 
-### T1407 [TODO] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
+### T1407 [DONE] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
 - 描述：为 Immix 增加 evacuation/compaction：在 STW 阶段把存活对象从稀疏 block 搬迁到更紧凑的区域，使用 forwarding pointer 修复引用，并与 pin/unpin/FFI 语义兼容。
 - 目标：
   - 先支持“选择性 block evacuation”与最小 forwarding 机制；
@@ -5675,7 +5675,16 @@
 - 验收：
   - 新增 GC fixtures：触发 compaction 后引用仍正确；被 pin 对象地址稳定；
   - 运行 `--gc-stress` 下多轮通过（无 use-after-move/悬挂指针）。
-- 依赖：T1406、T0912、T1008、T1511
+- 依赖：T1406、T0912、T1008
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：引入 moving/compaction：基于 block evacuation 的搬迁（forwarding pointer + roots 更新 + heap 引用槽位修复），并在完成后重建 block lists；pin policy 保证 pinned objects 不移动。
+   - `runtime/c/scoop_gc_backend.h`：Immix capability matrix 更新为 `moving=1`、`precise_roots_update=1`。
+   - `crates/scoop_runtime/src/gc_backend.rs`：同步 Rust 侧 capability 常量。
+   - tests：新增 `crates/scoop_runtime/tests/gc_immix_compaction.rs` 回归 moving/compaction（roots 更新 + 对象内引用修复 + pinned 地址稳定）。
+   - tests：`crates/scoop_runtime/tests/type_descriptor_release_callback.rs`：release callback 以“对象最终被回收时的地址”为准（moving backend 下 roots 可能被更新）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1408 [TODO] Immix：多线程正确性（PLAN §15.3）
 - 描述：在 Immix backend 下保证多线程正确性：线程注册与 root 枚举、安全点/stop-the-world 协议、跨线程引用扫描、线程本地分配路径与 GC 元数据并发安全。

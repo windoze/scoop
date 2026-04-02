@@ -12,8 +12,8 @@ fn gc_capabilities_match_selected_backend() {
             scoop_runtime::gc_backend::GcCapabilities {
                 stw: false,
                 multi_thread_roots_enum: false,
-                moving: false,
-                precise_roots_update: false,
+                moving: true,
+                precise_roots_update: true,
                 shadow_stack_roots: true,
             }
         );

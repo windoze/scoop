@@ -70,8 +70,8 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
     GcBackend::Immix => GcCapabilities {
         stw: false,
         multi_thread_roots_enum: false,
-        moving: false,
-        precise_roots_update: false,
+        moving: true,
+        precise_roots_update: true,
         shadow_stack_roots: true,
     },
 };

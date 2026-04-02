@@ -68,13 +68,14 @@
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
 
-// Immix v0：单线程、非移动。
-// - 当前阶段先固化 backend 选择与能力矩阵；allocator/mark-region 由 TODO T1406b/T1406c 逐步落地。
+// Immix v0：单线程、moving/compaction。
+// - moving/compaction 当前只在单线程下工作（等价于 STW），多线程正确性留给后续任务；
+// - roots 来源为 shadow stack，因此可在 compaction 时执行“精确 roots 更新”。
 #define SCOOP_GC_CAP_STW 0
 #define SCOOP_GC_CAP_MULTI_THREAD_ROOTS_ENUM 0
 
-#define SCOOP_GC_CAP_MOVING 0
-#define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
+#define SCOOP_GC_CAP_MOVING 1
+#define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 1
 
 #define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
 
