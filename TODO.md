@@ -5546,17 +5546,36 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1405 [TODO] GC backend 抽象：编译期可替换 GC（baseline / Immix / embedded / adapter）（PLAN §15.3）
+### T1405（拆分为子任务）
 - 描述：为 GC 引入稳定抽象边界，使 runtime/allocator/roots 扫描与具体 GC 算法解耦，并支持编译期选择不同 backend（先 C 实现）。
 - 目标：至少支持 baseline GC、后续 Immix、高裁剪 embedded/minimal backend，以及 hosted/adapter backend（如 WASM GC adapter）的插拔。
 - 验收：构建系统可通过 feature/config 选择不同 GC backend；同一套核心 GC fixtures 可在至少两种 backend 下运行。
-- 依赖：T0904、T1505、T1506
+- 依赖：T0904
+- 备注：该任务范围过大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
+
+### T1405a [TODO] GC backend 选择机制 + baseline/minimal 两后端跑通核心 GC 回归（PLAN §15.3）
+- 描述：引入 GC backend 的编译期选择（feature/config），并在不改变 runtime ABI allowlist 的前提下新增一个“最小可用”的第二后端（minimal），让同一套核心 GC 测试/fixtures 可在两种 backend 下运行。
+- 目标：
+  - minimal 后端先不支持多线程 stop-the-world（相关测试可按 feature gating 保留在 baseline 后端）；
+  - 不引入 Immix（留给 T1406）；
+  - 不新增 runtime 导出符号（保持 T1401 allowlist 检查不回退）。
+- 验收：
+  - `cargo test -p scoop_runtime` 通过（默认 baseline）；
+  - `cargo test -p scoop_runtime --no-default-features --features gc-minimal` 通过（minimal）；
+  - `cargo test --all` 通过。
+- 依赖：T0904
+
+### T1405b [TODO] GC backend 能力矩阵：按 backend 固化线程/移动/精确 roots 等 capability（PLAN §15.3）
+- 描述：为 GC backend 固化 capability（例如：是否支持 STW、多线程 roots 枚举、移动/压缩、精确 roots 更新），并把这些能力以“编译期/构建期可检查”的形式接入到测试与后续实现（Immix/adapter）。
+- 目标：先固化 capability 表达与最小检查点；不在本任务内实现 Immix/moving/stackmap。
+- 验收：新增至少 1 个单测/构建检查：当选择 minimal backend 时，明确跳过或给出清晰诊断（而不是 silent mismatch）。
+- 依赖：T1405a
 
 ### T1406 [TODO] Immix v0：单线程、非移动 backend（PLAN §15.3）
 - 描述：在 baseline GC 之外实现 Immix（line/block allocator + mark-region）作为可选 backend（先单线程、非移动）。
 - 目标：先保证正确性与可回归；不要求第一版就替换默认 GC。
 - 验收：构建时可切换到 Immix backend；核心 GC fixtures 通过；至少一组分配/碎片化 microbench 显示优于 baseline（可先本地运行）。
-- 依赖：T1405
+- 依赖：T1405a
 
 ### T1407 [TODO] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
 - 描述：为 Immix 增加 evacuation/compaction：在 STW 阶段把存活对象从稀疏 block 搬迁到更紧凑的区域，使用 forwarding pointer 修复引用，并与 pin/unpin/FFI 语义兼容。
