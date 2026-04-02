@@ -1403,6 +1403,7 @@ fn check_file_exprs_impl(
             }
             ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
                 source,
+                file,
                 ty,
                 &pkg_prefix,
                 &mut lower,
@@ -1569,6 +1570,7 @@ fn try_infer_fun_return_ty_from_block(
 
 fn check_class_member_fun_bodies_in_type_decl(
     source: &SourceFile,
+    file: &ast::File,
     decl: &ast::TypeDecl,
     prefix: &str,
     lower: &mut TypeLowering<'_>,
@@ -1611,6 +1613,25 @@ fn check_class_member_fun_bodies_in_type_decl(
                 .collect::<Vec<_>>();
             let this_ty =
                 lower.lower_type_fqn_with_args(type_fqn.clone(), this_ty_args, decl.name.span)?;
+
+            let superclass_fqn = decl
+                .supertypes
+                .iter()
+                .find(|st| st.ctor_args_span.is_some())
+                .and_then(|st| lower.index().type_ref_to_fqn_in_file(source, file, &st.ty));
+
+            check_class_super_ctor_call_exprs(
+                source,
+                file,
+                &type_fqn,
+                decl,
+                ctor_params,
+                lower,
+                builtins,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
 
             if let Some(body) = &decl.body {
                 for member in &body.members {
@@ -1665,6 +1686,7 @@ fn check_class_member_fun_bodies_in_type_decl(
                                 decl.name.span,
                                 &type_fqn,
                                 decl.primary_ctor.is_some(),
+                                superclass_fqn.as_deref(),
                                 this_ty,
                                 ctor_params,
                                 ctor,
@@ -1698,6 +1720,7 @@ fn check_class_member_fun_bodies_in_type_decl(
             };
             check_class_member_fun_bodies_in_type_decl(
                 source,
+                file,
                 nested,
                 &type_fqn,
                 lower,
@@ -2013,6 +2036,197 @@ fn check_class_property_initializer_exprs(
     })
 }
 
+/// 检查 class header 的 `: Base(args...)` super ctor args（T1327c）。
+///
+/// 说明：
+/// - 该位置并非普通表达式调用点，因此不依赖 resolver 的 `call candidates`；
+/// - 为与当前 LLVM codegen 行为保持一致：ctor overload 选择仅按“参数个数（arity）”做最小匹配；
+/// - 更完整的 most-specific 重载规则由普通调用点（`C(...)`）的 typecheck 覆盖（T0454）。
+fn check_class_super_ctor_call_exprs(
+    source: &SourceFile,
+    file: &ast::File,
+    class_fqn: &str,
+    decl: &ast::TypeDecl,
+    ctor_params: &[ast::Param],
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    let Some(superclass) = decl
+        .supertypes
+        .iter()
+        .find(|st| st.ctor_args_span.is_some())
+    else {
+        return Ok(());
+    };
+
+    let Some(base_fqn) = lower
+        .index()
+        .type_ref_to_fqn_in_file(source, file, &superclass.ty)
+    else {
+        return Ok(());
+    };
+
+    // super ctor args 的可见 locals：仅主构造参数（不引入 `this`）。
+    let mut locals: HashMap<Span, TypeId> = HashMap::new();
+    for p in ctor_params {
+        let Some(ty_ref) = p.ty.as_ref() else {
+            continue;
+        };
+        let ty = lower.lower_type_ref(ty_ref)?;
+        locals.insert(p.name.span, ty);
+    }
+
+    check_ctor_call_args_by_arity(
+        source,
+        format!("{class_fqn} -> {base_fqn}"),
+        &base_fqn,
+        superclass.span,
+        &superclass.ctor_args,
+        None,
+        lower,
+        builtins,
+        &locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    )?;
+
+    Ok(())
+}
+
+/// 在“已知 ctor 所属类型”的前提下，对 ctor call 的 args 做最小 typecheck。
+///
+/// 当前阶段约束（与 LLVM codegen 对齐）：
+/// - 仅按 arity 匹配 ctor overload；
+/// - 逐个实参按形参类型做 assignable 检查（允许 int literal 吸收）；
+/// - defaults/named/spread/vararg 的完整调用规则留给后续任务补齐。
+fn check_ctor_call_args_by_arity(
+    source: &SourceFile,
+    callee_for_diag: String,
+    ctor_owner_ty_fqn: &str,
+    call_span: Span,
+    args: &[ast::Expr],
+    exclude_ctor_span: Option<Span>,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+    locals: &HashMap<Span, TypeId>,
+    top_level_types: &HashMap<String, TypeId>,
+    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &HashMap<String, TypeId>,
+) -> Result<(), ExprTypeError> {
+    // 当前阶段（T1327c）约束：super ctor args / ctor delegation args 仅支持位置参数。
+    //
+    // 备注：这些位置并非普通调用点（`callee(args...)`），HIR lowering 也不会把它们转成 `CallArg`，
+    // 因此这里必须显式拒绝 `name = value` / `*spread` 语法，以避免后续 lowering/codegen 落到 `todo` 分支。
+    for arg in args {
+        match &arg.kind {
+            ast::ExprKind::NamedArg { .. } | ast::ExprKind::SpreadArg { .. } => {
+                return Err(ExprTypeError::UnsupportedExpr {
+                    kind: expr_kind_name(&arg.kind),
+                    span: arg.span.into(),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    let use_cone = lower.index().cone_of_source(source);
+    let Some(ctors) = lower.index().constructors.get(ctor_owner_ty_fqn).cloned() else {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_for_diag,
+            span: call_span.into(),
+        });
+    };
+
+    let mut visible: Vec<&ConstructorOverload> = ctors
+        .iter()
+        .filter(|c| is_ctor_visible_from(use_cone, source, c))
+        .collect();
+    if let Some(exclude) = exclude_ctor_span {
+        visible.retain(|c| c.span != exclude);
+    }
+
+    let mut matching: Vec<&ConstructorOverload> = visible
+        .iter()
+        .copied()
+        .filter(|c| c.params.len() == args.len())
+        .collect();
+
+    if matching.is_empty() {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_for_diag,
+            span: call_span.into(),
+        });
+    }
+    if matching.len() != 1 {
+        let mut sigs: Vec<String> = Vec::with_capacity(matching.len());
+        for ctor in &matching {
+            let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
+            for p in &ctor.params {
+                let Some(ty_ref) = p.ty.as_ref() else {
+                    param_ty_strs.push(lower.fmt_type(builtins.any));
+                    continue;
+                };
+                let ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
+                param_ty_strs.push(lower.fmt_type(ty));
+            }
+            sigs.push(format!("{ctor_owner_ty_fqn}({})", param_ty_strs.join(", ")));
+        }
+        return Err(ExprTypeError::AmbiguousOverload {
+            callee: callee_for_diag,
+            candidates: join_overload_signatures(sigs),
+            span: call_span.into(),
+        });
+    }
+
+    let ctor = matching.pop().expect("len == 1");
+    for (idx, (arg, param)) in args.iter().zip(ctor.params.iter()).enumerate() {
+        let expected = match param.ty.as_ref() {
+            Some(ty_ref) => lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?,
+            None => builtins.any,
+        };
+
+        let found = infer_expr_type_in_expected_context(
+            source,
+            arg,
+            expected,
+            ExpectedTypeFrom::new(format!(
+                "constructor `{}` 的第 {} 个参数",
+                ctor_owner_ty_fqn,
+                idx + 1
+            )),
+            lower,
+            builtins,
+            locals,
+            top_level_types,
+            top_level_funs,
+            struct_field_types,
+        )?;
+
+        if is_type_assignable(found, expected, lower, builtins) {
+            check_fn_value_to_any_erasure_gate(found, expected, arg.span, lower, builtins)?;
+            continue;
+        }
+        if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins)
+        {
+            continue;
+        }
+
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: callee_for_diag,
+            index: idx + 1,
+            expected: lower.fmt_type(expected),
+            found: lower.fmt_type(found),
+            span: arg.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
 /// 检查 class `init { ... }` 初始化块的最小表达式类型（T0448）。
 fn check_class_init_block_exprs(
     source: &SourceFile,
@@ -2056,6 +2270,7 @@ fn check_class_secondary_ctor_exprs(
     this_decl_span: Span,
     class_fqn: &str,
     has_primary_ctor: bool,
+    superclass_fqn: Option<&str>,
     this_ty: TypeId,
     primary_ctor_params: &[ast::Param],
     ctor: &ast::SecondaryCtorDecl,
@@ -2082,6 +2297,60 @@ fn check_class_secondary_ctor_exprs(
                 });
             }
             Some(_) => {}
+        }
+    }
+
+    // delegation call 的 args 类型检查（T1327c）。
+    if let Some(call) = ctor.delegation_call.as_ref() {
+        // delegation args 的可见 locals：仅 secondary ctor params（不引入 `this`）。
+        let mut delegation_locals: HashMap<Span, TypeId> = HashMap::new();
+        for p in &ctor.params {
+            let Some(ty_ref) = p.ty.as_ref() else {
+                continue;
+            };
+            let ty = lower.lower_type_ref(ty_ref)?;
+            delegation_locals.insert(p.name.span, ty);
+        }
+
+        match call.kind {
+            ast::CtorDelegationKind::This => {
+                check_ctor_call_args_by_arity(
+                    source,
+                    "this".to_string(),
+                    class_fqn,
+                    call.span,
+                    &call.args,
+                    Some(ctor.span),
+                    lower,
+                    builtins,
+                    &delegation_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
+            ast::CtorDelegationKind::Super => {
+                let Some(base_fqn) = superclass_fqn else {
+                    return Err(ExprTypeError::NoMatchingOverload {
+                        callee: "super".to_string(),
+                        span: call.span.into(),
+                    });
+                };
+                check_ctor_call_args_by_arity(
+                    source,
+                    format!("super({base_fqn})"),
+                    base_fqn,
+                    call.span,
+                    &call.args,
+                    None,
+                    lower,
+                    builtins,
+                    &delegation_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
         }
     }
 

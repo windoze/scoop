@@ -461,6 +461,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let layouted = hir::ClassInit {
             fqn: base.fqn,
             super_class_fqn: base.super_class_fqn,
+            super_ctor_args_span: base.super_ctor_args_span,
+            super_ctor_args: base.super_ctor_args,
             this_id: base.this_id,
             fields,
             field_indices,
@@ -4589,11 +4591,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 生成 class 构造调用（Appendix B.2.2，Kotlin-like 初始化顺序）。
     ///
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
-    /// - 仅支持位置参数（positional args），不支持 named args / default args；
+    /// - 调用点仅支持位置参数（positional args），不支持 named args / default args；
     /// - ctor 选择规则：按“参数个数”在已收集 ctor 集合中匹配；若不唯一则报错；
-    /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；super ctor call 目前仅支持 0-arg（`: Base()`）；
-    /// - secondary ctor 的 delegation call 语义暂未接入（parser 尚未解析实参表达式），
-    ///   这里只保证其 body 在 primary init steps 之后执行。
+    /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
+    /// - super ctor args 与 secondary ctor delegation args 同样只支持位置参数，并按源码顺序求值。
     fn codegen_class_ctor_call(
         &mut self,
         span: crate::span::Span,
@@ -4625,11 +4626,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
         };
-        let init_chain = self.class_init_chain(callee_span, &class_fqn)?;
-        let class = init_chain.last().cloned().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "class ctor call init chain",
-            at: callee_span.into(),
-        })?;
+        let class = self.class_init_layout(callee_span, &class_fqn)?;
 
         // 2) 仅支持 positional args，并按源码顺序求值。
         let mut positional_args: Vec<&hir::Expr> = Vec::with_capacity(args.len());
@@ -4675,9 +4672,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let selected_ctor = matching[0];
-        let (ctor_kind, ctor_params, ctor_body) = match selected_ctor {
-            Some(ctor) => (ctor.kind, ctor.params.as_slice(), ctor.body.as_ref()),
-            None => (hir::ClassCtorKind::Primary, &[][..], None),
+        let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
+            Some(ctor) => ctor.params.as_slice(),
+            None => &[][..],
         };
 
         // 4) 分配对象（header 由 runtime 初始化）；payload 先清零，避免读取未初始化字段导致的非确定性。
@@ -4880,18 +4877,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(ctor_cont_bb);
         self.push_raise_target(raise_cleanup_bb);
 
-        // 6) 继承链初始化：从最基类到派生类逐层执行。
+        // 6) 执行构造调用：支持 super ctor args + secondary ctor delegation（T1327c）。
         //
-        // 每一层的顺序（Kotlin-like，Appendix B.2.2）：
-        //  1) 注入 `this` 与 ctor params locals；
-        //  2) primary ctor 的 `val/var` 参数属性赋值（来自 ctor args）；
-        //  3) property initializer / init blocks（按源码顺序）；
-        //  4) secondary ctor body（若该层选中 secondary）。
-        //
-        // 当前阶段约束（T1327a）：
-        // - super ctor call 暂不解析实参表达式，因此仅支持 0-arg super ctor（`: Base()`）。
+        // 语义（Kotlin-like，Appendix B.2.2）：
+        // - 调用点先按源码顺序求值 ctor 实参；
+        // - 进入 ctor 后：
+        //   - 若是 `: this(...)`，先执行被委托 ctor，再执行当前 ctor body；
+        //   - 否则先执行 super ctor call，再执行本类的参数属性赋值、property initializer、init blocks，
+        //     最后执行 secondary ctor body（若有）。
 
-        // 调用点实参求值（按源码顺序），供最末层（实际被调用的 ctor）写入 locals。
+        // 调用点实参求值（按源码顺序），供“被调用的 ctor”注入 params locals。
         let mut evaluated_args: Vec<CgValue<'ctx>> = Vec::with_capacity(positional_args.len());
         for (param, arg_expr) in ctor_params.iter().zip(positional_args.iter()) {
             let param_cg = self
@@ -4905,138 +4900,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             evaluated_args.push(v);
         }
 
-        for layer in &init_chain {
-            // 选择该层的 ctor：最末层使用调用点选择结果；其余层（super）仅允许 0-arg。
-            let (layer_ctor_kind, layer_ctor_params, layer_ctor_body, layer_args): (
-                hir::ClassCtorKind,
-                &[hir::ClassCtorParam],
-                Option<&hir::Block>,
-                &[CgValue<'ctx>],
-            ) = if layer.fqn == class.fqn {
-                (ctor_kind, ctor_params, ctor_body, evaluated_args.as_slice())
-            } else {
-                let matching: Vec<Option<&hir::ClassCtor>> = if layer.ctors.is_empty() {
-                    vec![None]
-                } else {
-                    layer
-                        .ctors
-                        .iter()
-                        .filter(|ctor| ctor.params.is_empty())
-                        .map(Some)
-                        .collect()
-                };
-                if matching.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class super ctor call (only 0-arg supported)",
-                        at: callee_span.into(),
-                    });
-                }
-                match matching[0] {
-                    Some(ctor) => (ctor.kind, ctor.params.as_slice(), ctor.body.as_ref(), &[][..]),
-                    None => (hir::ClassCtorKind::Primary, &[][..], None, &[][..]),
-                }
-            };
-
-            self.env.push_scope();
-
-            // this local（注意：每一层都有独立的 this SymbolId）。
-            let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
-            let _ = self.builder.build_store(this_ptr, obj_ptr)?;
-            self.env.insert(
-                layer.this_id,
-                CgLocal {
-                    hir_ty: None,
-                    ty: CgTy::Ref,
-                    ptr: this_ptr,
-                    mutable: false,
-                    gc_root_slot: None,
-                },
-            );
-
-            // ctor params locals（同时做 primary ctor 参数属性赋值）
-            for (param, arg_v) in layer_ctor_params.iter().zip(layer_args.iter()) {
-                let param_cg = self
-                    .cg_ty_of(param.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor param type",
-                        at: callee_span.into(),
-                    })?;
-                let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
-                let stored =
-                    self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
-                self.env.insert(
-                    param.id,
-                    CgLocal {
-                        hir_ty: Some(param.ty),
-                        ty: param_cg,
-                        ptr: param_ptr,
-                        mutable: false,
-                        gc_root_slot: None,
-                    },
-                );
-
-                if param.is_property {
-                    let Some(field_fqn) = param.property_field_fqn.as_deref() else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor param property fqn",
-                            at: callee_span.into(),
-                        });
-                    };
-                    let Some(field_idx) = layer.field_indices.get(field_fqn).copied() else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor param property field index",
-                            at: callee_span.into(),
-                        });
-                    };
-                    let field_ptr =
-                        self.codegen_class_field_ptr(span, layer, obj_ptr, field_idx)?;
-                    let _ = self.store_local_value(span, field_ptr, param_cg, stored)?;
-                }
-            }
-
-            // primary init steps（property initializer + init blocks）
-            for step in &layer.steps {
-                match step {
-                    hir::ClassInitStep::PropertyInit { field_fqn, init } => {
-                        let Some(field_idx) = layer.field_indices.get(field_fqn).copied() else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class property init field index",
-                                at: init.span.into(),
-                            });
-                        };
-                        let field = layer.fields.get(field_idx as usize).ok_or(
-                            LlvmEmitError::UnsupportedMainBody {
-                                kind: "class property init field",
-                                at: init.span.into(),
-                            },
-                        )?;
-                        let field_cg =
-                            self.cg_ty_of(field.ty)
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "class property init field type",
-                                    at: init.span.into(),
-                                })?;
-
-                        let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
-                        let field_ptr =
-                            self.codegen_class_field_ptr(init.span, layer, obj_ptr, field_idx)?;
-                        let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
-                    }
-                    hir::ClassInitStep::InitBlock { block } => {
-                        let _ = self.codegen_block_value(block)?;
-                    }
-                }
-            }
-
-            // secondary ctor body（若适用）
-            if layer_ctor_kind == hir::ClassCtorKind::Secondary {
-                if let Some(body) = layer_ctor_body {
-                    let _ = self.codegen_block_value(body)?;
-                }
-            }
-
-            self.env.pop_scope();
-        }
+        self.codegen_class_ctor_invoke(
+            span,
+            callee_span,
+            &class,
+            selected_ctor,
+            evaluated_args.as_slice(),
+            obj_ptr,
+        )?;
 
         self.pop_raise_target();
         for _ in 0..pushed_effect_wrappers {
@@ -5056,6 +4927,387 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy::Ref,
             value: Some(obj_ptr.into()),
         })
+    }
+
+    fn pick_class_ctor_by_arity<'b>(
+        &self,
+        at: crate::span::Span,
+        class: &'b hir::ClassInit,
+        arg_count: usize,
+        exclude_ctor_span: Option<crate::span::Span>,
+        kind: &'static str,
+    ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
+        // 若 class 未显式声明任何 ctor，则视为隐式 0-参 primary ctor。
+        if class.ctors.is_empty() {
+            return if arg_count == 0 {
+                Ok(None)
+            } else {
+                Err(LlvmEmitError::UnsupportedMainBody { kind, at: at.into() })
+            };
+        }
+
+        let mut matching: Vec<&hir::ClassCtor> = class
+            .ctors
+            .iter()
+            .filter(|ctor| ctor.params.len() == arg_count)
+            .collect();
+        if let Some(exclude) = exclude_ctor_span {
+            matching.retain(|c| c.span != exclude);
+        }
+
+        if matching.is_empty() {
+            return Err(LlvmEmitError::UnsupportedMainBody { kind, at: at.into() });
+        }
+        if matching.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody { kind, at: at.into() });
+        }
+
+        Ok(Some(matching[0]))
+    }
+
+    fn codegen_class_ctor_eval_args(
+        &mut self,
+        at: crate::span::Span,
+        callee_span: crate::span::Span,
+        arg_exprs: &[hir::Expr],
+        ctor_params: &[hir::ClassCtorParam],
+        kind: &'static str,
+    ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
+        if arg_exprs.len() != ctor_params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody { kind, at: at.into() });
+        }
+
+        let mut out: Vec<CgValue<'ctx>> = Vec::with_capacity(arg_exprs.len());
+        for (param, arg_expr) in ctor_params.iter().zip(arg_exprs.iter()) {
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param type",
+                    at: callee_span.into(),
+                })?;
+            let v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
+            let v = self.coerce_value(arg_expr.span, v, param_cg)?;
+            out.push(v);
+        }
+        Ok(out)
+    }
+
+    fn codegen_class_ctor_call_super(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        class: &hir::ClassInit,
+        super_arg_exprs: &[hir::Expr],
+        obj_ptr: PointerValue<'ctx>,
+        stack: &mut HashSet<(String, crate::span::Span)>,
+        kind: &'static str,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(super_fqn) = class.super_class_fqn.as_deref() else {
+            return Ok(());
+        };
+
+        let super_class = self.class_init_layout(callee_span, super_fqn)?;
+        let super_ctor = self.pick_class_ctor_by_arity(
+            callee_span,
+            &super_class,
+            super_arg_exprs.len(),
+            None,
+            kind,
+        )?;
+
+        let super_ctor_params: &[hir::ClassCtorParam] = match super_ctor {
+            Some(ctor) => ctor.params.as_slice(),
+            None => &[][..],
+        };
+        let super_values = self.codegen_class_ctor_eval_args(
+            callee_span,
+            callee_span,
+            super_arg_exprs,
+            super_ctor_params,
+            kind,
+        )?;
+
+        self.codegen_class_ctor_invoke_inner(
+            span,
+            callee_span,
+            &super_class,
+            super_ctor,
+            super_values.as_slice(),
+            obj_ptr,
+            stack,
+        )?;
+
+        Ok(())
+    }
+
+    fn codegen_class_ctor_run_init_steps(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        class: &hir::ClassInit,
+        ctor_params: &[hir::ClassCtorParam],
+        stored_args: &[CgValue<'ctx>],
+        obj_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        // primary ctor 参数属性赋值（在 super ctor 之后执行，Kotlin-like）。
+        for (param, arg_v) in ctor_params.iter().zip(stored_args.iter()) {
+            if !param.is_property {
+                continue;
+            }
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param type",
+                    at: callee_span.into(),
+                })?;
+
+            let Some(field_fqn) = param.property_field_fqn.as_deref() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param property fqn",
+                    at: callee_span.into(),
+                });
+            };
+            let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param property field index",
+                    at: callee_span.into(),
+                });
+            };
+            let field_ptr = self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
+            let _ = self.store_local_value(span, field_ptr, param_cg, *arg_v)?;
+        }
+
+        // property initializer / init blocks（按源码顺序）
+        for step in &class.steps {
+            match step {
+                hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                    let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class property init field index",
+                            at: init.span.into(),
+                        });
+                    };
+                    let field = class.fields.get(field_idx as usize).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "class property init field",
+                            at: init.span.into(),
+                        },
+                    )?;
+                    let field_cg =
+                        self.cg_ty_of(field.ty)
+                            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class property init field type",
+                                at: init.span.into(),
+                            })?;
+
+                    let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                    let field_ptr = self.codegen_class_field_ptr(init.span, class, obj_ptr, field_idx)?;
+                    let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
+                }
+                hir::ClassInitStep::InitBlock { block } => {
+                    let _ = self.codegen_block_value(block)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn codegen_class_ctor_invoke(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        class: &hir::ClassInit,
+        ctor: Option<&hir::ClassCtor>,
+        args: &[CgValue<'ctx>],
+        obj_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let mut stack: HashSet<(String, crate::span::Span)> = HashSet::new();
+        self.codegen_class_ctor_invoke_inner(span, callee_span, class, ctor, args, obj_ptr, &mut stack)
+    }
+
+    fn codegen_class_ctor_invoke_inner(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        class: &hir::ClassInit,
+        ctor: Option<&hir::ClassCtor>,
+        args: &[CgValue<'ctx>],
+        obj_ptr: PointerValue<'ctx>,
+        stack: &mut HashSet<(String, crate::span::Span)>,
+    ) -> Result<(), LlvmEmitError> {
+        let (ctor_kind, ctor_span, ctor_params, ctor_body, delegation) = match ctor {
+            Some(ctor) => (
+                ctor.kind,
+                ctor.span,
+                ctor.params.as_slice(),
+                ctor.body.as_ref(),
+                ctor.delegation.as_ref(),
+            ),
+            None => (hir::ClassCtorKind::Primary, callee_span, &[][..], None, None),
+        };
+
+        let key = (class.fqn.clone(), ctor_span);
+        if !stack.insert(key.clone()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor delegation cycle",
+                at: callee_span.into(),
+            });
+        }
+
+        let result = (|| {
+        self.env.push_scope();
+
+        // this local（注意：每一层都有独立的 this SymbolId）。
+        let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
+        let _ = self.builder.build_store(this_ptr, obj_ptr)?;
+        self.env.insert(
+            class.this_id,
+            CgLocal {
+                hir_ty: None,
+                ty: CgTy::Ref,
+                ptr: this_ptr,
+                mutable: false,
+                gc_root_slot: None,
+            },
+        );
+
+        // ctor params locals（先写 locals；参数属性赋值延后到 super ctor call 之后）。
+        if args.len() != ctor_params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class ctor call arg/param len mismatch",
+                at: callee_span.into(),
+            });
+        }
+
+        let mut stored_args: Vec<CgValue<'ctx>> = Vec::with_capacity(args.len());
+        for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
+            let param_cg = self
+                .cg_ty_of(param.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "class ctor param type",
+                    at: callee_span.into(),
+                })?;
+            let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+            let stored = self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
+            stored_args.push(stored);
+            self.env.insert(
+                param.id,
+                CgLocal {
+                    hir_ty: Some(param.ty),
+                    ty: param_cg,
+                    ptr: param_ptr,
+                    mutable: false,
+                    gc_root_slot: None,
+                },
+            );
+        }
+
+        // secondary ctor delegation（T1327c）
+        if ctor_kind == hir::ClassCtorKind::Secondary {
+            if let Some(deleg) = delegation {
+                match deleg.kind {
+                    ast::CtorDelegationKind::This => {
+                        let target = self.pick_class_ctor_by_arity(
+                            callee_span,
+                            class,
+                            deleg.args.len(),
+                            Some(ctor_span),
+                            "class this delegation overload mismatch/ambiguous",
+                        )?;
+
+                        let target_params: &[hir::ClassCtorParam] = match target {
+                            Some(c) => c.params.as_slice(),
+                            None => &[][..],
+                        };
+                        let target_values = self.codegen_class_ctor_eval_args(
+                            callee_span,
+                            callee_span,
+                            deleg.args.as_slice(),
+                            target_params,
+                            "class this delegation arg eval",
+                        )?;
+
+                        self.codegen_class_ctor_invoke_inner(
+                            span,
+                            callee_span,
+                            class,
+                            target,
+                            target_values.as_slice(),
+                            obj_ptr,
+                            stack,
+                        )?;
+
+                        if let Some(body) = ctor_body {
+                            let _ = self.codegen_block_value(body)?;
+                        }
+
+                        self.env.pop_scope();
+                        return Ok(());
+                    }
+                    ast::CtorDelegationKind::Super => {
+                        self.codegen_class_ctor_call_super(
+                            span,
+                            callee_span,
+                            class,
+                            deleg.args.as_slice(),
+                            obj_ptr,
+                            stack,
+                            "class super delegation overload mismatch/ambiguous",
+                        )?;
+
+                        self.codegen_class_ctor_run_init_steps(
+                            span,
+                            callee_span,
+                            class,
+                            ctor_params,
+                            stored_args.as_slice(),
+                            obj_ptr,
+                        )?;
+
+                        if let Some(body) = ctor_body {
+                            let _ = self.codegen_block_value(body)?;
+                        }
+
+                        self.env.pop_scope();
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // primary ctor / secondary ctor（无 delegation）路径：使用 class header 的 super ctor args。
+        self.codegen_class_ctor_call_super(
+            span,
+            callee_span,
+            class,
+            class.super_ctor_args.as_slice(),
+            obj_ptr,
+            stack,
+            "class super ctor call overload mismatch/ambiguous",
+        )?;
+
+        self.codegen_class_ctor_run_init_steps(
+            span,
+            callee_span,
+            class,
+            ctor_params,
+            stored_args.as_slice(),
+            obj_ptr,
+        )?;
+
+        if ctor_kind == hir::ClassCtorKind::Secondary {
+            if let Some(body) = ctor_body {
+                let _ = self.codegen_block_value(body)?;
+            }
+        }
+
+        self.env.pop_scope();
+        Ok(())
+        })();
+
+        stack.remove(&key);
+        result
     }
 
     fn codegen_immediate_resume_call(

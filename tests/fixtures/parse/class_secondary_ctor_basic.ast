@@ -160,6 +160,12 @@ File {
                         ctor_args_span: Some(
                             396..399,
                         ),
+                        ctor_args: [
+                            Expr {
+                                span: 397..398,
+                                kind: IntLit,
+                            },
+                        ],
                     },
                 ],
                 body: Some(
@@ -197,6 +203,16 @@ File {
                                             kind: Super,
                                             target_span: 428..433,
                                             args_span: 433..436,
+                                            args: [
+                                                Expr {
+                                                    span: 434..435,
+                                                    kind: Ident(
+                                                        Ident {
+                                                            span: 434..435,
+                                                        },
+                                                    ),
+                                                },
+                                            ],
                                         },
                                     ),
                                     body: Block {

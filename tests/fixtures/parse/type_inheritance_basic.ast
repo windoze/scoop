@@ -64,6 +64,16 @@ File {
                         ctor_args_span: Some(
                             115..121,
                         ),
+                        ctor_args: [
+                            Expr {
+                                span: 116..120,
+                                kind: Ident(
+                                    Ident {
+                                        span: 116..120,
+                                    },
+                                ),
+                            },
+                        ],
                     },
                     SuperType {
                         span: 123..127,

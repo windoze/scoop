@@ -23,7 +23,8 @@ use crate::ty::{
 
 use super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorKind, ClassCtorParam, ClassField, ClassInit,
-    ClassInitIndex, ClassInitStep, ClosureExpr, ClosureId, CtorCallSiteIndex, EffectOpRef,
+    ClassCtorDelegation, ClassInitIndex, ClassInitStep, ClosureExpr, ClosureId, CtorCallSiteIndex,
+    EffectOpRef,
     EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr,
     ExprKind, File, FunDecl, HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, Item,
     LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex, ObjectInitStep,
@@ -4673,9 +4674,27 @@ fn collect_class_decl_init(
         .filter_map(|s| ctx.index.type_ref_to_fqn_in_file(ctx.source, ctx.file, &s.ty))
         .find(|fqn| matches!(ctx.type_kinds.get(fqn), Some(ast::TypeKind::Class)));
 
+    // class header 的 `: Base(args...)`：记录 super ctor args（若存在）。
+    let (super_ctor_args_span, super_ctor_args) = decl
+        .supertypes
+        .iter()
+        .find(|st| st.ctor_args_span.is_some())
+        .map(|st| {
+            let span = st.ctor_args_span;
+            let args = st
+                .ctor_args
+                .iter()
+                .map(|arg| ctx.lower_expr(pkg_prefix, arg))
+                .collect::<Vec<_>>();
+            (span, args)
+        })
+        .unwrap_or((None, Vec::new()));
+
     let mut init = ClassInit {
         fqn: class_fqn.to_string(),
         super_class_fqn,
+        super_ctor_args_span,
+        super_ctor_args,
         this_id,
         fields: Vec::new(),
         field_indices: HashMap::new(),
@@ -4997,7 +5016,15 @@ fn collect_class_decl_init(
                         });
                     }
 
-                    let delegation = ctor.delegation_call.as_ref().map(|d| d.kind);
+                    let delegation = ctor.delegation_call.as_ref().map(|d| ClassCtorDelegation {
+                        kind: d.kind,
+                        span: d.span,
+                        args: d
+                            .args
+                            .iter()
+                            .map(|arg| ctx.lower_expr(pkg_prefix, arg))
+                            .collect::<Vec<_>>(),
+                    });
                     let body = ctx.lower_block(pkg_prefix, &ctor.body);
                     init.ctors.push(ClassCtor {
                         kind: ClassCtorKind::Secondary,

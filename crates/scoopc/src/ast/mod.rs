@@ -317,8 +317,14 @@ pub struct PrimaryCtorDecl {
 pub struct SuperType {
     pub span: Span,
     pub ty: TypeRef,
-    /// 基类构造调用参数列表的 span（仅保留括号范围，不解析其中表达式）。
+    /// 基类构造调用参数列表的 span（括号范围）。
     pub ctor_args_span: Option<Span>,
+    /// 基类构造调用参数列表（可选）。
+    ///
+    /// 说明：
+    /// - 当 `ctor_args_span=None` 时该列表必须为空；
+    /// - 当 `ctor_args_span=Some(..)` 时，列表可能为空（例如 `Base()`）。
+    pub ctor_args: Vec<Expr>,
 }
 
 impl std::fmt::Debug for SuperType {
@@ -328,6 +334,9 @@ impl std::fmt::Debug for SuperType {
         s.field("ty", &self.ty);
         if self.ctor_args_span.is_some() {
             s.field("ctor_args_span", &self.ctor_args_span);
+        }
+        if !self.ctor_args.is_empty() {
+            s.field("ctor_args", &self.ctor_args);
         }
         s.finish()
     }
@@ -516,7 +525,8 @@ pub struct InitBlockDecl {
 ///
 /// 说明：
 /// - `constructor` / `this` / `super` 在 lexer 层当前仍是 `Ident`；
-/// - 当前阶段（T0257）只保留目标（this/super）与参数括号的 span，不解析其中表达式；
+/// - delegation call 的参数列表按“调用参数列表”规则解析（支持命名参数/`*spread` 等语法），
+///   但其语义门禁与调用规则由后续 typecheck/lowering 决定；
 /// - 更完整的调用解析与语义检查交给后续阶段。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CtorDelegationKind {
@@ -525,15 +535,32 @@ pub enum CtorDelegationKind {
 }
 
 /// 次构造器 delegation call（`:` + 目标 + 参数括号）。
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CtorDelegationCall {
     pub span: Span,
     pub colon_span: Span,
     pub kind: CtorDelegationKind,
     /// `this` / `super` token 的 span（当前为上下文关键字，仍按 Ident 处理）。
     pub target_span: Span,
-    /// 调用参数列表的括号 span（仅保留括号范围，不解析其中表达式）。
+    /// 调用参数列表的括号 span。
     pub args_span: Span,
+    /// 调用参数列表（按 `ExprKind::Call.args` 规则解析）。
+    pub args: Vec<Expr>,
+}
+
+impl std::fmt::Debug for CtorDelegationCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("CtorDelegationCall");
+        s.field("span", &self.span);
+        s.field("colon_span", &self.colon_span);
+        s.field("kind", &self.kind);
+        s.field("target_span", &self.target_span);
+        s.field("args_span", &self.args_span);
+        if !self.args.is_empty() {
+            s.field("args", &self.args);
+        }
+        s.finish()
+    }
 }
 
 /// class 次构造器（secondary constructor）：`constructor(params) [: this(...)|super(...)] { ... }`。

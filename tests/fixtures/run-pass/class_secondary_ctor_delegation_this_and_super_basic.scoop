@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: class_secondary_ctor_delegation_this_and_super_basic.stdout
+//
+// T1327c：secondary ctor delegation（this/super）
+// - `constructor() : this(makeX())`：先执行被委托 ctor（含 init steps），再执行当前 ctor body；
+// - `constructor(x) : super(x)`：使用 delegation args 调用父类 ctor（不使用 class header 的 super args）。
+
+import scoop.core.*
+
+fun headerArg(): Int {
+    println("D.header_super_arg")
+    return 0
+}
+
+fun makeX(): Int {
+    println("D.makeX")
+    return 7
+}
+
+open class A(val a: Int) {
+    init {
+        println("A.init")
+    }
+}
+
+class D : A(headerArg()) {
+    init {
+        println("D.init")
+    }
+
+    constructor(x: Int) : super(x) {
+        println("D.ctor_x.body")
+    }
+
+    constructor() : this(makeX()) {
+        println("D.ctor0.body")
+    }
+}
+
+fun main(): Int {
+    println("start")
+    val _d: D = D()
+    println("after")
+    return 0
+}
+

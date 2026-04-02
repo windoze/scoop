@@ -168,6 +168,21 @@ impl<'a> BlockScopeChecker<'a> {
             ty_fqn: Some(type_fqn.clone()),
         };
 
+        // class header 的 super ctor args：可见主构造参数，但不引入 `this`（Kotlin-like）。
+        if matches!(ty.kind, ast::TypeKind::Class) {
+            self.with_ctor_params_scope(ctor_params, |this| {
+                for st in &mut ty.supertypes {
+                    if st.ctor_args_span.is_none() {
+                        continue;
+                    }
+                    for arg in &mut st.ctor_args {
+                        this.check_expr(arg)?;
+                    }
+                }
+                Ok(())
+            })?;
+        }
+
         // T0316：class 初始化阶段的“前向引用”规则需要按成员声明顺序推进：
         // - property initializer / init block 只能访问在其之前已完成初始化的属性；
         // - method（fun namespace）不受该限制（Kotlin-like）。
@@ -481,6 +496,13 @@ impl<'a> BlockScopeChecker<'a> {
             self.declare_ident_typed(&p.name, p.ty.clone())?;
             if let Some(default) = &mut p.default_value {
                 self.check_expr(default)?;
+            }
+        }
+
+        // 1.1) delegation call args：同样不引入 `this`，但允许引用 ctor params。
+        if let Some(call) = &mut ctor.delegation_call {
+            for arg in &mut call.args {
+                self.check_expr(arg)?;
             }
         }
         self.pop_scope();

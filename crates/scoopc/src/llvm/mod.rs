@@ -20,10 +20,12 @@ use inkwell::values::InstructionValueError;
 use miette::Diagnostic;
 use thiserror::Error;
 
+use crate::ast;
 use crate::hir;
 use crate::parser::ParseError;
 use crate::session::Session;
 use crate::source::SourceFile;
+use crate::span::Span;
 
 mod codegen;
 mod target;
@@ -319,7 +321,12 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &fun_index,
     );
 
-    let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(hir_main, &fun_index);
+    let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
+        hir_main,
+        &fun_index,
+        &lowered.class_inits,
+        &lowered.ctor_call_sites,
+    );
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
 
     for fun in &reachable {
@@ -589,161 +596,318 @@ fun main() {
 fn collect_reachable_top_level_funs<'a>(
     entry: &'a hir::FunDecl,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    class_inits: &'a hir::ClassInitIndex,
+    ctor_call_sites: &'a hir::CtorCallSiteIndex,
 ) -> Vec<&'a hir::FunDecl> {
-    let mut seen_calls: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<String> = VecDeque::new();
-    let mut reachable: HashSet<String> = HashSet::new();
+    let mut collector = ReachabilityCollector {
+        fun_index,
+        class_inits,
+        ctor_call_sites,
+        seen_calls: HashSet::new(),
+        fun_queue: VecDeque::new(),
+        reachable_funs: HashSet::new(),
+        seen_ctors: HashSet::new(),
+        ctor_queue: VecDeque::new(),
+        scanned_class_init_steps: HashSet::new(),
+    };
 
-    let mut initial: Vec<String> = Vec::new();
-    collect_calls_in_fun(entry, &mut initial);
-    for fqn in initial {
-        if seen_calls.insert(fqn.clone()) {
-            queue.push_back(fqn);
-        }
-    }
+    // 入口：扫描 `main` 的函数体，但不把 `main` 本身加入 reachable 集合（它由 `codegen_main_exit_code` 生成）。
+    collector.scan_fun(entry);
 
-    while let Some(fqn) = queue.pop_front() {
-        let Some(fun) = fun_index.get(&fqn).copied() else {
-            continue;
-        };
-        if fun.name == "main" {
-            continue;
-        }
-        if !reachable.insert(fqn.clone()) {
-            continue;
-        }
+    // BFS：同时处理“顶层函数调用”和“class ctor 调用”（会引入 class init / ctor delegation 中的调用点）。
+    loop {
+        let mut progressed = false;
 
-        let mut nested: Vec<String> = Vec::new();
-        collect_calls_in_fun(fun, &mut nested);
-        for callee in nested {
-            if seen_calls.insert(callee.clone()) {
-                queue.push_back(callee);
+        if let Some(fqn) = collector.fun_queue.pop_front() {
+            progressed = true;
+            let Some(fun) = collector.fun_index.get(&fqn).copied() else {
+                // 外部/内建函数：不在本文件 fun_index 里（例如 runtime intrinsics），跳过。
+                continue;
+            };
+            if fun.name == "main" {
+                continue;
             }
+            if !collector.reachable_funs.insert(fqn.clone()) {
+                continue;
+            }
+            collector.scan_fun(fun);
+        }
+
+        if let Some((class_fqn, arity)) = collector.ctor_queue.pop_front() {
+            progressed = true;
+            collector.scan_ctor(&class_fqn, arity);
+        }
+
+        if !progressed {
+            break;
         }
     }
 
-    reachable
+    collector
+        .reachable_funs
         .into_iter()
-        .filter_map(|fqn| fun_index.get(&fqn).copied())
+        .filter_map(|fqn| collector.fun_index.get(&fqn).copied())
         .collect()
 }
 
-fn collect_calls_in_fun(fun: &hir::FunDecl, out: &mut Vec<String>) {
-    let Some(body) = fun.body.as_ref() else {
-        return;
-    };
-    collect_calls_in_block(body, out);
+struct ReachabilityCollector<'a> {
+    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
+    class_inits: &'a hir::ClassInitIndex,
+    ctor_call_sites: &'a hir::CtorCallSiteIndex,
+
+    seen_calls: HashSet<String>,
+    fun_queue: VecDeque<String>,
+    reachable_funs: HashSet<String>,
+
+    seen_ctors: HashSet<(String, usize)>,
+    ctor_queue: VecDeque<(String, usize)>,
+
+    scanned_class_init_steps: HashSet<String>,
 }
 
-fn collect_calls_in_block(block: &hir::Block, out: &mut Vec<String>) {
-    for stmt in &block.stmts {
-        collect_calls_in_stmt(stmt, out);
+impl<'a> ReachabilityCollector<'a> {
+    fn enqueue_fun(&mut self, fqn: String) {
+        if self.seen_calls.insert(fqn.clone()) {
+            self.fun_queue.push_back(fqn);
+        }
     }
-}
 
-fn collect_calls_in_stmt(stmt: &hir::Stmt, out: &mut Vec<String>) {
-    match &stmt.kind {
-        hir::StmtKind::Empty => {}
-        hir::StmtKind::Expr(expr) => collect_calls_in_expr(expr, out),
-        hir::StmtKind::Val(decl) => {
-            if let Some(init) = decl.init.as_ref() {
-                collect_calls_in_expr(init, out);
-            }
+    fn enqueue_ctor(&mut self, class_fqn: String, arity: usize) {
+        let key = (class_fqn, arity);
+        if self.seen_ctors.insert(key.clone()) {
+            self.ctor_queue.push_back(key);
         }
-        hir::StmtKind::Assign { lhs, rhs, .. } => {
-            collect_calls_in_expr(lhs, out);
-            collect_calls_in_expr(rhs, out);
-        }
-        hir::StmtKind::Return { value } => {
-            if let Some(expr) = value.as_ref() {
-                collect_calls_in_expr(expr, out);
-            }
-        }
-        hir::StmtKind::While { cond, body } => {
-            collect_calls_in_expr(cond, out);
-            collect_calls_in_block(body, out);
-        }
-        hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } | hir::StmtKind::Todo(_) => {}
     }
-}
 
-fn collect_calls_in_expr(expr: &hir::Expr, out: &mut Vec<String>) {
-    match &expr.kind {
-        hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-        hir::ExprKind::Literal(_)
-        | hir::ExprKind::VarRef(_)
-        | hir::ExprKind::UnresolvedIdent { .. } => {}
-        hir::ExprKind::StructLit { fields, .. } => {
-            for f in fields {
-                collect_calls_in_expr(&f.value, out);
-            }
+    fn enqueue_ctor_candidates(&mut self, callee_span: Span, arg_count: usize) {
+        let Some(candidates) = self.ctor_call_sites.get(&callee_span) else {
+            return;
+        };
+
+        // 仅关心 class ctor call：筛出在 class init side table 中存在的候选。
+        let mut class_candidates: Vec<String> = candidates
+            .iter()
+            .filter(|fqn| self.class_inits.contains_key(*fqn))
+            .cloned()
+            .collect();
+        class_candidates.sort();
+        class_candidates.dedup();
+
+        for class_fqn in class_candidates {
+            self.enqueue_ctor(class_fqn, arg_count);
         }
-        hir::ExprKind::TupleLit { elements } => {
-            for e in elements {
-                collect_calls_in_expr(e, out);
-            }
+    }
+
+    fn pick_ctor_by_arity<'b>(
+        &self,
+        class: &'b hir::ClassInit,
+        arity: usize,
+    ) -> Option<&'b hir::ClassCtor> {
+        // 无显式 ctor：视为隐式 0-参 primary ctor。
+        if class.ctors.is_empty() {
+            return None;
         }
-        hir::ExprKind::InterpolatedString { parts, .. } => {
-            for p in parts {
-                if let hir::InterpolatedStringPart::Expr { expr } = p {
-                    collect_calls_in_expr(expr, out);
+
+        let mut matching: Vec<&hir::ClassCtor> = class
+            .ctors
+            .iter()
+            .filter(|ctor| ctor.params.len() == arity)
+            .collect();
+        if matching.len() != 1 {
+            return None;
+        }
+        Some(matching.pop().expect("len == 1"))
+    }
+
+    fn scan_fun(&mut self, fun: &hir::FunDecl) {
+        let Some(body) = fun.body.as_ref() else {
+            return;
+        };
+        self.scan_block(body);
+    }
+
+    fn scan_block(&mut self, block: &hir::Block) {
+        for stmt in &block.stmts {
+            self.scan_stmt(stmt);
+        }
+    }
+
+    fn scan_stmt(&mut self, stmt: &hir::Stmt) {
+        match &stmt.kind {
+            hir::StmtKind::Empty => {}
+            hir::StmtKind::Expr(expr) => self.scan_expr(expr),
+            hir::StmtKind::Val(decl) => {
+                if let Some(init) = decl.init.as_ref() {
+                    self.scan_expr(init);
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.scan_expr(lhs);
+                self.scan_expr(rhs);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value.as_ref() {
+                    self.scan_expr(expr);
+                }
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.scan_expr(cond);
+                self.scan_block(body);
+            }
+            hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+        }
+    }
+
+    fn scan_expr(&mut self, expr: &hir::Expr) {
+        match &expr.kind {
+            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::StructLit { fields, .. } => {
+                for f in fields {
+                    self.scan_expr(&f.value);
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for e in elements {
+                    self.scan_expr(e);
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for p in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = p {
+                        self.scan_expr(expr);
+                    }
+                }
+            }
+            hir::ExprKind::Unary { expr: inner, .. } => self.scan_expr(inner),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.scan_expr(lhs);
+                self.scan_expr(rhs);
+            }
+            hir::ExprKind::Block(block) => self.scan_block(block),
+            hir::ExprKind::Call { callee, args } => {
+                // 顶层函数调用：收集 callee fqn。
+                if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
+                    self.enqueue_fun(fqn.clone());
+                }
+
+                // constructor call：callee span 会在 HIR side table 中出现候选集合。
+                self.enqueue_ctor_candidates(callee.span, args.len());
+
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(e) => self.scan_expr(e),
+                        hir::CallArg::Named { value, .. } => self.scan_expr(value),
+                    }
+                }
+            }
+            hir::ExprKind::Closure(c) => self.scan_expr(&c.body),
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.scan_expr(cond);
+                self.scan_expr(then_branch);
+                if let Some(e) = else_branch.as_ref() {
+                    self.scan_expr(e);
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.scan_expr(subject);
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        self.scan_expr(guard);
+                    }
+                    self.scan_expr(&arm.body);
+                }
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => self.scan_expr(receiver),
+            hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(e) => self.scan_expr(e),
+                        hir::CallArg::Named { value, .. } => self.scan_expr(value),
+                    }
+                }
+            }
+            hir::ExprKind::Handle(h) => {
+                self.scan_block(&h.body);
+                for arm in &h.arms {
+                    self.scan_expr(&arm.body);
+                }
+                if let Some(finally) = h.finally.as_ref() {
+                    self.scan_block(finally);
                 }
             }
         }
-        hir::ExprKind::Unary { expr: inner, .. } => collect_calls_in_expr(inner, out),
-        hir::ExprKind::Binary { lhs, rhs, .. } => {
-            collect_calls_in_expr(lhs, out);
-            collect_calls_in_expr(rhs, out);
-        }
-        hir::ExprKind::Block(block) => collect_calls_in_block(block, out),
-        hir::ExprKind::Call { callee, args } => {
-            if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-                out.push(fqn.clone());
+    }
+
+    fn scan_class_init_steps(&mut self, class: &hir::ClassInit) {
+        for step in &class.steps {
+            match step {
+                hir::ClassInitStep::PropertyInit { init, .. } => self.scan_expr(init),
+                hir::ClassInitStep::InitBlock { block } => self.scan_block(block),
             }
-            for arg in args {
-                match arg {
-                    hir::CallArg::Positional(e) => collect_calls_in_expr(e, out),
-                    hir::CallArg::Named { value, .. } => collect_calls_in_expr(value, out),
+        }
+    }
+
+    fn scan_ctor(&mut self, class_fqn: &str, arity: usize) {
+        let Some(class) = self.class_inits.get(class_fqn) else {
+            return;
+        };
+
+        // class init steps（property initializer / init blocks）对所有构造路径都可达：只扫描一次。
+        if self.scanned_class_init_steps.insert(class.fqn.clone()) {
+            self.scan_class_init_steps(class);
+        }
+
+        let ctor = self.pick_ctor_by_arity(class, arity);
+
+        // delegation / super ctor args
+        match ctor {
+            Some(ctor) if ctor.kind == hir::ClassCtorKind::Secondary => {
+                if let Some(deleg) = ctor.delegation.as_ref() {
+                    for e in &deleg.args {
+                        self.scan_expr(e);
+                    }
+                    match deleg.kind {
+                        ast::CtorDelegationKind::This => {
+                            self.enqueue_ctor(class.fqn.clone(), deleg.args.len());
+                        }
+                        ast::CtorDelegationKind::Super => {
+                            if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                                self.enqueue_ctor(super_fqn.to_string(), deleg.args.len());
+                            }
+                        }
+                    }
+                } else {
+                    // secondary ctor（无 delegation）：走 class header 的 super ctor args。
+                    for e in &class.super_ctor_args {
+                        self.scan_expr(e);
+                    }
+                    if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                        self.enqueue_ctor(super_fqn.to_string(), class.super_ctor_args.len());
+                    }
+                }
+
+                // secondary ctor body
+                if let Some(body) = ctor.body.as_ref() {
+                    self.scan_block(body);
                 }
             }
-        }
-        hir::ExprKind::Closure(c) => collect_calls_in_expr(&c.body, out),
-        hir::ExprKind::If {
-            cond,
-            then_branch,
-            else_branch,
-        } => {
-            collect_calls_in_expr(cond, out);
-            collect_calls_in_expr(then_branch, out);
-            if let Some(e) = else_branch.as_ref() {
-                collect_calls_in_expr(e, out);
-            }
-        }
-        hir::ExprKind::When { subject, arms } => {
-            collect_calls_in_expr(subject, out);
-            for arm in arms {
-                if let Some(guard) = arm.guard.as_ref() {
-                    collect_calls_in_expr(guard, out);
+            _ => {
+                // primary ctor（或隐式 0-参 primary ctor）：走 class header 的 super ctor args。
+                for e in &class.super_ctor_args {
+                    self.scan_expr(e);
                 }
-                collect_calls_in_expr(&arm.body, out);
-            }
-        }
-        hir::ExprKind::MemberAccess { receiver, .. } => collect_calls_in_expr(receiver, out),
-        hir::ExprKind::Perform { args, .. } => {
-            for arg in args {
-                match arg {
-                    hir::CallArg::Positional(e) => collect_calls_in_expr(e, out),
-                    hir::CallArg::Named { value, .. } => collect_calls_in_expr(value, out),
+                if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+                    self.enqueue_ctor(super_fqn.to_string(), class.super_ctor_args.len());
                 }
-            }
-        }
-        hir::ExprKind::Handle(h) => {
-            collect_calls_in_block(&h.body, out);
-            for arm in &h.arms {
-                collect_calls_in_expr(&arm.body, out);
-            }
-            if let Some(finally) = h.finally.as_ref() {
-                collect_calls_in_block(finally, out);
             }
         }
     }

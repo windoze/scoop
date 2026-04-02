@@ -5351,11 +5351,34 @@
    - `cargo test --all --features llvm`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1327c [TODO] 类初始化：super ctor 实参解析 + secondary ctor super/this delegation
+### T1327c [DONE] 类初始化：super ctor 实参解析 + secondary ctor super/this delegation
 - 描述：补齐 `class D(x: Int) : Base(f(x))` 这类 super ctor 实参表达式的解析与执行；并接入 secondary ctor 的 `this(...)`/`super(...)` delegation（含顺序与可见性边界）。
 - 目标：在 parser/resolve/typecheck/lowering/codegen 全链路落地，并保持与 T0448 的 Kotlin-like 规则一致。
 - 验收：language fixtures：super args 求值顺序稳定；secondary ctor delegation 行为稳定；`cargo test --all` 与（启用 LLVM 后）`scoop test` 通过。
 - 依赖：T1327a
+ - 完成：
+   - parser/AST：
+     - `crates/scoopc/src/parser/decls.rs` / `crates/scoopc/src/parser/expr.rs`：super ctor args 与 secondary ctor delegation args 按调用参数列表规则解析为表达式；
+     - `crates/scoopc/src/ast/mod.rs`：`SuperType.ctor_args` 与 `CtorDelegationCall.args` 结构化存储与 debug 输出。
+   - resolver/typecheck：
+     - `crates/scoopc/src/resolve/scopes.rs`：super ctor args 与 delegation args 的 scope：仅 ctor params 可见（不引入 `this`，Kotlin-like）；
+     - `crates/scoopc/src/typecheck/expr.rs`：super ctor args / delegation args 按 arity 选择 ctor 并在 expected-type 语境下检查每个实参；并显式拒绝 named/spread（避免后续 lowering/codegen 落到 `todo`）。
+   - lowering/codegen：
+     - `crates/scoopc/src/hir/mod.rs` / `crates/scoopc/src/hir/lower.rs`：在 `ClassInit` side table 中记录 class header super ctor args 以及 secondary ctor delegation（含 args）；
+     - `crates/scoopc/src/llvm/codegen.rs`：class ctor call 支持：
+       - super ctor args 按源码顺序求值；
+       - secondary ctor `: this(...)` / `: super(...)` delegation（含循环检测）；
+       - Kotlin-like 初始化顺序：super ctor → 参数属性赋值 → property initializer/init blocks → secondary ctor body。
+     - `crates/scoopc/src/llvm/mod.rs`：reachable top-level fun 收集覆盖 class init / ctor delegation 语境，避免 run-pass 链接阶段出现未定义符号。
+   - fixtures：
+     - `tests/fixtures/run-pass/class_init_super_ctor_args_eval_order_basic.*`：super ctor args 求值顺序回归；
+     - `tests/fixtures/run-pass/class_secondary_ctor_delegation_this_and_super_basic.*`：secondary ctor this/super delegation 行为回归；
+     - `tests/fixtures/parse/class_secondary_ctor_basic.ast` / `tests/fixtures/parse/type_inheritance_basic.ast`：AST snapshot 跟进新增字段。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test --all --features llvm`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1328 [TODO] `for`/迭代协议升级：`Iterator.next(): Option<T>`（移除 `hasNext()`）
 - 描述：把 `for (x in xs)` 的迭代协议从旧的三元调用（`iterator()/hasNext()/next()`）升级为单一 `next(): Option<T>`（见 `SCOOP_FULL_SPEC.md` §16.2），避免 iterator 需要内部缓存“下一元素”。

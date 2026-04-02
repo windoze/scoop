@@ -518,6 +518,10 @@ pub struct ClassInit {
     pub fqn: String,
     /// 直接 superclass 的 FQN（仅 class 单继承；interface 不在此处记录）。
     pub super_class_fqn: Option<String>,
+    /// class header 的 super ctor args 括号 span（若存在 `: Base(...)`）。
+    pub super_ctor_args_span: Option<Span>,
+    /// class header 的 super ctor args（若存在 `: Base(args...)`）。
+    pub super_ctor_args: Vec<Expr>,
     /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
     pub this_id: SymbolId,
     /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
@@ -563,9 +567,16 @@ pub struct ClassCtor {
     pub span: Span,
     pub params: Vec<ClassCtorParam>,
     /// secondary ctor 的 delegation（`this(...)` / `super(...)`）；primary ctor 为 None。
-    pub delegation: Option<ast::CtorDelegationKind>,
+    pub delegation: Option<ClassCtorDelegation>,
     /// ctor body：secondary ctor 为 Some；primary ctor 为 None（其执行体由 `steps` 描述）。
     pub body: Option<Block>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassCtorDelegation {
+    pub kind: ast::CtorDelegationKind,
+    pub span: Span,
+    pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]

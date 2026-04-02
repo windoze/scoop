@@ -1,0 +1,65 @@
+// EXPECT: pass
+// RUN-STDOUT: class_init_super_ctor_args_eval_order_basic.stdout
+//
+// T1327c：super ctor args 求值顺序
+// - 调用点实参先求值；
+// - 每一层在调用 super ctor 之前求值本层的 super ctor args；
+// - init steps 的执行顺序仍为 base -> derived。
+
+import scoop.core.*
+
+fun cSuper(x: Int): Int {
+    println("C.super_arg")
+    return x + 1
+}
+
+fun bSuper(y: Int): Int {
+    println("B.super_arg")
+    return y + 1
+}
+
+fun callArg(): Int {
+    println("call.arg")
+    return 10
+}
+
+open class A(val a: Int) {
+    val x: Int = @Safe {
+        println("A.prop")
+        a
+    }
+
+    init {
+        println("A.init")
+    }
+}
+
+open class B(val b: Int) : A(bSuper(b)) {
+    val y: Int = @Safe {
+        println("B.prop")
+        b
+    }
+
+    init {
+        println("B.init")
+    }
+}
+
+class C(val c: Int) : B(cSuper(c)) {
+    val z: Int = @Safe {
+        println("C.prop")
+        c
+    }
+
+    init {
+        println("C.init")
+    }
+}
+
+fun main(): Int {
+    println("start")
+    val _x: C = C(callArg())
+    println("after")
+    return 0
+}
+

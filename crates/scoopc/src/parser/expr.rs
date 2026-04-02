@@ -2070,20 +2070,20 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
+    /// 解析一次调用参数列表：`(arg1, arg2, ...)`。
+    ///
+    /// 说明：
+    /// - 该函数只负责解析括号内的参数列表并返回其 span 与参数表达式列表；
+    /// - 具体把它包装成 `ExprKind::Call`（或用于 ctor delegation/super ctor args）
+    ///   由调用者决定。
+    pub(super) fn parse_call_arg_list(&mut self) -> Result<(Span, Vec<ast::Expr>), ParseError> {
         let open = self.expect_symbol(Symbol::LParen)?;
-        let start = callee.span.start;
+        let start = open.span.start;
 
         let mut args = Vec::new();
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
-            return Ok(ast::Expr {
-                span: Span::new(start, close.span.end),
-                kind: ast::ExprKind::Call {
-                    callee: Box::new(callee),
-                    args,
-                },
-            });
+            return Ok((Span::new(start, close.span.end), args));
         }
 
         loop {
@@ -2175,8 +2175,14 @@ impl<'a> Parser<'a> {
         }
 
         let close = self.expect_symbol(Symbol::RParen)?;
+        Ok((Span::new(start, close.span.end), args))
+    }
+
+    fn parse_call_expr(&mut self, callee: ast::Expr) -> Result<ast::Expr, ParseError> {
+        let start = callee.span.start;
+        let (args_span, args) = self.parse_call_arg_list()?;
         Ok(ast::Expr {
-            span: Span::new(start, close.span.end),
+            span: Span::new(start, args_span.end),
             kind: ast::ExprKind::Call {
                 callee: Box::new(callee),
                 args,

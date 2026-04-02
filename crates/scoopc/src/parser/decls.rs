@@ -1286,19 +1286,20 @@ impl<'a> Parser<'a> {
             let start = ty.span().start;
             let mut end = ty.span().end;
 
-            // `BaseType(...)`：当前阶段只保留括号 span，不解析参数表达式。
-            let ctor_args_span = if self.peek_symbol(Symbol::LParen) {
-                let span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+            // `BaseType(...)`：解析 ctor args（按调用参数列表规则）。
+            let (ctor_args_span, ctor_args) = if self.peek_symbol(Symbol::LParen) {
+                let (span, args) = self.parse_call_arg_list()?;
                 end = span.end;
-                Some(span)
+                (Some(span), args)
             } else {
-                None
+                (None, Vec::new())
             };
 
             supertypes.push(ast::SuperType {
                 span: Span::new(start, end),
                 ty,
                 ctor_args_span,
+                ctor_args,
             });
 
             if self.eat_symbol(Symbol::Comma) {
@@ -1761,7 +1762,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        let args_span = self.consume_balanced(Symbol::LParen, Symbol::RParen)?;
+        let (args_span, args) = self.parse_call_arg_list()?;
 
         Ok(ast::CtorDelegationCall {
             span: Span::new(colon_span.start, args_span.end),
@@ -1769,6 +1770,7 @@ impl<'a> Parser<'a> {
             kind,
             target_span: target_tok.span,
             args_span,
+            args,
         })
     }
 

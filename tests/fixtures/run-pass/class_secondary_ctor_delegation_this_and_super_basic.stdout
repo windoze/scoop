@@ -1,0 +1,7 @@
+start
+D.makeX
+A.init
+D.init
+D.ctor_x.body
+D.ctor0.body
+after

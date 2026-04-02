@@ -1,0 +1,11 @@
+start
+call.arg
+C.super_arg
+B.super_arg
+A.prop
+A.init
+B.prop
+B.init
+C.prop
+C.init
+after
