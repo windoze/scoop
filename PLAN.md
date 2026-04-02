@@ -27,6 +27,7 @@
 - 2026-04-03：完成 T1406c：Immix backend 落地 mark-region（line mark bitmap）+ region sweep（holes 复用，优先 partial blocks），并新增 `scoop_runtime` 集成测试回归“回收→再分配”循环与 live 对象不被覆盖。
 - 2026-04-03：完成 T1406d：新增 GC microbench（吞吐/碎片化）与一键对比脚本；引入 `scoop_gc_debug_heap_bytes_reserved` 观测 reserved bytes（baseline≈live；Immix=blocks+large），并新增集成测试固化语义。
 - 2026-04-03：完成 T1407：Immix backend 支持 moving/compaction：选择性 block evacuation + forwarding pointer + shadow stack roots 更新；新增 `gc_immix_compaction` 集成测试回归，并同步 capability matrix（Immix：moving/precise_roots_update）。
+- 2026-04-03：完成 T1408b：Immix 的 STW 线程状态机与未来 stackmap STW（T1505）对齐：统一线程记录结构（Running/Parked/InNative + epoch/诊断字段）、park 语义，并加入 STW 等待超时诊断（header-only helper）。
 - 2026-04-02：完成 T1403c：收敛 once/guard 相关 OS 调用到 platform backend：新增 dynlib symbol lookup（RTLD_DEFAULT 类语义）platform API，并在 POSIX backend 通过 `dlsym/dlerror` 实现（Windows 占位）；`runtime/c/scoop_once.c` 改为仅依赖 platform thread self/yield + dynlib lookup，不再直接包含/调用 pthread/sched/dlfcn。
 - 2026-04-02：完成 T1404：sysroot/std 平台 API surface 审计与固化清单：新增 `PLATFORM_API_SURFACE_AUDIT.md`（覆盖 env/time/fs/path/io/process/thread/sync/channels/net 的 API surface ↔ runtime 符号 ↔ backend 支持现状），并新增 typecheck fixture `tests/fixtures/typecheck/std_platform_api_no_os_types_is_error.scoop` 回归“平台 API 不泄漏 FILE/HANDLE/pthread_t 等 OS 概念类型”。
 - 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。
@@ -1057,7 +1058,7 @@ fixtures：
   - [x] T1407：选择性 block evacuation + forwarding pointer + roots 更新；pin policy：pinned objects 不移动。
 - [ ] **多线程正确性**：
   - [x] T1408a：协作式 STW + 多线程 shadow stack roots 枚举/更新（先 correctness，可用全局锁）
-  - [ ] T1408b：与 stackmap/statepoint 的 STW 协议统一（对齐 T1505，避免两套协议长期分叉）
+  - [x] T1408b：与 stackmap/statepoint 的 STW 协议统一（对齐 T1505，避免两套协议长期分叉）
   - 线程本地分配与 GC 元数据的并发安全与可回归验证（性能优化在 T1409）
 - [ ] **多线程性能**：
   - thread-local allocation（TLAB/per-thread blocks）、全局 block 池的低争用策略；

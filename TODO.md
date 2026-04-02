@@ -5711,11 +5711,18 @@
    - `cargo test --all`
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1408b [TODO] Immix：与 stackmap STW 协议统一（对齐 T1505）
+### T1408b [DONE] Immix：与 stackmap STW 协议统一（对齐 T1505）
 - 描述：把 Immix 的 STW/线程状态机实现与未来 stackmap/statepoint 的 STW（T1505）对齐：统一线程记录结构、超时诊断与 park 语义，避免两套协议长期分叉。
 - 目标：以重构/抽象为主；不改变对外 ABI；保持现有 tests/fixtures 通过。
 - 验收：`cargo test --all`、`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` 通过。
 - 依赖：T1408a、T1505
+ - 完成：
+   - `runtime/c/scoop_gc_stw_internal.h`：抽出 header-only STW helper：统一线程记录结构（Running/Parked/InNative + epoch 字段）与超时诊断工具函数，供 Immix 与未来 stackmap STW 复用。
+   - `runtime/c/scoop_gc_backend_immix.c`：迁移 Immix 的 STW 线程记录与 park 逻辑到统一状态机与 epoch；STW begin 等待 park 采用 timedwait，并在超时输出线程状态快照。
+   - `crates/scoop_runtime/build.rs`：补齐 `rerun-if-changed`，确保变更 STW header 会触发 runtime 重新编译。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1409 [TODO] Immix：多线程性能（PLAN §15.3）
 - 描述：在保证正确性的基础上优化 Immix 的多线程性能：TLAB/per-thread blocks、低争用全局 block 池、并行标记/并行 sweep 的渐进引入，并建立可重复的基准与回归阈值。
