@@ -5686,11 +5686,27 @@
    - `cargo test --all`
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1408 [TODO] Immix：多线程正确性（PLAN §15.3）
-- 描述：在 Immix backend 下保证多线程正确性：线程注册与 root 枚举、安全点/stop-the-world 协议、跨线程引用扫描、线程本地分配路径与 GC 元数据并发安全。
-- 目标：先保证正确性与可回归；并行标记等性能优化留给后续任务。
-- 验收：新增多线程 GC fixtures：多线程分配/回收/跨线程引用在 Immix backend 下稳定通过；TSAN（可选）不报 data race。
-- 依赖：T1407、T1505
+### T1408 Immix：多线程正确性（拆分为子任务，PLAN §15.3）
+- 描述：在 Immix backend 下保证多线程正确性：线程注册与 roots 枚举、安全点/stop-the-world 协议、跨线程引用扫描、分配路径与 GC 元数据并发安全。
+- 目标：先保证正确性与可回归；并行标记/并行 sweep 等性能优化留给 T1409。
+- 备注：为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，把“shadow stack STW（可立即落地）”与“与 stackmap STW 协议统一（依赖 T1505）”拆分为两步推进。
+
+### T1408a [TODO] Immix：协作式 STW + 多线程 roots 枚举（shadow stack）
+- 描述：让 Immix backend 支持协作式 stop-the-world，并在 GC/compaction 时扫描与更新**所有已注册线程**的 shadow stack roots。
+- 目标：
+  - 先做正确性：允许全局锁（不做 TLAB/per-thread blocks）；
+  - 使 `scoop_gc_collect()` 在多线程下不再退化为 no-op；
+  - moving/compaction 必须更新所有线程 roots（否则多线程下会产生悬挂指针）。
+- 验收：
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+  - `crates/scoop_runtime/tests/gc_stop_the_world.rs` 在 `gc-immix` 下不再被 ignore 且可稳定通过。
+- 依赖：T1407
+
+### T1408b [TODO] Immix：与 stackmap STW 协议统一（对齐 T1505）
+- 描述：把 Immix 的 STW/线程状态机实现与未来 stackmap/statepoint 的 STW（T1505）对齐：统一线程记录结构、超时诊断与 park 语义，避免两套协议长期分叉。
+- 目标：以重构/抽象为主；不改变对外 ABI；保持现有 tests/fixtures 通过。
+- 验收：`cargo test --all`、`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` 通过。
+- 依赖：T1408a、T1505
 
 ### T1409 [TODO] Immix：多线程性能（PLAN §15.3）
 - 描述：在保证正确性的基础上优化 Immix 的多线程性能：TLAB/per-thread blocks、低争用全局 block 池、并行标记/并行 sweep 的渐进引入，并建立可重复的基准与回归阈值。
@@ -5698,7 +5714,7 @@
 - 验收：新增基准或 microbench：
   - 多线程分配吞吐在 N 线程下接近线性扩展（在合理范围内）；
   - STW 时间与碎片化指标有可观测改进或至少不回退。
-- 依赖：T1408
+- 依赖：T1408a
 
 ### T1410 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
 - 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。
