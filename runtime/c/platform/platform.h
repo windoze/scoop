@@ -6,8 +6,9 @@
 // - 本文件中的平台函数必须保持“内部链接”（static），避免污染 runtime ABI 导出符号集合。
 //
 // 说明：
-// - 目前只覆盖 env/time/io 三条路径（对齐 T1318a/T1318e 的最低需求）。
-// - 未来会把 thread/sync/channels/task/net 等扩展到 platform 层（TODO T1403）。
+// - v0 覆盖 env/time/io（对齐 T1318a/T1318e）。
+// - T1403a 开始补齐 sync primitives（mutex/condvar）与线程自识别（self/equal），用于把
+//   `scoop_sync_*`/`scoop_channels_*`/task executor 等从 pthread 直接调用收敛到 platform API。
 
 #pragma once
 
@@ -15,6 +16,42 @@
 #include <stdint.h>
 
 // --- platform API（internal linkage）---
+
+// 用于 platform backend 内部实现：避免把“平台能力函数”当作未使用的静态函数触发编译警告。
+#if defined(__clang__) || defined(__GNUC__)
+#define SCOOP_PLATFORM_UNUSED __attribute__((unused))
+#else
+#define SCOOP_PLATFORM_UNUSED
+#endif
+
+// --- sync/thread types（opaque-ish, backend-dependent）---
+//
+// 说明：
+// - 这些类型只用于 runtime 内部实现（例如把 pthread 类型隔离在 platform 层），不属于对外 ABI。
+// - Windows backend 目前仅占位；storage 大小不作为稳定 ABI 承诺。
+#if defined(_WIN32)
+typedef struct ScoopPlatformMutex {
+  uint64_t _storage[8];
+} ScoopPlatformMutex;
+
+typedef struct ScoopPlatformCondVar {
+  uint64_t _storage[8];
+} ScoopPlatformCondVar;
+
+typedef uint64_t ScoopPlatformThread;
+#else
+#include <pthread.h>
+
+typedef struct ScoopPlatformMutex {
+  pthread_mutex_t inner;
+} ScoopPlatformMutex;
+
+typedef struct ScoopPlatformCondVar {
+  pthread_cond_t inner;
+} ScoopPlatformCondVar;
+
+typedef pthread_t ScoopPlatformThread;
+#endif
 
 // env: `getenv`（返回 libc 风格 C string；可能为 NULL）
 static const char *scoop_platform_env_getenv(const char *key_cstr);
@@ -33,6 +70,22 @@ static int scoop_platform_io_write_stderr_byte(uint8_t byte);
 // io: 从 stdin 读取最多 len 字节；成功返回 1 并写入 out_nread（可为 0 表示 EOF）；失败返回 0。
 static int scoop_platform_io_read_stdin(uint8_t *buf, size_t len, size_t *out_nread);
 
+// sync: mutex/condvar。
+static int scoop_platform_sync_mutex_init(ScoopPlatformMutex *mutex);
+static void scoop_platform_sync_mutex_lock(ScoopPlatformMutex *mutex);
+static void scoop_platform_sync_mutex_unlock(ScoopPlatformMutex *mutex);
+static void scoop_platform_sync_mutex_destroy(ScoopPlatformMutex *mutex);
+
+static int scoop_platform_sync_condvar_init(ScoopPlatformCondVar *condvar);
+static void scoop_platform_sync_condvar_wait(ScoopPlatformCondVar *condvar, ScoopPlatformMutex *mutex);
+static void scoop_platform_sync_condvar_signal(ScoopPlatformCondVar *condvar);
+static void scoop_platform_sync_condvar_broadcast(ScoopPlatformCondVar *condvar);
+static void scoop_platform_sync_condvar_destroy(ScoopPlatformCondVar *condvar);
+
+// thread: self/equal（用于 once 重入检测等内部逻辑）。
+static ScoopPlatformThread scoop_platform_thread_self(void);
+static int scoop_platform_thread_equal(ScoopPlatformThread a, ScoopPlatformThread b);
+
 // --- backend selection ---
 //
 // 注意：这里通过 include 选择 backend，并在 backend 文件中提供上述 static 函数定义。
@@ -42,4 +95,3 @@ static int scoop_platform_io_read_stdin(uint8_t *buf, size_t len, size_t *out_nr
 #else
 #include "platform_posix.c"
 #endif
-

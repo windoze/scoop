@@ -5473,7 +5473,7 @@
 - 依赖：T1319b、T1319c、T1319d、T1319e
 - 备注：该任务涉及多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
 
-### T1403a [TODO] platform：sync primitives 抽象（Mutex/CondVar/Thread self）+ 现有模块接入（PLAN §15.2）
+### T1403a [DONE] platform：sync primitives 抽象（Mutex/CondVar/Thread self）+ 现有模块接入（PLAN §15.2）
 - 描述：在 `runtime/c/platform/` 补齐 `mutex/condvar` 与“线程自识别（self/equal）”所需的最小接口，并让 `scoop_sync_*`/`scoop_channels_*`/task executor 内部锁从 pthread 直接调用改为走 platform API。
 - 目标：
   - 只做“锁/条件变量/线程 self/equal”能力，不引入 thread spawn/join/sleep/yield；
@@ -5483,6 +5483,16 @@
   - `cargo test --all`；
   - `cargo run -p scoop -- test`。
 - 依赖：T1402
+ - 完成：
+   - `runtime/c/platform/platform.h`：新增 `ScoopPlatformMutex/CondVar/Thread` 类型与 sync/thread self/equal API 声明。
+   - `runtime/c/platform/platform_posix.c`：实现 pthread backend（mutex/condvar/thread self/equal）。
+   - `runtime/c/platform/platform_win32.c`：补齐占位实现（统一失败/no-op，留给后续 capability gating）。
+   - `runtime/c/scoop_sync.c`：Mutex/CondVar/Once 内部不再直接调用 `pthread_*`，全部改为走 platform API。
+   - `runtime/c/scoop_channels.c`：channel 内部锁/条件变量改为走 platform API。
+   - `runtime/c/scoop_task_executor.c`：executor/task 内部锁改为走 platform API。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1403b [TODO] platform：thread primitives 抽象（spawn/join/yield/sleep/currentId）+ runtime 接入（PLAN §15.2）
 - 描述：在 `runtime/c/platform/` 增加线程相关最小接口（spawn/join/yield/sleep/currentId），并将 `runtime/c/scoop_thread.c` 的 OS 调用收敛到 platform backend。

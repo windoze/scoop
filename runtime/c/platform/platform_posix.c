@@ -5,18 +5,19 @@
 // - 所有 API 必须是 `static`，避免成为对外导出符号（见 T1401）。
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
 
-static const char *scoop_platform_env_getenv(const char *key_cstr) {
+static SCOOP_PLATFORM_UNUSED const char *scoop_platform_env_getenv(const char *key_cstr) {
   if (key_cstr == 0) {
     return 0;
   }
   return getenv(key_cstr);
 }
 
-static int scoop_platform_time_now_unix_millis(int64_t *out_unix_millis) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_time_now_unix_millis(int64_t *out_unix_millis) {
   if (out_unix_millis == 0) {
     return 0;
   }
@@ -33,7 +34,9 @@ static int scoop_platform_time_now_unix_millis(int64_t *out_unix_millis) {
   return 1;
 }
 
-static int scoop_platform_io_write_all_fd(int fd, const uint8_t *buf, size_t len) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_write_all_fd(int fd,
+                                                               const uint8_t *buf,
+                                                               size_t len) {
   if (len == 0) {
     return 1;
   }
@@ -63,23 +66,27 @@ static int scoop_platform_io_write_all_fd(int fd, const uint8_t *buf, size_t len
   return 1;
 }
 
-static int scoop_platform_io_write_stdout_all(const uint8_t *buf, size_t len) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_write_stdout_all(const uint8_t *buf,
+                                                                    size_t len) {
   return scoop_platform_io_write_all_fd(1, buf, len);
 }
 
-static int scoop_platform_io_write_stderr_all(const uint8_t *buf, size_t len) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_write_stderr_all(const uint8_t *buf,
+                                                                    size_t len) {
   return scoop_platform_io_write_all_fd(2, buf, len);
 }
 
-static int scoop_platform_io_write_stdout_byte(uint8_t byte) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_write_stdout_byte(uint8_t byte) {
   return scoop_platform_io_write_all_fd(1, &byte, 1);
 }
 
-static int scoop_platform_io_write_stderr_byte(uint8_t byte) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_write_stderr_byte(uint8_t byte) {
   return scoop_platform_io_write_all_fd(2, &byte, 1);
 }
 
-static int scoop_platform_io_read_stdin(uint8_t *buf, size_t len, size_t *out_nread) {
+static SCOOP_PLATFORM_UNUSED int scoop_platform_io_read_stdin(uint8_t *buf,
+                                                             size_t len,
+                                                             size_t *out_nread) {
   if (out_nread == 0) {
     return 0;
   }
@@ -106,3 +113,78 @@ static int scoop_platform_io_read_stdin(uint8_t *buf, size_t len, size_t *out_nr
   }
 }
 
+// --- sync/thread (pthread) ---
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_sync_mutex_init(ScoopPlatformMutex *mutex) {
+  if (mutex == 0) {
+    return 0;
+  }
+  return pthread_mutex_init(&mutex->inner, 0) == 0;
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_mutex_lock(ScoopPlatformMutex *mutex) {
+  if (mutex == 0) {
+    return;
+  }
+  (void)pthread_mutex_lock(&mutex->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_mutex_unlock(ScoopPlatformMutex *mutex) {
+  if (mutex == 0) {
+    return;
+  }
+  (void)pthread_mutex_unlock(&mutex->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_mutex_destroy(ScoopPlatformMutex *mutex) {
+  if (mutex == 0) {
+    return;
+  }
+  (void)pthread_mutex_destroy(&mutex->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_sync_condvar_init(ScoopPlatformCondVar *condvar) {
+  if (condvar == 0) {
+    return 0;
+  }
+  return pthread_cond_init(&condvar->inner, 0) == 0;
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_condvar_wait(ScoopPlatformCondVar *condvar,
+                                                                  ScoopPlatformMutex *mutex) {
+  if (condvar == 0 || mutex == 0) {
+    return;
+  }
+  (void)pthread_cond_wait(&condvar->inner, &mutex->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_condvar_signal(ScoopPlatformCondVar *condvar) {
+  if (condvar == 0) {
+    return;
+  }
+  (void)pthread_cond_signal(&condvar->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_condvar_broadcast(
+    ScoopPlatformCondVar *condvar) {
+  if (condvar == 0) {
+    return;
+  }
+  (void)pthread_cond_broadcast(&condvar->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_sync_condvar_destroy(ScoopPlatformCondVar *condvar) {
+  if (condvar == 0) {
+    return;
+  }
+  (void)pthread_cond_destroy(&condvar->inner);
+}
+
+static SCOOP_PLATFORM_UNUSED ScoopPlatformThread scoop_platform_thread_self(void) {
+  return pthread_self();
+}
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_equal(ScoopPlatformThread a,
+                                                            ScoopPlatformThread b) {
+  return pthread_equal(a, b) ? 1 : 0;
+}

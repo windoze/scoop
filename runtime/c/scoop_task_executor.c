@@ -10,11 +10,11 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <inttypes.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "platform/platform.h"
 #include "scoop_gc.h"
 
 // `scoop_runtime_init` / `scoop_continuation_resume_u64` 由 `scoop_runtime.c` 提供。
@@ -49,7 +49,7 @@ typedef struct ScoopExecutorJob {
 } ScoopExecutorJob;
 
 typedef struct ScoopExecutor {
-  pthread_mutex_t lock;
+  ScoopPlatformMutex lock;
   ScoopExecutorJob *head;
   ScoopExecutorJob *tail;
   uint64_t pending_count;
@@ -62,7 +62,7 @@ typedef struct ScoopTaskWaiter {
 } ScoopTaskWaiter;
 
 typedef struct ScoopTaskU64 {
-  pthread_mutex_t lock;
+  ScoopPlatformMutex lock;
   ScoopTaskStateU32 state;
   uint32_t _reserved_u32;
   ScoopTaskBodyU64Fn body_fn;
@@ -82,7 +82,7 @@ static void scoop_executor_enqueue_job(ScoopExecutor *executor, ScoopExecutorJob
     return;
   }
 
-  (void)pthread_mutex_lock(&executor->lock);
+  scoop_platform_sync_mutex_lock(&executor->lock);
   job->next = 0;
   if (executor->tail == 0) {
     executor->head = job;
@@ -92,7 +92,7 @@ static void scoop_executor_enqueue_job(ScoopExecutor *executor, ScoopExecutorJob
     executor->tail = job;
   }
   executor->pending_count += 1;
-  (void)pthread_mutex_unlock(&executor->lock);
+  scoop_platform_sync_mutex_unlock(&executor->lock);
 }
 
 static ScoopExecutorJob *scoop_executor_try_pop_job(ScoopExecutor *executor) {
@@ -100,10 +100,10 @@ static ScoopExecutorJob *scoop_executor_try_pop_job(ScoopExecutor *executor) {
     return 0;
   }
 
-  (void)pthread_mutex_lock(&executor->lock);
+  scoop_platform_sync_mutex_lock(&executor->lock);
   ScoopExecutorJob *job = executor->head;
   if (job == 0) {
-    (void)pthread_mutex_unlock(&executor->lock);
+    scoop_platform_sync_mutex_unlock(&executor->lock);
     return 0;
   }
 
@@ -114,7 +114,7 @@ static ScoopExecutorJob *scoop_executor_try_pop_job(ScoopExecutor *executor) {
   if (executor->pending_count > 0) {
     executor->pending_count -= 1;
   }
-  (void)pthread_mutex_unlock(&executor->lock);
+  scoop_platform_sync_mutex_unlock(&executor->lock);
 
   job->next = 0;
   return job;
@@ -150,7 +150,10 @@ uint64_t scoop_executor_create(void) {
   }
 
   (void)memset(executor, 0, sizeof(ScoopExecutor));
-  (void)pthread_mutex_init(&executor->lock, 0);
+  if (!scoop_platform_sync_mutex_init(&executor->lock)) {
+    free(executor);
+    return 0;
+  }
   executor->head = 0;
   executor->tail = 0;
   executor->pending_count = 0;
@@ -174,7 +177,7 @@ void scoop_executor_destroy(uint64_t executor_handle) {
     free(job);
   }
 
-  (void)pthread_mutex_destroy(&executor->lock);
+  scoop_platform_sync_mutex_destroy(&executor->lock);
   free(executor);
 }
 
@@ -184,9 +187,9 @@ uint64_t scoop_executor_debug_pending_count(uint64_t executor_handle) {
   }
 
   ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
-  (void)pthread_mutex_lock(&executor->lock);
+  scoop_platform_sync_mutex_lock(&executor->lock);
   uint64_t n = executor->pending_count;
-  (void)pthread_mutex_unlock(&executor->lock);
+  scoop_platform_sync_mutex_unlock(&executor->lock);
   return n;
 }
 
@@ -270,7 +273,10 @@ uint64_t scoop_task_u64_create(ScoopTaskBodyU64Fn body_fn, void *body_ctx) {
   }
 
   (void)memset(task, 0, sizeof(ScoopTaskU64));
-  (void)pthread_mutex_init(&task->lock, 0);
+  if (!scoop_platform_sync_mutex_init(&task->lock)) {
+    free(task);
+    return 0;
+  }
   task->state = SCOOP_TASK_STATE_CREATED;
   task->_reserved_u32 = 0;
   task->body_fn = body_fn;
@@ -289,11 +295,11 @@ void scoop_task_u64_destroy(uint64_t task_handle) {
 
   ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
 
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   ScoopTaskWaiter *waiters = task->waiters_head;
   task->waiters_head = 0;
   task->waiters_tail = 0;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
 
   // destroy 时若仍有 waiters，说明使用方未完成/未 drain；这里做 best-effort 清理：
   // - unpin 以避免 pinned roots 泄漏
@@ -307,7 +313,7 @@ void scoop_task_u64_destroy(uint64_t task_handle) {
     waiters = next;
   }
 
-  (void)pthread_mutex_destroy(&task->lock);
+  scoop_platform_sync_mutex_destroy(&task->lock);
   free(task);
 }
 
@@ -317,9 +323,9 @@ uint32_t scoop_task_u64_state(uint64_t task_handle) {
   }
 
   ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   uint32_t state = (uint32_t)task->state;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
   return state;
 }
 
@@ -329,9 +335,9 @@ uint64_t scoop_task_u64_result(uint64_t task_handle) {
   }
 
   ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   uint64_t v = task->result_u64;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
   return v;
 }
 
@@ -343,18 +349,18 @@ uint32_t scoop_task_u64_try_start(uint64_t task_handle, uint64_t executor_handle
   ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
   ScoopExecutor *executor = (ScoopExecutor *)(uintptr_t)executor_handle;
 
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   if (task->state != SCOOP_TASK_STATE_CREATED) {
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     return 0;
   }
   if (task->body_fn == 0) {
     // 没有 body 的 task 只能由外部驱动完成（例如 I/O completion）。
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     return 0;
   }
   task->state = SCOOP_TASK_STATE_SCHEDULED;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
 
   ScoopExecutorJob *job = (ScoopExecutorJob *)malloc(sizeof(ScoopExecutorJob));
   if (job == 0) {
@@ -376,10 +382,10 @@ uint32_t scoop_task_u64_complete(uint64_t task_handle, uint64_t value) {
 
   ScoopTaskU64 *task = (ScoopTaskU64 *)(uintptr_t)task_handle;
 
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   if (task->state == SCOOP_TASK_STATE_COMPLETED) {
     // one-shot：重复 complete 为运行期错误（与 continuation resume/join 对齐）。
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     exit(3);
   }
 
@@ -389,7 +395,7 @@ uint32_t scoop_task_u64_complete(uint64_t task_handle, uint64_t value) {
   ScoopTaskWaiter *waiters = task->waiters_head;
   task->waiters_head = 0;
   task->waiters_tail = 0;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
 
   // 把 waiters 的 continuation 入队到对应 executor。
   ScoopTaskWaiter *it = waiters;
@@ -417,17 +423,17 @@ uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle,
     exit(3);
   }
 
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   if (task->state == SCOOP_TASK_STATE_COMPLETED) {
     uint64_t value = task->result_u64;
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     scoop_executor_enqueue_resume_u64_pinned(executor, continuation, value);
     return 1;
   }
 
   ScoopTaskWaiter *node = (ScoopTaskWaiter *)malloc(sizeof(ScoopTaskWaiter));
   if (node == 0) {
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     (void)scoop_unpin(continuation);
     exit(3);
   }
@@ -444,7 +450,7 @@ uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle,
     task->waiters_tail = node;
   }
 
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
   return 1;
 }
 
@@ -457,15 +463,15 @@ static void scoop_task_u64_run_body_on_executor(ScoopTaskU64 *task, ScoopExecuto
   ScoopTaskBodyU64Fn body_fn = 0;
   void *body_ctx = 0;
 
-  (void)pthread_mutex_lock(&task->lock);
+  scoop_platform_sync_mutex_lock(&task->lock);
   if (task->state == SCOOP_TASK_STATE_COMPLETED) {
-    (void)pthread_mutex_unlock(&task->lock);
+    scoop_platform_sync_mutex_unlock(&task->lock);
     return;
   }
   task->state = SCOOP_TASK_STATE_RUNNING;
   body_fn = task->body_fn;
   body_ctx = task->body_ctx;
-  (void)pthread_mutex_unlock(&task->lock);
+  scoop_platform_sync_mutex_unlock(&task->lock);
 
   uint64_t value = 0;
   if (body_fn != 0) {
@@ -474,4 +480,3 @@ static void scoop_task_u64_run_body_on_executor(ScoopTaskU64 *task, ScoopExecuto
 
   (void)scoop_task_u64_complete((uint64_t)(uintptr_t)task, value);
 }
-
