@@ -4788,6 +4788,98 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(push, &[frame_i8.into()], "class_gc_frame_push")?;
 
+        // T1327b：初始化期间若发生 `Raise.raise` / custom non-resuming effect 的 unwinding，
+        // 必须先清理（pop）该临时 GC frame，再跳转到外层 catch/return；
+        // 否则会破坏 shadow stack 的 push/pop 平衡，导致 roots 泄漏甚至后续 GC 行为不确定。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ctor_cont_bb = insert_block;
+        let outer_raise_target = self.current_raise_target();
+
+        // custom effect：为当前函数已有的 handle 边界注入 cleanup 包装，确保 perform unwind 先 pop 再跳转。
+        let mut pushed_effect_wrappers: usize = 0;
+        if !self.effect_unwind_target_stack.is_empty() {
+            let mut seen_ops: HashSet<String> = HashSet::new();
+            let mut outer_effect_targets: Vec<(String, inkwell::basic_block::BasicBlock<'ctx>)> =
+                Vec::new();
+            for t in self.effect_unwind_target_stack.iter().rev() {
+                if seen_ops.insert(t.op_fqn.clone()) {
+                    outer_effect_targets.push((t.op_fqn.clone(), t.target));
+                }
+            }
+            // 稳定性：保持从外到内的遍历顺序，便于阅读 IR；不影响语义（按 op_fqn 精确匹配）。
+            outer_effect_targets.reverse();
+
+            for (idx, (op_fqn, outer_target)) in outer_effect_targets.iter().enumerate() {
+                let cleanup_bb = self.context.append_basic_block(
+                    func,
+                    &format!("class_ctor_effect_cleanup_{idx}"),
+                );
+                self.builder.position_at_end(cleanup_bb);
+
+                let pop = self.declare_runtime_gc_frame_pop();
+                let frame_i8 = self.builder.build_pointer_cast(
+                    tmp_gc_frame_ptr,
+                    i8_ptr_ty,
+                    "class_gc_frame_i8",
+                )?;
+                let _ = self.builder.build_call(
+                    pop,
+                    &[frame_i8.into()],
+                    "class_gc_frame_pop_effect_cleanup",
+                )?;
+                self.builder.build_unconditional_branch(*outer_target)?;
+
+                self.builder.position_at_end(ctor_cont_bb);
+                self.push_effect_unwind_target(op_fqn.as_str(), cleanup_bb);
+                pushed_effect_wrappers = pushed_effect_wrappers.saturating_add(1);
+            }
+        }
+
+        // Raise.raise：同样注入 cleanup 包装（即使当前没有 outer catch，也需要 pop 后再 return 默认值向外传播）。
+        let raise_cleanup_bb = self
+            .context
+            .append_basic_block(func, "class_ctor_raise_cleanup");
+        self.builder.position_at_end(raise_cleanup_bb);
+        let pop = self.declare_runtime_gc_frame_pop();
+        let frame_i8 = self.builder.build_pointer_cast(
+            tmp_gc_frame_ptr,
+            i8_ptr_ty,
+            "class_gc_frame_i8",
+        )?;
+        let _ = self.builder.build_call(
+            pop,
+            &[frame_i8.into()],
+            "class_gc_frame_pop_raise_cleanup",
+        )?;
+        if let Some(target) = outer_raise_target {
+            self.builder.build_unconditional_branch(target)?;
+        } else {
+            let ret_ty = self
+                .current_fun_return_ty
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Raise.raise needs function return type",
+                    at: span.into(),
+                })?;
+            let v = self.default_value(ret_ty);
+            self.emit_return(span, ret_ty, v)?;
+        }
+
+        self.builder.position_at_end(ctor_cont_bb);
+        self.push_raise_target(raise_cleanup_bb);
+
         // 6) 继承链初始化：从最基类到派生类逐层执行。
         //
         // 每一层的顺序（Kotlin-like，Appendix B.2.2）：
@@ -4944,6 +5036,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             self.env.pop_scope();
+        }
+
+        self.pop_raise_target();
+        for _ in 0..pushed_effect_wrappers {
+            self.pop_effect_unwind_target();
         }
 
         // pop 临时 GC frame
@@ -14262,6 +14359,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
+        // object init 是一个内部 `void` 函数：为 flag-based unwinding（Raise.raise）提供返回类型上下文。
+        self.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_object_init_guard(&obj.fqn);
         let once_begin = self.declare_runtime_once_begin();

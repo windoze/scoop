@@ -5337,11 +5337,19 @@
    - `cargo run -p scoop -- test`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1327b [TODO] 类初始化：初始化期 Raise/effect 传播的清理与诊断
+### T1327b [DONE] 类初始化：初始化期 Raise/effect 传播的清理与诊断
 - 描述：初始化过程中发生 `Raise.raise`/custom effect unwinding 时，确保临时 GC frame/handler frame 不泄漏，并给出清晰诊断与稳定错误码（避免“部分初始化对象泄漏/GC 崩溃/诊断不明确”）。
 - 目标：在不引入 full CFG 的前提下，补齐构造调用的 cleanup path，并把诊断落点与 Kotlin-like 行为对齐。
 - 验收：新增 run-pass fixtures：在 property initializer / init block 中触发 Raise 并被外层 try/catch 捕获后，程序可继续运行且手动 GC 不崩溃；错误码稳定可断言。
 - 依赖：T1327a、T0609
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：class ctor call 在 push 临时 GC frame 后，为 `Raise.raise` 与 custom non-resuming effect 的 unwind target 注入 cleanup 包装 block：unwind 时先 pop 临时 GC frame，再跳转到外层 catch /（无 outer handler 时）return 默认值向外传播。
+   - fixtures：
+     - `tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.*`：property initializer 中 raise → 外层 try/catch 捕获后手动 GC，heap object count delta 回归为 0；
+     - `tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.*`：init block 中 raise → 外层 try/catch 捕获后手动 GC，heap object count delta 回归为 0。
+ - 验收：
+   - `cargo test --all --features llvm`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1327c [TODO] 类初始化：super ctor 实参解析 + secondary ctor super/this delegation
 - 描述：补齐 `class D(x: Int) : Base(f(x))` 这类 super ctor 实参表达式的解析与执行；并接入 secondary ctor 的 `this(...)`/`super(...)` delegation（含顺序与可见性边界）。

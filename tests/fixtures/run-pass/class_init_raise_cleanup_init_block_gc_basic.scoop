@@ -1,0 +1,31 @@
+// EXPECT: pass
+// RUN-STDOUT: class_init_raise_cleanup_init_block_gc_basic.stdout
+//
+// T1327b：类初始化期间 Raise/effect unwinding cleanup
+// - init block 中触发 Raise.raise，外层 try/catch 捕获后继续执行
+// - ctor call 临时 GC frame 必须在 unwind 路径 pop，避免失败构造对象被错误保留为 root
+
+import scoop.core.*
+
+class BoomInit() {
+    init {
+        Raise.raise(RuntimeError.NullAssertionFailed)
+    }
+}
+
+fun main(): Int {
+    val before: Int = __scoop_gc_debug_heap_object_count()
+
+    try {
+        val _x: BoomInit = BoomInit()
+    } catch (e: RuntimeError) {
+        // ignore
+    }
+
+    __scoop_gc_collect()
+
+    val after: Int = __scoop_gc_debug_heap_object_count()
+    println(after - before)
+    return 0
+}
+

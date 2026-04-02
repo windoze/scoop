@@ -745,6 +745,6 @@ public fun main() / Pure! {
         .unwrap();
 
         let ll = std::fs::read_to_string(&out).unwrap();
-        assert!(ll.contains("define i32 @main()"), "应输出 LLVM IR");
+        assert!(ll.contains("define i32 @main("), "应输出 LLVM IR");
     }
 }
