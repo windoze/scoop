@@ -6,9 +6,15 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
+#include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+#if defined(__linux__)
+#include <sys/syscall.h>
+#endif
 
 static SCOOP_PLATFORM_UNUSED const char *scoop_platform_env_getenv(const char *key_cstr) {
   if (key_cstr == 0) {
@@ -187,4 +193,63 @@ static SCOOP_PLATFORM_UNUSED ScoopPlatformThread scoop_platform_thread_self(void
 static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_equal(ScoopPlatformThread a,
                                                             ScoopPlatformThread b) {
   return pthread_equal(a, b) ? 1 : 0;
+}
+
+// --- thread primitives (pthread) ---
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_spawn(ScoopPlatformThread *out_thread,
+                                                            ScoopPlatformThreadEntryFn entry,
+                                                            void *arg) {
+  if (out_thread == 0 || entry == 0) {
+    return 0;
+  }
+  return pthread_create(out_thread, 0, entry, arg) == 0;
+}
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_join(ScoopPlatformThread thread) {
+  return pthread_join(thread, 0) == 0 ? 1 : 0;
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_thread_yield(void) {
+  (void)sched_yield();
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_thread_sleep_millis(int64_t ms) {
+  if (ms <= 0) {
+    return;
+  }
+
+  int64_t sec = ms / 1000;
+  int64_t nsec = (ms % 1000) * 1000000;
+
+  // `nanosleep` 使用 `time_t/long`，这里做最小的宽度适配与容错。
+  struct timespec ts;
+  ts.tv_sec = (time_t)sec;
+  ts.tv_nsec = (long)nsec;
+
+  // 若被信号打断，则继续 sleep 剩余时间。
+  while (nanosleep(&ts, &ts) != 0) {
+    if (errno != EINTR) {
+      break;
+    }
+  }
+}
+
+static SCOOP_PLATFORM_UNUSED int64_t scoop_platform_thread_current_id(void) {
+#if defined(__APPLE__)
+  uint64_t tid = 0;
+  int rc = pthread_threadid_np(0, &tid);
+  if (rc != 0 || tid == 0) {
+    return 0;
+  }
+  return (int64_t)tid;
+#elif defined(__linux__)
+  long tid = syscall(SYS_gettid);
+  if (tid <= 0) {
+    return 0;
+  }
+  return (int64_t)tid;
+#else
+  return 0;
+#endif
 }

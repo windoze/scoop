@@ -86,6 +86,16 @@ static void scoop_platform_sync_condvar_destroy(ScoopPlatformCondVar *condvar);
 static ScoopPlatformThread scoop_platform_thread_self(void);
 static int scoop_platform_thread_equal(ScoopPlatformThread a, ScoopPlatformThread b);
 
+// thread: spawn/join/yield/sleep/currentId（用于 `scoop.thread` 等 runtime 内部实现）。
+typedef void *(*ScoopPlatformThreadEntryFn)(void *arg);
+static int scoop_platform_thread_spawn(ScoopPlatformThread *out_thread,
+                                      ScoopPlatformThreadEntryFn entry,
+                                      void *arg);
+static int scoop_platform_thread_join(ScoopPlatformThread thread);
+static void scoop_platform_thread_yield(void);
+static void scoop_platform_thread_sleep_millis(int64_t ms);
+static int64_t scoop_platform_thread_current_id(void);
+
 // --- backend selection ---
 //
 // 注意：这里通过 include 选择 backend，并在 backend 文件中提供上述 static 函数定义。

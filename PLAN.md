@@ -1031,6 +1031,11 @@ fixtures：
 - `runtime/c/platform.h`（或 `scoop_platform.h`）：定义内部平台层 API；core 层只调用这里，不直接触达 `getenv/open/read/pthread_*` 等。
 - sysroot/stdlib 只暴露平台无关的 API surface；平台能力通过 runtime C 符号实现并由 LLVM codegen 映射，不在 Scoop 侧直接调用 OS ABI。
 
+当前进度（截至 2026-04-02）：
+
+- 已落地 `runtime/c/platform/` v0：env/time/io、sync primitives（Mutex/CondVar/Thread self/equal）、thread primitives（spawn/join/yield/sleep/currentId）。
+- `runtime/c/scoop_runtime.c`、`runtime/c/scoop_sync.c`、`runtime/c/scoop_channels.c`、`runtime/c/scoop_task_executor.c`、`runtime/c/scoop_thread.c` 已接入 platform API，不再直接触达 OS 调用。
+
 ### 15.3 Immix GC 路线（重点：移动/压缩 + 多线程）
 
 - [ ] **Immix v0（单线程、非移动）**：作为 baseline mark-sweep 的可选 backend，引入 line/block allocator 与 mark-region 基本流程。

@@ -1,9 +1,9 @@
-// Scoop C runtime: std `scoop.thread` (pthread backend, early stage).
+// Scoop C runtime: std `scoop.thread` (platform backend, early stage).
 //
 // TODO T1319c：
 // - 为 sysroot 的 `scoop.thread`（spawn/join/sleep/yield/currentId）提供最小可执行实现；
 // - 由 LLVM codegen 将 sysroot 表面直接映射到本文件导出的 C 符号；
-// - 当前阶段只覆盖 host 平台（pthread）。
+// - 当前阶段只覆盖 host 平台（POSIX/pthread 通过 `runtime/c/platform` 收敛）。
 //
 // 设计约定（early stage）：
 // - `Thread` 在 sysroot 侧声明为 class（引用类型），这里实现为 “GC-managed 对象”
@@ -11,21 +11,12 @@
 // - 为避免在 early stage 引入更多资源管理语义：不提供 detach/destroy；调用方应显式 `join()`。
 // - 线程入口会调用 `scoop_thread_register/unregister`，避免 GC 的线程枚举残留已退出线程的 TLS 槽位。
 
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <errno.h>
-#include <sched.h>
-#include <time.h>
-
-#if defined(__linux__)
-#include <sys/syscall.h>
-#include <unistd.h>
-#endif
-
+#include "platform/platform.h"
 #include "scoop_gc.h"
 
 // `scoop_alloc` / 线程注册 API 由 `scoop_runtime.c` 提供；这里仅做前置声明。
@@ -37,7 +28,7 @@ typedef void (*ScoopThreadStartFn)(void *env);
 
 typedef struct ScoopThreadHandle {
   ScoopGcObjectHeader header;
-  pthread_t thread;
+  ScoopPlatformThread thread;
   uint32_t started;
   uint32_t joined;
 } ScoopThreadHandle;
@@ -84,8 +75,7 @@ void *scoop_thread_spawn(void *env_ptr, ScoopThreadStartFn fn) {
   args->env = env_ptr;
   args->fn = fn;
 
-  int rc = pthread_create(&t->thread, 0, scoop_thread_entry, (void *)args);
-  if (rc != 0) {
+  if (!scoop_platform_thread_spawn(&t->thread, scoop_thread_entry, (void *)args)) {
     free(args);
     return 0;
   }
@@ -110,12 +100,12 @@ void scoop_thread_join(void *thread_obj) {
   }
 
   t->joined = 1;
-  (void)pthread_join(t->thread, 0);
+  (void)scoop_platform_thread_join(t->thread);
 }
 
 void scoop_thread_yield(void) {
   scoop_thread_register();
-  (void)sched_yield();
+  scoop_platform_thread_yield();
 }
 
 void scoop_thread_sleep_millis(int64_t ms) {
@@ -124,45 +114,10 @@ void scoop_thread_sleep_millis(int64_t ms) {
   }
 
   scoop_thread_register();
-
-  int64_t sec = ms / 1000;
-  int64_t nsec = (ms % 1000) * 1000000;
-
-  // `nanosleep` 使用 `time_t/long`，这里做最小的宽度适配与容错。
-  struct timespec ts;
-  ts.tv_sec = (time_t)sec;
-  ts.tv_nsec = (long)nsec;
-
-  // 若被信号打断，则继续 sleep 剩余时间。
-  while (nanosleep(&ts, &ts) != 0) {
-    if (errno != EINTR) {
-      break;
-    }
-  }
+  scoop_platform_thread_sleep_millis(ms);
 }
 
 int64_t scoop_thread_current_id(void) {
   scoop_thread_register();
-
-#if defined(__APPLE__)
-  uint64_t tid = 0;
-  int rc = pthread_threadid_np(0, &tid);
-  if (rc != 0) {
-    return 0;
-  }
-  // 约定：返回 0 表示“不支持/失败”，因此对 tid==0 也直接返回 0。
-  if (tid == 0) {
-    return 0;
-  }
-  return (int64_t)tid;
-#elif defined(__linux__)
-  long tid = syscall(SYS_gettid);
-  if (tid <= 0) {
-    return 0;
-  }
-  return (int64_t)tid;
-#else
-  return 0;
-#endif
+  return scoop_platform_thread_current_id();
 }
-

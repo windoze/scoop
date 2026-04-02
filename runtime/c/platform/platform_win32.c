@@ -107,3 +107,27 @@ static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_equal(ScoopPlatformThread
   (void)b;
   return 0;
 }
+
+// --- thread primitives (placeholder) ---
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_spawn(ScoopPlatformThread *out_thread,
+                                                            ScoopPlatformThreadEntryFn entry,
+                                                            void *arg) {
+  if (out_thread != 0) {
+    *out_thread = 0;
+  }
+  (void)entry;
+  (void)arg;
+  return 0;
+}
+
+static SCOOP_PLATFORM_UNUSED int scoop_platform_thread_join(ScoopPlatformThread thread) {
+  (void)thread;
+  return 0;
+}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_thread_yield(void) {}
+
+static SCOOP_PLATFORM_UNUSED void scoop_platform_thread_sleep_millis(int64_t ms) { (void)ms; }
+
+static SCOOP_PLATFORM_UNUSED int64_t scoop_platform_thread_current_id(void) { return 0; }

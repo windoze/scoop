@@ -5494,7 +5494,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1403b [TODO] platform：thread primitives 抽象（spawn/join/yield/sleep/currentId）+ runtime 接入（PLAN §15.2）
+### T1403b [DONE] platform：thread primitives 抽象（spawn/join/yield/sleep/currentId）+ runtime 接入（PLAN §15.2）
 - 描述：在 `runtime/c/platform/` 增加线程相关最小接口（spawn/join/yield/sleep/currentId），并将 `runtime/c/scoop_thread.c` 的 OS 调用收敛到 platform backend。
 - 目标：先保证 host POSIX/pthread backend 可用；Windows 仅占位实现与 build gate。
 - 验收：
@@ -5502,6 +5502,14 @@
   - `cargo test --all`；
   - `cargo run -p scoop -- test`。
 - 依赖：T1403a
+ - 完成：
+   - `runtime/c/platform/platform.h`：新增 thread primitives API（spawn/join/yield/sleep/currentId）声明。
+   - `runtime/c/platform/platform_posix.c`：实现 pthread backend（spawn/join/yield/sleep/currentId）。
+   - `runtime/c/platform/platform_win32.c`：补齐占位实现（统一失败/no-op）。
+   - `runtime/c/scoop_thread.c`：thread 实现不再直接调用 pthread/sched/nanosleep/syscall，改为走 platform API。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1403c [TODO] platform：once/guard 相关 OS 调用收敛（`scoop_once_*`）（PLAN §15.2）
 - 描述：将 `runtime/c/scoop_once.c` 中 `pthread_self/sched_yield/dlsym` 等平台相关调用收敛到 platform backend（或按 capability gating 留占位），形成一致的 platform 边界。
