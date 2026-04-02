@@ -5323,7 +5323,7 @@
 - 验收：
   - 新增 run-pass fixture：三层继承的初始化顺序 stdout 与 golden 一致；
   - `cargo test --all` 通过；
-  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
+  - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1312、T0439
  - 完成：
    - `crates/scoopc/src/llvm/codegen.rs`：
@@ -5335,7 +5335,7 @@
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
-   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1327b [TODO] 类初始化：初始化期 Raise/effect 传播的清理与诊断
 - 描述：初始化过程中发生 `Raise.raise`/custom effect unwinding 时，确保临时 GC frame/handler frame 不泄漏，并给出清晰诊断与稳定错误码（避免“部分初始化对象泄漏/GC 崩溃/诊断不明确”）。
