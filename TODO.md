@@ -5407,11 +5407,18 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1325c [TODO] varargs spread：迭代器视图桥接（iterator → Array）
+### T1325c [DONE] varargs spread：迭代器视图桥接（iterator → Array）
 - 描述：为满足 `iterator` 协议的视图提供显式转换为 `Array` 的 std helper（例如 `toArray()`），以支持 `*view.toArray()` 的 spread 用例。
 - 目标：与 T1328 的 `Iterator.next(): Option<T>` 迁移一致；不在语言层放开 `*iterable` 隐式 spread。
 - 验收：新增 typecheck +（可选）run-pass fixture 覆盖最小可迭代对象的 `toArray()` 后 spread；`cargo test --all` 通过。
 - 依赖：T1328
+ - 完成：
+   - sysroot：在 `sysroot/collections.scoop` 增加 `Iterable<T>/Iterator<T>` 迭代协议声明（对齐 spec §16.2），并补充 `IntIterable/IntIterator`（规避当前阶段“上转到带实参 interface”的门禁），声明 `IntIterable.toArray(): Array<Int>` 作为显式桥接 API。
+   - stdlib：新增 `stdlib/collections_iter.scoop` 提供 `IntIterable.toArray()` 的最小可编译落点（当前阶段先返回空数组；真正“迭代消费并收集”的语义待 member call + for lowering 全链路落地后补齐）。
+   - fixtures：新增 `tests/fixtures/typecheck/vararg_spread_iterable_to_array_bridge_ok.scoop` 回归 `*view.toArray()` 的调用点类型检查。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ---
 

@@ -8,6 +8,42 @@ package scoop.collections
 
 import scoop.core.*
 
+/// 迭代协议（spec §16.2）。
+///
+/// 说明：
+/// - 0.1 阶段 `for (x in xs)` 的 typecheck 直接按该协议做存在性检查与元素类型推导；
+/// - 当前阶段“普通成员函数调用”尚未全面打通（见 TODO T1508），因此用户侧通常不会直接写
+///   `xs.iterator().next()`；更多使用将通过 `for` 与标准库 helper（例如 `toArray()`）间接消费。
+interface Iterable<T> {
+    fun iterator(): Iterator<T>
+}
+
+/// 迭代器协议（spec §16.2）：使用 `next(): Option<T>`，不再使用 `hasNext()`。
+interface Iterator<T> {
+    fun next(): Option<T>
+}
+
+/// 迭代协议（Int 专用，early stage）。
+///
+/// 说明：
+/// - 当前类型系统对“上转到带实参的 interface”（例如 `MyIter : Iterator<Int>` → `Iterator<Int>`）
+///   仍有门禁（避免过早引入泛型超类型实例化/变型的复杂语义）；
+/// - 为了让 std helper（`toArray()`）在调用点可用，这里提供一个 **无类型参数** 的 Int 专用协议。
+interface IntIterable {
+    fun iterator(): IntIterator
+}
+
+interface IntIterator {
+    fun next(): Option<Int>
+}
+
+/// 迭代视图 → `Array` 的显式桥接（T1325c）。
+///
+/// 说明：
+/// - 用于 vararg spread 的显式转换：`f(*xs.toArray())`；
+/// - 语言层不会放开 `*iterable` 的隐式 spread（避免隐式分配）。
+fun IntIterable.toArray(): Array<Int>
+
 /// 最小 `Map` 声明（spec §10.4 示例）。
 ///
 /// 说明：
@@ -16,4 +52,3 @@ import scoop.core.*
 interface Map<K, V> {
     fun <T> getValue(thisRef: Any, property: PropertyMeta): T
 }
-
