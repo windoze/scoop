@@ -1061,8 +1061,10 @@ fixtures：
   - [x] T1408b：与 stackmap/statepoint 的 STW 协议统一（对齐 T1505，避免两套协议长期分叉）
   - 线程本地分配与 GC 元数据的并发安全与可回归验证（性能优化在 T1409）
 - [ ] **多线程性能**：
-  - thread-local allocation（TLAB/per-thread blocks）、全局 block 池的低争用策略；
-  - 并行标记/并行 sweep 的渐进引入；增加基准与 stress 测试（碎片化、并发分配、跨线程引用）。
+  - [ ] T1409a：并发分配 fast path（thread-local blocks + safepoint fast path；降低分配路径锁争用）
+  - [ ] T1409b：降低 block 池争用（批量取还 / per-thread cache）
+  - [ ] T1409c：并行标记/并行 sweep（渐进引入，以可开关实验性实现落地）
+  - [ ] T1409d：多线程 microbench 与基线记录（不做 CI gating；本地对比回归）
 - [x] **GC backend capability matrix v0**：固化 STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots 等能力，并用于测试 gating（T1405b）。
 - [ ] **GC backend 可替换**：编译期可选 baseline/Immix/embedded/minimal/hosted(adapter)，并维护 capability matrix（尤其是 WASM/embedded）。
 

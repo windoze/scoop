@@ -5724,13 +5724,41 @@
    - `cargo test --all`
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1409 [TODO] Immix：多线程性能（PLAN §15.3）
+### T1409 Immix：多线程性能（拆分为子任务，PLAN §15.3）
+
 - 描述：在保证正确性的基础上优化 Immix 的多线程性能：TLAB/per-thread blocks、低争用全局 block 池、并行标记/并行 sweep 的渐进引入，并建立可重复的基准与回归阈值。
 - 目标：优先降低分配路径锁争用与 STW 时间；不追求一次做到最佳。
-- 验收：新增基准或 microbench：
-  - 多线程分配吞吐在 N 线程下接近线性扩展（在合理范围内）；
-  - STW 时间与碎片化指标有可观测改进或至少不回退。
+- 备注：该任务包含多个相对独立的能力点。为保持“可单独实现 & 单独验证”，拆分为以下子任务逐步推进：
+
+### T1409a [TODO] Immix：并发分配 fast path（thread-local blocks + safepoint fast path）
+- 描述：让 `scoop_alloc` 在 Immix backend 下支持 thread-local current block：常见小对象分配不再持有全局 GC 锁（仅 block refill/GC/元数据维护持锁），并保证 moving/compaction 后不会出现悬挂的 current block 指针。
+- 目标：
+  - 优先 correctness + 明确并发边界：STW 期间不允许 mutator 分配；GC 周期开始后等待所有注册线程 park；
+  - 不引入并行 mark/sweep；
+  - 不改变对外 ABI（不新增 runtime/c 导出符号）。
+- 验收：
+  - `cargo test --all`
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+  - 新增或更新 1 个集成测试覆盖“多线程并发分配 + GC collect” smoke（确保不崩溃且对象可回收）。
 - 依赖：T1408a
+
+### T1409b [TODO] Immix：降低 block 池争用（批量取还 / per-thread cache）
+- 描述：在 T1409a 的 thread-local blocks 基础上，降低 block refill 争用：引入 per-thread cache 或批量取还策略，减少全局锁进入频率。
+- 目标：只优化 block 池争用；不改变 GC 算法与对象模型。
+- 验收：增加基准或 microbench 对比：N 线程下 throughput 有可观测提升；`cargo test -p scoop_runtime --no-default-features --features gc-immix` 通过。
+- 依赖：T1409a
+
+### T1409c [TODO] Immix：并行标记/并行 sweep（渐进引入）
+- 描述：引入并行标记/并行 sweep 的最小版本，并在确保正确性的前提下缩短 STW 时间。
+- 目标：以“可开关的实验性实现”落地（默认可关闭），先建立正确性回归与诊断。
+- 验收：新增 stress fixture/测试：并发分配 + 跨线程引用 + GC stress 下稳定通过；并行开关打开/关闭两种模式都可回归。
+- 依赖：T1409a
+
+### T1409d [TODO] Immix：多线程 microbench 与基线记录（不做 CI gating）
+- 描述：扩展 `gc_microbench` 或新增工具，覆盖多线程分配吞吐/GC STW 时间指标，并把基线输出格式固化，便于本地对比回归。
+- 目标：仅做本地可重复对比；不在 CI 做跨机器阈值 gating。
+- 验收：`tools/gc_microbench.sh` 支持 N 线程吞吐场景；输出包含每轮 STW 时间与吞吐信息；能对比 baseline vs immix。
+- 依赖：T1409a
 
 ### T1410 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
 - 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。
