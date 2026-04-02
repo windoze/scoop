@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR-AT: 14:23
+// EXPECT-ERROR: 未解析的类型
+//
+// 目标：T1404 sysroot/std 平台 API 不应暴露 OS 概念类型（例如 FILE* / HANDLE / pthread_t）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.fs.*
+import scoop.io.*
+
+struct Leak(val file: FILE)

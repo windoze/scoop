@@ -5528,7 +5528,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1404 [TODO] sysroot/std 平台 API surface 审计：不泄漏 OS 概念（PLAN §15.1）
+### T1404 [DONE] sysroot/std 平台 API surface 审计：不泄漏 OS 概念（PLAN §15.1）
 - 描述：审计 sysroot 与 stdlib 中的平台 API（env/time/fs/path/io/process/thread/sync/channels/net），确保不暴露 `errno/FILE*/HANDLE/pthread_t` 等 OS 概念与平台差异；必要时调整为平台无关的 `Option/Result` 形状，并用 capability gating 表达“不支持”。
 - 目标：
   - API 设计以“可移植 + 最小 surface”为优先；
@@ -5539,6 +5539,12 @@
   - 新增至少 1 个 typecheck fixture：确认平台 API 不暴露平台相关类型；
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T1316、T1318、T1319
+ - 完成：
+   - 新增 `PLATFORM_API_SURFACE_AUDIT.md`：固化 sysroot 平台模块 API surface ↔ runtime ABI 符号 ↔ backend 支持情况清单。
+   - 新增 typecheck fixture `tests/fixtures/typecheck/std_platform_api_no_os_types_is_error.scoop`：回归“平台 API 不暴露 FILE/HANDLE/pthread_t 等 OS 概念类型”。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1405 [TODO] GC backend 抽象：编译期可替换 GC（baseline / Immix / embedded / adapter）（PLAN §15.3）
 - 描述：为 GC 引入稳定抽象边界，使 runtime/allocator/roots 扫描与具体 GC 算法解耦，并支持编译期选择不同 backend（先 C 实现）。
