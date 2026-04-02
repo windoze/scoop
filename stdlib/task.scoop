@@ -117,11 +117,26 @@ fun Task<Int>.andThen(executor: Executor, binder: (Int) -> Task<Int>): Task<Int>
         val v1: Int = Async.await(this)
         val next: Task<Int> = binder(v1)
         val _ = next.tryStart(executor)
-        val v2: Int = Async.await(next)
-        val done: Bool = resultTask.complete(v2)
-        when (done) {
-            true -> ()
-            false -> ()
+
+        // 当前 LLVM 后端的 escape continuation handle 只支持单个 perform 点；
+        // 因此这里用“二段 handle”串联两个 await：
+        // - 第一段：等待 `this` 完成，拿到 v1 后创建/启动 next；
+        // - 第二段：等待 next 完成，拿到 v2 后完成 resultTask。
+        val _setup2: Unit = handle {
+            val v2: Int = Async.await(next)
+            val done: Bool = resultTask.complete(v2)
+            when (done) {
+                true -> ()
+                false -> ()
+            }
+        } with {
+            Async.await(task: Task<Int>), k -> {
+                val ok: Bool = task.onComplete(executor, k)
+                when (ok) {
+                    true -> ()
+                    false -> ()
+                }
+            }
         }
     } with {
         Async.await(task: Task<Int>), k -> {

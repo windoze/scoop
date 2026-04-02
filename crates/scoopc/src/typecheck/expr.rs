@@ -9925,11 +9925,165 @@ fn infer_member_call_expr_type(
             });
         }
         None => {
+            // resolver 无法静态确定 receiver 类型时（例如 `Shared.t1Go.recv()` 这类非裸 ident receiver），
+            // `member.resolved` 可能为空；此时在 typecheck 阶段用“已推导出的 receiver 类型 + import 表”
+            // 再做一次 extension fun 查找（与 resolver 的 extension fallback 规则保持一致）。
+
+            // T1317f2：`List/MutableList` 等为 typealias（resolver 侧按名义 FQN 匹配，这里做同样归一化）。
+            fn normalize_collections_alias(fqn: &str) -> &str {
+                match fqn {
+                    "scoop.core.List" => "scoop.core.Array",
+                    "scoop.core.MutableList" => "scoop.core.MutableArray",
+                    "scoop.collections.Set" => "scoop.core.Array",
+                    "scoop.collections.MapView" => "scoop.core.Array",
+                    "scoop.collections.MutableSet" => "scoop.core.MutableArray",
+                    "scoop.collections.MutableMap" => "scoop.core.MutableArray",
+                    _ => fqn,
+                }
+            }
+
             let name = source.slice(member.span);
-            if lower.pkg_prefix().is_empty() {
-                name.to_string()
-            } else {
-                format!("{}.{}", lower.pkg_prefix(), name)
+            let use_cone = lower.index().cone_of_source(source);
+
+            let receiver_ty_fqn = match lower.type_kind(actual_receiver_ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
+                    Some(n.fqn)
+                }
+                _ => None,
+            };
+            let receiver_ty_fqn_norm = receiver_ty_fqn.as_deref().map(normalize_collections_alias);
+
+            let mut candidates: Vec<String> = Vec::new();
+
+            let imports = lower.imports();
+
+            // 1) 同包（同 cone）隐式可见。
+            for ext in &lower.index().extension_funs {
+                if ext.decl_cone != use_cone {
+                    continue;
+                }
+                if ext.pkg_prefix != lower.pkg_prefix() {
+                    continue;
+                }
+                if ext.name != name {
+                    continue;
+                }
+
+                let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                    Some(ext_receiver) => {
+                        ext_receiver == "scoop.core.Any"
+                            || receiver_ty_fqn_norm.is_some_and(|r| {
+                                normalize_collections_alias(ext_receiver) == r
+                            })
+                    }
+                    None => ext.receiver_is_type_param,
+                };
+                if !receiver_matches {
+                    continue;
+                }
+
+                let Some(syms) = lower.index().by_fqn.get(&ext.fqn) else {
+                    continue;
+                };
+                if syms
+                    .fun
+                    .iter()
+                    .any(|o| is_symbol_visible_from_source(use_cone, source, &o.symbol))
+                {
+                    candidates.push(ext.fqn.clone());
+                }
+            }
+
+            // 2) star import：`import pkg.*`。
+            for prefix in &imports.star {
+                for ext in &lower.index().extension_funs {
+                    if ext.pkg_prefix != *prefix {
+                        continue;
+                    }
+                    if ext.name != name {
+                        continue;
+                    }
+
+                    let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                        Some(ext_receiver) => {
+                            ext_receiver == "scoop.core.Any"
+                                || receiver_ty_fqn_norm.is_some_and(|r| {
+                                    normalize_collections_alias(ext_receiver) == r
+                                })
+                        }
+                        None => ext.receiver_is_type_param,
+                    };
+                    if !receiver_matches {
+                        continue;
+                    }
+
+                    let Some(syms) = lower.index().by_fqn.get(&ext.fqn) else {
+                        continue;
+                    };
+                    if syms
+                        .fun
+                        .iter()
+                        .any(|o| is_symbol_visible_from_source(use_cone, source, &o.symbol))
+                    {
+                        candidates.push(ext.fqn.clone());
+                    }
+                }
+            }
+
+            // 3) 显式 import（含 alias）：通过 local 名字 → fqn 查找 extension。
+            if let Some(imported) = imports.value.explicit.get(name) {
+                for imported_fqn in imported {
+                    for ext in lower
+                        .index()
+                        .extension_funs
+                        .iter()
+                        .filter(|e| e.fqn == *imported_fqn)
+                    {
+                        let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                            Some(ext_receiver) => {
+                                ext_receiver == "scoop.core.Any"
+                                    || receiver_ty_fqn_norm.is_some_and(|r| {
+                                        normalize_collections_alias(ext_receiver) == r
+                                    })
+                            }
+                            None => ext.receiver_is_type_param,
+                        };
+                        if !receiver_matches {
+                            continue;
+                        }
+
+                        let Some(syms) = lower.index().by_fqn.get(&ext.fqn) else {
+                            continue;
+                        };
+                        if syms
+                            .fun
+                            .iter()
+                            .any(|o| is_symbol_visible_from_source(use_cone, source, &o.symbol))
+                        {
+                            candidates.push(ext.fqn.clone());
+                        }
+                    }
+                }
+            }
+
+            candidates.sort();
+            candidates.dedup();
+
+            match candidates.len() {
+                0 => {
+                    if lower.pkg_prefix().is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", lower.pkg_prefix(), name)
+                    }
+                }
+                1 => candidates.pop().expect("len == 1"),
+                _ => {
+                    return Err(ExprTypeError::AmbiguousCall {
+                        callee: name.to_string(),
+                        span: member.span.into(),
+                    });
+                }
             }
         }
     };

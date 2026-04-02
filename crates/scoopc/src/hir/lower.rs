@@ -4664,8 +4664,18 @@ fn collect_class_decl_init(
     // 以便后续 lowering 的 init blocks/ctor bodies 与 codegen 使用同一个 `SymbolId`。
     let this_id = ctx.intern_local_symbol(decl.name.span, false);
 
+    // 仅记录“直接 superclass”的 FQN（class 单继承；interface 实现列表不计入）。
+    // - typecheck（T0439）已保证“最多一个 class supertype”；
+    // - 当前阶段若无法解析（例如缺失 import 或语法未覆盖），保持为 None 以便后端走最小行为。
+    let super_class_fqn = decl
+        .supertypes
+        .iter()
+        .filter_map(|s| ctx.index.type_ref_to_fqn_in_file(ctx.source, ctx.file, &s.ty))
+        .find(|fqn| matches!(ctx.type_kinds.get(fqn), Some(ast::TypeKind::Class)));
+
     let mut init = ClassInit {
         fqn: class_fqn.to_string(),
+        super_class_fqn,
         this_id,
         fields: Vec::new(),
         field_indices: HashMap::new(),

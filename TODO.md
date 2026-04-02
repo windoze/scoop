@@ -5315,7 +5315,7 @@
 - 依赖：T1312、T0439、T0609
 - 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1327a [TODO] 类初始化：单继承链初始化顺序（base → derived）
+### T1327a [DONE] 类初始化：单继承链初始化顺序（base → derived）
 - 描述：在 class 单继承（含多层）场景下，构造调用需要按 Kotlin-like 的顺序执行各层的初始化步骤：先执行最基类的参数属性赋值（若有）/property initializer/`init` blocks，再逐层到派生类，并保证子类对象 layout 以前缀形式包含基类字段。
 - 目标：
   - codegen：`Derived()` 会按继承链依次执行每一层的 init steps；
@@ -5325,6 +5325,17 @@
   - `cargo test --all` 通过；
   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1312、T0439
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - class 单继承链 layout：合并 superclass 字段为前缀（base fields prefix），并生成稳定字段索引；
+     - class ctor call：按继承链 base → derived 逐层执行 init steps；
+     - super ctor call：当前阶段仅支持 0-arg（`: Base()`）。
+   - fixtures：
+     - `tests/fixtures/run-pass/class_init_order_inheritance_chain_basic.*`：三层继承初始化顺序 stdout golden 回归。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1327b [TODO] 类初始化：初始化期 Raise/effect 传播的清理与诊断
 - 描述：初始化过程中发生 `Raise.raise`/custom effect unwinding 时，确保临时 GC frame/handler frame 不泄漏，并给出清晰诊断与稳定错误码（避免“部分初始化对象泄漏/GC 崩溃/诊断不明确”）。

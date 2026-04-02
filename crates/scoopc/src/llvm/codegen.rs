@@ -275,6 +275,12 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     option_niche_cache: HashMap<TypeId, Option<(NicheStorage, u64)>>,
     /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
     enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
+    /// `class FQN -> 继承链已展开的字段布局` 缓存。
+    ///
+    /// 说明：
+    /// - 对于 `class Derived : Base()`，`Derived` 的对象 payload 需要以前缀形式包含 `Base` 的字段；
+    /// - codegen 侧会把该布局“按继承链展开”，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
+    class_init_layout_cache: HashMap<String, hir::ClassInit>,
     gc_frame: Option<GcFrameState<'ctx>>,
     /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的“早退返回默认值”）。
     ///
@@ -342,6 +348,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             type_layout_cache: HashMap::new(),
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
+            class_init_layout_cache: HashMap::new(),
             gc_frame: None,
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
@@ -399,6 +406,88 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn pop_immediate_resume_ctx(&mut self) {
         let _ = self.immediate_resume_ctx_stack.pop();
+    }
+
+    fn class_init_layout(
+        &mut self,
+        at: crate::span::Span,
+        class_fqn: &str,
+    ) -> Result<hir::ClassInit, LlvmEmitError> {
+        let mut visiting: HashSet<String> = HashSet::new();
+        self.class_init_layout_inner(at, class_fqn, &mut visiting)
+    }
+
+    fn class_init_layout_inner(
+        &mut self,
+        at: crate::span::Span,
+        class_fqn: &str,
+        visiting: &mut HashSet<String>,
+    ) -> Result<hir::ClassInit, LlvmEmitError> {
+        if let Some(cached) = self.class_init_layout_cache.get(class_fqn).cloned() {
+            return Ok(cached);
+        }
+
+        if !visiting.insert(class_fqn.to_string()) {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "class inheritance cycle",
+                at: at.into(),
+            });
+        }
+
+        let base = self
+            .class_inits
+            .get(class_fqn)
+            .cloned()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "class init info",
+                at: at.into(),
+            })?;
+
+        let mut fields: Vec<hir::ClassField> = Vec::new();
+        let mut field_indices: HashMap<String, u32> = HashMap::new();
+
+        if let Some(super_fqn) = base.super_class_fqn.as_deref() {
+            let super_layout = self.class_init_layout_inner(at, super_fqn, visiting)?;
+            fields.extend(super_layout.fields);
+            field_indices.extend(super_layout.field_indices);
+        }
+
+        for field in base.fields {
+            let idx = fields.len() as u32;
+            field_indices.insert(field.fqn.clone(), idx);
+            fields.push(field);
+        }
+
+        let layouted = hir::ClassInit {
+            fqn: base.fqn,
+            super_class_fqn: base.super_class_fqn,
+            this_id: base.this_id,
+            fields,
+            field_indices,
+            steps: base.steps,
+            ctors: base.ctors,
+        };
+
+        let _ = visiting.remove(class_fqn);
+        self.class_init_layout_cache
+            .insert(class_fqn.to_string(), layouted.clone());
+        Ok(layouted)
+    }
+
+    fn class_init_chain(
+        &mut self,
+        at: crate::span::Span,
+        class_fqn: &str,
+    ) -> Result<Vec<hir::ClassInit>, LlvmEmitError> {
+        let class = self.class_init_layout(at, class_fqn)?;
+        match class.super_class_fqn.clone() {
+            Some(super_fqn) => {
+                let mut chain = self.class_init_chain(at, &super_fqn)?;
+                chain.push(class);
+                Ok(chain)
+            }
+            None => Ok(vec![class]),
+        }
     }
 
     pub(crate) fn declare_top_level_fun(
@@ -975,6 +1064,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         // block 是表达式：若末尾是表达式语句，则它的值作为 block value。
         let mut tail_value: Option<CgValue<'ctx>> = None;
+        let declared_return_cg = self.cg_ty_of(declared_return_ty).unwrap_or(CgTy::Unit);
+        // main 的隐式返回只关心 `Int/Bool`（用于 exit code）；其它返回类型一律忽略，且不应把
+        // “期望返回类型”强行向下传播到最后一个表达式（避免触发不必要的 coercion 失败）。
+        let expected_tail_cg = match declared_return_cg {
+            CgTy::Int(_) | CgTy::Bool => declared_return_cg,
+            _ => CgTy::Unit,
+        };
 
         self.env.push_scope();
 
@@ -991,7 +1087,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     tail_value = None;
                 }
                 hir::StmtKind::Expr(expr) => {
-                    let v = self.codegen_expr(expr)?;
+                    let expected = if is_last {
+                        Some(expected_tail_cg)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     if is_last {
                         tail_value = Some(v);
                     } else {
@@ -1001,7 +1102,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::StmtKind::Return { value } => {
                     let exit = match value {
                         Some(expr) => {
-                            let v = self.codegen_expr(expr)?;
+                            let v = self.codegen_expr_in_expected_context(expr, Some(declared_return_cg))?;
                             self.coerce_exit_code(expr.span, v)?
                         }
                         None => self.context.i32_type().const_int(0, false),
@@ -1106,6 +1207,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_perform_expr(expr.span, op, args, expected)
             }
             hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, expected),
+            hir::ExprKind::Block(block) => {
+                self.codegen_block_value_in_expected_context(block, expected)
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.codegen_when_expr(expr.span, subject, arms, expected)
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => self.codegen_if_expr(
+                expr.span,
+                expr.ty,
+                cond,
+                then_branch,
+                else_branch.as_deref(),
+                expected,
+            ),
             _ => self.codegen_expr(expr),
         }
     }
@@ -1342,16 +1461,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_member_access(expr.span, receiver, member)
             }
             hir::ExprKind::When { subject, arms } => {
-                self.codegen_when_expr(expr.span, subject, arms)
+                self.codegen_when_expr(expr.span, subject, arms, None)
             }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => self.codegen_if_expr(
+                expr.span,
+                expr.ty,
+                cond,
+                then_branch,
+                else_branch.as_deref(),
+                None,
+            ),
 
             // 后续任务接入 MIR/CFG codegen
-            hir::ExprKind::Closure(_) | hir::ExprKind::If { .. } => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "expression kind",
-                    at: expr.span.into(),
-                })
-            }
+            hir::ExprKind::Closure(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "expression kind",
+                at: expr.span.into(),
+            }),
             hir::ExprKind::Perform { op, args } => {
                 self.codegen_perform_expr(expr.span, op, args, None)
             }
@@ -2281,7 +2410,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // --- body ---
         self.builder.position_at_end(body_bb);
         self.push_effect_unwind_target(&arm.op.op.fqn, catch_bb);
-        let body_v = self.codegen_block_value(&handle.body)?;
+        let body_v = self.codegen_block_value_in_expected_context(&handle.body, Some(out_ty))?;
         self.pop_effect_unwind_target();
 
         let body_v = if out_ty == CgTy::Unit {
@@ -3134,6 +3263,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let func_name = func.get_name().to_str().unwrap_or("anonymous").to_string();
         let func_name = sanitize_llvm_ident(&func_name);
 
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i64_ty = self.context.i64_type();
+
+        // escape continuation：把当前作用域内的引用类型 locals 捕获到 heap state 中，
+        // 以便在 step trampoline（异步 resume）里继续访问它们。
+        //
+        // 注意：
+        // - 当前 v0 实现捕获 `Ref/String/Bool/Int`：
+        //   - `Ref/String`：用于保活 closure/env 等引用类型；
+        //   - `Bool/Int`：用于保活 word-sized handle（例如 sysroot 的 `Task<T>`/`Executor` 早期落点）。
+        // - 这里按“当前可见的绑定”去重（内层 scope shadow 外层），并按 SymbolId 排序保证 determinism。
+        struct CapturedLocal<'ctx> {
+            id: hir::SymbolId,
+            local: CgLocal<'ctx>,
+        }
+        let mut captures: Vec<CapturedLocal<'ctx>> = Vec::new();
+        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
+        for scope in self.env.scopes.iter().rev() {
+            for (&id, &local) in scope.iter() {
+                if !seen.insert(id) {
+                    continue;
+                }
+                if matches!(
+                    local.ty,
+                    CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
+                ) {
+                    captures.push(CapturedLocal { id, local });
+                }
+            }
+        }
+        captures.sort_by_key(|c| c.id.as_u32());
+
         let state_ty_name = format!("scoop.runtime.ContState__{func_name}_{seq}");
         let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
             existing
@@ -3141,13 +3302,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let ty = self.context.opaque_struct_type(&state_ty_name);
             let header_ty = self.llvm_gc_object_header_type();
             let frame_ty = self.llvm_effect_handler_frame_type();
-            ty.set_body(&[header_ty.into(), frame_ty.into()], false);
+            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+            fields.push(header_ty.into());
+            fields.push(frame_ty.into());
+            for cap in &captures {
+                fields.push(match cap.local.ty {
+                    CgTy::Ref | CgTy::String => i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("captures filtered by type"),
+                });
+            }
+            ty.set_body(&fields, false);
             ty
         };
 
         let step_name = format!("__scoop_cont_step__{func_name}_{seq}");
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let i64_ty = self.context.i64_type();
         let step_fn_ty = self
             .context
             .void_type()
@@ -3185,6 +3354,137 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             cg.current_fun_return_ty = Some(CgTy::Unit);
 
             cg.env.push_scope();
+
+            // 恢复 captures：step 函数运行在“原函数栈已不存在”的异步时刻，
+            // 因此需要从 heap state 里把所需 locals 读回到本函数的 env。
+            if !captures.is_empty() {
+                let state_raw = step_fn
+                    .get_nth_param(0)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "continuation step state param",
+                        at: span.into(),
+                    })?
+                    .into_pointer_value();
+                let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+                let state_ptr =
+                    cg.builder
+                        .build_pointer_cast(state_raw, state_ptr_ty, "cont_step_state_ptr")?;
+
+                for (idx, cap) in captures.iter().enumerate() {
+                    let field_idx = 2u32.saturating_add(idx as u32);
+                    let field_ptr = cg.builder.build_struct_gep(
+                        state_ty,
+                        state_ptr,
+                        field_idx,
+                        "cont_step_capture_gep",
+                    )?;
+                    let name = format!("capture_{}", cap.id.as_u32());
+                    match cap.local.ty {
+                        CgTy::Ref => {
+                            let loaded = cg
+                                .builder
+                                .build_load(i8_ptr_ty, field_ptr, "cont_step_capture_load_ref")?
+                                .into_pointer_value();
+                            let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                            let _ = cg.builder.build_store(ptr, loaded)?;
+                            cg.env.insert(
+                                cap.id,
+                                CgLocal {
+                                    hir_ty: cap.local.hir_ty,
+                                    ty: CgTy::Ref,
+                                    ptr,
+                                    mutable: cap.local.mutable,
+                                    gc_root_slot: None,
+                                },
+                            );
+                        }
+                        CgTy::String => {
+                            let loaded = cg
+                                .builder
+                                .build_load(i8_ptr_ty, field_ptr, "cont_step_capture_load_str")?
+                                .into_pointer_value();
+                            let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                            let casted = cg.builder.build_pointer_cast(
+                                loaded,
+                                str_ptr_ty,
+                                "cont_step_capture_str",
+                            )?;
+                            let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
+                            let _ = cg.builder.build_store(ptr, casted)?;
+                            cg.env.insert(
+                                cap.id,
+                                CgLocal {
+                                    hir_ty: cap.local.hir_ty,
+                                    ty: CgTy::String,
+                                    ptr,
+                                    mutable: cap.local.mutable,
+                                    gc_root_slot: None,
+                                },
+                            );
+                        }
+                        CgTy::Bool => {
+                            let loaded = cg
+                                .builder
+                                .build_load(i64_ty, field_ptr, "cont_step_capture_load_bool")?
+                                .into_int_value();
+                            let zero = i64_ty.const_zero();
+                            let b = cg.builder.build_int_compare(
+                                IntPredicate::NE,
+                                loaded,
+                                zero,
+                                "cont_step_capture_bool",
+                            )?;
+                            let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
+                            let _ = cg.builder.build_store(ptr, b)?;
+                            cg.env.insert(
+                                cap.id,
+                                CgLocal {
+                                    hir_ty: cap.local.hir_ty,
+                                    ty: CgTy::Bool,
+                                    ptr,
+                                    mutable: cap.local.mutable,
+                                    gc_root_slot: None,
+                                },
+                            );
+                        }
+                        CgTy::Int(int_ty) => {
+                            if int_ty.bits > 64 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "cont state capture int width > 64",
+                                    at: span.into(),
+                                });
+                            }
+
+                            let loaded = cg
+                                .builder
+                                .build_load(i64_ty, field_ptr, "cont_step_capture_load_int")?
+                                .into_int_value();
+                            let to = cg.int_type(int_ty);
+                            let v = if int_ty.bits == 64 {
+                                loaded
+                            } else {
+                                cg.builder
+                                    .build_int_truncate(loaded, to, "cont_step_capture_trunc")?
+                            };
+
+                            let slot_ty = CgTy::Int(int_ty);
+                            let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
+                            let _ = cg.builder.build_store(ptr, v)?;
+                            cg.env.insert(
+                                cap.id,
+                                CgLocal {
+                                    hir_ty: cap.local.hir_ty,
+                                    ty: slot_ty,
+                                    ptr,
+                                    mutable: cap.local.mutable,
+                                    gc_root_slot: None,
+                                },
+                            );
+                        }
+                        _ => unreachable!("captures filtered by type"),
+                    }
+                }
+            }
 
             // v0：只支持把 resume_value 当作一个 word-sized payload 写回到 perform binding。
             let resume_word = step_fn
@@ -3357,18 +3657,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(body_bb);
         self.env.push_scope();
 
-        // heap state：`{ header, handler_frame }`
-        let target = self.target_layout();
-        let header_size = 2 * target.pointer_size + 16;
-        let header_align = target.pointer_align.max(8).max(1);
-        let frame_size = target.pointer_size + 8;
-        let frame_align = target.pointer_align.max(4).max(1);
-        let payload_offset = align_to(header_size, frame_align);
-        let obj_align = header_align.max(frame_align);
-        let total_size = align_to(payload_offset.saturating_add(frame_size), obj_align);
+        // heap state：`{ header, handler_frame, captured_refs... }`
+        let total_size = self.target_data.get_store_size(&state_ty);
 
         let rt_alloc = self.declare_runtime_alloc();
-        let size_v = i64_ty.const_int(total_size as u64, false);
+        let size_v = i64_ty.const_int(total_size, false);
         let call = self
             .builder
             .build_call(rt_alloc, &[size_v.into()], "rt_alloc_cont_state")?;
@@ -3393,6 +3686,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let frame_ptr =
             self.builder
                 .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
+
+        // 把当前作用域内的 locals 写入 heap state：用于 step trampoline 在异步 resume 时恢复 env。
+        for (idx, cap) in captures.iter().enumerate() {
+            let field_idx = 2u32.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_capture_gep",
+            )?;
+
+            match cap.local.ty {
+                CgTy::Ref | CgTy::String => {
+                    let llvm_ty = self.llvm_basic_type_of(span, cap.local.ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_ptr")?;
+                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture value type (ptr)",
+                            at: span.into(),
+                        });
+                    };
+                    let casted =
+                        self.builder
+                            .build_pointer_cast(ptr, i8_ptr_ty, "cont_state_capture_i8")?;
+                    let _ = self.builder.build_store(field_ptr, casted)?;
+                }
+                CgTy::Bool => {
+                    let loaded = self
+                        .builder
+                        .build_load(
+                            self.llvm_basic_type_of(span, CgTy::Bool)?,
+                            cap.local.ptr,
+                            "cont_state_capture_load_bool",
+                        )?
+                        .into_int_value();
+                    let extended = self
+                        .builder
+                        .build_int_z_extend(loaded, i64_ty, "cont_state_capture_zext_bool")?;
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                CgTy::Int(int_ty) => {
+                    if int_ty.bits > 64 {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture int width > 64",
+                            at: span.into(),
+                        });
+                    }
+
+                    let llvm_ty = self.llvm_basic_type_of(span, cap.local.ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_int")?
+                        .into_int_value();
+                    let extended = if int_ty.bits == 64 {
+                        loaded
+                    } else if int_ty.signed {
+                        self.builder
+                            .build_int_s_extend(loaded, i64_ty, "cont_state_capture_sext_int")?
+                    } else {
+                        self.builder
+                            .build_int_z_extend(loaded, i64_ty, "cont_state_capture_zext_int")?
+                    };
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
 
         // push handler frame（动态上下文）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
@@ -3577,9 +3939,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let local = self
                 .env
                 .get(*id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                .ok_or_else(|| {
+                    LlvmEmitError::UnsupportedMainBody {
                     kind: "unknown local value",
                     at: callee.span.into(),
+                    }
                 })?;
 
             if let Some(hir_ty) = local.hir_ty {
@@ -4227,6 +4591,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
     /// - 仅支持位置参数（positional args），不支持 named args / default args；
     /// - ctor 选择规则：按“参数个数”在已收集 ctor 集合中匹配；若不唯一则报错；
+    /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；super ctor call 目前仅支持 0-arg（`: Base()`）；
     /// - secondary ctor 的 delegation call 语义暂未接入（parser 尚未解析实参表达式），
     ///   这里只保证其 body 在 primary init steps 之后执行。
     fn codegen_class_ctor_call(
@@ -4260,12 +4625,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
         };
-        let class = self.class_inits.get(&class_fqn).cloned().ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor call candidate class",
-                at: callee_span.into(),
-            },
-        )?;
+        let init_chain = self.class_init_chain(callee_span, &class_fqn)?;
+        let class = init_chain.last().cloned().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "class ctor call init chain",
+            at: callee_span.into(),
+        })?;
 
         // 2) 仅支持 positional args，并按源码顺序求值。
         let mut positional_args: Vec<&hir::Expr> = Vec::with_capacity(args.len());
@@ -4424,27 +4788,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_call(push, &[frame_i8.into()], "class_gc_frame_push")?;
 
-        // 6) 以 locals 的形式注入 `this` 与 ctor params，并执行初始化顺序：
-        //   1) primary ctor 的 `val/var` 参数属性赋值（来自调用点 args）
-        //   2) property initializer / init blocks（按源码顺序）
-        //   3) secondary ctor body（若选中 secondary）
-        self.env.push_scope();
+        // 6) 继承链初始化：从最基类到派生类逐层执行。
+        //
+        // 每一层的顺序（Kotlin-like，Appendix B.2.2）：
+        //  1) 注入 `this` 与 ctor params locals；
+        //  2) primary ctor 的 `val/var` 参数属性赋值（来自 ctor args）；
+        //  3) property initializer / init blocks（按源码顺序）；
+        //  4) secondary ctor body（若该层选中 secondary）。
+        //
+        // 当前阶段约束（T1327a）：
+        // - super ctor call 暂不解析实参表达式，因此仅支持 0-arg super ctor（`: Base()`）。
 
-        // this local
-        let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
-        let _ = self.builder.build_store(this_ptr, obj_ptr)?;
-        self.env.insert(
-            class.this_id,
-            CgLocal {
-                hir_ty: None,
-                ty: CgTy::Ref,
-                ptr: this_ptr,
-                mutable: false,
-                gc_root_slot: None,
-            },
-        );
-
-        // ctor params locals（同时做 primary ctor 参数属性赋值）
+        // 调用点实参求值（按源码顺序），供最末层（实际被调用的 ctor）写入 locals。
+        let mut evaluated_args: Vec<CgValue<'ctx>> = Vec::with_capacity(positional_args.len());
         for (param, arg_expr) in ctor_params.iter().zip(positional_args.iter()) {
             let param_cg = self
                 .cg_ty_of(param.ty)
@@ -4452,80 +4808,143 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "class ctor param type",
                     at: callee_span.into(),
                 })?;
-            let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
-            let arg_v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
-            let stored = self.store_local_value(arg_expr.span, param_ptr, param_cg, arg_v)?;
+            let v = self.codegen_expr_in_expected_context(arg_expr, Some(param_cg))?;
+            let v = self.coerce_value(arg_expr.span, v, param_cg)?;
+            evaluated_args.push(v);
+        }
+
+        for layer in &init_chain {
+            // 选择该层的 ctor：最末层使用调用点选择结果；其余层（super）仅允许 0-arg。
+            let (layer_ctor_kind, layer_ctor_params, layer_ctor_body, layer_args): (
+                hir::ClassCtorKind,
+                &[hir::ClassCtorParam],
+                Option<&hir::Block>,
+                &[CgValue<'ctx>],
+            ) = if layer.fqn == class.fqn {
+                (ctor_kind, ctor_params, ctor_body, evaluated_args.as_slice())
+            } else {
+                let matching: Vec<Option<&hir::ClassCtor>> = if layer.ctors.is_empty() {
+                    vec![None]
+                } else {
+                    layer
+                        .ctors
+                        .iter()
+                        .filter(|ctor| ctor.params.is_empty())
+                        .map(Some)
+                        .collect()
+                };
+                if matching.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class super ctor call (only 0-arg supported)",
+                        at: callee_span.into(),
+                    });
+                }
+                match matching[0] {
+                    Some(ctor) => (ctor.kind, ctor.params.as_slice(), ctor.body.as_ref(), &[][..]),
+                    None => (hir::ClassCtorKind::Primary, &[][..], None, &[][..]),
+                }
+            };
+
+            self.env.push_scope();
+
+            // this local（注意：每一层都有独立的 this SymbolId）。
+            let this_ptr = self.create_entry_alloca(span, "this", CgTy::Ref)?;
+            let _ = self.builder.build_store(this_ptr, obj_ptr)?;
             self.env.insert(
-                param.id,
+                layer.this_id,
                 CgLocal {
-                    hir_ty: Some(param.ty),
-                    ty: param_cg,
-                    ptr: param_ptr,
+                    hir_ty: None,
+                    ty: CgTy::Ref,
+                    ptr: this_ptr,
                     mutable: false,
                     gc_root_slot: None,
                 },
             );
 
-            if param.is_property {
-                let Some(field_fqn) = param.property_field_fqn.as_deref() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor param property fqn",
+            // ctor params locals（同时做 primary ctor 参数属性赋值）
+            for (param, arg_v) in layer_ctor_params.iter().zip(layer_args.iter()) {
+                let param_cg = self
+                    .cg_ty_of(param.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor param type",
                         at: callee_span.into(),
-                    });
-                };
-                let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor param property field index",
-                        at: callee_span.into(),
-                    });
-                };
-                let field_ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
-                let _ = self.store_local_value(span, field_ptr, param_cg, stored)?;
-            }
-        }
+                    })?;
+                let param_ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+                let stored =
+                    self.store_local_value(param.decl_span, param_ptr, param_cg, *arg_v)?;
+                self.env.insert(
+                    param.id,
+                    CgLocal {
+                        hir_ty: Some(param.ty),
+                        ty: param_cg,
+                        ptr: param_ptr,
+                        mutable: false,
+                        gc_root_slot: None,
+                    },
+                );
 
-        // primary init steps（property initializer + init blocks）
-        for step in &class.steps {
-            match step {
-                hir::ClassInitStep::PropertyInit { field_fqn, init } => {
-                    let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                if param.is_property {
+                    let Some(field_fqn) = param.property_field_fqn.as_deref() else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class property init field index",
-                            at: init.span.into(),
+                            kind: "class ctor param property fqn",
+                            at: callee_span.into(),
                         });
                     };
-                    let field = class.fields.get(field_idx as usize).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "class property init field",
-                            at: init.span.into(),
-                        },
-                    )?;
-                    let field_cg =
-                        self.cg_ty_of(field.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class property init field type",
-                                at: init.span.into(),
-                            })?;
-
-                    let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                    let Some(field_idx) = layer.field_indices.get(field_fqn).copied() else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class ctor param property field index",
+                            at: callee_span.into(),
+                        });
+                    };
                     let field_ptr =
-                        self.codegen_class_field_ptr(init.span, &class, obj_ptr, field_idx)?;
-                    let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
-                }
-                hir::ClassInitStep::InitBlock { block } => {
-                    let _ = self.codegen_block_value(block)?;
+                        self.codegen_class_field_ptr(span, layer, obj_ptr, field_idx)?;
+                    let _ = self.store_local_value(span, field_ptr, param_cg, stored)?;
                 }
             }
-        }
 
-        // secondary ctor body（若适用）
-        if ctor_kind == hir::ClassCtorKind::Secondary {
-            if let Some(body) = ctor_body {
-                let _ = self.codegen_block_value(body)?;
+            // primary init steps（property initializer + init blocks）
+            for step in &layer.steps {
+                match step {
+                    hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                        let Some(field_idx) = layer.field_indices.get(field_fqn).copied() else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class property init field index",
+                                at: init.span.into(),
+                            });
+                        };
+                        let field = layer.fields.get(field_idx as usize).ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "class property init field",
+                                at: init.span.into(),
+                            },
+                        )?;
+                        let field_cg =
+                            self.cg_ty_of(field.ty)
+                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "class property init field type",
+                                    at: init.span.into(),
+                                })?;
+
+                        let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                        let field_ptr =
+                            self.codegen_class_field_ptr(init.span, layer, obj_ptr, field_idx)?;
+                        let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
+                    }
+                    hir::ClassInitStep::InitBlock { block } => {
+                        let _ = self.codegen_block_value(block)?;
+                    }
+                }
             }
-        }
 
-        self.env.pop_scope();
+            // secondary ctor body（若适用）
+            if layer_ctor_kind == hir::ClassCtorKind::Secondary {
+                if let Some(body) = layer_ctor_body {
+                    let _ = self.codegen_block_value(body)?;
+                }
+            }
+
+            self.env.pop_scope();
+        }
 
         // pop 临时 GC frame
         let pop = self.declare_runtime_gc_frame_pop();
@@ -5073,7 +5492,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - sysroot 中允许 `print/println` 以 overload set 的形式声明（例如 `String` 与 `Int`）；
         // - HIR 当前阶段不保留“已选定 overload”的信息，因此这里以实参 codegen 后的 `CgTy`
         //   来决定使用哪条 lowering 路径。
-        let v = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
+        //
+        // 注意：这里**不要**强制把 expected type 设为 `String`：
+        // - 对于 `when/if/block` 等表达式，expected 会导致其 arm/body 被强制 coercion 为 `String`，
+        //   进而在 `Int -> String` 这类尚未实现的 coercion 上报错；
+        // - `print/println` 的整数路径会在 codegen 后显式把 `Int` 转为 `String`（见下方分支），
+        //   因此应先让表达式产出其“自然值类型”，再在这里做转换。
+        let v = self.codegen_expr(expr)?;
         let str_ptr = match v.ty {
             CgTy::String => {
                 let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
@@ -9435,7 +9860,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::ExprKind::Closure(closure) => {
                     self.codegen_closure_expr(expr.span, closure, sig_fun.params[idx].ty)?
                 }
-                _ => self.codegen_expr(expr)?,
+                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
             };
             let coerced = self.coerce_value(expr.span, v, target_cg)?;
             llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
@@ -11041,11 +11466,130 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn codegen_if_expr(
+        &mut self,
+        span: crate::span::Span,
+        out_ty: TypeId,
+        cond: &hir::Expr,
+        then_branch: &hir::Expr,
+        else_branch: Option<&hir::Expr>,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let out_cg = expected
+            .or_else(|| self.cg_ty_of(out_ty))
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "if output type",
+                at: span.into(),
+            })?;
+
+        let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
+        let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
+        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "if condition value",
+            at: cond.span.into(),
+        })?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let then_bb = self.context.append_basic_block(func, "if_then");
+        let else_bb = self.context.append_basic_block(func, "if_else");
+        let merge_bb = self.context.append_basic_block(func, "if_merge");
+
+        self.builder
+            .build_conditional_branch(cond_i1, then_bb, else_bb)?;
+
+        let result_ptr = match out_cg {
+            CgTy::Unit => None,
+            _ => Some(self.create_entry_alloca(span, "if_result", out_cg)?),
+        };
+
+        // --- then ---
+        self.builder.position_at_end(then_bb);
+        let then_v = self.codegen_expr_in_expected_context(then_branch, Some(out_cg))?;
+        let then_v = if out_cg == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(then_branch.span, then_v, out_cg)?
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(then_branch.span, ptr, out_cg, then_v)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(merge_bb)?;
+            }
+        }
+
+        // --- else ---
+        self.builder.position_at_end(else_bb);
+        let else_v = match else_branch {
+            Some(expr) => {
+                let v = self.codegen_expr_in_expected_context(expr, Some(out_cg))?;
+                if out_cg == CgTy::Unit {
+                    CgValue::unit()
+                } else {
+                    self.coerce_value(expr.span, v, out_cg)?
+                }
+            }
+            None => {
+                if out_cg != CgTy::Unit {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "if without else (non-Unit)",
+                        at: span.into(),
+                    });
+                }
+                CgValue::unit()
+            }
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(span, ptr, out_cg, else_v)?;
+        }
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                self.builder.build_unconditional_branch(merge_bb)?;
+            }
+        }
+
+        // --- merge ---
+        self.builder.position_at_end(merge_bb);
+        match out_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "if result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_cg)?;
+                let loaded = self.builder.build_load(llvm_ty, ptr, "if_result")?;
+                self.cg_value_from_loaded(span, out_cg, loaded)
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "if result type",
+                at: span.into(),
+            }),
+        }
+    }
+
     fn codegen_when_expr(
         &mut self,
         span: crate::span::Span,
         subject: &hir::Expr,
         arms: &[hir::WhenArm],
+        expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if arms.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -11087,6 +11631,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .collect::<Vec<_>>();
 
+        let expected_out_ty = expected;
+
         let needs_chain = arms
             .iter()
             .any(|arm| arm.guard.is_some() || self.when_pat_contains_or(&arm.pat));
@@ -11127,7 +11673,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_unreachable()?;
 
             // 生成各 arm body，并把结果汇合到 merge。
-            let mut out_ty: Option<CgTy> = None;
+            let mut out_ty: Option<CgTy> = expected_out_ty;
             let mut incoming: Vec<(inkwell::basic_block::BasicBlock<'ctx>, CgValue<'ctx>)> =
                 Vec::new();
 
@@ -11159,15 +11705,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // arm body：在同一作用域内生成（binder 可用）。
                 self.builder.position_at_end(arm_bbs[idx]);
 
-                let v = self.codegen_expr(&arm.body)?;
-                match out_ty {
-                    None => out_ty = Some(v.ty),
-                    Some(prev) if prev == v.ty => {}
-                    Some(_) => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when arm type mismatch",
-                            at: arm.body.span.into(),
-                        });
+                let mut v = match expected_out_ty {
+                    Some(target) => {
+                        let v = self.codegen_expr_in_expected_context(&arm.body, Some(target))?;
+                        if target == CgTy::Unit {
+                            CgValue::unit()
+                        } else if v.ty != target {
+                            self.coerce_value(arm.body.span, v, target)?
+                        } else {
+                            v
+                        }
+                    }
+                    None => self.codegen_expr(&arm.body)?,
+                };
+
+                if expected_out_ty.is_none() {
+                    match out_ty {
+                        None => out_ty = Some(v.ty),
+                        Some(prev) if prev == v.ty => {}
+                        Some(_) => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "when arm type mismatch",
+                                at: arm.body.span.into(),
+                            });
+                        }
+                    }
+                } else {
+                    // 已在 expected-context 下生成并按需 coercion：确保 `v.ty == expected_out_ty`。
+                    if let Some(target) = expected_out_ty {
+                        v.ty = target;
                     }
                 }
 
@@ -11409,7 +11975,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 生成各 arm body，并把结果汇合到 merge。
-        let mut out_ty: Option<CgTy> = None;
+        let mut out_ty: Option<CgTy> = expected_out_ty;
         let mut incoming: Vec<(inkwell::basic_block::BasicBlock<'ctx>, CgValue<'ctx>)> = Vec::new();
 
         for (idx, arm) in arms.iter().enumerate() {
@@ -11418,15 +11984,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.env.push_scope();
             self.bind_when_pat(span, subject_ty, &arm.pat, subject_ptr)?;
 
-            let v = self.codegen_expr(&arm.body)?;
-            match out_ty {
-                None => out_ty = Some(v.ty),
-                Some(prev) if prev == v.ty => {}
-                Some(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when arm type mismatch",
-                        at: arm.body.span.into(),
-                    });
+            let mut v = match expected_out_ty {
+                Some(target) => {
+                    let v = self.codegen_expr_in_expected_context(&arm.body, Some(target))?;
+                    if target == CgTy::Unit {
+                        CgValue::unit()
+                    } else if v.ty != target {
+                        self.coerce_value(arm.body.span, v, target)?
+                    } else {
+                        v
+                    }
+                }
+                None => self.codegen_expr(&arm.body)?,
+            };
+
+            if expected_out_ty.is_none() {
+                match out_ty {
+                    None => out_ty = Some(v.ty),
+                    Some(prev) if prev == v.ty => {}
+                    Some(_) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when arm type mismatch",
+                            at: arm.body.span.into(),
+                        });
+                    }
+                }
+            } else {
+                if let Some(target) = expected_out_ty {
+                    v.ty = target;
                 }
             }
 
@@ -12456,13 +13041,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     tail_value = None;
                 }
                 hir::StmtKind::Expr(expr) => {
-                    let v = self.codegen_expr(expr)?;
+                    let expected = if is_last {
+                        Some(declared_return_ty)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     tail_value = if is_last { Some(v) } else { None };
                 }
                 hir::StmtKind::Return { value } => {
                     let out = match value {
                         Some(expr) => {
-                            let v = self.codegen_expr(expr)?;
+                            let v =
+                                self.codegen_expr_in_expected_context(expr, Some(declared_return_ty))?;
                             if declared_return_ty == CgTy::Unit {
                                 CgValue::unit()
                             } else {
@@ -12618,7 +13209,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn codegen_block_value(&mut self, block: &hir::Block) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_block_value_in_expected_context(block, None)
+    }
+
+    fn codegen_block_value_in_expected_context(
+        &mut self,
+        block: &hir::Block,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         self.env.push_scope();
+        let expected_block_ty = match expected {
+            Some(t) => t,
+            None => self.cg_ty_of(block.ty).unwrap_or(CgTy::Unit),
+        };
 
         let mut value: CgValue<'ctx> = CgValue::unit();
         for (idx, stmt) in block.stmts.iter().enumerate() {
@@ -12634,7 +13237,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value = CgValue::unit();
                 }
                 hir::StmtKind::Expr(expr) => {
-                    let v = self.codegen_expr(expr)?;
+                    let expected = if is_last {
+                        Some(expected_block_ty)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     value = if is_last { v } else { CgValue::unit() };
                 }
                 hir::StmtKind::While { cond, body } => {
@@ -12648,7 +13256,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: stmt.span.into(),
                     });
                 }
-                hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } | hir::StmtKind::Todo(_) => {
+                hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement inside block expression",
                         at: stmt.span.into(),
@@ -13030,9 +13640,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let local = self
                     .env
                     .get(*id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "unknown local value",
-                        at: span.into(),
+                    .ok_or_else(|| {
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "unknown local value",
+                            at: span.into(),
+                        }
                     })?;
 
                 match local.ty {
@@ -13501,16 +14113,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// - `field_idx`：字段在 payload struct 中的稳定索引
     /// - `field_cg`：字段的 codegen 类型（用于 load/store）
     fn lookup_class_field_by_fqn(
-        &self,
+        &mut self,
         field_fqn: &str,
         at: crate::span::Span,
     ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
         let Some((owner_fqn, _name)) = field_fqn.rsplit_once('.') else {
             return Ok(None);
         };
-        let Some(class) = self.class_inits.get(owner_fqn).cloned() else {
+        if !self.class_inits.contains_key(owner_fqn) {
             return Ok(None);
-        };
+        }
+        let class = self.class_init_layout(at, owner_fqn)?;
         let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
             return Ok(None);
         };
@@ -14327,6 +14940,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match (value.ty, target) {
             (CgTy::Unit, CgTy::Unit) => Ok(CgValue::unit()),
+            (CgTy::Unit, CgTy::Ref) => {
+                // early stage：允许把 `Unit` 装箱到 `Any`。
+                //
+                // 说明：
+                // - 当前阶段有一部分“语句位置”的表达式仍会被类型系统视为 `Any`（例如某些 `block/when`），
+                //   因此后端需要支持 `Unit -> Any` 的值提升；
+                // - v0 阶段 runtime type descriptor 仍是占位（NULL），这里只保证“可执行/可回归”。
+                let boxed = self.codegen_box_unit_to_ref(at)?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(boxed.into()),
+                })
+            }
             (CgTy::Bool, CgTy::Bool) => Ok(value),
             (CgTy::Bool, CgTy::Int(int_ty)) => {
                 let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -14415,6 +15041,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             }),
         }
+    }
+
+    fn codegen_box_unit_to_ref(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        // 约定（early stage）：
+        // - box 对象布局：`{ header: ScoopGcObjectHeader }`（无 payload）
+        // - 对象头字段由 runtime 的 `scoop_alloc` 初始化（与 `codegen_box_int_to_ref` 一致）。
+        let target = self.target_layout();
+
+        // 对象头布局与 C runtime 对齐（见 `runtime/c/scoop_gc.h` 的 static asserts）。
+        let header_size = 2 * target.pointer_size + 16;
+        let header_align = target.pointer_align.max(8).max(1);
+        let total_size = align_to(header_size, header_align);
+
+        let rt_alloc = self.declare_runtime_alloc();
+        let size_v = self.context.i64_type().const_int(total_size as u64, false);
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_box_unit")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: at.into(),
+            })?;
+
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: at.into(),
+            });
+        };
+
+        Ok(raw_ptr)
     }
 
     fn codegen_box_int_to_ref(

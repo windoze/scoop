@@ -973,6 +973,104 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         let Some(resolved) = &member.resolved else {
+            // 当 receiver 形态较复杂（例如 `Shared.t1Go.recv()`）时，`resolve_member_access`
+            // 可能无法静态推断 receiver 类型，从而不会写回 `member.resolved`。
+            //
+            // 但在“调用点”（`receiver.member(args...)`）我们仍可以基于 import 表收集
+            // “同名 extension fun”候选集合写回到 `member.call`，用于后续 typecheck 做最终决议。
+            //
+            // 额外约束：只有当候选集合唯一时，才把 `member.resolved` 绑定为该 `ExtensionFun`，
+            // 以便后续 lowering/codegen 能把 extension call 降糖为顶层调用（避免后端无法处理 `MemberAccess` callee）。
+            let name = self.source.slice(member.span);
+
+            let mut fqns: Vec<String> = Vec::new();
+
+            // 1) 同包（同 cone）隐式可见。
+            for ext in &self.index.extension_funs {
+                if ext.decl_cone != self.use_cone {
+                    continue;
+                }
+                if ext.pkg_prefix != self.pkg_prefix {
+                    continue;
+                }
+                if ext.name != name {
+                    continue;
+                }
+
+                let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                    continue;
+                };
+                if syms.any_visible_fun(self.use_cone, self.source).is_some() {
+                    fqns.push(ext.fqn.clone());
+                }
+            }
+
+            // 2) star import：`import pkg.*`。
+            for prefix in &self.imports.star {
+                for ext in &self.index.extension_funs {
+                    if ext.pkg_prefix != *prefix {
+                        continue;
+                    }
+                    if ext.name != name {
+                        continue;
+                    }
+
+                    let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                        continue;
+                    };
+                    if syms.any_visible_fun(self.use_cone, self.source).is_some() {
+                        fqns.push(ext.fqn.clone());
+                    }
+                }
+            }
+
+            // 3) 显式 import（含 alias）：通过 local 名字 → fqn 查找 extension。
+            if let Some(imported) = self.imports.value.explicit.get(name) {
+                for imported_fqn in imported {
+                    for ext in self
+                        .index
+                        .extension_funs
+                        .iter()
+                        .filter(|e| e.fqn == *imported_fqn)
+                    {
+                        let Some(syms) = self.index.by_fqn.get(&ext.fqn) else {
+                            continue;
+                        };
+                        if syms.any_visible_fun(self.use_cone, self.source).is_some() {
+                            fqns.push(ext.fqn.clone());
+                        }
+                    }
+                }
+            }
+
+            fqns.sort();
+            fqns.dedup();
+
+            if fqns.is_empty() {
+                return Ok(());
+            }
+
+            // 先写回候选集合，供后续 typecheck 做 most-specific/歧义诊断。
+            let mut candidates: Vec<ast::CallCandidate> = fqns
+                .iter()
+                .cloned()
+                .map(|fqn| ast::CallCandidate::Fun { fqn })
+                .collect();
+            candidates.sort_by(|a, b| call_candidate_sort_key(a).cmp(&call_candidate_sort_key(b)));
+            candidates.dedup();
+
+            member.call = Some(ast::ResolvedCall {
+                candidates,
+                shape: self.call_shape(args),
+            });
+
+            // 候选唯一时把 callee 也绑定为该 fqn（让旧的 typecheck/后端路径可用）。
+            if fqns.len() == 1 {
+                member.resolved = Some(ast::ResolvedMemberRef::ExtensionFun {
+                    fqn: fqns[0].clone(),
+                });
+            }
+
             return Ok(());
         };
 

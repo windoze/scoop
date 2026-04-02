@@ -516,6 +516,8 @@ pub type ClassInitIndex = HashMap<String, ClassInit>;
 #[derive(Debug, Clone)]
 pub struct ClassInit {
     pub fqn: String,
+    /// 直接 superclass 的 FQN（仅 class 单继承；interface 不在此处记录）。
+    pub super_class_fqn: Option<String>,
     /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
     pub this_id: SymbolId,
     /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。

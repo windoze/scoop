@@ -663,6 +663,10 @@ impl<'a> TypeLowering<'a> {
         self.index
     }
 
+    pub(super) fn imports(&self) -> &ImportTable {
+        &self.imports
+    }
+
     pub(super) fn is_object_type(&self, fqn: &str) -> bool {
         self.index.object_types.contains(fqn)
     }

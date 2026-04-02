@@ -1,0 +1,49 @@
+// EXPECT: pass
+// RUN-STDOUT: class_init_order_inheritance_chain_basic.stdout
+//
+// T1327a：类初始化（单继承链）顺序
+// - 多层继承：先执行基类 init，再执行派生类 init；
+// - 每一层仍按源码顺序交错执行 property initializer 与 `init {}`。
+
+import scoop.core.*
+
+open class A() {
+    val a: Int = @Safe {
+        println("A.a")
+        1
+    }
+
+    init {
+        println("A.init")
+    }
+}
+
+open class B() : A() {
+    val b: Int = @Safe {
+        println("B.b")
+        2
+    }
+
+    init {
+        println("B.init")
+    }
+}
+
+class C() : B() {
+    val c: Int = @Safe {
+        println("C.c")
+        3
+    }
+
+    init {
+        println("C.init")
+    }
+}
+
+fun main(): Int {
+    println("start")
+    val _x: C = C()
+    println("after")
+    return 0
+}
+
