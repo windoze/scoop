@@ -4,6 +4,16 @@ version.workspace = true
 edition.workspace = true
 build = "build.rs"
 
+[features]
+# 默认选择 baseline GC backend，保持既有行为不变。
+default = ["gc-baseline"]
+
+# baseline：带协作式 STW 的 mark-sweep（当前实现位于 `runtime/c/scoop_gc.c`）。
+gc-baseline = []
+
+# minimal：单线程、无 STW 的最小 backend（用于验证 backend 选择机制；见 TODO T1405a）。
+gc-minimal = []
+
 [build-dependencies]
 cc = "1.2.38"
 

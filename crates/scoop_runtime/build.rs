@@ -4,6 +4,13 @@
 //! 该 build script 强制使用 clang（见 PLAN.md）。
 
 fn main() {
+    let gc_backend = resolve_gc_backend();
+    let gc_backend_define = match gc_backend {
+        1 => "1", // SCOOP_GC_BACKEND_BASELINE
+        2 => "2", // SCOOP_GC_BACKEND_MINIMAL
+        _ => unreachable!("invalid gc backend id: {gc_backend}"),
+    };
+
     // runtime 源码位于 crate 目录之外，需显式声明变更依赖，否则 cargo 无法自动触发重编译。
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_runtime.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_array.c");
@@ -13,6 +20,9 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_task_executor.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_once.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend_minimal.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_common.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_test.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform.h");
@@ -29,8 +39,10 @@ fn main() {
     // cc crate 会把 `compile("name")` 产物作为静态库链接给依赖该 crate 的目标。
     // 注意：driver（编译器）本身不需要链接 runtime；但我们先把 runtime
     // 作为独立构建单元放在这里，后续用于链接用户程序时复用其产物/源码。
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .compiler("clang")
+        .define("SCOOP_GC_BACKEND", gc_backend_define)
         .file("../../runtime/c/scoop_runtime.c")
         .file("../../runtime/c/scoop_array.c")
         .file("../../runtime/c/scoop_sync.c")
@@ -38,9 +50,35 @@ fn main() {
         .file("../../runtime/c/scoop_channels.c")
         .file("../../runtime/c/scoop_task_executor.c")
         .file("../../runtime/c/scoop_once.c")
-        .file("../../runtime/c/scoop_gc.c")
+        .file("../../runtime/c/scoop_gc_common.c")
         .file("../../runtime/c/scoop_test.c")
         .warnings(true)
-        .extra_warnings(true)
-        .compile("scooprt");
+        .extra_warnings(true);
+
+    // 为避免产出“空对象文件”触发 ranlib 警告，这里只编译被选中的 backend。
+    match gc_backend {
+        1 => {
+            build.file("../../runtime/c/scoop_gc.c");
+        }
+        2 => {
+            build.file("../../runtime/c/scoop_gc_backend_minimal.c");
+        }
+        _ => unreachable!("invalid gc backend id: {gc_backend}"),
+    }
+
+    build.compile("scooprt");
+}
+
+fn resolve_gc_backend() -> u8 {
+    let baseline = std::env::var("CARGO_FEATURE_GC_BASELINE").is_ok();
+    let minimal = std::env::var("CARGO_FEATURE_GC_MINIMAL").is_ok();
+
+    match (baseline, minimal) {
+        (true, false) => 1,
+        (false, true) => 2,
+        (false, false) => 1, // 未启用特性时默认 baseline（与 C 侧默认一致）
+        (true, true) => {
+            panic!("features `gc-baseline` and `gc-minimal` are mutually exclusive; use `--no-default-features` when selecting `gc-minimal`");
+        }
+    }
 }

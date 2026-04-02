@@ -1,3 +1,5 @@
+#![cfg(feature = "gc-baseline")]
+
 // 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
 use scoop_runtime as _;
 

@@ -5553,7 +5553,7 @@
 - 依赖：T0904
 - 备注：该任务范围过大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
 
-### T1405a [TODO] GC backend 选择机制 + baseline/minimal 两后端跑通核心 GC 回归（PLAN §15.3）
+### T1405a [DONE] GC backend 选择机制 + baseline/minimal 两后端跑通核心 GC 回归（PLAN §15.3）
 - 描述：引入 GC backend 的编译期选择（feature/config），并在不改变 runtime ABI allowlist 的前提下新增一个“最小可用”的第二后端（minimal），让同一套核心 GC 测试/fixtures 可在两种 backend 下运行。
 - 目标：
   - minimal 后端先不支持多线程 stop-the-world（相关测试可按 feature gating 保留在 baseline 后端）；
@@ -5564,6 +5564,18 @@
   - `cargo test -p scoop_runtime --no-default-features --features gc-minimal` 通过（minimal）；
   - `cargo test --all` 通过。
 - 依赖：T0904
+ - 完成：
+   - `runtime/c/`：引入 `SCOOP_GC_BACKEND` 宏与 `baseline/minimal` 两个实现编译单元：
+     - `runtime/c/scoop_gc_backend.h`
+     - `runtime/c/scoop_gc_common.c`（shared：self-check + type descriptor trace）
+     - `runtime/c/scoop_gc.c`（baseline：协作式 STW mark-sweep；受宏控制）
+     - `runtime/c/scoop_gc_backend_minimal.c`（minimal：单线程/无 STW；多线程检测时 collect 退化为 no-op）
+   - `crates/scoop_runtime/`：新增 Cargo features `gc-baseline`（默认）/`gc-minimal`，并在 build.rs 中按 feature 只编译被选中的 backend，避免 ranlib “空对象文件”警告。
+   - tests：`gc_stop_the_world` integration test 仅在 `gc-baseline` 下启用，确保 minimal backend 不被错误要求支持 STW。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-minimal`
+   - `cargo test --all`
 
 ### T1405b [TODO] GC backend 能力矩阵：按 backend 固化线程/移动/精确 roots 等 capability（PLAN §15.3）
 - 描述：为 GC backend 固化 capability（例如：是否支持 STW、多线程 roots 枚举、移动/压缩、精确 roots 更新），并把这些能力以“编译期/构建期可检查”的形式接入到测试与后续实现（Immix/adapter）。
