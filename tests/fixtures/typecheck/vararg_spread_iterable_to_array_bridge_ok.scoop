@@ -1,0 +1,35 @@
+// EXPECT: pass
+// 目标：T1325c vararg spread：对满足迭代协议的视图提供显式 `toArray()` 桥接。
+//
+// 说明：
+// - 语言层 spread 仍只接受 `Array/tuple`；
+// - 对 `Iterable` 需显式转换：`f(*xs.toArray())`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+import scoop.collections.*
+
+class MyIterator() : IntIterator {
+    fun next(): Option<Int> {
+        // 说明：当前阶段 `None` 作为“裸标识符值”不可用；用 `None()` 走 enum variant ctor 路径。
+        return None()
+    }
+}
+
+class MyIterable() : IntIterable {
+    fun iterator(): IntIterator {
+        return MyIterator()
+    }
+}
+
+fun sum(vararg xs: Int): Int {
+    // 当前阶段只回归“调用点语义”，不要求在函数体内访问 `xs`。
+    return 0
+}
+
+fun checkBridge(): Unit {
+    val view: IntIterable = MyIterable()
+    val a: Int = sum(*view.toArray())
+    return ()
+}

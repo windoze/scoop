@@ -1,0 +1,25 @@
+// Scoop stdlib（pure scoop）：迭代协议与桥接 helper（early stage）
+//
+// 目标（TODO T1325c）：
+// - 为满足 `Iterable/Iterator` 迭代协议的视图提供显式转换为 `Array` 的 helper（例如 `toArray()`），
+//   以支持调用点 `*view.toArray()` 的 vararg spread 用例。
+//
+// 重要限制（当前阶段）：
+// - “普通成员函数调用”（例如 `it.next()`）与 `for` lowering 尚未在 HIR/LLVM 全链路落地（见 TODO T1508/T0705），
+//   因此这里先落一个**可编译**的最小实现，避免 stdlib 注入后影响 `scoop build/run`。
+// - 真正的 `Iterable<Int>.toArray()` 语义（迭代消费并收集）将在 member call + for lowering 打通后补齐。
+
+package scoop.collections
+
+import scoop.core.*
+
+/// 把 `Iterable<Int>` 显式收集为 `Array<Int>`。
+///
+/// 说明：
+/// - 该 helper 的主要用途是“调用点显式分配”：`f(*xs.toArray())`；
+/// - 当前阶段先保证 API surface 可用（typecheck 可通过），并保持实现可编译。
+fun IntIterable.toArray(): Array<Int> {
+    // 最小实现：先返回空数组（避免依赖尚未落地的 iterator/next member call 与 for lowering）。
+    val b: Any = __scoop_array_builder_new()
+    return __scoop_array_builder_build_array(b)
+}
