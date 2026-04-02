@@ -1115,19 +1115,18 @@ void *scoop_alloc(uint64_t size) {
   if (state->multi_thread_seen || (size_t)object_size > cap) {
     p = malloc((size_t)object_size);
   } else {
-    // bump-in-block；block 用尽则从全局空间获取新 block（先复用空 block，再分配新 block）。
+    // bump-in-hole（Immix v0）：优先复用 partial blocks（由 region sweep 产出的 holes），
+    // 不够时再复用整块空闲 block，最后才分配新 block。
     ScoopGcImmixBlock *block = state->current_block;
     if (block == 0) {
       block = scoop_gc_immix_state_take_block(state);
     }
 
-    for (uint32_t tries = 0; tries < 4 && p == 0; tries++) {
+    for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
       if (block == 0) {
         break;
       }
-      p = scoop_gc_immix_block_alloc_bump(block,
-                                          (size_t)object_size,
-                                          (size_t)sizeof(void *));
+      p = scoop_gc_immix_block_alloc(block, (size_t)object_size, (size_t)sizeof(void *));
       if (p != 0) {
         break;
       }

@@ -1,13 +1,13 @@
-// Scoop GC backend: immix (v0 scaffold; single-thread, non-moving).
+// Scoop GC backend: immix (v0; single-thread, non-moving).
 //
-// 目标（TODO T1406a / PLAN §15.3）：
-// - 先把 Immix backend 的“选择机制/编译链路/capability matrix”打通并可回归；
-// - allocator（line/block）与 mark-region 的真实 Immix 实现留给 T1406b/T1406c。
+// 当前实现（TODO T1406a/T1406b/T1406c / PLAN §15.3）：
+// - allocator：line/block + hole bump（优先复用 partial blocks，降低碎片化）；
+// - mark-region：按对象 trace 标记其覆盖到的 lines；
+// - region sweep：基于 line mark/alloc bitmap 回收 holes，并重建可复用 block 列表。
 //
-// 当前实现说明：
-// - 为了在接入阶段保持行为可验证，本文件暂时复用 v0 的 mark-sweep 逻辑（与 minimal 类似）；
-// - 若检测到多个线程参与注册，则 `scoop_gc_collect()` 将退化为 no-op（宁可泄漏也不错误回收）；
-// - 后续 Immix 多线程正确性/性能将由 T1408/T1409 推进。
+// 限制（v0）：
+// - 不支持多线程 roots 枚举；若检测到多个线程参与注册，则 `scoop_gc_collect()` 退化为 no-op；
+// - 不支持移动/压缩（moving/compaction），见 TODO T1407。
 
 #include "scoop_gc_backend.h"
 
@@ -247,6 +247,7 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
     state->owner_thread_set = 0;
 
     // 把已分配的 blocks 复位并串到 free list，供分配路径复用。
+    state->reusable_blocks = 0;
     state->free_blocks = 0;
     state->current_block = 0;
     for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
@@ -343,6 +344,13 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
   }
 
   obj->mark = ctx->mark_value;
+  // mark-region：额外把对象覆盖到的 lines 记录到 block 的 mark bitmap（用于 region sweep 回收 holes）。
+  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  if (block != 0) {
+    uint64_t raw_size = obj->size;
+    size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
+    scoop_gc_immix_block_mark_marked_range(block, (const uint8_t *)obj, size);
+  }
   scoop_gc_mark_stack_push(ctx->stack, obj);
 }
 
@@ -384,6 +392,11 @@ void scoop_gc_collect(void) {
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
+  // 0) clear per-block mark bitmap（避免上一轮残留影响 region sweep）
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    scoop_gc_immix_block_clear_mark_bits(it);
+  }
+
   // 1) mark roots（只扫描当前线程的 shadow stack）
   (void)scoop_gc_shadow_stack_visit_roots_current_thread(scoop_gc_mark_visitor, (void *)&ctx);
 
@@ -418,7 +431,7 @@ void scoop_gc_collect(void) {
     free(stack.items);
   }
 
-  // 3) sweep（v0：只回收“整块空闲 block”，不做 partial block 复用；T1406c 会升级为 mark-region）
+  // 3) sweep：释放 unreachable 对象；Immix block 内对象不逐个 free，而是留给 region sweep 复用 holes。
   ScoopGcObjectHeader **link = &heap->objects;
   while (*link != 0) {
     ScoopGcObjectHeader *obj = *link;
@@ -445,14 +458,44 @@ void scoop_gc_collect(void) {
     if (block->live_objects > 0) {
       block->live_objects -= 1;
     }
+  }
 
-    if (block->live_objects == 0) {
-      // 整块 block 回收：清空元数据并加入 free list，供后续分配复用。
-      scoop_gc_immix_block_reset(block);
-      if (state->current_block != block) {
-        block->next_free = state->free_blocks;
-        state->free_blocks = block;
+  // 4) region sweep：把 mark bitmap（live lines）融合回 alloc bitmap，并重建可复用 block 列表。
+  //
+  // 策略（v0）：优先复用 partial blocks（减少碎片化），其次复用整块空闲 blocks。
+  state->reusable_blocks = 0;
+  state->free_blocks = 0;
+  state->current_block = 0;
+
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    it->next_free = 0;
+
+    if (it->live_objects == 0) {
+      scoop_gc_immix_block_reset(it);
+      it->next_free = state->free_blocks;
+      state->free_blocks = it;
+      continue;
+    }
+
+    // 把 live lines 保留为 alloc bits；dead lines 清零为 hole；并清空 mark bits。
+    size_t reserved = scoop_gc_immix_block_reserved_lines(it);
+    for (size_t line = reserved; line < (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK; line++) {
+      uint32_t live = scoop_gc_immix_bitmap_test_bit(it->line_mark_bits,
+                                                     SCOOP_GC_IMMIX_BITMAP_WORDS,
+                                                     line);
+      if (live) {
+        scoop_gc_immix_bitmap_set_bit(it->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+      } else {
+        scoop_gc_immix_bitmap_clear_bit(it->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
       }
+      scoop_gc_immix_bitmap_clear_bit(it->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    }
+
+    // 准备第一个 hole：之后分配可以在 hole 内 bump。
+    scoop_gc_immix_block_setup_first_hole(it);
+    if (it->cursor < it->limit) {
+      it->next_free = state->reusable_blocks;
+      state->reusable_blocks = it;
     }
   }
 

@@ -24,6 +24,7 @@
 - 2026-04-03：完成 T1405b：补齐 GC backend capability matrix（STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots），并把这些能力以编译期常量接入测试 gating：`gc_stop_the_world` 在 `gc-minimal` 下显式 `ignored`；新增 `gc_capabilities` 集成测试固化矩阵值。
 - 2026-04-03：T1406（Immix v0：单线程、非移动）范围较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，已拆分为 T1406a～T1406d：先接入 `gc-immix` feature + build 选择 + capability matrix（T1406a），再逐步实现 allocator（T1406b）、mark-region（T1406c）与 microbench/fixtures（T1406d）。
 - 2026-04-03：完成 T1406a：新增 `gc-immix` feature 与 `SCOOP_GC_BACKEND_IMMIX`（C/Rust 两侧 capability matrix 同步），并新增 Immix backend 的 v0 scaffold 编译单元；更新 `scoop_runtime` 测试 gating（`gc_stop_the_world` 在 `gc-immix` 下 ignore）。
+- 2026-04-03：完成 T1406c：Immix backend 落地 mark-region（line mark bitmap）+ region sweep（holes 复用，优先 partial blocks），并新增 `scoop_runtime` 集成测试回归“回收→再分配”循环与 live 对象不被覆盖。
 - 2026-04-02：完成 T1403c：收敛 once/guard 相关 OS 调用到 platform backend：新增 dynlib symbol lookup（RTLD_DEFAULT 类语义）platform API，并在 POSIX backend 通过 `dlsym/dlerror` 实现（Windows 占位）；`runtime/c/scoop_once.c` 改为仅依赖 platform thread self/yield + dynlib lookup，不再直接包含/调用 pthread/sched/dlfcn。
 - 2026-04-02：完成 T1404：sysroot/std 平台 API surface 审计与固化清单：新增 `PLATFORM_API_SURFACE_AUDIT.md`（覆盖 env/time/fs/path/io/process/thread/sync/channels/net 的 API surface ↔ runtime 符号 ↔ backend 支持现状），并新增 typecheck fixture `tests/fixtures/typecheck/std_platform_api_no_os_types_is_error.scoop` 回归“平台 API 不泄漏 FILE/HANDLE/pthread_t 等 OS 概念类型”。
 - 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。
@@ -1048,7 +1049,7 @@ fixtures：
 - [ ] **Immix v0（单线程、非移动）**：作为 baseline mark-sweep 的可选 backend，引入 line/block allocator 与 mark-region 基本流程。
   - [x] T1406a：backend 选择 + capability matrix（`gc-immix` feature / C 编译单元接入）
   - [x] T1406b：allocator v0（line/block allocator，单线程）
-  - [ ] T1406c：mark-region v0（单线程、非移动）
+  - [x] T1406c：mark-region v0（单线程、非移动）
   - [ ] T1406d：microbench/fixtures（碎片化与吞吐对比）
 - [ ] **移动与压缩（moving/compaction）**：
   - 支持在 STW 阶段对稀疏 block 做 evacuation，使用 forwarding pointer 更新引用；

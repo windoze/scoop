@@ -5635,11 +5635,20 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1406c [TODO] Immix mark-region v0：mark stack + region sweep（单线程、非移动）
+### T1406c [DONE] Immix mark-region v0：mark stack + region sweep（单线程、非移动）
 - 描述：实现 Immix 的 mark-region：按对象 trace 标记 line；sweep 时基于 line mark/alloc bitmap 复用空闲 line/块，并提供最小碎片化控制策略（例如优先重用 partially free blocks）。
 - 目标：先保证正确性与可回归；不追求最优策略；不实现 evacuation/forwarding pointer。
 - 验收：新增 runtime_gc fixtures 或 `scoop_runtime` 集成测试覆盖“分配→丢弃→回收→再分配”的循环；`--gc-stress`（若可用）下稳定通过。
 - 依赖：T1406b
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：实现 mark-region（按对象标记 line）+ region sweep（基于 mark/alloc bitmap 复用 holes），并重建 `reusable/free` block 列表（优先 partial blocks）。
+   - `runtime/c/scoop_gc_immix_internal.h`：引入 hole bump 分配（`cursor + hole_limit`）、bitmap test/clear helpers、以及 `reusable_blocks` 列表支持。
+   - `runtime/c/scoop_runtime.c`：Immix 分配路径改为 `scoop_gc_immix_block_alloc`（hole-aware），并提高 block 尝试上限以覆盖碎片场景。
+   - tests：新增 `crates/scoop_runtime/tests/gc_immix_mark_region.rs` 回归“partial blocks holes 可复用，且 live 对象不被覆盖”。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1406d [TODO] GC microbench/fixtures：碎片化与吞吐基准（baseline vs Immix）
 - 描述：为 GC 引入可重复的 microbench（或最小 benchmark harness），覆盖碎片化与分配吞吐，并记录基线数据用于后续优化回归。
