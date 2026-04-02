@@ -1,0 +1,23 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::for_next_not_option
+// EXPECT-ERROR-AT: 20:15
+// EXPECT-ERROR: Option<T>
+// 目标：T1328 旧的 `hasNext()/next()` 迭代协议不再被接受：`next()` 必须返回 `Option<T>`。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface BadIterator<T> {
+    fun next(): T
+}
+
+interface HasIterator<T> {
+    fun iterator(): BadIterator<T>
+}
+
+fun use(xs: HasIterator<Int>) {
+    for (x in xs) {
+        println(x)
+    }
+}

@@ -1,15 +1,15 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::for_missing_has_next_method
+// EXPECT-ERROR-CODE: scoop::typecheck::for_missing_next_method
 // EXPECT-ERROR-AT: 20:15
-// EXPECT-ERROR: hasNext()
-// 目标：T1304 iterator() 存在但缺少 hasNext() 时应报错。
+// EXPECT-ERROR: next()
+// 目标：T1328 iterator() 存在但缺少 `next(): Option<T>` 时应报错。
 
 package fixtures.typecheck
 
 import scoop.core.*
 
 interface BadIterator<T> {
-    fun next(): T
+    fun hasNext(): Bool
 }
 
 interface HasIterator<T> {
@@ -21,3 +21,4 @@ fun use(xs: HasIterator<Int>) {
         println(x)
     }
 }
+

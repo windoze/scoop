@@ -1654,7 +1654,7 @@ pub struct ComptimeFor {
 /// `for (x in xs) { ... }` 语句（Kotlin-like，Appendix B.12）。
 ///
 /// 说明：
-/// - 语义上会被 lowering 为迭代协议（`iterator`/`hasNext`/`next`）；
+/// - 语义上会被 lowering 为迭代协议（`iterator`/`next(): Option<T>`）；
 /// - 当前阶段仅做语法建模；实际 lowering 留给后续阶段（T08xx codegen）。
 #[derive(Debug, Clone)]
 pub struct ForStmt {

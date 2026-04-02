@@ -1,13 +1,12 @@
 // EXPECT: pass
-// 目标：T1304 `for (x in xs)` 语法 + 迭代协议（iterator/hasNext/next）最小类型检查。
+// 目标：T1328 `for (x in xs)` 迭代协议升级：`Iterator.next(): Option<T>`（不再依赖 `hasNext()`）。
 
 package fixtures.typecheck
 
 import scoop.core.*
 
 interface MyIterator<T> {
-    fun hasNext(): Bool
-    fun next(): T
+    fun next(): Option<T>
 }
 
 interface MyIterable<T> {
@@ -19,4 +18,3 @@ fun use(xs: MyIterable<Int>) {
         println(x)
     }
 }
-

@@ -1096,25 +1096,19 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("`for` 迭代器类型 {found} 缺少 `hasNext()`")]
-    #[diagnostic(code(scoop::typecheck::for_missing_has_next_method))]
-    ForMissingHasNextMethod {
-        found: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("`hasNext()` 返回类型必须是 Bool，但得到 {found}")]
-    #[diagnostic(code(scoop::typecheck::for_has_next_not_bool))]
-    ForHasNextNotBool {
-        found: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("`for` 迭代器类型 {found} 缺少 `next()`")]
+    #[error("`for` 迭代器类型 {found} 缺少 `next()`（需返回 `Option<T>`）")]
     #[diagnostic(code(scoop::typecheck::for_missing_next_method))]
     ForMissingNextMethod {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`for` 迭代器的 `next()` 返回类型必须是 `Option<T>`（迭代协议已升级，不再使用 `hasNext()`），但得到 {found}"
+    )]
+    #[diagnostic(code(scoop::typecheck::for_next_not_option))]
+    ForNextNotOption {
         found: String,
         #[label("这里")]
         span: miette::SourceSpan,
@@ -13245,8 +13239,7 @@ fn check_stmt_exprs(
         ast::StmtKind::For(f) => {
             // Kotlin-like：`for (x in xs)` 按迭代协议降糖：
             // - `xs.iterator(): Iter`
-            // - `Iter.hasNext(): Bool`
-            // - `Iter.next(): Elem`
+            // - `Iter.next(): Option<Elem>`
             //
             // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
             let iter_ty = infer_expr_type(
@@ -13297,42 +13290,11 @@ fn check_stmt_exprs(
             let Some((iterator_fqn, iterator_args)) =
                 try_extract_nominal_fqn_and_args(iterator_ty, lower)
             else {
-                return Err(ExprTypeError::ForMissingHasNextMethod {
+                return Err(ExprTypeError::ForMissingNextMethod {
                     found: lower.fmt_type(iterator_ty),
                     span: f.iter.span.into(),
                 });
             };
-
-            let Some(has_next_sig) = collect_unique_zero_arg_member_method_sig(
-                source,
-                iterator_ty,
-                &iterator_fqn,
-                &iterator_args,
-                "hasNext",
-                f.iter.span,
-                lower,
-                builtins,
-            )?
-            else {
-                return Err(ExprTypeError::ForMissingHasNextMethod {
-                    found: lower.fmt_type(iterator_ty),
-                    span: f.iter.span.into(),
-                });
-            };
-            record_member_method_effects_as_performed(
-                &iterator_fqn,
-                &iterator_args,
-                &has_next_sig,
-                f.for_span,
-                lower,
-            )?;
-
-            if !is_type_assignable(has_next_sig.return_ty, builtins.bool_, lower, builtins) {
-                return Err(ExprTypeError::ForHasNextNotBool {
-                    found: lower.fmt_type(has_next_sig.return_ty),
-                    span: f.iter.span.into(),
-                });
-            }
 
             let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
                 source,
@@ -13357,7 +13319,15 @@ fn check_stmt_exprs(
                 f.for_span,
                 lower,
             )?;
-            let elem_ty = next_sig.return_ty;
+            let elem_ty = match lower.type_kind(next_sig.return_ty) {
+                TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+                _ => {
+                    return Err(ExprTypeError::ForNextNotOption {
+                        found: lower.fmt_type(next_sig.return_ty),
+                        span: f.iter.span.into(),
+                    });
+                }
+            };
 
             // binder 仅在 body 作用域内可见：进入时注入，退出时回滚。
             let saved_locals = locals.clone();

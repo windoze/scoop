@@ -5380,7 +5380,7 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test --all --features llvm`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1328 [TODO] `for`/迭代协议升级：`Iterator.next(): Option<T>`（移除 `hasNext()`）
+### T1328 [DONE] `for`/迭代协议升级：`Iterator.next(): Option<T>`（移除 `hasNext()`）
 - 描述：把 `for (x in xs)` 的迭代协议从旧的三元调用（`iterator()/hasNext()/next()`）升级为单一 `next(): Option<T>`（见 `SCOOP_FULL_SPEC.md` §16.2），避免 iterator 需要内部缓存“下一元素”。
 - 目标：
   - typecheck：`for (x in xs)` 只要求：
@@ -5396,6 +5396,16 @@
   - 若 `for` lowering 已落地：新增 run-pass fixture：`for` 遍历一个最小可迭代对象输出序列正确。
   - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T1304、T0407、T0705（for lowering 若开启）、`SCOOP_FULL_SPEC.md` §16.2
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：`for (x in xs)` 的迭代协议门禁升级为 `iterator()/next(): Option<T>`，不再依赖 `hasNext()`；新增稳定错误码 `scoop::typecheck::for_next_not_option` 覆盖“旧协议/返回非 Option”的迁移诊断。
+   - `crates/scoopc/src/ast/mod.rs`：更新 `for` 语句注释，反映新迭代协议。
+   - fixtures：
+     - 更新 `tests/fixtures/typecheck/for_loop_iter_protocol_ok.scoop` 使用 `next(): Option<T>`；
+     - 新增 `tests/fixtures/typecheck/for_loop_missing_next_is_error.scoop`；
+     - 迁移旧用例为 `tests/fixtures/typecheck/for_loop_next_return_not_option_is_error.scoop`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1325c [TODO] varargs spread：迭代器视图桥接（iterator → Array）
 - 描述：为满足 `iterator` 协议的视图提供显式转换为 `Array` 的 std helper（例如 `toArray()`），以支持 `*view.toArray()` 的 spread 用例。
