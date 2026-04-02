@@ -14,6 +14,9 @@ gc-baseline = []
 # minimal：单线程、无 STW 的最小 backend（用于验证 backend 选择机制；见 TODO T1405a）。
 gc-minimal = []
 
+# immix：单线程、非移动 Immix（v0 接入；allocator/mark-region 逐步落地；见 TODO T1406a）。
+gc-immix = []
+
 [build-dependencies]
 cc = "1.2.38"
 

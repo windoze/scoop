@@ -5591,11 +5591,52 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-minimal`
    - `cargo test --all`
 
-### T1406 [TODO] Immix v0：单线程、非移动 backend（PLAN §15.3）
+### T1406 Immix v0：单线程、非移动 backend（拆分为子任务）（PLAN §15.3）
 - 描述：在 baseline GC 之外实现 Immix（line/block allocator + mark-region）作为可选 backend（先单线程、非移动）。
 - 目标：先保证正确性与可回归；不要求第一版就替换默认 GC。
 - 验收：构建时可切换到 Immix backend；核心 GC fixtures 通过；至少一组分配/碎片化 microbench 显示优于 baseline（可先本地运行）。
 - 依赖：T1405a
+- 备注：该任务范围较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
+
+### T1406a [DONE] Immix backend 接入：`gc-immix` feature + build 选择 + capability matrix（v0）
+- 描述：在 `scoop_runtime` 增加 `gc-immix` feature，并让 build.rs / C 侧 `SCOOP_GC_BACKEND` 支持选择 Immix backend；补齐 Rust/C 两侧 capability matrix 的 Immix 入口与测试 gating。
+- 目标：
+  - 只做“可编译、可切换、可回归”的接入工作；
+  - Immix 的 allocator/mark-region 先不在本任务内实现（由 T1406b/T1406c 承接）。
+- 验收：
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix` 通过；
+  - `cargo test -p scoop_runtime`（默认 baseline）通过；
+  - `cargo test -p scoop_runtime --no-default-features --features gc-minimal` 通过；
+  - `cargo test --all` 通过。
+- 依赖：T1405a
+ - 完成：
+   - `crates/scoop_runtime/`：新增 `gc-immix` feature，并在 build.rs 支持选择 `SCOOP_GC_BACKEND_IMMIX`（仅编译对应 backend 编译单元）。
+   - `runtime/c/`：新增 `scoop_gc_backend_immix.c`（v0 scaffold；暂复用 mark-sweep 以保持行为可验证）；`scoop_gc_backend.h` 扩展 `SCOOP_GC_BACKEND_IMMIX` 与 capability matrix。
+   - `crates/scoop_runtime/src/gc_backend.rs`：新增 `GcBackend::Immix` 与编译期 capability 常量；增加互斥 feature 的 `compile_error!` 防线。
+   - tests：`gc_capabilities` 补齐 immix 断言；`gc_stop_the_world` 在 `gc-immix` 下显式 ignore（与 capability matrix 一致）。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-minimal`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix`
+   - `cargo test --all`
+
+### T1406b [TODO] Immix 分配器 v0：block/line allocator（单线程）
+- 描述：实现 Immix 的 line/block allocator：分配路径优先走 bump-in-block；block 用尽时从全局空间获取新 block；并维护 line mark/alloc bitmap 的最小元数据。
+- 目标：只覆盖单线程；不实现 compaction/moving；不实现多线程 TLAB。
+- 验收：新增 `scoop_runtime` 集成测试：大量分配后触发多轮 GC 仍通过；heap bytes/objects 统计不爆炸；`cargo test -p scoop_runtime --no-default-features --features gc-immix` 通过。
+- 依赖：T1406a
+
+### T1406c [TODO] Immix mark-region v0：mark stack + region sweep（单线程、非移动）
+- 描述：实现 Immix 的 mark-region：按对象 trace 标记 line；sweep 时基于 line mark/alloc bitmap 复用空闲 line/块，并提供最小碎片化控制策略（例如优先重用 partially free blocks）。
+- 目标：先保证正确性与可回归；不追求最优策略；不实现 evacuation/forwarding pointer。
+- 验收：新增 runtime_gc fixtures 或 `scoop_runtime` 集成测试覆盖“分配→丢弃→回收→再分配”的循环；`--gc-stress`（若可用）下稳定通过。
+- 依赖：T1406b
+
+### T1406d [TODO] GC microbench/fixtures：碎片化与吞吐基准（baseline vs Immix）
+- 描述：为 GC 引入可重复的 microbench（或最小 benchmark harness），覆盖碎片化与分配吞吐，并记录基线数据用于后续优化回归。
+- 目标：先让基准可跑、结果可比较；不在本任务内做自动阈值 gating（避免在不同机器上不稳定）。
+- 验收：新增一个可运行的 bench 脚本或 `cargo bench` 目标，并在文档中给出示例运行方式；本地可对比 baseline/immix 的关键指标。
+- 依赖：T1406c
 
 ### T1407 [TODO] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
 - 描述：为 Immix 增加 evacuation/compaction：在 STW 阶段把存活对象从稀疏 block 搬迁到更紧凑的区域，使用 forwarding pointer 修复引用，并与 pin/unpin/FFI 语义兼容。

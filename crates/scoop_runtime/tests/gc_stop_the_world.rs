@@ -4,8 +4,8 @@ use scoop_runtime::gc_backend::{GC_BACKEND, GC_CAPABILITIES};
 
 use core::ffi::c_void;
 use core::ptr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 
 #[repr(C)]
@@ -43,8 +43,8 @@ unsafe extern "C" {
 
 #[test]
 #[cfg_attr(
-    feature = "gc-minimal",
-    ignore = "gc-minimal backend 不支持 stop-the-world / 多线程 roots 枚举（该测试仅适用于 baseline 或未来支持这些能力的 backend）"
+    any(feature = "gc-minimal", feature = "gc-immix"),
+    ignore = "当前 backend（gc-minimal/gc-immix）不支持 stop-the-world / 多线程 roots 枚举（该测试仅适用于 baseline 或未来支持这些能力的 backend）"
 )]
 fn gc_stop_the_world_scans_roots_on_all_registered_threads() {
     assert!(

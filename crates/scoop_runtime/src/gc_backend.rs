@@ -8,7 +8,19 @@
 //! 说明：
 //! - 当前 capability 仅覆盖最小集合（STW/多线程 roots/移动/roots 更新/shadow stack roots）。
 //! - capability 与 `runtime/c/scoop_gc_backend.h` 保持同名/同语义；但这里不从 C 侧导入，
-//!   而是基于 Cargo features（`gc-baseline`/`gc-minimal`）固化为 compile-time 常量。
+//!   而是基于 Cargo features（`gc-baseline`/`gc-minimal`/`gc-immix`）固化为 compile-time 常量。
+
+// 这些 feature 是互斥的：选择多个会导致 build.rs 选择 backend 时语义不明确。
+#[cfg(all(feature = "gc-baseline", feature = "gc-minimal"))]
+compile_error!(
+    "features `gc-baseline` and `gc-minimal` are mutually exclusive; use `--no-default-features` when selecting `gc-minimal`"
+);
+#[cfg(all(feature = "gc-baseline", feature = "gc-immix"))]
+compile_error!(
+    "features `gc-baseline` and `gc-immix` are mutually exclusive; use `--no-default-features` when selecting `gc-immix`"
+);
+#[cfg(all(feature = "gc-minimal", feature = "gc-immix"))]
+compile_error!("features `gc-minimal` and `gc-immix` are mutually exclusive");
 
 /// 编译期选择的 GC backend（与 C 侧 `SCOOP_GC_BACKEND_*` 一一对应）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +29,8 @@ pub enum GcBackend {
     Baseline,
     /// minimal：单线程、无 STW 的最小 backend（用于验证 backend 选择机制）。
     Minimal,
+    /// immix：Immix GC（v0：单线程、非移动；allocator/mark-region 逐步落地）。
+    Immix,
 }
 
 /// GC backend 的能力集合（capability matrix）。
@@ -53,6 +67,13 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
         precise_roots_update: false,
         shadow_stack_roots: true,
     },
+    GcBackend::Immix => GcCapabilities {
+        stw: false,
+        multi_thread_roots_enum: false,
+        moving: false,
+        precise_roots_update: false,
+        shadow_stack_roots: true,
+    },
 };
 
 /// 解析编译期选择的 backend。
@@ -61,9 +82,11 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
 /// - `build.rs` 会把 C 侧的 `SCOOP_GC_BACKEND` 宏设置为同一选择；
 /// - 当未显式启用任何 backend feature 时，build.rs 与 C 侧都会默认回退到 baseline。
 const fn resolve_gc_backend() -> GcBackend {
+    if cfg!(feature = "gc-immix") {
+        return GcBackend::Immix;
+    }
     if cfg!(feature = "gc-minimal") {
         return GcBackend::Minimal;
     }
     GcBackend::Baseline
 }
-
