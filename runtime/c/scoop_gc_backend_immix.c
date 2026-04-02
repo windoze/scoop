@@ -14,20 +14,37 @@
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
 
 #include "scoop_gc.h"
+#include "scoop_gc_immix_internal.h"
 
 #include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
-static pthread_mutex_t scoop_gc_lock = PTHREAD_MUTEX_INITIALIZER;
-
-// 进程全局 heap（T1406a：先复用链表 + mark-sweep；T1406b/T1406c 将替换为 Immix 元数据）。
+// 进程全局 heap（对外 ABI：`scoop_gc_heap`）。
+//
+// 注意：
+// - baseline/minimal backend 使用 `heap.free_list` 存放 free list（未来复用）；
+// - Immix v0 在不改动 ABI 的前提下，把 `heap.free_list` “挪作内部 state 指针”。
 ScoopGcHeap scoop_gc_heap;
 
-// --- multi-thread detection（best-effort, leak-on-threads） ---
-static uint32_t scoop_gc_owner_thread_set = 0;
-static pthread_t scoop_gc_owner_thread;
-static uint32_t scoop_gc_multi_thread_seen = 0;
+static ScoopGcImmixState *scoop_gc_immix_state(void) {
+  return scoop_gc_immix_state_from_heap(&scoop_gc_heap);
+}
+
+static void scoop_gc_immix_lock(ScoopGcImmixState *state) {
+  if (state == 0 || !state->lock_inited) {
+    return;
+  }
+  (void)pthread_mutex_lock(&state->lock);
+}
+
+static void scoop_gc_immix_unlock(ScoopGcImmixState *state) {
+  if (state == 0 || !state->lock_inited) {
+    return;
+  }
+  (void)pthread_mutex_unlock(&state->lock);
+}
 
 // --- Pinning（spec §15.10 / TODO T0912） ---
 typedef struct ScoopGcPinnedRecord {
@@ -68,16 +85,21 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   (void)current_frame_slot;
 
   pthread_t self = pthread_self();
-  (void)pthread_mutex_lock(&scoop_gc_lock);
-
-  if (!scoop_gc_owner_thread_set) {
-    scoop_gc_owner_thread_set = 1;
-    scoop_gc_owner_thread = self;
-  } else if (!pthread_equal(self, scoop_gc_owner_thread)) {
-    scoop_gc_multi_thread_seen = 1;
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
   }
 
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_lock(state);
+
+  if (!state->owner_thread_set) {
+    state->owner_thread_set = 1;
+    state->owner_thread = self;
+  } else if (!pthread_equal(self, state->owner_thread)) {
+    state->multi_thread_seen = 1;
+  }
+
+  scoop_gc_immix_unlock(state);
 }
 
 void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
@@ -102,27 +124,31 @@ uint32_t scoop_pin(void *raw_obj) {
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
 
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
 
   if (!scoop_gc_heap_contains_object_unlocked(obj)) {
-    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    scoop_gc_immix_unlock(state);
     return 0;
   }
 
   ScoopGcPinnedRecord *rec = scoop_gc_find_pinned_unlocked(obj);
   if (rec != 0) {
     if (rec->pin_count == UINT64_MAX) {
-      (void)pthread_mutex_unlock(&scoop_gc_lock);
+      scoop_gc_immix_unlock(state);
       return 0;
     }
     rec->pin_count += 1;
-    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    scoop_gc_immix_unlock(state);
     return 1;
   }
 
   rec = (ScoopGcPinnedRecord *)malloc(sizeof(ScoopGcPinnedRecord));
   if (rec == 0) {
-    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    scoop_gc_immix_unlock(state);
     return 0;
   }
 
@@ -131,7 +157,7 @@ uint32_t scoop_pin(void *raw_obj) {
   rec->pin_count = 1;
   scoop_gc_pinned_objects = rec;
 
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
   return 1;
 }
 
@@ -147,7 +173,11 @@ uint32_t scoop_unpin(void *raw_obj) {
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
 
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
 
   ScoopGcPinnedRecord **link = &scoop_gc_pinned_objects;
   while (*link != 0) {
@@ -158,7 +188,7 @@ uint32_t scoop_unpin(void *raw_obj) {
     }
 
     if (it->pin_count == 0) {
-      (void)pthread_mutex_unlock(&scoop_gc_lock);
+      scoop_gc_immix_unlock(state);
       return 0;
     }
 
@@ -168,11 +198,11 @@ uint32_t scoop_unpin(void *raw_obj) {
       free(it);
     }
 
-    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    scoop_gc_immix_unlock(state);
     return 1;
   }
 
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
   return 0;
 }
 
@@ -181,13 +211,17 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
     return;
   }
 
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+  scoop_gc_immix_lock(state);
 
   obj->next = scoop_gc_heap.objects;
   scoop_gc_heap.objects = obj;
   scoop_gc_heap.bytes_allocated += obj->size;
 
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
 }
 
 void scoop_gc_heap_init(ScoopGcHeap *heap) {
@@ -195,8 +229,36 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
     return;
   }
 
+  ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(heap);
+  if (state == 0) {
+    state = (ScoopGcImmixState *)malloc(sizeof(ScoopGcImmixState));
+    if (state != 0) {
+      (void)memset(state, 0, sizeof(*state));
+      if (pthread_mutex_init(&state->lock, 0) == 0) {
+        state->lock_inited = 1;
+      }
+    }
+    scoop_gc_immix_heap_set_state(heap, state);
+  }
+
+  if (state != 0 && state->lock_inited) {
+    scoop_gc_immix_lock(state);
+    state->multi_thread_seen = 0;
+    state->owner_thread_set = 0;
+
+    // 把已分配的 blocks 复位并串到 free list，供分配路径复用。
+    state->free_blocks = 0;
+    state->current_block = 0;
+    for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+      scoop_gc_immix_block_reset(it);
+      it->next_free = state->free_blocks;
+      state->free_blocks = it;
+    }
+
+    scoop_gc_immix_unlock(state);
+  }
+
   heap->objects = 0;
-  heap->free_list = 0;
   heap->bytes_allocated = 0;
   heap->bytes_freed = 0;
   heap->gc_cycles = 0;
@@ -304,11 +366,15 @@ void scoop_gc_collect(void) {
   scoop_runtime_init();
   scoop_thread_register();
 
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+  scoop_gc_immix_lock(state);
 
   // Immix v0（单线程）不支持多线程 roots 枚举；检测到多线程时退化为 no-op。
-  if (scoop_gc_multi_thread_seen) {
-    (void)pthread_mutex_unlock(&scoop_gc_lock);
+  if (state->multi_thread_seen) {
+    scoop_gc_immix_unlock(state);
     return;
   }
 
@@ -352,7 +418,7 @@ void scoop_gc_collect(void) {
     free(stack.items);
   }
 
-  // 3) sweep（T1406c 将替换为 Immix 的 line/block sweep）
+  // 3) sweep（v0：只回收“整块空闲 block”，不做 partial block 复用；T1406c 会升级为 mark-region）
   ScoopGcObjectHeader **link = &heap->objects;
   while (*link != 0) {
     ScoopGcObjectHeader *obj = *link;
@@ -368,33 +434,64 @@ void scoop_gc_collect(void) {
     }
 
     heap->bytes_freed += obj->size;
-    free(obj);
+
+    ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+    if (block == 0) {
+      // large object / fallback malloc：可以直接 free。
+      free(obj);
+      continue;
+    }
+
+    if (block->live_objects > 0) {
+      block->live_objects -= 1;
+    }
+
+    if (block->live_objects == 0) {
+      // 整块 block 回收：清空元数据并加入 free list，供后续分配复用。
+      scoop_gc_immix_block_reset(block);
+      if (state->current_block != block) {
+        block->next_free = state->free_blocks;
+        state->free_blocks = block;
+      }
+    }
   }
 
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
 }
 
 uint64_t scoop_gc_debug_heap_object_count(void) {
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
   uint64_t count = 0;
   for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
     count++;
   }
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
   return count;
 }
 
 uint64_t scoop_gc_debug_heap_bytes_allocated(void) {
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
   uint64_t v = scoop_gc_heap.bytes_allocated;
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
   return v;
 }
 
 uint64_t scoop_gc_debug_heap_bytes_freed(void) {
-  (void)pthread_mutex_lock(&scoop_gc_lock);
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
   uint64_t v = scoop_gc_heap.bytes_freed;
-  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  scoop_gc_immix_unlock(state);
   return v;
 }
 
@@ -415,4 +512,3 @@ void scoop_gc_debug_alloc_garbage(int64_t count) {
 }
 
 #endif // SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
-

@@ -14,6 +14,8 @@
 #include <string.h>
 
 #include "scoop_gc.h"
+#include "scoop_gc_backend.h"
+#include "scoop_gc_immix_internal.h"
 #include "platform/platform.h"
 
 // TLS（thread-local storage）抽象层。
@@ -1068,6 +1070,93 @@ void *scoop_alloc(uint64_t size) {
     return 0;
   }
 
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+  // Immix v0：block/line allocator（单线程）。
+  //
+  // 注意：
+  // - 为避免改变对外 ABI，这里通过 `scoop_gc_heap.free_list` 读取 Immix state；
+  // - 多线程场景下 Immix v0 不支持 roots 枚举/collect，本实现会把分配回退到 `malloc`，
+  //   并由 backend 在 collect 时退化为 no-op（宁可泄漏也不错误回收）。
+  ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
+  if (state == 0 || !state->lock_inited) {
+    // 理论上 runtime_init 会先调用 heap_init 初始化 state；这里保守回退。
+    void *p = malloc((size_t)object_size);
+    if (p == 0) {
+      SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+      return 0;
+    }
+
+    ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+    hdr->next = 0;
+    hdr->type_desc = 0;
+    hdr->size = object_size;
+    hdr->flags = 0;
+    hdr->mark = 0;
+
+    void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+    scoop_gc_heap_register_object(hdr);
+    return p;
+  }
+
+  (void)pthread_mutex_lock(&state->lock);
+
+  // best-effort 线程检测：允许在“未显式 thread_register”时也能安全地退化。
+  pthread_t self = pthread_self();
+  if (!state->owner_thread_set) {
+    state->owner_thread_set = 1;
+    state->owner_thread = self;
+  } else if (!pthread_equal(self, state->owner_thread)) {
+    state->multi_thread_seen = 1;
+  }
+
+  void *p = 0;
+
+  size_t cap = scoop_gc_immix_block_payload_capacity();
+  if (state->multi_thread_seen || (size_t)object_size > cap) {
+    p = malloc((size_t)object_size);
+  } else {
+    // bump-in-block；block 用尽则从全局空间获取新 block（先复用空 block，再分配新 block）。
+    ScoopGcImmixBlock *block = state->current_block;
+    if (block == 0) {
+      block = scoop_gc_immix_state_take_block(state);
+    }
+
+    for (uint32_t tries = 0; tries < 4 && p == 0; tries++) {
+      if (block == 0) {
+        break;
+      }
+      p = scoop_gc_immix_block_alloc_bump(block,
+                                          (size_t)object_size,
+                                          (size_t)sizeof(void *));
+      if (p != 0) {
+        break;
+      }
+      // 当前 block 放不下：切换到新 block。
+      block = scoop_gc_immix_state_take_block(state);
+    }
+  }
+
+  if (p == 0) {
+    (void)pthread_mutex_unlock(&state->lock);
+    SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
+    return 0;
+  }
+
+  // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+  hdr->next = scoop_gc_heap.objects;
+  hdr->type_desc = 0;
+  hdr->size = object_size;
+  hdr->flags = 0;
+  hdr->mark = 0;
+
+  // 登记到 heap 链表（用于 sweep）。
+  scoop_gc_heap.objects = hdr;
+  scoop_gc_heap.bytes_allocated += hdr->size;
+
+  (void)pthread_mutex_unlock(&state->lock);
+  return p;
+#else
   void *p = malloc((size_t)object_size);
   if (p == 0) {
     SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
@@ -1087,6 +1176,7 @@ void *scoop_alloc(uint64_t size) {
   scoop_gc_heap_register_object(hdr);
 
   return p;
+#endif
 }
 
 // 打印（不追加换行）。

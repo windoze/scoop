@@ -1047,7 +1047,7 @@ fixtures：
 
 - [ ] **Immix v0（单线程、非移动）**：作为 baseline mark-sweep 的可选 backend，引入 line/block allocator 与 mark-region 基本流程。
   - [x] T1406a：backend 选择 + capability matrix（`gc-immix` feature / C 编译单元接入）
-  - [ ] T1406b：allocator v0（line/block allocator，单线程）
+  - [x] T1406b：allocator v0（line/block allocator，单线程）
   - [ ] T1406c：mark-region v0（单线程、非移动）
   - [ ] T1406d：microbench/fixtures（碎片化与吞吐对比）
 - [ ] **移动与压缩（moving/compaction）**：

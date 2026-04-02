@@ -5620,11 +5620,20 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix`
    - `cargo test --all`
 
-### T1406b [TODO] Immix 分配器 v0：block/line allocator（单线程）
+### T1406b [DONE] Immix 分配器 v0：block/line allocator（单线程）
 - 描述：实现 Immix 的 line/block allocator：分配路径优先走 bump-in-block；block 用尽时从全局空间获取新 block；并维护 line mark/alloc bitmap 的最小元数据。
 - 目标：只覆盖单线程；不实现 compaction/moving；不实现多线程 TLAB。
 - 验收：新增 `scoop_runtime` 集成测试：大量分配后触发多轮 GC 仍通过；heap bytes/objects 统计不爆炸；`cargo test -p scoop_runtime --no-default-features --features gc-immix` 通过。
 - 依赖：T1406a
+ - 完成：
+   - `runtime/c/scoop_gc_immix_internal.h`：定义 Immix state/block 与 line alloc/mark bitmap 的最小元数据与 helper。
+   - `runtime/c/scoop_runtime.c`：在 `gc-immix` 下使用 bump-in-block 分配；检测到多线程时回退到 per-object `malloc`。
+   - `runtime/c/scoop_gc_backend_immix.c`：sweep 阶段支持“整块空闲 block 回收并复用”（mark-region/partial block 复用留给 T1406c）。
+   - tests：新增 `crates/scoop_runtime/tests/gc_immix_allocator.rs` 覆盖多轮分配+GC 回归。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix`
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1406c [TODO] Immix mark-region v0：mark stack + region sweep（单线程、非移动）
 - 描述：实现 Immix 的 mark-region：按对象 trace 标记 line；sweep 时基于 line mark/alloc bitmap 复用空闲 line/块，并提供最小碎片化控制策略（例如优先重用 partially free blocks）。
