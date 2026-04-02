@@ -50,6 +50,15 @@ static SCOOP_PLATFORM_UNUSED int scoop_platform_io_read_stdin(uint8_t *buf,
   return 0;
 }
 
+// --- dynlib (placeholder) ---
+//
+// Windows backend 尚未实现：统一返回 NULL。
+static SCOOP_PLATFORM_UNUSED void *scoop_platform_dynlib_lookup_symbol_default(
+    const char *symbol_name_cstr) {
+  (void)symbol_name_cstr;
+  return 0;
+}
+
 // --- sync/thread (placeholder) ---
 //
 // 说明：

@@ -5511,7 +5511,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1403c [TODO] platform：once/guard 相关 OS 调用收敛（`scoop_once_*`）（PLAN §15.2）
+### T1403c [DONE] platform：once/guard 相关 OS 调用收敛（`scoop_once_*`）（PLAN §15.2）
 - 描述：将 `runtime/c/scoop_once.c` 中 `pthread_self/sched_yield/dlsym` 等平台相关调用收敛到 platform backend（或按 capability gating 留占位），形成一致的 platform 边界。
 - 目标：不改变 `scoop_once_*` 的对外语义与 ABI；先保证 host backend 可回归。
 - 验收：
@@ -5519,6 +5519,14 @@
   - `cargo test --all`；
   - `cargo run -p scoop -- test`。
 - 依赖：T1403b
+ - 完成：
+   - `runtime/c/platform/platform.h`：新增 dynlib symbol lookup API（默认符号表查找）。
+   - `runtime/c/platform/platform_posix.c`：实现 `dlsym(RTLD_DEFAULT, ...)` backend（Apple/Linux；其它平台返回 NULL）。
+   - `runtime/c/platform/platform_win32.c`：补齐占位实现（返回 NULL）。
+   - `runtime/c/scoop_once.c`：once/guard 的 thread self/yield 与 dlsym 查找改为走 platform API（文件不再直接包含 pthread/sched/dlfcn）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1404 [TODO] sysroot/std 平台 API surface 审计：不泄漏 OS 概念（PLAN §15.1）
 - 描述：审计 sysroot 与 stdlib 中的平台 API（env/time/fs/path/io/process/thread/sync/channels/net），确保不暴露 `errno/FILE*/HANDLE/pthread_t` 等 OS 概念与平台差异；必要时调整为平台无关的 `Option/Result` 形状，并用 capability gating 表达“不支持”。

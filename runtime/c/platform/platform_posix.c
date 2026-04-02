@@ -16,6 +16,13 @@
 #include <sys/syscall.h>
 #endif
 
+#if defined(__APPLE__) || defined(__linux__)
+#include <dlfcn.h>
+#define SCOOP_PLATFORM_HAS_DLSYM 1
+#else
+#define SCOOP_PLATFORM_HAS_DLSYM 0
+#endif
+
 static SCOOP_PLATFORM_UNUSED const char *scoop_platform_env_getenv(const char *key_cstr) {
   if (key_cstr == 0) {
     return 0;
@@ -117,6 +124,32 @@ static SCOOP_PLATFORM_UNUSED int scoop_platform_io_read_stdin(uint8_t *buf,
     *out_nread = (size_t)n;
     return 1;
   }
+}
+
+// --- dynlib (dlsym) ---
+//
+// 说明：
+// - 该接口用于把 runtime 内部对 `dlsym(RTLD_DEFAULT, ...)` 的直接调用收敛到 platform 层；
+// - 对于不支持的平台返回 NULL，由上层决定 fallback 行为。
+static SCOOP_PLATFORM_UNUSED void *scoop_platform_dynlib_lookup_symbol_default(
+    const char *symbol_name_cstr) {
+#if SCOOP_PLATFORM_HAS_DLSYM
+  if (symbol_name_cstr == 0 || symbol_name_cstr[0] == '\0') {
+    return 0;
+  }
+
+  // 清掉旧错误，避免把之前的 dlerror 误判为本次 dlsym 的错误。
+  (void)dlerror();
+  void *addr = dlsym(RTLD_DEFAULT, symbol_name_cstr);
+  if (addr == 0) {
+    (void)dlerror();
+    return 0;
+  }
+  return addr;
+#else
+  (void)symbol_name_cstr;
+  return 0;
+#endif
 }
 
 // --- sync/thread (pthread) ---

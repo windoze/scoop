@@ -70,6 +70,12 @@ static int scoop_platform_io_write_stderr_byte(uint8_t byte);
 // io: 从 stdin 读取最多 len 字节；成功返回 1 并写入 out_nread（可为 0 表示 EOF）；失败返回 0。
 static int scoop_platform_io_read_stdin(uint8_t *buf, size_t len, size_t *out_nread);
 
+// dynlib: 在“进程默认符号表（RTLD_DEFAULT 类语义）”中查找符号地址。
+// - 成功返回非 NULL 指针；
+// - 不支持或未找到返回 NULL；
+// - 该接口用于 runtime 内部的动态链接场景（例如 once guard canonicalize）。
+static void *scoop_platform_dynlib_lookup_symbol_default(const char *symbol_name_cstr);
+
 // sync: mutex/condvar。
 static int scoop_platform_sync_mutex_init(ScoopPlatformMutex *mutex);
 static void scoop_platform_sync_mutex_lock(ScoopPlatformMutex *mutex);

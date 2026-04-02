@@ -22,18 +22,11 @@
 //
 // - owner_id 仅在 state==1 时有效，用于检测“同线程重入”。
 
-#include <pthread.h>
-#include <sched.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#if defined(__APPLE__) || defined(__linux__)
-#include <dlfcn.h>
-#define SCOOP_ONCE_HAS_DLSYM 1
-#else
-#define SCOOP_ONCE_HAS_DLSYM 0
-#endif
+#include "platform/platform.h"
 
 enum {
   SCOOP_ONCE_STATE_UNINITIALIZED = 0u,
@@ -49,19 +42,19 @@ static inline uint64_t scoop_once_owner(uint64_t word) {
   return word >> 2;
 }
 
-// 把 pthread_t 压缩/哈希为一个非 0 的 62-bit id（用于 owner 判定）。
+// 把当前线程标识压缩/哈希为一个非 0 的 62-bit id（用于 owner 判定）。
 static uint64_t scoop_once_current_thread_id62(void) {
-  pthread_t self = pthread_self();
+  ScoopPlatformThread self = scoop_platform_thread_self();
   uint64_t id = 0;
 
-  if (sizeof(pthread_t) <= sizeof(id)) {
-    // 直接拷贝低位字节（pthread_t 常见为指针/整数）。
-    (void)memcpy(&id, &self, sizeof(pthread_t));
+  if (sizeof(ScoopPlatformThread) <= sizeof(id)) {
+    // 直接拷贝低位字节（thread handle 常见为指针/整数）。
+    (void)memcpy(&id, &self, sizeof(ScoopPlatformThread));
   } else {
-    // 罕见平台：pthread_t 不是 pointer-sized，做一个最小 FNV-1a hash。
+    // 罕见平台：thread handle 不是 pointer-sized，做一个最小 FNV-1a hash。
     const uint8_t *p = (const uint8_t *)&self;
     uint64_t h = 1469598103934665603ull;
-    for (size_t i = 0; i < sizeof(pthread_t); i++) {
+    for (size_t i = 0; i < sizeof(ScoopPlatformThread); i++) {
       h ^= (uint64_t)p[i];
       h *= 1099511628211ull;
     }
@@ -74,10 +67,6 @@ static uint64_t scoop_once_current_thread_id62(void) {
     id = 1;
   }
   return id;
-}
-
-static inline void scoop_once_yield(void) {
-  (void)sched_yield();
 }
 
 // 为动态链接场景提供“canonical guard”：
@@ -96,24 +85,16 @@ uint64_t *scoop_once_guard_canonicalize(const char *symbol_name,
     return 0;
   }
 
-#if SCOOP_ONCE_HAS_DLSYM
   if (symbol_name == 0 || symbol_name[0] == '\0') {
     return fallback_guard_word;
   }
 
-  // 清掉旧错误，避免把之前的 dlerror 误判为本次 dlsym 的错误。
-  (void)dlerror();
-  void *addr = dlsym(RTLD_DEFAULT, symbol_name);
+  void *addr = scoop_platform_dynlib_lookup_symbol_default(symbol_name);
   if (addr == 0) {
-    (void)dlerror();
     return fallback_guard_word;
   }
 
   return (uint64_t *)addr;
-#else
-  (void)symbol_name;
-  return fallback_guard_word;
-#endif
 }
 
 // 尝试进入 once 初始化区间：
@@ -158,7 +139,7 @@ uint32_t scoop_once_begin(uint64_t *guard_word) {
     // 其它线程正在初始化：等待其完成。
     while (scoop_once_state(__atomic_load_n(guard_word, __ATOMIC_ACQUIRE)) ==
            SCOOP_ONCE_STATE_INITIALIZING) {
-      scoop_once_yield();
+      scoop_platform_thread_yield();
     }
     // 回到循环：看最终状态。
   }
