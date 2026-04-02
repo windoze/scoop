@@ -5441,7 +5441,7 @@
  - 验收：
    - `cargo test --all`
 
-### T1402 [TODO] 平台层抽象 v0：引入 `runtime/c/platform`（POSIX backend）（PLAN §15.2）
+### T1402 [DONE] 平台层抽象 v0：引入 `runtime/c/platform`（POSIX backend）（PLAN §15.2）
 - 描述：在 C runtime 内部引入 platform 层 API（如 `platform.h` + `platform_posix.c`），把 `getenv/gettimeofday/open/read/write/pthread_*` 等 OS 调用收敛到 platform/backends；core/runtime 代码只调用 platform API。
 - 目标：
   - 先以 host POSIX/pthread 为主线；Windows/其他平台只放占位接口与 build gate；
@@ -5452,6 +5452,15 @@
   - 至少将 `env/time`（T1318a）与 `io`（T1318e）路径改为走 platform API；
   - `cargo test --all` 与 `cargo run -p scoop -- test` 通过。
 - 依赖：T1318a、T1318e
+ - 完成：
+   - `runtime/c/platform/platform.h`：新增 platform 层 API（env/time/io），并按 `_WIN32` 选择 backend（POSIX / Windows placeholder）；所有平台函数保持 `static`，避免污染 runtime ABI 导出集合（对齐 T1401 allowlist 检查）。
+   - `runtime/c/platform/platform_posix.c`：POSIX backend：实现 `getenv/gettimeofday/read/write` 的最小封装，并处理 `EINTR` 与 partial write。
+   - `runtime/c/platform/platform_win32.c`：Windows 占位 backend（全部返回失败，留给 capability gating/后续实现）。
+   - `runtime/c/scoop_runtime.c`：将 `scoop_env_get`/`scoop_time_now_unix_millis`/`scoop_io_*`（含 `print/println`）改为调用 platform API，收敛 OS 调用到 `runtime/c/platform/*`。
+   - `crates/scoop_runtime/build.rs`：新增 `rerun-if-changed` 覆盖 platform 文件，确保修改可触发 runtime 重新编译。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1403 [TODO] 平台层扩展：thread/sync/channels/task/net 的 backend 隔离（PLAN §15.2）
 - 描述：把 `scoop_sync_*`/`scoop_thread_*`/`scoop_channels_*`/task executor/net 等平台相关实现从“直接依赖 pthread/OS API”改为调用 platform 层接口，形成清晰的 backend 边界。

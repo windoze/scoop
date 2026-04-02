@@ -12,9 +12,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 
 #include "scoop_gc.h"
+#include "platform/platform.h"
 
 // TLS（thread-local storage）抽象层。
 //
@@ -1099,9 +1099,13 @@ void scoop_print(const ScoopString *value) {
   if (value->data == 0 || value->len == 0) {
     return;
   }
+  if (value->len > (uint64_t)SIZE_MAX) {
+    return;
+  }
 
-  // `fwrite` 返回值目前不做错误处理；后续可改为向 `Raise<RuntimeError>` 报错。
-  (void)fwrite(value->data, 1, (size_t)value->len, stdout);
+  // 错误模型（early stage）：
+  // - platform write 失败时当前不抛错（未来可升级为 `Raise<RuntimeError>`）。
+  (void)scoop_platform_io_write_stdout_all(value->data, (size_t)value->len);
 }
 
 // 打印并追加换行。
@@ -1109,8 +1113,7 @@ void scoop_print(const ScoopString *value) {
 // 说明：该 API 由 sysroot 的 `println(String)` 映射到 runtime 符号（见 TODO T0821/T0822）。
 void scoop_println(const ScoopString *value) {
   scoop_print(value);
-  (void)fputc('\n', stdout);
-  (void)fflush(stdout);
+  (void)scoop_platform_io_write_stdout_byte((uint8_t)'\n');
 }
 
 // 前置声明：stdin readLine 会复用本文件后续定义的字符串构造 helper。
@@ -1131,9 +1134,11 @@ void scoop_io_stdout_write_string(const ScoopString *value) {
   if (value->data == 0 || value->len == 0) {
     return;
   }
+  if (value->len > (uint64_t)SIZE_MAX) {
+    return;
+  }
 
-  (void)fwrite(value->data, 1, (size_t)value->len, stdout);
-  (void)fflush(stdout);
+  (void)scoop_platform_io_write_stdout_all(value->data, (size_t)value->len);
 }
 
 // `scoop.io.stdoutWriteLine(value: String): Unit`
@@ -1142,11 +1147,10 @@ void scoop_io_stdout_write_string(const ScoopString *value) {
 // - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c）；
 // - 行尾换行目前固定为 `\n`（与 `println` 一致）；更复杂的平台差异后续通过 backend 隔离。
 void scoop_io_stdout_write_line(const ScoopString *value) {
-  if (value != 0 && value->data != 0 && value->len != 0) {
-    (void)fwrite(value->data, 1, (size_t)value->len, stdout);
+  if (value != 0 && value->data != 0 && value->len != 0 && value->len <= (uint64_t)SIZE_MAX) {
+    (void)scoop_platform_io_write_stdout_all(value->data, (size_t)value->len);
   }
-  (void)fputc('\n', stdout);
-  (void)fflush(stdout);
+  (void)scoop_platform_io_write_stdout_byte((uint8_t)'\n');
 }
 
 // `scoop.io.Stderr.writeString(value: String): Unit`
@@ -1157,9 +1161,11 @@ void scoop_io_stderr_write_string(const ScoopString *value) {
   if (value->data == 0 || value->len == 0) {
     return;
   }
+  if (value->len > (uint64_t)SIZE_MAX) {
+    return;
+  }
 
-  (void)fwrite(value->data, 1, (size_t)value->len, stderr);
-  (void)fflush(stderr);
+  (void)scoop_platform_io_write_stderr_all(value->data, (size_t)value->len);
 }
 
 // `scoop.io.stderrWriteLine(value: String): Unit`
@@ -1168,11 +1174,10 @@ void scoop_io_stderr_write_string(const ScoopString *value) {
 // - 该函数用于 fixtures/示例的最小可观测性（TODO T1320c）；
 // - 行尾换行目前固定为 `\n`（与 `println` 一致）；更复杂的平台差异后续通过 backend 隔离。
 void scoop_io_stderr_write_line(const ScoopString *value) {
-  if (value != 0 && value->data != 0 && value->len != 0) {
-    (void)fwrite(value->data, 1, (size_t)value->len, stderr);
+  if (value != 0 && value->data != 0 && value->len != 0 && value->len <= (uint64_t)SIZE_MAX) {
+    (void)scoop_platform_io_write_stderr_all(value->data, (size_t)value->len);
   }
-  (void)fputc('\n', stderr);
-  (void)fflush(stderr);
+  (void)scoop_platform_io_write_stderr_byte((uint8_t)'\n');
 }
 
 // `scoop.io.Stdin.readLine(): String?`
@@ -1192,12 +1197,19 @@ const ScoopString *scoop_io_stdin_read_line_utf8(void) {
   int terminated_by_eof = 0;
 
   for (;;) {
-    int ch = fgetc(stdin);
-    if (ch == EOF) {
+    uint8_t ch = 0;
+    size_t nread = 0;
+    if (!scoop_platform_io_read_stdin(&ch, 1, &nread)) {
+      if (buf != 0) {
+        free(buf);
+      }
+      return 0;
+    }
+    if (nread == 0) {
       terminated_by_eof = 1;
       break;
     }
-    if (ch == '\n') {
+    if (ch == (uint8_t)'\n') {
       break;
     }
 
@@ -1213,7 +1225,7 @@ const ScoopString *scoop_io_stdin_read_line_utf8(void) {
       buf = next;
       cap = next_cap;
     }
-    buf[len++] = (uint8_t)ch;
+    buf[len++] = ch;
   }
 
   // EOF 且未读取到任何字节：视为 `None`。
@@ -1391,7 +1403,7 @@ const ScoopString *scoop_env_get(const ScoopString *key) {
   }
   key_cstr[key_len] = '\0';
 
-  const char *value = getenv(key_cstr);
+  const char *value = scoop_platform_env_getenv(key_cstr);
   free(key_cstr);
 
   return scoop_string_from_cstr(value);
@@ -1404,16 +1416,12 @@ const ScoopString *scoop_env_get(const ScoopString *key) {
 // - 以 “Unix epoch 毫秒（UTC）” 表示当前时间戳；
 // - 失败时返回 0（后续可升级为 `Raise<RuntimeError>` 或 `Result`）。
 int64_t scoop_time_now_unix_millis(void) {
-  struct timeval tv;
-  int ok = gettimeofday(&tv, 0);
-  if (ok != 0) {
+  int64_t unix_millis = 0;
+  if (!scoop_platform_time_now_unix_millis(&unix_millis)) {
     return 0;
   }
 
-  // 注意：这里的常量仅存在于 runtime C 中，不影响 multi-file lowering 的字面量门禁。
-  int64_t sec = (int64_t)tv.tv_sec;
-  int64_t usec = (int64_t)tv.tv_usec;
-  return (sec * 1000) + (usec / 1000);
+  return unix_millis;
 }
 
 // --- std v2：fs（T1318b）---
