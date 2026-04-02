@@ -29,7 +29,7 @@ pub enum GcBackend {
     Baseline,
     /// minimal：单线程、无 STW 的最小 backend（用于验证 backend 选择机制）。
     Minimal,
-    /// immix：Immix GC（v0：单线程、非移动；allocator/mark-region 逐步落地）。
+    /// immix：Immix GC（v0：协作式 STW、moving/compaction；性能优化逐步落地）。
     Immix,
 }
 
@@ -68,8 +68,8 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
         shadow_stack_roots: true,
     },
     GcBackend::Immix => GcCapabilities {
-        stw: false,
-        multi_thread_roots_enum: false,
+        stw: true,
+        multi_thread_roots_enum: true,
         moving: true,
         precise_roots_update: true,
         shadow_stack_roots: true,

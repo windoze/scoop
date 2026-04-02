@@ -68,11 +68,11 @@
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
 
-// Immix v0：单线程、moving/compaction。
-// - moving/compaction 当前只在单线程下工作（等价于 STW），多线程正确性留给后续任务；
+// Immix v0：协作式 STW、moving/compaction。
+// - stop-the-world 为协作式：线程需要进入 `scoop_gc_safepoint()` 才会暂停；
 // - roots 来源为 shadow stack，因此可在 compaction 时执行“精确 roots 更新”。
-#define SCOOP_GC_CAP_STW 0
-#define SCOOP_GC_CAP_MULTI_THREAD_ROOTS_ENUM 0
+#define SCOOP_GC_CAP_STW 1
+#define SCOOP_GC_CAP_MULTI_THREAD_ROOTS_ENUM 1
 
 #define SCOOP_GC_CAP_MOVING 1
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 1

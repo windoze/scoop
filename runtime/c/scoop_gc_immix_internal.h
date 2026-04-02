@@ -75,12 +75,6 @@ typedef struct ScoopGcImmixState {
   pthread_mutex_t lock;
   uint32_t lock_inited;
 
-  // best-effort：若看到多个线程参与注册，则 GC collect 退化为 no-op；
-  // 同时分配路径会回退到 per-object malloc，避免 data race。
-  uint32_t multi_thread_seen;
-  uint32_t owner_thread_set;
-  pthread_t owner_thread;
-
   ScoopGcImmixBlock *all_blocks;
   // partially free blocks（live_objects>0 且存在 hole）：优先用于分配以降低碎片化。
   ScoopGcImmixBlock *reusable_blocks;

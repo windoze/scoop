@@ -1071,12 +1071,11 @@ void *scoop_alloc(uint64_t size) {
   }
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
-  // Immix v0：block/line allocator（单线程）。
+  // Immix v0：block/line allocator（协作式 STW，多线程可用）。
   //
   // 注意：
   // - 为避免改变对外 ABI，这里通过 `scoop_gc_heap.free_list` 读取 Immix state；
-  // - 多线程场景下 Immix v0 不支持 roots 枚举/collect，本实现会把分配回退到 `malloc`，
-  //   并由 backend 在 collect 时退化为 no-op（宁可泄漏也不错误回收）。
+  // - large object（超过单个 block payload）当前回退到 `malloc`；小对象走 Immix blocks。
   ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
   if (state == 0 || !state->lock_inited) {
     // 理论上 runtime_init 会先调用 heap_init 初始化 state；这里保守回退。
@@ -1100,19 +1099,10 @@ void *scoop_alloc(uint64_t size) {
 
   (void)pthread_mutex_lock(&state->lock);
 
-  // best-effort 线程检测：允许在“未显式 thread_register”时也能安全地退化。
-  pthread_t self = pthread_self();
-  if (!state->owner_thread_set) {
-    state->owner_thread_set = 1;
-    state->owner_thread = self;
-  } else if (!pthread_equal(self, state->owner_thread)) {
-    state->multi_thread_seen = 1;
-  }
-
   void *p = 0;
 
   size_t cap = scoop_gc_immix_block_payload_capacity();
-  if (state->multi_thread_seen || (size_t)object_size > cap) {
+  if ((size_t)object_size > cap) {
     p = malloc((size_t)object_size);
   } else {
     // bump-in-hole（Immix v0）：优先复用 partial blocks（由 region sweep 产出的 holes），

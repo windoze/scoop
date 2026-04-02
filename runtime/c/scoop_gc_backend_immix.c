@@ -1,4 +1,4 @@
-// Scoop GC backend: immix (v0; single-thread, moving/compacting).
+// Scoop GC backend: immix (v0; cooperative STW, moving/compacting).
 //
 // 当前实现（TODO T1406a/T1406b/T1406c/T1407 / PLAN §15.3）：
 // - allocator：line/block + hole bump（优先复用 partial blocks，降低碎片化）；
@@ -7,8 +7,8 @@
 // - moving/compaction：基于 block evacuation 的搬迁与引用修复（forwarding pointer + roots update）。
 //
 // 限制（v0）：
-// - 不支持多线程 roots 枚举；若检测到多个线程参与注册，则 `scoop_gc_collect()` 退化为 no-op；
-// - moving/compaction 仅支持单线程（等价于 STW）；多线程正确性留给 TODO T1408/T1505。
+// - stop-the-world 当前为协作式：线程必须进入 `scoop_gc_safepoint()` 才会被暂停；
+// - roots 来源仅为 shadow stack（TODO T1506 会引入 stackmap roots）。
 
 #include "scoop_gc_backend.h"
 
@@ -82,7 +82,121 @@ static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *o
   return 0;
 }
 
+// --- 线程注册 + stop-the-world（TODO T1408a） ---
+//
+// 设计说明（Immix backend，early stage）：
+// - roots 来源为 shadow stack（编译器插桩维护 `ScoopGcFrame` 链）；
+// - 为在多线程下正确做 mark/compaction，需要在 GC 周期内暂停所有“已注册线程”，并在暂停期间
+//   扫描/更新每个线程的 `current_frame` 链；
+// - 当前实现为协作式 STW：线程只有在 safepoint 调用 `scoop_gc_safepoint()` 才会 park；
+// - 目标优先级：正确性与可回归；性能优化（TLAB/并行标记）留给后续任务（T1409）。
+typedef struct ScoopGcThreadRecord {
+  struct ScoopGcThreadRecord *next;
+  pthread_t thread;
+  // 指向该线程 TLS 内的 `current_frame` 槽位（由 runtime 注册时传入）。
+  ScoopGcFrame **current_frame_slot;
+  // 1 表示该线程已进入 STW park；用于避免重复计数。
+  uint32_t parked;
+} ScoopGcThreadRecord;
+
+// 线程表 + STW 状态由 Immix `state->lock` 保护（避免引入额外全局锁）。
+static pthread_cond_t scoop_gc_stw_cond = PTHREAD_COND_INITIALIZER;
+static ScoopGcThreadRecord *scoop_gc_threads = 0;
+static uint32_t scoop_gc_thread_count = 0;
+
+static uint32_t scoop_gc_stw_requested = 0;
+static pthread_t scoop_gc_stw_initiator;
+static uint32_t scoop_gc_stw_parked_count = 0;
+
+static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (pthread_equal(it->thread, t)) {
+      return it;
+    }
+  }
+  return 0;
+}
+
+static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
+  scoop_gc_stw_requested = 1;
+  scoop_gc_stw_initiator = initiator;
+  scoop_gc_stw_parked_count = 0;
+
+  // 重置 parked 标记，避免上一轮残留（健壮性）。
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    it->parked = 0;
+  }
+
+  // 需要 park 的线程数量：所有已注册线程 - initiator（若 initiator 已注册）。
+  uint32_t need_to_park = scoop_gc_thread_count;
+  if (scoop_gc_find_thread_unlocked(initiator) != 0 && need_to_park > 0) {
+    need_to_park -= 1;
+  }
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0 || !state->lock_inited) {
+    return;
+  }
+
+  while (scoop_gc_stw_parked_count < need_to_park) {
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  }
+}
+
+static void scoop_gc_stop_the_world_end_unlocked(void) {
+  scoop_gc_stw_requested = 0;
+  scoop_gc_stw_parked_count = 0;
+
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    it->parked = 0;
+  }
+
+  (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
+}
+
 void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
+  if (current_frame_slot == 0) {
+    return;
+  }
+
+  pthread_t self = pthread_self();
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+
+  scoop_gc_immix_lock(state);
+
+  // 若当前有其它线程正在进行 stop-the-world，则等它结束后再注册，避免破坏 STW 计数。
+  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  }
+
+  ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
+  if (existing != 0) {
+    existing->current_frame_slot = current_frame_slot;
+    scoop_gc_immix_unlock(state);
+    return;
+  }
+
+  ScoopGcThreadRecord *rec = (ScoopGcThreadRecord *)malloc(sizeof(ScoopGcThreadRecord));
+  if (rec == 0) {
+    scoop_gc_immix_unlock(state);
+    return;
+  }
+
+  rec->next = scoop_gc_threads;
+  rec->thread = self;
+  rec->current_frame_slot = current_frame_slot;
+  rec->parked = 0;
+
+  scoop_gc_threads = rec;
+  scoop_gc_thread_count += 1;
+
+  scoop_gc_immix_unlock(state);
+}
+
+void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
   (void)current_frame_slot;
 
   pthread_t self = pthread_self();
@@ -93,23 +207,58 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
 
   scoop_gc_immix_lock(state);
 
-  if (!state->owner_thread_set) {
-    state->owner_thread_set = 1;
-    state->owner_thread = self;
-  } else if (!pthread_equal(self, state->owner_thread)) {
-    state->multi_thread_seen = 1;
+  // 若当前有其它线程正在进行 stop-the-world，则等它结束后再注销，避免破坏 STW 计数。
+  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  }
+
+  ScoopGcThreadRecord **link = &scoop_gc_threads;
+  while (*link != 0) {
+    ScoopGcThreadRecord *it = *link;
+    if (!pthread_equal(it->thread, self)) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    if (scoop_gc_thread_count > 0) {
+      scoop_gc_thread_count -= 1;
+    }
+    free(it);
+    break;
   }
 
   scoop_gc_immix_unlock(state);
 }
 
-void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
-  // Immix v0（单线程）：不维护线程列表；保持幂等且不崩溃。
-}
-
 void scoop_gc_safepoint(void) {
-  // Immix v0（单线程）：无 STW，safepoint 为 no-op。
+  pthread_t self = pthread_self();
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+
+  scoop_gc_immix_lock(state);
+
+  // 协作式 STW：只有在该线程已注册且不是 initiator 时才会 park。
+  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+    ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+    if (rec == 0) {
+      // 未注册：不参与 STW（early stage 语义约定）。
+      break;
+    }
+
+    if (!rec->parked) {
+      rec->parked = 1;
+      scoop_gc_stw_parked_count += 1;
+      // 唤醒 GC 线程：它可能正在等待 parked_count 达标。
+      (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
+    }
+
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  }
+
+  scoop_gc_immix_unlock(state);
 }
 
 uint32_t scoop_pin(void *raw_obj) {
@@ -244,8 +393,6 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
 
   if (state != 0 && state->lock_inited) {
     scoop_gc_immix_lock(state);
-    state->multi_thread_seen = 0;
-    state->owner_thread_set = 0;
 
     // 把已分配的 blocks 复位并串到 free list，供分配路径复用。
     state->reusable_blocks = 0;
@@ -740,7 +887,18 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
   }
 
   // 3a) roots update：shadow stack slots 原地改写为新地址（moving GC 的关键语义）。
-  (void)scoop_gc_shadow_stack_visit_roots_current_thread(scoop_gc_immix_update_slot_visitor, 0);
+  //
+  // 注意：必须更新“所有已注册线程”的 roots；否则在多线程 + moving/compaction 下会产生悬挂指针。
+  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
+                                                        ScoopGcTraceVisitor visitor,
+                                                        void *ctx);
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (it->current_frame_slot == 0) {
+      continue;
+    }
+    ScoopGcFrame *frame = *(it->current_frame_slot);
+    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_immix_update_slot_visitor, 0);
+  }
 
   // 3b) heap object fields update：扫描所有 live 对象（对已搬迁对象改为扫描其 to-space 副本）。
   for (size_t i = 0; i < live_len; i++) {
@@ -826,13 +984,16 @@ void scoop_gc_collect(void) {
   if (state == 0) {
     return;
   }
+  pthread_t self = pthread_self();
+
   scoop_gc_immix_lock(state);
 
-  // Immix v0（单线程）不支持多线程 roots 枚举；检测到多线程时退化为 no-op。
-  if (state->multi_thread_seen) {
-    scoop_gc_immix_unlock(state);
-    return;
+  // 保证同一时刻只允许一个 GC 周期。
+  while (scoop_gc_stw_requested) {
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
+
+  scoop_gc_stop_the_world_begin_unlocked(self);
 
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
@@ -845,8 +1006,18 @@ void scoop_gc_collect(void) {
     scoop_gc_immix_block_clear_mark_bits(it);
   }
 
-  // 1) mark roots（只扫描当前线程的 shadow stack）
-  (void)scoop_gc_shadow_stack_visit_roots_current_thread(scoop_gc_mark_visitor, (void *)&ctx);
+  // 1) mark roots（扫描所有已注册线程的 shadow stack）
+  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
+                                                        ScoopGcTraceVisitor visitor,
+                                                        void *ctx);
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (it->current_frame_slot == 0) {
+      continue;
+    }
+
+    ScoopGcFrame *frame = *(it->current_frame_slot);
+    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
+  }
 
   // 1b) mark pinned roots（spec §15.10）
   for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
@@ -975,6 +1146,7 @@ void scoop_gc_collect(void) {
     scoop_gc_immix_compact(state, heap, evac_blocks);
   }
 
+  scoop_gc_stop_the_world_end_unlocked();
   scoop_gc_immix_unlock(state);
 }
 

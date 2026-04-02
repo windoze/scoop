@@ -1056,7 +1056,7 @@ fixtures：
 - [x] **移动与压缩（moving/compaction）**：
   - [x] T1407：选择性 block evacuation + forwarding pointer + roots 更新；pin policy：pinned objects 不移动。
 - [ ] **多线程正确性**：
-  - [ ] T1408a：协作式 STW + 多线程 shadow stack roots 枚举/更新（先 correctness，可用全局锁）
+  - [x] T1408a：协作式 STW + 多线程 shadow stack roots 枚举/更新（先 correctness，可用全局锁）
   - [ ] T1408b：与 stackmap/statepoint 的 STW 协议统一（对齐 T1505，避免两套协议长期分叉）
   - 线程本地分配与 GC 元数据的并发安全与可回归验证（性能优化在 T1409）
 - [ ] **多线程性能**：

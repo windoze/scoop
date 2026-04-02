@@ -5691,7 +5691,7 @@
 - 目标：先保证正确性与可回归；并行标记/并行 sweep 等性能优化留给 T1409。
 - 备注：为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，把“shadow stack STW（可立即落地）”与“与 stackmap STW 协议统一（依赖 T1505）”拆分为两步推进。
 
-### T1408a [TODO] Immix：协作式 STW + 多线程 roots 枚举（shadow stack）
+### T1408a [DONE] Immix：协作式 STW + 多线程 roots 枚举（shadow stack）
 - 描述：让 Immix backend 支持协作式 stop-the-world，并在 GC/compaction 时扫描与更新**所有已注册线程**的 shadow stack roots。
 - 目标：
   - 先做正确性：允许全局锁（不做 TLAB/per-thread blocks）；
@@ -5701,6 +5701,15 @@
   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
   - `crates/scoop_runtime/tests/gc_stop_the_world.rs` 在 `gc-immix` 下不再被 ignore 且可稳定通过。
 - 依赖：T1407
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：实现协作式 STW（线程表 + safepoint park），并在 mark/compaction 时扫描与更新所有已注册线程的 shadow stack roots。
+   - `runtime/c/scoop_gc_backend.h`：Immix capability matrix 更新为 `stw=1`、`multi_thread_roots_enum=1`。
+   - `runtime/c/scoop_runtime.c`：Immix 分配路径移除“多线程退化为 malloc”的逻辑（large object 仍回退到 `malloc`）。
+   - `crates/scoop_runtime/src/gc_backend.rs`：同步 Rust 侧 capability 常量。
+   - tests：`crates/scoop_runtime/tests/gc_stop_the_world.rs` 在 `gc-immix` 下启用；`crates/scoop_runtime/tests/gc_capabilities.rs` 更新期望。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1408b [TODO] Immix：与 stackmap STW 协议统一（对齐 T1505）
 - 描述：把 Immix 的 STW/线程状态机实现与未来 stackmap/statepoint 的 STW（T1505）对齐：统一线程记录结构、超时诊断与 park 语义，避免两套协议长期分叉。

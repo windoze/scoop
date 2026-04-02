@@ -10,8 +10,8 @@ fn gc_capabilities_match_selected_backend() {
         assert_eq!(
             GC_CAPABILITIES,
             scoop_runtime::gc_backend::GcCapabilities {
-                stw: false,
-                multi_thread_roots_enum: false,
+                stw: true,
+                multi_thread_roots_enum: true,
                 moving: true,
                 precise_roots_update: true,
                 shadow_stack_roots: true,
