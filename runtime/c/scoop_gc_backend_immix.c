@@ -16,6 +16,7 @@
 
 #include "scoop_gc.h"
 #include "scoop_gc_immix_internal.h"
+#include "scoop_tls_internal.h"
 
 #include <pthread.h>
 #include <stddef.h>
@@ -49,6 +50,38 @@ static void scoop_gc_immix_unlock(ScoopGcImmixState *state) {
   (void)pthread_mutex_unlock(&state->lock);
 }
 
+// --- heap 链表（T1409a：并发 push） ---
+//
+// 说明：
+// - Immix backend 的分配路径在 T1409a 引入 thread-local blocks 后，不再为每次分配持有全局 GC 锁；
+// - 因此 heap.objects 的维护需要改为并发安全（lock-free push）；
+// - stop-the-world 期间（所有线程 park 后）不会有并发分配，因此 GC 仍可在持锁状态下
+//   以“单线程视角”重建/遍历该链表。
+static inline ScoopGcObjectHeader *scoop_gc_heap_objects_load_acquire(void) {
+  return __atomic_load_n(&scoop_gc_heap.objects, __ATOMIC_ACQUIRE);
+}
+
+static inline void scoop_gc_heap_bytes_allocated_add(uint64_t delta) {
+  (void)__atomic_fetch_add(&scoop_gc_heap.bytes_allocated, delta, __ATOMIC_RELAXED);
+}
+
+static inline void scoop_gc_heap_push_object_atomic(ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return;
+  }
+
+  ScoopGcObjectHeader *head = 0;
+  do {
+    head = scoop_gc_heap_objects_load_acquire();
+    obj->next = head;
+  } while (!__atomic_compare_exchange_n(&scoop_gc_heap.objects,
+                                        &head,
+                                        obj,
+                                        0,
+                                        __ATOMIC_RELEASE,
+                                        __ATOMIC_RELAXED));
+}
+
 // --- Pinning（spec §15.10 / TODO T0912） ---
 typedef struct ScoopGcPinnedRecord {
   struct ScoopGcPinnedRecord *next;
@@ -63,7 +96,7 @@ static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj)
     return 0;
   }
 
-  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+  for (ScoopGcObjectHeader *it = scoop_gc_heap_objects_load_acquire(); it != 0; it = it->next) {
     if (it == obj) {
       return 1;
     }
@@ -110,7 +143,7 @@ static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
 }
 
 static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
-  scoop_gc_stw.requested = 1;
+  scoop_gc_stw_requested_store(&scoop_gc_stw, 1);
   scoop_gc_stw.initiator = initiator;
   scoop_gc_stw.epoch += 1;
   scoop_gc_stw.parked_count = 0;
@@ -144,7 +177,7 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
 }
 
 static void scoop_gc_stop_the_world_end_unlocked(void) {
-  scoop_gc_stw.requested = 0;
+  scoop_gc_stw_requested_store(&scoop_gc_stw, 0);
   scoop_gc_stw.parked_count = 0;
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
@@ -169,13 +202,15 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   scoop_gc_immix_lock(state);
 
   // 若当前有其它线程正在进行 stop-the-world，则等它结束后再注册，避免破坏 STW 计数。
-  while (scoop_gc_stw.requested && !pthread_equal(self, scoop_gc_stw.initiator)) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
   ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
   if (existing != 0) {
     existing->current_frame_slot = current_frame_slot;
+    existing->gc_alloc_block_slot =
+        scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
     existing->state = SCOOP_GC_THREAD_RUNNING;
     existing->last_safepoint_epoch = scoop_gc_stw.epoch;
     existing->parked_epoch = 0;
@@ -192,6 +227,8 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   rec->next = scoop_gc_threads;
   rec->thread = self;
   rec->current_frame_slot = current_frame_slot;
+  rec->gc_alloc_block_slot =
+      scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->last_safepoint_epoch = scoop_gc_stw.epoch;
   rec->parked_epoch = 0;
@@ -217,7 +254,7 @@ void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
   scoop_gc_immix_lock(state);
 
   // 若当前有其它线程正在进行 stop-the-world，则等它结束后再注销，避免破坏 STW 计数。
-  while (scoop_gc_stw.requested && !pthread_equal(self, scoop_gc_stw.initiator)) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
@@ -241,6 +278,11 @@ void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
 }
 
 void scoop_gc_safepoint(void) {
+  // T1409a：fast path（无 STW 时不抢全局锁）。
+  if (!scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    return;
+  }
+
   pthread_t self = pthread_self();
   ScoopGcImmixState *state = scoop_gc_immix_state();
   if (state == 0) {
@@ -255,7 +297,7 @@ void scoop_gc_safepoint(void) {
     self_rec->last_safepoint_epoch = scoop_gc_stw.epoch;
   }
 
-  while (scoop_gc_stw.requested && !pthread_equal(self, scoop_gc_stw.initiator)) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
     if (rec == 0) {
       // 未注册：不参与 STW（early stage 语义约定）。
@@ -378,17 +420,9 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
     return;
   }
 
-  ScoopGcImmixState *state = scoop_gc_immix_state();
-  if (state == 0) {
-    return;
-  }
-  scoop_gc_immix_lock(state);
-
-  obj->next = scoop_gc_heap.objects;
-  scoop_gc_heap.objects = obj;
-  scoop_gc_heap.bytes_allocated += obj->size;
-
-  scoop_gc_immix_unlock(state);
+  // T1409a：并发 push（分配路径不持锁）。
+  scoop_gc_heap_push_object_atomic(obj);
+  scoop_gc_heap_bytes_allocated_add(obj->size);
 }
 
 void scoop_gc_heap_init(ScoopGcHeap *heap) {
@@ -1006,11 +1040,20 @@ void scoop_gc_collect(void) {
   scoop_gc_immix_lock(state);
 
   // 保证同一时刻只允许一个 GC 周期。
-  while (scoop_gc_stw.requested) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
   scoop_gc_stop_the_world_begin_unlocked(self);
+
+  // T1409a：在 stop-the-world 达成后，清空所有线程的 thread-local current block 指针，
+  // 避免 moving/compaction/free block 后出现悬挂指针（use-after-free）。
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (it->gc_alloc_block_slot == 0) {
+      continue;
+    }
+    *(it->gc_alloc_block_slot) = 0;
+  }
 
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
@@ -1174,7 +1217,7 @@ uint64_t scoop_gc_debug_heap_object_count(void) {
   }
   scoop_gc_immix_lock(state);
   uint64_t count = 0;
-  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+  for (ScoopGcObjectHeader *it = scoop_gc_heap_objects_load_acquire(); it != 0; it = it->next) {
     count++;
   }
   scoop_gc_immix_unlock(state);
@@ -1187,7 +1230,7 @@ uint64_t scoop_gc_debug_heap_bytes_allocated(void) {
     return 0;
   }
   scoop_gc_immix_lock(state);
-  uint64_t v = scoop_gc_heap.bytes_allocated;
+  uint64_t v = __atomic_load_n(&scoop_gc_heap.bytes_allocated, __ATOMIC_RELAXED);
   scoop_gc_immix_unlock(state);
   return v;
 }
@@ -1224,7 +1267,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
 
   // 2) large objects / fallback malloc：它们不在任何 block 内，需要单独计入。
   if (total != UINT64_MAX) {
-    for (ScoopGcObjectHeader *obj = scoop_gc_heap.objects; obj != 0; obj = obj->next) {
+    for (ScoopGcObjectHeader *obj = scoop_gc_heap_objects_load_acquire(); obj != 0; obj = obj->next) {
       ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
       if (block != 0) {
         continue;

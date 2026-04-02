@@ -1,0 +1,70 @@
+// Scoop runtime TLS layout (internal).
+//
+// 说明：
+// - 该文件是 runtime/c 的 **internal** 头文件：用于在多个 C 编译单元之间共享
+//   “每线程 TLS 结构”的布局约定（例如：GC 线程记录需要从 `current_frame_slot`
+//   反推出其它 TLS 槽位）。
+// - 不属于对外 ABI：不会出现在 `runtime/c/scoop_runtime_api.h` allowlist 中。
+// - 若你修改了该文件，请同步更新 `crates/scoop_runtime/build.rs` 的 `rerun-if-changed`。
+//
+// 当前用途（TODO T1409a）：
+// - Immix thread-local allocator：在每线程 TLS 中保存“当前分配 block”指针；
+// - GC 在 stop-the-world 后需要清空该槽位，避免 compaction/free block 后出现悬挂指针。
+
+#ifndef SCOOP_TLS_INTERNAL_H
+#define SCOOP_TLS_INTERNAL_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+typedef struct ScoopGcFrame ScoopGcFrame;
+
+// 每线程 TLS 状态（early stage：占位 + 渐进扩展）。
+//
+// 注意：
+// - 该结构体不是稳定 ABI；它是 runtime/c 的内部实现细节；
+// - 但其字段偏移会被其它 C 编译单元通过 `offsetof` 使用，因此需要集中声明。
+typedef struct ScoopThreadTls {
+  // 1 表示已注册到 runtime；0 表示未注册。
+  uint32_t registered;
+
+  // 保留字段：未来用于版本/flags 等。
+  uint32_t _reserved_u32;
+
+  // GC：shadow stack 当前帧链头（TODO T0905）。
+  ScoopGcFrame *gc_current_frame;
+
+  // Immix：thread-local 当前分配 block（TODO T1409a）。
+  // - 该字段只在 Immix backend 下使用；
+  // - 用 `void*` 避免把 Immix 内部类型泄漏到 TLS 头文件（保持 include 依赖最小）。
+  void *gc_immix_current_block;
+
+  // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
+  void *_reserved0;
+  void *_reserved1;
+  void *_reserved2;
+} ScoopThreadTls;
+
+// 从 `&tls.gc_current_frame` 反推 `tls` 基址。
+static inline ScoopThreadTls *scoop_tls_from_gc_current_frame_slot(
+    ScoopGcFrame **current_frame_slot) {
+  if (current_frame_slot == 0) {
+    return 0;
+  }
+
+  uintptr_t p = (uintptr_t)current_frame_slot;
+  uintptr_t base = p - (uintptr_t)offsetof(ScoopThreadTls, gc_current_frame);
+  return (ScoopThreadTls *)base;
+}
+
+static inline void **scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(
+    ScoopGcFrame **current_frame_slot) {
+  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+  if (tls == 0) {
+    return 0;
+  }
+  return &tls->gc_immix_current_block;
+}
+
+#endif // SCOOP_TLS_INTERNAL_H
+

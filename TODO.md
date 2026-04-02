@@ -5730,7 +5730,7 @@
 - 目标：优先降低分配路径锁争用与 STW 时间；不追求一次做到最佳。
 - 备注：该任务包含多个相对独立的能力点。为保持“可单独实现 & 单独验证”，拆分为以下子任务逐步推进：
 
-### T1409a [TODO] Immix：并发分配 fast path（thread-local blocks + safepoint fast path）
+### T1409a [DONE] Immix：并发分配 fast path（thread-local blocks + safepoint fast path）
 - 描述：让 `scoop_alloc` 在 Immix backend 下支持 thread-local current block：常见小对象分配不再持有全局 GC 锁（仅 block refill/GC/元数据维护持锁），并保证 moving/compaction 后不会出现悬挂的 current block 指针。
 - 目标：
   - 优先 correctness + 明确并发边界：STW 期间不允许 mutator 分配；GC 周期开始后等待所有注册线程 park；
@@ -5741,6 +5741,15 @@
   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
   - 新增或更新 1 个集成测试覆盖“多线程并发分配 + GC collect” smoke（确保不崩溃且对象可回收）。
 - 依赖：T1408a
+ - 完成：
+   - `runtime/c/scoop_tls_internal.h`：共享 TLS 布局，并提供从 `current_frame_slot` 反推 alloc block 槽位的 helper。
+   - `runtime/c/scoop_runtime.c`：Immix 分配路径改为 thread-local current block；分配前自动 `scoop_thread_register()`；线程退出时归还 current block。
+   - `runtime/c/scoop_gc_backend_immix.c`：heap.objects 改为并发 push；safepoint 增加 requested fast path；GC 周期清空线程 alloc block 指针，避免 compaction/free 后悬挂。
+   - `runtime/c/scoop_gc_stw_internal.h`：线程记录结构增加 alloc block slot，并提供 STW requested 原子读写 helper。
+   - `crates/scoop_runtime/tests/gc_immix_allocator.rs`：新增“多线程并发分配 + GC collect” smoke 测试。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1409b [TODO] Immix：降低 block 池争用（批量取还 / per-thread cache）
 - 描述：在 T1409a 的 thread-local blocks 基础上，降低 block refill 争用：引入 per-thread cache 或批量取还策略，减少全局锁进入频率。

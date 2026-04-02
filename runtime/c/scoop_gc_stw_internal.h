@@ -42,6 +42,13 @@ typedef struct ScoopGcThreadRecord {
   // stackmap 时代该字段可为 NULL（roots 将来自 stack walking / native_roots）。
   ScoopGcFrame **current_frame_slot;
 
+  // Immix thread-local allocator（TODO T1409a）：指向该线程 TLS 内的“当前分配 block”槽位。
+  // 说明：
+  // - 该字段为 optional（可为 NULL）；只有需要在 STW/GC 周期中“清空或修复”线程本地
+  //   分配上下文的 backend 才会填充；
+  // - 使用 `void**` 避免把 backend 内部类型泄漏到共享 header。
+  void **gc_alloc_block_slot;
+
   ScoopGcThreadState state;
 
   // 诊断字段：该线程“最后一次观察到/更新到的 STW epoch”。
@@ -67,6 +74,25 @@ typedef struct ScoopGcStwState {
 #ifndef SCOOP_GC_STW_DIAG_INTERVAL_MS
 #define SCOOP_GC_STW_DIAG_INTERVAL_MS 1000u
 #endif
+
+// STW requested 的原子读写（fast path 用；避免每次 safepoint 都抢全局锁）。
+//
+// 说明：
+// - 该字段仍受全局 lock/cond 协议约束；这里仅用于“无 STW 时的快速返回”；
+// - 使用 `__atomic_*` builtin，避免引入 C11 `<stdatomic.h>` 依赖与类型侵入。
+static inline uint32_t scoop_gc_stw_requested_load(const ScoopGcStwState *stw) {
+  if (stw == 0) {
+    return 0;
+  }
+  return __atomic_load_n(&stw->requested, __ATOMIC_ACQUIRE);
+}
+
+static inline void scoop_gc_stw_requested_store(ScoopGcStwState *stw, uint32_t requested) {
+  if (stw == 0) {
+    return;
+  }
+  __atomic_store_n(&stw->requested, requested, __ATOMIC_RELEASE);
+}
 
 static inline const char *scoop_gc_thread_state_name(ScoopGcThreadState s) {
   switch (s) {
@@ -148,4 +174,3 @@ static inline void scoop_gc_stw_timespec_after_ms(uint32_t ms, struct timespec *
 }
 
 #endif
-

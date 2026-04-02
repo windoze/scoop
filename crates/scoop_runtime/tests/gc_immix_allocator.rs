@@ -6,6 +6,9 @@ use scoop_runtime as _;
 mod immix {
     use core::ffi::c_void;
     use core::ptr;
+    use std::sync::Arc;
+    use std::sync::Barrier;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     #[repr(C)]
     struct ScoopGcObjectHeader {
@@ -85,6 +88,72 @@ mod immix {
                 "allocated bytes must equal freed bytes when no objects remain"
             );
 
+            scoop_thread_unregister();
+        }
+    }
+
+    #[test]
+    fn immix_allocator_multithread_alloc_and_collect_smoke() {
+        unsafe {
+            scoop_runtime_init();
+            scoop_thread_register();
+            scoop_gc_collect();
+            assert_eq!(scoop_gc_debug_heap_object_count(), 0);
+        }
+
+        let header_size = core::mem::size_of::<ScoopGcObjectHeader>() as u64;
+        let object_size = header_size + 64;
+
+        let threads: usize = 4;
+        let start = Arc::new(Barrier::new(threads + 1));
+        let stop = Arc::new(AtomicBool::new(false));
+
+        let mut handles = Vec::new();
+        for _ in 0..threads {
+            let start = start.clone();
+            let stop = stop.clone();
+            handles.push(std::thread::spawn(move || unsafe {
+                scoop_thread_register();
+                start.wait();
+
+                for i in 0..20_000usize {
+                    if stop.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    let p = scoop_alloc(object_size);
+                    assert!(!p.is_null());
+
+                    // 触碰一小段 payload：避免某些平台下的 lazy commit 掩盖问题。
+                    let header_bytes = core::mem::size_of::<ScoopGcObjectHeader>();
+                    let payload = (p as *mut u8).add(header_bytes);
+                    ptr::write_bytes(payload, 0xCC, 16);
+
+                    if (i % 1024) == 0 {
+                        std::thread::yield_now();
+                    }
+                }
+
+                scoop_thread_unregister();
+            }));
+        }
+
+        start.wait();
+
+        for _ in 0..10 {
+            unsafe { scoop_gc_collect() };
+            std::thread::yield_now();
+        }
+
+        stop.store(true, Ordering::Relaxed);
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        unsafe {
+            scoop_gc_collect();
+            assert_eq!(scoop_gc_debug_heap_object_count(), 0);
             scoop_thread_unregister();
         }
     }

@@ -16,6 +16,7 @@
 #include "scoop_gc.h"
 #include "scoop_gc_backend.h"
 #include "scoop_gc_immix_internal.h"
+#include "scoop_tls_internal.h"
 #include "platform/platform.h"
 
 // TLS（thread-local storage）抽象层。
@@ -114,28 +115,9 @@ uint32_t scoop_runtime_init_count(void) {
   return scoop_rt_init_calls;
 }
 
-// 每线程 TLS 状态（early stage：占位）。
-//
-// 说明：
-// - 目前只提供“线程是否已注册”的观测与基本清理；
-// - 后续会扩展：
-//   - GC：`current_frame`（shadow stack 链头，TODO T0905）
-//   - effect：handler stack / perform slot / flag（TODO T0906）
-typedef struct ScoopThreadTls {
-  // 1 表示已注册到 runtime；0 表示未注册。
-  uint32_t registered;
-
-  // 保留字段：未来用于版本/flags 等。
-  uint32_t _reserved_u32;
-
-  // GC：shadow stack 当前帧链头（TODO T0905）。
-  ScoopGcFrame *gc_current_frame;
-
-  // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
-  void *_reserved0;
-  void *_reserved1;
-  void *_reserved2;
-} ScoopThreadTls;
+// 每线程 TLS 状态：
+// - 定义位于 `runtime/c/scoop_tls_internal.h`（internal，便于 GC 后端共享布局）。
+// - 本文件负责声明 thread-local 实例与读写 API。
 
 static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
 
@@ -264,9 +246,27 @@ void scoop_thread_unregister(void) {
   void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot);
   scoop_gc_thread_unregister(&scoop_tls.gc_current_frame);
 
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+  // T1409a：线程退出前把 thread-local current block 归还到可复用列表，避免“丢失 block”
+  // 导致长期运行/线程频繁创建销毁时 reserved bytes 非必要增长。
+  if (scoop_tls.gc_immix_current_block != 0) {
+    ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
+    ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
+    scoop_tls.gc_immix_current_block = 0;
+
+    if (state != 0 && state->lock_inited && block != 0) {
+      (void)pthread_mutex_lock(&state->lock);
+      block->next_free = state->reusable_blocks;
+      state->reusable_blocks = block;
+      (void)pthread_mutex_unlock(&state->lock);
+    }
+  }
+#endif
+
   // 早期阶段：注销时清空 TLS，避免后续测试/手动调试场景出现悬挂状态。
   scoop_tls.registered = 0;
   scoop_tls.gc_current_frame = 0;
+  scoop_tls.gc_immix_current_block = 0;
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
@@ -1048,6 +1048,10 @@ void *scoop_alloc(uint64_t size) {
     scoop_runtime_init();
   }
 
+  // T1409a：为保证协作式 STW 的并发边界清晰，分配前确保当前线程已注册到 runtime/GC。
+  // （幂等：重复调用无副作用）
+  scoop_thread_register();
+
   // safepoint：允许 GC stop-the-world 在分配前暂停当前线程（TODO T0911）。
   void scoop_gc_safepoint(void);
   scoop_gc_safepoint();
@@ -1076,6 +1080,7 @@ void *scoop_alloc(uint64_t size) {
   // 注意：
   // - 为避免改变对外 ABI，这里通过 `scoop_gc_heap.free_list` 读取 Immix state；
   // - large object（超过单个 block payload）当前回退到 `malloc`；小对象走 Immix blocks。
+  // - T1409a：引入 thread-local current block，使常见分配路径不再持有全局 GC 锁。
   ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
   if (state == 0 || !state->lock_inited) {
     // 理论上 runtime_init 会先调用 heap_init 初始化 state；这里保守回退。
@@ -1097,53 +1102,56 @@ void *scoop_alloc(uint64_t size) {
     return p;
   }
 
-  (void)pthread_mutex_lock(&state->lock);
-
   void *p = 0;
 
   size_t cap = scoop_gc_immix_block_payload_capacity();
   if ((size_t)object_size > cap) {
     p = malloc((size_t)object_size);
   } else {
-    // bump-in-hole（Immix v0）：优先复用 partial blocks（由 region sweep 产出的 holes），
-    // 不够时再复用整块空闲 block，最后才分配新 block。
-    ScoopGcImmixBlock *block = state->current_block;
-    if (block == 0) {
-      block = scoop_gc_immix_state_take_block(state);
-    }
+    // bump-in-hole（Immix v0 / T1409a）：
+    // - 线程优先在自己的 current block 内分配（无锁快路径）；
+    // - 当 block 放不下时，才进入全局锁从 block pool 取一个新 block（refill）。
+    ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
 
     for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
       if (block == 0) {
+        (void)pthread_mutex_lock(&state->lock);
+        block = scoop_gc_immix_state_take_block(state);
+        (void)pthread_mutex_unlock(&state->lock);
+        scoop_tls.gc_immix_current_block = (void *)block;
+      }
+
+      if (block == 0) {
         break;
       }
+
       p = scoop_gc_immix_block_alloc(block, (size_t)object_size, (size_t)sizeof(void *));
       if (p != 0) {
         break;
       }
-      // 当前 block 放不下：切换到新 block。
-      block = scoop_gc_immix_state_take_block(state);
+
+      // 当前 block 放不下：丢弃 thread-local 指针并尝试 refill 新 block。
+      block = 0;
+      scoop_tls.gc_immix_current_block = 0;
     }
   }
 
   if (p == 0) {
-    (void)pthread_mutex_unlock(&state->lock);
     SCOOP_RT_LOG("scoop_alloc: oom (size=%" PRIu64 ")", object_size);
     return 0;
   }
 
   // 初始化对象头（v0）：保持字段为确定值，便于测试/调试与后续 GC 接入。
   ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
-  hdr->next = scoop_gc_heap.objects;
+  hdr->next = 0;
   hdr->type_desc = 0;
   hdr->size = object_size;
   hdr->flags = 0;
   hdr->mark = 0;
 
-  // 登记到 heap 链表（用于 sweep）。
-  scoop_gc_heap.objects = hdr;
-  scoop_gc_heap.bytes_allocated += hdr->size;
-
-  (void)pthread_mutex_unlock(&state->lock);
+  // 登记到 heap 链表（用于 sweep；Immix backend 下为 lock-free push）。
+  void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj);
+  scoop_gc_heap_register_object(hdr);
   return p;
 #else
   void *p = malloc((size_t)object_size);
