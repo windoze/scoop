@@ -20,7 +20,8 @@
 ## 0.1 维护备注（TODO 顺序）
 
 - 2026-04-03：T1405（GC backend 抽象）范围过大且与后续 Immix/adapter 等实现点耦合较多，为保持“首个 `[TODO]` 可直接实现”的粒度，已拆分为 T1405a/T1405b：先落地 backend 选择机制 + baseline/minimal 双后端回归（T1405a），再补齐 capability 矩阵与检查点（T1405b）。
-- 2026-04-03：完成 T1405a：引入 `SCOOP_GC_BACKEND` 编译期选择与 `gc-baseline/gc-minimal` Cargo features；把 `scoop_gc_self_check` 与 `scoop_gc_type_descriptor_trace` 提取为 shared 编译单元；新增 minimal backend（单线程/无 STW，检测到多线程时 collect 退化为 no-op）；并对 `gc_stop_the_world` integration test 做 feature gating（仅 baseline 需要）。
+- 2026-04-03：完成 T1405a：引入 `SCOOP_GC_BACKEND` 编译期选择与 `gc-baseline/gc-minimal` Cargo features；把 `scoop_gc_self_check` 与 `scoop_gc_type_descriptor_trace` 提取为 shared 编译单元；新增 minimal backend（单线程/无 STW，检测到多线程时 collect 退化为 no-op）。
+- 2026-04-03：完成 T1405b：补齐 GC backend capability matrix（STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots），并把这些能力以编译期常量接入测试 gating：`gc_stop_the_world` 在 `gc-minimal` 下显式 `ignored`；新增 `gc_capabilities` 集成测试固化矩阵值。
 - 2026-04-02：完成 T1403c：收敛 once/guard 相关 OS 调用到 platform backend：新增 dynlib symbol lookup（RTLD_DEFAULT 类语义）platform API，并在 POSIX backend 通过 `dlsym/dlerror` 实现（Windows 占位）；`runtime/c/scoop_once.c` 改为仅依赖 platform thread self/yield + dynlib lookup，不再直接包含/调用 pthread/sched/dlfcn。
 - 2026-04-02：完成 T1404：sysroot/std 平台 API surface 审计与固化清单：新增 `PLATFORM_API_SURFACE_AUDIT.md`（覆盖 env/time/fs/path/io/process/thread/sync/channels/net 的 API surface ↔ runtime 符号 ↔ backend 支持现状），并新增 typecheck fixture `tests/fixtures/typecheck/std_platform_api_no_os_types_is_error.scoop` 回归“平台 API 不泄漏 FILE/HANDLE/pthread_t 等 OS 概念类型”。
 - 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。
@@ -1052,6 +1053,7 @@ fixtures：
 - [ ] **多线程性能**：
   - thread-local allocation（TLAB/per-thread blocks）、全局 block 池的低争用策略；
   - 并行标记/并行 sweep 的渐进引入；增加基准与 stress 测试（碎片化、并发分配、跨线程引用）。
+- [x] **GC backend capability matrix v0**：固化 STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots 等能力，并用于测试 gating（T1405b）。
 - [ ] **GC backend 可替换**：编译期可选 baseline/Immix/embedded/minimal/hosted(adapter)，并维护 capability matrix（尤其是 WASM/embedded）。
 
 fixtures / tests（建议）：

@@ -1,7 +1,6 @@
-#![cfg(feature = "gc-baseline")]
-
 // 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
 use scoop_runtime as _;
+use scoop_runtime::gc_backend::{GC_BACKEND, GC_CAPABILITIES};
 
 use core::ffi::c_void;
 use core::ptr;
@@ -43,7 +42,16 @@ unsafe extern "C" {
 }
 
 #[test]
+#[cfg_attr(
+    feature = "gc-minimal",
+    ignore = "gc-minimal backend 不支持 stop-the-world / 多线程 roots 枚举（该测试仅适用于 baseline 或未来支持这些能力的 backend）"
+)]
 fn gc_stop_the_world_scans_roots_on_all_registered_threads() {
+    assert!(
+        GC_CAPABILITIES.stw && GC_CAPABILITIES.multi_thread_roots_enum,
+        "该测试要求 STW + 多线程 roots 枚举能力；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
+    );
+
     unsafe {
         scoop_runtime_init();
     }

@@ -6,7 +6,9 @@
 //! - 未来当 Scoop 具备足够的 `@NoGC/@Unsafe/FFI/线程` 能力时，本 crate 将
 //!   逐步被 Scoop 自己实现的 GC/runtime 取代。
 
-// 目前不暴露任何 Rust API。
+// 当前仅暴露少量“编译期元信息”（用于测试 gating/诊断），不提供运行时 Rust API。
+
+pub mod gc_backend;
 
 #[cfg(test)]
 mod abi_exports_allowlist;

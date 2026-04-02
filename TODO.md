@@ -5577,11 +5577,19 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-minimal`
    - `cargo test --all`
 
-### T1405b [TODO] GC backend 能力矩阵：按 backend 固化线程/移动/精确 roots 等 capability（PLAN §15.3）
+### T1405b [DONE] GC backend 能力矩阵：按 backend 固化线程/移动/精确 roots 等 capability（PLAN §15.3）
 - 描述：为 GC backend 固化 capability（例如：是否支持 STW、多线程 roots 枚举、移动/压缩、精确 roots 更新），并把这些能力以“编译期/构建期可检查”的形式接入到测试与后续实现（Immix/adapter）。
 - 目标：先固化 capability 表达与最小检查点；不在本任务内实现 Immix/moving/stackmap。
 - 验收：新增至少 1 个单测/构建检查：当选择 minimal backend 时，明确跳过或给出清晰诊断（而不是 silent mismatch）。
 - 依赖：T1405a
+ - 完成：
+   - `runtime/c/scoop_gc_backend.h`：扩展 capability matrix 宏（STW / 多线程 roots 枚举 / moving / 精确 roots 更新 / shadow stack roots）。
+   - `crates/scoop_runtime/src/gc_backend.rs`：新增 Rust 侧 `GcBackend/GcCapabilities` 常量，固化与 C 侧一致的能力语义，供测试/后续实现复用。
+   - tests：`gc_stop_the_world` 在 `gc-minimal` 下明确标记为 `ignored`（并在强制运行时给出清晰断言信息）；新增 `gc_capabilities` 集成测试固化矩阵值。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-minimal`
+   - `cargo test --all`
 
 ### T1406 [TODO] Immix v0：单线程、非移动 backend（PLAN §15.3）
 - 描述：在 baseline GC 之外实现 Immix（line/block allocator + mark-region）作为可选 backend（先单线程、非移动）。
