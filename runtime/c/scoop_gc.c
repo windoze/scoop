@@ -580,6 +580,22 @@ uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   return v;
 }
 
+uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t total = 0;
+  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+    // 防御：饱和加，避免极端情况下 u64 溢出导致观测值回卷。
+    uint64_t size = it->size;
+    if (UINT64_MAX - total < size) {
+      total = UINT64_MAX;
+      break;
+    }
+    total += size;
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return total;
+}
+
 // `scoop_alloc` 由 `scoop_runtime.c` 实现；这里仅声明供 debug helper 调用。
 void *scoop_alloc(uint64_t size);
 

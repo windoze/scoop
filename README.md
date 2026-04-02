@@ -76,6 +76,27 @@ PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
   run tests/fixtures/spec_doctest/overview_minimal_main.scoop
 ```
 
+## GC microbench（baseline vs Immix）
+
+> 用途：本地对比 GC 分配吞吐与碎片化趋势；不做跨机器阈值 gating。
+
+一键对比（推荐）：
+
+```bash
+# 吞吐
+tools/gc_microbench.sh throughput --object-size 256 --rounds 50 --batch 50000
+
+# 碎片化：稀疏存活（pin）导致 reserved bytes 升高（non-moving Immix 的典型现象）
+tools/gc_microbench.sh fragmentation --object-size 256 --initial 200000 --pin-stride 100
+```
+
+直接跑单个 backend（更容易做参数扫描）：
+
+```bash
+cargo run -p scoop_runtime --release --bin gc_microbench --no-default-features --features gc-immix -- \
+  fragmentation --object-size 256 --initial 200000 --pin-stride 100
+```
+
 ## 目录结构（简述）
 
 - `crates/scoop/`：命令行工具（driver）

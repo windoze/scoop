@@ -71,6 +71,7 @@
   X(scoop_gc_debug_count_roots_current_thread) \
   X(scoop_gc_debug_heap_bytes_allocated) \
   X(scoop_gc_debug_heap_bytes_freed) \
+  X(scoop_gc_debug_heap_bytes_reserved) \
   X(scoop_gc_debug_heap_object_count) \
   X(scoop_gc_frame_pop) \
   X(scoop_gc_frame_push) \

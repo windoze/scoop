@@ -5650,11 +5650,22 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1406d [TODO] GC microbench/fixtures：碎片化与吞吐基准（baseline vs Immix）
+### T1406d [DONE] GC microbench/fixtures：碎片化与吞吐基准（baseline vs Immix）
 - 描述：为 GC 引入可重复的 microbench（或最小 benchmark harness），覆盖碎片化与分配吞吐，并记录基线数据用于后续优化回归。
 - 目标：先让基准可跑、结果可比较；不在本任务内做自动阈值 gating（避免在不同机器上不稳定）。
 - 验收：新增一个可运行的 bench 脚本或 `cargo bench` 目标，并在文档中给出示例运行方式；本地可对比 baseline/immix 的关键指标。
 - 依赖：T1406c
+ - 完成：
+   - `runtime/c/`：新增 debug API `scoop_gc_debug_heap_bytes_reserved`（估算 reserved bytes；Immix 以 block 维度统计，并额外计入 large/fallback malloc 对象）。
+   - `crates/scoop_runtime/src/bin/gc_microbench.rs`：新增 microbench 工具（`throughput`/`fragmentation` 两种场景；支持 `--json/--output` 便于记录基线数据）。
+   - `tools/gc_microbench.sh`：一键对比 baseline vs Immix 的运行脚本（建议以 `--release` 运行）。
+   - docs：`README.md`、`tools/README.md` 补齐运行方式与示例参数。
+   - tests：新增 `crates/scoop_runtime/tests/gc_debug_reserved_bytes.rs` 回归 reserved bytes 的语义约束（`reserved >= live`）。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix`
+   - `tools/gc_microbench.sh throughput`
+   - `tools/gc_microbench.sh fragmentation`
 
 ### T1407 [TODO] Immix：支持移动与压缩（moving/compaction）（PLAN §15.3）
 - 描述：为 Immix 增加 evacuation/compaction：在 STW 阶段把存活对象从稀疏 block 搬迁到更紧凑的区域，使用 forwarding pointer 修复引用，并与 pin/unpin/FFI 语义兼容。

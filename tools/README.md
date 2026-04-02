@@ -7,4 +7,4 @@
 - `tools/scoop_tools/`：Rust 工具箱（建议通过 `cargo run -p scoop_tools -- ...` 运行）
   - `spec-fixtures sync`：从 `SCOOP_FULL_SPEC.md` 抽取带 `// FIXTURE:` 的代码块，更新 `tests/fixtures/spec_doctest/`
   - `spec-fixtures check`：检查生成结果是否与规范一致（CI 会执行）
-
+- `tools/gc_microbench.sh`：GC microbench 一键对比脚本（baseline vs Immix；TODO T1406d）

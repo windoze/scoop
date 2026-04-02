@@ -397,6 +397,21 @@ uint64_t scoop_gc_debug_heap_bytes_freed(void) {
   return v;
 }
 
+uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  uint64_t total = 0;
+  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+    uint64_t size = it->size;
+    if (UINT64_MAX - total < size) {
+      total = UINT64_MAX;
+      break;
+    }
+    total += size;
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return total;
+}
+
 void *scoop_alloc(uint64_t size);
 
 void scoop_gc_debug_alloc_garbage(int64_t count) {
@@ -414,4 +429,3 @@ void scoop_gc_debug_alloc_garbage(int64_t count) {
 }
 
 #endif // SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_MINIMAL
-

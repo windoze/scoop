@@ -244,6 +244,16 @@ uint64_t scoop_gc_debug_heap_object_count(void);
 uint64_t scoop_gc_debug_heap_bytes_allocated(void);
 uint64_t scoop_gc_debug_heap_bytes_freed(void);
 
+// 返回“当前 heap 保留的内存”估算值（字节）。
+//
+// 说明：
+// - 该值用于 microbench/观测碎片化趋势，不承诺与 OS 层 RSS/VM 完全一致；
+// - 不同 GC backend 的语义不同，但应满足：`reserved_bytes >= live_bytes`；
+// - baseline/minimal：按对象逐个 `malloc`，该值近似等于 live bytes（对象 size 之和）；
+// - Immix：返回 `block_count * block_size + large_object_live_bytes`，因此可反映
+//   “稀疏存活对象导致 block 无法回收”的碎片化开销。
+uint64_t scoop_gc_debug_heap_bytes_reserved(void);
+
 // Debug helper：分配 `count` 个“垃圾对象”（不写入 roots），用于 GC 压测与回归。
 //
 // 说明：当 `count <= 0` 时不分配；当 OOM 时会提前停止分配。
