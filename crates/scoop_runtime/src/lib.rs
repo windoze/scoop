@@ -8,3 +8,5 @@
 
 // 目前不暴露任何 Rust API。
 
+#[cfg(test)]
+mod abi_exports_allowlist;

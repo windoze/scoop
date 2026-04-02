@@ -1013,6 +1013,7 @@ fixtures：
 - **C runtime 是长期方案**：GC/effect runtime/平台系统调用 glue 保持在 `runtime/c/`，不计划迁移到 Scoop。
 - **平台依赖只在 C**：OS 差异（POSIX/Windows/WASM/embedded）通过 C 层 backend 选择解决；Scoop 侧（sysroot/stdlib）不出现平台类型泄漏与平台分叉语义。
 - **ABI 尽可能小**：对外导出的 runtime 符号要可审计、可稳定版本化；优先复用少量通用 entrypoints，不把 libc/OS API 逐个“直通”暴露给 Scoop。
+- **导出符号 allowlist**：使用 `runtime/c/scoop_runtime_api.h` 集中声明导出符号，并在 `crates/scoop_runtime` 单测中用 `nm` 校验“未登记导出会失败”（对应 TODO T1401）。
 
 ### 15.2 平台相关代码隔离（建议分层）
 

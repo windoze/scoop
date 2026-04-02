@@ -5424,7 +5424,7 @@
 
 ## T14：C runtime 长期路线（平台隔离 + GC/Immix）（阶段 12：长期稳定）
 
-### T1401 [TODO] runtime ABI 最小化：集中声明 + 导出符号审计（PLAN §15.1）
+### T1401 [DONE] runtime ABI 最小化：集中声明 + 导出符号审计（PLAN §15.1）
 - 描述：把对外导出的 runtime C 符号集中到单一头文件/清单（allowlist），并在 CI/本地测试中校验“新增导出必须显式登记”，防止 ABI 膨胀与平台细节泄漏到 Scoop 侧。
 - 目标：
   - runtime ABI 只承载 Scoop 必需的最小能力（alloc/gc/effects/platform primitives），不把 libc/OS API 逐个映射到 sysroot；
@@ -5435,6 +5435,11 @@
   - 新增一个检查（unit test 或 `scoop_tools` 子命令）：比对 `nm`/`objdump` 的导出符号与 allowlist，出现未登记导出时失败；
   - `cargo test --all` 通过。
 - 依赖：T0806、T0901
+ - 完成：
+   - 新增 `runtime/c/scoop_runtime_api.h`：集中列出当前 `runtime/c` 的对外导出符号（allowlist，X-macro）。
+   - `crates/scoop_runtime/src/abi_exports_allowlist.rs`：新增单测，运行 `nm`/`llvm-nm` 比对 `libscooprt.a` 导出符号与 allowlist，出现未登记导出时失败。
+ - 验收：
+   - `cargo test --all`
 
 ### T1402 [TODO] 平台层抽象 v0：引入 `runtime/c/platform`（POSIX backend）（PLAN §15.2）
 - 描述：在 C runtime 内部引入 platform 层 API（如 `platform.h` + `platform_posix.c`），把 `getenv/gettimeofday/open/read/write/pthread_*` 等 OS 调用收敛到 platform/backends；core/runtime 代码只调用 platform API。
