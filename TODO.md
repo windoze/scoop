@@ -5462,7 +5462,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1403 [TODO] 平台层扩展：thread/sync/channels/task/net 的 backend 隔离（PLAN §15.2）
+### T1403（拆分为子任务）
 - 描述：把 `scoop_sync_*`/`scoop_thread_*`/`scoop_channels_*`/task executor/net 等平台相关实现从“直接依赖 pthread/OS API”改为调用 platform 层接口，形成清晰的 backend 边界。
 - 目标：
   - 明确哪些能力是“必须由 runtime C 提供的平台能力”，并避免在 Scoop 侧通过 FFI/extern 直接触达 OS；
@@ -5471,6 +5471,36 @@
   - `runtime/c/platform/` 中新增 thread/sync/channel/task/net 所需的最小接口声明；
   - 现有 POSIX/pthread backend 可构建并跑通现有 run-pass fixtures（`std_sync_*`/`std_thread_*`/`std_channels_*`/`task` 若已落地）。
 - 依赖：T1319b、T1319c、T1319d、T1319e
+- 备注：该任务涉及多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务并逐步推进：
+
+### T1403a [TODO] platform：sync primitives 抽象（Mutex/CondVar/Thread self）+ 现有模块接入（PLAN §15.2）
+- 描述：在 `runtime/c/platform/` 补齐 `mutex/condvar` 与“线程自识别（self/equal）”所需的最小接口，并让 `scoop_sync_*`/`scoop_channels_*`/task executor 内部锁从 pthread 直接调用改为走 platform API。
+- 目标：
+  - 只做“锁/条件变量/线程 self/equal”能力，不引入 thread spawn/join/sleep/yield；
+  - 不改变对外 runtime ABI（导出符号集合与签名保持不变）。
+- 验收：
+  - `runtime/c/scoop_sync.c`、`runtime/c/scoop_channels.c`、`runtime/c/scoop_task_executor.c` 不再直接调用 `pthread_*`，仅依赖 platform API；
+  - `cargo test --all`；
+  - `cargo run -p scoop -- test`。
+- 依赖：T1402
+
+### T1403b [TODO] platform：thread primitives 抽象（spawn/join/yield/sleep/currentId）+ runtime 接入（PLAN §15.2）
+- 描述：在 `runtime/c/platform/` 增加线程相关最小接口（spawn/join/yield/sleep/currentId），并将 `runtime/c/scoop_thread.c` 的 OS 调用收敛到 platform backend。
+- 目标：先保证 host POSIX/pthread backend 可用；Windows 仅占位实现与 build gate。
+- 验收：
+  - `runtime/c/scoop_thread.c` 不再直接调用 `pthread_*`/`sched_yield`/`nanosleep`/`syscall`；
+  - `cargo test --all`；
+  - `cargo run -p scoop -- test`。
+- 依赖：T1403a
+
+### T1403c [TODO] platform：once/guard 相关 OS 调用收敛（`scoop_once_*`）（PLAN §15.2）
+- 描述：将 `runtime/c/scoop_once.c` 中 `pthread_self/sched_yield/dlsym` 等平台相关调用收敛到 platform backend（或按 capability gating 留占位），形成一致的 platform 边界。
+- 目标：不改变 `scoop_once_*` 的对外语义与 ABI；先保证 host backend 可回归。
+- 验收：
+  - `runtime/c/scoop_once.c` 不再直接包含/调用 pthread 或 dlfcn；
+  - `cargo test --all`；
+  - `cargo run -p scoop -- test`。
+- 依赖：T1403b
 
 ### T1404 [TODO] sysroot/std 平台 API surface 审计：不泄漏 OS 概念（PLAN §15.1）
 - 描述：审计 sysroot 与 stdlib 中的平台 API（env/time/fs/path/io/process/thread/sync/channels/net），确保不暴露 `errno/FILE*/HANDLE/pthread_t` 等 OS 概念与平台差异；必要时调整为平台无关的 `Option/Result` 形状，并用 capability gating 表达“不支持”。
