@@ -3551,7 +3551,7 @@
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
-   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1024 [DONE] `@CLayout(aligned, packed)`：GC-free struct 的 C ABI 布局控制（spec §15.5.2）
 - 描述：扩展 `@CLayout`：
@@ -6053,7 +6053,7 @@
    - `cargo test --all`
    - `cargo test -p scoopc --features llvm`
 
-### T1503a2 [TODO] `scoop` CLI：新增 `dump-stackmaps`（读取可执行文件 stackmap section）
+### T1503a2 [DONE] `scoop` CLI：新增 `dump-stackmaps`（读取可执行文件 stackmap section）
 - 描述：新增 `scoop dump-stackmaps <bin>`：从可执行文件中定位 stackmap section，输出可读 header 摘要（version/num_records 等），并支持后续扩展为 “return_address → record” dump。
 - 目标：
   - 先只要求能在 host 平台读取 stackmap section（Mach-O/ELF 优先；COFF 可后置）；
@@ -6062,6 +6062,16 @@
   - 新增一个最小 run-pass fixture：产出可执行文件后运行 `scoop dump-stackmaps`，断言输出包含 `records:` 且数量大于 0；
   - `cargo test --all`、`cargo run -p scoop -- test` 通过。
 - 依赖：T1503a1、T0806
+ - 完成：
+   - `crates/scoop/src/cli.rs`：新增 `dump-stackmaps` 子命令（`scoop dump-stackmaps <bin>`）。
+   - `crates/scoop/src/commands/dump_stackmaps.rs`：用 `object` crate 定位 stackmap section（Mach-O/ELF），解析并打印稳定 header 摘要（含 `records: <n>`）。
+   - `crates/scoopc/src/stackmap.rs`：把 `StackMapHeader` 最小解析器提到非 llvm feature 模块，供 driver/测试复用；`scoopc::llvm::stackmap` 保持 re-export。
+   - `crates/scoop/src/fixtures/run_pass.rs`：run-pass 支持 `// RUN-MODE: dump-stackmaps`，并新增 `RUN-STACKMAPS-RECORDS-GT` 断言（> n）。
+   - `tests/fixtures/run-pass/stackmaps_dump_header_basic.scoop`：新增最小回归用例。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1503b [TODO] LLVM：接入 `rewrite-statepoints-for-gc`，并把 safepoint 绑定到 runtime helper（从 `scoop_alloc` 起步）
 - 描述：把 LLVM 后端从 “手工 stackmap 插桩” 迁移为 statepoint 体系：接入 `rewrite-statepoints-for-gc`，并确保 stackmap records 来自 statepoint 重写后的 callsite（后续用于 moving GC 的 `gc.relocate` 更新链路）。

@@ -12,8 +12,10 @@
 //! - `// RUN-STDOUT: <file>`（run-pass fixtures：stdout golden）
 //! - `// RUN-STDERR: <file>`（run-pass fixtures：stderr golden）
 //! - `// RUN-STDIN: <file>`（run-pass fixtures：stdin 输入文件，原样写入 stdin）
+//! - `// RUN-MODE: run|dump-stackmaps`（run-pass fixtures：默认 run；可切换为运行 `scoop dump-stackmaps`）
 //! - `// RUN-STDOUT-CONTAINS: <substring>`（run-pass fixtures：stdout 子串断言）
 //! - `// RUN-STDERR-CONTAINS: <substring>`（run-pass fixtures：stderr 子串断言）
+//! - `// RUN-STACKMAPS-RECORDS-GT: <n>`（run-pass fixtures：断言 `dump-stackmaps` 输出 records 数量 > n）
 //! - `// EXPECT-EXIT: <code>`（run-pass fixtures：期望退出码）
 //! - `// TIMEOUT: <ms>`（run-pass fixtures：超时毫秒）
 //! - `// EXPECT-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的实例数量）
@@ -39,8 +41,10 @@ pub struct FixtureExpectation<'a> {
     pub run_stdout: Option<&'a str>,
     pub run_stderr: Option<&'a str>,
     pub run_stdin: Option<&'a str>,
+    pub run_mode: Option<&'a str>,
     pub run_stdout_contains: Option<&'a str>,
     pub run_stderr_contains: Option<&'a str>,
+    pub run_stackmaps_records_gt: Option<u32>,
     pub expect_exit: Option<i32>,
     pub timeout_ms: Option<u64>,
     pub expect_monomorph_hit: Option<usize>,
@@ -62,8 +66,10 @@ impl<'a> FixtureExpectation<'a> {
         let mut run_stdout = None;
         let mut run_stderr = None;
         let mut run_stdin = None;
+        let mut run_mode = None;
         let mut run_stdout_contains = None;
         let mut run_stderr_contains = None;
+        let mut run_stackmaps_records_gt = None;
         let mut expect_exit = None;
         let mut timeout_ms = None;
         let mut expect_monomorph_hit = None;
@@ -128,12 +134,20 @@ impl<'a> FixtureExpectation<'a> {
                 run_stdin = Some(rest.trim());
             }
 
+            if let Some(rest) = directive.strip_prefix("RUN-MODE:") {
+                run_mode = Some(rest.trim());
+            }
+
             if let Some(rest) = directive.strip_prefix("RUN-STDOUT-CONTAINS:") {
                 run_stdout_contains = Some(rest.trim());
             }
 
             if let Some(rest) = directive.strip_prefix("RUN-STDERR-CONTAINS:") {
                 run_stderr_contains = Some(rest.trim());
+            }
+
+            if let Some(rest) = directive.strip_prefix("RUN-STACKMAPS-RECORDS-GT:") {
+                run_stackmaps_records_gt = rest.trim().parse::<u32>().ok();
             }
 
             if let Some(rest) = directive.strip_prefix("EXPECT-EXIT:") {
@@ -172,8 +186,10 @@ impl<'a> FixtureExpectation<'a> {
             run_stdout,
             run_stderr,
             run_stdin,
+            run_mode,
             run_stdout_contains,
             run_stderr_contains,
+            run_stackmaps_records_gt,
             expect_exit,
             timeout_ms,
             expect_monomorph_hit,
@@ -218,8 +234,10 @@ mod tests {
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.run_stdin, None);
+        assert_eq!(exp.run_mode, None);
         assert_eq!(exp.run_stdout_contains, None);
         assert_eq!(exp.run_stderr_contains, None);
+        assert_eq!(exp.run_stackmaps_records_gt, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
         assert_eq!(exp.expect_monomorph_hit, None);
@@ -243,8 +261,10 @@ mod tests {
         assert_eq!(exp.run_stdout, None);
         assert_eq!(exp.run_stderr, None);
         assert_eq!(exp.run_stdin, None);
+        assert_eq!(exp.run_mode, None);
         assert_eq!(exp.run_stdout_contains, None);
         assert_eq!(exp.run_stderr_contains, None);
+        assert_eq!(exp.run_stackmaps_records_gt, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
         assert_eq!(exp.expect_monomorph_hit, None);
@@ -306,10 +326,21 @@ mod tests {
         assert_eq!(exp.run_stdout, Some("out.txt"));
         assert_eq!(exp.run_stderr, Some("err.txt"));
         assert_eq!(exp.run_stdin, Some("in.txt"));
+        assert_eq!(exp.run_mode, None);
         assert_eq!(exp.run_stdout_contains, Some("hello"));
         assert_eq!(exp.run_stderr_contains, Some("warn"));
+        assert_eq!(exp.run_stackmaps_records_gt, None);
         assert_eq!(exp.expect_exit, Some(42));
         assert_eq!(exp.timeout_ms, Some(1500));
+    }
+
+    #[test]
+    fn parse_run_mode_and_stackmaps_records_gt() {
+        let exp = FixtureExpectation::from_source(
+            "// RUN-MODE: dump-stackmaps\n// RUN-STACKMAPS-RECORDS-GT: 0\nfun main() {}\n",
+        );
+        assert_eq!(exp.run_mode, Some("dump-stackmaps"));
+        assert_eq!(exp.run_stackmaps_records_gt, Some(0));
     }
 
     #[test]

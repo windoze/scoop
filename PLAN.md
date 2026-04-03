@@ -33,6 +33,7 @@
 - 2026-04-03：完成 T1409c2：Immix 并行 region sweep v0（可开关）：把 per-block 的 bitmap 融合/holes 初始化/分类按 blocks 分片并行执行，最终合并 free/reusable/evac lists（env：`SCOOP_GC_IMMIX_PARALLEL_SWEEP`）；新增 `gc_immix_parallel_sweep` 集成测试覆盖开关关闭/开启两种模式。
 - 2026-04-03：完成 T1409c3：新增 `gc_immix_parallel_mark_sweep_stress` 集成测试：多线程并发分配 + 跨线程引用环 + 周期性断链制造垃圾（逼迫 sweep/holes 复用）+ 每线程 pinned anchor 哨兵校验；覆盖并行 mark/sweep 开关组合（N=4）并额外在 N=8 下跑最热组合（mark+sweep 同时开启）。
 - 2026-04-03：完成 T1410：新增 hosted/adapter GC backend（`gc-hosted` / `SCOOP_GC_BACKEND_HOSTED`）与 capability matrix，并新增受限能力回归：多线程注册期间 `scoop_gc_collect()` 必须 no-op（宁可泄漏也不错误回收），线程退出后可恢复单线程回收（为 WASM/embedded 等受限环境提供落点）。
+- 2026-04-03：完成 T1503a2：新增 `scoop dump-stackmaps <bin>` 子命令（读取可执行文件的 stackmap section 并输出 header 摘要），并新增 run-pass fixture 回归 `records > 0`。
 - 2026-04-03：T1411（unwind backend：`libunwind`/等价后端）范围较大且与 GC stack walking（T1505）耦合；为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，已拆分为：
   - T1411a：platform/unwind v0（current-thread backtrace + test-only 导出）；
   - T1411b：在 T1505 停世界协议中复用 platform/unwind（已移动到 T1505 之后）；
@@ -730,7 +731,7 @@
   - `.o`/最终可执行文件必须携带 stackmap section；链接产物中 stackmap 必须可被 runtime 定位并注册（支持 main binary 与 `.cone` 预编译对象一起链接）
   - 落地顺序（对应 TODO T1503 拆分）：
     - [x] T1503a1：先建立 stackmap section 生成 + header 解析/单测闭环（先用 `llvm.experimental.stackmap` 降低改动面）
-    - [ ] T1503a2：补齐 `scoop dump-stackmaps` 的可观测工具（CI/fixtures 可断言）
+    - [x] T1503a2：补齐 `scoop dump-stackmaps` 的可观测工具（CI/fixtures 可断言）
     - [ ] T1503b：接入 `rewrite-statepoints-for-gc` 并迁移到 statepoint 产出的 stackmaps（为 moving GC 的 `gc.relocate` 链路铺路）
 
 - [ ] `when` lowering：补齐 or-pattern / guard（spec §4.2）

@@ -632,6 +632,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "miette",
+ "object",
  "scoopc",
  "serde_json",
  "tempfile",

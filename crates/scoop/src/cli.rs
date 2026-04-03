@@ -55,6 +55,12 @@ pub enum Command {
         type_name: Option<String>,
     },
 
+    /// 从二进制产物中读取并打印 LLVM stackmap header 信息
+    DumpStackmaps {
+        /// 输入可执行文件路径（Mach-O/ELF）
+        input: PathBuf,
+    },
+
     /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
     Build {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）

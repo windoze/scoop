@@ -1,0 +1,6 @@
+// EXPECT: pass
+// RUN-MODE: dump-stackmaps
+// RUN-STDOUT-CONTAINS: records:
+// RUN-STACKMAPS-RECORDS-GT: 0
+fun main() {}
+

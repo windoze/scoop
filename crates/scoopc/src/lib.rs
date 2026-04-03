@@ -26,6 +26,7 @@ pub mod target;
 pub mod ty;
 pub mod typecheck;
 pub mod rtti;
+pub mod stackmap;
 
 /// LLVM 后端（inkwell）。
 ///

@@ -3,10 +3,12 @@
 //! 说明：
 //! - 本模块落地“stdout/stderr golden 对比”与稳定诊断（T0106a/T0111a）。
 //! - run-pass phase 的默认执行方式为：通过 `scoop run <fixture>` 作为子进程真正执行（T0106b2）。
+//! - 对于少量“工具链可观测性”相关用例，可通过 `// RUN-MODE: dump-stackmaps` 切换为运行
+//!   `scoop dump-stackmaps <bin>`（T1503a2）。
 //! - 由于 `scoop run` 需要启用 `scoop` 的 `llvm` feature：若当前未启用，则仅校验 golden 文件可读并跳过执行。
 
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -88,6 +90,25 @@ struct RunLocateScoopFailed {
     fixture: String,
     #[source]
     source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("dump-stackmaps 输出缺少 records 字段（fixture: {fixture}；stdout: {stdout_preview}）")]
+#[diagnostic(code(scoop::fixtures::run_stackmaps_missing_records))]
+struct RunStackmapsMissingRecords {
+    fixture: String,
+    stdout_preview: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "dump-stackmaps records 数量不符合期望：期望 > {expected}，实际为 {actual}（fixture: {fixture}）"
+)]
+#[diagnostic(code(scoop::fixtures::run_stackmaps_records_not_gt))]
+struct RunStackmapsRecordsNotGt {
+    expected: u32,
+    actual: u32,
+    fixture: String,
 }
 
 // 说明：下面这组诊断与执行入口会在 fixtures runner 的 run-pass phase 中被调用；
@@ -188,20 +209,83 @@ pub(crate) fn run_fixture(
         return Ok(());
     }
 
-    let exe = std::env::current_exe().map_err(|e| {
+    let scoop_exe = std::env::current_exe().map_err(|e| {
         super::box_diagnostic(RunLocateScoopFailed {
             fixture: rel_fixture.display().to_string(),
             source: e,
         })
     })?;
 
-    let mut cmd = Command::new(exe);
-    cmd.arg("run").arg(fixture_path);
-    // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
-    if !exp.args.is_empty() {
-        cmd.args(&exp.args);
+    let mode = exp.run_mode.unwrap_or("run");
+    match mode {
+        // 默认模式：真正运行该 fixture 对应的 Scoop 程序。
+        "run" => {
+            let mut cmd = Command::new(scoop_exe);
+            cmd.arg("run").arg(fixture_path);
+            // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
+            if !exp.args.is_empty() {
+                cmd.args(&exp.args);
+            }
+            run_fixture_command(rel_fixture, fixture_path, exp, cmd)
+        }
+        // 工具链可观测性：构建该 fixture 的可执行文件，然后运行 `scoop dump-stackmaps <bin>`。
+        "dump-stackmaps" => run_fixture_dump_stackmaps(rel_fixture, fixture_path, exp, scoop_exe),
+        other => Err(super::box_diagnostic(super::UnimplementedPhase {
+            phase: format!("run-pass/{other}"),
+            fixture: rel_fixture.display().to_string(),
+        })),
     }
-    run_fixture_command(rel_fixture, fixture_path, exp, cmd)
+}
+
+fn run_fixture_dump_stackmaps(
+    rel_fixture: &Path,
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+    scoop_exe: PathBuf,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    // 说明：该模式不执行程序本身，只用于验证“编译产物包含可读 stackmaps”。
+    let dir =
+        crate::commands::temp::make_temp_dir("scoop_fixture_dump_stackmaps").map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: "make_temp_dir".to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            })
+        })?;
+    let exe_path = dir.join(default_exe_name());
+
+    let result = (|| {
+        crate::commands::build::run(
+            fixture_path.to_path_buf(),
+            Some(exe_path.clone()),
+            crate::commands::build::BuildOptions::default(),
+        )
+        .map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: "scoop build".to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+            })
+        })?;
+
+        let mut cmd = Command::new(scoop_exe);
+        cmd.arg("dump-stackmaps").arg(&exe_path);
+        run_fixture_command(rel_fixture, fixture_path, exp, cmd)
+    })();
+
+    // 清理临时目录（尽力而为；不影响最终结果）。
+    let _ = std::fs::remove_dir_all(&dir);
+    result
+}
+
+/// 与 `scoop run` 保持一致的默认可执行文件名（用于临时产物）。
+fn default_exe_name() -> String {
+    let ext = std::env::consts::EXE_EXTENSION;
+    if ext.is_empty() {
+        "a.out".to_string()
+    } else {
+        format!("a.{ext}")
+    }
 }
 
 fn validate_golden_files_readable(
@@ -296,9 +380,62 @@ pub(crate) fn run_fixture_command(
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_stackmaps_records_matches(rel_fixture, exp, &stdout)?;
     assert_stdout_matches(fixture_path, exp, &stdout)?;
     assert_stderr_matches(fixture_path, exp, &stderr)?;
     Ok(())
+}
+
+fn assert_stackmaps_records_matches(
+    rel_fixture: &Path,
+    exp: &FixtureExpectation<'_>,
+    actual_stdout: &str,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    // 仅当 fixture 显式要求检查 records 数量时才启用该断言，避免影响普通 run-pass fixtures。
+    let Some(min) = exp.run_stackmaps_records_gt else {
+        return Ok(());
+    };
+
+    let actual = parse_records_from_dump_stackmaps_stdout(actual_stdout).ok_or_else(|| {
+        super::box_diagnostic(RunStackmapsMissingRecords {
+            fixture: rel_fixture.display().to_string(),
+            stdout_preview: preview_text(actual_stdout, 200),
+        })
+    })?;
+
+    if actual <= min {
+        return Err(super::box_diagnostic(RunStackmapsRecordsNotGt {
+            expected: min,
+            actual,
+            fixture: rel_fixture.display().to_string(),
+        }));
+    }
+
+    Ok(())
+}
+
+fn parse_records_from_dump_stackmaps_stdout(stdout: &str) -> Option<u32> {
+    // 输出格式由 `scoop dump-stackmaps` 约定：
+    // - 包含一行 `records: <n>`
+    for line in stdout.lines() {
+        let line = line.trim_start();
+        if let Some(rest) = line.strip_prefix("records:") {
+            return rest.trim().parse::<u32>().ok();
+        }
+    }
+    None
+}
+
+fn preview_text(s: &str, max_chars: usize) -> String {
+    let s = s.trim();
+    if s.is_empty() {
+        return "<empty>".to_string();
+    }
+    let mut out: String = s.chars().take(max_chars).collect();
+    if s.chars().count() > max_chars {
+        out.push_str("…");
+    }
+    out
 }
 
 /// 运行外部命令后收集到的输出（stdout/stderr + 退出状态）。
