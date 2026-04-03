@@ -5851,11 +5851,30 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-hosted -- --test-threads=1`
    - `cargo test --all`
 
-### T1411 [TODO] non-resuming effect / unwind backend：接入并复用 `libunwind`
+### T1411 non-resuming effect / unwind backend（拆分为子任务）
 - 描述：为 non-resuming effect（以及其他需要栈展开的路径）接入 `libunwind`（或等价后端），并与 GC 的 stack walking 共享同一套 platform/unwind 模块；避免把 unwind/ABI 细节泄漏到 Scoop 侧。
 - 目标：先支持 host 平台；Windows / embedded / wasm 可按 backend 分层处理。
 - 验收：新增 run-pass / runtime fixture：非恢复 effect 可正确展开、执行 cleanup，并生成稳定诊断（若启用）。
 - 依赖：T0614、T0707、T1505
+
+### T1411a [TODO] platform/unwind：引入可复用的 unwind 封装（current-thread backtrace v0）
+- 描述：在 `runtime/c/platform` 增加 unwind 模块，先实现“当前线程栈回溯地址采样”的最小能力（优先基于 `_Unwind_Backtrace`）；并提供 test-only 导出用于回归验证。
+- 目标：
+  - 仅实现 current-thread capture（不做 remote unwind/跨线程 context；留给 T1411b/T1505）；
+  - API 以 internal linkage（`static`）为主，避免污染对外 ABI；
+  - Windows backend 先占位返回 0，并在上层通过 capability/诊断处理。
+- 验收：
+  - 新增 `crates/scoop_runtime` 集成测试：调用 test-only export 获取 backtrace，断言至少返回 1 个非 0 地址；
+  - `cargo test -p scoop_runtime` 通过。
+- 依赖：无
+
+### T1411c [TODO] non-resuming effect：为 unwind/诊断预留 hook（不改变现有语义）
+- 描述：在 non-resuming effect（含 Raise）的运行期/编译期链路中，为“可展开 unwind backend + 稳定诊断”预留统一 hook（例如在 perform/raise 路径上可选择性采样 backtrace），并新增最小 fixture 回归。
+- 目标：
+  - 不替换现有 flag-based unwinding 语义；仅为未来“真正的栈展开”与诊断做接口/数据结构对齐；
+  - 诊断信息必须稳定（fixtures 可断言）。
+- 验收：新增 run-pass 或 runtime fixture：触发 non-resuming effect 时能输出/返回稳定的最小 backtrace 信息（可 gated）。
+- 依赖：T0614、T0707、T1411a
 
 ---
 
@@ -5924,6 +5943,14 @@
   - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 poll + 一线程触发 GC，确保两线程都能被停下并恢复；
   - 新增 run-pass fixture：深调用链（至少 3 帧）下由内层触发 GC，但 root 仅存在于外层帧，GC 后仍可访问（验证“多帧 stack walking roots”而非仅顶帧）。
 - 依赖：T1504、T0911、T1402
+
+### T1411b [TODO] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
+- 描述：在实现 T1505 的 stack walking 上下文时复用 `runtime/c/platform` 的 unwind 模块，提供“从捕获到的线程上下文开始，逐帧 unwind”的能力；把 unwind/寄存器/ABI 细节完全收敛到 platform 层。
+- 目标：
+  - 以 `platform/unwind` 提供的抽象为唯一入口；`scoop_gc_safepoint_poll` 只保存/恢复 opaque ctx；
+  - host 平台优先实现；Windows/wasm/embedded 允许按 backend 占位或能力降级。
+- 验收：在完成 T1505 后，新增一条 runtime 集成测试：Parked 线程的 stack walking 可枚举至少 3 帧，并能把每帧的 `(sp, ra)` 输入到 stackmap 查询（可先用 mock stackmap 断言调用次数/顺序）。
+- 依赖：T1505、T1411a
 
 ### T1506 [TODO] 运行时：用 stackmap roots 替换 shadow stack roots（Visitor API + 精确可更新 slots）
 - 描述：把 GC 的根集枚举从 shadow stack 改为 stackmap：对 Parked 线程使用其 TLS 保存的 unwind 上下文做 stack walking，逐帧定位 stackmap record，并以 `void** slot` 的形式枚举所有 roots（支持移动 GC 原地更新）。
