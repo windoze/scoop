@@ -5787,7 +5787,7 @@
  - 验收：
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1409c2 [TODO] Immix：并行 region sweep v0（可开关）
+### T1409c2 [DONE] Immix：并行 region sweep v0（可开关）
 - 描述：把 region sweep（per-block：mark bitmap → alloc bitmap + hole setup + reusable/free 分类）按 blocks 分片并行执行，最后合并 lists。
 - 目标：
   - 默认关闭；开关独立于并行标记；
@@ -5795,6 +5795,11 @@
   - 保持 moving/compaction 语义不变。
 - 验收：并行 region sweep 开关关闭/开启两种模式下 `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` 通过。
 - 依赖：T1409c1
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：region sweep 按 blocks 分片并行执行，最后合并 free/reusable/evac lists（env：`SCOOP_GC_IMMIX_PARALLEL_SWEEP`，`1`=默认 4 workers，`N>=2`=指定，上限 32；线程创建失败或内存不足时回退单线程）。
+   - `crates/scoop_runtime/tests/gc_immix_parallel_sweep.rs`：新增集成测试覆盖开关关闭/开启两种模式，并复用“holes 复用 + pinned 不被覆盖”场景回归。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1409c3 [TODO] Immix：并行 mark/sweep stress 回归（多线程 + 跨线程引用）
 - 描述：新增 stress 测试覆盖“并发分配 + 跨线程引用 + GC stress”，并验证并行开关组合可回归。

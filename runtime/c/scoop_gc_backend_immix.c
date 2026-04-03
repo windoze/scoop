@@ -863,6 +863,37 @@ static uint32_t scoop_gc_immix_parallel_mark_worker_count(void) {
   return (uint32_t)v;
 }
 
+static uint32_t scoop_gc_immix_parallel_sweep_worker_count(void) {
+  const char *raw = getenv("SCOOP_GC_IMMIX_PARALLEL_SWEEP");
+  if (raw == 0 || raw[0] == 0) {
+    return 0;
+  }
+
+  errno = 0;
+  char *end = 0;
+  unsigned long v = strtoul(raw, &end, 10);
+  if (end == raw || errno != 0) {
+    return 0;
+  }
+  if (v == 0) {
+    return 0;
+  }
+  if (v == 1) {
+    v = 4;
+  }
+  if (v > 32) {
+    v = 32;
+  }
+  if (v > (unsigned long)UINT32_MAX) {
+    v = (unsigned long)UINT32_MAX;
+  }
+  if (v < 2) {
+    v = 2;
+  }
+
+  return (uint32_t)v;
+}
+
 // --- Moving / compaction（TODO T1407） ---
 //
 // 设计要点：
@@ -1321,6 +1352,106 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
   free(live);
 }
 
+// --- 并行 region sweep（TODO T1409c2） ---
+//
+// 说明：
+// - region sweep 只依赖 per-block 的 bitmap/holes 状态，因此可按 blocks 分片并行；
+// - 该实现默认关闭，通过 env `SCOOP_GC_IMMIX_PARALLEL_SWEEP` 打开（`1`=默认 4 workers，`N>=2`=指定）；
+// - 为保持实现简单：
+//   - 仍保持 heap.objects 的 sweep 单线程（步骤 3）；
+//   - 仅并行化步骤 4 的 per-block 计算与分类；
+//   - 最终由主线程合并 free/reusable/evac lists，并保持 compaction 语义不变。
+typedef struct ScoopGcParallelSweepLists {
+  ScoopGcImmixBlock *free_blocks;
+  ScoopGcImmixBlock *reusable_blocks;
+  ScoopGcImmixBlock *evac_blocks;
+} ScoopGcParallelSweepLists;
+
+typedef struct ScoopGcParallelSweepJob {
+  ScoopGcImmixBlock **blocks;
+  size_t start;
+  size_t end;
+  ScoopGcParallelSweepLists out;
+} ScoopGcParallelSweepJob;
+
+static inline void scoop_gc_immix_region_sweep_merge_list(ScoopGcImmixBlock **dst,
+                                                          ScoopGcImmixBlock *src) {
+  while (src != 0) {
+    ScoopGcImmixBlock *next = src->next_free;
+    src->next_free = *dst;
+    *dst = src;
+    src = next;
+  }
+}
+
+static inline void scoop_gc_immix_region_sweep_one_block(ScoopGcImmixBlock *block,
+                                                         ScoopGcParallelSweepLists *lists) {
+  if (block == 0 || lists == 0) {
+    return;
+  }
+
+  block->next_free = 0;
+
+  if (block->live_objects == 0) {
+    scoop_gc_immix_block_reset(block);
+    block->next_free = lists->free_blocks;
+    lists->free_blocks = block;
+    return;
+  }
+
+  // 把 live lines 保留为 alloc bits；dead lines 清零为 hole；并清空 mark bits。
+  size_t reserved = scoop_gc_immix_block_reserved_lines(block);
+  size_t live_lines = 0;
+  for (size_t line = reserved; line < (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK; line++) {
+    uint32_t live =
+        scoop_gc_immix_bitmap_test_bit(block->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    if (live) {
+      live_lines += 1;
+      scoop_gc_immix_bitmap_set_bit(block->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    } else {
+      scoop_gc_immix_bitmap_clear_bit(block->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    }
+    scoop_gc_immix_bitmap_clear_bit(block->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+  }
+
+  // 准备第一个 hole：之后分配可以在 hole 内 bump。
+  scoop_gc_immix_block_setup_first_hole(block);
+
+  // moving/compaction（T1407）：选择性 block evacuation。
+  size_t total_lines = (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK - reserved;
+  uint32_t is_sparse = 0;
+  if (total_lines > 0 && live_lines > 0) {
+    is_sparse = (live_lines * 4u) <= total_lines;
+  }
+  uint32_t has_pinned = scoop_gc_immix_block_contains_pinned_unlocked(block);
+
+  if (block->cursor < block->limit) {
+    if (is_sparse && !has_pinned) {
+      block->next_free = lists->evac_blocks;
+      lists->evac_blocks = block;
+    } else {
+      block->next_free = lists->reusable_blocks;
+      lists->reusable_blocks = block;
+    }
+  }
+}
+
+static void *scoop_gc_immix_parallel_region_sweep_worker(void *raw_job) {
+  if (raw_job == 0) {
+    return 0;
+  }
+  ScoopGcParallelSweepJob *job = (ScoopGcParallelSweepJob *)raw_job;
+  if (job->blocks == 0) {
+    return 0;
+  }
+
+  for (size_t i = job->start; i < job->end; i++) {
+    scoop_gc_immix_region_sweep_one_block(job->blocks[i], &job->out);
+  }
+
+  return 0;
+}
+
 void scoop_gc_collect(void) {
   void scoop_runtime_init(void);
   void scoop_thread_register(void);
@@ -1523,58 +1654,99 @@ void scoop_gc_collect(void) {
   state->current_block = 0;
   ScoopGcImmixBlock *evac_blocks = 0;
 
-  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
-    it->next_free = 0;
+  uint32_t parallel_sweep_workers = scoop_gc_immix_parallel_sweep_worker_count();
+  uint32_t did_parallel_sweep = 0;
 
-    if (it->live_objects == 0) {
-      scoop_gc_immix_block_reset(it);
-      it->next_free = state->free_blocks;
-      state->free_blocks = it;
-      continue;
+  if (parallel_sweep_workers > 1) {
+    // snapshot blocks：避免并行 worker 读取 next_all 链表时引入多处依赖。
+    size_t block_count = 0;
+    for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+      block_count += 1;
     }
 
-    // 把 live lines 保留为 alloc bits；dead lines 清零为 hole；并清空 mark bits。
-    size_t reserved = scoop_gc_immix_block_reserved_lines(it);
-    size_t live_lines = 0;
-    for (size_t line = reserved; line < (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK; line++) {
-      uint32_t live = scoop_gc_immix_bitmap_test_bit(it->line_mark_bits,
-                                                     SCOOP_GC_IMMIX_BITMAP_WORDS,
-                                                     line);
-      if (live) {
-        live_lines += 1;
-        scoop_gc_immix_bitmap_set_bit(it->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
-      } else {
-        scoop_gc_immix_bitmap_clear_bit(it->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    if (block_count > 1) {
+      size_t worker_count = (size_t)parallel_sweep_workers;
+      if (worker_count > block_count) {
+        worker_count = block_count;
       }
-      scoop_gc_immix_bitmap_clear_bit(it->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
-    }
+      if (worker_count > 32) {
+        worker_count = 32;
+      }
 
-    // 准备第一个 hole：之后分配可以在 hole 内 bump。
-    scoop_gc_immix_block_setup_first_hole(it);
+      ScoopGcImmixBlock **blocks = 0;
+      if (block_count <= (SIZE_MAX / sizeof(ScoopGcImmixBlock *))) {
+        blocks = (ScoopGcImmixBlock **)malloc(block_count * sizeof(ScoopGcImmixBlock *));
+      }
 
-    // moving/compaction（T1407）：选择性 block evacuation。
-    //
-    // v0 策略（保守但可回归）：
-    // - 仅对“足够稀疏”的 blocks 做 evacuation（live lines <= 25%）；
-    // - 若 block 内存在 pinned 对象，则跳过（pin 语义要求地址稳定）。
-    //
-    // 注：该策略不追求最优，只保证“可触发移动 + 引用修复”与基本碎片化控制。
-    size_t total_lines = (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK - reserved;
-    uint32_t is_sparse = 0;
-    if (total_lines > 0 && live_lines > 0) {
-      is_sparse = (live_lines * 4u) <= total_lines;
-    }
-    uint32_t has_pinned = scoop_gc_immix_block_contains_pinned_unlocked(it);
+      if (blocks != 0) {
+        size_t idx = 0;
+        for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+          if (idx >= block_count) {
+            break;
+          }
+          blocks[idx] = it;
+          idx += 1;
+        }
 
-    if (it->cursor < it->limit) {
-      if (is_sparse && !has_pinned) {
-        it->next_free = evac_blocks;
-        evac_blocks = it;
-      } else {
-        it->next_free = state->reusable_blocks;
-        state->reusable_blocks = it;
+        ScoopGcParallelSweepJob jobs[32];
+        (void)memset(jobs, 0, sizeof(jobs));
+        pthread_t threads[32];
+        uint8_t started[32];
+        (void)memset(threads, 0, sizeof(threads));
+        (void)memset(started, 0, sizeof(started));
+
+        size_t chunk = (block_count + worker_count - 1u) / worker_count;
+        size_t start = 0;
+        for (size_t w = 0; w < worker_count; w++) {
+          size_t end = start + chunk;
+          if (end > block_count) {
+            end = block_count;
+          }
+          jobs[w].blocks = blocks;
+          jobs[w].start = start;
+          jobs[w].end = end;
+          start = end;
+        }
+
+        // helper threads：当前线程作为 worker0 参与 sweep，降低开销。
+        for (size_t w = 1; w < worker_count; w++) {
+          if (pthread_create(&threads[w], 0, scoop_gc_immix_parallel_region_sweep_worker, &jobs[w]) ==
+              0) {
+            started[w] = 1;
+          }
+        }
+        (void)scoop_gc_immix_parallel_region_sweep_worker(&jobs[0]);
+
+        for (size_t w = 1; w < worker_count; w++) {
+          if (started[w]) {
+            (void)pthread_join(threads[w], 0);
+          } else {
+            // 创建失败：退化为当前线程执行该分片，保证不漏扫。
+            (void)scoop_gc_immix_parallel_region_sweep_worker(&jobs[w]);
+          }
+        }
+
+        for (size_t w = 0; w < worker_count; w++) {
+          scoop_gc_immix_region_sweep_merge_list(&state->free_blocks, jobs[w].out.free_blocks);
+          scoop_gc_immix_region_sweep_merge_list(&state->reusable_blocks,
+                                                 jobs[w].out.reusable_blocks);
+          scoop_gc_immix_region_sweep_merge_list(&evac_blocks, jobs[w].out.evac_blocks);
+        }
+
+        did_parallel_sweep = 1;
+        free(blocks);
       }
     }
+  }
+
+  if (!did_parallel_sweep) {
+    ScoopGcParallelSweepLists lists = {0};
+    for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+      scoop_gc_immix_region_sweep_one_block(it, &lists);
+    }
+    state->free_blocks = lists.free_blocks;
+    state->reusable_blocks = lists.reusable_blocks;
+    evac_blocks = lists.evac_blocks;
   }
 
   // 5) moving/compaction：对候选 blocks 做 evacuation，并更新 roots 与 heap 引用槽位。
