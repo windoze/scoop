@@ -120,6 +120,7 @@
   X(scoop_runtime_init) \
   X(scoop_runtime_init_count) \
   X(scoop_runtime_is_initialized) \
+  X(scoop_stackmap_record_visit_root_slots) \
   X(scoop_stackmap_registry_lookup) \
   X(scoop_stackmap_registry_record_count) \
   X(scoop_stackmap_registry_register_current_process) \

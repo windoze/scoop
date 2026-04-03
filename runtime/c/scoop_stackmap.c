@@ -106,6 +106,21 @@ static int scoop_stackmap_read_u64_le(const uint8_t *bytes,
   return 1;
 }
 
+static int scoop_stackmap_read_i32_le(const uint8_t *bytes,
+                                      size_t len,
+                                      size_t *off,
+                                      int32_t *out) {
+  if (bytes == 0 || out == 0 || off == 0) {
+    return 0;
+  }
+  uint32_t raw = 0;
+  if (!scoop_stackmap_read_u32_le(bytes, len, off, &raw)) {
+    return 0;
+  }
+  *out = (int32_t)raw;
+  return 1;
+}
+
 static int scoop_stackmap_skip_bytes(size_t len, size_t *off, size_t n) {
   if (off == 0) {
     return 0;
@@ -126,6 +141,183 @@ static size_t scoop_stackmap_align_up(size_t v, size_t align) {
   }
   const size_t mask = align - 1u;
   return (v + mask) & ~mask;
+}
+
+// --- StackMap record locations -> roots slots（TODO T1506a） ---
+
+// Stackmap location kinds（LLVM StackMap v3，见 StackMap section spec）。
+#define SCOOP_STACKMAP_LOC_REGISTER 1u
+#define SCOOP_STACKMAP_LOC_DIRECT 2u
+#define SCOOP_STACKMAP_LOC_INDIRECT 3u
+#define SCOOP_STACKMAP_LOC_CONSTANT 4u
+#define SCOOP_STACKMAP_LOC_CONSTANT_INDEX 5u
+
+static int scoop_stackmap_dwarf_reg_is_sp(uint16_t dwarf_reg) {
+// DWARF register numbers（subset）：
+// - x86_64：RSP = 7
+// - AArch64：SP = 31
+#if defined(__x86_64__) || defined(_M_X64)
+  return dwarf_reg == 7u;
+#elif defined(__aarch64__) || defined(__arm64__)
+  return dwarf_reg == 31u;
+#else
+  (void)dwarf_reg;
+  return 0;
+#endif
+}
+
+uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *rec,
+                                                uintptr_t frame_sp,
+                                                ScoopGcTraceVisitor visitor,
+                                                void *ctx,
+                                                uint32_t *out_error) {
+  if (out_error != 0) {
+    *out_error = SCOOP_STACKMAP_VISIT_OK;
+  }
+
+  if (rec == 0 || visitor == 0 || rec->record_ptr == 0 || rec->record_size == 0 || frame_sp == 0) {
+    if (out_error != 0) {
+      *out_error = SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT;
+    }
+    return 0;
+  }
+
+  const uint8_t *bytes = rec->record_ptr;
+  const size_t len = (size_t)rec->record_size;
+  size_t off = 0;
+
+  // record layout（version 3）：
+  //  u64 PatchPointID
+  //  u32 InstructionOffset
+  //  u16 Reserved
+  //  u16 NumLocations
+  //  Location[NumLocations]（每个 12 bytes）
+  uint64_t patchpoint_id = 0;
+  uint32_t instruction_offset = 0;
+  uint16_t reserved0 = 0;
+  uint16_t num_locations = 0;
+
+  if (!scoop_stackmap_read_u64_le(bytes, len, &off, &patchpoint_id) ||
+      !scoop_stackmap_read_u32_le(bytes, len, &off, &instruction_offset) ||
+      !scoop_stackmap_read_u16_le(bytes, len, &off, &reserved0) ||
+      !scoop_stackmap_read_u16_le(bytes, len, &off, &num_locations)) {
+    (void)patchpoint_id;
+    (void)instruction_offset;
+    (void)reserved0;
+    if (out_error != 0) {
+      *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_TOO_SHORT;
+    }
+    return 0;
+  }
+
+  // 健壮性：避免异常 num_locations 造成越界/长循环。
+  if ((size_t)num_locations > ((len - off) / 12u)) {
+    if (out_error != 0) {
+      *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
+    }
+    return 0;
+  }
+
+  const uint16_t want_size =
+      (sizeof(void *) > (size_t)UINT16_MAX) ? (uint16_t)UINT16_MAX : (uint16_t)sizeof(void *);
+
+  uint64_t visited = 0;
+
+  for (uint16_t i = 0; i < num_locations; i++) {
+    uint8_t loc_type = 0;
+    uint8_t loc_reserved0 = 0;
+    uint16_t loc_size = 0;
+    uint16_t dwarf_reg = 0;
+    uint16_t loc_reserved1 = 0;
+    int32_t loc_off_i32 = 0;
+
+    if (!scoop_stackmap_read_u8(bytes, len, &off, &loc_type) ||
+        !scoop_stackmap_read_u8(bytes, len, &off, &loc_reserved0) ||
+        !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_size) ||
+        !scoop_stackmap_read_u16_le(bytes, len, &off, &dwarf_reg) ||
+        !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_reserved1) ||
+        !scoop_stackmap_read_i32_le(bytes, len, &off, &loc_off_i32)) {
+      (void)loc_reserved0;
+      (void)loc_reserved1;
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
+      }
+      return visited;
+    }
+
+    // 目标：只扫描 pointer-sized locations；其它先跳过（例如 deopt metadata）。
+    if (loc_size != want_size) {
+      continue;
+    }
+
+    // 任何无法转换为可更新 slot 的 pointer-sized location 都视为管线错误。
+    if (loc_type != SCOOP_STACKMAP_LOC_DIRECT && loc_type != SCOOP_STACKMAP_LOC_INDIRECT) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION;
+      }
+      return visited;
+    }
+
+    if (!scoop_stackmap_dwarf_reg_is_sp(dwarf_reg)) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_DWARF_REG;
+      }
+      return visited;
+    }
+
+    // NOTE:
+    // - 当前阶段仅支持 “SP/CFA 为基址”；
+    // - stackmap offset 是有符号 32-bit（可为负），因此这里用 intptr_t 做指针算术。
+    const intptr_t base_i = (intptr_t)frame_sp;
+    const intptr_t addr_i = base_i + (intptr_t)loc_off_i32;
+    if (addr_i == 0) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
+      }
+      return visited;
+    }
+
+    const uintptr_t addr = (uintptr_t)addr_i;
+    if ((addr % (uintptr_t)sizeof(void *)) != 0u) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNALIGNED_SLOT;
+      }
+      return visited;
+    }
+
+    if (loc_type == SCOOP_STACKMAP_LOC_DIRECT) {
+      void **slot = (void **)addr;
+      if (*slot == 0) {
+        continue;
+      }
+      visitor(slot, ctx);
+      visited += 1;
+      continue;
+    }
+
+    if (loc_type == SCOOP_STACKMAP_LOC_INDIRECT) {
+      const uintptr_t slot_addr = *(const uintptr_t *)addr;
+      if (slot_addr == 0) {
+        continue;
+      }
+      if ((slot_addr % (uintptr_t)sizeof(void *)) != 0u) {
+        if (out_error != 0) {
+          *out_error = SCOOP_STACKMAP_VISIT_ERR_UNALIGNED_SLOT;
+        }
+        return visited;
+      }
+
+      void **slot = (void **)slot_addr;
+      if (*slot == 0) {
+        continue;
+      }
+      visitor(slot, ctx);
+      visited += 1;
+      continue;
+    }
+  }
+
+  return visited;
 }
 
 // --- registry：排序数组 + 二分查找 ---

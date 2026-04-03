@@ -6229,7 +6229,7 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1506 [TODO] 运行时：用 stackmap roots 替换 shadow stack roots（Visitor API + 精确可更新 slots）
+### T1506（拆分为子任务）
 - 描述：把 GC 的根集枚举从 shadow stack 改为 stackmap：对 Parked 线程使用其 TLS 保存的 unwind 上下文做 stack walking，逐帧定位 stackmap record，并以 `void** slot` 的形式枚举所有 roots（支持移动 GC 原地更新）。
 - 目标：
   - Parked 线程 roots 枚举必须扫描**完整调用栈（多帧）**：对每一帧取得 `(return_address, stack_pointer[, frame_pointer])` 并查询 stackmap record；
@@ -6237,10 +6237,42 @@
   - 对无法转换为可更新 `void** slot` 的 stackmap location（例如寄存器 location）必须视为编译器/管线错误并给出稳定诊断（要求 codegen + statepoint 重写把 GC 指针落到可更新的 spill slot）；
   - 对 InNative 线程，roots 枚举以 `native_roots` buffer 为根集来源；
   - 保留 pin/unpin 语义：pinned 对象既是额外 roots，又是 relocation 禁止对象。
+- 备注：该任务涉及“stackmap record 解析”“GC roots 枚举集成”“端到端回归”三块相对独立能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1506a [DONE] stackmap record：locations → `void** slot` 解析（Direct/Indirect + 错误码）
+- 描述：实现一个可复用的 stackmap record locations 解析器：给定 `ScoopStackmapRecordRef` 与 frame `sp`，把 locations 转换为可更新的 `void** slot` 并枚举；对无法转换为 slot 的 location 给出稳定错误码（例如 Register location）。
+- 目标：
+  - 先覆盖 pointer-sized locations（`location_size == sizeof(void*)`）；非 pointer-sized 先跳过；
+  - 先支持以 SP（CFA）为基址的 Direct/Indirect locations；
+  - 不在本任务内接入 stop-the-world / stack walking；不在本任务内改动 GC roots 来源。
 - 验收：
-  - 新增 runtime 集成测试：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；
-  - 在启用移动/压缩前先通过 “非移动 GC + stackmap roots” 全量回归：`cargo test --all`、`cargo run -p scoop --features llvm -- test`。
-- 依赖：T1505c、T0910、T0912
+  - 新增 `crates/scoop_runtime` 集成测试：Direct/Indirect location 能正确解析到期望 slot 地址；Register location 返回稳定错误码；
+  - `cargo test -p scoop_runtime`
+  - `cargo test --all`
+- 依赖：T1504b
+ - 完成：
+   - `runtime/c/scoop_stackmap.c`：新增 `scoop_stackmap_record_visit_root_slots`，支持 SP 基址的 Direct/Indirect locations，并对无法转换的 pointer-sized location 返回稳定错误码。
+   - `runtime/c/scoop_stackmap.h` / `runtime/c/scoop_runtime_api.h`：登记错误码与导出符号（allowlist 对齐）。
+   - `crates/scoop_runtime/tests/stackmap_roots.rs`：新增 Direct/Indirect/错误码集成测试覆盖。
+
+### T1506b [TODO] GC roots 枚举：Parked 线程用 stack walking + stackmap lookup（替换 shadow stack）
+- 描述：在 STW 的 roots 枚举中，对 Parked 线程从 `stack_walking_ctx` 逐帧枚举 `(sp, ra)`，用 `ra` 查 stackmap record，并用 T1506a 的 locations→slot 逻辑枚举 roots；对 InNative 线程继续使用 `native_roots`。
+- 目标：
+  - roots 枚举覆盖完整调用栈（多帧），并能在 moving GC 中原地更新 slots；
+  - 对未命中 record、或遇到无法转换的 location，给出稳定诊断并 fail-fast（视为编译器/管线错误）。
+- 验收：
+  - 新增 runtime 集成测试：STW 期间对 worker 线程的 stack walking + stackmap lookup 至少命中 1 帧 record，并能枚举到 roots slots（可先用 test-only hook/计数回归）；
+  - `cargo test -p scoop_runtime`
+- 依赖：T1506a、T1411b、T1505c、T0910、T0912
+
+### T1506c [TODO] 端到端回归：多帧 root 保活 + llvm fixtures 全量回归
+- 描述：补齐端到端验证：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；并把 `scoop --features llvm -- test` 纳入回归。
+- 目标：在启用移动/压缩前先通过“非移动 GC + stackmap roots”全量回归；移动/压缩的更细节更新留到后续任务（T1511/T1512）。
+- 验收：
+  - 新增 runtime 集成测试：多帧调用链下 outer frame root 保活；
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T1506b
 
 ### T1507 [TODO] 编译器：为 class/interface/box/closure env/array/string 生成 type descriptor（trace bitmap + dispatch tables）
 - 描述：在编译期为所有可分配 ref 类型生成 `ScoopTypeDescriptor` 常量，并在对象分配时写入对象头 `type_desc`，使 GC 能扫描对象内部引用字段并支持动态分发。
