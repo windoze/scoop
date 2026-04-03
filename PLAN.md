@@ -699,6 +699,7 @@
 - [ ] 引用类型统一表示（GC pointer）：
   - 在 LLVM IR 中统一使用 `addrspace(1)` 指针表示 GC-managed object（例如 `i8 addrspace(1)*`），避免与原生/FFI 指针混淆
   - `Option<Ref>` 采用 pointer-niche（NULL → None），并在类型系统与 codegen 中统一规则（含 `T?` desugar）
+  - **GC 安全约束**：对 GC-managed ref（以及“包含 GC ref 的值类型”）禁止使用非 NULL 的 nested niche（例如 `Option<Option<Ref>>` 不得压缩为单指针并用 `0x1` 编码外层 `None`）；此类场景必须回退到显式 tag 的表示（见 TODO T1518/T1519）
 - [ ] heap 对象模型（Object Model）：
   - 固定对象头布局与字段偏移：`next`（heap 链表）、`type_desc*`、`size_bytes`、`flags`、`mark`
   - payload 紧随对象头；class/array/string/box/closure env 均是“对象头 + payload”
@@ -732,7 +733,7 @@
   - 落地顺序（对应 TODO T1503 拆分）：
     - [x] T1503a1：先建立 stackmap section 生成 + header 解析/单测闭环（先用 `llvm.experimental.stackmap` 降低改动面）
     - [x] T1503a2：补齐 `scoop dump-stackmaps` 的可观测工具（CI/fixtures 可断言）
-    - [ ] T1503b：接入 `rewrite-statepoints-for-gc` 并迁移到 statepoint 产出的 stackmaps（为 moving GC 的 `gc.relocate` 链路铺路）
+    - [x] T1503b：接入 `rewrite-statepoints-for-gc` 并迁移到 statepoint 产出的 stackmaps（为 moving GC 的 `gc.relocate` 链路铺路）
 
 - [ ] `when` lowering：补齐 or-pattern / guard（spec §4.2）
 - [x] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）

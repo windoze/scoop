@@ -6073,7 +6073,7 @@
    - `cargo run -p scoop -- test`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1503b [TODO] LLVM：接入 `rewrite-statepoints-for-gc`，并把 safepoint 绑定到 runtime helper（从 `scoop_alloc` 起步）
+### T1503b [DONE] LLVM：接入 `rewrite-statepoints-for-gc`，并把 safepoint 绑定到 runtime helper（从 `scoop_alloc` 起步）
 - 描述：把 LLVM 后端从 “手工 stackmap 插桩” 迁移为 statepoint 体系：接入 `rewrite-statepoints-for-gc`，并确保 stackmap records 来自 statepoint 重写后的 callsite（后续用于 moving GC 的 `gc.relocate` 更新链路）。
 - 目标：
   - 先以 `scoop_alloc`（以及后续的 `scoop_alloc_typed`）作为 safepoint 边界跑通；`scoop_gc_safepoint_poll/enter_native/leave_native` 等边界在对应 runtime API 落地后再补齐；
@@ -6082,6 +6082,17 @@
   - `cargo test -p scoopc --features llvm`：最小 module 经过 pass pipeline 后仍可生成 `.o`，且 stackmap section 非空；
   - `scoop dump-stackmaps <bin>` 输出 records 数量稳定（>= 1）。
 - 依赖：T1503a2
+ - 完成：
+   - `crates/scoopc/src/llvm/mod.rs`：入口 `main` 标注 `gc "statepoint-example"`；在 emit obj/asm 前运行 `function(mem2reg),rewrite-statepoints-for-gc`；移除手工 `llvm.experimental.stackmap` probe，改为依赖 statepoint 产出的 stackmaps。
+   - `crates/scoopc/src/llvm/codegen.rs`：对有 body 的顶层函数标注 `gc "statepoint-example"`；`print/println(Int)` 直接映射到 runtime `scoop_print{,ln}_{i64,u64}`，避免“栈上临时 String + addrspacecast”触发 LLVM statepoint 重写崩溃。
+   - `runtime/c/scoop_runtime.c` + `runtime/c/scoop_runtime_api.h`：新增并登记 `scoop_print{,ln}_{i64,u64}`。
+   - `tests/fixtures/run-pass/stackmaps_dump_header_basic.scoop`：改为包含一次 `Int -> Any` 装箱分配，确保 stackmap records 来自 alloc safepoint（statepoint）。
+   - `crates/scoopc/src/llvm/mod.rs` 单测：新增用例断言 IR 中出现 `llvm.experimental.gc.statepoint` 且覆盖 `scoop_alloc`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1504 [TODO] 运行时：stackmap registry（main binary + 静态链接对象）与解析器
 - 描述：在 C runtime 中实现 LLVM StackMap 格式解析，并提供 module 注册 API，把 stackmap records 纳入统一查询表（按 return address 索引）。
@@ -6289,3 +6300,34 @@
   - `cargo run -p scoop -- test`
   - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test`
 - 依赖：T1516、T1512
+
+### T1518 [TODO] Niche 优化的 GC 安全门禁：ref（含 ref 的值类型）禁止 nested niche
+- 描述：当前 `Option<T>` 的 niche 传播机制支持 nested niche（例如 `Option<Option<RefType>>` 外层 `None` 可能编码为 `0x1` 等非法地址），但在“精确 GC + stackmap/bitmap 静态枚举 roots”的体系下，这类 **非 NULL 的 pointer-shaped 非 GC 指针** 一旦落入可扫描 slot，就会导致 GC 把它当对象指针处理并崩溃/UB。为避免把 GC 安全性建立在“扫描时读 tag/判别指针合法性”的假设上，需要收紧 niche 规则。
+- 目标：
+  - 规则选择（本任务落地的约束）：
+    - niche 优化仍可用于 **纯值类型**（如 `Option<Bool>`、`Option<Option<Bool>>` 等），允许 nested niche；
+    - 对 GC-managed ref（以及“运行时表示包含 GC 指针”的值类型）：
+      - `Option<Ref>` 只允许 `None = NULL`（与 `addrspace(1) null` 对齐）；
+      - **禁止**把 “剩余 niche domain” 继续向外传播（因此 `Option<Option<Ref>>` 必须回退到显式 tag 的 tagged union 表示，而不是压缩为单指针并用 `0x1`/misaligned 值编码外层 `None`）。
+  - 规范更新：
+    - `SCOOP_FULL_SPEC.md` §2.3.2 更新：移除/修订 `Option<Option<RefType>> uses illegal address values (e.g., 0x1)` 的表述；明确对 GC-managed ref 的 nested niche 禁止，并说明回退策略（tagged union）。
+    - 同步更新 `crates/scoopc/src/ty/layout.rs`/`typecheck/layout.rs`/`llvm/codegen.rs` 的注释，使其不再宣称 ref 的 nested niche 是合法优化。
+- 验收：
+  - 新增 `--emit-llvm`/codegen fixture：`Option<Option<String>>`（或等价 `String??`）在生成 IR 时不出现 `inttoptr 1`（或等价的非法指针 `None` 编码），并且语义（pattern match）正确。
+  - 保持既有 `Option<Ref>` niche 用例（`None = null`）仍通过：`tests/fixtures/run-pass/option_ref_niche_basic.scoop`。
+- 依赖：T1502、T0826
+
+### T1519 [TODO] 编译器落地：对 ref niche 禁止 domain 传播，并对 nested option 回退 tagged union
+- 描述：按 T1518 的规则调整布局计算与 codegen，使 “ref niche 只用 NULL” 且不会触发 nested niche 压缩。
+- 目标：
+  - typecheck 布局计算：
+    - `crates/scoopc/src/typecheck/layout.rs`：收紧 `pointer_layout()` 的 niche domain（只保留 `0`，或等价实现为“niche 不可传播”），确保 `Option<Ref>` 仍可走 niche（`none_value=0`），但其 `TypeLayout.niche` 不再向外层传播；
+    - 对于 “含 GC ref 的值类型” 若未来引入 niche domain，也必须按同样原则：禁止产生非 NULL 的 pointer-shaped niche。
+  - codegen：
+    - `crates/scoopc/src/llvm/codegen.rs`：与 typecheck 对齐：`Option<Option<Ref>>` 走 tagged union 表示；`Option<Ref>` 仍走 `NULL` niche；
+    - 更新 `option_niche_cache` 相关逻辑/注释：不再假设需要支持 “ref 的 nested niche”。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test`
+- 依赖：T1518

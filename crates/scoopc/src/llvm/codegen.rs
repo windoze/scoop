@@ -511,6 +511,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(fun.fqn.as_str());
 
         if let Some(existing) = self.module.get_function(llvm_name) {
+            if fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn) {
+                existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+            }
             return Ok(existing);
         }
 
@@ -540,6 +543,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
+        if fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn) {
+            llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+        }
         Ok(llvm_fun)
     }
 
@@ -5921,10 +5927,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 注意：这里**不要**强制把 expected type 设为 `String`：
         // - 对于 `when/if/block` 等表达式，expected 会导致其 arm/body 被强制 coercion 为 `String`，
         //   进而在 `Int -> String` 这类尚未实现的 coercion 上报错；
-        // - `print/println` 的整数路径会在 codegen 后显式把 `Int` 转为 `String`（见下方分支），
+        // - `print/println` 的整数路径会在 codegen 后把 `Int` 提升/截断到 i64/u64 并调用 runtime 直接打印（见下方分支），
         //   因此应先让表达式产出其“自然值类型”，再在这里做转换。
         let v = self.codegen_expr(expr)?;
-        let str_ptr = match v.ty {
+        match v.ty {
             CgTy::String => {
                 let coerced = self.coerce_value(expr.span, v, CgTy::String)?;
                 let Some(raw) = coerced.value else {
@@ -5939,28 +5945,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: expr.span.into(),
                     });
                 };
-                str_ptr
+
+                let rt_fun = self.declare_runtime_print_like(rt_name);
+                let _ = self
+                    .builder
+                    .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
+                Ok(CgValue::unit())
             }
             CgTy::Int(from_ty) => {
+                if from_ty.bits > 64 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "integer width for print/println",
+                        at: expr.span.into(),
+                    });
+                }
+
                 let (raw_int, _) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "sysroot print/println int arg value",
                     at: expr.span.into(),
                 })?;
-                self.codegen_int_to_scoop_string(expr.span, raw_int, from_ty)?
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "sysroot print/println arg type",
-                    at: expr.span.into(),
-                });
-            }
-        };
 
-        let rt_fun = self.declare_runtime_print_like(rt_name);
-        let _ = self
-            .builder
-            .build_call(rt_fun, &[str_ptr.into()], "rt_print")?;
-        Ok(CgValue::unit())
+                // 统一把整数提升/截断到 i64/u64，再交给 runtime 打印（避免构造临时 String）。
+                let to_ty = IntTy {
+                    bits: 64,
+                    signed: from_ty.signed,
+                };
+                let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
+
+                let rt_int_name = match (fqn, from_ty.signed) {
+                    ("scoop.core.print", true) => "scoop_print_i64",
+                    ("scoop.core.print", false) => "scoop_print_u64",
+                    ("scoop.core.println", true) => "scoop_println_i64",
+                    ("scoop.core.println", false) => "scoop_println_u64",
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "unknown sysroot print/println callee",
+                            at: callee_span.into(),
+                        });
+                    }
+                };
+
+                let rt_fun = self.declare_runtime_print_int_like(rt_int_name);
+                let _ = self
+                    .builder
+                    .build_call(rt_fun, &[int64.into()], "rt_print_int")?;
+                Ok(CgValue::unit())
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "sysroot print/println arg type",
+                at: expr.span.into(),
+            }),
+        }
     }
 
     fn codegen_sysroot_io_write_string(
@@ -10265,88 +10300,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: target_expr.span.into(),
             }),
         }
-    }
-
-    fn codegen_int_to_scoop_string(
-        &mut self,
-        at: crate::span::Span,
-        raw_int: IntValue<'ctx>,
-        from_ty: IntTy,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        if from_ty.bits > 64 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "integer width for print/println",
-                at: at.into(),
-            });
-        }
-
-        let i64_ty = self.context.i64_type();
-        let i8_ty = self.context.i8_type();
-
-        // 先把整数提升/截断到 i64/u64，再调用 runtime 格式化到临时 buffer。
-        let to_ty = IntTy {
-            bits: 64,
-            signed: from_ty.signed,
-        };
-        let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
-
-        // i64 最长：`-9223372036854775808`（20 字符），预留更宽裕的 cap。
-        let cap = i64_ty.const_int(64, false);
-        let buf = self
-            .builder
-            .build_array_alloca(i8_ty, cap, "print_int_buf")?;
-
-        let fmt_name = if from_ty.signed {
-            "scoop_format_i64"
-        } else {
-            "scoop_format_u64"
-        };
-        let fmt_fun = self.declare_runtime_format_int(fmt_name);
-        let call_site = self.builder.build_call(
-            fmt_fun,
-            &[int64.into(), buf.into(), cap.into()],
-            "print_fmt_int",
-        )?;
-        let len = call_site
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "print int length",
-                at: at.into(),
-            })?
-            .into_int_value();
-
-        // 构造一个临时 `ScoopString`：
-        // - 为了不污染 GC 统计（例如 `__scoop_gc_debug_heap_object_count()` 的 fixtures），这里不做 heap 分配；
-        // - 在栈上构造 `ScoopString`（addrspace(0)），再用 `addrspacecast` 转为 `addrspace(1)` 传给 runtime。
-        //
-        // 注意：该指针只在本次 `print/println` 调用期间有效，不会写入 GC roots slot。
-        let scoop_str_ty = self.llvm_scoop_string_type();
-        let stack_str_ptr =
-            self.create_entry_alloca_raw(at, "print_int_scoop_string", scoop_str_ty.into())?;
-        let len_ptr = self.builder.build_struct_gep(
-            scoop_str_ty,
-            stack_str_ptr,
-            1,
-            "print_int_len_gep",
-        )?;
-        let data_ptr = self.builder.build_struct_gep(
-            scoop_str_ty,
-            stack_str_ptr,
-            2,
-            "print_int_data_gep",
-        )?;
-
-        let _ = self.builder.build_store(len_ptr, len)?;
-        let _ = self.builder.build_store(data_ptr, buf)?;
-
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let str_ptr = self.builder.build_address_space_cast(
-            stack_str_ptr,
-            str_ptr_ty,
-            "print_int_str_ptr",
-        )?;
-        Ok(str_ptr)
     }
 
     fn codegen_top_level_fun_call(
@@ -16189,6 +16142,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] =
             [self.llvm_scoop_string_ptr_type().into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(name, fn_ty, None)
+    }
+
+    fn declare_runtime_print_int_like(&self, name: &str) -> FunctionValue<'ctx> {
+        if let Some(existing) = self.module.get_function(name) {
+            return existing;
+        }
+
+        // `void scoop_print{,ln}_{i64,u64}(int64_t value)`
+        //
+        // 说明：
+        // - 早期阶段让 `print/println(Int)` 直接调用 runtime 打印整数，避免构造临时 `String`；
+        // - 同时避免在 `rewrite-statepoints-for-gc` 下把 “栈上临时 ScoopString + addrspacecast”
+        //   误当作 GC-managed pointer 并触发 LLVM pass 崩溃（T1503b）。
+        let i64_ty = self.context.i64_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(name, fn_ty, None)
     }

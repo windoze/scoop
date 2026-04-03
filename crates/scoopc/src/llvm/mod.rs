@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use inkwell::context::Context;
+use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::FileType;
 use inkwell::targets::TargetData;
 use inkwell::values::InstructionValueError;
@@ -31,6 +32,13 @@ mod codegen;
 mod stackmap;
 mod target;
 pub use target::{HostTargetInfo, LlvmTargetError};
+
+/// LLVM statepoint GC 策略名（内置于 LLVM）。
+///
+/// 说明：
+/// - `rewrite-statepoints-for-gc` 只会重写带 `gc "<strategy>"` 的函数；
+/// - 当前阶段先复用 LLVM 内置的 `statepoint-example`，后续若需要更精细的 roots 策略再引入自定义 GC strategy。
+pub(crate) const LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE: &str = "statepoint-example";
 
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
@@ -70,6 +78,10 @@ pub enum LlvmEmitError {
     #[error("LLVM module 校验失败：{message}")]
     #[diagnostic(code(scoop::llvm::module_verification_failed))]
     ModuleVerificationFailed { message: String },
+
+    #[error("运行 LLVM pass 失败（passes={passes}）：{message}")]
+    #[diagnostic(code(scoop::llvm::run_passes_failed))]
+    RunPassesFailed { passes: String, message: String },
 
     #[error("写入 LLVM IR 失败：{path}: {source}")]
     #[diagnostic(code(scoop::llvm::write_ll_failed))]
@@ -169,6 +181,7 @@ pub fn emit_minimal_main_obj_to_file(
     let module = build_minimal_main_module(session, source, &context)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
@@ -195,6 +208,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
     let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
@@ -222,6 +236,7 @@ pub fn emit_minimal_main_asm_to_file(
     let module = build_minimal_main_module(session, source, &context)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
         .map_err(|e| LlvmEmitError::WriteAsmFailed {
@@ -248,6 +263,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
     let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
         .map_err(|e| LlvmEmitError::WriteAsmFailed {
@@ -370,6 +386,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
     let fn_type = i32_type.fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false);
 
     let main = module.add_function("main", fn_type, None);
+    // statepoint 只对带 `gc "<strategy>"` 的函数生效；入口 main 里包含用户代码的最小 codegen，
+    // 因此这里需要显式标注 GC strategy，让 `rewrite-statepoints-for-gc` 能把 `scoop_alloc` 等调用点
+    // 重写为 statepoint 并产出 stackmap records。
+    main.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
     let entry = context.append_basic_block(main, "entry");
     builder.position_at_end(entry);
 
@@ -412,10 +432,6 @@ fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
-    // T1503a1：先插入一个最小 stackmap probe，保证产物包含 stackmap section，
-    // 便于后续接入 statepoint/stack walking 前建立“可生成/可读取/可回归”的闭环。
-    emit_minimal_stackmap_probe(context, &module, &builder)?;
-
     let exit_code = codegen::MainCodegen::new(
         context,
         &module,
@@ -445,32 +461,31 @@ fn build_main_module_from_lowered_hir<'ctx>(
     Ok(module)
 }
 
-/// 插入一个 `llvm.experimental.stackmap` 调用，用于在 object/binary 中生成 stackmap section。
-///
-/// 说明：
-/// - 这是 TODO T1503a1 的临时落点：先建立最小闭环（section 存在 + header 可解析）。
-/// - 后续 TODO T1503b 会把这里的 “手工 stackmap probe” 迁移为 statepoint 体系
-///   (`rewrite-statepoints-for-gc`) 产出的 stackmaps。
-fn emit_minimal_stackmap_probe<'ctx>(
-    context: &'ctx Context,
+fn run_statepoint_pass_pipeline<'ctx>(
     module: &inkwell::module::Module<'ctx>,
-    builder: &inkwell::builder::Builder<'ctx>,
+    target_machine: &inkwell::targets::TargetMachine,
 ) -> Result<(), LlvmEmitError> {
-    let i64_ty = context.i64_type();
-    let i32_ty = context.i32_type();
-    let fn_ty = context
-        .void_type()
-        .fn_type(&[i64_ty.into(), i32_ty.into()], true);
+    // 说明：
+    // - T1503b：从手工 stackmap probe 迁移到 statepoint 产出的 stackmaps；
+    // - 先按最小闭环跑通：mem2reg + rewrite-statepoints-for-gc。
+    //   后续再逐步补齐 place-safepoints / pipeline 优化策略等。
+    const PASSES: &str = "function(mem2reg),rewrite-statepoints-for-gc";
 
-    // intrinsic 名称必须精确匹配，LLVM 才会在 codegen 阶段生成 stackmap section。
-    let stackmap = module.get_function("llvm.experimental.stackmap").unwrap_or_else(|| {
-        module.add_function("llvm.experimental.stackmap", fn_ty, None)
-    });
+    let options = PassBuilderOptions::create();
+    options.set_verify_each(true);
+    module
+        .run_passes(PASSES, target_machine, options)
+        .map_err(|e| LlvmEmitError::RunPassesFailed {
+            passes: PASSES.to_string(),
+            message: e.to_string(),
+        })?;
 
-    // PatchPoint ID：只要在 module 内稳定即可；这里从 1 起步，避免和默认值“看起来像未初始化”混淆。
-    let id = i64_ty.const_int(1, false);
-    let shadow_bytes = i32_ty.const_int(0, false);
-    let _ = builder.build_call(stackmap, &[id.into(), shadow_bytes.into()], "stackmap")?;
+    module
+        .verify()
+        .map_err(|e| LlvmEmitError::ModuleVerificationFailed {
+            message: e.to_string(),
+        })?;
+
     Ok(())
 }
 
@@ -1279,7 +1294,19 @@ fun main(): Int {
         let dir = make_temp_dir("minimal_main_obj_contains_stackmap_section");
         let output = dir.join("main.o");
 
-        let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main() {
+    // 强制触发 `Int -> Any` 装箱（heap alloc），让 statepoint pipeline 产出 stackmap records。
+    val a: Any = 1
+}
+"#,
+        );
         let session = Session::new().unwrap();
         emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
 
@@ -1302,6 +1329,43 @@ fun main(): Int {
         );
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn statepoint_pipeline_rewrites_scoop_alloc_callsites() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    return 0
+}
+"#,
+        );
+        let session = Session::new().unwrap();
+
+        let context = Context::create();
+        let module = build_minimal_main_module(&session, &source, &context).unwrap();
+        let (target_machine, _target_info) = target::host_target_machine().unwrap();
+        run_statepoint_pass_pipeline(&module, &target_machine).unwrap();
+
+        let ir = module.print_to_string().to_string();
+        assert!(
+            ir.contains("llvm.experimental.gc.statepoint"),
+            "expected rewrite-statepoints-for-gc to emit gc.statepoint intrinsics"
+        );
+        assert!(
+            ir.contains("scoop_alloc"),
+            "expected statepoint pipeline to cover scoop_alloc (alloc safepoint boundary)"
+        );
+        assert!(
+            !ir.contains("llvm.experimental.stackmap"),
+            "expected stackmap records to come from statepoints, not manual stackmap probes"
+        );
     }
 
     #[test]

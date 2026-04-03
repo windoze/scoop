@@ -106,7 +106,11 @@
   X(scoop_path_normalize) \
   X(scoop_pin) \
   X(scoop_print) \
+  X(scoop_print_i64) \
+  X(scoop_print_u64) \
   X(scoop_println) \
+  X(scoop_println_i64) \
+  X(scoop_println_u64) \
   X(scoop_process_args_array) \
   X(scoop_process_exit) \
   X(scoop_process_init) \
