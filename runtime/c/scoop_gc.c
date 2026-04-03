@@ -16,6 +16,7 @@
 
 #include "platform/unwind.h"
 #include "scoop_gc_stw_internal.h"
+#include "scoop_tls_internal.h"
 
 // --- 线程注册 + stop-the-world（TODO T0911） ---
 //
@@ -176,6 +177,107 @@ void scoop_gc_safepoint_poll(void) {
   scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/1);
 }
 
+// enter_native/leave_native（TODO T1505c）：
+// - 线程进入 native/extern 前调用 enter_native，切换线程状态为 InNative，并登记 native roots；
+// - 线程从 native 返回后调用 leave_native，清空 roots 并恢复 Running；
+// - STW/GC 在等待其它线程就绪时将 InNative 视为“已就绪”（不要求 park）。
+//
+// v0：native roots 允许由调用方传入 roots slots 指针数组（元素类型 `void**`）。
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  // 若当前正处于 stop-the-world，则 enter_native 必须先参与本轮 STW（park），否则 GC 可能会等待该线程
+  // 进入 safepoint 而永远等不到（deadlock）。
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+    rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+
+    if (rec->parked_epoch != scoop_gc_stw.epoch) {
+      rec->state = SCOOP_GC_THREAD_PARKED;
+      rec->parked_epoch = scoop_gc_stw.epoch;
+      scoop_gc_stw.parked_count += 1;
+      (void)pthread_cond_broadcast(&scoop_gc_cond);
+    }
+
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+
+  // TLS：保存 native roots buffer（供后续 stackmap roots/handle 协议扩展）。
+  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  if (tls != 0) {
+    tls->gc_native_roots = (void *)root_slots;
+    tls->gc_native_roots_len = root_slots_len;
+  }
+
+  rec->native_roots = (void *)root_slots;
+  rec->native_roots_len = root_slots_len;
+  rec->state = SCOOP_GC_THREAD_IN_NATIVE;
+  rec->parked_epoch = 0;
+  rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
+void scoop_leave_native(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  pthread_t self = pthread_self();
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return;
+  }
+
+  // 若当前有 stop-the-world 请求：
+  // - 若线程仍处于 InNative，则保持 roots 不变并等待 STW 结束（避免 GC 扫描期间 roots 被提前清空）；
+  // - 若线程不在 InNative（误用/竞态），则需要参与 STW 的 park 计数，避免 GC 等待死锁。
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
+    rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+
+    if (rec->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      if (rec->parked_epoch != scoop_gc_stw.epoch) {
+        rec->state = SCOOP_GC_THREAD_PARKED;
+        rec->parked_epoch = scoop_gc_stw.epoch;
+        scoop_gc_stw.parked_count += 1;
+        (void)pthread_cond_broadcast(&scoop_gc_cond);
+      }
+    }
+
+    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  }
+
+  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  if (tls != 0) {
+    tls->gc_native_roots = 0;
+    tls->gc_native_roots_len = 0;
+  }
+
+  rec->native_roots = 0;
+  rec->native_roots_len = 0;
+  rec->state = SCOOP_GC_THREAD_RUNNING;
+  rec->parked_epoch = 0;
+
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
 // scope helper：进入 stop-the-world（等待其它线程 park）。
 static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
   scoop_gc_stw_requested_store(&scoop_gc_stw, 1);
@@ -185,17 +287,29 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
 
   // 重置线程状态，避免上一轮残留（健壮性；对齐未来 T1505 的状态机语义）。
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    it->state = SCOOP_GC_THREAD_RUNNING;
+    // T1505c：若线程处于 InNative，则它已是“可枚举 roots 的就绪态”，不能被重置为 Running；
+    // 否则 GC 可能会错误等待它 park，导致死锁。
+    if (it->state != SCOOP_GC_THREAD_IN_NATIVE) {
+      it->state = SCOOP_GC_THREAD_RUNNING;
+    }
     it->parked_epoch = 0;
     // 释放上一轮残留的 ctx（按协议 STW end 会清空；这里做防御式兜底）。
     scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
     it->stack_walking_ctx = 0;
   }
 
-  // 需要 park 的线程数量：所有已注册线程 - initiator（若 initiator 已注册）。
-  uint32_t need_to_park = scoop_gc_thread_count;
-  if (scoop_gc_find_thread_unlocked(initiator) != 0 && need_to_park > 0) {
-    need_to_park -= 1;
+  // 需要 park 的线程数量：
+  // - initiator 不需要 park；
+  // - InNative 线程视为“已就绪”（roots 来自 native_roots），因此也不需要 park。
+  uint32_t need_to_park = 0;
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (pthread_equal(it->thread, initiator)) {
+      continue;
+    }
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      continue;
+    }
+    need_to_park += 1;
   }
 
   while (scoop_gc_stw.parked_count < need_to_park) {
@@ -214,7 +328,11 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
   scoop_gc_stw.parked_count = 0;
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    it->state = SCOOP_GC_THREAD_RUNNING;
+    // T1505c：InNative 线程不会进入 park/wait，因此不能在 STW end 时被强制切回 Running；
+    // 它的状态将由 `leave_native()` 显式恢复。
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      it->state = SCOOP_GC_THREAD_RUNNING;
+    }
     it->parked_epoch = 0;
     // T1505b：STW 结束后清空 stack walking ctx，避免悬挂指针或误用旧 ctx。
     scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
@@ -619,6 +737,30 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   scoop_gc_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
 }
 
+static uint64_t scoop_gc_native_roots_visit_slots(void *native_roots,
+                                                  uint32_t native_roots_len,
+                                                  ScoopGcTraceVisitor visitor,
+                                                  void *ctx) {
+  if (native_roots == 0 || native_roots_len == 0 || visitor == 0) {
+    return 0;
+  }
+
+  // `native_roots` 表示一个 “void** slots” 的指针数组（即 `void***`）。
+  void ***slots = (void ***)native_roots;
+
+  uint64_t visited = 0;
+  for (uint32_t i = 0; i < native_roots_len; i++) {
+    void **slot = slots[i];
+    if (slot == 0) {
+      continue;
+    }
+    visitor(slot, ctx);
+    visited += 1;
+  }
+
+  return visited;
+}
+
 void scoop_gc_collect(void) {
   // v0->v0+：协作式 stop-the-world，扫描所有已注册线程 roots。
   //
@@ -657,10 +799,16 @@ void scoop_gc_collect(void) {
                                                         void *ctx);
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    if (it->current_frame_slot == 0) {
+    // T1505c：InNative 线程不要求 park，roots 来自 TLS `native_roots` buffer。
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      (void)scoop_gc_native_roots_visit_slots(
+          it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
       continue;
     }
 
+    if (it->current_frame_slot == 0) {
+      continue;
+    }
     ScoopGcFrame *frame = *(it->current_frame_slot);
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
   }

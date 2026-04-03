@@ -61,6 +61,7 @@
   X(scoop_effect_trace_src_col) \
   X(scoop_effect_trace_src_line) \
   X(scoop_effect_trace_unwind_len) \
+  X(scoop_enter_native) \
   X(scoop_env_get) \
   X(scoop_executor_create) \
   X(scoop_executor_debug_pending_count) \
@@ -98,6 +99,7 @@
   X(scoop_io_stdin_read_line_utf8) \
   X(scoop_io_stdout_write_line) \
   X(scoop_io_stdout_write_string) \
+  X(scoop_leave_native) \
   X(scoop_once_begin) \
   X(scoop_once_end) \
   X(scoop_once_guard_canonicalize) \

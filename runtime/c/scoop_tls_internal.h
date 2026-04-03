@@ -53,6 +53,20 @@ typedef struct ScoopThreadTls {
   uint32_t gc_immix_block_cache_len;
   uint32_t _reserved_u32_1;
 
+  // GC：native roots buffer（TODO T1505c）。
+  //
+  // 语义：
+  // - 当线程进入 native/extern 过渡态时，`enter_native` 会在 TLS 中维护该 buffer；
+  // - STW/GC 将把处于 InNative 的线程视为“已就绪”，roots 从该 buffer 枚举；
+  // - v0：允许调用方直接传入 roots slots 指针数组（不强制复制）。
+  //
+  // 表示：
+  // - `gc_native_roots` 指向一个“slots 指针数组”，数组元素的类型为 `void**`（可读写引用槽位）；
+  // - 由于该头文件不引入 triple-pointer 类型，这里用 `void*` 表示，使用方需 cast 为 `void***`。
+  void *gc_native_roots;
+  uint32_t gc_native_roots_len;
+  uint32_t _reserved_u32_2;
+
   // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
   void *_reserved0;
   void *_reserved1;

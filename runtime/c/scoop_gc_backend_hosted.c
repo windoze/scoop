@@ -106,6 +106,26 @@ void scoop_gc_safepoint_poll(void) {
   scoop_gc_safepoint();
 }
 
+// enter_native/leave_native（TODO T1505c）：
+// - hosted backend 无 STW/线程状态机；这里提供最小的“可链接”实现（幂等且不崩溃）。
+// - 语义：仅保证在未显式 init/register 的情况下调用也不会出错。
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
+  (void)root_slots;
+  (void)root_slots_len;
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+}
+
+void scoop_leave_native(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+}
+
 // Test-only export（T1505b）：hosted backend 无 STW/park，因此该 smoke 统一返回 0。
 intptr_t scoop_test_gc_stack_walking_ctx_smoke(void) { return 0; }
 

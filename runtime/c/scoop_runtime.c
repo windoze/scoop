@@ -427,6 +427,9 @@ void scoop_thread_unregister(void) {
   scoop_tls.gc_immix_block_cache = 0;
   scoop_tls.gc_immix_block_cache_len = 0;
   scoop_tls._reserved_u32_1 = 0;
+  scoop_tls.gc_native_roots = 0;
+  scoop_tls.gc_native_roots_len = 0;
+  scoop_tls._reserved_u32_2 = 0;
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;

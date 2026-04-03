@@ -6191,7 +6191,7 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1505c [TODO] 运行时：`enter_native`/`leave_native` 线程状态机 + `native_roots` buffer（v0）
+### T1505c [DONE] 运行时：`enter_native`/`leave_native` 线程状态机 + `native_roots` buffer（v0）
 - 描述：实现 `enter_native()`/`leave_native()`：线程进入 native 过渡态时切换到 InNative，并在 TLS 中维护 `native_roots` buffer（为 T1510 的 handle/pin 协议做前置）。
 - 目标：
   - `enter_native()`：切换到 InNative，并建立/更新 `native_roots`（v0 允许由调用方传入 roots 指针数组；基于 stackmap locations 的复制在 T1506/T1510 完整落地）；
@@ -6199,6 +6199,16 @@
   - STW：GC 等待时视 InNative 线程为“已就绪”（roots 来自 `native_roots`），并在超时诊断中打印 InNative。
 - 验收：新增 `crates/scoop_runtime` 测试：一个线程长期 InNative，另一个线程触发 GC，GC 能完成且不死锁（并能在 InNative 期间正确保活 roots 的 smoke）。
 - 依赖：T1505a、T0911、T1402
+ - 完成：
+   - `runtime/c/scoop_tls_internal.h`：TLS 增加 `gc_native_roots/gc_native_roots_len` 字段（v0：允许指向调用方传入的 roots slots 指针数组）。
+   - `runtime/c/scoop_runtime.c`：线程注销时清理 TLS native_roots 字段，避免残留。
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c`：新增导出 `scoop_enter_native/scoop_leave_native`，切换线程状态为 InNative/Running；STW 计算 need-to-park 时将 InNative 视为已就绪；GC roots 枚举（含 moving roots update）支持扫描/更新 `native_roots`。
+   - `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：提供 `scoop_enter_native/scoop_leave_native` 占位实现（non-STW backend：幂等且不崩溃）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_enter_native/scoop_leave_native`。
+   - `crates/scoop_runtime/tests/gc_enter_native.rs`：新增集成测试回归 InNative “不阻塞 GC + roots 保活（并在 leave 后可回收）”。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1411b [TODO] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
 - 描述：在实现 T1505 的 stack walking 上下文时复用 `runtime/c/platform` 的 unwind 模块，提供“从捕获到的线程上下文开始，逐帧 unwind”的能力；把 unwind/寄存器/ABI 细节完全收敛到 platform 层。
