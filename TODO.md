@@ -5879,13 +5879,23 @@
    - `cargo test -p scoop_runtime -- --test-threads=1`
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1411c [TODO] non-resuming effect：为 unwind/诊断预留 hook（不改变现有语义）
+### T1411c [DONE] non-resuming effect：为 unwind/诊断预留 hook（不改变现有语义）
 - 描述：在 non-resuming effect（含 Raise）的运行期/编译期链路中，为“可展开 unwind backend + 稳定诊断”预留统一 hook（例如在 perform/raise 路径上可选择性采样 backtrace），并新增最小 fixture 回归。
 - 目标：
   - 不替换现有 flag-based unwinding 语义；仅为未来“真正的栈展开”与诊断做接口/数据结构对齐；
   - 诊断信息必须稳定（fixtures 可断言）。
 - 验收：新增 run-pass 或 runtime fixture：触发 non-resuming effect 时能输出/返回稳定的最小 backtrace 信息（可 gated）。
 - 依赖：T0614、T0707、T1411a
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 non-resuming effect trace TLS（稳定字段：call-site line/col；可选采样 unwind IPs，env：`SCOOP_EFFECT_CAPTURE_UNWIND=1`）；新增 ABI：
+     - `scoop_effect_set_active_with_trace(line, col)`（codegen 调用点写入）；
+     - `scoop_effect_trace_src_line/src_col/unwind_len`（fixtures/诊断读取）。
+   - `runtime/c/scoop_runtime_api.h`：更新 ABI allowlist，登记新增导出符号。
+   - `crates/scoopc/src/llvm/codegen.rs`：`Raise.raise` 与 custom non-resuming `perform` 改为调用 `scoop_effect_set_active_with_trace` 并透传 call-site 行列；当 span 无法映射到入口 `SourceFile` 时降级为 `(0, 0)`（不影响语义）。
+   - fixtures：新增 `tests/fixtures/run-pass/effect_raise_trace_hook_basic.scoop` + `.stdout` 回归覆盖（在 catch 中读取并打印 line/col）。
+ - 验收：
+   - `cargo test --all`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ---
 

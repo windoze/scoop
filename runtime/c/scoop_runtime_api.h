@@ -54,6 +54,10 @@
   X(scoop_effect_perform_slot_write_u64) \
   X(scoop_effect_perform_slot_write_u64_2) \
   X(scoop_effect_set_active) \
+  X(scoop_effect_set_active_with_trace) \
+  X(scoop_effect_trace_src_col) \
+  X(scoop_effect_trace_src_line) \
+  X(scoop_effect_trace_unwind_len) \
   X(scoop_env_get) \
   X(scoop_executor_create) \
   X(scoop_executor_debug_pending_count) \

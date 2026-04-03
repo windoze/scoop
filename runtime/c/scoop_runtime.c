@@ -18,6 +18,7 @@
 #include "scoop_gc_immix_internal.h"
 #include "scoop_tls_internal.h"
 #include "platform/platform.h"
+#include "platform/unwind.h"
 
 // TLS（thread-local storage）抽象层。
 //
@@ -205,6 +206,27 @@ typedef struct ScoopEffectPerformSlot {
   uint64_t payload_words[SCOOP_EFFECT_PERFORM_SLOT_MAX_WORDS];
 } ScoopEffectPerformSlot;
 
+// non-resuming effect（flag-based unwinding）的“最小诊断信息”TLS。
+//
+// 说明（TODO T1411c）：
+// - 该结构用于在 `perform/raise` 发生时记录一个稳定的 call-site（line/col），并可选采样 backtrace；
+// - 该数据结构是“诊断/调试辅助”，不参与语义判定：effect 的语义仍由 active flag + perform slot 决定；
+// - 为保证 fixtures 的可断言性：
+//   - 默认不采样 backtrace（避免地址不稳定）；仅记录 line/col；
+//   - 若设置环境变量 `SCOOP_EFFECT_CAPTURE_UNWIND=1`，则额外采样当前线程的 instruction pointers。
+// - 该 TLS 不通过 `scoop_effect_clear()` 清空，便于 handler/catch body 在清 flag/slot 后仍可读取。
+#define SCOOP_EFFECT_TRACE_MAX_IPS 8u
+
+typedef struct ScoopEffectTraceV0 {
+  uint32_t version;
+  uint32_t src_line;
+  uint32_t src_col;
+  uint32_t unwind_len;
+  uintptr_t unwind_ips[SCOOP_EFFECT_TRACE_MAX_IPS];
+} ScoopEffectTraceV0;
+
+static SCOOP_THREAD_LOCAL ScoopEffectTraceV0 scoop_effect_trace = {0};
+
 // ABI 断言：固定 perform slot 的布局，以便 codegen 与跨 crate 测试可以依赖。
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(
@@ -262,6 +284,43 @@ SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
 
 // flag-based unwinding：每线程 perform slot（后续由 `perform` 写入）。
 SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
+
+static inline void scoop_effect_trace_reset(uint32_t src_line, uint32_t src_col) {
+  scoop_effect_trace.version = 0;
+  scoop_effect_trace.src_line = src_line;
+  scoop_effect_trace.src_col = src_col;
+  scoop_effect_trace.unwind_len = 0;
+  for (uint32_t i = 0; i < SCOOP_EFFECT_TRACE_MAX_IPS; i++) {
+    scoop_effect_trace.unwind_ips[i] = 0;
+  }
+}
+
+static inline uint32_t scoop_effect_trace_should_capture_unwind(void) {
+  const char *value = getenv("SCOOP_EFFECT_CAPTURE_UNWIND");
+  if (value == 0) {
+    return 0;
+  }
+  if (value[0] == 0) {
+    return 0;
+  }
+  if (value[0] == '0' && value[1] == 0) {
+    return 0;
+  }
+  return 1;
+}
+
+static inline void scoop_effect_trace_on_set_active(uint32_t src_line, uint32_t src_col) {
+  scoop_effect_trace_reset(src_line, src_col);
+  if (!scoop_effect_trace_should_capture_unwind()) {
+    return;
+  }
+
+  // 跳过最顶端的一帧（通常是 set_active wrapper 自身），避免把 runtime wrapper 暴露到诊断里。
+  const uint32_t skip_frames = 1;
+  uint32_t n = scoop_platform_unwind_capture_ips(
+      scoop_effect_trace.unwind_ips, SCOOP_EFFECT_TRACE_MAX_IPS, skip_frames);
+  scoop_effect_trace.unwind_len = n;
+}
 
 uint32_t scoop_thread_is_registered(void) {
   return scoop_tls.registered;
@@ -368,6 +427,7 @@ void scoop_thread_unregister(void) {
   __scoop_effect_active = 0;
   __scoop_effect_handler_stack_top = 0;
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+  scoop_effect_trace_reset(0, 0);
 }
 
 // effect runtime（TODO T0906）：set/clear API（仅用于最小回归与后续 lowering 接入）。
@@ -377,11 +437,35 @@ uint32_t scoop_effect_is_active(void) {
 
 void scoop_effect_set_active(void) {
   __scoop_effect_active = 1;
+  scoop_effect_trace_on_set_active(0, 0);
+}
+
+// effect runtime（TODO T1411c）：set active + 记录最小诊断信息（call-site line/col）。
+void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col) {
+  __scoop_effect_active = 1;
+  scoop_effect_trace_on_set_active(src_line, src_col);
 }
 
 void scoop_effect_clear(void) {
   __scoop_effect_active = 0;
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
+
+// effect runtime（TODO T1411c）：读取最近一次 non-resuming effect 的诊断信息。
+//
+// 说明：
+// - 这些 getter 只返回稳定字段（line/col/unwind_len）；
+// - `unwind_ips` 目前不导出为稳定 ABI（避免把地址暴露到 fixtures 输出中）。
+uintptr_t scoop_effect_trace_src_line(void) {
+  return (uintptr_t)scoop_effect_trace.src_line;
+}
+
+uintptr_t scoop_effect_trace_src_col(void) {
+  return (uintptr_t)scoop_effect_trace.src_col;
+}
+
+uintptr_t scoop_effect_trace_unwind_len(void) {
+  return (uintptr_t)scoop_effect_trace.unwind_len;
 }
 
 // effect runtime（TODO T0613/T0630）：perform slot 读写 API（稳定 ABI）。

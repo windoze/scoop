@@ -1568,6 +1568,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn effect_trace_line_col(
+        &self,
+        at: crate::span::Span,
+    ) -> Result<(u32, u32), LlvmEmitError> {
+        // 注意：当前阶段 HIR span 仍是“无 file-id 的 byte offsets”，当 codegen 生成跨文件函数体
+        //（例如 stdlib/helper 被内联为可 codegen 的顶层函数）时，span 可能不属于入口 `source`。
+        //
+        // 为避免把“诊断辅助信息”升级成 hard error，这里选择在无法映射时降级为 (0, 0)：
+        // - 不影响 non-resuming effect 的语义（仍由 flag+slot 决定）；
+        // - fixtures 可选择性断言：对入口文件的 raise/perform，line/col 仍可稳定；
+        // - 未来当 span 携带 file-id 后，再把这里升级为精确映射。
+        let Ok((line, col)) = self.source.offset_to_line_col(at.start) else {
+            return Ok((0, 0));
+        };
+        let line_u32 = line.min(u32::MAX as usize) as u32;
+        let col_u32 = col.min(u32::MAX as usize) as u32;
+        Ok((line_u32, col_u32))
+    }
+
     /// 将 `Raise.raise(error)` 的 `error` 值编码为 runtime perform slot 的 payload words。
     ///
     /// 当前阶段（T0818）的目标是先把 `Raise<RuntimeError>` 跑通，以支持：
@@ -1712,8 +1731,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "raise_write_slot",
         )?;
 
-        let rt_set = self.declare_runtime_effect_set_active();
-        let _ = self.builder.build_call(rt_set, &[], "raise_set_active")?;
+        let (src_line, src_col) = self.effect_trace_line_col(span)?;
+        let rt_set = self.declare_runtime_effect_set_active_with_trace();
+        let i32_ty = self.context.i32_type();
+        let src_line_i32 = i32_ty.const_int(src_line as u64, false);
+        let src_col_i32 = i32_ty.const_int(src_col as u64, false);
+        let _ = self.builder.build_call(
+            rt_set,
+            &[src_line_i32.into(), src_col_i32.into()],
+            "raise_set_active",
+        )?;
 
         // 3) “早退”：在 handler boundary 内跳到 catch，否则返回默认值向外传播。
         if let Some(target) = self.current_raise_target() {
@@ -1812,8 +1839,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[op_tag_i32.into(), payload_u64.into()],
             "effect_write_slot",
         )?;
-        let rt_set = self.declare_runtime_effect_set_active();
-        let _ = self.builder.build_call(rt_set, &[], "effect_set_active")?;
+        let (src_line, src_col) = self.effect_trace_line_col(span)?;
+        let rt_set = self.declare_runtime_effect_set_active_with_trace();
+        let i32_ty = self.context.i32_type();
+        let src_line_i32 = i32_ty.const_int(src_line as u64, false);
+        let src_col_i32 = i32_ty.const_int(src_col as u64, false);
+        let _ = self.builder.build_call(
+            rt_set,
+            &[src_line_i32.into(), src_col_i32.into()],
+            "effect_set_active",
+        )?;
 
         let Some(target) = self.current_effect_unwind_target(&op.fqn) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -16788,6 +16823,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_effect_set_active(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_effect_set_active_with_trace(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_effect_set_active_with_trace";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col)`
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i32_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
