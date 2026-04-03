@@ -5982,17 +5982,17 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo test --all`
 
-### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
-- 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。
-- 目标：仅扩展 `String` 元素分支；不改变 `Array<Ref>`（T1502b1）与 `Array<Int>` 等路径。
-- 验收：新增 1 个 `--emit-llvm` fixture/单测断言 `Array<String>` 的元素通道不再出现 `ptrtoint`。
-- 依赖：T1502b1、T1502b3
-
 ### T1502b3 [TODO] String：把 `scoop.core.String` 的 builtin 表示迁移到 `addrspace(1)`
 - 描述：把 `scoop.core.String` 从早期 `const ScoopString*`（addrspace(0)）迁移为 GC-managed ref（addrspace(1)），并同步升级 print/env/fs/path/io 等 runtime API 的参数/返回类型，使其不再要求 `addrspacecast`。
 - 目标：优先保证 `scoop test` 现有 run-pass 行为稳定；必要时拆分为“表示迁移 / API 迁移 / fixtures 更新”三步。
 - 验收：新增 `--emit-llvm` fixture/单测覆盖 `String` 在 IR 中为 `addrspace(1)` ref 指针；`cargo test --all` 通过。
 - 依赖：T1502a
+
+### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
+- 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。
+- 目标：仅扩展 `String` 元素分支；不改变 `Array<Ref>`（T1502b1）与 `Array<Int>` 等路径。
+- 验收：新增 1 个 `--emit-llvm` fixture/单测断言 `Array<String>` 的元素通道不再出现 `ptrtoint`。
+- 依赖：T1502b1、T1502b3
 
 ### T1502c [TODO] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
 - 描述：在 typecheck/lowering 层对 `@Extern` 边界做门禁：禁止直接把 GC 指针（`addrspace(1)`）作为 ABI 参数/返回值透传；必须通过 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>` 或 handle API 显式桥接。
