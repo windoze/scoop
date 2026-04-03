@@ -5765,11 +5765,37 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `tools/gc_microbench.sh throughput --object-size 256 --rounds 50 --batch 50000 --threads 8`
 
-### T1409c [TODO] Immix：并行标记/并行 sweep（渐进引入）
-- 描述：引入并行标记/并行 sweep 的最小版本，并在确保正确性的前提下缩短 STW 时间。
-- 目标：以“可开关的实验性实现”落地（默认可关闭），先建立正确性回归与诊断。
-- 验收：新增 stress fixture/测试：并发分配 + 跨线程引用 + GC stress 下稳定通过；并行开关打开/关闭两种模式都可回归。
+### T1409c Immix：并行标记/并行 sweep（拆分为子任务）
+
+- 描述：引入并行标记/并行 sweep 的渐进实现，并在确保正确性的前提下缩短 STW 时间。
+- 目标：以“可开关的实验性实现”落地（默认关闭），先建立正确性回归与诊断，再逐步优化性能。
+- 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1409c1 [TODO] Immix：并行标记 v0（可开关）
+- 描述：在 stop-the-world 阶段引入 marker workers 分担 transitive closure tracing，并把 `obj->mark`/line mark bits 的写入改为线程安全的原子操作。
+- 目标：
+  - 默认关闭；通过 env 开关启用（用于实验与对比）；
+  - 仅并行化 mark transitive closure；不并行化 sweep/compaction；
+  - 先用“全局 work stack（mutex/cond）”实现，避免过早引入复杂 work-stealing。
+- 验收：
+  - 新增 `scoop_runtime` 集成测试：构造含引用字段的对象图，在并行标记开关关闭/开启两种模式下都能稳定通过（含多轮 collect）。
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 - 依赖：T1409a
+
+### T1409c2 [TODO] Immix：并行 region sweep v0（可开关）
+- 描述：把 region sweep（per-block：mark bitmap → alloc bitmap + hole setup + reusable/free 分类）按 blocks 分片并行执行，最后合并 lists。
+- 目标：
+  - 默认关闭；开关独立于并行标记；
+  - 不并行化 heap.objects 链表 sweep（保持简单），只并行 per-block 的 bitmap/sweep 计算；
+  - 保持 moving/compaction 语义不变。
+- 验收：并行 region sweep 开关关闭/开启两种模式下 `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` 通过。
+- 依赖：T1409c1
+
+### T1409c3 [TODO] Immix：并行 mark/sweep stress 回归（多线程 + 跨线程引用）
+- 描述：新增 stress 测试覆盖“并发分配 + 跨线程引用 + GC stress”，并验证并行开关组合可回归。
+- 目标：覆盖最容易触发竞态/悬挂指针的路径（多线程 alloc + roots 枚举 + tracing + holes 复用 + compaction）。
+- 验收：新增一个 `scoop_runtime` 集成测试：在 N=4/8 线程下多轮 alloc+collect 稳定通过；并行开关组合可回归。
+- 依赖：T1409c1、T1409c2
 
 ### T1409d [TODO] Immix：多线程 microbench 与基线记录（不做 CI gating）
 - 描述：扩展 `gc_microbench` 或新增工具，覆盖多线程分配吞吐/GC STW 时间指标，并把基线输出格式固化，便于本地对比回归。
