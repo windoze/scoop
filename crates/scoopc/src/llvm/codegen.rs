@@ -69,9 +69,10 @@ enum CgTy {
     /// runtime 字符串对象（early stage）
     ///
     /// 说明：
-    /// - 当前阶段把 `scoop.core.String` 映射为 `*const ScoopString`（C ABI）；
-    /// - 该指针的指向对象目前允许来自：字符串字面量生成的栈上 `ScoopString`；
-    /// - 更完整的 String 对象头/GC 语义将由后续任务补齐（T09/T12）。
+    /// - `scoop.core.String` 运行期表示为 `ScoopString*`：
+    ///   - LLVM 侧使用 `addrspace(1)` 指针，表示其为 GC-managed heap 对象；
+    ///   - 对象头为 `ScoopGcObjectHeader`（与 `scoop_alloc` 对齐），其后为 `{ len: i64, data: i8* }`；
+    /// - 字符串字面量与 f-string 结果当前都会分配一个 `ScoopString` 对象（T1502b3）。
     String,
     /// 通用引用类型（Any / class / interface / function / union ...）。
     ///
@@ -900,7 +901,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut seen: HashSet<hir::SymbolId> = HashSet::new();
 
         for param in &fun.params {
-            if matches!(self.cg_ty_of(param.ty), Some(CgTy::Ref)) && seen.insert(param.id) {
+            if matches!(self.cg_ty_of(param.ty), Some(CgTy::Ref) | Some(CgTy::String))
+                && seen.insert(param.id)
+            {
                 out.push(param.id);
             }
         }
@@ -922,7 +925,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             match &stmt.kind {
                 hir::StmtKind::Empty => {}
                 hir::StmtKind::Val(decl) => {
-                    if matches!(self.cg_ty_of(decl.ty), Some(CgTy::Ref)) {
+                    if matches!(self.cg_ty_of(decl.ty), Some(CgTy::Ref) | Some(CgTy::String)) {
                         if let Some(id) = decl.id {
                             if seen.insert(id) {
                                 out.push(id);
@@ -3354,7 +3357,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for cap in &captures {
                 fields.push(match cap.local.ty {
                     CgTy::Ref => gc_i8_ptr_ty.into(),
-                    CgTy::String => i8_ptr_ty.into(),
+                    CgTy::String => gc_i8_ptr_ty.into(),
                     CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
                     _ => unreachable!("captures filtered by type"),
                 });
@@ -3452,7 +3455,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CgTy::String => {
                             let loaded = cg
                                 .builder
-                                .build_load(i8_ptr_ty, field_ptr, "cont_step_capture_load_str")?
+                                .build_load(
+                                    gc_i8_ptr_ty,
+                                    field_ptr,
+                                    "cont_step_capture_load_str",
+                                )?
                                 .into_pointer_value();
                             let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
                             let casted = cg.builder.build_pointer_cast(
@@ -3778,9 +3785,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             at: span.into(),
                         });
                     };
-                    let casted =
-                        self.builder
-                            .build_pointer_cast(ptr, i8_ptr_ty, "cont_state_capture_str_i8")?;
+                    let casted = self.builder.build_pointer_cast(
+                        ptr,
+                        gc_i8_ptr_ty,
+                        "cont_state_capture_str_i8",
+                    )?;
                     let _ = self.builder.build_store(field_ptr, casted)?;
                 }
                 CgTy::Bool => {
@@ -3829,7 +3838,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let rt_push = self.declare_runtime_effect_handler_stack_push();
         let frame_i8 =
             self.builder
-                .build_bit_cast(frame_ptr, i8_ptr_ty, "handle_escape_frame_i8")?;
+                .build_address_space_cast(frame_ptr, i8_ptr_ty, "handle_escape_frame_i8")?;
         let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
             self.context.i32_type().const_int(1, false)
         } else {
@@ -10291,20 +10300,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?
             .into_int_value();
 
-        // 构造一个 `ScoopString { len, data }`（放在 entry block，便于复用/避免 alloca 位置敏感问题）。
+        // 构造一个临时 `ScoopString`：
+        // - 为了不污染 GC 统计（例如 `__scoop_gc_debug_heap_object_count()` 的 fixtures），这里不做 heap 分配；
+        // - 在栈上构造 `ScoopString`（addrspace(0)），再用 `addrspacecast` 转为 `addrspace(1)` 传给 runtime。
+        //
+        // 注意：该指针只在本次 `print/println` 调用期间有效，不会写入 GC roots slot。
         let scoop_str_ty = self.llvm_scoop_string_type();
-        let str_ptr = self.create_entry_alloca_raw(at, "scoop_str_int", scoop_str_ty.into())?;
-
-        let len_ptr =
-            self.builder
-                .build_struct_gep(scoop_str_ty, str_ptr, 0, "print_int_len_gep")?;
-        let data_ptr =
-            self.builder
-                .build_struct_gep(scoop_str_ty, str_ptr, 1, "print_int_data_gep")?;
+        let stack_str_ptr =
+            self.create_entry_alloca_raw(at, "print_int_scoop_string", scoop_str_ty.into())?;
+        let len_ptr = self.builder.build_struct_gep(
+            scoop_str_ty,
+            stack_str_ptr,
+            1,
+            "print_int_len_gep",
+        )?;
+        let data_ptr = self.builder.build_struct_gep(
+            scoop_str_ty,
+            stack_str_ptr,
+            2,
+            "print_int_data_gep",
+        )?;
 
         let _ = self.builder.build_store(len_ptr, len)?;
         let _ = self.builder.build_store(data_ptr, buf)?;
 
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let str_ptr = self.builder.build_address_space_cast(
+            stack_str_ptr,
+            str_ptr_ty,
+            "print_int_str_ptr",
+        )?;
         Ok(str_ptr)
     }
 
@@ -12230,10 +12255,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
 
+                let tail_bb =
+                    self.builder
+                        .get_insert_block()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "when arm tail block",
+                            at: arm.body.span.into(),
+                        })?;
                 self.builder.build_unconditional_branch(merge_bb)?;
                 self.env.pop_scope();
 
-                incoming.push((arm_bbs[idx], v));
+                incoming.push((tail_bb, v));
             }
 
             self.builder.position_at_end(merge_bb);
@@ -12508,10 +12540,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
+            let tail_bb =
+                self.builder
+                    .get_insert_block()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "when arm tail block",
+                        at: arm.body.span.into(),
+                    })?;
             self.builder.build_unconditional_branch(merge_bb)?;
             self.env.pop_scope();
 
-            incoming.push((arm_bbs[idx], v));
+            incoming.push((tail_bb, v));
         }
 
         self.builder.position_at_end(merge_bb);
@@ -13600,11 +13639,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => CgValue {
                 ty: CgTy::Ref,
                 value: Some(
-                    self.context
-                        .i8_type()
-                        .ptr_type(AddressSpace::default())
-                        .const_null()
-                        .into(),
+                    self.llvm_gc_i8_ptr_type().const_null().into(),
                 ),
             },
             // 说明：当前阶段不支持 tuple/struct 作为函数返回类型，因此这里仅提供占位值；
@@ -13818,31 +13853,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
 
-        // 1) 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
-        let data_gv = self.get_or_create_global_bytes(span, &bytes);
-
-        // 2) 构造 `ScoopString { len, data }` 并返回其指针（当前阶段先放在栈上）。
+        // 1) 分配一个 GC-managed `ScoopString` 对象：
+        //    - LLVM 侧类型为 `ScoopString addrspace(1)*`
+        //    - 分配通过 `scoop_alloc(sizeof(ScoopString))`
         let scoop_str_ty = self.llvm_scoop_string_type();
-        let str_ptr = self.create_entry_alloca_raw(span, "scoop_str_lit", scoop_str_ty.into())?;
+        let obj_size = self.target_data.get_store_size(&scoop_str_ty);
+        let size_v = self.context.i64_type().const_int(obj_size, false);
 
+        let rt_alloc = self.declare_runtime_alloc();
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_string_lit")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let str_ptr = self
+            .builder
+            .build_pointer_cast(raw_ptr, str_ptr_ty, "str_obj_ptr")?;
+
+        // 2) 写入 `{ len, data }`（对象头由 runtime 初始化；type_desc 当前仍为 NULL）。
         let len_ptr = self
             .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 0, "str_len_gep")?;
+            .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_len_gep")?;
         let data_ptr = self
             .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_data_gep")?;
+            .build_struct_gep(scoop_str_ty, str_ptr, 2, "str_data_gep")?;
 
         let len = self.context.i64_type().const_int(bytes.len() as u64, false);
-
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let data_i8_ptr = self.builder.build_pointer_cast(
-            data_gv.as_pointer_value(),
-            i8_ptr_ty,
-            "str_data_ptr",
-        )?;
-
         let _ = self.builder.build_store(len_ptr, len)?;
-        let _ = self.builder.build_store(data_ptr, data_i8_ptr)?;
+
+        // 空串：保持 `data = NULL`（与 runtime 侧空串约定一致）。
+        if bytes.is_empty() {
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let _ = self
+                .builder
+                .build_store(data_ptr, i8_ptr_ty.const_null())?;
+        } else {
+            // 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
+            let data_gv = self.get_or_create_global_bytes(span, &bytes);
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let data_i8_ptr = self.builder.build_pointer_cast(
+                data_gv.as_pointer_value(),
+                i8_ptr_ty,
+                "str_data_ptr",
+            )?;
+            let _ = self.builder.build_store(data_ptr, data_i8_ptr)?;
+        }
 
         Ok(CgValue {
             ty: CgTy::String,
@@ -13857,12 +13925,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         parts: &[hir::InterpolatedStringPart],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 当前阶段的落点：把 f-string 分片后“拼接”为一段连续 UTF-8 字节序列，
-        // 以 runtime `ScoopString { len, data }` 的形式返回（data 指向栈上 buffer）。
+        // 返回一个 GC-managed `ScoopString` 对象（addrspace(1)），其 `data` 指向 `malloc` 的 bytes buffer。
         //
         // 约束（与 TODO T0823 对齐）：
         // - 仅支持 `{Int}` 与 `{String}`；
         // - 先不支持 format spec / locale；
-        // - 先不做 heap 分配：buffer 全部落在栈上（未来接入 `scoop_alloc`/GC 再升级）。
+        // - 当前阶段不接入 type descriptor/release：`data` 的释放留给后续任务补齐（T1507/T1514）。
 
         #[derive(Clone, Copy)]
         struct Segment<'ctx> {
@@ -13873,12 +13941,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let i8_ty = self.context.i8_type();
         let i8_ptr_ty = i8_ty.ptr_type(AddressSpace::default());
-
-        // 1) 为结果构造一个 `ScoopString`（固定大小，放在 entry block）
         let scoop_str_ty = self.llvm_scoop_string_type();
-        let str_ptr = self.create_entry_alloca_raw(span, "scoop_str_fstr", scoop_str_ty.into())?;
 
-        // 2) 先做一遍：收集所有片段的 (ptr, len)，并计算总长度（运行期）。
+        // 1) 先做一遍：收集所有片段的 (ptr, len)，并计算总长度（运行期）。
         let mut segments: Vec<Segment<'ctx>> = Vec::new();
         let mut total_len = i64_ty.const_zero();
 
@@ -13928,13 +13993,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let len_ptr = self.builder.build_struct_gep(
                                 scoop_str_ty,
                                 str_obj_ptr,
-                                0,
+                                1,
                                 "fstr_part_len_gep",
                             )?;
                             let data_ptr = self.builder.build_struct_gep(
                                 scoop_str_ty,
                                 str_obj_ptr,
-                                1,
+                                2,
                                 "fstr_part_data_gep",
                             )?;
 
@@ -14016,28 +14081,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // 3) 为拼接结果分配 buffer，并按顺序 memcpy 各段。
-        //
-        // 注意：`alloca [0 x i8]` 在某些目标上会导致奇怪的 IR/后端行为；这里保证至少分配 1 byte。
+        // 2) 为拼接结果分配 heap buffer（malloc），并按顺序 memcpy 各段。
         let is_zero = self.builder.build_int_compare(
             IntPredicate::EQ,
             total_len,
             i64_ty.const_zero(),
             "fstr_total_is_zero",
         )?;
-        let alloc_len = self
-            .builder
-            .build_select(
-                is_zero,
-                i64_ty.const_int(1, false),
-                total_len,
-                "fstr_alloc_len",
-            )?
-            .into_int_value();
 
-        let buf = self
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let malloc_bb = self.context.append_basic_block(func, "fstr_malloc");
+        let done_bb = self.context.append_basic_block(func, "fstr_done");
+
+        self.builder
+            .build_conditional_branch(is_zero, done_bb, malloc_bb)?;
+
+        // --- malloc + memcpy ---
+        self.builder.position_at_end(malloc_bb);
+        let malloc = self.declare_libc_malloc();
+        let call = self
             .builder
-            .build_array_alloca(i8_ty, alloc_len, "fstr_buf")?;
+            .build_call(malloc, &[total_len.into()], "fstr_malloc")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(buf) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return type",
+                at: span.into(),
+            });
+        };
 
         let mut cursor = i64_ty.const_zero();
         for (idx, seg) in segments.iter().enumerate() {
@@ -14053,16 +14143,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             cursor = self.builder.build_int_add(cursor, seg.len, "fstr_cursor")?;
         }
 
-        // 4) 写回 `ScoopString { len, data }` 并返回其指针。
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // --- done ---
+        self.builder.position_at_end(done_bb);
+        let buf_phi = self.builder.build_phi(i8_ptr_ty, "fstr_buf")?;
+        let buf_null: BasicValueEnum<'ctx> = i8_ptr_ty.const_null().into();
+        let buf_value: BasicValueEnum<'ctx> = buf.into();
+        buf_phi.add_incoming(&[(&buf_null, insert_block), (&buf_value, malloc_bb)]);
+        let buf_ptr = buf_phi.as_basic_value().into_pointer_value();
+
+        // 3) 分配并初始化 `ScoopString` 对象（GC-managed）。
+        let obj_size = self.target_data.get_store_size(&scoop_str_ty);
+        let size_v = i64_ty.const_int(obj_size, false);
+
+        let rt_alloc = self.declare_runtime_alloc();
+        let call = self
+            .builder
+            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_fstr")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let str_ptr = self
+            .builder
+            .build_pointer_cast(raw_ptr, str_ptr_ty, "fstr_obj_ptr")?;
+
         let len_ptr = self
             .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 0, "fstr_len_gep")?;
+            .build_struct_gep(scoop_str_ty, str_ptr, 1, "fstr_len_gep")?;
         let data_ptr = self
             .builder
-            .build_struct_gep(scoop_str_ty, str_ptr, 1, "fstr_data_gep")?;
+            .build_struct_gep(scoop_str_ty, str_ptr, 2, "fstr_data_gep")?;
 
         let _ = self.builder.build_store(len_ptr, total_len)?;
-        let _ = self.builder.build_store(data_ptr, buf)?;
+        let _ = self.builder.build_store(data_ptr, buf_ptr)?;
 
         Ok(CgValue {
             ty: CgTy::String,
@@ -15492,10 +15618,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::int(out, to))
             }
             (CgTy::String, CgTy::String) => Ok(value),
-            (CgTy::String, CgTy::Ref) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "string -> ref coercion (requires GC string object)",
-                at: at.into(),
-            }),
+            (CgTy::String, CgTy::Ref) => {
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "string -> ref coercion value",
+                        at: at.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "string -> ref coercion type",
+                        at: at.into(),
+                    });
+                };
+
+                let casted =
+                    self.builder
+                        .build_pointer_cast(ptr, self.llvm_gc_i8_ptr_type(), "str_to_ref")?;
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(casted.into()),
+                })
+            }
             (CgTy::Ref, CgTy::Ref) => Ok(value),
             (CgTy::Int(_), CgTy::Ref) => {
                 // T0817：值类型装箱到 `Any`（当前阶段先只支持整数族）。
@@ -15891,17 +16035,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `typedef struct { uint64_t len; const uint8_t *data; } ScoopString;`
+        // `typedef struct { ScoopGcObjectHeader hdr; uint64_t len; const uint8_t *data; } ScoopString;`
         let ty = self.context.opaque_struct_type(TY_NAME);
+        let header_ty = self.llvm_gc_object_header_type();
         let len_ty = self.context.i64_type();
         let data_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        ty.set_body(&[len_ty.into(), data_ty.into()], false);
+        ty.set_body(&[header_ty.into(), len_ty.into(), data_ty.into()], false);
         ty
     }
 
     fn llvm_scoop_string_ptr_type(&self) -> inkwell::types::PointerType<'ctx> {
-        self.llvm_scoop_string_type()
-            .ptr_type(AddressSpace::default())
+        self.llvm_scoop_string_type().ptr_type(self.gc_address_space())
     }
 
     fn llvm_gc_object_header_type(&self) -> StructType<'ctx> {

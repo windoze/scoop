@@ -5982,11 +5982,20 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo test --all`
 
-### T1502b3 [TODO] String：把 `scoop.core.String` 的 builtin 表示迁移到 `addrspace(1)`
+### T1502b3 [DONE] String：把 `scoop.core.String` 的 builtin 表示迁移到 `addrspace(1)`
 - 描述：把 `scoop.core.String` 从早期 `const ScoopString*`（addrspace(0)）迁移为 GC-managed ref（addrspace(1)），并同步升级 print/env/fs/path/io 等 runtime API 的参数/返回类型，使其不再要求 `addrspacecast`。
 - 目标：优先保证 `scoop test` 现有 run-pass 行为稳定；必要时拆分为“表示迁移 / API 迁移 / fixtures 更新”三步。
 - 验收：新增 `--emit-llvm` fixture/单测覆盖 `String` 在 IR 中为 `addrspace(1)` ref 指针；`cargo test --all` 通过。
 - 依赖：T1502a
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：`ScoopString` 升级为 GC-managed 对象布局（含对象头）；新增空串/静态 bytes helper；同步更新 `print/env/fs/path/io` 等相关实现。
+   - `crates/scoopc/src/llvm/codegen.rs`：`CgTy::String` 统一为 `addrspace(1)`；string literal / f-string 走 heap 分配；修复 `when` 结果 phi 的 incoming block、escape continuation handler frame 的 addrspace cast、以及 `println(Int)` 临时字符串不做 heap 分配（避免影响 GC 计数 fixtures）。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 IR 单测断言 `String` literal 使用 `addrspace(1)` 且不引入 `addrspacecast`。
+   - `crates/scoop/src/toolchain.rs`：更新 clang 链接 smoke test，按新 `ScoopString` 布局构造并调用 `scoop_println`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoopc --features llvm`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
 - 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。

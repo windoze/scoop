@@ -180,24 +180,36 @@ mod tests {
 
         // 直接声明 runtime ABI（避免依赖未来才会引入的头文件安装/导出流程）。
         //
-        // 约定：String 为一个指向 runtime 对象的指针；当前 early stage 先把它实现为
-        // `{ len: u64, data: *const u8 }` 结构体的地址（见 `runtime/c/scoop_runtime.c`）。
+        // 约定：String 为一个指向 runtime 对象的指针；当前 `ScoopString` 为 GC-managed 对象：
+        // `{ hdr: ScoopGcObjectHeader, len: u64, data: *const u8 }`（见 `runtime/c/scoop_runtime.c`）。
         std::fs::write(
             &main_c,
             r#"
 #include <stdint.h>
 
+typedef struct ScoopGcObjectHeader {
+  void *next;
+  void *type_desc;
+  uint64_t size_bytes;
+  uint32_t flags;
+  uint32_t mark;
+} ScoopGcObjectHeader;
+
 typedef struct ScoopString {
+  ScoopGcObjectHeader hdr;
   uint64_t len;
   const uint8_t *data;
 } ScoopString;
 
+void *scoop_alloc(uint64_t size);
 void scoop_println(const ScoopString *value);
 
 int main(void) {
   const char *msg = "hi";
-  ScoopString s = {2, (const uint8_t *)msg};
-  scoop_println(&s);
+  ScoopString *s = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  s->len = 2;
+  s->data = (const uint8_t *)msg;
+  scoop_println(s);
   return 0;
 }
 "#,

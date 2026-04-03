@@ -42,6 +42,7 @@
 - 2026-04-03：完成 T1501：固化 ref 对象模型 ABI：对象头字段 `size_bytes` 与关键偏移断言；`ScoopTypeDescriptor` 补齐 `align_bytes/type_id/parent_type_desc/itable/vtable` 并新增 ABI 集成测试；补齐 `SCOOP_RUNTIME.md` §9（字段表/偏移/回调约定）。
 - 2026-04-03：T1502b（builtins addrspace(1) 迁移）牵涉面较大（Array/String/closure env/boxing）。为保证每一步都“可单独实现 & 单独验证”，已将其拆分为 T1502b1（`Array<Ref>` 指针型 push/get/set）、T1502b2（`Array<String>` 指针型通道）、T1502b3（`String` 表示迁移）。
 - 2026-04-03：修正 TODO 顺序：T1502b2 依赖 T1502b3（String addrspace(1) 迁移），已将 T1502b2 移动到 T1502b3 之后，保证“首个 `[TODO]` 可直接实现”。
+- 2026-04-03：完成 T1502b3：`String` builtin 表示迁移到 `addrspace(1)`（runtime `ScoopString` 升级为 GC-managed 对象布局；LLVM codegen/fixtures 全量回归通过：`cargo test --all`、`cargo test -p scoopc --features llvm`、`cargo run -p scoop --features llvm -- test`）。
 - 2026-04-03：T1502（编译器：GC 指针 `addrspace(1)` 贯穿 Type→MIR→LLVM）跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，已拆分为 T1502a/T1502b/T1502c：先迁移 `CgTy::Ref` 到 `addrspace(1)` 并修正 runtime helper 签名（T1502a），再逐步迁移 `String/Array/...` 等 builtin（T1502b），最后补齐 `@Extern`/C ABI 门禁与桥接 API（T1502c）。
 - 2026-04-03：完成 T1502a：LLVM codegen 侧把 `CgTy::Ref`/shadow stack roots slots 统一为 `addrspace(1)`，并同步更新一组 GC-managed runtime helper 的 LLVM 声明/调用；新增 IR 单测断言 `addrspace(1)` 出现且不引入 `addrspacecast`（覆盖装箱 `Int -> Any` 与 `sync.Mutex` 路径）。
 - 2026-04-03：完成 T1502b1：Array ref 元素通道新增 `scoop_array_builder_push_ref/scoop_array_get_ref/scoop_array_set_ref` 并接入 LLVM codegen；新增 IR 单测回归 ref 元素路径不再出现 `ptr_to_u64/u64_to_ref`；同步更新 runtime ABI allowlist。

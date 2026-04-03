@@ -1086,6 +1086,42 @@ fun main(): Int {
     }
 
     #[test]
+    fn string_literal_uses_addrspace_1_gc_string_object() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val s: String = "hi"
+    println(s)
+    __scoop_gc_collect()
+    println(s)
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_println"),
+            "IR 应包含对 scoop_println 的引用"
+        );
+        assert!(
+            ir.contains("addrspace(1)"),
+            "String 应为 addrspace(1) GC-managed 指针"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "String 相关调用不应依赖 addrspacecast 回退到 addrspace(0)"
+        );
+    }
+
+    #[test]
     fn array_of_any_uses_ref_element_runtime_apis_without_ptr_to_u64() {
         let source = SourceFile::new_virtual(
             "<mem>",

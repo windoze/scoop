@@ -63,11 +63,14 @@
 // 运行时字符串对象（early stage）。
 //
 // 说明：
-// - 当前仅作为 codegen/runtime 之间的“可链接 ABI”落点：
-//   - 字符串数据视为 UTF-8 字节序列；
-//   - `data` 可指向只读静态数据（例如字符串字面量）；
-// - 未来会补齐：对象头、GC 跟踪、共享/拷贝策略、完整 String API 等。
+// - `ScoopString` 是 GC-managed heap 对象：以 `ScoopGcObjectHeader` 开头（与 `scoop_alloc` 对齐）；
+// - 字符串数据视为 UTF-8 字节序列；
+// - `data` 当前仍是 native 指针（addrspace(0)），可指向：
+//   - 只读静态数据（例如字符串字面量的全局常量）；或
+//   - `malloc` 分配的 owned buffer（当前阶段未接入 type descriptor/release，后续任务会补齐）。
 typedef struct ScoopString {
+  // 作为 GC-managed 对象，必须以对象头开头（与 `scoop_alloc` 约定一致）。
+  ScoopGcObjectHeader hdr;
   uint64_t len;
   const uint8_t *data;
 } ScoopString;
@@ -75,21 +78,25 @@ typedef struct ScoopString {
 // ABI 断言：保证 codegen 侧对 `ScoopString` 的布局假设稳定。
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(uint64_t) == 8, "uint64_t must be 8 bytes");
-_Static_assert(offsetof(ScoopString, len) == 0, "ScoopString.len offset must be 0");
-_Static_assert(offsetof(ScoopString, data) == 8, "ScoopString.data offset must be 8");
-_Static_assert(sizeof(ScoopString) == 16, "ScoopString size must be 16 bytes");
+_Static_assert(offsetof(ScoopString, hdr) == 0, "ScoopString.hdr offset must be 0");
+_Static_assert(offsetof(ScoopString, len) == sizeof(ScoopGcObjectHeader),
+               "ScoopString.len offset must be sizeof(ScoopGcObjectHeader)");
+_Static_assert(offsetof(ScoopString, data) == (sizeof(ScoopGcObjectHeader) + 8u),
+               "ScoopString.data offset must be header + 8");
+_Static_assert((sizeof(ScoopString) % sizeof(void *)) == 0,
+               "ScoopString size must be pointer-aligned");
 #endif
 
-static const ScoopString SCOOP_EMPTY_STRING = {0, 0};
 static const uint8_t SCOOP_DOT_BYTES[1] = {'.'};
-static const ScoopString SCOOP_DOT_STRING = {1, SCOOP_DOT_BYTES};
 
 static const uint8_t SCOOP_SLASH_BYTES[1] = {'/'};
-static const ScoopString SCOOP_SLASH_STRING = {1, SCOOP_SLASH_BYTES};
 #ifdef _WIN32
 static const uint8_t SCOOP_BACKSLASH_BYTES[1] = {'\\'};
-static const ScoopString SCOOP_BACKSLASH_STRING = {1, SCOOP_BACKSLASH_BYTES};
 #endif
+
+// 前置声明：String helper（定义在文件后部）。
+static const ScoopString *scoop_string_empty(void);
+static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, uint64_t len);
 
 // 运行时全局状态（early stage）。
 //
@@ -998,7 +1005,7 @@ static int scoop_is_blank_ws(uint8_t c) {
 //
 // 约定（early stage）：
 // - 输入/输出字符串都以 `ScoopString { len, data }` 表示（UTF-8 bytes）；
-// - 输出通过 `malloc` 分配（暂不接入 GC / `scoop_alloc`；TODO T0902/T0817）；
+// - 输出的 `ScoopString` 对象通过 `scoop_alloc` 分配（GC-managed）；`data` buffer 仍由 `malloc` 分配；
 // - 当前实现仅识别 ASCII 空格/Tab 作为缩进；其它 Unicode 空白暂不处理。
 const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
   if (value == 0) {
@@ -1077,7 +1084,7 @@ const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
     // 全部是空白行：返回空串。
     free(starts);
     free(ends);
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   uint64_t last = line_count - 1;
@@ -1171,7 +1178,7 @@ const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
     }
   }
 
-  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     // OOM：尽力回收已分配的 buffer。
     free(out);
@@ -1566,13 +1573,45 @@ uint64_t scoop_format_u64(uint64_t value, uint8_t *out, uint64_t cap) {
 //   由 runtime lib 提供最小 C ABI，再由 sysroot/std 表面封装（见 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md`）。
 // - 当前实现仅覆盖 host POSIX/desktop 的最小 happy path；错误处理与资源释放策略后续补齐。
 
+static const ScoopString *scoop_string_empty(void) {
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  if (out_str == 0) {
+    return 0;
+  }
+  out_str->len = 0;
+  out_str->data = 0;
+  return out_str;
+}
+
+// 用静态字节序列构造 runtime String（不拷贝 bytes）。
+//
+// 说明：
+// - `value` 必须指向进程生命周期内有效的只读数据（例如字符串字面量的全局常量、或 runtime 内建常量）；
+// - 当前阶段不接入 type descriptor/release，因此该 String 不会释放 `value` 指向的内存。
+static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, uint64_t len) {
+  if (len == 0) {
+    return scoop_string_empty();
+  }
+  if (value == 0) {
+    return 0;
+  }
+
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  if (out_str == 0) {
+    return 0;
+  }
+  out_str->len = len;
+  out_str->data = value;
+  return out_str;
+}
+
 static const ScoopString *scoop_string_from_cstr(const char *value) {
   if (value == 0) {
     return 0;
   }
   size_t n = strlen(value);
   if (n == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   uint8_t *out = (uint8_t *)malloc(n);
@@ -1581,7 +1620,7 @@ static const ScoopString *scoop_string_from_cstr(const char *value) {
   }
   (void)memcpy(out, value, n);
 
-  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     free(out);
     return 0;
@@ -1596,7 +1635,7 @@ static const ScoopString *scoop_string_from_bytes(const uint8_t *value, uint64_t
     return 0;
   }
   if (len == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   uint8_t *out = (uint8_t *)malloc((size_t)len);
@@ -1605,7 +1644,7 @@ static const ScoopString *scoop_string_from_bytes(const uint8_t *value, uint64_t
   }
   (void)memcpy(out, value, (size_t)len);
 
-  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     free(out);
     return 0;
@@ -1621,13 +1660,13 @@ static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t
     if (value != 0) {
       free(value);
     }
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
   if (value == 0) {
     return 0;
   }
 
-  ScoopString *out_str = (ScoopString *)malloc(sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     free(value);
     return 0;
@@ -1738,7 +1777,7 @@ const ScoopString *scoop_fs_read_all_text_utf8(const ScoopString *path) {
   uint64_t n = (uint64_t)n_long;
   if (n == 0) {
     (void)fclose(f);
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   if (n > (uint64_t)SIZE_MAX) {
@@ -1924,16 +1963,16 @@ static int scoop_path_is_absolute(const uint8_t *data, uint64_t len) {
 
 static const ScoopString *scoop_path_root_string(void) {
 #ifdef _WIN32
-  return &SCOOP_BACKSLASH_STRING;
+  return scoop_string_from_static_bytes(SCOOP_BACKSLASH_BYTES, 1);
 #else
-  return &SCOOP_SLASH_STRING;
+  return scoop_string_from_static_bytes(SCOOP_SLASH_BYTES, 1);
 #endif
 }
 
 // `scoop.path.normalize(path: String): String`
 const ScoopString *scoop_path_normalize(const ScoopString *path) {
   if (path == 0 || path->len == 0 || path->data == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   const uint8_t *in = path->data;
@@ -2019,7 +2058,7 @@ const ScoopString *scoop_path_join(const ScoopString *base, const ScoopString *c
 
   uint64_t out_len = base_end + (need_sep ? 1 : 0) + (child_len - child_start);
   if (out_len == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
   if (out_len > (uint64_t)SIZE_MAX) {
     return 0;
@@ -2042,7 +2081,9 @@ const ScoopString *scoop_path_join(const ScoopString *base, const ScoopString *c
     (void)memcpy(buf + pos, child_data + child_start, (size_t)right_len);
   }
 
-  ScoopString tmp = {out_len, buf};
+  ScoopString tmp = {0};
+  tmp.len = out_len;
+  tmp.data = buf;
   const ScoopString *norm = scoop_path_normalize(&tmp);
   free(buf);
   return norm;
@@ -2052,7 +2093,7 @@ const ScoopString *scoop_path_join(const ScoopString *base, const ScoopString *c
 const ScoopString *scoop_path_basename(const ScoopString *path) {
   const ScoopString *norm = scoop_path_normalize(path);
   if (norm == 0 || norm->len == 0 || norm->data == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
 
   const uint8_t *data = norm->data;
@@ -2086,7 +2127,7 @@ const ScoopString *scoop_path_basename(const ScoopString *path) {
   uint64_t start = last_sep + 1;
   uint64_t len = n - start;
   if (len == 0) {
-    return &SCOOP_EMPTY_STRING;
+    return scoop_string_empty();
   }
   return scoop_string_from_bytes(data + start, len);
 }
@@ -2095,7 +2136,7 @@ const ScoopString *scoop_path_basename(const ScoopString *path) {
 const ScoopString *scoop_path_dirname(const ScoopString *path) {
   const ScoopString *norm = scoop_path_normalize(path);
   if (norm == 0 || norm->len == 0 || norm->data == 0) {
-    return &SCOOP_DOT_STRING;
+    return scoop_string_from_static_bytes(SCOOP_DOT_BYTES, 1);
   }
 
   const uint8_t *data = norm->data;
@@ -2120,7 +2161,7 @@ const ScoopString *scoop_path_dirname(const ScoopString *path) {
     }
   }
   if (last_sep == (uint64_t)-1) {
-    return &SCOOP_DOT_STRING;
+    return scoop_string_from_static_bytes(SCOOP_DOT_BYTES, 1);
   }
   if (last_sep == 0) {
     return scoop_path_root_string();
@@ -2132,7 +2173,7 @@ const ScoopString *scoop_path_dirname(const ScoopString *path) {
     dir_len--;
   }
   if (dir_len == 0) {
-    return &SCOOP_DOT_STRING;
+    return scoop_string_from_static_bytes(SCOOP_DOT_BYTES, 1);
   }
   if (dir_len == 1 && scoop_path_is_sep(data[0])) {
     return scoop_path_root_string();
