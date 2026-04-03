@@ -5937,7 +5937,7 @@
 - 依赖：T0803、T0908、T1009
 - 备注：该任务牵涉的迁移面较大（Type→MIR→LLVM + runtime helper 签名/桥接）。为保持每一步都“可单独实现 & 单独验证”，已拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1502a [TODO] LLVM codegen：`CgTy::Ref` 改为 `addrspace(1)` 指针（先覆盖 `Ref`，不含 `String`/`Array`）
+### T1502a [DONE] LLVM codegen：`CgTy::Ref` 改为 `addrspace(1)` 指针（先覆盖 `Ref`，不含 `String`/`Array`）
 - 描述：将 `CgTy::Ref` 在 LLVM 层从 `i8*` 升级为 `i8 addrspace(1)*`，并修正所有涉及 `CgTy::Ref` 的 runtime helper 声明/调用与 shadow stack roots slot 存储类型。
 - 目标：
   - `llvm_basic_type_of(CgTy::Ref)` 返回 `i8 addrspace(1)*`；
@@ -5947,6 +5947,12 @@
   - `cargo test -p scoopc --features llvm` 通过，并新增 IR 单测断言出现 `addrspace(1)`；
   - `cargo test --all` 通过。
 - 依赖：T0803、T0908、T1009
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：引入/统一 `addrspace(1)`（`CgTy::Ref`、`ScoopGcFrame.roots[]`、以及一组 GC-managed runtime helper 的 LLVM 声明/调用）。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 IR 单测，断言 `addrspace(1)` 出现且不引入 `addrspacecast`（覆盖装箱 `Int -> Any` 与 `sync.Mutex` 路径）。
+ - 验收：
+   - `cargo test -p scoopc --features llvm`
+   - `cargo test --all`
 
 ### T1502b [TODO] LLVM codegen：把 `String/Array/Box/Closure env` 等引用类 builtin 逐步迁移到 `addrspace(1)`
 - 描述：将 `scoop.core.String`、`Array<T>`、boxed object、closure env 等与 ref runtime 相关的 builtin 表示从早期的 `addrspace(0)` 指针迁移到 `addrspace(1)`，并把 remaining 的 `i8*` 使用点收敛为显式的桥接 API（见 T1502c）。

@@ -76,12 +76,19 @@ enum CgTy {
     /// 通用引用类型（Any / class / interface / function / union ...）。
     ///
     /// 当前阶段的 codegen 约定：
-    /// - 一律用 `i8*`（opaque pointer）表示；
+    /// - 一律用 `i8 addrspace(1)*` 表示（LLVM 文本 IR 在 opaque pointers 下通常显示为 `ptr addrspace(1)`）；
     /// - 值类型向引用类型的隐式转换需要装箱（T0817：先只支持 `Int -> Any`）。
     ///
     /// 未来将替换为带对象头（type descriptor/flags/size）的具体布局（PLAN §8.2/§9.1）。
     Ref,
 }
+
+/// LLVM GC address space（用于标记 GC-managed 引用指针，后续接入 statepoint/stackmap）。
+///
+/// 说明：
+/// - 约定 `addrspace(1)` 为 GC-managed ref（与运行时 `scoop_alloc` 分配对象一致）；
+/// - `addrspace(0)` 保留给“native/unsafe 指针”（例如 malloc buffer、C ABI out pointer、closure env 等）。
+const GC_ADDRSPACE: u16 = 1;
 
 // boxing / lint 的启发式阈值（与 typecheck::layout.rs 保持一致）。
 const ENUM_BOX_DISPARITY_RATIO: u64 = 4;
@@ -755,7 +762,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let frame_ptr = self.create_entry_alloca_raw(at, "gc_frame", frame_ty.into())?;
 
         let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
 
         // 初始化 header：root_count + reserved + prev（prev 将由 push 写入，但这里也写 0 以便调试）。
         let prev_ptr = self
@@ -782,7 +790,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_struct_gep(frame_ty, frame_ptr, 3, "gc_roots_arr_gep")?;
         let roots_base = self.builder.build_pointer_cast(
             roots_arr_ptr,
-            i8_ptr_ty.ptr_type(AddressSpace::default()),
+            gc_i8_ptr_ty.ptr_type(AddressSpace::default()),
             "gc_roots_base",
         )?;
 
@@ -792,13 +800,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let index = i32_ty.const_int(idx as u64, false);
             let slot_ptr = unsafe {
                 self.builder.build_in_bounds_gep(
-                    i8_ptr_ty,
+                    gc_i8_ptr_ty,
                     roots_base,
                     &[index],
                     &format!("gc_root_slot_{idx}"),
                 )?
             };
-            let _ = self.builder.build_store(slot_ptr, i8_ptr_ty.const_null())?;
+            let _ = self.builder.build_store(slot_ptr, gc_i8_ptr_ty.const_null())?;
             root_slots.insert(*id, slot_ptr);
         }
 
@@ -843,7 +851,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let casted = self
             .builder
             .build_pointer_cast(ptr, i8_ptr_ty, "gc_root_i8")?;
@@ -3300,7 +3308,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let func_name = func.get_name().to_str().unwrap_or("anonymous").to_string();
         let func_name = sanitize_llvm_ident(&func_name);
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
 
         // escape continuation：把当前作用域内的引用类型 locals 捕获到 heap state 中，
@@ -3344,7 +3353,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fields.push(frame_ty.into());
             for cap in &captures {
                 fields.push(match cap.local.ty {
-                    CgTy::Ref | CgTy::String => i8_ptr_ty.into(),
+                    CgTy::Ref => gc_i8_ptr_ty.into(),
+                    CgTy::String => i8_ptr_ty.into(),
                     CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
                     _ => unreachable!("captures filtered by type"),
                 });
@@ -3357,7 +3367,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let step_fn_ty = self
             .context
             .void_type()
-            .fn_type(&[i8_ptr_ty.into(), i64_ty.into()], false);
+            .fn_type(&[gc_i8_ptr_ty.into(), i64_ty.into()], false);
         let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
         step_fn.set_linkage(Linkage::Internal);
 
@@ -3402,7 +3412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     })?
                     .into_pointer_value();
-                let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+                let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
                 let state_ptr =
                     cg.builder
                         .build_pointer_cast(state_raw, state_ptr_ty, "cont_step_state_ptr")?;
@@ -3420,7 +3430,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         CgTy::Ref => {
                             let loaded = cg
                                 .builder
-                                .build_load(i8_ptr_ty, field_ptr, "cont_step_capture_load_ref")?
+                                .build_load(
+                                    gc_i8_ptr_ty,
+                                    field_ptr,
+                                    "cont_step_capture_load_ref",
+                                )?
                                 .into_pointer_value();
                             let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
                             let _ = cg.builder.build_store(ptr, loaded)?;
@@ -3568,7 +3582,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 CgTy::Ref => {
-                    let ptr_ty = cg.context.i8_type().ptr_type(AddressSpace::default());
+                    let ptr_ty = cg.llvm_gc_i8_ptr_type();
                     let ptr = cg
                         .builder
                         .build_int_to_ptr(resume_word, ptr_ty, "resume_ref")?;
@@ -3716,7 +3730,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
@@ -3735,20 +3749,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
 
             match cap.local.ty {
-                CgTy::Ref | CgTy::String => {
-                    let llvm_ty = self.llvm_basic_type_of(span, cap.local.ty)?;
+                CgTy::Ref => {
+                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
                     let loaded = self
                         .builder
-                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_ptr")?;
+                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_ref")?;
                     let BasicValueEnum::PointerValue(ptr) = loaded else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "cont state capture value type (ptr)",
+                            kind: "cont state capture value type (ref ptr)",
+                            at: span.into(),
+                        });
+                    };
+                    let casted = self.builder.build_pointer_cast(
+                        ptr,
+                        gc_i8_ptr_ty,
+                        "cont_state_capture_ref_i8",
+                    )?;
+                    let _ = self.builder.build_store(field_ptr, casted)?;
+                }
+                CgTy::String => {
+                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_str")?;
+                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture value type (str ptr)",
                             at: span.into(),
                         });
                     };
                     let casted =
                         self.builder
-                            .build_pointer_cast(ptr, i8_ptr_ty, "cont_state_capture_i8")?;
+                            .build_pointer_cast(ptr, i8_ptr_ty, "cont_state_capture_str_i8")?;
                     let _ = self.builder.build_store(field_ptr, casted)?;
                 }
                 CgTy::Bool => {
@@ -4735,7 +4767,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let obj_ptr_ty = obj_ty.ptr_type(AddressSpace::default());
+        let obj_ptr_ty = obj_ty.ptr_type(self.gc_address_space());
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
@@ -4745,7 +4777,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_ty = self.llvm_class_payload_type(span, &class)?;
         let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
         if payload_size_bytes > 0 {
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
             let payload_i8 = self
                 .builder
                 .build_bit_cast(payload_ptr, i8_ptr_ty, "class_payload_i8")?
@@ -4763,7 +4795,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let tmp_gc_frame_ptr =
             self.create_entry_alloca_raw(span, "class_gc_frame", tmp_gc_frame_ty.into())?;
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i32_ty = self.context.i32_type();
         let prev_ptr = self.builder.build_struct_gep(
             tmp_gc_frame_ty,
@@ -4799,12 +4832,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let roots_base = self.builder.build_pointer_cast(
             roots_arr_ptr,
-            i8_ptr_ty.ptr_type(AddressSpace::default()),
+            gc_i8_ptr_ty.ptr_type(AddressSpace::default()),
             "class_gc_roots_base",
         )?;
         let slot_ptr = unsafe {
             self.builder.build_in_bounds_gep(
-                i8_ptr_ty,
+                gc_i8_ptr_ty,
                 roots_base,
                 &[i32_ty.const_zero()],
                 "class_gc_root_slot_0",
@@ -5482,10 +5515,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let word = self.coerce_u64_word(value_expr.span, value)?;
 
         let rt_resume = self.declare_runtime_continuation_resume_u64();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let k_i8 = self
             .builder
-            .build_pointer_cast(k_ptr, i8_ptr_ty, "cont_k_i8")?;
+            .build_pointer_cast(k_ptr, self.llvm_gc_i8_ptr_type(), "cont_k_i8")?;
         let _ = self
             .builder
             .build_call(rt_resume, &[k_i8.into(), word.into()], "cont_resume")?;
@@ -7084,12 +7116,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(AddressSpace::default());
+        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "once_block_ptr")?;
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let env_gep =
             self.builder
                 .build_struct_gep(closure_ty, closure_ptr, 1, "once_env_gep")?;
@@ -7256,12 +7288,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(AddressSpace::default());
+        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "thread_block_ptr")?;
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let env_gep =
             self.builder
                 .build_struct_gep(closure_ty, closure_ptr, 1, "thread_env_gep")?;
@@ -8217,12 +8249,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(AddressSpace::default());
+        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(block_obj_i8, closure_ptr_ty, "task_block_ptr")?;
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let env_gep = self
             .builder
             .build_struct_gep(closure_ty, closure_ptr, 1, "task_env_gep")?;
@@ -8795,8 +8827,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-
         match fqn {
             "scoop.core.__scoop_array_builder_new" => {
                 if !args.is_empty() {
@@ -8820,9 +8850,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                let ptr = self
-                    .builder
-                    .build_pointer_cast(ptr, i8_ptr_ty, "array_builder_i8")?;
                 Ok(CgValue {
                     ty: CgTy::Ref,
                     value: Some(ptr.into()),
@@ -8933,7 +8960,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: span.into(),
                     });
                 };
-                let ptr = self.builder.build_pointer_cast(ptr, i8_ptr_ty, "array_obj")?;
                 Ok(CgValue {
                     ty: CgTy::Ref,
                     value: Some(ptr.into()),
@@ -8962,7 +8988,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: 64,
             signed: false,
         };
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
 
         // helper：从 args[i] 取出位置参数 expr
         let positional = |idx: usize| -> Result<&hir::Expr, LlvmEmitError> {
@@ -9092,7 +9118,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: callee_span.into(),
                     })?;
 
-                self.decode_u64_word_to_cg_value(span, word_u64, elem_ty, i8_ptr_ty)
+                self.decode_u64_word_to_cg_value(span, word_u64, elem_ty, gc_i8_ptr_ty)
             }
             "scoop.core.set" => {
                 if args.len() != 3 {
@@ -9857,10 +9883,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // runtime ABI：`void scoop_thread_spawn_join_resume_u64(void* k, uint64_t resume_value)`
                 let rt = self.declare_runtime_thread_spawn_join_resume_u64();
-                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
                 let k_i8 =
                     self.builder
-                        .build_pointer_cast(k_ptr, i8_ptr_ty, "thread_resume_k_i8")?;
+                        .build_pointer_cast(k_ptr, self.llvm_gc_i8_ptr_type(), "thread_resume_k_i8")?;
                 let _ = self.builder.build_call(
                     rt,
                     &[k_i8.into(), value_word.into()],
@@ -10529,12 +10554,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value();
 
         let closure_ty = self.llvm_closure_object_type();
-        let closure_ptr_ty = closure_ty.ptr_type(AddressSpace::default());
+        let closure_ptr_ty = closure_ty.ptr_type(self.gc_address_space());
         let closure_ptr =
             self.builder
                 .build_pointer_cast(closure_obj_i8, closure_ptr_ty, "closure_obj_ptr")?;
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let env_ptr_gep =
             self.builder
                 .build_struct_gep(closure_ty, closure_ptr, 1, "closure_env_gep")?;
@@ -10573,7 +10599,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::String => self
                 .llvm_scoop_string_ptr_type()
                 .fn_type(&llvm_param_tys, false),
-            CgTy::Ref => i8_ptr_ty.fn_type(&llvm_param_tys, false),
+            CgTy::Ref => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "function value call return type",
@@ -10722,7 +10748,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = if let Some(existing) = self.module.get_function(&fun_name) {
             existing
         } else {
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let i8_ptr_ty = self.llvm_i8_ptr_type();
+            let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
                 Vec::with_capacity(1 + fun_ty.params.len());
             // env ptr（当前阶段不支持捕获，但 ABI 预留）。
@@ -10745,7 +10772,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CgTy::String => self
                     .llvm_scoop_string_ptr_type()
                     .fn_type(&llvm_param_tys, false),
-                CgTy::Ref => i8_ptr_ty.fn_type(&llvm_param_tys, false),
+                CgTy::Ref => gc_i8_ptr_ty.fn_type(&llvm_param_tys, false),
                 CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "lambda return type",
@@ -10830,8 +10857,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let obj_ptr_ty = closure_obj_ty.ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let obj_ptr_ty = closure_obj_ty.ptr_type(self.gc_address_space());
         let obj_ptr = self
             .builder
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
@@ -10942,7 +10970,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let obj_i8 = self
             .builder
-            .build_pointer_cast(obj_ptr, i8_ptr_ty, "closure_obj_i8")?;
+            .build_pointer_cast(obj_ptr, gc_i8_ptr_ty, "closure_obj_i8")?;
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -14879,7 +14907,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let obj_ty = self.llvm_class_object_type(at, class)?;
-        let obj_ptr_ty = obj_ty.ptr_type(AddressSpace::default());
+        let obj_ptr_ty = obj_ty.ptr_type(self.gc_address_space());
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
@@ -15383,28 +15411,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::int(out, to))
             }
             (CgTy::String, CgTy::String) => Ok(value),
-            (CgTy::String, CgTy::Ref) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "string value",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "string value type",
-                        at: at.into(),
-                    });
-                };
-                let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-                let casted =
-                    self.builder
-                        .build_pointer_cast(ptr, i8_ptr_ty, "coerce_str_to_ref")?;
-                Ok(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(casted.into()),
-                })
-            }
+            (CgTy::String, CgTy::Ref) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "string -> ref coercion (requires GC string object)",
+                at: at.into(),
+            }),
             (CgTy::Ref, CgTy::Ref) => Ok(value),
             (CgTy::Int(_), CgTy::Ref) => {
                 // T0817：值类型装箱到 `Any`（当前阶段先只支持整数族）。
@@ -15521,7 +15531,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 写入 payload（对象头由 runtime 初始化）。
         let boxed_ty = self.llvm_boxed_int_type(value_ty);
-        let boxed_ptr_ty = boxed_ty.ptr_type(AddressSpace::default());
+        let boxed_ptr_ty = boxed_ty.ptr_type(self.gc_address_space());
         let boxed_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;
@@ -15778,6 +15788,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.custom_width_int_type(ty.bits)
     }
 
+    fn gc_address_space(&self) -> AddressSpace {
+        AddressSpace::from(GC_ADDRSPACE)
+    }
+
+    /// LLVM addrspace(0)：native/unsafe 指针（C ABI / malloc buffer 等）。
+    fn llvm_i8_ptr_type(&self) -> PointerType<'ctx> {
+        self.context.i8_type().ptr_type(AddressSpace::default())
+    }
+
+    /// LLVM addrspace(1)：GC-managed 引用指针（Any/class/interface/closure/...）。
+    fn llvm_gc_i8_ptr_type(&self) -> PointerType<'ctx> {
+        self.context.i8_type().ptr_type(self.gc_address_space())
+    }
+
     fn llvm_scoop_string_type(&self) -> StructType<'ctx> {
         // 说明：该类型名用于 LLVM module 内部复用，不应与用户类型冲突（使用 runtime 命名空间前缀）。
         const TY_NAME: &str = "scoop.runtime.ScoopString";
@@ -15874,7 +15898,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 说明：
         // - `runtime/c/scoop_gc.h` 中的 `ScoopGcFrame` 使用 flexible array `roots[]`；
         // - 在 LLVM IR 中我们为每个不同的 `root_count` 生成一个具名 struct：
-        //   `{ prev: i8*, root_count: i32, reserved: i32, roots: [N x i8*] }`。
+        //   `{ prev: i8*, root_count: i32, reserved: i32, roots: [N x i8 addrspace(1)*] }`。
         //
         // 只要前 3 个字段布局与 runtime 匹配，就能与 C 侧按前缀访问兼容（push/pop/scan）。
         let name = format!("scoop.runtime.ScoopGcFrame_{root_count}");
@@ -15883,12 +15907,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let ty = self.context.opaque_struct_type(&name);
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let frame_prev_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_root_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i32_ty = self.context.i32_type();
-        let roots_ty = i8_ptr_ty.array_type(root_count);
+        let roots_ty = gc_root_ptr_ty.array_type(root_count);
         ty.set_body(
             &[
-                i8_ptr_ty.into(),
+                frame_prev_ptr_ty.into(),
                 i32_ty.into(),
                 i32_ty.into(),
                 roots_ty.into(),
@@ -16030,8 +16055,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_process_args_array(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16108,8 +16133,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_sync_mutex_create(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16120,8 +16145,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_mutex_lock(void* mutex_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16133,8 +16158,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_mutex_unlock(void* mutex_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16146,8 +16171,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_mutex_destroy(void* mutex_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16159,8 +16184,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_sync_condvar_create(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16171,8 +16196,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_condvar_wait(void* condvar_obj, void* mutex_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16184,8 +16210,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_condvar_notify_one(void* condvar_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16197,8 +16223,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_condvar_notify_all(void* condvar_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16210,8 +16236,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_condvar_destroy(void* condvar_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16223,8 +16249,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_sync_once_create(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16235,9 +16261,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `bool scoop_sync_once_is_done(void* once_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i1_ty = self.context.bool_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = i1_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16249,14 +16275,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_sync_once_run(void* once_obj, void* env_ptr, void (*fn)(void* env_ptr))`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let env_ptr_ty = self.llvm_i8_ptr_type();
         let init_fn_ty = self
             .context
             .void_type()
-            .fn_type(&[i8_ptr_ty.into()], false);
+            .fn_type(&[env_ptr_ty.into()], false);
         let init_fn_ptr_ty = init_fn_ty.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i8_ptr_ty.into(), i8_ptr_ty.into(), init_fn_ptr_ty.into()];
+            [gc_i8_ptr_ty.into(), env_ptr_ty.into(), init_fn_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16270,7 +16297,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_thread_spawn(void* env_ptr, void (*fn)(void* env_ptr))`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let start_fn_ty = self
             .context
             .void_type()
@@ -16278,7 +16306,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let start_fn_ptr_ty = start_fn_ty.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
             [i8_ptr_ty.into(), start_fn_ptr_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16289,8 +16317,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_thread_join(void* thread_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16340,8 +16368,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_channels_channel_create(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16352,7 +16380,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint32_t scoop_channels_send_u64(void* channel, uint64_t value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let i32_ty = self.context.i32_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
@@ -16367,7 +16395,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint32_t scoop_channels_recv_u64(void* channel, uint64_t* out_value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let i64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
         let i32_ty = self.context.i32_type();
@@ -16383,8 +16411,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_channels_close(void* channel)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
@@ -16535,7 +16563,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `uint32_t scoop_task_u64_on_complete_resume_u64(uint64_t task_handle, uint64_t executor_handle, void* continuation)`
         let i64_ty = self.context.i64_type();
         let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [i64_ty.into(), i64_ty.into(), i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
@@ -16549,8 +16577,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_array_builder_new(void)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let fn_ty = i8_ptr_ty.fn_type(&[], false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = gc_i8_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16561,7 +16589,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_array_builder_push_u64(void* builder, uint64_t value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -16575,9 +16603,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_array_builder_build_array(void* builder)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16588,9 +16616,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_array_builder_build_mutable_array(void* builder)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16601,7 +16629,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint64_t scoop_array_len(void* array_obj)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
@@ -16615,7 +16643,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `uint64_t scoop_array_get_u64(void* array_obj, int64_t index)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = i64_ty.fn_type(&param_tys, false);
@@ -16629,7 +16657,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_array_set_u64(void* array_obj, int64_t index, uint64_t value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
             [i8_ptr_ty.into(), i64_ty.into(), i64_ty.into()];
@@ -16645,7 +16673,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void *scoop_alloc(uint64_t size)`
         let i64_ty = self.context.i64_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -16734,7 +16762,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_pin(void* obj)`
         let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -16748,7 +16776,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `uint32_t scoop_unpin(void* obj)`
         let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
@@ -16911,15 +16939,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void* state, uint64_t value))`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let state_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let step_fn_ty = self
             .context
             .void_type()
-            .fn_type(&[i8_ptr_ty.into(), i64_ty.into()], false)
+            .fn_type(&[state_ptr_ty.into(), i64_ty.into()], false)
             .ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), step_fn_ty.into()];
-        let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [state_ptr_ty.into(), step_fn_ty.into()];
+        let fn_ty = state_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -16930,7 +16959,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_continuation_resume_u64(void* k, uint64_t resume_value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -16944,7 +16973,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_thread_spawn_join_resume_u64(void* k, uint64_t resume_value)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
@@ -17056,11 +17085,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
             CgTy::String => self.llvm_scoop_string_ptr_type().into(),
-            CgTy::Ref => self
-                .context
-                .i8_type()
-                .ptr_type(AddressSpace::default())
-                .into(),
+            CgTy::Ref => self.llvm_gc_i8_ptr_type().into(),
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
             CgTy::Enum(enum_ty) => self.llvm_enum_value_type(at, enum_ty)?,

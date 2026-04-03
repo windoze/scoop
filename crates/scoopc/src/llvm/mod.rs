@@ -1015,6 +1015,77 @@ fun main(): Int {
     }
 
     #[test]
+    fn box_int_to_any_uses_addrspace_1_ref_pointer() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    __scoop_gc_collect()
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("addrspace(1)"),
+            "IR 应包含 addrspace(1)（GC-managed 引用指针）"
+        );
+        assert!(
+            ir.contains("@scoop_alloc"),
+            "装箱到 Any 应调用/声明 scoop_alloc"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "当前阶段的装箱路径不应依赖 addrspacecast 回退到 addrspace(0)"
+        );
+    }
+
+    #[test]
+    fn sync_mutex_runtime_calls_use_addrspace_1_object_pointers() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+import scoop.sync.*
+
+fun main(): Int {
+    val m: Mutex = mutexCreate()
+    m.lock()
+    m.unlock()
+    m.destroy()
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_sync_mutex_create"),
+            "IR 应包含对 scoop_sync_mutex_create 的引用"
+        );
+        assert!(
+            ir.contains("addrspace(1)"),
+            "IR 应包含 addrspace(1)（GC-managed 引用指针）"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "sync 相关调用不应依赖 addrspacecast 回退到 addrspace(0)"
+        );
+    }
+
+    #[test]
     fn missing_main_is_reported() {
         let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
         let session = Session::new().unwrap();
