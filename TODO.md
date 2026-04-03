@@ -5801,11 +5801,20 @@
  - 验收：
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1409c3 [TODO] Immix：并行 mark/sweep stress 回归（多线程 + 跨线程引用）
+### T1409c3 [DONE] Immix：并行 mark/sweep stress 回归（多线程 + 跨线程引用）
 - 描述：新增 stress 测试覆盖“并发分配 + 跨线程引用 + GC stress”，并验证并行开关组合可回归。
 - 目标：覆盖最容易触发竞态/悬挂指针的路径（多线程 alloc + roots 枚举 + tracing + holes 复用 + compaction）。
 - 验收：新增一个 `scoop_runtime` 集成测试：在 N=4/8 线程下多轮 alloc+collect 稳定通过；并行开关组合可回归。
 - 依赖：T1409c1、T1409c2
+ - 完成：
+   - `crates/scoop_runtime/tests/gc_immix_parallel_mark_sweep_stress.rs`：新增并行 mark/sweep stress 集成测试：
+     - N=4 下覆盖并行开关四种组合（mark/sweep：00/10/01/11）；
+     - N=8 下额外覆盖最热组合（mark+sweep 同时开启）；
+     - mutator 线程之间建立跨线程引用环（root.ptr0），并用“周期性断链”制造垃圾以逼迫 sweep/holes 复用路径；
+     - 每线程 pin 一个较大对象并校验 payload 哨兵，防止 holes 复用/compaction 覆盖 live pinned 对象。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test --all`
 
 ### T1409d [TODO] Immix：多线程 microbench 与基线记录（不做 CI gating）
 - 描述：扩展 `gc_microbench` 或新增工具，覆盖多线程分配吞吐/GC STW 时间指标，并把基线输出格式固化，便于本地对比回归。
