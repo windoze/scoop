@@ -5997,11 +5997,17 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
+### T1502b2 [DONE] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
 - 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。
 - 目标：仅扩展 `String` 元素分支；不改变 `Array<Ref>`（T1502b1）与 `Array<Int>` 等路径。
 - 验收：新增 1 个 `--emit-llvm` fixture/单测断言 `Array<String>` 的元素通道不再出现 `ptrtoint`。
 - 依赖：T1502b1、T1502b3
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：把 `Array/MutableArray` 的 `String` 元素通道切换到 `scoop_array_*_ref`（builder push/get/set），避免走 `coerce_u64_word` 的 `ptr_to_u64/u64_to_string` 编码路径。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 IR 单测回归 `Array<String>` 与 `MutableArray<String>` 不再出现 `ptr_to_u64/u64_to_string`，并断言走 `scoop_array_builder_push_ref/scoop_array_get_ref/scoop_array_set_ref`。
+ - 验收：
+   - `cargo test -p scoopc --features llvm`
+   - `cargo test --all`
 
 ### T1502c [TODO] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
 - 描述：在 typecheck/lowering 层对 `@Extern` 边界做门禁：禁止直接把 GC 指针（`addrspace(1)`）作为 ABI 参数/返回值透传；必须通过 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>` 或 handle API 显式桥接。

@@ -8903,8 +8903,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let value_v = self.codegen_expr(value_expr)?;
                 match value_v.ty {
-                    CgTy::Ref => {
-                        // ref 元素：保持为 `addrspace(1)` 指针，避免 ptr->u64 编码（为 statepoint/stackmap 做准备）。
+                    CgTy::Ref | CgTy::String => {
+                        // ref/string 元素：保持为 `addrspace(1)` 指针，避免 ptr->u64 编码（为 statepoint/stackmap 做准备）。
                         let v = self.coerce_value(value_expr.span, value_v, CgTy::Ref)?;
                         let Some(raw) = v.value else {
                             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -9136,7 +9136,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })?;
 
                 match elem_ty {
-                    CgTy::Ref => {
+                    CgTy::Ref | CgTy::String => {
                         let rt = self.declare_runtime_array_get_ref();
                         let call = self.builder.build_call(
                             rt,
@@ -9155,10 +9155,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: span.into(),
                             });
                         };
-                        Ok(CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(ptr.into()),
-                        })
+
+                        match elem_ty {
+                            CgTy::Ref => Ok(CgValue {
+                                ty: CgTy::Ref,
+                                value: Some(ptr.into()),
+                            }),
+                            CgTy::String => {
+                                let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+                                let casted =
+                                    self.builder.build_pointer_cast(ptr, str_ptr_ty, "ref_to_str")?;
+                                Ok(CgValue {
+                                    ty: CgTy::String,
+                                    value: Some(casted.into()),
+                                })
+                            }
+                            _ => unreachable!("match arms cover all pointer element types"),
+                        }
                     }
                     _ => {
                         let rt = self.declare_runtime_array_get_u64();
@@ -9227,8 +9240,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // 若无法恢复，则退化为“按 value 表达式自身的 codegen 类型编码为 u64”。
                 let elem_ty = self.infer_array_element_word_cg_ty(recv_expr);
                 match elem_ty {
-                    Some(CgTy::Ref) => {
-                        let v = self.codegen_expr_in_expected_context(value_expr, Some(CgTy::Ref))?;
+                    Some(CgTy::Ref) | Some(CgTy::String) => {
+                        let expected_elem_ty = elem_ty.unwrap();
+                        let v = self
+                            .codegen_expr_in_expected_context(value_expr, Some(expected_elem_ty))?;
+                        let v = self.coerce_value(value_expr.span, v, expected_elem_ty)?;
                         let v = self.coerce_value(value_expr.span, v, CgTy::Ref)?;
                         let Some(raw) = v.value else {
                             return Err(LlvmEmitError::UnsupportedMainBody {

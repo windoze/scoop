@@ -1167,6 +1167,54 @@ fun main(): Int {
     }
 
     #[test]
+    fn array_of_string_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<String> = ["a", "b"]
+    xs.set(0, "z")
+    val v: String = xs.get(0)
+    println(v)
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_array_builder_push_ref"),
+            "Array<String> 的 array literal builder 应走 scoop_array_builder_push_ref"
+        );
+        assert!(
+            ir.contains("@scoop_array_get_ref"),
+            "Array<String>.get 应走 scoop_array_get_ref"
+        );
+        assert!(
+            ir.contains("@scoop_array_set_ref"),
+            "MutableArray<String>.set 应走 scoop_array_set_ref"
+        );
+        assert!(
+            !ir.contains("ptr_to_u64"),
+            "String 元素路径不应把 GC 指针编码为 u64（ptr_to_u64）"
+        );
+        assert!(
+            !ir.contains("u64_to_string"),
+            "String 元素路径不应从 u64 解码回 GC 字符串指针（u64_to_string）"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "String array 路径不应引入 addrspacecast"
+        );
+    }
+
+    #[test]
     fn missing_main_is_reported() {
         let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
         let session = Session::new().unwrap();
