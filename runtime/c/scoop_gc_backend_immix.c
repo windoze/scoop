@@ -211,6 +211,10 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
     existing->current_frame_slot = current_frame_slot;
     existing->gc_alloc_block_slot =
         scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
+    existing->gc_alloc_block_cache_slot =
+        scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(current_frame_slot);
+    existing->gc_alloc_block_cache_len_slot =
+        scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(current_frame_slot);
     existing->state = SCOOP_GC_THREAD_RUNNING;
     existing->last_safepoint_epoch = scoop_gc_stw.epoch;
     existing->parked_epoch = 0;
@@ -229,6 +233,10 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   rec->current_frame_slot = current_frame_slot;
   rec->gc_alloc_block_slot =
       scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
+  rec->gc_alloc_block_cache_slot =
+      scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(current_frame_slot);
+  rec->gc_alloc_block_cache_len_slot =
+      scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(current_frame_slot);
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->last_safepoint_epoch = scoop_gc_stw.epoch;
   rec->parked_epoch = 0;
@@ -1053,6 +1061,17 @@ void scoop_gc_collect(void) {
       continue;
     }
     *(it->gc_alloc_block_slot) = 0;
+  }
+
+  // T1409b：同样需要清空 thread-local block cache（head + len），否则缓存中可能持有
+  // 已被 compaction/free 的 block 指针，导致 mutator 在 GC 结束后使用悬挂指针。
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (it->gc_alloc_block_cache_slot != 0) {
+      *(it->gc_alloc_block_cache_slot) = 0;
+    }
+    if (it->gc_alloc_block_cache_len_slot != 0) {
+      *(it->gc_alloc_block_cache_len_slot) = 0;
+    }
   }
 
   ScoopGcHeap *heap = &scoop_gc_heap;

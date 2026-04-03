@@ -39,6 +39,20 @@ typedef struct ScoopThreadTls {
   // - 用 `void*` 避免把 Immix 内部类型泄漏到 TLS 头文件（保持 include 依赖最小）。
   void *gc_immix_current_block;
 
+  // Immix：thread-local block cache（TODO T1409b）。
+  //
+  // 目的：
+  // - 在并发分配路径中，当 current block 放不下需要 refill 时，尽量避免每次都抢全局 GC 锁；
+  // - 通过“批量从全局 block pool 取 blocks 并缓存在 TLS”降低锁进入频率。
+  //
+  // 约定：
+  // - cache 以 `ScoopGcImmixBlock.next_free` 串成单链表；
+  // - cache 中的 blocks 只属于当前线程使用（不会被其它线程并发写）；
+  // - stop-the-world / GC 周期开始后必须清空 cache 槽位，避免 compaction/free block 后悬挂。
+  void *gc_immix_block_cache;
+  uint32_t gc_immix_block_cache_len;
+  uint32_t _reserved_u32_1;
+
   // effect runtime（TODO T0906/...）：预留字段（未来用于 handler stack 等）。
   void *_reserved0;
   void *_reserved1;
@@ -66,5 +80,22 @@ static inline void **scoop_tls_gc_immix_current_block_slot_from_current_frame_sl
   return &tls->gc_immix_current_block;
 }
 
-#endif // SCOOP_TLS_INTERNAL_H
+static inline void **scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(
+    ScoopGcFrame **current_frame_slot) {
+  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+  if (tls == 0) {
+    return 0;
+  }
+  return &tls->gc_immix_block_cache;
+}
 
+static inline uint32_t *scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(
+    ScoopGcFrame **current_frame_slot) {
+  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+  if (tls == 0) {
+    return 0;
+  }
+  return &tls->gc_immix_block_cache_len;
+}
+
+#endif // SCOOP_TLS_INTERNAL_H

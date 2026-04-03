@@ -15,6 +15,8 @@
 
 use std::ffi::c_void;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use scoop_runtime::gc_backend::GC_BACKEND;
@@ -63,6 +65,7 @@ struct Args {
     output: Option<PathBuf>,
 
     // throughput 参数
+    threads: u32,
     rounds: u32,
     batch: u32,
 
@@ -78,6 +81,7 @@ impl Default for Args {
             object_size: 256,
             json: false,
             output: None,
+            threads: 1,
             rounds: 50,
             batch: 50_000,
             initial: 200_000,
@@ -99,8 +103,9 @@ fn print_help() {
   --output <path>            额外把输出写入文件（仍会输出到 stdout）
 
 throughput options：
+  --threads <n>              并发线程数（默认 1；>1 时用于对比锁争用优化）
   --rounds <n>               轮数（每轮会执行一次 GC）
-  --batch <n>                每轮分配对象数
+  --batch <n>                每轮每线程分配对象数（threads>1 时为“每线程”）
 
 fragmentation options：
   --initial <n>              初始总分配对象数
@@ -178,6 +183,13 @@ fn parse_args() -> Args {
                 };
                 args.rounds = parse_u32("rounds", &v);
             }
+            "--threads" => {
+                let Some(v) = it.next() else {
+                    eprintln!("缺少参数：--threads <n>");
+                    std::process::exit(2);
+                };
+                args.threads = parse_u32("threads", &v);
+            }
             "--batch" => {
                 let Some(v) = it.next() else {
                     eprintln!("缺少参数：--batch <n>");
@@ -231,6 +243,7 @@ fn fmt_duration_ms(d: Duration) -> u128 {
 
 fn run_throughput(args: &Args) -> BenchResult {
     // 说明：不 pin 任何对象，使每轮 GC 都能把上一轮的对象全部回收（基准更稳定）。
+    let threads = args.threads.max(1);
     let rounds = args.rounds.max(1);
     let batch = args.batch.max(1);
 
@@ -240,19 +253,88 @@ fn run_throughput(args: &Args) -> BenchResult {
     let mut bytes: u64 = 0;
 
     let t0 = Instant::now();
-    for _ in 0..rounds {
-        for _ in 0..batch {
-            let p = unsafe { scoop_alloc(args.object_size) };
-            if p.is_null() {
-                eprintln!("OOM：scoop_alloc(size={}) 返回 NULL", args.object_size);
-                break;
+
+    if threads == 1 {
+        for _ in 0..rounds {
+            for _ in 0..batch {
+                let p = unsafe { scoop_alloc(args.object_size) };
+                if p.is_null() {
+                    eprintln!("OOM：scoop_alloc(size={}) 返回 NULL", args.object_size);
+                    break;
+                }
+                allocations += 1;
+                bytes = bytes.saturating_add(args.object_size);
             }
-            allocations += 1;
-            bytes = bytes.saturating_add(args.object_size);
+
+            unsafe { scoop_gc_collect() };
+        }
+    } else {
+        // 多线程吞吐：在 worker 线程持续分配的同时，主线程周期性触发 GC。
+        //
+        // 注意：
+        // - Immix backend 的 stop-the-world 为协作式：线程只有在进入 `scoop_alloc` 的 safepoint
+        //   才会 park；因此这里避免使用会“长时间阻塞线程”的 barrier 同步。
+        let stop = Arc::new(AtomicBool::new(false));
+        let oom = Arc::new(AtomicBool::new(false));
+        let total_allocs = Arc::new(AtomicU64::new(0));
+        let total_bytes = Arc::new(AtomicU64::new(0));
+
+        let mut handles = Vec::new();
+        for _ in 0..threads {
+            let stop = stop.clone();
+            let oom = oom.clone();
+            let total_allocs = total_allocs.clone();
+            let total_bytes = total_bytes.clone();
+            let object_size = args.object_size;
+
+            handles.push(std::thread::spawn(move || unsafe {
+                scoop_thread_register();
+
+                let mut i: u64 = 0;
+                while !stop.load(Ordering::Relaxed) && !oom.load(Ordering::Relaxed) {
+                    let p = scoop_alloc(object_size);
+                    if p.is_null() {
+                        oom.store(true, Ordering::Relaxed);
+                        break;
+                    }
+
+                    total_allocs.fetch_add(1, Ordering::Relaxed);
+                    total_bytes.fetch_add(object_size, Ordering::Relaxed);
+
+                    i += 1;
+                    if (i % 1024) == 0 {
+                        std::thread::yield_now();
+                    }
+                }
+
+                scoop_thread_unregister();
+            }));
         }
 
-        unsafe { scoop_gc_collect() };
+        let per_round_target = (threads as u64) * (batch as u64);
+        let mut last_target: u64 = 0;
+        for _ in 0..rounds {
+            let target = last_target.saturating_add(per_round_target);
+            while total_allocs.load(Ordering::Relaxed) < target && !oom.load(Ordering::Relaxed) {
+                std::thread::yield_now();
+            }
+            if oom.load(Ordering::Relaxed) {
+                break;
+            }
+
+            unsafe { scoop_gc_collect() };
+            last_target = target;
+        }
+
+        stop.store(true, Ordering::Relaxed);
+        for h in handles {
+            let _ = h.join();
+        }
+
+        allocations = total_allocs.load(Ordering::Relaxed);
+        bytes = total_bytes.load(Ordering::Relaxed);
     }
+
     let elapsed = t0.elapsed();
 
     // 结束前再 collect 一次，尽量把 live 降到 0（避免影响碎片化指标）。
@@ -276,6 +358,7 @@ fn run_throughput(args: &Args) -> BenchResult {
         start_gc,
         end_gc,
         params: BenchParams::Throughput {
+            threads,
             rounds,
             batch,
         },
@@ -341,7 +424,7 @@ fn run_fragmentation(args: &Args) -> BenchResult {
 
 #[derive(Debug, Clone)]
 enum BenchParams {
-    Throughput { rounds: u32, batch: u32 },
+    Throughput { threads: u32, rounds: u32, batch: u32 },
     Fragmentation { initial: u32, pin_stride: u32 },
 }
 
@@ -379,8 +462,15 @@ impl BenchResult {
         ));
 
         match self.params {
-            BenchParams::Throughput { rounds, batch } => {
-                out.push_str(&format!("params: rounds={} batch={}\n", rounds, batch));
+            BenchParams::Throughput {
+                threads,
+                rounds,
+                batch,
+            } => {
+                out.push_str(&format!(
+                    "params: threads={} rounds={} batch={}\n",
+                    threads, rounds, batch
+                ));
             }
             BenchParams::Fragmentation { initial, pin_stride } => {
                 out.push_str(&format!(
@@ -426,9 +516,11 @@ impl BenchResult {
         let (a1, f1, l1, r1) = self.end_gc;
 
         let params_json = match self.params {
-            BenchParams::Throughput { rounds, batch } => {
-                format!("{{\"rounds\":{},\"batch\":{}}}", rounds, batch)
-            }
+            BenchParams::Throughput {
+                threads,
+                rounds,
+                batch,
+            } => format!("{{\"threads\":{},\"rounds\":{},\"batch\":{}}}", threads, rounds, batch),
             BenchParams::Fragmentation { initial, pin_stride } => {
                 format!("{{\"initial\":{},\"pin_stride\":{}}}", initial, pin_stride)
             }

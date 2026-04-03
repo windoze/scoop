@@ -49,6 +49,12 @@ typedef struct ScoopGcThreadRecord {
   // - 使用 `void**` 避免把 backend 内部类型泄漏到共享 header。
   void **gc_alloc_block_slot;
 
+  // Immix thread-local block cache（TODO T1409b）：
+  // - 指向该线程 TLS 内的 cache head/len 槽位；
+  // - stop-the-world 后必须清空这两者，避免 compaction/free block 后出现悬挂指针。
+  void **gc_alloc_block_cache_slot;
+  uint32_t *gc_alloc_block_cache_len_slot;
+
   ScoopGcThreadState state;
 
   // 诊断字段：该线程“最后一次观察到/更新到的 STW epoch”。

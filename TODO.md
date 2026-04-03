@@ -5751,11 +5751,19 @@
    - `cargo test --all`
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
-### T1409b [TODO] Immix：降低 block 池争用（批量取还 / per-thread cache）
+### T1409b [DONE] Immix：降低 block 池争用（批量取还 / per-thread cache）
 - 描述：在 T1409a 的 thread-local blocks 基础上，降低 block refill 争用：引入 per-thread cache 或批量取还策略，减少全局锁进入频率。
 - 目标：只优化 block 池争用；不改变 GC 算法与对象模型。
 - 验收：增加基准或 microbench 对比：N 线程下 throughput 有可观测提升；`cargo test -p scoop_runtime --no-default-features --features gc-immix` 通过。
 - 依赖：T1409a
+ - 完成：
+   - `runtime/c/scoop_tls_internal.h`：在 TLS 中引入 Immix block cache（head + len），并提供从 `current_frame_slot` 反推 cache 槽位的 helper（供 GC/STW 清理使用）。
+   - `runtime/c/scoop_runtime.c`：refill 路径改为“优先 pop TLS cache；cache 空时持锁批量从全局 pool 取 blocks”，显著降低全局锁进入频率；线程退出时归还 current block 与 cache blocks。
+   - `runtime/c/scoop_gc_stw_internal.h` + `runtime/c/scoop_gc_backend_immix.c`：线程记录增加 cache 槽位指针，并在 GC 周期开始（STW 达成后）清空所有线程的 cache，避免 compaction/free 后悬挂指针。
+   - `crates/scoop_runtime/src/bin/gc_microbench.rs`：throughput 场景新增 `--threads` 参数；threads>1 时用“worker 持续分配 + 主线程周期性 collect”的方式测吞吐（避免协作式 STW 与 barrier 死锁）。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `tools/gc_microbench.sh throughput --object-size 256 --rounds 50 --batch 50000 --threads 8`
 
 ### T1409c [TODO] Immix：并行标记/并行 sweep（渐进引入）
 - 描述：引入并行标记/并行 sweep 的最小版本，并在确保正确性的前提下缩短 STW 时间。

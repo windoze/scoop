@@ -121,6 +121,61 @@ uint32_t scoop_runtime_init_count(void) {
 
 static SCOOP_THREAD_LOCAL ScoopThreadTls scoop_tls = {0};
 
+#if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
+// T1409b：thread-local block cache（批量取还 / per-thread cache）。
+//
+// 说明：
+// - cache 以 `ScoopGcImmixBlock.next_free` 串成单链表；
+// - 所有读写仅发生在“当前线程”，因此不需要额外同步原语；
+// - refill 时会短暂持有全局 GC 锁，并批量从全局 pool 取 blocks 放入 cache，以减少锁进入频率。
+#ifndef SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH
+#define SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH 8u
+#endif
+
+static inline ScoopGcImmixBlock *scoop_gc_immix_tls_cache_pop(void) {
+  ScoopGcImmixBlock *head = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
+  if (head == 0) {
+    return 0;
+  }
+  ScoopGcImmixBlock *next = head->next_free;
+  head->next_free = 0;
+  scoop_tls.gc_immix_block_cache = (void *)next;
+  if (scoop_tls.gc_immix_block_cache_len > 0) {
+    scoop_tls.gc_immix_block_cache_len -= 1;
+  }
+  return head;
+}
+
+static inline void scoop_gc_immix_tls_cache_push(ScoopGcImmixBlock *block) {
+  if (block == 0) {
+    return;
+  }
+  block->next_free = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
+  scoop_tls.gc_immix_block_cache = (void *)block;
+  if (scoop_tls.gc_immix_block_cache_len != UINT32_MAX) {
+    scoop_tls.gc_immix_block_cache_len += 1;
+  }
+}
+
+// 注意：调用方必须持有 `state->lock`。
+static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *state) {
+  if (state == 0) {
+    return;
+  }
+  if (scoop_tls.gc_immix_block_cache_len != 0) {
+    return;
+  }
+
+  for (uint32_t i = 0; i < (uint32_t)SCOOP_GC_IMMIX_BLOCK_CACHE_BATCH; i++) {
+    ScoopGcImmixBlock *b = scoop_gc_immix_state_take_block(state);
+    if (b == 0) {
+      break;
+    }
+    scoop_gc_immix_tls_cache_push(b);
+  }
+}
+#endif
+
 // --- effect runtime v0（TODO T0906） ---
 //
 // 说明：
@@ -247,19 +302,54 @@ void scoop_thread_unregister(void) {
   scoop_gc_thread_unregister(&scoop_tls.gc_current_frame);
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
-  // T1409a：线程退出前把 thread-local current block 归还到可复用列表，避免“丢失 block”
-  // 导致长期运行/线程频繁创建销毁时 reserved bytes 非必要增长。
-  if (scoop_tls.gc_immix_current_block != 0) {
-    ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
-    ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
-    scoop_tls.gc_immix_current_block = 0;
+  // T1409a/T1409b：线程退出前归还 thread-local blocks（current block + cache），避免：
+  // - thread-local cache 长期“藏住 blocks”，导致其它线程不得不分配新 blocks；
+  // - 线程频繁创建/销毁时 reserved bytes 出现不必要增长。
+  ScoopGcImmixState *state = scoop_gc_immix_state_from_heap(&scoop_gc_heap);
+  if (state != 0 && state->lock_inited) {
+    (void)pthread_mutex_lock(&state->lock);
 
-    if (state != 0 && state->lock_inited && block != 0) {
-      (void)pthread_mutex_lock(&state->lock);
-      block->next_free = state->reusable_blocks;
-      state->reusable_blocks = block;
-      (void)pthread_mutex_unlock(&state->lock);
+    // 1) current block
+    if (scoop_tls.gc_immix_current_block != 0) {
+      ScoopGcImmixBlock *block = (ScoopGcImmixBlock *)scoop_tls.gc_immix_current_block;
+      scoop_tls.gc_immix_current_block = 0;
+      if (block != 0) {
+        if (block->live_objects == 0) {
+          block->next_free = state->free_blocks;
+          state->free_blocks = block;
+        } else {
+          block->next_free = state->reusable_blocks;
+          state->reusable_blocks = block;
+        }
+      }
     }
+
+    // 2) cached blocks（以 next_free 串起来）
+    ScoopGcImmixBlock *b = (ScoopGcImmixBlock *)scoop_tls.gc_immix_block_cache;
+    scoop_tls.gc_immix_block_cache = 0;
+    scoop_tls.gc_immix_block_cache_len = 0;
+
+    while (b != 0) {
+      ScoopGcImmixBlock *next = b->next_free;
+      b->next_free = 0;
+
+      if (b->live_objects == 0) {
+        b->next_free = state->free_blocks;
+        state->free_blocks = b;
+      } else {
+        b->next_free = state->reusable_blocks;
+        state->reusable_blocks = b;
+      }
+
+      b = next;
+    }
+
+    (void)pthread_mutex_unlock(&state->lock);
+  } else {
+    // 保守：无法拿到 state lock 时仍应清空 TLS，避免泄漏悬挂指针。
+    scoop_tls.gc_immix_current_block = 0;
+    scoop_tls.gc_immix_block_cache = 0;
+    scoop_tls.gc_immix_block_cache_len = 0;
   }
 #endif
 
@@ -267,6 +357,9 @@ void scoop_thread_unregister(void) {
   scoop_tls.registered = 0;
   scoop_tls.gc_current_frame = 0;
   scoop_tls.gc_immix_current_block = 0;
+  scoop_tls.gc_immix_block_cache = 0;
+  scoop_tls.gc_immix_block_cache_len = 0;
+  scoop_tls._reserved_u32_1 = 0;
   scoop_tls._reserved0 = 0;
   scoop_tls._reserved1 = 0;
   scoop_tls._reserved2 = 0;
@@ -1115,9 +1208,17 @@ void *scoop_alloc(uint64_t size) {
 
     for (uint32_t tries = 0; tries < 64 && p == 0; tries++) {
       if (block == 0) {
-        (void)pthread_mutex_lock(&state->lock);
-        block = scoop_gc_immix_state_take_block(state);
-        (void)pthread_mutex_unlock(&state->lock);
+        // 1) 无锁：先尝试从 TLS cache 取一个 block。
+        block = scoop_gc_immix_tls_cache_pop();
+
+        // 2) cache 空：持锁批量 refill，然后再 pop 一个。
+        if (block == 0) {
+          (void)pthread_mutex_lock(&state->lock);
+          scoop_gc_immix_tls_cache_refill_locked(state);
+          (void)pthread_mutex_unlock(&state->lock);
+          block = scoop_gc_immix_tls_cache_pop();
+        }
+
         scoop_tls.gc_immix_current_block = (void *)block;
       }
 
