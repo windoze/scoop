@@ -5925,7 +5925,7 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1502 [TODO] 编译器：GC 指针类型统一为 `addrspace(1)` 并贯穿 Type→MIR→LLVM
+### T1502 编译器：GC 指针类型统一为 `addrspace(1)`（拆分为子任务）
 - 描述：把所有 GC-managed ref（Any/class/interface/function/closure env/array/string/box）统一建模为 `addrspace(1)` 指针，并确保 lowering/codegen 不再把 ref 混用为 `i8*`（addrspace(0)）。
 - 目标：
   - `CgTy::Ref` 与所有“引用类 builtin”（如 `String`、`Array<T>`）在 LLVM 层统一为 `addrspace(1)`；
@@ -5935,6 +5935,30 @@
   - 新增 `--emit-llvm` 断言用例：IR 中出现 `addrspace(1)` 的 ref 指针类型，并且 `gc.statepoint`/stackmap 可识别这些指针；
   - `cargo test --all`、`cargo run -p scoop -- test` 通过。
 - 依赖：T0803、T0908、T1009
+- 备注：该任务牵涉的迁移面较大（Type→MIR→LLVM + runtime helper 签名/桥接）。为保持每一步都“可单独实现 & 单独验证”，已拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1502a [TODO] LLVM codegen：`CgTy::Ref` 改为 `addrspace(1)` 指针（先覆盖 `Ref`，不含 `String`/`Array`）
+- 描述：将 `CgTy::Ref` 在 LLVM 层从 `i8*` 升级为 `i8 addrspace(1)*`，并修正所有涉及 `CgTy::Ref` 的 runtime helper 声明/调用与 shadow stack roots slot 存储类型。
+- 目标：
+  - `llvm_basic_type_of(CgTy::Ref)` 返回 `i8 addrspace(1)*`；
+  - `ScoopGcFrame.roots[]` 存储类型同步为 `i8 addrspace(1)*`（prev 仍为 `i8*`）；
+  - 仅调整“GC-managed 对象”相关 runtime helper（例如 `scoop_alloc`、`scoop_pin/unpin`、`scoop_sync_*`、`scoop_thread_*`、`scoop_channels_*`、`scoop_array_*`）的签名为 `addrspace(1)`，避免在 codegen 内引入 `addrspacecast` 回退到 `addrspace(0)`。
+- 验收：
+  - `cargo test -p scoopc --features llvm` 通过，并新增 IR 单测断言出现 `addrspace(1)`；
+  - `cargo test --all` 通过。
+- 依赖：T0803、T0908、T1009
+
+### T1502b [TODO] LLVM codegen：把 `String/Array/Box/Closure env` 等引用类 builtin 逐步迁移到 `addrspace(1)`
+- 描述：将 `scoop.core.String`、`Array<T>`、boxed object、closure env 等与 ref runtime 相关的 builtin 表示从早期的 `addrspace(0)` 指针迁移到 `addrspace(1)`，并把 remaining 的 `i8*` 使用点收敛为显式的桥接 API（见 T1502c）。
+- 目标：不改变已通过的 `T1502a` 行为；每次只迁移一类 builtin 并补齐 fixtures/单测。
+- 验收：新增至少 1 个 `--emit-llvm` fixture/单测覆盖 `String/Array` 中出现 `addrspace(1)` 的 ref 字段。
+- 依赖：T1502a
+
+### T1502c [TODO] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
+- 描述：在 typecheck/lowering 层对 `@Extern` 边界做门禁：禁止直接把 GC 指针（`addrspace(1)`）作为 ABI 参数/返回值透传；必须通过 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>` 或 handle API 显式桥接。
+- 目标：先实现门禁与诊断；handle API 的完整实现可拆更细子任务。
+- 验收：新增 typecheck fixtures：对 `@Extern fun f(x: Any): Any` 给出稳定错误码与修复建议。
+- 依赖：T1502a
 
 ### T1503 [TODO] 编译器：接入 LLVM statepoint/stackmap 管线并为 safepoint 生成可定位的 metadata
 - 描述：在 LLVM 后端启用 statepoint 机制，生成 stackmap section，并保证运行时可以用 return address 精确定位到 stackmap record（用于 roots 枚举与 relocation 更新）。
