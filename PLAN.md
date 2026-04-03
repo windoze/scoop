@@ -37,6 +37,7 @@
   - T1411a：platform/unwind v0（current-thread backtrace + test-only 导出）；
   - T1411b：在 T1505 停世界协议中复用 platform/unwind（已移动到 T1505 之后）；
   - T1411c：non-resuming effect 的 unwind/诊断 hook（不改变现有 flag-based 语义）。
+- 2026-04-03：完成 T1411a：新增 `runtime/c/platform/unwind.h`（POSIX：`_Unwind_Backtrace`；Win32：占位），并通过 `scoop_test_unwind_capture_ips` + `crates/scoop_runtime/tests/unwind_capture.rs` 回归 current-thread backtrace 基本可用性。
 - 2026-04-02：完成 T1403c：收敛 once/guard 相关 OS 调用到 platform backend：新增 dynlib symbol lookup（RTLD_DEFAULT 类语义）platform API，并在 POSIX backend 通过 `dlsym/dlerror` 实现（Windows 占位）；`runtime/c/scoop_once.c` 改为仅依赖 platform thread self/yield + dynlib lookup，不再直接包含/调用 pthread/sched/dlfcn。
 - 2026-04-02：完成 T1404：sysroot/std 平台 API surface 审计与固化清单：新增 `PLATFORM_API_SURFACE_AUDIT.md`（覆盖 env/time/fs/path/io/process/thread/sync/channels/net 的 API surface ↔ runtime 符号 ↔ backend 支持现状），并新增 typecheck fixture `tests/fixtures/typecheck/std_platform_api_no_os_types_is_error.scoop` 回归“平台 API 不泄漏 FILE/HANDLE/pthread_t 等 OS 概念类型”。
 - 2026-04-02：完成 T1326b：delegated properties 的 `observable/vetoable` 并发可见性与回调规则：HIR lowering 为 observable/vetoable 注入并初始化 per-property mutex 字段（`<name>$delegate_mutex`），getter/setter 读写 backing field 时通过 mutex 加锁保证可见性；`observable` 在写入后且锁外触发回调、`vetoable` 在写入前且锁外触发回调（允许 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；新增 run-pass fixtures 覆盖并发回调次数/顺序、veto 失败分支可见性与 Raise 交互；更新 sysroot 与 spec §10.4 并发说明。

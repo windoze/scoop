@@ -130,6 +130,7 @@
   X(scoop_task_u64_try_start) \
   X(scoop_test_add_int) \
   X(scoop_test_get_add_int_funptr) \
+  X(scoop_test_unwind_capture_ips) \
   X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_join) \

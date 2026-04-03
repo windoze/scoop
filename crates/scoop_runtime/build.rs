@@ -35,6 +35,9 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform.h");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform_posix.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform_win32.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind.h");
+    println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind_posix.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind_win32.c");
 
     // `scoop_once_guard_canonicalize` 在 Linux 需要链接 libdl。
     // macOS 的 dlsym/dlerror 位于 libSystem，无需额外 link-lib。

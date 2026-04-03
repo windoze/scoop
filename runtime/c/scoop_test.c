@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+#include "platform/unwind.h"
+
 // 一个最小可调用的 C 函数：`Int + Int -> Int`（按 host word-size）。
 //
 // 约定：
@@ -23,3 +25,11 @@ uintptr_t scoop_test_get_add_int_funptr(void) {
   return (uintptr_t)&scoop_test_add_int;
 }
 
+// 捕获当前线程的 backtrace（instruction pointers）。
+//
+// 说明：
+// - 该符号用于回归验证 platform/unwind 的基本可用性；
+// - 不承诺稳定 ABI；只保证在本仓库的测试/fixtures 中可用。
+uint32_t scoop_test_unwind_capture_ips(uintptr_t *out_ips, uint32_t out_cap, uint32_t skip_frames) {
+  return scoop_platform_unwind_capture_ips(out_ips, out_cap, skip_frames);
+}

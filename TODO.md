@@ -5857,7 +5857,7 @@
 - 验收：新增 run-pass / runtime fixture：非恢复 effect 可正确展开、执行 cleanup，并生成稳定诊断（若启用）。
 - 依赖：T0614、T0707、T1505
 
-### T1411a [TODO] platform/unwind：引入可复用的 unwind 封装（current-thread backtrace v0）
+### T1411a [DONE] platform/unwind：引入可复用的 unwind 封装（current-thread backtrace v0）
 - 描述：在 `runtime/c/platform` 增加 unwind 模块，先实现“当前线程栈回溯地址采样”的最小能力（优先基于 `_Unwind_Backtrace`）；并提供 test-only 导出用于回归验证。
 - 目标：
   - 仅实现 current-thread capture（不做 remote unwind/跨线程 context；留给 T1411b/T1505）；
@@ -5867,6 +5867,17 @@
   - 新增 `crates/scoop_runtime` 集成测试：调用 test-only export 获取 backtrace，断言至少返回 1 个非 0 地址；
   - `cargo test -p scoop_runtime` 通过。
 - 依赖：无
+ - 完成：
+   - `runtime/c/platform/unwind.h`：新增平台 unwind API（v0：current-thread backtrace）。
+   - `runtime/c/platform/unwind_posix.c`：POSIX 实现：基于 `_Unwind_Backtrace` 采样 instruction pointers。
+   - `runtime/c/platform/unwind_win32.c`：Windows 占位实现：统一返回 0（等待后续 backend）。
+   - `runtime/c/scoop_test.c`：新增 test-only 导出 `scoop_test_unwind_capture_ips` 便于回归。
+   - `runtime/c/scoop_runtime_api.h`：更新 ABI allowlist，登记新增导出符号。
+   - `crates/scoop_runtime/build.rs`：补齐 `rerun-if-changed` 覆盖新增 platform/unwind 文件。
+   - tests：`crates/scoop_runtime/tests/unwind_capture.rs` 回归 current-thread backtrace 可用性（非 Windows 至少 1 帧）。
+ - 验收：
+   - `cargo test -p scoop_runtime -- --test-threads=1`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1411c [TODO] non-resuming effect：为 unwind/诊断预留 hook（不改变现有语义）
 - 描述：在 non-resuming effect（含 Raise）的运行期/编译期链路中，为“可展开 unwind backend + 稳定诊断”预留统一 hook（例如在 perform/raise 路径上可选择性采样 backtrace），并新增最小 fixture 回归。
