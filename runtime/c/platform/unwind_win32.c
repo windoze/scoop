@@ -13,3 +13,6 @@ static SCOOP_UNWIND_UNUSED uint32_t scoop_platform_unwind_capture_ips(uintptr_t 
   return 0;
 }
 
+static SCOOP_UNWIND_UNUSED void *scoop_platform_unwind_ctx_capture(void) { return 0; }
+
+static SCOOP_UNWIND_UNUSED void scoop_platform_unwind_ctx_destroy(void *ctx) { (void)ctx; }

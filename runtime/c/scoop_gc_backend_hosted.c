@@ -106,6 +106,9 @@ void scoop_gc_safepoint_poll(void) {
   scoop_gc_safepoint();
 }
 
+// Test-only export（T1505b）：hosted backend 无 STW/park，因此该 smoke 统一返回 0。
+intptr_t scoop_test_gc_stack_walking_ctx_smoke(void) { return 0; }
+
 uint32_t scoop_pin(void *raw_obj) {
   if (raw_obj == 0) {
     return 0;

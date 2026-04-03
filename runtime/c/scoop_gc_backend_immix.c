@@ -21,10 +21,12 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "platform/unwind.h"
 #include "scoop_gc_stw_internal.h"
 
 // 进程全局 heap（对外 ABI：`scoop_gc_heap`）。
@@ -154,6 +156,9 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     it->state = SCOOP_GC_THREAD_RUNNING;
     it->parked_epoch = 0;
+    // 释放上一轮残留的 ctx（按协议 STW end 会清空；这里做防御式兜底）。
+    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+    it->stack_walking_ctx = 0;
   }
 
   // 需要 park 的线程数量：所有已注册线程 - initiator（若 initiator 已注册）。
@@ -185,9 +190,143 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     it->state = SCOOP_GC_THREAD_RUNNING;
     it->parked_epoch = 0;
+    // T1505b：STW 结束后清空 stack walking ctx，避免悬挂指针或误用旧 ctx。
+    scoop_platform_unwind_ctx_destroy(it->stack_walking_ctx);
+    it->stack_walking_ctx = 0;
   }
 
   (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
+}
+
+typedef struct ScoopTestGcCtxWorkerArgs {
+  uint32_t *stop;
+  uint64_t *poll_count;
+} ScoopTestGcCtxWorkerArgs;
+
+static void *scoop_test_gc_ctx_worker_entry(void *raw_args) {
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  ScoopTestGcCtxWorkerArgs *args = (ScoopTestGcCtxWorkerArgs *)raw_args;
+  if (args == 0 || args->stop == 0 || args->poll_count == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  while (!__atomic_load_n(args->stop, __ATOMIC_SEQ_CST)) {
+    scoop_gc_safepoint_poll();
+    (void)__atomic_fetch_add(args->poll_count, 1, __ATOMIC_SEQ_CST);
+    sched_yield();
+  }
+
+  scoop_thread_unregister();
+  return 0;
+}
+
+// Test-only export（T1505b）：触发一次 stop-the-world，并验证 Parked 线程在 park 期间
+// `stack_walking_ctx` 非空、STW 结束后 ctx 被清空。
+//
+// 返回：
+// - 1：通过
+// - <0：失败（用于测试诊断）
+intptr_t scoop_test_gc_stack_walking_ctx_smoke(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  uint32_t stop = 0;
+  uint64_t poll_count = 0;
+  ScoopTestGcCtxWorkerArgs args = {
+      .stop = &stop,
+      .poll_count = &poll_count,
+  };
+
+  pthread_t worker = 0;
+  if (pthread_create(&worker, 0, scoop_test_gc_ctx_worker_entry, (void *)&args) != 0) {
+    scoop_thread_unregister();
+    return -10;
+  }
+
+  // 等待 worker 进入 poll 循环，避免在其尚未注册/调度前触发 STW 导致挂死或结果不稳定。
+  struct timespec start;
+#if defined(CLOCK_MONOTONIC)
+  (void)clock_gettime(CLOCK_MONOTONIC, &start);
+#else
+  (void)timespec_get(&start, TIME_UTC);
+#endif
+
+  while (__atomic_load_n(&poll_count, __ATOMIC_SEQ_CST) < 128) {
+    struct timespec now;
+#if defined(CLOCK_MONOTONIC)
+    (void)clock_gettime(CLOCK_MONOTONIC, &now);
+#else
+    (void)timespec_get(&now, TIME_UTC);
+#endif
+    int64_t elapsed_ns = ((int64_t)(now.tv_sec - start.tv_sec) * 1000000000ll) +
+                         ((int64_t)now.tv_nsec - (int64_t)start.tv_nsec);
+    if (elapsed_ns < 0) {
+      elapsed_ns = 0;
+    }
+    uint64_t elapsed_ms = (uint64_t)(elapsed_ns / 1000000ll);
+    if (elapsed_ms > 2000) {
+      __atomic_store_n(&stop, 1, __ATOMIC_SEQ_CST);
+      (void)pthread_join(worker, 0);
+      scoop_thread_unregister();
+      return -11;
+    }
+    sched_yield();
+  }
+
+  intptr_t rc = 1;
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    rc = -12;
+    goto done_unlock;
+  }
+
+  pthread_t self = pthread_self();
+  scoop_gc_immix_lock(state);
+  scoop_gc_stop_the_world_begin_unlocked(self);
+
+  ScoopGcThreadRecord *worker_rec = scoop_gc_find_thread_unlocked(worker);
+  if (worker_rec == 0) {
+    rc = -20;
+    goto done;
+  }
+  if (worker_rec->state != SCOOP_GC_THREAD_PARKED) {
+    rc = -21;
+    goto done;
+  }
+  if (worker_rec->stack_walking_ctx == 0) {
+    rc = -22;
+    goto done;
+  }
+
+  scoop_gc_stop_the_world_end_unlocked();
+
+  // STW end 会在持锁状态下清空所有线程的 ctx；这里回归验证该行为对 worker 生效。
+  if (worker_rec->stack_walking_ctx != 0) {
+    rc = -23;
+    goto done;
+  }
+
+done:
+  // 若出现早退，确保 STW 不会悬挂。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    scoop_gc_stop_the_world_end_unlocked();
+  }
+  scoop_gc_immix_unlock(state);
+
+done_unlock:
+  __atomic_store_n(&stop, 1, __ATOMIC_SEQ_CST);
+  (void)pthread_join(worker, 0);
+  scoop_thread_unregister();
+  return rc;
 }
 
 void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
@@ -287,7 +426,7 @@ void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
   scoop_gc_immix_unlock(state);
 }
 
-void scoop_gc_safepoint(void) {
+static void scoop_gc_safepoint_common(uint32_t capture_stack_walking_ctx) {
   // T1409a：fast path（无 STW 时不抢全局锁）。
   if (!scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     return;
@@ -317,6 +456,13 @@ void scoop_gc_safepoint(void) {
     rec->last_safepoint_epoch = scoop_gc_stw.epoch;
 
     if (rec->parked_epoch != scoop_gc_stw.epoch) {
+      if (capture_stack_walking_ctx) {
+        // T1505b：在进入 Parked 前捕获当前线程的 unwind 上下文，用于后续 stack walking。
+        // 说明：此处只保存 opaque ctx；逐帧 unwind 在 T1411b 接入 platform/unwind 完成。
+        scoop_platform_unwind_ctx_destroy(rec->stack_walking_ctx);
+        rec->stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+      }
+
       rec->state = SCOOP_GC_THREAD_PARKED;
       rec->parked_epoch = scoop_gc_stw.epoch;
       scoop_gc_stw.parked_count += 1;
@@ -330,10 +476,11 @@ void scoop_gc_safepoint(void) {
   scoop_gc_immix_unlock(state);
 }
 
+void scoop_gc_safepoint(void) { scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/0); }
+
 void scoop_gc_safepoint_poll(void) {
-  // T1505a：当前阶段与 `scoop_gc_safepoint()` 等价；后续接入 stack walking ctx/stackmap roots 时，
-  // 优先把新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
-  scoop_gc_safepoint();
+  // T1505b：把“park 前捕获 stack walking ctx”的新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
+  scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/1);
 }
 
 uint32_t scoop_pin(void *raw_obj) {

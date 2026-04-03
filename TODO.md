@@ -6173,7 +6173,7 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1505b [TODO] 运行时：park 前捕获 stack walking 上下文到 TLS（opaque ctx）
+### T1505b [DONE] 运行时：park 前捕获 stack walking 上下文到 TLS（opaque ctx）
 - 描述：在 `scoop_gc_safepoint_poll()` slow path 进入 park 之前捕获该线程的 unwind 上下文并保存到 TLS/线程记录中，GC 结束后清理；上下文类型为 opaque 指针/结构体，ABI/平台细节收敛在 `runtime/c/platform/*`。
 - 目标：
   - capture：在进入 Parked 前保存上下文（建议 `ucontext_t`/`unw_context_t` 或等价结构）；
@@ -6181,6 +6181,15 @@
   - 不在本子任务内做逐帧 unwind（由 T1411b 接入 `platform/unwind` 完成）。
 - 验收：新增 `crates/scoop_runtime` 测试：触发一次 STW 后可观察到 worker 线程在 park 期间 ctx 非空，恢复后 ctx 被清空。
 - 依赖：T1505a、T1402
+ - 完成：
+   - `runtime/c/platform/unwind.h` + `runtime/c/platform/unwind_posix.c` + `runtime/c/platform/unwind_win32.c`：新增 `scoop_platform_unwind_ctx_capture/destroy`（POSIX v0 用 `setjmp(jmp_buf)` 捕获寄存器快照，作为 opaque ctx；Windows 占位返回 NULL）。
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c`：`scoop_gc_safepoint_poll()` 在进入 Parked 前捕获 ctx 写入 `ScoopGcThreadRecord::stack_walking_ctx`；STW begin/end 防御式清空 ctx（避免残留）。
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c` / `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：新增 test-only 导出 `scoop_test_gc_stack_walking_ctx_smoke`（STW backend 执行真实 smoke；non-STW backend 返回 0）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_stack_walking_ctx_smoke`。
+   - `crates/scoop_runtime/tests/gc_stack_walking_ctx.rs`：新增集成测试回归 ctx “park 期间非空、STW 结束清空”。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1505c [TODO] 运行时：`enter_native`/`leave_native` 线程状态机 + `native_roots` buffer（v0）
 - 描述：实现 `enter_native()`/`leave_native()`：线程进入 native 过渡态时切换到 InNative，并在 TLS 中维护 `native_roots` buffer（为 T1510 的 handle/pin 协议做前置）。

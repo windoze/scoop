@@ -31,6 +31,19 @@ static uint32_t scoop_platform_unwind_capture_ips(uintptr_t *out_ips,
                                                   uint32_t out_cap,
                                                   uint32_t skip_frames);
 
+// 捕获“可用于 stack walking 的线程上下文”（opaque ctx）。
+//
+// 设计意图（T1505b/T1411b）：
+// - Parked 线程在进入 safepoint park 前捕获自身上下文，并把返回的 opaque 指针写入
+//   `ScoopGcThreadRecord::stack_walking_ctx`；
+// - 后续 stack walking 将从该 ctx 开始逐帧 unwind（由 T1411b 接入）；
+// - ctx 的具体类型/大小/ABI 细节必须完全收敛在 platform backend 内；
+// - 返回 NULL 表示当前平台/后端不支持或捕获失败（上层需做 best-effort 处理）。
+static void *scoop_platform_unwind_ctx_capture(void);
+
+// 释放 `scoop_platform_unwind_ctx_capture()` 返回的 ctx（允许传入 NULL）。
+static void scoop_platform_unwind_ctx_destroy(void *ctx);
+
 // --- backend selection ---
 //
 // 注意：这里通过 include 选择 backend，并在 backend 文件中提供上述 static 函数定义。
@@ -40,4 +53,3 @@ static uint32_t scoop_platform_unwind_capture_ips(uintptr_t *out_ips,
 #else
 #include "unwind_posix.c"
 #endif
-

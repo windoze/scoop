@@ -146,6 +146,7 @@
   X(scoop_task_u64_state) \
   X(scoop_task_u64_try_start) \
   X(scoop_test_add_int) \
+  X(scoop_test_gc_stack_walking_ctx_smoke) \
   X(scoop_test_get_add_int_funptr) \
   X(scoop_test_stackmap_statepoint_smoke) \
   X(scoop_test_unwind_capture_ips) \
