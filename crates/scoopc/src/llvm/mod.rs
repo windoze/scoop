@@ -1086,6 +1086,51 @@ fun main(): Int {
     }
 
     #[test]
+    fn array_of_any_uses_ref_element_runtime_apis_without_ptr_to_u64() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Any = 1
+    val b: Any = 2
+    val xs: Array<Any> = [a, b]
+    val v: Any = xs.get(0)
+    __scoop_gc_collect()
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_array_builder_push_ref"),
+            "Array<Any> 的 array literal builder 应走 scoop_array_builder_push_ref"
+        );
+        assert!(
+            ir.contains("@scoop_array_get_ref"),
+            "Array<Any>.get 应走 scoop_array_get_ref"
+        );
+        assert!(
+            !ir.contains("ptr_to_u64"),
+            "ref 元素路径不应把 GC 指针编码为 u64（ptr_to_u64）"
+        );
+        assert!(
+            !ir.contains("u64_to_ref"),
+            "ref 元素路径不应从 u64 解码回 GC 指针（u64_to_ref）"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "ref array 路径不应引入 addrspacecast"
+        );
+    }
+
+    #[test]
     fn missing_main_is_reported() {
         let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
         let session = Session::new().unwrap();

@@ -5961,7 +5961,7 @@
 - 依赖：T1502a
 - 备注：该任务牵涉面较大（Array 元素表示/String 表示/closure env/boxed 等），为保证每一步都“可单独实现 & 单独验证”，拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1502b1 [TODO] Array：为 `Array<Ref>` 引入指针型 builder push/get/set（避免 `ptrtoint`）
+### T1502b1 [DONE] Array：为 `Array<Ref>` 引入指针型 builder push/get/set（避免 `ptrtoint`）
 - 描述：为 `Array<Any>`/`Array<class>`/`Array<interface>` 等 “元素为引用” 的数组提供指针型 runtime API（push/get/set），让 LLVM IR 保持 `addrspace(1)` 指针类型，避免把 GC 指针编码成整数 `u64`。
 - 目标：
   - 保持 `Array<Int/Bool/...>` 的现有 “u64 word buffer” 路径不变；
@@ -5969,10 +5969,18 @@
   - IR 不应在该路径上出现 `ptrtoint/inttoptr`（ref 元素），也不应引入 `addrspacecast`。
 - 验收：
   - `cargo test -p scoopc --features llvm` 新增 IR 单测：
-    - `val xs: Array<Any> = [1, 2]` 走 `scoop_array_builder_push_ref`；
+    - `val a: Any = 1; val xs: Array<Any> = [a]` 走 `scoop_array_builder_push_ref`；
     - `xs.get(0)` 走 `scoop_array_get_ref`；
   - `cargo test --all` 通过。
 - 依赖：T1502a
+ - 完成：
+   - `runtime/c/scoop_array.c`：array/builder 的 word slot 统一为 `uintptr_t`，新增 `scoop_array_builder_push_ref / scoop_array_get_ref / scoop_array_set_ref`。
+   - `runtime/c/scoop_runtime_api.h`：将新增 array ref API 加入 ABI allowlist（修复 `abi_exports_allowlist` 单测）。
+   - `crates/scoopc/src/llvm/codegen.rs`：`Array.get/set` 在 ref 元素语境下改用 `*_get_ref/*_set_ref`；array literal builder 在 ref 元素语境下改用 `*_push_ref`。
+   - `crates/scoopc/src/llvm/mod.rs`：新增 IR 单测回归 `Array<Any>` 的 ref 元素通道不再出现 `ptr_to_u64/u64_to_ref`。
+ - 验收：
+   - `cargo test -p scoopc --features llvm`
+   - `cargo test --all`
 
 ### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
 - 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。

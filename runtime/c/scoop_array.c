@@ -8,9 +8,9 @@
 // - 让 LLVM codegen 可以在不引入 stdlib 语义的情况下生成可执行代码。
 //
 // 说明：
-// - 当前实现以 “word array” 作为元素承载：每个元素都是一个 `uint64_t`：
-//   - 整数/布尔：按 u64 编码；
-//   - 引用/字符串指针：按 ptr→u64 编码；
+// - 当前实现以 “word array” 作为元素承载：每个元素都是一个 “word-sized slot”（`uintptr_t`）：
+//   - 整数/布尔：按 u64 bits 编码后写入 slot；
+//   - 引用/字符串指针：按 ptr→uintptr_t bits 编码后写入 slot；
 // - 该 ABI 与编译器侧的 `coerce_u64_word()` 对齐，便于后续扩展为更复杂的 payload（TODO T0630）。
 //
 // 注意（early stage 限制）：
@@ -31,11 +31,11 @@ void *scoop_alloc(uint64_t size);
 // --- Array object layout ---
 //
 // 运行期对象布局：
-// `{ header: ScoopGcObjectHeader, len: u64, data: [len x u64] }`
+// `{ header: ScoopGcObjectHeader, len: u64, data: [len x uintptr_t] }`
 typedef struct ScoopArray {
   ScoopGcObjectHeader header;
   uint64_t len;
-  uint64_t data[];
+  uintptr_t data[];
 } ScoopArray;
 
 // --- ArrayBuilder layout ---
@@ -53,7 +53,7 @@ typedef struct ScoopArrayBuilder {
   ScoopGcObjectHeader header;
   uint64_t len;
   uint64_t cap;
-  uint64_t *data;
+  uintptr_t *data;
 } ScoopArrayBuilder;
 
 static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
@@ -69,13 +69,13 @@ static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
   }
 
   // size_t overflow guard（避免 `realloc` 参数回卷）。
-  uint64_t max_cap = (uint64_t)(SIZE_MAX / sizeof(uint64_t));
+  uint64_t max_cap = (uint64_t)(SIZE_MAX / sizeof(uintptr_t));
   if (new_cap > max_cap) {
     return 0;
   }
 
-  size_t bytes = (size_t)new_cap * sizeof(uint64_t);
-  uint64_t *p = (uint64_t *)realloc(b->data, bytes);
+  size_t bytes = (size_t)new_cap * sizeof(uintptr_t);
+  uintptr_t *p = (uintptr_t *)realloc(b->data, bytes);
   if (p == 0) {
     return 0;
   }
@@ -111,7 +111,24 @@ void scoop_array_builder_push_u64(void *builder, uint64_t value) {
     }
   }
 
-  b->data[b->len] = value;
+  b->data[b->len] = (uintptr_t)value;
+  b->len += 1;
+}
+
+void scoop_array_builder_push_ref(void *builder, void *value) {
+  ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
+  if (b == 0) {
+    return;
+  }
+
+  if (b->len >= b->cap) {
+    if (!scoop_array_builder_grow(b)) {
+      // early stage：OOM/overflow 直接忽略（保持运行时可链接/不崩溃）。
+      return;
+    }
+  }
+
+  b->data[b->len] = (uintptr_t)value;
   b->len += 1;
 }
 
@@ -123,8 +140,8 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
   uint64_t len = b->len;
   uint64_t bytes = (uint64_t)sizeof(ScoopArray);
   if (len > 0) {
-    uint64_t add = len * (uint64_t)sizeof(uint64_t);
-    if (add / (uint64_t)sizeof(uint64_t) != len) {
+    uint64_t add = len * (uint64_t)sizeof(uintptr_t);
+    if (add / (uint64_t)sizeof(uintptr_t) != len) {
       // overflow
       return 0;
     }
@@ -143,7 +160,7 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
   arr->len = len;
   if (len > 0 && b->data != 0) {
     // `bytes` 已被 overflow guard 保护，因此这里的 size_t 转换是安全的。
-    (void)memcpy(arr->data, b->data, (size_t)len * sizeof(uint64_t));
+    (void)memcpy(arr->data, b->data, (size_t)len * sizeof(uintptr_t));
   }
 
   // 释放临时 buffer，避免在大量 array literal 下泄漏。
@@ -191,7 +208,25 @@ uint64_t scoop_array_get_u64(void *array_obj, int64_t index) {
     return 0;
   }
 
-  return arr->data[idx];
+  return (uint64_t)arr->data[idx];
+}
+
+void *scoop_array_get_ref(void *array_obj, int64_t index) {
+  if (array_obj == 0) {
+    return 0;
+  }
+
+  ScoopArray *arr = (ScoopArray *)array_obj;
+  if (index < 0) {
+    return 0;
+  }
+
+  uint64_t idx = (uint64_t)index;
+  if (idx >= arr->len) {
+    return 0;
+  }
+
+  return (void *)arr->data[idx];
 }
 
 void scoop_array_set_u64(void *array_obj, int64_t index, uint64_t value) {
@@ -209,5 +244,23 @@ void scoop_array_set_u64(void *array_obj, int64_t index, uint64_t value) {
     return;
   }
 
-  arr->data[idx] = value;
+  arr->data[idx] = (uintptr_t)value;
+}
+
+void scoop_array_set_ref(void *array_obj, int64_t index, void *value) {
+  if (array_obj == 0) {
+    return;
+  }
+
+  ScoopArray *arr = (ScoopArray *)array_obj;
+  if (index < 0) {
+    return;
+  }
+
+  uint64_t idx = (uint64_t)index;
+  if (idx >= arr->len) {
+    return;
+  }
+
+  arr->data[idx] = (uintptr_t)value;
 }
