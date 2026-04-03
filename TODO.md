@@ -5771,7 +5771,7 @@
 - 目标：以“可开关的实验性实现”落地（默认关闭），先建立正确性回归与诊断，再逐步优化性能。
 - 备注：该任务包含多个相对独立的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
 
-### T1409c1 [TODO] Immix：并行标记 v0（可开关）
+### T1409c1 [DONE] Immix：并行标记 v0（可开关）
 - 描述：在 stop-the-world 阶段引入 marker workers 分担 transitive closure tracing，并把 `obj->mark`/line mark bits 的写入改为线程安全的原子操作。
 - 目标：
   - 默认关闭；通过 env 开关启用（用于实验与对比）；
@@ -5781,6 +5781,11 @@
   - 新增 `scoop_runtime` 集成测试：构造含引用字段的对象图，在并行标记开关关闭/开启两种模式下都能稳定通过（含多轮 collect）。
   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 - 依赖：T1409a
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：在 STW 达成后引入可开关的并行 mark transitive closure（全局 work stack + marker workers）；并将 `obj->mark` 与 Immix line mark bitmap 的写入升级为原子操作以避免并行数据竞争（env：`SCOOP_GC_IMMIX_PARALLEL_MARK`，`1`=默认 4 workers，`N>=2`=指定 workers，上限 32）。
+   - `crates/scoop_runtime/tests/gc_immix_parallel_mark.rs`：新增多线程对象图回归测试，覆盖并行标记开关关闭/开启两种模式（含多轮 collect 与跨线程引用）。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 
 ### T1409c2 [TODO] Immix：并行 region sweep v0（可开关）
 - 描述：把 region sweep（per-block：mark bitmap → alloc bitmap + hole setup + reusable/free 分类）按 blocks 分片并行执行，最后合并 lists。

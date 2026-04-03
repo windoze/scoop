@@ -18,6 +18,8 @@
 #include "scoop_gc_immix_internal.h"
 #include "scoop_tls_internal.h"
 
+#include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -575,6 +577,292 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   scoop_gc_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
 }
 
+// --- 并行标记（TODO T1409c1；实验性，可开关） ---
+//
+// 说明：
+// - 并行标记只在 stop-the-world 达成后运行：mutator 已暂停，因此无需写屏障；
+// - marker workers 之间需要保证 `obj->mark` 与 line mark bits 的写入是线程安全的；
+// - v0 采用全局 work stack（mutex/cond），以 correctness 为先；性能优化留给后续任务。
+
+typedef struct ScoopGcParallelMarkWork {
+  pthread_mutex_t lock;
+  pthread_cond_t cond;
+
+  ScoopGcObjectHeader **items;
+  size_t len;
+  size_t cap;
+
+  uint32_t inited;
+  uint32_t done;
+  uint64_t in_flight;
+} ScoopGcParallelMarkWork;
+
+static uint32_t scoop_gc_parallel_mark_work_init(ScoopGcParallelMarkWork *work) {
+  if (work == 0) {
+    return 0;
+  }
+  (void)memset(work, 0, sizeof(*work));
+
+  if (pthread_mutex_init(&work->lock, 0) != 0) {
+    return 0;
+  }
+  if (pthread_cond_init(&work->cond, 0) != 0) {
+    (void)pthread_mutex_destroy(&work->lock);
+    return 0;
+  }
+
+  work->inited = 1;
+  work->done = 0;
+  __atomic_store_n(&work->in_flight, 0, __ATOMIC_RELAXED);
+  return 1;
+}
+
+static void scoop_gc_parallel_mark_work_destroy(ScoopGcParallelMarkWork *work) {
+  if (work == 0) {
+    return;
+  }
+
+  if (work->items != 0) {
+    free(work->items);
+  }
+  work->items = 0;
+  work->len = 0;
+  work->cap = 0;
+
+  if (work->inited) {
+    (void)pthread_cond_destroy(&work->cond);
+    (void)pthread_mutex_destroy(&work->lock);
+  }
+
+  (void)memset(work, 0, sizeof(*work));
+}
+
+static uint32_t scoop_gc_parallel_mark_work_push(ScoopGcParallelMarkWork *work,
+                                                 ScoopGcObjectHeader *obj) {
+  if (work == 0 || obj == 0 || !work->inited) {
+    return 0;
+  }
+
+  // 先增计数：避免在 push 过程中被误判为 “in_flight==0 => done”。
+  (void)__atomic_fetch_add(&work->in_flight, 1, __ATOMIC_RELAXED);
+
+  (void)pthread_mutex_lock(&work->lock);
+
+  if (work->done) {
+    (void)pthread_mutex_unlock(&work->lock);
+    (void)__atomic_fetch_sub(&work->in_flight, 1, __ATOMIC_RELAXED);
+    return 0;
+  }
+
+  if (work->len == work->cap) {
+    size_t new_cap = (work->cap == 0) ? 1024u : work->cap * 2u;
+    if (new_cap < work->cap) {
+      (void)pthread_mutex_unlock(&work->lock);
+      (void)__atomic_fetch_sub(&work->in_flight, 1, __ATOMIC_RELAXED);
+      return 0;
+    }
+    if (new_cap > (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+      (void)pthread_mutex_unlock(&work->lock);
+      (void)__atomic_fetch_sub(&work->in_flight, 1, __ATOMIC_RELAXED);
+      return 0;
+    }
+
+    void *p = realloc(work->items, new_cap * sizeof(ScoopGcObjectHeader *));
+    if (p == 0) {
+      (void)pthread_mutex_unlock(&work->lock);
+      (void)__atomic_fetch_sub(&work->in_flight, 1, __ATOMIC_RELAXED);
+      return 0;
+    }
+    work->items = (ScoopGcObjectHeader **)p;
+    work->cap = new_cap;
+  }
+
+  work->items[work->len++] = obj;
+  (void)pthread_cond_signal(&work->cond);
+  (void)pthread_mutex_unlock(&work->lock);
+  return 1;
+}
+
+static ScoopGcObjectHeader *scoop_gc_parallel_mark_work_pop(ScoopGcParallelMarkWork *work) {
+  if (work == 0 || !work->inited) {
+    return 0;
+  }
+
+  (void)pthread_mutex_lock(&work->lock);
+  while (work->len == 0 && !work->done) {
+    (void)pthread_cond_wait(&work->cond, &work->lock);
+  }
+
+  if (work->len == 0) {
+    (void)pthread_mutex_unlock(&work->lock);
+    return 0;
+  }
+
+  work->len -= 1;
+  ScoopGcObjectHeader *obj = work->items[work->len];
+  (void)pthread_mutex_unlock(&work->lock);
+  return obj;
+}
+
+static void scoop_gc_parallel_mark_work_finish_one(ScoopGcParallelMarkWork *work) {
+  if (work == 0 || !work->inited) {
+    return;
+  }
+
+  uint64_t prev = __atomic_fetch_sub(&work->in_flight, 1, __ATOMIC_ACQ_REL);
+  if (prev != 1) {
+    return;
+  }
+
+  // in_flight -> 0：通知所有等待 worker 退出。
+  (void)pthread_mutex_lock(&work->lock);
+  work->done = 1;
+  (void)pthread_cond_broadcast(&work->cond);
+  (void)pthread_mutex_unlock(&work->lock);
+}
+
+static inline void scoop_gc_immix_block_mark_marked_range_atomic(ScoopGcImmixBlock *block,
+                                                                 const uint8_t *start,
+                                                                 size_t size) {
+  if (block == 0 || start == 0 || size == 0) {
+    return;
+  }
+
+  uintptr_t base = (uintptr_t)block;
+  uintptr_t p0 = (uintptr_t)start;
+  uintptr_t p1 = p0 + (uintptr_t)size - 1u;
+
+  if (p0 < base) {
+    return;
+  }
+  if (p1 < p0) {
+    return;
+  }
+
+  size_t start_line = (size_t)((p0 - base) / (uintptr_t)SCOOP_GC_IMMIX_LINE_SIZE);
+  size_t end_line = (size_t)((p1 - base) / (uintptr_t)SCOOP_GC_IMMIX_LINE_SIZE);
+  if (start_line >= (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK) {
+    return;
+  }
+  if (end_line >= (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK) {
+    end_line = (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK - 1u;
+  }
+
+  for (size_t line = start_line; line <= end_line; line++) {
+    size_t idx = line / 64u;
+    if (idx >= (size_t)SCOOP_GC_IMMIX_BITMAP_WORDS) {
+      break;
+    }
+    uint64_t mask = (uint64_t)1u << (uint64_t)(line % 64u);
+    (void)__atomic_fetch_or(&block->line_mark_bits[idx], mask, __ATOMIC_RELAXED);
+  }
+}
+
+typedef struct ScoopGcParallelMarkCtx {
+  ScoopGcHeap *heap;
+  uint32_t mark_value;
+  ScoopGcParallelMarkWork *work;
+} ScoopGcParallelMarkCtx;
+
+static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
+                                                    ScoopGcObjectHeader *obj) {
+  if (ctx == 0 || obj == 0) {
+    return;
+  }
+
+  uint32_t expected = __atomic_load_n(&obj->mark, __ATOMIC_RELAXED);
+  while (expected != ctx->mark_value) {
+    if (__atomic_compare_exchange_n(&obj->mark,
+                                    &expected,
+                                    ctx->mark_value,
+                                    0,
+                                    __ATOMIC_RELAXED,
+                                    __ATOMIC_RELAXED)) {
+      ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+      if (block != 0) {
+        uint64_t raw_size = obj->size;
+        size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
+        scoop_gc_immix_block_mark_marked_range_atomic(block, (const uint8_t *)obj, size);
+      }
+      (void)scoop_gc_parallel_mark_work_push(ctx->work, obj);
+      return;
+    }
+    // CAS 失败：expected 已被更新为当前值；继续循环。
+  }
+}
+
+static void scoop_gc_parallel_mark_visitor(void **slot, void *raw_ctx) {
+  if (slot == 0 || raw_ctx == 0) {
+    return;
+  }
+
+  ScoopGcParallelMarkCtx *ctx = (ScoopGcParallelMarkCtx *)raw_ctx;
+  void *raw = *slot;
+  if (raw == 0) {
+    return;
+  }
+
+  scoop_gc_parallel_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
+}
+
+static void *scoop_gc_parallel_mark_worker(void *raw_ctx) {
+  if (raw_ctx == 0) {
+    return 0;
+  }
+
+  ScoopGcParallelMarkCtx *ctx = (ScoopGcParallelMarkCtx *)raw_ctx;
+  ScoopGcParallelMarkWork *work = ctx->work;
+
+  while (1) {
+    ScoopGcObjectHeader *obj = scoop_gc_parallel_mark_work_pop(work);
+    if (obj == 0) {
+      break;
+    }
+
+    if (obj->type_desc != 0) {
+      (void)scoop_gc_type_descriptor_trace(obj->type_desc,
+                                           (void *)obj,
+                                           scoop_gc_parallel_mark_visitor,
+                                           (void *)ctx);
+    }
+
+    scoop_gc_parallel_mark_work_finish_one(work);
+  }
+
+  return 0;
+}
+
+static uint32_t scoop_gc_immix_parallel_mark_worker_count(void) {
+  const char *raw = getenv("SCOOP_GC_IMMIX_PARALLEL_MARK");
+  if (raw == 0 || raw[0] == 0) {
+    return 0;
+  }
+
+  errno = 0;
+  char *end = 0;
+  unsigned long v = strtoul(raw, &end, 10);
+  if (end == raw || errno != 0) {
+    return 0;
+  }
+  if (v == 0) {
+    return 0;
+  }
+  if (v == 1) {
+    v = 4;
+  }
+  if (v > 32) {
+    v = 32;
+  }
+  if (v > (unsigned long)UINT32_MAX) {
+    v = (unsigned long)UINT32_MAX;
+  }
+  if (v < 2) {
+    v = 2;
+  }
+
+  return (uint32_t)v;
+}
+
 // --- Moving / compaction（TODO T1407） ---
 //
 // 设计要点：
@@ -1077,56 +1365,125 @@ void scoop_gc_collect(void) {
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
 
-  ScoopGcMarkStack stack = {0};
-  ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
-
   // 0) clear per-block mark bitmap（避免上一轮残留影响 region sweep）
   for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
     scoop_gc_immix_block_clear_mark_bits(it);
   }
 
+  uint32_t did_parallel_mark = 0;
+  uint32_t parallel_mark_workers = scoop_gc_immix_parallel_mark_worker_count();
+
   // 1) mark roots（扫描所有已注册线程的 shadow stack）
   uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
                                                         ScoopGcTraceVisitor visitor,
                                                         void *ctx);
-  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    if (it->current_frame_slot == 0) {
-      continue;
-    }
 
-    ScoopGcFrame *frame = *(it->current_frame_slot);
-    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
+  if (parallel_mark_workers > 1) {
+    ScoopGcParallelMarkWork work = {0};
+    if (scoop_gc_parallel_mark_work_init(&work)) {
+      ScoopGcParallelMarkCtx ctx = {heap, mark_value, &work};
+
+      for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+        if (it->current_frame_slot == 0) {
+          continue;
+        }
+
+        ScoopGcFrame *frame = *(it->current_frame_slot);
+        (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
+                                                           scoop_gc_parallel_mark_visitor,
+                                                           (void *)&ctx);
+      }
+
+      // 1b) mark pinned roots（spec §15.10）
+      for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+        if (it->object == 0) {
+          continue;
+        }
+        if (it->pin_count == 0) {
+          continue;
+        }
+        scoop_gc_parallel_mark_object_if_needed(&ctx, it->object);
+      }
+
+      uint64_t in_flight = __atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE);
+      if (in_flight > 0) {
+        size_t helper_count = (size_t)parallel_mark_workers - 1u;
+        pthread_t *threads = 0;
+        if (helper_count > 0) {
+          if (helper_count <= (SIZE_MAX / sizeof(pthread_t))) {
+            threads = (pthread_t *)malloc(helper_count * sizeof(pthread_t));
+          }
+        }
+
+        size_t started = 0;
+        if (threads != 0) {
+          for (size_t i = 0; i < helper_count; i++) {
+            if (pthread_create(&threads[i], 0, scoop_gc_parallel_mark_worker, (void *)&ctx) != 0) {
+              break;
+            }
+            started += 1;
+          }
+        }
+
+        // 作为 worker0 在当前线程参与标记。
+        (void)scoop_gc_parallel_mark_worker((void *)&ctx);
+
+        for (size_t i = 0; i < started; i++) {
+          (void)pthread_join(threads[i], 0);
+        }
+        if (threads != 0) {
+          free(threads);
+        }
+      }
+
+      scoop_gc_parallel_mark_work_destroy(&work);
+      did_parallel_mark = 1;
+    }
   }
 
-  // 1b) mark pinned roots（spec §15.10）
-  for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
-    if (it->object == 0) {
-      continue;
-    }
-    if (it->pin_count == 0) {
-      continue;
-    }
-    scoop_gc_mark_object_if_needed(&ctx, it->object);
-  }
+  if (!did_parallel_mark) {
+    ScoopGcMarkStack stack = {0};
+    ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
-  // 2) mark transitive closure
-  while (stack.len > 0) {
-    ScoopGcObjectHeader *obj = scoop_gc_mark_stack_pop(&stack);
-    if (obj == 0) {
-      continue;
-    }
-    if (obj->type_desc == 0) {
-      continue;
+    for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+      if (it->current_frame_slot == 0) {
+        continue;
+      }
+
+      ScoopGcFrame *frame = *(it->current_frame_slot);
+      (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
     }
 
-    (void)scoop_gc_type_descriptor_trace(obj->type_desc,
-                                         (void *)obj,
-                                         scoop_gc_mark_visitor,
-                                         (void *)&ctx);
-  }
+    // 1b) mark pinned roots（spec §15.10）
+    for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+      if (it->object == 0) {
+        continue;
+      }
+      if (it->pin_count == 0) {
+        continue;
+      }
+      scoop_gc_mark_object_if_needed(&ctx, it->object);
+    }
 
-  if (stack.items != 0) {
-    free(stack.items);
+    // 2) mark transitive closure
+    while (stack.len > 0) {
+      ScoopGcObjectHeader *obj = scoop_gc_mark_stack_pop(&stack);
+      if (obj == 0) {
+        continue;
+      }
+      if (obj->type_desc == 0) {
+        continue;
+      }
+
+      (void)scoop_gc_type_descriptor_trace(obj->type_desc,
+                                           (void *)obj,
+                                           scoop_gc_mark_visitor,
+                                           (void *)&ctx);
+    }
+
+    if (stack.items != 0) {
+      free(stack.items);
+    }
   }
 
   // 3) sweep：释放 unreachable 对象；Immix block 内对象不逐个 free，而是留给 region sweep 复用 holes。
