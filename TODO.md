@@ -6188,3 +6188,56 @@
   - 新增 runtime_gc fixtures：在 `--gc-stress` 与 `--gc-move` 下大量 substring/trim 不产生悬挂指针；
   - `cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1513、T1512
+
+### T1515 [TODO] rich enum 的 GC 可扫描布局契约：固定 ref slots、禁止 tag-dependent tracing
+- 描述：rich enum 是值类型（copy 语义、不可变），但其 variant 可能携带 GC-managed ref 字段。enum 值既可能出现在栈上（roots 来自 stackmap），也可能被嵌入 heap 对象 payload（roots 来自 type descriptor bitmap/trace_fn）。当前 GC roots/heap trace 的核心前提是：**可扫描的 GC pointer slots 是静态可枚举的**（stackmap / bitmap），且这些 slots 中永远只会出现 `NULL` 或有效的 GC object 指针。
+  - 如果 enum 的 union 复用导致某个 word 在不同 variant 中“有时是 ref、有时是非指针/未初始化数据”，那么 GC 必须在扫描时读 tag 才能决定是否 visit，这会直接破坏：
+    - stackmap（无法表达“按 tag 分支”的 roots）；
+    - heap bitmap（无法表达“按 tag 分支”的字段位图）；
+    - moving GC（无法安全地对 slot 做原地更新）。
+  - 另外，niche optimization 若使用 `0x1` 等非法地址值来编码 `None`，一旦该 word 被当作 GC pointer slot 扫描，会导致 runtime 把非法值当对象指针处理并崩溃。
+- 目标：
+  - 规范层（必须写进 spec）：
+    - 在 `SCOOP_FULL_SPEC.md` §2.3.2（Enum）补充 “GC trace safety” 规则：对任何可能包含 GC-managed ref 的 enum，其内存布局必须保证 **GC pointer slots 静态可枚举**，并且这些 slots 在任意时刻只允许 `NULL`/有效 GC 指针；不得把整数/非法地址写入 GC pointer slots（包括 niche 编码）。
+    - 明确 `Option<Ref>` 的 niche：只允许 `NULL`（与 T1502 的 `addrspace(1) null` 规则一致），并对 “nested niche（如 `Option<Option<Ref>>`）” 给出明确策略：要么禁止对 GC-managed ref 域使用非 NULL niche，要么引入被 GC 识别的 tagged-pointer 方案（两者择一，不能留给实现自选）。
+  - 布局层（必须写进计划/验收）：
+    - 为 rich enum 固化一条“无需读 tag 也可安全扫描”的布局策略：例如将 payload 拆分为 `ref_payload` 与 `nonref_payload` 两段（ref 段只存 GC pointer words；非 ref 段存标量/字节），并要求构造时把未使用的 ref slots 置零；
+    - 对无法满足该约束的 variant（例如 payload 需要与 ref slot 发生 word 级别 overlay）必须走显式策略（例如对该 variant/整 enum boxing），并以 lint/诊断显式暴露（避免 silent UB）。
+- 验收：
+  - `SCOOP_FULL_SPEC.md`：rich enum 的布局章节新增上述契约 + 至少 1 个反例（说明为何 “按 tag 扫描” 不可作为 GC 前提）+ 对 nested niche 的最终选择。
+  - `PLAN.md`：在 enum 布局与 GC/stackmap 章节显式引用该契约（见 TODO T1516/T1517 的实现与 fixtures）。
+- 依赖：T0449、T1502
+
+### T1516 [TODO] 编译器：rich enum 生成 GC ref mask，并确保构造/赋值不会污染 ref slots
+- 描述：落实 T1515 的契约：把 “rich enum 的 GC pointer slots” 变成编译器可计算、可回归的元数据，并让 codegen 在所有写入路径上都维持“不写入非法值”的不变量。
+- 目标：
+  - type/layout：
+    - `crates/scoopc/src/ty/layout.rs`：为 `EnumLayout` 增加 `gc_ref_word_mask`（或等价结构，如 `ref_words: Vec<usize>`），并记录 `ref_payload` 的 size/align（或 ref slots 对应的偏移集合）；
+    - niche 策略必须与 GC 安全一致：对包含 GC ref 的域，禁止产生非 NULL 的 “pointer-shaped but not a GC pointer” 编码（如 `0x1`）。
+  - codegen：
+    - `crates/scoopc/src/llvm/codegen.rs`：enum 构造/拷贝/赋值必须保证：
+      - 未使用的 ref slots 被写为 `NULL`；
+      - non-ref 数据不得覆盖 ref slots；
+      - moving GC 更新 slot 时能把这些 slots 当作 `void**` 更新点（与 stackmap/bitmap 约束一致）。
+  - boxing / heap trace：
+    - 当 enum 被装箱为 `Any`/interface（box payload）或被嵌入 ref 对象字段时，type descriptor 的 bitmap/trace_fn 必须基于 `gc_ref_word_mask` 扫描到 enum 内部的 ref slots（无需按 tag 分支）。
+- 验收：
+  - 新增 `--emit-llvm` 断言用例（或 runtime_gc fixture）：构造一个含 ref variant 的 enum，把值存放到：
+    - 栈 spill（跨函数/跨帧保持活跃）；
+    - heap 对象字段（class/closure env/box payload 任一）。
+    在触发 GC（含 moving/compaction 模式）后仍可正确读取并输出。
+  - `cargo test --all`、`cargo run -p scoop -- test` 通过。
+- 依赖：T1515、T1507、T1509、T1506
+
+### T1517 [TODO] 回归矩阵：enum “maybe ref variant” 在栈/堆/装箱/移动 GC 下的端到端覆盖
+- 描述：为 “enum 变体含 ref” 建立持续回归：不仅验证语义正确，还要验证 GC 不崩溃、roots 枚举完整、moving/compaction 后 slot 修复正确。
+- 目标：
+  - `tests/fixtures/runtime_gc/`：
+    - 新增用例：enum 的某个 variant 携带 `String`（或任一 ref），另一个 variant 为纯标量；在高频切换 variant/赋值/复制后触发 GC；
+    - 覆盖位置：局部变量、struct 字段、array 元素、box payload、closure capture（至少 3 类）。
+  - 每类至少 1 个 run-pass + 1 个 compile-fail（例如：尝试把“包含 GC ref 的 enum”作为 `Ptr<T>` pointee / `@CLayout` struct 字段等应被 GC-free 门禁拒绝）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test`
+- 依赖：T1516、T1512

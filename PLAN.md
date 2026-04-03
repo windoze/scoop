@@ -694,6 +694,7 @@
   - [x] tuple：布局 + `._0` / `._1` 元素访问（T0812）
   - [x] enum：tagged union 布局（T0813）
   - [x] value-only enum（`enum E: Int { ... }`）：底层整型同布局（无 tag/union），用于 C interop
+  - [ ] rich enum（含 GC ref 字段）的 **GC 可扫描布局契约**：GC pointer slots 必须静态可枚举且永远只包含 NULL/有效 GC 指针；不得依赖“扫描时读 tag 才知道哪些 word 是 ref”（见 TODO T1515/T1516）
 - [ ] 引用类型统一表示（GC pointer）：
   - 在 LLVM IR 中统一使用 `addrspace(1)` 指针表示 GC-managed object（例如 `i8 addrspace(1)*`），避免与原生/FFI 指针混淆
   - `Option<Ref>` 采用 pointer-niche（NULL → None），并在类型系统与 codegen 中统一规则（含 `T?` desugar）
@@ -717,6 +718,7 @@
 - [ ] GC roots 枚举（精确）：
   - 运行时以 stackmap 为唯一“栈根集来源”，不依赖 shadow stack
   - **需要扫描整个调用栈（多帧）**：GC 不能只扫描“当前 safepoint 的一帧”，必须对每个 Parked 线程做 stack walking，逐帧读取 `(sp, return_address[, regs])` 并查 stackmap record，累积得到该线程的完整 roots 集合
+  - stackmap roots 必须覆盖“spill 的值类型 aggregate”内部的 GC 指针（struct/tuple/enum，含 rich enum 变体字段）；因此这些 aggregate 的 GC pointer slots 必须在布局层做到静态可枚举（见 TODO T1515/T1516）
   - Parked 线程在进入 safepoint runtime helper 时把“可用于 stack walking 的线程上下文”写入 TLS（至少包含：return address、stack pointer、frame pointer、callee-saved regs 的可更新 spill slots）；GC 从该 TLS 上下文出发做 stack walking
   - stack walking 后端以 **runtime/c 的平台层** 实现（优先 `libunwind` 或等价 unwind API）；不得把 unwind/寄存器/ABI 细节泄漏到 Scoop 侧
   - 对于进入 native/extern（可能阻塞）的线程：在 `enter_native` 时把 callsite 对应的 roots 拷贝到 TLS `native_roots` buffer，GC 扫描该 buffer；`leave_native` 清理并恢复线程状态
@@ -753,7 +755,7 @@
 - [ ] GC（StackMap roots + 可移动）：
   - stop-the-world：统一线程状态（Running/Parked/InNative），确保所有线程要么进入 safepoint park，要么进入 native 保护态
   - roots 枚举（完整栈）：Parked 线程对“整个调用栈（多帧）”做 stack walking：逐帧用 `(sp, return_address[, regs]) + stackmap` 枚举 roots；InNative 线程扫描 TLS `native_roots`（由 `enter_native` 预先捕获）
-  - heap 扫描：用 `ScoopTypeDescriptor` 的 trace bitmap/trace_fn 扫描对象内引用字段；支持 closure env、box、class fields、array elements
+  - heap 扫描：用 `ScoopTypeDescriptor` 的 trace bitmap/trace_fn 扫描对象内引用字段；支持 closure env、box、class fields、array elements，以及嵌套在这些 payload 内的值类型 aggregate（struct/tuple/enum，含 rich enum）
   - relocation：移动/压缩时必须更新 stackmap spill slots、native_roots buffer，以及 heap 内所有引用字段
   - sweep/回收：调用 `release_fn`（若存在）后释放对象；并维护 free list/统计以支持回归与基准
 - [ ] 线程注册与 native 过渡：
