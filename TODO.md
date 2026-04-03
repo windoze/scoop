@@ -5903,7 +5903,7 @@
 
 > 背景：当前仓库存在 shadow stack 相关实现（T0905/T0816/T0909/T0911），但目标运行时需要以 LLVM StackMap/statepoint 为根集来源，打通引用类型（class/interface/closure/array/string/box）的对象模型、动态分发、typed alloc、精确 GC roots、以及移动 GC 的 roots 更新链路。本组任务以“完整链路”为验收标准，不依赖任何占位/手工 roots 方案。
 
-### T1501 [TODO] 固化 ref 对象模型与 runtime ABI（Object Header + TypeDescriptor + Dispatch）
+### T1501 [DONE] 固化 ref 对象模型与 runtime ABI（Object Header + TypeDescriptor + Dispatch）
 - 描述：输出一份可直接实现的 runtime ABI 规范：ref 指针表示、对象头字段与偏移、type descriptor 字段、vtable/itable 表示、RTTI（type id/parent/interface ids）与 `is/as/as?` 的运行期判定规则。
 - 目标：
   - ref 指针在 LLVM IR 中统一为 `addrspace(1)`（GC-managed），与 `scoop.unsafe.Ptr<T>`（addrspace(0)）严格区分；
@@ -5913,6 +5913,17 @@
   - `SCOOP_RUNTIME.md` 写出完整字段表、偏移与调用约定；
   - 新增 `crates/scoop_runtime` 集成测试：对对象头与 type descriptor 的关键偏移做断言（与 codegen 侧一致）。
 - 依赖：T0908、T0907
+ - 完成：
+   - `runtime/c/scoop_gc.h`：
+     - 对象头字段 `size` 更名为 `size_bytes`，并保持字段偏移用 `_Static_assert` 固化；
+     - `ScoopTypeDescriptor` 扩展为对象模型 ABI：补齐 `align_bytes/type_id/parent_type_desc/itable/vtable`，并新增关键字段偏移断言。
+   - `runtime/c/scoop_runtime.c`/`runtime/c/scoop_gc_backend_*`：统一使用 `hdr->size_bytes`（避免旧字段名残留）。
+   - `crates/scoop_runtime/tests/object_model_abi.rs`：新增对象模型 ABI 回归（object header + type descriptor offsets）。
+   - `crates/scoop_runtime/tests/*`：同步更新测试侧的 `ScoopGcObjectHeader`/`ScoopTypeDescriptor` 对齐定义。
+   - `SCOOP_RUNTIME.md`：新增 §9（Heap Object Model + TypeDescriptor ABI）记录字段表、偏移与回调约定。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1502 [TODO] 编译器：GC 指针类型统一为 `addrspace(1)` 并贯穿 Type→MIR→LLVM
 - 描述：把所有 GC-managed ref（Any/class/interface/function/closure env/array/string/box）统一建模为 `addrspace(1)` 指针，并确保 lowering/codegen 不再把 ref 混用为 `i8*`（addrspace(0)）。

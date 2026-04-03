@@ -15477,7 +15477,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 当前阶段由 runtime 的 `scoop_alloc` 初始化对象头字段：
         //   - `next = NULL`
         //   - `type_desc = NULL`（后续由 typed alloc 或 codegen 写入；TODO T0907+）
-        //   - `size = alloc_size`
+        //   - `size_bytes = alloc_size`
         //   - `flags/mark = 0`
         //
         // 注意：这里不尝试做“复用 box 类型”或 cache；LLVM named struct 会在 module 内复用。
@@ -15490,7 +15490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // `ScoopGcObjectHeader` 字段：
         // - next: void*
         // - type_desc: void*
-        // - size: u64
+        // - size_bytes: u64
         // - flags: u32
         // - mark: u32
         let header_size = 2 * target.pointer_size + 16;
@@ -15810,7 +15810,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `typedef struct { void* next; void* type_desc; uint64_t size; uint32_t flags; uint32_t mark; } ScoopGcObjectHeader;`
+        // `typedef struct { void* next; void* type_desc; uint64_t size_bytes; uint32_t flags; uint32_t mark; } ScoopGcObjectHeader;`
         let ty = self.context.opaque_struct_type(TY_NAME);
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let i64_ty = self.context.i64_type();

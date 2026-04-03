@@ -17,19 +17,24 @@ struct ScoopTypeDescriptor {
     abi_version: u32,
     flags: u32,
     size_bytes: u64,
+    align_bytes: u64,
     trace_start_offset_bytes: u64,
     trace_bitmap_u64_len: u32,
     _reserved_u32: u32,
     trace_bitmap: *const u64,
     trace_fn: ScoopTypeTraceFn,
     release_fn: ScoopTypeReleaseFn,
+    type_id: u64,
+    parent_type_desc: *const ScoopTypeDescriptor,
+    itable: *const c_void,
+    vtable: *const c_void,
 }
 
 #[repr(C)]
 struct ScoopGcObjectHeader {
     next: *mut ScoopGcObjectHeader,
     type_desc: *const ScoopTypeDescriptor,
-    size: u64,
+    size_bytes: u64,
     flags: u32,
     mark: u32,
 }
@@ -85,12 +90,17 @@ fn type_descriptor_release_callback_runs_once_on_sweep() {
             abi_version: 0,
             flags: 0,
             size_bytes: obj_size,
+            align_bytes: mem::align_of::<usize>() as u64,
             trace_start_offset_bytes: 0,
             trace_bitmap_u64_len: 0,
             _reserved_u32: 0,
             trace_bitmap: ptr::null(),
             trace_fn: None,
             release_fn: Some(test_release),
+            type_id: 0,
+            parent_type_desc: ptr::null(),
+            itable: ptr::null(),
+            vtable: ptr::null(),
         };
 
         // 2) 分配 1 个对象，并把 type_desc 指向上述 descriptor。

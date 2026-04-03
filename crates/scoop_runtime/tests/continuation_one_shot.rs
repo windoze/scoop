@@ -17,7 +17,7 @@ struct ScoopEffectHandlerFrame {
 struct ScoopGcObjectHeader {
     next: *mut ScoopGcObjectHeader,
     type_desc: *const c_void,
-    size: u64,
+    size_bytes: u64,
     flags: u32,
     mark: u32,
 }
@@ -88,4 +88,3 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
         scoop_thread_unregister();
     }
 }
-

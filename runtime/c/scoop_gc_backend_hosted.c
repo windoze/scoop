@@ -197,7 +197,7 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
 
   obj->next = scoop_gc_heap.objects;
   scoop_gc_heap.objects = obj;
-  scoop_gc_heap.bytes_allocated += obj->size;
+  scoop_gc_heap.bytes_allocated += obj->size_bytes;
 
   scoop_gc_lock_release();
 }
@@ -380,7 +380,7 @@ void scoop_gc_collect(void) {
       obj->type_desc->release_fn((void *)obj);
     }
 
-    heap->bytes_freed += obj->size;
+    heap->bytes_freed += obj->size_bytes;
     free(obj);
   }
 
@@ -415,7 +415,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
   scoop_gc_lock_acquire();
   uint64_t total = 0;
   for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
-    uint64_t size = it->size;
+    uint64_t size = it->size_bytes;
     if (UINT64_MAX - total < size) {
       total = UINT64_MAX;
       break;
@@ -443,4 +443,3 @@ void scoop_gc_debug_alloc_garbage(int64_t count) {
 }
 
 #endif // SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_HOSTED
-

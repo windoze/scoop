@@ -21,19 +21,24 @@ mod immix {
         abi_version: u32,
         flags: u32,
         size_bytes: u64,
+        align_bytes: u64,
         trace_start_offset_bytes: u64,
         trace_bitmap_u64_len: u32,
         _reserved_u32: u32,
         trace_bitmap: *const u64,
         trace_fn: ScoopTypeTraceFn,
         release_fn: ScoopTypeReleaseFn,
+        type_id: u64,
+        parent_type_desc: *const ScoopTypeDescriptor,
+        itable: *const c_void,
+        vtable: *const c_void,
     }
 
     #[repr(C)]
     struct ScoopGcObjectHeader {
         next: *mut ScoopGcObjectHeader,
         type_desc: *const c_void,
-        size: u64,
+        size_bytes: u64,
         flags: u32,
         mark: u32,
     }
@@ -124,12 +129,17 @@ mod immix {
             abi_version: 0,
             flags: 0,
             size_bytes: node_size,
+            align_bytes: core::mem::align_of::<usize>() as u64,
             trace_start_offset_bytes: header_size,
             trace_bitmap_u64_len: 1,
             _reserved_u32: 0,
             trace_bitmap: bitmap.as_ptr(),
             trace_fn: None,
             release_fn: None,
+            type_id: 0,
+            parent_type_desc: ptr::null(),
+            itable: ptr::null(),
+            vtable: ptr::null(),
         }));
         let desc_addr: usize = desc as *const ScoopTypeDescriptor as usize;
 

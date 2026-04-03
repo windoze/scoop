@@ -7,7 +7,7 @@ use core::ffi::c_void;
 struct ScoopGcObjectHeader {
     next: *mut ScoopGcObjectHeader,
     type_desc: *const c_void,
-    size: u64,
+    size_bytes: u64,
     flags: u32,
     mark: u32,
 }
@@ -42,7 +42,11 @@ fn scoop_alloc_initializes_object_header_and_alignment_is_sane() {
         // T0908：runtime 应初始化对象头字段，确保它们可被稳定观测/调试。
         assert!(hdr.next.is_null(), "header.next should be NULL");
         assert!(hdr.type_desc.is_null(), "header.type_desc should be NULL (v0)");
-        assert_eq!(hdr.size, total_size, "header.size should equal alloc size");
+        assert_eq!(
+            hdr.size_bytes,
+            total_size,
+            "header.size_bytes should equal alloc size"
+        );
         assert_eq!(hdr.flags, 0, "header.flags should default to 0");
         assert_eq!(hdr.mark, 0, "header.mark should default to 0");
 

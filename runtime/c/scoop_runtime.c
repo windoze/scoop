@@ -660,6 +660,7 @@ static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
     .abi_version = 0,
     .flags = 0,
     .size_bytes = sizeof(ScoopContinuation),
+    .align_bytes = (uint64_t)_Alignof(ScoopContinuation),
     .trace_start_offset_bytes = 0,
     .trace_bitmap_u64_len = 0,
     ._reserved_u32 = 0,
@@ -1270,7 +1271,7 @@ void *scoop_alloc(uint64_t size) {
     ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
     hdr->next = 0;
     hdr->type_desc = 0;
-    hdr->size = object_size;
+    hdr->size_bytes = object_size;
     hdr->flags = 0;
     hdr->mark = 0;
 
@@ -1330,7 +1331,7 @@ void *scoop_alloc(uint64_t size) {
   ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
   hdr->next = 0;
   hdr->type_desc = 0;
-  hdr->size = object_size;
+  hdr->size_bytes = object_size;
   hdr->flags = 0;
   hdr->mark = 0;
 
@@ -1349,7 +1350,7 @@ void *scoop_alloc(uint64_t size) {
   ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
   hdr->next = 0; // 先置 0，随后会被登记到 heap 链表。
   hdr->type_desc = 0;
-  hdr->size = object_size;
+  hdr->size_bytes = object_size;
   hdr->flags = 0;
   hdr->mark = 0;
 

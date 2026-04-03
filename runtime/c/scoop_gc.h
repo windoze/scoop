@@ -13,15 +13,17 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// --- Type descriptor（TODO T0907） ---
+// --- Type descriptor / Object Model ABI（T0907/T0920/T1501） ---
 //
 // 说明：
-// - type descriptor 用于描述一个 heap 对象（或 box 的 payload）的布局信息：
-//   - 对象大小（用于边界裁剪/健壮性）
+// - `ScoopTypeDescriptor` 描述一个 heap 对象的布局信息与运行期元数据：
+//   - 对象大小/对齐（分配与健壮性裁剪）
 //   - 引用字段（GC-managed pointers）的扫描规则（trace bitmap 或自定义回调）
-// - 早期阶段只要求“可安全扫描”与“ABI 可被 Rust/C 测试构造并调用”；并不承诺最终 ABI。
-// - TODO T0908 会把该 descriptor 与对象头/heap 布局对齐；届时 `trace_start_offset_bytes`
-//   可用于跳过 header。
+//   - 可选 release 回调（用于 FFI-managed 资源释放）
+//   - RTTI/type id（为 `is/as/as?` 与动态分发做准备）
+//   - vtable/itable 指针（TODO T15：class/interface 动态分发）
+// - 该结构体的字段顺序与关键偏移会被 Rust/LLVM codegen 与集成测试依赖，因此需要在
+//   演进时保持可审计（见 `SCOOP_RUNTIME.md`）。
 
 // 扫描回调：`slot` 指向对象内部某个“指针槽位”（可读写）。
 typedef void (*ScoopGcTraceVisitor)(void **slot, void *ctx);
@@ -51,6 +53,9 @@ typedef struct ScoopTypeDescriptor {
   // 对象在内存中的总大小（字节）。
   uint64_t size_bytes;
 
+  // 对象的对齐（字节；必须为 2 的幂，且 >= sizeof(void*)）。
+  uint64_t align_bytes;
+
   // 从 `object` 起始地址偏移多少字节开始扫描引用字段。
   // 说明：该偏移必须是指针对齐（`sizeof(void*)` 的倍数）；否则 v0 直接跳过扫描。
   uint64_t trace_start_offset_bytes;
@@ -74,7 +79,42 @@ typedef struct ScoopTypeDescriptor {
   // 可选 release 回调：对象被 sweep/free 前调用（用于 FFI-managed 资源释放）。
   // 可为 NULL（表示无需释放）。
   ScoopTypeReleaseFn release_fn;
+
+  // 运行期类型 ID（与编译器 `TypeId` 对齐；通常为稳定 hash64）。
+  // v0：runtime 仅存储该字段，不强制解释其语义；`is/as/as?` 与动态分发留给 TODO T15。
+  uint64_t type_id;
+
+  // 父类型（class 继承链）的 type descriptor；无父类型则为 NULL。
+  const struct ScoopTypeDescriptor *parent_type_desc;
+
+  // interface dispatch table（itable）：布局由后续任务固化；无则为 NULL。
+  const void *itable;
+
+  // class virtual dispatch table（vtable）：布局由后续任务固化；无则为 NULL。
+  const void *vtable;
 } ScoopTypeDescriptor;
+
+// ABI 断言：固化 type descriptor 的关键字段偏移，避免在演进中“悄悄漂移”。
+//
+// 说明：
+// - 这里只断言一组最关键的字段（GC 扫描/分配依赖），其余字段会在 `crates/scoop_runtime`
+//   的集成测试中覆盖。
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(offsetof(ScoopTypeDescriptor, abi_version) == 0,
+               "ScoopTypeDescriptor.abi_version offset must be 0");
+_Static_assert(offsetof(ScoopTypeDescriptor, flags) == 4,
+               "ScoopTypeDescriptor.flags offset must be 4");
+_Static_assert(offsetof(ScoopTypeDescriptor, size_bytes) == 8,
+               "ScoopTypeDescriptor.size_bytes offset must be 8");
+_Static_assert(offsetof(ScoopTypeDescriptor, align_bytes) == 16,
+               "ScoopTypeDescriptor.align_bytes offset must be 16");
+_Static_assert(offsetof(ScoopTypeDescriptor, trace_start_offset_bytes) == 24,
+               "ScoopTypeDescriptor.trace_start_offset_bytes offset must be 24");
+_Static_assert(offsetof(ScoopTypeDescriptor, trace_bitmap_u64_len) == 32,
+               "ScoopTypeDescriptor.trace_bitmap_u64_len offset must be 32");
+_Static_assert(offsetof(ScoopTypeDescriptor, trace_bitmap) == 40,
+               "ScoopTypeDescriptor.trace_bitmap offset must be 40");
+#endif
 
 // Shadow stack（精确根集）帧。
 //
@@ -113,7 +153,7 @@ typedef struct ScoopGcObjectHeader {
   const ScoopTypeDescriptor *type_desc;
 
   // 对象总大小（可包含 header + payload；具体约定由后续任务固定）。
-  uint64_t size;
+  uint64_t size_bytes;
 
   // flags/mark bits（占位；后续可拆分为更紧凑的 bitfield）。
   uint32_t flags;
@@ -130,8 +170,8 @@ _Static_assert(offsetof(ScoopGcObjectHeader, next) == 0,
                "ScoopGcObjectHeader.next offset must be 0");
 _Static_assert(offsetof(ScoopGcObjectHeader, type_desc) == sizeof(void *),
                "ScoopGcObjectHeader.type_desc offset must be sizeof(void*)");
-_Static_assert(offsetof(ScoopGcObjectHeader, size) == (2u * sizeof(void *)),
-               "ScoopGcObjectHeader.size offset must be 2*sizeof(void*)");
+_Static_assert(offsetof(ScoopGcObjectHeader, size_bytes) == (2u * sizeof(void *)),
+               "ScoopGcObjectHeader.size_bytes offset must be 2*sizeof(void*)");
 _Static_assert(
     offsetof(ScoopGcObjectHeader, flags) ==
         (2u * sizeof(void *) + sizeof(uint64_t)),

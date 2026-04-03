@@ -16,7 +16,7 @@ mod hosted {
     struct ScoopGcObjectHeader {
         next: *mut ScoopGcObjectHeader,
         type_desc: *const c_void,
-        size: u64,
+        size_bytes: u64,
         flags: u32,
         mark: u32,
     }
@@ -123,4 +123,3 @@ mod hosted {
         }
     }
 }
-

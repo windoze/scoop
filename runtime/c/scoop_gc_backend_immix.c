@@ -432,7 +432,7 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
 
   // T1409a：并发 push（分配路径不持锁）。
   scoop_gc_heap_push_object_atomic(obj);
-  scoop_gc_heap_bytes_allocated_add(obj->size);
+  scoop_gc_heap_bytes_allocated_add(obj->size_bytes);
 }
 
 void scoop_gc_heap_init(ScoopGcHeap *heap) {
@@ -556,7 +556,7 @@ static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHea
   // mark-region：额外把对象覆盖到的 lines 记录到 block 的 mark bitmap（用于 region sweep 回收 holes）。
   ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
   if (block != 0) {
-    uint64_t raw_size = obj->size;
+    uint64_t raw_size = obj->size_bytes;
     size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
     scoop_gc_immix_block_mark_marked_range(block, (const uint8_t *)obj, size);
   }
@@ -780,7 +780,7 @@ static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
                                     __ATOMIC_RELAXED)) {
       ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
       if (block != 0) {
-        uint64_t raw_size = obj->size;
+        uint64_t raw_size = obj->size_bytes;
         size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
         scoop_gc_immix_block_mark_marked_range_atomic(block, (const uint8_t *)obj, size);
       }
@@ -1218,7 +1218,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
       continue;
     }
 
-    uint64_t raw_size = from->size;
+    uint64_t raw_size = from->size_bytes;
     void *p = scoop_gc_immix_tospace_alloc(&tospace, state, raw_size);
     if (p == 0) {
       scoop_gc_immix_tospace_abort(&tospace, state);
@@ -1632,7 +1632,7 @@ void scoop_gc_collect(void) {
       obj->type_desc->release_fn((void *)obj);
     }
 
-    heap->bytes_freed += obj->size;
+    heap->bytes_freed += obj->size_bytes;
 
     ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
     if (block == 0) {
@@ -1821,7 +1821,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
         continue;
       }
 
-      uint64_t size = obj->size;
+      uint64_t size = obj->size_bytes;
       if (UINT64_MAX - total < size) {
         total = UINT64_MAX;
         break;

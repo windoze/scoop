@@ -7,7 +7,7 @@ use core::ffi::c_void;
 struct ScoopGcObjectHeader {
     next: *mut ScoopGcObjectHeader,
     type_desc: *const c_void,
-    size: u64,
+    size_bytes: u64,
     flags: u32,
     mark: u32,
 }
@@ -77,4 +77,3 @@ fn debug_reserved_bytes_is_consistent_with_live_bytes() {
         scoop_thread_unregister();
     }
 }
-

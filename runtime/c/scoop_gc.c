@@ -332,7 +332,7 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
 
   obj->next = scoop_gc_heap.objects;
   scoop_gc_heap.objects = obj;
-  scoop_gc_heap.bytes_allocated += obj->size;
+  scoop_gc_heap.bytes_allocated += obj->size_bytes;
 
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
@@ -548,7 +548,7 @@ void scoop_gc_collect(void) {
       obj->type_desc->release_fn((void *)obj);
     }
 
-    heap->bytes_freed += obj->size;
+    heap->bytes_freed += obj->size_bytes;
     free(obj);
   }
 
@@ -585,7 +585,7 @@ uint64_t scoop_gc_debug_heap_bytes_reserved(void) {
   uint64_t total = 0;
   for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
     // 防御：饱和加，避免极端情况下 u64 溢出导致观测值回卷。
-    uint64_t size = it->size;
+    uint64_t size = it->size_bytes;
     if (UINT64_MAX - total < size) {
       total = UINT64_MAX;
       break;

@@ -7,7 +7,7 @@ use core::ffi::c_void;
 struct ScoopGcObjectHeader {
     next: *mut ScoopGcObjectHeader,
     type_desc: *const c_void,
-    size: u64,
+    size_bytes: u64,
     flags: u32,
     mark: u32,
 }
@@ -66,4 +66,3 @@ fn pin_unpin_keeps_object_alive_and_enforces_pairing() {
         scoop_thread_unregister();
     }
 }
-
