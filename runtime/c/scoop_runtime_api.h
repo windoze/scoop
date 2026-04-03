@@ -117,6 +117,11 @@
   X(scoop_runtime_init) \
   X(scoop_runtime_init_count) \
   X(scoop_runtime_is_initialized) \
+  X(scoop_stackmap_registry_lookup) \
+  X(scoop_stackmap_registry_record_count) \
+  X(scoop_stackmap_registry_register_current_process) \
+  X(scoop_stackmap_registry_register_section) \
+  X(scoop_stackmap_registry_reset) \
   X(scoop_string_trim_indent) \
   X(scoop_sync_condvar_create) \
   X(scoop_sync_condvar_destroy) \

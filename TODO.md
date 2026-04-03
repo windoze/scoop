@@ -6094,16 +6094,44 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1504 [TODO] 运行时：stackmap registry（main binary + 静态链接对象）与解析器
+### T1504 stackmap registry（拆分为子任务）
 - 描述：在 C runtime 中实现 LLVM StackMap 格式解析，并提供 module 注册 API，把 stackmap records 纳入统一查询表（按 return address 索引）。
 - 目标：
   - 支持主线平台格式：Mach-O（segment `__LLVM_STACKMAPS` / section `__llvm_stackmaps`）、ELF（`.llvm_stackmaps`）、COFF（`.llvm_stackmaps`）；
   - registry 必须支持多 module 合并（main binary + 多个静态库/对象），并能处理地址重定位后的绝对地址；
   - 查询结构采用“按 return address 排序数组 + 二分查找”，保证确定性与可调试性。
+- 备注：该任务包含多个相对独立的能力点（解析/索引/平台发现/COFF/真实 statepoint smoke）。为保证“可单独实现 & 单独验证”，拆分为以下子任务逐步推进：
+
+### T1504a [DONE] 运行时：stackmap 解析器 + registry（return_address 索引）
+- 描述：实现 stackmap section 的最小解析（v3），构建 `return_address -> record` 索引，并在 `scoop_runtime_init()` 时尽力从当前进程镜像注册 stackmaps。
+- 目标：
+  - registry 支持多次 `register_section` 合并，并在内部做排序 + 去重（按 return address）；
+  - 平台发现优先支持 Mach-O 与 ELF；Windows/COFF 先占位（由 T1504b 补齐）；
+  - 解析器覆盖 header + function records + constants + records（locations/liveouts 先按长度跳过，细节在 T1506 接入 roots 时补齐）。
 - 验收：
-  - `crates/scoop_runtime` 新增集成测试：给定一段内嵌/模拟 stackmap 数据，解析后能按 return address 找到 record；
-  - 在真实链接产物上运行 smoke：`scoop_runtime_init()` 后 registry 非空，并能定位到 `main` 中的 safepoint record。
+  - `cargo test -p scoop_runtime --test stackmap_registry`
+  - `cargo test --all`
 - 依赖：T1503、T0901
+ - 完成：
+   - `runtime/c/scoop_stackmap.c` + `runtime/c/scoop_stackmap.h`：新增 stackmap 解析器与 registry（排序数组 + 二分查找 lookup）。
+   - `runtime/c/scoop_runtime.c`：`scoop_runtime_init()` 自动调用 `scoop_stackmap_registry_register_current_process()`（幂等）。
+   - `crates/scoop_runtime/build.rs`：编译并追踪新的 C 源文件。
+   - `crates/scoop_runtime/tests/stackmap_registry.rs`：新增集成测试（mock section + “真实链接产物”内嵌 section smoke）。
+   - `runtime/c/scoop_runtime_api.h`：登记新增导出符号到 allowlist。
+ - 验收：
+   - `cargo test -p scoop_runtime --test stackmap_registry`
+   - `cargo test --all`
+
+### T1504b [TODO] 运行时：COFF 支持 + 多模块自动发现完善 + statepoint smoke
+- 描述：补齐 Windows/COFF 的 stackmap section 自动发现与注册；完善 ELF 下多 image（主程序 + shared libs）的自动发现；并新增一个基于真实 statepoint 产物的 smoke（定位到 `main` 的 safepoint record）。
+- 目标：
+  - COFF：支持 `.llvm_stackmaps` section 的定位与注册；
+  - multi-module：保证 main binary + 动态库/静态对象的 stackmaps 都能进入统一 registry；
+  - return_address 语义：明确并回归“stack frame 的 return address 与 stackmap record 的 instruction_offset”之间的对应关系（必要时引入可配置偏移或更精确的映射）。
+- 验收：
+  - 新增一个 run-pass fixture（需要 `--features llvm`）：在运行期可观察到 registry 非空，并能定位到 `main` 的某个 safepoint record；
+  - `cargo test --all` 通过。
+- 依赖：T1504a、T1503b、T0901
 
 ### T1505 [TODO] 运行时：safepoint poll + 线程状态机（Running/Parked/InNative）与停世界协议（含 stack walking 上下文）
 - 描述：实现基于 statepoint/stackmap 的 stop-the-world：线程在 `scoop_gc_safepoint_poll()` 进入 Parked，线程在 `enter_native()` 进入 InNative。**GC 必须能扫描每个线程的完整调用栈（多帧）**，因此 Parked 线程必须提供可用于 stack walking 的上下文（由 runtime/c 负责，不泄漏到 Scoop 侧）。
@@ -6121,7 +6149,7 @@
 - 验收：
   - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 poll + 一线程触发 GC，确保两线程都能被停下并恢复；
   - 新增 run-pass fixture：深调用链（至少 3 帧）下由内层触发 GC，但 root 仅存在于外层帧，GC 后仍可访问（验证“多帧 stack walking roots”而非仅顶帧）。
-- 依赖：T1504、T0911、T1402
+- 依赖：T1504a、T0911、T1402
 
 ### T1411b [TODO] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
 - 描述：在实现 T1505 的 stack walking 上下文时复用 `runtime/c/platform` 的 unwind 模块，提供“从捕获到的线程上下文开始，逐帧 unwind”的能力；把 unwind/寄存器/ABI 细节完全收敛到 platform 层。

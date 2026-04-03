@@ -16,6 +16,7 @@
 #include "scoop_gc.h"
 #include "scoop_gc_backend.h"
 #include "scoop_gc_immix_internal.h"
+#include "scoop_stackmap.h"
 #include "scoop_tls_internal.h"
 #include "platform/platform.h"
 #include "platform/unwind.h"
@@ -1203,6 +1204,8 @@ void scoop_runtime_init(void) {
   // 在引入线程注册后（TODO T0903/T0911），这里升级为“线程安全的幂等初始化”。
   if (scoop_rt_initialized) {
     scoop_rt_init_calls++;
+    // 运行期 stackmap registry：允许重复调用 init（但 registry 自身幂等），便于测试复用。
+    (void)scoop_stackmap_registry_register_current_process();
     SCOOP_RT_LOG("scoop_runtime_init: already initialized (calls=%" PRIu32 ")",
                  scoop_rt_init_calls);
     (void)pthread_mutex_unlock(&scoop_rt_init_lock);
@@ -1214,9 +1217,13 @@ void scoop_runtime_init(void) {
 
   scoop_gc_heap_init(&scoop_gc_heap);
 
+  const uint32_t stackmaps_added = scoop_stackmap_registry_register_current_process();
+  (void)stackmaps_added;
+
   SCOOP_RT_LOG("scoop_runtime_init: ok (ScoopString size=%zu, data_off=%zu)",
                sizeof(ScoopString),
                offsetof(ScoopString, data));
+  SCOOP_RT_LOG("scoop_runtime_init: stackmaps registered=%" PRIu32, stackmaps_added);
 
   (void)pthread_mutex_unlock(&scoop_rt_init_lock);
 }

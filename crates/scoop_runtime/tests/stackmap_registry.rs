@@ -1,0 +1,211 @@
+// 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
+use scoop_runtime as _;
+
+use std::mem;
+
+// 与 `runtime/c/scoop_stackmap.h` 中的 `ScoopStackmapRecordRef` 对齐。
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct ScoopStackmapRecordRef {
+    return_address: usize,
+    function_address: usize,
+    instruction_offset: u32,
+    patchpoint_id: u64,
+    record_ptr: *const u8,
+    record_size: u32,
+}
+
+unsafe extern "C" {
+    fn scoop_runtime_init();
+
+    fn scoop_stackmap_registry_reset();
+    fn scoop_stackmap_registry_register_section(bytes: *const u8, len: usize) -> u32;
+    fn scoop_stackmap_registry_record_count() -> u32;
+    fn scoop_stackmap_registry_lookup(
+        return_address: usize,
+        out: *mut ScoopStackmapRecordRef,
+    ) -> u32;
+}
+
+// --- 构造一个“最小可解析”的 stackmap section（用于解析器单测） ---
+
+#[repr(C, packed)]
+struct StackMapHeader {
+    version: u8,
+    reserved0: u8,
+    reserved1: u16,
+    num_functions: u32,
+    num_constants: u32,
+    num_records: u32,
+}
+
+#[repr(C, packed)]
+struct StackSizeRecordU64 {
+    function_address: u64,
+    stack_size: u64,
+    record_count: u64,
+}
+
+#[repr(C, packed)]
+struct StackMapRecordMin {
+    patchpoint_id: u64,
+    instruction_offset: u32,
+    reserved0: u16,
+    num_locations: u16,
+    num_live_outs: u16,
+    reserved1: u16,
+    padding_to_8: u32,
+}
+
+#[repr(C, packed)]
+struct StackMapSectionMin {
+    header: StackMapHeader,
+    func: StackSizeRecordU64,
+    record: StackMapRecordMin,
+}
+
+static MOCK_STACKMAP_SECTION: StackMapSectionMin = StackMapSectionMin {
+    header: StackMapHeader {
+        version: 3,
+        reserved0: 0,
+        reserved1: 0,
+        num_functions: 1,
+        num_constants: 0,
+        num_records: 1,
+    },
+    func: StackSizeRecordU64 {
+        function_address: 0x1000,
+        stack_size: 0,
+        record_count: 1,
+    },
+    record: StackMapRecordMin {
+        patchpoint_id: 1,
+        instruction_offset: 0x20,
+        reserved0: 0,
+        num_locations: 0,
+        num_live_outs: 0,
+        reserved1: 0,
+        padding_to_8: 0,
+    },
+};
+
+#[test]
+fn stackmap_registry_can_register_and_lookup_mock_section() {
+    unsafe {
+        scoop_stackmap_registry_reset();
+
+        let bytes = (&MOCK_STACKMAP_SECTION as *const StackMapSectionMin).cast::<u8>();
+        let added = scoop_stackmap_registry_register_section(bytes, mem::size_of::<StackMapSectionMin>());
+        assert!(added > 0, "期望能注册至少 1 条 record，实际为 {added}");
+        assert_eq!(scoop_stackmap_registry_record_count(), 1);
+
+        let mut out = ScoopStackmapRecordRef::default();
+        let ok = scoop_stackmap_registry_lookup(0x1000 + 0x20, &mut out);
+        assert_eq!(ok, 1, "lookup 失败：未找到 return_address 对应 record");
+        assert_eq!(out.patchpoint_id, 1);
+        assert_eq!(out.instruction_offset, 0x20);
+        assert_eq!(out.return_address, 0x1020);
+    }
+}
+
+// --- “真实链接产物 smoke”：在测试二进制里内嵌一个 `.llvm_stackmaps` section ---
+//
+// 注意：
+// - 在部分 Apple 平台（arm64e）上，函数指针可能带有 pointer authentication（PAC）签名位，
+//   “把函数地址当作纯整数” 的做法会变得不稳定。
+// - 为了让 smoke test 更稳定，这里内嵌 section 使用“合成的绝对地址常量”，
+//   只验证：runtime 能发现 section、能解析 records、能按 return address 查到 record。
+
+const EMBEDDED_SYNTHETIC_RA: usize = 0x2000;
+
+#[repr(C, packed)]
+struct StackMapSectionEmbedded {
+    header: StackMapHeader,
+    func: StackSizeRecordU64,
+    record: StackMapRecordMin,
+}
+
+#[cfg(target_vendor = "apple")]
+#[used]
+#[unsafe(link_section = "__LLVM_STACKMAPS,__llvm_stackmaps")]
+static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbedded {
+    header: StackMapHeader {
+        version: 3,
+        reserved0: 0,
+        reserved1: 0,
+        num_functions: 1,
+        num_constants: 0,
+        num_records: 1,
+    },
+    func: StackSizeRecordU64 {
+        function_address: EMBEDDED_SYNTHETIC_RA as u64,
+        stack_size: 0,
+        record_count: 1,
+    },
+    record: StackMapRecordMin {
+        patchpoint_id: 7,
+        instruction_offset: 0,
+        reserved0: 0,
+        num_locations: 0,
+        num_live_outs: 0,
+        reserved1: 0,
+        padding_to_8: 0,
+    },
+};
+
+#[cfg(not(target_vendor = "apple"))]
+#[used]
+#[unsafe(link_section = ".llvm_stackmaps")]
+static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbedded {
+    header: StackMapHeader {
+        version: 3,
+        reserved0: 0,
+        reserved1: 0,
+        num_functions: 1,
+        num_constants: 0,
+        num_records: 1,
+    },
+    func: StackSizeRecordU64 {
+        function_address: EMBEDDED_SYNTHETIC_RA as u64,
+        stack_size: 0,
+        record_count: 1,
+    },
+    record: StackMapRecordMin {
+        patchpoint_id: 7,
+        instruction_offset: 0,
+        reserved0: 0,
+        num_locations: 0,
+        num_live_outs: 0,
+        reserved1: 0,
+        padding_to_8: 0,
+    },
+};
+
+#[test]
+fn runtime_init_registers_stackmaps_from_current_process() {
+    // 当前实现：
+    // - macOS：通过 dyld + getsectiondata* 扫描已加载 images
+    // - ELF：尝试 `__start_llvm_stackmaps`/`__stop_llvm_stackmaps`（weak）
+    // - Windows：暂未实现自动发现
+    //
+    // 因此本 smoke test 仅在“已实现自动发现”的平台上强制断言。
+    if !(cfg!(target_vendor = "apple") || cfg!(target_os = "linux")) {
+        return;
+    }
+
+    unsafe {
+        scoop_stackmap_registry_reset();
+        scoop_runtime_init();
+
+        let n = scoop_stackmap_registry_record_count();
+        assert!(n > 0, "runtime_init 后 stackmap registry 仍为空（records={n}）");
+
+        let ra = EMBEDDED_SYNTHETIC_RA;
+        let mut out = ScoopStackmapRecordRef::default();
+        let ok = scoop_stackmap_registry_lookup(ra, &mut out);
+        assert_eq!(ok, 1, "lookup 失败：未找到内嵌 stackmap 的目标函数 record");
+        assert_eq!(out.function_address, ra);
+        assert_eq!(out.return_address, ra);
+        assert_eq!(out.patchpoint_id, 7);
+    }
+}
