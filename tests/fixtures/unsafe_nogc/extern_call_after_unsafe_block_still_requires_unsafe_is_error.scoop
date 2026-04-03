@@ -6,10 +6,9 @@
 package fixtures.unsafe_nogc
 
 @Extern("puts")
-fun puts(value: String): Unit
+fun puts(value: Int): Unit
 
 fun safe() {
-    @Unsafe { puts("hi") }
-    puts("hi")
+    @Unsafe { puts(1) }
+    puts(1)
 }
-

@@ -2,17 +2,16 @@
 // RUN-STDOUT: extern_symbol_println_basic.stdout
 //
 // 目标：T1006 `@Extern("symbol")` 的符号名映射 + C ABI。
-// - 通过 `@Extern("scoop_println")` 直接调用 runtime 的 `scoop_println`（C ABI）。
-// - 调用点必须处于 `@Unsafe { ... }`。
+// - 通过 `@Extern("scoop_test_add_int")` 直接调用 runtime 的测试符号（C ABI）。
+// - 调用点必须处于 `@Unsafe { ... }`（`@Extern` 调用门禁）。
 
 import scoop.core.*
 
-@Extern("scoop_println")
-fun rt_println(value: String): Unit
+@Extern("scoop_test_add_int")
+fun rt_add_int(a: Int, b: Int): Int
 
 fun main() {
     @Unsafe {
-        rt_println("hello_extern")
+        println(rt_add_int(1, 2))
     }
 }
-

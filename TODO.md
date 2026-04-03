@@ -6009,11 +6009,20 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo test --all`
 
-### T1502c [TODO] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
+### T1502c [DONE] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
 - 描述：在 typecheck/lowering 层对 `@Extern` 边界做门禁：禁止直接把 GC 指针（`addrspace(1)`）作为 ABI 参数/返回值透传；必须通过 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>` 或 handle API 显式桥接。
 - 目标：先实现门禁与诊断；handle API 的完整实现可拆更细子任务。
 - 验收：新增 typecheck fixtures：对 `@Extern fun f(x: Any): Any` 给出稳定错误码与修复建议。
 - 依赖：T1502a
+ - 完成：
+   - `crates/scoopc/src/typecheck/annotations.rs`：`@Extern` 函数声明处新增 ABI 门禁（receiver/参数/返回值都必须是 GC-free 值类型），并提供稳定错误码 `scoop::typecheck::extern_fun_signature_must_be_gc_free` 与修复建议（`GC.pin/unpin` + `Ptr<T>`/handle）。
+   - `tests/fixtures/typecheck/extern_fun_signature_with_gc_ref_is_error.scoop`：新增 typecheck fixture 回归（`@Extern fun f(x: Any): Any` 必须 fail）。
+   - 更新 `tests/fixtures/unsafe_nogc/*` 与 `tests/fixtures/run-pass/extern_symbol_println_basic.*`：避免 `@Extern` 示例直接使用 `String`（GC ref），改用 GC-free 的 `Int` ABI 示例。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
+   - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
 ### T1503 [TODO] 编译器：接入 LLVM statepoint/stackmap 管线并为 safepoint 生成可定位的 metadata
 - 描述：在 LLVM 后端启用 statepoint 机制，生成 stackmap section，并保证运行时可以用 return address 精确定位到 stackmap record（用于 roots 枚举与 relocation 更新）。

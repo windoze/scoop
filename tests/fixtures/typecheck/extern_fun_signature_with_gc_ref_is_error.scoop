@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_signature_must_be_gc_free
+// EXPECT-ERROR-AT: 12:10
+// EXPECT-ERROR: GC.pin/unpin
+// 目标：T1502c `@Extern` ABI：禁止直接透传 GC 引用类型（应显式桥接）。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("f")
+fun f(x: Any): Any
+

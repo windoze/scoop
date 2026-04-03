@@ -170,6 +170,14 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`（或 handle）桥接")]
+    #[diagnostic(code(scoop::typecheck::extern_fun_signature_must_be_gc_free))]
+    ExternFunSignatureMustBeGcFree {
+        found: String,
+        #[label("这里的类型不是 GC-free 值类型")]
+        span: miette::SourceSpan,
+    },
+
     #[error("顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`：{var_name}")]
     #[diagnostic(code(scoop::typecheck::top_level_var_requires_threadlocal_or_global))]
     TopLevelVarRequiresThreadLocalOrGlobal {
@@ -391,7 +399,7 @@ pub fn check_file_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun)?;
+                check_builtin_annotations_on_fun_decl(source, fun, &mut lower)?;
                 check_param_list_annotations(
                     source,
                     file,
@@ -584,7 +592,7 @@ fn check_type_decl_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun)?;
+                check_builtin_annotations_on_fun_decl(source, fun, lower)?;
                 check_param_list_annotations(
                     source,
                     file,
@@ -737,7 +745,7 @@ fn check_object_decl_annotations(
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun)?;
+                check_builtin_annotations_on_fun_decl(source, fun, lower)?;
             }
             ast::TypeMember::Type(nested) => {
                 check_type_decl_annotations(
@@ -1507,6 +1515,7 @@ fn reject_builtin_annotations_on_target(
 fn check_builtin_annotations_on_fun_decl(
     source: &SourceFile,
     fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
 
@@ -1555,7 +1564,67 @@ fn check_builtin_annotations_on_fun_decl(
         }
     }
 
+    // 3) `@Extern`：C ABI 边界禁止直接透传 GC 引用类型（addrspace(1) ref 指针）。
+    //
+    // 说明：
+    // - 这里采用保守判定：签名中的 receiver/参数/返回值都必须是 GC-free 值类型；
+    // - 允许通过 `Ptr<T>` / `UIntPtr` 等显式桥接；`Ptr<T>` 的 pointee GC-free 门禁由 TypeLowering 负责。
+    if flags.is_extern {
+        check_extern_fun_signature_is_gc_free(source, fun, lower)?;
+    }
+
     Ok(())
+}
+
+fn check_extern_fun_signature_is_gc_free(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    // receiver：`fun Receiver.name(...)` 语义上等价于第一个参数，同样属于 ABI 边界。
+    if let Some(receiver) = fun.receiver.as_ref() {
+        check_extern_abi_type_ref_is_gc_free(source, receiver, lower)?;
+    }
+
+    for p in &fun.params {
+        let Some(ty_ref) = p.ty.as_ref() else {
+            // 缺失类型由其它检查负责（保持健壮性）。
+            continue;
+        };
+        check_extern_abi_type_ref_is_gc_free(source, ty_ref, lower)?;
+    }
+
+    // 缺省 return 为 Unit：天然 GC-free。
+    if let Some(ret_ty_ref) = fun.return_ty.as_ref() {
+        check_extern_abi_type_ref_is_gc_free(source, ret_ty_ref, lower)?;
+    }
+
+    Ok(())
+}
+
+fn check_extern_abi_type_ref_is_gc_free(
+    _source: &SourceFile,
+    ty_ref: &ast::TypeRef,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    let ty = match lower.lower_type_ref(ty_ref) {
+        Ok(ty) => ty,
+        Err(_e) => return Ok(()),
+    };
+
+    let is_gc_free = match lower.is_gc_free_value_type(ty) {
+        Ok(v) => v,
+        Err(_e) => return Ok(()),
+    };
+
+    if is_gc_free {
+        return Ok(());
+    }
+
+    Err(AnnotationError::ExternFunSignatureMustBeGcFree {
+        found: lower.fmt_type(ty),
+        span: ty_ref.span().into(),
+    })
 }
 
 fn check_builtin_annotations_on_type_alias_decl(
