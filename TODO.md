@@ -6147,23 +6147,40 @@
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
-### T1505 [TODO] 运行时：safepoint poll + 线程状态机（Running/Parked/InNative）与停世界协议（含 stack walking 上下文）
+### T1505（拆分为子任务）
 - 描述：实现基于 statepoint/stackmap 的 stop-the-world：线程在 `scoop_gc_safepoint_poll()` 进入 Parked，线程在 `enter_native()` 进入 InNative。**GC 必须能扫描每个线程的完整调用栈（多帧）**，因此 Parked 线程必须提供可用于 stack walking 的上下文（由 runtime/c 负责，不泄漏到 Scoop 侧）。
+- 目标：保持“可单独实现 & 单独验证”，将协议/上下文捕获/native 过渡拆分为子任务，逐步接入后续的 stackmap roots（T1506）。
+- 备注：该任务范围较大（poll fast/slow path、epoch/诊断、park 语义、native 过渡），为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务：
+
+### T1505a [TODO] 运行时：`scoop_gc_safepoint_poll` v0（线程状态机 + epoch + 超时诊断）
+- 描述：引入新的 safepoint API `scoop_gc_safepoint_poll()`，并把 baseline/immix 的 STW 线程记录结构对齐到 `Running/Parked` 状态机与 `epoch/last_safepoint_epoch` 诊断字段（见 `runtime/c/scoop_gc_stw_internal.h`）。
 - 目标：
-  - `scoop_gc_safepoint_poll()`：
-    - fast path：无 GC 请求时零开销返回（仅做一次原子读）；
-    - slow path：检测到 GC 请求后，在进入 park 前捕获该线程的 unwind 上下文到 TLS（建议 `unw_context_t` 或等价结构；实现与平台绑定，必须收敛在 `runtime/c/platform/*`），随后切换状态为 Parked 并等待 GC 完成；
-    - GC 完成后清理 TLS 上下文并恢复 Running。
-  - `enter_native()` / `leave_native()`：
-    - `enter_native()` 必须把**该 callsite 的 live roots（stackmap locations）**复制到 TLS `native_roots` buffer，并切换状态为 InNative；复制完成后 native 代码不得长期持有对象地址（长期持有必须走 handle，见 T1510）；
-    - `leave_native()` 必须清理 `native_roots` 并切回 Running（必须在异常/early return 路径下配对）。
-  - 停世界协议：
-    - GC 发起方设置 `gc_requested + gc_epoch`，并等待所有线程进入 Parked 或 InNative；
-    - 必须提供可诊断的超时/卡死信息：打印未到达 safepoint 的线程 id、最后一次状态、以及其上次 safepoint epoch。
+  - `scoop_gc_safepoint_poll()` 先作为 `scoop_gc_safepoint()` 的等价入口（后续在 T1505b/T1506 接入 stack walking ctx 与 stackmap roots）；
+  - fast path：无 STW 请求时仅做一次原子读后返回（不抢全局锁）；
+  - slow path：检测到 STW 请求时进入 park，并在 park 时更新 `state/parked_epoch/last_safepoint_epoch`，供超时诊断打印；
+  - 超时诊断：在等待其它线程 park 的过程中周期性打印线程状态（thread id/state/last_epoch）。
 - 验收：
-  - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 poll + 一线程触发 GC，确保两线程都能被停下并恢复；
-  - 新增 run-pass fixture：深调用链（至少 3 帧）下由内层触发 GC，但 root 仅存在于外层帧，GC 后仍可访问（验证“多帧 stack walking roots”而非仅顶帧）。
+  - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 `scoop_gc_safepoint_poll()` + 一线程触发 `scoop_gc_collect()`，确保两线程都能被停下并恢复；
+  - `cargo test --all` 通过。
 - 依赖：T1504a、T0911、T1402
+
+### T1505b [TODO] 运行时：park 前捕获 stack walking 上下文到 TLS（opaque ctx）
+- 描述：在 `scoop_gc_safepoint_poll()` slow path 进入 park 之前捕获该线程的 unwind 上下文并保存到 TLS/线程记录中，GC 结束后清理；上下文类型为 opaque 指针/结构体，ABI/平台细节收敛在 `runtime/c/platform/*`。
+- 目标：
+  - capture：在进入 Parked 前保存上下文（建议 `ucontext_t`/`unw_context_t` 或等价结构）；
+  - clear：STW 结束后清空上下文，避免悬挂指针或误用旧 ctx；
+  - 不在本子任务内做逐帧 unwind（由 T1411b 接入 `platform/unwind` 完成）。
+- 验收：新增 `crates/scoop_runtime` 测试：触发一次 STW 后可观察到 worker 线程在 park 期间 ctx 非空，恢复后 ctx 被清空。
+- 依赖：T1505a、T1402
+
+### T1505c [TODO] 运行时：`enter_native`/`leave_native` 线程状态机 + `native_roots` buffer（v0）
+- 描述：实现 `enter_native()`/`leave_native()`：线程进入 native 过渡态时切换到 InNative，并在 TLS 中维护 `native_roots` buffer（为 T1510 的 handle/pin 协议做前置）。
+- 目标：
+  - `enter_native()`：切换到 InNative，并建立/更新 `native_roots`（v0 允许由调用方传入 roots 指针数组；基于 stackmap locations 的复制在 T1506/T1510 完整落地）；
+  - `leave_native()`：清空 `native_roots` 并切回 Running，要求异常/early return 路径可配对；
+  - STW：GC 等待时视 InNative 线程为“已就绪”（roots 来自 `native_roots`），并在超时诊断中打印 InNative。
+- 验收：新增 `crates/scoop_runtime` 测试：一个线程长期 InNative，另一个线程触发 GC，GC 能完成且不死锁（并能在 InNative 期间正确保活 roots 的 smoke）。
+- 依赖：T1505a、T0911、T1402
 
 ### T1411b [TODO] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
 - 描述：在实现 T1505 的 stack walking 上下文时复用 `runtime/c/platform` 的 unwind 模块，提供“从捕获到的线程上下文开始，逐帧 unwind”的能力；把 unwind/寄存器/ABI 细节完全收敛到 platform 层。
@@ -6171,7 +6188,7 @@
   - 以 `platform/unwind` 提供的抽象为唯一入口；`scoop_gc_safepoint_poll` 只保存/恢复 opaque ctx；
   - host 平台优先实现；Windows/wasm/embedded 允许按 backend 占位或能力降级。
 - 验收：在完成 T1505 后，新增一条 runtime 集成测试：Parked 线程的 stack walking 可枚举至少 3 帧，并能把每帧的 `(sp, ra)` 输入到 stackmap 查询（可先用 mock stackmap 断言调用次数/顺序）。
-- 依赖：T1505、T1411a
+- 依赖：T1505b、T1411a
 
 ### T1506 [TODO] 运行时：用 stackmap roots 替换 shadow stack roots（Visitor API + 精确可更新 slots）
 - 描述：把 GC 的根集枚举从 shadow stack 改为 stackmap：对 Parked 线程使用其 TLS 保存的 unwind 上下文做 stack walking，逐帧定位 stackmap record，并以 `void** slot` 的形式枚举所有 roots（支持移动 GC 原地更新）。
@@ -6184,7 +6201,7 @@
 - 验收：
   - 新增 runtime 集成测试：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；
   - 在启用移动/压缩前先通过 “非移动 GC + stackmap roots” 全量回归：`cargo test --all`、`cargo run -p scoop --features llvm -- test`。
-- 依赖：T1505、T0910、T0912
+- 依赖：T1505c、T0910、T0912
 
 ### T1507 [TODO] 编译器：为 class/interface/box/closure env/array/string 生成 type descriptor（trace bitmap + dispatch tables）
 - 描述：在编译期为所有可分配 ref 类型生成 `ScoopTypeDescriptor` 常量，并在对象分配时写入对象头 `type_desc`，使 GC 能扫描对象内部引用字段并支持动态分发。
