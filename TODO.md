@@ -5816,11 +5816,18 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `cargo test --all`
 
-### T1409d [TODO] Immix：多线程 microbench 与基线记录（不做 CI gating）
+### T1409d [DONE] Immix：多线程 microbench 与基线记录（不做 CI gating）
 - 描述：扩展 `gc_microbench` 或新增工具，覆盖多线程分配吞吐/GC STW 时间指标，并把基线输出格式固化，便于本地对比回归。
 - 目标：仅做本地可重复对比；不在 CI 做跨机器阈值 gating。
 - 验收：`tools/gc_microbench.sh` 支持 N 线程吞吐场景；输出包含每轮 STW 时间与吞吐信息；能对比 baseline vs immix。
 - 依赖：T1409a
+ - 完成：
+   - `crates/scoop_runtime/src/bin/gc_microbench.rs`：throughput 场景记录并输出每轮 alloc 阶段吞吐与 `scoop_gc_collect()`（STW pause 近似值）耗时；同时在 `--json` 输出中固化 `rounds` 与 `stw_summary` 字段，便于本地记录/对比。
+   - `crates/scoop_runtime/src/bin/gc_microbench.rs`：新增单测覆盖 human/JSON 输出格式（包含 rounds 与 STW summary）。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test -p scoop_runtime --no-default-features --features gc-baseline -- --test-threads=1`
+   - `tools/gc_microbench.sh throughput --object-size 256 --rounds 50 --batch 50000 --threads 8`
 
 ### T1410 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
 - 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。

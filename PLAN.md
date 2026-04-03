@@ -1046,7 +1046,7 @@ fixtures：
 - `runtime/c/platform.h`（或 `scoop_platform.h`）：定义内部平台层 API；core 层只调用这里，不直接触达 `getenv/open/read/pthread_*` 等。
 - sysroot/stdlib 只暴露平台无关的 API surface；平台能力通过 runtime C 符号实现并由 LLVM codegen 映射，不在 Scoop 侧直接调用 OS ABI。
 
-当前进度（截至 2026-04-02）：
+当前进度（截至 2026-04-03）：
 
 - 已落地 `runtime/c/platform/` v0：env/time/io、sync primitives（Mutex/CondVar/Thread self/equal）、thread primitives（spawn/join/yield/sleep/currentId）。
 - `runtime/c/scoop_runtime.c`、`runtime/c/scoop_sync.c`、`runtime/c/scoop_channels.c`、`runtime/c/scoop_task_executor.c`、`runtime/c/scoop_thread.c` 已接入 platform API，不再直接触达 OS 调用。
@@ -1068,7 +1068,7 @@ fixtures：
   - [x] T1409a：并发分配 fast path（thread-local blocks + safepoint fast path；降低分配路径锁争用）
   - [x] T1409b：降低 block 池争用（批量取还 / per-thread cache）
   - [ ] T1409c：并行标记/并行 sweep（渐进引入，以可开关实验性实现落地）
-  - [ ] T1409d：多线程 microbench 与基线记录（不做 CI gating；本地对比回归）
+  - [x] T1409d：多线程 microbench 与基线记录（不做 CI gating；本地对比回归）
 - [x] **GC backend capability matrix v0**：固化 STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots 等能力，并用于测试 gating（T1405b）。
 - [ ] **GC backend 可替换**：编译期可选 baseline/Immix/embedded/minimal/hosted(adapter)，并维护 capability matrix（尤其是 WASM/embedded）。
 

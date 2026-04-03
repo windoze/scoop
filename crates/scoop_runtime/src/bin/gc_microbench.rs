@@ -241,6 +241,49 @@ fn fmt_duration_ms(d: Duration) -> u128 {
     d.as_millis()
 }
 
+/// throughput 场景下“每轮”的观测结果。
+///
+/// 说明：
+/// - `alloc_elapsed`：mutator 分配阶段的 wall time（不包含 GC）。
+/// - `stw_elapsed`：一次 `scoop_gc_collect()` 调用耗时。对于 Immix，该时间近似等价于
+///   “stop-the-world pause”（GC 期间 mutator 会在 safepoint park）。
+#[derive(Debug, Clone, Copy)]
+struct ThroughputRound {
+    round: u32,
+    allocations: u64,
+    bytes: u64,
+    alloc_elapsed: Duration,
+    stw_elapsed: Duration,
+}
+
+impl ThroughputRound {
+    fn alloc_elapsed_ms(self) -> u128 {
+        fmt_duration_ms(self.alloc_elapsed)
+    }
+
+    fn stw_ms(self) -> u128 {
+        fmt_duration_ms(self.stw_elapsed)
+    }
+
+    fn total_elapsed(self) -> Duration {
+        self.alloc_elapsed + self.stw_elapsed
+    }
+
+    fn total_elapsed_ms(self) -> u128 {
+        fmt_duration_ms(self.total_elapsed())
+    }
+
+    fn allocs_per_sec(self) -> f64 {
+        let secs = self.alloc_elapsed.as_secs_f64().max(1e-9);
+        (self.allocations as f64) / secs
+    }
+
+    fn bytes_per_sec(self) -> f64 {
+        let secs = self.alloc_elapsed.as_secs_f64().max(1e-9);
+        (self.bytes as f64) / secs
+    }
+}
+
 fn run_throughput(args: &Args) -> BenchResult {
     // 说明：不 pin 任何对象，使每轮 GC 都能把上一轮的对象全部回收（基准更稳定）。
     let threads = args.threads.max(1);
@@ -251,11 +294,14 @@ fn run_throughput(args: &Args) -> BenchResult {
 
     let mut allocations: u64 = 0;
     let mut bytes: u64 = 0;
+    let mut throughput_rounds: Vec<ThroughputRound> = Vec::with_capacity(rounds as usize);
 
     let t0 = Instant::now();
 
     if threads == 1 {
-        for _ in 0..rounds {
+        for round in 0..rounds {
+            let alloc_t0 = Instant::now();
+            let mut round_allocs: u64 = 0;
             for _ in 0..batch {
                 let p = unsafe { scoop_alloc(args.object_size) };
                 if p.is_null() {
@@ -264,9 +310,22 @@ fn run_throughput(args: &Args) -> BenchResult {
                 }
                 allocations += 1;
                 bytes = bytes.saturating_add(args.object_size);
+                round_allocs += 1;
             }
+            let alloc_elapsed = alloc_t0.elapsed();
 
+            let stw_t0 = Instant::now();
             unsafe { scoop_gc_collect() };
+            let stw_elapsed = stw_t0.elapsed();
+
+            let round_bytes = args.object_size.saturating_mul(round_allocs);
+            throughput_rounds.push(ThroughputRound {
+                round,
+                allocations: round_allocs,
+                bytes: round_bytes,
+                alloc_elapsed,
+                stw_elapsed,
+            });
         }
     } else {
         // 多线程吞吐：在 worker 线程持续分配的同时，主线程周期性触发 GC。
@@ -313,16 +372,36 @@ fn run_throughput(args: &Args) -> BenchResult {
 
         let per_round_target = (threads as u64) * (batch as u64);
         let mut last_target: u64 = 0;
-        for _ in 0..rounds {
+        for round in 0..rounds {
+            let allocs_round_begin = total_allocs.load(Ordering::Relaxed);
+            let bytes_round_begin = total_bytes.load(Ordering::Relaxed);
+
             let target = last_target.saturating_add(per_round_target);
+            let alloc_t0 = Instant::now();
             while total_allocs.load(Ordering::Relaxed) < target && !oom.load(Ordering::Relaxed) {
                 std::thread::yield_now();
             }
+            let alloc_elapsed = alloc_t0.elapsed();
             if oom.load(Ordering::Relaxed) {
                 break;
             }
 
+            let allocs_round_end = total_allocs.load(Ordering::Relaxed);
+            let bytes_round_end = total_bytes.load(Ordering::Relaxed);
+            let round_allocs = allocs_round_end.saturating_sub(allocs_round_begin);
+            let round_bytes = bytes_round_end.saturating_sub(bytes_round_begin);
+
+            let stw_t0 = Instant::now();
             unsafe { scoop_gc_collect() };
+            let stw_elapsed = stw_t0.elapsed();
+
+            throughput_rounds.push(ThroughputRound {
+                round,
+                allocations: round_allocs,
+                bytes: round_bytes,
+                alloc_elapsed,
+                stw_elapsed,
+            });
             last_target = target;
         }
 
@@ -357,6 +436,7 @@ fn run_throughput(args: &Args) -> BenchResult {
         pinned: None,
         start_gc,
         end_gc,
+        rounds: throughput_rounds,
         params: BenchParams::Throughput {
             threads,
             rounds,
@@ -418,6 +498,7 @@ fn run_fragmentation(args: &Args) -> BenchResult {
         pinned: Some(pinned_count),
         start_gc,
         end_gc,
+        rounds: Vec::new(),
         params: BenchParams::Fragmentation { initial, pin_stride },
     }
 }
@@ -445,10 +526,40 @@ struct BenchResult {
     start_gc: (u64, u64, u64, u64),
     end_gc: (u64, u64, u64, u64),
 
+    // throughput 额外观测：每轮 alloc/GC（STW）耗时与吞吐。
+    //
+    // 说明：fragmentation 场景下为空。
+    rounds: Vec<ThroughputRound>,
+
     params: BenchParams,
 }
 
 impl BenchResult {
+    fn stw_summary(&self) -> Option<StwSummary> {
+        if self.rounds.is_empty() {
+            return None;
+        }
+
+        let mut total_ms: u128 = 0;
+        let mut min_ms: u128 = u128::MAX;
+        let mut max_ms: u128 = 0;
+
+        for r in &self.rounds {
+            let ms = r.stw_ms();
+            total_ms = total_ms.saturating_add(ms);
+            min_ms = min_ms.min(ms);
+            max_ms = max_ms.max(ms);
+        }
+
+        let avg_ms = total_ms / (self.rounds.len() as u128);
+        Some(StwSummary {
+            total_ms,
+            avg_ms,
+            min_ms,
+            max_ms,
+        })
+    }
+
     fn to_human_text(&self) -> String {
         let (a0, f0, l0, r0) = self.start_gc;
         let (a1, f1, l1, r1) = self.end_gc;
@@ -461,7 +572,7 @@ impl BenchResult {
             self.object_size
         ));
 
-        match self.params {
+        match &self.params {
             BenchParams::Throughput {
                 threads,
                 rounds,
@@ -482,6 +593,32 @@ impl BenchResult {
 
         if let Some(pinned) = self.pinned {
             out.push_str(&format!("pinned={}\n", pinned));
+        }
+
+        if matches!(&self.params, BenchParams::Throughput { .. }) {
+            if !self.rounds.is_empty() {
+                out.push_str(&format!("rounds: count={}\n", self.rounds.len()));
+                for r in &self.rounds {
+                    out.push_str(&format!(
+                        "round: i={} allocs={} bytes={} alloc_ms={} stw_ms={} total_ms={} allocs/s={:.2} bytes/s={:.2}\n",
+                        r.round,
+                        r.allocations,
+                        r.bytes,
+                        r.alloc_elapsed_ms(),
+                        r.stw_ms(),
+                        r.total_elapsed_ms(),
+                        r.allocs_per_sec(),
+                        r.bytes_per_sec()
+                    ));
+                }
+
+                if let Some(s) = self.stw_summary() {
+                    out.push_str(&format!(
+                        "stw_summary: total_ms={} avg_ms={} min_ms={} max_ms={}\n",
+                        s.total_ms, s.avg_ms, s.min_ms, s.max_ms
+                    ));
+                }
+            }
         }
 
         if let (Some(allocs), Some(bytes), Some(aps), Some(bps)) =
@@ -515,7 +652,7 @@ impl BenchResult {
         let (a0, f0, l0, r0) = self.start_gc;
         let (a1, f1, l1, r1) = self.end_gc;
 
-        let params_json = match self.params {
+        let params_json = match &self.params {
             BenchParams::Throughput {
                 threads,
                 rounds,
@@ -526,47 +663,86 @@ impl BenchResult {
             }
         };
 
-        let mut out = String::new();
-        out.push_str("{");
-        out.push_str(&format!("\"backend\":\"{}\",", self.backend));
-        out.push_str(&format!("\"scenario\":\"{}\",", self.scenario.as_str()));
-        out.push_str(&format!("\"object_size\":{},", self.object_size));
-        out.push_str(&format!("\"elapsed_ms\":{},", self.elapsed_ms));
+        let mut kv: Vec<String> = Vec::new();
+        kv.push(format!("\"backend\":\"{}\"", self.backend));
+        kv.push(format!("\"scenario\":\"{}\"", self.scenario.as_str()));
+        kv.push(format!("\"object_size\":{}", self.object_size));
+        kv.push(format!("\"elapsed_ms\":{}", self.elapsed_ms));
 
         if let Some(v) = self.allocations {
-            out.push_str(&format!("\"allocations\":{},", v));
+            kv.push(format!("\"allocations\":{}", v));
         }
         if let Some(v) = self.bytes {
-            out.push_str(&format!("\"bytes\":{},", v));
+            kv.push(format!("\"bytes\":{}", v));
         }
         if let Some(v) = self.allocs_per_sec {
-            out.push_str(&format!("\"allocs_per_sec\":{},", v));
+            kv.push(format!("\"allocs_per_sec\":{}", v));
         }
         if let Some(v) = self.bytes_per_sec {
-            out.push_str(&format!("\"bytes_per_sec\":{},", v));
+            kv.push(format!("\"bytes_per_sec\":{}", v));
         }
         if let Some(v) = self.pinned {
-            out.push_str(&format!("\"pinned\":{},", v));
+            kv.push(format!("\"pinned\":{}", v));
         }
 
-        out.push_str(&format!(
-            "\"gc_start\":{{\"allocated\":{},\"freed\":{},\"live\":{},\"reserved\":{}}},",
+        kv.push(format!(
+            "\"gc_start\":{{\"allocated\":{},\"freed\":{},\"live\":{},\"reserved\":{}}}",
             a0, f0, l0, r0
         ));
-        out.push_str(&format!(
-            "\"gc_end\":{{\"allocated\":{},\"freed\":{},\"live\":{},\"reserved\":{}}},",
+        kv.push(format!(
+            "\"gc_end\":{{\"allocated\":{},\"freed\":{},\"live\":{},\"reserved\":{}}}",
             a1, f1, l1, r1
         ));
 
         if l1 > 0 {
             let ratio = (r1 as f64) / (l1 as f64);
-            out.push_str(&format!("\"fragmentation_reserved_over_live\":{},", ratio));
+            kv.push(format!("\"fragmentation_reserved_over_live\":{}", ratio));
         }
 
-        out.push_str(&format!("\"params\":{}", params_json));
-        out.push_str("}\n");
-        out
+        kv.push(format!("\"params\":{}", params_json));
+
+        if matches!(&self.params, BenchParams::Throughput { .. }) {
+            if !self.rounds.is_empty() {
+                let mut rounds_json = String::new();
+                rounds_json.push('[');
+                for (i, r) in self.rounds.iter().enumerate() {
+                    if i != 0 {
+                        rounds_json.push(',');
+                    }
+                    rounds_json.push_str(&format!(
+                        "{{\"round\":{},\"allocations\":{},\"bytes\":{},\"alloc_ms\":{},\"stw_ms\":{},\"total_ms\":{},\"allocs_per_sec\":{},\"bytes_per_sec\":{}}}",
+                        r.round,
+                        r.allocations,
+                        r.bytes,
+                        r.alloc_elapsed_ms(),
+                        r.stw_ms(),
+                        r.total_elapsed_ms(),
+                        r.allocs_per_sec(),
+                        r.bytes_per_sec()
+                    ));
+                }
+                rounds_json.push(']');
+                kv.push(format!("\"rounds\":{}", rounds_json));
+
+                if let Some(s) = self.stw_summary() {
+                    kv.push(format!(
+                        "\"stw_summary\":{{\"total_ms\":{},\"avg_ms\":{},\"min_ms\":{},\"max_ms\":{}}}",
+                        s.total_ms, s.avg_ms, s.min_ms, s.max_ms
+                    ));
+                }
+            }
+        }
+
+        format!("{{{}}}\n", kv.join(","))
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct StwSummary {
+    total_ms: u128,
+    avg_ms: u128,
+    min_ms: u128,
+    max_ms: u128,
 }
 
 fn emit_output(args: &Args, result: &BenchResult) {
@@ -606,5 +782,114 @@ fn main() {
         // microbench 结束前再 collect，避免把对象留在 heap 链表影响后续同进程实验。
         scoop_gc_collect();
         scoop_thread_unregister();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn throughput_human_output_includes_round_stw_and_summary() {
+        let r0 = ThroughputRound {
+            round: 0,
+            allocations: 100,
+            bytes: 25_600,
+            alloc_elapsed: Duration::from_secs(1),
+            stw_elapsed: Duration::from_millis(2),
+        };
+        let r1 = ThroughputRound {
+            round: 1,
+            allocations: 200,
+            bytes: 51_200,
+            alloc_elapsed: Duration::from_secs(1),
+            stw_elapsed: Duration::from_millis(4),
+        };
+
+        let result = BenchResult {
+            backend: "dummy".to_string(),
+            scenario: Scenario::Throughput,
+            object_size: 256,
+            elapsed_ms: 123,
+            allocations: Some(300),
+            bytes: Some(76_800),
+            allocs_per_sec: Some(999.0),
+            bytes_per_sec: Some(888.0),
+            pinned: None,
+            start_gc: (0, 0, 0, 0),
+            end_gc: (0, 0, 0, 0),
+            rounds: vec![r0, r1],
+            params: BenchParams::Throughput {
+                threads: 2,
+                rounds: 2,
+                batch: 50,
+            },
+        };
+
+        let out = result.to_human_text();
+        assert!(out.contains("rounds: count=2\n"));
+        assert!(out.contains("round: i=0 allocs=100 bytes=25600 alloc_ms=1000 stw_ms=2 total_ms=1002 "));
+        assert!(out.contains("round: i=1 allocs=200 bytes=51200 alloc_ms=1000 stw_ms=4 total_ms=1004 "));
+        assert!(out.contains("stw_summary: total_ms=6 avg_ms=3 min_ms=2 max_ms=4\n"));
+    }
+
+    #[test]
+    fn throughput_json_output_includes_rounds_and_stw_summary() {
+        let result = BenchResult {
+            backend: "dummy".to_string(),
+            scenario: Scenario::Throughput,
+            object_size: 256,
+            elapsed_ms: 123,
+            allocations: Some(300),
+            bytes: Some(76_800),
+            allocs_per_sec: Some(999.0),
+            bytes_per_sec: Some(888.0),
+            pinned: None,
+            start_gc: (0, 0, 0, 0),
+            end_gc: (0, 0, 0, 0),
+            rounds: vec![ThroughputRound {
+                round: 0,
+                allocations: 100,
+                bytes: 25_600,
+                alloc_elapsed: Duration::from_secs(1),
+                stw_elapsed: Duration::from_millis(2),
+            }],
+            params: BenchParams::Throughput {
+                threads: 2,
+                rounds: 1,
+                batch: 50,
+            },
+        };
+
+        let json = result.to_json_line();
+        assert!(json.contains("\"rounds\":["));
+        assert!(json.contains("\"stw_summary\":"));
+        assert!(json.contains("\"stw_ms\":2"));
+    }
+
+    #[test]
+    fn fragmentation_json_output_omits_rounds() {
+        let result = BenchResult {
+            backend: "dummy".to_string(),
+            scenario: Scenario::Fragmentation,
+            object_size: 256,
+            elapsed_ms: 0,
+            allocations: None,
+            bytes: None,
+            allocs_per_sec: None,
+            bytes_per_sec: None,
+            pinned: Some(1),
+            start_gc: (0, 0, 0, 0),
+            end_gc: (0, 0, 0, 0),
+            rounds: Vec::new(),
+            params: BenchParams::Fragmentation {
+                initial: 10,
+                pin_stride: 2,
+            },
+        };
+
+        let json = result.to_json_line();
+        assert!(!json.contains("\"rounds\""));
+        assert!(!json.contains("\"stw_summary\""));
     }
 }
