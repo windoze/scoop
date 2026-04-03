@@ -728,6 +728,10 @@
 - [ ] LLVM 管线与产物要求：
   - `scoopc` 的 LLVM pass pipeline 必须包含：statepoint 重写（`rewrite-statepoints-for-gc`）与 stackmap emission（默认随 statepoint lowering 产出）
   - `.o`/最终可执行文件必须携带 stackmap section；链接产物中 stackmap 必须可被 runtime 定位并注册（支持 main binary 与 `.cone` 预编译对象一起链接）
+  - 落地顺序（对应 TODO T1503 拆分）：
+    - [ ] T1503a1：先建立 stackmap section 生成 + header 解析/单测闭环（先用 `llvm.experimental.stackmap` 降低改动面）
+    - [ ] T1503a2：补齐 `scoop dump-stackmaps` 的可观测工具（CI/fixtures 可断言）
+    - [ ] T1503b：接入 `rewrite-statepoints-for-gc` 并迁移到 statepoint 产出的 stackmaps（为 moving GC 的 `gc.relocate` 链路铺路）
 
 - [ ] `when` lowering：补齐 or-pattern / guard（spec §4.2）
 - [x] tuple 字段访问统一为 `._0` / `._1`，并同步修正文档、fixtures、lowering、codegen（spec §2.3.3）

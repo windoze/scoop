@@ -6024,7 +6024,7 @@
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo test -p scoopc --features llvm`
    - `PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" cargo run -p scoop --features llvm -- test`
 
-### T1503 [TODO] 编译器：接入 LLVM statepoint/stackmap 管线并为 safepoint 生成可定位的 metadata
+### T1503 编译器：接入 LLVM statepoint/stackmap 管线并为 safepoint 生成可定位的 metadata（拆分为子任务）
 - 描述：在 LLVM 后端启用 statepoint 机制，生成 stackmap section，并保证运行时可以用 return address 精确定位到 stackmap record（用于 roots 枚举与 relocation 更新）。
 - 目标：
   - 以 `scoop_gc_safepoint_poll/enter_native/leave_native/scoop_alloc_typed` 等 runtime helper 作为 safepoint 边界；
@@ -6034,6 +6034,37 @@
   - 新增 `cargo test -p scoopc --features llvm` 单测：构建一个最小 module 后，stackmap section 非空且可解析；
   - 新增 `scoop dump-stackmaps <bin>` 输出可读信息，并在 CI/fixtures 中断言包含至少 1 个 safepoint record。
 - 依赖：T1502、T0804、T0806
+- 备注：该任务同时涉及 LLVM IR 插桩、pass pipeline（statepoint 重写）、产物（stackmap section）、以及调试/回归工具链。为保持每一步都“可单独实现 & 单独验证”，已拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1503a1 [TODO] LLVM：先打通 stackmap section 生成与 header 解析闭环（`llvm.experimental.stackmap`）
+- 描述：在 LLVM codegen 的最小路径中显式插入 `llvm.experimental.stackmap`，保证生成的 `.o` 含 stackmap section；同时在 `scoopc` 侧增加最小 stackmap header 解析与单测回归。
+- 目标：
+  - 先不接入 `rewrite-statepoints-for-gc`（避免一次性改动过大）；仅建立“能生成/能读取/能回归”的最小闭环；
+  - 解析器只要求能解析 header（version + counts），不要求覆盖所有 record/location 细节（完整解析留给 T1504/T1506）。
+- 验收：
+  - `cargo test -p scoopc --features llvm` 新增单测：生成一个最小 `.o` 后能找到 stackmap section，且 header 可解析并满足 `num_records > 0`；
+  - `cargo test --all` 通过。
+- 依赖：T1502、T0804
+
+### T1503a2 [TODO] `scoop` CLI：新增 `dump-stackmaps`（读取可执行文件 stackmap section）
+- 描述：新增 `scoop dump-stackmaps <bin>`：从可执行文件中定位 stackmap section，输出可读 header 摘要（version/num_records 等），并支持后续扩展为 “return_address → record” dump。
+- 目标：
+  - 先只要求能在 host 平台读取 stackmap section（Mach-O/ELF 优先；COFF 可后置）；
+  - 输出格式稳定，便于 fixtures/CI 断言。
+- 验收：
+  - 新增一个最小 run-pass fixture：产出可执行文件后运行 `scoop dump-stackmaps`，断言输出包含 `records:` 且数量大于 0；
+  - `cargo test --all`、`cargo run -p scoop -- test` 通过。
+- 依赖：T1503a1、T0806
+
+### T1503b [TODO] LLVM：接入 `rewrite-statepoints-for-gc`，并把 safepoint 绑定到 runtime helper（从 `scoop_alloc` 起步）
+- 描述：把 LLVM 后端从 “手工 stackmap 插桩” 迁移为 statepoint 体系：接入 `rewrite-statepoints-for-gc`，并确保 stackmap records 来自 statepoint 重写后的 callsite（后续用于 moving GC 的 `gc.relocate` 更新链路）。
+- 目标：
+  - 先以 `scoop_alloc`（以及后续的 `scoop_alloc_typed`）作为 safepoint 边界跑通；`scoop_gc_safepoint_poll/enter_native/leave_native` 等边界在对应 runtime API 落地后再补齐；
+  - 产物必须稳定包含 stackmap section，且 `dump-stackmaps` 可观测到 records。
+- 验收：
+  - `cargo test -p scoopc --features llvm`：最小 module 经过 pass pipeline 后仍可生成 `.o`，且 stackmap section 非空；
+  - `scoop dump-stackmaps <bin>` 输出 records 数量稳定（>= 1）。
+- 依赖：T1503a2
 
 ### T1504 [TODO] 运行时：stackmap registry（main binary + 静态链接对象）与解析器
 - 描述：在 C runtime 中实现 LLVM StackMap 格式解析，并提供 module 注册 API，把 stackmap records 纳入统一查询表（按 return address 索引）。
