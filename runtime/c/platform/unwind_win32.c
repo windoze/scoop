@@ -16,3 +16,15 @@ static SCOOP_UNWIND_UNUSED uint32_t scoop_platform_unwind_capture_ips(uintptr_t 
 static SCOOP_UNWIND_UNUSED void *scoop_platform_unwind_ctx_capture(void) { return 0; }
 
 static SCOOP_UNWIND_UNUSED void scoop_platform_unwind_ctx_destroy(void *ctx) { (void)ctx; }
+
+static SCOOP_UNWIND_UNUSED uint32_t scoop_platform_unwind_ctx_walk_frames(
+    void *ctx,
+    uint32_t skip_frames,
+    ScoopPlatformUnwindFrameVisitor visitor,
+    void *user_data) {
+  (void)ctx;
+  (void)skip_frames;
+  (void)visitor;
+  (void)user_data;
+  return 0;
+}

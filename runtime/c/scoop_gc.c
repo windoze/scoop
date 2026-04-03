@@ -466,6 +466,153 @@ done:
   return rc;
 }
 
+typedef struct ScoopTestGcUnwindFramesState {
+  uint32_t frame_count;
+  uint32_t query_count;
+  uint32_t sp_non_decreasing;
+  uintptr_t last_sp;
+} ScoopTestGcUnwindFramesState;
+
+static uint32_t scoop_test_gc_unwind_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+  (void)ra;
+  if (user_data == 0) {
+    return 0;
+  }
+
+  ScoopTestGcUnwindFramesState *state = (ScoopTestGcUnwindFramesState *)user_data;
+  // mock stackmap query：只记录被查询的次数与顺序约束（用于回归 walk 的调用行为）。
+  state->query_count += 1;
+
+  if (state->frame_count > 0 && sp < state->last_sp) {
+    state->sp_non_decreasing = 0;
+  }
+
+  state->last_sp = sp;
+  state->frame_count += 1;
+  return 1;
+}
+
+// Test-only export（T1411b）：触发一次 stop-the-world，并验证 Parked 线程的 stack walking
+// 能从捕获的 ctx 中枚举至少 3 帧，并把每帧 `(sp, ra)` 输入到 mock stackmap 查询。
+//
+// 返回：
+// - 1：通过
+// - <0：失败（用于测试诊断）
+intptr_t scoop_test_gc_stack_walking_unwind_smoke(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  uint32_t stop = 0;
+  uint64_t poll_count = 0;
+  ScoopTestGcCtxWorkerArgs args = {
+      .stop = &stop,
+      .poll_count = &poll_count,
+  };
+
+  pthread_t worker = 0;
+  if (pthread_create(&worker, 0, scoop_test_gc_ctx_worker_entry, (void *)&args) != 0) {
+    scoop_thread_unregister();
+    return -10;
+  }
+
+  // 等待 worker 进入 poll 循环，避免在其尚未注册/调度前触发 STW 导致挂死或结果不稳定。
+  struct timespec start;
+#if defined(CLOCK_MONOTONIC)
+  (void)clock_gettime(CLOCK_MONOTONIC, &start);
+#else
+  (void)timespec_get(&start, TIME_UTC);
+#endif
+
+  while (__atomic_load_n(&poll_count, __ATOMIC_SEQ_CST) < 128) {
+    struct timespec now;
+#if defined(CLOCK_MONOTONIC)
+    (void)clock_gettime(CLOCK_MONOTONIC, &now);
+#else
+    (void)timespec_get(&now, TIME_UTC);
+#endif
+    int64_t elapsed_ns = ((int64_t)(now.tv_sec - start.tv_sec) * 1000000000ll) +
+                         ((int64_t)now.tv_nsec - (int64_t)start.tv_nsec);
+    if (elapsed_ns < 0) {
+      elapsed_ns = 0;
+    }
+    uint64_t elapsed_ms = (uint64_t)(elapsed_ns / 1000000ll);
+    if (elapsed_ms > 2000) {
+      __atomic_store_n(&stop, 1, __ATOMIC_SEQ_CST);
+      (void)pthread_join(worker, 0);
+      scoop_thread_unregister();
+      return -11;
+    }
+    sched_yield();
+  }
+
+  intptr_t rc = 1;
+
+  pthread_t self = pthread_self();
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  scoop_gc_stop_the_world_begin_unlocked(self);
+
+  ScoopGcThreadRecord *worker_rec = scoop_gc_find_thread_unlocked(worker);
+  if (worker_rec == 0) {
+    rc = -20;
+    goto done;
+  }
+  if (worker_rec->state != SCOOP_GC_THREAD_PARKED) {
+    rc = -21;
+    goto done;
+  }
+  if (worker_rec->stack_walking_ctx == 0) {
+    rc = -22;
+    goto done;
+  }
+
+  ScoopTestGcUnwindFramesState state = {
+      .frame_count = 0,
+      .query_count = 0,
+      .sp_non_decreasing = 1,
+      .last_sp = 0,
+  };
+  const uint32_t skip_frames = 0;
+  const uint32_t visited = scoop_platform_unwind_ctx_walk_frames(
+      worker_rec->stack_walking_ctx, skip_frames, scoop_test_gc_unwind_frame_visitor, (void *)&state);
+
+  if (visited < 3 || state.frame_count < 3 || state.query_count < 3) {
+    rc = -30;
+    goto done;
+  }
+  if (!state.sp_non_decreasing) {
+    rc = -31;
+    goto done;
+  }
+  if (visited != state.frame_count || visited != state.query_count) {
+    rc = -32;
+    goto done;
+  }
+
+  scoop_gc_stop_the_world_end_unlocked();
+
+  // STW end 会在持锁状态下清空所有线程的 ctx；这里防御式回归一下。
+  if (worker_rec->stack_walking_ctx != 0) {
+    rc = -33;
+    goto done;
+  }
+
+done:
+  // 若出现早退，确保 STW 不会悬挂。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    scoop_gc_stop_the_world_end_unlocked();
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+
+  __atomic_store_n(&stop, 1, __ATOMIC_SEQ_CST);
+  (void)pthread_join(worker, 0);
+  scoop_thread_unregister();
+  return rc;
+}
+
 // 进程全局 heap（v0：单线程）。
 //
 // 说明：

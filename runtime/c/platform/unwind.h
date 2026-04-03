@@ -44,6 +44,18 @@ static void *scoop_platform_unwind_ctx_capture(void);
 // 释放 `scoop_platform_unwind_ctx_capture()` 返回的 ctx（允许传入 NULL）。
 static void scoop_platform_unwind_ctx_destroy(void *ctx);
 
+// stack walking：逐帧枚举从 ctx 捕获到的调用栈信息。
+//
+// 约定（T1411b）：
+// - 以 `(sp, ra)` 表示一帧（当前阶段用于 stackmap 查询输入；具体 ABI/寄存器细节由 platform 层封装）；
+// - `skip_frames` 用于跳过最顶端的 N 帧（例如隐藏 runtime wrapper 自身）；
+// - visitor 返回 0 表示停止，返回非 0 表示继续。
+typedef uint32_t (*ScoopPlatformUnwindFrameVisitor)(uintptr_t sp, uintptr_t ra, void *user_data);
+static uint32_t scoop_platform_unwind_ctx_walk_frames(void *ctx,
+                                                      uint32_t skip_frames,
+                                                      ScoopPlatformUnwindFrameVisitor visitor,
+                                                      void *user_data);
+
 // --- backend selection ---
 //
 // 注意：这里通过 include 选择 backend，并在 backend 文件中提供上述 static 函数定义。

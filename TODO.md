@@ -6210,13 +6210,24 @@
    - `cargo test -p scoop_runtime`
    - `cargo test --all`
 
-### T1411b [TODO] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
+### T1411b [DONE] GC stack walking：在 T1505 停世界协议中复用 platform/unwind
 - 描述：在实现 T1505 的 stack walking 上下文时复用 `runtime/c/platform` 的 unwind 模块，提供“从捕获到的线程上下文开始，逐帧 unwind”的能力；把 unwind/寄存器/ABI 细节完全收敛到 platform 层。
 - 目标：
   - 以 `platform/unwind` 提供的抽象为唯一入口；`scoop_gc_safepoint_poll` 只保存/恢复 opaque ctx；
   - host 平台优先实现；Windows/wasm/embedded 允许按 backend 占位或能力降级。
 - 验收：在完成 T1505 后，新增一条 runtime 集成测试：Parked 线程的 stack walking 可枚举至少 3 帧，并能把每帧的 `(sp, ra)` 输入到 stackmap 查询（可先用 mock stackmap 断言调用次数/顺序）。
 - 依赖：T1505b、T1411a
+ - 完成：
+   - `runtime/c/platform/unwind.h`：新增 `scoop_platform_unwind_ctx_walk_frames` 与 `(sp, ra)` frame visitor 抽象。
+   - `runtime/c/platform/unwind_posix.c`：在 `ctx_capture` 时用 `_Unwind_Backtrace` 缓存 `(sp, ra)`（`sp=_Unwind_GetCFA`，`ra=_Unwind_GetIP`），并提供从 ctx 枚举帧的实现。
+   - `runtime/c/platform/unwind_win32.c`：补齐 `ctx_walk_frames` 占位实现（返回 0）。
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c`：新增 test-only export `scoop_test_gc_stack_walking_unwind_smoke`，在 STW 期间对 Parked 线程 ctx 做逐帧枚举并断言至少 3 帧（mock stackmap query 计数）。
+   - `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：补齐同名 test-only stub（non-STW backend 返回 0）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_stack_walking_unwind_smoke`。
+   - `crates/scoop_runtime/tests/gc_stack_walking_unwind.rs`：新增集成测试回归 “Parked ctx 可枚举至少 3 帧”。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1506 [TODO] 运行时：用 stackmap roots 替换 shadow stack roots（Visitor API + 精确可更新 slots）
 - 描述：把 GC 的根集枚举从 shadow stack 改为 stackmap：对 Parked 线程使用其 TLS 保存的 unwind 上下文做 stack walking，逐帧定位 stackmap record，并以 `void** slot` 的形式枚举所有 roots（支持移动 GC 原地更新）。
