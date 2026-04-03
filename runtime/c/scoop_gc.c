@@ -13,6 +13,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "scoop_gc_stw_internal.h"
+
 // --- 线程注册 + stop-the-world（TODO T0911） ---
 //
 // 设计说明（early stage）：
@@ -26,25 +28,13 @@
 // - 该实现优先满足“可验证且不崩溃”的语义，不追求性能。
 // - 线程必须显式调用 `scoop_thread_register/unregister`（由 runtime 侧提供）以参与 GC STW。
 
-typedef struct ScoopGcThreadRecord {
-  struct ScoopGcThreadRecord *next;
-  pthread_t thread;
-  // 指向该线程 TLS 内的 `current_frame` 槽位（由 runtime 注册时传入）。
-  ScoopGcFrame **current_frame_slot;
-  // 1 表示该线程已进入 STW park；用于避免重复计数。
-  uint32_t parked;
-} ScoopGcThreadRecord;
-
 static pthread_mutex_t scoop_gc_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t scoop_gc_cond = PTHREAD_COND_INITIALIZER;
 
 static ScoopGcThreadRecord *scoop_gc_threads = 0;
 static uint32_t scoop_gc_thread_count = 0;
 
-// STW 状态（由 `scoop_gc_collect` 驱动）。
-static uint32_t scoop_gc_stw_requested = 0;
-static pthread_t scoop_gc_stw_initiator;
-static uint32_t scoop_gc_stw_parked_count = 0;
+static ScoopGcStwState scoop_gc_stw = {0};
 
 static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
@@ -68,6 +58,9 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
   if (existing != 0) {
     existing->current_frame_slot = current_frame_slot;
+    existing->state = SCOOP_GC_THREAD_RUNNING;
+    existing->last_safepoint_epoch = scoop_gc_stw.epoch;
+    existing->parked_epoch = 0;
     (void)pthread_mutex_unlock(&scoop_gc_lock);
     return;
   }
@@ -81,7 +74,15 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   rec->next = scoop_gc_threads;
   rec->thread = self;
   rec->current_frame_slot = current_frame_slot;
-  rec->parked = 0;
+  rec->gc_alloc_block_slot = 0;
+  rec->gc_alloc_block_cache_slot = 0;
+  rec->gc_alloc_block_cache_len_slot = 0;
+  rec->state = SCOOP_GC_THREAD_RUNNING;
+  rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+  rec->parked_epoch = 0;
+  rec->stack_walking_ctx = 0;
+  rec->native_roots = 0;
+  rec->native_roots_len = 0;
 
   scoop_gc_threads = rec;
   scoop_gc_thread_count += 1;
@@ -96,7 +97,7 @@ void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
 
   // 若当前有其它线程正在进行 STW，则等它结束后再注销，避免破坏 stop-the-world 计数。
-  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
   }
 
@@ -121,21 +122,34 @@ void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
 
 // safepoint：若 GC 正在请求 STW，则当前线程在此处 park，直到 GC 结束。
 void scoop_gc_safepoint(void) {
+  // T1505a：fast path（无 STW 时不抢全局锁）。
+  if (!scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    return;
+  }
+
   pthread_t self = pthread_self();
 
   (void)pthread_mutex_lock(&scoop_gc_lock);
 
   // 协作式 STW：只有在该线程已注册且不是 initiator 时才会 park。
-  while (scoop_gc_stw_requested && !pthread_equal(self, scoop_gc_stw_initiator)) {
+  ScoopGcThreadRecord *self_rec = scoop_gc_find_thread_unlocked(self);
+  if (self_rec != 0) {
+    self_rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+  }
+
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw) && !pthread_equal(self, scoop_gc_stw.initiator)) {
     ScoopGcThreadRecord *rec = scoop_gc_find_thread_unlocked(self);
     if (rec == 0) {
       // 未注册：不参与 STW（early stage 语义约定）。
       break;
     }
 
-    if (!rec->parked) {
-      rec->parked = 1;
-      scoop_gc_stw_parked_count += 1;
+    rec->last_safepoint_epoch = scoop_gc_stw.epoch;
+
+    if (rec->parked_epoch != scoop_gc_stw.epoch) {
+      rec->state = SCOOP_GC_THREAD_PARKED;
+      rec->parked_epoch = scoop_gc_stw.epoch;
+      scoop_gc_stw.parked_count += 1;
       // 唤醒 GC 线程：它可能正在等待 parked_count 达标。
       (void)pthread_cond_broadcast(&scoop_gc_cond);
     }
@@ -146,15 +160,23 @@ void scoop_gc_safepoint(void) {
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
+void scoop_gc_safepoint_poll(void) {
+  // T1505a：当前阶段与 `scoop_gc_safepoint()` 等价；后续接入 stack walking ctx/stackmap roots 时，
+  // 优先把新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
+  scoop_gc_safepoint();
+}
+
 // scope helper：进入 stop-the-world（等待其它线程 park）。
 static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
-  scoop_gc_stw_requested = 1;
-  scoop_gc_stw_initiator = initiator;
-  scoop_gc_stw_parked_count = 0;
+  scoop_gc_stw_requested_store(&scoop_gc_stw, 1);
+  scoop_gc_stw.initiator = initiator;
+  scoop_gc_stw.epoch += 1;
+  scoop_gc_stw.parked_count = 0;
 
-  // 重置 parked 标记，避免上一轮残留（健壮性）。
+  // 重置线程状态，避免上一轮残留（健壮性；对齐未来 T1505 的状态机语义）。
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    it->parked = 0;
+    it->state = SCOOP_GC_THREAD_RUNNING;
+    it->parked_epoch = 0;
   }
 
   // 需要 park 的线程数量：所有已注册线程 - initiator（若 initiator 已注册）。
@@ -163,17 +185,24 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
     need_to_park -= 1;
   }
 
-  while (scoop_gc_stw_parked_count < need_to_park) {
-    (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
+  while (scoop_gc_stw.parked_count < need_to_park) {
+    struct timespec ts;
+    scoop_gc_stw_timespec_after_ms((uint32_t)SCOOP_GC_STW_DIAG_INTERVAL_MS, &ts);
+
+    int rc = pthread_cond_timedwait(&scoop_gc_cond, &scoop_gc_lock, &ts);
+    if (rc == ETIMEDOUT) {
+      scoop_gc_stw_diag_dump_threads_unlocked(&scoop_gc_stw, scoop_gc_threads, need_to_park);
+    }
   }
 }
 
 static void scoop_gc_stop_the_world_end_unlocked(void) {
-  scoop_gc_stw_requested = 0;
-  scoop_gc_stw_parked_count = 0;
+  scoop_gc_stw_requested_store(&scoop_gc_stw, 0);
+  scoop_gc_stw.parked_count = 0;
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
-    it->parked = 0;
+    it->state = SCOOP_GC_THREAD_RUNNING;
+    it->parked_epoch = 0;
   }
 
   (void)pthread_cond_broadcast(&scoop_gc_cond);
@@ -470,7 +499,7 @@ void scoop_gc_collect(void) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
 
   // 保证同一时刻只允许一个 GC 周期。
-  while (scoop_gc_stw_requested) {
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
     (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
   }
 

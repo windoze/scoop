@@ -6152,7 +6152,7 @@
 - 目标：保持“可单独实现 & 单独验证”，将协议/上下文捕获/native 过渡拆分为子任务，逐步接入后续的 stackmap roots（T1506）。
 - 备注：该任务范围较大（poll fast/slow path、epoch/诊断、park 语义、native 过渡），为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务：
 
-### T1505a [TODO] 运行时：`scoop_gc_safepoint_poll` v0（线程状态机 + epoch + 超时诊断）
+### T1505a [DONE] 运行时：`scoop_gc_safepoint_poll` v0（线程状态机 + epoch + 超时诊断）
 - 描述：引入新的 safepoint API `scoop_gc_safepoint_poll()`，并把 baseline/immix 的 STW 线程记录结构对齐到 `Running/Parked` 状态机与 `epoch/last_safepoint_epoch` 诊断字段（见 `runtime/c/scoop_gc_stw_internal.h`）。
 - 目标：
   - `scoop_gc_safepoint_poll()` 先作为 `scoop_gc_safepoint()` 的等价入口（后续在 T1505b/T1506 接入 stack walking ctx 与 stackmap roots）；
@@ -6163,6 +6163,15 @@
   - 新增 `crates/scoop_runtime` 多线程测试：两线程循环 `scoop_gc_safepoint_poll()` + 一线程触发 `scoop_gc_collect()`，确保两线程都能被停下并恢复；
   - `cargo test --all` 通过。
 - 依赖：T1504a、T0911、T1402
+ - 完成：
+   - `runtime/c/scoop_gc.c`：baseline backend 的 STW 线程记录结构对齐到 `runtime/c/scoop_gc_stw_internal.h`（Running/Parked + epoch + 超时诊断），并为 `scoop_gc_safepoint()` 增加“原子 fast path”。
+   - `runtime/c/scoop_gc_backend_immix.c` / `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：新增导出符号 `scoop_gc_safepoint_poll()`（当前与 `scoop_gc_safepoint()` 等价）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_gc_safepoint_poll`。
+   - `crates/scoop_runtime/tests/gc_safepoint_poll.rs`：新增多线程回归，验证 poll 可 park 并在 GC 后恢复执行。
+   - `crates/scoop_runtime/tests/stackmap_registry.rs`：修复并行测试下的全局 registry 互相干扰（串行化相关测试，避免 flaky）。
+ - 验收：
+   - `cargo test -p scoop_runtime`
+   - `cargo test --all`
 
 ### T1505b [TODO] 运行时：park 前捕获 stack walking 上下文到 TLS（opaque ctx）
 - 描述：在 `scoop_gc_safepoint_poll()` slow path 进入 park 之前捕获该线程的 unwind 上下文并保存到 TLS/线程记录中，GC 结束后清理；上下文类型为 opaque 指针/结构体，ABI/平台细节收敛在 `runtime/c/platform/*`。

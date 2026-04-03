@@ -86,6 +86,7 @@
   X(scoop_gc_heap_init) \
   X(scoop_gc_heap_register_object) \
   X(scoop_gc_safepoint) \
+  X(scoop_gc_safepoint_poll) \
   X(scoop_gc_self_check) \
   X(scoop_gc_shadow_stack_visit_roots_current_thread) \
   X(scoop_gc_shadow_stack_visit_roots_from_frame) \

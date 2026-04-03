@@ -330,6 +330,12 @@ void scoop_gc_safepoint(void) {
   scoop_gc_immix_unlock(state);
 }
 
+void scoop_gc_safepoint_poll(void) {
+  // T1505a：当前阶段与 `scoop_gc_safepoint()` 等价；后续接入 stack walking ctx/stackmap roots 时，
+  // 优先把新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
+  scoop_gc_safepoint();
+}
+
 uint32_t scoop_pin(void *raw_obj) {
   if (raw_obj == 0) {
     return 0;

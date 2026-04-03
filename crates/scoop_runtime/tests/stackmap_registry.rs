@@ -2,6 +2,13 @@
 use scoop_runtime as _;
 
 use std::mem;
+use std::sync::Mutex;
+
+// 注意：同一测试二进制内的多个 `#[test]` 默认会并行执行；而 stackmap registry 是进程全局状态，
+// 并行测试会互相干扰（即使各自调用了 reset 也无法保证时序）。
+//
+// 这里用一个进程内全局锁把相关测试串行化，避免 flaky。
+static STACKMAP_REGISTRY_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 // 与 `runtime/c/scoop_stackmap.h` 中的 `ScoopStackmapRecordRef` 对齐。
 #[repr(C)]
@@ -91,6 +98,7 @@ static MOCK_STACKMAP_SECTION: StackMapSectionMin = StackMapSectionMin {
 
 #[test]
 fn stackmap_registry_can_register_and_lookup_mock_section() {
+    let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
     unsafe {
         scoop_stackmap_registry_reset();
 
@@ -183,6 +191,7 @@ static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbed
 
 #[test]
 fn runtime_init_registers_stackmaps_from_current_process() {
+    let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
     // 当前实现：
     // - macOS：通过 dyld + getsectiondata* 扫描已加载 images
     // - ELF：尝试 `__start_llvm_stackmaps`/`__stop_llvm_stackmaps`（weak）

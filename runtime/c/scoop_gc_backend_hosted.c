@@ -101,6 +101,11 @@ void scoop_gc_safepoint(void) {
   // hosted backend：无 STW，safepoint 为 no-op。
 }
 
+void scoop_gc_safepoint_poll(void) {
+  // T1505a：hosted backend 无 STW；poll 与 safepoint 一致为 no-op。
+  scoop_gc_safepoint();
+}
+
 uint32_t scoop_pin(void *raw_obj) {
   if (raw_obj == 0) {
     return 0;
