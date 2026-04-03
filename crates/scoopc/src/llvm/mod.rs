@@ -28,6 +28,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 mod codegen;
+mod stackmap;
 mod target;
 pub use target::{HostTargetInfo, LlvmTargetError};
 
@@ -411,6 +412,10 @@ fn build_main_module_from_lowered_hir<'ctx>(
         });
     builder.build_call(rt_init, &[], "rt_init")?;
 
+    // T1503a1：先插入一个最小 stackmap probe，保证产物包含 stackmap section，
+    // 便于后续接入 statepoint/stack walking 前建立“可生成/可读取/可回归”的闭环。
+    emit_minimal_stackmap_probe(context, &module, &builder)?;
+
     let exit_code = codegen::MainCodegen::new(
         context,
         &module,
@@ -438,6 +443,35 @@ fn build_main_module_from_lowered_hir<'ctx>(
         })?;
 
     Ok(module)
+}
+
+/// 插入一个 `llvm.experimental.stackmap` 调用，用于在 object/binary 中生成 stackmap section。
+///
+/// 说明：
+/// - 这是 TODO T1503a1 的临时落点：先建立最小闭环（section 存在 + header 可解析）。
+/// - 后续 TODO T1503b 会把这里的 “手工 stackmap probe” 迁移为 statepoint 体系
+///   (`rewrite-statepoints-for-gc`) 产出的 stackmaps。
+fn emit_minimal_stackmap_probe<'ctx>(
+    context: &'ctx Context,
+    module: &inkwell::module::Module<'ctx>,
+    builder: &inkwell::builder::Builder<'ctx>,
+) -> Result<(), LlvmEmitError> {
+    let i64_ty = context.i64_type();
+    let i32_ty = context.i32_type();
+    let fn_ty = context
+        .void_type()
+        .fn_type(&[i64_ty.into(), i32_ty.into()], true);
+
+    // intrinsic 名称必须精确匹配，LLVM 才会在 codegen 阶段生成 stackmap section。
+    let stackmap = module.get_function("llvm.experimental.stackmap").unwrap_or_else(|| {
+        module.add_function("llvm.experimental.stackmap", fn_ty, None)
+    });
+
+    // PatchPoint ID：只要在 module 内稳定即可；这里从 1 起步，避免和默认值“看起来像未初始化”混淆。
+    let id = i64_ty.const_int(1, false);
+    let shadow_bytes = i32_ty.const_int(0, false);
+    let _ = builder.build_call(stackmap, &[id.into(), shadow_bytes.into()], "stackmap")?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -926,6 +960,8 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;
+    use object::Object;
+    use object::ObjectSection;
 
     fn make_temp_dir(prefix: &str) -> std::path::PathBuf {
         let nanos = SystemTime::now()
@@ -1234,6 +1270,36 @@ fun main(): Int {
 
         let size = std::fs::metadata(&output).unwrap().len();
         assert!(size > 0, "object 文件不应为空");
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn minimal_main_obj_contains_stackmap_section_and_header_is_parseable() {
+        let dir = make_temp_dir("minimal_main_obj_contains_stackmap_section");
+        let output = dir.join("main.o");
+
+        let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
+        let session = Session::new().unwrap();
+        emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+        let bytes = std::fs::read(&output).unwrap();
+        let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+
+        let stackmap_section = obj
+            .sections()
+            .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
+            .expect("missing stackmap section (llvm_stackmaps)");
+        let section_data = stackmap_section
+            .data()
+            .expect("failed to read stackmap section data");
+
+        let header = super::stackmap::StackMapHeader::parse(section_data.as_ref())
+            .expect("stackmap header should be parseable");
+        assert!(
+            header.num_records > 0,
+            "expected stackmap section to contain at least one record"
+        );
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

@@ -6036,7 +6036,7 @@
 - 依赖：T1502、T0804、T0806
 - 备注：该任务同时涉及 LLVM IR 插桩、pass pipeline（statepoint 重写）、产物（stackmap section）、以及调试/回归工具链。为保持每一步都“可单独实现 & 单独验证”，已拆分为以下子任务；本条仅保留原始目标汇总。
 
-### T1503a1 [TODO] LLVM：先打通 stackmap section 生成与 header 解析闭环（`llvm.experimental.stackmap`）
+### T1503a1 [DONE] LLVM：先打通 stackmap section 生成与 header 解析闭环（`llvm.experimental.stackmap`）
 - 描述：在 LLVM codegen 的最小路径中显式插入 `llvm.experimental.stackmap`，保证生成的 `.o` 含 stackmap section；同时在 `scoopc` 侧增加最小 stackmap header 解析与单测回归。
 - 目标：
   - 先不接入 `rewrite-statepoints-for-gc`（避免一次性改动过大）；仅建立“能生成/能读取/能回归”的最小闭环；
@@ -6045,6 +6045,13 @@
   - `cargo test -p scoopc --features llvm` 新增单测：生成一个最小 `.o` 后能找到 stackmap section，且 header 可解析并满足 `num_records > 0`；
   - `cargo test --all` 通过。
 - 依赖：T1502、T0804
+ - 完成：
+   - `crates/scoopc/src/llvm/mod.rs`：在最小 `main` 入口插入 `llvm.experimental.stackmap` probe；新增单测断言 object 产物包含 `llvm_stackmaps` section 且 header 可解析。
+   - `crates/scoopc/src/llvm/stackmap.rs`：新增最小 stackmap header 解析器（version + counts）。
+   - `crates/scoopc/Cargo.toml`：新增 `object` dev-dependency（用于单测读取 object section）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoopc --features llvm`
 
 ### T1503a2 [TODO] `scoop` CLI：新增 `dump-stackmaps`（读取可执行文件 stackmap section）
 - 描述：新增 `scoop dump-stackmaps <bin>`：从可执行文件中定位 stackmap section，输出可读 header 摘要（version/num_records 等），并支持后续扩展为 “return_address → record” dump。
