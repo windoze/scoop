@@ -6122,7 +6122,7 @@
    - `cargo test -p scoop_runtime --test stackmap_registry`
    - `cargo test --all`
 
-### T1504b [TODO] 运行时：COFF 支持 + 多模块自动发现完善 + statepoint smoke
+### T1504b [DONE] 运行时：COFF 支持 + 多模块自动发现完善 + statepoint smoke
 - 描述：补齐 Windows/COFF 的 stackmap section 自动发现与注册；完善 ELF 下多 image（主程序 + shared libs）的自动发现；并新增一个基于真实 statepoint 产物的 smoke（定位到 `main` 的 safepoint record）。
 - 目标：
   - COFF：支持 `.llvm_stackmaps` section 的定位与注册；
@@ -6132,6 +6132,20 @@
   - 新增一个 run-pass fixture（需要 `--features llvm`）：在运行期可观察到 registry 非空，并能定位到 `main` 的某个 safepoint record；
   - `cargo test --all` 通过。
 - 依赖：T1504a、T1503b、T0901
+ - 完成：
+   - `runtime/c/scoop_stackmap.c`：
+     - 解析器：补齐 records 内 `locations` 后的 8-byte 对齐（真实 statepoint 产物需要），避免后续 record 偏移错位导致解析失败；
+     - lookup：引入 `<= 16 bytes` 的 return-address 偏移容忍（先精确匹配，再尝试邻近 record），更贴近真实栈帧 return address 语义；
+     - macOS：遍历 dyld images 定位 `__LLVM_STACKMAPS,__llvm_stackmaps`（不假设 main 固定 image=0），确保主程序与动态库均可注册；
+     - Linux：新增基于 `dl_iterate_phdr` 的多 image best-effort 扫描（在可读非可执行段中探测 stackmap header，并用 “record.function_address 落在该 image 可执行段” 过滤误命中）；
+     - Windows：新增 Toolhelp32 模块枚举 + PE section header 扫描，best-effort 支持 `.llvm_stackmaps`（含常见截断前缀 `.llvm_st*`）。
+   - `runtime/c/scoop_test.c`：新增 test-only 导出 `scoop_test_stackmap_statepoint_smoke`，在运行期强制重扫 registry 并用 `__builtin_return_address(0)` 验证调用点可定位到 stackmap record。
+   - `runtime/c/scoop_runtime_api.h`：allowlist 登记 `scoop_test_stackmap_statepoint_smoke`。
+   - fixtures：新增 `tests/fixtures/run-pass/stackmap_registry_statepoint_smoke.scoop` 回归“真实 statepoint 产物下 registry 可观测 + 定位到 main 的 safepoint record”。
+ - 验收：
+   - `cargo test --all`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm`
+   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 
 ### T1505 [TODO] 运行时：safepoint poll + 线程状态机（Running/Parked/InNative）与停世界协议（含 stack walking 上下文）
 - 描述：实现基于 statepoint/stackmap 的 stop-the-world：线程在 `scoop_gc_safepoint_poll()` 进入 Parked，线程在 `enter_native()` 进入 InNative。**GC 必须能扫描每个线程的完整调用栈（多帧）**，因此 Parked 线程必须提供可用于 stack walking 的上下文（由 runtime/c 负责，不泄漏到 Scoop 侧）。

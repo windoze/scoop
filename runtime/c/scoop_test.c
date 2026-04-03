@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "platform/unwind.h"
+#include "scoop_stackmap.h"
 
 // 一个最小可调用的 C 函数：`Int + Int -> Int`（按 host word-size）。
 //
@@ -32,4 +33,46 @@ uintptr_t scoop_test_get_add_int_funptr(void) {
 // - 不承诺稳定 ABI；只保证在本仓库的测试/fixtures 中可用。
 uint32_t scoop_test_unwind_capture_ips(uintptr_t *out_ips, uint32_t out_cap, uint32_t skip_frames) {
   return scoop_platform_unwind_capture_ips(out_ips, out_cap, skip_frames);
+}
+
+// statepoint/stackmap smoke：验证 runtime registry 非空，且“调用点的 return address”可查到 record。
+//
+// 设计意图（T1504b）：
+// - 该函数将被 Scoop 代码通过 `@Extern("scoop_test_stackmap_statepoint_smoke")` 调用；
+// - 由于 entry `main` 带 `gc "statepoint-example"`，`rewrite-statepoints-for-gc` 会把对本函数的调用点
+//   重写为 statepoint，从而在 `.llvm_stackmaps` 中产生对应 record；
+// - 在本函数内部读取 `__builtin_return_address(0)` 即得到该调用点的 return address；
+// - 用该地址查询 registry，验证 return address ↔ record 的映射规则在真实产物上成立。
+//
+// 返回：
+// - 1：通过（registry 非空且 lookup 成功）
+// - 0：失败（未发现 stackmaps 或 lookup 失败）
+__attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
+  // 说明：
+  // - 该符号仅用于 fixtures/run-pass 的 smoke；这里允许“强制重扫一次”，便于在不同平台/链接策略下
+  //   排除初始化时机导致的误差。
+  scoop_stackmap_registry_reset();
+  (void)scoop_stackmap_registry_register_current_process();
+
+  const uint32_t n = scoop_stackmap_registry_record_count();
+  if (n == 0) {
+    return -1;
+  }
+
+#if defined(__clang__) || defined(__GNUC__)
+  const uintptr_t ra = (uintptr_t)__builtin_return_address(0);
+  if (ra == 0) {
+    return -2;
+  }
+  ScoopStackmapRecordRef rec = {0};
+  if (!scoop_stackmap_registry_lookup(ra, &rec)) {
+    return -3;
+  }
+  if (rec.patchpoint_id == 0) {
+    return -4;
+  }
+  return 1;
+#else
+  return -5;
+#endif
 }

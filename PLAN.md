@@ -21,6 +21,7 @@
 
 - 2026-04-04：T1504（stackmap registry）包含解析/索引/平台自动发现/COFF/真实 statepoint smoke 等多个点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1504a/T1504b：先落地 registry core（解析 + `return_address -> record` 索引 + `scoop_runtime_init()` 自动注册）（T1504a），再补齐 COFF/多模块自动发现完善与 statepoint smoke（T1504b）。
 - 2026-04-04：完成 T1504a：新增 `runtime/c/scoop_stackmap.c`（stackmap v3 解析 + registry），`scoop_runtime_init()` 自动注册当前进程 stackmaps；新增 `scoop_runtime` 集成测试覆盖 mock section 与“真实链接产物”内嵌 section 的 smoke 回归；并更新 runtime API allowlist。
+- 2026-04-04：完成 T1504b：补齐 stackmap v3 records 的 locations→liveouts 对齐规则（真实 statepoint 产物可解析）；lookup 容忍小范围 return-address 偏移；补齐 COFF/ELF multi-module 自动发现（Windows：Toolhelp32 + PE section 扫描；Linux：`dl_iterate_phdr` best-effort 扫描）；新增 run-pass fixture `stackmap_registry_statepoint_smoke` 回归“运行期 registry 可观测 + 定位到 main 的 safepoint record”。
 - 2026-04-03：T1405（GC backend 抽象）范围过大且与后续 Immix/adapter 等实现点耦合较多，为保持“首个 `[TODO]` 可直接实现”的粒度，已拆分为 T1405a/T1405b：先落地 backend 选择机制 + baseline/minimal 双后端回归（T1405a），再补齐 capability 矩阵与检查点（T1405b）。
 - 2026-04-03：完成 T1405a：引入 `SCOOP_GC_BACKEND` 编译期选择与 `gc-baseline/gc-minimal` Cargo features；把 `scoop_gc_self_check` 与 `scoop_gc_type_descriptor_trace` 提取为 shared 编译单元；新增 minimal backend（单线程/无 STW，检测到多线程时 collect 退化为 no-op）。
 - 2026-04-03：完成 T1405b：补齐 GC backend capability matrix（STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots），并把这些能力以编译期常量接入测试 gating：`gc_stop_the_world` 在 `gc-minimal` 下显式 `ignored`；新增 `gc_capabilities` 集成测试固化矩阵值。
@@ -755,7 +756,7 @@
 - [ ] 启动入口：`main`/平台 glue，初始化 runtime（GC/stackmaps/线程注册/effect TLS）
 - [ ] stackmap registry（运行期元数据）：
   - [x] v0：解析 stackmaps 并建立 `return_address -> record` 索引（排序数组 + 二分查找）（T1504a）
-  - [ ] multi-module 自动发现完善（含 COFF）+ 真实 statepoint smoke（定位到 `main` safepoint record）（T1504b）
+  - [x] multi-module 自动发现完善（含 COFF）+ 真实 statepoint smoke（定位到 `main` safepoint record）（T1504b）
 - [ ] 分配器（typed alloc）：
   - `scoop_alloc_typed(type_desc, size_bytes)`：分配并初始化对象头（写入 `type_desc/size/flags/mark`），返回 GC pointer
   - 固定大小对象可走 `scoop_alloc_object(type_desc)` 快路径；变长对象（array/string）走 `scoop_alloc_var(type_desc, size_bytes)`

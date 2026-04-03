@@ -24,6 +24,17 @@
 #include <mach-o/loader.h>
 #endif
 
+#if defined(__linux__)
+#include <elf.h>
+#include <link.h>
+#endif
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <tlhelp32.h>
+#endif
+
 // --- 小工具：LE 读写与边界检查 ---
 
 static int scoop_stackmap_read_u8(const uint8_t *bytes,
@@ -200,6 +211,32 @@ static void scoop_stackmap_registry_sort_and_dedupe_locked(void) {
   scoop_stackmap_registry.len = write;
 }
 
+static uint32_t scoop_stackmap_registry_register_entries(ScoopStackmapRecordRef *entries,
+                                                         size_t entry_len) {
+  if (entries == 0 || entry_len == 0) {
+    return 0;
+  }
+
+  (void)pthread_mutex_lock(&scoop_stackmap_registry_lock);
+
+  if (!scoop_stackmap_registry_reserve_locked(entry_len)) {
+    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+    return 0;
+  }
+
+  memcpy(&scoop_stackmap_registry.entries[scoop_stackmap_registry.len],
+         entries,
+         entry_len * sizeof(ScoopStackmapRecordRef));
+  scoop_stackmap_registry.len += entry_len;
+
+  scoop_stackmap_registry_sort_and_dedupe_locked();
+
+  const uint32_t out_added =
+      (entry_len > (size_t)UINT32_MAX) ? UINT32_MAX : (uint32_t)entry_len;
+  (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+  return out_added;
+}
+
 // --- StackMap section 解析（version 3） ---
 
 typedef struct ScoopStackmapFunctionRec {
@@ -367,6 +404,17 @@ static uint32_t scoop_stackmap_parse_section(const uint8_t *bytes,
         return 0;
       }
 
+      // 注意：LLVM stackmap records 在 locations 之后通常会做一次 8-byte 对齐，
+      // 以保证后续 liveouts header 的读取位置满足对齐约定。
+      // 若缺少该对齐，会导致后续 record 起始偏移错位（真实 statepoint 产物常见）。
+      const size_t after_locations_aligned = scoop_stackmap_align_up(off, 8u);
+      if (after_locations_aligned > len) {
+        free(entries);
+        free(fns);
+        return 0;
+      }
+      off = after_locations_aligned;
+
       uint16_t num_live_outs = 0;
       uint16_t live_reserved = 0;
       if (!scoop_stackmap_read_u16_le(bytes, len, &off, &num_live_outs) ||
@@ -400,8 +448,9 @@ static uint32_t scoop_stackmap_parse_section(const uint8_t *bytes,
       // - 在后续 stack walking 中我们用栈帧的 return address（ip）做 key；
       //   这里先采用 `return_address = function_address + instruction_offset` 的最小规则。
       //
-      // 注：不同后端/指令集上 “callsite offset vs return address” 可能存在 +call_size 的差异；
-      // 早期阶段我们先固化该规则，并通过测试用例（同一二进制内的内嵌 section）回归它。
+      // 注：
+      // - 不同后端/指令集上 “callsite offset vs return address” 可能存在 +call_size 或 -1 的差异；
+      // - 为了更贴近后续 GC stack walking 的输入（栈上 return address），lookup 侧会容忍小范围偏移。
       const uint64_t ra64 = fn_addr + (uint64_t)instruction_offset;
       if ((uintptr_t)ra64 != ra64) {
         // 32-bit 平台或溢出：跳过该 record。
@@ -441,27 +490,237 @@ uint32_t scoop_stackmap_registry_register_section(const uint8_t *bytes, size_t l
     return 0;
   }
 
-  (void)pthread_mutex_lock(&scoop_stackmap_registry_lock);
-
-  if (!scoop_stackmap_registry_reserve_locked(entry_len)) {
-    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-    free(entries);
-    return 0;
-  }
-
-  memcpy(&scoop_stackmap_registry.entries[scoop_stackmap_registry.len],
-         entries,
-         entry_len * sizeof(ScoopStackmapRecordRef));
-  scoop_stackmap_registry.len += entry_len;
-
-  scoop_stackmap_registry_sort_and_dedupe_locked();
-
-  const uint32_t out_added = (uint32_t)entry_len;
-  (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-
+  const uint32_t out_added = scoop_stackmap_registry_register_entries(entries, entry_len);
   free(entries);
   return out_added;
 }
+
+#if defined(__linux__)
+typedef struct ScoopStackmapElfAddrRanges {
+  uintptr_t starts[64];
+  uintptr_t ends[64];
+  size_t len;
+} ScoopStackmapElfAddrRanges;
+
+static void scoop_stackmap_elf_ranges_push(ScoopStackmapElfAddrRanges *r,
+                                           uintptr_t start,
+                                           uintptr_t end) {
+  if (r == 0) {
+    return;
+  }
+  if (start == 0 || end <= start) {
+    return;
+  }
+  if (r->len >= (sizeof(r->starts) / sizeof(r->starts[0]))) {
+    return;
+  }
+  r->starts[r->len] = start;
+  r->ends[r->len] = end;
+  r->len++;
+}
+
+static int scoop_stackmap_elf_addr_in_ranges(const ScoopStackmapElfAddrRanges *r, uintptr_t addr) {
+  if (r == 0 || addr == 0) {
+    return 0;
+  }
+  for (size_t i = 0; i < r->len; i++) {
+    if (addr >= r->starts[i] && addr < r->ends[i]) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+typedef struct ScoopStackmapElfScanCtx {
+  uint32_t total_added;
+} ScoopStackmapElfScanCtx;
+
+static int scoop_stackmap_elf_scan_one_image(struct dl_phdr_info *info,
+                                             size_t info_size,
+                                             void *data) {
+  (void)info_size;
+  ScoopStackmapElfScanCtx *ctx = (ScoopStackmapElfScanCtx *)data;
+  if (ctx == 0 || info == 0 || info->dlpi_phdr == 0) {
+    return 0;
+  }
+
+  ScoopStackmapElfAddrRanges exec = {0};
+  ScoopStackmapElfAddrRanges scan = {0};
+
+  for (uint16_t i = 0; i < info->dlpi_phnum; i++) {
+    const ElfW(Phdr) *ph = &info->dlpi_phdr[i];
+    if (ph->p_type != PT_LOAD) {
+      continue;
+    }
+    const uintptr_t start = (uintptr_t)info->dlpi_addr + (uintptr_t)ph->p_vaddr;
+    const uintptr_t end = start + (uintptr_t)ph->p_memsz;
+    if (end <= start) {
+      continue;
+    }
+
+    if (ph->p_flags & PF_X) {
+      scoop_stackmap_elf_ranges_push(&exec, start, end);
+    }
+    // stackmaps 通常位于 rodata / relro 等可读数据段；不应在可执行段中。
+    if ((ph->p_flags & PF_R) && !(ph->p_flags & PF_X)) {
+      scoop_stackmap_elf_ranges_push(&scan, start, end);
+    }
+  }
+
+  if (exec.len == 0 || scan.len == 0) {
+    return 0;
+  }
+
+  // 说明：
+  // - ELF 在运行期通常无法通过 section header table 按名字定位 `.llvm_stackmaps`；
+  // - 这里采用“在可读非可执行段内扫描 stackmap header” 的 best-effort 策略：
+  //   - 先用 header 前 4 bytes（v3 常见为 `03 00 00 00`）做快速过滤；
+  //   - 成功 parse 后再验证：至少有 1 条 record 的 `function_address` 落在本 image 的可执行段范围内；
+  //   - 验证通过后注册该段作为 stackmap section（一个 image 通常只包含 1 段 stackmaps）。
+  for (size_t si = 0; si < scan.len; si++) {
+    const uint8_t *seg_bytes = (const uint8_t *)scan.starts[si];
+    const size_t seg_len = (size_t)(scan.ends[si] - scan.starts[si]);
+    if (seg_bytes == 0 || seg_len < 16u) {
+      continue;
+    }
+
+    // 8 字节步长：stackmap records 在多数平台按 8 对齐；同时加速扫描。
+    for (size_t off = 0; off + 16u <= seg_len; off += 8u) {
+      const uint8_t *p = seg_bytes + off;
+      if (!(p[0] == 3u && p[1] == 0u && p[2] == 0u && p[3] == 0u)) {
+        continue;
+      }
+
+      ScoopStackmapRecordRef *entries = 0;
+      size_t entry_len = 0;
+      const uint32_t parsed =
+          scoop_stackmap_parse_section(p, seg_len - off, &entries, &entry_len);
+      if (parsed == 0 || entries == 0 || entry_len == 0) {
+        continue;
+      }
+
+      int ok = 0;
+      for (size_t ei = 0; ei < entry_len; ei++) {
+        if (scoop_stackmap_elf_addr_in_ranges(&exec, entries[ei].function_address)) {
+          ok = 1;
+          break;
+        }
+      }
+
+      if (!ok) {
+        free(entries);
+        continue;
+      }
+
+      ctx->total_added += scoop_stackmap_registry_register_entries(entries, entry_len);
+      free(entries);
+      // 一个 image 只注册一次（避免在 rodata 里误命中多个 header，导致重复扫描与重复注册）。
+      return 0;
+    }
+  }
+
+  return 0;
+}
+
+static uint32_t scoop_stackmap_registry_register_all_elf_images(void) {
+  ScoopStackmapElfScanCtx ctx = {0};
+  (void)dl_iterate_phdr(scoop_stackmap_elf_scan_one_image, &ctx);
+  return ctx.total_added;
+}
+#endif
+
+#if defined(_WIN32)
+static int scoop_stackmap_coff_name_matches(const char *name) {
+  if (name == 0 || name[0] == 0) {
+    return 0;
+  }
+  // PE/COFF 的 section name 只有 8 bytes；长名字可能被截断或通过 string table 引用。
+  // 这里做 best-effort：
+  // - 精确匹配 `.llvm_stackmaps`
+  // - 或匹配被截断的常见前缀 `.llvm_st`
+  if (strcmp(name, ".llvm_stackmaps") == 0 || strcmp(name, "__llvm_stackmaps") == 0) {
+    return 1;
+  }
+  if (strncmp(name, ".llvm_st", 7) == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+static uint32_t scoop_stackmap_registry_register_pe_image(const uint8_t *base) {
+  if (base == 0) {
+    return 0;
+  }
+
+  const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *)base;
+  if (dos->e_magic != IMAGE_DOS_SIGNATURE) {
+    return 0;
+  }
+
+  const uint8_t *nt_ptr = base + (size_t)dos->e_lfanew;
+  const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)nt_ptr;
+  if (nt->Signature != IMAGE_NT_SIGNATURE) {
+    return 0;
+  }
+
+  const IMAGE_FILE_HEADER *file = &nt->FileHeader;
+  const IMAGE_SECTION_HEADER *sect = IMAGE_FIRST_SECTION(nt);
+  if (sect == 0) {
+    return 0;
+  }
+
+  uint32_t total_added = 0;
+  for (uint16_t i = 0; i < file->NumberOfSections; i++) {
+    char name_buf[9] = {0};
+    memcpy(name_buf, sect[i].Name, 8);
+    name_buf[8] = 0;
+
+    // 若 name_buf 形如 "/123"，理论上表示 string table 偏移；但 PE image 通常不带 symbol table。
+    // 这里仅做保守处理：直接当作非目标 section。
+    if (!scoop_stackmap_coff_name_matches(name_buf)) {
+      continue;
+    }
+
+    const uintptr_t va = (uintptr_t)sect[i].VirtualAddress;
+    const size_t vsize =
+        (sect[i].Misc.VirtualSize != 0) ? (size_t)sect[i].Misc.VirtualSize
+                                        : (size_t)sect[i].SizeOfRawData;
+    if (vsize == 0) {
+      continue;
+    }
+    const uint8_t *bytes = base + (size_t)va;
+    total_added += scoop_stackmap_registry_register_section(bytes, vsize);
+  }
+
+  return total_added;
+}
+
+static uint32_t scoop_stackmap_registry_register_all_pe_modules(void) {
+  uint32_t total_added = 0;
+
+  const DWORD pid = GetCurrentProcessId();
+  const HANDLE snap =
+      CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
+  if (snap == INVALID_HANDLE_VALUE) {
+    HMODULE self = GetModuleHandleA(0);
+    if (self != 0) {
+      total_added += scoop_stackmap_registry_register_pe_image((const uint8_t *)self);
+    }
+    return total_added;
+  }
+
+  MODULEENTRY32 me = {0};
+  me.dwSize = sizeof(me);
+  if (Module32First(snap, &me)) {
+    do {
+      total_added += scoop_stackmap_registry_register_pe_image((const uint8_t *)me.modBaseAddr);
+    } while (Module32Next(snap, &me));
+  }
+  (void)CloseHandle(snap);
+
+  return total_added;
+}
+#endif
 
 uint32_t scoop_stackmap_registry_register_current_process(void) {
   (void)pthread_mutex_lock(&scoop_stackmap_registry_lock);
@@ -476,6 +735,15 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
 
 #if defined(__APPLE__)
   // macOS：遍历 dyld images，按 segment/section 名称定位 stackmaps。
+#if defined(__LP64__)
+  // 先尝试直接从主程序（`_mh_execute_header`）定位 stackmaps section：
+  // - 该路径不依赖 dyld image 索引，便于在极早期阶段快速确认“main binary 可发现”；
+  // - 对 PIE/ASLR 需要加上 slide 才是实际映射地址。
+  extern const struct mach_header_64 _mh_execute_header;
+  uint32_t main_index = UINT32_MAX;
+  intptr_t main_slide = 0;
+#endif
+
   const uint32_t image_count = _dyld_image_count();
   for (uint32_t i = 0; i < image_count; i++) {
     const struct mach_header *hdr = _dyld_get_image_header(i);
@@ -484,24 +752,49 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
     }
 
 #if defined(__LP64__)
-    unsigned long sect_size = 0;
-    const uint8_t *data =
-        (const uint8_t *)getsectiondata((const struct mach_header_64 *)hdr,
-                                        "__LLVM_STACKMAPS",
-                                        "__llvm_stackmaps",
-                                        &sect_size);
-    if (data == 0 || sect_size == 0) {
+    // 记录主程序的 dyld image index 与 slide（避免假设 main 固定为 0）。
+    if (main_index == UINT32_MAX && hdr == (const struct mach_header *)&_mh_execute_header) {
+      main_index = i;
+      main_slide = _dyld_get_image_vmaddr_slide(i);
+    }
+
+    // 注意：对 PIE/ASLR image，section 的 `addr` 需要加上 slide 才是实际映射地址。
+    const intptr_t slide = _dyld_get_image_vmaddr_slide(i);
+    const struct section_64 *sect = getsectbynamefromheader_64(
+        (const struct mach_header_64 *)hdr, "__LLVM_STACKMAPS", "__llvm_stackmaps");
+    if (sect == 0 || sect->size == 0) {
       continue;
     }
-    total_added += scoop_stackmap_registry_register_section(data, (size_t)sect_size);
+    const intptr_t start = (intptr_t)sect->addr + slide;
+    if (start <= 0) {
+      continue;
+    }
+    const uint8_t *data = (const uint8_t *)(uintptr_t)start;
+    total_added += scoop_stackmap_registry_register_section(data, (size_t)sect->size);
 #else
     // 早期阶段仅支持 64-bit host。
     (void)hdr;
 #endif
   }
+
+#if defined(__LP64__)
+  // 若主程序尚未注册（例如遍历 dyld images 时跳过/未命中），在这里补一次“主程序优先”注册。
+  if (main_index != UINT32_MAX) {
+    const struct section_64 *main_sect = getsectbynamefromheader_64(
+        &_mh_execute_header, "__LLVM_STACKMAPS", "__llvm_stackmaps");
+    if (main_sect != 0 && main_sect->size != 0) {
+      const intptr_t start = (intptr_t)main_sect->addr + main_slide;
+      if (start > 0) {
+        const uint8_t *main_data = (const uint8_t *)(uintptr_t)start;
+        total_added +=
+            scoop_stackmap_registry_register_section(main_data, (size_t)main_sect->size);
+      }
+    }
+  }
+#endif
 #elif defined(_WIN32)
-  // Windows/COFF：后续在需要时补齐（T1504 只要求 registry+解析器的最小闭环）。
-  (void)total_added;
+  // Windows/COFF：遍历进程中已加载 modules，定位并注册 `.llvm_stackmaps` section（T1504b）。
+  total_added += scoop_stackmap_registry_register_all_pe_modules();
 #else
   // ELF：尝试使用 GNU ld/LLD 的 `__start_/__stop_` section symbols。
   //
@@ -517,6 +810,11 @@ uint32_t scoop_stackmap_registry_register_current_process(void) {
       total_added += scoop_stackmap_registry_register_section(__start_llvm_stackmaps, sect_len);
     }
   }
+
+#if defined(__linux__)
+  // Linux：补齐 “多 image（主程序 + shared libs）” 的 best-effort 自动发现（T1504b）。
+  total_added += scoop_stackmap_registry_register_all_elf_images();
+#endif
 #endif
 
   return total_added;
@@ -536,21 +834,62 @@ uint32_t scoop_stackmap_registry_lookup(uintptr_t return_address, ScoopStackmapR
 
   (void)pthread_mutex_lock(&scoop_stackmap_registry_lock);
 
+  // 说明（T1504b）：
+  // - 栈帧中保存的 return address 通常指向 “call 指令之后的下一条指令”，而 stackmap record 的
+  //   `instruction_offset` 可能对应 callsite 或 call 指令本身；
+  // - 为避免平台/优化细节导致的 -1 或 +call_size 偏差，这里做一个小范围（<= 16 bytes）的容忍匹配：
+  //   - 先做精确匹配；
+  //   - 再尝试匹配“最近的前一条 record”或“最近的后一条 record”。
+  const uintptr_t MAX_DELTA = 16u;
+
   size_t left = 0;
   size_t right = scoop_stackmap_registry.len;
   while (left < right) {
     const size_t mid = left + (right - left) / 2u;
     const uintptr_t mid_ra = scoop_stackmap_registry.entries[mid].return_address;
-    if (mid_ra == return_address) {
-      *out = scoop_stackmap_registry.entries[mid];
-      (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-      return 1;
-    }
     if (mid_ra < return_address) {
       left = mid + 1u;
     } else {
       right = mid;
     }
+  }
+
+  // `left` 为 lower_bound（第一条 >= return_address）。
+  if (left < scoop_stackmap_registry.len &&
+      scoop_stackmap_registry.entries[left].return_address == return_address) {
+    *out = scoop_stackmap_registry.entries[left];
+    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+    return 1;
+  }
+
+  size_t best = (size_t)-1;
+  uintptr_t best_delta = MAX_DELTA + 1u;
+
+  if (left > 0) {
+    const uintptr_t prev_ra = scoop_stackmap_registry.entries[left - 1u].return_address;
+    if (return_address >= prev_ra) {
+      const uintptr_t delta = return_address - prev_ra;
+      if (delta <= MAX_DELTA) {
+        best = left - 1u;
+        best_delta = delta;
+      }
+    }
+  }
+  if (left < scoop_stackmap_registry.len) {
+    const uintptr_t next_ra = scoop_stackmap_registry.entries[left].return_address;
+    if (next_ra >= return_address) {
+      const uintptr_t delta = next_ra - return_address;
+      if (delta <= MAX_DELTA && delta < best_delta) {
+        best = left;
+        best_delta = delta;
+      }
+    }
+  }
+
+  if (best != (size_t)-1) {
+    *out = scoop_stackmap_registry.entries[best];
+    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+    return 1;
   }
 
   (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);

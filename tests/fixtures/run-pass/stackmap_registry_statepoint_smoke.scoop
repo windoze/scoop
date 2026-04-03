@@ -1,0 +1,19 @@
+// EXPECT: pass
+// RUN-STDOUT: stackmap_registry_statepoint_smoke.stdout
+//
+// 目标：T1504b runtime stackmap registry：
+// - 运行期 registry 非空（已从当前进程镜像注册 stackmaps）；
+// - 用“调用点 return address”可定位到 `main` 内的某个 safepoint record（statepoint）。
+
+import scoop.core.*
+
+@Extern("scoop_test_stackmap_statepoint_smoke")
+fun rt_stackmap_statepoint_smoke(): Int
+
+fun main() {
+    @Unsafe {
+        // 返回 1 表示 smoke 通过（registry 非空且 lookup caller return address 成功）。
+        println(rt_stackmap_statepoint_smoke())
+    }
+}
+
