@@ -6255,7 +6255,7 @@
    - `runtime/c/scoop_stackmap.h` / `runtime/c/scoop_runtime_api.h`：登记错误码与导出符号（allowlist 对齐）。
    - `crates/scoop_runtime/tests/stackmap_roots.rs`：新增 Direct/Indirect/错误码集成测试覆盖。
 
-### T1506b [TODO] GC roots 枚举：Parked 线程用 stack walking + stackmap lookup（替换 shadow stack）
+### T1506b [DONE] GC roots 枚举：Parked 线程用 stack walking + stackmap lookup（替换 shadow stack）
 - 描述：在 STW 的 roots 枚举中，对 Parked 线程从 `stack_walking_ctx` 逐帧枚举 `(sp, ra)`，用 `ra` 查 stackmap record，并用 T1506a 的 locations→slot 逻辑枚举 roots；对 InNative 线程继续使用 `native_roots`。
 - 目标：
   - roots 枚举覆盖完整调用栈（多帧），并能在 moving GC 中原地更新 slots；
@@ -6264,6 +6264,17 @@
   - 新增 runtime 集成测试：STW 期间对 worker 线程的 stack walking + stackmap lookup 至少命中 1 帧 record，并能枚举到 roots slots（可先用 test-only hook/计数回归）；
   - `cargo test -p scoop_runtime`
 - 依赖：T1506a、T1411b、T1505c、T0910、T0912
+ - 完成：
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c`：
+     - Parked 线程若存在 `stack_walking_ctx`，STW roots 枚举优先走 stack walking + stackmap lookup，并按 locations→`void** slot` 枚举 roots；
+     - 在 Immix moving roots update 阶段同样支持对 stackmap roots slots 原地更新；
+     - 遇到 stackmap location 不可转换等错误时打印稳定诊断并 fail-fast（视为管线错误）。
+   - `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：补齐 test-only stub（保证可链接）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_stackmap_roots_enum_smoke`。
+   - `crates/scoop_runtime/tests/gc_stackmap_roots_enum.rs`：新增集成测试回归 “Parked ctx stack walking + stackmap lookup 命中 record 且能枚举 roots slots”。
+   - 验收：
+     - `cargo test -p scoop_runtime`
+     - `cargo test --all`
 
 ### T1506c [TODO] 端到端回归：多帧 root 保活 + llvm fixtures 全量回归
 - 描述：补齐端到端验证：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；并把 `scoop --features llvm -- test` 纳入回归。

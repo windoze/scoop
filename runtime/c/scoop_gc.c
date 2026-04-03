@@ -16,6 +16,7 @@
 
 #include "platform/unwind.h"
 #include "scoop_gc_stw_internal.h"
+#include "scoop_stackmap.h"
 #include "scoop_tls_internal.h"
 
 // --- 线程注册 + stop-the-world（TODO T0911） ---
@@ -908,6 +909,93 @@ static uint64_t scoop_gc_native_roots_visit_slots(void *native_roots,
   return visited;
 }
 
+typedef struct ScoopGcStackmapRootsVisitCtx {
+  ScoopGcTraceVisitor visitor;
+  void *visitor_ctx;
+
+  uint64_t slots_visited;
+  uint32_t records_hit;
+  uint32_t visit_error;
+} ScoopGcStackmapRootsVisitCtx;
+
+static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+  if (user_data == 0) {
+    return 0;
+  }
+
+  ScoopGcStackmapRootsVisitCtx *ctx = (ScoopGcStackmapRootsVisitCtx *)user_data;
+  if (ctx->visit_error != SCOOP_STACKMAP_VISIT_OK) {
+    return 0;
+  }
+
+  ScoopStackmapRecordRef rec = {0};
+  if (!scoop_stackmap_registry_lookup(ra, &rec)) {
+    // 约定（T1506b）：先跳过 runtime/系统帧，直到首次命中 record；随后一旦未命中 record，
+    // 视为“离开 managed frames”，停止继续 walk（避免对 pthread/libc 等帧 fail-fast）。
+    if (ctx->records_hit > 0) {
+      return 0;
+    }
+    return 1;
+  }
+
+  ctx->records_hit += 1;
+
+  uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
+  ctx->slots_visited += scoop_stackmap_record_visit_root_slots(
+      &rec, sp, ctx->visitor, ctx->visitor_ctx, &visit_err);
+
+  if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
+    ctx->visit_error = visit_err;
+    return 0;
+  }
+
+  return 1;
+}
+
+// Parked 线程 stackmap roots 枚举（T1506b）：
+// - 输入为 `stack_walking_ctx`（park 前捕获的 opaque ctx）；
+// - 用 `(sp, ra)` 做 stackmap lookup，并把 locations→`void** slot` 交给 visitor；
+// - 返回 visitor 调用次数（non-null roots slots 数）。
+static uint64_t scoop_gc_stackmap_visit_roots_from_ctx(void *stack_walking_ctx,
+                                                       ScoopGcTraceVisitor visitor,
+                                                       void *ctx,
+                                                       uint32_t *out_error,
+                                                       uint32_t *out_records_hit) {
+  if (out_error != 0) {
+    *out_error = SCOOP_STACKMAP_VISIT_OK;
+  }
+  if (out_records_hit != 0) {
+    *out_records_hit = 0;
+  }
+
+  if (stack_walking_ctx == 0 || visitor == 0) {
+    if (out_error != 0) {
+      *out_error = SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT;
+    }
+    return 0;
+  }
+
+  ScoopGcStackmapRootsVisitCtx walk = {
+      .visitor = visitor,
+      .visitor_ctx = ctx,
+      .slots_visited = 0,
+      .records_hit = 0,
+      .visit_error = SCOOP_STACKMAP_VISIT_OK,
+  };
+
+  const uint32_t skip_frames = 0;
+  (void)scoop_platform_unwind_ctx_walk_frames(
+      stack_walking_ctx, skip_frames, scoop_gc_stackmap_roots_frame_visitor, (void *)&walk);
+
+  if (out_error != 0) {
+    *out_error = walk.visit_error;
+  }
+  if (out_records_hit != 0) {
+    *out_records_hit = walk.records_hit;
+  }
+  return walk.slots_visited;
+}
+
 void scoop_gc_collect(void) {
   // v0->v0+：协作式 stop-the-world，扫描所有已注册线程 roots。
   //
@@ -951,6 +1039,29 @@ void scoop_gc_collect(void) {
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
       continue;
+    }
+
+    // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap roots；
+    // 若未提供或未命中 record，则回退到 shadow stack（保持早期 runtime/Rust 测试兼容）。
+    if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
+      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      uint32_t records_hit = 0;
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(
+          it->stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+
+      if (err != SCOOP_STACKMAP_VISIT_OK) {
+        // locations 解析失败/遇到寄存器 roots 等：视为编译器/管线错误，fail-fast。
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] visit roots failed: err=%u (thread=0x%" PRIxPTR
+                      ")\n",
+                      (unsigned)err,
+                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+        abort();
+      }
+
+      if (records_hit > 0) {
+        continue;
+      }
     }
 
     if (it->current_frame_slot == 0) {
@@ -1018,6 +1129,357 @@ void scoop_gc_collect(void) {
 
   scoop_gc_stop_the_world_end_unlocked();
   (void)pthread_mutex_unlock(&scoop_gc_lock);
+}
+
+typedef struct ScoopTestGcStackmapRootsShared {
+  uint32_t stop;
+  uint64_t poll_count;
+
+  // worker 函数内某个 stack slot（`void* root`）的地址：用于构造 stackmap location offset。
+  void **root_slot;
+
+  // worker 函数内 `scoop_gc_safepoint_poll()` 调用点的“返回地址近似”（label addr）。
+  uintptr_t poll_return_address;
+} ScoopTestGcStackmapRootsShared;
+
+static void scoop_test_gc_stackmap_roots_count_visitor(void **slot, void *ctx) {
+  if (slot == 0 || ctx == 0) {
+    return;
+  }
+
+  uint64_t *out = (uint64_t *)ctx;
+  (void)slot;
+  *out += 1;
+}
+
+static uint16_t scoop_test_gc_stackmap_dwarf_reg_sp(void) {
+#if defined(__x86_64__)
+  return 7; // DWARF reg for RSP
+#elif defined(__aarch64__)
+  return 31; // DWARF reg for SP
+#else
+  return 0;
+#endif
+}
+
+static void scoop_test_gc_stackmap_write_u16_le(uint8_t *out, size_t off, uint16_t v) {
+  out[off + 0] = (uint8_t)(v & 0xffu);
+  out[off + 1] = (uint8_t)((v >> 8) & 0xffu);
+}
+
+static void scoop_test_gc_stackmap_write_u32_le(uint8_t *out, size_t off, uint32_t v) {
+  out[off + 0] = (uint8_t)(v & 0xffu);
+  out[off + 1] = (uint8_t)((v >> 8) & 0xffu);
+  out[off + 2] = (uint8_t)((v >> 16) & 0xffu);
+  out[off + 3] = (uint8_t)((v >> 24) & 0xffu);
+}
+
+static void scoop_test_gc_stackmap_write_u64_le(uint8_t *out, size_t off, uint64_t v) {
+  out[off + 0] = (uint8_t)(v & 0xffu);
+  out[off + 1] = (uint8_t)((v >> 8) & 0xffu);
+  out[off + 2] = (uint8_t)((v >> 16) & 0xffu);
+  out[off + 3] = (uint8_t)((v >> 24) & 0xffu);
+  out[off + 4] = (uint8_t)((v >> 32) & 0xffu);
+  out[off + 5] = (uint8_t)((v >> 40) & 0xffu);
+  out[off + 6] = (uint8_t)((v >> 48) & 0xffu);
+  out[off + 7] = (uint8_t)((v >> 56) & 0xffu);
+}
+
+static void scoop_test_gc_stackmap_write_i32_le(uint8_t *out, size_t off, int32_t v) {
+  scoop_test_gc_stackmap_write_u32_le(out, off, (uint32_t)v);
+}
+
+typedef struct ScoopTestGcStackmapFindFrame {
+  uintptr_t want_ra;
+  uintptr_t slot_addr;
+
+  uint32_t found;
+  uintptr_t found_sp;
+  uintptr_t found_ra;
+} ScoopTestGcStackmapFindFrame;
+
+static uint32_t scoop_test_gc_stackmap_find_frame_visitor(uintptr_t sp, uintptr_t ra, void *ctx) {
+  if (ctx == 0) {
+    return 0;
+  }
+
+  ScoopTestGcStackmapFindFrame *s = (ScoopTestGcStackmapFindFrame *)ctx;
+  if (s->found) {
+    return 0;
+  }
+
+  // 既用“返回地址近似”做过滤，也用 slot offset 的合理区间做二次约束，避免误匹配。
+  intptr_t ra_delta = (intptr_t)ra - (intptr_t)s->want_ra;
+  if (ra_delta < 0) {
+    ra_delta = -ra_delta;
+  }
+  if ((uintptr_t)ra_delta > 256u) {
+    return 1;
+  }
+
+  intptr_t off = (intptr_t)s->slot_addr - (intptr_t)sp;
+  if (off < (intptr_t)INT32_MIN || off > (intptr_t)INT32_MAX) {
+    return 1;
+  }
+  if (off > 65536 || off < -65536) {
+    return 1;
+  }
+
+  s->found = 1;
+  s->found_sp = sp;
+  s->found_ra = ra;
+  return 0;
+}
+
+static void *scoop_test_gc_stackmap_roots_worker_entry(void *raw) {
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+  ScoopTestGcStackmapRootsShared *shared = (ScoopTestGcStackmapRootsShared *)raw;
+  if (shared == 0) {
+    return 0;
+  }
+
+  scoop_thread_register();
+
+  static int dummy = 0;
+  // 强制把 root 放在 stack 上（取地址并发布给 main 线程）。
+  void *root = (void *)&dummy;
+  shared->root_slot = (void **)&root;
+
+  // 用 label address 近似“call safepoint_poll 的 return address”，供 main 线程定位对应帧。
+  // NOTE：这依赖 GNU C 扩展；非 clang/gcc 平台下该 smoke 将返回 0（见主函数 gating）。
+  shared->poll_return_address = (uintptr_t)&&after_poll;
+
+  while (!__atomic_load_n(&shared->stop, __ATOMIC_SEQ_CST)) {
+    scoop_gc_safepoint_poll();
+  after_poll:
+    (void)__atomic_fetch_add(&shared->poll_count, 1, __ATOMIC_SEQ_CST);
+    sched_yield();
+  }
+
+  // 防御：确保 root 未被编译器优化掉。
+  if (root == 0) {
+    (void)fprintf(stderr, "[scooprt][test] unexpected null root\n");
+  }
+
+  scoop_thread_unregister();
+  return 0;
+}
+
+// Test-only export（T1506b）：触发一次 stop-the-world，并验证：
+// - Parked 线程 ctx 可用于逐帧 unwind；
+// - stackmap lookup 至少命中 1 条 record；
+// - locations→slot 解析能枚举到至少 1 个 non-null roots slot。
+//
+// 返回：
+// - 1：通过
+// - 0：当前平台/编译器不支持（例如非 clang/gcc）
+// - <0：失败（用于测试诊断）
+intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  void scoop_thread_unregister(void);
+
+#if !defined(__clang__) && !defined(__GNUC__)
+  return 0;
+#endif
+
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopTestGcStackmapRootsShared shared = {
+      .stop = 0,
+      .poll_count = 0,
+      .root_slot = 0,
+      .poll_return_address = 0,
+  };
+
+  pthread_t worker = 0;
+  if (pthread_create(&worker, 0, scoop_test_gc_stackmap_roots_worker_entry, (void *)&shared) != 0) {
+    scoop_thread_unregister();
+    return -10;
+  }
+
+  // 等待 worker 进入 poll 循环并发布必要信息。
+  struct timespec start;
+#if defined(CLOCK_MONOTONIC)
+  (void)clock_gettime(CLOCK_MONOTONIC, &start);
+#else
+  (void)timespec_get(&start, TIME_UTC);
+#endif
+
+  while (__atomic_load_n(&shared.poll_count, __ATOMIC_SEQ_CST) < 128 ||
+         __atomic_load_n(&shared.root_slot, __ATOMIC_SEQ_CST) == 0 ||
+         __atomic_load_n(&shared.poll_return_address, __ATOMIC_SEQ_CST) == 0) {
+    struct timespec now;
+#if defined(CLOCK_MONOTONIC)
+    (void)clock_gettime(CLOCK_MONOTONIC, &now);
+#else
+    (void)timespec_get(&now, TIME_UTC);
+#endif
+    int64_t elapsed_ns = ((int64_t)(now.tv_sec - start.tv_sec) * 1000000000ll) +
+                         ((int64_t)now.tv_nsec - (int64_t)start.tv_nsec);
+    if (elapsed_ns < 0) {
+      elapsed_ns = 0;
+    }
+    uint64_t elapsed_ms = (uint64_t)(elapsed_ns / 1000000ll);
+    if (elapsed_ms > 2000) {
+      __atomic_store_n(&shared.stop, 1, __ATOMIC_SEQ_CST);
+      (void)pthread_join(worker, 0);
+      scoop_thread_unregister();
+      return -11;
+    }
+    sched_yield();
+  }
+
+  intptr_t rc = 1;
+  uint8_t *section = 0;
+
+  pthread_t self = pthread_self();
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  scoop_gc_stop_the_world_begin_unlocked(self);
+
+  ScoopGcThreadRecord *worker_rec = scoop_gc_find_thread_unlocked(worker);
+  if (worker_rec == 0) {
+    rc = -20;
+    goto done;
+  }
+  if (worker_rec->state != SCOOP_GC_THREAD_PARKED) {
+    rc = -21;
+    goto done;
+  }
+  if (worker_rec->stack_walking_ctx == 0) {
+    rc = -22;
+    goto done;
+  }
+
+  const uintptr_t want_ra = (uintptr_t)shared.poll_return_address;
+  const uintptr_t slot_addr = (uintptr_t)shared.root_slot;
+
+  ScoopTestGcStackmapFindFrame find = {
+      .want_ra = want_ra,
+      .slot_addr = slot_addr,
+      .found = 0,
+      .found_sp = 0,
+      .found_ra = 0,
+  };
+  (void)scoop_platform_unwind_ctx_walk_frames(worker_rec->stack_walking_ctx,
+                                              /*skip_frames=*/0,
+                                              scoop_test_gc_stackmap_find_frame_visitor,
+                                              (void *)&find);
+  if (!find.found || find.found_sp == 0 || find.found_ra == 0) {
+    rc = -23;
+    goto done;
+  }
+
+  const intptr_t slot_off = (intptr_t)slot_addr - (intptr_t)find.found_sp;
+  if (slot_off < (intptr_t)INT32_MIN || slot_off > (intptr_t)INT32_MAX) {
+    rc = -24;
+    goto done;
+  }
+
+  const uint16_t sp_reg = scoop_test_gc_stackmap_dwarf_reg_sp();
+  if (sp_reg == 0) {
+    rc = -25;
+    goto done;
+  }
+
+  // 构造一个最小可解析的 stackmap section：
+  // - 1 function, 1 record；
+  // - record 含 1 个 Direct location，指向 worker stack slot（root）。
+  const size_t record_size = 40;
+  const size_t section_size = 16 + 24 + record_size;
+
+  section = (uint8_t *)malloc(section_size);
+  if (section == 0) {
+    rc = -26;
+    goto done;
+  }
+  memset(section, 0, section_size);
+
+  // header
+  section[0] = 3; // version
+  section[1] = 0;
+  scoop_test_gc_stackmap_write_u16_le(section, 2, 0);
+  scoop_test_gc_stackmap_write_u32_le(section, 4, 1); // num_functions
+  scoop_test_gc_stackmap_write_u32_le(section, 8, 0); // num_constants
+  scoop_test_gc_stackmap_write_u32_le(section, 12, 1); // num_records
+
+  // function record
+  const size_t func_off = 16;
+  scoop_test_gc_stackmap_write_u64_le(section, func_off + 0, (uint64_t)find.found_ra);
+  scoop_test_gc_stackmap_write_u64_le(section, func_off + 8, 0); // stack size (unused)
+  scoop_test_gc_stackmap_write_u64_le(section, func_off + 16, 1); // record_count
+
+  // record (v3)
+  const size_t rec_off = func_off + 24;
+  scoop_test_gc_stackmap_write_u64_le(section, rec_off + 0, 1); // patchpoint_id
+  scoop_test_gc_stackmap_write_u32_le(section, rec_off + 8, 0); // instruction_offset
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 12, 0); // reserved
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 14, 1); // num_locations
+
+  // Location（12 bytes）
+  // StackMap v3 location encoding: 2 = Direct (see `runtime/c/scoop_stackmap.c`).
+  section[rec_off + 16] = 2u;
+  section[rec_off + 17] = 0;
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 18, (uint16_t)sizeof(void *));
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 20, sp_reg);
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 22, 0);
+  scoop_test_gc_stackmap_write_i32_le(section, rec_off + 24, (int32_t)slot_off);
+  // padding to 8
+  // num_live_outs + reserved
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 32, 0);
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 34, 0);
+  // tail padding already zeroed
+
+  // 注册 synthetic stackmap section（只用于本 smoke；结束后恢复 registry）。
+  scoop_stackmap_registry_reset();
+  const uint32_t added =
+      scoop_stackmap_registry_register_section((const uint8_t *)section, section_size);
+  if (added == 0) {
+    rc = -27;
+    goto done;
+  }
+
+  uint64_t slot_visits = 0;
+  uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
+  uint32_t records_hit = 0;
+  (void)scoop_gc_stackmap_visit_roots_from_ctx(worker_rec->stack_walking_ctx,
+                                               scoop_test_gc_stackmap_roots_count_visitor,
+                                               (void *)&slot_visits,
+                                               &visit_err,
+                                               &records_hit);
+  if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
+    rc = -28;
+    goto done;
+  }
+  if (records_hit == 0 || slot_visits == 0) {
+    rc = -29;
+    goto done;
+  }
+
+  scoop_gc_stop_the_world_end_unlocked();
+
+done:
+  // 若出现早退，确保 STW 不会悬挂。
+  if (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    scoop_gc_stop_the_world_end_unlocked();
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+
+  // 恢复 stackmap registry（避免影响同进程内其它测试）。
+  scoop_stackmap_registry_reset();
+  (void)scoop_stackmap_registry_register_current_process();
+
+  if (section != 0) {
+    free(section);
+  }
+
+  __atomic_store_n(&shared.stop, 1, __ATOMIC_SEQ_CST);
+  (void)pthread_join(worker, 0);
+  scoop_thread_unregister();
+  return rc;
 }
 
 uint64_t scoop_gc_debug_heap_object_count(void) {
