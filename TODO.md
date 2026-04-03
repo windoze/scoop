@@ -5954,10 +5954,36 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo test --all`
 
-### T1502b [TODO] LLVM codegen：把 `String/Array/Box/Closure env` 等引用类 builtin 逐步迁移到 `addrspace(1)`
+### T1502b LLVM codegen：把 `String/Array/Box/Closure env` 等引用类 builtin 逐步迁移到 `addrspace(1)`（拆分为子任务）
 - 描述：将 `scoop.core.String`、`Array<T>`、boxed object、closure env 等与 ref runtime 相关的 builtin 表示从早期的 `addrspace(0)` 指针迁移到 `addrspace(1)`，并把 remaining 的 `i8*` 使用点收敛为显式的桥接 API（见 T1502c）。
 - 目标：不改变已通过的 `T1502a` 行为；每次只迁移一类 builtin 并补齐 fixtures/单测。
 - 验收：新增至少 1 个 `--emit-llvm` fixture/单测覆盖 `String/Array` 中出现 `addrspace(1)` 的 ref 字段。
+- 依赖：T1502a
+- 备注：该任务牵涉面较大（Array 元素表示/String 表示/closure env/boxed 等），为保证每一步都“可单独实现 & 单独验证”，拆分为以下子任务；本条仅保留原始目标汇总。
+
+### T1502b1 [TODO] Array：为 `Array<Ref>` 引入指针型 builder push/get/set（避免 `ptrtoint`）
+- 描述：为 `Array<Any>`/`Array<class>`/`Array<interface>` 等 “元素为引用” 的数组提供指针型 runtime API（push/get/set），让 LLVM IR 保持 `addrspace(1)` 指针类型，避免把 GC 指针编码成整数 `u64`。
+- 目标：
+  - 保持 `Array<Int/Bool/...>` 的现有 “u64 word buffer” 路径不变；
+  - 仅对 `CgTy::Ref` 元素走新 API：`scoop_array_builder_push_ref / scoop_array_get_ref / scoop_array_set_ref`；
+  - IR 不应在该路径上出现 `ptrtoint/inttoptr`（ref 元素），也不应引入 `addrspacecast`。
+- 验收：
+  - `cargo test -p scoopc --features llvm` 新增 IR 单测：
+    - `val xs: Array<Any> = [1, 2]` 走 `scoop_array_builder_push_ref`；
+    - `xs.get(0)` 走 `scoop_array_get_ref`；
+  - `cargo test --all` 通过。
+- 依赖：T1502a
+
+### T1502b2 [TODO] Array：为 `Array<String>` 引入指针型元素通道（与 String 迁移协同）
+- 描述：在完成 String 的 addrspace(1) 迁移后，让 `Array<String>` 元素也走指针型 push/get/set，避免把 GC-managed String 指针编码为 `u64`。
+- 目标：仅扩展 `String` 元素分支；不改变 `Array<Ref>`（T1502b1）与 `Array<Int>` 等路径。
+- 验收：新增 1 个 `--emit-llvm` fixture/单测断言 `Array<String>` 的元素通道不再出现 `ptrtoint`。
+- 依赖：T1502b1、T1502b3
+
+### T1502b3 [TODO] String：把 `scoop.core.String` 的 builtin 表示迁移到 `addrspace(1)`
+- 描述：把 `scoop.core.String` 从早期 `const ScoopString*`（addrspace(0)）迁移为 GC-managed ref（addrspace(1)），并同步升级 print/env/fs/path/io 等 runtime API 的参数/返回类型，使其不再要求 `addrspacecast`。
+- 目标：优先保证 `scoop test` 现有 run-pass 行为稳定；必要时拆分为“表示迁移 / API 迁移 / fixtures 更新”三步。
+- 验收：新增 `--emit-llvm` fixture/单测覆盖 `String` 在 IR 中为 `addrspace(1)` ref 指针；`cargo test --all` 通过。
 - 依赖：T1502a
 
 ### T1502c [TODO] `@Extern`/C ABI：ref 指针桥接 API（pin/unpin + handle）与门禁检查
