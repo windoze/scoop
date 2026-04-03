@@ -19,8 +19,16 @@ compile_error!(
 compile_error!(
     "features `gc-baseline` and `gc-immix` are mutually exclusive; use `--no-default-features` when selecting `gc-immix`"
 );
+#[cfg(all(feature = "gc-baseline", feature = "gc-hosted"))]
+compile_error!(
+    "features `gc-baseline` and `gc-hosted` are mutually exclusive; use `--no-default-features` when selecting `gc-hosted`"
+);
 #[cfg(all(feature = "gc-minimal", feature = "gc-immix"))]
 compile_error!("features `gc-minimal` and `gc-immix` are mutually exclusive");
+#[cfg(all(feature = "gc-minimal", feature = "gc-hosted"))]
+compile_error!("features `gc-minimal` and `gc-hosted` are mutually exclusive");
+#[cfg(all(feature = "gc-immix", feature = "gc-hosted"))]
+compile_error!("features `gc-immix` and `gc-hosted` are mutually exclusive");
 
 /// 编译期选择的 GC backend（与 C 侧 `SCOOP_GC_BACKEND_*` 一一对应）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,6 +39,8 @@ pub enum GcBackend {
     Minimal,
     /// immix：Immix GC（v0：协作式 STW、moving/compaction；性能优化逐步落地）。
     Immix,
+    /// hosted：面向受限环境的 hosted/adapter backend（v0：单线程、无 STW）。
+    Hosted,
 }
 
 /// GC backend 的能力集合（capability matrix）。
@@ -74,6 +84,13 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
         precise_roots_update: true,
         shadow_stack_roots: true,
     },
+    GcBackend::Hosted => GcCapabilities {
+        stw: false,
+        multi_thread_roots_enum: false,
+        moving: false,
+        precise_roots_update: false,
+        shadow_stack_roots: true,
+    },
 };
 
 /// 解析编译期选择的 backend。
@@ -84,6 +101,9 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
 const fn resolve_gc_backend() -> GcBackend {
     if cfg!(feature = "gc-immix") {
         return GcBackend::Immix;
+    }
+    if cfg!(feature = "gc-hosted") {
+        return GcBackend::Hosted;
     }
     if cfg!(feature = "gc-minimal") {
         return GcBackend::Minimal;

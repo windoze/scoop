@@ -43,8 +43,8 @@ unsafe extern "C" {
 
 #[test]
 #[cfg_attr(
-    feature = "gc-minimal",
-    ignore = "当前 backend（gc-minimal）不支持 stop-the-world / 多线程 roots 枚举（该测试仅适用于支持这些能力的 backend）"
+    any(feature = "gc-minimal", feature = "gc-hosted"),
+    ignore = "当前 backend（gc-minimal/gc-hosted）不支持 stop-the-world / 多线程 roots 枚举（该测试仅适用于支持这些能力的 backend）"
 )]
 fn gc_stop_the_world_scans_roots_on_all_registered_threads() {
     assert!(

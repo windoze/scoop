@@ -5829,11 +5829,27 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-baseline -- --test-threads=1`
    - `tools/gc_microbench.sh throughput --object-size 256 --rounds 50 --batch 50000 --threads 8`
 
-### T1410 [TODO] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
+### T1410 [DONE] Hosted / adapter GC backend：WASM GC adapter 与受限环境适配（PLAN §15.3）
 - 描述：为不适合自带 GC 的环境提供 adapter backend，例如对接 WASM GC 或极简 hosted allocator/collector。
 - 目标：先实现 backend 形状与 capability matrix；不要求一次覆盖所有宿主。
 - 验收：至少一条 hosted/adapter 路径可编译并通过受限能力测试；WASM target 下的 capability matrix 明确哪些模块可用/不可用。
 - 依赖：T1405、T1316
+ - 完成：
+   - `crates/scoop_runtime/Cargo.toml`：新增 `gc-hosted` feature（与 `gc-baseline/gc-minimal/gc-immix` 互斥）。
+   - `crates/scoop_runtime/build.rs`：build 选择机制扩展为四选一（新增 `SCOOP_GC_BACKEND_HOSTED=4`），并按 backend 仅编译对应 C 编译单元。
+   - `runtime/c/scoop_gc_backend.h`：新增 hosted backend 入口与 capability matrix 定义（v0：stw=0/multi_thread_roots_enum=0/shadow_stack_roots=1）。
+   - `runtime/c/scoop_gc_backend_hosted.c`：新增 hosted backend 实现：
+     - 不依赖 pthread（用 `atomic_flag` 自旋锁保护 heap/pinned 链表）；
+     - 单线程 mark-sweep + pinned roots；
+     - 多线程注册时 `scoop_gc_collect()` 退化为 no-op（宁可泄漏也不错误回收）。
+   - `crates/scoop_runtime/src/gc_backend.rs`：新增 `GcBackend::Hosted` 与 Rust 侧 capability 常量。
+   - tests：
+     - `crates/scoop_runtime/tests/gc_capabilities.rs`：补齐 hosted capability 断言；
+     - `crates/scoop_runtime/tests/gc_stop_the_world.rs`：在 `gc-hosted` 下显式 ignore（与 capability matrix 一致）；
+     - `crates/scoop_runtime/tests/gc_hosted_multi_thread_collect_noop.rs`：新增受限能力回归：多线程注册期间 collect 必须 no-op，线程退出后可恢复单线程回收。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-hosted -- --test-threads=1`
+   - `cargo test --all`
 
 ### T1411 [TODO] non-resuming effect / unwind backend：接入并复用 `libunwind`
 - 描述：为 non-resuming effect（以及其他需要栈展开的路径）接入 `libunwind`（或等价后端），并与 GC 的 stack walking 共享同一套 platform/unwind 模块；避免把 unwind/ABI 细节泄漏到 Scoop 侧。

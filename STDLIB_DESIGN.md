@@ -188,7 +188,7 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 | 模块/层 | desktop / server | embedded | wasm（WASI） | wasm（browser） | 关键依赖（runtime/platform） |
 |---|:---:|:---:|:---:|:---:|---|
 | `core`（`scoop.core`/反射表面/最小 I/O） | ✅ | ✅ | ✅ | ✅ | effect runtime；`print/println` 走平台输出 |
-| `alloc`（GC/allocator + `String/Array` 表面） | ✅ | ⚠️ | ✅ | ✅ | **GC backend**（T1406：baseline/embedded/adapter） |
+| `alloc`（GC/allocator + `String/Array` 表面） | ✅ | ⚠️ | ✅ | ✅ | **GC backend**（baseline/Immix/embedded/hosted(adapter：`gc-hosted`，T1410)） |
 | `collections/iterators/algorithms` | ✅ | ✅ | ✅ | ✅ | 依赖 alloc；不依赖 OS |
 | `text`（String 算法） | ✅ | ⚠️ | ✅ | ✅ | String 表示/编码边界（runtime lib） |
 | `time` | ✅ | ⚠️ | ✅ | ⚠️ | 平台时钟（POSIX/WinAPI/WASI/JS） |
@@ -207,7 +207,7 @@ platform backend 指“一套可被编译期选择的运行时实现组合”，
 
 - `alloc`：分配/释放（或由 GC 接管）、roots 扫描、pin/unpin、（可选）finalizer/release hook
 - `time`/`thread`：是否支持线程、TLS、原子（影响 GC 的 STW/并发安全边界）
-- `wasm`：是否为 hosted/adapter backend（例如 WASM GC、或线性内存 + host 回调）
+- `wasm`：是否为 hosted/adapter backend（例如 WASM GC、或线性内存 + host 回调；当前仓库 v0 落点为 `gc-hosted`，T1410）
 
 > 上述是 **std 的需求接口**；具体如何实现（C runtime / Scoop runtime / adapter）由 `T1406/T1409` 决定。
 

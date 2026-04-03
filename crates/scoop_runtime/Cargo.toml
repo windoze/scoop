@@ -17,6 +17,9 @@ gc-minimal = []
 # immix：单线程、非移动 Immix（v0 接入；allocator/mark-region 逐步落地；见 TODO T1406a）。
 gc-immix = []
 
+# hosted：面向受限环境的 hosted/adapter backend（v0：单线程、无 STW；不依赖 pthread）。
+gc-hosted = []
+
 [build-dependencies]
 cc = "1.2.38"
 

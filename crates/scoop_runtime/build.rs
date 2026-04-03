@@ -9,6 +9,7 @@ fn main() {
         1 => "1", // SCOOP_GC_BACKEND_BASELINE
         2 => "2", // SCOOP_GC_BACKEND_MINIMAL
         3 => "3", // SCOOP_GC_BACKEND_IMMIX
+        4 => "4", // SCOOP_GC_BACKEND_HOSTED
         _ => unreachable!("invalid gc backend id: {gc_backend}"),
     };
 
@@ -23,6 +24,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend_minimal.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend_immix.c");
+    println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend_hosted.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_common.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_backend.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.h");
@@ -71,6 +73,9 @@ fn main() {
         3 => {
             build.file("../../runtime/c/scoop_gc_backend_immix.c");
         }
+        4 => {
+            build.file("../../runtime/c/scoop_gc_backend_hosted.c");
+        }
         _ => unreachable!("invalid gc backend id: {gc_backend}"),
     }
 
@@ -81,15 +86,17 @@ fn resolve_gc_backend() -> u8 {
     let baseline = std::env::var("CARGO_FEATURE_GC_BASELINE").is_ok();
     let minimal = std::env::var("CARGO_FEATURE_GC_MINIMAL").is_ok();
     let immix = std::env::var("CARGO_FEATURE_GC_IMMIX").is_ok();
+    let hosted = std::env::var("CARGO_FEATURE_GC_HOSTED").is_ok();
 
-    match (baseline, minimal, immix) {
-        (true, false, false) => 1,
-        (false, true, false) => 2,
-        (false, false, true) => 3,
-        (false, false, false) => 1, // 未启用特性时默认 baseline（与 C 侧默认一致）
+    match (baseline, minimal, immix, hosted) {
+        (true, false, false, false) => 1,
+        (false, true, false, false) => 2,
+        (false, false, true, false) => 3,
+        (false, false, false, true) => 4,
+        (false, false, false, false) => 1, // 未启用特性时默认 baseline（与 C 侧默认一致）
         _ => {
             panic!(
-                "GC backend features are mutually exclusive; select exactly one of `gc-baseline`, `gc-minimal`, or `gc-immix` (use `--no-default-features` when selecting a non-default backend)"
+                "GC backend features are mutually exclusive; select exactly one of `gc-baseline`, `gc-minimal`, `gc-immix`, or `gc-hosted` (use `--no-default-features` when selecting a non-default backend)"
             );
         }
     }

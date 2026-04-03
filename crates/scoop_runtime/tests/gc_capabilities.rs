@@ -20,6 +20,21 @@ fn gc_capabilities_match_selected_backend() {
         return;
     }
 
+    if cfg!(feature = "gc-hosted") {
+        assert_eq!(GC_BACKEND, GcBackend::Hosted);
+        assert_eq!(
+            GC_CAPABILITIES,
+            scoop_runtime::gc_backend::GcCapabilities {
+                stw: false,
+                multi_thread_roots_enum: false,
+                moving: false,
+                precise_roots_update: false,
+                shadow_stack_roots: true,
+            }
+        );
+        return;
+    }
+
     if cfg!(feature = "gc-minimal") {
         assert_eq!(GC_BACKEND, GcBackend::Minimal);
         assert_eq!(

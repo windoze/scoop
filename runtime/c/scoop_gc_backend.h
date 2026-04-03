@@ -15,6 +15,7 @@
 #define SCOOP_GC_BACKEND_BASELINE 1
 #define SCOOP_GC_BACKEND_MINIMAL 2
 #define SCOOP_GC_BACKEND_IMMIX 3
+#define SCOOP_GC_BACKEND_HOSTED 4
 
 #ifndef SCOOP_GC_BACKEND
 #define SCOOP_GC_BACKEND SCOOP_GC_BACKEND_BASELINE
@@ -22,7 +23,8 @@
 
 #if (SCOOP_GC_BACKEND != SCOOP_GC_BACKEND_BASELINE) && \
     (SCOOP_GC_BACKEND != SCOOP_GC_BACKEND_MINIMAL) &&  \
-    (SCOOP_GC_BACKEND != SCOOP_GC_BACKEND_IMMIX)
+    (SCOOP_GC_BACKEND != SCOOP_GC_BACKEND_IMMIX) &&    \
+    (SCOOP_GC_BACKEND != SCOOP_GC_BACKEND_HOSTED)
 #error "unsupported SCOOP_GC_BACKEND value"
 #endif
 
@@ -76,6 +78,23 @@
 
 #define SCOOP_GC_CAP_MOVING 1
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 1
+
+#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
+
+#elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_HOSTED
+
+// hosted/adapter v0：单线程、无 STW；依赖 shadow stack roots。
+//
+// 说明：
+// - 该 backend 的设计目标是“尽量不依赖 OS 线程/同步原语”，以便在受限环境（例如 WASM/embedded）
+//   里可以替换/裁剪为 hosted allocator/collector 或 host GC adapter；
+// - v0 仍复用 shadow stack roots，使其可单独回归验证；未来若对接 WASM GC，可把 roots 形态
+//   升级为 host-managed references，并将该 capability 改为 0（由后续任务细化）。
+#define SCOOP_GC_CAP_STW 0
+#define SCOOP_GC_CAP_MULTI_THREAD_ROOTS_ENUM 0
+
+#define SCOOP_GC_CAP_MOVING 0
+#define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
 #define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
 
