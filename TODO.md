@@ -6498,7 +6498,7 @@
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1509a
 
-### T1510 [TODO] GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）完整落地
+### T1510 GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）（拆分为子任务）
 - 描述：把 `@Extern` 调用纳入 GC 协议：编译器自动插入 `enter_native/leave_native`，并为“把对象指针交给 native 并跨 safepoint 存活”的场景提供稳定方案（pin/unpin + stable handle）。
 - 目标：
   - `@Extern` 调用前必须 `enter_native`，调用后必须 `leave_native`（异常/early return 也要保证配对）；
@@ -6508,6 +6508,34 @@
   - 新增 unsafe_nogc/typecheck fixtures：禁止错误的 ref→Ptr 隐式转换；
   - 新增 run-pass fixture：调用一个模拟 extern（可在 runtime/c 提供测试符号）在 native 内部触发 GC，仍能正确访问对象。
 - 依赖：T1505、T1008、T1009、T1006
+- 备注：该任务跨 runtime/编译器/typecheck/fixtures。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1510a [TODO] runtime：stable handle 表 + C ABI（`scoop_handle_*`）+ GC roots 枚举接入
+- 描述：在 runtime 提供“稳定 handle”原语：native 可持有一个整数 handle，并在需要时通过 runtime 获取当前对象指针；GC 必须把 handle 表视为 roots（moving/compaction 下也要更新 handle->obj 指针）。
+- 目标：
+  - 提供最小 C ABI：`scoop_handle_new/get/drop`；
+  - handle 表的每个 entry 保存一个 `void* obj` 槽位，GC mark 必须扫描；moving/compaction 时必须作为 `void** slot` 更新；
+  - 行为约定（v0）：`handle_new(NULL)` 返回 0；`handle_get(0)` 返回 NULL；`handle_drop(0)` 返回 0；非法 handle 返回 0/NULL（不崩溃）。
+- 验收：
+  - 新增 `crates/scoop_runtime` 集成测试：`handle_new` 可保活对象；`handle_drop` 后对象可被回收；
+  - `cargo test -p scoop_runtime` 通过。
+- 依赖：T1505c、T1008
+
+### T1510b [TODO] sysroot/编译器：`GC.handleNew/handleGet/handleDrop` intrinsics（typecheck + codegen）
+- 描述：把 stable handle 暴露为 sysroot `GC` API，并在 typecheck/codegen 中对其做 intrinsic lowering，映射到 runtime `scoop_handle_*`。
+- 目标：只实现 handle 的“创建/取回/释放”语义；不与 `@Extern` 集成（留给 T1510c）。
+- 验收：新增 run-pass fixture：`handle_new -> gc_collect -> handle_get` 仍可输出对象内容；`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1510a、T1006、T1509
+
+### T1510c [TODO] 编译器：`@Extern` 自动插入 `enter_native/leave_native` + native_roots 保存
+- 描述：在每个 `@Extern` 调用点，编译器自动生成 `enter_native(root_slots, len)` / `leave_native()` 配对，并把“该调用点需要跨 native 存活”的 roots slots 暴露给 runtime（供 STW/moving GC 扫描与更新）。
+- 目标：
+  - pairing 必须覆盖异常/early return（不允许漏掉 leave）；
+  - roots buffer 先允许保守实现（宁可多保活也不漏 roots），但必须保证 slot 指向可写的 `void**`，与 runtime 更新 visitor 兼容。
+- 验收：
+  - 新增 run-pass fixture：调用一个模拟 extern（runtime/c 提供测试符号）在 native 内部触发 GC，仍能正确访问对象；
+  - `cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1505c、T1510b、T1006
 
 ### T1511 [TODO] 移动 GC：stackmap spill slots 与 heap 引用字段的统一更新（为 Immix compaction 做前置）
 - 描述：实现移动 GC 的“指针修复闭环”：对象搬迁后，必须更新所有 roots（stackmap spill slots + native_roots）与 heap 内引用字段，使程序在恢复执行后无悬挂指针。
