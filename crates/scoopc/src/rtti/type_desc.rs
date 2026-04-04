@@ -16,7 +16,10 @@ use serde::Serialize;
 use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
+use crate::ast;
 use crate::hir;
+use crate::parser::ParseError;
+use crate::resolve::{Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
@@ -33,6 +36,9 @@ pub struct TypeDescDump {
     pub target: TargetLayoutInfo,
     /// 按 `name` 排序，保证输出稳定。
     pub types: Vec<TypeDesc>,
+    /// interface 元数据（TODO T1507c1）：稳定 interface_id 与 method slots。
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub interfaces: Vec<InterfaceDesc>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -70,11 +76,45 @@ pub struct TypeDesc {
     pub trace_fn: Option<String>,
 }
 
+/// interface 的稳定可观测导出（TODO T1507c1）。
+///
+/// 注意：interface 本身不是 heap object，因此这里并不复用 `TypeDesc`（`ScoopTypeDescriptor`）。
+#[derive(Debug, Clone, Serialize)]
+pub struct InterfaceDesc {
+    /// interface 的 canonical name（FQN）。
+    pub name: String,
+    /// 全局稳定 interface id（v0：hash64(name)）。
+    pub interface_id: u64,
+    /// 直接 super interfaces（best-effort：仅当 `TypeRef::Path` 可解析）。
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub super_interfaces: Vec<String>,
+    /// method slots（v0：按声明顺序分配 slot index）。
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub method_slots: Vec<InterfaceMethodSlot>,
+}
+
+/// interface method 的 slot 信息（TODO T1507c1）。
+#[derive(Debug, Clone, Serialize)]
+pub struct InterfaceMethodSlot {
+    pub slot: u32,
+    pub name: String,
+    pub params_len: u32,
+    pub has_receiver: bool,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum TypeDescError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     HirLower(#[from] hir::HirLowerError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Parse(#[from] ParseError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Resolve(#[from] ResolveError),
 
     #[error("class 继承链存在环：{fqn}")]
     #[diagnostic(code(scoop::rtti::type_desc_inheritance_cycle))]
@@ -146,13 +186,179 @@ pub fn dump_file_type_desc(
     }
 
     out.sort_by(|a, b| a.name.cmp(&b.name));
+    let interfaces = collect_interface_descs(session, source)?;
     Ok(TypeDescDump {
         target: TargetLayoutInfo {
             pointer_size: target.pointer_size,
             pointer_align: target.pointer_align,
         },
         types: out,
+        interfaces,
     })
+}
+
+fn collect_interface_descs(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<Vec<InterfaceDesc>, TypeDescError> {
+    // 说明：
+    // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
+    // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。
+    let ast = session.parse(source)?;
+
+    let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    for f in &session.sysroot().files {
+        pairs.push((&f.source, &f.ast));
+    }
+    pairs.push((source, &ast));
+
+    let index = Index::build(&pairs)?;
+
+    let mut out: Vec<InterfaceDesc> = Vec::new();
+    for (src, file) in &pairs {
+        let pkg_prefix = package_prefix(src, file.package.as_ref());
+        for item in &file.items {
+            match item {
+                ast::Item::Type(ty) => {
+                    collect_interfaces_in_type_decl(src, file, &pkg_prefix, ty, &index, &mut out);
+                }
+                ast::Item::Object(obj) => {
+                    collect_interfaces_in_object_decl(
+                        src,
+                        file,
+                        &pkg_prefix,
+                        obj,
+                        &index,
+                        &mut out,
+                    );
+                }
+                ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::TypeAlias(_) => {}
+            }
+        }
+    }
+
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+fn collect_interfaces_in_type_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    owner_prefix: &str,
+    decl: &ast::TypeDecl,
+    index: &Index,
+    out: &mut Vec<InterfaceDesc>,
+) {
+    let name = decl.name.text(source).to_string();
+    let type_fqn = join_prefix(owner_prefix, &name);
+
+    if matches!(decl.kind, ast::TypeKind::Interface) {
+        let super_interfaces = decl
+            .supertypes
+            .iter()
+            .filter(|st| st.ctor_args_span.is_none())
+            .filter_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty))
+            .collect::<Vec<_>>();
+
+        let mut method_slots: Vec<InterfaceMethodSlot> = Vec::new();
+        if let Some(body) = &decl.body {
+            let mut slot = 0u32;
+            for member in &body.members {
+                let ast::TypeMember::Fun(fun) = member else {
+                    continue;
+                };
+                method_slots.push(InterfaceMethodSlot {
+                    slot,
+                    name: fun.name.text(source).to_string(),
+                    params_len: fun.params.len() as u32,
+                    has_receiver: fun.receiver.is_some(),
+                });
+                slot = slot.saturating_add(1);
+            }
+        }
+
+        out.push(InterfaceDesc {
+            name: type_fqn.clone(),
+            interface_id: stable_hash64(&type_fqn),
+            super_interfaces,
+            method_slots,
+        });
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_interfaces_in_type_decl(source, file, &type_fqn, nested, index, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_interfaces_in_object_decl(source, file, &type_fqn, obj, index, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_interfaces_in_object_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    owner_prefix: &str,
+    obj: &ast::ObjectDecl,
+    index: &Index,
+    out: &mut Vec<InterfaceDesc>,
+) {
+    let Some(name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let obj_fqn = join_prefix(owner_prefix, &name);
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_interfaces_in_type_decl(source, file, &obj_fqn, nested, index, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_interfaces_in_object_decl(source, file, &obj_fqn, nested, index, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn object_decl_name(source: &SourceFile, obj: &ast::ObjectDecl) -> Option<String> {
+    match obj.name.as_ref() {
+        Some(name) => Some(name.text(source).to_string()),
+        None => match obj.kind {
+            ast::ObjectKind::Companion => Some("Companion".to_string()),
+            ast::ObjectKind::Object => None,
+        },
+    }
+}
+
+fn join_prefix(prefix: &str, name: &str) -> String {
+    if prefix.is_empty() {
+        name.to_string()
+    } else {
+        format!("{prefix}.{name}")
+    }
 }
 
 fn builtin_any_type_id(types: &TypeStore) -> Option<TypeId> {
@@ -165,6 +371,17 @@ fn builtin_unit_type_id(types: &TypeStore) -> Option<TypeId> {
     types
         .iter_ids()
         .find(|id| matches!(types.kind(*id), TypeKind::Value(ValueTypeKind::Unit)))
+}
+
+fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {
+    let Some(pkg) = pkg else {
+        return String::new();
+    };
+    pkg.path
+        .iter()
+        .map(|id| source.slice(id.span))
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
@@ -869,5 +1086,56 @@ fun main() {
 
         assert!(env.name.starts_with("scoop.lambda_env$"));
         assert_eq!(env.trace_bitmap_u64, vec![1u64]);
+    }
+
+    #[test]
+    fn dump_rtti_interface_id_and_method_slots() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+import scoop.core.*
+
+interface IFoo {
+  fun ping()
+  fun add(x: Int, y: Int): Int
+}
+
+interface IBar : IFoo {
+  fun pong()
+}
+"#,
+        );
+
+        let dump = dump_file_type_desc(&sess, &src).unwrap();
+
+        let foo = dump
+            .interfaces
+            .iter()
+            .find(|i| i.name == "rtti.IFoo")
+            .expect("should contain rtti.IFoo");
+        assert_eq!(foo.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(foo.super_interfaces, Vec::<String>::new());
+        assert_eq!(foo.method_slots.len(), 2);
+        assert_eq!(foo.method_slots[0].slot, 0);
+        assert_eq!(foo.method_slots[0].name, "ping");
+        assert_eq!(foo.method_slots[0].params_len, 0);
+        assert_eq!(foo.method_slots[1].slot, 1);
+        assert_eq!(foo.method_slots[1].name, "add");
+        assert_eq!(foo.method_slots[1].params_len, 2);
+
+        let bar = dump
+            .interfaces
+            .iter()
+            .find(|i| i.name == "rtti.IBar")
+            .expect("should contain rtti.IBar");
+        assert_eq!(bar.interface_id, stable_hash64("rtti.IBar"));
+        assert_eq!(bar.super_interfaces, vec!["rtti.IFoo".to_string()]);
+        assert_eq!(bar.method_slots.len(), 1);
+        assert_eq!(bar.method_slots[0].slot, 0);
+        assert_eq!(bar.method_slots[0].name, "pong");
+        assert_eq!(bar.method_slots[0].params_len, 0);
     }
 }

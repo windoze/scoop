@@ -6346,15 +6346,18 @@
 - 依赖：T1507b
 - 备注：该任务涉及“interface 元数据”“class vtable”“class itable”三个相对独立能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
 
-### T1507c1 [TODO] 编译器：interface id + method slot 表（dump-rtti 可观测）
+### T1507c1 [DONE] 编译器：interface id + method slot 表（dump-rtti 可观测）
 - 描述：为每个 interface 生成稳定 `interface_id`（hash64）与 method slots（顺序稳定），并在 `scoop dump-rtti` 中可观测输出，作为后续 itable/vtable 生成的基座。
 - 目标：
   - 仅覆盖 interface（含 sysroot 与输入文件中的 interface 声明）；
   - method slot 以“声明顺序”为 slot 分配规则（v0），并输出 slot index + 形状信息（name/arity/receiver）。
-- 验收：
-  - `cargo test --all`
-  - 新增单测：`dump_file_type_desc` 输出包含 interface desc（含 `interface_id` 与 `method_slots`）。
 - 依赖：T1507b
+ - 完成：
+   - `crates/scoopc/src/rtti/type_desc.rs`：`dump_file_type_desc` 导出 interface desc（`interface_id` + `method_slots`），并新增单测覆盖。
+   - `crates/scoop/src/commands/dump_rtti.rs`：`--type` 支持查询 interface（exact/simple name）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1507c2 [TODO] 编译器：class vtable slot layout 生成并导出（dump-rtti）
 - 描述：基于 class 继承链与 override 关系生成 vtable slots（布局稳定），并在 `scoop dump-rtti` 中导出 vtable slot 列表（slot→目标成员）。
