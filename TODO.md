@@ -6406,18 +6406,31 @@
    - `crates/scoopc/src/hir/lower.rs`：对 class/object 的 member call 做 desugar：`receiver.method(args...)` → `Owner.method(receiver, args...)`；并在 lowering side table 中收集 member fun 为可 codegen 的“顶层函数形态”（显式 `this` 参数）。
    - `crates/scoopc/src/llvm/mod.rs`：将 lowering 收集的 member fun 合并进 LLVM 后端的函数索引，使 direct member call 的目标可被 codegen 生成。
    - 新增 fixtures：
-     - typecheck：`tests/fixtures/typecheck/member_call_final_private_ok.scoop`（pass）、`tests/fixtures/typecheck/member_call_open_not_supported_is_error.scoop`（fail + 稳定错误码）
+     - typecheck：`tests/fixtures/typecheck/member_call_final_private_ok.scoop`（pass）、`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop`（fail + 稳定错误码）
      - run-pass：`tests/fixtures/run-pass/member_call_direct_final_private_basic.scoop` + `tests/fixtures/run-pass/member_call_direct_final_private_basic.stdout`
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1508b [TODO] virtual dispatch：vtable slot 选择 + override call（端到端）
+### T1508b [DONE] virtual dispatch：vtable slot 选择 + override call（端到端）
 - 描述：对 class 的可 override 成员调用做分类与 lowering：生成 vtable slot 并在 codegen 侧通过 vtable 间接调用，保证 `Base` 引用调用能动态分发到 `Derived.override`。
 - 目标：只覆盖 vtable（class 继承链）路径；不引入 interface dispatch。
 - 验收：新增 run-pass fixtures：override 调用输出正确；新增 typecheck fixtures 覆盖 override 冲突（签名/默认参数/可见性边界按现有规则）。
 - 依赖：T1507c2、T1508a
+ - 完成：
+   - `crates/scoopc/src/vtable.rs`：在“编译单元（sysroot + 当前 cone）”AST 上构建 `class_fqn -> vtable slots`（继承链继承 slots，`override` 复用 slot 并更新 `impl_member_fqn`）。
+   - `crates/scoopc/src/hir/lower.rs`：在 `LoweredHir` 中注入 `class_vtables` side table，并在 lowering API 里为 compilation unit 计算该表；透传 `VtableLayoutError` 为 `HirLowerError::VtableLayout`。
+   - `crates/scoopc/src/llvm/codegen.rs`：为 class 生成 `__scoop_vtable__<ClassFqn>` 常量并写入 `ScoopTypeDescriptor.vtable`；调用点将 `Owner.method(this, ...)` 改为从 `this.header.type_desc.vtable[slot]` 取函数指针并 indirect call（不依赖 `receiver_expr.ty`，避免 placeholder 类型导致漏走虚调用）。
+   - `crates/scoopc/src/llvm/mod.rs`：在 reachability 扫描 constructor 时，把该 class 的 vtable 目标函数加入可达集合，保证声明/生成齐全。
+   - `crates/scoopc/src/typecheck/expr.rs`：放开对 open/abstract 成员调用的门禁；保留 interface dispatch 仍报 `scoop::typecheck::unsupported_member_access`（留给 T1508c）。
+   - 新增/调整 fixtures：
+     - typecheck：`tests/fixtures/typecheck/member_call_virtual_dispatch_override_ok.scoop`（pass）、`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop`（fail）
+     - run-pass：`tests/fixtures/run-pass/member_call_virtual_dispatch_override_basic.scoop` + `tests/fixtures/run-pass/member_call_virtual_dispatch_override_basic.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1508c [TODO] interface dispatch：itable slot 选择 + interface 引用调用（端到端）
 - 描述：对 interface method call 做分类与 lowering：生成 itable slot 并在 codegen 侧通过 itable 间接调用，保证 `val x: IFace = Impl()` 的调用能命中实现。

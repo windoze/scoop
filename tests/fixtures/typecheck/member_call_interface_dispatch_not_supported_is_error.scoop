@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-AT: 21:14
+// EXPECT-ERROR: 暂不支持的成员访问
+//
+// T1508c：当前阶段暂不支持 interface dispatch；对 interface member method call 给出稳定错误码。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface IFace {
+    fun foo(): Int
+}
+
+class Impl() : IFace {
+    fun foo(): Int { return 1 }
+}
+
+fun use(x: IFace): Int {
+    return x.foo()
+}

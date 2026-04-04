@@ -334,6 +334,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.top_level_vars,
         &lowered.object_inits,
         &lowered.class_inits,
+        &lowered.class_vtables,
         &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
@@ -343,6 +344,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         hir_main,
         &fun_index,
         &lowered.class_inits,
+        &lowered.class_vtables,
         &lowered.ctor_call_sites,
     );
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
@@ -374,6 +376,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
             &lowered.top_level_vars,
             &lowered.object_inits,
             &lowered.class_inits,
+            &lowered.class_vtables,
             &lowered.ctor_call_sites,
             &lowered.extern_funs,
             &fun_index,
@@ -448,6 +451,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.top_level_vars,
         &lowered.object_inits,
         &lowered.class_inits,
+        &lowered.class_vtables,
         &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
@@ -643,11 +647,13 @@ fn collect_reachable_top_level_funs<'a>(
     entry: &'a hir::FunDecl,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     class_inits: &'a hir::ClassInitIndex,
+    class_vtables: &'a crate::vtable::ClassVtableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
 ) -> Vec<&'a hir::FunDecl> {
     let mut collector = ReachabilityCollector {
         fun_index,
         class_inits,
+        class_vtables,
         ctor_call_sites,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
@@ -699,6 +705,7 @@ fn collect_reachable_top_level_funs<'a>(
 struct ReachabilityCollector<'a> {
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     class_inits: &'a hir::ClassInitIndex,
+    class_vtables: &'a crate::vtable::ClassVtableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
 
     seen_calls: HashSet<String>,
@@ -715,6 +722,15 @@ impl<'a> ReachabilityCollector<'a> {
     fn enqueue_fun(&mut self, fqn: String) {
         if self.seen_calls.insert(fqn.clone()) {
             self.fun_queue.push_back(fqn);
+        }
+    }
+
+    fn enqueue_vtable_impls(&mut self, class_fqn: &str) {
+        let Some(slots) = self.class_vtables.get(class_fqn) else {
+            return;
+        };
+        for slot in slots {
+            self.enqueue_fun(slot.impl_member_fqn.clone());
         }
     }
 
@@ -906,6 +922,11 @@ impl<'a> ReachabilityCollector<'a> {
         let Some(class) = self.class_inits.get(class_fqn) else {
             return;
         };
+
+        // T1508b：vtable 虚调用需要确保“可达的 class”其 vtable 实现成员也会被后端声明/生成。
+        // - class ctor 可达 ⇒ 该 class 的对象可能被分配并参与动态分发；
+        // - 因此这里把 vtable slots 指向的实现成员（impl_member_fqn）加入可达集合。
+        self.enqueue_vtable_impls(class_fqn);
 
         // class init steps（property initializer / init blocks）对所有构造路径都可达：只扫描一次。
         if self.scanned_class_init_steps.insert(class.fqn.clone()) {

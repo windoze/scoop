@@ -1,0 +1,20 @@
+// EXPECT: pass
+//
+// T1508b：virtual dispatch（vtable）typecheck 通过：允许对 open/override 成员函数调用。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base() {
+    open fun foo(): Int { return 1 }
+}
+
+class Derived() : Base() {
+    override fun foo(): Int { return 2 }
+}
+
+fun use(b: Base): Int {
+    return b.foo()
+}
+

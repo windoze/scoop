@@ -10178,8 +10178,7 @@ fn infer_member_call_expr_type(
     // - resolver 在 member access 阶段只做“存在性 + FQN 写回”，不会为 member fun call 收集 overload set；
     // - 这里把 `receiver.method(args...)` 降到“对 FQN overload set 的普通调用”来做重载决议，
     //   并把 `receiver` 作为隐式第 0 个参数参与类型检查；
-    // - 当前阶段不支持 virtual/interface dispatch：对需要动态分发的成员方法调用给出稳定错误码
-    //   `unsupported_member_access`（留给 TODO T1508b/T1508c）。
+    // - T1508b 起支持 class virtual dispatch（vtable）；interface dispatch 仍留给 TODO T1508c。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
         // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
         if fqn != "scoop.core.GC.pin" && fqn != "scoop.core.GC.unpin" {
@@ -10571,36 +10570,6 @@ fn infer_member_call_expr_type(
                     matched.swap_remove(idx)
                 }
             };
-
-            // 动态分发门禁（T1508a）：open/abstract（或 abstract/no-body）暂不支持。
-            //
-            // 判定规则（最小落地）：
-            // - member 可 override（open/abstract）且 owner 可继承（open/abstract/sealed）时，需要 virtual dispatch；
-            // - private member 视为可直连（不参与 override）。
-            let owner_is_inheritable = lower
-                .index()
-                .by_fqn
-                .get(&receiver_fqn)
-                .and_then(|syms| syms.ty.as_ref())
-                .is_some_and(|sym| sym.modifiers.is_inheritable());
-            let chosen_overload = lower.index().by_fqn.get(fqn.as_str()).and_then(|syms| {
-                syms.fun
-                    .iter()
-                    .find(|o| o.symbol.span == chosen.sig.decl_span)
-            });
-            let needs_dynamic_dispatch = chosen_overload.is_some_and(|o| {
-                if !o.has_body {
-                    return true;
-                }
-                let is_private = matches!(o.symbol.visibility, Visibility::Private);
-                owner_is_inheritable && !is_private && o.symbol.modifiers.is_overridable()
-            });
-            if needs_dynamic_dispatch {
-                return Err(ExprTypeError::UnsupportedMemberAccess {
-                    fqn: fqn.clone(),
-                    span: member.span.into(),
-                });
-            }
 
             check_unsafe_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;

@@ -9,24 +9,25 @@
 //! `scoop`（driver）crate 只负责命令行与调度。
 
 pub mod ast;
-pub mod cone;
 pub mod comptime;
+pub mod cone;
 pub mod hir;
 pub mod infer;
 pub mod mir;
 pub mod monomorph;
 pub mod parser;
 pub mod resolve;
+pub mod rtti;
 pub mod session;
 pub mod source;
 pub mod span;
+pub mod stackmap;
 pub mod syntax;
 pub mod sysroot;
 pub mod target;
 pub mod ty;
 pub mod typecheck;
-pub mod rtti;
-pub mod stackmap;
+pub mod vtable;
 
 /// LLVM 后端（inkwell）。
 ///

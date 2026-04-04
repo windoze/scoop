@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_virtual_dispatch_override_basic.stdout
+//
+// T1508b：virtual dispatch（vtable）端到端：`Base` 引用调用应动态分发到 `Derived.override`。
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Int {
+        println("Base.ping")
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        println("Derived.ping")
+        return 2
+    }
+}
+
+fun main(): Int {
+    val b: Base = Derived()
+    val x: Int = b.ping()
+    println("after")
+    println(x)
+    return 0
+}
+

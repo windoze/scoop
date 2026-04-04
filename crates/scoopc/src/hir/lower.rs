@@ -151,6 +151,10 @@ pub enum HirLowerError {
     #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    VtableLayout(#[from] crate::vtable::VtableLayoutError),
+
     #[error("multi-file lowering 暂不支持在非入口文件中出现需要源文本切片的字面量：{path}")]
     #[diagnostic(code(scoop::hir::multi_file_non_entry_source_backed_literal))]
     MultiFileNonEntrySourceBackedLiteral { path: String },
@@ -188,6 +192,12 @@ pub struct LoweredHir {
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
     pub class_inits: ClassInitIndex,
+    /// class vtable slots（TODO T1507c2 / T1508b）。
+    ///
+    /// 说明：
+    /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
+    /// - LLVM 后端用它生成每个 class 的 vtable 常量，并在虚调用点选择 slot。
+    pub class_vtables: crate::vtable::ClassVtableIndex,
     /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
     pub ctor_call_sites: CtorCallSiteIndex,
 }
@@ -4290,6 +4300,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     pairs.push((source, &ast));
     let type_kinds = collect_type_decl_kinds(&pairs);
     let delegated_properties = collect_delegated_properties(&pairs);
+    let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4341,6 +4352,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         top_level_vars,
         object_inits,
         class_inits,
+        class_vtables,
         ctor_call_sites,
     })
 }
@@ -4363,6 +4375,7 @@ pub fn lower_for_compilation_unit(
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
+    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4408,6 +4421,7 @@ pub fn lower_for_compilation_unit(
         top_level_vars,
         object_inits,
         class_inits,
+        class_vtables,
         ctor_call_sites,
     })
 }
@@ -4427,6 +4441,7 @@ pub fn lower_for_compilation_unit_multi_files(
 ) -> Result<LoweredHir, HirLowerError> {
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
+    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4521,6 +4536,7 @@ pub fn lower_for_compilation_unit_multi_files(
         top_level_vars,
         object_inits,
         class_inits,
+        class_vtables,
         ctor_call_sites,
     })
 }
