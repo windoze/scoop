@@ -236,6 +236,20 @@ void scoop_gc_collect(void);
 uint32_t scoop_pin(void *obj);
 uint32_t scoop_unpin(void *obj);
 
+// --- Stable handles（spec §15.10.1） ---
+//
+// 说明：
+// - stable handle 用于把 heap 对象引用以“整数 token”形式交给 native/外部系统长期持有；
+// - 与 pin 不同：handle 不保证对象地址不变（moving GC 下对象可能被搬迁）；
+// - runtime 必须把 handle 表视为 roots，并在 moving/compaction 时更新 handle->obj 槽位。
+//
+// API 约定（v0）：
+// - handle 值 0 表示失败/空 handle；
+// - get/drop 对非法 handle 返回 NULL/0（不崩溃）。
+uint64_t scoop_handle_new(void *obj);
+void *scoop_handle_get(uint64_t handle);
+uint32_t scoop_handle_drop(uint64_t handle);
+
 // 最小自检：用于 smoke test，确保结构体布局/基本假设可用。
 // 返回 1 表示通过，0 表示失败。
 uint32_t scoop_gc_self_check(void);

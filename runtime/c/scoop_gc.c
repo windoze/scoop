@@ -637,6 +637,23 @@ typedef struct ScoopGcPinnedRecord {
 
 static ScoopGcPinnedRecord *scoop_gc_pinned_objects = 0;
 
+// --- Stable handles（spec §15.10.1 / TODO T1510a） ---
+//
+// 说明：
+// - handle 是把 heap 对象“以整数 token 形式”交给 native/外部系统的机制；
+// - handle 表必须被 GC 当作 roots；moving/compaction 时还需要更新 handle->obj 槽位
+//   （Immix backend 的实现见 `scoop_gc_backend_immix.c`）。
+//
+// v0 实现：
+// - 用链表保存 handle records；
+// - handle 值为 record 指针（`uintptr_t` cast），并通过线性扫描验证其合法性（避免对无效指针解引用）。
+typedef struct ScoopGcHandleRecord {
+  struct ScoopGcHandleRecord *next;
+  ScoopGcObjectHeader *object;
+} ScoopGcHandleRecord;
+
+static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
+
 static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -753,6 +770,100 @@ uint32_t scoop_unpin(void *raw_obj) {
   }
 
   // 未找到：unpin 下溢（对未 pin 的对象 unpin，或重复 unpin）。
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return 0;
+}
+
+uint64_t scoop_handle_new(void *raw_obj) {
+  if (raw_obj == 0) {
+    return 0;
+  }
+
+  // 说明：与 `scoop_pin` 对齐：确保 runtime init + 当前线程参与 STW。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  // 健壮性：只允许为 heap 内对象创建 handle，避免 GC 扫描 handle roots 时对非法指针解引用。
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 0;
+  }
+
+  ScoopGcHandleRecord *rec = (ScoopGcHandleRecord *)malloc(sizeof(ScoopGcHandleRecord));
+  if (rec == 0) {
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 0;
+  }
+
+  rec->next = scoop_gc_handle_records;
+  rec->object = obj;
+  scoop_gc_handle_records = rec;
+
+  uint64_t handle = (uint64_t)(uintptr_t)rec;
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return handle;
+}
+
+void *scoop_handle_get(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  // 说明：保持与其它 runtime API 一致：允许在未显式 init/register 的情况下被调用。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it != needle) {
+      continue;
+    }
+    void *obj = (void *)it->object;
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return obj;
+  }
+  (void)pthread_mutex_unlock(&scoop_gc_lock);
+  return 0;
+}
+
+uint32_t scoop_handle_drop(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  (void)pthread_mutex_lock(&scoop_gc_lock);
+
+  ScoopGcHandleRecord **link = &scoop_gc_handle_records;
+  while (*link != 0) {
+    ScoopGcHandleRecord *it = *link;
+    if (it != needle) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    free(it);
+    (void)pthread_mutex_unlock(&scoop_gc_lock);
+    return 1;
+  }
+
   (void)pthread_mutex_unlock(&scoop_gc_lock);
   return 0;
 }
@@ -1080,6 +1191,14 @@ void scoop_gc_collect(void) {
       continue;
     }
 
+    scoop_gc_mark_object_if_needed(&ctx, it->object);
+  }
+
+  // 1c) mark stable handles（spec §15.10.1）：handle 表中的对象必须保活，即使没有 roots 引用。
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
     scoop_gc_mark_object_if_needed(&ctx, it->object);
   }
 

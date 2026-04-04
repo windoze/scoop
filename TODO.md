@@ -6510,7 +6510,7 @@
 - 依赖：T1505、T1008、T1009、T1006
 - 备注：该任务跨 runtime/编译器/typecheck/fixtures。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
 
-### T1510a [TODO] runtime：stable handle 表 + C ABI（`scoop_handle_*`）+ GC roots 枚举接入
+### T1510a [DONE] runtime：stable handle 表 + C ABI（`scoop_handle_*`）+ GC roots 枚举接入
 - 描述：在 runtime 提供“稳定 handle”原语：native 可持有一个整数 handle，并在需要时通过 runtime 获取当前对象指针；GC 必须把 handle 表视为 roots（moving/compaction 下也要更新 handle->obj 指针）。
 - 目标：
   - 提供最小 C ABI：`scoop_handle_new/get/drop`；
@@ -6520,6 +6520,16 @@
   - 新增 `crates/scoop_runtime` 集成测试：`handle_new` 可保活对象；`handle_drop` 后对象可被回收；
   - `cargo test -p scoop_runtime` 通过。
 - 依赖：T1505c、T1008
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 stable handle API 声明：`scoop_handle_new/get/drop`。
+   - `runtime/c/scoop_gc.c`：baseline backend 新增 handle 表（链表）与 `scoop_handle_*`；GC mark roots 阶段扫描 handle roots。
+   - `runtime/c/scoop_gc_backend_minimal.c`：minimal backend 新增 handle 表与 roots 扫描。
+   - `runtime/c/scoop_gc_backend_hosted.c`：hosted backend 新增 handle 表与 roots 扫描。
+   - `runtime/c/scoop_gc_backend_immix.c`：immix backend 新增 handle 表；GC mark 扫描 handle roots；compaction（moving）阶段更新 handle->obj 槽位（避免悬挂指针）。
+   - `runtime/c/scoop_runtime_api.h`：登记 ABI allowlist：`scoop_handle_new/get/drop`。
+   - `crates/scoop_runtime/tests/stable_handle.rs`：新增集成测试回归“handle 保活 + drop 后可回收 + 非法 handle 不崩溃”。
+ - 验收：
+   - `cargo test --all`
 
 ### T1510b [TODO] sysroot/编译器：`GC.handleNew/handleGet/handleDrop` intrinsics（typecheck + codegen）
 - 描述：把 stable handle 暴露为 sysroot `GC` API，并在 typecheck/codegen 中对其做 intrinsic lowering，映射到 runtime `scoop_handle_*`。

@@ -52,6 +52,14 @@ typedef struct ScoopGcPinnedRecord {
 
 static ScoopGcPinnedRecord *scoop_gc_pinned_objects = 0;
 
+// --- Stable handles（spec §15.10.1 / TODO T1510a） ---
+typedef struct ScoopGcHandleRecord {
+  struct ScoopGcHandleRecord *next;
+  ScoopGcObjectHeader *object;
+} ScoopGcHandleRecord;
+
+static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
+
 static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -225,6 +233,97 @@ uint32_t scoop_unpin(void *raw_obj) {
   return 0;
 }
 
+uint64_t scoop_handle_new(void *raw_obj) {
+  if (raw_obj == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
+
+  scoop_gc_lock_acquire();
+
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    scoop_gc_lock_release();
+    return 0;
+  }
+
+  ScoopGcHandleRecord *rec = (ScoopGcHandleRecord *)malloc(sizeof(ScoopGcHandleRecord));
+  if (rec == 0) {
+    scoop_gc_lock_release();
+    return 0;
+  }
+
+  rec->next = scoop_gc_handle_records;
+  rec->object = obj;
+  scoop_gc_handle_records = rec;
+
+  uint64_t handle = (uint64_t)(uintptr_t)rec;
+  scoop_gc_lock_release();
+  return handle;
+}
+
+void *scoop_handle_get(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  scoop_gc_lock_acquire();
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it != needle) {
+      continue;
+    }
+    void *obj = (void *)it->object;
+    scoop_gc_lock_release();
+    return obj;
+  }
+  scoop_gc_lock_release();
+  return 0;
+}
+
+uint32_t scoop_handle_drop(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  scoop_gc_lock_acquire();
+
+  ScoopGcHandleRecord **link = &scoop_gc_handle_records;
+  while (*link != 0) {
+    ScoopGcHandleRecord *it = *link;
+    if (it != needle) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    free(it);
+    scoop_gc_lock_release();
+    return 1;
+  }
+
+  scoop_gc_lock_release();
+  return 0;
+}
+
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return;
@@ -377,6 +476,14 @@ void scoop_gc_collect(void) {
       continue;
     }
     if (it->pin_count == 0) {
+      continue;
+    }
+    scoop_gc_mark_object_if_needed(&ctx, it->object);
+  }
+
+  // 1c) mark stable handles（spec §15.10.1）
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
       continue;
     }
     scoop_gc_mark_object_if_needed(&ctx, it->object);

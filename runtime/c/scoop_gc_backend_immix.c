@@ -96,6 +96,19 @@ typedef struct ScoopGcPinnedRecord {
 
 static ScoopGcPinnedRecord *scoop_gc_pinned_objects = 0;
 
+// --- Stable handles（spec §15.10.1 / TODO T1510a） ---
+//
+// 说明：
+// - handle 表必须被 GC 当作 roots（否则对象可能在没有任何 shadow stack 引用时被回收）；
+// - Immix backend 支持 moving/compaction，因此在 evacuation 后必须更新 handle->obj 槽位，
+//   避免 native 通过 handle_get() 读到悬挂指针。
+typedef struct ScoopGcHandleRecord {
+  struct ScoopGcHandleRecord *next;
+  ScoopGcObjectHeader *object;
+} ScoopGcHandleRecord;
+
+static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
+
 static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return 0;
@@ -1792,6 +1805,112 @@ uint32_t scoop_unpin(void *raw_obj) {
   return 0;
 }
 
+uint64_t scoop_handle_new(void *raw_obj) {
+  if (raw_obj == 0) {
+    return 0;
+  }
+
+  // 说明：对齐 baseline/minimal backend：允许在未显式 init/register 的情况下被调用。
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw_obj;
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+  scoop_gc_immix_lock(state);
+
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    scoop_gc_immix_unlock(state);
+    return 0;
+  }
+
+  ScoopGcHandleRecord *rec = (ScoopGcHandleRecord *)malloc(sizeof(ScoopGcHandleRecord));
+  if (rec == 0) {
+    scoop_gc_immix_unlock(state);
+    return 0;
+  }
+
+  rec->next = scoop_gc_handle_records;
+  rec->object = obj;
+  scoop_gc_handle_records = rec;
+
+  uint64_t handle = (uint64_t)(uintptr_t)rec;
+  scoop_gc_immix_unlock(state);
+  return handle;
+}
+
+void *scoop_handle_get(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  scoop_gc_immix_lock(state);
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it != needle) {
+      continue;
+    }
+    void *obj = (void *)it->object;
+    scoop_gc_immix_unlock(state);
+    return obj;
+  }
+  scoop_gc_immix_unlock(state);
+  return 0;
+}
+
+uint32_t scoop_handle_drop(uint64_t handle) {
+  if (handle == 0) {
+    return 0;
+  }
+
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return 0;
+  }
+
+  ScoopGcHandleRecord *needle = (ScoopGcHandleRecord *)(uintptr_t)handle;
+
+  scoop_gc_immix_lock(state);
+
+  ScoopGcHandleRecord **link = &scoop_gc_handle_records;
+  while (*link != 0) {
+    ScoopGcHandleRecord *it = *link;
+    if (it != needle) {
+      link = &it->next;
+      continue;
+    }
+
+    *link = it->next;
+    free(it);
+    scoop_gc_immix_unlock(state);
+    return 1;
+  }
+
+  scoop_gc_immix_unlock(state);
+  return 0;
+}
+
 void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   if (obj == 0) {
     return;
@@ -2676,6 +2795,14 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_immix_update_slot_visitor, 0);
   }
 
+  // 3a2) stable handle table update：handle->obj 槽位同样属于 roots，需要在 moving/compaction 后被改写。
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    scoop_gc_immix_update_slot_visitor((void **)&it->object, 0);
+  }
+
   // 3b) heap object fields update：扫描所有 live 对象（对已搬迁对象改为扫描其 to-space 副本）。
   for (size_t i = 0; i < live_len; i++) {
     ScoopGcObjectHeader *obj = live[i];
@@ -2963,6 +3090,14 @@ void scoop_gc_collect(void) {
         scoop_gc_parallel_mark_object_if_needed(&ctx, it->object);
       }
 
+      // 1c) mark stable handles（spec §15.10.1）
+      for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+        if (it->object == 0) {
+          continue;
+        }
+        scoop_gc_parallel_mark_object_if_needed(&ctx, it->object);
+      }
+
       uint64_t in_flight = __atomic_load_n(&work.in_flight, __ATOMIC_ACQUIRE);
       if (in_flight > 0) {
         size_t helper_count = (size_t)parallel_mark_workers - 1u;
@@ -3044,6 +3179,14 @@ void scoop_gc_collect(void) {
         continue;
       }
       if (it->pin_count == 0) {
+        continue;
+      }
+      scoop_gc_mark_object_if_needed(&ctx, it->object);
+    }
+
+    // 1c) mark stable handles（spec §15.10.1）
+    for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+      if (it->object == 0) {
         continue;
       }
       scoop_gc_mark_object_if_needed(&ctx, it->object);
