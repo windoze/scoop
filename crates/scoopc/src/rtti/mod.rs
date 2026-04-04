@@ -9,6 +9,8 @@
 //! - 其它类型只提供 size/align（或按指针大小占位）；
 //! - 目标平台布局暂用 host pointer size/align（与 typecheck/layout 一致，T0803 再替换为 target machine）。
 
+pub mod type_desc;
+
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use miette::Diagnostic;
@@ -17,7 +19,7 @@ use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::ast;
-use crate::parser::{ParseError, parse_file};
+use crate::parser::{parse_file, ParseError};
 use crate::resolve::{ImportTable, Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;

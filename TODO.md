@@ -6322,11 +6322,19 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1507b [TODO] driver：`scoop dump-rtti` 输出 type_id/parent/trace bitmap（type descriptor v0）
+### T1507b [DONE] driver：`scoop dump-rtti` 输出 type_id/parent/trace bitmap（type descriptor v0）
 - 描述：扩展 `scoop dump-rtti`：从编译器侧收集 type descriptor 信息，输出每个 type 的 `type_id`、父类链（class）与 trace bitmap（或 trace_fn 标识），用于调试 GC heap trace 与后续 `is/as/as?`。
 - 目标：先覆盖 class/closure env/string/box；数组可先显示为 runtime builtin（ref/word） descriptor。
 - 验收：新增一个最小 fixture/用例，`cargo run -p scoop -- dump-rtti <file>` 输出包含上述字段。
 - 依赖：T1507a
+ - 完成：
+   - `crates/scoopc/src/rtti/type_desc.rs`：新增 type descriptor dump（`type_id`/`parent_chain`/`trace_bitmap_u64`/`trace_fn`）与单测覆盖 class/closure env。
+   - `crates/scoop/src/commands/dump_rtti.rs`：`scoop dump-rtti` 输出 JSON，并支持 `--type` 精确/简单名筛选。
+   - `crates/scoop/src/cli.rs`：更新子命令说明文本。
+   - `tests/fixtures/parse/dump_rtti_type_desc_v0.scoop`：新增最小用例（可直接 `cargo run -p scoop -- dump-rtti ...` 验收）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- dump-rtti tests/fixtures/parse/dump_rtti_type_desc_v0.scoop`
 
 ### T1507c [TODO] 编译器：interface id + vtable/itable 生成并写入 type descriptor（动态分发元数据）
 - 描述：为 interface 分配全局稳定 interface id，并为 class 生成 vtable/itable（slot 布局稳定），写入 `ScoopTypeDescriptor.{vtable,itable}`，为 T1508/T1509 的动态分发端到端做准备。

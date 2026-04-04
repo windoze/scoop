@@ -1,0 +1,20 @@
+// EXPECT: pass
+// 用途：T1507b `scoop dump-rtti` 的最小用例。
+//
+// 运行：
+//   cargo run -p scoop -- dump-rtti tests/fixtures/parse/dump_rtti_type_desc_v0.scoop
+//
+// 期望（v0）：
+// - 输出包含每个类型的 `type_id`
+// - 对 class 输出 `parent`/`parent_chain`
+// - 输出 `trace_bitmap_u64`（或 `trace_fn`）
+
+package rtti
+
+import scoop.core.*
+
+class Base(val s: String)
+
+// 让 `ok: Bool` 产生 padding，确保 trace bitmap 的 slot 计算能体现对齐影响。
+class Derived(val ok: Bool, val t: String) : Base("hi")
+

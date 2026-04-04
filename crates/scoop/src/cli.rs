@@ -46,7 +46,7 @@ pub enum Command {
         input: PathBuf,
     },
 
-    /// 解析/resolve/typecheck 输入并打印 RTTI（v0：type id + struct 字段布局）
+    /// 解析/resolve 输入并打印 RTTI/type descriptor（v0：type_id + parent chain + trace bitmap/trace_fn）
     DumpRtti {
         /// 输入源文件路径
         input: PathBuf,
