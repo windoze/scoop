@@ -6293,18 +6293,40 @@
      - `cargo test --all`
      - `cargo run -p scoop --features llvm -- test`
 
-### T1507 [TODO] 编译器：为 class/interface/box/closure env/array/string 生成 type descriptor（trace bitmap + dispatch tables）
-- 描述：在编译期为所有可分配 ref 类型生成 `ScoopTypeDescriptor` 常量，并在对象分配时写入对象头 `type_desc`，使 GC 能扫描对象内部引用字段并支持动态分发。
+### T1507（拆分为子任务）
+
+- 备注：该任务同时涉及 “GC heap trace（trace bitmap/trace_fn）”“RTTI/dump-rtti 可观测性”“class/interface 动态分发（vtable/itable）” 等多个点，跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1507a [TODO] 编译器+runtime：对象 type_desc + trace bitmap 闭环（GC 能扫描 heap 引用字段）
+- 描述：在编译期为固定大小 heap 对象生成 `ScoopTypeDescriptor` 常量（trace bitmap），并在对象分配后尽早写入对象头 `type_desc`；同时补齐 runtime 侧 `Array<Ref/String>` 元素扫描，使 GC 能从 roots 递归保活 heap 内引用字段。
 - 目标：
-  - class：包含所有实例字段（含继承）引用位图；生成 vtable（含 override slot）；生成 itable（按 interface id）；
-  - interface：分配全局稳定 interface id，并生成 method slot 表；
-  - box：值类型装箱为 ref（Any/interface）时使用 box type descriptor，box payload 的 trace bitmap 由被装箱类型决定；
-  - closure env：capture 字段的 trace bitmap 必须覆盖所有 ref captures（含 CaptureBox）；
-  - array/string：descriptor 必须包含 element trace 规则（ref element 时扫描每个元素），并正确处理变长对象 size。
+  - class：生成包含所有实例字段（含继承）引用位图；对象分配后写入 `hdr.type_desc`，并在 ctor/init 期间对 payload 做清零（避免未初始化 ref slot 被扫描）；
+  - closure object/env：env 为 GC-managed heap object（含对象头），capture 字段 trace bitmap 覆盖所有 ref captures；closure object 必须在任何可能 safepoint 前把 `env_ptr` 初始化为 `NULL`；
+  - box：为 `Int/Bool/Unit -> Any` 的最小 box 对象写入 descriptor（无引用字段也保持 RTTI/type_id 对齐）；
+  - array：runtime 侧为 ref-element array/builder 设置带 `trace_fn` 的 descriptor，GC 能扫描每个 slot；
+  - string：所有 `ScoopString` 分配点写入 descriptor（trace bitmap 为空即可）。
 - 验收：
-  - 新增 `scoop dump-rtti` 输出：列出每个 type 的 `type_id`、父类、interfaces、vtable slots、trace bitmap；
-  - 新增 run-pass fixtures：class 持有 ref 字段 + GC 后仍可访问；array<string> 分配 + GC 后元素仍正确。
+  - 新增 run-pass fixtures：
+    - class 持有 `String` 字段：`__scoop_gc_collect()` 后仍可读取并打印；
+    - `Array<String>`：`__scoop_gc_collect()` 后 `get(i)` 仍输出正确；
+  - `cargo test --all`
+  - （若本机安装 LLVM）`cargo run -p scoop --features llvm -- test`
 - 依赖：T1501、T1502、T0907、T0401、T0512
+
+### T1507b [TODO] driver：`scoop dump-rtti` 输出 type_id/parent/trace bitmap（type descriptor v0）
+- 描述：扩展 `scoop dump-rtti`：从编译器侧收集 type descriptor 信息，输出每个 type 的 `type_id`、父类链（class）与 trace bitmap（或 trace_fn 标识），用于调试 GC heap trace 与后续 `is/as/as?`。
+- 目标：先覆盖 class/closure env/string/box；数组可先显示为 runtime builtin（ref/word） descriptor。
+- 验收：新增一个最小 fixture/用例，`cargo run -p scoop -- dump-rtti <file>` 输出包含上述字段。
+- 依赖：T1507a
+
+### T1507c [TODO] 编译器：interface id + vtable/itable 生成并写入 type descriptor（动态分发元数据）
+- 描述：为 interface 分配全局稳定 interface id，并为 class 生成 vtable/itable（slot 布局稳定），写入 `ScoopTypeDescriptor.{vtable,itable}`，为 T1508/T1509 的动态分发端到端做准备。
+- 目标：
+  - interface：生成 method slot 表，并为每个 interface 分配稳定 id（hash64）；
+  - class：生成 override slot 的 vtable，生成按 interface id 索引的 itable；
+  - dump-rtti：扩展输出 vtable slots/itable entries（便于验收）。
+- 验收：`scoop dump-rtti` 输出包含 interfaces、vtable slots、itable entries；新增 run-pass fixtures 覆盖 override 与 interface call（可与 T1508/T1509 合并验收）。
+- 依赖：T1507b
 
 ### T1508 [TODO] 类型检查与 lowering：普通成员函数调用（class/interface）+ 动态分发分类
 - 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 MIR 中显式表达。
@@ -6316,7 +6338,7 @@
 - 验收：
   - 新增 typecheck fixtures：member call 的 overload resolution、override 冲突、interface dispatch 的 pass/fail；
   - 新增 run-pass fixtures：class override 调用输出正确；interface 引用调用输出正确。
-- 依赖：T0319、T0440、T1312、T1507
+- 依赖：T0319、T0440、T1312、T1507c
 
 ### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
 - 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。
@@ -6328,7 +6350,7 @@
 - 验收：
   - 新增 run-pass fixtures：class 分配 + 字段 set/get + override call；interface 调用；`is/as/as?` 的 pass/fail；
   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过。
-- 依赖：T1508、T1503、T1507
+- 依赖：T1508、T1503、T1507a、T1507c
 
 ### T1510 [TODO] GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）完整落地
 - 描述：把 `@Extern` 调用纳入 GC 协议：编译器自动插入 `enter_native/leave_native`，并为“把对象指针交给 native 并跨 safepoint 存活”的场景提供稳定方案（pin/unpin + stable handle）。
@@ -6382,7 +6404,7 @@
   - `SCOOP_FULL_SPEC.md` §8 增补 `String` 表示与 slicing/substring/trim 语义（包含：共享/边界/复杂度/是否分配的判定规则）。
   - `SCOOP_RUNTIME.md` 增补 `String`/`StringData` 的内存布局与 GC/FFI 约束（pin/handle）。
   - `STDLIB_DESIGN.md` 的 `scoop.text` 分层补充：哪些 API 必须零拷贝、哪些 API 允许分配（作为性能契约的一部分）。
-- 依赖：T1501、T1502、T1507、T1510、T1511
+- 依赖：T1501、T1502、T1507a、T1510、T1511
 
 ### T1514 [TODO] String 表示落地：sysroot + runtime + codegen + fixtures（按 T1513 规范）
 - 描述：按 T1513 的规范，把 `String` 落地为 value struct + shared backing，并补齐 `trimStart/trimEnd/trim/substr/slice` 的端到端实现与回归。
@@ -6435,7 +6457,7 @@
     - heap 对象字段（class/closure env/box payload 任一）。
     在触发 GC（含 moving/compaction 模式）后仍可正确读取并输出。
   - `cargo test --all`、`cargo run -p scoop -- test` 通过。
-- 依赖：T1515、T1507、T1509、T1506
+- 依赖：T1515、T1507a、T1509、T1506
 
 ### T1517 [TODO] 回归矩阵：enum “maybe ref variant” 在栈/堆/装箱/移动 GC 下的端到端覆盖
 - 描述：为 “enum 变体含 ref” 建立持续回归：不仅验证语义正确，还要验证 GC 不崩溃、roots 枚举完整、moving/compaction 后 slot 修复正确。

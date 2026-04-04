@@ -31,6 +31,7 @@
 - 2026-04-04：完成 T1506a：runtime 侧新增 stackmap record locations→`void** slot` 解析（SP 基址 Direct/Indirect）与稳定错误码，并新增 `scoop_runtime` 集成测试 `stackmap_roots` 覆盖 Direct/Indirect/错误码回归。
 - 2026-04-04：完成 T1506b：baseline/immix STW roots 枚举对 Parked 线程优先走 `stack_walking_ctx` 的 stack walking + stackmap lookup，并按 locations→`void** slot` 枚举/更新 roots；新增 test-only export `scoop_test_gc_stackmap_roots_enum_smoke` 与 `scoop_runtime` 集成测试回归。
 - 2026-04-04：完成 T1506c：新增多帧调用链下 outer frame stack root 保活的端到端回归（test-only export `scoop_test_gc_stackmap_multiframe_keepalive` + `scoop_runtime` 集成测试），并在本地验证 `cargo test --all` 与 `cargo run -p scoop --features llvm -- test` 通过。
+- 2026-04-04：T1507（type descriptor + dump-rtti + dispatch tables）范围较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1507a/T1507b/T1507c：先落地 GC heap trace 闭环（type_desc + trace bitmap + array ref elements）（T1507a），再补齐 `scoop dump-rtti` 输出（T1507b），最后落地 interface id + vtable/itable（T1507c）。
 - 2026-04-03：T1405（GC backend 抽象）范围过大且与后续 Immix/adapter 等实现点耦合较多，为保持“首个 `[TODO]` 可直接实现”的粒度，已拆分为 T1405a/T1405b：先落地 backend 选择机制 + baseline/minimal 双后端回归（T1405a），再补齐 capability 矩阵与检查点（T1405b）。
 - 2026-04-03：完成 T1405a：引入 `SCOOP_GC_BACKEND` 编译期选择与 `gc-baseline/gc-minimal` Cargo features；把 `scoop_gc_self_check` 与 `scoop_gc_type_descriptor_trace` 提取为 shared 编译单元；新增 minimal backend（单线程/无 STW，检测到多线程时 collect 退化为 no-op）。
 - 2026-04-03：完成 T1405b：补齐 GC backend capability matrix（STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots），并把这些能力以编译期常量接入测试 gating：`gc_stop_the_world` 在 `gc-minimal` 下显式 `ignored`；新增 `gc_capabilities` 集成测试固化矩阵值。
