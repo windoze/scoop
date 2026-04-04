@@ -6392,7 +6392,7 @@
 - 依赖：T0319、T0440、T1312、T1507c3
 - 备注：该任务覆盖 typecheck + lowering +（为 run-pass 验收所需的）最小 codegen 接入，跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
 
-### T1508a [TODO] 直连成员函数调用（final/private）：typecheck + HIR lowering（不含 vtable/itable）
+### T1508a [DONE] 直连成员函数调用（final/private）：typecheck + HIR lowering（不含 vtable/itable）
 - 描述：支持 `receiver.method(args...)` 的最小可执行语义：当目标方法不需要动态分发时，将其降低为直接调用；并把 class/object 的 member fun 降为可 codegen 的 HIR 顶层函数（显式 `this` 参数）。
 - 目标：
   - 仅覆盖 class/object 上“无需动态分发”的成员函数调用：`final`/private/（或 owner 为 final）→ direct；
@@ -6401,6 +6401,17 @@
   - 新增 typecheck fixtures：final/private 成员调用 pass；open 成员调用 fail（稳定错误码）；
   - 新增 run-pass fixture：direct member call 输出正确。
 - 依赖：T1312
+ - 完成：
+   - `crates/scoopc/src/typecheck/expr.rs`：支持将 `member.resolved = Fun { fqn }` 的 `receiver.method(args...)` 视为对 `fqn` 的 overload set 调用（隐式注入 `receiver` 为第 0 实参做重载决议与类型检查）；对 open/abstract/interface dispatch 给出稳定错误码 `scoop::typecheck::unsupported_member_access`。
+   - `crates/scoopc/src/hir/lower.rs`：对 class/object 的 member call 做 desugar：`receiver.method(args...)` → `Owner.method(receiver, args...)`；并在 lowering side table 中收集 member fun 为可 codegen 的“顶层函数形态”（显式 `this` 参数）。
+   - `crates/scoopc/src/llvm/mod.rs`：将 lowering 收集的 member fun 合并进 LLVM 后端的函数索引，使 direct member call 的目标可被 codegen 生成。
+   - 新增 fixtures：
+     - typecheck：`tests/fixtures/typecheck/member_call_final_private_ok.scoop`（pass）、`tests/fixtures/typecheck/member_call_open_not_supported_is_error.scoop`（fail + 稳定错误码）
+     - run-pass：`tests/fixtures/run-pass/member_call_direct_final_private_basic.scoop` + `tests/fixtures/run-pass/member_call_direct_final_private_basic.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1508b [TODO] virtual dispatch：vtable slot 选择 + override call（端到端）
 - 描述：对 class 的可 override 成员调用做分类与 lowering：生成 vtable slot 并在 codegen 侧通过 vtable 间接调用，保证 `Base` 引用调用能动态分发到 `Derived.override`。

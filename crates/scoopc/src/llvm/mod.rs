@@ -314,6 +314,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
             hir::Item::Fun(fun) => Some(fun),
             _ => None,
         })
+        .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
 
@@ -414,7 +415,9 @@ fn build_main_module_from_lowered_hir<'ctx>(
         .unwrap_or_else(|| {
             module.add_function(
                 "scoop_process_init",
-                context.void_type().fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
+                context
+                    .void_type()
+                    .fn_type(&[i32_type.into(), i8_ptr_ptr_ty.into()], false),
                 None,
             )
         });
@@ -567,10 +570,7 @@ fun main() {
         let mut inst = entry.get_first_instruction();
         while let Some(i) = inst {
             if i.get_opcode() == InstructionOpcode::Alloca {
-                let name = i
-                    .get_name()
-                    .and_then(|n| n.to_str().ok())
-                    .unwrap_or("");
+                let name = i.get_name().and_then(|n| n.to_str().ok()).unwrap_or("");
                 if name == "s" {
                     found_align = Some(i.get_alignment().unwrap());
                     break;
@@ -618,10 +618,7 @@ fun main() {
             let mut inst = bb.get_first_instruction();
             while let Some(i) = inst {
                 if i.get_opcode() == InstructionOpcode::Load {
-                    let name = i
-                        .get_name()
-                        .and_then(|n| n.to_str().ok())
-                        .unwrap_or("");
+                    let name = i.get_name().and_then(|n| n.to_str().ok()).unwrap_or("");
                     if name.starts_with("load_field") {
                         found = Some(i.get_alignment().unwrap());
                         break;

@@ -2204,8 +2204,7 @@ fn check_ctor_call_args_by_arity(
             check_fn_value_to_any_erasure_gate(found, expected, arg.span, lower, builtins)?;
             continue;
         }
-        if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins)
-        {
+        if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
             continue;
         }
 
@@ -10173,6 +10172,488 @@ fn infer_member_call_expr_type(
         }
     }
 
+    // T1508a：直连成员函数调用（final/private）。
+    //
+    // 说明：
+    // - resolver 在 member access 阶段只做“存在性 + FQN 写回”，不会为 member fun call 收集 overload set；
+    // - 这里把 `receiver.method(args...)` 降到“对 FQN overload set 的普通调用”来做重载决议，
+    //   并把 `receiver` 作为隐式第 0 个参数参与类型检查；
+    // - 当前阶段不支持 virtual/interface dispatch：对需要动态分发的成员方法调用给出稳定错误码
+    //   `unsupported_member_access`（留给 TODO T1508b/T1508c）。
+    if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+        // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
+        if fqn != "scoop.core.GC.pin" && fqn != "scoop.core.GC.unpin" {
+            let Some((receiver_fqn, receiver_args)) =
+                try_extract_nominal_fqn_and_args(actual_receiver_ty, lower)
+            else {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: fqn.clone(),
+                    span: member.span.into(),
+                });
+            };
+
+            // interface dispatch 当前不支持：若 receiver 是 interface 类型，直接报稳定错误码。
+            if matches!(
+                lower.nominal_decl_kind(&receiver_fqn),
+                Some(ast::TypeKind::Interface)
+            ) {
+                return Err(ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                });
+            }
+
+            let sigs = collect_member_method_signatures_from_index(
+                source,
+                actual_receiver_ty,
+                &receiver_fqn,
+                &receiver_args,
+                fqn,
+                lower,
+                builtins,
+            )?;
+            if sigs.is_empty() {
+                return Err(ExprTypeError::CalleeNotCallable {
+                    callee: fqn.clone(),
+                    span: member.span.into(),
+                });
+            }
+
+            // 预先推导所有“显式实参”的类型（不含 receiver），并归一化 named arg 的语法糖节点，
+            // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                sigs.iter().filter_map(|s| s.param_names.get(1..)),
+            )?;
+
+            let receiver_arg = CallArgInfo {
+                kind: CallArgKind::Positional,
+                expr: receiver,
+                ty: actual_receiver_ty,
+                is_int_lit: false,
+                is_spread: false,
+            };
+
+            let mut call_args_with_receiver = Vec::with_capacity(call_args.len() + 1);
+            call_args_with_receiver.push(receiver_arg);
+            call_args_with_receiver.extend(call_args.iter().cloned());
+
+            #[derive(Debug, Clone)]
+            struct MatchedMemberOverload<'a> {
+                sig: &'a FunSigOwned,
+                instantiated: InstantiatedFunSig,
+                eff_arg: EffectRow,
+                /// `call_args_with_receiver[arg_idx]` 对应的“期望类型”。
+                expected_arg_tys: Vec<TypeId>,
+                /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+                defaults_used: usize,
+                /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
+                mapping: Vec<ParamArgBinding>,
+            }
+
+            fn is_strictly_more_specific_member_overload(
+                a: &MatchedMemberOverload<'_>,
+                b: &MatchedMemberOverload<'_>,
+                lower: &TypeLowering<'_>,
+                builtins: BuiltinTypes,
+            ) -> bool {
+                let a_le_b = a
+                    .expected_arg_tys
+                    .iter()
+                    .zip(b.expected_arg_tys.iter())
+                    .all(|(a_ty, b_ty)| is_type_assignable(*a_ty, *b_ty, lower, builtins));
+                let b_le_a = b
+                    .expected_arg_tys
+                    .iter()
+                    .zip(a.expected_arg_tys.iter())
+                    .all(|(b_ty, a_ty)| is_type_assignable(*b_ty, *a_ty, lower, builtins));
+
+                a_le_b && !b_le_a
+            }
+
+            fn pick_most_specific_member_overload(
+                candidates: &[MatchedMemberOverload<'_>],
+                lower: &TypeLowering<'_>,
+                builtins: BuiltinTypes,
+            ) -> Option<usize> {
+                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都“更具体”（可赋值到 B 的形参类型），
+                //    且至少有一个位置严格更具体，则认为 A 严格更具体。
+                for (idx, cand) in candidates.iter().enumerate() {
+                    let mut ok = true;
+                    for (other_idx, other) in candidates.iter().enumerate() {
+                        if idx == other_idx {
+                            continue;
+                        }
+                        if !is_strictly_more_specific_member_overload(cand, other, lower, builtins)
+                        {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if ok {
+                        return Some(idx);
+                    }
+                }
+
+                // 2) tie-break：默认参数更少者优先（“非默认参数优先”）。
+                let min_defaults = candidates
+                    .iter()
+                    .map(|c| c.defaults_used)
+                    .min()
+                    .unwrap_or(0);
+                let mut it = candidates
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.defaults_used == min_defaults);
+                let (idx, _) = it.next()?;
+                if it.next().is_some() {
+                    return None;
+                }
+                Some(idx)
+            }
+
+            let mut matched: Vec<MatchedMemberOverload<'_>> = Vec::new();
+            for cand in sigs.iter() {
+                let Some(mapping) = map_call_args_to_params_with_defaults_and_varargs(
+                    &call_args_with_receiver,
+                    &cand.param_names,
+                    &cand.param_has_defaults,
+                    &cand.param_is_vararg,
+                ) else {
+                    continue;
+                };
+
+                // spread 实参只能绑定到 vararg 形参；否则该候选不匹配。
+                let mut ok = true;
+                for binding in mapping.iter() {
+                    match binding {
+                        ParamArgBinding::Default => {}
+                        ParamArgBinding::Single(arg_idx) => {
+                            if call_args_with_receiver
+                                .get(*arg_idx)
+                                .is_some_and(|a| a.is_spread)
+                            {
+                                ok = false;
+                                break;
+                            }
+                        }
+                        ParamArgBinding::Vararg(_) => {}
+                    }
+                }
+                if !ok {
+                    continue;
+                }
+
+                let mapping_pairs = expand_param_arg_pairs(&mapping);
+
+                let mut generic_constraints: Vec<GenericArgConstraint> =
+                    Vec::with_capacity(mapping_pairs.len());
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                    let arg = &call_args_with_receiver[arg_idx];
+                    if arg.is_spread {
+                        if !cand
+                            .param_is_vararg
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            ok = false;
+                            break;
+                        }
+                        let Some(elem_tys) = spread_operand_element_types(arg.ty, lower) else {
+                            ok = false;
+                            break;
+                        };
+                        for found_elem in elem_tys {
+                            generic_constraints.push(GenericArgConstraint {
+                                expected: cand.params[param_idx],
+                                found: found_elem,
+                                found_is_placeholder: false,
+                                from: format!("第 {} 个实参（spread）", arg_idx + 1),
+                                span: arg.expr.span,
+                            });
+                        }
+                        continue;
+                    }
+
+                    generic_constraints.push(GenericArgConstraint {
+                        expected: cand.params[param_idx],
+                        found: arg.ty,
+                        found_is_placeholder: matches!(arg.expr.kind, ast::ExprKind::Lambda(_)),
+                        from: format!("第 {} 个实参", arg_idx + 1),
+                        span: arg.expr.span,
+                    });
+                }
+                if !ok {
+                    continue;
+                }
+
+                let mut instantiated =
+                    match instantiate_fun_sig_for_call_with_optional_explicit_type_args(
+                        fqn.as_str(),
+                        call_expr.span,
+                        cand,
+                        explicit_type_args,
+                        generic_constraints,
+                        lower,
+                        builtins,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    };
+
+                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
+                // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
+                let mut checked_arg_tys: Vec<TypeId> =
+                    call_args_with_receiver.iter().map(|a| a.ty).collect();
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                    let arg = &call_args_with_receiver[arg_idx];
+                    if arg.is_spread {
+                        continue;
+                    }
+                    if !matches!(arg.expr.kind, ast::ExprKind::Lambda(_)) {
+                        continue;
+                    }
+
+                    let expected_ty = instantiated.params[param_idx];
+                    let found_ty = match infer_expr_type_in_expected_context(
+                        source,
+                        arg.expr,
+                        expected_ty,
+                        ExpectedTypeFrom::new(format!(
+                            "`{}` 的第 {} 个形参 `{}`",
+                            fqn,
+                            param_idx + 1,
+                            cand.param_names[param_idx]
+                        )),
+                        lower,
+                        builtins,
+                        locals,
+                        top_level_types,
+                        top_level_funs,
+                        struct_field_types,
+                    ) {
+                        Ok(ty) => ty,
+                        Err(_) => {
+                            ok = false;
+                            break;
+                        }
+                    };
+                    checked_arg_tys[arg_idx] = found_ty;
+                }
+                if !ok {
+                    continue;
+                }
+
+                // 当前 member method call 路径不支持 `<eff E>`：保持与签名收集规则一致。
+                let eff_arg = EffectRow::pure();
+
+                if cand.eff_param.is_some()
+                    && instantiate_eff_row_var_in_sig_types(
+                        cand,
+                        &mut instantiated,
+                        &eff_arg,
+                        lower,
+                        call_expr.span,
+                    )
+                    .is_err()
+                {
+                    continue;
+                }
+
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                    let arg = &call_args_with_receiver[arg_idx];
+                    let expected_ty = instantiated.params[param_idx];
+                    let found_ty = checked_arg_tys[arg_idx];
+
+                    if arg.is_spread {
+                        if !cand
+                            .param_is_vararg
+                            .get(param_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            ok = false;
+                            break;
+                        }
+                        let Some(elem_tys) = spread_operand_element_types(found_ty, lower) else {
+                            ok = false;
+                            break;
+                        };
+                        for elem_ty in elem_tys {
+                            if is_type_assignable(elem_ty, expected_ty, lower, builtins) {
+                                continue;
+                            }
+                            ok = false;
+                            break;
+                        }
+                        if !ok {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if is_type_assignable(found_ty, expected_ty, lower, builtins) {
+                        continue;
+                    }
+                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                        continue;
+                    }
+                    ok = false;
+                    break;
+                }
+                if !ok {
+                    continue;
+                }
+
+                let defaults_used = mapping
+                    .iter()
+                    .filter(|b| matches!(b, ParamArgBinding::Default))
+                    .count();
+                let mut expected_arg_tys = vec![builtins.nothing; call_args_with_receiver.len()];
+                for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
+                    expected_arg_tys[arg_idx] = instantiated.params[param_idx];
+                }
+
+                matched.push(MatchedMemberOverload {
+                    sig: cand,
+                    instantiated,
+                    eff_arg,
+                    expected_arg_tys,
+                    defaults_used,
+                    mapping,
+                });
+            }
+
+            let chosen = match matched.len() {
+                0 => {
+                    return Err(ExprTypeError::NoMatchingOverload {
+                        callee: fqn.clone(),
+                        span: call_expr.span.into(),
+                    });
+                }
+                1 => matched.pop().expect("len == 1"),
+                _ => {
+                    let Some(idx) = pick_most_specific_member_overload(&matched, lower, builtins)
+                    else {
+                        let name = short_name_from_fqn(fqn).to_string();
+                        let candidates = join_overload_signatures(
+                            matched
+                                .iter()
+                                .map(|c| {
+                                    fmt_overload_signature(
+                                        &name,
+                                        None,
+                                        &c.instantiated.params,
+                                        lower,
+                                    )
+                                })
+                                .collect(),
+                        );
+                        return Err(ExprTypeError::AmbiguousOverload {
+                            callee: fqn.clone(),
+                            candidates,
+                            span: call_expr.span.into(),
+                        });
+                    };
+                    matched.swap_remove(idx)
+                }
+            };
+
+            // 动态分发门禁（T1508a）：open/abstract（或 abstract/no-body）暂不支持。
+            //
+            // 判定规则（最小落地）：
+            // - member 可 override（open/abstract）且 owner 可继承（open/abstract/sealed）时，需要 virtual dispatch；
+            // - private member 视为可直连（不参与 override）。
+            let owner_is_inheritable = lower
+                .index()
+                .by_fqn
+                .get(&receiver_fqn)
+                .and_then(|syms| syms.ty.as_ref())
+                .is_some_and(|sym| sym.modifiers.is_inheritable());
+            let chosen_overload = lower.index().by_fqn.get(fqn.as_str()).and_then(|syms| {
+                syms.fun
+                    .iter()
+                    .find(|o| o.symbol.span == chosen.sig.decl_span)
+            });
+            let needs_dynamic_dispatch = chosen_overload.is_some_and(|o| {
+                if !o.has_body {
+                    return true;
+                }
+                let is_private = matches!(o.symbol.visibility, Visibility::Private);
+                owner_is_inheritable && !is_private && o.symbol.modifiers.is_overridable()
+            });
+            if needs_dynamic_dispatch {
+                return Err(ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                });
+            }
+
+            check_unsafe_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
+            check_nogc_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
+            check_const_fun_call_gate(fqn.as_str(), chosen.sig, call_expr.span, lower)?;
+            check_var_param_lvalue_gate(
+                fqn.as_str(),
+                chosen.sig,
+                &call_args_with_receiver,
+                &chosen.mapping,
+            )?;
+
+            // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
+            let type_param_bindings = type_param_bindings_from_sig(&chosen.sig.type_params, lower);
+            let eff_bindings: Vec<(String, EffectRow)> = chosen
+                .sig
+                .eff_param
+                .as_ref()
+                .map(|p| vec![(p.name.clone(), chosen.eff_arg.clone())])
+                .unwrap_or_default();
+            let lowered_effects = lower.lower_effect_row_expr_in_decl_file_with_scopes(
+                &chosen.sig.decl_file,
+                type_param_bindings,
+                eff_bindings,
+                chosen.sig.effects.as_ref(),
+            );
+            let call_effects = substitute_type_args_in_effect_row(
+                lowered_effects?,
+                &chosen.sig.type_params,
+                &chosen.instantiated.type_args,
+                lower,
+                call_expr.span,
+            )?;
+            for effect in call_effects.terms.iter().copied() {
+                lower.record_performed_effect(effect, call_expr.span);
+            }
+
+            // T0712：记录该泛型函数调用产生的 monomorph key（用于后续生成专用实例）。
+            lower.record_monomorph_call(
+                fqn.clone(),
+                chosen.sig.decl_span,
+                &chosen.instantiated.type_args,
+            );
+
+            let ret = if safe {
+                lower.ty_option(chosen.instantiated.return_ty)
+            } else {
+                chosen.instantiated.return_ty
+            };
+
+            return Ok(ret);
+        }
+    }
+
     // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
@@ -10209,9 +10690,8 @@ fn infer_member_call_expr_type(
             let use_cone = lower.index().cone_of_source(source);
 
             let receiver_ty_fqn = match lower.type_kind(actual_receiver_ty) {
-                TypeKind::Ref(RefTypeKind::Nominal(n)) | TypeKind::Value(ValueTypeKind::Nominal(n)) => {
-                    Some(n.fqn)
-                }
+                TypeKind::Ref(RefTypeKind::Nominal(n))
+                | TypeKind::Value(ValueTypeKind::Nominal(n)) => Some(n.fqn),
                 _ => None,
             };
             let receiver_ty_fqn_norm = receiver_ty_fqn.as_deref().map(normalize_collections_alias);
@@ -10235,9 +10715,8 @@ fn infer_member_call_expr_type(
                 let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
                     Some(ext_receiver) => {
                         ext_receiver == "scoop.core.Any"
-                            || receiver_ty_fqn_norm.is_some_and(|r| {
-                                normalize_collections_alias(ext_receiver) == r
-                            })
+                            || receiver_ty_fqn_norm
+                                .is_some_and(|r| normalize_collections_alias(ext_receiver) == r)
                     }
                     None => ext.receiver_is_type_param,
                 };
@@ -10270,9 +10749,8 @@ fn infer_member_call_expr_type(
                     let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
                         Some(ext_receiver) => {
                             ext_receiver == "scoop.core.Any"
-                                || receiver_ty_fqn_norm.is_some_and(|r| {
-                                    normalize_collections_alias(ext_receiver) == r
-                                })
+                                || receiver_ty_fqn_norm
+                                    .is_some_and(|r| normalize_collections_alias(ext_receiver) == r)
                         }
                         None => ext.receiver_is_type_param,
                     };

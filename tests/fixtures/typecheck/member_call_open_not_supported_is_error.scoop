@@ -1,0 +1,20 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
+// EXPECT-ERROR-AT: 19:14
+// EXPECT-ERROR: 暂不支持的成员访问
+//
+// T1508a：当前阶段不支持 virtual dispatch；对 open/abstract member method call 给出稳定错误码。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+open class Base {
+    open fun foo(): Int {
+        return 1
+    }
+}
+
+fun use(b: Base): Int {
+    return b.foo()
+}

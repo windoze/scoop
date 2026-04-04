@@ -1,0 +1,21 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_direct_final_private_basic.stdout
+//
+// T1508a：直连成员函数调用（final/private）端到端：`receiver.method()` -> `Owner.method(this, ...)`。
+
+import scoop.core.*
+
+class Foo() {
+    fun hello(): Int {
+        println("Foo.hello")
+        return 7
+    }
+}
+
+fun main(): Int {
+    val f: Foo = Foo()
+    val x: Int = f.hello()
+    println("after")
+    println(x)
+    return 0
+}

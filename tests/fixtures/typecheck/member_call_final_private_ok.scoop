@@ -1,0 +1,24 @@
+// EXPECT: pass
+//
+// T1508a：直连成员函数调用（final/private）应当可以通过 typecheck。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Foo() {
+    fun inc(x: Int): Int {
+        return x + 1
+    }
+
+    private fun add2(x: Int): Int {
+        return x + 2
+    }
+}
+
+fun use(): Unit {
+    val f: Foo = Foo()
+    val a: Int = f.inc(1)
+    val b: Int = f.add2(1)
+    val _ignore: Int = a + b
+}
