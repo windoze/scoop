@@ -1379,6 +1379,23 @@ void *scoop_alloc(uint64_t size) {
 #endif
 }
 
+// Typed alloc：在 `scoop_alloc` 的基础上写入对象头的 `type_desc`。
+//
+// 说明：
+// - `scoop_alloc` 负责：safepoint、底层分配、初始化对象头（size/mark 等）与 heap 登记；
+// - 本函数只补齐 `hdr->type_desc`，使 GC 能通过 `ScoopTypeDescriptor` 扫描对象内部引用字段；
+// - `type_desc == NULL` 合法：表示该对象没有可扫描引用字段（或暂未接入 type descriptor）。
+void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes) {
+  void *p = scoop_alloc(size_bytes);
+  if (p == 0) {
+    return 0;
+  }
+
+  ScoopGcObjectHeader *hdr = (ScoopGcObjectHeader *)p;
+  hdr->type_desc = type_desc;
+  return p;
+}
+
 // 打印（不追加换行）。
 //
 // 说明：该 API 由 sysroot 的 `print(String)` 映射到 runtime 符号（见 TODO T0821/T0822）。

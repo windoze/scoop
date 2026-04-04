@@ -396,7 +396,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
 
     let main = module.add_function("main", fn_type, None);
     // statepoint 只对带 `gc "<strategy>"` 的函数生效；入口 main 里包含用户代码的最小 codegen，
-    // 因此这里需要显式标注 GC strategy，让 `rewrite-statepoints-for-gc` 能把 `scoop_alloc` 等调用点
+    // 因此这里需要显式标注 GC strategy，让 `rewrite-statepoints-for-gc` 能把 `scoop_alloc_typed` 等调用点
     // 重写为 statepoint 并产出 stackmap records。
     main.set_gc(LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
     let entry = context.append_basic_block(main, "entry");
@@ -1135,8 +1135,8 @@ fun main(): Int {
             "IR 应包含 addrspace(1)（GC-managed 引用指针）"
         );
         assert!(
-            ir.contains("@scoop_alloc"),
-            "装箱到 Any 应调用/声明 scoop_alloc"
+            ir.contains("@scoop_alloc_typed"),
+            "装箱到 Any 应调用/声明 scoop_alloc_typed"
         );
         assert!(
             !ir.contains("addrspacecast"),
@@ -1377,7 +1377,7 @@ fun main() {
     }
 
     #[test]
-    fn statepoint_pipeline_rewrites_scoop_alloc_callsites() {
+    fn statepoint_pipeline_rewrites_scoop_alloc_typed_callsites() {
         let source = SourceFile::new_virtual(
             "<mem>",
             r#"
@@ -1404,8 +1404,8 @@ fun main(): Int {
             "expected rewrite-statepoints-for-gc to emit gc.statepoint intrinsics"
         );
         assert!(
-            ir.contains("scoop_alloc"),
-            "expected statepoint pipeline to cover scoop_alloc (alloc safepoint boundary)"
+            ir.contains("scoop_alloc_typed"),
+            "expected statepoint pipeline to cover scoop_alloc_typed (alloc safepoint boundary)"
         );
         assert!(
             !ir.contains("llvm.experimental.stackmap"),

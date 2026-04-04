@@ -6454,17 +6454,44 @@
    - `cargo test -p scoopc --features llvm`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
+### T1509 LLVM codegen：ref 对象模型端到端（拆分为子任务）
 - 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。
 - 目标：
   - 所有对象分配统一走 `scoop_alloc_typed(type_desc, size_bytes)`，并写入对象头 type_desc（fixed-size 传常量 size；变长对象传计算后的 size）；
   - 字段访问必须使用编译期计算的 offset（与 type descriptor 一致），并在写 ref 字段时满足 GC 的写入约束（STW 下可无 barrier，但必须保证 slot 写入是可被 GC 扫描的 `void**`）；
   - virtual/interface 调用必须使用 vtable/itable slot，调用约定固定为：`fn(this, ...args) -> ret`；
   - `is/as/as?` 调用必须落到 runtime type test（例如 `scoop_rtti_is_instance_of/scoop_rtti_cast`），并与 nullability/pointer-niche 规则一致。
+- 备注：该任务覆盖 runtime ABI + LLVM 后端 + fixtures，跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留目标汇总。
+
+### T1509a [DONE] runtime：新增 `scoop_alloc_typed`，并在 LLVM 后端替换 `scoop_alloc`
+- 描述：新增 typed alloc runtime API（写入对象头 `type_desc`），并将 LLVM 后端中“已知 type_desc 的分配点”统一替换为 `scoop_alloc_typed` 调用。
+- 目标：
+  - runtime：`scoop_alloc_typed(type_desc, size_bytes)` 语义为 `scoop_alloc(size_bytes)` + 写入 `hdr->type_desc = type_desc`；
+  - compiler：对 class/string/closure env/box 等“有稳定 type descriptor”的对象分配走 typed alloc；不改变现有 GC/trace 语义；
+  - 更新 runtime ABI allowlist（`runtime/c/scoop_runtime_api.h`）。
+- 依赖：T1503、T1507a、T1508
+ - 完成：
+   - `runtime/c/scoop_runtime.c`：新增 `scoop_alloc_typed(type_desc, size_bytes)`（包装 `scoop_alloc` 并写入 `hdr->type_desc`）。
+   - `runtime/c/scoop_runtime_api.h`：加入 ABI allowlist：`scoop_alloc_typed`。
+   - `crates/scoopc/src/llvm/codegen.rs`：class/string/closure env/box 分配点统一改为调用 `scoop_alloc_typed`（不再由 codegen 手动写入 header.type_desc）。
+   - `crates/scoopc/src/llvm/mod.rs`：更新 LLVM IR 断言用例，改为检查 `scoop_alloc_typed`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo test -p scoopc --features llvm`
+
+### T1509b [TODO] `is/as/as?`：HIR lowering + LLVM codegen + run-pass fixtures（含 fail 语义）
+- 描述：把 `is/!is/as/as?` 从 AST/typecheck 的“可检查”升级为可 codegen 的端到端语义，并新增 run-pass/compile-fail fixtures 覆盖。
+- 目标：
+  - lowering：在 HIR 中保留 `TypeCheck/Cast` 节点（不再用 `Todo("type_check"/"cast")`）；
+  - codegen：对 ref→ref 的 `is/as/as?` 走 runtime type test helper（或等价逻辑），并与 `Option<T>` niche 表示一致；
+  - `as` 失败应走既有 `Raise<RuntimeError>` 模型（`ClassCastFailed`）。
 - 验收：
-  - 新增 run-pass fixtures：class 分配 + 字段 set/get + override call；interface 调用；`is/as/as?` 的 pass/fail；
-  - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过。
-- 依赖：T1508、T1503、T1507a、T1507c3
+  - 新增 run-pass：`is`/`as`/`as?` 覆盖（pass + fail）
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T1509a
 
 ### T1510 [TODO] GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）完整落地
 - 描述：把 `@Extern` 调用纳入 GC 协议：编译器自动插入 `enter_native/leave_native`，并为“把对象指针交给 native 并跨 safepoint 存活”的场景提供稳定方案（pin/unpin + stable handle）。

@@ -778,7 +778,7 @@
   - [x] v0：解析 stackmaps 并建立 `return_address -> record` 索引（排序数组 + 二分查找）（T1504a）
   - [x] multi-module 自动发现完善（含 COFF）+ 真实 statepoint smoke（定位到 `main` safepoint record）（T1504b）
 - [ ] 分配器（typed alloc）：
-  - `scoop_alloc_typed(type_desc, size_bytes)`：分配并初始化对象头（写入 `type_desc/size/flags/mark`），返回 GC pointer
+  - [x] `scoop_alloc_typed(type_desc, size_bytes)`：分配（复用 `scoop_alloc` 的 safepoint/登记逻辑）并写入对象头 `type_desc`
   - 固定大小对象可走 `scoop_alloc_object(type_desc)` 快路径；变长对象（array/string）走 `scoop_alloc_var(type_desc, size_bytes)`
   - 分配路径必须包含 safepoint（允许触发 GC 并在返回前得到稳定对象指针）
 - [ ] GC（StackMap roots + 可移动）：

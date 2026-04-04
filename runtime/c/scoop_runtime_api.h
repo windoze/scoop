@@ -25,6 +25,7 @@
   X(__scoop_effect_handler_stack_top) \
   X(__scoop_effect_perform_slot) \
   X(scoop_alloc) \
+  X(scoop_alloc_typed) \
   X(scoop_array_builder_build_array) \
   X(scoop_array_builder_build_mutable_array) \
   X(scoop_array_builder_new) \

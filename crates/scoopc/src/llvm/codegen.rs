@@ -4819,21 +4819,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
 
-        let rt_alloc = self.declare_runtime_alloc();
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_class")?;
+
+        // 分配点统一走 typed alloc：在 runtime 内部写入对象头 `type_desc`。
+        let type_desc = self.get_or_create_class_type_desc_global(span, &class_fqn)?;
+        let type_desc_i8 = self.builder.build_pointer_cast(
+            type_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "class_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[type_desc_i8.into(), size_v.into()],
+            "rt_alloc_class",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(obj_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: span.into(),
             });
         };
@@ -4842,10 +4852,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
-
-        // 写入对象头 type descriptor：让 GC 能扫描实例字段中的引用。
-        let type_desc = self.get_or_create_class_type_desc_global(span, &class_fqn)?;
-        self.store_object_type_desc(span, obj_ty, typed_obj, type_desc)?;
 
         let payload_ptr =
             self.builder
@@ -10878,8 +10884,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
 
         // 3) 从 `this.header.type_desc.itable` 查找 interface entry 并取出 `methods[slot]`。
-        let fn_i8 =
-            self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, iface.interface_id, slot)?;
+        let fn_i8 = self.load_interface_itable_slot_fn_ptr_i8(
+            span,
+            receiver_ptr,
+            iface.interface_id,
+            slot,
+        )?;
 
         // 防御：不应发生（typecheck 已保证实现存在）；若发生，直接退出避免 indirect call on NULL。
         let fn_is_null = self.builder.build_is_null(fn_i8, "itable_fn_is_null")?;
@@ -10898,11 +10908,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
         let ok_bb = self.context.append_basic_block(func, "itable_fn_ok");
         let bad_bb = self.context.append_basic_block(func, "itable_fn_null");
-        self.builder.build_conditional_branch(fn_is_null, bad_bb, ok_bb)?;
+        self.builder
+            .build_conditional_branch(fn_is_null, bad_bb, ok_bb)?;
         self.builder.position_at_end(bad_bb);
         let exit = self.declare_libc_exit();
         let code = self.context.i32_type().const_int(7, false);
-        let _ = self.builder.build_call(exit, &[code.into()], "itable_fn_null_exit")?;
+        let _ = self
+            .builder
+            .build_call(exit, &[code.into()], "itable_fn_null_exit")?;
         self.builder.build_unreachable()?;
         self.builder.position_at_end(ok_bb);
 
@@ -11139,9 +11152,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(lookup_bb);
         let itable_ty = self.llvm_scoop_itable_type();
         let itable_ptr_ty = itable_ty.ptr_type(AddressSpace::default());
-        let itable_ptr =
-            self.builder
-                .build_pointer_cast(itable_i8, itable_ptr_ty, "itable_ptr")?;
+        let itable_ptr = self
+            .builder
+            .build_pointer_cast(itable_i8, itable_ptr_ty, "itable_ptr")?;
 
         let len_ptr = self
             .builder
@@ -11152,9 +11165,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_int_value();
 
         let entry_ty = self.llvm_scoop_itable_entry_type();
-        let entries_field_ptr = self
-            .builder
-            .build_struct_gep(itable_ty, itable_ptr, 2, "itable_entries_gep")?;
+        let entries_field_ptr =
+            self.builder
+                .build_struct_gep(itable_ty, itable_ptr, 2, "itable_entries_gep")?;
         let entry_ptr_ty = entry_ty.ptr_type(AddressSpace::default());
         let entries_base =
             self.builder
@@ -11190,39 +11203,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "itable_entry_ptr",
             )?
         };
-        let id_ptr = self
-            .builder
-            .build_struct_gep(entry_ty, entry_ptr, 0, "itable_entry_id_gep")?;
+        let id_ptr =
+            self.builder
+                .build_struct_gep(entry_ty, entry_ptr, 0, "itable_entry_id_gep")?;
         let id_i64 = self
             .builder
             .build_load(i64_ty, id_ptr, "itable_entry_id")?
             .into_int_value();
 
         let target_id = i64_ty.const_int(interface_id, false);
-        let id_ok = self.builder.build_int_compare(
-            IntPredicate::EQ,
-            id_i64,
-            target_id,
-            "itable_id_eq",
-        )?;
+        let id_ok =
+            self.builder
+                .build_int_compare(IntPredicate::EQ, id_i64, target_id, "itable_id_eq")?;
 
         let hit_bb = self.context.append_basic_block(func, "itable_hit");
         let miss_bb = self.context.append_basic_block(func, "itable_miss");
-        self.builder.build_conditional_branch(id_ok, hit_bb, miss_bb)?;
+        self.builder
+            .build_conditional_branch(id_ok, hit_bb, miss_bb)?;
 
         // miss_bb：idx++ 继续。
         self.builder.position_at_end(miss_bb);
-        let next = self
-            .builder
-            .build_int_add(idx_i32, i32_ty.const_int(1, false), "itable_idx_next")?;
+        let next =
+            self.builder
+                .build_int_add(idx_i32, i32_ty.const_int(1, false), "itable_idx_next")?;
         idx_phi.add_incoming(&[(&next, miss_bb)]);
         self.builder.build_unconditional_branch(loop_bb)?;
 
         // hit_bb：取 methods 指针并跳到 done_bb。
         self.builder.position_at_end(hit_bb);
-        let methods_ptr = self
-            .builder
-            .build_struct_gep(entry_ty, entry_ptr, 1, "itable_entry_methods_gep")?;
+        let methods_ptr =
+            self.builder
+                .build_struct_gep(entry_ty, entry_ptr, 1, "itable_entry_methods_gep")?;
         let methods_i8 = self
             .builder
             .build_load(i8_ptr_ty, methods_ptr, "itable_entry_methods")?
@@ -11244,7 +11255,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let methods_i8 = methods_phi.as_basic_value().into_pointer_value();
 
         // methods == NULL：直接返回 NULL（caller 负责防御），避免解引用 NULL。
-        let methods_is_null = self.builder.build_is_null(methods_i8, "itable_methods_is_null")?;
+        let methods_is_null = self
+            .builder
+            .build_is_null(methods_i8, "itable_methods_is_null")?;
         let slot_null_bb = self.context.append_basic_block(func, "itable_slot_null");
         let slot_ok_bb = self.context.append_basic_block(func, "itable_slot_ok");
         let slot_done_bb = self.context.append_basic_block(func, "itable_slot_done");
@@ -11256,9 +11269,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(slot_ok_bb);
         let methods_ptr_ty = i8_ptr_ty.ptr_type(AddressSpace::default());
-        let methods_entries = self
-            .builder
-            .build_pointer_cast(methods_i8, methods_ptr_ty, "itable_methods_entries")?;
+        let methods_entries = self.builder.build_pointer_cast(
+            methods_i8,
+            methods_ptr_ty,
+            "itable_methods_entries",
+        )?;
         let slot_idx = i32_ty.const_int(slot as u64, false);
         let slot_ptr = unsafe {
             self.builder.build_in_bounds_gep(
@@ -11276,7 +11291,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(slot_done_bb);
         let fn_phi = self.builder.build_phi(i8_ptr_ty, "itable_fn_i8")?;
-        fn_phi.add_incoming(&[(&i8_ptr_ty.const_null(), slot_null_bb), (&fn_i8, slot_ok_bb)]);
+        fn_phi.add_incoming(&[
+            (&i8_ptr_ty.const_null(), slot_null_bb),
+            (&fn_i8, slot_ok_bb),
+        ]);
         let fn_i8 = fn_phi.as_basic_value().into_pointer_value();
 
         Ok(fn_i8)
@@ -11766,21 +11784,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let closure_obj_ty = self.llvm_closure_object_type();
         let obj_size_bytes = self.target_data.get_store_size(&closure_obj_ty);
 
-        let rt_alloc = self.declare_runtime_alloc();
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_closure")?;
+
+        let closure_desc = self.get_or_create_closure_object_type_desc_global(span)?;
+        let closure_desc_i8 = self.builder.build_pointer_cast(
+            closure_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "closure_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[closure_desc_i8.into(), size_v.into()],
+            "rt_alloc_closure",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(obj_i8) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: span.into(),
             });
         };
@@ -11791,10 +11818,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ptr = self
             .builder
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
-
-        // 写入 closure object 的 type descriptor（使 GC 能扫描到 env 指针）。
-        let closure_desc = self.get_or_create_closure_object_type_desc_global(span)?;
-        self.store_object_type_desc(span, closure_obj_ty, obj_ptr, closure_desc)?;
 
         let env_gep =
             self.builder
@@ -11838,20 +11861,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
 
             let size_v = self.context.i64_type().const_int(env_size_bytes, false);
-            let rt_alloc = self.declare_runtime_alloc();
-            let call =
-                self.builder
-                    .build_call(rt_alloc, &[size_v.into()], "rt_alloc_closure_env")?;
+
+            let env_desc =
+                self.get_or_create_closure_env_type_desc_global(span, closure.id, env_ty)?;
+            let env_desc_i8 = self.builder.build_pointer_cast(
+                env_desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "closure_env_type_desc_i8",
+            )?;
+            let rt_alloc = self.declare_runtime_alloc_typed();
+            let call = self.builder.build_call(
+                rt_alloc,
+                &[env_desc_i8.into(), size_v.into()],
+                "rt_alloc_closure_env",
+            )?;
             let raw =
                 call.try_as_basic_value()
                     .basic()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "scoop_alloc return value",
+                        kind: "scoop_alloc_typed return value",
                         at: span.into(),
                     })?;
             let BasicValueEnum::PointerValue(env_i8) = raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "scoop_alloc return type",
+                    kind: "scoop_alloc_typed return type",
                     at: span.into(),
                 });
             };
@@ -11860,10 +11893,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
-
-            let env_desc =
-                self.get_or_create_closure_env_type_desc_global(span, closure.id, env_ty)?;
-            self.store_object_type_desc(span, env_ty, env_ptr, env_desc)?;
 
             for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
                 let Some(local) = self.env.get(*id) else {
@@ -14703,25 +14732,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 1) 分配一个 GC-managed `ScoopString` 对象：
         //    - LLVM 侧类型为 `ScoopString addrspace(1)*`
-        //    - 分配通过 `scoop_alloc(sizeof(ScoopString))`
+        //    - 分配通过 `scoop_alloc_typed(desc, sizeof(ScoopString))`（runtime 写入对象头 type_desc）
         let scoop_str_ty = self.llvm_scoop_string_type();
         let obj_size = self.target_data.get_store_size(&scoop_str_ty);
         let size_v = self.context.i64_type().const_int(obj_size, false);
 
-        let rt_alloc = self.declare_runtime_alloc();
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_string_lit")?;
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        let str_desc_i8 = self.builder.build_pointer_cast(
+            str_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "str_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[str_desc_i8.into(), size_v.into()],
+            "rt_alloc_string_lit",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: span.into(),
             });
         };
@@ -14731,11 +14768,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_pointer_cast(raw_ptr, str_ptr_ty, "str_obj_ptr")?;
 
-        // 写入对象头 type descriptor：String 本身无引用字段，但需要 RTTI/type_id（并保持对象模型一致）。
-        let str_desc = self.get_or_create_string_type_desc_global(span)?;
-        self.store_object_type_desc(span, scoop_str_ty, str_ptr, str_desc)?;
-
-        // 2) 写入 `{ len, data }`（对象头由 runtime 初始化；type_desc 当前仍为 NULL）。
+        // 2) 写入 `{ len, data }`。
         let len_ptr = self
             .builder
             .build_struct_gep(scoop_str_ty, str_ptr, 1, "str_len_gep")?;
@@ -15007,20 +15040,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_size = self.target_data.get_store_size(&scoop_str_ty);
         let size_v = i64_ty.const_int(obj_size, false);
 
-        let rt_alloc = self.declare_runtime_alloc();
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_fstr")?;
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        let str_desc_i8 = self.builder.build_pointer_cast(
+            str_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "fstr_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[str_desc_i8.into(), size_v.into()],
+            "rt_alloc_fstr",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: span.into(),
             });
         };
@@ -15029,10 +15070,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, str_ptr_ty, "fstr_obj_ptr")?;
-
-        // 写入对象头 type descriptor：保持 String 对象模型一致（trace bitmap 为空即可）。
-        let str_desc = self.get_or_create_string_type_desc_global(span)?;
-        self.store_object_type_desc(span, scoop_str_ty, str_ptr, str_desc)?;
 
         let len_ptr = self
             .builder
@@ -16531,33 +16568,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let boxed_ty = self.llvm_boxed_unit_type();
         let obj_size_bytes = self.target_data.get_store_size(&boxed_ty);
 
-        let rt_alloc = self.declare_runtime_alloc();
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_box_unit")?;
+
+        let desc = self.get_or_create_boxed_unit_type_desc_global(at)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "boxed_unit_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[desc_i8.into(), size_v.into()],
+            "rt_alloc_box_unit",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: at.into(),
             })?;
 
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: at.into(),
             });
         };
-
-        // 写入 type descriptor（无引用字段，但需要 RTTI/type_id 对齐）。
-        let boxed_ptr_ty = boxed_ty.ptr_type(self.gc_address_space());
-        let boxed_ptr = self
-            .builder
-            .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_unit_ptr")?;
-        let desc = self.get_or_create_boxed_unit_type_desc_global(at)?;
-        self.store_object_type_desc(at, boxed_ty, boxed_ptr, desc)?;
 
         Ok(raw_ptr)
     }
@@ -16570,9 +16608,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         // 约定（early stage）：
         // - box 对象布局：`{ header: ScoopGcObjectHeader, payload: <int> }`（TODO T0908）
-        // - 当前阶段由 runtime 的 `scoop_alloc` 初始化对象头字段：
+        // - 当前阶段由 runtime 的 `scoop_alloc_typed` 初始化对象头字段：
         //   - `next = NULL`
-        //   - `type_desc = NULL`（后续由 typed alloc 或 codegen 写入；TODO T0907+）
+        //   - `type_desc = <boxed-int type desc>`
         //   - `size_bytes = alloc_size`
         //   - `flags/mark = 0`
         //
@@ -16595,22 +16633,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_align = header_align.max(payload_align);
         let total_size = align_to(payload_offset.saturating_add(payload_size), obj_align);
 
-        let rt_alloc = self.declare_runtime_alloc();
         let size_v = self.context.i64_type().const_int(total_size as u64, false);
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_box")?;
+
+        let desc = self.get_or_create_boxed_int_type_desc_global(at, value_ty)?;
+        let desc_i8 = self.builder.build_pointer_cast(
+            desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "boxed_int_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call =
+            self.builder
+                .build_call(rt_alloc, &[desc_i8.into(), size_v.into()], "rt_alloc_box")?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return value",
+                kind: "scoop_alloc_typed return value",
                 at: at.into(),
             })?;
 
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc return type",
+                kind: "scoop_alloc_typed return type",
                 at: at.into(),
             });
         };
@@ -16621,10 +16666,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let boxed_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;
-
-        // 写入 type descriptor（box 本身无引用字段，但需要 RTTI/type_id 对齐）。
-        let desc = self.get_or_create_boxed_int_type_desc_global(at, value_ty)?;
-        self.store_object_type_desc(at, boxed_ty, boxed_ptr, desc)?;
 
         let payload_ptr =
             self.builder
@@ -16990,30 +17031,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
-    fn store_object_type_desc(
-        &mut self,
-        _at: crate::span::Span,
-        obj_ty: StructType<'ctx>,
-        obj_ptr: PointerValue<'ctx>,
-        type_desc: GlobalValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let header_ty = self.llvm_gc_object_header_type();
-        let header_ptr = self
-            .builder
-            .build_struct_gep(obj_ty, obj_ptr, 0, "obj_hdr_gep")?;
-        let type_desc_ptr =
-            self.builder
-                .build_struct_gep(header_ty, header_ptr, 1, "obj_type_desc_gep")?;
-
-        let desc_i8 = self.builder.build_pointer_cast(
-            type_desc.as_pointer_value(),
-            self.llvm_i8_ptr_type(),
-            "type_desc_i8",
-        )?;
-        let _ = self.builder.build_store(type_desc_ptr, desc_i8)?;
-        Ok(())
-    }
-
     fn collect_gc_ptr_offsets_in_basic_type(
         &self,
         at: crate::span::Span,
@@ -17329,10 +17346,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 gv
             };
 
-            let methods_ptr_i8 = methods_gv
-                .as_pointer_value()
-                .const_cast(i8_ptr_ty)
-                .into();
+            let methods_ptr_i8 = methods_gv.as_pointer_value().const_cast(i8_ptr_ty).into();
 
             let init = entry_ty.const_named_struct(&[
                 i64_ty.const_int(entry.interface_id, false).into(),
@@ -17346,11 +17360,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // itable：{ len: i32, _reserved: i32, entries: [N x Entry] }
         let itable_ty = self.context.struct_type(
-            &[
-                i32_ty.into(),
-                i32_ty.into(),
-                entries_arr_ty.into(),
-            ],
+            &[i32_ty.into(), i32_ty.into(), entries_arr_ty.into()],
             false,
         );
         let itable_init = itable_ty.const_named_struct(&[
@@ -18439,6 +18449,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_alloc_typed(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_alloc_typed";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void *scoop_alloc_typed(void* type_desc, uint64_t size_bytes)`
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
+        let fn_ty = ret_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
