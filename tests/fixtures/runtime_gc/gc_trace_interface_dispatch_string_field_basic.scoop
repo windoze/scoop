@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_interface_dispatch_string_field_basic.stdout.txt
+//
+// T1512b：单线程 roots/heap 扫描最小覆盖（interface + class + String）。
+// - `IFace` 作为 roots slot：GC 必须扫描到 itable 形式的 ref root。
+// - `Impl.s: String` 作为 heap field：GC 必须通过 type descriptor trace 保活字段引用。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+interface IFace {
+    fun ping(): Int
+}
+
+class Impl(val s: String) : IFace {
+    fun ping(): Int {
+        println(f"iface={this.s}")
+        return 0
+    }
+}
+
+fun main(): Int {
+    // 仅通过 interface 引用保活对象与其字符串字段。
+    val x: IFace = Impl(f"hello {7}")
+    __scoop_gc_collect()
+    val _ignored: Int = x.ping()
+    return 0
+}

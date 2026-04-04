@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_array_string_elements_basic.stdout.txt
+//
+// T1512b：单线程 roots/heap 扫描最小覆盖（Array<String> 元素槽位）。
+// - 仅通过 array 元素持有两个字符串；
+// - `__scoop_gc_collect()` 后仍可读取并打印。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun make(): Array<String> {
+    val xs: Array<String> = [f"a {1}", f"b {2}"]
+    return xs
+}
+
+fun main() {
+    val xs: Array<String> = make()
+    __scoop_gc_collect()
+    println(f"array0={xs.get(0)}")
+    println(f"array1={xs.get(1)}")
+}
+

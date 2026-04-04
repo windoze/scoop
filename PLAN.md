@@ -33,6 +33,7 @@
 - 2026-04-05：完成 T1511：baseline backend 增加可强制启用的 moving GC（`SCOOP_GC_MOVE=1`）并在 move 后修复 stackmap spill slots/native_roots/handles/heap fields；新增 `tests/fixtures/runtime_gc/*` run-pass fixtures，并让 fixtures runner 识别 `runtime_gc` phase。
 - 2026-04-05：T1512（ref types + stackmap GC 回归与压力测试矩阵）范围较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1512a～T1512d：先落地 `scoop test` 的 `--gc-stress/--gc-move/--threads` 注入（T1512a），再逐步补齐 runtime_gc fixtures 的覆盖矩阵（T1512b+）。
 - 2026-04-05：完成 T1512a：`scoop test` 新增 `--gc-stress/--gc-move/--threads` 并在 run-pass 子进程上注入 env；runtime 增加 `SCOOP_GC_STRESS`（分配前触发额外 GC）以支持压力回归。
+- 2026-04-05：完成 T1512b：补齐单线程 runtime_gc 最小覆盖矩阵 fixtures（closure/interface/array/cycle/value-struct ref fields），并新增 1 个 `unsafe_nogc` compile-fail；同时修复 LLVM codegen 对“struct local 含 ref/string 字段”的 embedded roots slots 与字段读取路径，保证 `__scoop_gc_collect()` 后 `w.s` 不会变空/悬挂。
 - 2026-04-04：完成 T1411b：`platform/unwind` 新增“从捕获的 ctx 枚举 `(sp, ra)` 帧”的 API（POSIX v0 先在捕获时用 `_Unwind_Backtrace` 缓存帧列表），并新增 `scoop_runtime` 集成测试回归“Parked 线程 ctx 可枚举至少 3 帧（mock stackmap query）”。
 - 2026-04-04：T1506（stackmap roots 替换 shadow stack roots）包含多个相对独立且实现跨度较大的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1506a/T1506b/T1506c：先落地 stackmap record 的 locations→`void** slot` 解析与错误码（T1506a），再接入 STW roots 枚举使用 stack walking + stackmap lookup（T1506b），最后补齐端到端多帧保活与 `scoop --features llvm -- test` 全量回归（T1506c）。
 - 2026-04-04：完成 T1506a：runtime 侧新增 stackmap record locations→`void** slot` 解析（SP 基址 Direct/Indirect）与稳定错误码，并新增 `scoop_runtime` 集成测试 `stackmap_roots` 覆盖 Direct/Indirect/错误码回归。

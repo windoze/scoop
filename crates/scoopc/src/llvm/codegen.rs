@@ -214,6 +214,24 @@ enum AtomicIntLvalueMode {
 struct GcFrameState<'ctx> {
     frame_ptr: PointerValue<'ctx>,
     root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>>,
+    /// 对于“值类型（struct）里包含 ref/string 字段”的局部变量，额外为其每个
+    /// ref/string 字段分配一个 shadow stack roots slot，用于：
+    /// - GC tracing：避免仅存放在 struct alloca 内的引用在 safepoint 被误回收；
+    /// - moving GC：slot 值会被原地更新；后续字段读取可从 slot 拿到已修复的新地址。
+    embedded_root_slots: HashMap<hir::SymbolId, Vec<EmbeddedGcRootSlot<'ctx>>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EmbeddedGcRootSlot<'ctx> {
+    field_idx: u32,
+    field_ty: CgTy,
+    slot_ptr: PointerValue<'ctx>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct EmbeddedGcRootFieldPlan {
+    field_idx: u32,
+    field_ty: CgTy,
 }
 
 /// `-> resume` lowering（T0616）在 codegen 阶段使用的“立即恢复”上下文。
@@ -761,19 +779,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn setup_gc_frame(&mut self, fun: &hir::FunDecl) -> Result<(), LlvmEmitError> {
         let root_ids = self.collect_gc_root_ids(fun);
-        self.setup_gc_frame_for_root_ids(fun.span, &root_ids)
+        let embedded = self.collect_embedded_gc_root_plans(fun)?;
+        self.setup_gc_frame_for_root_ids(fun.span, &root_ids, &embedded)
     }
 
     fn setup_gc_frame_for_root_ids(
         &mut self,
         at: crate::span::Span,
         root_ids: &[hir::SymbolId],
+        embedded: &[(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)],
     ) -> Result<(), LlvmEmitError> {
-        if root_ids.is_empty() {
+        let embedded_count: usize = embedded.iter().map(|(_, fields)| fields.len()).sum();
+        if root_ids.is_empty() && embedded_count == 0 {
             return Ok(());
         }
 
-        let root_count = root_ids.len() as u32;
+        let root_count = root_ids
+            .len()
+            .saturating_add(embedded_count)
+            .min(u32::MAX as usize) as u32;
         let frame_ty = self.llvm_gc_frame_type(root_count);
 
         // 说明：frame 本身也是栈上的一个 local；放在 entry block 的 alloca 区域，便于后续
@@ -815,20 +839,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>> =
             HashMap::with_capacity(root_ids.len());
-        for (idx, id) in root_ids.iter().enumerate() {
-            let index = i32_ty.const_int(idx as u64, false);
+        let mut embedded_root_slots: HashMap<hir::SymbolId, Vec<EmbeddedGcRootSlot<'ctx>>> =
+            HashMap::with_capacity(embedded.len());
+
+        let mut next_idx: u32 = 0;
+
+        for id in root_ids {
+            let index = i32_ty.const_int(next_idx as u64, false);
             let slot_ptr = unsafe {
                 self.builder.build_in_bounds_gep(
                     gc_i8_ptr_ty,
                     roots_base,
                     &[index],
-                    &format!("gc_root_slot_{idx}"),
+                    &format!("gc_root_slot_{next_idx}"),
                 )?
             };
             let _ = self
                 .builder
                 .build_store(slot_ptr, gc_i8_ptr_ty.const_null())?;
             root_slots.insert(*id, slot_ptr);
+            next_idx = next_idx.saturating_add(1);
+        }
+
+        for (owner, fields) in embedded {
+            let mut slots: Vec<EmbeddedGcRootSlot<'ctx>> = Vec::with_capacity(fields.len());
+            for field in fields {
+                let index = i32_ty.const_int(next_idx as u64, false);
+                let slot_ptr = unsafe {
+                    self.builder.build_in_bounds_gep(
+                        gc_i8_ptr_ty,
+                        roots_base,
+                        &[index],
+                        &format!("gc_root_slot_{next_idx}"),
+                    )?
+                };
+                let _ = self
+                    .builder
+                    .build_store(slot_ptr, gc_i8_ptr_ty.const_null())?;
+                slots.push(EmbeddedGcRootSlot {
+                    field_idx: field.field_idx,
+                    field_ty: field.field_ty,
+                    slot_ptr,
+                });
+                next_idx = next_idx.saturating_add(1);
+            }
+            embedded_root_slots.insert(*owner, slots);
         }
 
         // push(frame)
@@ -843,6 +898,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.gc_frame = Some(GcFrameState {
             frame_ptr,
             root_slots,
+            embedded_root_slots,
         });
         Ok(())
     }
@@ -851,6 +907,103 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.gc_frame
             .as_ref()
             .and_then(|state| state.root_slots.get(&id).copied())
+    }
+
+    fn embedded_gc_root_slots_cloned(
+        &self,
+        id: hir::SymbolId,
+    ) -> Option<Vec<EmbeddedGcRootSlot<'ctx>>> {
+        self.gc_frame
+            .as_ref()
+            .and_then(|state| state.embedded_root_slots.get(&id).cloned())
+    }
+
+    fn store_embedded_gc_roots_for_struct_local(
+        &mut self,
+        at: crate::span::Span,
+        local_ty: CgTy,
+        local_ptr: PointerValue<'ctx>,
+        slots: &[EmbeddedGcRootSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        let CgTy::Struct(struct_ty) = local_ty else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "embedded gc roots local type",
+                at: at.into(),
+            });
+        };
+
+        if slots.is_empty() {
+            return Ok(());
+        }
+
+        let llvm_struct_ty = self.llvm_struct_type(at, struct_ty)?;
+
+        for slot in slots {
+            if !matches!(slot.field_ty, CgTy::Ref | CgTy::String) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "embedded gc roots field type",
+                    at: at.into(),
+                });
+            }
+
+            let field_ptr = self.builder.build_struct_gep(
+                llvm_struct_ty,
+                local_ptr,
+                slot.field_idx,
+                "embedded_gc_field_gep",
+            )?;
+            let llvm_field_ty = self.llvm_basic_type_of(at, slot.field_ty)?;
+            let loaded =
+                self.builder
+                    .build_load(llvm_field_ty, field_ptr, "load_embedded_gc_field")?;
+
+            self.store_gc_root_slot_value(
+                at,
+                slot.slot_ptr,
+                CgValue {
+                    ty: slot.field_ty,
+                    value: Some(loaded),
+                },
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn load_embedded_gc_root_slot_value(
+        &mut self,
+        at: crate::span::Span,
+        slot: EmbeddedGcRootSlot<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let loaded = self
+            .builder
+            .build_load(gc_i8_ptr_ty, slot.slot_ptr, "load_embedded_gc_root")?
+            .into_pointer_value();
+
+        Ok(match slot.field_ty {
+            CgTy::Ref => CgValue {
+                ty: CgTy::Ref,
+                value: Some(loaded.into()),
+            },
+            CgTy::String => {
+                let casted = self.builder.build_pointer_cast(
+                    loaded,
+                    self.llvm_scoop_string_ptr_type(),
+                    "embedded_root_to_string",
+                )?;
+                CgValue {
+                    ty: CgTy::String,
+                    value: Some(casted.into()),
+                }
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "embedded gc root load type",
+                    at: at.into(),
+                });
+            }
+        })
     }
 
     fn store_gc_root_slot_value(
@@ -935,6 +1088,240 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         out
+    }
+
+    fn collect_embedded_gc_root_plans(
+        &self,
+        fun: &hir::FunDecl,
+    ) -> Result<Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>, LlvmEmitError> {
+        let mut out: Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)> = Vec::new();
+        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
+
+        for param in &fun.params {
+            self.collect_embedded_gc_root_plans_for_binder(
+                param.span, param.id, param.ty, &mut out, &mut seen,
+            )?;
+        }
+
+        if let Some(body) = fun.body.as_ref() {
+            self.collect_embedded_gc_root_plans_in_block(body, &mut out, &mut seen)?;
+        }
+
+        Ok(out)
+    }
+
+    fn collect_embedded_gc_root_plans_for_binder(
+        &self,
+        at: crate::span::Span,
+        id: hir::SymbolId,
+        ty: TypeId,
+        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
+        seen: &mut HashSet<hir::SymbolId>,
+    ) -> Result<(), LlvmEmitError> {
+        if !seen.insert(id) {
+            return Ok(());
+        }
+
+        let Some(CgTy::Struct(struct_ty)) = self.cg_ty_of(ty) else {
+            return Ok(());
+        };
+
+        let fields = self.collect_embedded_gc_root_fields_for_struct(at, struct_ty)?;
+        if fields.is_empty() {
+            return Ok(());
+        }
+
+        out.push((id, fields));
+        Ok(())
+    }
+
+    fn collect_embedded_gc_root_plans_in_block(
+        &self,
+        block: &hir::Block,
+        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
+        seen: &mut HashSet<hir::SymbolId>,
+    ) -> Result<(), LlvmEmitError> {
+        for stmt in &block.stmts {
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    if let Some(id) = decl.id {
+                        self.collect_embedded_gc_root_plans_for_binder(
+                            decl.span, id, decl.ty, out, seen,
+                        )?;
+                    }
+                    if let Some(init) = decl.init.as_ref() {
+                        self.collect_embedded_gc_root_plans_in_expr(init, out, seen)?;
+                    }
+                }
+                hir::StmtKind::Expr(expr) => {
+                    self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+                }
+                hir::StmtKind::Assign { lhs, rhs, .. } => {
+                    self.collect_embedded_gc_root_plans_in_expr(lhs, out, seen)?;
+                    self.collect_embedded_gc_root_plans_in_expr(rhs, out, seen)?;
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.collect_embedded_gc_root_plans_in_expr(cond, out, seen)?;
+                    self.collect_embedded_gc_root_plans_in_block(body, out, seen)?;
+                }
+                hir::StmtKind::Return { value } => {
+                    if let Some(expr) = value.as_ref() {
+                        self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+                    }
+                }
+                hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_embedded_gc_root_plans_in_expr(
+        &self,
+        expr: &hir::Expr,
+        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
+        seen: &mut HashSet<hir::SymbolId>,
+    ) -> Result<(), LlvmEmitError> {
+        match &expr.kind {
+            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
+            hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::StructLit { fields, .. } => {
+                for field in fields {
+                    self.collect_embedded_gc_root_plans_in_expr(&field.value, out, seen)?;
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for elem in elements {
+                    self.collect_embedded_gc_root_plans_in_expr(elem, out, seen)?;
+                }
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } = part {
+                        self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+                    }
+                }
+            }
+            hir::ExprKind::Unary { expr, .. } => {
+                self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_embedded_gc_root_plans_in_expr(lhs, out, seen)?;
+                self.collect_embedded_gc_root_plans_in_expr(rhs, out, seen)?;
+            }
+            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+                self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+            }
+            hir::ExprKind::Block(block) => {
+                self.collect_embedded_gc_root_plans_in_block(block, out, seen)?;
+            }
+            hir::ExprKind::Closure(_) => {}
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.collect_embedded_gc_root_plans_in_expr(cond, out, seen)?;
+                self.collect_embedded_gc_root_plans_in_expr(then_branch, out, seen)?;
+                if let Some(else_branch) = else_branch.as_ref() {
+                    self.collect_embedded_gc_root_plans_in_expr(else_branch, out, seen)?;
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                self.collect_embedded_gc_root_plans_in_expr(subject, out, seen)?;
+                for arm in arms {
+                    if let Some(guard) = arm.guard.as_ref() {
+                        self.collect_embedded_gc_root_plans_in_expr(guard, out, seen)?;
+                    }
+                    self.collect_embedded_gc_root_plans_in_expr(&arm.body, out, seen)?;
+                }
+            }
+            hir::ExprKind::Call { callee, args } => {
+                self.collect_embedded_gc_root_plans_in_expr(callee, out, seen)?;
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_embedded_gc_root_plans_in_expr(value, out, seen)?;
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::MemberAccess { receiver, .. } => {
+                self.collect_embedded_gc_root_plans_in_expr(receiver, out, seen)?;
+            }
+            hir::ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(expr) => {
+                            self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            self.collect_embedded_gc_root_plans_in_expr(value, out, seen)?;
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Handle(handle) => {
+                self.collect_embedded_gc_root_plans_in_block(&handle.body, out, seen)?;
+                for arm in &handle.arms {
+                    for binder in &arm.op.binders {
+                        self.collect_embedded_gc_root_plans_for_binder(
+                            binder.span,
+                            binder.id,
+                            binder.ty,
+                            out,
+                            seen,
+                        )?;
+                    }
+                    self.collect_embedded_gc_root_plans_in_expr(&arm.body, out, seen)?;
+                }
+                if let Some(finally) = handle.finally.as_ref() {
+                    self.collect_embedded_gc_root_plans_in_block(finally, out, seen)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_embedded_gc_root_fields_for_struct(
+        &self,
+        at: crate::span::Span,
+        struct_ty: TypeId,
+    ) -> Result<Vec<EmbeddedGcRootFieldPlan>, LlvmEmitError> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "embedded gc roots struct type id",
+                at: at.into(),
+            });
+        };
+
+        let layout =
+            self.struct_layouts
+                .get(&nominal.fqn)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "embedded gc roots struct layout",
+                    at: at.into(),
+                })?;
+
+        let mut fields: Vec<EmbeddedGcRootFieldPlan> = Vec::new();
+        for (idx, field) in layout.fields.iter().enumerate() {
+            let cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+            if matches!(cg, CgTy::Ref | CgTy::String) {
+                fields.push(EmbeddedGcRootFieldPlan {
+                    field_idx: idx as u32,
+                    field_ty: cg,
+                });
+            }
+        }
+
+        Ok(fields)
     }
 
     fn collect_gc_root_ids_in_block(
@@ -1217,6 +1604,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.store_gc_root_slot_value(decl.span, slot_ptr, stored)?;
         }
 
+        if let Some(slots) = self.embedded_gc_root_slots_cloned(id) {
+            self.store_embedded_gc_roots_for_struct_local(decl.span, target_ty, ptr, &slots)?;
+        }
+
         self.env.insert(
             id,
             CgLocal {
@@ -1296,6 +1687,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
                     if let Some(slot_ptr) = local.gc_root_slot {
                         self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
+                    }
+
+                    if let Some(slots) = self.embedded_gc_root_slots_cloned(*id) {
+                        self.store_embedded_gc_roots_for_struct_local(
+                            eq_span, local.ty, local.ptr, &slots,
+                        )?;
                     }
                     Ok(())
                 }
@@ -12641,7 +13038,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         self.collect_gc_root_ids_in_expr(closure.body.as_ref(), &mut root_ids, &mut seen);
-        self.setup_gc_frame_for_root_ids(closure.span, &root_ids)?;
+
+        let mut embedded: Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)> = Vec::new();
+        let mut embedded_seen: HashSet<hir::SymbolId> = HashSet::new();
+        for (id, _name, ty) in capture_bindings {
+            self.collect_embedded_gc_root_plans_for_binder(
+                closure.span,
+                *id,
+                *ty,
+                &mut embedded,
+                &mut embedded_seen,
+            )?;
+        }
+        for (id, _name, ty) in param_bindings {
+            self.collect_embedded_gc_root_plans_for_binder(
+                closure.span,
+                *id,
+                *ty,
+                &mut embedded,
+                &mut embedded_seen,
+            )?;
+        }
+        self.collect_embedded_gc_root_plans_in_expr(
+            closure.body.as_ref(),
+            &mut embedded,
+            &mut embedded_seen,
+        )?;
+
+        self.setup_gc_frame_for_root_ids(closure.span, &root_ids, &embedded)?;
 
         self.env.push_scope();
 
@@ -16046,6 +16470,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 self.lookup_struct_field(struct_ty, fqn, member.span)?;
                             if field_ty == CgTy::Unit {
                                 return Ok(CgValue::unit());
+                            }
+
+                            // 若该 struct local 的某些字段需要作为 GC roots 单独追踪（ref/string），
+                            // 则对这些字段读取应优先走对应的 roots slot，避免 GC 后读到悬挂指针。
+                            if matches!(field_ty, CgTy::Ref | CgTy::String) {
+                                if let Some(slots) = self.embedded_gc_root_slots_cloned(*id) {
+                                    if let Some(slot) =
+                                        slots.into_iter().find(|s| s.field_idx == field_idx)
+                                    {
+                                        return self
+                                            .load_embedded_gc_root_slot_value(member.span, slot);
+                                    }
+                                }
                             }
 
                             let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;

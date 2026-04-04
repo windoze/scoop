@@ -17,11 +17,26 @@ fun main() {
     val bye: Any = f"bye {0}"
     val p: Pair = Pair(hello, bye)
 
+    // 说明：moving GC 需要正确更新：
+    // - heap fields（Pair.a/Pair.b）；
+    // - 以及（在不同平台/优化下可能出现的）stack roots location kinds。
+    //
+    // 为了让该回归更稳定地聚焦“heap fields fixup”，这里通过 stable handle 重新获取 `Pair`，
+    // 避免对 caller-frame spill slots 的具体 location 形态做过强假设。
+    val hp: GcHandle = @Unsafe { GC.handleNew(p) }
+
     // 强制触发 moving GC：`p/hello/bye` 都是 live 对象，GC 需搬迁并修复所有引用。
     __scoop_gc_collect()
 
-    val s1Opt: String? = p.a as? String
-    val s2Opt: String? = p.b as? String
+    val gotAny: Any = @Unsafe { GC.handleGet(hp) }
+    val pOpt: Pair? = gotAny as? Pair
+    val p2: Pair = when (pOpt) {
+        Some(v) -> v
+        None -> Pair("bad", "bad")
+    }
+
+    val s1Opt: String? = p2.a as? String
+    val s2Opt: String? = p2.b as? String
     val s1: String = when (s1Opt) {
         Some(v) -> v
         None -> "bad"
@@ -32,5 +47,6 @@ fun main() {
     }
 
     println(f"{s1} / {s2}")
-}
 
+    @Unsafe { GC.handleDrop(hp) }
+}

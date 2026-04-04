@@ -6622,13 +6622,27 @@
   - `crates/scoop/src/commands/test.rs`：把 `scoop test` 的全局开关映射为 env 注入（`SCOOP_GC_STRESS` / `SCOOP_GC_MOVE` / `SCOOP_GC_IMMIX_PARALLEL_{MARK,SWEEP}`）。
   - `runtime/c/scoop_runtime.c`：新增 `SCOOP_GC_STRESS`（每 N 次分配前触发一次 `scoop_gc_collect()`；默认 N=1）。
 
-### T1512b [TODO] runtime_gc fixtures：ref roots/heap 扫描最小覆盖矩阵（单线程）
+### T1512b [DONE] runtime_gc fixtures：ref roots/heap 扫描最小覆盖矩阵（单线程）
 - 描述：补齐“单线程 + 精确 roots/heap 扫描”的基础回归：class/interface/closure/array/string/box、循环引用、值类型含 ref 字段（stackmap spill slots + heap fields）。
 - 目标：每类至少 1 个 run-pass fixture；并补 1 个 compile-fail 覆盖“明显非法/unsafe 违规”的用法（若落在 `unsafe_nogc` 目录更合适则放到对应目录）。
 - 验收：
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1512a
+- 完成：
+  - `tests/fixtures/runtime_gc/`：新增/补齐单线程最小覆盖：
+    - `gc_trace_closure_capture_string_basic`（closure capture roots）
+    - `gc_trace_interface_dispatch_string_field_basic`（interface roots + class String field）
+    - `gc_trace_array_string_elements_basic`（Array<String> elements）
+    - `gc_trace_cycle_two_nodes_basic`（heap cycle）
+    - `gc_trace_value_struct_ref_field_basic`（值类型含 ref：stack + heap fields）
+  - `tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`：用 `GcHandle` roundtrip 让 moving GC 回归更稳定（减少对 caller spill slot location kind 的偶然依赖）。
+  - `tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_struct_with_string_is_error.scoop`：新增 compile-fail 覆盖 `Ptr<T>` pointee 必须 GC-free。
+  - `crates/scoopc/src/llvm/codegen.rs`：为 “struct local 含 ref/string 字段” 增加 embedded GC roots slots，并在字段读取路径优先走 roots slot，修复 `__scoop_gc_collect()` 后 `w.s` 可能变空/悬挂的问题。
+  - 验收命令已跑通：
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`
+    - `cargo run -p scoop --features llvm -- test`
 
 ### T1512c [TODO] runtime_gc fixtures：跨线程 roots 枚举与 STW 边界（含 native 过渡）
 - 描述：补齐“多线程 + STW 协作式 safepoint poll”的端到端回归：线程间引用、线程长期 InNative、GC 不死锁且 roots 保活。

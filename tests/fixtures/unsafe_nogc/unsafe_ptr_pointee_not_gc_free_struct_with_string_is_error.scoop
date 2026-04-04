@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ptr_pointee_must_be_gc_free
+// EXPECT-ERROR-AT: 14:16
+// EXPECT-ERROR: GC-free
+
+package fixtures.unsafe_nogc
+
+import scoop.unsafe.*
+import scoop.core.*
+
+// `Wrap` 含有 `String`（ref），因此不是 GC-free 的值类型。
+struct Wrap(val s: String)
+
+fun bad(p: Ptr<Wrap>): Unit {
+    return ()
+}

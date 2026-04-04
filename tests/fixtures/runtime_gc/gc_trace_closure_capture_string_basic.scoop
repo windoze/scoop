@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_closure_capture_string_basic.stdout.txt
+//
+// T1512b：单线程 roots/heap 扫描最小覆盖（closure capture）。
+// - 返回的 closure 必须在 heap 上携带捕获环境；
+// - 捕获的 `String` 引用必须被 GC 扫描保活。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun callAfterGc(f: () -> Int): Int {
+    __scoop_gc_collect()
+    return f()
+}
+
+fun main(): Int {
+    val s: String = f"hello {7}"
+    return callAfterGc {
+        println(f"closure={s}")
+        0
+    }
+}

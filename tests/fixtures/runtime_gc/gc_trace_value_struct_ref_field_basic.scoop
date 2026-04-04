@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_value_struct_ref_field_basic.stdout.txt
+//
+// T1512b：单线程 roots/heap 扫描最小覆盖（值类型含 ref 字段 + boxing）。
+//
+// 覆盖点：
+// - `struct Wrap { s: String }`：值类型字段中含 ref，需被 stackmap roots 扫描保活（spill slots）。
+// - `class Holder { w: Wrap }`：heap 对象字段中嵌入值类型，需递归扫描其 ref 字段（heap fields）。
+//
+// 备注：
+// - 目前 LLVM early codegen 对 “值类型 -> Any 装箱” 仅支持整数族（见 `codegen_box_int_to_ref`），
+//   因此这里不覆盖 “struct -> Any boxing” 路径；本用例聚焦于 stack/heap 的 ref 扫描。
+// - 注意：目前 resolver 对链式 member access（例如 `h.w.s`）的二段解析仍有 gap；
+//   因此 heap 路径通过引入中间局部变量（`val w2: Wrap = h.w`）再访问字段。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+struct Wrap(val s: String)
+
+class Holder(val w: Wrap)
+
+fun main() {
+    // 1) stack spill slots：值类型局部变量中含 ref 字段。
+    val w: Wrap = Wrap { s: f"hello {7}" }
+    __scoop_gc_collect()
+    println(f"stack={w.s}")
+
+    // 2) heap fields：class 字段中嵌入值类型，需递归扫描其 ref 字段。
+    val h: Holder = Holder(Wrap { s: f"hello {8}" })
+    __scoop_gc_collect()
+    val w2: Wrap = h.w
+    println(f"heap={w2.s}")
+
+    // 保证 h 在 GC 调用点后仍然是 live（避免被优化掉）。
+    val _also_keep_holder: Holder = h
+}

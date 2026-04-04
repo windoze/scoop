@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_cycle_two_nodes_basic.stdout.txt
+//
+// T1512b：单线程 roots/heap 扫描最小覆盖（循环引用）。
+// - `Node.next: Node?` 形成 heap 内循环引用；
+// - 只要 cycle 通过 roots 可达，GC 不应误回收其中对象/字段引用。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+class Node(val name: String) {
+    var next: Node? = None()
+}
+
+fun main() {
+    val a: Node = Node(f"node {1}")
+    val b: Node = Node(f"node {2}")
+    a.next = Some(b)
+    b.next = Some(a)
+
+    __scoop_gc_collect()
+
+    println(a.name)
+
+    val b2: Node = when (a.next) {
+        Some(v) -> v
+        None -> Node("bad")
+    }
+    println(b2.name)
+
+    val a2: Node = when (b2.next) {
+        Some(v) -> v
+        None -> Node("bad")
+    }
+    println(a2.name)
+}
+
