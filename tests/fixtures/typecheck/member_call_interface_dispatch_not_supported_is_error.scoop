@@ -1,9 +1,6 @@
-// EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::unsupported_member_access
-// EXPECT-ERROR-AT: 21:14
-// EXPECT-ERROR: 暂不支持的成员访问
+// EXPECT: pass
 //
-// T1508c：当前阶段暂不支持 interface dispatch；对 interface member method call 给出稳定错误码。
+// T1508c：interface dispatch（itable）已支持：对 interface member method call 应可通过 typecheck。
 
 package fixtures.typecheck
 

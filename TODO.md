@@ -6432,11 +6432,27 @@
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1508c [TODO] interface dispatch：itable slot 选择 + interface 引用调用（端到端）
+### T1508c [DONE] interface dispatch：itable slot 选择 + interface 引用调用（端到端）
 - 描述：对 interface method call 做分类与 lowering：生成 itable slot 并在 codegen 侧通过 itable 间接调用，保证 `val x: IFace = Impl()` 的调用能命中实现。
 - 目标：只覆盖 itable（interface id + method slot）路径；不引入 `super.method()`。
 - 验收：新增 run-pass fixtures：interface 引用调用输出正确；新增 typecheck fixtures：缺失实现/冲突实现 fail（稳定错误码）。
 - 依赖：T1507c3、T1508b
+ - 完成：
+   - `crates/scoopc/src/itable.rs`：新增 interface slot 表 + class itable entries 的 side table 计算（stable `interface_id` + slot→impl member fqn），并在 HIR lowering 产物中透传给后端。
+   - `crates/scoopc/src/typecheck/expr.rs`：放开 interface receiver 的 member method call（不再报 `unsupported_member_access`）。
+   - `crates/scoopc/src/typecheck/interfaces.rs`：新增稳定错误码 `scoop::typecheck::ambiguous_interface_member_impl`，当实现方存在“按最小形状无法唯一匹配”的候选实现时在 interface use span 报错。
+   - `crates/scoopc/src/hir/lower.rs`：对 interface member call 也做 desugar：`receiver.method(args...)` → `IFace.method(receiver, args...)`，供 LLVM 后端统一识别。
+   - `crates/scoopc/src/llvm/codegen.rs`：为 class 生成 itable 常量并写入 `ScoopTypeDescriptor.itable`；调用点实现 itable lookup（按 `interface_id` 线性扫描）并执行 indirect call。
+   - `crates/scoopc/src/llvm/mod.rs`：reachability 扫描 ctor 时将 itable entries 的目标函数加入可达集合（避免默认方法/实现成员漏生成导致链接失败）。
+   - 新增/调整 fixtures：
+     - typecheck：`tests/fixtures/typecheck/member_call_interface_dispatch_not_supported_is_error.scoop` 改为 pass（保留文件名，语义改为“dispatch 已支持”）
+     - typecheck：新增 `tests/fixtures/typecheck/interface_impl_ambiguous_member_is_error.scoop`
+     - run-pass：新增 `tests/fixtures/run-pass/member_call_interface_dispatch_basic.scoop` + `.stdout`
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo test -p scoopc --features llvm`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
 - 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。

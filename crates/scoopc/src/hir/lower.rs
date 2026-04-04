@@ -155,6 +155,10 @@ pub enum HirLowerError {
     #[diagnostic(transparent)]
     VtableLayout(#[from] crate::vtable::VtableLayoutError),
 
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    ItableLayout(#[from] crate::itable::ItableLayoutError),
+
     #[error("multi-file lowering 暂不支持在非入口文件中出现需要源文本切片的字面量：{path}")]
     #[diagnostic(code(scoop::hir::multi_file_non_entry_source_backed_literal))]
     MultiFileNonEntrySourceBackedLiteral { path: String },
@@ -198,6 +202,13 @@ pub struct LoweredHir {
     /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
     /// - LLVM 后端用它生成每个 class 的 vtable 常量，并在虚调用点选择 slot。
     pub class_vtables: crate::vtable::ClassVtableIndex,
+    /// interface 元数据（stable interface_id + method slots）与 class itable entries（T1507c3 / T1508c）。
+    ///
+    /// 说明：
+    /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
+    /// - LLVM 后端用它生成每个 class 的 itable 常量，并在 interface 调用点选择 slot。
+    pub interfaces: crate::itable::InterfaceIndex,
+    pub class_itables: crate::itable::ClassItableIndex,
     /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
     pub ctor_call_sites: CtorCallSiteIndex,
 }
@@ -1398,15 +1409,17 @@ impl<'a> HirLowering<'a> {
                         return None;
                     }
 
-                    // T1508a 目标约束：仅对 class/object member method 做降糖；
+                    // T1508a/T1508c：对 class/object/interface member method 做降糖；
                     // struct/value type 的 member call 语义留给其它任务（保持既有 HIR fixtures 稳定）。
                     let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.') else {
                         return None;
                     };
                     let owner_is_class =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
+                    let owner_is_interface =
+                        matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Interface));
                     let owner_is_object = self.index.object_types.contains(owner_fqn);
-                    if !owner_is_class && !owner_is_object {
+                    if !owner_is_class && !owner_is_interface && !owner_is_object {
                         return None;
                     }
 
@@ -4301,6 +4314,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let type_kinds = collect_type_decl_kinds(&pairs);
     let delegated_properties = collect_delegated_properties(&pairs);
     let class_vtables = crate::vtable::collect_class_vtables(&pairs, &index)?;
+    let (interfaces, class_itables) =
+        crate::itable::collect_interfaces_and_class_itables(&pairs, &index, &class_vtables)?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4353,6 +4368,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         object_inits,
         class_inits,
         class_vtables,
+        interfaces,
+        class_itables,
         ctor_call_sites,
     })
 }
@@ -4376,6 +4393,11 @@ pub fn lower_for_compilation_unit(
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
+    let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
+        compilation_unit,
+        index,
+        &class_vtables,
+    )?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4422,6 +4444,8 @@ pub fn lower_for_compilation_unit(
         object_inits,
         class_inits,
         class_vtables,
+        interfaces,
+        class_itables,
         ctor_call_sites,
     })
 }
@@ -4442,6 +4466,11 @@ pub fn lower_for_compilation_unit_multi_files(
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
+    let (interfaces, class_itables) = crate::itable::collect_interfaces_and_class_itables(
+        compilation_unit,
+        index,
+        &class_vtables,
+    )?;
 
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -4537,6 +4566,8 @@ pub fn lower_for_compilation_unit_multi_files(
         object_inits,
         class_inits,
         class_vtables,
+        interfaces,
+        class_itables,
         ctor_call_sites,
     })
 }

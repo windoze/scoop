@@ -10191,17 +10191,6 @@ fn infer_member_call_expr_type(
                 });
             };
 
-            // interface dispatch 当前不支持：若 receiver 是 interface 类型，直接报稳定错误码。
-            if matches!(
-                lower.nominal_decl_kind(&receiver_fqn),
-                Some(ast::TypeKind::Interface)
-            ) {
-                return Err(ExprTypeError::UnsupportedMemberAccess {
-                    fqn: fqn.clone(),
-                    span: member.span.into(),
-                });
-            }
-
             let sigs = collect_member_method_signatures_from_index(
                 source,
                 actual_receiver_ty,

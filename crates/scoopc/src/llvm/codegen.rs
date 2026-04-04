@@ -276,6 +276,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
+    interfaces: &'a crate::itable::InterfaceIndex,
+    class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     env: Env<'ctx>,
@@ -335,6 +337,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_inits: &'a hir::ObjectInitIndex,
         class_inits: &'a hir::ClassInitIndex,
         class_vtables: &'a crate::vtable::ClassVtableIndex,
+        interfaces: &'a crate::itable::InterfaceIndex,
+        class_itables: &'a crate::itable::ClassItableIndex,
         ctor_call_sites: &'a hir::CtorCallSiteIndex,
         extern_funs: &'a hir::ExternFunIndex,
         fun_index: &'a HashMap<String, &'a hir::FunDecl>,
@@ -354,6 +358,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             object_inits,
             class_inits,
             class_vtables,
+            interfaces,
+            class_itables,
             ctor_call_sites,
             fun_index,
             env: Env::default(),
@@ -3410,6 +3416,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.object_inits,
                 self.class_inits,
                 self.class_vtables,
+                self.interfaces,
+                self.class_itables,
                 self.ctor_call_sites,
                 self.extern_funs,
                 self.fun_index,
@@ -4133,6 +4141,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // - 对于 `open/abstract/override` 成员，该调用必须走 vtable slot 以实现动态分发；
             // - slot 布局来自 HIR side table `class_vtables`（由前端从 compilation unit AST 计算）。
             if let Some(v) = self.try_codegen_class_vtable_call(span, callee.span, fqn, args)? {
+                return Ok(v);
+            }
+
+            // T1508c：interface dispatch（itable）端到端。
+            //
+            // 说明：
+            // - HIR lowering 会把 `iface.method(args...)` 改写为顶层调用 `IFace.method(iface, args...)`；
+            // - codegen 阶段根据 interface slot 表选择 slot，并通过 `this.header.type_desc.itable` 查找目标；
+            // - itable entry 的布局由 lowering side table `interfaces/class_itables` 提供。
+            if let Some(v) = self.try_codegen_interface_itable_call(span, callee.span, fqn, args)? {
                 return Ok(v);
             }
 
@@ -10727,6 +10745,240 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    fn try_codegen_interface_itable_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some((owner_fqn, method_name)) = fqn.rsplit_once('.') else {
+            return Ok(None);
+        };
+
+        let Some(iface) = self.interfaces.get(owner_fqn) else {
+            return Ok(None);
+        };
+
+        if args.is_empty() {
+            return Ok(None);
+        }
+
+        let Some((receiver_arg, _call_args)) = args.split_first() else {
+            return Ok(None);
+        };
+        let hir::CallArg::Positional(_receiver_expr) = receiver_arg else {
+            return Ok(None);
+        };
+
+        // v0：slot key 仅用 name + arity（不含 receiver）；interface 内必须唯一。
+        let explicit_params_len = args.len().saturating_sub(1) as u32;
+        let mut candidates = iface
+            .method_slots
+            .iter()
+            .filter(|s| s.name == method_name && s.params_len == explicit_params_len);
+        let Some(first) = candidates.next() else {
+            return Ok(None);
+        };
+        if candidates.next().is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "itable call slot ambiguous",
+                at: callee_span.into(),
+            });
+        }
+        let slot = first.slot;
+
+        let sig_fun =
+            self.fun_index
+                .get(fqn)
+                .copied()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "itable call callee type",
+                    at: callee_span.into(),
+                })?;
+
+        if args.len() != sig_fun.params.len() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "itable call arity mismatch",
+                at: span.into(),
+            });
+        }
+
+        // 1) 组装 indirect call 的 LLVM 函数类型与参数列表。
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
+            Vec::with_capacity(sig_fun.params.len());
+        for p in &sig_fun.params {
+            llvm_param_tys.push(self.llvm_param_ty(callee_span, p.ty)?);
+        }
+
+        let ret_cg =
+            self.cg_ty_of(sig_fun.return_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "itable call return type",
+                    at: span.into(),
+                })?;
+
+        let llvm_fun_ty = match ret_cg {
+            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            other => self
+                .llvm_basic_type_of(callee_span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+
+        // 2) 求值实参，并记录 receiver（第 0 个参数）用于 itable lookup。
+        let mut receiver_ptr: Option<PointerValue<'ctx>> = None;
+        let mut llvm_args: Vec<inkwell::values::BasicMetadataValueEnum<'ctx>> =
+            Vec::with_capacity(args.len());
+        for (idx, arg) in args.iter().enumerate() {
+            let hir::CallArg::Positional(expr) = arg else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "named itable call arg",
+                    at: span.into(),
+                });
+            };
+
+            let param_ty = sig_fun.params[idx].ty;
+            let target_cg = self
+                .cg_ty_of(param_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "itable call arg type",
+                    at: expr.span.into(),
+                })?;
+
+            let v = match &expr.kind {
+                hir::ExprKind::Closure(closure) => {
+                    self.codegen_closure_expr(expr.span, closure, param_ty)?
+                }
+                _ => self.codegen_expr_in_expected_context(expr, Some(target_cg))?,
+            };
+            let coerced = self.coerce_value(expr.span, v, target_cg)?;
+
+            if idx == 0 {
+                let Some(raw) = coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call receiver value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call receiver type",
+                        at: expr.span.into(),
+                    });
+                };
+                receiver_ptr = Some(ptr);
+            }
+
+            llvm_args.push(self.as_llvm_arg_value(expr.span, target_cg, coerced)?);
+        }
+
+        let receiver_ptr = receiver_ptr.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "itable call receiver",
+            at: callee_span.into(),
+        })?;
+
+        // 3) 从 `this.header.type_desc.itable` 查找 interface entry 并取出 `methods[slot]`。
+        let fn_i8 =
+            self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, iface.interface_id, slot)?;
+
+        // 防御：不应发生（typecheck 已保证实现存在）；若发生，直接退出避免 indirect call on NULL。
+        let fn_is_null = self.builder.build_is_null(fn_i8, "itable_fn_is_null")?;
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let ok_bb = self.context.append_basic_block(func, "itable_fn_ok");
+        let bad_bb = self.context.append_basic_block(func, "itable_fn_null");
+        self.builder.build_conditional_branch(fn_is_null, bad_bb, ok_bb)?;
+        self.builder.position_at_end(bad_bb);
+        let exit = self.declare_libc_exit();
+        let code = self.context.i32_type().const_int(7, false);
+        let _ = self.builder.build_call(exit, &[code.into()], "itable_fn_null_exit")?;
+        self.builder.build_unreachable()?;
+        self.builder.position_at_end(ok_bb);
+
+        let typed_fn_ptr = self.builder.build_pointer_cast(
+            fn_i8,
+            llvm_fun_ty.ptr_type(AddressSpace::default()),
+            "itable_fn_typed",
+        )?;
+
+        let call_site = self.builder.build_indirect_call(
+            llvm_fun_ty,
+            typed_fn_ptr,
+            &llvm_args,
+            "call_itable",
+        )?;
+        call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+        self.emit_effect_unwind_if_active(span)?;
+
+        // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
+        match ret_cg {
+            CgTy::Unit => Ok(Some(CgValue::unit())),
+            CgTy::Bool => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(Some(CgValue::bool(value)))
+            }
+            CgTy::Int(int_ty) => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(Some(CgValue::int(value, int_ty)))
+            }
+            CgTy::String | CgTy::Ref => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue {
+                    ty: ret_cg,
+                    value: Some(ptr.into()),
+                }))
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "itable call return value",
+                        at: span.into(),
+                    },
+                )?;
+                Ok(Some(CgValue {
+                    ty: ret_cg,
+                    value: Some(raw),
+                }))
+            }
+        }
+    }
+
     fn load_class_vtable_slot_fn_ptr_i8(
         &mut self,
         _at: crate::span::Span,
@@ -10784,6 +11036,248 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_load(i8_ptr_ty, slot_ptr, "load_vtable_fn")?
             .into_pointer_value();
+
+        Ok(fn_i8)
+    }
+
+    fn llvm_scoop_itable_entry_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopItableEntry";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        ty.set_body(&[i64_ty.into(), i8_ptr_ty.into()], false);
+        ty
+    }
+
+    fn llvm_scoop_itable_type(&self) -> StructType<'ctx> {
+        // flexible array 模型：entries 使用 `[0 x Entry]`，仅用于 GEP/字段偏移计算。
+        const TY_NAME: &str = "scoop.runtime.ScoopItable";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i32_ty = self.context.i32_type();
+        let entry_ty = self.llvm_scoop_itable_entry_type();
+        let entries_ty = entry_ty.array_type(0);
+        ty.set_body(&[i32_ty.into(), i32_ty.into(), entries_ty.into()], false);
+        ty
+    }
+
+    fn load_interface_itable_slot_fn_ptr_i8(
+        &mut self,
+        at: crate::span::Span,
+        receiver: PointerValue<'ctx>,
+        interface_id: u64,
+        slot: u32,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        // receiver 指向对象头起始地址：先把它 cast 为 `ScoopGcObjectHeader*`。
+        let header_ty = self.llvm_gc_object_header_type();
+        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr =
+            self.builder
+                .build_pointer_cast(receiver, header_ptr_ty, "itable_hdr_ptr")?;
+
+        // header.type_desc : i8*
+        let type_desc_ptr =
+            self.builder
+                .build_struct_gep(header_ty, header_ptr, 1, "itable_type_desc_gep")?;
+        let type_desc_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, type_desc_ptr, "load_type_desc")?
+            .into_pointer_value();
+
+        // type_desc.itable : i8*
+        let desc_ty = self.llvm_scoop_type_descriptor_type();
+        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr = self
+            .builder
+            .build_pointer_cast(type_desc_i8, desc_ptr_ty, "type_desc")?;
+        let itable_field_ptr =
+            self.builder
+                .build_struct_gep(desc_ty, desc_ptr, 12, "type_desc_itable_gep")?;
+        let itable_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, itable_field_ptr, "load_itable")?
+            .into_pointer_value();
+
+        // itable == NULL：直接返回 NULL（caller 负责防御）。
+        let itable_is_null = self.builder.build_is_null(itable_i8, "itable_is_null")?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let null_bb = self.context.append_basic_block(func, "itable_null");
+        let lookup_bb = self.context.append_basic_block(func, "itable_lookup");
+        let done_bb = self.context.append_basic_block(func, "itable_done");
+        self.builder
+            .build_conditional_branch(itable_is_null, null_bb, lookup_bb)?;
+
+        // null -> done（返回 NULL）。
+        self.builder.position_at_end(null_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // lookup -> 扫描 entries 查找 interface_id。
+        self.builder.position_at_end(lookup_bb);
+        let itable_ty = self.llvm_scoop_itable_type();
+        let itable_ptr_ty = itable_ty.ptr_type(AddressSpace::default());
+        let itable_ptr =
+            self.builder
+                .build_pointer_cast(itable_i8, itable_ptr_ty, "itable_ptr")?;
+
+        let len_ptr = self
+            .builder
+            .build_struct_gep(itable_ty, itable_ptr, 0, "itable_len_gep")?;
+        let len_i32 = self
+            .builder
+            .build_load(i32_ty, len_ptr, "itable_len")?
+            .into_int_value();
+
+        let entry_ty = self.llvm_scoop_itable_entry_type();
+        let entries_field_ptr = self
+            .builder
+            .build_struct_gep(itable_ty, itable_ptr, 2, "itable_entries_gep")?;
+        let entry_ptr_ty = entry_ty.ptr_type(AddressSpace::default());
+        let entries_base =
+            self.builder
+                .build_pointer_cast(entries_field_ptr, entry_ptr_ty, "itable_entries")?;
+
+        let loop_bb = self.context.append_basic_block(func, "itable_loop");
+        let found_bb = self.context.append_basic_block(func, "itable_found");
+        let not_found_bb = self.context.append_basic_block(func, "itable_not_found");
+
+        self.builder.build_unconditional_branch(loop_bb)?;
+        self.builder.position_at_end(loop_bb);
+
+        let idx_phi = self.builder.build_phi(i32_ty, "itable_idx")?;
+        idx_phi.add_incoming(&[(&i32_ty.const_zero(), lookup_bb)]);
+        let idx_i32 = idx_phi.as_basic_value().into_int_value();
+
+        let cond = self.builder.build_int_compare(
+            IntPredicate::ULT,
+            idx_i32,
+            len_i32,
+            "itable_idx_lt_len",
+        )?;
+        self.builder
+            .build_conditional_branch(cond, found_bb, not_found_bb)?;
+
+        // found_bb：检查 entries[idx].interface_id 是否匹配；不匹配则 idx++ 回到 loop。
+        self.builder.position_at_end(found_bb);
+        let entry_ptr = unsafe {
+            self.builder.build_in_bounds_gep(
+                entry_ty,
+                entries_base,
+                &[idx_i32],
+                "itable_entry_ptr",
+            )?
+        };
+        let id_ptr = self
+            .builder
+            .build_struct_gep(entry_ty, entry_ptr, 0, "itable_entry_id_gep")?;
+        let id_i64 = self
+            .builder
+            .build_load(i64_ty, id_ptr, "itable_entry_id")?
+            .into_int_value();
+
+        let target_id = i64_ty.const_int(interface_id, false);
+        let id_ok = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            id_i64,
+            target_id,
+            "itable_id_eq",
+        )?;
+
+        let hit_bb = self.context.append_basic_block(func, "itable_hit");
+        let miss_bb = self.context.append_basic_block(func, "itable_miss");
+        self.builder.build_conditional_branch(id_ok, hit_bb, miss_bb)?;
+
+        // miss_bb：idx++ 继续。
+        self.builder.position_at_end(miss_bb);
+        let next = self
+            .builder
+            .build_int_add(idx_i32, i32_ty.const_int(1, false), "itable_idx_next")?;
+        idx_phi.add_incoming(&[(&next, miss_bb)]);
+        self.builder.build_unconditional_branch(loop_bb)?;
+
+        // hit_bb：取 methods 指针并跳到 done_bb。
+        self.builder.position_at_end(hit_bb);
+        let methods_ptr = self
+            .builder
+            .build_struct_gep(entry_ty, entry_ptr, 1, "itable_entry_methods_gep")?;
+        let methods_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, methods_ptr, "itable_entry_methods")?
+            .into_pointer_value();
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // not_found_bb：直接到 done_bb（返回 NULL）。
+        self.builder.position_at_end(not_found_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // done_bb：phi 合并 methods 指针（hit -> methods；其它 -> NULL），再取 methods[slot]。
+        self.builder.position_at_end(done_bb);
+        let methods_phi = self.builder.build_phi(i8_ptr_ty, "itable_methods")?;
+        methods_phi.add_incoming(&[
+            (&i8_ptr_ty.const_null(), null_bb),
+            (&i8_ptr_ty.const_null(), not_found_bb),
+            (&methods_i8, hit_bb),
+        ]);
+        let methods_i8 = methods_phi.as_basic_value().into_pointer_value();
+
+        // methods == NULL：直接返回 NULL（caller 负责防御），避免解引用 NULL。
+        let methods_is_null = self.builder.build_is_null(methods_i8, "itable_methods_is_null")?;
+        let slot_null_bb = self.context.append_basic_block(func, "itable_slot_null");
+        let slot_ok_bb = self.context.append_basic_block(func, "itable_slot_ok");
+        let slot_done_bb = self.context.append_basic_block(func, "itable_slot_done");
+        self.builder
+            .build_conditional_branch(methods_is_null, slot_null_bb, slot_ok_bb)?;
+
+        self.builder.position_at_end(slot_null_bb);
+        self.builder.build_unconditional_branch(slot_done_bb)?;
+
+        self.builder.position_at_end(slot_ok_bb);
+        let methods_ptr_ty = i8_ptr_ty.ptr_type(AddressSpace::default());
+        let methods_entries = self
+            .builder
+            .build_pointer_cast(methods_i8, methods_ptr_ty, "itable_methods_entries")?;
+        let slot_idx = i32_ty.const_int(slot as u64, false);
+        let slot_ptr = unsafe {
+            self.builder.build_in_bounds_gep(
+                i8_ptr_ty,
+                methods_entries,
+                &[slot_idx],
+                "itable_slot_ptr",
+            )?
+        };
+        let fn_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, slot_ptr, "load_itable_fn")?
+            .into_pointer_value();
+        self.builder.build_unconditional_branch(slot_done_bb)?;
+
+        self.builder.position_at_end(slot_done_bb);
+        let fn_phi = self.builder.build_phi(i8_ptr_ty, "itable_fn_i8")?;
+        fn_phi.add_incoming(&[(&i8_ptr_ty.const_null(), slot_null_bb), (&fn_i8, slot_ok_bb)]);
+        let fn_i8 = fn_phi.as_basic_value().into_pointer_value();
 
         Ok(fn_i8)
     }
@@ -11229,6 +11723,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.object_inits,
                 self.class_inits,
                 self.class_vtables,
+                self.interfaces,
+                self.class_itables,
                 self.ctor_call_sites,
                 self.extern_funs,
                 self.fun_index,
@@ -15206,6 +15702,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.object_inits,
             self.class_inits,
             self.class_vtables,
+            self.interfaces,
+            self.class_itables,
             self.ctor_call_sites,
             self.extern_funs,
             self.fun_index,
@@ -16731,6 +17229,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ty = self.llvm_class_object_type(at, &class)?;
         let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
 
+        let itable_ptr = self
+            .get_or_create_class_itable_global(at, class_fqn)?
+            .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
+
         let vtable_ptr = self
             .get_or_create_class_vtable_global(at, class_fqn)?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
@@ -16742,9 +17244,126 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             obj_ty,
             trace_start_offset_bytes,
             parent,
-            None,
+            itable_ptr,
             vtable_ptr,
         )
+    }
+
+    fn get_or_create_class_itable_global(
+        &mut self,
+        at: crate::span::Span,
+        class_fqn: &str,
+    ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
+        let Some(entries) = self.class_itables.get(class_fqn) else {
+            return Ok(None);
+        };
+        if entries.is_empty() {
+            return Ok(None);
+        }
+
+        let global_name = format!("__scoop_itable__{}", sanitize_llvm_ident(class_fqn));
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(Some(existing));
+        }
+
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        // itable entry：{ interface_id: u64, methods: i8* }
+        // methods 指向一个 `i8*[]`（函数指针数组），按 interface slot 顺序排列。
+        let entry_ty = self
+            .context
+            .struct_type(&[i64_ty.into(), i8_ptr_ty.into()], false);
+
+        let mut entry_inits: Vec<inkwell::values::StructValue<'ctx>> =
+            Vec::with_capacity(entries.len());
+
+        for entry in entries {
+            // 1) 生成 method table：`i8*[]`。
+            let methods_gv_name = format!(
+                "__scoop_itable_methods__{}__{:016x}",
+                sanitize_llvm_ident(class_fqn),
+                entry.interface_id
+            );
+
+            let methods_gv = if let Some(existing) = self.module.get_global(&methods_gv_name) {
+                existing
+            } else {
+                let arr_ty = i8_ptr_ty.array_type(entry.method_impl_fqns.len() as u32);
+                let gv = self.module.add_global(arr_ty, None, &methods_gv_name);
+
+                let mut inits: Vec<PointerValue<'ctx>> =
+                    Vec::with_capacity(entry.method_impl_fqns.len());
+                for impl_fqn in &entry.method_impl_fqns {
+                    if impl_fqn.is_empty() {
+                        inits.push(i8_ptr_ty.const_null());
+                        continue;
+                    }
+
+                    let sig_fun = self.fun_index.get(impl_fqn.as_str()).copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "class itable slot target",
+                            at: at.into(),
+                        },
+                    )?;
+
+                    let llvm_name = self
+                        .extern_funs
+                        .get(impl_fqn)
+                        .map(|e| e.symbol.as_str())
+                        .unwrap_or(impl_fqn.as_str());
+
+                    let llvm_fun = match self.module.get_function(llvm_name) {
+                        Some(f) => f,
+                        None => self.declare_top_level_fun(sig_fun)?,
+                    };
+
+                    let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
+                    inits.push(fn_ptr.const_cast(i8_ptr_ty));
+                }
+
+                gv.set_initializer(&i8_ptr_ty.const_array(&inits));
+                gv.set_constant(true);
+                gv.set_linkage(Linkage::Internal);
+                gv
+            };
+
+            let methods_ptr_i8 = methods_gv
+                .as_pointer_value()
+                .const_cast(i8_ptr_ty)
+                .into();
+
+            let init = entry_ty.const_named_struct(&[
+                i64_ty.const_int(entry.interface_id, false).into(),
+                methods_ptr_i8,
+            ]);
+            entry_inits.push(init);
+        }
+
+        let entries_arr_ty = entry_ty.array_type(entry_inits.len() as u32);
+        let entries_arr_init = entry_ty.const_array(&entry_inits);
+
+        // itable：{ len: i32, _reserved: i32, entries: [N x Entry] }
+        let itable_ty = self.context.struct_type(
+            &[
+                i32_ty.into(),
+                i32_ty.into(),
+                entries_arr_ty.into(),
+            ],
+            false,
+        );
+        let itable_init = itable_ty.const_named_struct(&[
+            i32_ty.const_int(entries.len() as u64, false).into(),
+            i32_ty.const_zero().into(),
+            entries_arr_init.into(),
+        ]);
+
+        let gv = self.module.add_global(itable_ty, None, &global_name);
+        gv.set_initializer(&itable_init);
+        gv.set_constant(true);
+        gv.set_linkage(Linkage::Internal);
+        Ok(Some(gv))
     }
 
     fn get_or_create_class_vtable_global(

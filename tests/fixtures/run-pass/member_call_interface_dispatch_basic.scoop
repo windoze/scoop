@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_interface_dispatch_basic.stdout
+//
+// T1508c：interface dispatch（itable）端到端：`IFace` 引用调用应命中 `Impl.foo`。
+
+import scoop.core.*
+
+interface IFace {
+    fun foo(): Int
+}
+
+class Impl() : IFace {
+    fun foo(): Int {
+        println("Impl.foo")
+        return 42
+    }
+}
+
+fun main(): Int {
+    val x: IFace = Impl()
+    val v: Int = x.foo()
+    println("after")
+    println(v)
+    return 0
+}
+

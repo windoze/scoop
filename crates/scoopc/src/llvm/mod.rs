@@ -335,6 +335,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.object_inits,
         &lowered.class_inits,
         &lowered.class_vtables,
+        &lowered.interfaces,
+        &lowered.class_itables,
         &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
@@ -345,6 +347,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &fun_index,
         &lowered.class_inits,
         &lowered.class_vtables,
+        &lowered.class_itables,
         &lowered.ctor_call_sites,
     );
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
@@ -377,6 +380,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
             &lowered.object_inits,
             &lowered.class_inits,
             &lowered.class_vtables,
+            &lowered.interfaces,
+            &lowered.class_itables,
             &lowered.ctor_call_sites,
             &lowered.extern_funs,
             &fun_index,
@@ -452,6 +457,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.object_inits,
         &lowered.class_inits,
         &lowered.class_vtables,
+        &lowered.interfaces,
+        &lowered.class_itables,
         &lowered.ctor_call_sites,
         &lowered.extern_funs,
         &fun_index,
@@ -648,12 +655,14 @@ fn collect_reachable_top_level_funs<'a>(
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
+    class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
 ) -> Vec<&'a hir::FunDecl> {
     let mut collector = ReachabilityCollector {
         fun_index,
         class_inits,
         class_vtables,
+        class_itables,
         ctor_call_sites,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
@@ -706,6 +715,7 @@ struct ReachabilityCollector<'a> {
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     class_inits: &'a hir::ClassInitIndex,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
+    class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
 
     seen_calls: HashSet<String>,
@@ -731,6 +741,20 @@ impl<'a> ReachabilityCollector<'a> {
         };
         for slot in slots {
             self.enqueue_fun(slot.impl_member_fqn.clone());
+        }
+    }
+
+    fn enqueue_itable_impls(&mut self, class_fqn: &str) {
+        let Some(entries) = self.class_itables.get(class_fqn) else {
+            return;
+        };
+        for entry in entries {
+            for fqn in &entry.method_impl_fqns {
+                if fqn.is_empty() {
+                    continue;
+                }
+                self.enqueue_fun(fqn.clone());
+            }
         }
     }
 
@@ -927,6 +951,9 @@ impl<'a> ReachabilityCollector<'a> {
         // - class ctor 可达 ⇒ 该 class 的对象可能被分配并参与动态分发；
         // - 因此这里把 vtable slots 指向的实现成员（impl_member_fqn）加入可达集合。
         self.enqueue_vtable_impls(class_fqn);
+
+        // T1508c：interface dispatch 同样依赖 itable entries 中的目标成员可达（含默认方法）。
+        self.enqueue_itable_impls(class_fqn);
 
         // class init steps（property initializer / init blocks）对所有构造路径都可达：只扫描一次。
         if self.scanned_class_init_steps.insert(class.fqn.clone()) {

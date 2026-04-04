@@ -52,6 +52,18 @@ pub enum InterfaceError {
         #[label("该 interface 成员定义在这里")]
         member_span: miette::SourceSpan,
     },
+
+    #[error("interface 成员实现存在歧义：{type_fqn} 对 {interface_fqn}.{member} 有多个候选实现")]
+    #[diagnostic(code(scoop::typecheck::ambiguous_interface_member_impl))]
+    AmbiguousInterfaceMemberImpl {
+        type_fqn: String,
+        interface_fqn: String,
+        member: String,
+        #[label("这里声明实现了该 interface，但对应成员实现不唯一")]
+        span: miette::SourceSpan,
+        #[label("该 interface 成员定义在这里")]
+        member_span: miette::SourceSpan,
+    },
 }
 
 pub fn check_file_interfaces(
@@ -329,13 +341,33 @@ fn check_one_interface_impl(
     index: &Index,
 ) -> Result<(), InterfaceError> {
     for required in required_abstract_interface_funs(index, interface_fqn) {
-        if has_matching_member_fun(index, type_fqn, required) {
-            continue;
+        match member_fun_match(index, type_fqn, required) {
+            MemberFunMatch::Unique => continue,
+            MemberFunMatch::Ambiguous => {
+                return Err(InterfaceError::AmbiguousInterfaceMemberImpl {
+                    type_fqn: type_fqn.to_string(),
+                    interface_fqn: interface_fqn.to_string(),
+                    member: required.symbol.name.clone(),
+                    span: interface_use_span.into(),
+                    member_span: required.symbol.span.into(),
+                });
+            }
+            MemberFunMatch::None => {}
         }
 
         if let Some(base_fqn) = superclass_fqn {
-            if has_matching_member_fun(index, base_fqn, required) {
-                continue;
+            match member_fun_match(index, base_fqn, required) {
+                MemberFunMatch::Unique => continue,
+                MemberFunMatch::Ambiguous => {
+                    return Err(InterfaceError::AmbiguousInterfaceMemberImpl {
+                        type_fqn: type_fqn.to_string(),
+                        interface_fqn: interface_fqn.to_string(),
+                        member: required.symbol.name.clone(),
+                        span: interface_use_span.into(),
+                        member_span: required.symbol.span.into(),
+                    });
+                }
+                MemberFunMatch::None => {}
             }
         }
 
@@ -379,17 +411,34 @@ fn required_abstract_interface_funs<'a>(
     out
 }
 
-fn has_matching_member_fun(index: &Index, type_fqn: &str, required: &FunOverload) -> bool {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MemberFunMatch {
+    None,
+    Unique,
+    Ambiguous,
+}
+
+fn member_fun_match(index: &Index, type_fqn: &str, required: &FunOverload) -> MemberFunMatch {
     let member_fqn = format!("{type_fqn}.{}", required.symbol.name);
     let Some(syms) = index.by_fqn.get(&member_fqn) else {
-        return false;
+        return MemberFunMatch::None;
     };
 
-    syms.fun.iter().any(|cand| {
+    let matching = syms
+        .fun
+        .iter()
+        .filter(|cand| {
         cand.sig.params.len() == required.sig.params.len()
             && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
             && cand.sig.type_params.len() == required.sig.type_params.len()
-    })
+        })
+        .count();
+
+    match matching {
+        0 => MemberFunMatch::None,
+        1 => MemberFunMatch::Unique,
+        _ => MemberFunMatch::Ambiguous,
+    }
 }
 
 fn nominal_kind(env: &TypeEnv, fqn: &str) -> Option<ast::TypeKind> {

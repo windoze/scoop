@@ -13,6 +13,7 @@ pub mod comptime;
 pub mod cone;
 pub mod hir;
 pub mod infer;
+pub mod itable;
 pub mod mir;
 pub mod monomorph;
 pub mod parser;
