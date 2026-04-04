@@ -6382,17 +6382,37 @@
    - `cargo run -p scoop_tools -- spec-fixtures check`
    - `cargo run -p scoop -- test`
 
-### T1508 [TODO] 类型检查与 lowering：普通成员函数调用（class/interface）+ 动态分发分类
-- 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 MIR 中显式表达。
+### T1508 member call + 动态分发（拆分为子任务）
+- 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 IR 中显式表达。
 - 目标：
-  - class：非 override 的 `final`/private 可 direct call；可 override 的走 vtable；
+  - class：`final`/private 可 direct call；可 override 的走 vtable；
   - interface：走 itable；
-  - 支持 `super.method()`（按 Kotlin-like 规则）与 `override` 的一致性校验（签名 + effect row containment）；
-  - `this` 与构造阶段调用规则必须保持 Appendix B.2.2 语义一致。
-- 验收：
-  - 新增 typecheck fixtures：member call 的 overload resolution、override 冲突、interface dispatch 的 pass/fail；
-  - 新增 run-pass fixtures：class override 调用输出正确；interface 引用调用输出正确。
+  - 支持 `super.method()`（按 Kotlin-like 规则）；
+  - `override` 的一致性校验（签名 + effect row containment）与 `this`/构造阶段调用规则保持与 Appendix B.2.2 一致。
 - 依赖：T0319、T0440、T1312、T1507c3
+- 备注：该任务覆盖 typecheck + lowering +（为 run-pass 验收所需的）最小 codegen 接入，跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1508a [TODO] 直连成员函数调用（final/private）：typecheck + HIR lowering（不含 vtable/itable）
+- 描述：支持 `receiver.method(args...)` 的最小可执行语义：当目标方法不需要动态分发时，将其降低为直接调用；并把 class/object 的 member fun 降为可 codegen 的 HIR 顶层函数（显式 `this` 参数）。
+- 目标：
+  - 仅覆盖 class/object 上“无需动态分发”的成员函数调用：`final`/private/（或 owner 为 final）→ direct；
+  - 暂不支持 `open/abstract` 的 virtual dispatch 与 interface dispatch（调用点给出稳定错误码，留给 T1508b/T1508c）。
+- 验收：
+  - 新增 typecheck fixtures：final/private 成员调用 pass；open 成员调用 fail（稳定错误码）；
+  - 新增 run-pass fixture：direct member call 输出正确。
+- 依赖：T1312
+
+### T1508b [TODO] virtual dispatch：vtable slot 选择 + override call（端到端）
+- 描述：对 class 的可 override 成员调用做分类与 lowering：生成 vtable slot 并在 codegen 侧通过 vtable 间接调用，保证 `Base` 引用调用能动态分发到 `Derived.override`。
+- 目标：只覆盖 vtable（class 继承链）路径；不引入 interface dispatch。
+- 验收：新增 run-pass fixtures：override 调用输出正确；新增 typecheck fixtures 覆盖 override 冲突（签名/默认参数/可见性边界按现有规则）。
+- 依赖：T1507c2、T1508a
+
+### T1508c [TODO] interface dispatch：itable slot 选择 + interface 引用调用（端到端）
+- 描述：对 interface method call 做分类与 lowering：生成 itable slot 并在 codegen 侧通过 itable 间接调用，保证 `val x: IFace = Impl()` 的调用能命中实现。
+- 目标：只覆盖 itable（interface id + method slot）路径；不引入 `super.method()`。
+- 验收：新增 run-pass fixtures：interface 引用调用输出正确；新增 typecheck fixtures：缺失实现/冲突实现 fail（稳定错误码）。
+- 依赖：T1507c3、T1508b
 
 ### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
 - 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。
