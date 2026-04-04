@@ -6531,11 +6531,21 @@
  - 验收：
    - `cargo test --all`
 
-### T1510b [TODO] sysroot/编译器：`GC.handleNew/handleGet/handleDrop` intrinsics（typecheck + codegen）
+### T1510b [DONE] sysroot/编译器：`GC.handleNew/handleGet/handleDrop` intrinsics（typecheck + codegen）
 - 描述：把 stable handle 暴露为 sysroot `GC` API，并在 typecheck/codegen 中对其做 intrinsic lowering，映射到 runtime `scoop_handle_*`。
 - 目标：只实现 handle 的“创建/取回/释放”语义；不与 `@Extern` 集成（留给 T1510c）。
 - 验收：新增 run-pass fixture：`handle_new -> gc_collect -> handle_get` 仍可输出对象内容；`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1510a、T1006、T1509
+ - 完成：
+   - `sysroot/core.scoop`：新增 `GcHandle` 与 `GC.handleNew/handleGet/handleDrop`（形参名避开关键字 `handle`）。
+   - `crates/scoopc/src/typecheck/expr.rs`：为三组 handle intrinsics 增加最小 typecheck special-case，并补齐 `GcHandle.raw` 跨文件字段特判。
+   - `crates/scoopc/src/hir/lower.rs`：阻止上述 member call 被降糖为普通顶层调用（保留 `MemberAccess` 供后端处理）。
+   - `crates/scoopc/src/llvm/codegen.rs`：intrinsic lowering 映射到 runtime `scoop_handle_new/get/drop`，并补齐 `UIntPtr` 作为 struct 字段类型的 codegen 映射。
+   - `tests/fixtures/codegen/gc_handle_roundtrip.*`：新增 run-pass fixture 回归（handleNew → GC → handleGet）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1510c [TODO] 编译器：`@Extern` 自动插入 `enter_native/leave_native` + native_roots 保存
 - 描述：在每个 `@Extern` 调用点，编译器自动生成 `enter_native(root_slots, len)` / `leave_native()` 配对，并把“该调用点需要跨 native 存活”的 roots slots 暴露给 runtime（供 STW/moving GC 扫描与更新）。

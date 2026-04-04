@@ -150,12 +150,29 @@ fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
 // - `Pinned<T>` 是值类型 handle：丢弃 handle 不会自动 unpin（资源泄漏）；每次 pin 必须配对一次 unpin。
 @Intrinsic
 object GC {
+    // Stable GC handles（spec §15.10.1）。
+    //
+    // 说明：
+    // - 用于把 heap 对象引用以“稳定 token”形式交给 native 长期持有（token 稳定，对象地址可变化）；
+    // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
+    @Unsafe
+    fun handleNew(obj: Any): GcHandle
+
+    @NoGC @Unsafe
+    fun handleGet(h: GcHandle): Any
+
+    @NoGC @Unsafe
+    fun handleDrop(h: GcHandle): Unit
+
     @NoGC @Unsafe
     fun pin(obj: Any): Pinned
 
     @NoGC @Unsafe
     fun unpin(pinned: Pinned): Unit
 }
+
+// Opaque token. Representation is toolchain-defined but must be stably passable to native code.
+struct GcHandle(val raw: UIntPtr)
 
 // Value type handle. Exact fields are implementation-defined (spec §15.10).
 struct Pinned(val value: Any)

@@ -64,4 +64,3 @@ fn stable_handle_keeps_object_alive_and_can_be_dropped() {
         scoop_thread_unregister();
     }
 }
-

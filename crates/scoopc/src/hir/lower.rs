@@ -1405,7 +1405,12 @@ impl<'a> HirLowering<'a> {
                         return None;
                     };
 
-                    if fqn == "scoop.core.GC.pin" || fqn == "scoop.core.GC.unpin" {
+                    if fqn == "scoop.core.GC.pin"
+                        || fqn == "scoop.core.GC.unpin"
+                        || fqn == "scoop.core.GC.handleNew"
+                        || fqn == "scoop.core.GC.handleGet"
+                        || fqn == "scoop.core.GC.handleDrop"
+                    {
                         return None;
                     }
 

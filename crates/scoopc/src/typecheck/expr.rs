@@ -492,6 +492,30 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("GC.handleNew 当前阶段仅支持引用类型（heap/box 对象）：{found}")]
+    #[diagnostic(code(scoop::typecheck::gc_handle_new_requires_ref))]
+    GcHandleNewRequiresRefType {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("GC.handleGet 当前阶段仅支持 `GcHandle`：{found}")]
+    #[diagnostic(code(scoop::typecheck::gc_handle_get_requires_handle))]
+    GcHandleGetRequiresGcHandle {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("GC.handleDrop 当前阶段仅支持 `GcHandle`：{found}")]
+    #[diagnostic(code(scoop::typecheck::gc_handle_drop_requires_handle))]
+    GcHandleDropRequiresGcHandle {
+        found: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("调用参数数量不匹配：{callee} 期望 {expected} 个，但提供了 {found} 个")]
     #[diagnostic(code(scoop::typecheck::call_arity_mismatch))]
     CallArityMismatch {
@@ -10029,6 +10053,231 @@ fn infer_member_call_expr_type(
     //   做最小落点：让前端可以通过 typecheck，并由后端 intrinsic lowering 映射到 runtime；
     // - 语义约束（TODO T1008）：仅允许 pin 引用类型/box 对象；值类型（含 type param）暂不支持。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+        // spec §15.10.1：stable GC handles（early stage）。
+        //
+        // 说明：
+        // - 与 `GC.pin/unpin` 类似：当前阶段成员函数调用对 sysroot `GC.*` 做 minimal special-case；
+        // - `handleNew` 不是 `@NoGC`：在 `@NoGC` 上下文中必须保守拒绝（可能分配）。
+        if fqn == "scoop.core.GC.handleNew" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+            if lower.in_nogc_context() {
+                return Err(ExprTypeError::NoGcCallForbidden {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            if call_args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let param_names = vec!["obj".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
+            let param_has_defaults = vec![false];
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+
+            let obj_ty = call_args[arg_idx].ty;
+            if !matches!(lower.type_kind(obj_ty), TypeKind::Ref(_)) {
+                return Err(ExprTypeError::GcHandleNewRequiresRefType {
+                    found: lower.fmt_type(obj_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            let handle_ty = lower.lower_type_fqn_with_args(
+                "scoop.core.GcHandle".to_string(),
+                Vec::new(),
+                call_expr.span,
+            )?;
+            return Ok(handle_ty);
+        }
+
+        if fqn == "scoop.core.GC.handleGet" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            if call_args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let param_names = vec!["h".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
+            let param_has_defaults = vec![false];
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+
+            let handle_ty = call_args[arg_idx].ty;
+            let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(handle_ty)
+            else {
+                return Err(ExprTypeError::GcHandleGetRequiresGcHandle {
+                    found: lower.fmt_type(handle_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            };
+            if nominal.fqn != "scoop.core.GcHandle" || !nominal.args.is_empty() {
+                return Err(ExprTypeError::GcHandleGetRequiresGcHandle {
+                    found: lower.fmt_type(handle_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            return Ok(builtins.any);
+        }
+
+        if fqn == "scoop.core.GC.handleDrop" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let call_args = collect_call_arg_infos(
+                source,
+                args,
+                lower,
+                builtins,
+                locals,
+                top_level_types,
+                top_level_funs,
+                struct_field_types,
+            )?;
+            check_call_arg_named_rules(fqn.as_str(), &call_args)?;
+            if call_args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+
+            let param_names = vec!["h".to_string()];
+            check_call_named_args_exist_in_any_candidate(
+                fqn.as_str(),
+                &call_args,
+                std::iter::once(param_names.as_slice()),
+            )?;
+            let param_has_defaults = vec![false];
+            let Some(mapping) = map_call_args_to_params_with_defaults(
+                &call_args,
+                &param_names,
+                &param_has_defaults,
+            ) else {
+                return Err(ExprTypeError::NoMatchingOverload {
+                    callee: fqn.clone(),
+                    span: call_expr.span.into(),
+                });
+            };
+            let Some(arg_idx) = mapping.first().copied().flatten() else {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: fqn.clone(),
+                    expected: 1,
+                    found: call_args.len(),
+                    span: call_expr.span.into(),
+                });
+            };
+
+            let handle_ty = call_args[arg_idx].ty;
+            let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(handle_ty)
+            else {
+                return Err(ExprTypeError::GcHandleDropRequiresGcHandle {
+                    found: lower.fmt_type(handle_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            };
+            if nominal.fqn != "scoop.core.GcHandle" || !nominal.args.is_empty() {
+                return Err(ExprTypeError::GcHandleDropRequiresGcHandle {
+                    found: lower.fmt_type(handle_ty),
+                    span: call_args[arg_idx].expr.span.into(),
+                });
+            }
+
+            return Ok(builtins.unit);
+        }
+
         if fqn == "scoop.core.GC.pin" {
             if !lower.in_unsafe_context() {
                 return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
@@ -10181,7 +10430,12 @@ fn infer_member_call_expr_type(
     // - T1508b 起支持 class virtual dispatch（vtable）；interface dispatch 仍留给 TODO T1508c。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
         // 注意：`GC.pin/unpin` 依赖后端对 `MemberAccess` callee 的 special-case；这里不要把它们当作普通 member call。
-        if fqn != "scoop.core.GC.pin" && fqn != "scoop.core.GC.unpin" {
+        if fqn != "scoop.core.GC.pin"
+            && fqn != "scoop.core.GC.unpin"
+            && fqn != "scoop.core.GC.handleNew"
+            && fqn != "scoop.core.GC.handleGet"
+            && fqn != "scoop.core.GC.handleDrop"
+        {
             let Some((receiver_fqn, receiver_args)) =
                 try_extract_nominal_fqn_and_args(actual_receiver_ty, lower)
             else {
@@ -15198,6 +15452,32 @@ fn infer_member_access_expr_type(
                 {
                     if nominal.fqn == "scoop.core.Pinned" {
                         return Ok(builtins.any);
+                    }
+                }
+            }
+
+            // spec §15.10.1：`GcHandle.raw`（early stage）。
+            //
+            // 说明：
+            // - 当前阶段 `struct_field_types` 只收集“当前文件内”的 struct 字段类型；
+            // - sysroot 的 `GcHandle` 属于跨文件类型，因此这里对 `raw` 做最小特判，
+            //   以便 `handle.raw` 在用户代码里可通过 typecheck（并支撑后续 FFI 桥接）。
+            if fqn == "scoop.core.GcHandle.raw" {
+                let Some(receiver_ty) = receiver_ty else {
+                    return Err(ExprTypeError::UnsupportedMemberAccess {
+                        fqn: fqn.clone(),
+                        span: member.span.into(),
+                    });
+                };
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+                    lower.type_kind(receiver_ty)
+                {
+                    if nominal.fqn == "scoop.core.GcHandle" {
+                        return Ok(lower.lower_type_fqn_with_args(
+                            "scoop.core.UIntPtr".to_string(),
+                            Vec::new(),
+                            member.span,
+                        )?);
                     }
                 }
             }

@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_handle_roundtrip.stdout.txt
+// 目标：T1510b：stable GC handle sysroot intrinsics（GC.handleNew/handleGet/handleDrop）。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+fun main() {
+    var x: Any = f"hello {7}"
+    val h: GcHandle = @Unsafe { GC.handleNew(x) }
+
+    // 覆盖 roots slot：让原对象仅通过 handle 表保活，然后强制触发一次 GC。
+    x = f"bye {0}"
+    __scoop_gc_collect()
+
+    val gotAny: Any = @Unsafe { GC.handleGet(h) }
+    val gotOpt: String? = gotAny as? String
+    val got: String = when (gotOpt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+    println(got)
+
+    @Unsafe { GC.handleDrop(h) }
+}
