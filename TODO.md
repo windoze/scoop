@@ -6547,7 +6547,7 @@
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1510c [TODO] 编译器：`@Extern` 自动插入 `enter_native/leave_native` + native_roots 保存
+### T1510c [DONE] 编译器：`@Extern` 自动插入 `enter_native/leave_native` + native_roots 保存
 - 描述：在每个 `@Extern` 调用点，编译器自动生成 `enter_native(root_slots, len)` / `leave_native()` 配对，并把“该调用点需要跨 native 存活”的 roots slots 暴露给 runtime（供 STW/moving GC 扫描与更新）。
 - 目标：
   - pairing 必须覆盖异常/early return（不允许漏掉 leave）；
@@ -6556,6 +6556,16 @@
   - 新增 run-pass fixture：调用一个模拟 extern（runtime/c 提供测试符号）在 native 内部触发 GC，仍能正确访问对象；
   - `cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1505c、T1510b、T1006
+ - 完成：
+   - `crates/scoopc/src/llvm/codegen.rs`：对顶层 `@Extern` 调用点自动插入 `scoop_enter_native(root_slots, len)` / `scoop_leave_native()`；roots slots 采用“当前 scope 内所有 `Ref/String` locals 的 alloca 槽位地址”保守策略（moving GC 可写回更新）。
+   - `runtime/c/scoop_test.c`：新增 test-only 导出 `scoop_test_gc_collect_in_native`（在 native 内部触发一次 `scoop_gc_collect()`）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_collect_in_native`。
+   - `tests/fixtures/codegen/extern_enter_native_roots_gc.*`：新增 run-pass fixture 回归“extern 内触发 GC 时 native_roots 仍能保活 call-site 上的对象引用”。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1511 [TODO] 移动 GC：stackmap spill slots 与 heap 引用字段的统一更新（为 Immix compaction 做前置）
 - 描述：实现移动 GC 的“指针修复闭环”：对象搬迁后，必须更新所有 roots（stackmap spill slots + native_roots）与 heap 内引用字段，使程序在恢复执行后无悬挂指针。

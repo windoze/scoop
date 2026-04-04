@@ -9,6 +9,9 @@
 #include "platform/unwind.h"
 #include "scoop_stackmap.h"
 
+// 运行时 GC helper（由具体 backend 提供实现）。
+void scoop_gc_collect(void);
+
 // 一个最小可调用的 C 函数：`Int + Int -> Int`（按 host word-size）。
 //
 // 约定：
@@ -76,3 +79,12 @@ __attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
   return -5;
 #endif
 }
+
+// `@Extern` + enter_native/leave_native 回归：在 native 内部触发一次 GC。
+//
+// 说明：
+// - 该符号由 fixtures 通过 `@Extern("scoop_test_gc_collect_in_native")` 调用；
+// - 调用点应当由编译器自动插入 `scoop_enter_native(root_slots, len)` / `scoop_leave_native()`；
+// - 这样当 `scoop_gc_collect()` 运行时，即使当前线程处于 InNative，GC 仍可通过 native_roots
+//   扫描/保活 call-site 上的对象引用（避免误回收）。
+void scoop_test_gc_collect_in_native(void) { scoop_gc_collect(); }

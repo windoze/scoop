@@ -10951,6 +10951,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T1510c：`@Extern` 调用点需要显式标记“进入 native”并向 runtime 暴露 roots slots，
+        // 以便 stop-the-world GC 在 InNative 线程上扫描/更新 roots（moving GC 也需写回 slot）。
+        let is_extern = self.extern_funs.contains_key(fqn);
+
         let sig_fun =
             self.fun_index
                 .get(fqn)
@@ -11002,8 +11006,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(f) => f,
             None => self.declare_top_level_fun(sig_fun)?,
         };
+
+        if is_extern {
+            self.emit_enter_native_for_extern_call(span)?;
+        }
+
         let call_site = self.builder.build_call(llvm_fun, &llvm_args, "call")?;
         call_site.set_call_convention(self.llvm_call_convention_for_fqn(fqn));
+
+        // 若 extern/native 调用在内部触发 Raise/perform 并设置 effect flag，则必须确保 leave_native
+        // 在进入 flag-based unwinding 之前执行（否则线程状态机会泄漏在 InNative）。
+        if is_extern {
+            let leave = self.declare_runtime_leave_native();
+            let _ = self.builder.build_call(leave, &[], "leave_native")?;
+        }
+
         // T0614：flag-based unwinding（最小 Raise）：
         // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
         // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
@@ -11071,6 +11088,72 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
         }
+    }
+
+    /// 为 `@Extern` 调用点生成 `scoop_enter_native(root_slots, len)`。
+    ///
+    /// 设计取舍（v0）：
+    /// - 这里采用保守策略：把当前 scope 中所有 `Ref/String` locals 的栈槽地址作为 roots slots；
+    /// - 这样可以保证 GC 在 native 期间能扫描/更新这些 slots（moving GC 也可写回更新后的指针）；
+    /// - 代价是可能多保活一些对象（但不会漏 roots）。
+    fn emit_enter_native_for_extern_call(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<(), LlvmEmitError> {
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let slot_ptr_ty = gc_i8_ptr_ty.ptr_type(AddressSpace::default()); // `void**`
+        let slots_ptr_ty = slot_ptr_ty.ptr_type(AddressSpace::default()); // `void***`
+        let i32_ty = self.context.i32_type();
+
+        // 收集当前作用域内的 roots slots：使用局部变量自身的 alloca 槽位（而不是 shadow stack slot），
+        // 以便 moving GC 更新时能被后续 `load local.ptr` 读取到最新指针值。
+        let mut slots: Vec<(u32, PointerValue<'ctx>)> = Vec::new();
+        for frame in &self.env.scopes {
+            for (id, local) in frame {
+                if matches!(local.ty, CgTy::Ref | CgTy::String) {
+                    slots.push((id.as_u32(), local.ptr));
+                }
+            }
+        }
+        slots.sort_by_key(|(id, _)| *id);
+
+        let (slots_base, slots_len) = if slots.is_empty() {
+            (slots_ptr_ty.const_null(), i32_ty.const_zero())
+        } else {
+            let arr_ty = slot_ptr_ty.array_type(slots.len() as u32);
+            let arr_ptr = self.create_entry_alloca_raw(at, "native_root_slots", arr_ty.into())?;
+            let base =
+                self.builder
+                    .build_pointer_cast(arr_ptr, slots_ptr_ty, "native_root_slots_base")?;
+
+            for (idx, (_id, local_ptr)) in slots.iter().enumerate() {
+                let slot_ptr = self.builder.build_pointer_cast(
+                    *local_ptr,
+                    slot_ptr_ty,
+                    "native_root_slot_cast",
+                )?;
+                let idx_v = i32_ty.const_int(idx as u64, false);
+                let elem_ptr = unsafe {
+                    self.builder.build_in_bounds_gep(
+                        slot_ptr_ty,
+                        base,
+                        &[idx_v],
+                        &format!("native_root_slot_gep_{idx}"),
+                    )?
+                };
+                let _ = self.builder.build_store(elem_ptr, slot_ptr)?;
+            }
+
+            (base, i32_ty.const_int(slots.len() as u64, false))
+        };
+
+        let enter = self.declare_runtime_enter_native();
+        let _ = self.builder.build_call(
+            enter,
+            &[slots_base.into(), slots_len.into()],
+            "enter_native",
+        )?;
+        Ok(())
     }
 
     fn try_codegen_class_vtable_call(
@@ -19746,6 +19829,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // `void scoop_gc_collect(void)`
+        let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_enter_native(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_enter_native";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_enter_native(void*** root_slots, uint32_t root_slots_len)`
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let slot_ptr_ty = gc_i8_ptr_ty.ptr_type(AddressSpace::default());
+        let slots_ptr_ty = slot_ptr_ty.ptr_type(AddressSpace::default());
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [slots_ptr_ty.into(), i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_leave_native(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_leave_native";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_leave_native(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }

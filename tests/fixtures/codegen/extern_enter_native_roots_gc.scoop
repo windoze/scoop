@@ -1,0 +1,33 @@
+// EXPECT: pass
+// RUN-STDOUT: extern_enter_native_roots_gc.stdout.txt
+// 目标：T1510c：`@Extern` 调用点自动插入 `enter_native/leave_native`，并暴露 native_roots 供 GC 扫描。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+@Unsafe
+@Extern("scoop_test_gc_collect_in_native")
+fun gcCollectInNative(): Unit
+
+fun main() {
+    // 关键点：对象只通过当前线程的局部变量保活。
+    //
+    // 若 `@Extern` 调用点未正确生成 `enter_native(root_slots, len)`，则当 extern 内部触发 GC 时，
+    // 当前线程处于 InNative，GC 会只扫描 native_roots；漏 roots 会导致对象被误回收。
+    val x: Any = f"hello {7}"
+
+    @Unsafe { gcCollectInNative() }
+
+    // 返回后验证对象仍在 heap 内：成功创建 handle 并 roundtrip 回到 String。
+    val h: GcHandle = @Unsafe { GC.handleNew(x) }
+    val gotAny: Any = @Unsafe { GC.handleGet(h) }
+    val gotOpt: String? = gotAny as? String
+    val got: String = when (gotOpt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+    println(got)
+    @Unsafe { GC.handleDrop(h) }
+}
+
