@@ -14,7 +14,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
 
-use super::expr::{lower_type_ref_with_enum_subst, ExprTypeError};
+use super::expr::{ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
 
 /// 对一个 `val` 解构 pattern 进行最小类型检查，并返回该 pattern 引入的局部绑定类型表。
@@ -136,15 +136,7 @@ fn check_tuple_pat(
         }
 
         for (p, ty) in prefix_pats.iter().zip(expected_elements.iter().copied()) {
-            check_val_pat(
-                source,
-                p,
-                ty,
-                lower,
-                builtins,
-                struct_field_types,
-                bindings,
-            )?;
+            check_val_pat(source, p, ty, lower, builtins, struct_field_types, bindings)?;
         }
         return Ok(());
     }
@@ -158,15 +150,7 @@ fn check_tuple_pat(
     }
 
     for (p, ty) in elements.iter().zip(expected_elements.iter().copied()) {
-        check_val_pat(
-            source,
-            p,
-            ty,
-            lower,
-            builtins,
-            struct_field_types,
-            bindings,
-        )?;
+        check_val_pat(source, p, ty, lower, builtins, struct_field_types, bindings)?;
     }
 
     Ok(())

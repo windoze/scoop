@@ -170,7 +170,9 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`（或 handle）桥接")]
+    #[error(
+        "`@Extern` 函数的 ABI 签名必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}；请使用 `GC.pin/unpin` + `scoop.unsafe.Ptr<T>`（或 handle）桥接"
+    )]
     #[diagnostic(code(scoop::typecheck::extern_fun_signature_must_be_gc_free))]
     ExternFunSignatureMustBeGcFree {
         found: String,
@@ -1791,13 +1793,14 @@ fn check_top_level_var_storage_and_gc_free(
     const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
     const GLOBAL_FQN: &str = "scoop.core.Global";
 
-    let is_thread_local = v.annotations.iter().any(|ann| {
-        annotation_use_resolves_to_fqn(source, file, index, ann, THREAD_LOCAL_FQN)
-    });
-    let is_global =
-        v.annotations
-            .iter()
-            .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, GLOBAL_FQN));
+    let is_thread_local = v
+        .annotations
+        .iter()
+        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, THREAD_LOCAL_FQN));
+    let is_global = v
+        .annotations
+        .iter()
+        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, GLOBAL_FQN));
 
     if !is_thread_local && !is_global {
         let (var_name, span) = match &v.binding {

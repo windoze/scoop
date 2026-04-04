@@ -70,7 +70,10 @@ pub enum ItableLayoutError {
 
     #[error("interface method slot 形状不唯一：{interface_fqn}.{member}")]
     #[diagnostic(code(scoop::itable::ambiguous_interface_method_slot))]
-    AmbiguousInterfaceMethodSlot { interface_fqn: String, member: String },
+    AmbiguousInterfaceMethodSlot {
+        interface_fqn: String,
+        member: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -277,11 +280,7 @@ fn compute_class_interface_closure(
         if let Some(super_fqn) = info.super_class_fqn.as_deref() {
             if classes.contains_key(super_fqn) {
                 let super_ifaces = compute_class_interface_closure(
-                    super_fqn,
-                    classes,
-                    interfaces,
-                    visiting,
-                    memo,
+                    super_fqn, classes, interfaces, visiting, memo,
                 )?;
                 out.extend(super_ifaces);
             }

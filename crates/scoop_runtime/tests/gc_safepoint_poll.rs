@@ -81,4 +81,3 @@ fn gc_safepoint_poll_can_park_and_resume_other_threads() {
         scoop_thread_unregister();
     }
 }
-

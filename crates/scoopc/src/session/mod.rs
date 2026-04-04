@@ -9,7 +9,7 @@
 use miette::{Context as _, Result};
 use thiserror::Error;
 
-use crate::parser::{parse_file, ParseError};
+use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
@@ -34,8 +34,8 @@ pub struct Session {
 impl Session {
     /// 使用默认 sysroot 创建会话。
     pub fn new() -> Result<Self> {
-        let sysroot = Sysroot::load_from(Sysroot::default_path())
-            .wrap_err("加载默认 sysroot 失败")?;
+        let sysroot =
+            Sysroot::load_from(Sysroot::default_path()).wrap_err("加载默认 sysroot 失败")?;
         Ok(Self { sysroot })
     }
 
@@ -90,4 +90,3 @@ mod tests {
         assert!(index.by_fqn.contains_key("a.main"));
     }
 }
-

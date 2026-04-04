@@ -2113,8 +2113,7 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 return None;
             };
-            is_symbol_visible_from(self.use_cone, self.source, sym)
-                .then_some(fqn.to_string())
+            is_symbol_visible_from(self.use_cone, self.source, sym).then_some(fqn.to_string())
         };
 
         // 1) 同包（含 root package）
@@ -2174,8 +2173,7 @@ impl<'a> BlockScopeChecker<'a> {
             let Some(sym) = syms.get(SymbolKind::Type) else {
                 return None;
             };
-            is_symbol_visible_from(self.use_cone, self.source, sym)
-                .then_some(fqn.to_string())
+            is_symbol_visible_from(self.use_cone, self.source, sym).then_some(fqn.to_string())
         };
 
         // 1) 同包优先：pkg + local

@@ -15,8 +15,8 @@
 
 use std::ffi::c_void;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use scoop_runtime::gc_backend::GC_BACKEND;
@@ -460,7 +460,10 @@ fn run_fragmentation(args: &Args) -> BenchResult {
     for i in 0..initial {
         let p = unsafe { scoop_alloc(args.object_size) };
         if p.is_null() {
-            eprintln!("OOM：scoop_alloc(size={}) 返回 NULL（i={i}）", args.object_size);
+            eprintln!(
+                "OOM：scoop_alloc(size={}) 返回 NULL（i={i}）",
+                args.object_size
+            );
             break;
         }
 
@@ -499,14 +502,24 @@ fn run_fragmentation(args: &Args) -> BenchResult {
         start_gc,
         end_gc,
         rounds: Vec::new(),
-        params: BenchParams::Fragmentation { initial, pin_stride },
+        params: BenchParams::Fragmentation {
+            initial,
+            pin_stride,
+        },
     }
 }
 
 #[derive(Debug, Clone)]
 enum BenchParams {
-    Throughput { threads: u32, rounds: u32, batch: u32 },
-    Fragmentation { initial: u32, pin_stride: u32 },
+    Throughput {
+        threads: u32,
+        rounds: u32,
+        batch: u32,
+    },
+    Fragmentation {
+        initial: u32,
+        pin_stride: u32,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -583,7 +596,10 @@ impl BenchResult {
                     threads, rounds, batch
                 ));
             }
-            BenchParams::Fragmentation { initial, pin_stride } => {
+            BenchParams::Fragmentation {
+                initial,
+                pin_stride,
+            } => {
                 out.push_str(&format!(
                     "params: initial={} pin_stride={} (pin ~ 1/{})\n",
                     initial, pin_stride, pin_stride
@@ -621,9 +637,12 @@ impl BenchResult {
             }
         }
 
-        if let (Some(allocs), Some(bytes), Some(aps), Some(bps)) =
-            (self.allocations, self.bytes, self.allocs_per_sec, self.bytes_per_sec)
-        {
+        if let (Some(allocs), Some(bytes), Some(aps), Some(bps)) = (
+            self.allocations,
+            self.bytes,
+            self.allocs_per_sec,
+            self.bytes_per_sec,
+        ) {
             out.push_str(&format!(
                 "throughput: allocs={} bytes={} elapsed_ms={} allocs/s={:.2} bytes/s={:.2}\n",
                 allocs, bytes, self.elapsed_ms, aps, bps
@@ -641,7 +660,10 @@ impl BenchResult {
 
         if l1 > 0 {
             let ratio = (r1 as f64) / (l1 as f64);
-            out.push_str(&format!("fragmentation_estimate: reserved/live={:.2}\n", ratio));
+            out.push_str(&format!(
+                "fragmentation_estimate: reserved/live={:.2}\n",
+                ratio
+            ));
         }
 
         out
@@ -657,8 +679,14 @@ impl BenchResult {
                 threads,
                 rounds,
                 batch,
-            } => format!("{{\"threads\":{},\"rounds\":{},\"batch\":{}}}", threads, rounds, batch),
-            BenchParams::Fragmentation { initial, pin_stride } => {
+            } => format!(
+                "{{\"threads\":{},\"rounds\":{},\"batch\":{}}}",
+                threads, rounds, batch
+            ),
+            BenchParams::Fragmentation {
+                initial,
+                pin_stride,
+            } => {
                 format!("{{\"initial\":{},\"pin_stride\":{}}}", initial, pin_stride)
             }
         };
@@ -828,8 +856,12 @@ mod tests {
 
         let out = result.to_human_text();
         assert!(out.contains("rounds: count=2\n"));
-        assert!(out.contains("round: i=0 allocs=100 bytes=25600 alloc_ms=1000 stw_ms=2 total_ms=1002 "));
-        assert!(out.contains("round: i=1 allocs=200 bytes=51200 alloc_ms=1000 stw_ms=4 total_ms=1004 "));
+        assert!(
+            out.contains("round: i=0 allocs=100 bytes=25600 alloc_ms=1000 stw_ms=2 total_ms=1002 ")
+        );
+        assert!(
+            out.contains("round: i=1 allocs=200 bytes=51200 alloc_ms=1000 stw_ms=4 total_ms=1004 ")
+        );
         assert!(out.contains("stw_summary: total_ms=6 avg_ms=3 min_ms=2 max_ms=4\n"));
     }
 

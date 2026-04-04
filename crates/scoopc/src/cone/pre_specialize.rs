@@ -241,7 +241,8 @@ pub fn build_pre_specialize_file_for_cone_sources(
     let mut headers = Vec::with_capacity(sources.len());
     for (source, ast) in sources.iter().zip(asts.iter()) {
         headers.push(
-            crate::resolve::check_file_headers(source, ast, &index).map_err(miette::Report::from)?,
+            crate::resolve::check_file_headers(source, ast, &index)
+                .map_err(miette::Report::from)?,
         );
     }
     for ((source, ast), h) in sources.iter().zip(asts.iter_mut()).zip(headers.iter()) {
@@ -340,11 +341,12 @@ pub fn build_pre_specialize_file_for_cone_sources(
             .map_err(|_| PreSpecializeError::InvalidTypeSpec { spec: spec.clone() })?;
 
         let base_fqn = path.fqn.clone();
-        let decl = type_decl_index
-            .get(&base_fqn)
-            .ok_or_else(|| PreSpecializeError::TypeDeclNotFound {
-                fqn: base_fqn.clone(),
-            })?;
+        let decl =
+            type_decl_index
+                .get(&base_fqn)
+                .ok_or_else(|| PreSpecializeError::TypeDeclNotFound {
+                    fqn: base_fqn.clone(),
+                })?;
         if decl.len() != 1 {
             return Err(PreSpecializeError::TypeDeclDuplicated { fqn: base_fqn }.into());
         }
@@ -353,8 +355,12 @@ pub fn build_pre_specialize_file_for_cone_sources(
         let expected = decl.type_params.len();
         let found = path.args.len();
         if expected != found {
-            return Err(PreSpecializeError::TypeArgArityMismatch { fqn: base_fqn, expected, found }
-                .into());
+            return Err(PreSpecializeError::TypeArgArityMismatch {
+                fqn: base_fqn,
+                expected,
+                found,
+            }
+            .into());
         }
 
         let mut types = TypeStore::new();

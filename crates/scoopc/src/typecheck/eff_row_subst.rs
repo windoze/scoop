@@ -298,11 +298,7 @@ fn lower_effect_row_with_type_args(
     }
 
     let mut bindings: Vec<(String, TypeId)> = Vec::new();
-    for (param_ty, arg_ty) in type_params
-        .iter()
-        .copied()
-        .zip(type_args.iter().copied())
-    {
+    for (param_ty, arg_ty) in type_params.iter().copied().zip(type_args.iter().copied()) {
         let TypeKind::Param(p) = lower.type_kind(param_ty) else {
             continue;
         };
@@ -367,9 +363,7 @@ pub(super) fn apply_eff_row_var_subst_plan(
             }
             let mut changed = false;
             let mut out: Vec<TypeId> = Vec::with_capacity(old.len());
-            for ((elem_ty, elem_plan), idx) in
-                old.into_iter().zip(elements.iter()).zip(0usize..)
-            {
+            for ((elem_ty, elem_plan), idx) in old.into_iter().zip(elements.iter()).zip(0usize..) {
                 let new_elem = apply_eff_row_var_subst_plan(
                     elem_ty,
                     elem_plan,
@@ -502,12 +496,8 @@ pub(super) fn apply_eff_row_var_subst_plan(
             }
 
             let new_effects = if let Some(base_expr) = effects_base.as_ref() {
-                let base = lower_effect_row_with_type_args(
-                    base_expr,
-                    type_params,
-                    type_args,
-                    lower,
-                )?;
+                let base =
+                    lower_effect_row_with_type_args(base_expr, type_params, type_args, lower)?;
                 let out = effect_row_union(eff_arg, &base);
                 if out != fun.effects {
                     changed = true;
@@ -556,12 +546,8 @@ pub(super) fn apply_eff_row_var_subst_plan(
                 }
 
                 let new_eff = if let Some(base_expr) = eff_base.as_ref() {
-                    let base = lower_effect_row_with_type_args(
-                        base_expr,
-                        type_params,
-                        type_args,
-                        lower,
-                    )?;
+                    let base =
+                        lower_effect_row_with_type_args(base_expr, type_params, type_args, lower)?;
                     let out = effect_row_union(eff_arg, &base);
                     if nominal.eff.as_ref() != Some(&out) {
                         changed = true;
@@ -609,12 +595,8 @@ pub(super) fn apply_eff_row_var_subst_plan(
                 }
 
                 let new_eff = if let Some(base_expr) = eff_base.as_ref() {
-                    let base = lower_effect_row_with_type_args(
-                        base_expr,
-                        type_params,
-                        type_args,
-                        lower,
-                    )?;
+                    let base =
+                        lower_effect_row_with_type_args(base_expr, type_params, type_args, lower)?;
                     let out = effect_row_union(eff_arg, &base);
                     if nominal.eff.as_ref() != Some(&out) {
                         changed = true;
@@ -627,13 +609,15 @@ pub(super) fn apply_eff_row_var_subst_plan(
                 if !changed {
                     return Ok(ty);
                 }
-                Ok(lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(
-                    crate::ty::NominalType {
-                        fqn: nominal.fqn,
-                        args: new_args,
-                        eff: new_eff,
-                    },
-                ))))
+                Ok(
+                    lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(
+                        crate::ty::NominalType {
+                            fqn: nominal.fqn,
+                            args: new_args,
+                            eff: new_eff,
+                        },
+                    ))),
+                )
             }
             _ => Err(ExprTypeError::UnsupportedExpr {
                 kind: "eff row substitution（nominal plan mismatch）",

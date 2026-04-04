@@ -22,8 +22,8 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeStore};
 
-use super::lower::{TypeLowerError, TypeLowering};
 use super::TypeEnv;
+use super::lower::{TypeLowerError, TypeLowering};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum OverloadDeclError {
@@ -130,7 +130,9 @@ fn collect_items(
             ast::Item::Fun(fun) => collect_fun_decl(source, fun, prefix, lower, funs_by_fqn)?,
             ast::Item::ExtensionProperty(_p) => {}
             ast::Item::Val(_v) => {}
-            ast::Item::Type(ty) => collect_type_decl(source, ty, prefix, lower, funs_by_fqn, ctors_by_type)?,
+            ast::Item::Type(ty) => {
+                collect_type_decl(source, ty, prefix, lower, funs_by_fqn, ctors_by_type)?
+            }
             ast::Item::Object(obj) => {
                 collect_object_decl(source, obj, prefix, lower, funs_by_fqn, ctors_by_type)?
             }
@@ -194,22 +196,12 @@ fn collect_type_decl(
                 ast::TypeMember::Fun(fun) => {
                     collect_fun_decl(source, fun, &type_fqn, lower, funs_by_fqn)?
                 }
-                ast::TypeMember::Type(nested) => collect_type_decl(
-                    source,
-                    nested,
-                    &type_fqn,
-                    lower,
-                    funs_by_fqn,
-                    ctors_by_type,
-                )?,
-                ast::TypeMember::Object(obj) => collect_object_decl(
-                    source,
-                    obj,
-                    &type_fqn,
-                    lower,
-                    funs_by_fqn,
-                    ctors_by_type,
-                )?,
+                ast::TypeMember::Type(nested) => {
+                    collect_type_decl(source, nested, &type_fqn, lower, funs_by_fqn, ctors_by_type)?
+                }
+                ast::TypeMember::Object(obj) => {
+                    collect_object_decl(source, obj, &type_fqn, lower, funs_by_fqn, ctors_by_type)?
+                }
             }
         }
     }
@@ -257,23 +249,15 @@ fn collect_object_decl(
                 // 但它在语义上无效；当前阶段忽略即可。
                 let _ = ctor;
             }
-            ast::TypeMember::Fun(fun) => collect_fun_decl(source, fun, &obj_fqn, lower, funs_by_fqn)?,
-            ast::TypeMember::Type(nested) => collect_type_decl(
-                source,
-                nested,
-                &obj_fqn,
-                lower,
-                funs_by_fqn,
-                ctors_by_type,
-            )?,
-            ast::TypeMember::Object(nested) => collect_object_decl(
-                source,
-                nested,
-                &obj_fqn,
-                lower,
-                funs_by_fqn,
-                ctors_by_type,
-            )?,
+            ast::TypeMember::Fun(fun) => {
+                collect_fun_decl(source, fun, &obj_fqn, lower, funs_by_fqn)?
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_type_decl(source, nested, &obj_fqn, lower, funs_by_fqn, ctors_by_type)?
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_object_decl(source, nested, &obj_fqn, lower, funs_by_fqn, ctors_by_type)?
+            }
         }
     }
 
@@ -337,14 +321,17 @@ fn collect_fun_decl(
     }
     lower.pop_type_params(&fun.type_params);
 
-    funs_by_fqn.entry(fqn.clone()).or_default().push(FunDeclInfo {
-        name_span: fun.name.span,
-        sig: FunSigInfo {
-            receiver,
-            params,
-            return_ty,
-        },
-    });
+    funs_by_fqn
+        .entry(fqn.clone())
+        .or_default()
+        .push(FunDeclInfo {
+            name_span: fun.name.span,
+            sig: FunSigInfo {
+                receiver,
+                params,
+                return_ty,
+            },
+        });
 
     Ok(())
 }
@@ -368,7 +355,10 @@ fn lower_params(
         // 当前最小实现不将 name 纳入冲突判定。
         let _name = source.slice(p.name.span);
 
-        out.push(ParamInfo { ty: id, has_default });
+        out.push(ParamInfo {
+            ty: id,
+            has_default,
+        });
     }
     Ok(out)
 }
@@ -403,8 +393,7 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
             }
 
             if let Some(arity) = first_ambiguous_positional_arity(&a.sig, &b.sig) {
-                let reason =
-                    format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
+                let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
                     fqn: fqn.to_string(),
                     reason,
@@ -418,7 +407,10 @@ fn check_fun_overload_set(fqn: &str, decls: &[FunDeclInfo]) -> Result<(), Overlo
     Ok(())
 }
 
-fn check_ctor_overload_set(type_fqn: &str, decls: &[CtorDeclInfo]) -> Result<(), OverloadDeclError> {
+fn check_ctor_overload_set(
+    type_fqn: &str,
+    decls: &[CtorDeclInfo],
+) -> Result<(), OverloadDeclError> {
     if decls.len() <= 1 {
         return Ok(());
     }
@@ -441,8 +433,7 @@ fn check_ctor_overload_set(type_fqn: &str, decls: &[CtorDeclInfo]) -> Result<(),
             }
 
             if let Some(arity) = first_ambiguous_positional_ctor_arity(&a.sig, &b.sig) {
-                let reason =
-                    format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
+                let reason = format!("默认参数导致在提供 {arity} 个实参时不可区分（位置调用）");
                 return Err(OverloadDeclError::Conflict {
                     fqn: format!("{type_fqn}.<init>"),
                     reason,

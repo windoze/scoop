@@ -85,7 +85,9 @@ struct EffectRowList<'a>(&'a [EffectRow]);
 
 impl fmt::Debug for EffectRowList<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(self.0.iter().map(EffectRowRepr)).finish()
+        f.debug_list()
+            .entries(self.0.iter().map(EffectRowRepr))
+            .finish()
     }
 }
 

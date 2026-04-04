@@ -19,4 +19,3 @@ fn gc_stack_walking_ctx_is_captured_and_cleared_across_stw() {
         "stack walking ctx smoke 失败：backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}, rc={rc}"
     );
 }
-

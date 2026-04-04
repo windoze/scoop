@@ -544,6 +544,12 @@ impl<'a> FnLowering<'a> {
                 self.assign(expr.span, tmp, Rvalue::Todo("binary"));
                 tmp
             }
+            hir::ExprKind::TypeCheck { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "type check lowering pending")
+            }
+            hir::ExprKind::Cast { .. } => {
+                self.emit_todo_value(expr.span, expr.ty, "cast lowering pending")
+            }
             hir::ExprKind::Block(block) => self.lower_block_as_expr(block),
             hir::ExprKind::Closure(closure) => self.lower_closure_expr(expr.span, expr.ty, closure),
             hir::ExprKind::If {
@@ -1127,6 +1133,9 @@ fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::Symbol
         hir::ExprKind::Binary { lhs, rhs, .. } => {
             collect_boxed_symbols_in_expr(lhs.as_ref(), out);
             collect_boxed_symbols_in_expr(rhs.as_ref(), out);
+        }
+        hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+            collect_boxed_symbols_in_expr(expr.as_ref(), out);
         }
         hir::ExprKind::Block(block) => collect_boxed_symbols_in_block(block, out),
         hir::ExprKind::Closure(closure) => {

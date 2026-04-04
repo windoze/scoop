@@ -6481,14 +6481,19 @@
    - `cargo run -p scoop_tools -- spec-fixtures check`
    - `cargo test -p scoopc --features llvm`
 
-### T1509b [TODO] `is/as/as?`：HIR lowering + LLVM codegen + run-pass fixtures（含 fail 语义）
+### T1509b [DONE] `is/as/as?`：HIR lowering + LLVM codegen + run-pass fixtures（含 fail 语义）
 - 描述：把 `is/!is/as/as?` 从 AST/typecheck 的“可检查”升级为可 codegen 的端到端语义，并新增 run-pass/compile-fail fixtures 覆盖。
 - 目标：
   - lowering：在 HIR 中保留 `TypeCheck/Cast` 节点（不再用 `Todo("type_check"/"cast")`）；
   - codegen：对 ref→ref 的 `is/as/as?` 走 runtime type test helper（或等价逻辑），并与 `Option<T>` niche 表示一致；
   - `as` 失败应走既有 `Raise<RuntimeError>` 模型（`ClassCastFailed`）。
+- 完成：
+  - `crates/scoopc/src/hir/mod.rs`：新增 `ExprKind::TypeCheck/Cast`，用于在 HIR 中保留 `is/!is/as/as?` 的目标类型信息。
+  - `crates/scoopc/src/hir/lower.rs`：AST 的 `TypeCheck/Cast` lowering 到 HIR 对应节点（`is/!is` 产出 `Bool`，`as?` 产出 `Option<T>`）。
+  - `crates/scoopc/src/llvm/codegen.rs`：实现 `is/!is/as/as?` 的 LLVM codegen（class parent 链、interface itable、`as?` 失败返回 `None`、`as` 失败触发 `Raise.raise(RuntimeError.ClassCastFailed)`）。
+  - 遍历补齐：更新 MIR lowering / RTTI / LLVM 扫描器等遍历逻辑，修复新增 HIR 节点导致的 non-exhaustive match。
+  - 新增 run-pass fixture：`tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop` + `.stdout`（覆盖 pass + fail 语义）。
 - 验收：
-  - 新增 run-pass：`is`/`as`/`as?` 覆盖（pass + fail）
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1509a

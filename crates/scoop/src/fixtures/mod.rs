@@ -580,7 +580,8 @@ fn comptime_fixture(
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
-    let bindings = scoopc::comptime::eval_const_bindings_in_file(source, &ast).map_err(box_diagnostic)?;
+    let bindings =
+        scoopc::comptime::eval_const_bindings_in_file(source, &ast).map_err(box_diagnostic)?;
 
     let actual = normalize_newlines(&format_const_bindings_for_fixture(&bindings));
 
@@ -648,7 +649,11 @@ fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
                 .join(", ");
             format!("{ty} {{ {inner} }}")
         }
-        ConstValue::Enum(ConstEnum { ty, variant, payload }) => {
+        ConstValue::Enum(ConstEnum {
+            ty,
+            variant,
+            payload,
+        }) => {
             let mut out = String::new();
             if let Some(ty) = ty {
                 out.push_str(ty);
@@ -1539,10 +1544,10 @@ fn run_typecheck_cone_archive_case(
             )
             .map_err(box_diagnostic)?;
 
-            let want_monomorph_counts = exp.expect_monomorph_hit.is_some()
-                || exp.expect_monomorph_miss.is_some();
-            let want_type_monomorph_counts = exp.expect_type_monomorph_hit.is_some()
-                || exp.expect_type_monomorph_miss.is_some();
+            let want_monomorph_counts =
+                exp.expect_monomorph_hit.is_some() || exp.expect_monomorph_miss.is_some();
+            let want_type_monomorph_counts =
+                exp.expect_type_monomorph_hit.is_some() || exp.expect_type_monomorph_miss.is_some();
 
             let type_inst_keys_from_type_refs = if want_type_monomorph_counts {
                 Some(
@@ -1595,16 +1600,18 @@ fn run_typecheck_cone_archive_case(
                 want_monomorph_counts,
                 want_type_monomorph_counts,
             ) {
-                (true, true) => scoopc::typecheck::check_file_exprs_with_monomorph_and_type_instantiation_keys(
-                    source,
-                    ast,
-                    &index,
-                    &headers.imports,
-                    &env,
-                    &mut types,
-                    builtins,
-                )
-                .map_err(box_diagnostic)?,
+                (true, true) => {
+                    scoopc::typecheck::check_file_exprs_with_monomorph_and_type_instantiation_keys(
+                        source,
+                        ast,
+                        &index,
+                        &headers.imports,
+                        &env,
+                        &mut types,
+                        builtins,
+                    )
+                    .map_err(box_diagnostic)?
+                }
                 (true, false) => (
                     scoopc::typecheck::check_file_exprs_with_monomorph_keys(
                         source,

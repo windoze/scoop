@@ -1416,8 +1416,10 @@ impl<'a> HirLowering<'a> {
                     };
                     let owner_is_class =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
-                    let owner_is_interface =
-                        matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Interface));
+                    let owner_is_interface = matches!(
+                        self.type_kinds.get(owner_fqn),
+                        Some(ast::TypeKind::Interface)
+                    );
                     let owner_is_object = self.index.object_types.contains(owner_fqn);
                     if !owner_is_class && !owner_is_interface && !owner_is_object {
                         return None;
@@ -1822,8 +1824,46 @@ impl<'a> HirLowering<'a> {
                 )
             }
             ast::ExprKind::Assign { .. } => (ExprKind::Todo("assign"), self.builtins.any),
-            ast::ExprKind::TypeCheck { .. } => (ExprKind::Todo("type_check"), self.builtins.any),
-            ast::ExprKind::Cast { .. } => (ExprKind::Todo("cast"), self.builtins.any),
+            ast::ExprKind::TypeCheck {
+                expr,
+                op,
+                op_span,
+                ty,
+            } => {
+                let expr = Box::new(self.lower_expr(pkg_prefix, expr));
+                let target_ty = self.lower_type_ref(ty);
+                (
+                    ExprKind::TypeCheck {
+                        expr,
+                        op: *op,
+                        op_span: *op_span,
+                        target_ty,
+                    },
+                    self.builtins.bool_,
+                )
+            }
+            ast::ExprKind::Cast {
+                expr,
+                op,
+                op_span,
+                ty,
+            } => {
+                let expr = Box::new(self.lower_expr(pkg_prefix, expr));
+                let target_ty = self.lower_type_ref(ty);
+                let out_ty = match op {
+                    ast::CastOp::As => target_ty,
+                    ast::CastOp::AsQ => self.types.ty_option(target_ty),
+                };
+                (
+                    ExprKind::Cast {
+                        expr,
+                        op: *op,
+                        op_span: *op_span,
+                        target_ty,
+                    },
+                    out_ty,
+                )
+            }
             ast::ExprKind::WithUpdate { .. } => (ExprKind::Todo("with_update"), self.builtins.any),
         };
 
@@ -3999,6 +4039,9 @@ fn collect_declared_locals_in_expr(expr: &Expr, declared: &mut HashSet<SymbolId>
             collect_declared_locals_in_expr(lhs.as_ref(), declared);
             collect_declared_locals_in_expr(rhs.as_ref(), declared);
         }
+        ExprKind::TypeCheck { expr, .. } | ExprKind::Cast { expr, .. } => {
+            collect_declared_locals_in_expr(expr.as_ref(), declared);
+        }
         ExprKind::Block(block) => collect_declared_locals_in_block(block, declared),
         ExprKind::Closure(_) => {
             // 嵌套 closure：由其自身计算 capture set。
@@ -4169,6 +4212,9 @@ fn collect_used_locals_in_expr(expr: &Expr, used: &mut HashMap<SymbolId, Capture
         ExprKind::Binary { lhs, rhs, .. } => {
             collect_used_locals_in_expr(lhs.as_ref(), used);
             collect_used_locals_in_expr(rhs.as_ref(), used);
+        }
+        ExprKind::TypeCheck { expr, .. } | ExprKind::Cast { expr, .. } => {
+            collect_used_locals_in_expr(expr.as_ref(), used);
         }
         ExprKind::Block(block) => {
             for stmt in &block.stmts {
@@ -4663,6 +4709,9 @@ fn expr_contains_source_backed_literals(expr: &Expr) -> bool {
         ExprKind::Unary { expr, .. } => expr_contains_source_backed_literals(expr),
         ExprKind::Binary { lhs, rhs, .. } => {
             expr_contains_source_backed_literals(lhs) || expr_contains_source_backed_literals(rhs)
+        }
+        ExprKind::TypeCheck { expr, .. } | ExprKind::Cast { expr, .. } => {
+            expr_contains_source_backed_literals(expr)
         }
         ExprKind::Block(block) => block_contains_source_backed_literals(block),
         ExprKind::Call { callee, args } => {

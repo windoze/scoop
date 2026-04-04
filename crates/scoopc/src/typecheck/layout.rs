@@ -16,11 +16,14 @@ use tracing::{debug, warn};
 
 use crate::ast;
 use crate::resolve::Index;
-use crate::ty::layout::{EnumLayout, EnumRepr, EnumTagType, EnumVariantLayout, NicheDomain, NicheStorage, TargetLayout, TypeLayout};
+use crate::ty::layout::{
+    EnumLayout, EnumRepr, EnumTagType, EnumVariantLayout, NicheDomain, NicheStorage, TargetLayout,
+    TypeLayout,
+};
 use crate::ty::{BuiltinTypes, NominalType, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
-use super::lower::{TypeLowerError, TypeLowering};
 use super::TypeEnv;
+use super::lower::{TypeLowerError, TypeLowering};
 
 // boxing / lint 的启发式阈值（spec §2.3.2 未给出精确数值，先在实现侧固定）。
 const ENUM_BOX_DISPARITY_RATIO: u64 = 4;
@@ -34,21 +37,15 @@ pub enum LayoutError {
 
     #[error("enum 布局计算缺少声明：{fqn}")]
     #[diagnostic(code(scoop::typecheck::missing_enum_decl_for_layout))]
-    MissingEnumDecl {
-        fqn: String,
-    },
+    MissingEnumDecl { fqn: String },
 
     #[error("enum 布局计算缺少源文件：{path}")]
     #[diagnostic(code(scoop::typecheck::missing_enum_decl_source_for_layout))]
-    MissingEnumDeclSource {
-        path: String,
-    },
+    MissingEnumDeclSource { path: String },
 
     #[error("enum 布局计算缺少文件上下文（package/import）：{path}")]
     #[diagnostic(code(scoop::typecheck::missing_enum_decl_file_ctx_for_layout))]
-    MissingEnumDeclFileContext {
-        path: String,
-    },
+    MissingEnumDeclFileContext { path: String },
 
     #[error("enum 泛型实例化参数数量不匹配：{fqn} 期望 {expected} 个，但得到 {found} 个")]
     #[diagnostic(code(scoop::typecheck::enum_layout_type_arg_arity_mismatch))]
@@ -164,11 +161,13 @@ impl<'a> LayoutComputer<'a> {
         // - 同时，按指针对齐（至少 2），诸如 0x1 的 misaligned 值也可作为“非法地址 niche”。
         //
         // 这里用 `[0, pointer_align)` 作为“可用 niche 值集合”（连续分配），以便支持 nested niche。
-        TypeLayout::new(self.target.pointer_size, self.target.pointer_align).with_niche(NicheDomain {
-            storage: NicheStorage::Pointer,
-            next: 0,
-            end: self.target.pointer_align.max(1),
-        })
+        TypeLayout::new(self.target.pointer_size, self.target.pointer_align).with_niche(
+            NicheDomain {
+                storage: NicheStorage::Pointer,
+                next: 0,
+                end: self.target.pointer_align.max(1),
+            },
+        )
     }
 
     fn word_layout(&self) -> TypeLayout {
@@ -203,7 +202,8 @@ impl<'a> LayoutComputer<'a> {
                     "Option<T> uses niche optimization"
                 );
 
-                let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
+                let layout =
+                    TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
                 let option_id = self.option_type_id(inner);
                 self.enum_cache.insert(
                     option_id,
@@ -308,9 +308,15 @@ impl<'a> LayoutComputer<'a> {
         }
 
         // `Option<T>` 的 enum metadata 已在 `option_layout` 内写入。
-        if matches!(self.types.kind(id), TypeKind::Value(ValueTypeKind::Option(_))) {
+        if matches!(
+            self.types.kind(id),
+            TypeKind::Value(ValueTypeKind::Option(_))
+        ) {
             let _ = self.type_layout(id)?;
-            return Ok(self.enum_cache.get(&id).expect("Option layout must be cached"));
+            return Ok(self
+                .enum_cache
+                .get(&id)
+                .expect("Option layout must be cached"));
         }
 
         let nominal = match self.types.kind(id) {
@@ -350,11 +356,12 @@ impl<'a> LayoutComputer<'a> {
             });
         }
 
-        let decl_source = self.env.source(&decl.decl_file).ok_or_else(|| {
-            LayoutError::MissingEnumDeclSource {
-                path: decl.decl_file.display().to_string(),
-            }
-        })?;
+        let decl_source =
+            self.env
+                .source(&decl.decl_file)
+                .ok_or_else(|| LayoutError::MissingEnumDeclSource {
+                    path: decl.decl_file.display().to_string(),
+                })?;
         let decl_ctx = self.env.file_type_context(&decl.decl_file).ok_or_else(|| {
             LayoutError::MissingEnumDeclFileContext {
                 path: decl.decl_file.display().to_string(),
@@ -407,11 +414,15 @@ impl<'a> LayoutComputer<'a> {
 
         // boxing：当某个 variant 明显大于其它 variant 时，把该 variant 的 payload 自动装箱为指针。
         let (max_size, second_size) = largest_two_sizes(&variants);
-        let inline_threshold = self.target.pointer_size.saturating_mul(ENUM_BOX_INLINE_THRESHOLD_WORDS);
+        let inline_threshold = self
+            .target
+            .pointer_size
+            .saturating_mul(ENUM_BOX_INLINE_THRESHOLD_WORDS);
         let disparity = if second_size == 0 {
             max_size >= inline_threshold
         } else {
-            max_size >= inline_threshold && max_size >= second_size.saturating_mul(ENUM_BOX_DISPARITY_RATIO)
+            max_size >= inline_threshold
+                && max_size >= second_size.saturating_mul(ENUM_BOX_DISPARITY_RATIO)
         };
 
         if disparity {

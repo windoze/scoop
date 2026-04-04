@@ -8,7 +8,9 @@
 use std::collections::{HashMap, VecDeque};
 
 use crate::ast;
-use crate::ty::{BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
+};
 
 use super::assignable::is_type_assignable;
 use super::lower::TypeLowering;
@@ -53,8 +55,7 @@ pub(super) fn merge_branch_result_type(
     }
 
     // 名义类型：尝试找“最接近的公共超类型”（不包含隐式 `Any`）。
-    if let Some(common) = merge_nominal_common_supertype(a, &a_kind, b, &b_kind, lower, builtins)
-    {
+    if let Some(common) = merge_nominal_common_supertype(a, &a_kind, b, &b_kind, lower, builtins) {
         if common != builtins.any {
             return common;
         }
@@ -74,13 +75,19 @@ fn merge_structural_lub(
 ) -> Option<TypeId> {
     match (a_kind, b_kind) {
         // `Option<T>`：按 inner 做 LUB，再包回 `Option<...>`。
-        (TypeKind::Value(ValueTypeKind::Option(a_inner)), TypeKind::Value(ValueTypeKind::Option(b_inner))) => {
+        (
+            TypeKind::Value(ValueTypeKind::Option(a_inner)),
+            TypeKind::Value(ValueTypeKind::Option(b_inner)),
+        ) => {
             let inner = merge_branch_result_type(*a_inner, *b_inner, lower, builtins);
             Some(lower.ty_option(inner))
         }
 
         // tuple：逐元素合并（长度不一致则放弃）。
-        (TypeKind::Value(ValueTypeKind::Tuple(a_elems)), TypeKind::Value(ValueTypeKind::Tuple(b_elems))) => {
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(a_elems)),
+            TypeKind::Value(ValueTypeKind::Tuple(b_elems)),
+        ) => {
             if a_elems.len() != b_elems.len() {
                 return None;
             }
@@ -95,7 +102,10 @@ fn merge_structural_lub(
         // - receiver/params 必须全等（避免引入 GLB/交叉类型）
         // - return 取 LUB
         // - effects 取并集（因为 supertype 必须允许两者的 effects）
-        (TypeKind::Ref(RefTypeKind::Function(a_fun)), TypeKind::Ref(RefTypeKind::Function(b_fun))) => {
+        (
+            TypeKind::Ref(RefTypeKind::Function(a_fun)),
+            TypeKind::Ref(RefTypeKind::Function(b_fun)),
+        ) => {
             if a_fun.receiver != b_fun.receiver {
                 return None;
             }
@@ -171,11 +181,7 @@ fn merge_nominal_common_supertype(
         return Some(builtins.any);
     };
 
-    Some(type_id_for_nominal_fqn_no_args(
-        lower,
-        &best_fqn,
-        builtins,
-    ))
+    Some(type_id_for_nominal_fqn_no_args(lower, &best_fqn, builtins))
 }
 
 struct NominalInfo {
@@ -200,10 +206,7 @@ fn nominal_info(kind: &TypeKind) -> Option<NominalInfo> {
     }
 }
 
-fn supertypes_with_distance(
-    root_fqn: &str,
-    lower: &TypeLowering<'_>,
-) -> HashMap<String, usize> {
+fn supertypes_with_distance(root_fqn: &str, lower: &TypeLowering<'_>) -> HashMap<String, usize> {
     let mut out: HashMap<String, usize> = HashMap::new();
     let mut q: VecDeque<(String, usize)> = VecDeque::new();
     out.insert(root_fqn.to_string(), 0);
@@ -259,19 +262,16 @@ fn type_id_for_nominal_fqn_no_args(
     };
 
     let kind = match decl_kind {
-        ast::TypeKind::Struct | ast::TypeKind::Enum => TypeKind::Value(ValueTypeKind::Nominal(nominal)),
+        ast::TypeKind::Struct | ast::TypeKind::Enum => {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal))
+        }
         _ => TypeKind::Ref(RefTypeKind::Nominal(nominal)),
     };
 
     lower.intern_type_kind(kind)
 }
 
-fn is_subtype(
-    sub: TypeId,
-    sup: TypeId,
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> bool {
+fn is_subtype(sub: TypeId, sup: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
     if sub == sup {
         return true;
     }

@@ -19,7 +19,7 @@ use sha2::{Digest as _, Sha256};
 use thiserror::Error;
 
 use crate::ast;
-use crate::parser::{parse_file, ParseError};
+use crate::parser::{ParseError, parse_file};
 use crate::resolve::{ImportTable, Index, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;

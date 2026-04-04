@@ -23,7 +23,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
 
-use super::expr::{lower_type_ref_with_enum_subst, ExprTypeError};
+use super::expr::{ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
 use tracing::warn;
 
@@ -293,7 +293,8 @@ fn examples_for_type(
 
                 let mut out = Vec::new();
                 for variant in &decl.variants {
-                    let mut field_examples: Vec<Vec<ExamplePat>> = Vec::with_capacity(variant.fields.len());
+                    let mut field_examples: Vec<Vec<ExamplePat>> =
+                        Vec::with_capacity(variant.fields.len());
                     for field in &variant.fields {
                         let field_ty = lower_type_ref_with_enum_subst(
                             &enum_source,
@@ -306,12 +307,7 @@ fn examples_for_type(
                             &subst,
                         )?;
                         field_examples.push(examples_for_type(
-                            source,
-                            field_ty,
-                            lower,
-                            builtins,
-                            use_span,
-                            visiting,
+                            source, field_ty, lower, builtins, use_span, visiting,
                         )?);
                     }
 

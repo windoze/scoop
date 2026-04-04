@@ -20,26 +20,26 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::{
-    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, NamespacedSymbols,
-    ParamSig, Symbol, SymbolKind, TypeParamSig, Visibility,
+    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet,
+    NamespacedSymbols, ParamSig, Symbol, SymbolKind, TypeParamSig, Visibility,
 };
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::typecheck::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 use super::annotations::{
-    ConeAnnotationClassesFile, CONE_ANNOTATION_CLASSES_FILE_NAME, parse_annotation_classes_file,
+    CONE_ANNOTATION_CLASSES_FILE_NAME, ConeAnnotationClassesFile, parse_annotation_classes_file,
 };
 use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
 use super::pre_specialize::{
-    ConePreSpecializeFile, CONE_PRE_SPECIALIZE_FILE_NAME, parse_pre_specialize_file,
+    CONE_PRE_SPECIALIZE_FILE_NAME, ConePreSpecializeFile, parse_pre_specialize_file,
 };
 use super::scoopir::{
     IrFunDeclKind, IrType, IrTypeDeclKind, IrVariance, SCOOPIR_SCHEMA_NAME, SCOOPIR_SCHEMA_VERSION,
     ScoopIrFile,
 };
 use super::visibility::{
-    ConeSymbolKind, ConeSymbolVisibilityFile, CONE_SYMBOL_VISIBILITY_FILE_NAME,
+    CONE_SYMBOL_VISIBILITY_FILE_NAME, ConeSymbolKind, ConeSymbolVisibilityFile,
     parse_symbol_visibility_file,
 };
 
@@ -57,9 +57,7 @@ pub struct ConeArchiveApi {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error(
-    "api.scoopir schema.name 不匹配：期望 `{expected}`，但得到 `{found}`（归档：{archive}）"
-)]
+#[error("api.scoopir schema.name 不匹配：期望 `{expected}`，但得到 `{found}`（归档：{archive}）")]
 #[diagnostic(code(scoop::cone::scoopir_schema_name_mismatch))]
 struct ScoopIrSchemaNameMismatch {
     expected: String,
@@ -204,8 +202,10 @@ pub fn inject_cone_dependency_public_api(
     let mut synth = SyntheticSourceBuilder::default();
 
     // 注解类元信息（v0：仅 cone-preserved）。
-    let mut annotation_classes_by_fqn: std::collections::HashMap<&str, &super::annotations::ConeAnnotationClassEntry> =
-        std::collections::HashMap::new();
+    let mut annotation_classes_by_fqn: std::collections::HashMap<
+        &str,
+        &super::annotations::ConeAnnotationClassEntry,
+    > = std::collections::HashMap::new();
     if let Some(file) = dep.annotation_classes.as_ref() {
         for a in &file.annotations {
             annotation_classes_by_fqn.insert(a.fqn.as_str(), a);
@@ -242,20 +242,21 @@ pub fn inject_cone_dependency_public_api(
             })
             .collect::<Vec<_>>();
 
-        let (is_annotation_class, annotation_targets, annotation_retention) =
-            if let Some(meta) = annotation_classes_by_fqn.get(fqn.as_str()) {
-                let targets = meta.targets.as_ref().map(|ts| {
-                    ts.iter()
-                        .filter_map(|t| crate::typecheck::AnnotationTargetKind::from_variant_name(t))
-                        .collect::<Vec<_>>()
-                });
-                let retention = crate::typecheck::AnnotationRetentionPolicy::parse(&meta.retention);
-                let is_annotation_class =
-                    retention == Some(crate::typecheck::AnnotationRetentionPolicy::ConePreserved);
-                (is_annotation_class, targets, retention)
-            } else {
-                (false, None, None)
-            };
+        let (is_annotation_class, annotation_targets, annotation_retention) = if let Some(meta) =
+            annotation_classes_by_fqn.get(fqn.as_str())
+        {
+            let targets = meta.targets.as_ref().map(|ts| {
+                ts.iter()
+                    .filter_map(|t| crate::typecheck::AnnotationTargetKind::from_variant_name(t))
+                    .collect::<Vec<_>>()
+            });
+            let retention = crate::typecheck::AnnotationRetentionPolicy::parse(&meta.retention);
+            let is_annotation_class =
+                retention == Some(crate::typecheck::AnnotationRetentionPolicy::ConePreserved);
+            (is_annotation_class, targets, retention)
+        } else {
+            (false, None, None)
+        };
 
         env.insert_external_type_symbol(
             fqn.clone(),
@@ -461,7 +462,11 @@ fn inject_non_public_symbols_into_index(
             ConeSymbolKind::Fun => {
                 // 若该 FQN 已有 public overload（来自 api.scoopir），则不额外注入不可见占位符，
                 // 避免在后续阶段引入“public/hidden overload 混合”的模糊语义。
-                if entry.fun.iter().any(|o| o.symbol.visibility == Visibility::Public) {
+                if entry
+                    .fun
+                    .iter()
+                    .any(|o| o.symbol.visibility == Visibility::Public)
+                {
                     continue;
                 }
 
@@ -586,7 +591,9 @@ mod tests {
         let mut builder = tar::Builder::new(file);
 
         let mut header = tar::Header::new_gnu();
-        header.set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME).unwrap();
+        header
+            .set_path(crate::cone::CONE_API_SCOOPIR_FILE_NAME)
+            .unwrap();
         header.set_size(api_json.len() as u64);
         header.set_mode(0o644);
         header.set_cksum();
@@ -612,7 +619,10 @@ mod tests {
         write_cone_archive_with_api_scoopir(&cone_path, api_json.as_bytes());
 
         let api = read_cone_api_scoopir_from_archive(&cone_path).unwrap();
-        assert_eq!(api.schema.version, crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION);
+        assert_eq!(
+            api.schema.version,
+            crate::cone::scoopir::SCOOPIR_SCHEMA_VERSION
+        );
 
         std::fs::remove_dir_all(&dir).unwrap();
     }

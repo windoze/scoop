@@ -54,7 +54,11 @@ fn main() -> Result<()> {
     let mode = match (emit_llvm, emit_obj) {
         (true, false) => EmitMode::LlvmIr,
         (false, true) => EmitMode::Object,
-        (false, false) => return Err(miette::miette!("缺少输出模式（需要 `--emit-llvm` 或 `--emit-obj`）\n\n{USAGE}")),
+        (false, false) => {
+            return Err(miette::miette!(
+                "缺少输出模式（需要 `--emit-llvm` 或 `--emit-obj`）\n\n{USAGE}"
+            ));
+        }
         (true, true) => {
             return Err(miette::miette!(
                 "`--emit-llvm` 与 `--emit-obj` 不能同时使用\n\n{USAGE}"

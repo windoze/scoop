@@ -6,8 +6,13 @@ use core::mem;
 use core::ptr;
 
 type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
-type ScoopTypeTraceFn =
-    Option<unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64>;
+type ScoopTypeTraceFn = Option<
+    unsafe extern "C" fn(
+        object: *mut c_void,
+        visitor: ScoopGcTraceVisitor,
+        ctx: *mut c_void,
+    ) -> u64,
+>;
 type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
 // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopTypeDescriptor`（TODO T0907）。
@@ -138,19 +143,22 @@ mod unix_guard_page {
             let page_size = page_size as usize;
             let len = page_size * 2;
 
-            let addr = unsafe { libc::mmap(
-                ptr::null_mut(),
-                len,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_PRIVATE | MAP_ANON_FLAG,
-                -1,
-                0,
-            ) };
+            let addr = unsafe {
+                libc::mmap(
+                    ptr::null_mut(),
+                    len,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    libc::MAP_PRIVATE | MAP_ANON_FLAG,
+                    -1,
+                    0,
+                )
+            };
             assert_ne!(addr, libc::MAP_FAILED, "mmap failed");
 
             let base = addr as *mut u8;
             let guard_addr = unsafe { base.add(page_size) };
-            let rc = unsafe { libc::mprotect(guard_addr as *mut c_void, page_size, libc::PROT_NONE) };
+            let rc =
+                unsafe { libc::mprotect(guard_addr as *mut c_void, page_size, libc::PROT_NONE) };
             assert_eq!(rc, 0, "mprotect(PROT_NONE) failed");
 
             Self {
@@ -188,7 +196,10 @@ mod unix_guard_page {
             let mut b = 2u8;
             ptr::write(object_base as *mut usize, (&mut a as *mut u8) as usize);
             ptr::write(object_base.add(word_size) as *mut usize, 0usize);
-            ptr::write(object_base.add(2 * word_size) as *mut usize, (&mut b as *mut u8) as usize);
+            ptr::write(
+                object_base.add(2 * word_size) as *mut usize,
+                (&mut b as *mut u8) as usize,
+            );
 
             // bitmap 故意远大于对象大小：若实现按 bitmap 位数遍历，而不是按 size_bytes 裁剪，
             // 将导致越界访问并触碰 guard page。

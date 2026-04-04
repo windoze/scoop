@@ -874,6 +874,9 @@ impl<'a> ReachabilityCollector<'a> {
                 self.scan_expr(lhs);
                 self.scan_expr(rhs);
             }
+            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+                self.scan_expr(expr);
+            }
             hir::ExprKind::Block(block) => self.scan_block(block),
             hir::ExprKind::Call { callee, args } => {
                 // 顶层函数调用：收集 callee fqn。

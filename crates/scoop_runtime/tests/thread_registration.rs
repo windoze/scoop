@@ -31,4 +31,3 @@ fn thread_register_unregister_is_callable_and_idempotent() {
         assert_eq!(scoop_thread_is_registered(), 0);
     }
 }
-

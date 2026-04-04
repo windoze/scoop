@@ -7,8 +7,13 @@ use core::ptr;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
-type ScoopTypeTraceFn =
-    Option<unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64>;
+type ScoopTypeTraceFn = Option<
+    unsafe extern "C" fn(
+        object: *mut c_void,
+        visitor: ScoopGcTraceVisitor,
+        ctx: *mut c_void,
+    ) -> u64,
+>;
 type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
 // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopTypeDescriptor`（TODO T0907 + T0920）。

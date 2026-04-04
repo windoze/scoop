@@ -1012,6 +1012,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.collect_gc_root_ids_in_expr(lhs, out, seen);
                 self.collect_gc_root_ids_in_expr(rhs, out, seen);
             }
+            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+                self.collect_gc_root_ids_in_expr(expr, out, seen);
+            }
             hir::ExprKind::Block(block) => self.collect_gc_root_ids_in_block(block, out, seen),
             hir::ExprKind::Closure(_) => {
                 // closure body 将在其自身的函数体里插桩；此处不把 closure 内部 locals 计入外层函数。
@@ -1492,6 +1495,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Binary { lhs, op, rhs, .. } => {
                 self.codegen_binary(expr.span, *op, lhs, rhs)
             }
+            hir::ExprKind::TypeCheck {
+                expr: inner,
+                op,
+                target_ty,
+                ..
+            } => self.codegen_type_check_expr(expr.span, *op, inner, *target_ty),
+            hir::ExprKind::Cast {
+                expr: inner,
+                op,
+                target_ty,
+                ..
+            } => self.codegen_cast_expr(expr.span, *op, inner, *target_ty, expr.ty),
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
             hir::ExprKind::Call { callee, args } => {
                 self.codegen_call(expr.span, callee, args, None)
@@ -1712,6 +1727,108 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.RuntimeError"
         )
+    }
+
+    fn runtime_error_variant_tag(
+        &self,
+        at: crate::span::Span,
+        variant: &str,
+    ) -> Result<u64, LlvmEmitError> {
+        let layout = self.enum_layouts.get("scoop.core.RuntimeError").ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "RuntimeError enum layout",
+                at: at.into(),
+            },
+        )?;
+        let v = layout.variants.iter().find(|v| v.name == variant).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "RuntimeError variant",
+                at: at.into(),
+            },
+        )?;
+        Ok(v.tag)
+    }
+
+    fn emit_raise_runtime_error_variant(
+        &mut self,
+        at: crate::span::Span,
+        variant: &str,
+    ) -> Result<(), LlvmEmitError> {
+        let tag = self.runtime_error_variant_tag(at, variant)?;
+        self.emit_raise_runtime_error_tag(at, tag)
+    }
+
+    fn emit_raise_runtime_error_tag(
+        &mut self,
+        span: crate::span::Span,
+        tag: u64,
+    ) -> Result<(), LlvmEmitError> {
+        // 说明：复用 `Raise.raise(RuntimeError.X)` 的最小 ABI 约定（T0818），但避免在这里构造 HIR 节点：
+        // - slot: (op_tag=Raise, payload_kind=RuntimeError, payload_value=tag)
+        // - set flag 并携带 line/col trace
+        const OP_TAG_RAISE: u64 = 1;
+        const PAYLOAD_KIND_RUNTIME_ERROR: u64 = 2;
+
+        let i32_ty = self.context.i32_type();
+        let u64_ty = self.context.i64_type();
+
+        let op_tag_i32 = i32_ty.const_int(OP_TAG_RAISE, false);
+        let payload_kind_u64 = u64_ty.const_int(PAYLOAD_KIND_RUNTIME_ERROR, false);
+        let payload_value_u64 = u64_ty.const_int(tag, false);
+
+        let rt_write = self.declare_runtime_effect_perform_slot_write_u64_2();
+        let _ = self.builder.build_call(
+            rt_write,
+            &[
+                op_tag_i32.into(),
+                payload_kind_u64.into(),
+                payload_value_u64.into(),
+            ],
+            "runtime_error_write_slot",
+        )?;
+
+        let (src_line, src_col) = self.effect_trace_line_col(span)?;
+        let src_line_i32 = i32_ty.const_int(src_line as u64, false);
+        let src_col_i32 = i32_ty.const_int(src_col as u64, false);
+
+        let rt_set = self.declare_runtime_effect_set_active_with_trace();
+        let _ = self.builder.build_call(
+            rt_set,
+            &[src_line_i32.into(), src_col_i32.into()],
+            "runtime_error_set_active",
+        )?;
+
+        // 早退：若存在 handler boundary，跳到 catch；否则返回默认值向外传播。
+        if let Some(target) = self.current_raise_target() {
+            self.builder.build_unconditional_branch(target)?;
+        } else {
+            let ret_ty = self
+                .current_fun_return_ty
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Raise<RuntimeError> needs function return type",
+                    at: span.into(),
+                })?;
+            let v = self.default_value(ret_ty);
+            self.emit_return(span, ret_ty, v)?;
+        }
+
+        // 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let dead = self.context.append_basic_block(func, "after_raise_dead");
+        self.builder.position_at_end(dead);
+        Ok(())
     }
 
     /// codegen 一个 `Raise.raise(e)`（HIR `Perform` 的最小子集）。
@@ -16163,6 +16280,682 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             }),
         }
+    }
+
+    fn codegen_type_check_expr(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::TypeCheckOp,
+        expr: &hir::Expr,
+        target_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // 当前阶段只实现 ref→ref 的运行期检查（T1509b）：
+        // - class：沿 type descriptor parent 链查找；
+        // - interface：扫描 itable 是否包含 interface_id。
+        //
+        // 说明：typecheck 阶段对 `is/!is` 的静态约束仍偏弱（只保证 type lowering），
+        // 因此 codegen 侧需要做“不可支持场景”的防御式报错，避免 silent miscompile。
+        let v = self.codegen_expr(expr)?;
+        let v = match v.ty {
+            CgTy::Ref => v,
+            CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "type check operand (ref)",
+                    at: span.into(),
+                });
+            }
+        };
+        let Some(raw) = v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "type check operand value",
+                at: span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "type check operand type",
+                at: span.into(),
+            });
+        };
+
+        let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
+        let out = match op {
+            ast::TypeCheckOp::Is => is_ok,
+            ast::TypeCheckOp::NotIs => self.builder.build_not(is_ok, "typecheck_not")?,
+        };
+        Ok(CgValue::bool(out))
+    }
+
+    fn codegen_cast_expr(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::CastOp,
+        expr: &hir::Expr,
+        target_ty: TypeId,
+        out_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match op {
+            ast::CastOp::As => self.codegen_cast_as_expr(span, expr, target_ty),
+            ast::CastOp::AsQ => self.codegen_cast_asq_expr(span, expr, target_ty, out_ty),
+        }
+    }
+
+    fn codegen_cast_as_expr(
+        &mut self,
+        span: crate::span::Span,
+        expr: &hir::Expr,
+        target_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let target_cg = self
+            .cg_ty_of(target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "cast target type",
+                at: span.into(),
+            })?;
+        let target_ptr_ty = match target_cg {
+            CgTy::Ref => self.llvm_gc_i8_ptr_type(),
+            CgTy::String => self.llvm_scoop_string_ptr_type(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "cast target (ref)",
+                    at: span.into(),
+                });
+            }
+        };
+
+        let v = self.codegen_expr(expr)?;
+        let v = match v.ty {
+            CgTy::Ref => v,
+            CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "cast operand (ref)",
+                    at: span.into(),
+                });
+            }
+        };
+        let Some(raw) = v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "cast operand value",
+                at: span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "cast operand type",
+                at: span.into(),
+            });
+        };
+
+        // 运行期检查：为避免在 obj=NULL 时解引用对象头，先对 NULL 做 fail 处理。
+        let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "cast_ok");
+        let fail_bb = self.context.append_basic_block(func, "cast_fail");
+        let merge_bb = self.context.append_basic_block(func, "cast_merge");
+        self.builder
+            .build_conditional_branch(is_ok, ok_bb, fail_bb)?;
+
+        // --- ok ---
+        self.builder.position_at_end(ok_bb);
+        let casted_ptr = self
+            .builder
+            .build_pointer_cast(obj_ptr, target_ptr_ty, "cast_ptr")?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        // --- fail ---
+        self.builder.position_at_end(fail_bb);
+        self.emit_raise_runtime_error_variant(span, "ClassCastFailed")?;
+        let dead_bb =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let default_ptr = target_ptr_ty.const_null();
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        // --- merge ---
+        self.builder.position_at_end(merge_bb);
+        let phi = self.builder.build_phi(target_ptr_ty, "cast_value")?;
+        phi.add_incoming(&[(&casted_ptr, ok_bb), (&default_ptr, dead_bb)]);
+        let out_ptr = phi.as_basic_value().into_pointer_value();
+
+        Ok(CgValue {
+            ty: target_cg,
+            value: Some(out_ptr.into()),
+        })
+    }
+
+    fn codegen_cast_asq_expr(
+        &mut self,
+        span: crate::span::Span,
+        expr: &hir::Expr,
+        target_ty: TypeId,
+        out_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // `as?` 的结果类型应为 `Option<target_ty>`（或等价 nullable sugar）。
+        let out_cg = self
+            .cg_ty_of(out_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "cast result type",
+                at: span.into(),
+            })?;
+        let CgTy::Enum(option_ty) = out_cg else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "as? result type (Option<T>)",
+                at: span.into(),
+            });
+        };
+
+        let target_cg = self
+            .cg_ty_of(target_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "cast target type",
+                at: span.into(),
+            })?;
+        let target_ptr_ty = match target_cg {
+            CgTy::Ref => self.llvm_gc_i8_ptr_type(),
+            CgTy::String => self.llvm_scoop_string_ptr_type(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "as? target (ref)",
+                    at: span.into(),
+                });
+            }
+        };
+
+        let v = self.codegen_expr(expr)?;
+        let v = match v.ty {
+            CgTy::Ref => v,
+            CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "as? operand (ref)",
+                    at: span.into(),
+                });
+            }
+        };
+        let Some(raw) = v.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "as? operand value",
+                at: span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "as? operand type",
+                at: span.into(),
+            });
+        };
+
+        let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let ok_bb = self.context.append_basic_block(func, "asq_ok");
+        let fail_bb = self.context.append_basic_block(func, "asq_fail");
+        let merge_bb = self.context.append_basic_block(func, "asq_merge");
+        self.builder
+            .build_conditional_branch(is_ok, ok_bb, fail_bb)?;
+
+        // --- ok：Some(casted) ---
+        self.builder.position_at_end(ok_bb);
+        let casted_ptr = self
+            .builder
+            .build_pointer_cast(obj_ptr, target_ptr_ty, "asq_cast_ptr")?;
+        let casted = CgValue {
+            ty: target_cg,
+            value: Some(casted_ptr.into()),
+        };
+        let payload_word = self.coerce_enum_payload_word(span, casted, target_cg)?;
+        let some_v = self.build_enum_value(span, option_ty, 0, Some(payload_word))?;
+        let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "as? Some value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        // --- fail：None ---
+        self.builder.position_at_end(fail_bb);
+        let none_v = self.build_enum_value(span, option_ty, 1, None)?;
+        let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "as? None value",
+            at: span.into(),
+        })?;
+        self.builder.build_unconditional_branch(merge_bb)?;
+
+        // --- merge ---
+        self.builder.position_at_end(merge_bb);
+        let llvm_option_ty = self.llvm_enum_value_type(span, option_ty)?;
+        let phi = self.builder.build_phi(llvm_option_ty, "asq_value")?;
+        phi.add_incoming(&[(&some_raw, ok_bb), (&none_raw, fail_bb)]);
+        let out_raw = phi.as_basic_value();
+
+        Ok(CgValue {
+            ty: CgTy::Enum(option_ty),
+            value: Some(out_raw),
+        })
+    }
+
+    /// 运行期类型检查：判断 `obj` 是否为 `target_ty` 的实例。
+    ///
+    /// 约定（v0，T1509b）：
+    /// - 若 `obj == NULL`：返回 false（避免解引用 NULL）；
+    /// - `Any`：只要非 NULL 即为 true（不依赖 type_desc）；
+    /// - class：沿 `type_desc.parent_type_desc` 向上查找；
+    /// - interface：扫描 itable entries 是否包含 `interface_id`。
+    fn codegen_ref_is_instance_of(
+        &mut self,
+        at: crate::span::Span,
+        obj: PointerValue<'ctx>,
+        target_ty: TypeId,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let obj_is_null = self.builder.build_is_null(obj, "isa_obj_is_null")?;
+
+        // fast path：`x is Any` 只需要判空。
+        if matches!(self.types.kind(target_ty), TypeKind::Ref(RefTypeKind::Any)) {
+            return Ok(self.builder.build_not(obj_is_null, "isa_any_nonnull")?);
+        }
+
+        // 对其它 target：obj 为 NULL 时直接 false，避免解引用对象头。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        let null_bb = self.context.append_basic_block(func, "isa_obj_null");
+        let nonnull_bb = self.context.append_basic_block(func, "isa_obj_nonnull");
+        let done_bb = self.context.append_basic_block(func, "isa_done");
+        self.builder
+            .build_conditional_branch(obj_is_null, null_bb, nonnull_bb)?;
+
+        // null -> done(false)
+        self.builder.position_at_end(null_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // nonnull -> 计算真实检查 -> done
+        self.builder.position_at_end(nonnull_bb);
+        let inner_ok = self.codegen_ref_is_instance_of_nonnull(at, obj, target_ty)?;
+        let after_check_bb =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // done：phi 合并
+        self.builder.position_at_end(done_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "isa_result")?;
+        phi.add_incoming(&[
+            (&self.context.bool_type().const_int(0, false), null_bb),
+            (&inner_ok, after_check_bb),
+        ]);
+        Ok(phi.as_basic_value().into_int_value())
+    }
+
+    fn codegen_ref_is_instance_of_nonnull(
+        &mut self,
+        at: crate::span::Span,
+        obj: PointerValue<'ctx>,
+        target_ty: TypeId,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match self.types.kind(target_ty) {
+            TypeKind::Ref(RefTypeKind::Any) => Ok(self.context.bool_type().const_int(1, false)),
+            TypeKind::Ref(RefTypeKind::String) => {
+                let desc = self.get_or_create_string_type_desc_global(at)?;
+                let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
+                self.codegen_type_desc_chain_contains_target(at, obj, target_i8)
+            }
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+                // interface：用 itable 判断是否实现。
+                if let Some(info) = self.interfaces.get(&nominal.fqn) {
+                    return self.codegen_itable_contains_interface_id(at, obj, info.interface_id);
+                }
+
+                // class：沿 parent 链查找。
+                if self.class_inits.contains_key(&nominal.fqn) {
+                    let desc = self.get_or_create_class_type_desc_global(at, &nominal.fqn)?;
+                    let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
+                    return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
+                }
+
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "type check target (nominal ref)",
+                    at: at.into(),
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "type check target type",
+                at: at.into(),
+            }),
+        }
+    }
+
+    /// `class` 类型判断：检查 `obj.header.type_desc` 的 parent 链是否包含 `target_desc_i8`。
+    fn codegen_type_desc_chain_contains_target(
+        &mut self,
+        at: crate::span::Span,
+        obj: PointerValue<'ctx>,
+        target_desc_i8: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        // 读取 `header.type_desc`（i8*）。
+        let header_ty = self.llvm_gc_object_header_type();
+        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr = self
+            .builder
+            .build_pointer_cast(obj, header_ptr_ty, "isa_hdr_ptr")?;
+        let type_desc_ptr =
+            self.builder
+                .build_struct_gep(header_ty, header_ptr, 1, "isa_type_desc_gep")?;
+        let type_desc_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, type_desc_ptr, "isa_type_desc")?
+            .into_pointer_value();
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        // while (cur != NULL) { if (cur == target) return true; cur = cur.parent; } return false
+        let loop_bb = self.context.append_basic_block(func, "isa_loop");
+        let check_bb = self.context.append_basic_block(func, "isa_check");
+        let advance_bb = self.context.append_basic_block(func, "isa_advance");
+        let hit_bb = self.context.append_basic_block(func, "isa_hit");
+        let done_bb = self.context.append_basic_block(func, "isa_done");
+
+        self.builder.build_unconditional_branch(loop_bb)?;
+        self.builder.position_at_end(loop_bb);
+
+        let cur_phi = self.builder.build_phi(i8_ptr_ty, "isa_cur")?;
+        cur_phi.add_incoming(&[(&type_desc_i8, insert_block)]);
+        let cur_i8 = cur_phi.as_basic_value().into_pointer_value();
+
+        let cur_is_null = self.builder.build_is_null(cur_i8, "isa_cur_is_null")?;
+        self.builder
+            .build_conditional_branch(cur_is_null, done_bb, check_bb)?;
+
+        // check：cur == target ?
+        self.builder.position_at_end(check_bb);
+        let word_ty = self.int_type(IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        });
+        let cur_int = self
+            .builder
+            .build_ptr_to_int(cur_i8, word_ty, "isa_cur_int")?;
+        let target_int =
+            self.builder
+                .build_ptr_to_int(target_desc_i8, word_ty, "isa_target_int")?;
+        let eq = self
+            .builder
+            .build_int_compare(IntPredicate::EQ, cur_int, target_int, "isa_eq")?;
+        self.builder
+            .build_conditional_branch(eq, hit_bb, advance_bb)?;
+
+        // advance：cur = cur.parent
+        self.builder.position_at_end(advance_bb);
+        let desc_ty = self.llvm_scoop_type_descriptor_type();
+        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let cur_desc = self
+            .builder
+            .build_pointer_cast(cur_i8, desc_ptr_ty, "isa_desc")?;
+        let parent_ptr = self
+            .builder
+            .build_struct_gep(desc_ty, cur_desc, 11, "isa_parent_gep")?;
+        let parent_desc = self
+            .builder
+            .build_load(desc_ptr_ty, parent_ptr, "isa_parent")?
+            .into_pointer_value();
+        let parent_i8 = self
+            .builder
+            .build_pointer_cast(parent_desc, i8_ptr_ty, "isa_parent_i8")?;
+        cur_phi.add_incoming(&[(&parent_i8, advance_bb)]);
+        self.builder.build_unconditional_branch(loop_bb)?;
+
+        // hit：return true
+        self.builder.position_at_end(hit_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // done：phi 合并 true/false
+        self.builder.position_at_end(done_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "isa_found")?;
+        phi.add_incoming(&[
+            (&self.context.bool_type().const_int(0, false), loop_bb),
+            (&self.context.bool_type().const_int(1, false), hit_bb),
+        ]);
+        Ok(phi.as_basic_value().into_int_value())
+    }
+
+    /// `interface` 类型判断：扫描 `obj.type_desc.itable` 是否包含 `interface_id`。
+    fn codegen_itable_contains_interface_id(
+        &mut self,
+        at: crate::span::Span,
+        obj: PointerValue<'ctx>,
+        interface_id: u64,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        // obj 指向对象头起始地址：先把它 cast 为 `ScoopGcObjectHeader*`。
+        let header_ty = self.llvm_gc_object_header_type();
+        let header_ptr_ty = header_ty.ptr_type(self.gc_address_space());
+        let header_ptr =
+            self.builder
+                .build_pointer_cast(obj, header_ptr_ty, "isa_iface_hdr_ptr")?;
+
+        // header.type_desc : i8*
+        let type_desc_ptr =
+            self.builder
+                .build_struct_gep(header_ty, header_ptr, 1, "isa_iface_type_desc_gep")?;
+        let type_desc_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, type_desc_ptr, "isa_iface_load_type_desc")?
+            .into_pointer_value();
+
+        // type_desc.itable : i8*
+        let desc_ty = self.llvm_scoop_type_descriptor_type();
+        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+        let desc_ptr =
+            self.builder
+                .build_pointer_cast(type_desc_i8, desc_ptr_ty, "isa_iface_type_desc")?;
+        let itable_field_ptr =
+            self.builder
+                .build_struct_gep(desc_ty, desc_ptr, 12, "isa_iface_itable_gep")?;
+        let itable_i8 = self
+            .builder
+            .build_load(i8_ptr_ty, itable_field_ptr, "isa_iface_load_itable")?
+            .into_pointer_value();
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+
+        // itable == NULL -> false
+        let itable_is_null = self
+            .builder
+            .build_is_null(itable_i8, "isa_iface_itable_is_null")?;
+        let null_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_itable_null");
+        let lookup_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_itable_lookup");
+        let done_bb = self
+            .context
+            .append_basic_block(func, "isa_iface_itable_done");
+        self.builder
+            .build_conditional_branch(itable_is_null, null_bb, lookup_bb)?;
+
+        self.builder.position_at_end(null_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // lookup：扫描 entries[idx].interface_id
+        self.builder.position_at_end(lookup_bb);
+        let itable_ty = self.llvm_scoop_itable_type();
+        let itable_ptr_ty = itable_ty.ptr_type(AddressSpace::default());
+        let itable_ptr =
+            self.builder
+                .build_pointer_cast(itable_i8, itable_ptr_ty, "isa_iface_itable_ptr")?;
+
+        let len_ptr =
+            self.builder
+                .build_struct_gep(itable_ty, itable_ptr, 0, "isa_iface_len_gep")?;
+        let len_i32 = self
+            .builder
+            .build_load(i32_ty, len_ptr, "isa_iface_len")?
+            .into_int_value();
+
+        let entry_ty = self.llvm_scoop_itable_entry_type();
+        let entries_field_ptr =
+            self.builder
+                .build_struct_gep(itable_ty, itable_ptr, 2, "isa_iface_entries_gep")?;
+        let entry_ptr_ty = entry_ty.ptr_type(AddressSpace::default());
+        let entries_base = self.builder.build_pointer_cast(
+            entries_field_ptr,
+            entry_ptr_ty,
+            "isa_iface_entries",
+        )?;
+
+        let loop_bb = self.context.append_basic_block(func, "isa_iface_loop");
+        let body_bb = self.context.append_basic_block(func, "isa_iface_body");
+        let hit_bb = self.context.append_basic_block(func, "isa_iface_hit");
+        let miss_bb = self.context.append_basic_block(func, "isa_iface_miss");
+
+        self.builder.build_unconditional_branch(loop_bb)?;
+        self.builder.position_at_end(loop_bb);
+
+        let idx_phi = self.builder.build_phi(i32_ty, "isa_iface_idx")?;
+        idx_phi.add_incoming(&[(&i32_ty.const_zero(), lookup_bb)]);
+        let idx_i32 = idx_phi.as_basic_value().into_int_value();
+
+        let cond = self.builder.build_int_compare(
+            IntPredicate::ULT,
+            idx_i32,
+            len_i32,
+            "isa_iface_idx_lt_len",
+        )?;
+        self.builder
+            .build_conditional_branch(cond, body_bb, done_bb)?;
+
+        // body：比较 interface_id
+        self.builder.position_at_end(body_bb);
+        let entry_ptr = unsafe {
+            self.builder.build_in_bounds_gep(
+                entry_ty,
+                entries_base,
+                &[idx_i32],
+                "isa_iface_entry_ptr",
+            )?
+        };
+        let id_ptr = self
+            .builder
+            .build_struct_gep(entry_ty, entry_ptr, 0, "isa_iface_id_gep")?;
+        let id_i64 = self
+            .builder
+            .build_load(i64_ty, id_ptr, "isa_iface_id")?
+            .into_int_value();
+
+        let target_id = i64_ty.const_int(interface_id, false);
+        let ok = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            id_i64,
+            target_id,
+            "isa_iface_id_eq",
+        )?;
+        self.builder.build_conditional_branch(ok, hit_bb, miss_bb)?;
+
+        // miss：idx++ 继续 loop
+        self.builder.position_at_end(miss_bb);
+        let next = self.builder.build_int_add(
+            idx_i32,
+            i32_ty.const_int(1, false),
+            "isa_iface_idx_next",
+        )?;
+        idx_phi.add_incoming(&[(&next, miss_bb)]);
+        self.builder.build_unconditional_branch(loop_bb)?;
+
+        // hit：直接 done
+        self.builder.position_at_end(hit_bb);
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // done：phi 合并 false/true
+        self.builder.position_at_end(done_bb);
+        let phi = self
+            .builder
+            .build_phi(self.context.bool_type(), "isa_iface_found")?;
+        phi.add_incoming(&[
+            (&self.context.bool_type().const_int(0, false), null_bb),
+            (&self.context.bool_type().const_int(0, false), loop_bb),
+            (&self.context.bool_type().const_int(1, false), hit_bb),
+        ]);
+        Ok(phi.as_basic_value().into_int_value())
     }
 
     fn codegen_int_binary_same_type(

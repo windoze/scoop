@@ -112,7 +112,8 @@ impl<'a> Parser<'a> {
             if rest_span.is_some() {
                 let tok = *self.peek();
                 if self.peek_symbol(Symbol::DotDot)
-                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                    || (self.peek_symbol(Symbol::Dot)
+                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "tuple pattern：`..` 只能出现一次",
@@ -132,7 +133,8 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_symbol(Symbol::DotDot)
-                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                || (self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
                 let span = if self.peek_symbol(Symbol::DotDot) {
                     self.bump().span
@@ -190,15 +192,19 @@ impl<'a> Parser<'a> {
             if rest_span.is_some() {
                 let tok = *self.peek();
                 if self.peek_symbol(Symbol::DotDot)
-                    || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                    || (self.peek_symbol(Symbol::Dot)
+                        && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
                 {
                     let err = ParseError::Expected {
                         expected: "struct pattern：`..` 只能出现一次",
                         found: tok.kind,
                         span: tok.span.into(),
                     };
-                    let _ =
-                        self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start);
+                    let _ = self.consume_balanced_after_open(
+                        Symbol::LBrace,
+                        Symbol::RBrace,
+                        open.span.start,
+                    );
                     return Err(err);
                 }
                 let err = ParseError::Expected {
@@ -206,13 +212,17 @@ impl<'a> Parser<'a> {
                     found: tok.kind,
                     span: tok.span.into(),
                 };
-                let _ =
-                    self.consume_balanced_after_open(Symbol::LBrace, Symbol::RBrace, open.span.start);
+                let _ = self.consume_balanced_after_open(
+                    Symbol::LBrace,
+                    Symbol::RBrace,
+                    open.span.start,
+                );
                 return Err(err);
             }
 
             if self.peek_symbol(Symbol::DotDot)
-                || (self.peek_symbol(Symbol::Dot) && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
+                || (self.peek_symbol(Symbol::Dot)
+                    && self.peek_n(1).kind == TokenKind::Symbol(Symbol::Dot))
             {
                 let span = if self.peek_symbol(Symbol::DotDot) {
                     self.bump().span

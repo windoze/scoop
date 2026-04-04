@@ -260,10 +260,7 @@ fn parse_top_level_typealias() {
 
 #[test]
 fn parse_top_level_generic_typealias() {
-    let src = SourceFile::new_virtual(
-        "<mem>",
-        "package a\ntypealias Handler<T> = (T) -> Unit\n",
-    );
+    let src = SourceFile::new_virtual("<mem>", "package a\ntypealias Handler<T> = (T) -> Unit\n");
     let file = parse_file(&src).unwrap();
     assert_eq!(file.items.len(), 1);
 

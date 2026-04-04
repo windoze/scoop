@@ -34,7 +34,11 @@ pub fn run(input: PathBuf, args: Vec<String>) -> Result<()> {
 
 fn run_for_exit_code(input: PathBuf, exe: &Path, args: Vec<String>) -> Result<i32> {
     // 复用 build 的“前端检查 +（可选）生成二进制”逻辑。
-    super::build::run(input, Some(exe.to_path_buf()), super::build::BuildOptions::default())?;
+    super::build::run(
+        input,
+        Some(exe.to_path_buf()),
+        super::build::BuildOptions::default(),
+    )?;
 
     if !cfg!(feature = "llvm") {
         return Err(miette::miette!(

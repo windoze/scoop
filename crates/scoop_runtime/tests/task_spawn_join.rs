@@ -16,4 +16,3 @@ fn task_spawn_join_int_roundtrip() {
         assert_eq!(value, 42);
     }
 }
-

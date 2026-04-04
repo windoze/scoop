@@ -20,4 +20,3 @@ fn gc_stackmap_roots_enum_smoke() {
     let rc = unsafe { scoop_test_gc_stackmap_roots_enum_smoke() };
     assert_eq!(rc, 1, "smoke 返回值异常：{rc}");
 }
-

@@ -51,9 +51,7 @@ pub fn run(input: PathBuf) -> Result<()> {
 /// 说明：
 /// - ELF：通常为 `.llvm_stackmaps`
 /// - Mach-O：通常为 `__llvm_stackmaps`（segment `__LLVM_STACKMAPS`）
-fn find_stackmaps_section<'data>(
-    obj: &object::File<'data>,
-) -> Result<(&'data str, &'data [u8])> {
+fn find_stackmaps_section<'data>(obj: &object::File<'data>) -> Result<(&'data str, &'data [u8])> {
     for section in obj.sections() {
         let name = section.name().ok();
         let Some(name) = name else { continue };

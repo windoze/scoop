@@ -47,7 +47,10 @@ fn gc_enter_native_treats_innative_thread_as_ready_and_preserves_roots() {
         // 分配一个对象：它不会出现在 shadow stack（Rust 测试不维护 shadow stack），因此若没有
         // native_roots 保护，下一次 GC 会把它当作垃圾回收。
         let mut obj = scoop_alloc(64);
-        assert!(!obj.is_null(), "scoop_alloc 返回 NULL（OOM 或运行时未初始化）");
+        assert!(
+            !obj.is_null(),
+            "scoop_alloc 返回 NULL（OOM 或运行时未初始化）"
+        );
 
         let after_alloc = scoop_gc_debug_heap_object_count();
 
@@ -104,8 +107,7 @@ fn gc_enter_native_treats_innative_thread_as_ready_and_preserves_roots() {
 
     let after_leave_gc = unsafe { scoop_gc_debug_heap_object_count() };
     assert_eq!(
-        after_leave_gc,
-        base,
+        after_leave_gc, base,
         "离开 InNative 且线程退出后，对象应可被回收：backend={GC_BACKEND:?}, base={base}, after_leave_gc={after_leave_gc}"
     );
 
@@ -113,4 +115,3 @@ fn gc_enter_native_treats_innative_thread_as_ready_and_preserves_roots() {
         scoop_thread_unregister();
     }
 }
-

@@ -143,7 +143,8 @@ pub fn collect_non_public_symbols_for_cone_sources(
     let mut out: Vec<ConeSymbolVisibilityEntry> = Vec::new();
     for (fqn, ns) in &index.by_fqn {
         if let Some(sym) = ns.ty.as_ref() {
-            if source_paths.contains(sym.decl_file.as_path()) && sym.visibility != Visibility::Public
+            if source_paths.contains(sym.decl_file.as_path())
+                && sym.visibility != Visibility::Public
             {
                 out.push(ConeSymbolVisibilityEntry {
                     kind: ConeSymbolKind::Type,
@@ -154,7 +155,8 @@ pub fn collect_non_public_symbols_for_cone_sources(
         }
 
         if let Some(sym) = ns.value.as_ref() {
-            if source_paths.contains(sym.decl_file.as_path()) && sym.visibility != Visibility::Public
+            if source_paths.contains(sym.decl_file.as_path())
+                && sym.visibility != Visibility::Public
             {
                 out.push(ConeSymbolVisibilityEntry {
                     kind: ConeSymbolKind::Value,

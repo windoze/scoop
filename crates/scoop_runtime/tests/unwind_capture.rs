@@ -8,7 +8,8 @@ unsafe extern "C" {
 #[test]
 fn unwind_capture_ips_smoke() {
     let mut ips = vec![0usize; 64];
-    let n = unsafe { scoop_test_unwind_capture_ips(ips.as_mut_ptr(), ips.len() as u32, 0) } as usize;
+    let n =
+        unsafe { scoop_test_unwind_capture_ips(ips.as_mut_ptr(), ips.len() as u32, 0) } as usize;
 
     if cfg!(target_os = "windows") {
         // Windows backend 目前是占位实现：统一返回 0（见 `runtime/c/platform/unwind_win32.c`）。
@@ -23,4 +24,3 @@ fn unwind_capture_ips_smoke() {
         "expected at least one non-zero instruction pointer"
     );
 }
-

@@ -19,4 +19,3 @@ pub fn run(input: PathBuf) -> Result<()> {
     println!("{:#?}", lowered.file);
     Ok(())
 }
-

@@ -99,14 +99,23 @@ fn effect_handler_stack_find_nearest_skips_inactive_frames() {
         scoop_effect_handler_stack_push(&mut f2, 2);
         scoop_effect_handler_stack_push(&mut f3, 1);
 
-        assert_eq!(scoop_effect_handler_stack_find_nearest(1), &mut f3 as *mut _);
-        assert_eq!(scoop_effect_handler_stack_find_nearest(2), &mut f2 as *mut _);
+        assert_eq!(
+            scoop_effect_handler_stack_find_nearest(1),
+            &mut f3 as *mut _
+        );
+        assert_eq!(
+            scoop_effect_handler_stack_find_nearest(2),
+            &mut f2 as *mut _
+        );
         assert_eq!(scoop_effect_handler_stack_find_nearest(3), ptr::null_mut());
 
         // Appendix A.4：arm body 执行时将当前 handler 置为 inactive，应命中外层 handler。
         scoop_effect_handler_stack_set_active(&mut f3, 0);
         assert_eq!(f3.active, 0);
-        assert_eq!(scoop_effect_handler_stack_find_nearest(1), &mut f1 as *mut _);
+        assert_eq!(
+            scoop_effect_handler_stack_find_nearest(1),
+            &mut f1 as *mut _
+        );
 
         // 把中间层也置为 inactive：tag=2 应该找不到。
         scoop_effect_handler_stack_set_active(&mut f2, 0);
@@ -124,4 +133,3 @@ fn effect_handler_stack_find_nearest_skips_inactive_frames() {
         assert_eq!(scoop_effect_handler_stack_top(), ptr::null_mut());
     }
 }
-

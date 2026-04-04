@@ -8,7 +8,10 @@ use std::path::PathBuf;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
 pub fn run(input: PathBuf) -> Result<()> {
-    let input = input.canonicalize().into_diagnostic().wrap_err("无法定位输入文件")?;
+    let input = input
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位输入文件")?;
     let file = scoopc::source::SourceFile::load(&input)?;
 
     let ast = scoopc::parser::parse_file(&file).map_err(miette::Report::from)?;

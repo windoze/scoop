@@ -1,0 +1,13 @@
+x is IFace: true
+x !is IFace: false
+x is Other: false
+x !is Other: true
+x is Base: true
+Impl.ping
+42
+10
+as?: IFace ok
+as?: Other ok
+caught: cast
+2
+done

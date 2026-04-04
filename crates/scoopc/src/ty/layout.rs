@@ -135,7 +135,10 @@ pub enum EnumRepr {
     /// - `Option<RefType>`：`None = null (0x0)`
     /// - `Option<Option<RefType>>`：外层 `None` 使用 `0x1` 等非法地址值
     /// - `Option<Bool>`：`None = 2`
-    Niche { storage: NicheStorage, none_value: u64 },
+    Niche {
+        storage: NicheStorage,
+        none_value: u64,
+    },
 }
 
 /// 单个 enum variant 的布局决策（只记录 boxing 与 payload layout）。
@@ -156,4 +159,3 @@ pub struct EnumLayout {
     pub payload: TypeLayout,
     pub variants: Vec<EnumVariantLayout>,
 }
-

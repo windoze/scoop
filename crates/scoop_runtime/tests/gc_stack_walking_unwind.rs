@@ -19,4 +19,3 @@ fn gc_stack_walking_can_enumerate_frames_from_captured_ctx() {
         "stack walking unwind smoke 失败：backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}, rc={rc}"
     );
 }
-

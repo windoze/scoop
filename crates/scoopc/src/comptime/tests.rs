@@ -2,8 +2,10 @@ use std::collections::BTreeMap;
 
 use miette::Diagnostic;
 
-use crate::comptime::{ConstEnum, ConstEvalCtx, ConstInt, ConstIntTy, ConstStruct, ConstValue, eval_const_expr};
 use crate::comptime::{ConstBinding, eval_const_bindings_in_file};
+use crate::comptime::{
+    ConstEnum, ConstEvalCtx, ConstInt, ConstIntTy, ConstStruct, ConstValue, eval_const_expr,
+};
 use crate::parser;
 use crate::source::SourceFile;
 
@@ -80,7 +82,12 @@ fn mk_param_meta(int_ty: ConstIntTy, name: &str, ty_name: &str, index: u128) -> 
     })
 }
 
-fn mk_variant_meta(int_ty: ConstIntTy, name: &str, fields: Vec<ConstValue>, index: u128) -> ConstValue {
+fn mk_variant_meta(
+    int_ty: ConstIntTy,
+    name: &str,
+    fields: Vec<ConstValue>,
+    index: u128,
+) -> ConstValue {
     ConstValue::Struct(ConstStruct {
         ty: "VariantMeta".to_string(),
         fields: BTreeMap::from([
@@ -136,9 +143,24 @@ fn const_eval_int_arithmetic_and_bitwise() {
     let v = eval_expr("1 + 2 * 3", ConstIntTy::host_word(true));
     assert_eq!(v, mk_int(ConstIntTy::host_word(true), 7));
 
-    let v = eval_expr("~0", ConstIntTy { bits: 8, signed: true });
+    let v = eval_expr(
+        "~0",
+        ConstIntTy {
+            bits: 8,
+            signed: true,
+        },
+    );
     // 8-bit ~0 == 0xff
-    assert_eq!(v, mk_int(ConstIntTy { bits: 8, signed: true }, 0xff));
+    assert_eq!(
+        v,
+        mk_int(
+            ConstIntTy {
+                bits: 8,
+                signed: true
+            },
+            0xff
+        )
+    );
 }
 
 #[test]
@@ -168,17 +190,41 @@ fn const_eval_string_trim_indent_folds() {
 #[test]
 fn const_eval_shift_respects_signedness() {
     // 8-bit unsigned: -1 == 0xff; 0xff >> 1 == 0x7f
-    let v = eval_expr("-1 >> 1", ConstIntTy { bits: 8, signed: false });
+    let v = eval_expr(
+        "-1 >> 1",
+        ConstIntTy {
+            bits: 8,
+            signed: false,
+        },
+    );
     assert_eq!(
         v,
-        mk_int(ConstIntTy { bits: 8, signed: false }, 0x7f)
+        mk_int(
+            ConstIntTy {
+                bits: 8,
+                signed: false
+            },
+            0x7f
+        )
     );
 
     // 8-bit signed arithmetic shift: -1 >> 1 == -1 (0xff)
-    let v = eval_expr("-1 >> 1", ConstIntTy { bits: 8, signed: true });
+    let v = eval_expr(
+        "-1 >> 1",
+        ConstIntTy {
+            bits: 8,
+            signed: true,
+        },
+    );
     assert_eq!(
         v,
-        mk_int(ConstIntTy { bits: 8, signed: true }, 0xff)
+        mk_int(
+            ConstIntTy {
+                bits: 8,
+                signed: true
+            },
+            0xff
+        )
     );
 }
 
@@ -201,8 +247,10 @@ fn const_eval_struct_construct_and_access() {
     let ty = ConstIntTy::host_word(true);
 
     let v = eval_expr("Point { x: 1, y: 2 }", ty);
-    let fields: BTreeMap<String, ConstValue> =
-        BTreeMap::from([("x".to_string(), mk_int(ty, 1)), ("y".to_string(), mk_int(ty, 2))]);
+    let fields: BTreeMap<String, ConstValue> = BTreeMap::from([
+        ("x".to_string(), mk_int(ty, 1)),
+        ("y".to_string(), mk_int(ty, 2)),
+    ]);
     assert_eq!(
         v,
         ConstValue::Struct(ConstStruct {
@@ -723,7 +771,10 @@ const val P1T: String = paramsOf(FunctionMeta { name: "add" })._1.type.name
                     mk_variant_meta(
                         ty,
                         "A",
-                        vec![mk_field_meta(ty, "x", "Int", 0), mk_field_meta(ty, "y", "String", 1)],
+                        vec![
+                            mk_field_meta(ty, "x", "Int", 0),
+                            mk_field_meta(ty, "y", "String", 1)
+                        ],
                         0,
                     ),
                     mk_variant_meta(ty, "B", Vec::new(), 1),

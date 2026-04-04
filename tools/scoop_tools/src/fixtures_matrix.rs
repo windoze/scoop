@@ -171,7 +171,9 @@ pub fn run_check(spec_path: &Path, fixtures_root: &Path) -> Result<Report> {
     })
 }
 
-fn parse_spec_chapters_and_fixtures(spec_text: &str) -> Result<(Vec<Chapter>, Vec<SpecFixtureRef>)> {
+fn parse_spec_chapters_and_fixtures(
+    spec_text: &str,
+) -> Result<(Vec<Chapter>, Vec<SpecFixtureRef>)> {
     let mut chapters: Vec<Chapter> = Vec::new();
     let mut fixtures: Vec<SpecFixtureRef> = Vec::new();
 

@@ -20,7 +20,8 @@ use crate::span::Span;
 use crate::ty::{TypeId, TypeStore};
 use crate::typecheck;
 use crate::typecheck::{
-    AnnotationError, ExprTypeError, StructDeclError, TypeEnv, TypeEnvError, TypeHeaderError, TypeLowerError,
+    AnnotationError, ExprTypeError, StructDeclError, TypeEnv, TypeEnvError, TypeHeaderError,
+    TypeLowerError,
 };
 
 use super::MonomorphKey;
@@ -161,8 +162,11 @@ pub fn lower_for_dump(
     // 为保证 dump 输出稳定：按“实例名”排序后再生成。
     let mut keys_sorted = keys.clone();
     keys_sorted.sort_by(|a, b| {
-        monomorph_instance_fqn(&a.symbol.fqn, &a.type_args, &types)
-            .cmp(&monomorph_instance_fqn(&b.symbol.fqn, &b.type_args, &types))
+        monomorph_instance_fqn(&a.symbol.fqn, &a.type_args, &types).cmp(&monomorph_instance_fqn(
+            &b.symbol.fqn,
+            &b.type_args,
+            &types,
+        ))
     });
 
     for key in &keys_sorted {
@@ -351,10 +355,7 @@ fun f() {
         assert!(fqn_list.iter().any(|fqn| fqn.contains("id::<Int>")));
         assert!(fqn_list.iter().any(|fqn| fqn.contains("id::<String>")));
         assert_eq!(
-            fqn_list
-                .iter()
-                .filter(|fqn| fqn.contains("id::<"))
-                .count(),
+            fqn_list.iter().filter(|fqn| fqn.contains("id::<")).count(),
             2
         );
     }

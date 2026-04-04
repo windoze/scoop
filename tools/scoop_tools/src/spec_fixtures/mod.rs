@@ -10,7 +10,7 @@ mod parse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
 pub const GENERATED_DIR: &str = "spec_doctest";
 
@@ -130,7 +130,12 @@ fn check(out_root: &Path, desired: &BTreeMap<PathBuf, String>) -> Result<()> {
         let abs = out_root.parent().unwrap_or(out_root).join(rel);
         let existing = std::fs::read_to_string(&abs)
             .into_diagnostic()
-            .wrap_err_with(|| format!("缺少生成文件：{}（请运行 spec-fixtures sync）", abs.display()))?;
+            .wrap_err_with(|| {
+                format!(
+                    "缺少生成文件：{}（请运行 spec-fixtures sync）",
+                    abs.display()
+                )
+            })?;
         if existing != *content {
             return Err(miette!(
                 "生成文件与规范不一致：{}（请运行 spec-fixtures sync）",
@@ -146,7 +151,8 @@ fn check(out_root: &Path, desired: &BTreeMap<PathBuf, String>) -> Result<()> {
     }
     let extras = find_extra_scoop_files(out_root, &desired_abs)?;
     if !extras.is_empty() {
-        let mut msg = String::from("spec_doctest 目录存在多余文件（请运行 spec-fixtures sync 清理）：\n");
+        let mut msg =
+            String::from("spec_doctest 目录存在多余文件（请运行 spec-fixtures sync 清理）：\n");
         for p in extras {
             msg.push_str("  - ");
             msg.push_str(&p.display().to_string());
@@ -223,7 +229,9 @@ fn remove_stale_scoop_files(dir: &Path, keep: &BTreeSet<PathBuf>) -> Result<()> 
             continue;
         }
 
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") && !keep.contains(&path)
+        if ty.is_file()
+            && path.extension().is_some_and(|ext| ext == "scoop")
+            && !keep.contains(&path)
         {
             std::fs::remove_file(&path)
                 .into_diagnostic()
@@ -252,7 +260,9 @@ fn find_extra_scoop_files(dir: &Path, keep: &BTreeSet<PathBuf>) -> Result<Vec<Pa
             continue;
         }
 
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") && !keep.contains(&path)
+        if ty.is_file()
+            && path.extension().is_some_and(|ext| ext == "scoop")
+            && !keep.contains(&path)
         {
             extras.push(path);
         }

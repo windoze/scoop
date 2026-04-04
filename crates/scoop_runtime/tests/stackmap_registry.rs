@@ -103,7 +103,8 @@ fn stackmap_registry_can_register_and_lookup_mock_section() {
         scoop_stackmap_registry_reset();
 
         let bytes = (&MOCK_STACKMAP_SECTION as *const StackMapSectionMin).cast::<u8>();
-        let added = scoop_stackmap_registry_register_section(bytes, mem::size_of::<StackMapSectionMin>());
+        let added =
+            scoop_stackmap_registry_register_section(bytes, mem::size_of::<StackMapSectionMin>());
         assert!(added > 0, "期望能注册至少 1 条 record，实际为 {added}");
         assert_eq!(scoop_stackmap_registry_record_count(), 1);
 
@@ -207,7 +208,10 @@ fn runtime_init_registers_stackmaps_from_current_process() {
         scoop_runtime_init();
 
         let n = scoop_stackmap_registry_record_count();
-        assert!(n > 0, "runtime_init 后 stackmap registry 仍为空（records={n}）");
+        assert!(
+            n > 0,
+            "runtime_init 后 stackmap registry 仍为空（records={n}）"
+        );
 
         let ra = EMBEDDED_SYNTHETIC_RA;
         let mut out = ScoopStackmapRecordRef::default();

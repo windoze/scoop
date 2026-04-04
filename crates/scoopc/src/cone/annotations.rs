@@ -135,16 +135,17 @@ pub fn collect_cone_preserved_annotation_classes_for_cone_sources(
             continue;
         }
 
-        let targets = ty.annotation_targets.as_ref().map(|v| {
-            v.iter()
-                .map(|t| t.as_str().to_string())
-                .collect::<Vec<_>>()
-        });
+        let targets = ty
+            .annotation_targets
+            .as_ref()
+            .map(|v| v.iter().map(|t| t.as_str().to_string()).collect::<Vec<_>>());
 
         out.push(ConeAnnotationClassEntry {
             fqn: fqn.clone(),
             targets,
-            retention: AnnotationRetentionPolicy::ConePreserved.as_str().to_string(),
+            retention: AnnotationRetentionPolicy::ConePreserved
+                .as_str()
+                .to_string(),
         });
     }
 

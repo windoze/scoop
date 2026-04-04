@@ -18,9 +18,6 @@ fn runtime_init_is_callable_and_observable() {
 
         scoop_runtime_init();
         assert_eq!(scoop_runtime_is_initialized(), 1);
-        assert_eq!(
-            scoop_runtime_init_count(),
-            before_count.saturating_add(2)
-        );
+        assert_eq!(scoop_runtime_init_count(), before_count.saturating_add(2));
     }
 }

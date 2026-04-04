@@ -1182,6 +1182,9 @@ fn collect_symbol_types_in_expr(expr: &hir::Expr, out: &mut HashMap<hir::SymbolI
             collect_symbol_types_in_expr(lhs, out);
             collect_symbol_types_in_expr(rhs, out);
         }
+        hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+            collect_symbol_types_in_expr(expr, out);
+        }
         hir::ExprKind::Block(b) => collect_symbol_types_in_block(b, out),
         hir::ExprKind::Call { callee, args } => {
             collect_symbol_types_in_expr(callee, out);
@@ -1318,6 +1321,9 @@ fn collect_closures_in_expr(expr: &hir::Expr, out: &mut Vec<hir::ClosureExpr>) {
         hir::ExprKind::Binary { lhs, rhs, .. } => {
             collect_closures_in_expr(lhs, out);
             collect_closures_in_expr(rhs, out);
+        }
+        hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+            collect_closures_in_expr(expr, out);
         }
         hir::ExprKind::Block(b) => collect_closures_in_block(b, out),
         hir::ExprKind::Call { callee, args } => {

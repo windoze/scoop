@@ -266,6 +266,28 @@ pub enum ExprKind {
         op_span: Span,
         rhs: Box<Expr>,
     },
+    /// 运行期类型判断：`expr is Type` / `expr !is Type`。
+    ///
+    /// 说明：
+    /// - typecheck 阶段允许其出现在 `if/when` 等条件位置用于 smart cast；
+    /// - codegen 阶段需要将其落到运行期对象模型（type descriptor / itable）检查。
+    TypeCheck {
+        expr: Box<Expr>,
+        op: ast::TypeCheckOp,
+        op_span: Span,
+        target_ty: TypeId,
+    },
+    /// 显式运行期转换：`expr as Type` / `expr as? Type`。
+    ///
+    /// 说明：
+    /// - `as` 失败语义：`Raise.raise(RuntimeError.ClassCastFailed)`；
+    /// - `as?` 失败语义：返回 `None`（即 `Option<T>`）。
+    Cast {
+        expr: Box<Expr>,
+        op: ast::CastOp,
+        op_span: Span,
+        target_ty: TypeId,
+    },
     Block(Block),
     /// closure（lambda）表达式：`{ params -> body }` / `{ body }`。
     ///

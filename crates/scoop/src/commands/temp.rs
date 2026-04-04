@@ -26,4 +26,3 @@ pub fn make_temp_dir(prefix: &str) -> Result<PathBuf> {
         .wrap_err("无法创建临时目录")?;
     Ok(dir)
 }
-

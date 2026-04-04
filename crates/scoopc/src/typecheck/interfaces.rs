@@ -328,7 +328,11 @@ fn check_enum_decl_interfaces(
         !is_interface(env, &first_fqn)
     });
 
-    let interface_supertypes = if should_skip_first { &supertypes[1..] } else { supertypes };
+    let interface_supertypes = if should_skip_first {
+        &supertypes[1..]
+    } else {
+        supertypes
+    };
 
     check_value_type_interfaces(source, file, type_fqn, interface_supertypes, index, env)
 }
@@ -428,9 +432,9 @@ fn member_fun_match(index: &Index, type_fqn: &str, required: &FunOverload) -> Me
         .fun
         .iter()
         .filter(|cand| {
-        cand.sig.params.len() == required.sig.params.len()
-            && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
-            && cand.sig.type_params.len() == required.sig.type_params.len()
+            cand.sig.params.len() == required.sig.params.len()
+                && cand.sig.receiver.is_some() == required.sig.receiver.is_some()
+                && cand.sig.type_params.len() == required.sig.type_params.len()
         })
         .count();
 

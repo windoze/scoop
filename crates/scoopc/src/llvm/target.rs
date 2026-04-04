@@ -6,9 +6,11 @@
 //! - 用其 data layout 配置 LLVM module；
 //! - 暴露 pointer size 等信息，供后续类型映射（例如 word size）使用。
 
-use inkwell::module::Module;
-use inkwell::targets::{ByteOrdering, CodeModel, InitializationConfig, RelocMode, Target, TargetData, TargetMachine};
 use inkwell::OptimizationLevel;
+use inkwell::module::Module;
+use inkwell::targets::{
+    ByteOrdering, CodeModel, InitializationConfig, RelocMode, Target, TargetData, TargetMachine,
+};
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -69,9 +71,10 @@ pub fn host_target_machine() -> Result<(TargetMachine, HostTargetInfo), LlvmTarg
     let triple = TargetMachine::get_default_triple();
     let triple_str = triple.as_str().to_string_lossy().into_owned();
 
-    let target = Target::from_triple(&triple).map_err(|e| LlvmTargetError::TargetFromTripleFailed {
-        message: e.to_string(),
-    })?;
+    let target =
+        Target::from_triple(&triple).map_err(|e| LlvmTargetError::TargetFromTripleFailed {
+            message: e.to_string(),
+        })?;
 
     let cpu = TargetMachine::get_host_cpu_name().to_string();
     let features = TargetMachine::get_host_cpu_features().to_string();

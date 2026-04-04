@@ -12,7 +12,11 @@ mod immix {
 
     type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
     type ScoopTypeTraceFn = Option<
-        unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64,
+        unsafe extern "C" fn(
+            object: *mut c_void,
+            visitor: ScoopGcTraceVisitor,
+            ctx: *mut c_void,
+        ) -> u64,
     >;
     type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
@@ -163,13 +167,14 @@ mod immix {
                 scoop_thread_register();
 
                 // root 节点先只写入 sentinel；cross-thread link 在所有线程 publish 后再补齐。
-                let root =
-                    alloc_node(desc_addr as *const ScoopTypeDescriptor,
-                              header_size,
-                              node_size,
-                              ptr::null_mut(),
-                              ptr::null_mut(),
-                              tid as u64);
+                let root = alloc_node(
+                    desc_addr as *const ScoopTypeDescriptor,
+                    header_size,
+                    node_size,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    tid as u64,
+                );
 
                 let mut frame = ScoopGcFrame {
                     prev: ptr::null_mut(),
@@ -201,17 +206,19 @@ mod immix {
                         assert_eq!(read_node_sentinel(local_head, header_size), tid as u64);
                     }
 
-                    let node =
-                        alloc_node(desc_addr as *const ScoopTypeDescriptor,
-                                  header_size,
-                                  node_size,
-                                  ptr::null_mut(),
-                                  local_head,
-                                  tid as u64);
+                    let node = alloc_node(
+                        desc_addr as *const ScoopTypeDescriptor,
+                        header_size,
+                        node_size,
+                        ptr::null_mut(),
+                        local_head,
+                        tid as u64,
+                    );
 
                     // root 可能被 moving/compaction 更新地址：每次都从 frame.roots 读取。
                     let root_now = frame.roots[0];
-                    let payload = (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
+                    let payload =
+                        (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
                     payload.add(1).write(node);
 
                     // 轻量一致性检查：root 与链表头的 sentinel 必须稳定（否则说明标记/更新出现问题）。

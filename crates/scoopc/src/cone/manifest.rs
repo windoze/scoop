@@ -238,24 +238,18 @@ fn parse_pre_specialize(root: &toml::Table) -> Result<(Vec<String>, Vec<String>)
             .ok_or_else(|| miette!("`[pre-specialize]` 必须是 table"))?,
     };
 
-    fn parse_string_array(
-        table: &toml::Table,
-        key: &str,
-        section: &str,
-    ) -> Result<Vec<String>> {
+    fn parse_string_array(table: &toml::Table, key: &str, section: &str) -> Result<Vec<String>> {
         let Some(value) = table.get(key) else {
             return Ok(Vec::new());
         };
-        let arr = value.as_array().ok_or_else(|| {
-            miette!("`[{section}].{key}` 必须是字符串数组")
-        })?;
+        let arr = value
+            .as_array()
+            .ok_or_else(|| miette!("`[{section}].{key}` 必须是字符串数组"))?;
 
         let mut out = Vec::with_capacity(arr.len());
         for (idx, item) in arr.iter().enumerate() {
             let Some(s) = item.as_str() else {
-                return Err(miette!(
-                    "`[{section}].{key}[{idx}]` 必须是字符串"
-                ));
+                return Err(miette!("`[{section}].{key}[{idx}]` 必须是字符串"));
             };
             out.push(s.to_owned());
         }
@@ -299,9 +293,7 @@ fn parse_selectors(root: &toml::Table) -> Result<Vec<ConeSelectEntry>> {
         let mut out = Vec::with_capacity(arr.len());
         for (item_idx, item) in arr.iter().enumerate() {
             let Some(s) = item.as_str() else {
-                return Err(miette!(
-                    "`{section}[{idx}].{key}[{item_idx}]` 必须是字符串"
-                ));
+                return Err(miette!("`{section}[{idx}].{key}[{item_idx}]` 必须是字符串"));
             };
             out.push(s.to_owned());
         }

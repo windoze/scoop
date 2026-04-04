@@ -77,10 +77,7 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
-            if matches!(
-                head,
-                TokenKind::Keyword(Keyword::Val | Keyword::Var)
-            ) {
+            if matches!(head, TokenKind::Keyword(Keyword::Val | Keyword::Var)) {
                 if self.is_extension_property_decl_start() {
                     match self.parse_extension_property_decl() {
                         Ok(decl) => items.push(ast::Item::ExtensionProperty(decl)),

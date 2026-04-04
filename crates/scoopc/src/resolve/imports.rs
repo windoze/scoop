@@ -77,12 +77,7 @@ impl ImportTable {
             let (local, local_span, is_alias) = local_name_and_span(source, import);
 
             if syms.get(SymbolKind::Type).is_some() {
-                check_import_alias_conflicts(
-                    &mut import_locals_ty,
-                    local,
-                    local_span,
-                    is_alias,
-                )?;
+                check_import_alias_conflicts(&mut import_locals_ty, local, local_span, is_alias)?;
 
                 table
                     .ty
@@ -120,7 +115,10 @@ struct ImportLocalInfo {
     has_alias: bool,
 }
 
-fn local_name_and_span<'a>(source: &'a SourceFile, import: &'a ast::ImportDecl) -> (&'a str, Span, bool) {
+fn local_name_and_span<'a>(
+    source: &'a SourceFile,
+    import: &'a ast::ImportDecl,
+) -> (&'a str, Span, bool) {
     if let Some(alias) = &import.alias {
         return (source.slice(alias.span), alias.span, true);
     }

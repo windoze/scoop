@@ -150,10 +150,7 @@ fn runtime_exports_must_be_allowlisted() {
     let nm_stdout = run_nm_exports(&lib_path);
     let exports = parse_defined_export_symbols(&nm_stdout);
 
-    let unknown: Vec<String> = exports
-        .difference(&allowlist)
-        .cloned()
-        .collect();
+    let unknown: Vec<String> = exports.difference(&allowlist).cloned().collect();
 
     assert!(
         unknown.is_empty(),
@@ -162,4 +159,3 @@ fn runtime_exports_must_be_allowlisted() {
         lib_path.display()
     );
 }
-

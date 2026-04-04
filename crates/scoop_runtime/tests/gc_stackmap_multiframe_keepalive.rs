@@ -20,4 +20,3 @@ fn gc_stackmap_multiframe_keepalive() {
     let rc = unsafe { scoop_test_gc_stackmap_multiframe_keepalive() };
     assert_eq!(rc, 1, "multiframe keepalive 返回值异常：{rc}");
 }
-

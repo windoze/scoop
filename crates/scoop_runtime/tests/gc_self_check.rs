@@ -13,4 +13,3 @@ fn gc_data_structures_self_check_passes() {
         assert_eq!(scoop_gc_self_check(), 1);
     }
 }
-

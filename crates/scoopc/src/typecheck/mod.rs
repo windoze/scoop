@@ -7,48 +7,47 @@
 //! - 表达式类型检查（T0405+）
 //! 提供起点。
 
-mod type_env;
-mod builtin_annotations;
 mod annotations;
-mod lower;
 mod assignable;
 mod branch_merge;
-mod headers;
+mod builtin_annotations;
+mod eff_row_subst;
 mod expr;
-mod structs;
-mod properties;
-mod when_pat;
-mod when_exhaustiveness;
-mod val_pat;
+mod headers;
 mod inheritance;
 mod interfaces;
-mod override_effects;
 mod layout;
+mod lower;
 mod overloads;
+mod override_effects;
+mod properties;
+mod structs;
+mod type_env;
+mod val_pat;
+mod when_exhaustiveness;
+mod when_pat;
 mod where_clause;
-mod eff_row_subst;
 
-pub use type_env::{
-    AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv, TypeEnvError, TypeSymbol,
-    TypeSymbolKind,
+pub use annotations::{AnnotationError, check_file_annotations};
+pub use expr::{
+    ExprTypeError, check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
+    check_file_exprs_with_monomorph_keys, check_file_exprs_with_type_instantiation_keys,
 };
-pub use annotations::{check_file_annotations, AnnotationError};
+pub use headers::{TypeHeaderError, check_file_headers};
+pub use inheritance::{InheritanceError, check_file_inheritance};
+pub use interfaces::{InterfaceError, check_file_interfaces};
+pub use layout::{LayoutError, check_file_type_layouts};
+pub(crate) use lower::TypeLowering;
 pub use lower::{
     TypeInstantiationKey, TypeLowerError, check_file_type_refs,
     check_file_type_refs_with_type_instantiation_keys,
 };
-pub(crate) use lower::TypeLowering;
-pub use headers::{check_file_headers, TypeHeaderError};
-pub use expr::{
-    check_file_exprs, check_file_exprs_with_monomorph_and_type_instantiation_keys,
-    check_file_exprs_with_monomorph_keys, check_file_exprs_with_type_instantiation_keys,
-    ExprTypeError,
+pub use overloads::{OverloadDeclError, check_file_overload_conflicts};
+pub use override_effects::{OverrideEffectError, check_file_override_effects};
+pub use properties::{PropertyDeclError, check_file_properties};
+pub use structs::{StructDeclError, check_file_struct_decls};
+pub use type_env::{
+    AnnotationRetentionPolicy, AnnotationTargetKind, TypeEnv, TypeEnvError, TypeSymbol,
+    TypeSymbolKind,
 };
-pub use structs::{check_file_struct_decls, StructDeclError};
-pub use properties::{check_file_properties, PropertyDeclError};
-pub use inheritance::{check_file_inheritance, InheritanceError};
-pub use interfaces::{check_file_interfaces, InterfaceError};
-pub use override_effects::{check_file_override_effects, OverrideEffectError};
-pub use layout::{check_file_type_layouts, LayoutError};
-pub use overloads::{check_file_overload_conflicts, OverloadDeclError};
-pub use where_clause::{check_file_where_clauses, WhereClauseError};
+pub use where_clause::{WhereClauseError, check_file_where_clauses};

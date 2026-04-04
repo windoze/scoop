@@ -3,8 +3,8 @@ use scoop_runtime as _;
 
 use core::ffi::c_void;
 use core::ptr;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 static EVENTS: Mutex<Vec<u64>> = Mutex::new(Vec::new());
 static TASK_HANDLE: AtomicU64 = AtomicU64::new(0);
@@ -17,7 +17,10 @@ unsafe extern "C" {
     fn scoop_thread_register();
     fn scoop_thread_unregister();
 
-    fn scoop_continuation_alloc(state: *mut c_void, step_fn: ScoopContinuationStepFn) -> *mut c_void;
+    fn scoop_continuation_alloc(
+        state: *mut c_void,
+        step_fn: ScoopContinuationStepFn,
+    ) -> *mut c_void;
 
     fn scoop_executor_create() -> u64;
     fn scoop_executor_destroy(executor_handle: u64);

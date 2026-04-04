@@ -9,7 +9,11 @@ mod immix {
 
     type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
     type ScoopTypeTraceFn = Option<
-        unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64,
+        unsafe extern "C" fn(
+            object: *mut c_void,
+            visitor: ScoopGcTraceVisitor,
+            ctx: *mut c_void,
+        ) -> u64,
     >;
     type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
@@ -276,7 +280,8 @@ mod immix {
 
             // A->B 引用仍应正确，且 B 哨兵保持。
             let a_after = frame.roots[0];
-            let a_after_payload = (a_after as *mut u8).add(header_size as usize) as *mut *mut c_void;
+            let a_after_payload =
+                (a_after as *mut u8).add(header_size as usize) as *mut *mut c_void;
             let b_after = a_after_payload.read();
             assert!(!b_after.is_null());
             let b_after_payload = (b_after as *mut u8).add(header_size as usize);

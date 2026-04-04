@@ -5,8 +5,13 @@ use core::ffi::c_void;
 use core::mem;
 
 type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
-type ScoopTypeTraceFn =
-    Option<unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64>;
+type ScoopTypeTraceFn = Option<
+    unsafe extern "C" fn(
+        object: *mut c_void,
+        visitor: ScoopGcTraceVisitor,
+        ctx: *mut c_void,
+    ) -> u64,
+>;
 type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
 // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopTypeDescriptor`（T1501：固化对象模型 ABI）。
@@ -39,20 +44,35 @@ struct ScoopGcObjectHeader {
 }
 
 fn align_up(value: usize, align: usize) -> usize {
-    assert!(align.is_power_of_two(), "align must be power-of-two: {align}");
+    assert!(
+        align.is_power_of_two(),
+        "align must be power-of-two: {align}"
+    );
     (value + (align - 1)) & !(align - 1)
 }
 
 #[test]
 fn object_header_layout_matches_spec() {
     let ptr_size = mem::size_of::<*const c_void>();
-    assert!(ptr_size == 4 || ptr_size == 8, "unexpected ptr size: {ptr_size}");
+    assert!(
+        ptr_size == 4 || ptr_size == 8,
+        "unexpected ptr size: {ptr_size}"
+    );
 
     assert_eq!(mem::offset_of!(ScoopGcObjectHeader, next), 0);
     assert_eq!(mem::offset_of!(ScoopGcObjectHeader, type_desc), ptr_size);
-    assert_eq!(mem::offset_of!(ScoopGcObjectHeader, size_bytes), 2 * ptr_size);
-    assert_eq!(mem::offset_of!(ScoopGcObjectHeader, flags), 2 * ptr_size + 8);
-    assert_eq!(mem::offset_of!(ScoopGcObjectHeader, mark), 2 * ptr_size + 8 + 4);
+    assert_eq!(
+        mem::offset_of!(ScoopGcObjectHeader, size_bytes),
+        2 * ptr_size
+    );
+    assert_eq!(
+        mem::offset_of!(ScoopGcObjectHeader, flags),
+        2 * ptr_size + 8
+    );
+    assert_eq!(
+        mem::offset_of!(ScoopGcObjectHeader, mark),
+        2 * ptr_size + 8 + 4
+    );
 
     let header_size = mem::size_of::<ScoopGcObjectHeader>();
     assert_eq!(
@@ -69,8 +89,14 @@ fn type_descriptor_layout_matches_spec() {
     assert_eq!(mem::offset_of!(ScoopTypeDescriptor, flags), 4);
     assert_eq!(mem::offset_of!(ScoopTypeDescriptor, size_bytes), 8);
     assert_eq!(mem::offset_of!(ScoopTypeDescriptor, align_bytes), 16);
-    assert_eq!(mem::offset_of!(ScoopTypeDescriptor, trace_start_offset_bytes), 24);
-    assert_eq!(mem::offset_of!(ScoopTypeDescriptor, trace_bitmap_u64_len), 32);
+    assert_eq!(
+        mem::offset_of!(ScoopTypeDescriptor, trace_start_offset_bytes),
+        24
+    );
+    assert_eq!(
+        mem::offset_of!(ScoopTypeDescriptor, trace_bitmap_u64_len),
+        32
+    );
     assert_eq!(mem::offset_of!(ScoopTypeDescriptor, trace_bitmap), 40);
 
     // 指针/函数指针字段的偏移：按当前目标的 ABI 计算。
@@ -91,7 +117,10 @@ fn type_descriptor_layout_matches_spec() {
     offset += mem::size_of::<u64>();
 
     offset = align_up(offset, ptr_align);
-    assert_eq!(mem::offset_of!(ScoopTypeDescriptor, parent_type_desc), offset);
+    assert_eq!(
+        mem::offset_of!(ScoopTypeDescriptor, parent_type_desc),
+        offset
+    );
     offset += ptr_size;
 
     offset = align_up(offset, ptr_align);
@@ -109,4 +138,3 @@ fn type_descriptor_layout_matches_spec() {
         "type descriptor size must be pointer-aligned"
     );
 }
-

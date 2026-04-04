@@ -4,8 +4,8 @@
 //! - 把 “规范/fixtures/实现” 三者联动起来，避免文档漂移
 //! - 提供可在 CI 强制执行的一致性检查（check mode）
 
-mod spec_fixtures;
 mod fixtures_matrix;
+mod spec_fixtures;
 
 use std::path::PathBuf;
 
@@ -78,10 +78,7 @@ fn main() -> Result<()> {
             if report.is_empty() {
                 eprintln!("spec fixtures: no blocks found (ok)");
             } else {
-                eprintln!(
-                    "spec fixtures: ok ({})",
-                    report.len()
-                );
+                eprintln!("spec fixtures: ok ({})", report.len());
             }
         }
 

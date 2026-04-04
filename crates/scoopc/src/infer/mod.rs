@@ -242,7 +242,11 @@ impl Solver {
         }
     }
 
-    fn finalize_bindings(&mut self, types: &TypeStore, builtins: BuiltinTypes) -> Result<(), InferError> {
+    fn finalize_bindings(
+        &mut self,
+        types: &TypeStore,
+        builtins: BuiltinTypes,
+    ) -> Result<(), InferError> {
         let mut roots: Vec<InferVarId> = Vec::new();
         for id in 0..self.vars.len() {
             let v = InferVarId(id as u32);

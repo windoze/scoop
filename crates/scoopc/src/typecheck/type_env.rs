@@ -606,12 +606,16 @@ impl TypeEnv {
         let skip_first_super = matches!(decl.kind, ast::TypeKind::Enum)
             && !decl.supertypes.is_empty()
             && decl.body.as_ref().is_some_and(|body| {
-                body.members.iter().any(|m| {
-                    matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some())
-                })
+                body.members.iter().any(
+                    |m| matches!(m, ast::TypeMember::EnumVariant(v) if v.discriminant.is_some()),
+                )
             });
 
-        for st in decl.supertypes.iter().skip(if skip_first_super { 1 } else { 0 }) {
+        for st in decl
+            .supertypes
+            .iter()
+            .skip(if skip_first_super { 1 } else { 0 })
+        {
             if let Some(st_fqn) = index.type_ref_to_fqn_in_file(source, file, &st.ty) {
                 supers.push(st_fqn);
             }

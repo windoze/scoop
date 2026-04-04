@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use super::manifest::{ConeManifest, CONE_TOML_FILE_NAME};
+use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
 
 /// cone 源码目录名（约定：`<cone-root>/src/**.scoop`）。
 pub const CONE_SRC_DIR_NAME: &str = "src";

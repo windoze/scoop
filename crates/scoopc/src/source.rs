@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use miette::{miette, Result};
+use miette::{Result, miette};
 
 /// 单个源文件。
 #[derive(Debug, Clone)]
@@ -66,11 +66,7 @@ impl SourceFile {
     /// 计数（通过 `chars()` 计算）。后续若需要 LSP 精确对齐，可改为 UTF-16。
     pub fn offset_to_line_col(&self, offset: usize) -> Result<(usize, usize)> {
         if offset > self.text.len() {
-            return Err(miette!(
-                "offset 越界：{} > {}",
-                offset,
-                self.text.len()
-            ));
+            return Err(miette!("offset 越界：{} > {}", offset, self.text.len()));
         }
 
         let line_index = match self.line_starts.binary_search(&offset) {

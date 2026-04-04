@@ -507,32 +507,38 @@ fn check_std_delegates_platform_policy(
             // 任何未知/非 None 的模式都保守视为“不支持”。
             let requires_mutex = mode.map(|m| m.requires_mutex()).unwrap_or(true);
             if requires_mutex {
-                return Err(PropertyDeclError::LazyThreadSafetyModeNotSupportedOnPlatform {
-                    platform,
-                    class_fqn: class_fqn.to_string(),
-                    property: property.to_string(),
-                    mode: mode_text,
-                    span: span.into(),
-                });
+                return Err(
+                    PropertyDeclError::LazyThreadSafetyModeNotSupportedOnPlatform {
+                        platform,
+                        class_fqn: class_fqn.to_string(),
+                        property: property.to_string(),
+                        mode: mode_text,
+                        span: span.into(),
+                    },
+                );
             }
         }
         ParsedStdDelegateCall::Observable { span } => {
-            return Err(PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
-                platform,
-                class_fqn: class_fqn.to_string(),
-                property: property.to_string(),
-                delegate: "scoop.delegates.observable".to_string(),
-                span: span.into(),
-            });
+            return Err(
+                PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
+                    platform,
+                    class_fqn: class_fqn.to_string(),
+                    property: property.to_string(),
+                    delegate: "scoop.delegates.observable".to_string(),
+                    span: span.into(),
+                },
+            );
         }
         ParsedStdDelegateCall::Vetoable { span } => {
-            return Err(PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
-                platform,
-                class_fqn: class_fqn.to_string(),
-                property: property.to_string(),
-                delegate: "scoop.delegates.vetoable".to_string(),
-                span: span.into(),
-            });
+            return Err(
+                PropertyDeclError::StdDelegateRequiresMutexNotSupportedOnPlatform {
+                    platform,
+                    class_fqn: class_fqn.to_string(),
+                    property: property.to_string(),
+                    delegate: "scoop.delegates.vetoable".to_string(),
+                    span: span.into(),
+                },
+            );
         }
     }
 

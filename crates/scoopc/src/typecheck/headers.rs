@@ -168,7 +168,10 @@ fn check_extension_property_header(
     Ok(())
 }
 
-fn check_top_level_val_header(source: &SourceFile, v: &ast::ValDecl) -> Result<(), TypeHeaderError> {
+fn check_top_level_val_header(
+    source: &SourceFile,
+    v: &ast::ValDecl,
+) -> Result<(), TypeHeaderError> {
     match &v.binding {
         ast::ValBinding::Name(name) => {
             if v.ty.is_none() {

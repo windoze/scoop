@@ -151,7 +151,8 @@ fn check_one_class(
     }
 
     let superclass = supers.first().copied();
-    let superclass_fqn = superclass.and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
+    let superclass_fqn =
+        superclass.and_then(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
 
     if let (Some(st), Some(base_fqn)) = (superclass, superclass_fqn.as_deref()) {
         let Some(base_syms) = index.by_fqn.get(base_fqn) else {
@@ -325,7 +326,10 @@ fn check_fun_override(
 
     let matching = base_overloads
         .iter()
-        .filter(|o| o.sig.params.len() == derived_param_len && o.sig.receiver.is_some() == derived_has_receiver)
+        .filter(|o| {
+            o.sig.params.len() == derived_param_len
+                && o.sig.receiver.is_some() == derived_has_receiver
+        })
         .collect::<Vec<_>>();
 
     match (wants_override, matching.as_slice()) {
@@ -336,10 +340,7 @@ fn check_fun_override(
         }),
         (true, matches) => {
             if let Some(first) = matches.first() {
-                if matches
-                    .iter()
-                    .all(|o| !o.symbol.modifiers.is_overridable())
-                {
+                if matches.iter().all(|o| !o.symbol.modifiers.is_overridable()) {
                     return Err(InheritanceError::CannotOverrideFinalMember {
                         base_fqn: base_fqn.to_string(),
                         member: name,

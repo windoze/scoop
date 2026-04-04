@@ -25,7 +25,9 @@ pub enum LinkError {
         source: std::io::Error,
     },
 
-    #[error("clang 链接失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}")]
+    #[error(
+        "clang 链接失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}"
+    )]
     #[diagnostic(code(scoop::toolchain::clang_link_failed))]
     ClangLinkFailed {
         status: ExitStatus,
@@ -96,15 +98,12 @@ fn runtime_c_sources() -> Result<Vec<PathBuf>, LinkError> {
     let dir = runtime_c_dir();
     let runtime_main = dir.join("scoop_runtime.c");
     if !runtime_main.is_file() {
-        return Err(LinkError::RuntimeSourceMissing {
-            path: runtime_main,
-        });
+        return Err(LinkError::RuntimeSourceMissing { path: runtime_main });
     }
 
     let mut extra = Vec::<PathBuf>::new();
-    let entries = std::fs::read_dir(&dir).map_err(|_| LinkError::RuntimeSourceMissing {
-        path: dir.clone(),
-    })?;
+    let entries = std::fs::read_dir(&dir)
+        .map_err(|_| LinkError::RuntimeSourceMissing { path: dir.clone() })?;
 
     for entry in entries {
         let entry = entry.map_err(|_| LinkError::RuntimeSourceMissing { path: dir.clone() })?;
@@ -164,7 +163,9 @@ mod tests {
             .unwrap();
         assert!(status.success(), "clang -c 应成功");
 
-        let out = dir.path().join(format!("a{}", std::env::consts::EXE_EXTENSION));
+        let out = dir
+            .path()
+            .join(format!("a{}", std::env::consts::EXE_EXTENSION));
         link_obj_with_runtime(&main_o, &out, &[]).unwrap();
         assert!(out.is_file(), "应生成可执行文件");
 
@@ -225,7 +226,9 @@ int main(void) {
             .unwrap();
         assert!(status.success(), "clang -c 应成功");
 
-        let out = dir.path().join(format!("a{}", std::env::consts::EXE_EXTENSION));
+        let out = dir
+            .path()
+            .join(format!("a{}", std::env::consts::EXE_EXTENSION));
         link_obj_with_runtime(&main_o, &out, &[]).unwrap();
         assert!(out.is_file(), "应生成可执行文件");
 

@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use miette::{miette, Result};
+use miette::{Result, miette};
 
 use super::GeneratedFixture;
 
@@ -41,7 +41,9 @@ pub fn extract(spec_text: &str) -> Result<Vec<GeneratedFixture>> {
     }
 
     if in_block {
-        return Err(miette!("规范文件存在未闭合的 fenced code block（缺少 ```）"));
+        return Err(miette!(
+            "规范文件存在未闭合的 fenced code block（缺少 ```）"
+        ));
     }
 
     fixtures.sort_by(|a, b| a.rel_path.cmp(&b.rel_path));
@@ -75,4 +77,3 @@ fn parse_block(lines: &[&str]) -> Result<Option<GeneratedFixture>> {
 
     Ok(Some(GeneratedFixture { rel_path, content }))
 }
-

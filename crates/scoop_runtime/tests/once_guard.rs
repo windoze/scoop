@@ -66,4 +66,3 @@ fn once_guard_runs_init_at_most_once_under_threads() {
 
     assert_eq!(init_count.load(Ordering::SeqCst), 1);
 }
-

@@ -47,7 +47,10 @@ unsafe extern "C" {
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
     fn scoop_effect_handler_stack_top() -> *mut ScoopEffectHandlerFrame;
 
-    fn scoop_continuation_alloc(state: *mut c_void, step_fn: ScoopContinuationStepFn) -> *mut c_void;
+    fn scoop_continuation_alloc(
+        state: *mut c_void,
+        step_fn: ScoopContinuationStepFn,
+    ) -> *mut c_void;
     fn scoop_continuation_try_resume(continuation: *mut c_void) -> u32;
 }
 
@@ -71,7 +74,10 @@ fn continuation_alloc_captures_handler_stack_and_is_one_shot() {
         assert_eq!(top, &mut frame as *mut _);
 
         let k = scoop_continuation_alloc(ptr::null_mut(), Some(noop_step));
-        assert!(!k.is_null(), "scoop_continuation_alloc must return non-null");
+        assert!(
+            !k.is_null(),
+            "scoop_continuation_alloc must return non-null"
+        );
 
         let prefix = &*(k as *const ScoopContinuationPrefix);
         assert_eq!(

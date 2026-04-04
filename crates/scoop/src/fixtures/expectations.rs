@@ -278,10 +278,7 @@ mod tests {
         let exp = FixtureExpectation::from_source(
             "// ARGS: --dump-ast  --emit-llvm   --gc-stress\nfun main() {}\n",
         );
-        assert_eq!(
-            exp.args,
-            vec!["--dump-ast", "--emit-llvm", "--gc-stress"]
-        );
+        assert_eq!(exp.args, vec!["--dump-ast", "--emit-llvm", "--gc-stress"]);
         assert!(exp.env.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert_eq!(exp.run_stdout, None);

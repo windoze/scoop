@@ -9,10 +9,14 @@ use std::collections::HashSet;
 use crate::ast;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
-use super::lower::TypeLowering;
 use super::TypeEnv;
+use super::lower::TypeLowering;
 
-pub(super) fn nominal_is_subtype_by_fqn(found_fqn: &str, expected_fqn: &str, env: &TypeEnv) -> bool {
+pub(super) fn nominal_is_subtype_by_fqn(
+    found_fqn: &str,
+    expected_fqn: &str,
+    env: &TypeEnv,
+) -> bool {
     if found_fqn == expected_fqn {
         return true;
     }

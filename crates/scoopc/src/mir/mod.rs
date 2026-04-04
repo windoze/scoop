@@ -19,8 +19,8 @@ use std::fmt;
 use crate::span::Span;
 use crate::ty::TypeId;
 
-pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::lower_hir_file_for_dump;
+pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 
 /// 一个源文件 lowering 后的 MIR（当前阶段主要用于 dump/fixtures）。
 #[derive(Debug, Clone)]

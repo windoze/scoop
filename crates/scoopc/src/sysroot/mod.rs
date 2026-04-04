@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
 use crate::source::SourceFile;
 
@@ -48,7 +48,10 @@ impl Sysroot {
         let mut paths = Vec::new();
         collect_scoop_files(&root, &mut paths)?;
         if paths.is_empty() {
-            return Err(miette!("sysroot 目录下没有 .scoop 文件：{}", root.display()));
+            return Err(miette!(
+                "sysroot 目录下没有 .scoop 文件：{}",
+                root.display()
+            ));
         }
 
         let mut files = Vec::new();

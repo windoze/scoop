@@ -16,10 +16,12 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType,
-    TypeStore, UnionType, ValueTypeKind,
+    BuiltinTypes, EffectRow, FunctionType, NominalType, RefTypeKind, TypeId, TypeKind,
+    TypeParamType, TypeStore, UnionType, ValueTypeKind,
 };
-use crate::typecheck::{AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind};
+use crate::typecheck::{
+    AnnotationRetentionPolicy, TypeEnv, TypeLowering, TypeSymbol, TypeSymbolKind,
+};
 
 use super::schema::{
     IrEffectRow, IrFunDecl, IrFunDeclKind, IrFunParam, IrType, IrTypeDecl, IrTypeDeclKind,
@@ -45,14 +47,18 @@ pub enum ScoopIrExportError {
         source: crate::typecheck::TypeLowerError,
     },
 
-    #[error("导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了非 public 类型：{referenced_fqn}")]
+    #[error(
+        "导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了非 public 类型：{referenced_fqn}"
+    )]
     #[diagnostic(code(scoop::scoopir::typealias_exposes_non_public_type))]
     TypeAliasExposesNonPublicType {
         alias_fqn: String,
         referenced_fqn: String,
     },
 
-    #[error("导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了未知类型：{referenced_fqn}")]
+    #[error(
+        "导出 typealias 失败：public typealias {alias_fqn} 的 RHS 引用了未知类型：{referenced_fqn}"
+    )]
     #[diagnostic(code(scoop::scoopir::typealias_references_unknown_type))]
     TypeAliasReferencesUnknownType {
         alias_fqn: String,
@@ -243,7 +249,9 @@ fn export_public_types_for_source(
             kind,
             type_params,
             alias_of: match symbol.kind {
-                TypeSymbolKind::TypeAlias => Some(export_type_alias_rhs_ir_type(index, env, symbol, fqn)?),
+                TypeSymbolKind::TypeAlias => {
+                    Some(export_type_alias_rhs_ir_type(index, env, symbol, fqn)?)
+                }
                 _ => None,
             },
         });
@@ -264,17 +272,17 @@ fn export_type_alias_rhs_ir_type(
     alias_sym: &TypeSymbol,
     alias_fqn: &str,
 ) -> Result<IrType, ScoopIrExportError> {
-    let info = env
-        .type_alias(alias_fqn)
-        .ok_or_else(|| ScoopIrExportError::MissingTypeAliasInfo {
-            fqn: alias_fqn.to_string(),
-        })?;
+    let info =
+        env.type_alias(alias_fqn)
+            .ok_or_else(|| ScoopIrExportError::MissingTypeAliasInfo {
+                fqn: alias_fqn.to_string(),
+            })?;
 
-    let decl_source = env.source(&info.decl_file).ok_or_else(|| {
-        ScoopIrExportError::MissingTypeSymbol {
-            fqn: alias_fqn.to_string(),
-        }
-    })?;
+    let decl_source =
+        env.source(&info.decl_file)
+            .ok_or_else(|| ScoopIrExportError::MissingTypeSymbol {
+                fqn: alias_fqn.to_string(),
+            })?;
 
     let (pkg_prefix, imports) = env
         .file_type_context(&info.decl_file)
@@ -433,8 +441,9 @@ fn export_public_funs_for_source(
             crate::ast::FunDeclKind::EffectOp => IrFunDeclKind::EffectOp,
         };
 
-        let FunctionType { receiver, effects, .. } =
-            decode_function_type(&hir.types, fun.ty, &fun.fqn)?;
+        let FunctionType {
+            receiver, effects, ..
+        } = decode_function_type(&hir.types, fun.ty, &fun.fqn)?;
 
         let receiver_ir = receiver.map(|id| to_ir_type(&hir.types, id, 0));
         let params = fun

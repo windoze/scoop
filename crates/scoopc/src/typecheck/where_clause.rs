@@ -82,9 +82,7 @@ pub fn check_file_where_clauses(
             ast::Item::Object(obj) => {
                 check_object_decl_where_clauses(source, obj, &mut lower, builtins)?
             }
-            ast::Item::TypeAlias(_)
-            | ast::Item::Val(_)
-            | ast::Item::ExtensionProperty(_) => {}
+            ast::Item::TypeAlias(_) | ast::Item::Val(_) | ast::Item::ExtensionProperty(_) => {}
         }
     }
 
@@ -275,7 +273,10 @@ fn is_interface_like_bound(ty: TypeId, lower: &TypeLowering<'_>, builtins: Built
         // 避免在没有完整推断/求解时误报。
         TypeKind::Param(_) => true,
         TypeKind::Ref(RefTypeKind::Nominal(n)) => {
-            matches!(lower.nominal_decl_kind(&n.fqn), Some(ast::TypeKind::Interface))
+            matches!(
+                lower.nominal_decl_kind(&n.fqn),
+                Some(ast::TypeKind::Interface)
+            )
         }
         _ => false,
     }

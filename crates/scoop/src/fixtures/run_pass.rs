@@ -153,9 +153,7 @@ struct RunExecSignaled {
 
 #[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Error, Diagnostic)]
-#[error(
-    "run-pass 命令退出码不符合期望：期望 {expected}，实际为 {actual}（fixture: {fixture}）"
-)]
+#[error("run-pass 命令退出码不符合期望：期望 {expected}，实际为 {actual}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::run_exit_code_mismatch))]
 struct RunExitCodeMismatch {
     expected: i32,
@@ -474,20 +472,14 @@ fn run_command_collect_output(
         super::box_diagnostic(RunExecFailed {
             program: cmd.get_program().to_string_lossy().to_string(),
             fixture: rel_fixture.display().to_string(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "stdout 未被配置为 piped",
-            ),
+            source: std::io::Error::new(std::io::ErrorKind::Other, "stdout 未被配置为 piped"),
         })
     })?;
     let child_stderr = child.stderr.take().ok_or_else(|| {
         super::box_diagnostic(RunExecFailed {
             program: cmd.get_program().to_string_lossy().to_string(),
             fixture: rel_fixture.display().to_string(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "stderr 未被配置为 piped",
-            ),
+            source: std::io::Error::new(std::io::ErrorKind::Other, "stderr 未被配置为 piped"),
         })
     })?;
 
@@ -524,13 +516,14 @@ fn run_command_collect_output(
     });
 
     let timeout = exp.timeout_ms.map(Duration::from_millis);
-    let (status, timed_out) = wait_child_with_optional_timeout(&mut child, timeout).map_err(|e| {
-        super::box_diagnostic(RunExecFailed {
-            program: cmd.get_program().to_string_lossy().to_string(),
-            fixture: rel_fixture.display().to_string(),
-            source: e,
-        })
-    })?;
+    let (status, timed_out) =
+        wait_child_with_optional_timeout(&mut child, timeout).map_err(|e| {
+            super::box_diagnostic(RunExecFailed {
+                program: cmd.get_program().to_string_lossy().to_string(),
+                fixture: rel_fixture.display().to_string(),
+                source: e,
+            })
+        })?;
 
     let stdout = stdout_thread
         .join()
@@ -776,11 +769,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!(
-            "scoop_{prefix}_{}_{}",
-            std::process::id(),
-            nanos
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("scoop_{prefix}_{}_{}", std::process::id(), nanos));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -811,7 +801,8 @@ mod tests {
         )
         .unwrap();
 
-        let exp = FixtureExpectation::from_source("// RUN-STDERR-CONTAINS: boxed oversized variant\n");
+        let exp =
+            FixtureExpectation::from_source("// RUN-STDERR-CONTAINS: boxed oversized variant\n");
         assert_stderr_matches(&fixture_path, &exp, "warn: boxed oversized variant\n").unwrap();
 
         std::fs::remove_dir_all(&dir).unwrap();
@@ -984,7 +975,8 @@ mod tests {
         std::fs::write(&stdout_golden_path, "ok\n").unwrap();
         std::fs::write(&stderr_golden_path, "expected\n").unwrap();
 
-        let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n// RUN-STDERR: err.txt\n");
+        let exp =
+            FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n// RUN-STDERR: err.txt\n");
         let cmd = {
             let mut cmd = Command::new("sh");
             cmd.arg("-c").arg("printf 'ok\\n'; printf 'actual\\n' 1>&2");

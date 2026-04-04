@@ -25,7 +25,10 @@ unsafe extern "C" {
     fn scoop_effect_handler_stack_pop(frame: *mut ScoopEffectHandlerFrame);
     fn scoop_effect_handler_stack_top() -> *mut ScoopEffectHandlerFrame;
 
-    fn scoop_continuation_alloc(state: *mut c_void, step_fn: ScoopContinuationStepFn) -> *mut c_void;
+    fn scoop_continuation_alloc(
+        state: *mut c_void,
+        step_fn: ScoopContinuationStepFn,
+    ) -> *mut c_void;
     fn scoop_continuation_resume_u64(continuation: *mut c_void, resume_value: u64);
 }
 
@@ -42,8 +45,12 @@ extern "C" fn observe_step(state: *mut c_void, resume_value: u64) {
 
     let observations = unsafe { &*(state as *const ResumeObservations) };
     let top = unsafe { scoop_effect_handler_stack_top() };
-    observations.observed_top.store(top as usize, Ordering::SeqCst);
-    observations.observed_value.store(resume_value, Ordering::SeqCst);
+    observations
+        .observed_top
+        .store(top as usize, Ordering::SeqCst);
+    observations
+        .observed_value
+        .store(resume_value, Ordering::SeqCst);
 }
 
 #[test]
@@ -76,7 +83,10 @@ fn continuation_resume_swaps_handler_stack_across_threads_and_restores_after() {
     let observations_ptr = Box::into_raw(observations) as *mut c_void;
 
     let k = unsafe { scoop_continuation_alloc(observations_ptr, Some(observe_step)) };
-    assert!(!k.is_null(), "scoop_continuation_alloc must return non-null");
+    assert!(
+        !k.is_null(),
+        "scoop_continuation_alloc must return non-null"
+    );
     let k_addr = k as usize;
 
     // 在另一个线程执行 `resume`：step_fn 观察到的 handler stack top 应当等于 captured 值；

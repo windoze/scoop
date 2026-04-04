@@ -41,10 +41,12 @@ fn scoop_alloc_initializes_object_header_and_alignment_is_sane() {
 
         // T0908：runtime 应初始化对象头字段，确保它们可被稳定观测/调试。
         assert!(hdr.next.is_null(), "header.next should be NULL");
-        assert!(hdr.type_desc.is_null(), "header.type_desc should be NULL (v0)");
+        assert!(
+            hdr.type_desc.is_null(),
+            "header.type_desc should be NULL (v0)"
+        );
         assert_eq!(
-            hdr.size_bytes,
-            total_size,
+            hdr.size_bytes, total_size,
             "header.size_bytes should equal alloc size"
         );
         assert_eq!(hdr.flags, 0, "header.flags should default to 0");

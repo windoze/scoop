@@ -12,7 +12,11 @@ mod immix {
 
     type ScoopGcTraceVisitor = unsafe extern "C" fn(slot: *mut *mut c_void, ctx: *mut c_void);
     type ScoopTypeTraceFn = Option<
-        unsafe extern "C" fn(object: *mut c_void, visitor: ScoopGcTraceVisitor, ctx: *mut c_void) -> u64,
+        unsafe extern "C" fn(
+            object: *mut c_void,
+            visitor: ScoopGcTraceVisitor,
+            ctx: *mut c_void,
+        ) -> u64,
     >;
     type ScoopTypeReleaseFn = Option<unsafe extern "C" fn(object: *mut c_void)>;
 
@@ -241,7 +245,11 @@ mod immix {
 
                     // 周期性“断链”，让旧链条变成垃圾，从而逼迫 sweep/holes 复用路径跑起来。
                     let keep_chain = (i % 64) != 0;
-                    let node_prev = if keep_chain { local_head } else { ptr::null_mut() };
+                    let node_prev = if keep_chain {
+                        local_head
+                    } else {
+                        ptr::null_mut()
+                    };
                     let node = alloc_node(
                         desc_addr as *const ScoopTypeDescriptor,
                         header_size,
@@ -253,7 +261,8 @@ mod immix {
 
                     // 写回链表头（注意：不要在 Rust 局部变量里长期保存 head 指针，GC 不会更新它）。
                     let root_now = frame.roots[0];
-                    let payload = (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
+                    let payload =
+                        (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
                     payload.add(1).write(node);
 
                     // 额外制造一小批“立即变成垃圾”的对象，增加 sweep 工作量。

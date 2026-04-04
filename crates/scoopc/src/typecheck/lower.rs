@@ -921,13 +921,9 @@ impl<'a> TypeLowering<'a> {
                 let return_ty = self.lower_type_ref(&f.return_ty)?;
                 let effects = self.lower_effect_row_expr(f.effects.as_ref())?;
                 let effects_closed = f.effects.as_ref().is_some_and(|r| r.closed);
-                Ok(self.types.ty_function(
-                    receiver,
-                    params,
-                    return_ty,
-                    effects,
-                    effects_closed,
-                ))
+                Ok(self
+                    .types
+                    .ty_function(receiver, params, return_ty, effects, effects_closed))
             }
         }
     }

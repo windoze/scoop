@@ -24,8 +24,8 @@ struct Dylib {
 
 impl Dylib {
     unsafe fn open(path: &Path) -> Self {
-        let path_c = CString::new(path.to_string_lossy().as_bytes())
-            .expect("dlopen path contains NUL");
+        let path_c =
+            CString::new(path.to_string_lossy().as_bytes()).expect("dlopen path contains NUL");
 
         // 明确使用 RTLD_GLOBAL：确保 `dlsym(RTLD_DEFAULT, ...)` 能搜索到该 image。
         let flags = libc::RTLD_NOW | libc::RTLD_GLOBAL;
@@ -76,7 +76,11 @@ fn dlerror_string() -> Option<String> {
     if err.is_null() {
         return None;
     }
-    Some(unsafe { CStr::from_ptr(err) }.to_string_lossy().into_owned())
+    Some(
+        unsafe { CStr::from_ptr(err) }
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 fn plugin_code() -> String {

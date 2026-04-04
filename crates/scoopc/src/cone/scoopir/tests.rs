@@ -31,4 +31,3 @@ fn scoopir_fixture_public_api_filter_golden() {
 
     assert_eq!(actual, expected);
 }
-

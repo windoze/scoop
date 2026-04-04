@@ -355,7 +355,11 @@ impl TypeStore {
         }
 
         // `Any` 吸收其它项。
-        if let Some(any_id) = flat.iter().copied().find(|id| matches!(self.kind(*id), TypeKind::Ref(RefTypeKind::Any))) {
+        if let Some(any_id) = flat
+            .iter()
+            .copied()
+            .find(|id| matches!(self.kind(*id), TypeKind::Ref(RefTypeKind::Any)))
+        {
             return any_id;
         }
 
@@ -374,7 +378,9 @@ impl TypeStore {
             return flat[0];
         }
 
-        self.intern(TypeKind::Ref(RefTypeKind::Union(UnionType { variants: flat })))
+        self.intern(TypeKind::Ref(RefTypeKind::Union(UnionType {
+            variants: flat,
+        })))
     }
 
     /// 构造一个类型参数 `TypeId`（例如 `T`）。
@@ -407,7 +413,12 @@ impl fmt::Display for TypeDisplay<'_> {
     }
 }
 
-fn format_type(store: &TypeStore, id: TypeId, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+fn format_type(
+    store: &TypeStore,
+    id: TypeId,
+    f: &mut fmt::Formatter<'_>,
+    depth: usize,
+) -> fmt::Result {
     // 防御性：后续引入递归类型（例如自引用 struct）时避免栈爆。
     if depth > 64 {
         return write!(f, "<type-recursion>");
@@ -580,8 +591,13 @@ mod tests {
         let mut tys = TypeStore::new();
         let builtins = tys.intern_builtins();
 
-        let pure =
-            tys.ty_function(None, vec![builtins.any], builtins.any, EffectRow::pure(), false);
+        let pure = tys.ty_function(
+            None,
+            vec![builtins.any],
+            builtins.any,
+            EffectRow::pure(),
+            false,
+        );
         assert_eq!(tys.display(pure).to_string(), "(Any) -> Any / Pure");
 
         let raise_any = tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
