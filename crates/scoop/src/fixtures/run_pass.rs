@@ -165,6 +165,7 @@ pub(crate) fn run_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
     exp: &FixtureExpectation<'_>,
+    run_pass_env: &super::RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // `scoop run` 需要 feature-gated 的 LLVM 后端。为保持在未安装 LLVM 的环境仍可跑 `scoop test`，
     // 当未启用 `--features llvm` 时，这里仅校验 golden 文件可读并跳过执行。
@@ -220,6 +221,7 @@ pub(crate) fn run_fixture(
         "run" => {
             let mut cmd = Command::new(scoop_exe);
             cmd.arg("run").arg(fixture_path);
+            run_pass_env.apply_to_command(&mut cmd);
             // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
             if !exp.args.is_empty() {
                 cmd.args(&exp.args);
@@ -227,7 +229,9 @@ pub(crate) fn run_fixture(
             run_fixture_command(rel_fixture, fixture_path, exp, cmd)
         }
         // 工具链可观测性：构建该 fixture 的可执行文件，然后运行 `scoop dump-stackmaps <bin>`。
-        "dump-stackmaps" => run_fixture_dump_stackmaps(rel_fixture, fixture_path, exp, scoop_exe),
+        "dump-stackmaps" => {
+            run_fixture_dump_stackmaps(rel_fixture, fixture_path, exp, run_pass_env, scoop_exe)
+        }
         other => Err(super::box_diagnostic(super::UnimplementedPhase {
             phase: format!("run-pass/{other}"),
             fixture: rel_fixture.display().to_string(),
@@ -239,6 +243,7 @@ fn run_fixture_dump_stackmaps(
     rel_fixture: &Path,
     fixture_path: &Path,
     exp: &FixtureExpectation<'_>,
+    run_pass_env: &super::RunPassEnvOverrides,
     scoop_exe: PathBuf,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // 说明：该模式不执行程序本身，只用于验证“编译产物包含可读 stackmaps”。
@@ -268,6 +273,7 @@ fn run_fixture_dump_stackmaps(
 
         let mut cmd = Command::new(scoop_exe);
         cmd.arg("dump-stackmaps").arg(&exe_path);
+        run_pass_env.apply_to_command(&mut cmd);
         run_fixture_command(rel_fixture, fixture_path, exp, cmd)
     })();
 
@@ -931,6 +937,37 @@ mod tests {
             cmd.arg("-c").arg("printf '%s\\n' \"$FOO\"");
             cmd
         };
+
+        run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_pass_env_overrides_are_applied_and_can_be_overridden_by_fixture_env() {
+        let dir = make_temp_dir("run_pass_env_overrides_are_applied_and_can_be_overridden");
+        let fixture_path = dir.join("hello.scoop");
+        let golden_path = dir.join("out.txt");
+
+        std::fs::write(
+            &fixture_path,
+            "// RUN-STDOUT: out.txt\n// ENV: FOO=fixture\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(&golden_path, "fixture\n").unwrap();
+
+        let exp = FixtureExpectation::from_source("// RUN-STDOUT: out.txt\n// ENV: FOO=fixture\n");
+        let mut env = crate::fixtures::RunPassEnvOverrides::new();
+        env.set("FOO", "global");
+
+        let cmd = {
+            let mut cmd = Command::new("sh");
+            cmd.arg("-c").arg("printf '%s\\n' \"$FOO\"");
+            cmd
+        };
+        let mut cmd = cmd;
+        env.apply_to_command(&mut cmd);
 
         run_fixture_command(&fixture_path, &fixture_path, &exp, cmd).unwrap();
 

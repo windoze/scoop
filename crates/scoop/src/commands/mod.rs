@@ -34,7 +34,19 @@ pub fn init_tracing() {
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {
     match args.command {
-        Command::Test { fixtures } => test::run(fixtures),
+        Command::Test {
+            fixtures,
+            gc_stress,
+            gc_move,
+            threads,
+        } => test::run(
+            fixtures,
+            test::TestOptions {
+                gc_stress,
+                gc_move,
+                threads,
+            },
+        ),
         Command::DumpAst { input } => dump_ast::run(input),
         Command::DumpHir { input } => dump_hir::run(input),
         Command::DumpMir { input } => dump_mir::run(input),

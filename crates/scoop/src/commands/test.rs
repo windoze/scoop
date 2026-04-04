@@ -9,11 +9,19 @@
 //! - typecheck fixtures（pass/fail）
 //! - run-pass fixtures（stdout 对比）
 
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
 
-pub fn run(fixtures: Option<PathBuf>) -> Result<()> {
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TestOptions {
+    pub gc_stress: bool,
+    pub gc_move: bool,
+    pub threads: Option<NonZeroU32>,
+}
+
+pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
     let root = fixtures.unwrap_or_else(|| PathBuf::from("tests/fixtures"));
     let root = root.canonicalize().into_diagnostic().wrap_err_with(|| {
         format!(
@@ -22,7 +30,20 @@ pub fn run(fixtures: Option<PathBuf>) -> Result<()> {
         )
     })?;
 
-    let ok = crate::fixtures::run_all(&root)?;
+    let mut run_pass_env = crate::fixtures::RunPassEnvOverrides::new();
+    if options.gc_stress {
+        run_pass_env.set("SCOOP_GC_STRESS", "1");
+    }
+    if options.gc_move {
+        run_pass_env.set("SCOOP_GC_MOVE", "1");
+    }
+    if let Some(threads) = options.threads {
+        let v = threads.get().to_string();
+        run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_MARK", v.clone());
+        run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_SWEEP", v);
+    }
+
+    let ok = crate::fixtures::run_all(&root, &run_pass_env)?;
     println!("fixtures: ok ({ok})");
     Ok(())
 }

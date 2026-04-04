@@ -108,6 +108,51 @@ static uint32_t scoop_rt_initialized = 0;
 static uint32_t scoop_rt_init_calls = 0;
 static pthread_mutex_t scoop_rt_init_lock = PTHREAD_MUTEX_INITIALIZER;
 
+// GC stress（测试/回归用）：通过 env `SCOOP_GC_STRESS` 触发额外 GC。
+//
+// 约定：
+// - 未设置：关闭（0）；
+// - 设为数字 N（N>=1）：每 N 次分配前触发一次 `scoop_gc_collect()`；
+// - 其它非空字符串：视为开启（等价于 1）；
+// - 特判：`0`/`false`/`no` 视为关闭。
+//
+// 说明：
+// - 该开关只影响 `scoop_alloc` 分配路径；默认关闭，避免影响正常性能。
+// - GC 触发点选择为“分配前”：避免在对象尚未被 caller 放入 roots 之前被 GC 误回收。
+static uint64_t scoop_rt_gc_stress_interval = 0;
+static _Atomic(uint64_t) scoop_rt_gc_stress_alloc_counter = 0;
+
+static uint64_t scoop_rt_parse_gc_stress_interval(void) {
+  const char *raw = getenv("SCOOP_GC_STRESS");
+  if (raw == 0) {
+    return 0;
+  }
+
+  // 跳过前导空白（允许 `SCOOP_GC_STRESS=" 1"`）。
+  while (raw[0] == ' ' || raw[0] == '\t' || raw[0] == '\n' || raw[0] == '\r') {
+    raw++;
+  }
+
+  if (raw[0] == 0) {
+    return 1;
+  }
+  if (strcmp(raw, "0") == 0 || strcmp(raw, "false") == 0 || strcmp(raw, "no") == 0) {
+    return 0;
+  }
+
+  char *end = 0;
+  unsigned long long v = strtoull(raw, &end, 10);
+  if (end != 0 && end != raw && end[0] == 0) {
+    if (v == 0) {
+      return 0;
+    }
+    return (uint64_t)v;
+  }
+
+  // 非数字：只要不是显式 false/0/no，就视为“开启（每次分配触发）”。
+  return 1;
+}
+
 // GC heap（v0：数据结构骨架）。
 //
 // 说明：
@@ -1222,6 +1267,9 @@ void scoop_runtime_init(void) {
   scoop_rt_initialized = 1;
   scoop_rt_init_calls = 1;
 
+  // 解析一次 GC stress 开关（仅首次 init 生效）。
+  scoop_rt_gc_stress_interval = scoop_rt_parse_gc_stress_interval();
+
   scoop_gc_heap_init(&scoop_gc_heap);
 
   const uint32_t stackmaps_added = scoop_stackmap_registry_register_current_process();
@@ -1231,6 +1279,10 @@ void scoop_runtime_init(void) {
                sizeof(ScoopString),
                offsetof(ScoopString, data));
   SCOOP_RT_LOG("scoop_runtime_init: stackmaps registered=%" PRIu32, stackmaps_added);
+  if (scoop_rt_gc_stress_interval != 0) {
+    SCOOP_RT_LOG("scoop_runtime_init: GC stress enabled (interval=%" PRIu64 ")",
+                 scoop_rt_gc_stress_interval);
+  }
 
   (void)pthread_mutex_unlock(&scoop_rt_init_lock);
 }
@@ -1258,6 +1310,15 @@ void *scoop_alloc(uint64_t size) {
   // - 该 ctx 由 `scoop_gc_safepoint_poll` 在 park 前捕获（T1505b/T1506）。
   void scoop_gc_safepoint_poll(void);
   scoop_gc_safepoint_poll();
+
+  // GC stress：在分配前触发额外 GC（避免返回后对象尚未入 roots 时被误回收）。
+  if (scoop_rt_gc_stress_interval != 0) {
+    const uint64_t interval = scoop_rt_gc_stress_interval;
+    const uint64_t count = atomic_fetch_add(&scoop_rt_gc_stress_alloc_counter, 1u) + 1u;
+    if (interval == 1 || (count % interval) == 0) {
+      scoop_gc_collect();
+    }
+  }
 
   // 说明（early stage）：
   // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；

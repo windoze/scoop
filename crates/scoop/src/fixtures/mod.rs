@@ -37,6 +37,7 @@ mod run_pass;
 
 use std::path::Component;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use miette::Diagnostic;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
@@ -44,7 +45,34 @@ use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
 
-pub fn run_all(fixtures_root: &Path) -> Result<usize> {
+/// run-pass phase 运行时可注入的环境变量集合。
+///
+/// 说明：
+/// - 该能力用于把 `scoop test` 的全局开关（例如 `--gc-stress/--gc-move/--threads`）映射为 env，
+///   由 fixtures runner 在 run-pass 子进程上统一注入；
+/// - fixture 文件内的 `// ENV:` 仍然优先级更高（同名 key 会覆盖这里的注入值）。
+#[derive(Debug, Clone, Default)]
+pub struct RunPassEnvOverrides {
+    env: Vec<(String, String)>,
+}
+
+impl RunPassEnvOverrides {
+    pub fn new() -> Self {
+        Self { env: Vec::new() }
+    }
+
+    pub fn set(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.env.push((key.into(), value.into()));
+    }
+
+    pub(crate) fn apply_to_command(&self, cmd: &mut Command) {
+        for (key, value) in &self.env {
+            cmd.env(key, value);
+        }
+    }
+}
+
+pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Result<usize> {
     // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
     // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
     let resolve_multi_root = fixtures_root.join("resolve_multi");
@@ -95,7 +123,7 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     let mut ok = 0usize;
     let session = scoopc::session::Session::new()?;
     for file in files {
-        run_one(&session, fixtures_root, &file)
+        run_one(&session, fixtures_root, &file, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
         ok += 1;
     }
@@ -129,7 +157,12 @@ pub fn run_all(fixtures_root: &Path) -> Result<usize> {
     Ok(ok)
 }
 
-fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path) -> Result<()> {
+fn run_one(
+    session: &scoopc::session::Session,
+    fixtures_root: &Path,
+    path: &Path,
+    run_pass_env: &RunPassEnvOverrides,
+) -> Result<()> {
     let source = scoopc::source::SourceFile::load(path)?;
     let exp = FixtureExpectation::from_source(source.text());
     // T0102/T0107：`// ARGS:`/`RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT` 等指令会被解析并结构化存储；
@@ -160,7 +193,7 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
         FixturePhase::Comptime => comptime_fixture(&source, path),
-        FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp),
+        FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp, run_pass_env),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),

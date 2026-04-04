@@ -6602,7 +6602,7 @@
 - 依赖：T1509、T1511
 - 备注：该任务包含多个相对独立、且“可单独实现 & 单独验证”的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留目标汇总。
 
-### T1512a [TODO] fixtures runner：`scoop test` 注入 `--gc-stress/--gc-move/--threads`（env 驱动）
+### T1512a [DONE] fixtures runner：`scoop test` 注入 `--gc-stress/--gc-move/--threads`（env 驱动）
 - 描述：为 `scoop test` 增加全局开关，并在 run-pass phase 对子进程注入对应环境变量，用于驱动 GC 压力/移动/并行 worker（无需在每个 fixture 里重复写 `// ENV:`）。
 - 目标：
   - `scoop test` 新增参数：
@@ -6615,6 +6615,12 @@
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T1511
+- 完成：
+  - `crates/scoop/src/cli.rs`：为 `scoop test` 增加 `--gc-stress/--gc-move/--threads` 三个全局开关，并补 CLI 解析单测。
+  - `crates/scoop/src/fixtures/mod.rs`：新增 `RunPassEnvOverrides` 并在 fixtures runner 中贯穿到 run-pass phase。
+  - `crates/scoop/src/fixtures/run_pass.rs`：run-pass 执行前注入 `RunPassEnvOverrides`，并新增单测覆盖“全局 env 可被 fixture 内 `// ENV:` 覆盖”的优先级。
+  - `crates/scoop/src/commands/test.rs`：把 `scoop test` 的全局开关映射为 env 注入（`SCOOP_GC_STRESS` / `SCOOP_GC_MOVE` / `SCOOP_GC_IMMIX_PARALLEL_{MARK,SWEEP}`）。
+  - `runtime/c/scoop_runtime.c`：新增 `SCOOP_GC_STRESS`（每 N 次分配前触发一次 `scoop_gc_collect()`；默认 N=1）。
 
 ### T1512b [TODO] runtime_gc fixtures：ref roots/heap 扫描最小覆盖矩阵（单线程）
 - 描述：补齐“单线程 + 精确 roots/heap 扫描”的基础回归：class/interface/closure/array/string/box、循环引用、值类型含 ref 字段（stackmap spill slots + heap fields）。

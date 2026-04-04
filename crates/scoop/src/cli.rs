@@ -2,6 +2,7 @@
 //!
 //! 本模块只负责“解析参数 → 结构化配置”，不做具体业务逻辑。
 
+use std::num::NonZeroU32;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -20,6 +21,18 @@ pub enum Command {
         /// fixtures 根目录（默认：`tests/fixtures`）
         #[arg(long)]
         fixtures: Option<PathBuf>,
+
+        /// run-pass：在每次分配前触发额外 GC（env: `SCOOP_GC_STRESS=1`）
+        #[arg(long)]
+        gc_stress: bool,
+
+        /// run-pass：强制开启 moving GC（env: `SCOOP_GC_MOVE=1`）
+        #[arg(long)]
+        gc_move: bool,
+
+        /// run-pass：Immix 并行 mark/sweep worker 数（env: `SCOOP_GC_IMMIX_PARALLEL_{MARK,SWEEP}`；1=默认 4；N>=2 指定；上限 32）
+        #[arg(long, value_name = "N")]
+        threads: Option<NonZeroU32>,
     },
 
     /// 解析输入并打印 AST（当前阶段输出为占位信息）
@@ -99,4 +112,38 @@ pub enum Command {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Args, Command};
+    use clap::Parser as _;
+
+    #[test]
+    fn test_command_parses_run_pass_gc_flags() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "test",
+            "--gc-stress",
+            "--gc-move",
+            "--threads",
+            "4",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Test {
+                fixtures,
+                gc_stress,
+                gc_move,
+                threads,
+            } => {
+                assert!(fixtures.is_none());
+                assert!(gc_stress);
+                assert!(gc_move);
+                assert_eq!(threads.unwrap().get(), 4);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
 }
