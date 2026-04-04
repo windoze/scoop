@@ -6336,7 +6336,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- dump-rtti tests/fixtures/parse/dump_rtti_type_desc_v0.scoop`
 
-### T1507c [TODO] 编译器：interface id + vtable/itable 生成并写入 type descriptor（动态分发元数据）
+### T1507c interface id + vtable/itable（拆分为子任务）
 - 描述：为 interface 分配全局稳定 interface id，并为 class 生成 vtable/itable（slot 布局稳定），写入 `ScoopTypeDescriptor.{vtable,itable}`，为 T1508/T1509 的动态分发端到端做准备。
 - 目标：
   - interface：生成 method slot 表，并为每个 interface 分配稳定 id（hash64）；
@@ -6344,6 +6344,29 @@
   - dump-rtti：扩展输出 vtable slots/itable entries（便于验收）。
 - 验收：`scoop dump-rtti` 输出包含 interfaces、vtable slots、itable entries；新增 run-pass fixtures 覆盖 override 与 interface call（可与 T1508/T1509 合并验收）。
 - 依赖：T1507b
+- 备注：该任务涉及“interface 元数据”“class vtable”“class itable”三个相对独立能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
+
+### T1507c1 [TODO] 编译器：interface id + method slot 表（dump-rtti 可观测）
+- 描述：为每个 interface 生成稳定 `interface_id`（hash64）与 method slots（顺序稳定），并在 `scoop dump-rtti` 中可观测输出，作为后续 itable/vtable 生成的基座。
+- 目标：
+  - 仅覆盖 interface（含 sysroot 与输入文件中的 interface 声明）；
+  - method slot 以“声明顺序”为 slot 分配规则（v0），并输出 slot index + 形状信息（name/arity/receiver）。
+- 验收：
+  - `cargo test --all`
+  - 新增单测：`dump_file_type_desc` 输出包含 interface desc（含 `interface_id` 与 `method_slots`）。
+- 依赖：T1507b
+
+### T1507c2 [TODO] 编译器：class vtable slot layout 生成并导出（dump-rtti）
+- 描述：基于 class 继承链与 override 关系生成 vtable slots（布局稳定），并在 `scoop dump-rtti` 中导出 vtable slot 列表（slot→目标成员）。
+- 目标：只做布局与可观测导出；不要求 LLVM codegen 真实填充函数指针（留给 T1509）。
+- 验收：`scoop dump-rtti` 输出包含 class 的 `vtable_slots`（含继承与 override 的 slot 覆盖关系）；新增单测覆盖 slot 覆盖。
+- 依赖：T1507c1
+
+### T1507c3 [TODO] 编译器：class itable entries 生成并导出（dump-rtti）
+- 描述：为 class 生成按 `interface_id` 索引的 itable entries；每个 entry 依据 interface method slots 映射到 class 的实现成员（slot→目标成员）。
+- 目标：只做布局与可观测导出；不要求 LLVM codegen 真实填充函数指针（留给 T1509）。
+- 验收：`scoop dump-rtti` 输出包含 class 的 `itable_entries`（按 `interface_id` 稳定排序），并能看到 slot→实现成员的映射；新增单测覆盖接口实现映射。
+- 依赖：T1507c2
 
 ### T1508 [TODO] 类型检查与 lowering：普通成员函数调用（class/interface）+ 动态分发分类
 - 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 MIR 中显式表达。
@@ -6355,7 +6378,7 @@
 - 验收：
   - 新增 typecheck fixtures：member call 的 overload resolution、override 冲突、interface dispatch 的 pass/fail；
   - 新增 run-pass fixtures：class override 调用输出正确；interface 引用调用输出正确。
-- 依赖：T0319、T0440、T1312、T1507c
+- 依赖：T0319、T0440、T1312、T1507c3
 
 ### T1509 [TODO] LLVM codegen：typed alloc + 字段访问 + 动态分发（vtable/itable）端到端
 - 描述：在 LLVM 后端实现引用类型的端到端 codegen：对象分配、字段读写、方法调用（direct/virtual/interface）、以及 `is/as/as?` 的运行期检查调用。
@@ -6367,7 +6390,7 @@
 - 验收：
   - 新增 run-pass fixtures：class 分配 + 字段 set/get + override call；interface 调用；`is/as/as?` 的 pass/fail；
   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo test -p scoopc --features llvm` 通过。
-- 依赖：T1508、T1503、T1507a、T1507c
+- 依赖：T1508、T1503、T1507a、T1507c3
 
 ### T1510 [TODO] GC 与 `@Extern`/FFI：native 过渡协议（roots 保存 + pin/handle）完整落地
 - 描述：把 `@Extern` 调用纳入 GC 协议：编译器自动插入 `enter_native/leave_native`，并为“把对象指针交给 native 并跨 safepoint 存活”的场景提供稳定方案（pin/unpin + stable handle）。
