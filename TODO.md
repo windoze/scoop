@@ -6370,11 +6370,17 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1507c3 [TODO] 编译器：class itable entries 生成并导出（dump-rtti）
+### T1507c3 [DONE] 编译器：class itable entries 生成并导出（dump-rtti）
 - 描述：为 class 生成按 `interface_id` 索引的 itable entries；每个 entry 依据 interface method slots 映射到 class 的实现成员（slot→目标成员）。
 - 目标：只做布局与可观测导出；不要求 LLVM codegen 真实填充函数指针（留给 T1509）。
 - 验收：`scoop dump-rtti` 输出包含 class 的 `itable_entries`（按 `interface_id` 稳定排序），并能看到 slot→实现成员的映射；新增单测覆盖接口实现映射。
 - 依赖：T1507c2
+ - 完成：
+   - `crates/scoopc/src/rtti/type_desc.rs`：新增 `itable_entries` 的结构化导出（按 `interface_id` 稳定排序），并实现 interface method slot → class 实现成员（含父类链/override 覆盖）映射；新增单测覆盖“class 继承 + interface 继承”两条路径。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo run -p scoop -- test`
 
 ### T1508 [TODO] 类型检查与 lowering：普通成员函数调用（class/interface）+ 动态分发分类
 - 描述：把 `receiver.method(args...)` 从“存在性解析”升级为可执行语义：typecheck 完成 overload resolution，lowering 把调用分类为 direct/virtual/interface，并在 MIR 中显式表达。

@@ -78,6 +78,10 @@ pub struct TypeDesc {
     /// 仅对 class：vtable slots（TODO T1507c2）。
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub vtable_slots: Vec<VtableSlot>,
+
+    /// 仅对 class：itable entries（TODO T1507c3）。
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub itable_entries: Vec<ItableEntry>,
 }
 
 /// class vtable 的一个 slot（TODO T1507c2）。
@@ -99,6 +103,35 @@ pub struct VtableSlot {
     pub introduced_member: String,
 
     /// 该 slot 在当前 class 的 vtable 中实际指向哪个成员（可能是 override 覆盖后的实现）。
+    pub impl_in: String,
+    pub impl_member: String,
+}
+
+/// class itable 的一个 entry（TODO T1507c3）。
+///
+/// 当前阶段该信息仅用于 `scoop dump-rtti` 的可观测导出：
+/// - entry 按 `interface_id` 稳定排序；
+/// - 每个 interface 的 method slot 映射到 class（或其父类链）中的实现成员；
+/// - 不包含 LLVM codegen 侧的真实函数指针填充（留给 T1509）。
+#[derive(Debug, Clone, Serialize)]
+pub struct ItableEntry {
+    pub interface_id: u64,
+    pub interface_name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub method_slots: Vec<ItableMethodSlot>,
+}
+
+/// itable 内的一个 method slot 映射（TODO T1507c3）。
+#[derive(Debug, Clone, Serialize)]
+pub struct ItableMethodSlot {
+    pub slot: u32,
+
+    /// method 的“最小形状信息”（用于稳定导出与 debug）。
+    pub name: String,
+    pub params_len: u32,
+    pub has_receiver: bool,
+
+    /// slot 在当前 class 上实际指向的实现成员（可能来自父类或 override 覆盖后的实现）。
     pub impl_in: String,
     pub impl_member: String,
 }
@@ -156,7 +189,8 @@ pub fn dump_file_type_desc(
     let lowered = hir::lower_for_dump(session, source)?;
     let target = TargetLayout::host();
 
-    let (interfaces, class_vtables) = collect_interface_descs_and_class_vtables(session, source)?;
+    let (interfaces, class_vtables, class_itables) =
+        collect_interface_descs_and_class_vtables(session, source)?;
 
     let mut out: Vec<TypeDesc> = Vec::new();
     out.extend(builtin_type_descs(target));
@@ -165,10 +199,10 @@ pub fn dump_file_type_desc(
     let mut class_fqns: Vec<String> = lowered.class_inits.keys().cloned().collect();
     class_fqns.sort();
     for fqn in class_fqns {
-        if let Some(mut desc) =
-            class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)?
+        if let Some(mut desc) = class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)?
         {
             desc.vtable_slots = class_vtables.get(&fqn).cloned().unwrap_or_default();
+            desc.itable_entries = class_itables.get(&fqn).cloned().unwrap_or_default();
             out.push(desc);
         }
     }
@@ -215,6 +249,7 @@ pub fn dump_file_type_desc(
             trace_bitmap_u64: bitmap,
             trace_fn: None,
             vtable_slots: Vec::new(),
+            itable_entries: Vec::new(),
         });
     }
 
@@ -232,7 +267,14 @@ pub fn dump_file_type_desc(
 fn collect_interface_descs_and_class_vtables(
     session: &Session,
     source: &SourceFile,
-) -> Result<(Vec<InterfaceDesc>, HashMap<String, Vec<VtableSlot>>), TypeDescError> {
+) -> Result<
+    (
+        Vec<InterfaceDesc>,
+        HashMap<String, Vec<VtableSlot>>,
+        HashMap<String, Vec<ItableEntry>>,
+    ),
+    TypeDescError,
+> {
     // 说明：
     // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
     // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。
@@ -291,13 +333,15 @@ fn collect_interface_descs_and_class_vtables(
 
     interfaces.sort_by(|a, b| a.name.cmp(&b.name));
     let class_vtables = build_class_vtables(&classes)?;
-    Ok((interfaces, class_vtables))
+    let class_itables = build_class_itables(&classes, &interfaces, &class_vtables)?;
+    Ok((interfaces, class_vtables, class_itables))
 }
 
 #[derive(Debug, Clone)]
 struct ClassDeclInfo {
     fqn: String,
     super_class_fqn: Option<String>,
+    direct_interfaces: Vec<String>,
     methods: Vec<ClassMethodInfo>,
 }
 
@@ -327,6 +371,13 @@ fn collect_classes_in_type_decl(
             .filter(|st| st.ctor_args_span.is_some())
             .find_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
 
+        let direct_interfaces = decl
+            .supertypes
+            .iter()
+            .filter(|st| st.ctor_args_span.is_none())
+            .filter_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty))
+            .collect::<Vec<_>>();
+
         let mut methods: Vec<ClassMethodInfo> = Vec::new();
         if let Some(body) = &decl.body {
             for member in &body.members {
@@ -335,10 +386,6 @@ fn collect_classes_in_type_decl(
                 };
 
                 let modifiers = ModifierSet::from_modifiers(&fun.modifiers);
-                if !(modifiers.open || modifiers.abstract_ || modifiers.override_) {
-                    continue;
-                }
-
                 methods.push(ClassMethodInfo {
                     name: fun.name.text(source).to_string(),
                     params_len: fun.params.len() as u32,
@@ -353,6 +400,7 @@ fn collect_classes_in_type_decl(
             ClassDeclInfo {
                 fqn: type_fqn.clone(),
                 super_class_fqn,
+                direct_interfaces,
                 methods,
             },
         );
@@ -462,6 +510,10 @@ fn compute_class_vtable_slots(
     };
 
     for m in &info.methods {
+        if !(m.modifiers.open || m.modifiers.abstract_ || m.modifiers.override_) {
+            continue;
+        }
+
         // v0：vtable slot key 仅以 name + 参数个数 + receiver 形状区分（与最小 override 检查一致）。
         let key_matches = |s: &VtableSlot| {
             s.name == m.name && s.params_len == m.params_len && s.has_receiver == m.has_receiver
@@ -492,6 +544,218 @@ fn compute_class_vtable_slots(
 
     let _ = visiting.remove(class_fqn);
     Ok(slots)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct MethodShapeKey {
+    name: String,
+    params_len: u32,
+    has_receiver: bool,
+}
+
+impl MethodShapeKey {
+    fn from_vtable_slot(slot: &VtableSlot) -> Self {
+        Self {
+            name: slot.name.clone(),
+            params_len: slot.params_len,
+            has_receiver: slot.has_receiver,
+        }
+    }
+
+    fn from_interface_slot(slot: &InterfaceMethodSlot) -> Self {
+        Self {
+            name: slot.name.clone(),
+            params_len: slot.params_len,
+            has_receiver: slot.has_receiver,
+        }
+    }
+}
+
+fn build_class_itables(
+    classes: &HashMap<String, ClassDeclInfo>,
+    interfaces: &[InterfaceDesc],
+    class_vtables: &HashMap<String, Vec<VtableSlot>>,
+) -> Result<HashMap<String, Vec<ItableEntry>>, TypeDescError> {
+    let mut interfaces_by_name: HashMap<String, InterfaceDesc> = HashMap::new();
+    for iface in interfaces {
+        interfaces_by_name.insert(iface.name.clone(), iface.clone());
+    }
+
+    let mut memo_iface_sets: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut visiting_classes: HashSet<String> = HashSet::new();
+
+    let mut class_fqns: Vec<&str> = classes.keys().map(|k| k.as_str()).collect();
+    class_fqns.sort();
+
+    let mut out: HashMap<String, Vec<ItableEntry>> = HashMap::new();
+    for class_fqn in class_fqns {
+        let ifaces = compute_class_interface_closure(
+            class_fqn,
+            classes,
+            &interfaces_by_name,
+            &mut visiting_classes,
+            &mut memo_iface_sets,
+        )?;
+
+        // vtable impl map：shape -> 真实实现成员（已考虑 override 覆盖）。
+        let mut vtable_impls: HashMap<MethodShapeKey, (&str, &str)> = HashMap::new();
+        if let Some(vslots) = class_vtables.get(class_fqn) {
+            for s in vslots {
+                vtable_impls.insert(
+                    MethodShapeKey::from_vtable_slot(s),
+                    (&s.impl_in, &s.impl_member),
+                );
+            }
+        }
+
+        let mut entries: Vec<ItableEntry> = Vec::new();
+        for iface_name in ifaces {
+            let (interface_id, method_slots) =
+                if let Some(iface) = interfaces_by_name.get(&iface_name) {
+                    (iface.interface_id, iface.method_slots.clone())
+                } else {
+                    // best-effort：interface decl 不在本次 scan 中时，仍保留 id 与空 slots，便于 debug。
+                    (stable_hash64(&iface_name), Vec::new())
+                };
+
+            let mut mapped: Vec<ItableMethodSlot> = Vec::new();
+            for slot in &method_slots {
+                let key = MethodShapeKey::from_interface_slot(slot);
+
+                let (impl_in, impl_member) = if let Some((in_fqn, member_fqn)) =
+                    vtable_impls.get(&key).copied()
+                {
+                    (in_fqn.to_string(), member_fqn.to_string())
+                } else if let Some((in_fqn, member_fqn)) =
+                    resolve_method_in_class_hierarchy(class_fqn, &key, classes, &mut HashSet::new())
+                {
+                    (in_fqn, member_fqn)
+                } else {
+                    ("<unresolved>".to_string(), "<unresolved>".to_string())
+                };
+
+                mapped.push(ItableMethodSlot {
+                    slot: slot.slot,
+                    name: slot.name.clone(),
+                    params_len: slot.params_len,
+                    has_receiver: slot.has_receiver,
+                    impl_in,
+                    impl_member,
+                });
+            }
+
+            entries.push(ItableEntry {
+                interface_id,
+                interface_name: iface_name,
+                method_slots: mapped,
+            });
+        }
+
+        entries.sort_by(|a, b| a.interface_id.cmp(&b.interface_id));
+        out.insert(class_fqn.to_string(), entries);
+    }
+
+    Ok(out)
+}
+
+fn compute_class_interface_closure(
+    class_fqn: &str,
+    classes: &HashMap<String, ClassDeclInfo>,
+    interfaces_by_name: &HashMap<String, InterfaceDesc>,
+    visiting: &mut HashSet<String>,
+    memo: &mut HashMap<String, HashSet<String>>,
+) -> Result<HashSet<String>, TypeDescError> {
+    if let Some(found) = memo.get(class_fqn) {
+        return Ok(found.clone());
+    }
+
+    if !visiting.insert(class_fqn.to_string()) {
+        return Err(TypeDescError::InheritanceCycle {
+            fqn: class_fqn.to_string(),
+        });
+    }
+
+    let mut out: HashSet<String> = HashSet::new();
+    if let Some(info) = classes.get(class_fqn) {
+        for iface in &info.direct_interfaces {
+            collect_interface_and_supers(iface, interfaces_by_name, &mut out, &mut HashSet::new());
+        }
+
+        if let Some(super_fqn) = info.super_class_fqn.as_deref() {
+            if classes.contains_key(super_fqn) {
+                let super_ifaces = compute_class_interface_closure(
+                    super_fqn,
+                    classes,
+                    interfaces_by_name,
+                    visiting,
+                    memo,
+                )?;
+                out.extend(super_ifaces);
+            }
+        }
+    }
+
+    let _ = visiting.remove(class_fqn);
+    memo.insert(class_fqn.to_string(), out.clone());
+    Ok(out)
+}
+
+fn collect_interface_and_supers(
+    iface_fqn: &str,
+    interfaces_by_name: &HashMap<String, InterfaceDesc>,
+    out: &mut HashSet<String>,
+    visiting: &mut HashSet<String>,
+) {
+    if !visiting.insert(iface_fqn.to_string()) {
+        return;
+    }
+
+    if !out.insert(iface_fqn.to_string()) {
+        let _ = visiting.remove(iface_fqn);
+        return;
+    }
+
+    if let Some(iface) = interfaces_by_name.get(iface_fqn) {
+        for sup in &iface.super_interfaces {
+            collect_interface_and_supers(sup, interfaces_by_name, out, visiting);
+        }
+    }
+
+    let _ = visiting.remove(iface_fqn);
+}
+
+fn resolve_method_in_class_hierarchy(
+    class_fqn: &str,
+    key: &MethodShapeKey,
+    classes: &HashMap<String, ClassDeclInfo>,
+    visiting: &mut HashSet<String>,
+) -> Option<(String, String)> {
+    if !visiting.insert(class_fqn.to_string()) {
+        return None;
+    }
+
+    let info = classes.get(class_fqn)?;
+    for m in &info.methods {
+        if m.name == key.name
+            && m.params_len == key.params_len
+            && m.has_receiver == key.has_receiver
+        {
+            let member = format!("{}.{}", info.fqn, m.name);
+            let _ = visiting.remove(class_fqn);
+            return Some((info.fqn.clone(), member));
+        }
+    }
+
+    if let Some(super_fqn) = info.super_class_fqn.as_deref() {
+        if classes.contains_key(super_fqn) {
+            let resolved = resolve_method_in_class_hierarchy(super_fqn, key, classes, visiting);
+            let _ = visiting.remove(class_fqn);
+            return resolved;
+        }
+    }
+
+    let _ = visiting.remove(class_fqn);
+    None
 }
 
 fn collect_interfaces_in_type_decl(
@@ -651,6 +915,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
 
     // `scoop.runtime.BoxedUnit`：仅对象头。
@@ -664,6 +929,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
 
     // `scoop.runtime.BoxedInt{bits}_{i|u}`：对象头 + 整数 payload，无引用字段。
@@ -680,6 +946,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
             trace_bitmap_u64: Vec::new(),
             trace_fn: None,
             vtable_slots: Vec::new(),
+            itable_entries: Vec::new(),
         });
 
         let _ = signed; // 保留 signed 变量，便于未来扩展其它位宽 box 时复用。
@@ -697,6 +964,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: vec![1u64],
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
 
     // runtime builtin array descriptors（type_id=0；由 runtime C 定义并写入对象头）。
@@ -710,6 +978,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_REF_TYPE_DESC".to_string(),
@@ -721,6 +990,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: Some("scoop_array_trace_ref_elems".to_string()),
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC".to_string(),
@@ -732,6 +1002,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_BUILDER_REF_TYPE_DESC".to_string(),
@@ -743,6 +1014,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_bitmap_u64: Vec::new(),
         trace_fn: Some("scoop_array_builder_trace_ref_elems".to_string()),
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     });
 
     out
@@ -775,6 +1047,7 @@ fn class_type_desc(
         trace_bitmap_u64: bitmap,
         trace_fn: None,
         vtable_slots: Vec::new(),
+        itable_entries: Vec::new(),
     }))
 }
 
@@ -1361,6 +1634,103 @@ class Derived : Base() {
         assert_eq!(derived.vtable_slots[0].introduced_member, "rtti.Base.ping");
         assert_eq!(derived.vtable_slots[0].impl_in, "rtti.Derived");
         assert_eq!(derived.vtable_slots[0].impl_member, "rtti.Derived.ping");
+    }
+
+    #[test]
+    fn dump_rtti_class_itable_entries_maps_interface_slots_to_impl_members() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+import scoop.core.*
+
+interface IFoo {
+  fun ping()
+}
+
+interface IBar : IFoo {
+  fun pong()
+}
+
+open class Base : IFoo {
+  override fun ping() {}
+}
+
+class Derived : Base() {
+  override fun ping() {}
+}
+
+class BarImpl : IBar {
+  override fun ping() {}
+  override fun pong() {}
+}
+"#,
+        );
+
+        let dump = dump_file_type_desc(&sess, &src).unwrap();
+
+        let mut by_name: BTreeMap<&str, &TypeDesc> = BTreeMap::new();
+        for ty in &dump.types {
+            by_name.insert(ty.name.as_str(), ty);
+        }
+
+        let derived = by_name.get("rtti.Derived").unwrap();
+        assert!(!derived.itable_entries.is_empty());
+        let derived_ids = derived
+            .itable_entries
+            .iter()
+            .map(|e| e.interface_id)
+            .collect::<Vec<_>>();
+        let mut sorted = derived_ids.clone();
+        sorted.sort();
+        assert_eq!(derived_ids, sorted);
+
+        let foo_entry = derived
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.IFoo")
+            .expect("Derived should implement IFoo via Base");
+        assert_eq!(foo_entry.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(foo_entry.method_slots.len(), 1);
+        assert_eq!(foo_entry.method_slots[0].slot, 0);
+        assert_eq!(foo_entry.method_slots[0].name, "ping");
+        assert_eq!(foo_entry.method_slots[0].impl_in, "rtti.Derived");
+        assert_eq!(foo_entry.method_slots[0].impl_member, "rtti.Derived.ping");
+
+        let bar_impl = by_name.get("rtti.BarImpl").unwrap();
+        assert!(!bar_impl.itable_entries.is_empty());
+        let bar_ids = bar_impl
+            .itable_entries
+            .iter()
+            .map(|e| e.interface_id)
+            .collect::<Vec<_>>();
+        let mut sorted = bar_ids.clone();
+        sorted.sort();
+        assert_eq!(bar_ids, sorted);
+
+        let foo_entry = bar_impl
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.IFoo")
+            .expect("BarImpl should implement IFoo via IBar");
+        assert_eq!(foo_entry.interface_id, stable_hash64("rtti.IFoo"));
+        assert_eq!(foo_entry.method_slots.len(), 1);
+        assert_eq!(foo_entry.method_slots[0].impl_in, "rtti.BarImpl");
+        assert_eq!(foo_entry.method_slots[0].impl_member, "rtti.BarImpl.ping");
+
+        let bar_entry = bar_impl
+            .itable_entries
+            .iter()
+            .find(|e| e.interface_name == "rtti.IBar")
+            .expect("BarImpl should implement IBar directly");
+        assert_eq!(bar_entry.interface_id, stable_hash64("rtti.IBar"));
+        assert_eq!(bar_entry.method_slots.len(), 1);
+        assert_eq!(bar_entry.method_slots[0].slot, 0);
+        assert_eq!(bar_entry.method_slots[0].name, "pong");
+        assert_eq!(bar_entry.method_slots[0].impl_in, "rtti.BarImpl");
+        assert_eq!(bar_entry.method_slots[0].impl_member, "rtti.BarImpl.pong");
     }
 
     #[test]
