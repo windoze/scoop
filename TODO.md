@@ -6589,7 +6589,7 @@
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1512 [TODO] 回归与压力测试：ref types + stackmap GC 全量覆盖矩阵
+### T1512 回归与压力测试：ref types + stackmap GC 全量覆盖矩阵（拆分为子任务）
 - 描述：为引用类型与 GC 建立持续回归套件：覆盖 class/interface/closure/array/string/box、跨线程、native 过渡、pin/unpin、moving/compaction，并为每类提供最小 pass/fail + run-pass。
 - 目标：
   - `tests/fixtures/runtime_gc/*`：新增按主题分组的 fixtures（roots 枚举、对象内引用扫描、循环引用、跨线程、native 过渡、pin/unpin、moving）；
@@ -6600,6 +6600,45 @@
   - `cargo run -p scoop -- test`
   - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
 - 依赖：T1509、T1511
+- 备注：该任务包含多个相对独立、且“可单独实现 & 单独验证”的能力点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务；本条仅保留目标汇总。
+
+### T1512a [TODO] fixtures runner：`scoop test` 注入 `--gc-stress/--gc-move/--threads`（env 驱动）
+- 描述：为 `scoop test` 增加全局开关，并在 run-pass phase 对子进程注入对应环境变量，用于驱动 GC 压力/移动/并行 worker（无需在每个 fixture 里重复写 `// ENV:`）。
+- 目标：
+  - `scoop test` 新增参数：
+    - `--gc-stress` → 注入 `SCOOP_GC_STRESS=1`（运行时按该 env 触发额外 GC）；
+    - `--gc-move` → 注入 `SCOOP_GC_MOVE=1`（复用 T1511 的 moving GC 开关）；
+    - `--threads=N` → 注入 `SCOOP_GC_IMMIX_PARALLEL_MARK=N` 与 `SCOOP_GC_IMMIX_PARALLEL_SWEEP=N`（仅 Immix；1=默认 4；N>=2 指定；上限 32）。
+  - runtime：新增 `SCOOP_GC_STRESS` 支持（最小语义：每 N 次分配前触发一次 `scoop_gc_collect()`；N 默认为 1）。
+  - 只做“参数解析 + 注入 + 最小回归单测”；不新增大规模 fixtures 覆盖矩阵（留给后续子任务）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T1511
+
+### T1512b [TODO] runtime_gc fixtures：ref roots/heap 扫描最小覆盖矩阵（单线程）
+- 描述：补齐“单线程 + 精确 roots/heap 扫描”的基础回归：class/interface/closure/array/string/box、循环引用、值类型含 ref 字段（stackmap spill slots + heap fields）。
+- 目标：每类至少 1 个 run-pass fixture；并补 1 个 compile-fail 覆盖“明显非法/unsafe 违规”的用法（若落在 `unsafe_nogc` 目录更合适则放到对应目录）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T1512a
+
+### T1512c [TODO] runtime_gc fixtures：跨线程 roots 枚举与 STW 边界（含 native 过渡）
+- 描述：补齐“多线程 + STW 协作式 safepoint poll”的端到端回归：线程间引用、线程长期 InNative、GC 不死锁且 roots 保活。
+- 目标：每类至少 1 个 run-pass fixture；并用 `scoop test --threads=N`/相关 env 覆盖 Immix 并行 mark/sweep（若启用）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T1512b
+
+### T1512d [TODO] runtime_gc fixtures：pin/unpin + moving/compaction 的压力回归（多轮/矩阵）
+- 描述：把 pin/unpin、moving（`SCOOP_GC_MOVE=1`）与（可选）Immix compaction 的组合跑成稳定矩阵，避免“只在压力下出现的悬挂指针”回归漏网。
+- 目标：把现有 `runtime_gc` 用例扩展为“可重复多轮”的压力模式（由 `--gc-stress/--gc-move` 驱动），并补齐至少 1 个“失败用例”（EXPECT: fail）来回归 runner 的稳定诊断。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop --features llvm -- test`
+- 依赖：T1512c
 
 ### T1513 [TODO] String 表示升级方案：`struct String` + `class StringData` backing（零拷贝 slicing/substring）
 - 描述：评估并落地把 `String` 从“单一 ref class”升级为“薄 value struct + 共享 back buffer”的表示，以支持零拷贝 slicing/substring（例如 `trimStart`/`trimEnd`/`trim` 等仅调整边界的操作）。
