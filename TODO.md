@@ -6359,11 +6359,16 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1507c2 [TODO] 编译器：class vtable slot layout 生成并导出（dump-rtti）
+### T1507c2 [DONE] 编译器：class vtable slot layout 生成并导出（dump-rtti）
 - 描述：基于 class 继承链与 override 关系生成 vtable slots（布局稳定），并在 `scoop dump-rtti` 中导出 vtable slot 列表（slot→目标成员）。
 - 目标：只做布局与可观测导出；不要求 LLVM codegen 真实填充函数指针（留给 T1509）。
 - 验收：`scoop dump-rtti` 输出包含 class 的 `vtable_slots`（含继承与 override 的 slot 覆盖关系）；新增单测覆盖 slot 覆盖。
 - 依赖：T1507c1
+ - 完成：
+   - `crates/scoopc/src/rtti/type_desc.rs`：为 class 生成稳定 `vtable_slots`（按继承链继承并用 `override` 覆盖 slot），并在 `scoop dump-rtti` JSON 中可观测导出；新增单测覆盖“override 复用 slot”。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1507c3 [TODO] 编译器：class itable entries 生成并导出（dump-rtti）
 - 描述：为 class 生成按 `interface_id` 索引的 itable entries；每个 entry 依据 interface method slots 映射到 class 的实现成员（slot→目标成员）。

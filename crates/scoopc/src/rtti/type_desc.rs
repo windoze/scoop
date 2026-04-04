@@ -19,7 +19,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::hir;
 use crate::parser::ParseError;
-use crate::resolve::{Index, ResolveError};
+use crate::resolve::{Index, ModifierSet, ResolveError};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
@@ -74,6 +74,33 @@ pub struct TypeDesc {
     /// 若该类型用 `trace_fn` 扫描，则这里记录一个可读标识（通常为 runtime C 函数名）。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_fn: Option<String>,
+
+    /// 仅对 class：vtable slots（TODO T1507c2）。
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub vtable_slots: Vec<VtableSlot>,
+}
+
+/// class vtable 的一个 slot（TODO T1507c2）。
+///
+/// 当前阶段该信息仅用于 `scoop dump-rtti` 的可观测导出：
+/// - slot 布局稳定（依赖 class 继承链 + 声明顺序 + `override`）；
+/// - 不包含 LLVM codegen 侧的真实函数指针填充（留给 T1509）。
+#[derive(Debug, Clone, Serialize)]
+pub struct VtableSlot {
+    pub slot: u32,
+
+    /// method 的“最小形状信息”（用于 v0 覆盖规则匹配）。
+    pub name: String,
+    pub params_len: u32,
+    pub has_receiver: bool,
+
+    /// 该 slot 最初由哪个 class 引入（用于观测 override 覆盖关系）。
+    pub introduced_in: String,
+    pub introduced_member: String,
+
+    /// 该 slot 在当前 class 的 vtable 中实际指向哪个成员（可能是 override 覆盖后的实现）。
+    pub impl_in: String,
+    pub impl_member: String,
 }
 
 /// interface 的稳定可观测导出（TODO T1507c1）。
@@ -129,6 +156,8 @@ pub fn dump_file_type_desc(
     let lowered = hir::lower_for_dump(session, source)?;
     let target = TargetLayout::host();
 
+    let (interfaces, class_vtables) = collect_interface_descs_and_class_vtables(session, source)?;
+
     let mut out: Vec<TypeDesc> = Vec::new();
     out.extend(builtin_type_descs(target));
 
@@ -136,7 +165,10 @@ pub fn dump_file_type_desc(
     let mut class_fqns: Vec<String> = lowered.class_inits.keys().cloned().collect();
     class_fqns.sort();
     for fqn in class_fqns {
-        if let Some(desc) = class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)? {
+        if let Some(mut desc) =
+            class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)?
+        {
+            desc.vtable_slots = class_vtables.get(&fqn).cloned().unwrap_or_default();
             out.push(desc);
         }
     }
@@ -182,11 +214,11 @@ pub fn dump_file_type_desc(
             trace_start_offset_bytes: trace_start,
             trace_bitmap_u64: bitmap,
             trace_fn: None,
+            vtable_slots: Vec::new(),
         });
     }
 
     out.sort_by(|a, b| a.name.cmp(&b.name));
-    let interfaces = collect_interface_descs(session, source)?;
     Ok(TypeDescDump {
         target: TargetLayoutInfo {
             pointer_size: target.pointer_size,
@@ -197,10 +229,10 @@ pub fn dump_file_type_desc(
     })
 }
 
-fn collect_interface_descs(
+fn collect_interface_descs_and_class_vtables(
     session: &Session,
     source: &SourceFile,
-) -> Result<Vec<InterfaceDesc>, TypeDescError> {
+) -> Result<(Vec<InterfaceDesc>, HashMap<String, Vec<VtableSlot>>), TypeDescError> {
     // 说明：
     // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
     // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。
@@ -214,13 +246,22 @@ fn collect_interface_descs(
 
     let index = Index::build(&pairs)?;
 
-    let mut out: Vec<InterfaceDesc> = Vec::new();
+    let mut interfaces: Vec<InterfaceDesc> = Vec::new();
+    let mut classes: HashMap<String, ClassDeclInfo> = HashMap::new();
     for (src, file) in &pairs {
         let pkg_prefix = package_prefix(src, file.package.as_ref());
         for item in &file.items {
             match item {
                 ast::Item::Type(ty) => {
-                    collect_interfaces_in_type_decl(src, file, &pkg_prefix, ty, &index, &mut out);
+                    collect_interfaces_in_type_decl(
+                        src,
+                        file,
+                        &pkg_prefix,
+                        ty,
+                        &index,
+                        &mut interfaces,
+                    );
+                    collect_classes_in_type_decl(src, file, &pkg_prefix, ty, &index, &mut classes);
                 }
                 ast::Item::Object(obj) => {
                     collect_interfaces_in_object_decl(
@@ -229,7 +270,15 @@ fn collect_interface_descs(
                         &pkg_prefix,
                         obj,
                         &index,
-                        &mut out,
+                        &mut interfaces,
+                    );
+                    collect_classes_in_object_decl(
+                        src,
+                        file,
+                        &pkg_prefix,
+                        obj,
+                        &index,
+                        &mut classes,
                     );
                 }
                 ast::Item::Fun(_)
@@ -240,8 +289,209 @@ fn collect_interface_descs(
         }
     }
 
-    out.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(out)
+    interfaces.sort_by(|a, b| a.name.cmp(&b.name));
+    let class_vtables = build_class_vtables(&classes)?;
+    Ok((interfaces, class_vtables))
+}
+
+#[derive(Debug, Clone)]
+struct ClassDeclInfo {
+    fqn: String,
+    super_class_fqn: Option<String>,
+    methods: Vec<ClassMethodInfo>,
+}
+
+#[derive(Debug, Clone)]
+struct ClassMethodInfo {
+    name: String,
+    params_len: u32,
+    has_receiver: bool,
+    modifiers: ModifierSet,
+}
+
+fn collect_classes_in_type_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    owner_prefix: &str,
+    decl: &ast::TypeDecl,
+    index: &Index,
+    out: &mut HashMap<String, ClassDeclInfo>,
+) {
+    let name = decl.name.text(source).to_string();
+    let type_fqn = join_prefix(owner_prefix, &name);
+
+    if matches!(decl.kind, ast::TypeKind::Class) {
+        let super_class_fqn = decl
+            .supertypes
+            .iter()
+            .filter(|st| st.ctor_args_span.is_some())
+            .find_map(|st| index.type_ref_to_fqn_in_file(source, file, &st.ty));
+
+        let mut methods: Vec<ClassMethodInfo> = Vec::new();
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::Fun(fun) = member else {
+                    continue;
+                };
+
+                let modifiers = ModifierSet::from_modifiers(&fun.modifiers);
+                if !(modifiers.open || modifiers.abstract_ || modifiers.override_) {
+                    continue;
+                }
+
+                methods.push(ClassMethodInfo {
+                    name: fun.name.text(source).to_string(),
+                    params_len: fun.params.len() as u32,
+                    has_receiver: fun.receiver.is_some(),
+                    modifiers,
+                });
+            }
+        }
+
+        out.insert(
+            type_fqn.clone(),
+            ClassDeclInfo {
+                fqn: type_fqn.clone(),
+                super_class_fqn,
+                methods,
+            },
+        );
+    }
+
+    let Some(body) = &decl.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_classes_in_type_decl(source, file, &type_fqn, nested, index, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_classes_in_object_decl(source, file, &type_fqn, obj, index, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn collect_classes_in_object_decl(
+    source: &SourceFile,
+    file: &ast::File,
+    owner_prefix: &str,
+    obj: &ast::ObjectDecl,
+    index: &Index,
+    out: &mut HashMap<String, ClassDeclInfo>,
+) {
+    let Some(name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let obj_fqn = join_prefix(owner_prefix, &name);
+
+    let Some(body) = &obj.body else {
+        return;
+    };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Type(nested) => {
+                collect_classes_in_type_decl(source, file, &obj_fqn, nested, index, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_classes_in_object_decl(source, file, &obj_fqn, nested, index, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::Fun(_) => {}
+        }
+    }
+}
+
+fn build_class_vtables(
+    classes: &HashMap<String, ClassDeclInfo>,
+) -> Result<HashMap<String, Vec<VtableSlot>>, TypeDescError> {
+    let mut memo: HashMap<String, Vec<VtableSlot>> = HashMap::new();
+
+    let mut class_fqns: Vec<&str> = classes.keys().map(|k| k.as_str()).collect();
+    class_fqns.sort();
+
+    for fqn in class_fqns {
+        let mut visiting: HashSet<String> = HashSet::new();
+        let slots = compute_class_vtable_slots(fqn, classes, &mut visiting, &mut memo)?;
+        memo.insert(fqn.to_string(), slots);
+    }
+
+    Ok(memo)
+}
+
+fn compute_class_vtable_slots(
+    class_fqn: &str,
+    classes: &HashMap<String, ClassDeclInfo>,
+    visiting: &mut HashSet<String>,
+    memo: &mut HashMap<String, Vec<VtableSlot>>,
+) -> Result<Vec<VtableSlot>, TypeDescError> {
+    if let Some(found) = memo.get(class_fqn) {
+        return Ok(found.clone());
+    }
+
+    if !visiting.insert(class_fqn.to_string()) {
+        return Err(TypeDescError::InheritanceCycle {
+            fqn: class_fqn.to_string(),
+        });
+    }
+
+    let Some(info) = classes.get(class_fqn) else {
+        let _ = visiting.remove(class_fqn);
+        return Ok(Vec::new());
+    };
+
+    let mut slots = if let Some(super_fqn) = info.super_class_fqn.as_deref() {
+        if classes.contains_key(super_fqn) {
+            compute_class_vtable_slots(super_fqn, classes, visiting, memo)?
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
+    for m in &info.methods {
+        // v0：vtable slot key 仅以 name + 参数个数 + receiver 形状区分（与最小 override 检查一致）。
+        let key_matches = |s: &VtableSlot| {
+            s.name == m.name && s.params_len == m.params_len && s.has_receiver == m.has_receiver
+        };
+
+        let member_fqn = format!("{}.{}", info.fqn, m.name);
+
+        if m.modifiers.override_ {
+            if let Some(existing) = slots.iter_mut().find(|s| key_matches(s)) {
+                existing.impl_in = info.fqn.clone();
+                existing.impl_member = member_fqn;
+                continue;
+            }
+        }
+
+        let slot = slots.len() as u32;
+        slots.push(VtableSlot {
+            slot,
+            name: m.name.clone(),
+            params_len: m.params_len,
+            has_receiver: m.has_receiver,
+            introduced_in: info.fqn.clone(),
+            introduced_member: member_fqn.clone(),
+            impl_in: info.fqn.clone(),
+            impl_member: member_fqn,
+        });
+    }
+
+    let _ = visiting.remove(class_fqn);
+    Ok(slots)
 }
 
 fn collect_interfaces_in_type_decl(
@@ -400,6 +650,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: header_size,
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
+        vtable_slots: Vec::new(),
     });
 
     // `scoop.runtime.BoxedUnit`：仅对象头。
@@ -412,6 +663,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: 0,
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
+        vtable_slots: Vec::new(),
     });
 
     // `scoop.runtime.BoxedInt{bits}_{i|u}`：对象头 + 整数 payload，无引用字段。
@@ -427,6 +679,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
             trace_start_offset_bytes: header_size,
             trace_bitmap_u64: Vec::new(),
             trace_fn: None,
+            vtable_slots: Vec::new(),
         });
 
         let _ = signed; // 保留 signed 变量，便于未来扩展其它位宽 box 时复用。
@@ -443,6 +696,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: header_size,
         trace_bitmap_u64: vec![1u64],
         trace_fn: None,
+        vtable_slots: Vec::new(),
     });
 
     // runtime builtin array descriptors（type_id=0；由 runtime C 定义并写入对象头）。
@@ -455,6 +709,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: 0,
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
+        vtable_slots: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_REF_TYPE_DESC".to_string(),
@@ -465,6 +720,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: 0,
         trace_bitmap_u64: Vec::new(),
         trace_fn: Some("scoop_array_trace_ref_elems".to_string()),
+        vtable_slots: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC".to_string(),
@@ -475,6 +731,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: 0,
         trace_bitmap_u64: Vec::new(),
         trace_fn: None,
+        vtable_slots: Vec::new(),
     });
     out.push(TypeDesc {
         name: "runtime.builtin.SCOOP_ARRAY_BUILDER_REF_TYPE_DESC".to_string(),
@@ -485,6 +742,7 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         trace_start_offset_bytes: 0,
         trace_bitmap_u64: Vec::new(),
         trace_fn: Some("scoop_array_builder_trace_ref_elems".to_string()),
+        vtable_slots: Vec::new(),
     });
 
     out
@@ -516,6 +774,7 @@ fn class_type_desc(
         trace_start_offset_bytes: trace_start,
         trace_bitmap_u64: bitmap,
         trace_fn: None,
+        vtable_slots: Vec::new(),
     }))
 }
 
@@ -1056,6 +1315,52 @@ class Derived(val ok: Bool, val t: String) : Base("hi")
             vec!["rtti.Base".to_string(), "rtti.Derived".to_string()]
         );
         assert_eq!(derived.trace_bitmap_u64, vec![5u64]);
+    }
+
+    #[test]
+    fn dump_rtti_class_vtable_slots_override_reuses_slot() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package rtti
+
+import scoop.core.*
+
+open class Base {
+  open fun ping() {}
+  fun finalFun() {}
+}
+
+class Derived : Base() {
+  override fun ping() {}
+}
+"#,
+        );
+
+        let dump = dump_file_type_desc(&sess, &src).unwrap();
+        let mut by_name: BTreeMap<&str, &TypeDesc> = BTreeMap::new();
+        for ty in &dump.types {
+            by_name.insert(ty.name.as_str(), ty);
+        }
+
+        let base = by_name.get("rtti.Base").unwrap();
+        assert_eq!(base.vtable_slots.len(), 1);
+        assert_eq!(base.vtable_slots[0].slot, 0);
+        assert_eq!(base.vtable_slots[0].name, "ping");
+        assert_eq!(base.vtable_slots[0].introduced_in, "rtti.Base");
+        assert_eq!(base.vtable_slots[0].introduced_member, "rtti.Base.ping");
+        assert_eq!(base.vtable_slots[0].impl_in, "rtti.Base");
+        assert_eq!(base.vtable_slots[0].impl_member, "rtti.Base.ping");
+
+        let derived = by_name.get("rtti.Derived").unwrap();
+        assert_eq!(derived.vtable_slots.len(), 1);
+        assert_eq!(derived.vtable_slots[0].slot, 0);
+        assert_eq!(derived.vtable_slots[0].name, "ping");
+        assert_eq!(derived.vtable_slots[0].introduced_in, "rtti.Base");
+        assert_eq!(derived.vtable_slots[0].introduced_member, "rtti.Base.ping");
+        assert_eq!(derived.vtable_slots[0].impl_in, "rtti.Derived");
+        assert_eq!(derived.vtable_slots[0].impl_member, "rtti.Derived.ping");
     }
 
     #[test]
