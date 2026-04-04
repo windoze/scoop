@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include "platform/platform.h"
 #include "platform/unwind.h"
 #include "scoop_stackmap.h"
 
@@ -88,3 +89,32 @@ __attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
 // - 这样当 `scoop_gc_collect()` 运行时，即使当前线程处于 InNative，GC 仍可通过 native_roots
 //   扫描/保活 call-site 上的对象引用（避免误回收）。
 void scoop_test_gc_collect_in_native(void) { scoop_gc_collect(); }
+
+// `@Extern` + stop-the-world（跨线程）+ InNative smoke（TODO T1512c）。
+//
+// 设计意图：
+// - worker 线程通过 `@Extern("scoop_test_gc_sleep_in_native_ms")` 进入 native，并在该函数内阻塞一段时间；
+// - 该调用点会由编译器自动插入 `enter_native/leave_native`，使 worker 线程状态机切换到 InNative；
+// - main 线程在观测到 “worker 已进入 native” 后触发一次 `__scoop_gc_collect()`；
+// - 期望：GC 不会等待 InNative 线程 park（避免死锁），并能通过 `native_roots` 保活 call-site roots。
+static uint32_t scoop_test_gc_native_sleep_entered_flag = 0;
+
+// 重置 “已进入 native” 标记（方便 fixtures 重复执行、避免跨进程/多用例残留）。
+void scoop_test_gc_native_sleep_reset(void) {
+  __atomic_store_n(&scoop_test_gc_native_sleep_entered_flag, 0u, __ATOMIC_SEQ_CST);
+}
+
+// 返回 1 表示 worker 已在 native sleep 内部；否则返回 0。
+intptr_t scoop_test_gc_native_sleep_entered(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_gc_native_sleep_entered_flag, __ATOMIC_SEQ_CST);
+}
+
+// 在 native 内阻塞指定毫秒数（<=0 则仅设置 entered 标记后直接返回）。
+void scoop_test_gc_sleep_in_native_ms(intptr_t ms) {
+  __atomic_store_n(&scoop_test_gc_native_sleep_entered_flag, 1u, __ATOMIC_SEQ_CST);
+
+  if (ms <= 0) {
+    return;
+  }
+  scoop_platform_thread_sleep_millis((int64_t)ms);
+}

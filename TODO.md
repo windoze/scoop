@@ -6644,13 +6644,17 @@
     - `cargo run -p scoop -- test`
     - `cargo run -p scoop --features llvm -- test`
 
-### T1512c [TODO] runtime_gc fixtures：跨线程 roots 枚举与 STW 边界（含 native 过渡）
+### T1512c [DONE] runtime_gc fixtures：跨线程 roots 枚举与 STW 边界（含 native 过渡）
 - 描述：补齐“多线程 + STW 协作式 safepoint poll”的端到端回归：线程间引用、线程长期 InNative、GC 不死锁且 roots 保活。
 - 目标：每类至少 1 个 run-pass fixture；并用 `scoop test --threads=N`/相关 env 覆盖 Immix 并行 mark/sweep（若启用）。
 - 验收：
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1512b
+- 完成：
+  - `runtime/c/scoop_test.c`：新增 test-only extern `scoop_test_gc_native_sleep_*` 与 `scoop_test_gc_sleep_in_native_ms`，用于构造“线程长期 InNative”的可控回归场景。
+  - `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`：跨线程 STW roots 枚举 smoke（Parked 线程）。
+  - `tests/fixtures/runtime_gc/gc_stw_cross_thread_in_native_roots_basic.scoop`：跨线程 STW + InNative（native_roots）smoke（避免死锁且 roots 保活）。
 
 ### T1512d [TODO] runtime_gc fixtures：pin/unpin + moving/compaction 的压力回归（多轮/矩阵）
 - 描述：把 pin/unpin、moving（`SCOOP_GC_MOVE=1`）与（可选）Immix compaction 的组合跑成稳定矩阵，避免“只在压力下出现的悬挂指针”回归漏网。

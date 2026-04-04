@@ -154,6 +154,9 @@
   X(scoop_task_u64_try_start) \
   X(scoop_test_add_int) \
   X(scoop_test_gc_collect_in_native) \
+  X(scoop_test_gc_native_sleep_entered) \
+  X(scoop_test_gc_native_sleep_reset) \
+  X(scoop_test_gc_sleep_in_native_ms) \
   X(scoop_test_gc_stackmap_multiframe_keepalive) \
   X(scoop_test_gc_stackmap_roots_enum_smoke) \
   X(scoop_test_gc_stack_walking_ctx_smoke) \

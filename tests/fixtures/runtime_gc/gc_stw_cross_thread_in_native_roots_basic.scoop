@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_stw_cross_thread_in_native_roots_basic.stdout.txt
+// TIMEOUT: 5000
+//
+// 目标：T1512c：跨线程 stop-the-world 边界 + InNative 线程 roots（native_roots）smoke。
+//
+// 关键点：
+// - worker 线程通过 `@Extern` 进入 native，并在 native 内阻塞一段时间；
+// - main 线程在确认 worker 已进入 native 后触发一次 `__scoop_gc_collect()`；
+// - 期望：GC 不会等待 InNative 线程 park（避免死锁），并能通过 `native_roots` 保活 call-site 的 `x`。
+
+package fixtures.codegen
+
+import scoop.core.*
+import scoop.thread.*
+
+@Unsafe
+@Extern("scoop_test_gc_native_sleep_reset")
+fun nativeSleepReset(): Unit
+
+@Unsafe
+@Extern("scoop_test_gc_native_sleep_entered")
+fun nativeSleepEntered(): Int
+
+@Unsafe
+@Extern("scoop_test_gc_sleep_in_native_ms")
+fun sleepInNativeMillis(ms: Int): Unit
+
+fun waitWorkerInNative(): Unit {
+    // 等待 worker 已进入 native（由 runtime test-only 符号在 native 内部设置 flag）。
+    while (@Unsafe { nativeSleepEntered() } == 0) {
+        yield()
+    }
+}
+
+fun worker(): Unit {
+    val x: String = f"native {42}"
+
+    // 进入 native 并阻塞：该调用点会被编译器插入 enter_native/leave_native，
+    // 从而让当前线程处于 InNative 状态并暴露 native_roots 供 GC 扫描。
+    @Unsafe { sleepInNativeMillis(200) }
+
+    println(x)
+}
+
+fun main() {
+    @Unsafe { nativeSleepReset() }
+
+    val t: Thread = threadSpawn { worker() }
+
+    waitWorkerInNative()
+
+    __scoop_gc_collect()
+
+    t.join()
+    println("ok")
+}

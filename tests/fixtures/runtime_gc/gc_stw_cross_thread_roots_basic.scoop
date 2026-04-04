@@ -1,0 +1,58 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_stw_cross_thread_roots_basic.stdout.txt
+// TIMEOUT: 5000
+//
+// 目标：T1512c：跨线程 stop-the-world roots 枚举 smoke（Parked 线程）。
+//
+// 说明：
+// - worker 线程只通过其局部变量 `x` 保活一个字符串；
+// - main 线程在 worker 就绪后触发一次 `__scoop_gc_collect()`；
+// - 期望：GC 通过 STW park + roots 枚举正确保活 worker 的 `x`，程序不崩溃且输出稳定。
+
+package fixtures.codegen
+
+import scoop.core.*
+import scoop.thread.*
+import scoop.unsafe.*
+
+@Global
+var ready: __AtomicInt = 0
+
+@Global
+var proceed: __AtomicInt = 0
+
+fun waitWorkerReady(): Unit {
+    while (@Unsafe { __atomicIntLoad(ready) } == 0) {
+        yield()
+    }
+}
+
+fun worker(): Unit {
+    val x: String = f"hello {7}"
+
+    @Unsafe { __atomicIntStore(ready, 1) }
+
+    // 说明：这里通过持续分配（`Int -> Any` 装箱）触发 safepoint poll，
+    // 以便 main 线程发起 STW 时该线程能及时 park。
+    var i: Int = 0
+    while (@Unsafe { __atomicIntLoad(proceed) } == 0) {
+        val _garbage: Any = i
+        i = i + 1
+    }
+
+    println(x)
+}
+
+fun main() {
+    val t: Thread = threadSpawn { worker() }
+
+    waitWorkerReady()
+
+    // 关键点：main 线程触发 GC，必须能扫描到 worker 的 roots（`x`），否则会误回收/悬挂。
+    __scoop_gc_collect()
+
+    @Unsafe { __atomicIntStore(proceed, 1) }
+
+    t.join()
+    println("ok")
+}
