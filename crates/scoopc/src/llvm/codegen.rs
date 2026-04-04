@@ -39,6 +39,7 @@ use inkwell::values::FunctionValue;
 use inkwell::values::GlobalValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
+use sha2::{Digest as _, Sha256};
 
 use crate::ast;
 use crate::hir;
@@ -88,7 +89,7 @@ enum CgTy {
 ///
 /// 说明：
 /// - 约定 `addrspace(1)` 为 GC-managed ref（与运行时 `scoop_alloc` 分配对象一致）；
-/// - `addrspace(0)` 保留给“native/unsafe 指针”（例如 malloc buffer、C ABI out pointer、closure env 等）。
+/// - `addrspace(0)` 保留给“native/unsafe 指针”（例如 malloc buffer、C ABI out pointer、fn_ptr 等）。
 const GC_ADDRSPACE: u16 = 1;
 
 // boxing / lint 的启发式阈值（与 typecheck::layout.rs 保持一致）。
@@ -4786,6 +4787,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let typed_obj = self
             .builder
             .build_pointer_cast(obj_ptr, obj_ptr_ty, "class_obj_ptr")?;
+
+        // 写入对象头 type descriptor：让 GC 能扫描实例字段中的引用。
+        let type_desc = self.get_or_create_class_type_desc_global(span, &class_fqn)?;
+        self.store_object_type_desc(span, obj_ty, typed_obj, type_desc)?;
+
         let payload_ptr =
             self.builder
                 .build_struct_gep(obj_ty, typed_obj, 1, "class_payload_gep")?;
@@ -10645,7 +10651,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let env_ptr = self
             .builder
-            .build_load(i8_ptr_ty, env_ptr_gep, "closure_env")?
+            .build_load(gc_i8_ptr_ty, env_ptr_gep, "closure_env")?
             .into_pointer_value();
         let fn_ptr_raw = self
             .builder
@@ -10655,7 +10661,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 2) 组装 indirect call 的 LLVM 函数类型与参数。
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
             Vec::with_capacity(1 + fun_ty.params.len());
-        llvm_param_tys.push(i8_ptr_ty.into());
+        llvm_param_tys.push(gc_i8_ptr_ty.into());
         for ty in &fun_ty.params {
             llvm_param_tys.push(self.llvm_param_ty(callee_span, *ty)?);
         }
@@ -10823,12 +10829,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = if let Some(existing) = self.module.get_function(&fun_name) {
             existing
         } else {
-            let i8_ptr_ty = self.llvm_i8_ptr_type();
             let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
             let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
                 Vec::with_capacity(1 + fun_ty.params.len());
-            // env ptr（当前阶段不支持捕获，但 ABI 预留）。
-            llvm_param_tys.push(i8_ptr_ty.into());
+            // env ptr：GC-managed 引用（closure env 是一个 heap object）。
+            llvm_param_tys.push(gc_i8_ptr_ty.into());
             for ty in &fun_ty.params {
                 llvm_param_tys.push(self.llvm_param_ty(span, *ty)?);
             }
@@ -10939,6 +10944,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_pointer_cast(obj_i8, obj_ptr_ty, "closure_obj_ptr")?;
 
+        // 写入 closure object 的 type descriptor（使 GC 能扫描到 env 指针）。
+        let closure_desc = self.get_or_create_closure_object_type_desc_global(span)?;
+        self.store_object_type_desc(span, closure_obj_ty, obj_ptr, closure_desc)?;
+
         let env_gep =
             self.builder
                 .build_struct_gep(closure_obj_ty, obj_ptr, 1, "closure_env_gep")?;
@@ -10946,14 +10955,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_struct_gep(closure_obj_ty, obj_ptr, 2, "closure_fn_gep")?;
 
+        // 重要：先把 env_ptr 初始化为 NULL。
+        //
+        // 说明：
+        // - closure object 的 type descriptor 会把 `env_ptr` 视为 GC pointer slot；
+        // - 若在分配 env 期间发生 safepoint/GC，则必须避免扫描到未初始化的垃圾值。
+        let _ = self
+            .builder
+            .build_store(env_gep, gc_i8_ptr_ty.const_null())?;
+
         // 若有捕获，则分配 env 并写入捕获值；否则 env_ptr 为 NULL。
         let env_i8 = if captures.is_empty() {
-            i8_ptr_ty.const_null()
+            gc_i8_ptr_ty.const_null()
         } else {
-            // 说明（early stage）：
-            // - 目前 closure object 的 type descriptor 尚未接入，GC 不会从 closure object 扫描到 env；
-            // - 为避免 env 被 mark-sweep 误回收，这里先用 libc `malloc` 分配 env（不会被 GC 管理）。
-            //   这会泄漏 env 内存，但能保持语义可回归；更完整的释放策略留给 type descriptor/release hook。
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
@@ -10975,27 +10989,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_ty = self.llvm_closure_env_type(span, closure.id, &capture_bindings)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
 
-            let malloc = self.declare_libc_malloc();
             let size_v = self.context.i64_type().const_int(env_size_bytes, false);
-            let call = self.builder.build_call(malloc, &[size_v.into()], "malloc_env")?;
+            let rt_alloc = self.declare_runtime_alloc();
+            let call =
+                self.builder
+                    .build_call(rt_alloc, &[size_v.into()], "rt_alloc_closure_env")?;
             let raw = call
                 .try_as_basic_value()
                 .basic()
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "malloc return value",
+                    kind: "scoop_alloc return value",
                     at: span.into(),
                 })?;
             let BasicValueEnum::PointerValue(env_i8) = raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "malloc return type",
+                    kind: "scoop_alloc return type",
                     at: span.into(),
                 });
             };
 
-            let env_ptr_ty = env_ty.ptr_type(AddressSpace::default());
+            let env_ptr_ty = env_ty.ptr_type(self.gc_address_space());
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
+
+            let env_desc = self.get_or_create_closure_env_type_desc_global(span, closure.id, env_ty)?;
+            self.store_object_type_desc(span, env_ty, env_ptr, env_desc)?;
 
             for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
                 let Some(local) = self.env.get(*id) else {
@@ -11027,7 +11046,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let field_gep = self.builder.build_struct_gep(
                     env_ty,
                     env_ptr,
-                    idx as u32,
+                    (idx + 1) as u32,
                     &format!("capture_gep_{name}"),
                 )?;
                 let _ = self.builder.build_store(field_gep, loaded)?;
@@ -11117,12 +11136,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut root_ids: Vec<hir::SymbolId> = Vec::new();
         let mut seen: HashSet<hir::SymbolId> = HashSet::new();
         for (id, _name, ty) in capture_bindings {
-            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref)) && seen.insert(*id) {
+            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref) | Some(CgTy::String))
+                && seen.insert(*id)
+            {
                 root_ids.push(*id);
             }
         }
         for (id, _name, ty) in param_bindings {
-            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref)) && seen.insert(*id) {
+            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref) | Some(CgTy::String))
+                && seen.insert(*id)
+            {
                 root_ids.push(*id);
             }
         }
@@ -11151,7 +11174,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .into_pointer_value();
 
             let env_ty = self.llvm_closure_env_type(closure.span, closure.id, capture_bindings)?;
-            let env_ptr_ty = env_ty.ptr_type(AddressSpace::default());
+            let env_ptr_ty = env_ty.ptr_type(self.gc_address_space());
             let env_ptr = self
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
@@ -11177,7 +11200,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let field_gep = self.builder.build_struct_gep(
                     env_ty,
                     env_ptr,
-                    idx as u32,
+                    (idx + 1) as u32,
                     &format!("capture_gep_{name}"),
                 )?;
                 let loaded =
@@ -11327,7 +11350,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let env_ty = self.context.opaque_struct_type(&name);
-        let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(capture_bindings.len());
+        // closure env 是 GC-managed heap object：以对象头开头，再跟 capture 字段。
+        let header_ty = self.llvm_gc_object_header_type();
+        let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(1 + capture_bindings.len());
+        fields.push(header_ty.into());
         for (_id, _name, ty_id) in capture_bindings {
             let cg_ty = self.cg_ty_of(*ty_id).ok_or(LlvmEmitError::UnsupportedMainBody {
                 kind: "capture type",
@@ -13852,6 +13878,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_pointer_cast(raw_ptr, str_ptr_ty, "str_obj_ptr")?;
 
+        // 写入对象头 type descriptor：String 本身无引用字段，但需要 RTTI/type_id（并保持对象模型一致）。
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        self.store_object_type_desc(span, scoop_str_ty, str_ptr, str_desc)?;
+
         // 2) 写入 `{ len, data }`（对象头由 runtime 初始化；type_desc 当前仍为 NULL）。
         let len_ptr = self
             .builder
@@ -14148,6 +14178,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let str_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, str_ptr_ty, "fstr_obj_ptr")?;
+
+        // 写入对象头 type descriptor：保持 String 对象模型一致（trace bitmap 为空即可）。
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        self.store_object_type_desc(span, scoop_str_ty, str_ptr, str_desc)?;
 
         let len_ptr = self
             .builder
@@ -15640,15 +15674,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 约定（early stage）：
         // - box 对象布局：`{ header: ScoopGcObjectHeader }`（无 payload）
         // - 对象头字段由 runtime 的 `scoop_alloc` 初始化（与 `codegen_box_int_to_ref` 一致）。
-        let target = self.target_layout();
-
-        // 对象头布局与 C runtime 对齐（见 `runtime/c/scoop_gc.h` 的 static asserts）。
-        let header_size = 2 * target.pointer_size + 16;
-        let header_align = target.pointer_align.max(8).max(1);
-        let total_size = align_to(header_size, header_align);
+        let boxed_ty = self.llvm_boxed_unit_type();
+        let obj_size_bytes = self.target_data.get_store_size(&boxed_ty);
 
         let rt_alloc = self.declare_runtime_alloc();
-        let size_v = self.context.i64_type().const_int(total_size as u64, false);
+        let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
         let call = self
             .builder
             .build_call(rt_alloc, &[size_v.into()], "rt_alloc_box_unit")?;
@@ -15666,6 +15696,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             });
         };
+
+        // 写入 type descriptor（无引用字段，但需要 RTTI/type_id 对齐）。
+        let boxed_ptr_ty = boxed_ty.ptr_type(self.gc_address_space());
+        let boxed_ptr = self
+            .builder
+            .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_unit_ptr")?;
+        let desc = self.get_or_create_boxed_unit_type_desc_global(at)?;
+        self.store_object_type_desc(at, boxed_ty, boxed_ptr, desc)?;
 
         Ok(raw_ptr)
     }
@@ -15729,6 +15767,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let boxed_ptr = self
             .builder
             .build_pointer_cast(raw_ptr, boxed_ptr_ty, "boxed_int_ptr")?;
+
+        // 写入 type descriptor（box 本身无引用字段，但需要 RTTI/type_id 对齐）。
+        let desc = self.get_or_create_boxed_int_type_desc_global(at, value_ty)?;
+        self.store_object_type_desc(at, boxed_ty, boxed_ptr, desc)?;
 
         let payload_ptr =
             self.builder
@@ -16046,6 +16088,435 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    fn llvm_scoop_type_descriptor_type(&self) -> StructType<'ctx> {
+        // 说明：
+        // - 该类型对应 `runtime/c/scoop_gc.h` 的 `ScoopTypeDescriptor`（ABI 已在 T1501 固化）；
+        // - 这里只需要保证字段顺序与大小匹配；具体偏移由 runtime 的 `_Static_assert` 与
+        //   `crates/scoop_runtime/tests/object_model_abi.rs` 双向约束。
+        const TY_NAME: &str = "scoop.runtime.ScoopTypeDescriptor";
+
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let u64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+
+        // self-referential：parent_type_desc 指向同一 struct 类型。
+        let desc_ptr_ty = ty.ptr_type(AddressSpace::default());
+
+        // 字段顺序必须与 C 定义一致（见 `runtime/c/scoop_gc.h`）。
+        ty.set_body(
+            &[
+                i32_ty.into(),      // abi_version
+                i32_ty.into(),      // flags
+                i64_ty.into(),      // size_bytes
+                i64_ty.into(),      // align_bytes
+                i64_ty.into(),      // trace_start_offset_bytes
+                i32_ty.into(),      // trace_bitmap_u64_len
+                i32_ty.into(),      // _reserved_u32
+                u64_ptr_ty.into(),  // trace_bitmap (const uint64_t*)
+                i8_ptr_ty.into(),   // trace_fn
+                i8_ptr_ty.into(),   // release_fn
+                i64_ty.into(),      // type_id
+                desc_ptr_ty.into(), // parent_type_desc
+                i8_ptr_ty.into(),   // itable
+                i8_ptr_ty.into(),   // vtable
+            ],
+            false,
+        );
+
+        ty
+    }
+
+    fn store_object_type_desc(
+        &mut self,
+        _at: crate::span::Span,
+        obj_ty: StructType<'ctx>,
+        obj_ptr: PointerValue<'ctx>,
+        type_desc: GlobalValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let header_ty = self.llvm_gc_object_header_type();
+        let header_ptr = self
+            .builder
+            .build_struct_gep(obj_ty, obj_ptr, 0, "obj_hdr_gep")?;
+        let type_desc_ptr = self
+            .builder
+            .build_struct_gep(header_ty, header_ptr, 1, "obj_type_desc_gep")?;
+
+        let desc_i8 = self.builder.build_pointer_cast(
+            type_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "type_desc_i8",
+        )?;
+        let _ = self.builder.build_store(type_desc_ptr, desc_i8)?;
+        Ok(())
+    }
+
+    fn collect_gc_ptr_offsets_in_basic_type(
+        &self,
+        at: crate::span::Span,
+        ty: BasicTypeEnum<'ctx>,
+        base_off: u64,
+        out: &mut Vec<u64>,
+    ) -> Result<(), LlvmEmitError> {
+        match ty {
+            BasicTypeEnum::PointerType(ptr_ty) => {
+                if ptr_ty.get_address_space() == self.gc_address_space() {
+                    out.push(base_off);
+                }
+            }
+            BasicTypeEnum::StructType(st) => {
+                if st.is_opaque() {
+                    return Ok(());
+                }
+                let fields = st.get_field_types();
+                for (idx, field_ty) in fields.into_iter().enumerate() {
+                    let off = self
+                        .target_data
+                        .offset_of_element(&st, idx as u32)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "type descriptor field offset",
+                            at: at.into(),
+                        })?;
+                    self.collect_gc_ptr_offsets_in_basic_type(at, field_ty, base_off + off, out)?;
+                }
+            }
+            BasicTypeEnum::ArrayType(arr) => {
+                let elem = arr.get_element_type();
+                let stride = self.target_data.get_store_size(&elem);
+                let len = arr.len() as u64;
+                for i in 0..len {
+                    let elem_off = base_off + i.saturating_mul(stride);
+                    self.collect_gc_ptr_offsets_in_basic_type(at, elem, elem_off, out)?;
+                }
+            }
+            BasicTypeEnum::IntType(_)
+            | BasicTypeEnum::FloatType(_)
+            | BasicTypeEnum::VectorType(_)
+            | BasicTypeEnum::ScalableVectorType(_) => {}
+        }
+        Ok(())
+    }
+
+    fn trace_bitmap_words_for_struct(
+        &self,
+        at: crate::span::Span,
+        obj_ty: StructType<'ctx>,
+        trace_start_offset_bytes: u64,
+    ) -> Result<Vec<u64>, LlvmEmitError> {
+        if obj_ty.is_opaque() {
+            return Ok(Vec::new());
+        }
+
+        let ptr_size = self.target_layout().pointer_size.max(1);
+        let size_bytes = self.target_data.get_store_size(&obj_ty);
+        if trace_start_offset_bytes >= size_bytes {
+            return Ok(Vec::new());
+        }
+        if trace_start_offset_bytes % ptr_size != 0 {
+            return Ok(Vec::new());
+        }
+
+        let mut ptr_offsets: Vec<u64> = Vec::new();
+        self.collect_gc_ptr_offsets_in_basic_type(at, obj_ty.into(), 0, &mut ptr_offsets)?;
+        ptr_offsets.sort();
+        ptr_offsets.dedup();
+
+        let mut word_indices: Vec<u64> = Vec::new();
+        for off in ptr_offsets {
+            if off < trace_start_offset_bytes {
+                continue;
+            }
+            let rel = off - trace_start_offset_bytes;
+            if rel % ptr_size != 0 {
+                continue;
+            }
+            word_indices.push(rel / ptr_size);
+        }
+
+        word_indices.sort();
+        word_indices.dedup();
+        let Some(&max_idx) = word_indices.last() else {
+            return Ok(Vec::new());
+        };
+
+        let len_u64 = (max_idx / 64) + 1;
+        let mut words = vec![0u64; len_u64 as usize];
+        for idx in word_indices {
+            let wi = (idx / 64) as usize;
+            let bit = (idx % 64) as u32;
+            words[wi] |= 1u64 << bit;
+        }
+        Ok(words)
+    }
+
+    fn get_or_create_trace_bitmap_global(
+        &mut self,
+        name: &str,
+        words: &[u64],
+    ) -> GlobalValue<'ctx> {
+        if let Some(existing) = self.module.get_global(name) {
+            return existing;
+        }
+
+        let i64_ty = self.context.i64_type();
+        let arr_ty = i64_ty.array_type(words.len() as u32);
+        let gv = self.module.add_global(arr_ty, None, name);
+
+        let mut inits: Vec<IntValue<'ctx>> = Vec::with_capacity(words.len());
+        for &w in words {
+            inits.push(i64_ty.const_int(w, false));
+        }
+
+        gv.set_initializer(&i64_ty.const_array(&inits));
+        gv.set_constant(true);
+        gv.set_linkage(Linkage::Internal);
+        gv
+    }
+
+    fn get_or_create_type_descriptor_global(
+        &mut self,
+        at: crate::span::Span,
+        global_name: &str,
+        canonical_name: &str,
+        obj_ty: StructType<'ctx>,
+        trace_start_offset_bytes: u64,
+        parent: Option<GlobalValue<'ctx>>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        if let Some(existing) = self.module.get_global(global_name) {
+            return Ok(existing);
+        }
+
+        let desc_ty = self.llvm_scoop_type_descriptor_type();
+        let desc_ptr_ty = desc_ty.ptr_type(AddressSpace::default());
+
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let u64_ptr_ty = i64_ty.ptr_type(AddressSpace::default());
+
+        let size_bytes = self.target_data.get_store_size(&obj_ty);
+        let align_bytes = self.target_layout().pointer_align.max(1);
+
+        let bitmap_words = self.trace_bitmap_words_for_struct(at, obj_ty, trace_start_offset_bytes)?;
+        let (bitmap_len_u32, bitmap_ptr) = if bitmap_words.is_empty() {
+            (0u32, u64_ptr_ty.const_null())
+        } else {
+            let bitmap_name = format!("{global_name}__trace_bitmap");
+            let bitmap_gv = self.get_or_create_trace_bitmap_global(&bitmap_name, &bitmap_words);
+            let ptr = bitmap_gv.as_pointer_value().const_cast(u64_ptr_ty);
+            (bitmap_words.len() as u32, ptr)
+        };
+
+        let parent_ptr = parent
+            .map(|p| p.as_pointer_value())
+            .unwrap_or_else(|| desc_ptr_ty.const_null());
+
+        let values: [BasicValueEnum<'ctx>; 14] = [
+            i32_ty.const_zero().into(), // abi_version
+            i32_ty.const_zero().into(), // flags
+            i64_ty.const_int(size_bytes, false).into(),
+            i64_ty.const_int(align_bytes, false).into(),
+            i64_ty.const_int(trace_start_offset_bytes, false).into(),
+            i32_ty.const_int(bitmap_len_u32 as u64, false).into(),
+            i32_ty.const_zero().into(), // _reserved_u32
+            bitmap_ptr.into(),
+            i8_ptr_ty.const_null().into(), // trace_fn
+            i8_ptr_ty.const_null().into(), // release_fn
+            i64_ty.const_int(stable_hash64(canonical_name), false).into(),
+            parent_ptr.into(),
+            i8_ptr_ty.const_null().into(), // itable
+            i8_ptr_ty.const_null().into(), // vtable
+        ];
+
+        let init = desc_ty.const_named_struct(&values);
+        let gv = self.module.add_global(desc_ty, None, global_name);
+        gv.set_initializer(&init);
+        gv.set_constant(true);
+        gv.set_linkage(Linkage::Internal);
+        Ok(gv)
+    }
+
+    fn get_or_create_class_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        class_fqn: &str,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let global_name = format!(
+            "__scoop_type_desc_class__{}",
+            sanitize_llvm_ident(class_fqn)
+        );
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let class = self.class_init_layout(at, class_fqn)?;
+        let parent = if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+            Some(self.get_or_create_class_type_desc_global(at, super_fqn)?)
+        } else {
+            None
+        };
+
+        let obj_ty = self.llvm_class_object_type(at, &class)?;
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&obj_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            &global_name,
+            &class.fqn,
+            obj_ty,
+            trace_start_offset_bytes,
+            parent,
+        )
+    }
+
+    fn get_or_create_closure_object_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        const GLOBAL_NAME: &str = "__scoop_type_desc_runtime__ScoopClosure";
+        if let Some(existing) = self.module.get_global(GLOBAL_NAME) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_closure_object_type();
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&obj_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            GLOBAL_NAME,
+            "scoop.runtime.ScoopClosure",
+            obj_ty,
+            trace_start_offset_bytes,
+            None,
+        )
+    }
+
+    fn get_or_create_closure_env_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        closure_id: hir::ClosureId,
+        env_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let global_name = format!(
+            "__scoop_type_desc_closure_env__{}",
+            closure_id.as_u32()
+        );
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&env_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            &global_name,
+            &format!("scoop.lambda_env${}", closure_id.as_u32()),
+            env_ty,
+            trace_start_offset_bytes,
+            None,
+        )
+    }
+
+    fn get_or_create_string_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        const GLOBAL_NAME: &str = "__scoop_type_desc_runtime__ScoopString";
+        if let Some(existing) = self.module.get_global(GLOBAL_NAME) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_scoop_string_type();
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&obj_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            GLOBAL_NAME,
+            "scoop.core.String",
+            obj_ty,
+            trace_start_offset_bytes,
+            None,
+        )
+    }
+
+    fn llvm_boxed_unit_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.BoxedUnit";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into()], false);
+        ty
+    }
+
+    fn get_or_create_boxed_unit_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        const GLOBAL_NAME: &str = "__scoop_type_desc_runtime__BoxedUnit";
+        if let Some(existing) = self.module.get_global(GLOBAL_NAME) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_boxed_unit_type();
+        self.get_or_create_type_descriptor_global(
+            at,
+            GLOBAL_NAME,
+            "scoop.runtime.BoxedUnit",
+            obj_ty,
+            0,
+            None,
+        )
+    }
+
+    fn get_or_create_boxed_int_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        payload: IntTy,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let global_name = format!(
+            "__scoop_type_desc_runtime__boxed_int{}_{}",
+            payload.bits,
+            if payload.signed { "i" } else { "u" }
+        );
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_boxed_int_type(payload);
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&obj_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            &global_name,
+            &format!(
+                "scoop.runtime.BoxedInt{}_{}",
+                payload.bits,
+                if payload.signed { "i" } else { "u" }
+            ),
+            obj_ty,
+            trace_start_offset_bytes,
+            None,
+        )
+    }
+
     fn llvm_boxed_int_type(&self, payload: IntTy) -> StructType<'ctx> {
         // 说明：box 类型目前只用于 `Int/UInt/... -> Any` 的最小装箱（T0817）。
         // 未来会扩展为统一的对象头 + type descriptor（T0907+）；当前已接入最小对象头（T0908）。
@@ -16068,10 +16539,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn llvm_closure_object_type(&self) -> StructType<'ctx> {
         // 说明：
         // - 该类型是 early stage 的函数值/闭包运行期表示（T0710/T1307b）。
-        // - 当前只支持“非捕获 lambda”，因此 env 指针固定为 NULL；但 ABI 仍预留 env 字段。
+        // - env 指针指向一个 GC-managed 的 closure env heap object（无捕获时为 NULL）。
         //
         // 布局（与 GC 对象头兼容）：
-        // `{ header: ScoopGcObjectHeader, env_ptr: i8*, fn_ptr: i8* }`
+        // `{ header: ScoopGcObjectHeader, env_ptr: i8 addrspace(1)*, fn_ptr: i8* }`
         const TY_NAME: &str = "scoop.runtime.ScoopClosure";
 
         if let Some(existing) = self.context.get_struct_type(TY_NAME) {
@@ -16081,8 +16552,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ty = self.context.opaque_struct_type(TY_NAME);
         let header_ty = self.llvm_gc_object_header_type();
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         ty.set_body(
-            &[header_ty.into(), i8_ptr_ty.into(), i8_ptr_ty.into()],
+            &[header_ty.into(), gc_i8_ptr_ty.into(), i8_ptr_ty.into()],
             false,
         );
         ty
@@ -17715,6 +18187,12 @@ fn object_prop_global_name(prop_fqn: &str) -> String {
 
 fn top_level_var_global_name(var_fqn: &str) -> String {
     format!("__scoop_top_level_var__{var_fqn}")
+}
+
+fn stable_hash64(text: &str) -> u64 {
+    let digest = Sha256::digest(text.as_bytes());
+    let bytes: [u8; 8] = digest[0..8].try_into().expect("sha256 output is 32 bytes");
+    u64::from_le_bytes(bytes)
 }
 
 fn align_to(value: u64, align: u64) -> u64 {

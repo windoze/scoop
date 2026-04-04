@@ -6297,7 +6297,7 @@
 
 - 备注：该任务同时涉及 “GC heap trace（trace bitmap/trace_fn）”“RTTI/dump-rtti 可观测性”“class/interface 动态分发（vtable/itable）” 等多个点，跨度较大。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为以下子任务逐步推进：
 
-### T1507a [TODO] 编译器+runtime：对象 type_desc + trace bitmap 闭环（GC 能扫描 heap 引用字段）
+### T1507a [DONE] 编译器+runtime：对象 type_desc + trace bitmap 闭环（GC 能扫描 heap 引用字段）
 - 描述：在编译期为固定大小 heap 对象生成 `ScoopTypeDescriptor` 常量（trace bitmap），并在对象分配后尽早写入对象头 `type_desc`；同时补齐 runtime 侧 `Array<Ref/String>` 元素扫描，使 GC 能从 roots 递归保活 heap 内引用字段。
 - 目标：
   - class：生成包含所有实例字段（含继承）引用位图；对象分配后写入 `hdr.type_desc`，并在 ctor/init 期间对 payload 做清零（避免未初始化 ref slot 被扫描）；
@@ -6312,6 +6312,15 @@
   - `cargo test --all`
   - （若本机安装 LLVM）`cargo run -p scoop --features llvm -- test`
 - 依赖：T1501、T1502、T0907、T0401、T0512
+ - 完成：
+   - `runtime/c/scoop_array.c`：为 ref-element array/builder 增加 `trace_fn` + `release_fn`，并在 build 时写入 `header.type_desc`；`Array<String>` 的元素按 `void** slot` 暴露给 GC visitor。
+   - `runtime/c/scoop_runtime.c`：`scoop_process_args_array()` 构造 `Array<String>` 时使用 `scoop_array_builder_push_ref`（不再 ptr→u64）。
+   - `crates/scoopc/src/llvm/codegen.rs`：生成/缓存 `ScoopTypeDescriptor` 常量（trace bitmap + type_id），并在 class/closure/closure env/string/box 的分配点写入对象头 `type_desc`。
+   - `tests/fixtures/run-pass/`：新增 `gc_trace_class_ref_field_basic` 与 `gc_trace_array_string_elements_basic`，回归 `__scoop_gc_collect()` 后仍可用。
+ - 验收：
+   - `cargo test --all`
+   - `cargo test -p scoopc --features llvm`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1507b [TODO] driver：`scoop dump-rtti` 输出 type_id/parent/trace bitmap（type descriptor v0）
 - 描述：扩展 `scoop dump-rtti`：从编译器侧收集 type descriptor 信息，输出每个 type 的 `type_id`、父类链（class）与 trace bitmap（或 trace_fn 标识），用于调试 GC heap trace 与后续 `is/as/as?`。

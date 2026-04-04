@@ -14,9 +14,11 @@
 // - 该 ABI 与编译器侧的 `coerce_u64_word()` 对齐，便于后续扩展为更复杂的 payload（TODO T0630）。
 //
 // 注意（early stage 限制）：
-// - 本实现未接入 type descriptor，因此 GC 不会扫描数组元素中的指针（`type_desc == 0`）。
-//   在没有显式 `__scoop_gc_collect()` 的 run-pass fixtures 场景下足够；更完整的指针追踪留给
-//   后续 “typed alloc + type descriptor trace” 任务补齐（TODO T0907+）。
+// - Array/ArrayBuilder 以 “word slots（uintptr_t）” 承载元素，既可存放整数 bits，也可存放 GC 指针；
+// - 为保证 `Array<Ref>` / `Array<String>` 等场景下 GC 可追踪元素，本文件会在构造数组时
+//   把 `header.type_desc` 设为带 trace_fn 的 descriptor，并在 GC trace 中把每个 slot 当作 `void**` 访问。
+// - 对于 “word array”（例如 `Array<Int>` / `Array<Bool>`），type_desc 仍可为 NULL 或指向 no-trace
+//   descriptor（不会扫描元素，避免把整数误当作指针）。
 
 #include <stdint.h>
 #include <stddef.h>
@@ -53,8 +55,161 @@ typedef struct ScoopArrayBuilder {
   ScoopGcObjectHeader header;
   uint64_t len;
   uint64_t cap;
+  // 元素承载种类（用于选择 array/build 的 type descriptor）：
+  // - 0: unknown（尚未 push）
+  // - 1: word（push_u64）
+  // - 2: ref（push_ref）
+  uint32_t elem_kind;
+  uint32_t _reserved_u32;
   uintptr_t *data;
 } ScoopArrayBuilder;
+
+#define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
+#define SCOOP_ARRAY_ELEM_KIND_WORD 1u
+#define SCOOP_ARRAY_ELEM_KIND_REF 2u
+
+static uint64_t scoop_array_trace_ref_elems(void *object, ScoopGcTraceVisitor visitor, void *ctx) {
+  if (object == 0 || visitor == 0) {
+    return 0;
+  }
+
+  ScoopArray *arr = (ScoopArray *)object;
+
+  // 健壮性：根据 header.size_bytes 裁剪扫描范围，避免 len 被污染时越界。
+  uint64_t size_bytes = arr->header.size_bytes;
+  uint64_t data_off = (uint64_t)offsetof(ScoopArray, data);
+  if (size_bytes <= data_off) {
+    return 0;
+  }
+
+  uint64_t avail = size_bytes - data_off;
+  uint64_t max_len = avail / (uint64_t)sizeof(uintptr_t);
+  uint64_t len = arr->len;
+  if (len > max_len) {
+    len = max_len;
+  }
+
+  uint64_t visited = 0;
+  for (uint64_t i = 0; i < len; i++) {
+    void **slot = (void **)&arr->data[i];
+    visitor(slot, ctx);
+    visited += 1;
+  }
+  return visited;
+}
+
+static uint64_t scoop_array_builder_trace_ref_elems(void *object,
+                                                    ScoopGcTraceVisitor visitor,
+                                                    void *ctx) {
+  if (object == 0 || visitor == 0) {
+    return 0;
+  }
+
+  ScoopArrayBuilder *b = (ScoopArrayBuilder *)object;
+  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF) {
+    return 0;
+  }
+  if (b->data == 0 || b->len == 0) {
+    return 0;
+  }
+
+  uint64_t len = b->len;
+  if (b->cap > 0 && len > b->cap) {
+    len = b->cap;
+  }
+
+  uint64_t visited = 0;
+  for (uint64_t i = 0; i < len; i++) {
+    void **slot = (void **)&b->data[i];
+    visitor(slot, ctx);
+    visited += 1;
+  }
+  return visited;
+}
+
+static void scoop_array_builder_release(void *object) {
+  if (object == 0) {
+    return;
+  }
+
+  ScoopArrayBuilder *b = (ScoopArrayBuilder *)object;
+  if (b->data != 0) {
+    free(b->data);
+    b->data = 0;
+  }
+  b->len = 0;
+  b->cap = 0;
+  b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
+}
+
+static const ScoopTypeDescriptor SCOOP_ARRAY_WORD_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    // Array 是变长对象：这里记录最小 header size 作为调试信息；真实大小由 `hdr.size_bytes` 决定。
+    .size_bytes = sizeof(ScoopArray),
+    .align_bytes = (uint64_t)_Alignof(ScoopArray),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = 0,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
+
+static const ScoopTypeDescriptor SCOOP_ARRAY_REF_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopArray),
+    .align_bytes = (uint64_t)_Alignof(ScoopArray),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = scoop_array_trace_ref_elems,
+    .release_fn = 0,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
+
+static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopArrayBuilder),
+    .align_bytes = (uint64_t)_Alignof(ScoopArrayBuilder),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = 0,
+    .release_fn = scoop_array_builder_release,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
+
+static const ScoopTypeDescriptor SCOOP_ARRAY_BUILDER_REF_TYPE_DESC = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopArrayBuilder),
+    .align_bytes = (uint64_t)_Alignof(ScoopArrayBuilder),
+    .trace_start_offset_bytes = 0,
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    .trace_fn = scoop_array_builder_trace_ref_elems,
+    .release_fn = scoop_array_builder_release,
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
 
 static uint32_t scoop_array_builder_grow(ScoopArrayBuilder *b) {
   if (b == 0) {
@@ -94,6 +249,8 @@ void *scoop_array_builder_new(void) {
   // `scoop_alloc` 已初始化对象头（size/mark 等）；这里补齐 builder 字段。
   b->len = 0;
   b->cap = 0;
+  b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
+  b->_reserved_u32 = 0;
   b->data = 0;
   return (void *)b;
 }
@@ -101,6 +258,15 @@ void *scoop_array_builder_new(void) {
 void scoop_array_builder_push_u64(void *builder, uint64_t value) {
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
   if (b == 0) {
+    return;
+  }
+
+  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
+    b->elem_kind = SCOOP_ARRAY_ELEM_KIND_WORD;
+    b->header.type_desc = &SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC;
+  }
+  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_WORD) {
+    // 不允许混用 push_u64/push_ref：视为编译器/stdlib 约定错误，保持运行时不崩溃即可。
     return;
   }
 
@@ -118,6 +284,15 @@ void scoop_array_builder_push_u64(void *builder, uint64_t value) {
 void scoop_array_builder_push_ref(void *builder, void *value) {
   ScoopArrayBuilder *b = (ScoopArrayBuilder *)builder;
   if (b == 0) {
+    return;
+  }
+
+  if (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
+    b->elem_kind = SCOOP_ARRAY_ELEM_KIND_REF;
+    b->header.type_desc = &SCOOP_ARRAY_BUILDER_REF_TYPE_DESC;
+  }
+  if (b->elem_kind != SCOOP_ARRAY_ELEM_KIND_REF) {
+    // 不允许混用 push_u64/push_ref：视为编译器/stdlib 约定错误，保持运行时不崩溃即可。
     return;
   }
 
@@ -157,6 +332,12 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
     return 0;
   }
 
+  // 关键：写入 array object 的 type descriptor。
+  // - ref 数组：GC 会扫描每个 slot 并追踪其中的指针；
+  // - word 数组：不扫描（避免把整数误当作指针）。
+  arr->header.type_desc =
+      (b->elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) ? &SCOOP_ARRAY_REF_TYPE_DESC : &SCOOP_ARRAY_WORD_TYPE_DESC;
+
   arr->len = len;
   if (len > 0 && b->data != 0) {
     // `bytes` 已被 overflow guard 保护，因此这里的 size_t 转换是安全的。
@@ -170,6 +351,7 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
   }
   b->len = 0;
   b->cap = 0;
+  b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
 
   return (void *)arr;
 }

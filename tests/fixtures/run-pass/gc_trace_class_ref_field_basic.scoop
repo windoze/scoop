@@ -1,0 +1,34 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_class_ref_field_basic.stdout
+//
+// 目标：T1507a
+// - class 对象持有 ref 字段时，GC 必须能通过 type_desc trace bitmap 扫描到字段并保活引用对象。
+// - 当前阶段尚未支持 class 字段的 member access codegen（见 TODO T1509），因此用 heap object count
+//   来做可观测回归：若 field 未被扫描，boxed int 会被回收，count 会从 2 回落到 1。
+
+import scoop.core.*
+
+class Holder(val v: Any)
+
+fun make(): Holder {
+    // `Int -> Any` 会触发 boxing（heap 分配），且 boxed object 仅通过 class 字段可达。
+    val h = Holder(1)
+    return h
+}
+
+fun main(): Int {
+    val h: Holder = make()
+
+    // 预期：holder + boxed int
+    println(__scoop_gc_debug_heap_object_count())
+
+    __scoop_gc_collect()
+
+    // 若 class 字段未被 GC 扫描，boxed int 会被回收，count 会回落到 1。
+    println(__scoop_gc_debug_heap_object_count())
+
+    // 保证 h 在 GC 调用点后仍然是 live（避免被优化掉）。
+    val _also_keep: Holder = h
+
+    return 0
+}

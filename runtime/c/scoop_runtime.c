@@ -1936,7 +1936,7 @@ void *scoop_process_args_array(void) {
 
   // Array builder 由 `runtime/c/scoop_array.c` 提供。
   void *scoop_array_builder_new(void);
-  void scoop_array_builder_push_u64(void *builder, uint64_t value);
+  void scoop_array_builder_push_ref(void *builder, void *value);
   void *scoop_array_builder_build_array(void *builder);
 
   void *builder = scoop_array_builder_new();
@@ -1956,8 +1956,7 @@ void *scoop_process_args_array(void) {
   for (int32_t i = 1; i < argc; i++) {
     const char *s = argv[i];
     const ScoopString *str = scoop_string_from_cstr(s);
-    uint64_t word = (uint64_t)(uintptr_t)str;
-    scoop_array_builder_push_u64(builder, word);
+    scoop_array_builder_push_ref(builder, (void *)str);
   }
 
   void *arr = scoop_array_builder_build_array(builder);
