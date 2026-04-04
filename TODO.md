@@ -6276,7 +6276,7 @@
      - `cargo test -p scoop_runtime`
      - `cargo test --all`
 
-### T1506c [TODO] 端到端回归：多帧 root 保活 + llvm fixtures 全量回归
+### T1506c [DONE] 端到端回归：多帧 root 保活 + llvm fixtures 全量回归
 - 描述：补齐端到端验证：多帧调用链下 outer frame 的 root 可保活对象；inner frame 触发 GC 后仍可访问；并把 `scoop --features llvm -- test` 纳入回归。
 - 目标：在启用移动/压缩前先通过“非移动 GC + stackmap roots”全量回归；移动/压缩的更细节更新留到后续任务（T1511/T1512）。
 - 验收：
@@ -6284,6 +6284,14 @@
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1506b
+ - 完成：
+   - `runtime/c/scoop_gc.c` / `runtime/c/scoop_gc_backend_immix.c`：新增 test-only export `scoop_test_gc_stackmap_multiframe_keepalive`，端到端回归多帧 stackmap roots 保活。
+   - `runtime/c/scoop_gc_backend_minimal.c` / `runtime/c/scoop_gc_backend_hosted.c`：补齐 stub（返回 0，保证可链接）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_stackmap_multiframe_keepalive`（修复 `abi_exports_allowlist` 回归）。
+   - `crates/scoop_runtime/tests/gc_stackmap_multiframe_keepalive.rs`：新增集成测试回归 “outer frame root 保活 + GC 后仍可访问 + root 消失后可回收”。
+   - 验收：
+     - `cargo test --all`
+     - `cargo run -p scoop --features llvm -- test`
 
 ### T1507 [TODO] 编译器：为 class/interface/box/closure env/array/string 生成 type descriptor（trace bitmap + dispatch tables）
 - 描述：在编译期为所有可分配 ref 类型生成 `ScoopTypeDescriptor` 常量，并在对象分配时写入对象头 `type_desc`，使 GC 能扫描对象内部引用字段并支持动态分发。

@@ -122,6 +122,9 @@ intptr_t scoop_test_gc_stack_walking_unwind_smoke(void) { return 0; }
 // Test-only export（T1506b）：minimal backend 无 STW/park，因此该 smoke 统一返回 0。
 intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) { return 0; }
 
+// Test-only export（T1506c）：minimal backend 无 STW/park，因此该测试统一返回 0。
+intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) { return 0; }
+
 uint32_t scoop_pin(void *raw_obj) {
   if (raw_obj == 0) {
     return 0;
