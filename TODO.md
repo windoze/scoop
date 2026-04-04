@@ -6541,7 +6541,7 @@
    - `crates/scoopc/src/typecheck/expr.rs`：为三组 handle intrinsics 增加最小 typecheck special-case，并补齐 `GcHandle.raw` 跨文件字段特判。
    - `crates/scoopc/src/hir/lower.rs`：阻止上述 member call 被降糖为普通顶层调用（保留 `MemberAccess` 供后端处理）。
    - `crates/scoopc/src/llvm/codegen.rs`：intrinsic lowering 映射到 runtime `scoop_handle_new/get/drop`，并补齐 `UIntPtr` 作为 struct 字段类型的 codegen 映射。
-   - `tests/fixtures/codegen/gc_handle_roundtrip.*`：新增 run-pass fixture 回归（handleNew → GC → handleGet）。
+   - `tests/fixtures/runtime_gc/gc_handle_roundtrip.*`：新增 run-pass fixture 回归（handleNew → GC → handleGet）。
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
@@ -6560,14 +6560,14 @@
    - `crates/scoopc/src/llvm/codegen.rs`：对顶层 `@Extern` 调用点自动插入 `scoop_enter_native(root_slots, len)` / `scoop_leave_native()`；roots slots 采用“当前 scope 内所有 `Ref/String` locals 的 alloca 槽位地址”保守策略（moving GC 可写回更新）。
    - `runtime/c/scoop_test.c`：新增 test-only 导出 `scoop_test_gc_collect_in_native`（在 native 内部触发一次 `scoop_gc_collect()`）。
    - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_test_gc_collect_in_native`。
-   - `tests/fixtures/codegen/extern_enter_native_roots_gc.*`：新增 run-pass fixture 回归“extern 内触发 GC 时 native_roots 仍能保活 call-site 上的对象引用”。
+   - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.*`：新增 run-pass fixture 回归“extern 内触发 GC 时 native_roots 仍能保活 call-site 上的对象引用”。
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop_tools -- spec-fixtures check`
    - `cargo run -p scoop -- test`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1511 [TODO] 移动 GC：stackmap spill slots 与 heap 引用字段的统一更新（为 Immix compaction 做前置）
+### T1511 [DONE] 移动 GC：stackmap spill slots 与 heap 引用字段的统一更新（为 Immix compaction 做前置）
 - 描述：实现移动 GC 的“指针修复闭环”：对象搬迁后，必须更新所有 roots（stackmap spill slots + native_roots）与 heap 内引用字段，使程序在恢复执行后无悬挂指针。
 - 目标：
   - relocation 更新点：stackmap spill slots（按 record locations 写回）、native_roots buffer（逐槽写回）、stable handle 表（handle->obj 指针写回，见 T1510）、heap 内部字段（trace visitor 以 `void** slot` 形式可更新）；
@@ -6577,6 +6577,17 @@
   - 新增 `runtime_gc` fixtures：强制触发移动（可通过 env/flag），并验证对象地址变化后引用仍正确；
   - 在启用 Immix compaction 前，baseline moving 模式下同样一组 fixtures 通过（作为 T1407 的前置安全网）。
 - 依赖：T1506、T1510
+ - 完成：
+   - `runtime/c/scoop_gc.c`：baseline backend 增加 `SCOOP_GC_MOVE=1` 下的 moving GC（copy + forwarding + fixup），统一更新 stackmap spill slots / native_roots / stable handles / heap fields，并在缺少 stackmaps 时 fail-fast（避免恢复执行后悬挂指针）。
+   - `runtime/c/scoop_gc_backend_immix.c`：Immix compaction 阶段对 roots 与 heap fields 执行 forwarding 修复（含 native_roots 与 stable handles），为后续 compaction/压力测试提供闭环。
+   - `tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.*`：run-pass fixture 回归“stackmap spill slots + heap fields 修复”。
+   - `tests/fixtures/runtime_gc/gc_handle_roundtrip.*`：run-pass fixture 回归“stable handle 在 moving GC 后仍可 get 到对象”。
+   - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.*`：run-pass fixture 回归“extern/native_roots + moving GC”。
+   - `crates/scoop/src/fixtures/mod.rs`：fixtures runner 识别 `tests/fixtures/runtime_gc/**` 为 run-pass phase。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1512 [TODO] 回归与压力测试：ref types + stackmap GC 全量覆盖矩阵
 - 描述：为引用类型与 GC 建立持续回归套件：覆盖 class/interface/closure/array/string/box、跨线程、native 过渡、pin/unpin、moving/compaction，并为每类提供最小 pass/fail + run-pass。

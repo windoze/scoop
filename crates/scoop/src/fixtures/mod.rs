@@ -25,6 +25,7 @@
 //! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
 //! - `tests/fixtures/comptime/**` → comptime（执行 `const val` 常量折叠并与 `.comptime` golden 比对）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
+//! - `tests/fixtures/runtime_gc/**` → run-pass
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
@@ -143,7 +144,9 @@ fn run_one(session: &scoopc::session::Session, fixtures_root: &Path, path: &Path
         Some(name) if name == "typecheck" || name == "unsafe_nogc" => FixturePhase::Typecheck,
         Some(name) if name == "infer" => FixturePhase::Infer,
         Some(name) if name == "comptime" => FixturePhase::Comptime,
-        Some(name) if name == "codegen" || name == "run-pass" => FixturePhase::RunPass,
+        Some(name) if name == "codegen" || name == "run-pass" || name == "runtime_gc" => {
+            FixturePhase::RunPass
+        }
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" => FixturePhase::Mir,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,

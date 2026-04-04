@@ -474,8 +474,12 @@ typedef struct ScoopTestGcUnwindFramesState {
   uintptr_t last_sp;
 } ScoopTestGcUnwindFramesState;
 
-static uint32_t scoop_test_gc_unwind_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+static uint32_t scoop_test_gc_unwind_frame_visitor(uintptr_t sp,
+                                                   uintptr_t ra,
+                                                   uintptr_t fp,
+                                                   void *user_data) {
   (void)ra;
+  (void)fp;
   if (user_data == 0) {
     return 0;
   }
@@ -654,17 +658,22 @@ typedef struct ScoopGcHandleRecord {
 
 static ScoopGcHandleRecord *scoop_gc_handle_records = 0;
 
-static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
-  if (obj == 0) {
+static uint32_t scoop_gc_heap_contains_object_in_heap_unlocked(ScoopGcHeap *heap,
+                                                               ScoopGcObjectHeader *obj) {
+  if (heap == 0 || obj == 0) {
     return 0;
   }
 
-  for (ScoopGcObjectHeader *it = scoop_gc_heap.objects; it != 0; it = it->next) {
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
     if (it == obj) {
       return 1;
     }
   }
   return 0;
+}
+
+static uint32_t scoop_gc_heap_contains_object_unlocked(ScoopGcObjectHeader *obj) {
+  return scoop_gc_heap_contains_object_in_heap_unlocked(&scoop_gc_heap, obj);
 }
 
 static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *obj) {
@@ -993,7 +1002,170 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
     return;
   }
 
-  scoop_gc_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
+  if (!scoop_gc_heap_contains_object_in_heap_unlocked(ctx->heap, obj)) {
+    // 重要：stackmap records 里可能包含“刚好是 pointer-sized 但不是 GC roots”的 slot
+    // （例如 call target / return address / deopt metadata 等）。
+    // 为避免把这些值当作 heap 对象解引用并崩溃，这里做一次 membership 过滤。
+    return;
+  }
+
+  scoop_gc_mark_object_if_needed(ctx, obj);
+}
+
+// --- Moving GC helpers（T1511；baseline backend 以 env 开关方式提供 “move + fixup”） ---
+//
+// 说明：
+// - baseline backend 默认仍为 non-moving mark-sweep（保持既有行为与性能/诊断稳定）；
+// - 当设置 env `SCOOP_GC_MOVE=1` 时，`scoop_gc_collect()` 会在 sweep 期间额外执行一次
+//   “copy & fixup”：
+//   - 为所有 live 且非 pinned 的对象分配新副本并写入 forwarding pointer；
+//   - 更新：stackmap spill slots、native_roots、stable handles、以及 heap 内引用字段；
+//   - 最后释放旧对象副本并重建 heap 链表。
+//
+// 该实现的目标是提供一个“可强制触发搬迁”的安全网，用于在启用 Immix compaction 前回归
+// roots update 闭环（栈/堆/handle/native）。
+
+static uint32_t scoop_gc_env_flag_is_truthy(const char *name) {
+  if (name == 0) {
+    return 0;
+  }
+  const char *raw = getenv(name);
+  if (raw == 0) {
+    return 0;
+  }
+  // 跳过前导空白。
+  while (*raw == ' ' || *raw == '\t' || *raw == '\n' || *raw == '\r') {
+    raw++;
+  }
+  if (*raw == 0) {
+    return 0;
+  }
+  // 常见 false/0 语义（大小写不敏感的子集）。
+  if ((raw[0] == '0') && (raw[1] == 0)) {
+    return 0;
+  }
+  if ((raw[0] == 'f' || raw[0] == 'F') && (raw[1] == 'a' || raw[1] == 'A') &&
+      (raw[2] == 'l' || raw[2] == 'L') && (raw[3] == 's' || raw[3] == 'S') &&
+      (raw[4] == 'e' || raw[4] == 'E') && (raw[5] == 0)) {
+    return 0;
+  }
+  return 1;
+}
+
+static uint32_t scoop_gc_baseline_moving_enabled(void) {
+  return scoop_gc_env_flag_is_truthy("SCOOP_GC_MOVE");
+}
+
+// forwarding pointer：复用对象头的 `next` 字段，并用低位 tag 区分“链表 next”与“转发指针”。
+#define SCOOP_GC_BASELINE_FORWARDING_TAG ((uintptr_t)1u)
+
+static inline uint32_t scoop_gc_baseline_object_is_forwarded(const ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+  return (((uintptr_t)obj->next) & SCOOP_GC_BASELINE_FORWARDING_TAG) != 0;
+}
+
+static inline ScoopGcObjectHeader *scoop_gc_baseline_object_forwarding_ptr(
+    const ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+  uintptr_t raw = (uintptr_t)obj->next;
+  raw &= ~SCOOP_GC_BASELINE_FORWARDING_TAG;
+  return (ScoopGcObjectHeader *)raw;
+}
+
+static inline void scoop_gc_baseline_object_set_forwarding_ptr(ScoopGcObjectHeader *obj,
+                                                               ScoopGcObjectHeader *to) {
+  if (obj == 0) {
+    return;
+  }
+  obj->next = (ScoopGcObjectHeader *)(((uintptr_t)to) | SCOOP_GC_BASELINE_FORWARDING_TAG);
+}
+
+static inline ScoopGcObjectHeader *scoop_gc_baseline_follow_forwarding(ScoopGcObjectHeader *obj) {
+  // 防御：限制 forwarding chain 长度，避免错误写入导致死循环。
+  for (uint32_t hops = 0; hops < 8; hops++) {
+    if (obj == 0) {
+      return 0;
+    }
+    if (!scoop_gc_baseline_object_is_forwarded(obj)) {
+      return obj;
+    }
+    obj = scoop_gc_baseline_object_forwarding_ptr(obj);
+  }
+  return obj;
+}
+
+typedef struct ScoopGcBaselineUpdateCtx {
+  ScoopGcObjectHeader **live_sorted;
+  size_t live_len;
+} ScoopGcBaselineUpdateCtx;
+
+static int scoop_gc_ptr_cmp(const void *a, const void *b) {
+  const ScoopGcObjectHeader *pa = *(ScoopGcObjectHeader *const *)a;
+  const ScoopGcObjectHeader *pb = *(ScoopGcObjectHeader *const *)b;
+  const uintptr_t ua = (uintptr_t)pa;
+  const uintptr_t ub = (uintptr_t)pb;
+  if (ua < ub) {
+    return -1;
+  }
+  if (ua > ub) {
+    return 1;
+  }
+  return 0;
+}
+
+static uint32_t scoop_gc_baseline_live_set_contains(const ScoopGcBaselineUpdateCtx *ctx,
+                                                    ScoopGcObjectHeader *obj) {
+  if (ctx == 0 || obj == 0 || ctx->live_sorted == 0 || ctx->live_len == 0) {
+    return 0;
+  }
+
+  // `live_sorted` 是按地址排序的对象指针数组；用二分查找快速判定。
+  size_t lo = 0;
+  size_t hi = ctx->live_len;
+  const uintptr_t target = (uintptr_t)obj;
+
+  while (lo < hi) {
+    const size_t mid = lo + ((hi - lo) / 2u);
+    const uintptr_t cur = (uintptr_t)ctx->live_sorted[mid];
+    if (cur == target) {
+      return 1;
+    }
+    if (cur < target) {
+      lo = mid + 1u;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return 0;
+}
+
+static void scoop_gc_baseline_update_slot_visitor(void **slot, void *raw_ctx) {
+  if (slot == 0) {
+    return;
+  }
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)(*slot);
+  if (obj == 0) {
+    return;
+  }
+
+  const ScoopGcBaselineUpdateCtx *ctx = (const ScoopGcBaselineUpdateCtx *)raw_ctx;
+  if (ctx != 0 && !scoop_gc_baseline_live_set_contains(ctx, obj)) {
+    // 重要：stackmap spill slots 可能包含“pointer-sized 但不是 GC object pointer”的值。
+    // roots update 阶段若直接解引用该指针读取 `obj->next` 会崩溃，因此只对 live 集合中的
+    // 对象指针做 forwarding follow。
+    return;
+  }
+
+  ScoopGcObjectHeader *updated = scoop_gc_baseline_follow_forwarding(obj);
+  if (updated != 0 && updated != obj) {
+    *slot = (void *)updated;
+  }
 }
 
 static uint64_t scoop_gc_native_roots_visit_slots(void *native_roots,
@@ -1029,7 +1201,10 @@ typedef struct ScoopGcStackmapRootsVisitCtx {
   uint32_t visit_error;
 } ScoopGcStackmapRootsVisitCtx;
 
-static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp,
+                                                      uintptr_t ra,
+                                                      uintptr_t fp,
+                                                      void *user_data) {
   if (user_data == 0) {
     return 0;
   }
@@ -1053,7 +1228,7 @@ static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp, uintptr_t ra
 
   uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
   ctx->slots_visited += scoop_stackmap_record_visit_root_slots(
-      &rec, sp, ctx->visitor, ctx->visitor_ctx, &visit_err);
+      &rec, sp, fp, ctx->visitor, ctx->visitor_ctx, &visit_err);
 
   if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
     ctx->visit_error = visit_err;
@@ -1107,6 +1282,369 @@ static uint64_t scoop_gc_stackmap_visit_roots_from_ctx(void *stack_walking_ctx,
   return walk.slots_visited;
 }
 
+typedef struct ScoopGcBaselineMoveRecord {
+  ScoopGcObjectHeader *from;
+  ScoopGcObjectHeader *to;
+  uint64_t size;
+} ScoopGcBaselineMoveRecord;
+
+static uint32_t scoop_gc_baseline_object_is_pinned_unlocked(ScoopGcObjectHeader *obj) {
+  ScoopGcPinnedRecord *rec = scoop_gc_find_pinned_unlocked(obj);
+  if (rec == 0) {
+    return 0;
+  }
+  return rec->pin_count > 0;
+}
+
+// baseline moving sweep（T1511）：
+// - 释放 unreachable；
+// - 对 live 且非 pinned 的对象分配新副本并写 forwarding；
+// - 更新：stackmap spill slots/native_roots/handles/heap fields；
+// - 重建 heap 链表并释放旧副本。
+static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
+                                                      uint32_t mark_value,
+                                                      pthread_t initiator,
+                                                      void *initiator_stack_walking_ctx) {
+  if (heap == 0) {
+    return;
+  }
+
+  // 1) sweep unreachable + 收集 live 列表（避免后续写 forwarding pointer 破坏 heap 链表遍历）。
+  size_t live_cap = 0;
+  size_t live_len = 0;
+  ScoopGcObjectHeader **live = 0;
+
+  for (ScoopGcObjectHeader *obj = heap->objects; obj != 0;) {
+    ScoopGcObjectHeader *next = obj->next;
+
+    if (obj->mark != mark_value) {
+      if (obj->type_desc != 0 && obj->type_desc->release_fn != 0) {
+        obj->type_desc->release_fn((void *)obj);
+      }
+
+      heap->bytes_freed += obj->size_bytes;
+      free(obj);
+      obj = next;
+      continue;
+    }
+
+    if (live_len >= live_cap) {
+      size_t new_cap = (live_cap == 0) ? 128u : (live_cap * 2u);
+      if (new_cap < live_len + 1u) {
+        new_cap = live_len + 1u;
+      }
+      if (new_cap > (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+        // OOM/overflow：退化为 non-moving sweep（保留 live 对象，但不搬迁）。
+        break;
+      }
+      void *p = realloc(live, new_cap * sizeof(ScoopGcObjectHeader *));
+      if (p == 0) {
+        // OOM：同样退化为 non-moving sweep。
+        break;
+      }
+      live = (ScoopGcObjectHeader **)p;
+      live_cap = new_cap;
+    }
+
+    live[live_len] = obj;
+    live_len += 1;
+    obj = next;
+  }
+
+  // 若 live 数组分配失败（live==NULL 但 live_len>0），回退为“只做 sweep unreachable”。
+  if (live_len > 0 && live == 0) {
+    // 防御：重建 heap 链表（只包含当前仍存活的对象），避免 dangling next 指针。
+    ScoopGcObjectHeader *new_list = 0;
+    for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+      if (it->mark != mark_value) {
+        continue;
+      }
+      it->next = new_list;
+      new_list = it;
+    }
+    heap->objects = new_list;
+    return;
+  }
+
+  // 2) to-space 分配与拷贝（可回滚）：先分配完所有副本，确保不会出现“半搬迁”。
+  size_t move_len = 0;
+  ScoopGcBaselineMoveRecord *moves = 0;
+
+  if (live_len > 0 && live_len <= (SIZE_MAX / sizeof(ScoopGcBaselineMoveRecord))) {
+    moves = (ScoopGcBaselineMoveRecord *)malloc(live_len * sizeof(ScoopGcBaselineMoveRecord));
+  }
+
+  uint32_t move_failed = 0;
+  if (moves == 0 && live_len > 0) {
+    move_failed = 1;
+  }
+
+  if (!move_failed) {
+    for (size_t i = 0; i < live_len; i++) {
+      ScoopGcObjectHeader *from = live[i];
+      if (from == 0) {
+        continue;
+      }
+      if (scoop_gc_baseline_object_is_pinned_unlocked(from)) {
+        continue;
+      }
+
+      uint64_t raw_size = from->size_bytes;
+      if (raw_size == 0 || raw_size > (uint64_t)SIZE_MAX) {
+        // 健壮性：无法搬迁的对象直接跳过（仍可被 roots/heap 扫描）。
+        continue;
+      }
+
+      void *p = malloc((size_t)raw_size);
+      if (p == 0) {
+        move_failed = 1;
+        break;
+      }
+
+      (void)memcpy(p, (const void *)from, (size_t)raw_size);
+      ScoopGcObjectHeader *to = (ScoopGcObjectHeader *)p;
+      // 后续会重建 heap 链表，因此先清空 next，避免携带旧链表指针。
+      to->next = 0;
+
+      moves[move_len].from = from;
+      moves[move_len].to = to;
+      moves[move_len].size = raw_size;
+      move_len += 1;
+    }
+  }
+
+  if (move_failed) {
+    // 回滚：释放已分配的 to-space 副本，并退化为 non-moving sweep（保留 live 对象）。
+    if (moves != 0) {
+      for (size_t i = 0; i < move_len; i++) {
+        if (moves[i].to != 0) {
+          free(moves[i].to);
+        }
+      }
+      free(moves);
+    }
+
+    ScoopGcObjectHeader *new_list = 0;
+    for (size_t i = 0; i < live_len; i++) {
+      ScoopGcObjectHeader *obj = live[i];
+      if (obj == 0) {
+        continue;
+      }
+      obj->next = new_list;
+      new_list = obj;
+    }
+    heap->objects = new_list;
+
+    if (live != 0) {
+      free(live);
+    }
+    return;
+  }
+
+  if (move_len == 0) {
+    // 没有任何对象可搬迁（例如全 pinned）：仅重建 heap 链表后返回。
+    ScoopGcObjectHeader *new_list = 0;
+    for (size_t i = 0; i < live_len; i++) {
+      ScoopGcObjectHeader *obj = live[i];
+      if (obj == 0) {
+        continue;
+      }
+      obj->next = new_list;
+      new_list = obj;
+    }
+    heap->objects = new_list;
+    if (moves != 0) {
+      free(moves);
+    }
+    if (live != 0) {
+      free(live);
+    }
+    return;
+  }
+
+  // 3) 提交：写入 forwarding pointer。
+  for (size_t i = 0; i < move_len; i++) {
+    ScoopGcObjectHeader *from = moves[i].from;
+    ScoopGcObjectHeader *to = moves[i].to;
+    scoop_gc_baseline_object_set_forwarding_ptr(from, to);
+  }
+
+  // 为 roots update 做 membership 过滤：stackmap records 可能枚举到“看起来像指针但并非 GC 对象”的值。
+  // 在 update visitor 中必须避免对这些值解引用读取 `obj->next` 导致崩溃。
+  //
+  // 这里复用 live 数组并就地排序：顺序不影响后续 sweep/重建 heap 链表。
+  qsort(live, live_len, sizeof(ScoopGcObjectHeader *), scoop_gc_ptr_cmp);
+  ScoopGcBaselineUpdateCtx update_ctx = {
+      .live_sorted = live,
+      .live_len = live_len,
+  };
+
+  // 4) roots update：
+  // - initiator：使用本次 GC 内部捕获的 ctx（可枚举完整 managed 调用栈的 stackmap roots slots）；
+  // - Parked：使用 park 前捕获到 TLS 的 ctx；
+  // - InNative：使用 native_roots buffer；
+  // - 其它/回退：shadow stack roots（用于早期 runtime/Rust 测试兼容）。
+  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
+                                                        ScoopGcTraceVisitor visitor,
+                                                        void *ctx);
+
+  // 4a) initiator stackmap roots update（moving GC 的关键语义：spill slots 原地改写为新地址）。
+  {
+    uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+    uint32_t records_hit = 0;
+    if (initiator_stack_walking_ctx != 0) {
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
+                                                   scoop_gc_baseline_update_slot_visitor,
+                                                   (void *)&update_ctx,
+                                                   &err,
+                                                   &records_hit);
+    } else {
+      err = SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT;
+    }
+
+    if (err != SCOOP_STACKMAP_VISIT_OK) {
+      (void)fprintf(stderr,
+                    "[scooprt][gc][move] initiator stackmap roots update failed: err=%u\n",
+                    (unsigned)err);
+      abort();
+    }
+
+    // 重要：moving GC 必须更新 stackmap spill slots（statepoint + gc.relocate 依赖它）。
+    // 若未命中任何 record，说明当前进程未生成/未注册 stackmaps，或线程未停在可识别的 managed 帧；
+    // 在这种情况下继续搬迁会导致 mutator 恢复后仍持有旧指针（悬挂指针），因此直接 fail-fast。
+    if (records_hit == 0) {
+      (void)fprintf(stderr,
+                    "[scooprt][gc][move] initiator stackmap roots update hit 0 records; "
+                    "moving GC requires statepoint stackmaps (set SCOOP_GC_MOVE=0 to disable)\n");
+      abort();
+    }
+
+    // 若 initiator 处于 InNative，则 spill slots 之外还必须更新 `native_roots` buffer：
+    // - enter_native 传入的是 “void** slots” 的指针数组；
+    // - moving GC 结束后该线程会返回到 managed code，locals alloca 槽位必须已写回新地址。
+    for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+      if (!pthread_equal(it->thread, initiator)) {
+        continue;
+      }
+      if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        (void)scoop_gc_native_roots_visit_slots(it->native_roots,
+                                                it->native_roots_len,
+                                                scoop_gc_baseline_update_slot_visitor,
+                                                (void *)&update_ctx);
+      }
+      // 同时更新 initiator 的 shadow stack roots：即使 stackmap records 命中，也可能仍有部分 roots
+      // 通过 shadow stack 插桩保存（例如早期 runtime helper 或 debug/prologue 插桩）。
+      if (it->current_frame_slot != 0) {
+        ScoopGcFrame *frame = *(it->current_frame_slot);
+        if (frame != 0) {
+          (void)scoop_gc_shadow_stack_visit_roots_from_frame(
+              frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
+        }
+      }
+      break;
+    }
+  }
+
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (pthread_equal(it->thread, initiator)) {
+      continue;
+    }
+
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      (void)scoop_gc_native_roots_visit_slots(it->native_roots,
+                                              it->native_roots_len,
+                                              scoop_gc_baseline_update_slot_visitor,
+                                              (void *)&update_ctx);
+      continue;
+    }
+
+    if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
+      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      uint32_t records_hit = 0;
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                   scoop_gc_baseline_update_slot_visitor,
+                                                   (void *)&update_ctx,
+                                                   &err,
+                                                   &records_hit);
+      if (err != SCOOP_STACKMAP_VISIT_OK) {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] update roots failed: err=%u (thread=0x%" PRIxPTR
+                      ")\n",
+                      (unsigned)err,
+                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+        abort();
+      }
+    }
+
+    if (it->current_frame_slot == 0) {
+      continue;
+    }
+    ScoopGcFrame *frame = *(it->current_frame_slot);
+    (void)scoop_gc_shadow_stack_visit_roots_from_frame(
+        frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
+  }
+
+  // 4b) stable handle table update：handle->obj 槽位同样属于 roots。
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    scoop_gc_baseline_update_slot_visitor((void **)&it->object, (void *)&update_ctx);
+  }
+
+  // 4c) heap object fields update：扫描所有 live 对象（对已搬迁对象扫描其 to-space 副本）。
+  for (size_t i = 0; i < live_len; i++) {
+    ScoopGcObjectHeader *obj = live[i];
+    if (obj == 0) {
+      continue;
+    }
+
+    ScoopGcObjectHeader *current = scoop_gc_baseline_follow_forwarding(obj);
+    if (current == 0) {
+      continue;
+    }
+    if (current->type_desc == 0) {
+      continue;
+    }
+
+    (void)scoop_gc_type_descriptor_trace(current->type_desc,
+                                         (void *)current,
+                                         scoop_gc_baseline_update_slot_visitor,
+                                         (void *)&update_ctx);
+  }
+
+  // 5) 重建 heap.objects：保留 pinned/未搬迁对象 + 追加 to-space 副本；from-space 旧对象从 heap 链表中移除。
+  ScoopGcObjectHeader *new_list = 0;
+  for (size_t i = 0; i < live_len; i++) {
+    ScoopGcObjectHeader *obj = live[i];
+    if (obj == 0) {
+      continue;
+    }
+
+    ScoopGcObjectHeader *current = scoop_gc_baseline_follow_forwarding(obj);
+    if (current == 0) {
+      continue;
+    }
+    current->next = new_list;
+    new_list = current;
+  }
+  heap->objects = new_list;
+
+  // 6) 释放旧副本（from-space）：注意不计入 `bytes_freed`（对象仍存活；这里只是搬迁内部实现细节）。
+  for (size_t i = 0; i < move_len; i++) {
+    if (moves[i].from != 0) {
+      free(moves[i].from);
+    }
+  }
+
+  if (moves != 0) {
+    free(moves);
+  }
+  if (live != 0) {
+    free(live);
+  }
+}
+
 void scoop_gc_collect(void) {
   // v0->v0+：协作式 stop-the-world，扫描所有已注册线程 roots。
   //
@@ -1136,6 +1674,19 @@ void scoop_gc_collect(void) {
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
 
+  // T1511：baseline moving 模式（可通过 env 强制开启），需要在 GC 内捕获 initiator 的 stack walking ctx，
+  // 用于 stackmap spill slots 更新（statepoint + gc.relocate 依赖该语义）。
+  uint32_t moving_enabled = scoop_gc_baseline_moving_enabled();
+  void *initiator_stack_walking_ctx = 0;
+  if (moving_enabled) {
+    initiator_stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+    if (initiator_stack_walking_ctx == 0) {
+      (void)fprintf(stderr,
+                    "[scooprt][gc][move] SCOOP_GC_MOVE=1 but failed to capture unwind ctx\n");
+      abort();
+    }
+  }
+
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
@@ -1150,6 +1701,22 @@ void scoop_gc_collect(void) {
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_mark_visitor, (void *)&ctx);
       continue;
+    }
+
+    // T1511：moving 模式下优先从 stackmap 枚举 initiator roots（完整调用栈，多帧），避免仅靠 shadow stack
+    // 导致“spill slots 未被视为 roots”而出现误回收。
+    if (moving_enabled && initiator_stack_walking_ctx != 0 && pthread_equal(it->thread, self)) {
+      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      uint32_t records_hit = 0;
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(
+          initiator_stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+
+      if (err != SCOOP_STACKMAP_VISIT_OK) {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] visit initiator roots failed: err=%u\n",
+                      (unsigned)err);
+        abort();
+      }
     }
 
     // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap roots；
@@ -1168,10 +1735,6 @@ void scoop_gc_collect(void) {
                       (unsigned)err,
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();
-      }
-
-      if (records_hit > 0) {
-        continue;
       }
     }
 
@@ -1223,27 +1786,37 @@ void scoop_gc_collect(void) {
     free(stack.items);
   }
 
-  // 3) sweep
-  ScoopGcObjectHeader **link = &heap->objects;
-  while (*link != 0) {
-    ScoopGcObjectHeader *obj = *link;
-    if (obj->mark == mark_value) {
-      link = &obj->next;
-      continue;
+  // 3) sweep（可选 moving + fixup）
+  if (moving_enabled) {
+    scoop_gc_collect_baseline_moving_unlocked(
+        heap, mark_value, self, initiator_stack_walking_ctx);
+  } else {
+    ScoopGcObjectHeader **link = &heap->objects;
+    while (*link != 0) {
+      ScoopGcObjectHeader *obj = *link;
+      if (obj->mark == mark_value) {
+        link = &obj->next;
+        continue;
+      }
+
+      // unreachable：从链表摘除并释放
+      *link = obj->next;
+
+      // 若该类型提供 release 回调，则在释放对象内存前调用它。
+      //
+      // 注意：该回调运行在 GC 锁 + stop-the-world 的受限上下文中；应避免分配与 re-enter GC。
+      if (obj->type_desc != 0 && obj->type_desc->release_fn != 0) {
+        obj->type_desc->release_fn((void *)obj);
+      }
+
+      heap->bytes_freed += obj->size_bytes;
+      free(obj);
     }
+  }
 
-    // unreachable：从链表摘除并释放
-    *link = obj->next;
-
-    // 若该类型提供 release 回调，则在释放对象内存前调用它。
-    //
-    // 注意：该回调运行在 GC 锁 + stop-the-world 的受限上下文中；应避免分配与 re-enter GC。
-    if (obj->type_desc != 0 && obj->type_desc->release_fn != 0) {
-      obj->type_desc->release_fn((void *)obj);
-    }
-
-    heap->bytes_freed += obj->size_bytes;
-    free(obj);
+  if (initiator_stack_walking_ctx != 0) {
+    scoop_platform_unwind_ctx_destroy(initiator_stack_walking_ctx);
+    initiator_stack_walking_ctx = 0;
   }
 
   scoop_gc_stop_the_world_end_unlocked();
@@ -1317,7 +1890,11 @@ typedef struct ScoopTestGcStackmapFindFrame {
   uintptr_t found_ra;
 } ScoopTestGcStackmapFindFrame;
 
-static uint32_t scoop_test_gc_stackmap_find_frame_visitor(uintptr_t sp, uintptr_t ra, void *ctx) {
+static uint32_t scoop_test_gc_stackmap_find_frame_visitor(uintptr_t sp,
+                                                          uintptr_t ra,
+                                                          uintptr_t fp,
+                                                          void *ctx) {
+  (void)fp;
   if (ctx == 0) {
     return 0;
   }
@@ -1651,7 +2228,9 @@ typedef struct ScoopTestGcStackmapFindFrameByRa {
 
 static uint32_t scoop_test_gc_stackmap_find_frame_by_ra_visitor(uintptr_t sp,
                                                                 uintptr_t ra,
+                                                                uintptr_t fp,
                                                                 void *ctx) {
+  (void)fp;
   if (ctx == 0) {
     return 0;
   }

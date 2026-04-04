@@ -1,4 +1,5 @@
 // EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
 // RUN-STDOUT: extern_enter_native_roots_gc.stdout.txt
 // 目标：T1510c：`@Extern` 调用点自动插入 `enter_native/leave_native`，并暴露 native_roots 供 GC 扫描。
 
@@ -30,4 +31,3 @@ fun main() {
     println(got)
     @Unsafe { GC.handleDrop(h) }
 }
-

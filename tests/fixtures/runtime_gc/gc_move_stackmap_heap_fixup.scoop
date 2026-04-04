@@ -1,0 +1,36 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: gc_move_stackmap_heap_fixup.stdout.txt
+// 目标：T1511：moving GC 的“指针修复闭环”：
+// - stackmap spill slots（statepoint + gc.relocate）必须被原地写回新地址；
+// - heap 内引用字段（type descriptor trace bitmap）必须被修复；
+// - GC 结束后继续执行不得出现悬挂指针。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+class Pair(val a: Any, val b: Any)
+
+fun main() {
+    val hello: Any = f"hello {7}"
+    val bye: Any = f"bye {0}"
+    val p: Pair = Pair(hello, bye)
+
+    // 强制触发 moving GC：`p/hello/bye` 都是 live 对象，GC 需搬迁并修复所有引用。
+    __scoop_gc_collect()
+
+    val s1Opt: String? = p.a as? String
+    val s2Opt: String? = p.b as? String
+    val s1: String = when (s1Opt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+    val s2: String = when (s2Opt) {
+        Some(v) -> v
+        None -> "bad"
+    }
+
+    println(f"{s1} / {s2}")
+}
+

@@ -77,16 +77,20 @@ uint32_t scoop_stackmap_registry_lookup(uintptr_t return_address, ScoopStackmapR
 // 当前阶段（T1506a）的最小约束：
 // - 只处理 pointer-sized locations（`location_size == sizeof(void*)`）；其它 size 先跳过；
 // - 只支持以 SP（CFA）为基址的 Direct/Indirect locations；
-// - 任何无法转换为 slot 的 pointer-sized location 均视为编译器/管线错误，并返回稳定错误码。
+// - 对于非 Direct/Indirect 的 pointer-sized location（例如 Register/Constant），v0 选择忽略：
+//   - 这些条目可能来自 statepoint/patchpoint 的 deopt/metadata，并不一定是 GC roots；
+//   - 当前实现无法对寄存器做写回更新（moving GC 需要 `void** slot`），因此不应 fail-fast。
 //
 // 参数：
 // - `frame_sp`：该帧的 SP/CFA（由 platform/unwind 提供，作为 stackmap location 基址）。
+// - `frame_fp`：该帧的 FP（若平台层可提供；用于处理以 FP 为基址的 locations；为 0 表示未知/不可用）。
 //
 // 返回：
 // - visitor 调用次数（即扫描到的 non-null roots slot 个数）。
 // - 若 `out_error` 非空：成功写入 `SCOOP_STACKMAP_VISIT_OK`，失败写入错误码。
 uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *rec,
                                                 uintptr_t frame_sp,
+                                                uintptr_t frame_fp,
                                                 ScoopGcTraceVisitor visitor,
                                                 void *ctx,
                                                 uint32_t *out_error);

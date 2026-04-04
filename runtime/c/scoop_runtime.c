@@ -884,9 +884,13 @@ void scoop_gc_frame_push(ScoopGcFrame *frame) {
     return;
   }
 
-  // safepoint：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
-  void scoop_gc_safepoint(void);
-  scoop_gc_safepoint();
+  // safepoint（poll）：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
+  //
+  // 说明：
+  // - `scoop_gc_safepoint_poll` 在进入 Parked 前会捕获 stack walking ctx（T1505b），
+  //   供 stackmap/statepoint roots 枚举与 moving GC 的 roots update 使用（T1506/T1511）。
+  void scoop_gc_safepoint_poll(void);
+  scoop_gc_safepoint_poll();
 
   // 在早期阶段尽量保持接口易用：允许在未显式 init/register 的情况下被调用。
   if (!scoop_tls.registered) {
@@ -902,9 +906,9 @@ void scoop_gc_frame_pop(ScoopGcFrame *frame) {
     return;
   }
 
-  // safepoint：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
-  void scoop_gc_safepoint(void);
-  scoop_gc_safepoint();
+  // safepoint（poll）：允许 GC stop-the-world 在此处暂停当前线程（TODO T0911）。
+  void scoop_gc_safepoint_poll(void);
+  scoop_gc_safepoint_poll();
 
   // 健壮性：pop 必须匹配最近一次 push；否则保持状态不变并在 debug 下输出日志。
   if (scoop_tls.gc_current_frame != frame) {
@@ -1247,9 +1251,13 @@ void *scoop_alloc(uint64_t size) {
   // （幂等：重复调用无副作用）
   scoop_thread_register();
 
-  // safepoint：允许 GC stop-the-world 在分配前暂停当前线程（TODO T0911）。
-  void scoop_gc_safepoint(void);
-  scoop_gc_safepoint();
+  // safepoint（poll）：允许 GC stop-the-world 在分配前暂停当前线程（TODO T0911）。
+  //
+  // 说明：
+  // - moving GC 需要在 stop-the-world 时定位并更新该线程 stackmap spill slots；
+  // - 该 ctx 由 `scoop_gc_safepoint_poll` 在 park 前捕获（T1505b/T1506）。
+  void scoop_gc_safepoint_poll(void);
+  scoop_gc_safepoint_poll();
 
   // 说明（early stage）：
   // - 当前以 libc `malloc` 作为最小可用实现，保证 codegen 侧能稳定拿到非空指针；

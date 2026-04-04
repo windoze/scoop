@@ -166,8 +166,83 @@ static int scoop_stackmap_dwarf_reg_is_sp(uint16_t dwarf_reg) {
 #endif
 }
 
+// 在部分构建配置（尤其是 -O0 / debug）中，statepoint stackmap 的 Direct/Indirect 可能以“frame pointer”为基址：
+// - x86_64：RBP = 6（DWARF reg）
+// - AArch64：FP(x29) = 29（DWARF reg）
+//
+// v0 不直接捕获寄存器文件，因此需要从 CFA（`frame_sp`）近似恢复 FP。
+// 做法：尝试若干个常见的 `FP = CFA - delta` 候选，并用 “*(FP + ptr_size) ≈ return_address”
+// 验证（return address 来自 `rec->return_address`）。
+static int scoop_stackmap_dwarf_reg_is_fp(uint16_t dwarf_reg) {
+#if defined(__x86_64__) || defined(_M_X64)
+  return dwarf_reg == 6u;
+#elif defined(__aarch64__) || defined(__arm64__)
+  return dwarf_reg == 29u;
+#else
+  (void)dwarf_reg;
+  return 0;
+#endif
+}
+
+static intptr_t scoop_stackmap_guess_fp_base_from_cfa(uintptr_t cfa, uintptr_t expected_ra) {
+  if (cfa == 0) {
+    return 0;
+  }
+  const uintptr_t ptr_size = (uintptr_t)sizeof(void *);
+  if (ptr_size == 0) {
+    return 0;
+  }
+
+  // 常见候选：不同 ABI/优化级别下，CFA 与 FP 的距离可能不同；保持范围小且可回归。
+  const uintptr_t deltas[] = {16u, 24u, 32u, 40u, 48u, 56u, 64u};
+
+  for (size_t i = 0; i < (sizeof(deltas) / sizeof(deltas[0])); i++) {
+    const uintptr_t delta = deltas[i];
+    if (cfa <= delta) {
+      continue;
+    }
+    const uintptr_t fp = cfa - delta;
+    if ((fp % ptr_size) != 0u) {
+      continue;
+    }
+
+    // 按常见 frame layout：return address 通常位于 [FP + ptr_size]。
+    const uintptr_t mem_ra = *(const uintptr_t *)(fp + ptr_size);
+    if (mem_ra == 0) {
+      continue;
+    }
+
+    intptr_t diff = (intptr_t)mem_ra - (intptr_t)expected_ra;
+    if (diff < 0) {
+      diff = -diff;
+    }
+
+    // 容忍少量偏移（stackmap lookup 本身也允许 return address 近似匹配）。
+    if ((uintptr_t)diff <= 256u) {
+      // 二次校验：frame pointer 链的形状应合理（saved_fp 指向更外层帧，且距离在可接受范围内）。
+      const uintptr_t saved_fp = *(const uintptr_t *)fp;
+      if (saved_fp == 0) {
+        continue;
+      }
+      if ((saved_fp % ptr_size) != 0u) {
+        continue;
+      }
+      if (saved_fp <= fp) {
+        continue;
+      }
+      if ((saved_fp - fp) > (uintptr_t)(1024u * 1024u)) {
+        continue;
+      }
+      return (intptr_t)fp;
+    }
+  }
+
+  return 0;
+}
+
 uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *rec,
                                                 uintptr_t frame_sp,
+                                                uintptr_t frame_fp,
                                                 ScoopGcTraceVisitor visitor,
                                                 void *ctx,
                                                 uint32_t *out_error) {
@@ -250,25 +325,44 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
       continue;
     }
 
-    // 任何无法转换为可更新 slot 的 pointer-sized location 都视为管线错误。
+    // 重要：
+    // - 对于 statepoint/patchpoint 产出的 stackmap records，locations 列表里可能包含
+    //   “与 GC roots 无关但刚好是 pointer-sized”的条目（例如某些 deopt/metadata 或 call target 等）。
+    // - baseline/immix 的 moving roots update 只能安全更新“可寻址且可写回”的 slot（`void**`），
+    //   因此 v0 只处理 Direct/Indirect（以 SP 为基址）并忽略其它 kinds。
+    //
+    // 若未来需要支持 Register locations：
+    // - 必须在 `platform/unwind` 捕获寄存器值（且要可写回），并在 stop-the-world 下对目标线程做更新；
+    // - 在当前实现中不具备该能力，因此这里选择“跳过”而不是 fail-fast。
     if (loc_type != SCOOP_STACKMAP_LOC_DIRECT && loc_type != SCOOP_STACKMAP_LOC_INDIRECT) {
-      if (out_error != 0) {
-        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION;
-      }
-      return visited;
+      continue;
     }
 
-    if (!scoop_stackmap_dwarf_reg_is_sp(dwarf_reg)) {
+    // NOTE:
+    // - stackmap offset 是有符号 32-bit（可为负），因此这里用 intptr_t 做指针算术；
+    // - `frame_sp` 语义为 CFA（call frame address，来自 platform/unwind）。
+    intptr_t base_i = 0;
+    if (scoop_stackmap_dwarf_reg_is_sp(dwarf_reg)) {
+      base_i = (intptr_t)frame_sp;
+    } else if (scoop_stackmap_dwarf_reg_is_fp(dwarf_reg)) {
+      // 优先使用 platform/unwind 直接提供的 FP；为 0 时回退为“从 CFA 猜测 FP”的启发式。
+      base_i = (intptr_t)frame_fp;
+      if (base_i == 0) {
+        base_i = scoop_stackmap_guess_fp_base_from_cfa(frame_sp, rec->return_address);
+      }
+      if (base_i == 0) {
+        if (out_error != 0) {
+          *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_DWARF_REG;
+        }
+        return visited;
+      }
+    } else {
       if (out_error != 0) {
         *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_DWARF_REG;
       }
       return visited;
     }
 
-    // NOTE:
-    // - 当前阶段仅支持 “SP/CFA 为基址”；
-    // - stackmap offset 是有符号 32-bit（可为负），因此这里用 intptr_t 做指针算术。
-    const intptr_t base_i = (intptr_t)frame_sp;
     const intptr_t addr_i = base_i + (intptr_t)loc_off_i32;
     if (addr_i == 0) {
       if (out_error != 0) {

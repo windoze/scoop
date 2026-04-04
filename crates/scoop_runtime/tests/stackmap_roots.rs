@@ -19,6 +19,7 @@ unsafe extern "C" {
     fn scoop_stackmap_record_visit_root_slots(
         rec: *const ScoopStackmapRecordRef,
         frame_sp: usize,
+        frame_fp: usize,
         visitor: extern "C" fn(*mut *mut c_void, *mut c_void),
         ctx: *mut c_void,
         out_error: *mut u32,
@@ -32,7 +33,6 @@ const LOC_INDIRECT: u8 = 3;
 
 // 与 `runtime/c/scoop_stackmap.h` 的 `ScoopStackmapVisitError` 对齐（只引用本测试需要的子集）。
 const VISIT_OK: u32 = 0;
-const ERR_UNSUPPORTED_LOCATION: u32 = 4;
 const ERR_UNSUPPORTED_DWARF_REG: u32 = 5;
 
 #[repr(C)]
@@ -141,6 +141,7 @@ fn stackmap_record_direct_location_yields_expected_slot_address() {
         scoop_stackmap_record_visit_root_slots(
             &rec,
             sp,
+            0,
             collect_slot,
             (&mut collector as *mut SlotCollector).cast::<c_void>(),
             &mut err,
@@ -185,6 +186,7 @@ fn stackmap_record_indirect_location_yields_expected_slot_address() {
         scoop_stackmap_record_visit_root_slots(
             &rec,
             sp,
+            0,
             collect_slot,
             (&mut collector as *mut SlotCollector).cast::<c_void>(),
             &mut err,
@@ -198,7 +200,7 @@ fn stackmap_record_indirect_location_yields_expected_slot_address() {
 }
 
 #[test]
-fn stackmap_record_register_location_returns_stable_error_code() {
+fn stackmap_record_register_location_is_ignored() {
     let sp_reg = dwarf_reg_sp();
     if sp_reg == 0 {
         return;
@@ -227,6 +229,7 @@ fn stackmap_record_register_location_returns_stable_error_code() {
         scoop_stackmap_record_visit_root_slots(
             &rec,
             sp,
+            0,
             collect_slot,
             (&mut collector as *mut SlotCollector).cast::<c_void>(),
             &mut err,
@@ -235,7 +238,10 @@ fn stackmap_record_register_location_returns_stable_error_code() {
 
     assert_eq!(visited, 0);
     assert_eq!(collector.len, 0);
-    assert_eq!(err, ERR_UNSUPPORTED_LOCATION);
+    assert_eq!(
+        err, VISIT_OK,
+        "register locations are ignored in v0 visitor (they are not addressable `void**` slots)"
+    );
 }
 
 #[test]
@@ -268,6 +274,7 @@ fn stackmap_record_unsupported_dwarf_reg_returns_stable_error_code() {
         scoop_stackmap_record_visit_root_slots(
             &rec,
             sp,
+            0,
             collect_slot,
             (&mut collector as *mut SlotCollector).cast::<c_void>(),
             &mut err,

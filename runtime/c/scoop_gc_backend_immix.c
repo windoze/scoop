@@ -55,6 +55,9 @@ static void scoop_gc_immix_unlock(ScoopGcImmixState *state) {
   (void)pthread_mutex_unlock(&state->lock);
 }
 
+// `scoop_gc_safepoint_poll` 定义在本 backend 内；这里前置声明以避免 C99 的隐式声明错误。
+void scoop_gc_safepoint_poll(void);
+
 // --- heap 链表（T1409a：并发 push） ---
 //
 // 说明：
@@ -193,7 +196,10 @@ typedef struct ScoopGcStackmapRootsVisitCtx {
   uint32_t visit_error;
 } ScoopGcStackmapRootsVisitCtx;
 
-static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp,
+                                                      uintptr_t ra,
+                                                      uintptr_t fp,
+                                                      void *user_data) {
   if (user_data == 0) {
     return 0;
   }
@@ -217,7 +223,7 @@ static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp, uintptr_t ra
 
   uint32_t visit_err = SCOOP_STACKMAP_VISIT_OK;
   ctx->slots_visited += scoop_stackmap_record_visit_root_slots(
-      &rec, sp, ctx->visitor, ctx->visitor_ctx, &visit_err);
+      &rec, sp, fp, ctx->visitor, ctx->visitor_ctx, &visit_err);
 
   if (visit_err != SCOOP_STACKMAP_VISIT_OK) {
     ctx->visit_error = visit_err;
@@ -471,8 +477,12 @@ typedef struct ScoopTestGcUnwindFramesState {
   uintptr_t last_sp;
 } ScoopTestGcUnwindFramesState;
 
-static uint32_t scoop_test_gc_unwind_frame_visitor(uintptr_t sp, uintptr_t ra, void *user_data) {
+static uint32_t scoop_test_gc_unwind_frame_visitor(uintptr_t sp,
+                                                   uintptr_t ra,
+                                                   uintptr_t fp,
+                                                   void *user_data) {
   (void)ra;
+  (void)fp;
   if (user_data == 0) {
     return 0;
   }
@@ -685,7 +695,11 @@ typedef struct ScoopTestGcStackmapFindFrame {
   uintptr_t found_ra;
 } ScoopTestGcStackmapFindFrame;
 
-static uint32_t scoop_test_gc_stackmap_find_frame_visitor(uintptr_t sp, uintptr_t ra, void *ctx) {
+static uint32_t scoop_test_gc_stackmap_find_frame_visitor(uintptr_t sp,
+                                                          uintptr_t ra,
+                                                          uintptr_t fp,
+                                                          void *ctx) {
+  (void)fp;
   if (ctx == 0) {
     return 0;
   }
@@ -1026,7 +1040,9 @@ typedef struct ScoopTestGcStackmapFindFrameByRa {
 
 static uint32_t scoop_test_gc_stackmap_find_frame_by_ra_visitor(uintptr_t sp,
                                                                 uintptr_t ra,
+                                                                uintptr_t fp,
                                                                 void *ctx) {
+  (void)fp;
   if (ctx == 0) {
     return 0;
   }
@@ -1054,9 +1070,6 @@ static void scoop_test_gc_stackmap_multiframe_inner(ScoopTestGcStackmapMultifram
   if (shared == 0) {
     return;
   }
-
-  // `scoop_gc_safepoint_poll` 定义在本 backend 内；这里声明以避免隐式声明。
-  void scoop_gc_safepoint_poll(void);
 
   // 用 label address 近似“call safepoint_poll 的 return address”，供 main 线程定位 inner frame。
   shared->inner_poll_return_address = (uintptr_t)&&after_poll;
@@ -2060,7 +2073,16 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
     return;
   }
 
-  scoop_gc_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
+
+  // 重要：stackmap records 里可能包含“刚好是 pointer-sized 但不是 GC roots”的 slot
+  // （例如 call target / return address / deopt metadata 等）。
+  // 为避免把这些值当作 heap 对象解引用并崩溃，这里做一次 membership 过滤。
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    return;
+  }
+
+  scoop_gc_mark_object_if_needed(ctx, obj);
 }
 
 // --- 并行标记（TODO T1409c1；实验性，可开关） ---
@@ -2288,7 +2310,11 @@ static void scoop_gc_parallel_mark_visitor(void **slot, void *raw_ctx) {
     return;
   }
 
-  scoop_gc_parallel_mark_object_if_needed(ctx, (ScoopGcObjectHeader *)raw);
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
+  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+    return;
+  }
+  scoop_gc_parallel_mark_object_if_needed(ctx, obj);
 }
 
 static void *scoop_gc_parallel_mark_worker(void *raw_ctx) {
@@ -2429,8 +2455,59 @@ static inline ScoopGcObjectHeader *scoop_gc_immix_follow_forwarding(ScoopGcObjec
   return obj;
 }
 
+typedef struct ScoopGcImmixUpdateCtx {
+  // live 集合（from-space 指针），按地址排序，用于 roots update 的 membership 过滤。
+  //
+  // 说明：
+  // - compaction 会复用 `obj->next` 字段存放 forwarding pointer，因此 heap.objects 链表在 commit 后
+  //   会暂时失效；roots update 阶段不能再通过遍历 heap.objects 做 membership 判断；
+  // - stackmap roots（尤其是 statepoint/patchpoint records）可能包含 pointer-sized 但不是 GC object 的值，
+  //   必须过滤，否则对这些值解引用读取 `obj->next` 会崩溃。
+  ScoopGcObjectHeader **live_sorted;
+  size_t live_len;
+} ScoopGcImmixUpdateCtx;
+
+static int scoop_gc_ptr_cmp(const void *a, const void *b) {
+  const ScoopGcObjectHeader *pa = *(ScoopGcObjectHeader *const *)a;
+  const ScoopGcObjectHeader *pb = *(ScoopGcObjectHeader *const *)b;
+  const uintptr_t ua = (uintptr_t)pa;
+  const uintptr_t ub = (uintptr_t)pb;
+  if (ua < ub) {
+    return -1;
+  }
+  if (ua > ub) {
+    return 1;
+  }
+  return 0;
+}
+
+static uint32_t scoop_gc_immix_live_set_contains(const ScoopGcImmixUpdateCtx *ctx,
+                                                 ScoopGcObjectHeader *obj) {
+  if (ctx == 0 || obj == 0 || ctx->live_sorted == 0 || ctx->live_len == 0) {
+    return 0;
+  }
+
+  size_t lo = 0;
+  size_t hi = ctx->live_len;
+  const uintptr_t target = (uintptr_t)obj;
+
+  while (lo < hi) {
+    const size_t mid = lo + ((hi - lo) / 2u);
+    const uintptr_t cur = (uintptr_t)ctx->live_sorted[mid];
+    if (cur == target) {
+      return 1;
+    }
+    if (cur < target) {
+      lo = mid + 1u;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return 0;
+}
+
 static void scoop_gc_immix_update_slot_visitor(void **slot, void *raw_ctx) {
-  (void)raw_ctx;
   if (slot == 0) {
     return;
   }
@@ -2438,6 +2515,13 @@ static void scoop_gc_immix_update_slot_visitor(void **slot, void *raw_ctx) {
   if (obj == 0) {
     return;
   }
+
+  const ScoopGcImmixUpdateCtx *ctx = (const ScoopGcImmixUpdateCtx *)raw_ctx;
+  if (ctx != 0 && !scoop_gc_immix_live_set_contains(ctx, obj)) {
+    // 重要：只对 live 集合中的对象指针做 forwarding follow（避免 stackmap 假 roots 崩溃）。
+    return;
+  }
+
   ScoopGcObjectHeader *updated = scoop_gc_immix_follow_forwarding(obj);
   if (updated != 0 && updated != obj) {
     *slot = (void *)updated;
@@ -2750,6 +2834,15 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     }
   }
 
+  // roots update 的 membership 过滤依赖 live 集合（避免 stackmap 假 roots 触发崩溃）。
+  // 由于 forwarding pointer 复用 `obj->next` 字段，commit 后 heap.objects 链表会暂时失效，
+  // 因此这里对 live 数组就地排序并用二分查找做判定。
+  qsort(live, live_len, sizeof(ScoopGcObjectHeader *), scoop_gc_ptr_cmp);
+  ScoopGcImmixUpdateCtx update_ctx = {
+      .live_sorted = live,
+      .live_len = live_len,
+  };
+
   // 3a) roots update：shadow stack slots 原地改写为新地址（moving GC 的关键语义）。
   //
   // 注意：必须更新“所有已注册线程”的 roots；否则在多线程 + moving/compaction 下会产生悬挂指针。
@@ -2760,7 +2853,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     // T1505c：InNative 线程 roots 来自 native_roots buffer（同样需要在 moving GC 中被更新）。
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
       (void)scoop_gc_native_roots_visit_slots(
-          it->native_roots, it->native_roots_len, scoop_gc_immix_update_slot_visitor, 0);
+          it->native_roots, it->native_roots_len, scoop_gc_immix_update_slot_visitor, &update_ctx);
       continue;
     }
 
@@ -2771,7 +2864,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
       uint32_t records_hit = 0;
       (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
                                                    scoop_gc_immix_update_slot_visitor,
-                                                   0,
+                                                   &update_ctx,
                                                    &err,
                                                    &records_hit);
       if (err != SCOOP_STACKMAP_VISIT_OK) {
@@ -2782,17 +2875,20 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
                       (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
         abort();
       }
-
-      if (records_hit > 0) {
-        continue;
-      }
+      // 重要：
+      // - 即使 stackmap 命中 record，也仍需扫描 shadow stack roots；
+      // - shadow stack 由 runtime/测试直接维护，并不保证与 stackmap spill slots 重叠；
+      // - stackmap registry 在非 managed 帧上也可能发生误命中，跳过 shadow stack 会导致漏标/漏更新，
+      //   进而在 compaction 后出现悬挂指针（回归：gc_immix_parallel_mark_sweep_stress）。
     }
 
     if (it->current_frame_slot == 0) {
       continue;
     }
     ScoopGcFrame *frame = *(it->current_frame_slot);
-    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_immix_update_slot_visitor, 0);
+    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
+                                                       scoop_gc_immix_update_slot_visitor,
+                                                       &update_ctx);
   }
 
   // 3a2) stable handle table update：handle->obj 槽位同样属于 roots，需要在 moving/compaction 后被改写。
@@ -2800,7 +2896,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     if (it->object == 0) {
       continue;
     }
-    scoop_gc_immix_update_slot_visitor((void **)&it->object, 0);
+    scoop_gc_immix_update_slot_visitor((void **)&it->object, &update_ctx);
   }
 
   // 3b) heap object fields update：扫描所有 live 对象（对已搬迁对象改为扫描其 to-space 副本）。
@@ -2824,7 +2920,7 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
     (void)scoop_gc_type_descriptor_trace(current->type_desc,
                                          (void *)current,
                                          scoop_gc_immix_update_slot_visitor,
-                                         0);
+                                         &update_ctx);
   }
 
   // 4) 重建 heap.objects：保留未搬迁对象 + 追加 to-space 副本；from-space 旧对象从 heap 链表中移除。
@@ -3065,9 +3161,7 @@ void scoop_gc_collect(void) {
                 (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
             abort();
           }
-          if (records_hit > 0) {
-            continue;
-          }
+          // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
         }
 
         if (it->current_frame_slot == 0) {
@@ -3161,9 +3255,7 @@ void scoop_gc_collect(void) {
               (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
           abort();
         }
-        if (records_hit > 0) {
-          continue;
-        }
+        // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
       }
 
       if (it->current_frame_slot == 0) {

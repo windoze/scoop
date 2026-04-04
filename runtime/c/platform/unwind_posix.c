@@ -14,6 +14,7 @@
 typedef struct ScoopPlatformUnwindFrame {
   uintptr_t sp;
   uintptr_t ra;
+  uintptr_t fp;
 } ScoopPlatformUnwindFrame;
 
 typedef struct ScoopPlatformUnwindOpaqueCtx {
@@ -96,12 +97,20 @@ static _Unwind_Reason_Code scoop_unwind_capture_frames_cb(struct _Unwind_Context
   // `_Unwind_GetIP` 返回的是“下一条指令地址”（实现相关）；这里作为 stackmap lookup 的 return address 输入。
   const uintptr_t ra = (uintptr_t)_Unwind_GetIP(context);
   const uintptr_t sp = (uintptr_t)_Unwind_GetCFA(context);
+  uintptr_t fp = 0;
+#if defined(__x86_64__) || defined(_M_X64)
+  fp = (uintptr_t)_Unwind_GetGR(context, 6 /* DWARF: RBP */);
+#elif defined(__aarch64__) || defined(__arm64__)
+  fp = (uintptr_t)_Unwind_GetGR(context, 29 /* DWARF: FP (x29) */);
+#endif
+
   if (ra == 0 || sp == 0) {
     return _URC_NO_REASON;
   }
 
   arg->out_ctx->frames[arg->len].sp = sp;
   arg->out_ctx->frames[arg->len].ra = ra;
+  arg->out_ctx->frames[arg->len].fp = fp;
   arg->len += 1;
   return _URC_NO_REASON;
 }
@@ -135,6 +144,7 @@ static SCOOP_UNWIND_UNUSED void *scoop_platform_unwind_ctx_capture(void) {
   for (uint32_t i = 0; i < SCOOP_UNWIND_CTX_MAX_FRAMES; i++) {
     out->frames[i].sp = 0;
     out->frames[i].ra = 0;
+    out->frames[i].fp = 0;
   }
 
   // `setjmp` 返回 0 表示“直接保存”，非 0 表示“从 longjmp 恢复”。
@@ -180,12 +190,13 @@ static SCOOP_UNWIND_UNUSED uint32_t scoop_platform_unwind_ctx_walk_frames(
 
     const uintptr_t sp = opaque->frames[i].sp;
     const uintptr_t ra = opaque->frames[i].ra;
+    const uintptr_t fp = opaque->frames[i].fp;
     if (sp == 0 || ra == 0) {
       continue;
     }
 
     visited += 1;
-    if (!visitor(sp, ra, user_data)) {
+    if (!visitor(sp, ra, fp, user_data)) {
       break;
     }
   }
