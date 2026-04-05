@@ -145,23 +145,32 @@
 - 验收：
   - STW 回归测试：多线程 park/恢复稳定；不会因缺少 frame slot 崩溃或死锁。
 
-#### B2) [TODO] GC roots 枚举：只走 stackmap/native/handle/pin/global，不允许 shadow stack fallback
-- baseline 与 immix 两个 backend 都需要完成同一套逻辑（或合并实现，避免分叉）：
-  - mark roots：
-    - initiator：捕获并 walk 自己的 ctx（必须覆盖完整 managed 栈）；
+#### B2a) [TODO] baseline：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
+- 改动范围：
+  - `runtime/c/scoop_gc.c`（baseline backend）
+  - `crates/scoop_runtime/tests/*`（移除“依赖 GC 扫 shadow stack 才正确”的用例写法）
+- 目标不变量：
+  - mark roots：只允许
+    - initiator：捕获并 walk 自己的 ctx（覆盖完整 managed 栈）；
     - parked threads：使用其 park 前捕获的 ctx；
     - in-native threads：扫描 `native_roots` slots；
     - stable handles、pinned objects、以及（若存在）全局 roots 表。
-  - roots update（moving/compaction）：
-    - 对 stackmap spill slots 与 native_roots slots 执行原地写回；
-    - 更新 handle 表（`handle->obj`）；
-    - 修复 heap 内字段（type descriptor trace）；
-    - 不再扫描 shadow stack。
-- 关键点：
-  - 需要把“stackmap 中哪些 locations 是 roots”变成精确规则（见 A1），否则会一直依赖 membership 过滤而无法宣称完备性。
+  - baseline moving（若启用）：roots update 只更新 stackmap spill slots/native_roots/handles/heap fields（不再更新 shadow stack）。
 - 验收：
-  - 端到端：moving/compaction 下多线程 + cross-thread refs 的压力测试稳定通过；
-  - 新增“强校验模式”：GC 结束后对所有 roots 进行一致性验证（可用慢路径/额外扫描；性能不要求）。
+  - `cargo test --all`（默认 baseline）通过。
+
+#### B2b) [TODO] immix：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
+- 改动范围：
+  - `runtime/c/scoop_gc_backend_immix.c`（Immix backend，含 parallel mark + compaction roots update）
+  - `crates/scoop_runtime/tests/gc_immix_*`（移除/替换 shadow stack roots 依赖）
+- 验收：
+  - `cargo test --all --features gc-immix` 通过。
+
+#### B2c) [TODO] 新增“强校验模式”：GC 结束后对 roots 做一致性验证（slow path）
+- 目的：避免 silent mis-collection；用于诊断/回归（性能不要求）。
+- 形式建议（任选其一或组合）：
+  - env 开关（例如 `SCOOP_GC_VERIFY_ROOTS=1`）；
+  - 或测试专用导出（`scoop_test_gc_verify_roots_*`）。
 
 #### B3) [TODO] runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
 - 移除（或彻底废弃并在 ABI allowlist 中剔除）：

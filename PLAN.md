@@ -19,6 +19,7 @@
 
 ## 0.1 维护备注（TODO 顺序）
 
+- 2026-04-05：GC-FIX Phase B2（GC roots 枚举不再允许 shadow stack fallback）任务较大；为保持“首个 `[TODO]` 可直接实现”，拆分为 B2a/B2b/B2c：先落地 baseline backend 的 stackmap/native/handle/pin/global roots 路线（B2a），再对齐 Immix（B2b），最后补齐 GC 结束后的强校验模式（B2c）。
 - 2026-04-05：完成 GC-FIX Phase A4：选择“编译器保证法”，把 roots 固化为“可写回 slots 的连续后缀”（Direct/Indirect + pointer-sized + SP/FP base，偶数 base/derived）；runtime `scoop_stackmap_record_visit_root_slots` 只扫描 roots 后缀并在违反契约时返回稳定错误码（fail-fast）；同时更新 stackmap 相关单测与 synthetic stackmap section 回归。
 - 2026-04-05：完成 GC-FIX Phase B1：线程注册协议不再依赖 `ScoopGcFrame** current_frame_slot`；`ScoopGcThreadRecord` 改为保存 `ScoopThreadTls*` 并移除 `current_frame_slot` 字段；`scoop_gc_thread_register/unregister` 统一改为接收 `ScoopThreadTls*`（baseline/immix/minimal/hosted 一并对齐）；更新 GC roots fallback 扫描与 enter_native/leave_native 相关实现以使用 TLS 指针；回归：`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 2026-04-04：T1504（stackmap registry）包含解析/索引/平台自动发现/COFF/真实 statepoint smoke 等多个点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1504a/T1504b：先落地 registry core（解析 + `return_address -> record` 索引 + `scoop_runtime_init()` 自动注册）（T1504a），再补齐 COFF/多模块自动发现完善与 statepoint smoke（T1504b）。
