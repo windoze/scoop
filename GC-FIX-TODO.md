@@ -89,7 +89,7 @@
   - `scoopc` LLVM 单测：生成一个最小 module，断言 stackmap records 可被解析且“roots locations 数量/类型”符合契约。
   - `scoop dump-stackmaps`：新增 `--verify-roots` 模式，失败时给出精确诊断（哪个 record、哪个 location 不符合契约）。
 
-#### A2) [TODO] StackMap registry/lookup：从“近似命中”升级为“无歧义命中”
+#### A2) [DONE] StackMap registry/lookup：从“近似命中”升级为“无歧义命中”
 - 目标：managed frame 的 return address lookup 必须稳定、可证明不误配。
 - 具体任务：
   - 统一 “record key 的定义”（callsite vs return address）与 platform/unwind 提供的 `ra` 语义；

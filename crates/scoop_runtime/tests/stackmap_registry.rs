@@ -96,6 +96,38 @@ static MOCK_STACKMAP_SECTION: StackMapSectionMin = StackMapSectionMin {
     },
 };
 
+fn build_stackmap_section_bytes(function_address: u64, records: &[(u64, u32)]) -> Vec<u8> {
+    let num_records_u32: u32 = records.len().try_into().unwrap();
+
+    let mut bytes = Vec::new();
+
+    // header (16 bytes)
+    bytes.push(3); // version
+    bytes.push(0); // reserved0
+    bytes.extend_from_slice(&0u16.to_le_bytes()); // reserved1
+    bytes.extend_from_slice(&1u32.to_le_bytes()); // num_functions
+    bytes.extend_from_slice(&0u32.to_le_bytes()); // num_constants
+    bytes.extend_from_slice(&num_records_u32.to_le_bytes()); // num_records
+
+    // function record (24 bytes)
+    bytes.extend_from_slice(&function_address.to_le_bytes());
+    bytes.extend_from_slice(&0u64.to_le_bytes()); // stack_size (unused)
+    bytes.extend_from_slice(&(num_records_u32 as u64).to_le_bytes()); // record_count
+
+    // records (each 24 bytes with 0 locations + 0 live-outs)
+    for (patchpoint_id, instruction_offset) in records {
+        bytes.extend_from_slice(&patchpoint_id.to_le_bytes());
+        bytes.extend_from_slice(&instruction_offset.to_le_bytes());
+        bytes.extend_from_slice(&0u16.to_le_bytes()); // reserved0
+        bytes.extend_from_slice(&0u16.to_le_bytes()); // num_locations
+        bytes.extend_from_slice(&0u16.to_le_bytes()); // num_live_outs
+        bytes.extend_from_slice(&0u16.to_le_bytes()); // reserved1
+        bytes.extend_from_slice(&0u32.to_le_bytes()); // padding to 8
+    }
+
+    bytes
+}
+
 #[test]
 fn stackmap_registry_can_register_and_lookup_mock_section() {
     let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
@@ -114,6 +146,68 @@ fn stackmap_registry_can_register_and_lookup_mock_section() {
         assert_eq!(out.patchpoint_id, 1);
         assert_eq!(out.instruction_offset, 0x20);
         assert_eq!(out.return_address, 0x1020);
+    }
+}
+
+#[test]
+fn stackmap_registry_lookup_does_not_use_nearest_window_match() {
+    let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
+    unsafe {
+        scoop_stackmap_registry_reset();
+
+        let base: u64 = 0x1000;
+        let section = build_stackmap_section_bytes(base, &[(1, 0x20), (2, 0x30)]);
+        let added = scoop_stackmap_registry_register_section(section.as_ptr(), section.len());
+        assert_eq!(added, 2);
+
+        // 0x1028 与两条 record 都相距 8 bytes：
+        // - 旧实现（A2 前）会在 <=16 bytes 窗口内“挑一个最近的”，存在误配风险；
+        // - 新约定：只能命中“确定性归一化集合”中的 key，否则返回未找到。
+        let mut out = ScoopStackmapRecordRef::default();
+        let ok = scoop_stackmap_registry_lookup(0x1028, &mut out);
+        assert_eq!(ok, 0, "不应对非候选地址做 best-effort nearest-match");
+    }
+}
+
+#[test]
+fn stackmap_registry_lookup_supports_plus_minus_one_normalization() {
+    let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
+    unsafe {
+        scoop_stackmap_registry_reset();
+
+        let base: u64 = 0x1000;
+        let section = build_stackmap_section_bytes(base, &[(7, 0x20)]);
+        let added = scoop_stackmap_registry_register_section(section.as_ptr(), section.len());
+        assert_eq!(added, 1);
+
+        // 约定：允许把 `ra - 1` 作为候选（部分 unwind 实现返回 call 指令内部地址）。
+        let ra = (base as usize) + 0x21;
+        let mut out = ScoopStackmapRecordRef::default();
+        let ok = scoop_stackmap_registry_lookup(ra, &mut out);
+        assert_eq!(ok, 1, "期望 lookup 能处理 -1/+1 归一化");
+        assert_eq!(out.patchpoint_id, 7);
+        assert_eq!(out.instruction_offset, 0x20);
+        assert_eq!(out.return_address, ra, "输出 record 应回填为真实 RA（lookup 输入）");
+    }
+}
+
+#[test]
+fn stackmap_registry_lookup_detects_ambiguity_between_ra_and_ra_minus_one() {
+    let _lock = STACKMAP_REGISTRY_TEST_LOCK.lock().unwrap();
+    unsafe {
+        scoop_stackmap_registry_reset();
+
+        // 设计：对同一个 lookup 输入 ra，`ra` 与 `ra-1` 分别命中不同 records。
+        // 该场景下不允许“挑一个最近的”，必须拒绝（无歧义命中）。
+        let base: u64 = 0x1000;
+        let section = build_stackmap_section_bytes(base, &[(1, 0x20), (2, 0x21)]);
+        let added = scoop_stackmap_registry_register_section(section.as_ptr(), section.len());
+        assert_eq!(added, 2);
+
+        let ra = (base as usize) + 0x21;
+        let mut out = ScoopStackmapRecordRef::default();
+        let ok = scoop_stackmap_registry_lookup(ra, &mut out);
+        assert_eq!(ok, 0, "存在多个候选 record 时应视为歧义并拒绝命中");
     }
 }
 

@@ -15,6 +15,7 @@
 #include "scoop_stackmap.h"
 
 #include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -428,6 +429,38 @@ typedef struct ScoopStackmapRegistry {
 static ScoopStackmapRegistry scoop_stackmap_registry = {0};
 static pthread_mutex_t scoop_stackmap_registry_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static int scoop_stackmap_parse_bool_env_default0(const char *key) {
+  const char *v = getenv(key);
+  if (v == 0 || v[0] == '\0') {
+    return 0;
+  }
+  // 常见真值：1/true/yes/on（大小写不敏感）。
+  if (strcmp(v, "1") == 0 || strcmp(v, "true") == 0 || strcmp(v, "TRUE") == 0 ||
+      strcmp(v, "yes") == 0 || strcmp(v, "YES") == 0 || strcmp(v, "on") == 0 ||
+      strcmp(v, "ON") == 0) {
+    return 1;
+  }
+  return 0;
+}
+
+static int scoop_stackmap_strict_mode_enabled(void) {
+  static int cached = -1;
+  if (cached >= 0) {
+    return cached;
+  }
+  cached = scoop_stackmap_parse_bool_env_default0("SCOOP_STACKMAP_STRICT");
+  return cached;
+}
+
+static int scoop_stackmap_record_identity_eq(const ScoopStackmapRecordRef *a,
+                                             const ScoopStackmapRecordRef *b) {
+  if (a == 0 || b == 0) {
+    return 0;
+  }
+  return a->function_address == b->function_address && a->instruction_offset == b->instruction_offset &&
+         a->patchpoint_id == b->patchpoint_id && a->record_size == b->record_size;
+}
+
 static int scoop_stackmap_registry_reserve_locked(size_t additional) {
   const size_t need = scoop_stackmap_registry.len + additional;
   if (need <= scoop_stackmap_registry.cap) {
@@ -489,6 +522,19 @@ static void scoop_stackmap_registry_sort_and_dedupe_locked(void) {
   for (size_t read = 1; read < scoop_stackmap_registry.len; read++) {
     if (scoop_stackmap_registry.entries[read].return_address ==
         scoop_stackmap_registry.entries[write - 1].return_address) {
+      // A2：同一 key 出现多个不同 record 属于“无歧义命中”破坏，严格模式下应 fail-fast。
+      if (!scoop_stackmap_record_identity_eq(&scoop_stackmap_registry.entries[read],
+                                             &scoop_stackmap_registry.entries[write - 1])) {
+        if (scoop_stackmap_strict_mode_enabled()) {
+          (void)fprintf(stderr,
+                        "[scooprt][stackmap] conflict: duplicate return_address=0x%lx "
+                        "(patchpoint_id=%llu vs %llu)\n",
+                        (unsigned long)scoop_stackmap_registry.entries[read].return_address,
+                        (unsigned long long)scoop_stackmap_registry.entries[write - 1].patchpoint_id,
+                        (unsigned long long)scoop_stackmap_registry.entries[read].patchpoint_id);
+          abort();
+        }
+      }
       continue;
     }
     scoop_stackmap_registry.entries[write] = scoop_stackmap_registry.entries[read];
@@ -1120,66 +1166,121 @@ uint32_t scoop_stackmap_registry_lookup(uintptr_t return_address, ScoopStackmapR
 
   (void)pthread_mutex_lock(&scoop_stackmap_registry_lock);
 
-  // 说明（T1504b）：
-  // - 栈帧中保存的 return address 通常指向 “call 指令之后的下一条指令”，而 stackmap record 的
-  //   `instruction_offset` 可能对应 callsite 或 call 指令本身；
-  // - 为避免平台/优化细节导致的 -1 或 +call_size 偏差，这里做一个小范围（<= 16 bytes）的容忍匹配：
-  //   - 先做精确匹配；
-  //   - 再尝试匹配“最近的前一条 record”或“最近的后一条 record”。
-  const uintptr_t MAX_DELTA = 16u;
+  // A2：无歧义命中（no best-effort nearest-match）
+  //
+  // 约定：
+  // - 输入 `return_address` 来自 unwind/栈帧保存的 RA（通常为 “call 之后的下一条指令”）；
+  // - registry 的 key 定义必须与该语义一致；在过渡期允许少量“确定性归一化”以兼容平台差异，
+  //   但不允许“在窗口内挑一个最近的 record”（会导致相邻 records 误配）。
+  //
+  // 归一化候选（按常见差异收敛为小集合）：
+  // - `ra`：理想情况（完全一致）；
+  // - `ra±1`：部分 unwind 实现返回 “call 指令内部地址”（常见为 ra-1）；
+  // - 注意：这里**不**做 `ra - call_len` 之类的“callsite ↔ return address”归一化：
+  //   - 真实产物中 LLVM stackmap v3 的 `InstructionOffset` 在我们目标平台上对应的是
+  //     **return address（call 之后的下一条指令）**；
+  //   - 做 `ra - call_len` 会在“相邻 records（连续 calls）”场景下引入歧义（例如 ra-4
+  //     刚好命中前一个 record 的 return address），导致 lookup 反而失败或误配；
+  //   - 如果某平台 unwind 提供的是 callsite 而不是 return address，应在 platform/unwind
+  //     层统一修正（见 GC-FIX Phase A3）。
+  uintptr_t candidates[8];
+  size_t cand_len = 0;
 
-  size_t left = 0;
-  size_t right = scoop_stackmap_registry.len;
-  while (left < right) {
-    const size_t mid = left + (right - left) / 2u;
-    const uintptr_t mid_ra = scoop_stackmap_registry.entries[mid].return_address;
-    if (mid_ra < return_address) {
-      left = mid + 1u;
-    } else {
-      right = mid;
+  // local helper：去重插入。
+  #define PUSH_CAND(v) \
+    do { \
+      const uintptr_t _v = (uintptr_t)(v); \
+      if (_v == 0) { \
+        break; \
+      } \
+      int _dup = 0; \
+      for (size_t _i = 0; _i < cand_len; _i++) { \
+        if (candidates[_i] == _v) { \
+          _dup = 1; \
+          break; \
+        } \
+      } \
+      if (!_dup && cand_len < (sizeof(candidates) / sizeof(candidates[0]))) { \
+        candidates[cand_len++] = _v; \
+      } \
+    } while (0)
+
+  PUSH_CAND(return_address);
+  if (return_address > 1u) {
+    PUSH_CAND(return_address - 1u);
+  }
+  if (return_address < (UINTPTR_MAX - 1u)) {
+    PUSH_CAND(return_address + 1u);
+  }
+
+  // call_len candidates intentionally omitted (see comment above).
+
+  // exact lookup helper
+  size_t hits[8];
+  size_t hit_len = 0;
+
+  for (size_t ci = 0; ci < cand_len; ci++) {
+    const uintptr_t key = candidates[ci];
+
+    size_t left = 0;
+    size_t right = scoop_stackmap_registry.len;
+    while (left < right) {
+      const size_t mid = left + (right - left) / 2u;
+      const uintptr_t mid_ra = scoop_stackmap_registry.entries[mid].return_address;
+      if (mid_ra < key) {
+        left = mid + 1u;
+      } else {
+        right = mid;
+      }
     }
-  }
 
-  // `left` 为 lower_bound（第一条 >= return_address）。
-  if (left < scoop_stackmap_registry.len &&
-      scoop_stackmap_registry.entries[left].return_address == return_address) {
-    *out = scoop_stackmap_registry.entries[left];
-    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-    return 1;
-  }
-
-  size_t best = (size_t)-1;
-  uintptr_t best_delta = MAX_DELTA + 1u;
-
-  if (left > 0) {
-    const uintptr_t prev_ra = scoop_stackmap_registry.entries[left - 1u].return_address;
-    if (return_address >= prev_ra) {
-      const uintptr_t delta = return_address - prev_ra;
-      if (delta <= MAX_DELTA) {
-        best = left - 1u;
-        best_delta = delta;
+    if (left < scoop_stackmap_registry.len &&
+        scoop_stackmap_registry.entries[left].return_address == key) {
+      if (hit_len < (sizeof(hits) / sizeof(hits[0]))) {
+        hits[hit_len++] = left;
       }
     }
   }
-  if (left < scoop_stackmap_registry.len) {
-    const uintptr_t next_ra = scoop_stackmap_registry.entries[left].return_address;
-    if (next_ra >= return_address) {
-      const uintptr_t delta = next_ra - return_address;
-      if (delta <= MAX_DELTA && delta < best_delta) {
-        best = left;
-        best_delta = delta;
+
+  if (hit_len == 0) {
+    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+    return 0;
+  }
+
+  const ScoopStackmapRecordRef first = scoop_stackmap_registry.entries[hits[0]];
+  for (size_t i = 1; i < hit_len; i++) {
+    const ScoopStackmapRecordRef *cur = &scoop_stackmap_registry.entries[hits[i]];
+    if (!scoop_stackmap_record_identity_eq(&first, cur)) {
+      if (scoop_stackmap_strict_mode_enabled()) {
+        (void)fprintf(stderr,
+                      "[scooprt][stackmap] ambiguous lookup: ra=0x%lx hits=%zu\n",
+                      (unsigned long)return_address,
+                      hit_len);
+        for (size_t hi = 0; hi < hit_len; hi++) {
+          const ScoopStackmapRecordRef *e = &scoop_stackmap_registry.entries[hits[hi]];
+          (void)fprintf(stderr,
+                        "  - key=0x%lx func=0x%lx inst_off=0x%x patchpoint_id=%llu\n",
+                        (unsigned long)e->return_address,
+                        (unsigned long)e->function_address,
+                        (unsigned)e->instruction_offset,
+                        (unsigned long long)e->patchpoint_id);
+        }
+        abort();
       }
+      (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
+      return 0;
     }
   }
 
-  if (best != (size_t)-1) {
-    *out = scoop_stackmap_registry.entries[best];
-    (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-    return 1;
-  }
+  *out = first;
+  // API 语义：返回的 record 中 `return_address` 代表“该栈帧真实保存的 RA”。
+  // 即使 registry key 与之存在可归一化差异（callsite/-1 等），也应在输出中回填为输入 RA。
+  out->return_address = return_address;
 
   (void)pthread_mutex_unlock(&scoop_stackmap_registry_lock);
-  return 0;
+  return 1;
+
+  #undef PUSH_CAND
 }
 
 void scoop_stackmap_registry_reset(void) {
