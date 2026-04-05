@@ -1,0 +1,34 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_trace_struct_string_field_basic.stdout
+//
+// 目标：GC-FIX Phase C2a（SROA）
+// - struct（值类型）里包含 `String` ref 字段时，即使只以“整体 struct”跨越 `__scoop_gc_collect()`，
+//   也必须被 statepoint/stackmap roots 枚举到，不需要在源码里手工提取字段 keepalive。
+
+import scoop.core.*
+
+struct Wrap(val s: String)
+
+fun make(): Wrap {
+    // 字符串字面量当前会分配一个 GC-managed `ScoopString`（T1502b3），作为可观测的 live root。
+    return Wrap { s: "hello" }
+}
+
+fun main(): Unit {
+    val w: Wrap = make()
+
+    // 预期：仅有 1 个 live 对象（ScoopString）。
+    println(__scoop_gc_debug_heap_object_count())
+
+    // 制造 1000 个不可达对象：应变为 1 + 1000。
+    __scoop_gc_debug_alloc_garbage(1000)
+    println(__scoop_gc_debug_heap_object_count())
+
+    // 手动触发一次 GC：应回收垃圾对象但保留 w.s 持有的字符串。
+    __scoop_gc_collect()
+    println(__scoop_gc_debug_heap_object_count())
+
+    // 在 safepoint 之后读取字段：若 w.s 未被 roots 扫描保活，这里会读到悬挂指针/错误对象。
+    println(w.s)
+}
+

@@ -511,18 +511,12 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
     }
 
     if (loc.type == SCOOP_STACKMAP_LOC_INDIRECT) {
-      const uintptr_t slot_addr = *(const uintptr_t *)addr;
-      if (slot_addr == 0) {
-        continue;
-      }
-      if ((slot_addr % (uintptr_t)sizeof(void *)) != 0u) {
-        if (out_error != 0) {
-          *out_error = SCOOP_STACKMAP_VISIT_ERR_UNALIGNED_SLOT;
-        }
-        return visited;
-      }
-
-      void **slot = (void **)slot_addr;
+      // LLVM statepoint stackmaps（当前 host 目标）会把 roots slots 编码为 `Indirect`（T1503b/C2a），
+      // 但其语义对我们来说仍然是“可写回的根槽位地址 = base + offset”。
+      //
+      // 重要：moving/compaction 需要把新地址写回 slot；因此这里将 `Indirect` 与 `Direct`
+      // 统一为“slot = (base + off)”的处理方式。
+      void **slot = (void **)addr;
       if (*slot == 0) {
         continue;
       }

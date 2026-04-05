@@ -1321,6 +1321,21 @@ void *scoop_alloc(uint64_t size) {
 #endif
 }
 
+// 手动触发一次 GC（带 statepoint/stackmap record 的 wrapper）。
+//
+// 说明：
+// - `scoop_gc_collect()` 本身返回 `void`；在 LLVM statepoint-example 策略下，某些情况下
+//   仅依赖返回 `void` 的调用点不会生成可用于 stackmap roots 的 statepoint record；
+// - 为了让 sysroot 测试辅助 `__scoop_gc_collect()` 也能稳定产出 record（并在 GC 期间枚举 roots），
+//   这里提供一个返回指针的 wrapper：后端可将其调用点作为 safepoint 重写为 statepoint。
+//
+// 返回值：
+// - 当前固定返回 NULL；仅用于让调用点在 IR 层面具备“返回 GC ref”的形状，从而生成 stackmaps。
+void *scoop_gc_collect_safepoint(void) {
+  scoop_gc_collect();
+  return 0;
+}
+
 // Typed alloc：在 `scoop_alloc` 的基础上写入对象头的 `type_desc`。
 //
 // 说明：

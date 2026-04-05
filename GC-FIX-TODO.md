@@ -203,7 +203,7 @@
   - `scoopc --features llvm`：生成 IR 断言不包含任何 `scoop_gc_frame_*` 调用；
   - stackmap dump：每个预期 safepoint 均能定位 record，并能枚举到 live roots。
 
-#### C2a) [TODO] statepoint pass pipeline：启用 SROA（让“聚合值里的 ref”可被追踪）
+#### C2a) [DONE] statepoint pass pipeline：启用 SROA（让“聚合值里的 ref”可被追踪）
 - 背景：当前 pipeline 只有 `mem2reg + rewrite-statepoints-for-gc`；当 GC 指针藏在值类型/聚合值字段里时，
   可能不会被 `rewrite-statepoints-for-gc` 识别为 gc-live pointer，导致必须在源码里手工“提取字段 keepalive”。
 - 目标：在 statepoint 重写前运行 SROA（必要时搭配 mem2reg），把值类型/聚合值里的 `addrspace(1)` 指针

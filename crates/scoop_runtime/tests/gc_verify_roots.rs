@@ -66,4 +66,3 @@ fn gc_verify_roots_env_smoke() {
         scoop_thread_unregister();
     }
 }
-

@@ -481,9 +481,11 @@ fn run_statepoint_pass_pipeline<'ctx>(
 ) -> Result<(), LlvmEmitError> {
     // 说明：
     // - T1503b：从手工 stackmap probe 迁移到 statepoint 产出的 stackmaps；
-    // - 先按最小闭环跑通：mem2reg + rewrite-statepoints-for-gc。
+    // - C2a：在 statepoint 重写前跑 SROA，把“聚合值里的 GC ref 字段”拆解为可追踪 SSA 值，
+    //   避免需要在源码里手工提取字段 keepalive。
+    // - 当前阶段保持最小但足够正确的闭环：SROA + mem2reg + rewrite-statepoints-for-gc。
     //   后续再逐步补齐 place-safepoints / pipeline 优化策略等。
-    const PASSES: &str = "function(mem2reg),rewrite-statepoints-for-gc";
+    const PASSES: &str = "function(sroa,mem2reg),rewrite-statepoints-for-gc";
 
     let options = PassBuilderOptions::create();
     options.set_verify_each(true);

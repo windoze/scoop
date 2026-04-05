@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use object::{Architecture, Object as _, ObjectSection as _};
 
-pub fn run(input: PathBuf, verify_roots: bool) -> Result<()> {
+pub fn run(input: PathBuf, verify_roots: bool, dump_records: bool) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -44,21 +44,45 @@ pub fn run(input: PathBuf, verify_roots: bool) -> Result<()> {
     println!("constants: {}", header.num_constants);
     println!("records: {}", header.num_records);
 
-    if verify_roots {
+    if verify_roots || dump_records {
         let section = scoopc::stackmap::StackMapSection::parse(section_bytes)
             .into_diagnostic()
             .wrap_err("解析 stackmap section 失败（StackMapSection::parse）")?;
 
         let cfg = roots_contract_config_from_arch(obj.architecture())?;
-        section
-            .verify_roots_contract(cfg)
-            .into_diagnostic()
-            .wrap_err("stackmap roots 契约校验失败（--verify-roots）")?;
+        if verify_roots {
+            section
+                .verify_roots_contract(cfg)
+                .into_diagnostic()
+                .wrap_err("stackmap roots 契约校验失败（--verify-roots）")?;
+            println!("verify-roots: ok");
+        }
 
-        println!("verify-roots: ok");
+        if dump_records {
+            dump_records_locations(&section);
+        }
     }
 
     Ok(())
+}
+
+fn dump_records_locations(section: &scoopc::stackmap::StackMapSection) {
+    println!();
+    println!("records-detail:");
+    for (i, rec) in section.records.iter().enumerate() {
+        println!(
+            "- record[{i}] patchpoint_id=0x{:x} inst_off=0x{:x} locs={}",
+            rec.patchpoint_id,
+            rec.instruction_offset,
+            rec.locations.len()
+        );
+        for (j, loc) in rec.locations.iter().enumerate() {
+            println!(
+                "  loc[{j}] kind={:?} size={} reg={} off={}",
+                loc.kind, loc.size, loc.dwarf_reg, loc.offset
+            );
+        }
+    }
 }
 
 /// 在 object file（可执行文件/`.o`）中查找 stackmap section 并返回其名称与字节内容。

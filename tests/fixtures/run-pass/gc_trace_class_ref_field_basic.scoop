@@ -10,6 +10,9 @@ import scoop.core.*
 
 class Holder(val v: Any)
 
+// 说明：用于在优化 pass 存在时，强制把 holder 作为“可观测 use”保留到 safepoint 之后。
+fun blackBoxHolder(value: Holder): Unit {}
+
 fun make(): Holder {
     // `Int -> Any` 会触发 boxing（heap 分配），且 boxed object 仅通过 class 字段可达。
     val h = Holder(1)
@@ -27,8 +30,8 @@ fun main(): Int {
     // 若 class 字段未被 GC 扫描，boxed int 会被回收，count 会回落到 1。
     println(__scoop_gc_debug_heap_object_count())
 
-    // 保证 h 在 GC 调用点后仍然是 live（避免被优化掉）。
-    val _also_keep: Holder = h
+    // 让 h 在 safepoint（collect）之后仍然有 use，确保 boxed int 在 GC 时可达。
+    blackBoxHolder(h)
 
     return 0
 }

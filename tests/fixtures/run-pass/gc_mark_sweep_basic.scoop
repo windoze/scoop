@@ -8,6 +8,10 @@
 
 import scoop.core.*
 
+// 说明：该函数用于在优化 pass（例如 SROA）存在时，仍然让某个 ref 在 safepoint 之后保持“可观测的 use”，
+// 避免被当作 dead value 提前裁剪导致 GC roots 不完整。
+fun blackBoxAny(value: Any): Unit {}
+
 fun main(): Unit {
     // live root：会触发 `Int -> Any` 装箱（heap 分配），并写入当前函数的 GC roots slot。
     val keep: Any = 1
@@ -23,7 +27,6 @@ fun main(): Unit {
     __scoop_gc_collect()
     println(__scoop_gc_debug_heap_object_count())
 
-    // 避免 keep 被“未使用”优化掉（O0 下通常不需要，但保持语义显式）。
-    val _also_keep: Any = keep
+    // 让 keep 在 safepoint（collect）之后仍然有 use，确保它在 GC 时是 live root。
+    blackBoxAny(keep)
 }
-

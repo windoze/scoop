@@ -55,7 +55,8 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::DumpStackmaps {
             input,
             verify_roots,
-        } => dump_stackmaps::run(input, verify_roots),
+            dump_records,
+        } => dump_stackmaps::run(input, verify_roots, dump_records),
         Command::Build {
             input,
             output,

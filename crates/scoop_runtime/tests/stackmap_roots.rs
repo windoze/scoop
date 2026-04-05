@@ -205,9 +205,9 @@ fn stackmap_record_indirect_location_yields_expected_slot_address() {
     };
 
     let mut stack = vec![0usize; 8];
-    let inner_slot_addr = (&mut stack[3] as *mut usize) as usize;
-    stack[2] = inner_slot_addr; // *(sp+16) == &stack[3]
-    stack[3] = 0x5678; // non-null，使 visitor 一定被调用。
+    // 说明：LLVM statepoint stackmaps（当前 host 目标）会把 roots slots 编码为 `Indirect`，
+    // 但其语义对 runtime 来说仍然是“slot = base + offset”（可写回）。
+    stack[2] = 0x5678; // *(sp+16) == non-null，使 visitor 一定被调用。
     stack[4] = 0; // *(sp+32) == null，跳过第二个 indirect roots slot。
     let sp = stack.as_mut_ptr() as usize;
 
@@ -233,7 +233,7 @@ fn stackmap_record_indirect_location_yields_expected_slot_address() {
     assert_eq!(err, VISIT_OK);
     assert_eq!(visited, 1);
     assert_eq!(collector.len, 1);
-    assert_eq!(slots[0], sp + (3 * std::mem::size_of::<usize>()));
+    assert_eq!(slots[0], sp + 16);
 }
 
 #[test]

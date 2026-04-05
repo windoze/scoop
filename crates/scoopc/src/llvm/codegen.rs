@@ -3900,8 +3900,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 }
 
-                let rt = self.declare_runtime_gc_collect();
-                let _ = self.builder.build_call(rt, &[], "gc_collect")?;
+                // 重要：该调用点必须能产出 stackmap record，否则 GC 期间无法枚举 managed roots。
+                let rt = self.declare_runtime_gc_collect_safepoint();
+                let _ = self.builder.build_call(rt, &[], "gc_collect_safepoint")?;
                 return Ok(CgValue::unit());
             }
 
@@ -19131,6 +19132,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // `void scoop_gc_collect(void)`
         let fn_ty = self.context.void_type().fn_type(&[], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    fn declare_runtime_gc_collect_safepoint(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_collect_safepoint";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_gc_collect_safepoint(void)`
+        //
+        // 说明：
+        // - 该函数在 C runtime 内部调用 `scoop_gc_collect()` 并返回 NULL；
+        // - LLVM statepoint pipeline 依赖其“返回 GC ref”的形状，在调用点产出 stackmap record；
+        // - codegen 会丢弃返回值，仅把它作为 safepoint 边界（供 roots 枚举/更新）。
+        let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let fn_ty = ret_ptr_ty.fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

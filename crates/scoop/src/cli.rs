@@ -78,6 +78,12 @@ pub enum Command {
         /// 失败时会返回结构化诊断（指出哪个 record/location 不符合契约）。
         #[arg(long)]
         verify_roots: bool,
+
+        /// 打印每条 stackmap record 的 locations 明细（用于排查 roots 误判等问题）
+        ///
+        /// 说明：默认只输出稳定 header；启用该开关后会输出额外调试信息（不建议用于 fixtures）。
+        #[arg(long)]
+        dump_records: bool,
     },
 
     /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）

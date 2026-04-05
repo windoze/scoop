@@ -75,6 +75,7 @@
   X(scoop_fs_read_all_text_utf8) \
   X(scoop_fs_write_all_text_utf8) \
   X(scoop_gc_collect) \
+  X(scoop_gc_collect_safepoint) \
   X(scoop_gc_debug_alloc_garbage) \
   X(scoop_gc_debug_heap_bytes_allocated) \
   X(scoop_gc_debug_heap_bytes_freed) \

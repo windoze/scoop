@@ -7,6 +7,10 @@
 
 import scoop.core.*
 
+// 说明：用于在优化 pass（例如 SROA）存在时，仍然让某个 ref 在 safepoint 之后保持“可观测的 use”，
+// 避免被当作 dead value 提前裁剪导致 GC roots 不完整。
+fun blackBoxAny(value: Any): Unit {}
+
 fun main(): Unit {
     // 1) 创建一个 heap 对象（Int -> Any boxing 会调用 `scoop_alloc`）。
     // 2) 在 unsafe context 内 pin，并返回 `Pinned` 值类型 handle。
@@ -29,6 +33,6 @@ fun main(): Unit {
     __scoop_gc_collect()
     println(__scoop_gc_debug_heap_object_count())
 
-    // 避免 keep_again 被“未使用”优化掉（保持语义显式）。
-    val _use: Any = keep_again
+    // 让 keep_again 在 safepoint（collect）之后仍然有 use，确保它在 GC 时是 live root。
+    blackBoxAny(keep_again)
 }
