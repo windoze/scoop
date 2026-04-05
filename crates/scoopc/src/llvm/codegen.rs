@@ -200,38 +200,12 @@ struct CgLocal<'ctx> {
     ty: CgTy,
     ptr: PointerValue<'ctx>,
     mutable: bool,
-    /// 若该 local 是“可被 GC 扫描的引用”，则这里记录其对应的 shadow stack roots slot 指针。
-    gc_root_slot: Option<PointerValue<'ctx>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AtomicIntLvalueMode {
     ReadOnly,
     ReadWrite,
-}
-
-/// 当前函数的 shadow stack（GC roots）插桩状态（TODO T0816）。
-struct GcFrameState<'ctx> {
-    frame_ptr: PointerValue<'ctx>,
-    root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>>,
-    /// 对于“值类型（struct）里包含 ref/string 字段”的局部变量，额外为其每个
-    /// ref/string 字段分配一个 shadow stack roots slot，用于：
-    /// - GC tracing：避免仅存放在 struct alloca 内的引用在 safepoint 被误回收；
-    /// - moving GC：slot 值会被原地更新；后续字段读取可从 slot 拿到已修复的新地址。
-    embedded_root_slots: HashMap<hir::SymbolId, Vec<EmbeddedGcRootSlot<'ctx>>>,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct EmbeddedGcRootSlot<'ctx> {
-    field_idx: u32,
-    field_ty: CgTy,
-    slot_ptr: PointerValue<'ctx>,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct EmbeddedGcRootFieldPlan {
-    field_idx: u32,
-    field_ty: CgTy,
 }
 
 /// `-> resume` lowering（T0616）在 codegen 阶段使用的“立即恢复”上下文。
@@ -311,7 +285,6 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - 对于 `class Derived : Base()`，`Derived` 的对象 payload 需要以前缀形式包含 `Base` 的字段；
     /// - codegen 侧会把该布局“按继承链展开”，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
     class_init_layout_cache: HashMap<String, hir::ClassInit>,
-    gc_frame: Option<GcFrameState<'ctx>>,
     /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的“早退返回默认值”）。
     ///
     /// 说明：
@@ -385,7 +358,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             option_niche_cache: HashMap::new(),
             enum_cg_layout_cache: HashMap::new(),
             class_init_layout_cache: HashMap::new(),
-            gc_frame: None,
             current_fun_return_ty: None,
             raise_target_stack: Vec::new(),
             effect_unwind_target_stack: Vec::new(),
@@ -758,8 +730,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        self.setup_gc_frame(fun)?;
-
         self.env.push_scope();
         self.codegen_fun_params(fun, llvm_fun)?;
 
@@ -777,262 +747,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    fn setup_gc_frame(&mut self, fun: &hir::FunDecl) -> Result<(), LlvmEmitError> {
-        let root_ids = self.collect_gc_root_ids(fun);
-        let embedded = self.collect_embedded_gc_root_plans(fun)?;
-        self.setup_gc_frame_for_root_ids(fun.span, &root_ids, &embedded)
-    }
-
-    fn setup_gc_frame_for_root_ids(
-        &mut self,
-        at: crate::span::Span,
-        root_ids: &[hir::SymbolId],
-        embedded: &[(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)],
-    ) -> Result<(), LlvmEmitError> {
-        let embedded_count: usize = embedded.iter().map(|(_, fields)| fields.len()).sum();
-        if root_ids.is_empty() && embedded_count == 0 {
-            return Ok(());
-        }
-
-        let root_count = root_ids
-            .len()
-            .saturating_add(embedded_count)
-            .min(u32::MAX as usize) as u32;
-        let frame_ty = self.llvm_gc_frame_type(root_count);
-
-        // 说明：frame 本身也是栈上的一个 local；放在 entry block 的 alloca 区域，便于后续
-        // 统一做 mem2reg / 优化（以及未来可能的 `gc.statepoint` 迁移）。
-        let frame_ptr = self.create_entry_alloca_raw(at, "gc_frame", frame_ty.into())?;
-
-        let i32_ty = self.context.i32_type();
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-
-        // 初始化 header：root_count + reserved + prev（prev 将由 push 写入，但这里也写 0 以便调试）。
-        let prev_ptr = self
-            .builder
-            .build_struct_gep(frame_ty, frame_ptr, 0, "gc_prev_gep")?;
-        let root_count_ptr =
-            self.builder
-                .build_struct_gep(frame_ty, frame_ptr, 1, "gc_root_count_gep")?;
-        let reserved_ptr =
-            self.builder
-                .build_struct_gep(frame_ty, frame_ptr, 2, "gc_reserved_gep")?;
-
-        let _ = self.builder.build_store(prev_ptr, i8_ptr_ty.const_null())?;
-        let _ = self
-            .builder
-            .build_store(root_count_ptr, i32_ty.const_int(root_count as u64, false))?;
-        let _ = self
-            .builder
-            .build_store(reserved_ptr, i32_ty.const_zero())?;
-
-        // roots[] 初始化为 NULL，并记录每个 local 对应的 slot 指针。
-        let roots_arr_ptr =
-            self.builder
-                .build_struct_gep(frame_ty, frame_ptr, 3, "gc_roots_arr_gep")?;
-        let roots_base = self.builder.build_pointer_cast(
-            roots_arr_ptr,
-            gc_i8_ptr_ty.ptr_type(AddressSpace::default()),
-            "gc_roots_base",
-        )?;
-
-        let mut root_slots: HashMap<hir::SymbolId, PointerValue<'ctx>> =
-            HashMap::with_capacity(root_ids.len());
-        let mut embedded_root_slots: HashMap<hir::SymbolId, Vec<EmbeddedGcRootSlot<'ctx>>> =
-            HashMap::with_capacity(embedded.len());
-
-        let mut next_idx: u32 = 0;
-
-        for id in root_ids {
-            let index = i32_ty.const_int(next_idx as u64, false);
-            let slot_ptr = unsafe {
-                self.builder.build_in_bounds_gep(
-                    gc_i8_ptr_ty,
-                    roots_base,
-                    &[index],
-                    &format!("gc_root_slot_{next_idx}"),
-                )?
-            };
-            let _ = self
-                .builder
-                .build_store(slot_ptr, gc_i8_ptr_ty.const_null())?;
-            root_slots.insert(*id, slot_ptr);
-            next_idx = next_idx.saturating_add(1);
-        }
-
-        for (owner, fields) in embedded {
-            let mut slots: Vec<EmbeddedGcRootSlot<'ctx>> = Vec::with_capacity(fields.len());
-            for field in fields {
-                let index = i32_ty.const_int(next_idx as u64, false);
-                let slot_ptr = unsafe {
-                    self.builder.build_in_bounds_gep(
-                        gc_i8_ptr_ty,
-                        roots_base,
-                        &[index],
-                        &format!("gc_root_slot_{next_idx}"),
-                    )?
-                };
-                let _ = self
-                    .builder
-                    .build_store(slot_ptr, gc_i8_ptr_ty.const_null())?;
-                slots.push(EmbeddedGcRootSlot {
-                    field_idx: field.field_idx,
-                    field_ty: field.field_ty,
-                    slot_ptr,
-                });
-                next_idx = next_idx.saturating_add(1);
-            }
-            embedded_root_slots.insert(*owner, slots);
-        }
-
-        // push(frame)
-        let push = self.declare_runtime_gc_frame_push();
-        let frame_i8 = self
-            .builder
-            .build_pointer_cast(frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
-        let _ = self
-            .builder
-            .build_call(push, &[frame_i8.into()], "gc_frame_push")?;
-
-        self.gc_frame = Some(GcFrameState {
-            frame_ptr,
-            root_slots,
-            embedded_root_slots,
-        });
-        Ok(())
-    }
-
-    fn gc_root_slot_for(&self, id: hir::SymbolId) -> Option<PointerValue<'ctx>> {
-        self.gc_frame
-            .as_ref()
-            .and_then(|state| state.root_slots.get(&id).copied())
-    }
-
-    fn embedded_gc_root_slots_cloned(
-        &self,
-        id: hir::SymbolId,
-    ) -> Option<Vec<EmbeddedGcRootSlot<'ctx>>> {
-        self.gc_frame
-            .as_ref()
-            .and_then(|state| state.embedded_root_slots.get(&id).cloned())
-    }
-
-    fn store_embedded_gc_roots_for_struct_local(
-        &mut self,
-        at: crate::span::Span,
-        local_ty: CgTy,
-        local_ptr: PointerValue<'ctx>,
-        slots: &[EmbeddedGcRootSlot<'ctx>],
-    ) -> Result<(), LlvmEmitError> {
-        let CgTy::Struct(struct_ty) = local_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "embedded gc roots local type",
-                at: at.into(),
-            });
-        };
-
-        if slots.is_empty() {
-            return Ok(());
-        }
-
-        let llvm_struct_ty = self.llvm_struct_type(at, struct_ty)?;
-
-        for slot in slots {
-            if !matches!(slot.field_ty, CgTy::Ref | CgTy::String) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "embedded gc roots field type",
-                    at: at.into(),
-                });
-            }
-
-            let field_ptr = self.builder.build_struct_gep(
-                llvm_struct_ty,
-                local_ptr,
-                slot.field_idx,
-                "embedded_gc_field_gep",
-            )?;
-            let llvm_field_ty = self.llvm_basic_type_of(at, slot.field_ty)?;
-            let loaded =
-                self.builder
-                    .build_load(llvm_field_ty, field_ptr, "load_embedded_gc_field")?;
-
-            self.store_gc_root_slot_value(
-                at,
-                slot.slot_ptr,
-                CgValue {
-                    ty: slot.field_ty,
-                    value: Some(loaded),
-                },
-            )?;
-        }
-
-        Ok(())
-    }
-
-    fn load_embedded_gc_root_slot_value(
-        &mut self,
-        at: crate::span::Span,
-        slot: EmbeddedGcRootSlot<'ctx>,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let loaded = self
-            .builder
-            .build_load(gc_i8_ptr_ty, slot.slot_ptr, "load_embedded_gc_root")?
-            .into_pointer_value();
-
-        Ok(match slot.field_ty {
-            CgTy::Ref => CgValue {
-                ty: CgTy::Ref,
-                value: Some(loaded.into()),
-            },
-            CgTy::String => {
-                let casted = self.builder.build_pointer_cast(
-                    loaded,
-                    self.llvm_scoop_string_ptr_type(),
-                    "embedded_root_to_string",
-                )?;
-                CgValue {
-                    ty: CgTy::String,
-                    value: Some(casted.into()),
-                }
-            }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "embedded gc root load type",
-                    at: at.into(),
-                });
-            }
-        })
-    }
-
-    fn store_gc_root_slot_value(
-        &mut self,
-        at: crate::span::Span,
-        slot_ptr: PointerValue<'ctx>,
-        value: CgValue<'ctx>,
-    ) -> Result<(), LlvmEmitError> {
-        let Some(raw) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "gc root value",
-                at: at.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "gc root value type",
-                at: at.into(),
-            });
-        };
-
-        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let casted = self
-            .builder
-            .build_pointer_cast(ptr, i8_ptr_ty, "gc_root_i8")?;
-        let _ = self.builder.build_store(slot_ptr, casted)?;
-        Ok(())
-    }
-
     pub(crate) fn codegen_main_exit_code(
         mut self,
         fun: &hir::FunDecl,
@@ -1043,9 +757,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             signed: true,
         }));
 
-        // T0910：GC v0 mark-sweep 需要能够扫描入口函数的 roots（run-pass fixtures 会在 main 中触发 GC）。
-        self.setup_gc_frame(fun)?;
-
         self.env.push_scope();
 
         let exit = match fun.body.as_ref() {
@@ -1053,433 +764,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None => self.context.i32_type().const_int(0, false),
         };
 
-        // main 的返回由调用点在外层插入（见 `llvm/mod.rs`），因此这里需要显式 pop gc frame。
-        if let Some(gc) = self.gc_frame.as_ref() {
-            let pop = self.declare_runtime_gc_frame_pop();
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-            let frame_i8 =
-                self.builder
-                    .build_pointer_cast(gc.frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
-            let _ = self
-                .builder
-                .build_call(pop, &[frame_i8.into()], "gc_frame_pop")?;
-        }
-
         self.env.pop_scope();
         Ok(exit)
-    }
-
-    fn collect_gc_root_ids(&self, fun: &hir::FunDecl) -> Vec<hir::SymbolId> {
-        let mut out: Vec<hir::SymbolId> = Vec::new();
-        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
-
-        for param in &fun.params {
-            if matches!(
-                self.cg_ty_of(param.ty),
-                Some(CgTy::Ref) | Some(CgTy::String)
-            ) && seen.insert(param.id)
-            {
-                out.push(param.id);
-            }
-        }
-
-        if let Some(body) = fun.body.as_ref() {
-            self.collect_gc_root_ids_in_block(body, &mut out, &mut seen);
-        }
-
-        out
-    }
-
-    fn collect_embedded_gc_root_plans(
-        &self,
-        fun: &hir::FunDecl,
-    ) -> Result<Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>, LlvmEmitError> {
-        let mut out: Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)> = Vec::new();
-        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
-
-        for param in &fun.params {
-            self.collect_embedded_gc_root_plans_for_binder(
-                param.span, param.id, param.ty, &mut out, &mut seen,
-            )?;
-        }
-
-        if let Some(body) = fun.body.as_ref() {
-            self.collect_embedded_gc_root_plans_in_block(body, &mut out, &mut seen)?;
-        }
-
-        Ok(out)
-    }
-
-    fn collect_embedded_gc_root_plans_for_binder(
-        &self,
-        at: crate::span::Span,
-        id: hir::SymbolId,
-        ty: TypeId,
-        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
-        seen: &mut HashSet<hir::SymbolId>,
-    ) -> Result<(), LlvmEmitError> {
-        if !seen.insert(id) {
-            return Ok(());
-        }
-
-        let Some(CgTy::Struct(struct_ty)) = self.cg_ty_of(ty) else {
-            return Ok(());
-        };
-
-        let fields = self.collect_embedded_gc_root_fields_for_struct(at, struct_ty)?;
-        if fields.is_empty() {
-            return Ok(());
-        }
-
-        out.push((id, fields));
-        Ok(())
-    }
-
-    fn collect_embedded_gc_root_plans_in_block(
-        &self,
-        block: &hir::Block,
-        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
-        seen: &mut HashSet<hir::SymbolId>,
-    ) -> Result<(), LlvmEmitError> {
-        for stmt in &block.stmts {
-            match &stmt.kind {
-                hir::StmtKind::Empty => {}
-                hir::StmtKind::Val(decl) => {
-                    if let Some(id) = decl.id {
-                        self.collect_embedded_gc_root_plans_for_binder(
-                            decl.span, id, decl.ty, out, seen,
-                        )?;
-                    }
-                    if let Some(init) = decl.init.as_ref() {
-                        self.collect_embedded_gc_root_plans_in_expr(init, out, seen)?;
-                    }
-                }
-                hir::StmtKind::Expr(expr) => {
-                    self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-                }
-                hir::StmtKind::Assign { lhs, rhs, .. } => {
-                    self.collect_embedded_gc_root_plans_in_expr(lhs, out, seen)?;
-                    self.collect_embedded_gc_root_plans_in_expr(rhs, out, seen)?;
-                }
-                hir::StmtKind::While { cond, body } => {
-                    self.collect_embedded_gc_root_plans_in_expr(cond, out, seen)?;
-                    self.collect_embedded_gc_root_plans_in_block(body, out, seen)?;
-                }
-                hir::StmtKind::Return { value } => {
-                    if let Some(expr) = value.as_ref() {
-                        self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-                    }
-                }
-                hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {}
-            }
-        }
-        Ok(())
-    }
-
-    fn collect_embedded_gc_root_plans_in_expr(
-        &self,
-        expr: &hir::Expr,
-        out: &mut Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)>,
-        seen: &mut HashSet<hir::SymbolId>,
-    ) -> Result<(), LlvmEmitError> {
-        match &expr.kind {
-            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Literal(_)
-            | hir::ExprKind::VarRef(_)
-            | hir::ExprKind::UnresolvedIdent { .. } => {}
-            hir::ExprKind::StructLit { fields, .. } => {
-                for field in fields {
-                    self.collect_embedded_gc_root_plans_in_expr(&field.value, out, seen)?;
-                }
-            }
-            hir::ExprKind::TupleLit { elements } => {
-                for elem in elements {
-                    self.collect_embedded_gc_root_plans_in_expr(elem, out, seen)?;
-                }
-            }
-            hir::ExprKind::InterpolatedString { parts, .. } => {
-                for part in parts {
-                    if let hir::InterpolatedStringPart::Expr { expr } = part {
-                        self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-                    }
-                }
-            }
-            hir::ExprKind::Unary { expr, .. } => {
-                self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-            }
-            hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.collect_embedded_gc_root_plans_in_expr(lhs, out, seen)?;
-                self.collect_embedded_gc_root_plans_in_expr(rhs, out, seen)?;
-            }
-            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
-                self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-            }
-            hir::ExprKind::Block(block) => {
-                self.collect_embedded_gc_root_plans_in_block(block, out, seen)?;
-            }
-            hir::ExprKind::Closure(_) => {}
-            hir::ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-            } => {
-                self.collect_embedded_gc_root_plans_in_expr(cond, out, seen)?;
-                self.collect_embedded_gc_root_plans_in_expr(then_branch, out, seen)?;
-                if let Some(else_branch) = else_branch.as_ref() {
-                    self.collect_embedded_gc_root_plans_in_expr(else_branch, out, seen)?;
-                }
-            }
-            hir::ExprKind::When { subject, arms } => {
-                self.collect_embedded_gc_root_plans_in_expr(subject, out, seen)?;
-                for arm in arms {
-                    if let Some(guard) = arm.guard.as_ref() {
-                        self.collect_embedded_gc_root_plans_in_expr(guard, out, seen)?;
-                    }
-                    self.collect_embedded_gc_root_plans_in_expr(&arm.body, out, seen)?;
-                }
-            }
-            hir::ExprKind::Call { callee, args } => {
-                self.collect_embedded_gc_root_plans_in_expr(callee, out, seen)?;
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            self.collect_embedded_gc_root_plans_in_expr(value, out, seen)?;
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::MemberAccess { receiver, .. } => {
-                self.collect_embedded_gc_root_plans_in_expr(receiver, out, seen)?;
-            }
-            hir::ExprKind::Perform { args, .. } => {
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            self.collect_embedded_gc_root_plans_in_expr(expr, out, seen)?;
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            self.collect_embedded_gc_root_plans_in_expr(value, out, seen)?;
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::Handle(handle) => {
-                self.collect_embedded_gc_root_plans_in_block(&handle.body, out, seen)?;
-                for arm in &handle.arms {
-                    for binder in &arm.op.binders {
-                        self.collect_embedded_gc_root_plans_for_binder(
-                            binder.span,
-                            binder.id,
-                            binder.ty,
-                            out,
-                            seen,
-                        )?;
-                    }
-                    self.collect_embedded_gc_root_plans_in_expr(&arm.body, out, seen)?;
-                }
-                if let Some(finally) = handle.finally.as_ref() {
-                    self.collect_embedded_gc_root_plans_in_block(finally, out, seen)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn collect_embedded_gc_root_fields_for_struct(
-        &self,
-        at: crate::span::Span,
-        struct_ty: TypeId,
-    ) -> Result<Vec<EmbeddedGcRootFieldPlan>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "embedded gc roots struct type id",
-                at: at.into(),
-            });
-        };
-
-        let layout =
-            self.struct_layouts
-                .get(&nominal.fqn)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "embedded gc roots struct layout",
-                    at: at.into(),
-                })?;
-
-        let mut fields: Vec<EmbeddedGcRootFieldPlan> = Vec::new();
-        for (idx, field) in layout.fields.iter().enumerate() {
-            let cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
-            if matches!(cg, CgTy::Ref | CgTy::String) {
-                fields.push(EmbeddedGcRootFieldPlan {
-                    field_idx: idx as u32,
-                    field_ty: cg,
-                });
-            }
-        }
-
-        Ok(fields)
-    }
-
-    fn collect_gc_root_ids_in_block(
-        &self,
-        block: &hir::Block,
-        out: &mut Vec<hir::SymbolId>,
-        seen: &mut HashSet<hir::SymbolId>,
-    ) {
-        for stmt in &block.stmts {
-            match &stmt.kind {
-                hir::StmtKind::Empty => {}
-                hir::StmtKind::Val(decl) => {
-                    if matches!(self.cg_ty_of(decl.ty), Some(CgTy::Ref) | Some(CgTy::String)) {
-                        if let Some(id) = decl.id {
-                            if seen.insert(id) {
-                                out.push(id);
-                            }
-                        }
-                    }
-                    if let Some(init) = decl.init.as_ref() {
-                        self.collect_gc_root_ids_in_expr(init, out, seen);
-                    }
-                }
-                hir::StmtKind::Expr(expr) => self.collect_gc_root_ids_in_expr(expr, out, seen),
-                hir::StmtKind::Assign { lhs, rhs, .. } => {
-                    self.collect_gc_root_ids_in_expr(lhs, out, seen);
-                    self.collect_gc_root_ids_in_expr(rhs, out, seen);
-                }
-                hir::StmtKind::While { cond, body } => {
-                    self.collect_gc_root_ids_in_expr(cond, out, seen);
-                    self.collect_gc_root_ids_in_block(body, out, seen);
-                }
-                hir::StmtKind::Return { value } => {
-                    if let Some(expr) = value.as_ref() {
-                        self.collect_gc_root_ids_in_expr(expr, out, seen);
-                    }
-                }
-                hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {}
-            }
-        }
-    }
-
-    fn collect_gc_root_ids_in_expr(
-        &self,
-        expr: &hir::Expr,
-        out: &mut Vec<hir::SymbolId>,
-        seen: &mut HashSet<hir::SymbolId>,
-    ) {
-        match &expr.kind {
-            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Literal(_)
-            | hir::ExprKind::VarRef(_)
-            | hir::ExprKind::UnresolvedIdent { .. } => {}
-            hir::ExprKind::StructLit { fields, .. } => {
-                for field in fields {
-                    self.collect_gc_root_ids_in_expr(&field.value, out, seen);
-                }
-            }
-            hir::ExprKind::TupleLit { elements } => {
-                for elem in elements {
-                    self.collect_gc_root_ids_in_expr(elem, out, seen);
-                }
-            }
-            hir::ExprKind::InterpolatedString { parts, .. } => {
-                for part in parts {
-                    if let hir::InterpolatedStringPart::Expr { expr } = part {
-                        self.collect_gc_root_ids_in_expr(expr, out, seen);
-                    }
-                }
-            }
-            hir::ExprKind::Unary { expr, .. } => self.collect_gc_root_ids_in_expr(expr, out, seen),
-            hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.collect_gc_root_ids_in_expr(lhs, out, seen);
-                self.collect_gc_root_ids_in_expr(rhs, out, seen);
-            }
-            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
-                self.collect_gc_root_ids_in_expr(expr, out, seen);
-            }
-            hir::ExprKind::Block(block) => self.collect_gc_root_ids_in_block(block, out, seen),
-            hir::ExprKind::Closure(_) => {
-                // closure body 将在其自身的函数体里插桩；此处不把 closure 内部 locals 计入外层函数。
-            }
-            hir::ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-            } => {
-                self.collect_gc_root_ids_in_expr(cond, out, seen);
-                self.collect_gc_root_ids_in_expr(then_branch, out, seen);
-                if let Some(else_branch) = else_branch.as_ref() {
-                    self.collect_gc_root_ids_in_expr(else_branch, out, seen);
-                }
-            }
-            hir::ExprKind::When { subject, arms } => {
-                self.collect_gc_root_ids_in_expr(subject, out, seen);
-                for arm in arms {
-                    if let Some(guard) = arm.guard.as_ref() {
-                        self.collect_gc_root_ids_in_expr(guard, out, seen);
-                    }
-                    self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
-                }
-            }
-            hir::ExprKind::Call { callee, args } => {
-                self.collect_gc_root_ids_in_expr(callee, out, seen);
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            self.collect_gc_root_ids_in_expr(expr, out, seen);
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            self.collect_gc_root_ids_in_expr(value, out, seen);
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::MemberAccess { receiver, .. } => {
-                self.collect_gc_root_ids_in_expr(receiver, out, seen);
-            }
-            hir::ExprKind::Perform { args, .. } => {
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(expr) => {
-                            self.collect_gc_root_ids_in_expr(expr, out, seen);
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            self.collect_gc_root_ids_in_expr(value, out, seen);
-                        }
-                    }
-                }
-            }
-            hir::ExprKind::Handle(handle) => {
-                self.collect_gc_root_ids_in_block(&handle.body, out, seen);
-                for arm in &handle.arms {
-                    // handler arm binder 也可能是引用类型（例如 `catch (e: Any)`）：
-                    // - lowering 后会变成一个局部 slot；
-                    // - 若它是 ref，则必须为其分配 GC root slot，避免 error 值被错误回收。
-                    for binder in &arm.op.binders {
-                        if matches!(self.cg_ty_of(binder.ty), Some(CgTy::Ref))
-                            && seen.insert(binder.id)
-                        {
-                            out.push(binder.id);
-                        }
-                    }
-                    // `, k ->`：continuation binder 本身也是引用类型（Continuation 是 class）。
-                    if let hir::HandleArmKind::EscapeContinuation { continuation } = arm.kind {
-                        if seen.insert(continuation) {
-                            out.push(continuation);
-                        }
-                    }
-                    self.collect_gc_root_ids_in_expr(&arm.body, out, seen);
-                }
-                if let Some(finally) = handle.finally.as_ref() {
-                    self.collect_gc_root_ids_in_block(finally, out, seen);
-                }
-            }
-        }
     }
 
     fn codegen_block_as_exit_code(
@@ -1597,16 +883,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T0809：局部变量统一降为 alloca + store/load；`val/var` 仅在“是否允许赋值”上有差异。
         let name = decl.name.as_deref().unwrap_or("local");
         let ptr = self.create_entry_alloca(decl.span, name, target_ty)?;
-        let stored = self.store_local_value(decl.span, ptr, target_ty, init)?;
-
-        let gc_root_slot = self.gc_root_slot_for(id);
-        if let Some(slot_ptr) = gc_root_slot {
-            self.store_gc_root_slot_value(decl.span, slot_ptr, stored)?;
-        }
-
-        if let Some(slots) = self.embedded_gc_root_slots_cloned(id) {
-            self.store_embedded_gc_roots_for_struct_local(decl.span, target_ty, ptr, &slots)?;
-        }
+        let _stored = self.store_local_value(decl.span, ptr, target_ty, init)?;
 
         self.env.insert(
             id,
@@ -1615,7 +892,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: target_ty,
                 ptr,
                 mutable: decl.mutable,
-                gc_root_slot,
             },
         );
         Ok(())
@@ -1684,16 +960,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
 
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
-                    let stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
-                    if let Some(slot_ptr) = local.gc_root_slot {
-                        self.store_gc_root_slot_value(eq_span, slot_ptr, stored)?;
-                    }
-
-                    if let Some(slots) = self.embedded_gc_root_slots_cloned(*id) {
-                        self.store_embedded_gc_roots_for_struct_local(
-                            eq_span, local.ty, local.ptr, &slots,
-                        )?;
-                    }
+                    let _stored = self.store_local_value(eq_span, local.ptr, local.ty, rhs_v)?;
                     Ok(())
                 }
                 hir::ValueRef::TopLevel { fqn, .. } => {
@@ -2801,11 +2068,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
         let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
-        let stored = self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
-        let gc_root_slot = self.gc_root_slot_for(binder.id);
-        if let Some(slot_ptr) = gc_root_slot {
-            self.store_gc_root_slot_value(binder.span, slot_ptr, stored)?;
-        }
+        let _stored =
+            self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
         self.env.insert(
             binder.id,
             CgLocal {
@@ -2813,7 +2077,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: binder_cg_ty,
                 ptr: binder_ptr,
                 mutable: false,
-                gc_root_slot,
             },
         );
 
@@ -3128,11 +2391,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let binder_value = CgValue::int(decoded, int_ty);
 
         let binder_ptr = self.create_entry_alloca(binder.span, &binder.name, binder_cg_ty)?;
-        let stored = self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
-        let gc_root_slot = self.gc_root_slot_for(binder.id);
-        if let Some(slot_ptr) = gc_root_slot {
-            self.store_gc_root_slot_value(binder.span, slot_ptr, stored)?;
-        }
+        let _stored =
+            self.store_local_value(binder.span, binder_ptr, binder_cg_ty, binder_value)?;
         self.env.insert(
             binder.id,
             CgLocal {
@@ -3140,7 +2400,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: binder_cg_ty,
                 ptr: binder_ptr,
                 mutable: false,
-                gc_root_slot,
             },
         );
 
@@ -3380,7 +2639,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir_ty: TypeId,
             ty: CgTy,
             ptr: PointerValue<'ctx>,
-            gc_root_slot: Option<PointerValue<'ctx>>,
         }
         let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
         for binder in &arm.op.binders {
@@ -3396,7 +2654,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir_ty: binder.ty,
                 ty: binder_ty,
                 ptr,
-                gc_root_slot: self.gc_root_slot_for(binder.id),
             });
         }
 
@@ -3486,8 +2743,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let target_ptr = {
             let name = perform_decl.name.as_deref().unwrap_or("perform_value");
             let ptr = self.create_entry_alloca(perform_decl.span, name, resume_value_ty)?;
-
-            let gc_root_slot = self.gc_root_slot_for(perform_id);
             self.env.insert(
                 perform_id,
                 CgLocal {
@@ -3495,7 +2750,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: resume_value_ty,
                     ptr,
                     mutable: perform_decl.mutable,
-                    gc_root_slot,
                 },
             );
             ptr
@@ -3516,10 +2770,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
             let v = self.coerce_value(expr.span, v, slot.ty)?;
-            let stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
-            if let Some(gc_root_slot) = slot.gc_root_slot {
-                self.store_gc_root_slot_value(expr.span, gc_root_slot, stored)?;
-            }
+            let _stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
         }
 
         // 重置一次性标记，并进入 handler arm。
@@ -3556,7 +2807,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: slot.ty,
                     ptr: slot.ptr,
                     mutable: false,
-                    gc_root_slot: slot.gc_root_slot,
                 },
             );
         }
@@ -3637,14 +2887,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: resume_value_ty,
                 value: Some(loaded),
             };
-            let stored = self.store_local_value(span, target_ptr, resume_value_ty, v)?;
-
-            // 若该 binding 是 GC root，则在写回后同步 shadow stack slot。
-            if let Some(local) = self.env.get(perform_id) {
-                if let Some(slot_ptr) = local.gc_root_slot {
-                    self.store_gc_root_slot_value(span, slot_ptr, stored)?;
-                }
-            }
+            let _stored = self.store_local_value(span, target_ptr, resume_value_ty, v)?;
         }
 
         let mut value: CgValue<'ctx> = CgValue::unit();
@@ -3986,7 +3229,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: CgTy::Ref,
                                     ptr,
                                     mutable: cap.local.mutable,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -4010,7 +3252,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: CgTy::String,
                                     ptr,
                                     mutable: cap.local.mutable,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -4035,7 +3276,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: CgTy::Bool,
                                     ptr,
                                     mutable: cap.local.mutable,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -4072,7 +3312,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: slot_ty,
                                     ptr,
                                     mutable: cap.local.mutable,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -4143,11 +3382,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             };
 
-            let stored = cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
-            let gc_root_slot = cg.gc_root_slot_for(perform_id);
-            if let Some(slot_ptr) = gc_root_slot {
-                cg.store_gc_root_slot_value(span, slot_ptr, stored)?;
-            }
+            let _stored = cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
             cg.env.insert(
                 perform_id,
                 CgLocal {
@@ -4155,7 +3390,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: resume_value_ty,
                     ptr: target_ptr,
                     mutable: false,
-                    gc_root_slot,
                 },
             );
 
@@ -4221,7 +3455,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir_ty: TypeId,
             ty: CgTy,
             ptr: PointerValue<'ctx>,
-            gc_root_slot: Option<PointerValue<'ctx>>,
         }
         let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
         for binder in &arm.op.binders {
@@ -4237,14 +3470,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir_ty: binder.ty,
                 ty: binder_ty,
                 ptr,
-                gc_root_slot: self.gc_root_slot_for(binder.id),
             });
         }
 
         // continuation binder local：在 perform 点写入，在 arm body 中读取。
         let cont_ptr =
             self.create_entry_alloca(span, &format!("handle_escape_k_{seq}"), CgTy::Ref)?;
-        let cont_root_slot = self.gc_root_slot_for(continuation_symbol);
 
         self.builder.build_unconditional_branch(body_bb)?;
 
@@ -4410,10 +3641,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             };
             let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
-            let stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
-            if let Some(slot_ptr) = slot.gc_root_slot {
-                self.store_gc_root_slot_value(expr.span, slot_ptr, stored)?;
-            }
+            let _stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
         }
 
         let rt_cont_alloc = self.declare_runtime_continuation_alloc();
@@ -4437,7 +3665,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
-        let stored = self.store_local_value(
+        let _stored = self.store_local_value(
             span,
             cont_ptr,
             CgTy::Ref,
@@ -4446,9 +3674,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value: Some(k_raw.into()),
             },
         )?;
-        if let Some(slot_ptr) = cont_root_slot {
-            self.store_gc_root_slot_value(span, slot_ptr, stored)?;
-        }
 
         // 将 handler frame 从当前线程的 handler stack 顶部“摘除”（不清理 frame 字段），以便：
         // - handler arm body 在 dispatch scope 外执行（Appendix A.4）
@@ -4484,7 +3709,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: slot.ty,
                     ptr: slot.ptr,
                     mutable: false,
-                    gc_root_slot: slot.gc_root_slot,
                 },
             );
         }
@@ -4495,7 +3719,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::Ref,
                 ptr: cont_ptr,
                 mutable: false,
-                gc_root_slot: cont_root_slot,
             },
         );
 
@@ -4666,42 +3889,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // - itable entry 的布局由 lowering side table `interfaces/class_itables` 提供。
             if let Some(v) = self.try_codegen_interface_itable_call(span, callee.span, fqn, args)? {
                 return Ok(v);
-            }
-
-            // TODO T0816：shadow stack 插桩回归用的 debug helper。
-            if fqn == "scoop.core.__scoop_gc_debug_count_roots_current_thread" {
-                if !args.is_empty() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc debug count roots arity mismatch",
-                        at: span.into(),
-                    });
-                }
-
-                let rt = self.declare_runtime_gc_debug_count_roots_current_thread();
-                let call = self.builder.build_call(rt, &[], "gc_debug_count_roots")?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc debug count roots return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(raw_int) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc debug count roots return type",
-                        at: span.into(),
-                    });
-                };
-
-                let from = IntTy {
-                    bits: 64,
-                    signed: false,
-                };
-                let to = IntTy {
-                    bits: self.host.word_bit_width(),
-                    signed: true,
-                };
-                let casted = self.cast_int(raw_int, from, to)?;
-                return Ok(CgValue::int(casted, to));
             }
 
             // TODO T0910：GC v0（mark-sweep，测试辅助）。
@@ -5397,156 +4584,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_memset(payload_i8, 1, zero, size_v)?;
         }
 
-        // 5) 在执行 init steps / ctor body 期间，把 `this` 临时放进一个 1-slot GC frame，避免显式 GC 导致对象被回收。
-        let tmp_gc_frame_ty = self.llvm_gc_frame_type(1);
-        let tmp_gc_frame_ptr =
-            self.create_entry_alloca_raw(span, "class_gc_frame", tmp_gc_frame_ty.into())?;
-
-        let i8_ptr_ty = self.llvm_i8_ptr_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i32_ty = self.context.i32_type();
-        let prev_ptr = self.builder.build_struct_gep(
-            tmp_gc_frame_ty,
-            tmp_gc_frame_ptr,
-            0,
-            "class_gc_prev_gep",
-        )?;
-        let root_count_ptr = self.builder.build_struct_gep(
-            tmp_gc_frame_ty,
-            tmp_gc_frame_ptr,
-            1,
-            "class_gc_root_count_gep",
-        )?;
-        let reserved_ptr = self.builder.build_struct_gep(
-            tmp_gc_frame_ty,
-            tmp_gc_frame_ptr,
-            2,
-            "class_gc_reserved_gep",
-        )?;
-        let _ = self.builder.build_store(prev_ptr, i8_ptr_ty.const_null())?;
-        let _ = self
-            .builder
-            .build_store(root_count_ptr, i32_ty.const_int(1, false))?;
-        let _ = self
-            .builder
-            .build_store(reserved_ptr, i32_ty.const_zero())?;
-
-        let roots_arr_ptr = self.builder.build_struct_gep(
-            tmp_gc_frame_ty,
-            tmp_gc_frame_ptr,
-            3,
-            "class_gc_roots_arr_gep",
-        )?;
-        let roots_base = self.builder.build_pointer_cast(
-            roots_arr_ptr,
-            gc_i8_ptr_ty.ptr_type(AddressSpace::default()),
-            "class_gc_roots_base",
-        )?;
-        let slot_ptr = unsafe {
-            self.builder.build_in_bounds_gep(
-                gc_i8_ptr_ty,
-                roots_base,
-                &[i32_ty.const_zero()],
-                "class_gc_root_slot_0",
-            )?
-        };
-        let _ = self.builder.build_store(slot_ptr, obj_ptr)?;
-
-        let push = self.declare_runtime_gc_frame_push();
-        let frame_i8 =
-            self.builder
-                .build_pointer_cast(tmp_gc_frame_ptr, i8_ptr_ty, "class_gc_frame_i8")?;
-        let _ = self
-            .builder
-            .build_call(push, &[frame_i8.into()], "class_gc_frame_push")?;
-
-        // T1327b：初始化期间若发生 `Raise.raise` / custom non-resuming effect 的 unwinding，
-        // 必须先清理（pop）该临时 GC frame，再跳转到外层 catch/return；
-        // 否则会破坏 shadow stack 的 push/pop 平衡，导致 roots 泄漏甚至后续 GC 行为不确定。
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
-
-        let ctor_cont_bb = insert_block;
-        let outer_raise_target = self.current_raise_target();
-
-        // custom effect：为当前函数已有的 handle 边界注入 cleanup 包装，确保 perform unwind 先 pop 再跳转。
-        let mut pushed_effect_wrappers: usize = 0;
-        if !self.effect_unwind_target_stack.is_empty() {
-            let mut seen_ops: HashSet<String> = HashSet::new();
-            let mut outer_effect_targets: Vec<(String, inkwell::basic_block::BasicBlock<'ctx>)> =
-                Vec::new();
-            for t in self.effect_unwind_target_stack.iter().rev() {
-                if seen_ops.insert(t.op_fqn.clone()) {
-                    outer_effect_targets.push((t.op_fqn.clone(), t.target));
-                }
-            }
-            // 稳定性：保持从外到内的遍历顺序，便于阅读 IR；不影响语义（按 op_fqn 精确匹配）。
-            outer_effect_targets.reverse();
-
-            for (idx, (op_fqn, outer_target)) in outer_effect_targets.iter().enumerate() {
-                let cleanup_bb = self
-                    .context
-                    .append_basic_block(func, &format!("class_ctor_effect_cleanup_{idx}"));
-                self.builder.position_at_end(cleanup_bb);
-
-                let pop = self.declare_runtime_gc_frame_pop();
-                let frame_i8 = self.builder.build_pointer_cast(
-                    tmp_gc_frame_ptr,
-                    i8_ptr_ty,
-                    "class_gc_frame_i8",
-                )?;
-                let _ = self.builder.build_call(
-                    pop,
-                    &[frame_i8.into()],
-                    "class_gc_frame_pop_effect_cleanup",
-                )?;
-                self.builder.build_unconditional_branch(*outer_target)?;
-
-                self.builder.position_at_end(ctor_cont_bb);
-                self.push_effect_unwind_target(op_fqn.as_str(), cleanup_bb);
-                pushed_effect_wrappers = pushed_effect_wrappers.saturating_add(1);
-            }
-        }
-
-        // Raise.raise：同样注入 cleanup 包装（即使当前没有 outer catch，也需要 pop 后再 return 默认值向外传播）。
-        let raise_cleanup_bb = self
-            .context
-            .append_basic_block(func, "class_ctor_raise_cleanup");
-        self.builder.position_at_end(raise_cleanup_bb);
-        let pop = self.declare_runtime_gc_frame_pop();
-        let frame_i8 =
-            self.builder
-                .build_pointer_cast(tmp_gc_frame_ptr, i8_ptr_ty, "class_gc_frame_i8")?;
-        let _ =
-            self.builder
-                .build_call(pop, &[frame_i8.into()], "class_gc_frame_pop_raise_cleanup")?;
-        if let Some(target) = outer_raise_target {
-            self.builder.build_unconditional_branch(target)?;
-        } else {
-            let ret_ty = self
-                .current_fun_return_ty
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "Raise.raise needs function return type",
-                    at: span.into(),
-                })?;
-            let v = self.default_value(ret_ty);
-            self.emit_return(span, ret_ty, v)?;
-        }
-
-        self.builder.position_at_end(ctor_cont_bb);
-        self.push_raise_target(raise_cleanup_bb);
-
         // 6) 执行构造调用：支持 super ctor args + secondary ctor delegation（T1327c）。
         //
         // 语义（Kotlin-like，Appendix B.2.2）：
@@ -5578,20 +4615,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             evaluated_args.as_slice(),
             obj_ptr,
         )?;
-
-        self.pop_raise_target();
-        for _ in 0..pushed_effect_wrappers {
-            self.pop_effect_unwind_target();
-        }
-
-        // pop 临时 GC frame
-        let pop = self.declare_runtime_gc_frame_pop();
-        let frame_i8 =
-            self.builder
-                .build_pointer_cast(tmp_gc_frame_ptr, i8_ptr_ty, "class_gc_frame_i8")?;
-        let _ = self
-            .builder
-            .build_call(pop, &[frame_i8.into()], "class_gc_frame_pop")?;
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -5865,7 +4888,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: CgTy::Ref,
                     ptr: this_ptr,
                     mutable: false,
-                    gc_root_slot: None,
                 },
             );
 
@@ -5896,7 +4918,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ty: param_cg,
                         ptr: param_ptr,
                         mutable: false,
-                        gc_root_slot: None,
                     },
                 );
             }
@@ -13020,53 +12041,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        // GC roots：captures + closure params + body locals（nested closure 自身会单独插桩）。
-        let mut root_ids: Vec<hir::SymbolId> = Vec::new();
-        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
-        for (id, _name, ty) in capture_bindings {
-            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref) | Some(CgTy::String))
-                && seen.insert(*id)
-            {
-                root_ids.push(*id);
-            }
-        }
-        for (id, _name, ty) in param_bindings {
-            if matches!(self.cg_ty_of(*ty), Some(CgTy::Ref) | Some(CgTy::String))
-                && seen.insert(*id)
-            {
-                root_ids.push(*id);
-            }
-        }
-        self.collect_gc_root_ids_in_expr(closure.body.as_ref(), &mut root_ids, &mut seen);
-
-        let mut embedded: Vec<(hir::SymbolId, Vec<EmbeddedGcRootFieldPlan>)> = Vec::new();
-        let mut embedded_seen: HashSet<hir::SymbolId> = HashSet::new();
-        for (id, _name, ty) in capture_bindings {
-            self.collect_embedded_gc_root_plans_for_binder(
-                closure.span,
-                *id,
-                *ty,
-                &mut embedded,
-                &mut embedded_seen,
-            )?;
-        }
-        for (id, _name, ty) in param_bindings {
-            self.collect_embedded_gc_root_plans_for_binder(
-                closure.span,
-                *id,
-                *ty,
-                &mut embedded,
-                &mut embedded_seen,
-            )?;
-        }
-        self.collect_embedded_gc_root_plans_in_expr(
-            closure.body.as_ref(),
-            &mut embedded,
-            &mut embedded_seen,
-        )?;
-
-        self.setup_gc_frame_for_root_ids(closure.span, &root_ids, &embedded)?;
-
         self.env.push_scope();
 
         // 入口的返回类型由期望函数类型决定（用于 Raise 的“早退默认值”）。
@@ -13127,11 +12101,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: target_ty,
                     value: Some(loaded),
                 };
-                let stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
-                let gc_root_slot = self.gc_root_slot_for(*id);
-                if let Some(slot_ptr) = gc_root_slot {
-                    self.store_gc_root_slot_value(closure.span, slot_ptr, stored)?;
-                }
+                let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
 
                 self.env.insert(
                     *id,
@@ -13140,7 +12110,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ty: target_ty,
                         ptr,
                         mutable: false,
-                        gc_root_slot,
                     },
                 );
             }
@@ -13213,11 +12182,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             };
 
-            let stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
-            let gc_root_slot = self.gc_root_slot_for(*id);
-            if let Some(slot_ptr) = gc_root_slot {
-                self.store_gc_root_slot_value(closure.span, slot_ptr, stored)?;
-            }
+            let _stored = self.store_local_value(closure.span, ptr, target_ty, init)?;
 
             self.env.insert(
                 *id,
@@ -13226,7 +12191,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: target_ty,
                     ptr,
                     mutable: false,
-                    gc_root_slot,
                 },
             );
         }
@@ -14533,7 +13497,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ty: subject_ty,
                         ptr,
                         mutable: false,
-                        gc_root_slot: None,
                     },
                 );
                 Ok(())
@@ -14637,7 +13600,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         ty: field_cg,
                                         ptr,
                                         mutable: false,
-                                        gc_root_slot: None,
                                     },
                                 );
                             }
@@ -14715,7 +13677,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: field_cg,
                                     ptr,
                                     mutable: false,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -14809,7 +13770,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 ty: field_cg,
                                 ptr,
                                 mutable: false,
-                                gc_root_slot: None,
                             },
                         );
                     }
@@ -14908,7 +13868,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                     ty: elem_ty,
                                     ptr,
                                     mutable: false,
-                                    gc_root_slot: None,
                                 },
                             );
                         }
@@ -15446,11 +14405,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             };
 
-            let stored = self.store_local_value(param.span, ptr, target_ty, init)?;
-            let gc_root_slot = self.gc_root_slot_for(param.id);
-            if let Some(slot_ptr) = gc_root_slot {
-                self.store_gc_root_slot_value(param.span, slot_ptr, stored)?;
-            }
+            let _stored = self.store_local_value(param.span, ptr, target_ty, init)?;
             self.env.insert(
                 param.id,
                 CgLocal {
@@ -15458,7 +14413,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: target_ty,
                     ptr,
                     mutable: false,
-                    gc_root_slot,
                 },
             );
         }
@@ -15613,17 +14567,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declared_return_ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        if let Some(gc) = self.gc_frame.as_ref() {
-            let pop = self.declare_runtime_gc_frame_pop();
-            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-            let frame_i8 =
-                self.builder
-                    .build_pointer_cast(gc.frame_ptr, i8_ptr_ty, "gc_frame_i8")?;
-            let _ = self
-                .builder
-                .build_call(pop, &[frame_i8.into()], "gc_frame_pop")?;
-        }
-
         match declared_return_ty {
             CgTy::Unit => {
                 self.builder.build_return(None)?;
@@ -16470,19 +15413,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 self.lookup_struct_field(struct_ty, fqn, member.span)?;
                             if field_ty == CgTy::Unit {
                                 return Ok(CgValue::unit());
-                            }
-
-                            // 若该 struct local 的某些字段需要作为 GC roots 单独追踪（ref/string），
-                            // 则对这些字段读取应优先走对应的 roots slot，避免 GC 后读到悬挂指针。
-                            if matches!(field_ty, CgTy::Ref | CgTy::String) {
-                                if let Some(slots) = self.embedded_gc_root_slots_cloned(*id) {
-                                    if let Some(slot) =
-                                        slots.into_iter().find(|s| s.field_idx == field_idx)
-                                    {
-                                        return self
-                                            .load_embedded_gc_root_slot_value(member.span, slot);
-                                    }
-                                }
                             }
 
                             let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
@@ -19336,35 +18266,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
-    fn llvm_gc_frame_type(&self, root_count: u32) -> StructType<'ctx> {
-        // 说明：
-        // - `runtime/c/scoop_gc.h` 中的 `ScoopGcFrame` 使用 flexible array `roots[]`；
-        // - 在 LLVM IR 中我们为每个不同的 `root_count` 生成一个具名 struct：
-        //   `{ prev: i8*, root_count: i32, reserved: i32, roots: [N x i8 addrspace(1)*] }`。
-        //
-        // 只要前 3 个字段布局与 runtime 匹配，就能与 C 侧按前缀访问兼容（push/pop/scan）。
-        let name = format!("scoop.runtime.ScoopGcFrame_{root_count}");
-        if let Some(existing) = self.context.get_struct_type(&name) {
-            return existing;
-        }
-
-        let ty = self.context.opaque_struct_type(&name);
-        let frame_prev_ptr_ty = self.llvm_i8_ptr_type();
-        let gc_root_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i32_ty = self.context.i32_type();
-        let roots_ty = gc_root_ptr_ty.array_type(root_count);
-        ty.set_body(
-            &[
-                frame_prev_ptr_ty.into(),
-                i32_ty.into(),
-                i32_ty.into(),
-                roots_ty.into(),
-            ],
-            false,
-        );
-        ty
-    }
-
     fn llvm_effect_handler_frame_type(&self) -> StructType<'ctx> {
         // 说明：
         // - 该类型对应 `runtime/c/scoop_runtime.c` 的 `ScoopEffectHandlerFrame`（TODO T0913）；
@@ -20219,43 +19120,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ptr_ty = self.context.i64_type().ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    fn declare_runtime_gc_frame_push(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = "scoop_gc_frame_push";
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_gc_frame_push(ScoopGcFrame* frame)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    fn declare_runtime_gc_frame_pop(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = "scoop_gc_frame_pop";
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_gc_frame_pop(ScoopGcFrame* frame)`
-        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    fn declare_runtime_gc_debug_count_roots_current_thread(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = "scoop_gc_debug_count_roots_current_thread";
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint64_t scoop_gc_debug_count_roots_current_thread(void)`
-        let fn_ty = self.context.i64_type().fn_type(&[], false);
         self.module.add_function(NAME, fn_ty, None)
     }
 

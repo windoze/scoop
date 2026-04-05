@@ -1395,12 +1395,15 @@ package a
 
 import scoop.core.*
 
+fun keepAlive(x: Any): Unit {
+}
+
 fun main(): Unit {
     val keep: Any = 1
     // 手动触发一次 GC（调用点应被 statepoint pipeline 产出 stackmap record）。
     __scoop_gc_collect()
     // 显式使用 keep，确保其在 collect 调用点是 live（应出现在 roots locations 后缀）。
-    val _also_keep: Any = keep
+    keepAlive(keep)
 }
 "#,
         );
@@ -1455,9 +1458,34 @@ fun main(): Unit {
                 })
             })
             .count();
+        let sample = section
+            .records
+            .iter()
+            .take(3)
+            .enumerate()
+            .map(|(i, rec)| {
+                let locs = rec
+                    .locations
+                    .iter()
+                    .enumerate()
+                    .map(|(j, loc)| {
+                        format!(
+                            "loc[{j}] kind={:?} size={} reg={} off={}",
+                            loc.kind, loc.size, loc.dwarf_reg, loc.offset
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "record[{i}] patchpoint_id=0x{:x} inst_off=0x{:x} locs=[{locs}]",
+                    rec.patchpoint_id, rec.instruction_offset
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
         assert!(
             roots_records > 0,
-            "expected at least one record to contain GC roots locations"
+            "expected at least one record to contain GC roots locations\n{sample}"
         );
 
         std::fs::remove_dir_all(&dir).unwrap();

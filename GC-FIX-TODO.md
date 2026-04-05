@@ -192,7 +192,7 @@
 
 ### Phase C：编译器侧彻底移除 shadow stack 插桩，确保所有 roots 由 statepoint/stackmap 覆盖
 
-#### C1) [TODO] LLVM codegen：删除 `GcFrameState` 与所有 frame/slot 维护代码
+#### C1) [DONE] LLVM codegen：删除 `GcFrameState` 与所有 frame/slot 维护代码
 - 删除 `setup_gc_frame*`、`store_gc_root_slot_value`、以及 class ctor 临时 frame 等逻辑。
 - 确保所有 GC 相关 safepoint 都通过 statepoint 管线可见：
   - 分配：`scoop_alloc_typed`（或统一的 alloc helper）必须是 statepoint safepoint；
