@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PROMPT_FILE="$(dirname "$0")/PROMPT.md"
+PROMPT_FILE="$(dirname "$0")/PROMPT.gc.md"
 REPO_DIR="$(dirname "$0")"
 
 while true; do
