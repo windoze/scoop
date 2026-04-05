@@ -5,6 +5,8 @@
 // - 不承诺稳定 ABI（生产环境不应依赖）。
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "platform/platform.h"
 #include "platform/unwind.h"
@@ -13,6 +15,50 @@
 
 // 运行时 GC helper（由具体 backend 提供实现）。
 void scoop_gc_collect(void);
+
+typedef struct ScoopTestUnwindDumpFramesState {
+  uint32_t frame_index;
+  uint32_t visited;
+  uint32_t should_dump;
+} ScoopTestUnwindDumpFramesState;
+
+static uint32_t scoop_test_unwind_dump_frames_visitor(uintptr_t sp,
+                                                      uintptr_t ra,
+                                                      uintptr_t fp,
+                                                      void *user_data) {
+  if (user_data == 0) {
+    return 0;
+  }
+
+  ScoopTestUnwindDumpFramesState *st = (ScoopTestUnwindDumpFramesState *)user_data;
+  st->visited += 1;
+
+  ScoopStackmapRecordRef rec = {0};
+  const uint32_t hit = scoop_stackmap_registry_lookup(ra, &rec);
+
+  if (st->should_dump) {
+    if (hit) {
+      (void)fprintf(stderr,
+                    "[scooprt][unwind] frame=%u sp=0x%lx ra=0x%lx fp=0x%lx stackmap=hit "
+                    "patchpoint_id=%llu\n",
+                    (unsigned)st->frame_index,
+                    (unsigned long)sp,
+                    (unsigned long)ra,
+                    (unsigned long)fp,
+                    (unsigned long long)rec.patchpoint_id);
+    } else {
+      (void)fprintf(stderr,
+                    "[scooprt][unwind] frame=%u sp=0x%lx ra=0x%lx fp=0x%lx stackmap=miss\n",
+                    (unsigned)st->frame_index,
+                    (unsigned long)sp,
+                    (unsigned long)ra,
+                    (unsigned long)fp);
+    }
+  }
+
+  st->frame_index += 1;
+  return 1;
+}
 
 // 一个最小可调用的 C 函数：`Int + Int -> Int`（按 host word-size）。
 //
@@ -38,6 +84,46 @@ uintptr_t scoop_test_get_add_int_funptr(void) {
 // - 不承诺稳定 ABI；只保证在本仓库的测试/fixtures 中可用。
 uint32_t scoop_test_unwind_capture_ips(uintptr_t *out_ips, uint32_t out_cap, uint32_t skip_frames) {
   return scoop_platform_unwind_capture_ips(out_ips, out_cap, skip_frames);
+}
+
+// 帧校验工具输出（GC-FIX-TODO A3）：
+// - 捕获当前线程的 stack walking ctx；
+// - 逐帧打印 `(sp, ra, fp)`，并标注 stackmap registry lookup 是否命中 record；
+// - 默认不输出（避免污染普通测试输出）；设置 `SCOOP_UNWIND_DUMP_FRAMES=1` 启用。
+//
+// 返回：
+// - >0：实际枚举的帧数
+// - 0：当前平台不支持或捕获失败
+intptr_t scoop_test_unwind_dump_frames_and_stackmap_hits(void) {
+  const char *dump_env = getenv("SCOOP_UNWIND_DUMP_FRAMES");
+  const uint32_t should_dump = (dump_env != 0 && dump_env[0] == '1');
+
+  // best-effort：仅用于诊断；找不到 stackmaps 不视为失败。
+  (void)scoop_stackmap_registry_register_current_process();
+  const uint32_t record_count = scoop_stackmap_registry_record_count();
+
+  void *ctx = scoop_platform_unwind_ctx_capture();
+  if (ctx == 0) {
+    if (should_dump) {
+      (void)fprintf(stderr, "[scooprt][unwind] ctx capture unsupported or failed\n");
+    }
+    return 0;
+  }
+
+  ScoopTestUnwindDumpFramesState state = {
+      .frame_index = 0,
+      .visited = 0,
+      .should_dump = should_dump,
+  };
+
+  if (should_dump) {
+    (void)fprintf(stderr, "[scooprt][unwind] stackmap_records=%u\n", (unsigned)record_count);
+  }
+
+  (void)scoop_platform_unwind_ctx_walk_frames(
+      ctx, /*skip_frames=*/0, scoop_test_unwind_dump_frames_visitor, (void *)&state);
+  scoop_platform_unwind_ctx_destroy(ctx);
+  return (intptr_t)state.visited;
 }
 
 // statepoint/stackmap smoke：验证 runtime registry 非空，且“调用点的 return address”可查到 record。

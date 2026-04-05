@@ -165,6 +165,7 @@
   X(scoop_test_handle_get_object_addr) \
   X(scoop_test_stackmap_statepoint_smoke) \
   X(scoop_test_unwind_capture_ips) \
+  X(scoop_test_unwind_dump_frames_and_stackmap_hits) \
   X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_join) \

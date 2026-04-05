@@ -78,6 +78,8 @@ static _Unwind_Reason_Code scoop_unwind_capture_cb(struct _Unwind_Context *conte
 typedef struct ScoopUnwindCaptureFramesCtx {
   ScoopPlatformUnwindOpaqueCtx *out_ctx;
   uint32_t len;
+  uintptr_t last_sp;
+  uint32_t has_last_sp;
 } ScoopUnwindCaptureFramesCtx;
 
 static _Unwind_Reason_Code scoop_unwind_capture_frames_cb(struct _Unwind_Context *context,
@@ -107,6 +109,14 @@ static _Unwind_Reason_Code scoop_unwind_capture_frames_cb(struct _Unwind_Context
   if (ra == 0 || sp == 0) {
     return _URC_NO_REASON;
   }
+
+  // 约束：outer frames 的 CFA 应单调不减。若出现违反，说明 unwind 信息不可信，
+  // 直接停止捕获以避免向上层提供“似是而非”的帧序列（A3：可验证输入）。
+  if (arg->has_last_sp && sp < arg->last_sp) {
+    return _URC_END_OF_STACK;
+  }
+  arg->has_last_sp = 1;
+  arg->last_sp = sp;
 
   arg->out_ctx->frames[arg->len].sp = sp;
   arg->out_ctx->frames[arg->len].ra = ra;
@@ -155,6 +165,8 @@ static SCOOP_UNWIND_UNUSED void *scoop_platform_unwind_ctx_capture(void) {
   ScoopUnwindCaptureFramesCtx frames = {
       .out_ctx = out,
       .len = 0,
+      .last_sp = 0,
+      .has_last_sp = 0,
   };
   (void)_Unwind_Backtrace(scoop_unwind_capture_frames_cb, (void *)&frames);
   out->frame_len = frames.len;

@@ -47,6 +47,10 @@ fn main() {
     if target_os == "linux" {
         println!("cargo:rustc-link-lib=dl");
     }
+    // Windows unwind backend（`runtime/c/platform/unwind_win32.c`）依赖 NTDLL 的 Rtl* API。
+    if target_os == "windows" {
+        println!("cargo:rustc-link-lib=ntdll");
+    }
 
     // cc crate 会把 `compile("name")` 产物作为静态库链接给依赖该 crate 的目标。
     // 注意：driver（编译器）本身不需要链接 runtime；但我们先把 runtime

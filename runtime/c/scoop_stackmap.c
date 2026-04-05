@@ -241,6 +241,10 @@ static intptr_t scoop_stackmap_guess_fp_base_from_cfa(uintptr_t cfa, uintptr_t e
   return 0;
 }
 
+// `SCOOP_STACKMAP_STRICT=1`：用于启用 fail-fast 诊断（A2/A3）。
+// 注意：该函数定义在 registry 段落中；这里前置声明以便 locations 解析使用。
+static int scoop_stackmap_strict_mode_enabled(void);
+
 uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *rec,
                                                 uintptr_t frame_sp,
                                                 uintptr_t frame_fp,
@@ -346,9 +350,12 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
     if (scoop_stackmap_dwarf_reg_is_sp(dwarf_reg)) {
       base_i = (intptr_t)frame_sp;
     } else if (scoop_stackmap_dwarf_reg_is_fp(dwarf_reg)) {
-      // 优先使用 platform/unwind 直接提供的 FP；为 0 时回退为“从 CFA 猜测 FP”的启发式。
+      // 优先使用 platform/unwind 直接提供的 FP。
+      //
+      // A3：纯模式下不允许长期依赖“从 CFA 猜 FP”的启发式，因此在严格模式（`SCOOP_STACKMAP_STRICT=1`）
+      // 下若缺失 FP，直接视为错误并 fail-fast（由上层决定如何处理）。
       base_i = (intptr_t)frame_fp;
-      if (base_i == 0) {
+      if (base_i == 0 && !scoop_stackmap_strict_mode_enabled()) {
         base_i = scoop_stackmap_guess_fp_base_from_cfa(frame_sp, rec->return_address);
       }
       if (base_i == 0) {

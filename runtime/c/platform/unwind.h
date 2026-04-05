@@ -8,7 +8,8 @@
 // 当前阶段：
 // - 仅实现 current-thread backtrace（采样 instruction pointers）；
 // - remote unwind / 从 ucontext 开始的逐帧 unwind 后置到 T1411b/T1505；
-// - Windows backend 先占位返回 0（上层需通过 capability/诊断处理）。
+// - Windows backend：v0 先实现 x86_64 的 ctx capture + frame walk；其它架构可返回 0（上层需通过
+//   capability/诊断处理）。
 
 #pragma once
 

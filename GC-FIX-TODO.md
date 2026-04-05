@@ -99,7 +99,7 @@
   - 新增回归：构造多个相邻 records 的场景，确保 lookup 不会误命中；
   - 在 macOS/Linux/Windows 各至少一个可执行文件上回归通过（CI 允许分平台 gating，但实现不应永久缺失）。
 
-#### A3) [TODO] Platform unwind：为 GC 提供“可回归、可解释、跨平台”的 stack walking 输入
+#### A3) [DONE] Platform unwind：为 GC 提供“可回归、可解释、跨平台”的 stack walking 输入
 - 目标：对于被 park 的线程，能提供稳定的 `(sp/cfa, ra, fp)`（或等价信息），且足以计算 stackmap slots。
 - 具体任务：
   - POSIX：从 `_Unwind_Backtrace` 采样升级为“可验证的帧序列”（必要时引入更强的上下文捕获）。
