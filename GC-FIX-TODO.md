@@ -145,7 +145,7 @@
 - 验收：
   - STW 回归测试：多线程 park/恢复稳定；不会因缺少 frame slot 崩溃或死锁。
 
-#### B2a) [TODO] baseline：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
+#### B2a) [DONE] baseline：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
 - 改动范围：
   - `runtime/c/scoop_gc.c`（baseline backend）
   - `crates/scoop_runtime/tests/*`（移除“依赖 GC 扫 shadow stack 才正确”的用例写法）

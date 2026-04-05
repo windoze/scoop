@@ -21,12 +21,14 @@
 
 // --- 线程注册 + stop-the-world（TODO T0911） ---
 //
-// 设计说明（early stage）：
-// - 当前 GC v0 的根集来自 shadow stack（编译器插桩维护 `ScoopGcFrame` 链）。
-// - 为了在多线程下正确扫描所有线程的 shadow stack，需要在 GC 期间暂停（stop-the-world）
-//   所有“已注册线程”，并在暂停期间枚举每个线程的 `current_frame` 链。
-// - 该实现采用“协作式 STW”：线程必须在 safepoint 调用 `scoop_gc_safepoint()` 才会被暂停。
-//   后续编译器会在需要的位置插入 safepoint（例如分配/循环回边等）。
+// 设计说明（early stage, GC-FIX Phase B2a baseline）：
+// - baseline backend 的 GC roots 不再来自 shadow stack（`ScoopGcFrame`）；
+// - roots 仅来自：
+//   - Parked 线程：stackmap roots（通过 `scoop_gc_safepoint_poll()` park 前捕获的 unwind ctx）；
+//   - InNative 线程：enter_native 注册的 `native_roots` slots；
+//   - pinned objects / stable handles（进程全局 roots）。
+// - 该实现采用“协作式 STW”：线程必须在 safepoint 调用 `scoop_gc_safepoint(_poll)` 才会被暂停；
+//   后续编译器会在需要的位置插入 poll（例如分配/循环回边等）。
 //
 // 约束：
 // - 该实现优先满足“可验证且不崩溃”的语义，不追求性能。
@@ -1483,10 +1485,7 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
   // - initiator：使用本次 GC 内部捕获的 ctx（可枚举完整 managed 调用栈的 stackmap roots slots）；
   // - Parked：使用 park 前捕获到 TLS 的 ctx；
   // - InNative：使用 native_roots buffer；
-  // - 其它/回退：shadow stack roots（用于早期 runtime/Rust 测试兼容）。
-  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
-                                                        ScoopGcTraceVisitor visitor,
-                                                        void *ctx);
+  // - B2a：baseline 不再更新 shadow stack roots（GC roots 不再来源于 `ScoopGcFrame`）。
 
   // 4a) initiator stackmap roots update（moving GC 的关键语义：spill slots 原地改写为新地址）。
   {
@@ -1532,15 +1531,6 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
                                                 scoop_gc_baseline_update_slot_visitor,
                                                 (void *)&update_ctx);
       }
-      // 同时更新 initiator 的 shadow stack roots：即使 stackmap records 命中，也可能仍有部分 roots
-      // 通过 shadow stack 插桩保存（例如早期 runtime helper 或 debug/prologue 插桩）。
-      if (it->tls != 0) {
-        ScoopGcFrame *frame = it->tls->gc_current_frame;
-        if (frame != 0) {
-          (void)scoop_gc_shadow_stack_visit_roots_from_frame(
-              frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
-        }
-      }
       break;
     }
   }
@@ -1575,13 +1565,6 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
         abort();
       }
     }
-
-    if (it->tls == 0) {
-      continue;
-    }
-    ScoopGcFrame *frame = it->tls->gc_current_frame;
-    (void)scoop_gc_shadow_stack_visit_roots_from_frame(
-        frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
   }
 
   // 4b) stable handle table update：handle->obj 槽位同样属于 roots。
@@ -1677,23 +1660,32 @@ void scoop_gc_collect(void) {
   // T1511：baseline moving 模式（可通过 env 强制开启），需要在 GC 内捕获 initiator 的 stack walking ctx，
   // 用于 stackmap spill slots 更新（statepoint + gc.relocate 依赖该语义）。
   uint32_t moving_enabled = scoop_gc_baseline_moving_enabled();
+  // B2a：baseline roots 枚举不再扫描 shadow stack（`ScoopGcFrame`）。
+  //
+  // 约定：
+  // - in-native 线程：roots 来自 `native_roots` slots（enter_native 注册），以及 pinned/handles；
+  // - 其余线程：roots 来自 stackmap（需要可用的 unwind ctx）。
+  uint32_t initiator_needs_stackmap_roots = 1;
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (!pthread_equal(it->thread, self)) {
+      continue;
+    }
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      initiator_needs_stackmap_roots = 0;
+    }
+    break;
+  }
   void *initiator_stack_walking_ctx = 0;
-  if (moving_enabled) {
+  if (moving_enabled || initiator_needs_stackmap_roots) {
     initiator_stack_walking_ctx = scoop_platform_unwind_ctx_capture();
     if (initiator_stack_walking_ctx == 0) {
-      (void)fprintf(stderr,
-                    "[scooprt][gc][move] SCOOP_GC_MOVE=1 but failed to capture unwind ctx\n");
+      (void)fprintf(stderr, "[scooprt][gc][stackmap] failed to capture unwind ctx\n");
       abort();
     }
   }
 
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
-
-  // 1) mark roots（扫描所有已注册线程的 shadow stack）
-  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
-                                                        ScoopGcTraceVisitor visitor,
-                                                        void *ctx);
 
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     // T1505c：InNative 线程不要求 park，roots 来自 TLS `native_roots` buffer。
@@ -1703,9 +1695,9 @@ void scoop_gc_collect(void) {
       continue;
     }
 
-    // T1511：moving 模式下优先从 stackmap 枚举 initiator roots（完整调用栈，多帧），避免仅靠 shadow stack
-    // 导致“spill slots 未被视为 roots”而出现误回收。
-    if (moving_enabled && initiator_stack_walking_ctx != 0 && pthread_equal(it->thread, self)) {
+    // B2a：initiator roots 同样必须来自 stackmap（覆盖完整 managed 栈）。
+    if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
+        pthread_equal(it->thread, self)) {
       uint32_t err = SCOOP_STACKMAP_VISIT_OK;
       uint32_t records_hit = 0;
       (void)scoop_gc_stackmap_visit_roots_from_ctx(
@@ -1717,10 +1709,10 @@ void scoop_gc_collect(void) {
                       (unsigned)err);
         abort();
       }
+      continue;
     }
 
-    // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap roots；
-    // 若未提供或未命中 record，则回退到 shadow stack（保持早期 runtime/Rust 测试兼容）。
+    // T1506b：Parked 线程若提供了 stack_walking_ctx，则走 stackmap roots。
     if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
       uint32_t err = SCOOP_STACKMAP_VISIT_OK;
       uint32_t records_hit = 0;
@@ -1737,12 +1729,6 @@ void scoop_gc_collect(void) {
         abort();
       }
     }
-
-    if (it->tls == 0) {
-      continue;
-    }
-    ScoopGcFrame *frame = it->tls->gc_current_frame;
-    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
   }
 
   // 1b) mark pinned roots（spec §15.10）：pinned 对象必须保活，即使没有 shadow stack 引用。

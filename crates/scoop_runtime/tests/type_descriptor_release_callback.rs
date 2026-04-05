@@ -44,15 +44,6 @@ struct ScoopGcObjectHeader {
     mark: u32,
 }
 
-// 对齐 `runtime/c/scoop_gc.h` 的 `ScoopGcFrame`（root_count=1 的固定版本）。
-#[repr(C)]
-struct ScoopGcFrame {
-    prev: *mut ScoopGcFrame,
-    root_count: u32,
-    _reserved_u32: u32,
-    roots: [*mut c_void; 1],
-}
-
 static RELEASE_CALLS: AtomicUsize = AtomicUsize::new(0);
 static LAST_RELEASED: AtomicUsize = AtomicUsize::new(0);
 
@@ -68,8 +59,8 @@ unsafe extern "C" {
 
     fn scoop_alloc(size: u64) -> *mut c_void;
 
-    fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
-    fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
+    fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+    fn scoop_leave_native();
 
     fn scoop_gc_collect();
     fn scoop_gc_debug_heap_object_count() -> u64;
@@ -116,23 +107,21 @@ fn type_descriptor_release_callback_runs_once_on_sweep() {
 
         assert_eq!(scoop_gc_debug_heap_object_count(), 1);
 
-        // 3) 把对象写入 shadow stack roots：collect 后不应触发 release callback。
-        let mut frame = ScoopGcFrame {
-            prev: ptr::null_mut(),
-            root_count: 1,
-            _reserved_u32: 0,
-            roots: [obj],
-        };
-        scoop_gc_frame_push(&mut frame);
+        // 3) Rust 测试代码不产生 statepoint stackmaps；因此用 enter_native 注册 roots slots。
+        let mut obj_slot = obj;
+        let root0: *mut *mut c_void = &mut obj_slot;
+        let mut roots: [*mut *mut c_void; 1] = [root0];
+        scoop_enter_native(roots.as_mut_ptr(), roots.len() as u32);
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 1);
         assert_eq!(RELEASE_CALLS.load(Ordering::SeqCst), 0);
         // moving/compaction backend（例如 Immix）可能会更新 roots 槽位到新地址；
         // release callback 应以“对象最终被回收时的地址”为准。
-        let obj_after_gc = frame.roots[0];
+        let obj_after_gc = obj_slot;
 
         // 4) pop roots 后再 collect：对象应被回收，release callback 只被调用一次。
-        scoop_gc_frame_pop(&mut frame);
+        // 离开 InNative：移除 roots，允许对象被 sweep 回收。
+        scoop_leave_native();
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 0);
         assert_eq!(RELEASE_CALLS.load(Ordering::SeqCst), 1);

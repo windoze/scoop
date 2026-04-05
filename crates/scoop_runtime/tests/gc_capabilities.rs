@@ -58,7 +58,7 @@ fn gc_capabilities_match_selected_backend() {
             multi_thread_roots_enum: true,
             moving: false,
             precise_roots_update: false,
-            shadow_stack_roots: true,
+            shadow_stack_roots: false,
         }
     );
 }

@@ -2,7 +2,6 @@
 use scoop_runtime as _;
 
 use core::ffi::c_void;
-use core::ptr;
 
 #[repr(C)]
 struct ScoopGcObjectHeader {
@@ -13,15 +12,6 @@ struct ScoopGcObjectHeader {
     mark: u32,
 }
 
-// 对齐 `runtime/c/scoop_gc.h` 的 `ScoopGcFrame`（root_count=1 的固定版本）。
-#[repr(C)]
-struct ScoopGcFrame {
-    prev: *mut ScoopGcFrame,
-    root_count: u32,
-    _reserved_u32: u32,
-    roots: [*mut c_void; 1],
-}
-
 unsafe extern "C" {
     fn scoop_runtime_init();
     fn scoop_thread_register();
@@ -29,8 +19,8 @@ unsafe extern "C" {
 
     fn scoop_alloc(size: u64) -> *mut c_void;
 
-    fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
-    fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
+    fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
+    fn scoop_leave_native();
 
     fn scoop_gc_collect();
     fn scoop_gc_debug_heap_object_count() -> u64;
@@ -60,21 +50,18 @@ fn gc_collect_mark_sweep_keeps_rooted_objects_and_frees_garbage() {
 
         assert_eq!(scoop_gc_debug_heap_object_count(), 11);
 
-        // 3) 构造 shadow stack frame，把 keep 写入 roots 并 push。
-        let mut frame = ScoopGcFrame {
-            prev: ptr::null_mut(),
-            root_count: 1,
-            _reserved_u32: 0,
-            roots: [keep],
-        };
-        scoop_gc_frame_push(&mut frame);
+        // 3) Rust 测试代码不产生 statepoint stackmaps；因此用 enter_native 注册 roots slots。
+        let mut keep_slot = keep;
+        let root0: *mut *mut c_void = &mut keep_slot;
+        let mut roots: [*mut *mut c_void; 1] = [root0];
+        scoop_enter_native(roots.as_mut_ptr(), roots.len() as u32);
 
         // 4) collect：应回收垃圾对象，仅保留 keep。
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 1);
 
-        // 5) pop roots 后再 collect：keep 也应被回收。
-        scoop_gc_frame_pop(&mut frame);
+        // 5) 离开 InNative 后再 collect：keep 也应被回收。
+        scoop_leave_native();
         scoop_gc_collect();
         assert_eq!(scoop_gc_debug_heap_object_count(), 0);
 

@@ -221,7 +221,8 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 //
 // 说明：
 // - 该 API 当前用于 fixtures/集成测试回归（TODO T0910），不实现自动触发策略；
-// - v0 只扫描当前线程的 shadow stack roots（见 `scoop_gc_shadow_stack_visit_roots_current_thread`）；
+// - roots 枚举语义由编译期选择的 GC backend 决定（见 `crates/scoop_runtime/src/gc_backend.rs`）；
+// - GC-FIX Phase B2（stackmap-only）路线下，roots 应来自 stackmap/native_roots/handles/pin（不依赖 shadow stack）；
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
 void scoop_gc_collect(void);
 
