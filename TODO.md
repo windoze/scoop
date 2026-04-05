@@ -6656,13 +6656,18 @@
   - `tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`：跨线程 STW roots 枚举 smoke（Parked 线程）。
   - `tests/fixtures/runtime_gc/gc_stw_cross_thread_in_native_roots_basic.scoop`：跨线程 STW + InNative（native_roots）smoke（避免死锁且 roots 保活）。
 
-### T1512d [TODO] runtime_gc fixtures：pin/unpin + moving/compaction 的压力回归（多轮/矩阵）
+### T1512d [DONE] runtime_gc fixtures：pin/unpin + moving/compaction 的压力回归（多轮/矩阵）
 - 描述：把 pin/unpin、moving（`SCOOP_GC_MOVE=1`）与（可选）Immix compaction 的组合跑成稳定矩阵，避免“只在压力下出现的悬挂指针”回归漏网。
 - 目标：把现有 `runtime_gc` 用例扩展为“可重复多轮”的压力模式（由 `--gc-stress/--gc-move` 驱动），并补齐至少 1 个“失败用例”（EXPECT: fail）来回归 runner 的稳定诊断。
 - 验收：
   - `cargo test --all`
   - `cargo run -p scoop --features llvm -- test`
 - 依赖：T1512c
+- 完成：
+  - `runtime/c/scoop_test.c`：新增 test-only extern `scoop_test_handle_get_object_addr`，用于在 fixtures 中以 `UIntPtr` 观测 stable handle 当前指向对象的地址（避免 `@Extern` 直接透传 GC ref）。
+  - `runtime/c/scoop_runtime_api.h`：allowlist 增加 `scoop_test_handle_get_object_addr`。
+  - `tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`：新增 pin/unpin + moving 的可重复多轮用例；通过 `scoop test --gc-stress/--gc-move` 注入 env 驱动压力/搬迁矩阵，并断言 pinned 地址稳定、未 pinned 对象地址变化、pin 计数语义正确。
+  - `tests/fixtures/runtime_gc/gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`：新增 `EXPECT: fail` 用例回归 run-pass runner 的 stdout mismatch 稳定诊断码（在未启用 LLVM 时也会走“空输出模拟”路径）。
 
 ### T1513 [TODO] String 表示升级方案：`struct String` + `class StringData` backing（零拷贝 slicing/substring）
 - 描述：评估并落地把 `String` 从“单一 ref class”升级为“薄 value struct + 共享 back buffer”的表示，以支持零拷贝 slicing/substring（例如 `trimStart`/`trimEnd`/`trim` 等仅调整边界的操作）。

@@ -8,6 +8,7 @@
 
 #include "platform/platform.h"
 #include "platform/unwind.h"
+#include "scoop_gc.h"
 #include "scoop_stackmap.h"
 
 // 运行时 GC helper（由具体 backend 提供实现）。
@@ -89,6 +90,17 @@ __attribute__((noinline)) intptr_t scoop_test_stackmap_statepoint_smoke(void) {
 // - 这样当 `scoop_gc_collect()` 运行时，即使当前线程处于 InNative，GC 仍可通过 native_roots
 //   扫描/保活 call-site 上的对象引用（避免误回收）。
 void scoop_test_gc_collect_in_native(void) { scoop_gc_collect(); }
+
+// 返回 stable handle 当前指向对象的地址（用于 pin/unpin + moving GC 回归）。
+//
+// 说明：
+// - `@Extern` ABI 禁止直接透传 GC ref，因此该函数以 `UIntPtr`（word-sized integer）作为输入/输出；
+// - Scoop 侧可先通过 `GC.handleNew(obj)` 得到 `GcHandle.raw`，再用本函数观测 `handleGet` 的指针值；
+// - 在 moving/compaction GC 下，handle 表的槽位会被更新到新地址；而 pinned 对象应保持地址稳定。
+uintptr_t scoop_test_handle_get_object_addr(uintptr_t handle_raw) {
+  void *obj = scoop_handle_get((uint64_t)handle_raw);
+  return (uintptr_t)obj;
+}
 
 // `@Extern` + stop-the-world（跨线程）+ InNative smoke（TODO T1512c）。
 //
