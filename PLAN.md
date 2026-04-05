@@ -19,6 +19,7 @@
 
 ## 0.1 维护备注（TODO 顺序）
 
+- 2026-04-05：完成 GC-FIX Phase A4：选择“编译器保证法”，把 roots 固化为“可写回 slots 的连续后缀”（Direct/Indirect + pointer-sized + SP/FP base，偶数 base/derived）；runtime `scoop_stackmap_record_visit_root_slots` 只扫描 roots 后缀并在违反契约时返回稳定错误码（fail-fast）；同时更新 stackmap 相关单测与 synthetic stackmap section 回归。
 - 2026-04-04：T1504（stackmap registry）包含解析/索引/平台自动发现/COFF/真实 statepoint smoke 等多个点。为保持 TODO 顺序“首个 `[TODO]` 可直接实现”，拆分为 T1504a/T1504b：先落地 registry core（解析 + `return_address -> record` 索引 + `scoop_runtime_init()` 自动注册）（T1504a），再补齐 COFF/多模块自动发现完善与 statepoint smoke（T1504b）。
 - 2026-04-04：完成 T1504a：新增 `runtime/c/scoop_stackmap.c`（stackmap v3 解析 + registry），`scoop_runtime_init()` 自动注册当前进程 stackmaps；新增 `scoop_runtime` 集成测试覆盖 mock section 与“真实链接产物”内嵌 section 的 smoke 回归；并更新 runtime API allowlist。
 - 2026-04-04：完成 T1504b：补齐 stackmap v3 records 的 locations→liveouts 对齐规则（真实 statepoint 产物可解析）；lookup 容忍小范围 return-address 偏移；补齐 COFF/ELF multi-module 自动发现（Windows：Toolhelp32 + PE section 扫描；Linux：`dl_iterate_phdr` best-effort 扫描）；新增 run-pass fixture `stackmap_registry_statepoint_smoke` 回归“运行期 registry 可观测 + 定位到 main 的 safepoint record”。

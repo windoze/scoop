@@ -153,6 +153,9 @@ static size_t scoop_stackmap_align_up(size_t v, size_t align) {
 #define SCOOP_STACKMAP_LOC_CONSTANT 4u
 #define SCOOP_STACKMAP_LOC_CONSTANT_INDEX 5u
 
+// StackMap v3：每个 location 固定 12 字节（Type/Reserved/Size/Reg/Reserved/Offset）。
+#define SCOOP_STACKMAP_LOC_BYTE_LEN 12u
+
 static int scoop_stackmap_dwarf_reg_is_sp(uint16_t dwarf_reg) {
 // DWARF register numbers（subset）：
 // - x86_64：RSP = 7
@@ -245,6 +248,66 @@ static intptr_t scoop_stackmap_guess_fp_base_from_cfa(uintptr_t cfa, uintptr_t e
 // 注意：该函数定义在 registry 段落中；这里前置声明以便 locations 解析使用。
 static int scoop_stackmap_strict_mode_enabled(void);
 
+typedef struct ScoopStackmapLocationMin {
+  uint8_t type;
+  uint16_t size;
+  uint16_t dwarf_reg;
+  int32_t offset;
+} ScoopStackmapLocationMin;
+
+static int scoop_stackmap_record_read_location_at(const uint8_t *bytes,
+                                                  size_t len,
+                                                  size_t locs_off,
+                                                  uint16_t idx,
+                                                  ScoopStackmapLocationMin *out) {
+  if (bytes == 0 || out == 0) {
+    return 0;
+  }
+
+  const size_t off0 = locs_off + ((size_t)idx * (size_t)SCOOP_STACKMAP_LOC_BYTE_LEN);
+  size_t off = off0;
+
+  uint8_t loc_type = 0;
+  uint8_t loc_reserved0 = 0;
+  uint16_t loc_size = 0;
+  uint16_t dwarf_reg = 0;
+  uint16_t loc_reserved1 = 0;
+  int32_t loc_off_i32 = 0;
+
+  if (!scoop_stackmap_read_u8(bytes, len, &off, &loc_type) ||
+      !scoop_stackmap_read_u8(bytes, len, &off, &loc_reserved0) ||
+      !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_size) ||
+      !scoop_stackmap_read_u16_le(bytes, len, &off, &dwarf_reg) ||
+      !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_reserved1) ||
+      !scoop_stackmap_read_i32_le(bytes, len, &off, &loc_off_i32)) {
+    return 0;
+  }
+
+  (void)loc_reserved0;
+  (void)loc_reserved1;
+
+  out->type = loc_type;
+  out->size = loc_size;
+  out->dwarf_reg = dwarf_reg;
+  out->offset = loc_off_i32;
+  return 1;
+}
+
+static int scoop_stackmap_location_is_root_slot_shape(const ScoopStackmapLocationMin *loc,
+                                                      uint16_t want_size) {
+  if (loc == 0) {
+    return 0;
+  }
+  if (loc->size != want_size) {
+    return 0;
+  }
+  if (loc->type != SCOOP_STACKMAP_LOC_DIRECT && loc->type != SCOOP_STACKMAP_LOC_INDIRECT) {
+    return 0;
+  }
+  return scoop_stackmap_dwarf_reg_is_sp(loc->dwarf_reg) ||
+         scoop_stackmap_dwarf_reg_is_fp(loc->dwarf_reg);
+}
+
 uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *rec,
                                                 uintptr_t frame_sp,
                                                 uintptr_t frame_fp,
@@ -291,7 +354,7 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
   }
 
   // 健壮性：避免异常 num_locations 造成越界/长循环。
-  if ((size_t)num_locations > ((len - off) / 12u)) {
+  if ((size_t)num_locations > ((len - off) / (size_t)SCOOP_STACKMAP_LOC_BYTE_LEN)) {
     if (out_error != 0) {
       *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
     }
@@ -303,53 +366,103 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
 
   uint64_t visited = 0;
 
-  for (uint16_t i = 0; i < num_locations; i++) {
-    uint8_t loc_type = 0;
-    uint8_t loc_reserved0 = 0;
-    uint16_t loc_size = 0;
-    uint16_t dwarf_reg = 0;
-    uint16_t loc_reserved1 = 0;
-    int32_t loc_off_i32 = 0;
+  // --- GC roots locations 契约（GC-FIX Phase A1/A4） ---
+  //
+  // 目标：
+  // - roots 必须是“可寻址且可写回”的 slots（moving/compaction 的关键语义）；
+  // - 因此我们只扫描编译器保证的 roots slots 后缀，而不是“扫所有 pointer-sized Direct/Indirect”。
+  //
+  // 契约（与 `crates/scoopc/src/stackmap.rs::verify_roots_contract` 一致）：
+  // - roots locations 是 `locations` 列表的连续后缀；
+  // - 后缀内每个 roots location 都必须是可写回 slot：
+  //   - kind=Direct/Indirect
+  //   - size=pointer-sized
+  //   - base reg=SP/FP（runtime 可计算地址）
+  // - roots locations 数量必须为偶数（statepoint base/derived 成对语义）。
+  //
+  // 若契约被破坏，纯 stackmap 模式会出现 silent mis-collection；因此这里返回稳定错误码，
+  // 由上层（GC）决定 fail-fast。
 
-    if (!scoop_stackmap_read_u8(bytes, len, &off, &loc_type) ||
-        !scoop_stackmap_read_u8(bytes, len, &off, &loc_reserved0) ||
-        !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_size) ||
-        !scoop_stackmap_read_u16_le(bytes, len, &off, &dwarf_reg) ||
-        !scoop_stackmap_read_u16_le(bytes, len, &off, &loc_reserved1) ||
-        !scoop_stackmap_read_i32_le(bytes, len, &off, &loc_off_i32)) {
-      (void)loc_reserved0;
-      (void)loc_reserved1;
+  const size_t locs_off = off;
+
+  // 1) roots 后缀起点：从尾部向前扫描，直到遇到第一个“不像 roots slot”的 location。
+  uint16_t roots_start = num_locations;
+  while (roots_start > 0) {
+    const uint16_t idx = (uint16_t)(roots_start - 1u);
+    ScoopStackmapLocationMin loc = {0};
+    if (!scoop_stackmap_record_read_location_at(bytes, len, locs_off, idx, &loc)) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
+      }
+      return 0;
+    }
+    if (!scoop_stackmap_location_is_root_slot_shape(&loc, want_size)) {
+      break;
+    }
+    roots_start -= 1u;
+  }
+
+  const uint16_t roots_len = (uint16_t)(num_locations - roots_start);
+  if ((roots_len % 2u) != 0u) {
+    if (out_error != 0) {
+      *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION;
+    }
+    return 0;
+  }
+
+  // 2) roots 必须是连续后缀：roots_start 之前不允许再出现“像 roots slot”的 location。
+  for (uint16_t i = 0; i < roots_start; i++) {
+    ScoopStackmapLocationMin loc = {0};
+    if (!scoop_stackmap_record_read_location_at(bytes, len, locs_off, i, &loc)) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
+      }
+      return 0;
+    }
+
+    // 健壮性：pointer-sized Direct/Indirect 但 base reg 非 SP/FP，runtime 无法计算 slot 地址。
+    if (loc.size == want_size &&
+        (loc.type == SCOOP_STACKMAP_LOC_DIRECT || loc.type == SCOOP_STACKMAP_LOC_INDIRECT) &&
+        !(scoop_stackmap_dwarf_reg_is_sp(loc.dwarf_reg) ||
+          scoop_stackmap_dwarf_reg_is_fp(loc.dwarf_reg))) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_DWARF_REG;
+      }
+      return 0;
+    }
+
+    if (scoop_stackmap_location_is_root_slot_shape(&loc, want_size)) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION;
+      }
+      return 0;
+    }
+  }
+
+  // 3) 仅遍历 roots slots 后缀，把每个 location 转换为可写回的 `void** slot` 并回调 visitor。
+  for (uint16_t i = roots_start; i < num_locations; i++) {
+    ScoopStackmapLocationMin loc = {0};
+    if (!scoop_stackmap_record_read_location_at(bytes, len, locs_off, i, &loc)) {
       if (out_error != 0) {
         *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
       }
       return visited;
     }
 
-    // 目标：只扫描 pointer-sized locations；其它先跳过（例如 deopt metadata）。
-    if (loc_size != want_size) {
-      continue;
-    }
-
-    // 重要：
-    // - 对于 statepoint/patchpoint 产出的 stackmap records，locations 列表里可能包含
-    //   “与 GC roots 无关但刚好是 pointer-sized”的条目（例如某些 deopt/metadata 或 call target 等）。
-    // - baseline/immix 的 moving roots update 只能安全更新“可寻址且可写回”的 slot（`void**`），
-    //   因此 v0 只处理 Direct/Indirect（以 SP 为基址）并忽略其它 kinds。
-    //
-    // 若未来需要支持 Register locations：
-    // - 必须在 `platform/unwind` 捕获寄存器值（且要可写回），并在 stop-the-world 下对目标线程做更新；
-    // - 在当前实现中不具备该能力，因此这里选择“跳过”而不是 fail-fast。
-    if (loc_type != SCOOP_STACKMAP_LOC_DIRECT && loc_type != SCOOP_STACKMAP_LOC_INDIRECT) {
-      continue;
+    if (!scoop_stackmap_location_is_root_slot_shape(&loc, want_size)) {
+      if (out_error != 0) {
+        *out_error = SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION;
+      }
+      return visited;
     }
 
     // NOTE:
     // - stackmap offset 是有符号 32-bit（可为负），因此这里用 intptr_t 做指针算术；
     // - `frame_sp` 语义为 CFA（call frame address，来自 platform/unwind）。
     intptr_t base_i = 0;
-    if (scoop_stackmap_dwarf_reg_is_sp(dwarf_reg)) {
+    if (scoop_stackmap_dwarf_reg_is_sp(loc.dwarf_reg)) {
       base_i = (intptr_t)frame_sp;
-    } else if (scoop_stackmap_dwarf_reg_is_fp(dwarf_reg)) {
+    } else if (scoop_stackmap_dwarf_reg_is_fp(loc.dwarf_reg)) {
       // 优先使用 platform/unwind 直接提供的 FP。
       //
       // A3：纯模式下不允许长期依赖“从 CFA 猜 FP”的启发式，因此在严格模式（`SCOOP_STACKMAP_STRICT=1`）
@@ -371,7 +484,7 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
       return visited;
     }
 
-    const intptr_t addr_i = base_i + (intptr_t)loc_off_i32;
+    const intptr_t addr_i = base_i + (intptr_t)loc.offset;
     if (addr_i == 0) {
       if (out_error != 0) {
         *out_error = SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED;
@@ -387,7 +500,7 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
       return visited;
     }
 
-    if (loc_type == SCOOP_STACKMAP_LOC_DIRECT) {
+    if (loc.type == SCOOP_STACKMAP_LOC_DIRECT) {
       void **slot = (void **)addr;
       if (*slot == 0) {
         continue;
@@ -397,7 +510,7 @@ uint64_t scoop_stackmap_record_visit_root_slots(const ScoopStackmapRecordRef *re
       continue;
     }
 
-    if (loc_type == SCOOP_STACKMAP_LOC_INDIRECT) {
+    if (loc.type == SCOOP_STACKMAP_LOC_INDIRECT) {
       const uintptr_t slot_addr = *(const uintptr_t *)addr;
       if (slot_addr == 0) {
         continue;

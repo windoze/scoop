@@ -109,7 +109,7 @@
   - `gc_stack_walking_unwind` / `unwind_capture` 类测试扩展为多平台回归；
   - 新增一个“帧校验”工具输出：每帧打印 ra/sp/fp 与是否命中 stackmap record。
 
-#### A4) [TODO] StackMap location 支持从“子集”升级为“完备或可证明不需要”
+#### A4) [DONE] StackMap location 支持从“子集”升级为“完备或可证明不需要”
 当前实现仅支持 pointer-sized 的 Direct/Indirect，并跳过 Register/Constant 等。
 
 为了“无任何限制”，需要二选一（推荐先做 1，再决定是否还要 2）：
@@ -124,6 +124,11 @@
 
 验收：
 - 无论选择哪条路，最终必须做到：GC roots 枚举与更新 **对所有程序都完备**，不存在“某些 roots 位置永远扫不到/更不回去”的情况。
+
+实现（v0）：
+- 选择 1) 编译器保证法：把 roots locations 固化为“可写回 slots 的连续后缀”（Direct/Indirect + pointer-sized + SP/FP base）。
+- runtime `scoop_stackmap_record_visit_root_slots` 只扫描 roots 后缀并在违反契约时返回稳定错误码（fail-fast），不再依赖“跳过未知 kind + membership 过滤兜底”来保证正确性。
+- 更新/补齐 stackmap roots 相关回归（含 synthetic stackmap section）以满足 statepoint base/derived 成对语义。
 
 ---
 

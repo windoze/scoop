@@ -894,8 +894,8 @@ intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) {
 
   // 构造一个最小可解析的 stackmap section：
   // - 1 function, 1 record；
-  // - record 含 1 个 Direct location，指向 worker stack slot（root）。
-  const size_t record_size = 40;
+  // - record 含 2 个 Direct locations（模拟 statepoint base/derived 成对 roots），指向 worker stack slot（root）。
+  const size_t record_size = 48;
   const size_t section_size = 16 + 24 + record_size;
 
   section = (uint8_t *)malloc(section_size);
@@ -924,9 +924,9 @@ intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) {
   scoop_test_gc_stackmap_write_u64_le(section, rec_off + 0, 1); // patchpoint_id
   scoop_test_gc_stackmap_write_u32_le(section, rec_off + 8, 0); // instruction_offset
   scoop_test_gc_stackmap_write_u16_le(section, rec_off + 12, 0); // reserved
-  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 14, 1); // num_locations
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 14, 2); // num_locations
 
-  // Location（12 bytes）
+  // Location 0（12 bytes）：Direct roots slot
   // StackMap v3 location encoding: 2 = Direct (see `runtime/c/scoop_stackmap.c`).
   section[rec_off + 16] = 2u;
   section[rec_off + 17] = 0;
@@ -934,11 +934,18 @@ intptr_t scoop_test_gc_stackmap_roots_enum_smoke(void) {
   scoop_test_gc_stackmap_write_u16_le(section, rec_off + 20, sp_reg);
   scoop_test_gc_stackmap_write_u16_le(section, rec_off + 22, 0);
   scoop_test_gc_stackmap_write_i32_le(section, rec_off + 24, (int32_t)slot_off);
-  // padding to 8
-  // num_live_outs + reserved
-  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 32, 0);
+
+  // Location 1（12 bytes）：Direct roots slot（重复一次以满足 base/derived 成对语义）
+  section[rec_off + 28] = 2u;
+  section[rec_off + 29] = 0;
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 30, (uint16_t)sizeof(void *));
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 32, sp_reg);
   scoop_test_gc_stackmap_write_u16_le(section, rec_off + 34, 0);
-  // tail padding already zeroed
+  scoop_test_gc_stackmap_write_i32_le(section, rec_off + 36, (int32_t)slot_off);
+
+  // num_live_outs + reserved（2 locations 后已是 8-byte 对齐）
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 40, 0);
+  scoop_test_gc_stackmap_write_u16_le(section, rec_off + 42, 0);
 
   // 注册 synthetic stackmap section（只用于本 smoke；结束后恢复 registry）。
   scoop_stackmap_registry_reset();
@@ -1310,8 +1317,9 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
     goto done;
   }
 
+  // outer record 使用 2 个 roots locations（Direct）模拟 statepoint base/derived 成对语义。
   const size_t inner_record_size = 24;
-  const size_t outer_record_size = 40;
+  const size_t outer_record_size = 48;
   const size_t section_size = 16 + (24 * 2) + inner_record_size + outer_record_size;
 
   section = (uint8_t *)malloc(section_size);
@@ -1352,23 +1360,31 @@ intptr_t scoop_test_gc_stackmap_multiframe_keepalive(void) {
   scoop_test_gc_stackmap_write_u16_le(section, rec0_off + 18, 0);
 
   const size_t rec1_off = rec0_off + inner_record_size;
-  // outer record (v3): num_locations = 1
+  // outer record (v3): num_locations = 2（base/derived pair）
   scoop_test_gc_stackmap_write_u64_le(section, rec1_off + 0, 2); // patchpoint_id
   scoop_test_gc_stackmap_write_u32_le(section, rec1_off + 8, 0); // instruction_offset
   scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 12, 0); // reserved
-  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 14, 1); // num_locations
+  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 14, 2); // num_locations
 
-  // Location（12 bytes）
+  // Location 0（12 bytes）：Direct roots slot
   section[rec1_off + 16] = 2u; // Direct
   section[rec1_off + 17] = 0;
   scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 18, (uint16_t)sizeof(void *));
   scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 20, sp_reg);
   scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 22, 0);
   scoop_test_gc_stackmap_write_i32_le(section, rec1_off + 24, (int32_t)slot_off);
-  // padding to 8
-  // num_live_outs + reserved
-  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 32, 0);
+
+  // Location 1（12 bytes）：Direct roots slot（重复一次以满足 base/derived 成对语义）
+  section[rec1_off + 28] = 2u; // Direct
+  section[rec1_off + 29] = 0;
+  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 30, (uint16_t)sizeof(void *));
+  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 32, sp_reg);
   scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 34, 0);
+  scoop_test_gc_stackmap_write_i32_le(section, rec1_off + 36, (int32_t)slot_off);
+
+  // num_live_outs + reserved（2 locations 后已是 8-byte 对齐）
+  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 40, 0);
+  scoop_test_gc_stackmap_write_u16_le(section, rec1_off + 42, 0);
 
   scoop_stackmap_registry_reset();
   (void)scoop_stackmap_registry_register_current_process();

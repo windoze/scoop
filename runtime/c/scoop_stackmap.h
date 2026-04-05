@@ -48,6 +48,12 @@ typedef enum ScoopStackmapVisitError {
   SCOOP_STACKMAP_VISIT_ERR_INVALID_ARGUMENT = 1,
   SCOOP_STACKMAP_VISIT_ERR_RECORD_TOO_SHORT = 2,
   SCOOP_STACKMAP_VISIT_ERR_RECORD_MALFORMED = 3,
+  // roots 契约被破坏，或 roots locations 中出现了无法转换为可写回 slot 的条目。
+  //
+  // 典型原因（GC-FIX Phase A1/A4）：
+  // - roots locations 不是连续后缀；
+  // - roots locations 数量不是偶数（statepoint base/derived 成对语义）；
+  // - roots location 不是 pointer-sized 的 Direct/Indirect（SP/FP 基址）。
   SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION = 4,
   SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_DWARF_REG = 5,
   SCOOP_STACKMAP_VISIT_ERR_UNALIGNED_SLOT = 6,
@@ -74,12 +80,18 @@ uint32_t scoop_stackmap_registry_lookup(uintptr_t return_address, ScoopStackmapR
 // 遍历 stackmap record 的 locations，并把可转换为“可更新 roots slot”的条目以 `void** slot`
 // 的形式交给 visitor。
 //
-// 当前阶段（T1506a）的最小约束：
-// - 只处理 pointer-sized locations（`location_size == sizeof(void*)`）；其它 size 先跳过；
-// - 只支持以 SP（CFA）为基址的 Direct/Indirect locations；
-// - 对于非 Direct/Indirect 的 pointer-sized location（例如 Register/Constant），v0 选择忽略：
-//   - 这些条目可能来自 statepoint/patchpoint 的 deopt/metadata，并不一定是 GC roots；
-//   - 当前实现无法对寄存器做写回更新（moving GC 需要 `void** slot`），因此不应 fail-fast。
+// 契约（GC-FIX Phase A1/A4）：
+// - GC roots locations 是 `locations` 列表的连续后缀；
+// - 后缀内每个 roots location 都必须是可写回 slot：
+//   - kind=Direct/Indirect
+//   - size=pointer-sized（`location_size == sizeof(void*)`）
+//   - base reg=SP/FP（runtime 能从 `frame_sp/frame_fp` 计算地址）
+// - roots locations 数量必须为偶数（statepoint base/derived 成对语义）。
+//
+// 说明：
+// - 非 roots 的 locations（包括 Register/Constant/metadata 等）不会被 visitor 看到；
+// - 若遇到不满足契约的 record，将返回稳定错误码（`SCOOP_STACKMAP_VISIT_ERR_UNSUPPORTED_LOCATION`），
+//   上层可据此 fail-fast（纯 stackmap 模式不允许 silent mis-collection）。
 //
 // 参数：
 // - `frame_sp`：该帧的 SP/CFA（由 platform/unwind 提供，作为 stackmap location 基址）。
