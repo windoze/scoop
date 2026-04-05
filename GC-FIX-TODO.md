@@ -166,11 +166,14 @@
 - 验收：
   - `cargo test --all --no-default-features --features gc-immix` 通过。
 
-#### B2c) [TODO] 新增“强校验模式”：GC 结束后对 roots 做一致性验证（slow path）
-- 目的：避免 silent mis-collection；用于诊断/回归（性能不要求）。
-- 形式建议（任选其一或组合）：
-  - env 开关（例如 `SCOOP_GC_VERIFY_ROOTS=1`）；
-  - 或测试专用导出（`scoop_test_gc_verify_roots_*`）。
+#### B2c) [DONE] 新增“强校验模式”：GC 结束后对 roots 做一致性验证（slow path）
+- 形式：env 开关 `SCOOP_GC_VERIFY_ROOTS=1`（slow path，默认关闭）。
+- 行为（v0）：
+  - 在 stop-the-world 期间，GC 完成 sweep / move+fixup / compaction 后，重新枚举 roots slots（stackmap/native_roots/handles/pin）。
+  - 任意非 NULL roots 若不指向当前 `heap.objects` 的 live 对象，打印诊断并 fail-fast（`abort()`）。
+  - 若通过 stackmap ctx 做 roots 枚举，则要求至少命中 1 条 stackmap record（否则视为“未产生/未注册 stackmaps”并 fail-fast）。
+- 回归：
+  - 新增 `crates/scoop_runtime/tests/gc_verify_roots.rs`（在 InNative 下启用 verify_roots 的 smoke）。
 
 #### B3) [TODO] runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
 - 移除（或彻底废弃并在 ABI allowlist 中剔除）：

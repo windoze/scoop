@@ -1059,6 +1059,10 @@ static uint32_t scoop_gc_baseline_moving_enabled(void) {
   return scoop_gc_env_flag_is_truthy("SCOOP_GC_MOVE");
 }
 
+static uint32_t scoop_gc_verify_roots_enabled(void) {
+  return scoop_gc_env_flag_is_truthy("SCOOP_GC_VERIFY_ROOTS");
+}
+
 // forwarding pointer：复用对象头的 `next` 字段，并用低位 tag 区分“链表 next”与“转发指针”。
 #define SCOOP_GC_BASELINE_FORWARDING_TAG ((uintptr_t)1u)
 
@@ -1282,6 +1286,244 @@ static uint64_t scoop_gc_stackmap_visit_roots_from_ctx(void *stack_walking_ctx,
     *out_records_hit = walk.records_hit;
   }
   return walk.slots_visited;
+}
+
+// --- GC roots 强校验（GC-FIX Phase B2c） ---
+//
+// 目的：
+// - 该模式用于诊断/回归：避免 “roots 枚举不全 / roots 更新不全” 导致的 silent mis-collection。
+// - 通过 env `SCOOP_GC_VERIFY_ROOTS=1` 启用（slow path；不追求性能）。
+//
+// 校验内容（v0）：
+// - GC 完成（sweep/move+fixup）后，再次枚举所有 roots slots（stackmap/native_roots/handles/pin）；
+// - 要求：每个非 NULL roots 值必须指向当前 heap.objects 中的某个 live 对象（对象头地址）；
+// - 对 stackmap roots：要求 stackmap lookup 至少命中 1 条 record（否则视为“未产生/未注册 stackmaps”）。
+//
+// 注意：
+// - 该校验在 stop-the-world 期间运行（持有 GC 锁），因此可以安全读取 Parked 线程的 stack slots；
+// - 对 InNative 线程：按当前协议仅验证 `native_roots`（不尝试 walk 其 managed frames）。
+
+typedef struct ScoopGcVerifyRootsState {
+  ScoopGcHeap *heap;
+  ScoopGcBaselineUpdateCtx live_set;
+
+  uint32_t errors;
+  uint32_t max_errors;
+} ScoopGcVerifyRootsState;
+
+typedef struct ScoopGcVerifySlotCtx {
+  ScoopGcVerifyRootsState *state;
+  const char *kind;
+  uintptr_t thread_id;
+} ScoopGcVerifySlotCtx;
+
+static uint32_t scoop_gc_verify_live_set_contains(const ScoopGcVerifyRootsState *st,
+                                                  ScoopGcObjectHeader *obj) {
+  if (st == 0 || obj == 0) {
+    return 0;
+  }
+  if (st->live_set.live_sorted != 0 && st->live_set.live_len != 0) {
+    return scoop_gc_baseline_live_set_contains(&st->live_set, obj);
+  }
+  // fallback：O(n)；避免因 OOM 无法分配 live_set 数组导致“全误报”。
+  return scoop_gc_heap_contains_object_in_heap_unlocked(st->heap, obj);
+}
+
+static void scoop_gc_verify_roots_record_error(ScoopGcVerifyRootsState *st,
+                                               const char *kind,
+                                               uintptr_t thread_id,
+                                               const void *slot_addr,
+                                               const void *value,
+                                               const char *msg) {
+  if (st == 0) {
+    return;
+  }
+
+  if (st->errors < st->max_errors) {
+    if (thread_id != 0) {
+      (void)fprintf(stderr,
+                    "[scooprt][gc][verify-roots] %s: kind=%s thread=0x%" PRIxPTR
+                    " slot=%p value=%p\n",
+                    (msg != 0) ? msg : "error",
+                    (kind != 0) ? kind : "unknown",
+                    thread_id,
+                    slot_addr,
+                    value);
+    } else {
+      (void)fprintf(stderr,
+                    "[scooprt][gc][verify-roots] %s: kind=%s slot=%p value=%p\n",
+                    (msg != 0) ? msg : "error",
+                    (kind != 0) ? kind : "unknown",
+                    slot_addr,
+                    value);
+    }
+  }
+
+  st->errors += 1;
+}
+
+static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
+  if (slot == 0 || raw_ctx == 0) {
+    return;
+  }
+
+  ScoopGcVerifySlotCtx *ctx = (ScoopGcVerifySlotCtx *)raw_ctx;
+  if (ctx->state == 0) {
+    return;
+  }
+
+  void *raw = *slot;
+  if (raw == 0) {
+    return;
+  }
+
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
+  if (!scoop_gc_verify_live_set_contains(ctx->state, obj)) {
+    scoop_gc_verify_roots_record_error(
+        ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
+  }
+}
+
+static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
+                                                    pthread_t initiator,
+                                                    void *initiator_stack_walking_ctx) {
+  if (heap == 0) {
+    return;
+  }
+
+  // snapshot live set
+  size_t live_len = 0;
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+    live_len += 1;
+  }
+
+  ScoopGcObjectHeader **live_sorted = 0;
+  if (live_len > 0 && live_len <= (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+    live_sorted = (ScoopGcObjectHeader **)malloc(live_len * sizeof(ScoopGcObjectHeader *));
+  }
+
+  if (live_sorted != 0) {
+    size_t idx = 0;
+    for (ScoopGcObjectHeader *it = heap->objects; it != 0 && idx < live_len; it = it->next) {
+      live_sorted[idx++] = it;
+    }
+    live_len = idx;
+    qsort(live_sorted, live_len, sizeof(ScoopGcObjectHeader *), scoop_gc_ptr_cmp);
+  } else {
+    // fallback：不分配 live_sorted，后续 membership 判定退化为遍历 heap.objects。
+    live_len = 0;
+  }
+
+  ScoopGcVerifyRootsState st = {
+      .heap = heap,
+      .live_set =
+          {
+              .live_sorted = live_sorted,
+              .live_len = live_len,
+          },
+      .errors = 0,
+      .max_errors = 16,
+  };
+
+  // pinned roots / stable handles 也必须指向 live 对象（否则 moving/compaction 后为悬挂指针）。
+  for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+    if (it->object == 0 || it->pin_count == 0) {
+      continue;
+    }
+    if (!scoop_gc_verify_live_set_contains(&st, it->object)) {
+      scoop_gc_verify_roots_record_error(
+          &st, "pin", /*thread_id=*/0, (const void *)&it->object, (const void *)it->object, "pinned root not live");
+    }
+  }
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    if (!scoop_gc_verify_live_set_contains(&st, it->object)) {
+      scoop_gc_verify_roots_record_error(&st,
+                                         "handle",
+                                         /*thread_id=*/0,
+                                         (const void *)&it->object,
+                                         (const void *)it->object,
+                                         "handle root not live");
+    }
+  }
+
+  // per-thread roots
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    const uintptr_t tid = scoop_gc_thread_id_for_diag(it->thread);
+
+    // initiator：若捕获了 stack walking ctx，则同时校验 stackmap roots（moving GC 依赖 spill slots 更新）。
+    if (pthread_equal(it->thread, initiator)) {
+      if (initiator_stack_walking_ctx != 0) {
+        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(
+            initiator_stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          scoop_gc_verify_roots_record_error(
+              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+        } else if (records_hit == 0) {
+          scoop_gc_verify_roots_record_error(
+              &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
+        }
+      }
+
+      if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "native_roots", .thread_id = tid};
+        (void)scoop_gc_native_roots_visit_slots(
+            it->native_roots, it->native_roots_len, scoop_gc_verify_root_slot_visitor, (void *)&v);
+      }
+      continue;
+    }
+
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      ScoopGcVerifySlotCtx v = {.state = &st, .kind = "native_roots", .thread_id = tid};
+      (void)scoop_gc_native_roots_visit_slots(
+          it->native_roots, it->native_roots_len, scoop_gc_verify_root_slot_visitor, (void *)&v);
+      continue;
+    }
+
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      if (it->stack_walking_ctx == 0) {
+        scoop_gc_verify_roots_record_error(
+            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "parked thread missing stack_walking_ctx");
+        continue;
+      }
+
+      ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
+      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      uint32_t records_hit = 0;
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(
+          it->stack_walking_ctx, scoop_gc_verify_root_slot_visitor, (void *)&v, &err, &records_hit);
+      if (err != SCOOP_STACKMAP_VISIT_OK) {
+        scoop_gc_verify_roots_record_error(
+            &st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap visit failed");
+      } else if (records_hit == 0) {
+        scoop_gc_verify_roots_record_error(&st, "stackmap", tid, /*slot_addr=*/0, /*value=*/0, "stackmap hit 0 records");
+      }
+      continue;
+    }
+
+    // STW 已达成：除 initiator 与 InNative 线程外，其余线程必须为 Parked。
+    scoop_gc_verify_roots_record_error(
+        &st, "thread_state", tid, /*slot_addr=*/0, /*value=*/0, "unexpected thread state during verify");
+  }
+
+  if (st.errors != 0) {
+    (void)fprintf(stderr,
+                  "[scooprt][gc][verify-roots] found %u error(s); aborting\n",
+                  (unsigned)st.errors);
+    if (live_sorted != 0) {
+      free(live_sorted);
+    }
+    abort();
+  }
+
+  if (live_sorted != 0) {
+    free(live_sorted);
+  }
 }
 
 typedef struct ScoopGcBaselineMoveRecord {
@@ -1798,6 +2040,10 @@ void scoop_gc_collect(void) {
       heap->bytes_freed += obj->size_bytes;
       free(obj);
     }
+  }
+
+  if (scoop_gc_verify_roots_enabled()) {
+    scoop_gc_verify_roots_after_gc_unlocked(heap, self, initiator_stack_walking_ctx);
   }
 
   if (initiator_stack_walking_ctx != 0) {
