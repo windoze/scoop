@@ -75,21 +75,21 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
         multi_thread_roots_enum: false,
         moving: false,
         precise_roots_update: false,
-        shadow_stack_roots: true,
+        shadow_stack_roots: false,
     },
     GcBackend::Immix => GcCapabilities {
         stw: true,
         multi_thread_roots_enum: true,
         moving: true,
         precise_roots_update: true,
-        shadow_stack_roots: true,
+        shadow_stack_roots: false,
     },
     GcBackend::Hosted => GcCapabilities {
         stw: false,
         multi_thread_roots_enum: false,
         moving: false,
         precise_roots_update: false,
-        shadow_stack_roots: true,
+        shadow_stack_roots: false,
     },
 };
 

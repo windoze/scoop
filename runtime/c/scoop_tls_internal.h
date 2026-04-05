@@ -17,8 +17,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct ScoopGcFrame ScoopGcFrame;
-
 // 每线程 TLS 状态（early stage：占位 + 渐进扩展）。
 //
 // 注意：
@@ -30,9 +28,6 @@ typedef struct ScoopThreadTls {
 
   // 保留字段：未来用于版本/flags 等。
   uint32_t _reserved_u32;
-
-  // GC：shadow stack 当前帧链头（TODO T0905）。
-  ScoopGcFrame *gc_current_frame;
 
   // Immix：thread-local 当前分配 block（TODO T1409a）。
   // - 该字段只在 Immix backend 下使用；

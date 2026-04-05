@@ -3,7 +3,6 @@
 // 说明：
 // - 该文件提供 mark-sweep GC（v0）的“数据结构骨架”，用于后续逐步接入：
 //   - type descriptor（对象内引用字段扫描）
-//   - shadow stack root 扫描
 //   - stop-the-world 与多线程支持
 // - 在完成 TODO T0910 后，该文件也提供最小可用的单线程 mark-sweep（手动触发）。
 
@@ -116,25 +115,6 @@ _Static_assert(offsetof(ScoopTypeDescriptor, trace_bitmap) == 40,
                "ScoopTypeDescriptor.trace_bitmap offset must be 40");
 #endif
 
-// Shadow stack（精确根集）帧。
-//
-// TODO T0905：
-// - 该结构体将由编译器在函数 prologue/epilogue 插桩 push/pop（PLAN §8.3）。
-// - 当前阶段仅要求能维护链表（prev 指针），不要求实现 root 扫描。
-typedef struct ScoopGcFrame {
-  // 上一个 frame（按调用栈嵌套形成链表）。
-  struct ScoopGcFrame *prev;
-
-  // `roots[]` 的元素个数。early stage：push/pop 不依赖该字段，但为后续扫描预留。
-  uint32_t root_count;
-
-  // 保留字段：用于对齐/版本/flags 等。
-  uint32_t _reserved_u32;
-
-  // roots slots：每个 slot 存放一个 GC-managed 指针（或 NULL）。
-  void *roots[];
-} ScoopGcFrame;
-
 // GC 对象头（v0：骨架）。
 //
 // 说明：
@@ -222,7 +202,7 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // 说明：
 // - 该 API 当前用于 fixtures/集成测试回归（TODO T0910），不实现自动触发策略；
 // - roots 枚举语义由编译期选择的 GC backend 决定（见 `crates/scoop_runtime/src/gc_backend.rs`）；
-// - GC-FIX Phase B2（stackmap-only）路线下，roots 应来自 stackmap/native_roots/handles/pin（不依赖 shadow stack）；
+// - GC-FIX Phase B2（stackmap-only）路线下，roots 应来自 stackmap/native_roots/handles/pin；
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
 void scoop_gc_collect(void);
 
@@ -232,7 +212,7 @@ void scoop_gc_collect(void);
 // - `pin/unpin` 用于把某个 heap 对象标记为“不可移动且必须保活”，供 FFI/异步 I/O
 //   等场景在把指针交给外部系统时使用。
 // - v0（非移动 mark-sweep）阶段，对象本身不会移动；pin 的主要效果是把对象加入
-//   “额外 roots”，避免在没有 shadow stack 引用时被 sweep。
+//   “额外 roots”，避免在没有其它 roots（stackmap/native_roots/handle 等）引用时被 sweep。
 // - 返回值：1 表示成功；0 表示失败（例如 obj==NULL、对象不在 heap 中、或 unpin 下溢）。
 uint32_t scoop_pin(void *obj);
 uint32_t scoop_unpin(void *obj);
@@ -262,33 +242,6 @@ uint64_t scoop_gc_type_descriptor_trace(const ScoopTypeDescriptor *type_desc,
                                        void *object,
                                        ScoopGcTraceVisitor visitor,
                                        void *ctx);
-
-// 返回当前线程的 shadow stack 链头。
-ScoopGcFrame *scoop_gc_current_frame(void);
-
-// 将 frame push 到当前线程的 shadow stack 链头。
-void scoop_gc_frame_push(ScoopGcFrame *frame);
-
-// 将 frame 从 shadow stack 链头 pop（要求 top == frame）。
-void scoop_gc_frame_pop(ScoopGcFrame *frame);
-
-// 遍历当前线程的 shadow stack，并对每个非空 root slot 调用 visitor。
-//
-// 返回值：visitor 被调用的次数（即扫描到的 roots 数量）。
-//
-// 说明：
-// - 该 API 为后续 mark 阶段提供“根集枚举”能力（TODO T0909）；
-// - v0 只支持单线程：仅扫描当前线程的 frame 链；
-// - visitor 会收到 `void** slot`（可读写），以便未来移动 GC 可原地更新引用。
-uint64_t scoop_gc_shadow_stack_visit_roots_current_thread(ScoopGcTraceVisitor visitor,
-                                                         void *ctx);
-
-// Debug helper：遍历当前线程的 shadow stack，并统计非空 roots slot 的个数。
-//
-// 说明：
-// - 该 API 主要用于 compiler/codegen 的插桩回归（TODO T0816）；
-// - 当前阶段不执行真正的 mark/sweep，只做“可遍历且不崩溃”的扫描。
-uint64_t scoop_gc_debug_count_roots_current_thread(void);
 
 // --- Debug helpers（用于测试/fixtures；不承诺稳定 ABI） ---
 

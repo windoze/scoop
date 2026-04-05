@@ -75,23 +75,17 @@
   X(scoop_fs_read_all_text_utf8) \
   X(scoop_fs_write_all_text_utf8) \
   X(scoop_gc_collect) \
-  X(scoop_gc_current_frame) \
   X(scoop_gc_debug_alloc_garbage) \
-  X(scoop_gc_debug_count_roots_current_thread) \
   X(scoop_gc_debug_heap_bytes_allocated) \
   X(scoop_gc_debug_heap_bytes_freed) \
   X(scoop_gc_debug_heap_bytes_reserved) \
   X(scoop_gc_debug_heap_object_count) \
-  X(scoop_gc_frame_pop) \
-  X(scoop_gc_frame_push) \
   X(scoop_gc_heap) \
   X(scoop_gc_heap_init) \
   X(scoop_gc_heap_register_object) \
   X(scoop_gc_safepoint) \
   X(scoop_gc_safepoint_poll) \
   X(scoop_gc_self_check) \
-  X(scoop_gc_shadow_stack_visit_roots_current_thread) \
-  X(scoop_gc_shadow_stack_visit_roots_from_frame) \
   X(scoop_gc_thread_register) \
   X(scoop_gc_thread_unregister) \
   X(scoop_gc_type_descriptor_trace) \

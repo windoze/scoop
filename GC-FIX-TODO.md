@@ -175,7 +175,7 @@
 - 回归：
   - 新增 `crates/scoop_runtime/tests/gc_verify_roots.rs`（在 InNative 下启用 verify_roots 的 smoke）。
 
-#### B3) [TODO] runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
+#### B3) [DONE] runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
 - 移除（或彻底废弃并在 ABI allowlist 中剔除）：
   - `scoop_gc_current_frame`
   - `scoop_gc_frame_push/pop`

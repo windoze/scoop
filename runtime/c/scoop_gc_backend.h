@@ -52,8 +52,8 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-// v0：roots 来源为 shadow stack（精确枚举）。
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
+// GC-FIX Phase B2：roots 不再来自 shadow stack。
+#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_MINIMAL
 
@@ -65,25 +65,24 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-// v0：仍使用 shadow stack roots（单线程下精确枚举）。
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
+// GC-FIX Phase B2：roots 不再来自 shadow stack。
+#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
 
 // Immix v0：协作式 STW、moving/compaction。
-// - stop-the-world 为协作式：线程需要进入 `scoop_gc_safepoint()` 才会暂停；
-// - roots 来源为 shadow stack，因此可在 compaction 时执行“精确 roots 更新”。
+// - stop-the-world 为协作式：线程需要进入 `scoop_gc_safepoint()` 才会暂停。
 #define SCOOP_GC_CAP_STW 1
 #define SCOOP_GC_CAP_MULTI_THREAD_ROOTS_ENUM 1
 
 #define SCOOP_GC_CAP_MOVING 1
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 1
 
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
+#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_HOSTED
 
-// hosted/adapter v0：单线程、无 STW；依赖 shadow stack roots。
+// hosted/adapter v0：单线程、无 STW。
 //
 // 说明：
 // - 该 backend 的设计目标是“尽量不依赖 OS 线程/同步原语”，以便在受限环境（例如 WASM/embedded）
@@ -96,6 +95,6 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 1
+#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
 
 #endif

@@ -7,7 +7,6 @@ use scoop_runtime as _;
 #[cfg(feature = "gc-hosted")]
 mod hosted {
     use core::ffi::c_void;
-    use core::ptr;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc;
@@ -21,15 +20,6 @@ mod hosted {
         mark: u32,
     }
 
-    // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopGcFrame`（root_count=1 的固定版本）。
-    #[repr(C)]
-    struct ScoopGcFrame {
-        prev: *mut ScoopGcFrame,
-        root_count: u32,
-        _reserved_u32: u32,
-        roots: [*mut c_void; 1],
-    }
-
     unsafe extern "C" {
         fn scoop_runtime_init();
         fn scoop_thread_register();
@@ -37,8 +27,8 @@ mod hosted {
 
         fn scoop_alloc(size: u64) -> *mut c_void;
 
-        fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
-        fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
+        fn scoop_handle_new(obj: *mut c_void) -> u64;
+        fn scoop_handle_drop(handle: u64) -> u32;
 
         fn scoop_gc_collect();
         fn scoop_gc_debug_heap_object_count() -> u64;
@@ -68,13 +58,8 @@ mod hosted {
             let keep = scoop_alloc(header_size + 8);
             assert!(!keep.is_null());
 
-            let mut frame = ScoopGcFrame {
-                prev: ptr::null_mut(),
-                root_count: 1,
-                _reserved_u32: 0,
-                roots: [keep],
-            };
-            scoop_gc_frame_push(&mut frame);
+            let handle = scoop_handle_new(keep);
+            assert_ne!(handle, 0);
 
             ready_tx.send(()).unwrap();
 
@@ -82,7 +67,7 @@ mod hosted {
                 std::thread::yield_now();
             }
 
-            scoop_gc_frame_pop(&mut frame);
+            assert_eq!(scoop_handle_drop(handle), 1);
             scoop_thread_unregister();
         });
 
@@ -93,13 +78,8 @@ mod hosted {
             let keep_main = scoop_alloc(header_size + 8);
             assert!(!keep_main.is_null());
 
-            let mut frame = ScoopGcFrame {
-                prev: ptr::null_mut(),
-                root_count: 1,
-                _reserved_u32: 0,
-                roots: [keep_main],
-            };
-            scoop_gc_frame_push(&mut frame);
+            let handle_main = scoop_handle_new(keep_main);
+            assert_ne!(handle_main, 0);
 
             // 由于当前存在两个已注册线程，hosted backend 必须退化为 no-op：
             // - 不应崩溃；
@@ -115,7 +95,7 @@ mod hosted {
             stop.store(true, Ordering::SeqCst);
             worker.join().unwrap();
 
-            scoop_gc_frame_pop(&mut frame);
+            assert_eq!(scoop_handle_drop(handle_main), 1);
             scoop_gc_collect();
             assert_eq!(scoop_gc_debug_heap_object_count(), 0);
 

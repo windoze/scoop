@@ -469,8 +469,7 @@ void scoop_gc_collect(void) {
   ScoopGcMarkStack stack = {0};
   ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
 
-  // 1) mark roots（只扫描当前线程的 shadow stack）
-  (void)scoop_gc_shadow_stack_visit_roots_current_thread(scoop_gc_mark_visitor, (void *)&ctx);
+  // 1) mark roots（hosted backend v0：仅扫描 pinned/handles roots；不枚举栈 roots）
 
   // 1b) mark pinned roots（spec §15.10）
   for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
