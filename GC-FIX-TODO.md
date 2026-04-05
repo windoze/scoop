@@ -203,15 +203,28 @@
   - `scoopc --features llvm`：生成 IR 断言不包含任何 `scoop_gc_frame_*` 调用；
   - stackmap dump：每个预期 safepoint 均能定位 record，并能枚举到 live roots。
 
-#### C2) [TODO] 彻底消除“statepoint 重写崩溃/特殊绕路”的遗留
-- 目前有一些“为避免 rewrite-statepoints-for-gc 崩溃而绕开的路径”（例如某些临时对象/addrspacecast 场景）。
-- 目标：这些绕路不应作为长期限制存在。
-- 具体任务：
-  - 统一 ref 指针类型策略（`addrspace(1)`）；
-  - 禁止 ptr<->int 的编码/逃逸；
-  - 让 println/字符串等路径也能在 statepoint 下稳定工作（必要时拆分为 runtime helper，确保 IR 合法）。
+#### C2a) [TODO] statepoint pass pipeline：启用 SROA（让“聚合值里的 ref”可被追踪）
+- 背景：当前 pipeline 只有 `mem2reg + rewrite-statepoints-for-gc`；当 GC 指针藏在值类型/聚合值字段里时，
+  可能不会被 `rewrite-statepoints-for-gc` 识别为 gc-live pointer，导致必须在源码里手工“提取字段 keepalive”。
+- 目标：在 statepoint 重写前运行 SROA（必要时搭配 mem2reg），把值类型/聚合值里的 `addrspace(1)` 指针
+  拆解为可追踪的 SSA 值（或可写回 slot），消除对“手工提取字段”的依赖。
 - 验收：
-  - 新增 fixtures 覆盖：字符串/数组/closure/接口分发等场景下触发 GC，仍可正确运行且 stackmaps 可解析。
+  - 更新/新增 run-pass fixture：`struct Wrap { s: String }` 直接整体跨越 `__scoop_gc_collect()` 仍正确；
+  - `scoop dump-stackmaps <bin>` 仍能解析 stackmaps（records>0）。
+
+#### C2b) [TODO] 禁止 GC 指针 ptr<->int 编码/逃逸（移除剩余绕路）
+- 目标：对所有 GC-managed 指针（`addrspace(1)`），禁止 `ptrtoint/inttoptr` 编码（包括“塞进 word 再取回”的变体）。
+- 输出形态：必要时调整 runtime ABI（例如拆分 word/ptr 槽位）或改为明确的 ref 通道。
+- 验收：全仓 `rg "ptrtoint|inttoptr|ptr_to_u64|u64_to_"` 不再出现“GC 指针编码”路径（非 GC 指针例外需有注释说明）。
+
+#### C2c) [TODO] println/字符串路径在 statepoint 下稳定（移除临时绕路）
+- 目标：移除为规避 `rewrite-statepoints-for-gc` 崩溃而引入的临时绕路（例如避免构造临时 String 的特殊 print 路径），
+  让 println/字符串构造/格式化在 statepoint 下稳定工作；必要时把复杂逻辑拆到 runtime helper，保持 IR 合法。
+- 验收：新增/更新 run-pass fixtures 覆盖字符串/格式化在 GC 下可用（含触发 GC 的 safepoint）。
+
+#### C2d) [TODO] 端到端 fixtures 补齐：字符串/数组/closure/接口分发（含 GC + stackmaps 可诊断）
+- 目标：补齐 C2 的“去绕路”回归面，避免未来回退到 best-effort。
+- 验收：新增 fixtures 覆盖字符串/数组/closure/接口分发等场景触发 GC，仍可正确运行且 stackmaps 可解析。
 
 ---
 
