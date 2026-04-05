@@ -187,7 +187,10 @@ fn stackmap_registry_lookup_supports_plus_minus_one_normalization() {
         assert_eq!(ok, 1, "期望 lookup 能处理 -1/+1 归一化");
         assert_eq!(out.patchpoint_id, 7);
         assert_eq!(out.instruction_offset, 0x20);
-        assert_eq!(out.return_address, ra, "输出 record 应回填为真实 RA（lookup 输入）");
+        assert_eq!(
+            out.return_address, ra,
+            "输出 record 应回填为真实 RA（lookup 输入）"
+        );
     }
 }
 

@@ -48,15 +48,6 @@ mod immix {
         mark: u32,
     }
 
-    // 对齐 `runtime/c/scoop_gc.h` 的 `ScoopGcFrame`（root_count=1 的固定版本）。
-    #[repr(C)]
-    struct ScoopGcFrame {
-        prev: *mut ScoopGcFrame,
-        root_count: u32,
-        _reserved_u32: u32,
-        roots: [*mut c_void; 1],
-    }
-
     unsafe extern "C" {
         fn scoop_runtime_init();
         fn scoop_thread_register();
@@ -64,8 +55,9 @@ mod immix {
 
         fn scoop_alloc(size: u64) -> *mut c_void;
 
-        fn scoop_gc_frame_push(frame: *mut ScoopGcFrame);
-        fn scoop_gc_frame_pop(frame: *mut ScoopGcFrame);
+        fn scoop_handle_new(obj: *mut c_void) -> u64;
+        fn scoop_handle_get(handle: u64) -> *mut c_void;
+        fn scoop_handle_drop(handle: u64) -> u32;
 
         fn scoop_gc_collect();
         fn scoop_gc_debug_heap_object_count() -> u64;
@@ -211,27 +203,29 @@ mod immix {
                     tid as u64,
                 );
 
-                let mut frame = ScoopGcFrame {
-                    prev: ptr::null_mut(),
-                    root_count: 1,
-                    _reserved_u32: 0,
-                    roots: [root],
-                };
-                scoop_gc_frame_push(&mut frame);
+                // Rust mutator 线程不产生 statepoint stackmaps；用 stable handle 把 root 放进全局 roots 表。
+                let root_handle = scoop_handle_new(root);
+                assert_ne!(root_handle, 0, "handle_new must succeed for root");
 
-                published[tid].store(frame.roots[0] as usize, Ordering::Release);
+                published[tid].store(root_handle as usize, Ordering::Release);
                 start.wait();
 
                 // 建立跨线程引用环：root.ptr0 -> next_thread.root
-                let next = published[(tid + 1) % threads].load(Ordering::Acquire) as *mut c_void;
-                let root_now = frame.roots[0];
+                let next_handle = published[(tid + 1) % threads].load(Ordering::Acquire) as u64;
+                assert_ne!(next_handle, 0, "next root handle must be published");
+                let next = scoop_handle_get(next_handle);
+                assert!(!next.is_null(), "handle_get(next) must succeed");
+
+                let root_now = scoop_handle_get(root_handle);
+                assert!(!root_now.is_null(), "handle_get(root) must succeed");
                 let payload = (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
                 payload.add(0).write(next);
 
                 let mut i: usize = 0;
                 while !stop.load(Ordering::Relaxed) {
-                    // root 可能被 moving/compaction 更新地址：每次都从 frame.roots 读取。
-                    let root_now = frame.roots[0];
+                    // root 可能被 moving/compaction 更新地址：每次都从 handle_get 读取。
+                    let root_now = scoop_handle_get(root_handle);
+                    assert!(!root_now.is_null(), "handle_get(root) must succeed");
                     let root_payload =
                         (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
 
@@ -260,7 +254,8 @@ mod immix {
                     );
 
                     // 写回链表头（注意：不要在 Rust 局部变量里长期保存 head 指针，GC 不会更新它）。
-                    let root_now = frame.roots[0];
+                    let root_now = scoop_handle_get(root_handle);
+                    assert!(!root_now.is_null(), "handle_get(root) must succeed");
                     let payload =
                         (root_now as *mut u8).add(header_size as usize) as *mut *mut c_void;
                     payload.add(1).write(node);
@@ -288,7 +283,7 @@ mod immix {
                     }
 
                     // 快速一致性检查：root 的 sentinel 必须稳定（否则说明标记/更新出现问题）。
-                    assert_eq!(read_node_sentinel(frame.roots[0], header_size), tid as u64);
+                    assert_eq!(read_node_sentinel(root_now, header_size), tid as u64);
 
                     // 偶尔检查 pinned anchor 的 payload 未被覆盖。
                     if (i % 256) == 0 {
@@ -299,8 +294,12 @@ mod immix {
                     i += 1;
                 }
 
-                // roots pop 后，GC 应能回收；anchor 解除 pin 后也应能回收。
-                scoop_gc_frame_pop(&mut frame);
+                // roots drop 后，GC 应能回收；anchor 解除 pin 后也应能回收。
+                assert_eq!(
+                    scoop_handle_drop(root_handle),
+                    1,
+                    "handle_drop(root) must succeed"
+                );
                 assert_anchor_sentinel(anchor, header_size, 0xCD);
                 assert_eq!(scoop_unpin(anchor), 1, "unpin must succeed");
 

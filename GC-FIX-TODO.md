@@ -159,12 +159,12 @@
 - 验收：
   - `cargo test --all`（默认 baseline）通过。
 
-#### B2b) [TODO] immix：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
+#### B2b) [DONE] immix：GC roots 枚举仅走 stackmap/native/handle/pin/global（不再扫描 shadow stack）
 - 改动范围：
   - `runtime/c/scoop_gc_backend_immix.c`（Immix backend，含 parallel mark + compaction roots update）
   - `crates/scoop_runtime/tests/gc_immix_*`（移除/替换 shadow stack roots 依赖）
 - 验收：
-  - `cargo test --all --features gc-immix` 通过。
+  - `cargo test --all --no-default-features --features gc-immix` 通过。
 
 #### B2c) [TODO] 新增“强校验模式”：GC 结束后对 roots 做一致性验证（slow path）
 - 目的：避免 silent mis-collection；用于诊断/回归（性能不要求）。

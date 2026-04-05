@@ -8,7 +8,10 @@
 //
 // 限制（v0）：
 // - stop-the-world 当前为协作式：线程必须进入 `scoop_gc_safepoint()` 才会被暂停；
-// - roots 来源仅为 shadow stack（TODO T1506 会引入 stackmap roots）。
+// - GC roots 枚举不再扫描 shadow stack：
+//   - InNative 线程：roots 来自 `native_roots` slots（enter_native 注册）；
+//   - 其余线程：roots 来自 stack walking ctx + stackmap records（Parked/initiator）；
+//   - pinned objects 与 stable handles 作为全局 roots 单独扫描。
 
 #include "scoop_gc_backend.h"
 
@@ -102,7 +105,7 @@ static ScoopGcPinnedRecord *scoop_gc_pinned_objects = 0;
 // --- Stable handles（spec §15.10.1 / TODO T1510a） ---
 //
 // 说明：
-// - handle 表必须被 GC 当作 roots（否则对象可能在没有任何 shadow stack 引用时被回收）；
+// - handle 表必须被 GC 当作 roots（否则对象可能在没有任何 roots 引用时被回收）；
 // - Immix backend 支持 moving/compaction，因此在 evacuation 后必须更新 handle->obj 槽位，
 //   避免 native 通过 handle_get() 读到悬挂指针。
 typedef struct ScoopGcHandleRecord {
@@ -141,9 +144,9 @@ static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *o
 // --- 线程注册 + stop-the-world（TODO T1408a） ---
 //
 // 设计说明（Immix backend，early stage）：
-// - roots 来源为 shadow stack（编译器插桩维护 `ScoopGcFrame` 链）；
+// - roots 来源为 stackmap（Parked/initiator）+ native_roots（InNative）+ pinned/handles；
 // - 为在多线程下正确做 mark/compaction，需要在 GC 周期内暂停所有“已注册线程”，并在暂停期间
-//   扫描/更新每个线程的 `current_frame` 链；
+//   扫描/更新每个线程的 roots slots（stackmap spill slots / native_roots slots / handle 表槽位）；
 // - 当前实现为协作式 STW：线程只有在 safepoint 调用 `scoop_gc_safepoint()` 才会 park；
 // - 目标优先级：正确性与可回归；性能优化（TLAB/并行标记）留给后续任务（T1409）。
 
@@ -2724,7 +2727,9 @@ static void scoop_gc_immix_state_remove_and_free_block(ScoopGcImmixState *state,
 
 static void scoop_gc_immix_compact(ScoopGcImmixState *state,
                                    ScoopGcHeap *heap,
-                                   ScoopGcImmixBlock *evac_blocks) {
+                                   ScoopGcImmixBlock *evac_blocks,
+                                   pthread_t initiator,
+                                   void *initiator_stack_walking_ctx) {
   if (state == 0 || heap == 0 || evac_blocks == 0) {
     return;
   }
@@ -2859,12 +2864,9 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
       .live_len = live_len,
   };
 
-  // 3a) roots update：shadow stack slots 原地改写为新地址（moving GC 的关键语义）。
+  // 3a) roots update：roots slots 原地改写为新地址（moving GC 的关键语义）。
   //
   // 注意：必须更新“所有已注册线程”的 roots；否则在多线程 + moving/compaction 下会产生悬挂指针。
-  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
-                                                        ScoopGcTraceVisitor visitor,
-                                                        void *ctx);
   for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
     // T1505c：InNative 线程 roots 来自 native_roots buffer（同样需要在 moving GC 中被更新）。
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
@@ -2873,38 +2875,58 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
       continue;
     }
 
-    // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap spill slots 更新；
-    // 若未提供或未命中 record，则回退到 shadow stack（保持早期 runtime/Rust 测试兼容）。
-    if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
+    // B2b：initiator/parked 线程 roots 更新仅走 stackmap spill slots（statepoint + gc.relocate 依赖该语义）。
+    if (pthread_equal(it->thread, initiator)) {
+      if (initiator_stack_walking_ctx == 0) {
+        (void)fprintf(stderr, "[scooprt][gc][stackmap] missing initiator ctx for roots update\n");
+        abort();
+      }
       uint32_t err = SCOOP_STACKMAP_VISIT_OK;
       uint32_t records_hit = 0;
-      (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
                                                    scoop_gc_immix_update_slot_visitor,
                                                    &update_ctx,
                                                    &err,
                                                    &records_hit);
       if (err != SCOOP_STACKMAP_VISIT_OK) {
         (void)fprintf(stderr,
-                      "[scooprt][gc][stackmap] update roots failed: err=%u (thread=0x%" PRIxPTR
-                      ")\n",
-                      (unsigned)err,
-                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+                      "[scooprt][gc][stackmap] update initiator roots failed: err=%u\n",
+                      (unsigned)err);
         abort();
       }
-      // 重要：
-      // - 即使 stackmap 命中 record，也仍需扫描 shadow stack roots；
-      // - shadow stack 由 runtime/测试直接维护，并不保证与 stackmap spill slots 重叠；
-      // - stackmap registry 在非 managed 帧上也可能发生误命中，跳过 shadow stack 会导致漏标/漏更新，
-      //   进而在 compaction 后出现悬挂指针（回归：gc_immix_parallel_mark_sweep_stress）。
-    }
-
-    if (it->tls == 0) {
       continue;
     }
-    ScoopGcFrame *frame = it->tls->gc_current_frame;
-    (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
-                                                       scoop_gc_immix_update_slot_visitor,
-                                                       &update_ctx);
+
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      // 若该线程通过 `scoop_gc_safepoint()`（非 poll）进入 Parked，则可能没有 ctx；
+      // 此时无法 walk stackmap roots，只能退化为“该线程无 stackmap roots 可枚举”。
+      if (it->stack_walking_ctx != 0) {
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                     scoop_gc_immix_update_slot_visitor,
+                                                     &update_ctx,
+                                                     &err,
+                                                     &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] update roots failed: err=%u (thread=0x%" PRIxPTR
+                        ")\n",
+                        (unsigned)err,
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+      }
+      continue;
+    }
+
+    // STW 已达成：除 initiator 与 InNative 线程外，其余线程必须为 Parked。
+    (void)fprintf(stderr,
+                  "[scooprt][gc] unexpected thread state during roots update: state=%u "
+                  "(thread=0x%" PRIxPTR ")\n",
+                  (unsigned)it->state,
+                  (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+    abort();
   }
 
   // 3a2) stable handle table update：handle->obj 槽位同样属于 roots，需要在 moving/compaction 后被改写。
@@ -3133,6 +3155,31 @@ void scoop_gc_collect(void) {
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
 
+  // B2b：Immix roots 枚举不再扫描 shadow stack。
+  //
+  // 约定：
+  // - InNative 线程：roots 来自 `native_roots` slots（enter_native 注册），以及 pinned/handles；
+  // - 其余线程：roots 来自 stackmap（需要可用的 unwind ctx）。
+  uint32_t initiator_needs_stackmap_roots = 1;
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (!pthread_equal(it->thread, self)) {
+      continue;
+    }
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      initiator_needs_stackmap_roots = 0;
+    }
+    break;
+  }
+
+  void *initiator_stack_walking_ctx = 0;
+  if (initiator_needs_stackmap_roots) {
+    initiator_stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+    if (initiator_stack_walking_ctx == 0) {
+      (void)fprintf(stderr, "[scooprt][gc][stackmap] failed to capture unwind ctx\n");
+      abort();
+    }
+  }
+
   // 0) clear per-block mark bitmap（避免上一轮残留影响 region sweep）
   for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
     scoop_gc_immix_block_clear_mark_bits(it);
@@ -3141,10 +3188,7 @@ void scoop_gc_collect(void) {
   uint32_t did_parallel_mark = 0;
   uint32_t parallel_mark_workers = scoop_gc_immix_parallel_mark_worker_count();
 
-  // 1) mark roots（扫描所有已注册线程的 shadow stack）
-  uint64_t scoop_gc_shadow_stack_visit_roots_from_frame(ScoopGcFrame *frame,
-                                                        ScoopGcTraceVisitor visitor,
-                                                        void *ctx);
+  // 1) mark roots（仅走 stackmap/native/handle/pin；不再扫描 shadow stack）
 
   if (parallel_mark_workers > 1) {
     ScoopGcParallelMarkWork work = {0};
@@ -3159,34 +3203,56 @@ void scoop_gc_collect(void) {
           continue;
         }
 
-        // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap roots；
-        // 若未提供或未命中 record，则回退到 shadow stack（保持早期 runtime/Rust 测试兼容）。
-        if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
+        // B2b：initiator roots 同样必须来自 stackmap（覆盖完整 managed 栈）。
+        if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
+            pthread_equal(it->thread, self)) {
           uint32_t err = SCOOP_STACKMAP_VISIT_OK;
           uint32_t records_hit = 0;
-          (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
                                                        scoop_gc_parallel_mark_visitor,
                                                        (void *)&ctx,
                                                        &err,
                                                        &records_hit);
           if (err != SCOOP_STACKMAP_VISIT_OK) {
-            (void)fprintf(
-                stderr,
-                "[scooprt][gc][stackmap] mark roots failed: err=%u (thread=0x%" PRIxPTR ")\n",
-                (unsigned)err,
-                (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            (void)fprintf(stderr,
+                          "[scooprt][gc][stackmap] visit initiator roots failed: err=%u\n",
+                          (unsigned)err);
             abort();
           }
-          // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
-        }
-
-        if (it->tls == 0) {
           continue;
         }
-        ScoopGcFrame *frame = it->tls->gc_current_frame;
-        (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
-                                                           scoop_gc_parallel_mark_visitor,
-                                                           (void *)&ctx);
+
+        // T1506b：Parked 线程 stack walking ctx + stackmap roots。
+        if (it->state == SCOOP_GC_THREAD_PARKED) {
+          // 若该线程通过 `scoop_gc_safepoint()`（非 poll）进入 Parked，则可能没有 ctx；
+          // 此时无法 walk stackmap roots，只能退化为“该线程无 stackmap roots 可枚举”。
+          if (it->stack_walking_ctx != 0) {
+            uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+            uint32_t records_hit = 0;
+            (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                         scoop_gc_parallel_mark_visitor,
+                                                         (void *)&ctx,
+                                                         &err,
+                                                         &records_hit);
+            if (err != SCOOP_STACKMAP_VISIT_OK) {
+              (void)fprintf(
+                  stderr,
+                  "[scooprt][gc][stackmap] mark roots failed: err=%u (thread=0x%" PRIxPTR ")\n",
+                  (unsigned)err,
+                  (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+              abort();
+            }
+          }
+          continue;
+        }
+
+        // STW 已达成：除 initiator 与 InNative 线程外，其余线程必须为 Parked。
+        (void)fprintf(stderr,
+                      "[scooprt][gc] unexpected thread state during mark roots: state=%u "
+                      "(thread=0x%" PRIxPTR ")\n",
+                      (unsigned)it->state,
+                      (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+        abort();
       }
 
       // 1b) mark pinned roots（spec §15.10）
@@ -3256,29 +3322,49 @@ void scoop_gc_collect(void) {
         continue;
       }
 
-      // T1506b：Parked 线程若提供了 stack_walking_ctx，则优先走 stackmap roots；
-      // 若未提供或未命中 record，则回退到 shadow stack（保持早期 runtime/Rust 测试兼容）。
-      if (it->state == SCOOP_GC_THREAD_PARKED && it->stack_walking_ctx != 0) {
+      // B2b：initiator roots 同样必须来自 stackmap（覆盖完整 managed 栈）。
+      if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
+          pthread_equal(it->thread, self)) {
         uint32_t err = SCOOP_STACKMAP_VISIT_OK;
         uint32_t records_hit = 0;
         (void)scoop_gc_stackmap_visit_roots_from_ctx(
-            it->stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+            initiator_stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
         if (err != SCOOP_STACKMAP_VISIT_OK) {
-          (void)fprintf(
-              stderr,
-              "[scooprt][gc][stackmap] mark roots failed: err=%u (thread=0x%" PRIxPTR ")\n",
-              (unsigned)err,
-              (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] visit initiator roots failed: err=%u\n",
+                        (unsigned)err);
           abort();
         }
-        // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
-      }
-
-      if (it->tls == 0) {
         continue;
       }
-      ScoopGcFrame *frame = it->tls->gc_current_frame;
-      (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
+
+      // T1506b：Parked 线程 stack walking ctx + stackmap roots。
+      if (it->state == SCOOP_GC_THREAD_PARKED) {
+        // 若该线程通过 `scoop_gc_safepoint()`（非 poll）进入 Parked，则可能没有 ctx；
+        // 此时无法 walk stackmap roots，只能退化为“该线程无 stackmap roots 可枚举”。
+        if (it->stack_walking_ctx != 0) {
+          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          uint32_t records_hit = 0;
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(
+              it->stack_walking_ctx, scoop_gc_mark_visitor, (void *)&ctx, &err, &records_hit);
+          if (err != SCOOP_STACKMAP_VISIT_OK) {
+            (void)fprintf(stderr,
+                          "[scooprt][gc][stackmap] mark roots failed: err=%u (thread=0x%" PRIxPTR
+                          ")\n",
+                          (unsigned)err,
+                          (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            abort();
+          }
+        }
+        continue;
+      }
+
+      (void)fprintf(stderr,
+                    "[scooprt][gc] unexpected thread state during mark roots: state=%u "
+                    "(thread=0x%" PRIxPTR ")\n",
+                    (unsigned)it->state,
+                    (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+      abort();
     }
 
     // 1b) mark pinned roots（spec §15.10）
@@ -3455,7 +3541,12 @@ void scoop_gc_collect(void) {
 
   // 5) moving/compaction：对候选 blocks 做 evacuation，并更新 roots 与 heap 引用槽位。
   if (evac_blocks != 0) {
-    scoop_gc_immix_compact(state, heap, evac_blocks);
+    scoop_gc_immix_compact(state, heap, evac_blocks, self, initiator_stack_walking_ctx);
+  }
+
+  if (initiator_stack_walking_ctx != 0) {
+    scoop_platform_unwind_ctx_destroy(initiator_stack_walking_ctx);
+    initiator_stack_walking_ctx = 0;
   }
 
   scoop_gc_stop_the_world_end_unlocked();
