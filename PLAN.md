@@ -1063,7 +1063,6 @@ spec §16 指出以下功能“遵循 Kotlin 语义”，实现上建议按需�
   - 目标能力与 Rust `std` 同量级、可比较，但不要求 API 一致
   - 建议分层：`core` / `alloc` / `std` / 平台适配层
   - 覆盖 collections、text/regex、iterators、io/fs/path/process/env、time、sync/thread/channels、net、async adapters、test/support utilities 等
-  - text 重点：`String` 需要支持零拷贝 slicing/substring（例如 `trimStart/trimEnd/trim`），优先考虑“薄 value struct + 共享 `StringData` backing”的表示以避免频繁分配（见 TODO T1513/T1514）
   - collections 设计约束：以 `Array`/`MutableArray` 为底座；`List<T>` 为 `Array<T>` 别名；`Set/Map`（含 mutable）为纯 Scoop（不新增 intrinsics）
 - [ ] Kotlin 风格重载决议兼容：
   - [x] most specific candidate 规则（普通/扩展/构造：T0513 + T1321）
