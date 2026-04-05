@@ -80,7 +80,7 @@
 
 ### Phase A：把 StackMap 路线做成“强保证”（仍可暂时保留 shadow stack 作为冗余，直到最后一刀切）
 
-#### A1) 固化 statepoint/stackmap 的语义契约（编译器 ↔ 运行时）
+#### A1) [TODO] 固化 statepoint/stackmap 的语义契约（编译器 ↔ 运行时）
 - 明确“哪些 stackmap locations 是 GC roots”的可计算规则（不依赖 heap membership 过滤）。
   - 需要决定：使用 LLVM statepoint 的哪一段（deopt args vs gc-live args）作为 roots；并保证 IR 构造一致。
 - 为运行时提供可验证的 metadata：
@@ -89,7 +89,7 @@
   - `scoopc` LLVM 单测：生成一个最小 module，断言 stackmap records 可被解析且“roots locations 数量/类型”符合契约。
   - `scoop dump-stackmaps`：新增 `--verify-roots` 模式，失败时给出精确诊断（哪个 record、哪个 location 不符合契约）。
 
-#### A2) StackMap registry/lookup：从“近似命中”升级为“无歧义命中”
+#### A2) [TODO] StackMap registry/lookup：从“近似命中”升级为“无歧义命中”
 - 目标：managed frame 的 return address lookup 必须稳定、可证明不误配。
 - 具体任务：
   - 统一 “record key 的定义”（callsite vs return address）与 platform/unwind 提供的 `ra` 语义；
@@ -99,7 +99,7 @@
   - 新增回归：构造多个相邻 records 的场景，确保 lookup 不会误命中；
   - 在 macOS/Linux/Windows 各至少一个可执行文件上回归通过（CI 允许分平台 gating，但实现不应永久缺失）。
 
-#### A3) Platform unwind：为 GC 提供“可回归、可解释、跨平台”的 stack walking 输入
+#### A3) [TODO] Platform unwind：为 GC 提供“可回归、可解释、跨平台”的 stack walking 输入
 - 目标：对于被 park 的线程，能提供稳定的 `(sp/cfa, ra, fp)`（或等价信息），且足以计算 stackmap slots。
 - 具体任务：
   - POSIX：从 `_Unwind_Backtrace` 采样升级为“可验证的帧序列”（必要时引入更强的上下文捕获）。
@@ -109,7 +109,7 @@
   - `gc_stack_walking_unwind` / `unwind_capture` 类测试扩展为多平台回归；
   - 新增一个“帧校验”工具输出：每帧打印 ra/sp/fp 与是否命中 stackmap record。
 
-#### A4) StackMap location 支持从“子集”升级为“完备或可证明不需要”
+#### A4) [TODO] StackMap location 支持从“子集”升级为“完备或可证明不需要”
 当前实现仅支持 pointer-sized 的 Direct/Indirect，并跳过 Register/Constant 等。
 
 为了“无任何限制”，需要二选一（推荐先做 1，再决定是否还要 2）：
@@ -129,7 +129,7 @@
 
 ### Phase B：把 GC 本体切到 StackMap-only（并清理所有 shadow stack 相关实现）
 
-#### B1) 线程模型与 STW 协议：消除 shadow stack 字段与语义
+#### B1) [TODO] 线程模型与 STW 协议：消除 shadow stack 字段与语义
 - 修改 `ScoopGcThreadRecord`：
   - 移除 `current_frame_slot`（以及任何依赖 `ScoopGcFrame**` 的注册协议）；
   - 明确线程的 roots 来源仅为：
@@ -140,7 +140,7 @@
 - 验收：
   - STW 回归测试：多线程 park/恢复稳定；不会因缺少 frame slot 崩溃或死锁。
 
-#### B2) GC roots 枚举：只走 stackmap/native/handle/pin/global，不允许 shadow stack fallback
+#### B2) [TODO] GC roots 枚举：只走 stackmap/native/handle/pin/global，不允许 shadow stack fallback
 - baseline 与 immix 两个 backend 都需要完成同一套逻辑（或合并实现，避免分叉）：
   - mark roots：
     - initiator：捕获并 walk 自己的 ctx（必须覆盖完整 managed 栈）；
@@ -158,7 +158,7 @@
   - 端到端：moving/compaction 下多线程 + cross-thread refs 的压力测试稳定通过；
   - 新增“强校验模式”：GC 结束后对所有 roots 进行一致性验证（可用慢路径/额外扫描；性能不要求）。
 
-#### B3) runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
+#### B3) [TODO] runtime API 清理：移除所有 shadow stack 导出符号与 sysroot 接口
 - 移除（或彻底废弃并在 ABI allowlist 中剔除）：
   - `scoop_gc_current_frame`
   - `scoop_gc_frame_push/pop`
@@ -175,7 +175,7 @@
 
 ### Phase C：编译器侧彻底移除 shadow stack 插桩，确保所有 roots 由 statepoint/stackmap 覆盖
 
-#### C1) LLVM codegen：删除 `GcFrameState` 与所有 frame/slot 维护代码
+#### C1) [TODO] LLVM codegen：删除 `GcFrameState` 与所有 frame/slot 维护代码
 - 删除 `setup_gc_frame*`、`store_gc_root_slot_value`、以及 class ctor 临时 frame 等逻辑。
 - 确保所有 GC 相关 safepoint 都通过 statepoint 管线可见：
   - 分配：`scoop_alloc_typed`（或统一的 alloc helper）必须是 statepoint safepoint；
@@ -186,7 +186,7 @@
   - `scoopc --features llvm`：生成 IR 断言不包含任何 `scoop_gc_frame_*` 调用；
   - stackmap dump：每个预期 safepoint 均能定位 record，并能枚举到 live roots。
 
-#### C2) 彻底消除“statepoint 重写崩溃/特殊绕路”的遗留
+#### C2) [TODO] 彻底消除“statepoint 重写崩溃/特殊绕路”的遗留
 - 目前有一些“为避免 rewrite-statepoints-for-gc 崩溃而绕开的路径”（例如某些临时对象/addrspacecast 场景）。
 - 目标：这些绕路不应作为长期限制存在。
 - 具体任务：
@@ -203,13 +203,13 @@
 > 关键现实：Rust 测试代码本身不会产生 statepoint stackmaps，因此不能指望“靠 stackmap 扫 Rust 栈”。
 > 正确做法是：Rust 测试必须通过 **native_roots / handle / pin** 等显式机制参与 roots 枚举与更新。
 
-#### D1) 删除/替换 `crates/scoop_runtime/tests/shadow_stack.rs`
+#### D1) [TODO] 删除/替换 `crates/scoop_runtime/tests/shadow_stack.rs`
 - 该文件将不再有意义（shadow stack 已移除）。
 - 用以下内容替代（任选组合）：
   - `native_roots` 的行为/更新测试（moving 下 slot 写回）；
   - stackmap registry + walk 的纯 smoke（尽量不依赖 GNU label address）。
 
-#### D2) 把所有手工 `ScoopGcFrame` 的 Rust 测试改为显式 roots
+#### D2) [TODO] 把所有手工 `ScoopGcFrame` 的 Rust 测试改为显式 roots
 逐个替换（示例策略）：
 
 - `gc_mark_sweep.rs`：
@@ -234,7 +234,7 @@
   - 若最终决定“hosted/minimal 也要无功能缺口”，则该测试需要重写或删除；
   - 若决定移除 hosted/minimal backend，则删除该测试并同步更新 build/features 文档。
 
-#### D3) 更新 capability matrix 相关测试
+#### D3) [TODO] 更新 capability matrix 相关测试
 - `gc_capabilities.rs`：
   - `shadow_stack_roots` 应删除或改为 `stackmap_roots`（以及 `native_roots` 等能力标识）。
 - 任何依赖 `shadow_stack_roots: true` 的断言都必须更新。
@@ -246,7 +246,7 @@
 
 ### Phase E：fixtures / 工具链回归（Scoop 侧端到端证明“无需 shadow stack”）
 
-#### E1) 移除 shadow stack fixtures，新增 stackmap/statepoint fixtures
+#### E1) [TODO] 移除 shadow stack fixtures，新增 stackmap/statepoint fixtures
 - 删除或改写：
   - `tests/fixtures/run-pass/gc_shadow_stack_instrumentation_basic.*`
   - 任何依赖 sysroot “shadow stack debug helper” 的用例
@@ -254,7 +254,7 @@
   - “stackmap roots keepalive” run-pass：在 Scoop 程序里制造多帧 live roots，触发 GC（含 moving）并断言行为正确；
   - “FFI/native roots” run-pass：通过 `@Extern` 路径覆盖 `enter_native/leave_native` 的 roots 更新。
 
-#### E2) `scoop dump-stackmaps` 升级为 GC 调试主工具
+#### E2) [TODO] `scoop dump-stackmaps` 升级为 GC 调试主工具
 - 输出应能定位：
   - 每个 record 对应的 function/offset/patchpoint_id；
   - roots locations 的类型/基址/offset；
