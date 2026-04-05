@@ -20,6 +20,8 @@
 
 static pthread_mutex_t scoop_gc_lock = PTHREAD_MUTEX_INITIALIZER;
 
+typedef struct ScoopThreadTls ScoopThreadTls;
+
 // 进程全局 heap（v0：minimal backend 仍使用链表 + mark-sweep）。
 ScoopGcHeap scoop_gc_heap;
 
@@ -75,8 +77,8 @@ static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *o
   return 0;
 }
 
-void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_register(ScoopThreadTls *tls) {
+  (void)tls;
 
   pthread_t self = pthread_self();
   (void)pthread_mutex_lock(&scoop_gc_lock);
@@ -91,8 +93,8 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
-void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
+  (void)tls;
   // minimal backend 不维护线程列表；保持幂等且不崩溃。
 }
 

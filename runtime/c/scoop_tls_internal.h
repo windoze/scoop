@@ -2,8 +2,8 @@
 //
 // 说明：
 // - 该文件是 runtime/c 的 **internal** 头文件：用于在多个 C 编译单元之间共享
-//   “每线程 TLS 结构”的布局约定（例如：GC 线程记录需要从 `current_frame_slot`
-//   反推出其它 TLS 槽位）。
+//   “每线程 TLS 结构”的布局约定（例如：GC 线程记录需要从 `ScoopThreadTls*`
+//   获取 allocator/cache/native_roots 等槽位地址）。
 // - 不属于对外 ABI：不会出现在 `runtime/c/scoop_runtime_api.h` allowlist 中。
 // - 若你修改了该文件，请同步更新 `crates/scoop_runtime/build.rs` 的 `rerun-if-changed`。
 //
@@ -73,39 +73,21 @@ typedef struct ScoopThreadTls {
   void *_reserved2;
 } ScoopThreadTls;
 
-// 从 `&tls.gc_current_frame` 反推 `tls` 基址。
-static inline ScoopThreadTls *scoop_tls_from_gc_current_frame_slot(
-    ScoopGcFrame **current_frame_slot) {
-  if (current_frame_slot == 0) {
-    return 0;
-  }
-
-  uintptr_t p = (uintptr_t)current_frame_slot;
-  uintptr_t base = p - (uintptr_t)offsetof(ScoopThreadTls, gc_current_frame);
-  return (ScoopThreadTls *)base;
-}
-
-static inline void **scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(
-    ScoopGcFrame **current_frame_slot) {
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+static inline void **scoop_tls_gc_immix_current_block_slot(ScoopThreadTls *tls) {
   if (tls == 0) {
     return 0;
   }
   return &tls->gc_immix_current_block;
 }
 
-static inline void **scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(
-    ScoopGcFrame **current_frame_slot) {
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+static inline void **scoop_tls_gc_immix_block_cache_slot(ScoopThreadTls *tls) {
   if (tls == 0) {
     return 0;
   }
   return &tls->gc_immix_block_cache;
 }
 
-static inline uint32_t *scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(
-    ScoopGcFrame **current_frame_slot) {
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(current_frame_slot);
+static inline uint32_t *scoop_tls_gc_immix_block_cache_len_slot(ScoopThreadTls *tls) {
   if (tls == 0) {
     return 0;
   }

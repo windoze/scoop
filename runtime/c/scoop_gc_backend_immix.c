@@ -1476,8 +1476,8 @@ done_unlock:
   return rc;
 }
 
-void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
-  if (current_frame_slot == 0) {
+void scoop_gc_thread_register(ScoopThreadTls *tls) {
+  if (tls == 0) {
     return;
   }
 
@@ -1496,13 +1496,13 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
 
   ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
   if (existing != 0) {
-    existing->current_frame_slot = current_frame_slot;
+    existing->tls = tls;
     existing->gc_alloc_block_slot =
-        scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
+        scoop_tls_gc_immix_current_block_slot(tls);
     existing->gc_alloc_block_cache_slot =
-        scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(current_frame_slot);
+        scoop_tls_gc_immix_block_cache_slot(tls);
     existing->gc_alloc_block_cache_len_slot =
-        scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(current_frame_slot);
+        scoop_tls_gc_immix_block_cache_len_slot(tls);
     existing->state = SCOOP_GC_THREAD_RUNNING;
     existing->last_safepoint_epoch = scoop_gc_stw.epoch;
     existing->parked_epoch = 0;
@@ -1518,13 +1518,13 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
 
   rec->next = scoop_gc_threads;
   rec->thread = self;
-  rec->current_frame_slot = current_frame_slot;
+  rec->tls = tls;
   rec->gc_alloc_block_slot =
-      scoop_tls_gc_immix_current_block_slot_from_current_frame_slot(current_frame_slot);
+      scoop_tls_gc_immix_current_block_slot(tls);
   rec->gc_alloc_block_cache_slot =
-      scoop_tls_gc_immix_block_cache_slot_from_current_frame_slot(current_frame_slot);
+      scoop_tls_gc_immix_block_cache_slot(tls);
   rec->gc_alloc_block_cache_len_slot =
-      scoop_tls_gc_immix_block_cache_len_slot_from_current_frame_slot(current_frame_slot);
+      scoop_tls_gc_immix_block_cache_len_slot(tls);
   rec->state = SCOOP_GC_THREAD_RUNNING;
   rec->last_safepoint_epoch = scoop_gc_stw.epoch;
   rec->parked_epoch = 0;
@@ -1538,8 +1538,8 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   scoop_gc_immix_unlock(state);
 }
 
-void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
+  (void)tls;
 
   pthread_t self = pthread_self();
   ScoopGcImmixState *state = scoop_gc_immix_state();
@@ -1672,7 +1672,7 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
   }
 
   // TLS：保存 native roots buffer（供后续 stackmap roots/handle 协议扩展）。
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  ScoopThreadTls *tls = rec->tls;
   if (tls != 0) {
     tls->gc_native_roots = (void *)root_slots;
     tls->gc_native_roots_len = root_slots_len;
@@ -1725,7 +1725,7 @@ void scoop_leave_native(void) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  ScoopThreadTls *tls = rec->tls;
   if (tls != 0) {
     tls->gc_native_roots = 0;
     tls->gc_native_roots_len = 0;
@@ -2898,10 +2898,10 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
       //   进而在 compaction 后出现悬挂指针（回归：gc_immix_parallel_mark_sweep_stress）。
     }
 
-    if (it->current_frame_slot == 0) {
+    if (it->tls == 0) {
       continue;
     }
-    ScoopGcFrame *frame = *(it->current_frame_slot);
+    ScoopGcFrame *frame = it->tls->gc_current_frame;
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
                                                        scoop_gc_immix_update_slot_visitor,
                                                        &update_ctx);
@@ -3180,10 +3180,10 @@ void scoop_gc_collect(void) {
           // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
         }
 
-        if (it->current_frame_slot == 0) {
+        if (it->tls == 0) {
           continue;
         }
-        ScoopGcFrame *frame = *(it->current_frame_slot);
+        ScoopGcFrame *frame = it->tls->gc_current_frame;
         (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame,
                                                            scoop_gc_parallel_mark_visitor,
                                                            (void *)&ctx);
@@ -3274,10 +3274,10 @@ void scoop_gc_collect(void) {
         // 重要：即使 stackmap 命中 record，也仍需扫描 shadow stack roots（见 compaction roots update 注释）。
       }
 
-      if (it->current_frame_slot == 0) {
+      if (it->tls == 0) {
         continue;
       }
-      ScoopGcFrame *frame = *(it->current_frame_slot);
+      ScoopGcFrame *frame = it->tls->gc_current_frame;
       (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
     }
 

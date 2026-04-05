@@ -21,7 +21,7 @@
 #include <string.h>
 #include <time.h>
 
-typedef struct ScoopGcFrame ScoopGcFrame;
+typedef struct ScoopThreadTls ScoopThreadTls;
 
 // 线程状态机（对齐 PLAN §9.1 / TODO T1505）：
 // - Running：正常执行（可被 STW 请求打断）；
@@ -33,14 +33,15 @@ typedef enum ScoopGcThreadState {
   SCOOP_GC_THREAD_IN_NATIVE = 2,
 } ScoopGcThreadState;
 
-// GC 线程记录（shadow stack v0 + 为 stackmap 预留字段）。
+// GC 线程记录（v0：线程状态机 + 为 stackmap/native roots 预留字段）。
 typedef struct ScoopGcThreadRecord {
   struct ScoopGcThreadRecord *next;
   pthread_t thread;
 
-  // roots 来源（shadow stack v0）：指向该线程 TLS 内的 `current_frame` 槽位。
-  // stackmap 时代该字段可为 NULL（roots 将来自 stack walking / native_roots）。
-  ScoopGcFrame **current_frame_slot;
+  // 指向该线程的 runtime TLS（internal；用于访问 thread-local allocator/cache/native_roots 等槽位）。
+  //
+  // 注意：该字段不是稳定 ABI，只在 runtime/c 内部使用。
+  ScoopThreadTls *tls;
 
   // Immix thread-local allocator（TODO T1409a）：指向该线程 TLS 内的“当前分配 block”槽位。
   // 说明：

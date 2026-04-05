@@ -50,8 +50,8 @@ static ScoopGcThreadRecord *scoop_gc_find_thread_unlocked(pthread_t t) {
 }
 
 // runtime 侧在 `scoop_thread_register/unregister` 中调用这些函数，把线程纳入 GC 的 STW 范围。
-void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
-  if (current_frame_slot == 0) {
+void scoop_gc_thread_register(ScoopThreadTls *tls) {
+  if (tls == 0) {
     return;
   }
 
@@ -61,7 +61,7 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
 
   ScoopGcThreadRecord *existing = scoop_gc_find_thread_unlocked(self);
   if (existing != 0) {
-    existing->current_frame_slot = current_frame_slot;
+    existing->tls = tls;
     existing->state = SCOOP_GC_THREAD_RUNNING;
     existing->last_safepoint_epoch = scoop_gc_stw.epoch;
     existing->parked_epoch = 0;
@@ -77,7 +77,7 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
 
   rec->next = scoop_gc_threads;
   rec->thread = self;
-  rec->current_frame_slot = current_frame_slot;
+  rec->tls = tls;
   rec->gc_alloc_block_slot = 0;
   rec->gc_alloc_block_cache_slot = 0;
   rec->gc_alloc_block_cache_len_slot = 0;
@@ -94,8 +94,8 @@ void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
   (void)pthread_mutex_unlock(&scoop_gc_lock);
 }
 
-void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
+  (void)tls;
   pthread_t self = pthread_self();
 
   (void)pthread_mutex_lock(&scoop_gc_lock);
@@ -216,7 +216,7 @@ void scoop_enter_native(void ***root_slots, uint32_t root_slots_len) {
   }
 
   // TLS：保存 native roots buffer（供后续 stackmap roots/handle 协议扩展）。
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  ScoopThreadTls *tls = rec->tls;
   if (tls != 0) {
     tls->gc_native_roots = (void *)root_slots;
     tls->gc_native_roots_len = root_slots_len;
@@ -265,7 +265,7 @@ void scoop_leave_native(void) {
     (void)pthread_cond_wait(&scoop_gc_cond, &scoop_gc_lock);
   }
 
-  ScoopThreadTls *tls = scoop_tls_from_gc_current_frame_slot(rec->current_frame_slot);
+  ScoopThreadTls *tls = rec->tls;
   if (tls != 0) {
     tls->gc_native_roots = 0;
     tls->gc_native_roots_len = 0;
@@ -1534,8 +1534,8 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
       }
       // 同时更新 initiator 的 shadow stack roots：即使 stackmap records 命中，也可能仍有部分 roots
       // 通过 shadow stack 插桩保存（例如早期 runtime helper 或 debug/prologue 插桩）。
-      if (it->current_frame_slot != 0) {
-        ScoopGcFrame *frame = *(it->current_frame_slot);
+      if (it->tls != 0) {
+        ScoopGcFrame *frame = it->tls->gc_current_frame;
         if (frame != 0) {
           (void)scoop_gc_shadow_stack_visit_roots_from_frame(
               frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
@@ -1576,10 +1576,10 @@ static void scoop_gc_collect_baseline_moving_unlocked(ScoopGcHeap *heap,
       }
     }
 
-    if (it->current_frame_slot == 0) {
+    if (it->tls == 0) {
       continue;
     }
-    ScoopGcFrame *frame = *(it->current_frame_slot);
+    ScoopGcFrame *frame = it->tls->gc_current_frame;
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(
         frame, scoop_gc_baseline_update_slot_visitor, (void *)&update_ctx);
   }
@@ -1738,10 +1738,10 @@ void scoop_gc_collect(void) {
       }
     }
 
-    if (it->current_frame_slot == 0) {
+    if (it->tls == 0) {
       continue;
     }
-    ScoopGcFrame *frame = *(it->current_frame_slot);
+    ScoopGcFrame *frame = it->tls->gc_current_frame;
     (void)scoop_gc_shadow_stack_visit_roots_from_frame(frame, scoop_gc_mark_visitor, (void *)&ctx);
   }
 

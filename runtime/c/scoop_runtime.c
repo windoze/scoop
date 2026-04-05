@@ -400,8 +400,8 @@ void scoop_thread_register(void) {
   scoop_tls.registered = 1;
 
   // 把当前线程纳入 GC stop-the-world 线程表（TODO T0911）。
-  void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot);
-  scoop_gc_thread_register(&scoop_tls.gc_current_frame);
+  void scoop_gc_thread_register(ScoopThreadTls *tls);
+  scoop_gc_thread_register(&scoop_tls);
 }
 
 void scoop_thread_unregister(void) {
@@ -410,8 +410,8 @@ void scoop_thread_unregister(void) {
   }
 
   // 从 GC stop-the-world 线程表注销（TODO T0911）。
-  void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot);
-  scoop_gc_thread_unregister(&scoop_tls.gc_current_frame);
+  void scoop_gc_thread_unregister(ScoopThreadTls *tls);
+  scoop_gc_thread_unregister(&scoop_tls);
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
   // T1409a/T1409b：线程退出前归还 thread-local blocks（current block + cache），避免：

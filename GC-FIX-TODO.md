@@ -134,7 +134,7 @@
 
 ### Phase B：把 GC 本体切到 StackMap-only（并清理所有 shadow stack 相关实现）
 
-#### B1) [TODO] 线程模型与 STW 协议：消除 shadow stack 字段与语义
+#### B1) [DONE] 线程模型与 STW 协议：消除 shadow stack 字段与语义
 - 修改 `ScoopGcThreadRecord`：
   - 移除 `current_frame_slot`（以及任何依赖 `ScoopGcFrame**` 的注册协议）；
   - 明确线程的 roots 来源仅为：

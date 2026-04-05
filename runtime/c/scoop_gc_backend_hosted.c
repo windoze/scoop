@@ -19,6 +19,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+typedef struct ScoopThreadTls ScoopThreadTls;
+
 // --- spin lock（避免 pthread 依赖） ---
 //
 // 说明：
@@ -86,16 +88,16 @@ static ScoopGcPinnedRecord *scoop_gc_find_pinned_unlocked(ScoopGcObjectHeader *o
   return 0;
 }
 
-void scoop_gc_thread_register(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_register(ScoopThreadTls *tls) {
+  (void)tls;
 
   scoop_gc_lock_acquire();
   (void)atomic_fetch_add_explicit(&scoop_gc_registered_threads, 1, memory_order_relaxed);
   scoop_gc_lock_release();
 }
 
-void scoop_gc_thread_unregister(ScoopGcFrame **current_frame_slot) {
-  (void)current_frame_slot;
+void scoop_gc_thread_unregister(ScoopThreadTls *tls) {
+  (void)tls;
 
   scoop_gc_lock_acquire();
   uint32_t prev = (uint32_t)atomic_load_explicit(&scoop_gc_registered_threads, memory_order_relaxed);
