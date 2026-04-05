@@ -80,7 +80,7 @@
 
 ### Phase A：把 StackMap 路线做成“强保证”（仍可暂时保留 shadow stack 作为冗余，直到最后一刀切）
 
-#### A1) [TODO] 固化 statepoint/stackmap 的语义契约（编译器 ↔ 运行时）
+#### A1) [DONE] 固化 statepoint/stackmap 的语义契约（编译器 ↔ 运行时）
 - 明确“哪些 stackmap locations 是 GC roots”的可计算规则（不依赖 heap membership 过滤）。
   - 需要决定：使用 LLVM statepoint 的哪一段（deopt args vs gc-live args）作为 roots；并保证 IR 构造一致。
 - 为运行时提供可验证的 metadata：
@@ -306,4 +306,3 @@
 - `cargo run -p scoop_tools -- spec-fixtures check`
 - （LLVM 路线相关）`cargo test -p scoopc --features llvm`
 - （调试）`cargo run -p scoop -- dump-stackmaps <bin>`
-

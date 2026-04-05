@@ -1380,6 +1380,90 @@ fun main() {
     }
 
     #[test]
+    fn minimal_main_obj_stackmap_roots_contract_is_verifyable() {
+        // GC-FIX Phase A1：
+        // - 解析 stackmap records；
+        // - 固化“roots locations 是可计算的连续后缀”契约；
+        // - 单测层面保证：至少出现一个带 roots 的 record（否则校验形同虚设）。
+        let dir = make_temp_dir("minimal_main_obj_stackmap_roots_contract_is_verifyable");
+        let output = dir.join("main.o");
+
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Unit {
+    val keep: Any = 1
+    // 手动触发一次 GC（调用点应被 statepoint pipeline 产出 stackmap record）。
+    __scoop_gc_collect()
+    // 显式使用 keep，确保其在 collect 调用点是 live（应出现在 roots locations 后缀）。
+    val _also_keep: Any = keep
+}
+"#,
+        );
+        let session = Session::new().unwrap();
+        emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
+
+        let bytes = std::fs::read(&output).unwrap();
+        let obj = object::File::parse(&*bytes).expect("failed to parse object file");
+        let stackmap_section = obj
+            .sections()
+            .find(|s| s.name().ok().is_some_and(|n| n.contains("llvm_stackmaps")))
+            .expect("missing stackmap section (llvm_stackmaps)");
+        let section_data = stackmap_section
+            .data()
+            .expect("failed to read stackmap section data");
+
+        let section = crate::stackmap::StackMapSection::parse(section_data.as_ref())
+            .expect("stackmap section should be parseable (v3)");
+
+        let cfg = if cfg!(target_arch = "x86_64") {
+            crate::stackmap::StackMapRootsContractConfig {
+                pointer_size: 8,
+                sp_dwarf_reg: 7,
+                fp_dwarf_reg: Some(6),
+            }
+        } else if cfg!(target_arch = "aarch64") {
+            crate::stackmap::StackMapRootsContractConfig {
+                pointer_size: 8,
+                sp_dwarf_reg: 31,
+                fp_dwarf_reg: Some(29),
+            }
+        } else {
+            panic!("unsupported test target_arch for stackmap roots contract");
+        };
+
+        section
+            .verify_roots_contract(cfg)
+            .expect("stackmap roots contract should hold");
+
+        let roots_records = section
+            .records
+            .iter()
+            .filter(|rec| {
+                rec.locations.iter().any(|loc| {
+                    matches!(
+                        loc.kind,
+                        crate::stackmap::StackMapLocationKind::Direct
+                            | crate::stackmap::StackMapLocationKind::Indirect
+                    ) && loc.size == cfg.pointer_size
+                        && (loc.dwarf_reg == cfg.sp_dwarf_reg
+                            || cfg.fp_dwarf_reg.is_some_and(|fp| fp == loc.dwarf_reg))
+                })
+            })
+            .count();
+        assert!(
+            roots_records > 0,
+            "expected at least one record to contain GC roots locations"
+        );
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn statepoint_pipeline_rewrites_scoop_alloc_typed_callsites() {
         let source = SourceFile::new_virtual(
             "<mem>",

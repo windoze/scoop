@@ -52,7 +52,10 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::DumpMir { input } => dump_mir::run(input),
         Command::DumpIr { input } => dump_ir::run(input),
         Command::DumpRtti { input, type_name } => dump_rtti::run(input, type_name),
-        Command::DumpStackmaps { input } => dump_stackmaps::run(input),
+        Command::DumpStackmaps {
+            input,
+            verify_roots,
+        } => dump_stackmaps::run(input, verify_roots),
         Command::Build {
             input,
             output,

@@ -7,9 +7,9 @@
 use std::path::PathBuf;
 
 use miette::{Context as _, IntoDiagnostic as _, Result};
-use object::{Object as _, ObjectSection as _};
+use object::{Architecture, Object as _, ObjectSection as _};
 
-pub fn run(input: PathBuf) -> Result<()> {
+pub fn run(input: PathBuf, verify_roots: bool) -> Result<()> {
     let input = input
         .canonicalize()
         .into_diagnostic()
@@ -43,6 +43,21 @@ pub fn run(input: PathBuf) -> Result<()> {
     println!("functions: {}", header.num_functions);
     println!("constants: {}", header.num_constants);
     println!("records: {}", header.num_records);
+
+    if verify_roots {
+        let section = scoopc::stackmap::StackMapSection::parse(section_bytes)
+            .into_diagnostic()
+            .wrap_err("解析 stackmap section 失败（StackMapSection::parse）")?;
+
+        let cfg = roots_contract_config_from_arch(obj.architecture())?;
+        section
+            .verify_roots_contract(cfg)
+            .into_diagnostic()
+            .wrap_err("stackmap roots 契约校验失败（--verify-roots）")?;
+
+        println!("verify-roots: ok");
+    }
+
     Ok(())
 }
 
@@ -72,4 +87,27 @@ fn find_stackmaps_section<'data>(obj: &object::File<'data>) -> Result<(&'data st
 fn is_stackmaps_section_name(name: &str) -> bool {
     // 允许未来扩展：我们只关心 `llvm_stackmaps` 这一后缀即可。
     name == ".llvm_stackmaps" || name == "__llvm_stackmaps" || name.ends_with("llvm_stackmaps")
+}
+
+fn roots_contract_config_from_arch(
+    arch: Architecture,
+) -> Result<scoopc::stackmap::StackMapRootsContractConfig> {
+    // 与 `runtime/c/scoop_stackmap.c` 中的 DWARF reg 编号约定保持一致。
+    //
+    // 说明：当前 `scoop --features llvm` 默认按 host 目标编译，因此这里以输入文件的 arch 为准。
+    match arch {
+        Architecture::Aarch64 => Ok(scoopc::stackmap::StackMapRootsContractConfig {
+            pointer_size: 8,
+            sp_dwarf_reg: 31,
+            fp_dwarf_reg: Some(29),
+        }),
+        Architecture::X86_64 => Ok(scoopc::stackmap::StackMapRootsContractConfig {
+            pointer_size: 8,
+            sp_dwarf_reg: 7,
+            fp_dwarf_reg: Some(6),
+        }),
+        other => Err(miette::miette!(
+            "暂不支持的目标架构：{other:?}（--verify-roots 目前仅支持 aarch64/x86_64）"
+        )),
+    }
 }

@@ -72,6 +72,12 @@ pub enum Command {
     DumpStackmaps {
         /// 输入可执行文件路径（Mach-O/ELF）
         input: PathBuf,
+
+        /// 校验 stackmap roots 语义契约（GC-FIX Phase A1）
+        ///
+        /// 失败时会返回结构化诊断（指出哪个 record/location 不符合契约）。
+        #[arg(long)]
+        verify_roots: bool,
     },
 
     /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
