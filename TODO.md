@@ -6147,7 +6147,7 @@
   - `gc_microbench` 增加 minor 模式或等价统计：能通过调小 nursery 上限把 pause 控制到明显低于 major 的量级（不做 CI 阈值 gating，但本地可对比）。
 - 依赖：T1406c、T1407、T1506b（均已完成）
 
-### T1412a [TODO] roots tracing：membership 过滤去 O(n)（避免线性扫 `heap.objects`）
+### T1412a [DONE] roots tracing：membership 过滤去 O(n)（避免线性扫 `heap.objects`）
 - 描述：把 GC roots tracing（含并行标记）的 membership 过滤从“每个 slot 线性遍历 `heap.objects`”升级为 O(1)/O(log n) 级别，避免 slot 数量放大 STW 时间。
 - 目标：
   - 不改动 `ScoopGcObjectHeader` ABI（避免影响 LLVM codegen 与对象模型偏移断言）。
@@ -6160,6 +6160,13 @@
   - code review 级别：mark visitor 不再直接遍历 `heap.objects` 做 membership 过滤（索引仅在每轮 GC 初始化一次）。
   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 - 依赖：无（仅依赖现有 Immix/stackmap roots 实现）
+ - 完成：
+   - `runtime/c/scoop_gc_backend_immix.c`：引入 `ScoopGcHeapMembershipIndex`（快照 + 排序 + 二分查找），并在 `scoop_gc_collect()` 内每轮 GC 初始化/销毁一次；
+   - `runtime/c/scoop_gc_backend_immix.c`：顺序/并行 mark visitor 改为复用 membership 索引（OOM 时回退线性扫，保持正确性）；
+   - `runtime/c/scoop_gc_backend_immix.c`：verify-roots 路径同样复用 membership 索引（避免 debug 校验时把 slot 数量放大成 O(n*m)）。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test --all`
 
 ### T1412b [TODO] Immix nursery：bump-only 分配区 + 可配置上限（为时效性提供硬边界）
 - 描述：在 Immix backend 中引入 nursery（年轻代）分配区：nursery 只做 bump（避免 holes 带来的不可控成本），并提供“上限（bytes/blocks）”配置，作为 minor 的工作量边界。

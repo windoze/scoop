@@ -2055,10 +2055,131 @@ static ScoopGcObjectHeader *scoop_gc_mark_stack_pop(ScoopGcMarkStack *stack) {
   return stack->items[stack->len];
 }
 
+// --- Roots membership 过滤索引（TODO T1412a） ---
+//
+// 目的：
+// - roots/slot tracing（stackmap records + type trace）里可能存在“pointer-sized 但不是 GC object”的值；
+// - 为避免把这些值当作 `ScoopGcObjectHeader*` 解引用导致崩溃，需要做 membership 过滤；
+// - 历史实现对每个 slot 线性遍历 `heap.objects`，在 slot 数量放大时会把 STW 时间放大到 O(n*m)。
+//
+// 方案（v0）：
+// - 每轮 GC 初始化一次：把 `heap.objects` 快照为数组，按地址排序；
+// - membership 判定走二分查找（O(log n)）；
+// - 若内存不足无法构建索引，则退化为线性扫描（slow path；保持正确性）。
+
+static int scoop_gc_ptr_cmp(const void *a, const void *b);
+
+typedef struct ScoopGcHeapMembershipIndex {
+  ScoopGcObjectHeader **sorted;
+  size_t len;
+  uint32_t built;
+} ScoopGcHeapMembershipIndex;
+
+static void scoop_gc_heap_membership_index_destroy(ScoopGcHeapMembershipIndex *idx) {
+  if (idx == 0) {
+    return;
+  }
+  if (idx->sorted != 0) {
+    free(idx->sorted);
+  }
+  idx->sorted = 0;
+  idx->len = 0;
+  idx->built = 0;
+}
+
+static uint32_t scoop_gc_heap_membership_index_build_unlocked(ScoopGcHeapMembershipIndex *out,
+                                                              ScoopGcHeap *heap) {
+  if (out == 0 || heap == 0) {
+    return 0;
+  }
+
+  out->sorted = 0;
+  out->len = 0;
+  out->built = 0;
+
+  size_t count = 0;
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+    count += 1;
+  }
+
+  if (count == 0) {
+    out->built = 1;
+    return 1;
+  }
+
+  if (count > (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+    return 0;
+  }
+
+  ScoopGcObjectHeader **sorted =
+      (ScoopGcObjectHeader **)malloc(count * sizeof(ScoopGcObjectHeader *));
+  if (sorted == 0) {
+    return 0;
+  }
+
+  size_t idx = 0;
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0 && idx < count; it = it->next) {
+    sorted[idx++] = it;
+  }
+  count = idx;
+
+  qsort(sorted, count, sizeof(ScoopGcObjectHeader *), scoop_gc_ptr_cmp);
+
+  out->sorted = sorted;
+  out->len = count;
+  out->built = 1;
+  return 1;
+}
+
+static uint32_t scoop_gc_heap_membership_index_contains(const ScoopGcHeapMembershipIndex *idx,
+                                                        ScoopGcHeap *heap,
+                                                        ScoopGcObjectHeader *obj) {
+  if (obj == 0) {
+    return 0;
+  }
+
+  if (idx != 0 && idx->built) {
+    if (idx->sorted == 0 || idx->len == 0) {
+      return 0;
+    }
+
+    size_t lo = 0;
+    size_t hi = idx->len;
+    const uintptr_t target = (uintptr_t)obj;
+
+    while (lo < hi) {
+      const size_t mid = lo + ((hi - lo) / 2u);
+      const uintptr_t cur = (uintptr_t)idx->sorted[mid];
+      if (cur == target) {
+        return 1;
+      }
+      if (cur < target) {
+        lo = mid + 1u;
+      } else {
+        hi = mid;
+      }
+    }
+
+    return 0;
+  }
+
+  // fallback：无法构建索引（例如 OOM）时退化为线性扫描；保持正确性。
+  if (heap == 0) {
+    return 0;
+  }
+  for (ScoopGcObjectHeader *it = heap->objects; it != 0; it = it->next) {
+    if (it == obj) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 typedef struct ScoopGcMarkCtx {
   ScoopGcHeap *heap;
   uint32_t mark_value;
   ScoopGcMarkStack *stack;
+  const ScoopGcHeapMembershipIndex *membership;
 } ScoopGcMarkCtx;
 
 static void scoop_gc_mark_object_if_needed(ScoopGcMarkCtx *ctx, ScoopGcObjectHeader *obj) {
@@ -2097,7 +2218,7 @@ static void scoop_gc_mark_visitor(void **slot, void *raw_ctx) {
   // 重要：stackmap records 里可能包含“刚好是 pointer-sized 但不是 GC roots”的 slot
   // （例如 call target / return address / deopt metadata 等）。
   // 为避免把这些值当作 heap 对象解引用并崩溃，这里做一次 membership 过滤。
-  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+  if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
     return;
   }
 
@@ -2289,6 +2410,7 @@ typedef struct ScoopGcParallelMarkCtx {
   ScoopGcHeap *heap;
   uint32_t mark_value;
   ScoopGcParallelMarkWork *work;
+  const ScoopGcHeapMembershipIndex *membership;
 } ScoopGcParallelMarkCtx;
 
 static void scoop_gc_parallel_mark_object_if_needed(ScoopGcParallelMarkCtx *ctx,
@@ -2330,7 +2452,7 @@ static void scoop_gc_parallel_mark_visitor(void **slot, void *raw_ctx) {
   }
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
-  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+  if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
     return;
   }
   scoop_gc_parallel_mark_object_if_needed(ctx, obj);
@@ -2480,6 +2602,8 @@ typedef struct ScoopGcVerifySlotCtx {
   ScoopGcVerifyRootsState *state;
   const char *kind;
   uintptr_t thread_id;
+  ScoopGcHeap *heap;
+  const ScoopGcHeapMembershipIndex *membership;
 } ScoopGcVerifySlotCtx;
 
 static void scoop_gc_verify_roots_record_error(ScoopGcVerifyRootsState *st,
@@ -2531,7 +2655,7 @@ static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
   }
 
   ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)raw;
-  if (!scoop_gc_heap_contains_object_unlocked(obj)) {
+  if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
     scoop_gc_verify_roots_record_error(
         ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
   }
@@ -2549,11 +2673,14 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       .max_errors = 16,
   };
 
+  ScoopGcHeapMembershipIndex membership = {0};
+  (void)scoop_gc_heap_membership_index_build_unlocked(&membership, heap);
+
   for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
     if (it->object == 0 || it->pin_count == 0) {
       continue;
     }
-    if (!scoop_gc_heap_contains_object_unlocked(it->object)) {
+    if (!scoop_gc_heap_membership_index_contains(&membership, heap, it->object)) {
       scoop_gc_verify_roots_record_error(
           &st, "pin", /*thread_id=*/0, (const void *)&it->object, (const void *)it->object, "pinned root not live");
     }
@@ -2563,7 +2690,7 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     if (it->object == 0) {
       continue;
     }
-    if (!scoop_gc_heap_contains_object_unlocked(it->object)) {
+    if (!scoop_gc_heap_membership_index_contains(&membership, heap, it->object)) {
       scoop_gc_verify_roots_record_error(&st,
                                          "handle",
                                          /*thread_id=*/0,
@@ -2578,7 +2705,13 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
 
     if (pthread_equal(it->thread, initiator)) {
       if (initiator_stack_walking_ctx != 0) {
-        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
+        ScoopGcVerifySlotCtx v = {
+            .state = &st,
+            .kind = "stackmap",
+            .thread_id = tid,
+            .heap = heap,
+            .membership = &membership,
+        };
         uint32_t err = SCOOP_STACKMAP_VISIT_OK;
         uint32_t records_hit = 0;
         (void)scoop_gc_stackmap_visit_roots_from_ctx(
@@ -2593,7 +2726,13 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
       }
 
       if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-        ScoopGcVerifySlotCtx v = {.state = &st, .kind = "native_roots", .thread_id = tid};
+        ScoopGcVerifySlotCtx v = {
+            .state = &st,
+            .kind = "native_roots",
+            .thread_id = tid,
+            .heap = heap,
+            .membership = &membership,
+        };
         (void)scoop_gc_native_roots_visit_slots(
             it->native_roots, it->native_roots_len, scoop_gc_verify_root_slot_visitor, (void *)&v);
       }
@@ -2601,7 +2740,13 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     }
 
     if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
-      ScoopGcVerifySlotCtx v = {.state = &st, .kind = "native_roots", .thread_id = tid};
+      ScoopGcVerifySlotCtx v = {
+          .state = &st,
+          .kind = "native_roots",
+          .thread_id = tid,
+          .heap = heap,
+          .membership = &membership,
+      };
       (void)scoop_gc_native_roots_visit_slots(
           it->native_roots, it->native_roots_len, scoop_gc_verify_root_slot_visitor, (void *)&v);
       continue;
@@ -2614,7 +2759,13 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
         continue;
       }
 
-      ScoopGcVerifySlotCtx v = {.state = &st, .kind = "stackmap", .thread_id = tid};
+      ScoopGcVerifySlotCtx v = {
+          .state = &st,
+          .kind = "stackmap",
+          .thread_id = tid,
+          .heap = heap,
+          .membership = &membership,
+      };
       uint32_t err = SCOOP_STACKMAP_VISIT_OK;
       uint32_t records_hit = 0;
       (void)scoop_gc_stackmap_visit_roots_from_ctx(
@@ -2633,6 +2784,8 @@ static void scoop_gc_verify_roots_after_gc_unlocked(ScoopGcHeap *heap,
     scoop_gc_verify_roots_record_error(
         &st, "thread_state", tid, /*slot_addr=*/0, /*value=*/0, "unexpected thread state during verify");
   }
+
+  scoop_gc_heap_membership_index_destroy(&membership);
 
   if (st.errors != 0) {
     (void)fprintf(stderr,
@@ -3371,6 +3524,8 @@ void scoop_gc_collect(void) {
 
   ScoopGcHeap *heap = &scoop_gc_heap;
   uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
+  ScoopGcHeapMembershipIndex membership = {0};
+  (void)scoop_gc_heap_membership_index_build_unlocked(&membership, heap);
 
   // B2b：Immix roots 枚举不再扫描 shadow stack。
   //
@@ -3410,7 +3565,7 @@ void scoop_gc_collect(void) {
   if (parallel_mark_workers > 1) {
     ScoopGcParallelMarkWork work = {0};
     if (scoop_gc_parallel_mark_work_init(&work)) {
-      ScoopGcParallelMarkCtx ctx = {heap, mark_value, &work};
+      ScoopGcParallelMarkCtx ctx = {heap, mark_value, &work, &membership};
 
       for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
         // T1505c：InNative 线程 roots 来自 native_roots buffer。
@@ -3529,7 +3684,7 @@ void scoop_gc_collect(void) {
 
   if (!did_parallel_mark) {
     ScoopGcMarkStack stack = {0};
-    ScoopGcMarkCtx ctx = {heap, mark_value, &stack};
+    ScoopGcMarkCtx ctx = {heap, mark_value, &stack, &membership};
 
     for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
       // T1505c：InNative 线程 roots 来自 native_roots buffer。
@@ -3623,6 +3778,8 @@ void scoop_gc_collect(void) {
       free(stack.items);
     }
   }
+
+  scoop_gc_heap_membership_index_destroy(&membership);
 
   // 3) sweep：释放 unreachable 对象；Immix block 内对象不逐个 free，而是留给 region sweep 复用 holes。
   ScoopGcObjectHeader **link = &heap->objects;
