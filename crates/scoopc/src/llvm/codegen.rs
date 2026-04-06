@@ -5995,30 +5995,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: expr.span.into(),
                 })?;
 
-                // 统一把整数提升/截断到 i64/u64，再交给 runtime 打印（避免构造临时 String）。
+                // 统一把整数提升/截断到 i64/u64，并在 codegen 侧构造一个 GC-managed `String` 再打印。
+                //
+                // 说明：
+                // - 早期阶段曾用 `scoop_print{,ln}_{i64,u64}` 绕开 `rewrite-statepoints-for-gc` 的崩溃；
+                // - GC-FIX Phase C2c：print/println 的整数路径与字符串路径对齐，确保字符串构造在 statepoint 下稳定。
                 let to_ty = IntTy {
                     bits: 64,
                     signed: from_ty.signed,
                 };
                 let int64 = self.cast_int(raw_int, from_ty, to_ty)?;
 
-                let rt_int_name = match (fqn, from_ty.signed) {
-                    ("scoop.core.print", true) => "scoop_print_i64",
-                    ("scoop.core.print", false) => "scoop_print_u64",
-                    ("scoop.core.println", true) => "scoop_println_i64",
-                    ("scoop.core.println", false) => "scoop_println_u64",
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "unknown sysroot print/println callee",
-                            at: callee_span.into(),
-                        });
-                    }
-                };
-
-                let rt_fun = self.declare_runtime_print_int_like(rt_int_name);
-                let _ = self
-                    .builder
-                    .build_call(rt_fun, &[int64.into()], "rt_print_int")?;
+                let str_ptr = self.codegen_int_to_string(expr.span, int64, to_ty.signed)?;
+                let rt_fun = self.declare_runtime_print_like(rt_name);
+                let _ =
+                    self.builder
+                        .build_call(rt_fun, &[str_ptr.into()], "rt_print_int_as_string")?;
                 Ok(CgValue::unit())
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
@@ -6026,6 +6018,155 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: expr.span.into(),
             }),
         }
+    }
+
+    fn codegen_int_to_string(
+        &mut self,
+        span: crate::span::Span,
+        int64: IntValue<'ctx>,
+        signed: bool,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let i64_ty = self.context.i64_type();
+        let i8_ty = self.context.i8_type();
+        let i8_ptr_ty = i8_ty.ptr_type(AddressSpace::default());
+
+        // 1) 先把整数格式化到栈上的临时 buffer（native addrspace(0)），得到实际字节长度。
+        //
+        // 说明：
+        // - `scoop_format_{i64,u64}` 为 “caller 提供 buffer + cap” 形式；
+        // - 这里的 `buf` 是纯 native bytes，不应被当作 GC-managed roots。
+        let cap = i64_ty.const_int(64, false);
+        let buf = self
+            .builder
+            .build_array_alloca(i8_ty, cap, "print_int_buf")?;
+
+        let fmt_name = if signed {
+            "scoop_format_i64"
+        } else {
+            "scoop_format_u64"
+        };
+        let fmt_fun = self.declare_runtime_format_int(fmt_name);
+        let call_site = self.builder.build_call(
+            fmt_fun,
+            &[int64.into(), buf.into(), cap.into()],
+            "print_fmt_int",
+        )?;
+        let len = call_site
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "print/println int format length",
+                at: span.into(),
+            })?
+            .into_int_value();
+
+        // 2) 分配 heap buffer（malloc）并拷贝 bytes；len==0 时保持 data=NULL。
+        let is_zero = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            len,
+            i64_ty.const_zero(),
+            "print_int_len_is_zero",
+        )?;
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+
+        let malloc_bb = self.context.append_basic_block(func, "print_int_malloc");
+        let done_bb = self.context.append_basic_block(func, "print_int_done");
+
+        self.builder
+            .build_conditional_branch(is_zero, done_bb, malloc_bb)?;
+
+        // --- malloc + memcpy ---
+        self.builder.position_at_end(malloc_bb);
+        let malloc = self.declare_libc_malloc();
+        let call = self
+            .builder
+            .build_call(malloc, &[len.into()], "print_int_malloc")?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(heap_buf) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "malloc return type",
+                at: span.into(),
+            });
+        };
+        let _ = self.builder.build_memcpy(heap_buf, 1, buf, 1, len)?;
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // --- done ---
+        self.builder.position_at_end(done_bb);
+        let buf_phi = self.builder.build_phi(i8_ptr_ty, "print_int_data_buf")?;
+        let buf_null: BasicValueEnum<'ctx> = i8_ptr_ty.const_null().into();
+        let buf_value: BasicValueEnum<'ctx> = heap_buf.into();
+        buf_phi.add_incoming(&[(&buf_null, insert_block), (&buf_value, malloc_bb)]);
+        let data_ptr = buf_phi.as_basic_value().into_pointer_value();
+
+        // 3) 分配并初始化 `ScoopString` 对象（GC-managed）。
+        //
+        // 注意：必须在 codegen 侧通过 `scoop_alloc_typed` 触发 statepoint safepoint，
+        // 不能在 runtime helper 内部隐式分配并触发 GC（否则 caller frame 无 stackmap roots）。
+        let scoop_str_ty = self.llvm_scoop_string_type();
+        let obj_size = self.target_data.get_store_size(&scoop_str_ty);
+        let size_v = i64_ty.const_int(obj_size, false);
+
+        let str_desc = self.get_or_create_string_type_desc_global(span)?;
+        let str_desc_i8 = self.builder.build_pointer_cast(
+            str_desc.as_pointer_value(),
+            self.llvm_i8_ptr_type(),
+            "print_int_type_desc_i8",
+        )?;
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[str_desc_i8.into(), size_v.into()],
+            "rt_alloc_print_int_str",
+        )?;
+        let raw = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc_typed return type",
+                at: span.into(),
+            });
+        };
+
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let str_ptr =
+            self.builder
+                .build_pointer_cast(raw_ptr, str_ptr_ty, "print_int_str_obj_ptr")?;
+
+        let len_ptr =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_ptr, 1, "print_int_len_gep")?;
+        let data_ptr_gep =
+            self.builder
+                .build_struct_gep(scoop_str_ty, str_ptr, 2, "print_int_data_gep")?;
+
+        let _ = self.builder.build_store(len_ptr, len)?;
+        let _ = self.builder.build_store(data_ptr_gep, data_ptr)?;
+        Ok(str_ptr)
     }
 
     fn codegen_sysroot_io_write_string(
@@ -18342,23 +18483,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] =
             [self.llvm_scoop_string_ptr_type().into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.module.add_function(name, fn_ty, None)
-    }
-
-    fn declare_runtime_print_int_like(&self, name: &str) -> FunctionValue<'ctx> {
-        if let Some(existing) = self.module.get_function(name) {
-            return existing;
-        }
-
-        // `void scoop_print{,ln}_{i64,u64}(int64_t value)`
-        //
-        // 说明：
-        // - 早期阶段让 `print/println(Int)` 直接调用 runtime 打印整数，避免构造临时 `String`；
-        // - 同时避免在 `rewrite-statepoints-for-gc` 下把 “栈上临时 ScoopString + addrspacecast”
-        //   误当作 GC-managed pointer 并触发 LLVM pass 崩溃（T1503b）。
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(name, fn_ty, None)
     }

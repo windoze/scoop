@@ -1380,45 +1380,6 @@ void scoop_println(const ScoopString *value) {
   (void)scoop_platform_io_write_stdout_byte((uint8_t)'\n');
 }
 
-// 前置声明：print(Int) 会复用本文件后续定义的 format helper。
-uint64_t scoop_format_i64(int64_t value, uint8_t *out, uint64_t cap);
-uint64_t scoop_format_u64(uint64_t value, uint8_t *out, uint64_t cap);
-
-// 打印整数（有符号）。
-//
-// 说明：
-// - 该 API 由 sysroot 的 `print(Int)`/`println(Int)` 映射到 runtime 符号；
-// - 早期阶段直接复用 `scoop_format_i64`，避免在编译器侧构造临时 `ScoopString`；
-// - 该路径不产生 GC 分配，也不会触发 “栈上临时 String + addrspacecast” 的 statepoint 重写问题（T1503b）。
-void scoop_print_i64(int64_t value) {
-  uint8_t buf[64];
-  uint64_t len = scoop_format_i64(value, buf, 64);
-  if (len == 0 || len > (uint64_t)SIZE_MAX) {
-    return;
-  }
-  (void)scoop_platform_io_write_stdout_all(buf, (size_t)len);
-}
-
-void scoop_println_i64(int64_t value) {
-  scoop_print_i64(value);
-  (void)scoop_platform_io_write_stdout_byte((uint8_t)'\n');
-}
-
-// 打印整数（无符号）。
-void scoop_print_u64(uint64_t value) {
-  uint8_t buf[64];
-  uint64_t len = scoop_format_u64(value, buf, 64);
-  if (len == 0 || len > (uint64_t)SIZE_MAX) {
-    return;
-  }
-  (void)scoop_platform_io_write_stdout_all(buf, (size_t)len);
-}
-
-void scoop_println_u64(uint64_t value) {
-  scoop_print_u64(value);
-  (void)scoop_platform_io_write_stdout_byte((uint8_t)'\n');
-}
-
 // 前置声明：stdin readLine 会复用本文件后续定义的字符串构造 helper。
 static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len);
 

@@ -1223,6 +1223,49 @@ fun main(): Int {
     }
 
     #[test]
+    fn println_int_lowers_via_string_formatting_without_print_int_helpers() {
+        let source = SourceFile::new_virtual(
+            "<mem>",
+            r#"
+package a
+
+import scoop.core.*
+
+fun main(): Int {
+    println(123)
+    __scoop_gc_collect()
+    println(-42)
+    return 0
+}
+"#,
+        );
+
+        let session = Session::new().unwrap();
+        let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+        assert!(
+            ir.contains("@scoop_println"),
+            "IR 应包含对 scoop_println 的引用（与 String 路径对齐）"
+        );
+        assert!(
+            ir.contains("@scoop_format_i64"),
+            "IR 应通过 scoop_format_i64 走最小格式化（避免 codegen 侧 varargs snprintf）"
+        );
+        assert!(
+            ir.contains("@scoop_alloc_typed"),
+            "println(Int) 需要分配 GC-managed String，应调用/声明 scoop_alloc_typed"
+        );
+        assert!(
+            !ir.contains("@scoop_println_i64"),
+            "println(Int) 不应再依赖 runtime 的 scoop_println_i64 绕路"
+        );
+        assert!(
+            !ir.contains("addrspacecast"),
+            "println(Int)->String 的路径不应依赖 addrspacecast"
+        );
+    }
+
+    #[test]
     fn array_of_any_uses_ref_element_runtime_apis_without_ptr_to_u64() {
         let source = SourceFile::new_virtual(
             "<mem>",

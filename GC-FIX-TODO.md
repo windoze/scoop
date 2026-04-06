@@ -217,7 +217,7 @@
 - 输出形态：必要时调整 runtime ABI（例如拆分 word/ptr 槽位）或改为明确的 ref 通道。
 - 验收：全仓 `rg "ptrtoint|inttoptr|ptr_to_u64|u64_to_"` 不再出现“GC 指针编码”路径（非 GC 指针例外需有注释说明）。
 
-#### C2c) [TODO] println/字符串路径在 statepoint 下稳定（移除临时绕路）
+#### C2c) [DONE] println/字符串路径在 statepoint 下稳定（移除临时绕路）
 - 目标：移除为规避 `rewrite-statepoints-for-gc` 崩溃而引入的临时绕路（例如避免构造临时 String 的特殊 print 路径），
   让 println/字符串构造/格式化在 statepoint 下稳定工作；必要时把复杂逻辑拆到 runtime helper，保持 IR 合法。
 - 验收：新增/更新 run-pass fixtures 覆盖字符串/格式化在 GC 下可用（含触发 GC 的 safepoint）。
