@@ -1,6 +1,8 @@
 // EXPECT: pass
 // RUN-MODE: dump-stackmaps
 // RUN-STDOUT-CONTAINS: records:
+// RUN-STDOUT-CONTAINS: verify-roots: ok
+// RUN-STDOUT-CONTAINS: root-slots:
 // RUN-STACKMAPS-RECORDS-GT: 0
 //
 // 目标：GC-FIX Phase C2d：补齐端到端回归（closure capture）。

@@ -272,7 +272,10 @@ fn run_fixture_dump_stackmaps(
         })?;
 
         let mut cmd = Command::new(scoop_exe);
-        cmd.arg("dump-stackmaps").arg(&exe_path);
+        // GC-FIX Phase E2：`dump-stackmaps` 作为 GC 调试主工具时应默认可校验 roots slot 契约。
+        cmd.arg("dump-stackmaps")
+            .arg("--verify-roots")
+            .arg(&exe_path);
         run_pass_env.apply_to_command(&mut cmd);
         run_fixture_command(rel_fixture, fixture_path, exp, cmd)
     })();

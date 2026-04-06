@@ -291,7 +291,7 @@
   - `tests/fixtures/runtime_gc/gc_move_stackmap_roots_update_multi_frame.*`：moving GC 下多帧 stackmap spill slots 必须被原地写回更新；
   - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.*` / `gc_stw_cross_thread_in_native_roots_basic.*`：通过 `@Extern` 覆盖 enter_native/leave_native 以及 InNative roots。
 
-#### E2) [TODO] `scoop dump-stackmaps` 升级为 GC 调试主工具
+#### E2) [DONE] `scoop dump-stackmaps` 升级为 GC 调试主工具
 - 输出应能定位：
   - 每个 record 对应的 function/offset/patchpoint_id；
   - roots locations 的类型/基址/offset；
