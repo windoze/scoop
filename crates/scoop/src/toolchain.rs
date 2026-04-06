@@ -48,6 +48,43 @@ pub enum CompileCError {
     },
 }
 
+/// C++ 源码编译阶段错误（T1116：cone native build 的 `cxx-sources`）。
+#[derive(Debug, Error, Diagnostic)]
+pub enum CompileCxxError {
+    #[error("找不到 C++ 编译器 `{compiler}`（需要安装并确保在 PATH 中）")]
+    #[diagnostic(code(scoop::toolchain::cxx_compiler_not_found))]
+    CompilerNotFound { compiler: String },
+
+    #[error("无法读取 C++ 源文件：{path}")]
+    #[diagnostic(code(scoop::toolchain::cxx_source_unreadable))]
+    SourceUnreadable {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("找不到 C++ 源文件：{path}")]
+    #[diagnostic(code(scoop::toolchain::cxx_source_missing))]
+    SourceMissing { path: PathBuf },
+
+    #[error("运行 C++ 编译器 `{compiler}` 失败：{source}")]
+    #[diagnostic(code(scoop::toolchain::cxx_compile_spawn_failed))]
+    CompileSpawnFailed {
+        compiler: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("编译失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}")]
+    #[diagnostic(code(scoop::toolchain::cxx_compile_failed))]
+    CompileFailed {
+        status: ExitStatus,
+        command: String,
+        stdout: String,
+        stderr: String,
+    },
+}
+
 /// 最终链接阶段的可选配置（T1114）。
 ///
 /// 约定：
@@ -172,6 +209,75 @@ pub fn compile_c_source_to_obj(
     Ok(())
 }
 
+/// 将 cone 额外 `cxx-sources` 的单个 C++ 源文件编译为 object。
+///
+/// 约定（v0）：
+/// - 使用 `clang++ -c` 编译；
+/// - `cxx_flags` 仅作用于该源文件（不影响 runtime/c 的编译参数）。
+pub fn compile_cxx_source_to_obj(
+    cone_root: &Path,
+    source: &Path,
+    output_obj: &Path,
+    cxx_flags: &[String],
+) -> Result<(), CompileCxxError> {
+    // 先在 driver 侧做“缺失/不可读”的稳定诊断，避免把错误形态交给编译器的 stderr。
+    let meta = std::fs::metadata(source).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => CompileCxxError::SourceMissing {
+            path: source.to_path_buf(),
+        },
+        _ => CompileCxxError::SourceUnreadable {
+            path: source.to_path_buf(),
+            source: e,
+        },
+    })?;
+    if !meta.is_file() {
+        return Err(CompileCxxError::SourceMissing {
+            path: source.to_path_buf(),
+        });
+    }
+
+    let compiler = "clang++";
+    let mut cmd = Command::new(compiler);
+    cmd.current_dir(cone_root);
+    cmd.arg("-c");
+    for flag in cxx_flags {
+        if flag.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(flag);
+    }
+    cmd.arg(source);
+    cmd.arg("-o").arg(output_obj);
+
+    let compiler_for_error = cmd.get_program().to_string_lossy().to_string();
+    let output_res = cmd.output();
+    let output_res = match output_res {
+        Ok(v) => v,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(CompileCxxError::CompilerNotFound {
+                compiler: compiler_for_error,
+            });
+        }
+        Err(e) => {
+            return Err(CompileCxxError::CompileSpawnFailed {
+                compiler: compiler_for_error,
+                source: e,
+            });
+        }
+    };
+
+    if !output_res.status.success() {
+        return Err(CompileCxxError::CompileFailed {
+            status: output_res.status,
+            command: format_command_for_debug(&cmd),
+            stdout: String::from_utf8_lossy(&output_res.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output_res.stderr).to_string(),
+        });
+    }
+
+    Ok(())
+}
+
 /// 通过 clang 将单个 object 文件与 Scoop runtime 链接为可执行文件。
 ///
 /// 当前阶段实现策略：
@@ -242,8 +348,20 @@ fn link_command_with_runtime(
     for obj in objs {
         cmd.arg(obj);
     }
+
+    // 当使用 C++ driver（例如 `clang++`/`g++`）时，默认会把 `.c` 当作 C++ 编译，
+    // 这会导致 runtime C 源码在 C++ 模式下无法通过编译（例如 goto 跨越变量初始化）。
+    // 这里用 `-x c ... -x none` 把 runtime 源文件显式固定为 C 语言编译，同时仍然由
+    // C++ driver 执行最终链接（自动链接 C++ stdlib）。
+    let is_cxx_driver = linker_is_cxx_driver(linker);
+    if is_cxx_driver {
+        cmd.arg("-x").arg("c");
+    }
     for src in &runtime_sources {
         cmd.arg(src);
+    }
+    if is_cxx_driver {
+        cmd.arg("-x").arg("none");
     }
     for lib in libs {
         if lib.trim().is_empty() {
@@ -311,6 +429,14 @@ fn format_command_for_debug(cmd: &Command) -> String {
     } else {
         format!("{program} {}", args.join(" "))
     }
+}
+
+fn linker_is_cxx_driver(linker: &str) -> bool {
+    let file_name = Path::new(linker)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(linker);
+    file_name == "c++" || file_name.contains("++")
 }
 
 #[cfg(all(test, not(windows)))]
@@ -520,6 +646,25 @@ fun cos(x: Int): Int
         );
         assert!(
             err.to_string().contains("missing.c"),
+            "错误信息应包含路径，实际：{err}"
+        );
+    }
+
+    #[test]
+    fn compile_cxx_source_missing_has_stable_error_code() {
+        let dir = tempfile::tempdir().unwrap();
+        let cone_root = dir.path();
+        let missing = cone_root.join("missing.cpp");
+        let out = cone_root.join("missing.o");
+
+        let err = compile_cxx_source_to_obj(cone_root, &missing, &out, &[]).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::toolchain::cxx_source_missing",
+            "应返回稳定错误码"
+        );
+        assert!(
+            err.to_string().contains("missing.cpp"),
             "错误信息应包含路径，实际：{err}"
         );
     }

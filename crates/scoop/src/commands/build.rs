@@ -679,6 +679,7 @@ fn run_codegen_and_link(
     // - 额外把用户声明的 C 源文件编译成 `.o`；
     // - `c-flags` 仅作用于这些 user sources（不影响 runtime/c 的编译选项）。
     let mut extra_objs: Vec<PathBuf> = Vec::new();
+    let mut use_cxx_linker_driver = false;
     if let (Some(root), Some(manifest)) = (
         front.input.cone_root.as_ref(),
         front.input.cone_manifest.as_ref(),
@@ -697,15 +698,41 @@ fn run_codegen_and_link(
                 extra_objs.push(out_obj);
             }
         }
+
+        // T1116：cone native build 的 `cxx-sources/cxx-flags`：
+        // - 额外把用户声明的 C++ 源文件编译成 `.o`；
+        // - `cxx-flags` 仅作用于这些 user sources；
+        // - 当存在 C++ 源码时，最终链接默认使用 C++ driver（见下方 link options）。
+        if !manifest.native_build.cxx_sources.is_empty() {
+            use_cxx_linker_driver = true;
+            extra_objs.reserve(manifest.native_build.cxx_sources.len());
+            for (idx, rel) in manifest.native_build.cxx_sources.iter().enumerate() {
+                let src = root.join(rel);
+                let out_obj = dir.join(format!("cone_cxx_{idx}.o"));
+                crate::toolchain::compile_cxx_source_to_obj(
+                    root,
+                    &src,
+                    &out_obj,
+                    &manifest.native_build.cxx_flags,
+                )?;
+                extra_objs.push(out_obj);
+            }
+        }
     }
 
     // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
+    let mut linker = front
+        .input
+        .cone_manifest
+        .as_ref()
+        .and_then(|m| m.native_build.linker.as_deref());
+    if use_cxx_linker_driver && linker.is_none() {
+        // 默认策略（v0）：仅在用户启用 `cxx-sources` 时才切换到 C++ driver，
+        // 以避免在纯 C/纯 Scoop 场景引入额外工具链依赖。
+        linker = Some("clang++");
+    }
     let options = crate::toolchain::LinkOptions {
-        linker: front
-            .input
-            .cone_manifest
-            .as_ref()
-            .and_then(|m| m.native_build.linker.as_deref()),
+        linker,
         link_flags: front
             .input
             .cone_manifest

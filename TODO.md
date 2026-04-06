@@ -3865,7 +3865,7 @@
    - `cargo test --all`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1116 [TODO] cone native build：支持 `cxx-sources` + `cxx-flags`（并正确链接 C++ stdlib）
+### T1116 [DONE] cone native build：支持 `cxx-sources` + `cxx-flags`（并正确链接 C++ stdlib）
 - 描述：当 `Cone.toml` 声明 `cxx-sources` 时：
   - 额外编译这些 C++ 源文件并参与最终链接；
   - `cxx-flags` 仅作用于这些 `cxx-sources`；
@@ -3878,6 +3878,14 @@
   - 新增 run-pass cone fixture：`cxx-sources` 中定义 `extern \"C\"` 函数并在实现里使用 C++ 标准库（例如 `std::string`/`std::vector`），Scoop 通过 `@Extern` 调用并输出正确结果。
   - `cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1115、T1114、T1112
+ - 完成：
+   - `crates/scoop/src/toolchain.rs`：新增 `CompileCxxError` 与 `compile_cxx_source_to_obj()`；当使用 C++ driver 链接时，用 `-x c ... -x none` 强制 runtime C 源文件按 C 语言编译（避免 `.c` 被当作 C++ 导致编译错误）；新增单测覆盖 `cxx_source_missing` 稳定错误码。
+   - `crates/scoop/src/commands/build.rs`：cone 包模式下编译 `native-build.cxx-sources` 并参与最终链接；当存在 `cxx-sources` 且未显式指定 `native-build.linker` 时，默认使用 `clang++` 做最终链接 driver。
+   - `tests/fixtures/run_pass_cone/cxx_sources_extern_call_cpp_stdlib_basic/**`：新增端到端回归用例（C++ `extern "C"` 函数内部使用 `std::string/std::vector`，由 Scoop `@Extern` 调用并输出）。
+   - `crates/scoop_runtime/tests/gc_immix_allocator.rs`：为 Immix 集成测试增加进程内互斥锁，避免并发执行导致 `cargo test --all` 偶发卡死。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1117 [TODO] runtime & user sources：注入 build profile/target macros（C & C++）
 - 描述：在编译 runtime sources（`runtime/c/**`）以及用户 C/C++ sources（Cone.toml 的 `c-sources`/`cxx-sources`）时，向 C/C++ 编译器传入以下宏，以支持按 profile/target 条件编译：

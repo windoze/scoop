@@ -8,7 +8,14 @@ mod immix {
     use core::ptr;
     use std::sync::Arc;
     use std::sync::Barrier;
+    use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    // `scoop_runtime_init()` 与 GC 全局状态是进程级别的；同一个 test binary 内并发跑多个
+    // Immix 集成测试会互相干扰甚至死锁（例如 STW 等待其它测试线程“park”）。
+    //
+    // 约定：Immix 集成测试在同一个进程内串行执行；不影响其它 crate / test binary 的并行度。
+    static GC_IMMIX_TEST_LOCK: Mutex<()> = Mutex::new(());
 
     #[repr(C)]
     struct ScoopGcObjectHeader {
@@ -34,6 +41,7 @@ mod immix {
 
     #[test]
     fn immix_allocator_many_allocations_multiple_gc_cycles_do_not_explode() {
+        let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
         unsafe {
             scoop_runtime_init();
             scoop_thread_register();
@@ -94,6 +102,7 @@ mod immix {
 
     #[test]
     fn immix_allocator_multithread_alloc_and_collect_smoke() {
+        let _lock = GC_IMMIX_TEST_LOCK.lock().unwrap();
         unsafe {
             scoop_runtime_init();
             scoop_thread_register();
