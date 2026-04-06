@@ -228,6 +228,88 @@ static inline void scoop_gc_immix_tls_cache_refill_locked(ScoopGcImmixState *sta
     scoop_gc_immix_tls_cache_push(b);
   }
 }
+
+// T1412b：Immix nursery（bump-only）。
+//
+// 设计目标（v0）：
+// - nursery 的分配必须“成本可上界”：只做 bump，不做 holes 搜索/复用；
+// - nursery 的工作量边界由 `nursery_max_blocks` 控制（通过 env 配置；见 immix heap init）；
+// - 当 nursery 用尽时，分配路径回退到 old allocator（现有 hole-bump + reusable blocks 复用）。
+//
+// 注意：
+// - 该实现仅提供分配区与上限；minor evacuation 语义在 TODO T1412c 落地。
+// - 调用方必须持有 `state->lock`（便于与 GC 周期/blocks 列表维护保持一致）。
+static inline ScoopGcImmixBlock *scoop_gc_immix_nursery_take_block_locked(ScoopGcImmixState *state) {
+  if (state == 0) {
+    return 0;
+  }
+  if (state->nursery_max_blocks == 0) {
+    return 0;
+  }
+
+  ScoopGcImmixBlock *block = 0;
+  if (state->nursery_free_blocks != 0) {
+    block = state->nursery_free_blocks;
+    state->nursery_free_blocks = block->next_free;
+    block->next_free = 0;
+  } else {
+    if (state->nursery_blocks >= state->nursery_max_blocks) {
+      return 0;
+    }
+
+    block = scoop_gc_immix_block_alloc_new();
+    if (block == 0) {
+      return 0;
+    }
+    block->generation = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+
+    // nursery blocks 仍是“真实 Immix blocks”：挂入 all_blocks，便于 major GC 遍历与统计。
+    block->next_all = state->all_blocks;
+    state->all_blocks = block;
+
+    if (state->nursery_blocks != UINT32_MAX) {
+      state->nursery_blocks += 1;
+    }
+  }
+
+  state->nursery_current_block = block;
+  return block;
+}
+
+static inline void *scoop_gc_immix_nursery_alloc_locked(ScoopGcImmixState *state,
+                                                        size_t size,
+                                                        size_t alignment) {
+  if (state == 0 || size == 0) {
+    return 0;
+  }
+  if (state->nursery_max_blocks == 0) {
+    return 0;
+  }
+  if (alignment == 0) {
+    alignment = 1;
+  }
+
+  ScoopGcImmixBlock *block = state->nursery_current_block;
+  for (uint32_t tries = 0; tries < 128; tries++) {
+    if (block == 0) {
+      block = scoop_gc_immix_nursery_take_block_locked(state);
+    }
+    if (block == 0) {
+      return 0;
+    }
+
+    void *p = scoop_gc_immix_block_alloc_bump(block, size, alignment);
+    if (p != 0) {
+      return p;
+    }
+
+    // 当前 nursery block 放不下：切换到下一个 block（bump-only，不回退到 holes）。
+    state->nursery_current_block = 0;
+    block = 0;
+  }
+
+  return 0;
+}
 #endif
 
 // --- effect runtime v0（TODO T0906） ---
@@ -1245,6 +1327,13 @@ void *scoop_alloc(uint64_t size) {
   if ((size_t)object_size > cap) {
     p = malloc((size_t)object_size);
   } else {
+    // T1412b：nursery 优先（bump-only + 上限）。nursery 用尽后回退到 old allocator。
+    if (state->nursery_max_blocks != 0) {
+      (void)pthread_mutex_lock(&state->lock);
+      p = scoop_gc_immix_nursery_alloc_locked(state, (size_t)object_size, (size_t)sizeof(void *));
+      (void)pthread_mutex_unlock(&state->lock);
+    }
+
     // bump-in-hole（Immix v0 / T1409a）：
     // - 线程优先在自己的 current block 内分配（无锁快路径）；
     // - 当 block 放不下时，才进入全局锁从 block pool 取一个新 block（refill）。

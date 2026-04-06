@@ -45,8 +45,18 @@
 // "SCOOPIMM"（magic，用于从对象指针反推 block 时做健壮性校验）。
 #define SCOOP_GC_IMMIX_BLOCK_MAGIC 0x53434F4F50494D4Dull
 
+// Immix block generation tag（TODO T1412b）：
+// - OLD：老年代 blocks（现有 Immix allocator 的默认语义）。
+// - NURSERY：年轻代 nursery blocks（bump-only；用于 minor/evacuation 的工作量上界）。
+#define SCOOP_GC_IMMIX_BLOCK_GEN_OLD 0u
+#define SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY 1u
+
 typedef struct ScoopGcImmixBlock {
   uint64_t magic;
+
+  // block 归属（nursery vs old）。该字段不是对外 ABI，仅用于 runtime/c 内部判定。
+  uint8_t generation;
+  uint8_t _reserved_u8[7];
 
   // 链表：
   // - next_all：state->all_blocks（用于复位/回收整块 block）
@@ -80,6 +90,20 @@ typedef struct ScoopGcImmixState {
   ScoopGcImmixBlock *reusable_blocks;
   ScoopGcImmixBlock *free_blocks;
   ScoopGcImmixBlock *current_block;
+
+  // --- Immix nursery（TODO T1412b；minor 语义在 T1412c） ---
+  //
+  // 说明：
+  // - nursery blocks 与 old blocks 共享同一套 block 元数据与 block size；
+  // - nursery 分配为 bump-only：不会复用 holes（避免成本不可控），并以“块上限”作为硬边界；
+  // - nursery 的配置通过 env 完成（避免扩 runtime ABI）：
+  //   - `SCOOP_GC_IMMIX_NURSERY_BYTES`
+  //   - `SCOOP_GC_IMMIX_NURSERY_BLOCKS`
+  // - 为避免与现有 allocator/compaction 混用，nursery blocks 保持单独的 free/current 指针。
+  ScoopGcImmixBlock *nursery_free_blocks;
+  ScoopGcImmixBlock *nursery_current_block;
+  uint32_t nursery_max_blocks;
+  uint32_t nursery_blocks;
 } ScoopGcImmixState;
 
 static inline ScoopGcImmixState *scoop_gc_immix_state_from_heap(ScoopGcHeap *heap) {

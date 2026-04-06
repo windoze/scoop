@@ -6168,7 +6168,7 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `cargo test --all`
 
-### T1412b [TODO] Immix nursery：bump-only 分配区 + 可配置上限（为时效性提供硬边界）
+### T1412b [DONE] Immix nursery：bump-only 分配区 + 可配置上限（为时效性提供硬边界）
 - 描述：在 Immix backend 中引入 nursery（年轻代）分配区：nursery 只做 bump（避免 holes 带来的不可控成本），并提供“上限（bytes/blocks）”配置，作为 minor 的工作量边界。
 - 目标：
   - nursery 与老年代复用同一套 Immix block 结构（避免引入第二套 allocator），但 block 归属必须可判定（nursery vs old）。
@@ -6179,6 +6179,14 @@
   - 新增 `scoop_runtime` 集成测试：开启 nursery 后能稳定分配并触发至少一次 major collect（先不要求 minor 语义）；确认 nursery 上限生效（例如超过上限时回退到 old 或触发 GC）。
   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
 - 依赖：T1412a
+ - 完成：
+   - `runtime/c/scoop_gc_immix_internal.h`：为 `ScoopGcImmixBlock` 增加 `generation`（nursery vs old）标记，并在 `ScoopGcImmixState` 中引入 nursery 的 free/current/max 等状态字段。
+   - `runtime/c/scoop_gc_backend_immix.c`：在 heap init 读取 `SCOOP_GC_IMMIX_NURSERY_BYTES/BLOCKS` 配置；region sweep / compaction / block list rebuild 识别 nursery blocks 并保持 bump-only 语义（不进入 reusable holes 复用）；GC 周期内清空 `nursery_current_block`，避免悬挂。
+   - `runtime/c/scoop_runtime.c`：`scoop_alloc` 小对象优先走 nursery bump-only 分配；nursery 用尽后回退到现有 old allocator（thread-local hole bump）。
+   - `crates/scoop_runtime/tests/gc_immix_nursery.rs`：新增集成测试回归“nursery blocks 上限生效 + 超限回退到 old + major collect 可回收”。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test --all`
 
 ### T1412c [BLOCKED] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
 - 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。

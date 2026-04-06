@@ -1953,6 +1953,60 @@ void scoop_gc_heap_register_object(ScoopGcObjectHeader *obj) {
   scoop_gc_heap_bytes_allocated_add(obj->size_bytes);
 }
 
+static uint32_t scoop_gc_immix_env_read_u64(const char *name, uint64_t *out) {
+  if (name == 0 || out == 0) {
+    return 0;
+  }
+
+  const char *raw = getenv(name);
+  if (raw == 0) {
+    return 0;
+  }
+
+  // 跳过前导空白（允许 `NAME=" 123"`）。
+  while (*raw == ' ' || *raw == '\t' || *raw == '\n' || *raw == '\r') {
+    raw++;
+  }
+  if (*raw == 0) {
+    return 0;
+  }
+
+  errno = 0;
+  char *end = 0;
+  unsigned long long v = strtoull(raw, &end, 10);
+  if (end == raw || errno != 0) {
+    return 0;
+  }
+
+  *out = (uint64_t)v;
+  return 1;
+}
+
+static uint32_t scoop_gc_immix_nursery_max_blocks_from_env(void) {
+  // 配置优先级：
+  // 1) `SCOOP_GC_IMMIX_NURSERY_BYTES`（更细粒度）
+  // 2) `SCOOP_GC_IMMIX_NURSERY_BLOCKS`
+  uint64_t bytes = 0;
+  if (scoop_gc_immix_env_read_u64("SCOOP_GC_IMMIX_NURSERY_BYTES", &bytes) && bytes > 0) {
+    const uint64_t block_bytes = (uint64_t)SCOOP_GC_IMMIX_BLOCK_SIZE;
+    uint64_t blocks = (bytes + block_bytes - 1u) / block_bytes;
+    if (blocks > (uint64_t)UINT32_MAX) {
+      blocks = (uint64_t)UINT32_MAX;
+    }
+    return (uint32_t)blocks;
+  }
+
+  uint64_t blocks = 0;
+  if (scoop_gc_immix_env_read_u64("SCOOP_GC_IMMIX_NURSERY_BLOCKS", &blocks) && blocks > 0) {
+    if (blocks > (uint64_t)UINT32_MAX) {
+      blocks = (uint64_t)UINT32_MAX;
+    }
+    return (uint32_t)blocks;
+  }
+
+  return 0;
+}
+
 void scoop_gc_heap_init(ScoopGcHeap *heap) {
   if (heap == 0) {
     return;
@@ -1973,14 +2027,31 @@ void scoop_gc_heap_init(ScoopGcHeap *heap) {
   if (state != 0 && state->lock_inited) {
     scoop_gc_immix_lock(state);
 
+    // nursery 配置（T1412b）：在首次 heap init 时读取 env 并固化到 state 中。
+    // 说明：runtime 当前只支持进程级别的一次初始化；因此无需处理“运行中改 env”。
+    if (state->nursery_max_blocks == 0) {
+      state->nursery_max_blocks = scoop_gc_immix_nursery_max_blocks_from_env();
+    }
+
     // 把已分配的 blocks 复位并串到 free list，供分配路径复用。
     state->reusable_blocks = 0;
     state->free_blocks = 0;
     state->current_block = 0;
+    state->nursery_free_blocks = 0;
+    state->nursery_current_block = 0;
+    state->nursery_blocks = 0;
     for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
       scoop_gc_immix_block_reset(it);
-      it->next_free = state->free_blocks;
-      state->free_blocks = it;
+
+      // 重建 nursery blocks 计数与 free list（按 block.generation 分类）。
+      if (it->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+        state->nursery_blocks += 1;
+        it->next_free = state->nursery_free_blocks;
+        state->nursery_free_blocks = it;
+      } else {
+        it->next_free = state->free_blocks;
+        state->free_blocks = it;
+      }
     }
 
     scoop_gc_immix_unlock(state);
@@ -3056,9 +3127,30 @@ static void scoop_gc_immix_state_rebuild_block_lists(ScoopGcImmixState *state) {
   state->reusable_blocks = 0;
   state->free_blocks = 0;
   state->current_block = 0;
+  state->nursery_free_blocks = 0;
+  state->nursery_current_block = 0;
 
   for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
     it->next_free = 0;
+
+    // nursery blocks：bump-only，不进入 reusable list（避免 holes 复用带来的不可控成本）。
+    if (it->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+      if (it->live_objects == 0) {
+        scoop_gc_immix_block_reset(it);
+        it->next_free = state->nursery_free_blocks;
+        state->nursery_free_blocks = it;
+      } else {
+        // 非空 nursery：保持 cursor 单调递增；不回退到 holes。
+        if (it->cursor < it->payload_start) {
+          it->cursor = it->payload_start;
+        }
+        if (it->cursor > it->limit) {
+          it->cursor = it->limit;
+        }
+        it->hole_limit = it->limit;
+      }
+      continue;
+    }
 
     if (it->live_objects == 0) {
       scoop_gc_immix_block_reset(it);
@@ -3369,7 +3461,14 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
   while (eb != 0) {
     ScoopGcImmixBlock *next = eb->next_free;
     if (eb->live_objects == 0) {
-      scoop_gc_immix_state_remove_and_free_block(state, eb);
+      // nursery blocks 不应被释放（它们作为“可配置上限”的一部分提供硬边界）。
+      if (eb->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+        scoop_gc_immix_block_reset(eb);
+        eb->next_free = state->nursery_free_blocks;
+        state->nursery_free_blocks = eb;
+      } else {
+        scoop_gc_immix_state_remove_and_free_block(state, eb);
+      }
     }
     eb = next;
   }
@@ -3394,6 +3493,7 @@ typedef struct ScoopGcParallelSweepLists {
   ScoopGcImmixBlock *free_blocks;
   ScoopGcImmixBlock *reusable_blocks;
   ScoopGcImmixBlock *evac_blocks;
+  ScoopGcImmixBlock *nursery_free_blocks;
 } ScoopGcParallelSweepLists;
 
 typedef struct ScoopGcParallelSweepJob {
@@ -3420,6 +3520,39 @@ static inline void scoop_gc_immix_region_sweep_one_block(ScoopGcImmixBlock *bloc
   }
 
   block->next_free = 0;
+
+  // nursery blocks：bump-only，不复用 holes；只在变空时 reset 并回收到 nursery free list。
+  if (block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+    if (block->live_objects == 0) {
+      scoop_gc_immix_block_reset(block);
+      block->next_free = lists->nursery_free_blocks;
+      lists->nursery_free_blocks = block;
+      return;
+    }
+
+    // 非空 nursery：仍需要把 mark bits 融合回 alloc bits，并清空 mark bits，
+    // 以保证下一轮 GC 的 mark-region / debug 观测一致；但不重建 holes/cursor。
+    size_t reserved = scoop_gc_immix_block_reserved_lines(block);
+    for (size_t line = reserved; line < (size_t)SCOOP_GC_IMMIX_LINES_PER_BLOCK; line++) {
+      uint32_t live = scoop_gc_immix_bitmap_test_bit(
+          block->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+      if (live) {
+        scoop_gc_immix_bitmap_set_bit(block->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+      } else {
+        scoop_gc_immix_bitmap_clear_bit(block->line_alloc_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+      }
+      scoop_gc_immix_bitmap_clear_bit(block->line_mark_bits, SCOOP_GC_IMMIX_BITMAP_WORDS, line);
+    }
+
+    if (block->cursor < block->payload_start) {
+      block->cursor = block->payload_start;
+    }
+    if (block->cursor > block->limit) {
+      block->cursor = block->limit;
+    }
+    block->hole_limit = block->limit;
+    return;
+  }
 
   if (block->live_objects == 0) {
     scoop_gc_immix_block_reset(block);
@@ -3816,6 +3949,8 @@ void scoop_gc_collect(void) {
   state->reusable_blocks = 0;
   state->free_blocks = 0;
   state->current_block = 0;
+  state->nursery_free_blocks = 0;
+  state->nursery_current_block = 0;
   ScoopGcImmixBlock *evac_blocks = 0;
 
   uint32_t parallel_sweep_workers = scoop_gc_immix_parallel_sweep_worker_count();
@@ -3894,6 +4029,8 @@ void scoop_gc_collect(void) {
           scoop_gc_immix_region_sweep_merge_list(&state->free_blocks, jobs[w].out.free_blocks);
           scoop_gc_immix_region_sweep_merge_list(&state->reusable_blocks,
                                                  jobs[w].out.reusable_blocks);
+          scoop_gc_immix_region_sweep_merge_list(&state->nursery_free_blocks,
+                                                 jobs[w].out.nursery_free_blocks);
           scoop_gc_immix_region_sweep_merge_list(&evac_blocks, jobs[w].out.evac_blocks);
         }
 
@@ -3910,6 +4047,7 @@ void scoop_gc_collect(void) {
     }
     state->free_blocks = lists.free_blocks;
     state->reusable_blocks = lists.reusable_blocks;
+    state->nursery_free_blocks = lists.nursery_free_blocks;
     evac_blocks = lists.evac_blocks;
   }
 
