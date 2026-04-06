@@ -4358,7 +4358,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1220b [TODO] Resolve/Typecheck：在建立 index 前裁剪 package-level 分支（未选中分支不参与）
+### T1220b [DONE] Resolve/Typecheck：在建立 index 前裁剪 package-level 分支（未选中分支不参与）
 - 描述：在 `parse → resolve/index` 之间引入“package-level comptime 裁剪”步骤：对顶层 `comptime if` 的条件做编译期求值（Bool），仅保留选中分支内的顶层 items，保证重复定义检查/名字解析/类型检查只作用于被保留的声明。
 - 目标：
   - 条件必须是 compile-time Bool：非 Bool 或不可求值给出稳定错误码（含 `at` 定位到条件表达式）。
@@ -4370,6 +4370,16 @@
   - 新增 compile-fail fixture：条件不是 Bool（例如 `comptime if (1) { ... }`），断言稳定错误码与位置。
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T1203、T1220a、T1219
+ - 完成：
+   - `crates/scoopc/src/comptime/interpreter.rs`：新增 `trim_package_level_comptime_ifs()`，在 const eval 能力边界内对顶层 `comptime if` 求值并展开选中分支。
+   - `crates/scoop/src/commands/build.rs` + `crates/scoop/src/fixtures/mod.rs`：在 build/fixtures 的 resolve/typecheck/index 构建前注入裁剪步骤。
+   - fixtures：
+     - `tests/fixtures/resolve/package_level_comptime_if_selects_branch_ok.scoop`：两个分支重复定义同名符号且可被引用（通过）。
+     - `tests/fixtures/typecheck/package_level_comptime_if_unselected_branch_type_error_ok.scoop`：未选中分支含 type error 但应通过。
+     - `tests/fixtures/resolve/package_level_comptime_if_cond_not_bool_is_error.scoop`：条件非 Bool → 稳定错误码与位置。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1220c [TODO] Cone/ScoopIR：package-level `comptime if` 对导出/打包行为的回归
 - 描述：确保 `.cone` 打包与 `scoopir` 导出遵循裁剪后的声明集合：未选中分支的 `public` 符号不应出现在 `api.scoopir`/ScoopIR JSON 中。

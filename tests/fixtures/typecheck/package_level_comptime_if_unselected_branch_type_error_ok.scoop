@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T1220b 顶层 `comptime if` 未选中分支不进入 typecheck：允许包含明显的类型错误。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+comptime if (true) {
+    fun foo(): Int { return 1 }
+} else {
+    fun foo(): DoesNotExist { return 1 }
+}
+
+fun use(): Int { return foo() }
+

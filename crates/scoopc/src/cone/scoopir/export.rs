@@ -112,7 +112,9 @@ pub fn export_public_api_for_cone_sources(
     // 1) parse：得到 AST（后续 resolver 会写回绑定结果，因此这里用可变 Vec 承载）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let mut ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)
+            .map_err(miette::Report::from)?;
         asts.push(ast);
     }
 

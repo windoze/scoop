@@ -1,0 +1,15 @@
+// EXPECT: pass
+// 目标：T1220b 顶层 `comptime if` 在 index/resolve 前裁剪，选中分支的声明应可被正常引用。
+
+package fixtures.resolve
+
+comptime if (true) {
+    fun foo() {}
+    class Bar {}
+} else {
+    fun foo() {}
+    class Bar {}
+}
+
+fun use() { foo() }
+

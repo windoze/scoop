@@ -19,7 +19,9 @@ mod interpreter;
 mod value;
 
 pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
-pub use interpreter::{ConstBinding, ConstEvalOptions, eval_const_bindings_in_file};
+pub use interpreter::{
+    ConstBinding, ConstEvalOptions, eval_const_bindings_in_file, trim_package_level_comptime_ifs,
+};
 pub use value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue};
 
 #[cfg(test)]

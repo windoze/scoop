@@ -174,6 +174,10 @@ pub enum TypeDescError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    Comptime(#[from] crate::comptime::ConstEvalError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error("class 继承链存在环：{fqn}")]
@@ -278,7 +282,8 @@ fn collect_interface_descs_and_class_vtables(
     // 说明：
     // - 这里刻意不复用 `hir::lower_for_dump` 内部构建的 index/AST，避免把内部实现细节泄漏到 API。
     // - interface slot table 的提取只依赖声明头与成员列表，不依赖 body 的 resolver 注入信息。
-    let ast = session.parse(source)?;
+    let mut ast = session.parse(source)?;
+    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {

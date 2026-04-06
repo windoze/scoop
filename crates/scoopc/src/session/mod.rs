@@ -9,6 +9,7 @@
 use miette::{Context as _, Result};
 use thiserror::Error;
 
+use crate::comptime::ConstEvalError;
 use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
@@ -19,6 +20,10 @@ pub enum SessionError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Parse(#[from] ParseError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Comptime(#[from] ConstEvalError),
 
     #[error(transparent)]
     #[diagnostic(transparent)]
@@ -61,7 +66,9 @@ impl Session {
     pub fn build_top_level_index(&self, sources: &[SourceFile]) -> Result<Index, SessionError> {
         let mut asts = Vec::with_capacity(sources.len());
         for s in sources {
-            asts.push(parse_file(s)?);
+            let mut ast = parse_file(s)?;
+            crate::comptime::trim_package_level_comptime_ifs(s, &mut ast)?;
+            asts.push(ast);
         }
 
         let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();

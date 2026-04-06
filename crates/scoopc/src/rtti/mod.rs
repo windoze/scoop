@@ -89,6 +89,10 @@ pub enum RttiError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    Comptime(#[from] crate::comptime::ConstEvalError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]
@@ -184,6 +188,7 @@ impl RttiContext {
     fn build(session: &Session, source: &SourceFile) -> Result<Self, RttiError> {
         // 1) parse + 最小声明检查（不依赖 index/resolver）。
         let mut file = parse_file(source)?;
+        crate::comptime::trim_package_level_comptime_ifs(source, &mut file)?;
         crate::typecheck::check_file_headers(source, &file)?;
         crate::typecheck::check_file_struct_decls(source, &file)?;
 

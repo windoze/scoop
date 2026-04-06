@@ -35,6 +35,10 @@ pub enum MonomorphLowerError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    Comptime(#[from] crate::comptime::ConstEvalError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]
@@ -97,6 +101,7 @@ pub fn lower_for_dump(
 ) -> Result<LoweredMonomorphMir, MonomorphLowerError> {
     // 1) parse + headers 预检查（不依赖 resolver/index）
     let mut file = parse_file(source)?;
+    crate::comptime::trim_package_level_comptime_ifs(source, &mut file)?;
     typecheck::check_file_headers(source, &file)?;
     typecheck::check_file_struct_decls(source, &file)?;
 

@@ -149,6 +149,10 @@ pub enum HirLowerError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
+    Comptime(#[from] crate::comptime::ConstEvalError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]
@@ -4347,6 +4351,7 @@ enum ValScope {
 ///    （未覆盖节点用 `Any` 占位）。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
+    crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)?;
 
     let index = {
         // 注意：`check_file_bodies` 需要 `&mut ast`，因此这里把构建 index 的临时借用放在独立作用域中，

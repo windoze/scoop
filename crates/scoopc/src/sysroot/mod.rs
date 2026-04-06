@@ -57,8 +57,16 @@ impl Sysroot {
         let mut files = Vec::new();
         for path in paths {
             let source = SourceFile::load(&path)?;
-            let ast = crate::parser::parse_file(&source)
+            let mut ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
+            crate::comptime::trim_package_level_comptime_ifs(&source, &mut ast).wrap_err_with(
+                || {
+                    format!(
+                        "裁剪 sysroot 文件的 package-level comptime if 失败：{}",
+                        path.display()
+                    )
+                },
+            )?;
             files.push(SysrootFile { path, source, ast });
         }
 

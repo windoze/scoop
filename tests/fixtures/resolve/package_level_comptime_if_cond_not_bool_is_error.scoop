@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::comptime::operand_type_mismatch
+// EXPECT-ERROR: Bool
+// EXPECT-ERROR-AT: 9:14
+// 目标：T1220b 顶层 `comptime if` 条件必须为 compile-time Bool（非 Bool 应报稳定诊断）。
+
+package fixtures.resolve
+
+comptime if (1) {
+    fun foo() {}
+}
+

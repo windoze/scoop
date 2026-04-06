@@ -351,7 +351,10 @@ fn run_frontend(
     // 先 parse 所有文件（cone 包模式下：`src/**/*.scoop`）。
     let mut asts = Vec::with_capacity(input.sources.len());
     for source in &input.sources {
-        let ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
+        let mut ast = scoopc::parser::parse_file(source).map_err(miette::Report::from)?;
+        // T1220b：在 resolver/index 之前裁剪 package-level `comptime if`（未选中分支不进入后续阶段）。
+        scoopc::comptime::trim_package_level_comptime_ifs(source, &mut ast)
+            .map_err(miette::Report::from)?;
         asts.push(ast);
     }
 

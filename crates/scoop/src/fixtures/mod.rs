@@ -980,7 +980,8 @@ fn scoopir_fixture(
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // v0：导出 public type/fun header，不包含函数体。
-    let ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    scoopc::comptime::trim_package_level_comptime_ifs(source, &mut ast).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -1031,6 +1032,7 @@ fn resolve_fixture(
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    scoopc::comptime::trim_package_level_comptime_ifs(source, &mut ast).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in &session.sysroot().files {
@@ -1049,6 +1051,7 @@ fn typecheck_fixture(
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = scoopc::parser::parse_file(source).map_err(box_diagnostic)?;
+    scoopc::comptime::trim_package_level_comptime_ifs(source, &mut ast).map_err(box_diagnostic)?;
 
     // 先运行不依赖 resolver/index 的 typecheck 预检查：
     // - T0404：声明头类型注解的最小约束
@@ -1233,7 +1236,9 @@ fn run_resolve_multi_case(
     let mut asts = Vec::with_capacity(paths.len());
     for path in &paths {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
+            .map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }
@@ -1332,7 +1337,9 @@ fn run_resolve_cone_case(
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
-            let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
+                .map_err(miette::Report::new)?;
             files.push(ConeFile {
                 cone: cone_id,
                 source,
@@ -1446,7 +1453,9 @@ fn run_typecheck_cone_case(
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
-            let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+            scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
+                .map_err(miette::Report::new)?;
             files.push(ConeFile {
                 cone: cone_id,
                 source,
@@ -1673,7 +1682,9 @@ fn run_typecheck_cone_archive_case(
     let mut asts: Vec<scoopc::ast::File> = Vec::new();
     for path in &consumer_pkg.sources {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
+            .map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }
@@ -2039,7 +2050,9 @@ fn run_typecheck_multi_case(
     let mut asts = Vec::with_capacity(paths.len());
     for path in &paths {
         let source = scoopc::source::SourceFile::load(path)?;
-        let ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        let mut ast = scoopc::parser::parse_file(&source).map_err(miette::Report::new)?;
+        scoopc::comptime::trim_package_level_comptime_ifs(&source, &mut ast)
+            .map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
     }

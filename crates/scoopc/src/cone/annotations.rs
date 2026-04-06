@@ -80,7 +80,9 @@ pub fn collect_cone_preserved_annotation_classes_for_cone_sources(
     // 1) parse sources → AST（Index/TypeEnv 构建需要 AST 引用）。
     let mut asts = Vec::with_capacity(sources.len());
     for source in sources {
-        let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        let mut ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
+        crate::comptime::trim_package_level_comptime_ifs(source, &mut ast)
+            .map_err(miette::Report::from)?;
         asts.push(ast);
     }
 

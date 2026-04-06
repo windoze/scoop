@@ -56,6 +56,83 @@ pub fn eval_const_bindings_in_file<'a>(
     interp.eval_const_bindings(file)
 }
 
+/// 在 resolver/index 之前裁剪 package-level `comptime if`（TODO T1220b）。
+///
+/// 语义（v0）：
+/// - 对顶层 `comptime if (<cond>) { <items> } else ...` 的 `<cond>` 做编译期求值（Bool）；
+/// - 只保留被选中的分支块内的顶层 items；
+/// - 未选中分支完全被忽略：不会进入 index/resolve/typecheck/codegen，也不会触发错误；
+/// - `else if (...)` 以 `else comptime if (...)` 的语法糖形式在 AST 中表现为 `ComptimeIfItemElse::If` 链。
+///
+/// 说明：
+/// - 该裁剪步骤发生在“AST 阶段”，因此这里的求值仍属于 const/comptime 解释器 v0 的能力边界；
+/// - 早期阶段只要求 `<cond>` 是可在编译期求值的 Bool；否则返回结构化诊断（稳定错误码）。
+pub fn trim_package_level_comptime_ifs(
+    source: &SourceFile,
+    file: &mut ast::File,
+) -> Result<(), ConstEvalError> {
+    if !file
+        .items
+        .iter()
+        .any(|it| matches!(it, ast::Item::ComptimeIf(_)))
+    {
+        return Ok(());
+    }
+
+    let trimmed = {
+        // 这里借用 `file` 进行裁剪，但直到最终替换 `file.items` 之前都不写回，
+        // 以避免 “解释器内部持有对 AST 节点的引用” 与 “移动 items” 之间的冲突。
+        let file_ref: &ast::File = &*file;
+
+        let mut interp =
+            ConstInterpreter::with_options(ConstEvalCtx::new(source), ConstEvalOptions::default());
+        interp.register_file(file_ref);
+
+        let mut out: Vec<ast::Item> = Vec::new();
+        trim_package_level_items(&mut interp, &file_ref.items, &mut out, PreRegisterDecls::No)?;
+        out
+    };
+
+    file.items = trimmed;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PreRegisterDecls {
+    No,
+    Yes,
+}
+
+fn trim_package_level_items<'a>(
+    interp: &mut ConstInterpreter<'a>,
+    items: &'a [ast::Item],
+    out: &mut Vec<ast::Item>,
+    pre_register: PreRegisterDecls,
+) -> Result<(), ConstEvalError> {
+    // 在处理一个“被选中的分支块”之前，先把该块内直接出现的 type/fun 声明预注册到环境，
+    // 以支持 const/comptime 里“先用后声明”的常见模式。
+    if pre_register == PreRegisterDecls::Yes {
+        interp.register_item_decls(items);
+    }
+
+    for item in items {
+        match item {
+            ast::Item::ComptimeIf(ci) => {
+                if let Some(block) = interp.select_comptime_if_item_branch(ci)? {
+                    trim_package_level_items(interp, &block.items, out, PreRegisterDecls::Yes)?;
+                }
+            }
+            other => {
+                // 顶层 const val 可以参与后续分支条件求值，因此按顺序执行并写入环境。
+                interp.maybe_eval_top_level_const_val(other)?;
+                out.push(other.clone());
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// `const fun` 调用与局部求值的解释器状态。
 struct ConstInterpreter<'a> {
     ctx: ConstEvalCtx<'a>,
@@ -98,6 +175,89 @@ impl<'a> ConstInterpreter<'a> {
                 | ast::Item::Val(_)
                 | ast::Item::ComptimeIf(_) => {}
             }
+        }
+    }
+
+    fn register_item_decls(&mut self, items: &'a [ast::Item]) {
+        for item in items {
+            match item {
+                ast::Item::Fun(fun) => {
+                    let name = fun.name.text(self.ctx.source).to_string();
+                    self.funs_by_name.entry(name).or_default().push(fun);
+                }
+                ast::Item::Type(ty) => {
+                    let name = ty.name.text(self.ctx.source).to_string();
+                    self.types_by_name.entry(name).or_default().push(ty);
+                }
+                // 只预注册“直接出现的”声明；`comptime if` 的分支选择应发生在裁剪时，
+                // 因此这里刻意跳过它，避免把未选中分支的声明引入环境。
+                ast::Item::ComptimeIf(_)
+                | ast::Item::TypeAlias(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::Object(_)
+                | ast::Item::Val(_) => {}
+            }
+        }
+    }
+
+    fn maybe_eval_top_level_const_val(&mut self, item: &ast::Item) -> Result<(), ConstEvalError> {
+        let ast::Item::Val(v) = item else {
+            return Ok(());
+        };
+        if !v.modifiers.contains(&ast::Modifier::Const) {
+            return Ok(());
+        }
+
+        // `const val` 目前只支持名字绑定。
+        let Some(name_ident) = v.name() else {
+            return Err(ConstEvalError::UnsupportedStmt {
+                kind: "const val pattern binding",
+                span: v.span.into(),
+            });
+        };
+        if v.kind != ast::ValKind::Val {
+            return Err(ConstEvalError::UnsupportedStmt {
+                kind: "const var",
+                span: v.span.into(),
+            });
+        }
+        let Some(init) = v.init.as_ref() else {
+            return Err(ConstEvalError::MissingInitializer {
+                kind: "const val",
+                span: v.span.into(),
+            });
+        };
+
+        let name = name_ident.text(self.ctx.source).to_string();
+        let value = eval_const_expr_with_host(self.ctx, self, init)?;
+
+        self.define_local(name, value);
+        Ok(())
+    }
+
+    fn select_comptime_if_item_branch<'b>(
+        &mut self,
+        ci: &'b ast::ComptimeIfItem,
+    ) -> Result<Option<&'b ast::ItemBlock>, ConstEvalError> {
+        let cond_v = eval_const_expr_with_host(self.ctx, self, &ci.cond)?;
+        let ConstValue::Bool(cond_b) = cond_v else {
+            return Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Bool",
+                found: value_kind(&cond_v),
+                span: ci.cond.span.into(),
+            });
+        };
+
+        if cond_b {
+            return Ok(Some(&ci.then_branch));
+        }
+
+        match &ci.else_branch {
+            None => Ok(None),
+            Some(else_branch) => match &**else_branch {
+                ast::ComptimeIfItemElse::Block(b) => Ok(Some(b)),
+                ast::ComptimeIfItemElse::If(next) => self.select_comptime_if_item_branch(next),
+            },
         }
     }
 
