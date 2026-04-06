@@ -29,6 +29,7 @@
 - 2026-04-07：完成 T1220b：Resolve/Typecheck 在建立 index 前裁剪 package-level `comptime if`（编译期求值条件并仅展开选中分支，未选中分支不进入后续阶段）；新增 resolve/typecheck fixtures 回归。验收：`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 2026-04-07：完成 T1220c：Cone/ScoopIR 导出/打包回归：package-level `comptime if` 未选中分支的 `public` 符号不应出现在 `.scoopir.json`；新增 scoopir fixture + `scoopc` golden 单测。验收：`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 2026-04-07：完成 T1412a：Immix roots tracing membership 过滤去 O(n)：每轮 GC 初始化一次“heap.objects 快照→排序→二分查找”的 membership 索引，顺序/并行 mark visitor 与 verify-roots 复用该索引（OOM 时回退线性扫，保持正确性）。验收：`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` + `cargo test --all` 通过。
+- 2026-04-07：完成 T1515：在 `SCOOP_FULL_SPEC.md` §2.3.2 明确 rich enum 的 GC 可扫描布局契约（固定 ref slots、禁止 tag-dependent tracing、ref niche 仅允许 NULL 且禁止 nested niche）；并在 `PLAN.md` 的 enum 布局与 GC/stackmap 章节引用该契约。验收：`cargo test --all` + `cargo run -p scoop_tools -- spec-fixtures check` + `cargo run -p scoop -- test` 通过。
 - 2026-04-07：完成 T1412b：Immix nursery：引入 bump-only nursery 分配区 + 可配置 blocks/bytes 上限（env：`SCOOP_GC_IMMIX_NURSERY_BYTES`/`SCOOP_GC_IMMIX_NURSERY_BLOCKS`），并在 `scoop_alloc` 中优先从 nursery 分配、用尽后回退到现有 old allocator；新增 `gc_immix_nursery` 集成测试回归“上限生效 + 超限回退 + major collect 可回收”。验收：`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` + `cargo test --all` 通过。
 - 2026-04-06：GC-FIX Phase C2（消除 statepoint 绕路）范围较大；为保持“每次 agent invocation 只做一个可交付步骤”，将 C2 拆分为 C2a（SROA 让聚合值内 ref 可追踪）、C2b（禁止 GC 指针 ptr<->int 逃逸）、C2c（println/字符串路径去绕路）、C2d（端到端 fixtures 回归补齐）。
 - 2026-04-06：完成 GC-FIX Phase C2a：statepoint pass pipeline 在 `rewrite-statepoints-for-gc` 前启用 `sroa`（并保留 `mem2reg`），使“聚合值里的 GC ref 字段”可被识别为 gc-live roots；同时新增 `scoop_gc_collect_safepoint()` wrapper 让 sysroot 的 `__scoop_gc_collect()` 在 LLVM statepoint 下稳定产出 stackmap record；修复 stackmap `Indirect` roots location 的 slot 语义（moving/compaction 需要可写回 `slot=base+off`）；并新增 run-pass fixture `gc_trace_struct_string_field_basic` 验收。
@@ -763,11 +764,11 @@
   - [x] tuple：布局 + `._0` / `._1` 元素访问（T0812）
   - [x] enum：tagged union 布局（T0813）
   - [x] value-only enum（`enum E: Int { ... }`）：底层整型同布局（无 tag/union），用于 C interop
-  - [ ] rich enum（含 GC ref 字段）的 **GC 可扫描布局契约**：GC pointer slots 必须静态可枚举且永远只包含 NULL/有效 GC 指针；不得依赖“扫描时读 tag 才知道哪些 word 是 ref”（见 TODO T1515/T1516）
+  - [x] rich enum（含 GC ref 字段）的 **GC 可扫描布局契约**（规范：`SCOOP_FULL_SPEC.md` §2.3.2 “GC trace safety”）：GC pointer slots 必须静态可枚举且永远只包含 NULL/有效 GC 指针；不得依赖“扫描时读 tag 才知道哪些 word 是 ref”；实现落地见 TODO T1516
 - [ ] 引用类型统一表示（GC pointer）：
   - 在 LLVM IR 中统一使用 `addrspace(1)` 指针表示 GC-managed object（例如 `i8 addrspace(1)*`），避免与原生/FFI 指针混淆
   - `Option<Ref>` 采用 pointer-niche（NULL → None），并在类型系统与 codegen 中统一规则（含 `T?` desugar）
-  - **GC 安全约束**：对 GC-managed ref（以及“包含 GC ref 的值类型”）禁止使用非 NULL 的 nested niche（例如 `Option<Option<Ref>>` 不得压缩为单指针并用 `0x1` 编码外层 `None`）；此类场景必须回退到显式 tag 的表示（见 TODO T1518/T1519）
+  - **GC 安全约束**（规范：`SCOOP_FULL_SPEC.md` §2.3.2）：对 GC-managed ref（以及“包含 GC ref 的值类型”）禁止使用非 NULL 的 nested niche（例如 `Option<Option<Ref>>` 不得压缩为单指针并用 `0x1` 编码外层 `None`）；此类场景必须回退到显式 tag 的表示（实现落地见 TODO T1518/T1519）
 - [ ] heap 对象模型（Object Model）：
   - 固定对象头布局与字段偏移：`next`（heap 链表）、`type_desc*`、`size_bytes`、`flags`、`mark`
   - payload 紧随对象头；class/array/string/box/closure env 均是“对象头 + payload”
@@ -788,7 +789,7 @@
 - [ ] GC roots 枚举（精确）：
   - 运行时以 stackmap 为唯一“栈根集来源”，不依赖 shadow stack
   - **需要扫描整个调用栈（多帧）**：GC 不能只扫描“当前 safepoint 的一帧”，必须对每个 Parked 线程做 stack walking，逐帧读取 `(sp, return_address[, regs])` 并查 stackmap record，累积得到该线程的完整 roots 集合
-  - stackmap roots 必须覆盖“spill 的值类型 aggregate”内部的 GC 指针（struct/tuple/enum，含 rich enum 变体字段）；因此这些 aggregate 的 GC pointer slots 必须在布局层做到静态可枚举（见 TODO T1515/T1516）
+  - stackmap roots 必须覆盖“spill 的值类型 aggregate”内部的 GC 指针（struct/tuple/enum，含 rich enum 变体字段）；因此这些 aggregate 的 GC pointer slots 必须在布局层做到静态可枚举（规范：`SCOOP_FULL_SPEC.md` §2.3.2 “GC trace safety”；实现落地见 TODO T1516）
   - Parked 线程在进入 safepoint runtime helper 时把“可用于 stack walking 的线程上下文”写入 TLS（至少包含：return address、stack pointer、frame pointer、callee-saved regs 的可更新 spill slots）；GC 从该 TLS 上下文出发做 stack walking
   - stack walking 后端以 **runtime/c 的平台层** 实现（优先 `libunwind` 或等价 unwind API）；不得把 unwind/寄存器/ABI 细节泄漏到 Scoop 侧
   - 对于进入 native/extern（可能阻塞）的线程：在 `enter_native` 时把 callsite 对应的 roots 拷贝到 TLS `native_roots` buffer，GC 扫描该 buffer；`leave_native` 清理并恢复线程状态
@@ -829,7 +830,7 @@
 - [ ] GC（StackMap roots + 可移动）：
   - stop-the-world：统一线程状态（Running/Parked/InNative），确保所有线程要么进入 safepoint park，要么进入 native 保护态
   - roots 枚举（完整栈）：Parked 线程对“整个调用栈（多帧）”做 stack walking：逐帧用 `(sp, return_address[, regs]) + stackmap` 枚举 roots；InNative 线程扫描 TLS `native_roots`（由 `enter_native` 预先捕获）
-  - heap 扫描：用 `ScoopTypeDescriptor` 的 trace bitmap/trace_fn 扫描对象内引用字段；支持 closure env、box、class fields、array elements，以及嵌套在这些 payload 内的值类型 aggregate（struct/tuple/enum，含 rich enum）
+  - heap 扫描：用 `ScoopTypeDescriptor` 的 trace bitmap/trace_fn 扫描对象内引用字段；支持 closure env、box、class fields、array elements，以及嵌套在这些 payload 内的值类型 aggregate（struct/tuple/enum，含 rich enum；其 GC 可扫描 ref slots 契约见 `SCOOP_FULL_SPEC.md` §2.3.2）
   - relocation：移动/压缩时必须更新 stackmap spill slots、native_roots buffer，以及 heap 内所有引用字段
   - sweep/回收：调用 `release_fn`（若存在）后释放对象；并维护 free list/统计以支持回归与基准
 - [ ] 线程注册与 native 过渡：

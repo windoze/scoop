@@ -6986,7 +6986,7 @@
   - `tests/fixtures/runtime_gc/gc_pin_unpin_move_stress_matrix.scoop`：新增 pin/unpin + moving 的可重复多轮用例；通过 `scoop test --gc-stress/--gc-move` 注入 env 驱动压力/搬迁矩阵，并断言 pinned 地址稳定、未 pinned 对象地址变化、pin 计数语义正确。
   - `tests/fixtures/runtime_gc/gc_runner_stdout_mismatch_diagnostic_is_stable.scoop`：新增 `EXPECT: fail` 用例回归 run-pass runner 的 stdout mismatch 稳定诊断码（在未启用 LLVM 时也会走“空输出模拟”路径）。
 
-### T1515 [TODO] rich enum 的 GC 可扫描布局契约：固定 ref slots、禁止 tag-dependent tracing
+### T1515 [DONE] rich enum 的 GC 可扫描布局契约：固定 ref slots、禁止 tag-dependent tracing
 - 描述：rich enum 是值类型（copy 语义、不可变），但其 variant 可能携带 GC-managed ref 字段。enum 值既可能出现在栈上（roots 来自 stackmap），也可能被嵌入 heap 对象 payload（roots 来自 type descriptor bitmap/trace_fn）。当前 GC roots/heap trace 的核心前提是：**可扫描的 GC pointer slots 是静态可枚举的**（stackmap / bitmap），且这些 slots 中永远只会出现 `NULL` 或有效的 GC object 指针。
   - 如果 enum 的 union 复用导致某个 word 在不同 variant 中“有时是 ref、有时是非指针/未初始化数据”，那么 GC 必须在扫描时读 tag 才能决定是否 visit，这会直接破坏：
     - stackmap（无法表达“按 tag 分支”的 roots）；
@@ -7004,6 +7004,10 @@
   - `SCOOP_FULL_SPEC.md`：rich enum 的布局章节新增上述契约 + 至少 1 个反例（说明为何 “按 tag 扫描” 不可作为 GC 前提）+ 对 nested niche 的最终选择。
   - `PLAN.md`：在 enum 布局与 GC/stackmap 章节显式引用该契约（见 TODO T1516/T1517 的实现与 fixtures）。
 - 依赖：T0449、T1502
+- 完成：
+  - `SCOOP_FULL_SPEC.md`：在 §2.3.2 增加 “GC trace safety（normative）” 契约，补充反例，并明确对 GC-managed ref 禁止 non-NULL nested niche（`Option<Option<Ref>>` 回退 tagged union）。
+  - `PLAN.md`：在 §8.2/§8.3/§9.1 引用该契约，并将对应 checklist 标记为完成。
+  - 验收命令已跑通：`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test`。
 
 ### T1516 [TODO] 编译器：rich enum 生成 GC ref mask，并确保构造/赋值不会污染 ref slots
 - 描述：落实 T1515 的契约：把 “rich enum 的 GC pointer slots” 变成编译器可计算、可回归的元数据，并让 codegen 在所有写入路径上都维持“不写入非法值”的不变量。

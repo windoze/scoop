@@ -148,10 +148,31 @@ enum Result<T, E> {
 - Layout is `tag + union` where the union size equals the largest variant.
 - Tag size is determined by variant count: ≤256 variants → `UInt8`, ≤65536 → `UInt16`.
 - The compiler automatically boxes oversized variants and emits a lint warning when size disparity is significant.
+- **GC trace safety (normative)**:
+  - An enum is a value type, but its variants may carry GC-managed references (directly or nested inside value-typed aggregates).
+  - The GC requires that **GC pointer slots are statically enumerable**:
+    - On the stack, by compiler-provided GC stack maps.
+    - In GC heap objects, by the containing object's type descriptor (trace bitmap / trace function).
+  - Therefore, for any enum whose payload may contain GC-managed references, the in-memory layout must satisfy all of:
+    - The set of GC pointer slots for the enum value is fixed for that enum type (for a given monomorphized instantiation) and **must not depend on the runtime tag**.
+    - Each GC pointer slot must contain **only** `null` or a valid GC object pointer at all times.
+    - Non-reference data must never overlap with a GC pointer slot, and code generation must initialize (and maintain) unused GC pointer slots as `null`.
+  - Counterexample (why tag-dependent tracing is forbidden):
+    - If an implementation overlays a reference field and a scalar field in the same word (i.e., a tag-dependent union), then scanning without reading the tag can misinterpret arbitrary scalar bits as a GC pointer:
+
+      ```kotlin
+      enum E {
+          Ref(val s: String),
+          Bits(val x: UInt64)
+      }
+      ```
+
+      In `Bits(x)`, `x` may be any 64-bit pattern. If that word is also a GC pointer slot (per stack maps / heap bitmaps), the GC would attempt to trace it as an object pointer and may crash or exhibit undefined behavior. Requiring the GC to read the tag to decide which words are pointers is not allowed because stack maps and heap trace bitmaps are static and cannot express tag-dependent tracing, and moving GC requires in-place slot updates.
+  - Recommended layout strategy (one valid approach): split the payload into a `ref_payload` segment (N machine words that store GC pointers only) and a `nonref_payload` segment (bytes for scalars), and ensure all unused `ref_payload` slots are set to `null`. Variants that cannot be represented without overlapping ref/non-ref words must use an explicit alternative representation (e.g. boxing) and must not silently rely on tag-dependent tracing.
 - **Niche optimization** is applied where possible:
   - `Option<ReferenceType>` uses null pointer for `None` — zero overhead.
   - `Option<Bool>` uses value `2` for `None`.
-  - Nested niche (e.g., `Option<Option<RefType>>`) uses illegal address values (e.g., `0x1`).
+  - For GC-managed references (and any value type whose runtime representation contains GC pointers), **non-NULL pointer-shaped niche encodings are forbidden**. In particular, nested niche (e.g., `Option<Option<RefType>>`) must not use illegal address values such as `0x1`; it must use an explicit tag (tagged union) representation.
   - `Option<ValueType>` where no niche exists uses an explicit tag.
 
 ##### 2.3.2.1 Value-only Enum (C-like Enum)
