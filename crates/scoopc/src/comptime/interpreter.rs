@@ -95,7 +95,8 @@ impl<'a> ConstInterpreter<'a> {
                 ast::Item::TypeAlias(_)
                 | ast::Item::ExtensionProperty(_)
                 | ast::Item::Object(_)
-                | ast::Item::Val(_) => {}
+                | ast::Item::Val(_)
+                | ast::Item::ComptimeIf(_) => {}
             }
         }
     }

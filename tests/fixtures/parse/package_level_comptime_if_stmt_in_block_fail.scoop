@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR: package-level comptime if 分支块内
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 10:5
+// 目标：package-level comptime if 的分支块内不允许语句/表达式。
+
+package fixtures.parse
+
+comptime if (cond) {
+    print("x")
+}
+

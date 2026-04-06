@@ -796,6 +796,8 @@ impl Index {
                     // 顶层扩展属性本身不引入“顶层 value 名称”（它只能通过 member access 访问）。
                     // extension fallback 与 lowering 规则由后续任务补齐（TODO T0433/T0436）。
                 }
+                // T1220a：package-level comptime if 在建立 index 前应被裁剪（TODO T1220b）。
+                ast::Item::ComptimeIf(_) => {}
             }
         }
 
@@ -1467,6 +1469,8 @@ pub fn check_file_headers(
                 resolve_type_decl_headers(source, file, index, ty, &mut type_params)?
             }
             ast::Item::Object(obj) => resolve_object_decl_headers(source, file, index, obj)?,
+            // T1220a：package-level comptime if 在进入 index/resolve 之前应被裁剪（TODO T1220b）。
+            ast::Item::ComptimeIf(_) => {}
         }
     }
 

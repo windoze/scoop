@@ -515,7 +515,10 @@ impl TypeEnv {
                 ast::Item::Object(obj) => {
                     self.collect_object_decl(source, file, &pkg_prefix, obj, index)?;
                 }
-                ast::Item::Fun(_) | ast::Item::Val(_) | ast::Item::ExtensionProperty(_) => {}
+                ast::Item::Fun(_)
+                | ast::Item::Val(_)
+                | ast::Item::ExtensionProperty(_)
+                | ast::Item::ComptimeIf(_) => {}
             }
         }
 

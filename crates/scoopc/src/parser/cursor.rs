@@ -302,6 +302,22 @@ impl<'a> Parser<'a> {
             return true;
         }
 
+        // package-level `comptime if (...) { ... }`（TODO T1220a）。
+        //
+        // 注意：`else comptime if` 出现在分支链中，不应被视为“新的顶层 item 起点”，
+        // 否则错误恢复可能会在 `else comptime if` 中途停下并产生级联错误。
+        if matches!(self.peek().kind, TokenKind::Keyword(Keyword::Comptime))
+            && matches!(self.peek_n(1).kind, TokenKind::Keyword(Keyword::If))
+        {
+            let prev_is_else = self
+                .tokens
+                .get(self.i.saturating_sub(1))
+                .is_some_and(|t| matches!(t.kind, TokenKind::Keyword(Keyword::Else)));
+            if !prev_is_else {
+                return true;
+            }
+        }
+
         matches!(
             self.peek_after_modifiers().kind,
             TokenKind::Keyword(

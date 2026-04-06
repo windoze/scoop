@@ -4337,7 +4337,7 @@
   - v0 只要求块内出现“顶层 item”（fun/class/struct/enum/effect/typealias/val/var/object…）；不引入“顶层表达式/语句”。
 - 备注：该能力与 Cone 的 `[[select]]`（文件级 sources 选择）互补：`[[select]]` 负责“按文件挑选”，package-level `comptime if` 负责“同一文件内按声明粒度挑选”。
 
-### T1220a [TODO] Parser/AST：支持 package 顶层 `comptime if`（块内为顶层 items）
+### T1220a [DONE] Parser/AST：支持 package 顶层 `comptime if`（块内为顶层 items）
 - 描述：在 parser 中允许 `comptime if` 出现在 file 顶层（紧随 `package/import` 之后或与其它 decl 并列），且 `{ ... }` 块内解析“顶层 items 列表”（而不是 statement block）。
 - 目标：
   - `comptime if` 的每个分支块内只允许顶层 items；出现 statement/expression 时给出稳定 parse 错误码与准确 span。
@@ -4348,6 +4348,15 @@
   - 新增 parse fail fixture：分支块内包含普通语句（例如 `print("x")`），断言稳定错误码与位置。
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T0246
+ - 完成：
+   - `crates/scoopc/src/ast/mod.rs`：新增 `Item::ComptimeIf` 与 `ComptimeIfItem/ItemBlock` AST 结构。
+   - `crates/scoopc/src/parser/file.rs`：支持顶层 `comptime if`；分支块解析为顶层 items；支持 `else if` 语法糖。
+   - `crates/scoopc/src/parser/stmt.rs`：语句级 `comptime if` 同步支持 `else if` 语法糖（与 package-level 保持一致）。
+   - `tests/fixtures/parse/package_level_comptime_if_basic.*`：新增 parse pass fixture + AST golden。
+   - `tests/fixtures/parse/package_level_comptime_if_stmt_in_block_fail.scoop`：新增 parse fail fixture（分支块内语句 → 稳定 parse 错误）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1220b [TODO] Resolve/Typecheck：在建立 index 前裁剪 package-level 分支（未选中分支不参与）
 - 描述：在 `parse → resolve/index` 之间引入“package-level comptime 裁剪”步骤：对顶层 `comptime if` 的条件做编译期求值（Bool），仅保留选中分支内的顶层 items，保证重复定义检查/名字解析/类型检查只作用于被保留的声明。

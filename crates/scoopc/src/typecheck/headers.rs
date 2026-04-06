@@ -84,6 +84,8 @@ pub fn check_file_headers(source: &SourceFile, file: &ast::File) -> Result<(), T
             ast::Item::Val(v) => check_top_level_val_header(source, v)?,
             ast::Item::Type(ty) => check_type_decl_headers(source, ty)?,
             ast::Item::Object(obj) => check_object_decl_headers(source, obj)?,
+            // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
+            ast::Item::ComptimeIf(_) => {}
         }
     }
     Ok(())

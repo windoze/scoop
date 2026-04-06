@@ -1,0 +1,19 @@
+// EXPECT: pass
+// EXPECT-AST: package_level_comptime_if_basic.ast
+// 目标：验证 package-level `comptime if` 可出现在顶层，分支块内按“顶层 items 列表”解析，并支持 `else if` 语法糖。
+
+package fixtures.parse
+
+comptime if (cond1) {
+    fun foo() {}
+    class Bar {}
+} else if (cond2) {
+    fun foo() {}
+    class Bar {}
+} else {
+    fun foo() {}
+    class Bar {}
+}
+
+fun after() {}
+

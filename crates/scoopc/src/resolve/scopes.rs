@@ -121,6 +121,8 @@ impl<'a> BlockScopeChecker<'a> {
                 ast::Item::Object(obj) => self.check_object_decl(obj, &pkg_prefix)?,
                 ast::Item::Val(v) => self.check_top_level_val(v)?,
                 ast::Item::TypeAlias(_) => {}
+                // T1220a：package-level comptime if 在进入 resolve bodies 之前应被裁剪（TODO T1220b）。
+                ast::Item::ComptimeIf(_) => {}
             }
         }
         Ok(())

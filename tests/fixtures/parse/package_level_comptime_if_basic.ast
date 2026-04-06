@@ -1,0 +1,193 @@
+File {
+    package: Some(
+        PackageDecl {
+            span: 218..240,
+            path: [
+                Ident {
+                    span: 226..234,
+                },
+                Ident {
+                    span: 235..240,
+                },
+            ],
+        },
+    ),
+    imports: [],
+    items: [
+        ComptimeIf(
+            ComptimeIfItem {
+                span: 242..396,
+                comptime_span: 242..250,
+                if_span: 251..253,
+                cond: Expr {
+                    span: 255..260,
+                    kind: Ident(
+                        Ident {
+                            span: 255..260,
+                        },
+                    ),
+                },
+                then_branch: ItemBlock {
+                    span: 262..299,
+                    items: [
+                        Fun(
+                            FunDecl {
+                                span: 268..280,
+                                receiver: None,
+                                name: Ident {
+                                    span: 272..275,
+                                },
+                                type_params: [],
+                                params_span: 275..277,
+                                params: [],
+                                return_ty: None,
+                                body: Block(
+                                    Block {
+                                        span: 278..280,
+                                        stmts: [],
+                                    },
+                                ),
+                            },
+                        ),
+                        Type(
+                            TypeDecl {
+                                span: 285..297,
+                                kind: Class,
+                                name: Ident {
+                                    span: 291..294,
+                                },
+                                type_params: [],
+                                body: Some(
+                                    TypeBody {
+                                        span: 295..297,
+                                        members: [],
+                                    },
+                                ),
+                            },
+                        ),
+                    ],
+                },
+                else_branch: Some(
+                    If(
+                        ComptimeIfItem {
+                            span: 304..396,
+                            comptime_span: 304..304,
+                            if_span: 305..307,
+                            cond: Expr {
+                                span: 309..314,
+                                kind: Ident(
+                                    Ident {
+                                        span: 309..314,
+                                    },
+                                ),
+                            },
+                            then_branch: ItemBlock {
+                                span: 316..353,
+                                items: [
+                                    Fun(
+                                        FunDecl {
+                                            span: 322..334,
+                                            receiver: None,
+                                            name: Ident {
+                                                span: 326..329,
+                                            },
+                                            type_params: [],
+                                            params_span: 329..331,
+                                            params: [],
+                                            return_ty: None,
+                                            body: Block(
+                                                Block {
+                                                    span: 332..334,
+                                                    stmts: [],
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    Type(
+                                        TypeDecl {
+                                            span: 339..351,
+                                            kind: Class,
+                                            name: Ident {
+                                                span: 345..348,
+                                            },
+                                            type_params: [],
+                                            body: Some(
+                                                TypeBody {
+                                                    span: 349..351,
+                                                    members: [],
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                ],
+                            },
+                            else_branch: Some(
+                                Block(
+                                    ItemBlock {
+                                        span: 359..396,
+                                        items: [
+                                            Fun(
+                                                FunDecl {
+                                                    span: 365..377,
+                                                    receiver: None,
+                                                    name: Ident {
+                                                        span: 369..372,
+                                                    },
+                                                    type_params: [],
+                                                    params_span: 372..374,
+                                                    params: [],
+                                                    return_ty: None,
+                                                    body: Block(
+                                                        Block {
+                                                            span: 375..377,
+                                                            stmts: [],
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                            Type(
+                                                TypeDecl {
+                                                    span: 382..394,
+                                                    kind: Class,
+                                                    name: Ident {
+                                                        span: 388..391,
+                                                    },
+                                                    type_params: [],
+                                                    body: Some(
+                                                        TypeBody {
+                                                            span: 392..394,
+                                                            members: [],
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                        ],
+                                    },
+                                ),
+                            ),
+                        },
+                    ),
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 398..412,
+                receiver: None,
+                name: Ident {
+                    span: 402..407,
+                },
+                type_params: [],
+                params_span: 407..409,
+                params: [],
+                return_ty: None,
+                body: Block(
+                    Block {
+                        span: 410..412,
+                        stmts: [],
+                    },
+                ),
+            },
+        ),
+    ],
+}

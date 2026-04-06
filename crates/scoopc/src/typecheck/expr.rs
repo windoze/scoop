@@ -1437,7 +1437,10 @@ fn check_file_exprs_impl(
                 &member_mutabilities,
                 &struct_field_types,
             )?,
-            ast::Item::ExtensionProperty(_) | ast::Item::Object(_) | ast::Item::TypeAlias(_) => {}
+            ast::Item::ExtensionProperty(_)
+            | ast::Item::Object(_)
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
 
@@ -15549,7 +15552,8 @@ fn collect_member_mutabilities(source: &SourceFile, file: &ast::File) -> HashMap
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_) => {}
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
 
@@ -15733,7 +15737,8 @@ fn collect_struct_field_types(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_) => {}
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
 

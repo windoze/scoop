@@ -444,6 +444,10 @@ impl<'a> HirLowering<'a> {
                 span: ta.span,
                 kind: "typealias",
             },
+            ast::Item::ComptimeIf(ci) => Item::Todo {
+                span: ci.span,
+                kind: "comptime_if_item",
+            },
             ast::Item::Type(ty) => Item::Todo {
                 span: ty.span,
                 kind: "type",
@@ -479,7 +483,8 @@ impl<'a> HirLowering<'a> {
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_) => {}
+                | ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_) => {}
             }
         }
 
@@ -4873,7 +4878,8 @@ fn collect_object_inits(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_) => {}
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
 
@@ -5008,7 +5014,8 @@ fn collect_class_inits(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_) => {}
+            | ast::Item::TypeAlias(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
     let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
@@ -5651,7 +5658,8 @@ fn collect_delegated_properties(pairs: &[(&SourceFile, &ast::File)]) -> Delegate
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_) => {}
+                | ast::Item::TypeAlias(_)
+                | ast::Item::ComptimeIf(_) => {}
             }
         }
     }
@@ -5992,6 +6000,8 @@ fn collect_extern_libs_in_file(source: &SourceFile, file: &ast::File, out: &mut 
             ast::Item::Object(obj) => {
                 collect_extern_libs_in_object_decl(source, obj, out);
             }
+            // T1220a：package-level comptime if 在进入后续阶段前应被裁剪（TODO T1220b）。
+            ast::Item::ComptimeIf(_ci) => {}
         }
     }
 }

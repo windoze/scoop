@@ -82,7 +82,10 @@ pub fn check_file_where_clauses(
             ast::Item::Object(obj) => {
                 check_object_decl_where_clauses(source, obj, &mut lower, builtins)?
             }
-            ast::Item::TypeAlias(_) | ast::Item::Val(_) | ast::Item::ExtensionProperty(_) => {}
+            ast::Item::TypeAlias(_)
+            | ast::Item::Val(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::ComptimeIf(_) => {}
         }
     }
 

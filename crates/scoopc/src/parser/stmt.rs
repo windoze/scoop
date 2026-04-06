@@ -359,7 +359,8 @@ impl<'a> Parser<'a> {
         let then_branch = self.parse_block()?;
 
         let else_branch = if self.peek_keyword(Keyword::Else) {
-            self.bump(); // `else`
+            let else_tok = self.bump(); // `else`
+            let else_span = else_tok.span;
 
             // 规范示例使用 `else comptime if (...) { ... }` 作为 else-if 链。
             if self.peek_keyword(Keyword::Comptime) {
@@ -376,6 +377,11 @@ impl<'a> Parser<'a> {
                 }
 
                 let nested = self.parse_comptime_if_after_comptime(else_comptime_span)?;
+                Some(Box::new(ast::ComptimeIfElse::If(Box::new(nested))))
+            } else if self.peek_keyword(Keyword::If) {
+                // 语法糖：允许写 `else if (...) { ... }`，等价于 `else comptime if (...) { ... }`。
+                let implicit_comptime = Span::new(else_span.end, else_span.end);
+                let nested = self.parse_comptime_if_after_comptime(implicit_comptime)?;
                 Some(Box::new(ast::ComptimeIfElse::If(Box::new(nested))))
             } else if self.peek_symbol(Symbol::LBrace) {
                 let block = self.parse_block()?;
