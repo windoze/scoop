@@ -1,0 +1,32 @@
+{
+  "schema": {
+    "name": "scoopir",
+    "version": 0
+  },
+  "types": [],
+  "funs": [
+    {
+      "fqn": "fixtures.scoopir.chosen",
+      "kind": "regular",
+      "type_params": [
+        "T"
+      ],
+      "params": [
+        {
+          "name": "x",
+          "ty": {
+            "kind": "param",
+            "name": "T"
+          }
+        }
+      ],
+      "return_ty": {
+        "kind": "param",
+        "name": "T"
+      },
+      "effects": {
+        "terms": []
+      }
+    }
+  ]
+}

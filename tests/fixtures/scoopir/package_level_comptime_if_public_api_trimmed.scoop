@@ -1,0 +1,13 @@
+// 目标：T1220c：ScoopIR 导出应基于裁剪后的顶层声明集合：
+// - 未选中分支的 `public` 符号不应出现在 `.scoopir.json` 中。
+//
+// 说明：使用 `comptime if (true)` 强制选择 true 分支，false 分支声明应被裁剪且不可导出。
+
+package fixtures.scoopir
+
+comptime if (true) {
+    public fun <T> chosen(x: T): T { x }
+} else {
+    public fun <T> notChosen(x: T): T { x }
+}
+

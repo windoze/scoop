@@ -4381,7 +4381,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1220c [TODO] Cone/ScoopIR：package-level `comptime if` 对导出/打包行为的回归
+### T1220c [DONE] Cone/ScoopIR：package-level `comptime if` 对导出/打包行为的回归
 - 描述：确保 `.cone` 打包与 `scoopir` 导出遵循裁剪后的声明集合：未选中分支的 `public` 符号不应出现在 `api.scoopir`/ScoopIR JSON 中。
 - 目标：
   - 不在 `.cone` 中记录 `comptime if` 本身；只导出最终生效的 public API（与普通声明一致）。
@@ -4390,6 +4390,12 @@
   - 新增 `tests/fixtures/scoopir/**` 或 `tests/fixtures/typecheck_cone_archive/**`：使用 package-level `comptime if (true)` 在两个分支声明不同 `public fun`，断言导出的 `.scoopir.json` golden 只包含被选择分支的符号。
   - `cargo run -p scoop -- test` 通过。
 - 依赖：T1103、T1104、T1220b
+ - 完成：
+   - `tests/fixtures/scoopir/package_level_comptime_if_public_api_trimmed.*`：新增 scoopir fixture，回归“未选中分支的 public 符号不导出”。
+   - `crates/scoopc/src/cone/scoopir/tests.rs`：新增对应 golden 单测，保证 `cargo test` 同步覆盖。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ---
 
