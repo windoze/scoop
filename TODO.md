@@ -3827,7 +3827,7 @@
    - `cargo test --all`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1114 [TODO] toolchain：支持 `linker` 可执行与 `link-flags`（额外 linker args）
+### T1114 [DONE] toolchain：支持 `linker` 可执行与 `link-flags`（额外 linker args）
 - 描述：在最终链接阶段支持：
   - 用 `linker` 选项指定链接器/驱动程序（例如 `clang`/`clang++`/`ld` 等）；
   - 用 `link-flags` 追加额外 linker args（保持顺序与转义策略可预测），并与既有 `@Extern(lib=...)` 产出的 `-l<lib>` 共存。
@@ -3838,6 +3838,13 @@
   - 新增单测：toolchain 生成的 link command 参数列表包含 `link-flags`，且顺序稳定（避免 debug command 抖动）。
   - `cargo test -p scoop toolchain::tests::*` 通过。
 - 依赖：T0806、T1107、T1112
+ - 完成：
+   - `crates/scoop/src/toolchain.rs`：引入 `LinkOptions`（`linker/link_flags`），最终链接命令支持指定 linker 程序并稳定追加 `link-flags`；同时把 `LinkError` 泛化为 linker 语义（不再硬编码 clang）。
+   - `crates/scoop/src/toolchain.rs`：新增单测 `link_command_includes_link_flags_in_stable_order`，覆盖自定义 linker 与 `link-flags` 顺序稳定性。
+   - `crates/scoop/src/commands/build.rs`：cone 包模式下把 `Cone.toml[native-build].linker/link-flags` 透传到 toolchain 最终链接阶段（单文件模式保持默认行为不变）。
+ - 验收：
+   - `cargo test -p scoop toolchain::tests`
+   - `cargo test --all`
 
 ### T1115 [TODO] cone native build：支持 `c-sources` + `c-flags`（编译并链接额外 C 源码）
 - 描述：当 `Cone.toml` 声明 `c-sources` 时：

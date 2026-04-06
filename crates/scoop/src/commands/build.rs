@@ -674,7 +674,22 @@ fn run_codegen_and_link(
         &obj,
         front.input.entry_main_fqn.as_deref(),
     )?;
-    crate::toolchain::link_obj_with_runtime(&obj, output, &lowered.extern_libs)?;
+
+    // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
+    let options = crate::toolchain::LinkOptions {
+        linker: front
+            .input
+            .cone_manifest
+            .as_ref()
+            .and_then(|m| m.native_build.linker.as_deref()),
+        link_flags: front
+            .input
+            .cone_manifest
+            .as_ref()
+            .map(|m| m.native_build.link_flags.as_slice())
+            .unwrap_or(&[]),
+    };
+    crate::toolchain::link_obj_with_runtime(&obj, output, &lowered.extern_libs, options)?;
 
     let _ = std::fs::remove_dir_all(&dir);
     Ok(())
