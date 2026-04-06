@@ -222,9 +222,10 @@
   让 println/字符串构造/格式化在 statepoint 下稳定工作；必要时把复杂逻辑拆到 runtime helper，保持 IR 合法。
 - 验收：新增/更新 run-pass fixtures 覆盖字符串/格式化在 GC 下可用（含触发 GC 的 safepoint）。
 
-#### C2d) [TODO] 端到端 fixtures 补齐：字符串/数组/closure/接口分发（含 GC + stackmaps 可诊断）
+#### C2d) [DONE] 端到端 fixtures 补齐：字符串/数组/closure/接口分发（含 GC + stackmaps 可诊断）
 - 目标：补齐 C2 的“去绕路”回归面，避免未来回退到 best-effort。
 - 验收：新增 fixtures 覆盖字符串/数组/closure/接口分发等场景触发 GC，仍可正确运行且 stackmaps 可解析。
+  - 已新增 `RUN-MODE: dump-stackmaps` fixtures（`tests/fixtures/run-pass/stackmaps_dump_*`）覆盖上述场景。
 
 ---
 

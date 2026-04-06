@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-MODE: dump-stackmaps
+// RUN-STDOUT-CONTAINS: records:
+// RUN-STACKMAPS-RECORDS-GT: 0
+//
+// 目标：GC-FIX Phase C2d：补齐端到端回归（字符串路径）。
+// - 字符串字面量 + f-string + println 在 statepoint/stackmap 下应能产出可解析的 stackmaps。
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: String = "hello"
+    val b: String = f"num={123}"
+    println(a)
+    println(b)
+    __scoop_gc_collect()
+    return 0
+}
