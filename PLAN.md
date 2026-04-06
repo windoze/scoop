@@ -1026,7 +1026,7 @@ fixtures：
 
 ### 12.3 Cone native build（生成最终可执行文件的工程化配置）
 
-- [ ] `Cone.toml`：native build 配置（`entry-package`/`linker`/`link-flags`/`c-sources`/`c-flags`/`cxx-sources`/`cxx-flags`）
+- [x] `Cone.toml`：native build 配置（`entry-package`/`linker`/`link-flags`/`c-sources`/`c-flags`/`cxx-sources`/`cxx-flags`）
 - [ ] entry package：可选定入口包并校验其定义 `fun main`（否则 compile error；允许同 cone 其它包也有 `main`）
 - [ ] 额外链接参数：支持追加 linker args（不替代既有 `linker` 可执行配置）
 - [ ] 额外 C/C++ 源码：编译并链接进最终可执行；flags 仅作用于各自 section 的 sources

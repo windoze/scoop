@@ -3781,7 +3781,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1112 [TODO] Cone.toml：新增 native build 配置段解析（entry/link/c/cxx sources）
+### T1112 [DONE] Cone.toml：新增 native build 配置段解析（entry/link/c/cxx sources）
 - 描述：在 `Cone.toml` 中新增（或补齐）用于“生成最终可执行文件”的 native build 配置项，并在 manifest 解析层做结构化保存，供 driver/toolchain 使用：
   - `entry-package`：入口包名（期望该包定义 `fun main`）
   - `c-sources` / `c-flags`：额外 C 源文件与其编译参数（只作用于该 section 的 sources，不作用于 runtime sources）
@@ -3796,6 +3796,11 @@
   - 新增单测：带上述字段的 `Cone.toml` 可被解析，解析结果结构体字段正确、缺省值合理。
   - `cargo test -p scoopc cone::manifest::*` 通过。
 - 依赖：T1101
+ - 完成：
+   - `crates/scoopc/src/cone/manifest.rs`：新增 `ConeNativeBuildConfig` 并解析 `[native-build]`/`[native_build]`（兼容 kebab/snake case keys），paths 归一化为相对 cone root 的 forward slashes。
+   - `crates/scoopc/src/cone/manifest.rs`：新增单测覆盖默认值 + kebab/snake 两种写法。
+ - 验收：
+   - `cargo test -p scoopc cone::manifest`
 
 ### T1113 [TODO] driver：支持指定 entry package，并校验该包存在 `fun main`
 - 描述：在 cone 包模式的 `scoop build/run` 中允许指定“入口包”（来自 `Cone.toml` 的 `entry-package` 或 CLI 选项），并将其作为 program boundary 的 `main` 来源：

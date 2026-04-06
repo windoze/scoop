@@ -7,6 +7,7 @@
 //! - 只解析 `[cone].name/[cone].version` 与 `[dependencies]`；
 //! - 其它字段（例如 `scoop/ir_version/targets/pre-specialize`）后续任务再补齐；
 //! - T0629b：额外解析可选的 `[entry-points].exports`（库导出入口 / host entry points）。
+//! - T1112：额外解析可选的 `[native-build]`（生成最终可执行文件的 native build 配置）。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -45,6 +46,45 @@ pub struct ConeSelectEntry {
     pub exclude: Vec<String>,
 }
 
+/// `[native-build]`：生成最终可执行文件时使用的工程化配置（T1112）。
+///
+/// 说明（v0，先仅解析与结构化保存）：
+/// - 本任务不实现编译/链接行为；真正生效由 driver/toolchain 相关任务接入。
+/// - paths 规则：统一要求为“相对 cone root 的相对路径”（例如 `native/foo.c`）。
+///   - 解析阶段会做最小归一化（允许 `\\`，内部统一为 `/`，并拒绝绝对路径/`..`）。
+///   - 后续真正执行时，再以 `cone root` 为基准 join + canonicalize，并在“文件缺失/不可读”等场景给出稳定诊断。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConeNativeBuildConfig {
+    /// 入口包名（期望该包定义 `fun main`；校验由 T1113 实现）。
+    pub entry_package: Option<String>,
+    /// 额外 C 源文件（相对 cone root）。
+    pub c_sources: Vec<String>,
+    /// 仅作用于 `c_sources` 的编译参数。
+    pub c_flags: Vec<String>,
+    /// 额外 C++ 源文件（相对 cone root）。
+    pub cxx_sources: Vec<String>,
+    /// 仅作用于 `cxx_sources` 的编译参数。
+    pub cxx_flags: Vec<String>,
+    /// linker 可执行文件（语义：指定 linker 程序；默认由 toolchain 选择）。
+    pub linker: Option<String>,
+    /// 额外链接参数（追加到最终链接命令；不替代 `linker`）。
+    pub link_flags: Vec<String>,
+}
+
+impl Default for ConeNativeBuildConfig {
+    fn default() -> Self {
+        Self {
+            entry_package: None,
+            c_sources: Vec::new(),
+            c_flags: Vec::new(),
+            cxx_sources: Vec::new(),
+            cxx_flags: Vec::new(),
+            linker: None,
+            link_flags: Vec::new(),
+        }
+    }
+}
+
 /// `Cone.toml` 的最小可用 manifest。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConeManifest {
@@ -75,6 +115,8 @@ pub struct ConeManifest {
     ///
     /// v0 约定（T1110）：仅解析，不在本任务应用 include/exclude 规则（T1111）。
     pub selectors: Vec<ConeSelectEntry>,
+    /// native build 配置（T1112）。
+    pub native_build: ConeNativeBuildConfig,
 }
 
 impl ConeManifest {
@@ -123,6 +165,7 @@ impl ConeManifest {
         let export_entry_points = parse_export_entry_points(root)?;
         let (pre_specialize_functions, pre_specialize_types) = parse_pre_specialize(root)?;
         let selectors = parse_selectors(root)?;
+        let native_build = parse_native_build(root)?;
 
         Ok(Self {
             cone: ConeSection { name, version },
@@ -131,6 +174,7 @@ impl ConeManifest {
             pre_specialize_types,
             export_entry_points,
             selectors,
+            native_build,
         })
     }
 
@@ -267,6 +311,155 @@ fn parse_pre_specialize(root: &toml::Table) -> Result<(Vec<String>, Vec<String>)
     Ok((functions, types))
 }
 
+fn parse_native_build(root: &toml::Table) -> Result<ConeNativeBuildConfig> {
+    // `native-build` 与 `native_build` 作为同义 key（便于 TOML 书写风格兼容）。
+    let table = match root
+        .get("native-build")
+        .or_else(|| root.get("native_build"))
+    {
+        None => return Ok(ConeNativeBuildConfig::default()),
+        Some(value) => value
+            .as_table()
+            .ok_or_else(|| miette!("`[native-build]` 必须是 table"))?,
+    };
+
+    fn get_optional_string(
+        table: &toml::Table,
+        key: &str,
+        alt_key: &str,
+        section: &str,
+    ) -> Result<Option<String>> {
+        let value = table.get(key).or_else(|| table.get(alt_key));
+        let Some(value) = value else {
+            return Ok(None);
+        };
+
+        let s = value
+            .as_str()
+            .ok_or_else(|| miette!("`[{section}].{key}` 必须是字符串"))?;
+        Ok(Some(s.to_owned()))
+    }
+
+    fn parse_optional_string_array(
+        table: &toml::Table,
+        key: &str,
+        alt_key: &str,
+        section: &str,
+    ) -> Result<Vec<String>> {
+        let value = table.get(key).or_else(|| table.get(alt_key));
+        let Some(value) = value else {
+            return Ok(Vec::new());
+        };
+
+        let arr = value
+            .as_array()
+            .ok_or_else(|| miette!("`[{section}].{key}` 必须是字符串数组"))?;
+
+        let mut out = Vec::with_capacity(arr.len());
+        for (idx, item) in arr.iter().enumerate() {
+            let Some(s) = item.as_str() else {
+                return Err(miette!("`[{section}].{key}[{idx}]` 必须是字符串"));
+            };
+            out.push(s.to_owned());
+        }
+        Ok(out)
+    }
+
+    fn normalize_rel_path_forward_slashes(value: &str) -> Result<String> {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(miette!("路径不能为空"));
+        }
+
+        let value = value.replace('\\', "/");
+
+        // 绝对路径（Unix）与 UNC（Windows）均以 `/` 开头（在 normalize 后可统一判断）。
+        if value.starts_with('/') {
+            return Err(miette!(
+                "路径必须是相对 cone root 的相对路径（不允许绝对路径）：{value}"
+            ));
+        }
+
+        // Windows drive 路径：`C:/...` 或 `C:...`，禁止（要求统一为相对路径）。
+        if value.len() >= 2 {
+            let bytes = value.as_bytes();
+            if bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+                return Err(miette!(
+                    "路径必须是相对 cone root 的相对路径（不允许盘符路径）：{value}"
+                ));
+            }
+        }
+
+        let mut parts = Vec::<&str>::new();
+        for part in value.split('/') {
+            if part.is_empty() || part == "." {
+                continue;
+            }
+            if part == ".." {
+                return Err(miette!("路径不允许包含 `..`：{value}"));
+            }
+            parts.push(part);
+        }
+
+        if parts.is_empty() {
+            return Err(miette!("路径不能为空"));
+        }
+
+        Ok(parts.join("/"))
+    }
+
+    fn parse_optional_rel_path_array(
+        table: &toml::Table,
+        key: &str,
+        alt_key: &str,
+        section: &str,
+    ) -> Result<Vec<String>> {
+        let value = table.get(key).or_else(|| table.get(alt_key));
+        let Some(value) = value else {
+            return Ok(Vec::new());
+        };
+
+        let arr = value
+            .as_array()
+            .ok_or_else(|| miette!("`[{section}].{key}` 必须是字符串数组"))?;
+
+        let mut out = Vec::with_capacity(arr.len());
+        for (idx, item) in arr.iter().enumerate() {
+            let Some(s) = item.as_str() else {
+                return Err(miette!(
+                    "`[{section}].{key}[{idx}]` 必须是字符串（相对 cone root 的路径）"
+                ));
+            };
+
+            let normalized = normalize_rel_path_forward_slashes(s)
+                .wrap_err_with(|| format!("解析 `[{section}].{key}[{idx}]` 失败"))?;
+            out.push(normalized);
+        }
+        Ok(out)
+    }
+
+    let entry_package =
+        get_optional_string(table, "entry-package", "entry_package", "native-build")?;
+    let c_sources = parse_optional_rel_path_array(table, "c-sources", "c_sources", "native-build")?;
+    let c_flags = parse_optional_string_array(table, "c-flags", "c_flags", "native-build")?;
+    let cxx_sources =
+        parse_optional_rel_path_array(table, "cxx-sources", "cxx_sources", "native-build")?;
+    let cxx_flags = parse_optional_string_array(table, "cxx-flags", "cxx_flags", "native-build")?;
+    let linker = get_optional_string(table, "linker", "linker", "native-build")?;
+    let link_flags =
+        parse_optional_string_array(table, "link-flags", "link_flags", "native-build")?;
+
+    Ok(ConeNativeBuildConfig {
+        entry_package,
+        c_sources,
+        c_flags,
+        cxx_sources,
+        cxx_flags,
+        linker,
+        link_flags,
+    })
+}
+
 fn parse_selectors(root: &toml::Table) -> Result<Vec<ConeSelectEntry>> {
     let Some(value) = root.get("select") else {
         return Ok(Vec::new());
@@ -361,6 +554,7 @@ scoop-io = "1.2.0"
         assert!(manifest.pre_specialize_types.is_empty());
         assert!(manifest.export_entry_points.is_empty());
         assert!(manifest.selectors.is_empty());
+        assert_eq!(manifest.native_build, ConeNativeBuildConfig::default());
     }
 
     #[test]
@@ -401,6 +595,73 @@ types = ["a.b.List<Int>"]
         );
         assert_eq!(manifest.pre_specialize_types, vec!["a.b.List<Int>"]);
         assert!(manifest.selectors.is_empty());
+    }
+
+    #[test]
+    fn parse_native_build_config_kebab_case_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+
+[native-build]
+entry-package = "my.app"
+c-sources = ["native\\foo.c", "./native/bar.c"]
+c-flags = ["-O2", "-DSCOOP=1"]
+cxx-sources = ["native/baz.cc"]
+cxx-flags = ["-std=c++20"]
+linker = "clang"
+link-flags = ["-Wl,-dead_strip"]
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.native_build.entry_package.as_deref(),
+            Some("my.app")
+        );
+        assert_eq!(
+            manifest.native_build.c_sources,
+            vec!["native/foo.c", "native/bar.c"]
+        );
+        assert_eq!(manifest.native_build.c_flags, vec!["-O2", "-DSCOOP=1"]);
+        assert_eq!(manifest.native_build.cxx_sources, vec!["native/baz.cc"]);
+        assert_eq!(manifest.native_build.cxx_flags, vec!["-std=c++20"]);
+        assert_eq!(manifest.native_build.linker.as_deref(), Some("clang"));
+        assert_eq!(manifest.native_build.link_flags, vec!["-Wl,-dead_strip"]);
+    }
+
+    #[test]
+    fn parse_native_build_config_snake_case_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+
+[native_build]
+entry_package = "my.app"
+c_sources = ["native/foo.c"]
+c_flags = ["-O2"]
+cxx_sources = ["native/baz.cc"]
+cxx_flags = ["-std=c++20"]
+linker = "clang"
+link_flags = ["-Wl,-dead_strip"]
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest.native_build.entry_package.as_deref(),
+            Some("my.app")
+        );
+        assert_eq!(manifest.native_build.c_sources, vec!["native/foo.c"]);
+        assert_eq!(manifest.native_build.c_flags, vec!["-O2"]);
+        assert_eq!(manifest.native_build.cxx_sources, vec!["native/baz.cc"]);
+        assert_eq!(manifest.native_build.cxx_flags, vec!["-std=c++20"]);
+        assert_eq!(manifest.native_build.linker.as_deref(), Some("clang"));
+        assert_eq!(manifest.native_build.link_flags, vec!["-Wl,-dead_strip"]);
     }
 
     #[test]
