@@ -6,7 +6,7 @@
 //! - 作为后续 Immix/adapter backend 的统一扩展点（capability 只增不删，语义向后兼容）。
 //!
 //! 说明：
-//! - 当前 capability 仅覆盖最小集合（STW/多线程 roots/移动/roots 更新/shadow stack roots）。
+//! - 当前 capability 仅覆盖最小集合（STW/多线程 roots/移动/roots 更新/stackmap roots/native roots）。
 //! - capability 与 `runtime/c/scoop_gc_backend.h` 保持同名/同语义；但这里不从 C 侧导入，
 //!   而是基于 Cargo features（`gc-baseline`/`gc-minimal`/`gc-immix`）固化为 compile-time 常量。
 
@@ -54,8 +54,10 @@ pub struct GcCapabilities {
     pub moving: bool,
     /// 是否支持“精确 roots 更新”（moving GC 需要把 roots 槽位改写为新地址）。
     pub precise_roots_update: bool,
-    /// roots 是否来源于 shadow stack（编译器插桩 push/pop 的 roots frame 链表）。
-    pub shadow_stack_roots: bool,
+    /// managed roots 是否来自 stackmap/statepoint（通过栈 walk + StackMap location 枚举 roots slots）。
+    pub stackmap_roots: bool,
+    /// 是否支持 `enter_native/leave_native` 的 native roots slots（为不产生 stackmap 的代码提供 roots）。
+    pub native_roots: bool,
 }
 
 /// 当前选择的 GC backend。
@@ -68,28 +70,32 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
         multi_thread_roots_enum: true,
         moving: false,
         precise_roots_update: false,
-        shadow_stack_roots: false,
+        stackmap_roots: true,
+        native_roots: true,
     },
     GcBackend::Minimal => GcCapabilities {
         stw: false,
         multi_thread_roots_enum: false,
         moving: false,
         precise_roots_update: false,
-        shadow_stack_roots: false,
+        stackmap_roots: false,
+        native_roots: false,
     },
     GcBackend::Immix => GcCapabilities {
         stw: true,
         multi_thread_roots_enum: true,
         moving: true,
         precise_roots_update: true,
-        shadow_stack_roots: false,
+        stackmap_roots: true,
+        native_roots: true,
     },
     GcBackend::Hosted => GcCapabilities {
         stw: false,
         multi_thread_roots_enum: false,
         moving: false,
         precise_roots_update: false,
-        shadow_stack_roots: false,
+        stackmap_roots: false,
+        native_roots: false,
     },
 };
 

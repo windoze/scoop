@@ -14,7 +14,8 @@ fn gc_capabilities_match_selected_backend() {
                 multi_thread_roots_enum: true,
                 moving: true,
                 precise_roots_update: true,
-                shadow_stack_roots: false,
+                stackmap_roots: true,
+                native_roots: true,
             }
         );
         return;
@@ -29,7 +30,8 @@ fn gc_capabilities_match_selected_backend() {
                 multi_thread_roots_enum: false,
                 moving: false,
                 precise_roots_update: false,
-                shadow_stack_roots: false,
+                stackmap_roots: false,
+                native_roots: false,
             }
         );
         return;
@@ -44,7 +46,8 @@ fn gc_capabilities_match_selected_backend() {
                 multi_thread_roots_enum: false,
                 moving: false,
                 precise_roots_update: false,
-                shadow_stack_roots: false,
+                stackmap_roots: false,
+                native_roots: false,
             }
         );
         return;
@@ -58,7 +61,8 @@ fn gc_capabilities_match_selected_backend() {
             multi_thread_roots_enum: true,
             moving: false,
             precise_roots_update: false,
-            shadow_stack_roots: false,
+            stackmap_roots: true,
+            native_roots: true,
         }
     );
 }

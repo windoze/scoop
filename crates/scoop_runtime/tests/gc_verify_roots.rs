@@ -1,5 +1,6 @@
 // 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
 use scoop_runtime as _;
+use scoop_runtime::gc_backend::{GC_BACKEND, GC_CAPABILITIES};
 
 use core::ffi::c_void;
 
@@ -27,7 +28,16 @@ unsafe extern "C" {
 }
 
 #[test]
+#[cfg_attr(
+    any(feature = "gc-minimal", feature = "gc-hosted"),
+    ignore = "当前 backend（gc-minimal/gc-hosted）不支持 stop-the-world（该测试依赖 STW + native_roots）"
+)]
 fn gc_verify_roots_env_smoke() {
+    assert!(
+        GC_CAPABILITIES.stw && GC_CAPABILITIES.native_roots,
+        "该测试要求 STW + native_roots；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
+    );
+
     unsafe {
         scoop_runtime_init();
         scoop_thread_register();

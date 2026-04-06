@@ -271,10 +271,12 @@
   - 若最终决定“hosted/minimal 也要无功能缺口”，则该测试需要重写或删除；
   - 若决定移除 hosted/minimal backend，则删除该测试并同步更新 build/features 文档。
 
-#### D3) [TODO] 更新 capability matrix 相关测试
-- `gc_capabilities.rs`：
-  - `shadow_stack_roots` 应删除或改为 `stackmap_roots`（以及 `native_roots` 等能力标识）。
-- 任何依赖 `shadow_stack_roots: true` 的断言都必须更新。
+#### D3) [DONE] 更新 capability matrix 相关测试
+- `GcCapabilities`：
+  - 移除 `shadow_stack_roots`；
+  - 增加 `stackmap_roots` / `native_roots`（明确 roots 形态）。
+- `gc_capabilities.rs`：更新期望的 capability matrix 断言。
+- 补齐“依赖 native_roots 的 Rust 集成测试”在 `gc-minimal/gc-hosted` 下的 gating（显式 ignore）。
 
 验收：
 - `cargo test --all`：Rust tests 全部通过，且全仓不再引用 `ScoopGcFrame` / `scoop_gc_frame_push/pop`。

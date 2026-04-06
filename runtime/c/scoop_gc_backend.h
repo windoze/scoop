@@ -40,7 +40,7 @@
 //
 // 名词约定：
 // - STW：stop-the-world。当前 v0 实现为“协作式 STW”（线程需要进入 `scoop_gc_safepoint` 才能暂停）。
-// - roots：根集槽位（shadow stack/stackmap spill slots 等）。v0 只有 shadow stack。
+// - roots：根集槽位（stackmap spill slots / native_roots slots / handles / pinned 等）。
 
 #if SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_BASELINE
 
@@ -52,8 +52,9 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-// GC-FIX Phase B2：roots 不再来自 shadow stack。
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
+// GC-FIX Phase B2：roots 由 stackmap + native_roots + handles/pinned 等机制提供。
+#define SCOOP_GC_CAP_STACKMAP_ROOTS 1
+#define SCOOP_GC_CAP_NATIVE_ROOTS 1
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_MINIMAL
 
@@ -65,8 +66,9 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-// GC-FIX Phase B2：roots 不再来自 shadow stack。
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
+// minimal backend 无 STW/park，也不维护 native_roots slots；roots 仅来自 handles/pinned。
+#define SCOOP_GC_CAP_STACKMAP_ROOTS 0
+#define SCOOP_GC_CAP_NATIVE_ROOTS 0
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_IMMIX
 
@@ -78,7 +80,8 @@
 #define SCOOP_GC_CAP_MOVING 1
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 1
 
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
+#define SCOOP_GC_CAP_STACKMAP_ROOTS 1
+#define SCOOP_GC_CAP_NATIVE_ROOTS 1
 
 #elif SCOOP_GC_BACKEND == SCOOP_GC_BACKEND_HOSTED
 
@@ -95,6 +98,8 @@
 #define SCOOP_GC_CAP_MOVING 0
 #define SCOOP_GC_CAP_PRECISE_ROOTS_UPDATE 0
 
-#define SCOOP_GC_CAP_SHADOW_STACK_ROOTS 0
+// hosted backend v0 无 STW/park，也不维护 native_roots slots；roots 仅来自 handles/pinned。
+#define SCOOP_GC_CAP_STACKMAP_ROOTS 0
+#define SCOOP_GC_CAP_NATIVE_ROOTS 0
 
 #endif
