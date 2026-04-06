@@ -3781,6 +3781,115 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
+### T1112 [TODO] Cone.toml：新增 native build 配置段解析（entry/link/c/cxx sources）
+- 描述：在 `Cone.toml` 中新增（或补齐）用于“生成最终可执行文件”的 native build 配置项，并在 manifest 解析层做结构化保存，供 driver/toolchain 使用：
+  - `entry-package`：入口包名（期望该包定义 `fun main`）
+  - `c-sources` / `c-flags`：额外 C 源文件与其编译参数（只作用于该 section 的 sources，不作用于 runtime sources）
+  - `cxx-sources` / `cxx-flags`：额外 C++ 源文件与其编译参数（只作用于该 section 的 sources，不作用于 runtime sources）
+  - `linker`：linker 可执行文件（既有选项，语义保持“指定 linker 程序”）
+  - `link-flags`：额外链接参数（附加到最终链接命令；不替代 `linker`）
+- 目标：
+  - 仅实现 schema 与解析：保持未配置时行为不变；不在本任务实现编译/链接逻辑。
+  - 兼容 TOML key 书写风格：`kebab-case` 与 `snake_case` 同义（例如 `c-sources`/`c_sources`）。
+  - paths 规则先统一为“相对 cone root 的相对路径”（并记录 canonicalize 方案与错误诊断风格）。
+- 验收：
+  - 新增单测：带上述字段的 `Cone.toml` 可被解析，解析结果结构体字段正确、缺省值合理。
+  - `cargo test -p scoopc cone::manifest::*` 通过。
+- 依赖：T1101
+
+### T1113 [TODO] driver：支持指定 entry package，并校验该包存在 `fun main`
+- 描述：在 cone 包模式的 `scoop build/run` 中允许指定“入口包”（来自 `Cone.toml` 的 `entry-package` 或 CLI 选项），并将其作为 program boundary 的 `main` 来源：
+  - 若指定的 entry package 不存在 `fun main`：必须在编译期报错（稳定错误码 + 准确定位）。
+  - consumer cone 里允许其它包也定义 `main`，但只有 entry package 的 `main` 参与 entry point 规则（`Pure!` 门禁）与最终链接入口。
+- 目标：
+  - 只做静态校验与入口选择；不引入运行时扫描。
+  - entry package 必须属于 consumer cone；若指向依赖 cone（`.cone`）或无法解析，应给出清晰诊断。
+- 验收：
+  - 新增 cone fixtures（至少 2 个）：
+    - `entry_package_selects_correct_main`：同一 consumer cone 中两个 package 各有 `main`，通过配置选择其中一个并 run-pass 断言 stdout；
+    - `entry_package_missing_main_is_error`：entry package 不含 `main` 时 compile-fail（断言错误码）。
+  - `cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1107、T0629a
+
+### T1114 [TODO] toolchain：支持 `linker` 可执行与 `link-flags`（额外 linker args）
+- 描述：在最终链接阶段支持：
+  - 用 `linker` 选项指定链接器/驱动程序（例如 `clang`/`clang++`/`ld` 等）；
+  - 用 `link-flags` 追加额外 linker args（保持顺序与转义策略可预测），并与既有 `@Extern(lib=...)` 产出的 `-l<lib>` 共存。
+- 目标：
+  - `link-flags` 只影响最终链接命令；不影响前端与 codegen。
+  - 给出最小平台约束：先支持 host target（与现有 `scoop build --features llvm` 一致）。
+- 验收：
+  - 新增单测：toolchain 生成的 link command 参数列表包含 `link-flags`，且顺序稳定（避免 debug command 抖动）。
+  - `cargo test -p scoop toolchain::tests::*` 通过。
+- 依赖：T0806、T1107、T1112
+
+### T1115 [TODO] cone native build：支持 `c-sources` + `c-flags`（编译并链接额外 C 源码）
+- 描述：当 `Cone.toml` 声明 `c-sources` 时：
+  - driver 在生成最终可执行文件时，额外编译这些 C 源文件，并与 Scoop 生成的 `.o` + runtime 一起链接；
+  - `c-flags` 仅作用于这些 `c-sources`，不作用于 runtime C 源文件。
+- 目标：
+  - 缺失/不可读的源文件要给出稳定诊断（含路径）。
+  - 先只支持把 C 源文件当作“参与最终链接的输入”（实现上可按 `.o` 或“直接交给 clang 编译并链接”的策略落地，但语义保持一致）。
+- 验收：
+  - 新增 run-pass cone fixture：Scoop 代码通过 `@Extern(name=...)` 调用由 `c-sources` 提供的 C 函数，运行输出正确。
+  - `cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1112、T1114、T1107、T1006
+
+### T1116 [TODO] cone native build：支持 `cxx-sources` + `cxx-flags`（并正确链接 C++ stdlib）
+- 描述：当 `Cone.toml` 声明 `cxx-sources` 时：
+  - 额外编译这些 C++ 源文件并参与最终链接；
+  - `cxx-flags` 仅作用于这些 `cxx-sources`；
+  - 最终链接必须正确链接 C++ 标准库（例如 Linux 链接 `-lstdc++`；其它平台按 toolchain 选择）；
+  - 且 runtime sources 的编译/链接需由 C++ 编译器驱动（例如 `clang++`），以保证 C++ 链接语义一致。
+- 目标：
+  - 先只要求 host target 正确；跨平台差异用最小策略落地并写明（Linux/macOS/Windows）。
+  - 保持 `cxx-sources` 未配置时，不引入 C++ 编译器依赖。
+- 验收：
+  - 新增 run-pass cone fixture：`cxx-sources` 中定义 `extern \"C\"` 函数并在实现里使用 C++ 标准库（例如 `std::string`/`std::vector`），Scoop 通过 `@Extern` 调用并输出正确结果。
+  - `cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T1115、T1114、T1112
+
+### T1117 [TODO] runtime sources：注入 build profile/target macros（C & C++）
+- 描述：在编译 runtime sources（`runtime/c/**`）时，向 C/C++ 编译器传入以下宏，以支持按 profile/target 条件编译：
+  - `SCOOP_BUILD_PROFILE`：当前 build profile（`debug`/`release`；在引入 profiles 前可固定为 `debug`）
+  - `SCOOP_DEBUG`：当 `SCOOP_BUILD_PROFILE == debug` 时定义
+  - `SCOOP_TARGET_TRIPLE`：目标 triple（例如 `x86_64-apple-darwin`）
+  - `SCOOP_TARGET_ARCH`：目标 arch（例如 `x86_64`/`aarch64`）
+  - `SCOOP_TARGET_OS`：目标 OS（例如 `windows`/`linux`/`darwin`）
+  - `SCOOP_TARGET_ENV`：目标 env（例如 `gnu`/`msvc`/`musl`；部分 target 可能为空）
+  - `SCOOP_TARGET_VENDOR`：目标 vendor（例如 `apple`/`pc`/`unknown`）
+  - `SCOOP_TARGET_POINTER_WIDTH`：指针宽度（例如 `32`/`64`）
+  - `SCOOP_TARGET_ENDIANNESS`：端序（例如 `little`/`big`）
+- 目标：
+  - 宏仅作用于 runtime sources（不自动作用于 `c-sources/cxx-sources`，除非明确需要）。
+  - 对空字符串值（例如 `SCOOP_TARGET_ENV`）的传参策略要明确并可移植（例如 `-DSCOOP_TARGET_ENV=\"\"`）。
+- 验收：
+  - 新增单测：toolchain 生成的 runtime compile/link 命令中包含上述 `-D...` 宏（至少校验 profile + target triple/arch/os/pointer width/endian）。
+  - `cargo test -p scoop toolchain::tests::*` 通过。
+- 依赖：T0803、T1114
+
+### T1118 [TODO] driver：新增 `scoop new <project-name>`（创建 CONE 项目骨架）
+- 描述：为 `scoop` 增加 `new` 子命令，用于在当前工作目录下创建一个新的 CONE application 项目骨架（library 项目后置），生成结构如下：
+  ```text
+  project_name/
+  ├── src/
+  │   └── main.scoop
+  ├── Cone.toml
+  └── README.md
+  ```
+- 目标：
+  - 仅支持 application（可执行）项目：生成 `src/main.scoop` 并包含最小 `fun main()`；library 支持后续单独立项。
+  - `project-name` 同时用作目录名与 `Cone.toml` 的 `[cone].name`；v0 要求其满足“文件系统可用 + 作为 Scoop package 标识符可用”（否则给出稳定错误码与提示）。
+  - 若目标目录已存在：必须拒绝（不覆盖、不合并），并给出清晰诊断（含路径）。
+  - 生成文件内容保持最小但可运行：
+    - `Cone.toml`：写入 `[cone] name/version` + 最小 `[dependencies]`（例如默认依赖 `scoop-core`）。
+    - `src/main.scoop`：`package <project_name>` + `fun main() { ... }`（最小 hello/world 或空 main 均可）。
+    - `README.md`：包含如何 `scoop build/run` 的最小说明（提示 `--features llvm` 需求与 Cone.toml 入口约定）。
+- 验收：
+  - 新增 `crates/scoop` 单测：在临时目录执行 `scoop new hello_world`（可直接调用命令实现函数），断言目录结构与文件内容存在且包含正确的 project name。
+  - `cargo test -p scoop` 通过。
+- 依赖：T0002、T1101、T1102
+
 ---
 
 ## T12：编译期执行与反射（阶段 11）
@@ -4160,6 +4269,60 @@
  - 验收：
    - `cargo test --all`
    - `cargo run -p scoop -- test`
+
+### T1220 package-level `comptime if`（提升至 package 顶层；拆分为子任务）
+- 描述：支持在文件的 package 顶层直接使用 `comptime if` 来按编译期条件“选择性声明”顶层符号，用于平台差异实现与条件编译，例如：
+  ```kotlin
+  package mypackage
+  comptime if (getPlatform().os == "Windows") {
+      fun foo() { ... }
+      class Bar { ... }
+  } else if (getPlatform().os == "Linux") {
+      fun foo() { ... }
+      class Bar { ... }
+  }
+  ```
+  未选中分支必须被完全裁剪：不进入 index/resolve/typecheck/codegen，也不参与重复定义检查。
+- 目标：
+  - 语义与语句级 `comptime if` 一致：只对选中分支做类型检查；未选中分支可包含非法代码且不报错。
+  - 为避免两套语法：允许 `else if (...)` 作为 `else comptime if (...)` 的语法糖（至少在 package-level 场景支持；推荐同时覆盖语句级以保持一致性）。
+  - v0 只要求块内出现“顶层 item”（fun/class/struct/enum/effect/typealias/val/var/object…）；不引入“顶层表达式/语句”。
+- 备注：该能力与 Cone 的 `[[select]]`（文件级 sources 选择）互补：`[[select]]` 负责“按文件挑选”，package-level `comptime if` 负责“同一文件内按声明粒度挑选”。
+
+### T1220a [TODO] Parser/AST：支持 package 顶层 `comptime if`（块内为顶层 items）
+- 描述：在 parser 中允许 `comptime if` 出现在 file 顶层（紧随 `package/import` 之后或与其它 decl 并列），且 `{ ... }` 块内解析“顶层 items 列表”（而不是 statement block）。
+- 目标：
+  - `comptime if` 的每个分支块内只允许顶层 items；出现 statement/expression 时给出稳定 parse 错误码与准确 span。
+  - `else if` 链按语法糖处理（见 T1220），并保证与既有 `else comptime if` 链不会产生歧义。
+  - AST 需要能表达“顶层 comptime if item”，并保留分支链 span 以便后续裁剪时给出精确诊断。
+- 验收：
+  - 新增 parse pass fixture：包含 package-level `comptime if`（每个分支含 2 个以上顶层声明），并有 AST golden 回归。
+  - 新增 parse fail fixture：分支块内包含普通语句（例如 `print("x")`），断言稳定错误码与位置。
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T0246
+
+### T1220b [TODO] Resolve/Typecheck：在建立 index 前裁剪 package-level 分支（未选中分支不参与）
+- 描述：在 `parse → resolve/index` 之间引入“package-level comptime 裁剪”步骤：对顶层 `comptime if` 的条件做编译期求值（Bool），仅保留选中分支内的顶层 items，保证重复定义检查/名字解析/类型检查只作用于被保留的声明。
+- 目标：
+  - 条件必须是 compile-time Bool：非 Bool 或不可求值给出稳定错误码（含 `at` 定位到条件表达式）。
+  - 未选中分支不进入任何后续阶段：允许其中包含 `unresolved_*` / type error / 甚至会 panic 的构造而不影响编译。
+  - 允许“不同分支声明同名符号”（平台特化的常见模式）：只要最终被选择的一支内不发生重复定义即可。
+- 验收：
+  - 新增 resolve/typecheck pass fixture：在两个分支里都声明 `fun foo()`/`class Bar`，且通过 `comptime if (true)`（或其它确定性条件）选择其中一个分支时，编译通过且无重复定义错误。
+  - 新增 typecheck pass fixture：未选中分支包含明显的 type error（例如引用不存在的类型/值），但仍应通过（证明“未选中分支不 typecheck”）。
+  - 新增 compile-fail fixture：条件不是 Bool（例如 `comptime if (1) { ... }`），断言稳定错误码与位置。
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T1203、T1220a、T1219
+
+### T1220c [TODO] Cone/ScoopIR：package-level `comptime if` 对导出/打包行为的回归
+- 描述：确保 `.cone` 打包与 `scoopir` 导出遵循裁剪后的声明集合：未选中分支的 `public` 符号不应出现在 `api.scoopir`/ScoopIR JSON 中。
+- 目标：
+  - 不在 `.cone` 中记录 `comptime if` 本身；只导出最终生效的 public API（与普通声明一致）。
+  - 通过 fixtures 保证未来改动不会把“未选中分支”错误导出到依赖方。
+- 验收：
+  - 新增 `tests/fixtures/scoopir/**` 或 `tests/fixtures/typecheck_cone_archive/**`：使用 package-level `comptime if (true)` 在两个分支声明不同 `public fun`，断言导出的 `.scoopir.json` golden 只包含被选择分支的符号。
+  - `cargo run -p scoop -- test` 通过。
+- 依赖：T1103、T1104、T1220b
 
 ---
 
@@ -5896,6 +6059,72 @@
  - 验收：
    - `cargo test --all`
    - `PATH=\"/opt/homebrew/opt/llvm@18/bin:$PATH\" cargo run -p scoop --features llvm -- test`
+
+### T1412 Immix：低延迟 minor GC（nursery evacuation）（拆分为子任务，PLAN §15.3）
+- 描述：引入一个可在极短时间窗口内完成的 “minor GC” 模式：默认只处理固定大小 nursery（年轻代），以 nursery evacuation（复制/晋升后 reset nursery）为主，让一次 GC 的工作量上界由 nursery 大小决定，适配 VSync/per-request 等场景。
+- 目标：
+  - **先把性能地雷拔掉**：消除 roots tracing 中 membership 过滤的 O(n) 行为（避免按 `heap.objects` 线性扫描放大标记成本）。
+  - **时效性靠“上限”保证**：minor 的工作量与 nursery 大小近似线性；通过配置 nursery 上限（bytes/blocks）把 pause 上界约束在可控范围内。
+  - **其它方面先简化但不锁死设计**：
+    - v0 允许先 STW（协作式），不要求增量/并发；
+    - v0 允许先用更简单的写屏障策略（例如 promote-on-store）来避免 remembered set 的复杂度；
+    - 但必须尽早固化“写屏障 hook 的形状”，避免后续为了加 remembered set/card table 发生 ABI/IR 管线大规模返工。
+- 验收：
+  - 新增 `scoop_runtime` 集成测试：在启用 minor 模式时，nursery 中垃圾对象可被回收（reset）且存活对象可被晋升并继续访问；同时覆盖 pinned/handle 与 minor 的交互（至少 1 个最小场景）。
+  - `gc_microbench` 增加 minor 模式或等价统计：能通过调小 nursery 上限把 pause 控制到明显低于 major 的量级（不做 CI 阈值 gating，但本地可对比）。
+- 依赖：T1406c、T1407、T1506b（均已完成）
+
+### T1412a [TODO] roots tracing：membership 过滤去 O(n)（避免线性扫 `heap.objects`）
+- 描述：把 GC roots tracing（含并行标记）的 membership 过滤从“每个 slot 线性遍历 `heap.objects`”升级为 O(1)/O(log n) 级别，避免 slot 数量放大 STW 时间。
+- 目标：
+  - 不改动 `ScoopGcObjectHeader` ABI（避免影响 LLVM codegen 与对象模型偏移断言）。
+  - 优先实现“GC 周期内 snapshot → 排序 → 二分查找”的 membership 索引（或等价的 hash set），并让 mark visitor 复用该索引：
+    - 顺序标记 visitor；
+    - 并行标记 visitor；
+    - （可选）verify-roots 路径。
+  - 为后续 nursery 模式预留更快的判定入口：例如 `is_in_nursery(ptr)` 可以只做 block-magic/范围判定（无需全堆 membership）。
+- 验收：
+  - code review 级别：mark visitor 不再直接遍历 `heap.objects` 做 membership 过滤（索引仅在每轮 GC 初始化一次）。
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+- 依赖：无（仅依赖现有 Immix/stackmap roots 实现）
+
+### T1412b [TODO] Immix nursery：bump-only 分配区 + 可配置上限（为时效性提供硬边界）
+- 描述：在 Immix backend 中引入 nursery（年轻代）分配区：nursery 只做 bump（避免 holes 带来的不可控成本），并提供“上限（bytes/blocks）”配置，作为 minor 的工作量边界。
+- 目标：
+  - nursery 与老年代复用同一套 Immix block 结构（避免引入第二套 allocator），但 block 归属必须可判定（nursery vs old）。
+  - 默认行为保持不变：未启用 nursery 时，仍走当前分配/major collect 路径（避免影响现有 fixtures）。
+  - 配置接口优先用 env（不扩 runtime ABI）：例如 `SCOOP_GC_IMMIX_NURSERY_BYTES` 或 `..._BLOCKS`（具体命名可在实现时统一）。
+  - 预留“未来升级到 remembered set/card table”的落点：nursery 的 block 粒度与 card 粒度保持可对齐（例如 card=block 或 card=line）。
+- 验收：
+  - 新增 `scoop_runtime` 集成测试：开启 nursery 后能稳定分配并触发至少一次 major collect（先不要求 minor 语义）；确认 nursery 上限生效（例如超过上限时回退到 old 或触发 GC）。
+  - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+- 依赖：T1412a
+
+### T1412c [BLOCKED] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
+- 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。
+- 目标：
+  - v0 先不追求并发/增量；一次 STW 内完成（依赖 nursery 小 + 入口集合可控）。
+  - 优先选择“nursery evacuation”而非 nursery 内 mark-sweep：便于在结束时 O(#nursery_blocks) 复位，并减少碎片化。
+  - 与 pin/handles 语义兼容：pinned 对象不得被移动；handles/roots 更新必须正确。
+- 验收：新增 `scoop_runtime` 集成测试：minor 后 live 对象可访问、garbage 被回收、pin/handle 场景不崩溃；`cargo test --all` 通过。
+- 依赖：T1412b、T1412d
+
+### T1412d [BLOCKED] 写屏障 hook v0：promote-on-store（为后续 remembered set/card table 预留）
+- 描述：为编译器生成的“引用写入（store）”引入统一写屏障 hook；v0 采用 promote-on-store 策略维持不出现 old→nursery 指针，从而让 minor 不必先引入 remembered set/card table。
+- 目标：
+  - 屏障入口保持最小：优先一个通用 runtime ABI（例如 `scoop_gc_write_barrier(slot_addr, value)`）供 codegen 调用，避免按类型/容器爆炸。
+  - v0 语义允许简单但必须正确：当 old 对象写入 nursery 指针时，屏障负责把值晋升到 old 并写回 slot（或等价策略），确保 minor 期间无需扫描老年代全堆。
+  - 为未来升级保留扩展点：同一 hook 可演进为 “remembered set 记录 slot/card” 实现，而不改动 IR/ABI 形状。
+- 验收：新增 run-pass 或 runtime fixture：构造 old 容器写入新对象后触发 minor，仍可正确保活；并回归 `cargo test --all`。
+- 依赖：T1412b（nursery 归属可判定）、T1507a（对象字段 trace 已闭环）
+
+### T1412e [BLOCKED] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
+- 描述：为 GUI/VSync 等短窗口场景提供“尝试执行 minor”的接口：若协作式 STW 在截止时间内未达成，则放弃本轮 minor 并立刻返回，避免卡住渲染帧。
+- 目标：
+  - 与现有协作式 STW 兼容：仅在达成 STW 后才进入 tracing/evacuation；未达成时必须安全撤销 STW 请求并唤醒已 park 线程。
+  - 不改变 major collect 语义；minor 失败只表示“这次没做”，不影响正确性。
+- 验收：新增 `scoop_runtime` 集成测试：构造一个故意不 poll 的线程，`try-minor(deadline)` 能在 deadline 后返回且不死锁；随后仍可跑 major collect。
+- 依赖：T1412c、T1505a（STW 状态机与 timedwait/诊断已落地）
 
 ---
 

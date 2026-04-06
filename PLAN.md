@@ -29,6 +29,7 @@
 - 2026-04-06：完成 GC-FIX Phase D3：capability matrix 移除 `shadow_stack_roots`，改为 `stackmap_roots` / `native_roots`；更新 `gc_capabilities` 期望，并将依赖 `native_roots` 的集成测试在 `gc-minimal/gc-hosted` 下显式 ignore；验收：`cargo test --all` 通过。
 - 2026-04-06：完成 GC-FIX Phase E1：fixtures 不再依赖 shadow stack（含清理残留注释表述）；新增 `tests/fixtures/runtime_gc/gc_move_stackmap_roots_update_multi_frame` 回归 moving GC 下“多帧 stackmap spill slots 必须可写回更新”（caller frame roots），并继续通过 `extern_enter_native_roots_gc`/`gc_stw_cross_thread_in_native_roots_basic` 覆盖 `@Extern` 的 enter_native/leave_native roots。
 - 2026-04-06：完成 GC-FIX Phase E2：`scoop dump-stackmaps --verify-roots` 输出升级为可回归的 GC 调试主工具：按 record 打印 `func/inst_off/patchpoint_id` 与 roots slot（kind + base + offset），并在 run-pass 的 `RUN-MODE: dump-stackmaps` 下默认注入 `--verify-roots`；对应 fixtures 增加 `verify-roots: ok` / `root-slots:` 的稳定断言。验收：`cargo test --all` + `cargo run -p scoop --features llvm -- test` 通过。
+- 2026-04-06：规划：引入 Immix 的“低延迟 minor GC（nursery evacuation）”路线，目标是把一次 GC 的工作量上界绑定到 nursery 大小（可配置），以适配 VSync/per-request 等短窗口场景；首要前置为消除 roots tracing 中 membership 过滤的 O(n) 行为（避免按 `heap.objects` 线性扫描放大标记成本），其余 generational 组件先以最小 hook 预留，避免阻塞后续扩展。
 - 2026-04-06：GC-FIX-TODO 全部步骤验收通过（`cargo test --all` / `cargo run -p scoop -- test` / `cargo run -p scoop_tools -- spec-fixtures check`），发布 `v0.1.0`。
 - 2026-04-05：完成 GC-FIX Phase B2a（baseline）：baseline backend 的 GC roots 枚举不再扫描 shadow stack；mark roots 仅走 stackmap（Parked/initiator）+ native_roots（InNative）+ pinned/handles；moving roots update 同步移除 shadow stack 更新；并更新 `scoop_runtime` 集成测试中依赖 GC 扫 shadow stack 的用例为 `enter_native` roots slots。
 - 2026-04-05：完成 GC-FIX Phase B2b（immix）：immix backend 的 GC roots 枚举/compaction roots update 不再扫描 shadow stack；统一走 stackmap（Parked/initiator）+ native_roots（InNative）+ pinned/handles；并将 `scoop_runtime` 的 `gc_immix_*` 集成测试从 shadow stack roots 迁移为 stable handles / `enter_native` roots slots；验收：`cargo test --all --no-default-features --features gc-immix` 通过。
@@ -1014,6 +1015,7 @@ fixtures：
   - [ ] `Cone.toml` 平台选择器（`[[select]]`）
     - [x] manifest 解析（T1110）
     - [x] sources include/exclude 应用（T1111）
+- [ ] driver：`scoop new <name>` 初始化 CONE 项目目录（生成 `src/main.scoop`/`Cone.toml`/`README.md`；仅 application；见 TODO T1118）
 - [x] 预编译实例（pre-specialize）：cache key 与选择规则（v0：函数实例 + `.cone/PRE_SPECIALIZE.json`）
 - [ ] pre-specialize：补齐类型实例（不只函数实例）的打包与消费规则
 
@@ -1021,6 +1023,15 @@ fixtures：
 - `tests/fixtures/cone/*`：
   - 打包后消费编译的 API 兼容性
   - IR 版本兼容（旧版本可读）
+
+### 12.3 Cone native build（生成最终可执行文件的工程化配置）
+
+- [ ] `Cone.toml`：native build 配置（`entry-package`/`linker`/`link-flags`/`c-sources`/`c-flags`/`cxx-sources`/`cxx-flags`）
+- [ ] entry package：可选定入口包并校验其定义 `fun main`（否则 compile error；允许同 cone 其它包也有 `main`）
+- [ ] 额外链接参数：支持追加 linker args（不替代既有 `linker` 可执行配置）
+- [ ] 额外 C/C++ 源码：编译并链接进最终可执行；flags 仅作用于各自 section 的 sources
+- [ ] runtime 条件编译宏：编译 runtime sources 时注入 `SCOOP_BUILD_PROFILE`/`SCOOP_DEBUG`/`SCOOP_TARGET_*`
+- [ ] `cxx-sources` 存在时：使用 C++ 编译器驱动并正确链接 C++ 标准库（按平台最小策略落地）
 
 ---
 
@@ -1039,6 +1050,7 @@ fixtures：
 - [x] splice operator v0：`value.[field]`（const eval + typecheck 最小语义）
 - [x] 反射 intrinsics 补齐：`variantsOf/alignOf/superTypesOf/annotationsOf/paramsOf`（spec §6.4 / §15.6）
 - [x] 平台反射：`Platform` struct + `getPlatform(): Platform`（既可在 comptime 求值，也可在 runtime 查询当前执行环境；用于平台选择器等能力）
+- [ ] package-level `comptime if`：提升到 package 顶层用于条件编译顶层声明；未选中分支不进入 index/resolve/typecheck/codegen（支持 `else if` 语法糖；见 TODO T1220）
 - [x] 编译期元数据补齐：`VariantMeta/ParamMeta/FunctionMeta/AnnotationMeta/AnnotationArgMeta`（spec §6.4 / §15.6）
 - [ ] 编译期注解访问：复杂参数表达式 / 数组 / enum / class-literal 的归一化与读取（不只字面量）
 - [x] `trimIndent()`：编译期求值（spec §8.4；运行期 fallback 已由 T0827 完成）
@@ -1148,6 +1160,12 @@ fixtures：
   - [x] T1409b：降低 block 池争用（批量取还 / per-thread cache）
   - [ ] T1409c：并行标记/并行 sweep（渐进引入，以可开关实验性实现落地）
   - [x] T1409d：多线程 microbench 与基线记录（不做 CI gating；本地对比回归）
+- [ ] **低延迟 minor GC（nursery evacuation）**：
+  - [ ] T1412a：roots tracing 的 membership 过滤去 O(n)（避免按 `heap.objects` 线性扫描放大成本）
+  - [ ] T1412b：nursery 分配区（bump-only）+ 可配置上限（按 bytes 或 blocks）
+  - [ ] T1412c：minor collect v0：STW 下 nursery evacuation（一次 GC 工作量与 nursery 大小近似线性）
+  - [ ] T1412d：写屏障 hook v0（先用“promote-on-store”保持不出现 old→nursery 指针；后续再演进到 remembered set/card table）
+  - [ ] （可选）T1412e：try-minor / deadline：协作式 STW 下“拿不到 STW 就放弃 minor”，避免卡住 VSync
 - [x] **GC backend capability matrix v0**：固化 STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots 等能力，并用于测试 gating（T1405b）。
 - [ ] **GC backend 可替换**：编译期可选 baseline/Immix/embedded/minimal/hosted(adapter)，并维护 capability matrix（尤其是 WASM/embedded）。
 
