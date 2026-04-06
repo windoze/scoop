@@ -242,7 +242,11 @@
   - 现由 `crates/scoop_runtime/tests/gc_enter_native.rs`、`crates/scoop_runtime/tests/gc_immix_compaction.rs`、
     `crates/scoop_runtime/tests/stackmap_registry.rs` 等覆盖。
 
-#### D2) [TODO] 把所有手工 `ScoopGcFrame` 的 Rust 测试改为显式 roots
+#### D2) [DONE] 把所有手工 `ScoopGcFrame` 的 Rust 测试改为显式 roots
+
+已完成：`crates/scoop_runtime/tests` 不再引用 `ScoopGcFrame` / `scoop_gc_frame_push/pop`，统一改用
+`enter_native` roots slots（moving/compaction 可原地写回更新）、stable handles（`scoop_handle_*`）、以及
+`pin/unpin` 等显式 roots 机制。
 逐个替换（示例策略）：
 
 - `gc_mark_sweep.rs`：
