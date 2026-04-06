@@ -3887,7 +3887,7 @@
    - `cargo test --all`
    - `cargo run -p scoop --features llvm -- test`
 
-### T1117 [TODO] runtime & user sources：注入 build profile/target macros（C & C++）
+### T1117 [DONE] runtime & user sources：注入 build profile/target macros（C & C++）
 - 描述：在编译 runtime sources（`runtime/c/**`）以及用户 C/C++ sources（Cone.toml 的 `c-sources`/`cxx-sources`）时，向 C/C++ 编译器传入以下宏，以支持按 profile/target 条件编译：
   - `SCOOP_BUILD_PROFILE`：当前 build profile（`debug`/`release`；在引入 profiles 前可固定为 `debug`）
   - `SCOOP_DEBUG`：当 `SCOOP_BUILD_PROFILE == debug` 时定义
@@ -3905,6 +3905,10 @@
   - 新增单测：toolchain 生成的 runtime compile/link 命令以及 user `c-sources/cxx-sources` 的 compile/link 命令中包含上述 `-D...` 宏（至少校验 profile + target triple/arch/os/pointer width/endian）。
   - `cargo test -p scoop toolchain::tests::*` 通过。
 - 依赖：T0803、T1114
+ - 完成：
+   - `crates/scoop/src/toolchain.rs`：为 runtime link/compile 以及 user `c-sources/cxx-sources` 的编译命令注入 `SCOOP_BUILD_PROFILE/SCOOP_DEBUG/SCOOP_TARGET_*` 宏，并新增单测回归宏注入行为。
+ - 验收：
+   - `cargo test --all`
 
 ### T1118 [TODO] driver：新增 `scoop new <project-name>`（创建 CONE 项目骨架）
 - 描述：为 `scoop` 增加 `new` 子命令，用于在当前工作目录下创建一个新的 CONE application 项目骨架（library 项目后置），生成结构如下：

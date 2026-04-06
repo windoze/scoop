@@ -167,18 +167,7 @@ pub fn compile_c_source_to_obj(
         });
     }
 
-    let compiler = "clang";
-    let mut cmd = Command::new(compiler);
-    cmd.current_dir(cone_root);
-    cmd.arg("-c");
-    for flag in c_flags {
-        if flag.trim().is_empty() {
-            continue;
-        }
-        cmd.arg(flag);
-    }
-    cmd.arg(source);
-    cmd.arg("-o").arg(output_obj);
+    let mut cmd = compile_c_command_to_obj(cone_root, source, output_obj, c_flags);
 
     let compiler_for_error = cmd.get_program().to_string_lossy().to_string();
     let output_res = cmd.output();
@@ -209,6 +198,28 @@ pub fn compile_c_source_to_obj(
     Ok(())
 }
 
+fn compile_c_command_to_obj(
+    cone_root: &Path,
+    source: &Path,
+    output_obj: &Path,
+    c_flags: &[String],
+) -> Command {
+    let compiler = "clang";
+    let mut cmd = Command::new(compiler);
+    cmd.current_dir(cone_root);
+    cmd.arg("-c");
+    for flag in c_flags {
+        if flag.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(flag);
+    }
+    push_build_profile_and_target_defines(&mut cmd);
+    cmd.arg(source);
+    cmd.arg("-o").arg(output_obj);
+    cmd
+}
+
 /// 将 cone 额外 `cxx-sources` 的单个 C++ 源文件编译为 object。
 ///
 /// 约定（v0）：
@@ -236,18 +247,7 @@ pub fn compile_cxx_source_to_obj(
         });
     }
 
-    let compiler = "clang++";
-    let mut cmd = Command::new(compiler);
-    cmd.current_dir(cone_root);
-    cmd.arg("-c");
-    for flag in cxx_flags {
-        if flag.trim().is_empty() {
-            continue;
-        }
-        cmd.arg(flag);
-    }
-    cmd.arg(source);
-    cmd.arg("-o").arg(output_obj);
+    let mut cmd = compile_cxx_command_to_obj(cone_root, source, output_obj, cxx_flags);
 
     let compiler_for_error = cmd.get_program().to_string_lossy().to_string();
     let output_res = cmd.output();
@@ -276,6 +276,28 @@ pub fn compile_cxx_source_to_obj(
     }
 
     Ok(())
+}
+
+fn compile_cxx_command_to_obj(
+    cone_root: &Path,
+    source: &Path,
+    output_obj: &Path,
+    cxx_flags: &[String],
+) -> Command {
+    let compiler = "clang++";
+    let mut cmd = Command::new(compiler);
+    cmd.current_dir(cone_root);
+    cmd.arg("-c");
+    for flag in cxx_flags {
+        if flag.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(flag);
+    }
+    push_build_profile_and_target_defines(&mut cmd);
+    cmd.arg(source);
+    cmd.arg("-o").arg(output_obj);
+    cmd
 }
 
 /// 通过 clang 将单个 object 文件与 Scoop runtime 链接为可执行文件。
@@ -345,6 +367,7 @@ fn link_command_with_runtime(
     let linker = options.linker.unwrap_or("clang");
     let mut cmd = Command::new(linker);
     cmd.arg("-DSCOOP_GC_BACKEND=3");
+    push_build_profile_and_target_defines(&mut cmd);
     for obj in objs {
         cmd.arg(obj);
     }
@@ -418,6 +441,112 @@ fn runtime_c_sources() -> Result<Vec<PathBuf>, LinkError> {
     Ok(all)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HostTargetInfo {
+    build_profile: &'static str,
+    is_debug: bool,
+    triple: String,
+    arch: String,
+    os: String,
+    env: String,
+    vendor: String,
+    pointer_width: u32,
+    endianness: &'static str,
+}
+
+fn push_build_profile_and_target_defines(cmd: &mut Command) {
+    let info = host_target_info();
+
+    cmd.arg(c_define_string("SCOOP_BUILD_PROFILE", info.build_profile));
+    if info.is_debug {
+        cmd.arg("-DSCOOP_DEBUG");
+    }
+    cmd.arg(c_define_string("SCOOP_TARGET_TRIPLE", &info.triple));
+    cmd.arg(c_define_string("SCOOP_TARGET_ARCH", &info.arch));
+    cmd.arg(c_define_string("SCOOP_TARGET_OS", &info.os));
+    cmd.arg(c_define_string("SCOOP_TARGET_ENV", &info.env));
+    cmd.arg(c_define_string("SCOOP_TARGET_VENDOR", &info.vendor));
+    cmd.arg(c_define_u32(
+        "SCOOP_TARGET_POINTER_WIDTH",
+        info.pointer_width,
+    ));
+    cmd.arg(c_define_string("SCOOP_TARGET_ENDIANNESS", info.endianness));
+}
+
+fn host_target_info() -> HostTargetInfo {
+    let build_profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+    let is_debug = build_profile == "debug";
+
+    // 说明：不要强依赖 `CARGO_CFG_TARGET_*` 环境变量，因为它们在某些构建形态下可能缺失。
+    // v0 阶段只支持 host target，因此这里优先使用 `option_env!()`，拿不到则回退到 Rust 常量。
+    let arch = option_env!("CARGO_CFG_TARGET_ARCH")
+        .unwrap_or(std::env::consts::ARCH)
+        .to_string();
+
+    let os_cfg = option_env!("CARGO_CFG_TARGET_OS").unwrap_or(std::env::consts::OS);
+    let os = normalize_target_os_for_llvm_triple(os_cfg).to_string();
+
+    // vendor/env 没有稳定的 Rust 常量可用；这里用一个“尽量接近 LLVM triple 习惯”的保守回退。
+    let vendor = option_env!("CARGO_CFG_TARGET_VENDOR")
+        .unwrap_or(match os.as_str() {
+            "darwin" => "apple",
+            "windows" => "pc",
+            _ => "unknown",
+        })
+        .to_string();
+    let env = option_env!("CARGO_CFG_TARGET_ENV")
+        .unwrap_or("")
+        .to_string();
+
+    let triple = if env.is_empty() {
+        format!("{arch}-{vendor}-{os}")
+    } else {
+        format!("{arch}-{vendor}-{os}-{env}")
+    };
+
+    let pointer_width = usize::BITS;
+    let endianness = if cfg!(target_endian = "little") {
+        "little"
+    } else {
+        "big"
+    };
+
+    HostTargetInfo {
+        build_profile,
+        is_debug,
+        triple,
+        arch,
+        os,
+        env,
+        vendor,
+        pointer_width,
+        endianness,
+    }
+}
+
+fn normalize_target_os_for_llvm_triple(os_cfg: &str) -> &str {
+    // Rust `cfg(target_os = "macos")` 的字符串与 LLVM triple 的 OS 段并不一致：
+    // - Rust: macos
+    // - LLVM: darwin
+    match os_cfg {
+        "macos" => "darwin",
+        other => other,
+    }
+}
+
+fn c_define_string(name: &str, value: &str) -> String {
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("-D{name}=\"{escaped}\"")
+}
+
+fn c_define_u32(name: &str, value: u32) -> String {
+    format!("-D{name}={value}")
+}
+
 fn format_command_for_debug(cmd: &Command) -> String {
     let program = cmd.get_program().to_string_lossy();
     let args = cmd
@@ -439,10 +568,119 @@ fn linker_is_cxx_driver(linker: &str) -> bool {
     file_name == "c++" || file_name.contains("++")
 }
 
-#[cfg(all(test, not(windows)))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
+    fn expected_profile_and_target_define_args() -> Vec<String> {
+        let build_profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
+        let is_debug = build_profile == "debug";
+
+        let arch = option_env!("CARGO_CFG_TARGET_ARCH").unwrap_or(std::env::consts::ARCH);
+        let os_cfg = option_env!("CARGO_CFG_TARGET_OS").unwrap_or(std::env::consts::OS);
+        let os = normalize_target_os_for_llvm_triple(os_cfg);
+        let vendor = option_env!("CARGO_CFG_TARGET_VENDOR").unwrap_or(match os {
+            "darwin" => "apple",
+            "windows" => "pc",
+            _ => "unknown",
+        });
+        let env = option_env!("CARGO_CFG_TARGET_ENV").unwrap_or("");
+
+        let triple = if env.is_empty() {
+            format!("{arch}-{vendor}-{os}")
+        } else {
+            format!("{arch}-{vendor}-{os}-{env}")
+        };
+
+        let pointer_width = usize::BITS;
+        let endianness = if cfg!(target_endian = "little") {
+            "little"
+        } else {
+            "big"
+        };
+
+        let mut expected = Vec::new();
+        expected.push(format!("-DSCOOP_BUILD_PROFILE=\"{build_profile}\""));
+        if is_debug {
+            expected.push("-DSCOOP_DEBUG".to_string());
+        }
+        expected.push(format!("-DSCOOP_TARGET_TRIPLE=\"{triple}\""));
+        expected.push(format!("-DSCOOP_TARGET_ARCH=\"{arch}\""));
+        expected.push(format!("-DSCOOP_TARGET_OS=\"{os}\""));
+        expected.push(format!("-DSCOOP_TARGET_POINTER_WIDTH={pointer_width}"));
+        expected.push(format!("-DSCOOP_TARGET_ENDIANNESS=\"{endianness}\""));
+        expected
+    }
+
+    #[test]
+    fn link_command_includes_build_profile_and_target_defines() {
+        let dir = tempfile::tempdir().unwrap();
+        let obj = dir.path().join("main.o");
+        let out = dir.path().join("a.out");
+
+        let cmd = link_command_with_runtime(&[obj], &out, &[], LinkOptions::default()).unwrap();
+        let args = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        for expected in expected_profile_and_target_define_args() {
+            assert!(
+                args.iter().any(|a| a == &expected),
+                "link command 应包含 {expected}，实际：{args:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn compile_c_command_includes_build_profile_and_target_defines() {
+        let dir = tempfile::tempdir().unwrap();
+        let cone_root = dir.path();
+        let source = cone_root.join("main.c");
+        let output_obj = cone_root.join("main.o");
+        std::fs::write(&source, "int main(void) { return 0; }\n").unwrap();
+
+        let cmd = compile_c_command_to_obj(cone_root, &source, &output_obj, &[]);
+        let args = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        for expected in expected_profile_and_target_define_args() {
+            assert!(
+                args.iter().any(|a| a == &expected),
+                "compile C command 应包含 {expected}，实际：{args:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn compile_cxx_command_includes_build_profile_and_target_defines() {
+        let dir = tempfile::tempdir().unwrap();
+        let cone_root = dir.path();
+        let source = cone_root.join("main.cpp");
+        let output_obj = cone_root.join("main.o");
+        std::fs::write(&source, "int main() { return 0; }\n").unwrap();
+
+        let cmd = compile_cxx_command_to_obj(cone_root, &source, &output_obj, &[]);
+        let args = cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        for expected in expected_profile_and_target_define_args() {
+            assert!(
+                args.iter().any(|a| a == &expected),
+                "compile C++ command 应包含 {expected}，实际：{args:?}"
+            );
+        }
+    }
+
+    #[cfg(not(windows))]
     #[test]
     fn clang_can_link_object_with_runtime_and_run() {
         let dir = tempfile::tempdir().unwrap();
