@@ -1171,7 +1171,7 @@ fixtures：
   - [ ] T1409c：并行标记/并行 sweep（渐进引入，以可开关实验性实现落地）
   - [x] T1409d：多线程 microbench 与基线记录（不做 CI gating；本地对比回归）
 - [ ] **低延迟 minor GC（nursery evacuation）**：
-  - [ ] T1412a：roots tracing 的 membership 过滤去 O(n)（避免按 `heap.objects` 线性扫描放大成本）
+  - [x] T1412a：roots tracing 的 membership 过滤去 O(n)（避免按 `heap.objects` 线性扫描放大成本）
   - [ ] T1412b：nursery 分配区（bump-only）+ 可配置上限（按 bytes 或 blocks）
   - [ ] T1412c：minor collect v0：STW 下 nursery evacuation（一次 GC 工作量与 nursery 大小近似线性）
   - [ ] T1412d：写屏障 hook v0（先用“promote-on-store”保持不出现 old→nursery 指针；后续再演进到 remembered set/card table）
