@@ -16,6 +16,12 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// 创建新的 CONE 项目骨架（application）
+    New {
+        /// 项目名（同时用作目录名与 `[cone].name`）
+        project_name: String,
+    },
+
     /// 运行 fixtures（当前阶段仅做最小 smoke）
     Test {
         /// fixtures 根目录（默认：`tests/fixtures`）

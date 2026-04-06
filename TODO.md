@@ -3910,7 +3910,7 @@
  - 验收：
    - `cargo test --all`
 
-### T1118 [TODO] driver：新增 `scoop new <project-name>`（创建 CONE 项目骨架）
+### T1118 [DONE] driver：新增 `scoop new <project-name>`（创建 CONE 项目骨架）
 - 描述：为 `scoop` 增加 `new` 子命令，用于在当前工作目录下创建一个新的 CONE application 项目骨架（library 项目后置），生成结构如下：
   ```text
   project_name/
@@ -3931,6 +3931,12 @@
   - 新增 `crates/scoop` 单测：在临时目录执行 `scoop new hello_world`（可直接调用命令实现函数），断言目录结构与文件内容存在且包含正确的 project name。
   - `cargo test -p scoop` 通过。
 - 依赖：T0002、T1101、T1102
+ - 完成：
+   - `crates/scoop/src/cli.rs`：新增 `scoop new <project-name>` 子命令参数解析。
+   - `crates/scoop/src/commands/mod.rs`：dispatch 接入 `new` 子命令。
+   - `crates/scoop/src/commands/new.rs`：实现 CONE application 项目骨架生成（目录存在拒绝、项目名校验、写入 `Cone.toml/src/main.scoop/README.md`）并新增单测回归（含稳定错误码断言）。
+ - 验收：
+   - `cargo test -p scoop`
 
 ---
 

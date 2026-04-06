@@ -11,6 +11,7 @@ mod dump_ir;
 mod dump_mir;
 mod dump_rtti;
 mod dump_stackmaps;
+mod new;
 mod package;
 mod run;
 pub(crate) mod temp;
@@ -34,6 +35,7 @@ pub fn init_tracing() {
 
 pub fn dispatch(args: Args) -> Result<(), miette::Report> {
     match args.command {
+        Command::New { project_name } => new::run(project_name),
         Command::Test {
             fixtures,
             gc_stress,
