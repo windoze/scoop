@@ -157,5 +157,16 @@ pub struct EnumLayout {
     pub tag_offset: u64,
     pub payload_offset: u64,
     pub payload: TypeLayout,
+    /// rich enum 的 GC pointer slots（按 pointer-sized word 编号）位图。
+    ///
+    /// 说明（T1515/T1516）：
+    /// - 该位图描述 enum 的运行期表示中哪些 word 属于“GC 可扫描指针槽位”；
+    /// - 这些槽位必须在任意时刻只包含 `NULL` 或有效 GC object 指针；
+    /// - codegen 必须保证：未使用的 ref slots 写 0，且 non-ref 数据不覆盖这些槽位。
+    pub gc_ref_word_mask: Vec<u64>,
+    /// `ref_payload` 在 enum 值内的起始偏移（字节；从 enum 起始地址算起）。
+    pub ref_payload_offset: u64,
+    /// ref payload 的 size/align（用于后续生成 trace bitmap / box payload type desc）。
+    pub ref_payload: TypeLayout,
     pub variants: Vec<EnumVariantLayout>,
 }

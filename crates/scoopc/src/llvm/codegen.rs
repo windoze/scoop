@@ -12481,28 +12481,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             }
 
-            let tmp_name = format!(
-                "boxed_enum_payload_{}_{}",
-                enum_ty.as_u32(),
-                sanitize_llvm_ident(&variant.name)
-            );
-            let payload_ptr =
-                self.create_entry_alloca_raw(span, &tmp_name, payload_struct_ty.into())?;
+            // GC safety（T1516）：
+            // - boxed payload 不能暂存在栈上然后把栈指针塞进 enum 的 word payload；
+            //   否则其中的 GC refs 无法被 stackmap/bitmap 扫描，触发 GC 后会出现悬挂指针。
+            // - 因此 boxed payload 必须是一个 GC-managed heap object，并把对象指针写入 enum 的
+            //   GC pointer slot（payload_ptr）。
+            let payload_obj_ty =
+                self.llvm_enum_boxed_payload_object_type(span, enum_ty, &variant)?;
+            let obj_size_bytes = self.target_data.get_store_size(&payload_obj_ty);
+            let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
+
+            let desc = self.get_or_create_enum_boxed_payload_type_desc_global(
+                span,
+                enum_ty,
+                &variant,
+                payload_obj_ty,
+            )?;
+            let desc_i8 = self.builder.build_pointer_cast(
+                desc.as_pointer_value(),
+                self.llvm_i8_ptr_type(),
+                "enum_boxed_payload_type_desc_i8",
+            )?;
+            let rt_alloc = self.declare_runtime_alloc_typed();
+            let call = self.builder.build_call(
+                rt_alloc,
+                &[desc_i8.into(), size_v.into()],
+                "rt_alloc_enum_boxed_payload",
+            )?;
+            let raw = call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "scoop_alloc_typed return value (enum boxed payload)",
+                    at: span.into(),
+                })?;
+            let BasicValueEnum::PointerValue(raw_ptr) = raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "scoop_alloc_typed return type (enum boxed payload)",
+                    at: span.into(),
+                });
+            };
+
+            let payload_obj_ptr_ty = payload_obj_ty.ptr_type(self.gc_address_space());
+            let payload_obj_ptr = self.builder.build_pointer_cast(
+                raw_ptr,
+                payload_obj_ptr_ty,
+                "enum_boxed_payload_obj_ptr",
+            )?;
+            let payload_gep = self.builder.build_struct_gep(
+                payload_obj_ty,
+                payload_obj_ptr,
+                1,
+                "enum_boxed_payload_gep",
+            )?;
             let _ = self
                 .builder
-                .build_store(payload_ptr, payload.as_basic_value_enum())?;
+                .build_store(payload_gep, payload.as_basic_value_enum())?;
+
+            let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
+            let payload_ptr_i8 = self.builder.build_pointer_cast(
+                payload_obj_ptr,
+                payload_ptr_ty,
+                "enum_boxed_payload_as_i8",
+            )?;
 
             let word_ty = self.int_type(self.enum_payload_ty());
-            let payload_word =
-                self.builder
-                    .build_ptr_to_int(payload_ptr, word_ty, "boxed_enum_payload_ptr")?;
+            let payload_word = word_ty.const_int(0, false);
             return self.build_enum_value(
                 span,
                 enum_ty,
                 variant.tag,
                 CgEnumPayload {
                     word: Some(payload_word),
-                    gc_ptr: None,
+                    gc_ptr: Some(payload_ptr_i8),
                 },
             );
         }
@@ -12740,10 +12791,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let cg = self.cg_ty_of_type_fqn(f.span, f.ty_fqn.as_deref())?;
                         fields.push(cg);
                     }
+                    // 当前阶段 inline tagged union payload 仍只支持“单字段标量/单字段 GC ref”；
+                    // 多字段 variant 必须 box 为独立 heap object（T1516）。
+                    let boxed = !matches!(repr, CgEnumRepr::ValueOnly { .. }) && fields.len() > 1;
                     variants.push(CgEnumVariant {
                         name: v.name.clone(),
                         tag: v.tag,
-                        boxed: false,
+                        boxed,
                         fields,
                     });
 
@@ -13751,21 +13805,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         self.builder
                             .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
                     let raw_struct = loaded.into_struct_value();
-                    let payload_word = self
-                        .builder
-                        .build_extract_value(raw_struct, 1, "when_payload")?
-                        .into_int_value();
 
                     let payload_struct_ty =
                         self.llvm_enum_boxed_payload_struct_type(at, enum_ty, &variant)?;
-                    let payload_ptr = self.builder.build_int_to_ptr(
-                        payload_word,
-                        payload_struct_ty.ptr_type(AddressSpace::default()),
-                        "when_payload_ptr",
+                    let payload_ptr = self
+                        .builder
+                        .build_extract_value(raw_struct, 2, "when_payload_ptr")?
+                        .into_pointer_value();
+
+                    let payload_obj_ty =
+                        self.llvm_enum_boxed_payload_object_type(at, enum_ty, &variant)?;
+                    let payload_obj_ptr = self.builder.build_pointer_cast(
+                        payload_ptr,
+                        payload_obj_ty.ptr_type(self.gc_address_space()),
+                        "when_payload_obj_ptr",
+                    )?;
+                    let payload_gep = self.builder.build_struct_gep(
+                        payload_obj_ty,
+                        payload_obj_ptr,
+                        1,
+                        "when_payload_gep",
                     )?;
                     let payload_loaded = self
                         .builder
-                        .build_load(payload_struct_ty, payload_ptr, "load_when_payload")?
+                        .build_load(payload_struct_ty, payload_gep, "load_when_payload")?
                         .into_struct_value();
 
                     for (idx, arg_pat) in prefix_pats.iter().enumerate() {
@@ -19976,6 +20039,84 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         payload_ty.set_body(&llvm_fields, false);
         Ok(payload_ty)
+    }
+
+    fn llvm_enum_boxed_payload_object_type(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        variant: &CgEnumVariant,
+    ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let enum_fqn = match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum boxed payload object type",
+                    at: at.into(),
+                });
+            }
+        };
+
+        let name = format!(
+            "scoop.runtime.EnumBoxedPayload__{}__{}",
+            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&variant.name)
+        );
+        if let Some(existing) = self.context.get_struct_type(&name) {
+            return Ok(existing);
+        }
+
+        let payload_struct_ty = self.llvm_enum_boxed_payload_struct_type(at, enum_ty, variant)?;
+        let ty = self.context.opaque_struct_type(&name);
+        let header_ty = self.llvm_gc_object_header_type();
+        ty.set_body(&[header_ty.into(), payload_struct_ty.into()], false);
+        Ok(ty)
+    }
+
+    fn get_or_create_enum_boxed_payload_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        enum_ty: TypeId,
+        variant: &CgEnumVariant,
+        payload_obj_ty: StructType<'ctx>,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let enum_fqn = match self.types.kind(enum_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "enum boxed payload type desc",
+                    at: at.into(),
+                });
+            }
+        };
+
+        let global_name = format!(
+            "__scoop_type_desc_runtime__enum_boxed_payload__{}__{}",
+            sanitize_llvm_ident(enum_fqn),
+            sanitize_llvm_ident(&variant.name)
+        );
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let canonical_name = format!(
+            "scoop.runtime.EnumBoxedPayload__{}__{}",
+            enum_fqn, variant.name
+        );
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&payload_obj_ty, 1)
+            .unwrap_or(0);
+        self.get_or_create_type_descriptor_global(
+            at,
+            &global_name,
+            &canonical_name,
+            payload_obj_ty,
+            trace_start_offset_bytes,
+            None,
+            None,
+            None,
+        )
     }
 
     fn create_entry_alloca(

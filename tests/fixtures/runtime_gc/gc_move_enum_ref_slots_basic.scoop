@@ -1,0 +1,40 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: gc_move_enum_ref_slots_basic.stdout.txt
+// 目标：T1516：rich enum 的 GC pointer slots 必须静态可枚举且不被污染：
+// - enum 值在栈 spill 与 heap 字段中都能被 roots/bitmap 扫描；
+// - boxed variant 的 payload 需要是 GC-managed heap object（其内部 refs 也能被 trace bitmap 扫描）；
+// - moving/compaction 后继续读取与解构 enum 不应出现悬挂指针。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+class Holder(val e: E)
+
+fun mk(): E {
+    val s: String = f"hello {7}"
+    return A(42, s)
+}
+
+fun main() {
+    // stack roots：`e0` 持有 enum 值（boxed variant → payload_ptr 为 GC ref）。
+    val e0: E = mk()
+
+    // heap roots：class 字段内嵌 enum 值（type descriptor bitmap 需能扫到 enum 内的 payload_ptr）。
+    val h: Holder = Holder(e0)
+
+    // 强制触发 moving GC：必须同时修复 stack spill slots 与 heap fields 中的 enum payload_ptr。
+    __scoop_gc_collect()
+
+    val result: String = when (h.e) {
+        A(_, s) -> s
+        B(_) -> "bad"
+    }
+    println(result)
+}

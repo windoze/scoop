@@ -7009,7 +7009,7 @@
   - `PLAN.md`：在 §8.2/§8.3/§9.1 引用该契约，并将对应 checklist 标记为完成。
   - 验收命令已跑通：`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test`。
 
-### T1516 [TODO] 编译器：rich enum 生成 GC ref mask，并确保构造/赋值不会污染 ref slots
+### T1516 [DONE] 编译器：rich enum 生成 GC ref mask，并确保构造/赋值不会污染 ref slots
 - 描述：落实 T1515 的契约：把 “rich enum 的 GC pointer slots” 变成编译器可计算、可回归的元数据，并让 codegen 在所有写入路径上都维持“不写入非法值”的不变量。
 - 目标：
   - type/layout：
@@ -7029,6 +7029,21 @@
     在触发 GC（含 moving/compaction 模式）后仍可正确读取并输出。
   - `cargo test --all`、`cargo run -p scoop -- test` 通过。
 - 依赖：T1515、T1507a、T1509、T1506
+ - 完成：
+   - `crates/scoopc/src/ty/layout.rs`：`EnumLayout` 增加 `gc_ref_word_mask/ref_payload_offset/ref_payload` 元数据，用于把 “GC pointer slots 静态可枚举” 固化为编译器可计算信息。
+   - `crates/scoopc/src/typecheck/layout.rs`：
+     - tagged union enum/`Option<T>` 的 payload 建模为 `{ word_payload, ref_payload }`，并为 ref slot 生成 `gc_ref_word_mask`；
+     - 多字段 variant 统一标记为 boxed，但仍保留 size disparity lint 的触发（`enum variant size disparity ... boxing oversized ...`）。
+   - `crates/scoopc/src/llvm/codegen.rs`：
+     - boxed variant 的 payload 改为 **GC-managed heap object**（`scoop_alloc_typed`），并把对象指针写入 enum 的 `payload_ptr`（GC slot），避免把栈指针塞进 word payload 导致 GC 漏扫；
+     - `when` binder 的 boxed variant 解构改为从 `payload_ptr` 取出 payload object，并读取其 payload struct 字段；
+     - 多字段 variant 自动标记为 boxed（与 boxed payload codegen 对齐）。
+   - fixtures：新增 `tests/fixtures/runtime_gc/gc_move_enum_ref_slots_basic.scoop` + `.stdout.txt`，覆盖：
+     - boxed enum variant（多字段，含 `String`）在 moving GC 后仍可解构读取；
+     - enum 值位于栈 spill 与 heap 字段两处，GC roots/bitmap/heap fixup 闭环不崩溃且输出稳定。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1517 [TODO] 回归矩阵：enum “maybe ref variant” 在栈/堆/装箱/移动 GC 下的端到端覆盖
 - 描述：为 “enum 变体含 ref” 建立持续回归：不仅验证语义正确，还要验证 GC 不崩溃、roots 枚举完整、moving/compaction 后 slot 修复正确。

@@ -216,6 +216,9 @@ impl<'a> LayoutComputer<'a> {
                         tag_offset: 0,
                         payload_offset: 0,
                         payload: layout,
+                        gc_ref_word_mask: Vec::new(),
+                        ref_payload_offset: 0,
+                        ref_payload: TypeLayout::new(0, 1),
                         variants: vec![
                             EnumVariantLayout {
                                 name: "Some".to_string(),
@@ -237,9 +240,19 @@ impl<'a> LayoutComputer<'a> {
         // 2) tagged union fallback。
         let tag = EnumTagType::for_variant_count(2);
         let tag_layout = TypeLayout::new(tag.size(), tag.align());
-        let payload = inner_layout.without_niche();
+        // GC safety（T1515/T1516）：
+        // - tagged union 的运行期表示固定包含一个“GC pointer slot”，用于承载 `Some(ref)` 或 boxed payload；
+        // - 该 slot 必须在任意时刻只包含 `NULL` 或有效 GC object 指针；
+        // - 因此这里把 payload 建模为 `{ word_payload, ref_payload }` 的组合布局（而不是 inner 的 union overlay）。
+        let payload_word = self.word_layout().without_niche();
+        let ref_payload = self.pointer_layout().without_niche();
+        let ref_payload_rel_off = align_to(payload_word.size, ref_payload.align);
+        let payload_align = payload_word.align.max(ref_payload.align);
+        let payload_size = align_to(ref_payload_rel_off + ref_payload.size, payload_align);
+        let payload = TypeLayout::new(payload_size, payload_align);
 
         let payload_offset = align_to(tag_layout.size, payload.align);
+        let ref_payload_offset = payload_offset + ref_payload_rel_off;
         let align = payload.align.max(tag_layout.align);
         let size = align_to(payload_offset + payload.size, align);
         let layout = TypeLayout::new(size, align);
@@ -253,11 +266,14 @@ impl<'a> LayoutComputer<'a> {
                 tag_offset: 0,
                 payload_offset,
                 payload,
+                gc_ref_word_mask: self.gc_ref_word_mask_for_ref_slot(ref_payload_offset),
+                ref_payload_offset,
+                ref_payload,
                 variants: vec![
                     EnumVariantLayout {
                         name: "Some".to_string(),
                         boxed: false,
-                        payload,
+                        payload: inner_layout.without_niche(),
                     },
                     EnumVariantLayout {
                         name: "None".to_string(),
@@ -335,6 +351,9 @@ impl<'a> LayoutComputer<'a> {
                         tag_offset: 0,
                         payload_offset: 0,
                         payload: layout,
+                        gc_ref_word_mask: Vec::new(),
+                        ref_payload_offset: 0,
+                        ref_payload: TypeLayout::new(0, 1),
                         variants: Vec::new(),
                     },
                 );
@@ -405,9 +424,14 @@ impl<'a> LayoutComputer<'a> {
         let mut variants: Vec<EnumVariantLayout> = Vec::with_capacity(decl.variants.len());
         for (v, fields) in decl.variants.iter().zip(lowered_variant_fields.iter()) {
             let payload = self.aggregate_fields_layout(fields)?;
+            // 当前阶段 inline tagged union payload 仍只承载单字段；多字段 variant 必须走 boxing。
+            //
+            // 注意：这里仍保留 “raw payload size/align” 以便 size disparity lint 能触发；
+            // 之后会在统一的 boxing pass 中把 boxed variants 的 payload layout 收敛为 word-sized。
+            let boxed = fields.len() > 1;
             variants.push(EnumVariantLayout {
                 name: v.name.clone(),
-                boxed: false,
+                boxed,
                 payload,
             });
         }
@@ -447,11 +471,33 @@ impl<'a> LayoutComputer<'a> {
             }
         }
 
+        // boxed variants 的运行期表示为“指针大小 payload”（由 codegen 侧把 payload 指针写入 ref slot）。
+        //
+        // 说明：上面的 disparity pass 仅对“最大 payload”做 boxed 标记与警告；但多字段 variant
+        // 也会被提前标记为 boxed，因此需要在这里统一收敛其 payload layout，避免把 raw payload size
+        // 误认为 enum 的 inline payload。
+        let boxed_payload = self.word_layout();
+        for v in variants.iter_mut() {
+            if v.boxed {
+                v.payload = boxed_payload;
+            }
+        }
+
         let tag = EnumTagType::for_variant_count(decl.variants.len());
-        let payload = union_payload_layout(&variants);
+        // GC safety（T1515/T1516）：
+        // - rich enum 的 tagged union payload 固定包含一个 GC pointer slot（ref_payload）；
+        // - non-ref 数据不得覆盖该 slot，未使用时必须为 0；
+        // - variant 的多字段 payload 需要通过 boxing 进入 heap object，以保持 slot 可静态枚举。
+        let payload_word = self.word_layout().without_niche();
+        let ref_payload = self.pointer_layout().without_niche();
+        let ref_payload_rel_off = align_to(payload_word.size, ref_payload.align);
+        let payload_align = payload_word.align.max(ref_payload.align);
+        let payload_size = align_to(ref_payload_rel_off + ref_payload.size, payload_align);
+        let payload = TypeLayout::new(payload_size, payload_align);
 
         let tag_layout = TypeLayout::new(tag.size(), tag.align());
         let payload_offset = align_to(tag_layout.size, payload.align);
+        let ref_payload_offset = payload_offset + ref_payload_rel_off;
         let align = payload.align.max(tag_layout.align);
         let size = align_to(payload_offset + payload.size, align);
         let layout = TypeLayout::new(size, align);
@@ -464,6 +510,9 @@ impl<'a> LayoutComputer<'a> {
                 tag_offset: 0,
                 payload_offset,
                 payload,
+                gc_ref_word_mask: self.gc_ref_word_mask_for_ref_slot(ref_payload_offset),
+                ref_payload_offset,
+                ref_payload,
                 variants,
             },
         );
@@ -491,6 +540,20 @@ impl<'a> LayoutComputer<'a> {
 
     fn option_type_id(&mut self, inner: TypeId) -> TypeId {
         self.types.ty_option(inner)
+    }
+
+    fn gc_ref_word_mask_for_ref_slot(&self, ref_payload_offset: u64) -> Vec<u64> {
+        let word = self.target.pointer_size.max(1);
+        if ref_payload_offset % word != 0 {
+            return Vec::new();
+        }
+        let idx = ref_payload_offset / word;
+        let len = (idx / 64) + 1;
+        let mut words = vec![0u64; len as usize];
+        let wi = (idx / 64) as usize;
+        let bit = (idx % 64) as u32;
+        words[wi] |= 1u64 << bit;
+        words
     }
 }
 
