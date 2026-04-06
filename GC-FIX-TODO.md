@@ -234,11 +234,13 @@
 > 关键现实：Rust 测试代码本身不会产生 statepoint stackmaps，因此不能指望“靠 stackmap 扫 Rust 栈”。
 > 正确做法是：Rust 测试必须通过 **native_roots / handle / pin** 等显式机制参与 roots 枚举与更新。
 
-#### D1) [TODO] 删除/替换 `crates/scoop_runtime/tests/shadow_stack.rs`
+#### D1) [DONE] 删除/替换 `crates/scoop_runtime/tests/shadow_stack.rs`
 - 该文件将不再有意义（shadow stack 已移除）。
 - 用以下内容替代（任选组合）：
   - `native_roots` 的行为/更新测试（moving 下 slot 写回）；
   - stackmap registry + walk 的纯 smoke（尽量不依赖 GNU label address）。
+  - 现由 `crates/scoop_runtime/tests/gc_enter_native.rs`、`crates/scoop_runtime/tests/gc_immix_compaction.rs`、
+    `crates/scoop_runtime/tests/stackmap_registry.rs` 等覆盖。
 
 #### D2) [TODO] 把所有手工 `ScoopGcFrame` 的 Rust 测试改为显式 roots
 逐个替换（示例策略）：
