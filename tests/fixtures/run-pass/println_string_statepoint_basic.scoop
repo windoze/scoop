@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: println_string_statepoint_basic.stdout
+//
+// 目标：GC-FIX Phase C2c：println/字符串构造/格式化在 statepoint 下稳定工作（移除临时绕路）。
+// - println(Int) 走 String 构造路径（format + malloc + scoop_alloc_typed）；
+// - 字符串字面量与 f-string 在 GC safepoint 下可用。
+
+import scoop.core.*
+
+fun main(): Int {
+    println("start")
+    __scoop_gc_collect()
+
+    println(123)
+    __scoop_gc_collect()
+
+    println(f"num={456}")
+    __scoop_gc_collect()
+
+    val s: String = f"again {789}"
+    println(s)
+    __scoop_gc_collect()
+    println(s)
+
+    return 0
+}
+
