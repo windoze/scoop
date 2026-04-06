@@ -1,6 +1,8 @@
 # GC-FIX-TODO：彻底移除 Shadow Stack，StackMap-only 精确 GC（以正确性/完备性为第一目标）
 
 > 目标：当本文档中的全部步骤完成后，GC 子系统应在 **不依赖 shadow stack 的前提下**，仅基于 **LLVM statepoint + StackMap** 完整枚举与更新 roots，并且不存在任何“当前限制/未来再做”的缺口（性能优化不在本轮目标内）。
+>
+> 状态：**已完成**（2026-04-06）。验收：`cargo test --all`、`cargo run -p scoop -- test`、`cargo run -p scoop_tools -- spec-fixtures check`。发布标签：`v0.1.0`。
 
 ---
 
