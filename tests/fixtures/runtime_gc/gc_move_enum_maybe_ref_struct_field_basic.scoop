@@ -1,0 +1,80 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: gc_move_enum_maybe_ref_struct_field_basic.stdout.txt
+//
+// T1517：enum（maybe ref variant）作为 struct 字段时的 roots/moving GC 回归。
+//
+// 覆盖点：
+// - `struct Wrap { e: E }`：值类型字段中嵌入 enum；
+// - `class Holder { w: Wrap }`：heap 对象字段中嵌入值类型，需递归扫描 enum 的 ref slots；
+// - moving GC 后，读取/解构 enum（含 boxed variant payload）仍正确。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+struct Wrap(val e: E)
+
+class Holder(val w: Wrap)
+
+fun render(e: E): String {
+    return when (e) {
+        A(n, s) -> f"A n={n} s={s}"
+        B(x) -> f"B x={x}"
+    }
+}
+
+fun warmUp(): Unit {
+    // 先做一轮“切换 + GC”压力（不打印，避免 stdout 太长）。
+    var useA: Bool = true
+    var i: Int = 0
+    var w: Wrap = Wrap { e: B(0) }
+    var h: Holder = Holder(w)
+    while (i < 6) {
+        var tmp: E = B(i)
+        if (useA) {
+            tmp = A(i, f"warm {i}")
+        } else {
+            tmp = B(i)
+        }
+        w = Wrap { e: tmp }
+        h = Holder(w)
+        __scoop_gc_debug_alloc_garbage(20)
+        __scoop_gc_collect()
+
+        // 读一次，避免被过度优化掉。
+        val w2: Wrap = h.w
+        val _sink: String = render(w2.e)
+
+        if (useA) {
+            useA = false
+        } else {
+            useA = true
+        }
+        i = i + 1
+    }
+}
+
+fun main() {
+    warmUp()
+
+    // 1) stack：值类型局部变量里嵌入 enum（此处选择 B，验证 ref slots 保持 NULL）。
+    val stackWrap: Wrap = Wrap { e: B(7) }
+
+    // 2) heap：class 字段里嵌入值类型；enum 选择 boxed variant（A）覆盖 payload object + heap fixup。
+    val heapHolder: Holder = Holder(Wrap { e: A(8, f"heap {8}") })
+
+    __scoop_gc_debug_alloc_garbage(50)
+    __scoop_gc_collect()
+
+    println(f"stack={render(stackWrap.e)}")
+    val w3: Wrap = heapHolder.w
+    println(f"heap={render(w3.e)}")
+    println("done")
+}

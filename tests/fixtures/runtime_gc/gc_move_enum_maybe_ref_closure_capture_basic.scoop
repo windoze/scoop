@@ -1,0 +1,56 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: gc_move_enum_maybe_ref_closure_capture_basic.stdout.txt
+//
+// T1517：enum（maybe ref variant）在 closure capture 环境中的 roots/moving GC 回归。
+// - A：boxed variant（payload 为 GC-managed heap object，内部含 String ref）。
+// - B：纯标量 variant（必须保证 enum 的 ref slots 不被污染）。
+//
+// 覆盖点：
+// - closure env（heap object）捕获一个 ref 对象；该对象字段内嵌 enum 值；
+// - moving GC 后，closure 中读取与解构 enum（含 boxed variant payload）仍正确。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+fun render(e: E): String {
+    return when (e) {
+        A(n, s) -> f"A n={n} s={s}"
+        B(x) -> f"B x={x}"
+    }
+}
+
+class Box(val e: E)
+
+fun callAfterGc(f: () -> Int): Int {
+    // 先制造一些垃圾对象，再触发一次 moving GC。
+    __scoop_gc_debug_alloc_garbage(30)
+    __scoop_gc_collect()
+    return f()
+}
+
+fun main(): Int {
+    // 注意：当前后端暂不支持直接捕获“非标量 value”（例如 enum/struct），因此这里通过捕获一个
+    // heap 对象（Box）来覆盖 “closure capture + enum 在 heap 字段内嵌 + moving GC fixup” 的组合场景。
+    val b0: Box = Box(A(0, f"cap {0}"))
+    val b1: Box = Box(B(1))
+
+    val _r0: Int = callAfterGc {
+        println(render(b0.e))
+        0
+    }
+    val _r1: Int = callAfterGc {
+        println(render(b1.e))
+        0
+    }
+
+    println("done")
+    return 0
+}

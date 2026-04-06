@@ -1,0 +1,3 @@
+stack=B x=7
+heap=A n=8 s=heap 8
+done

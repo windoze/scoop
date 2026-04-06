@@ -7045,7 +7045,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1517 [TODO] 回归矩阵：enum “maybe ref variant” 在栈/堆/装箱/移动 GC 下的端到端覆盖
+### T1517 [DONE] 回归矩阵：enum “maybe ref variant” 在栈/堆/装箱/移动 GC 下的端到端覆盖
 - 描述：为 “enum 变体含 ref” 建立持续回归：不仅验证语义正确，还要验证 GC 不崩溃、roots 枚举完整、moving/compaction 后 slot 修复正确。
 - 目标：
   - `tests/fixtures/runtime_gc/`：
@@ -7057,6 +7057,18 @@
   - `cargo run -p scoop -- test`
   - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test`
 - 依赖：T1516、T1512
+ - 完成：
+   - `tests/fixtures/runtime_gc/`：新增 3 个 run-pass fixtures，覆盖：
+     - 栈上局部变量（高频切换 A/B + 复制链路）+ moving GC + verify-roots：`gc_move_enum_maybe_ref_local_switch_basic.scoop`；
+     - struct 字段（`struct Wrap { e: E }` + `class Holder { w: Wrap }`）+ moving GC + verify-roots：`gc_move_enum_maybe_ref_struct_field_basic.scoop`；
+     - closure capture（捕获含 enum 字段的 ref 对象，并在 GC 后读取/解构 enum）+ moving GC + verify-roots：`gc_move_enum_maybe_ref_closure_capture_basic.scoop`。
+   - compile-fail fixtures：
+     - `Ptr<E>` pointee 必须 GC-free：`tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_enum_maybe_ref_is_error.scoop`；
+     - `@CLayout struct` 必须 GC-free：`tests/fixtures/typecheck/clayout_struct_must_be_gc_free_enum_maybe_ref_is_error.scoop`；
+     - `@Global var` 类型必须 GC-free：`tests/fixtures/typecheck/top_level_var_global_type_must_be_gc_free_enum_maybe_ref_is_error.scoop`。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
 
 ### T1518 [TODO] Niche 优化的 GC 安全门禁：ref（含 ref 的值类型）禁止 nested niche
 - 描述：当前 `Option<T>` 的 niche 传播机制支持 nested niche（例如 `Option<Option<RefType>>` 外层 `None` 可能编码为 `0x1` 等非法地址），但在“精确 GC + stackmap/bitmap 静态枚举 roots”的体系下，这类 **非 NULL 的 pointer-shaped 非 GC 指针** 一旦落入可扫描 slot，就会导致 GC 把它当对象指针处理并崩溃/UB。为避免把 GC 安全性建立在“扫描时读 tag/判别指针合法性”的假设上，需要收紧 niche 规则。

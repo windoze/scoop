@@ -1,0 +1,13 @@
+A n=0 s=ref 0
+B x=1
+A n=2 s=ref 2
+B x=3
+A n=4 s=ref 4
+B x=5
+A n=6 s=ref 6
+B x=7
+A n=8 s=ref 8
+B x=9
+A n=10 s=ref 10
+B x=11
+done

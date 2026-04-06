@@ -15519,8 +15519,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let field_cg = self.cg_ty_of_type_fqn(init.span, field.ty_fqn.as_deref())?;
 
-            let init_v = self.codegen_expr(&init.value)?;
-            let coerced = self.coerce_value(init.value.span, init_v, field_cg)?;
+            // 重要：struct 字段 initializer 需要以字段类型作为 expected context。
+            //
+            // 例如：`Wrap { e: B(7) }` 中的 `B(7)` 是 enum variant ctor call：
+            // - 若缺少 expected enum type，后端无法决定该 ctor 对应哪个 enum 的表示；
+            // - 这里把 `field_cg` 作为 expected 传入，可与 `val x: E = B(7)` 的路径保持一致。
+            let init_v = self.codegen_expr_in_expected_context(&init.value, Some(field_cg))?;
+            let coerced = if field_cg == CgTy::Unit {
+                CgValue::unit()
+            } else if init_v.ty != field_cg {
+                self.coerce_value(init.value.span, init_v, field_cg)?
+            } else {
+                init_v
+            };
 
             let raw = match field_cg {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
@@ -17821,6 +17832,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         bits,
                         signed: false,
                     }));
+                }
+
+                // 用户定义的 nominal 值类型（struct/enum）：通过 TypeStore 反查 TypeId，再复用 `cg_ty_of`。
+                //
+                // 说明：
+                // - `hir::StructFieldLayout.ty_fqn` 当前仅保存 “字段类型的 FQN”；
+                // - 对于 `struct Wrap(val e: E)` 这类场景，需要能把 `E` 映射为 `CgTy::Enum`，
+                //   以便在 LLVM struct type 中内嵌该字段，并支持后续的 field GEP/load/store。
+                if self.struct_layouts.contains_key(other) || self.enum_layouts.contains_key(other)
+                {
+                    if let Some(ty) = self.types.iter_ids().find(|id| match self.types.kind(*id) {
+                        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                            nominal.fqn == other && nominal.args.is_empty() && nominal.eff.is_none()
+                        }
+                        _ => false,
+                    }) {
+                        if let Some(cg) = self.cg_ty_of(ty) {
+                            return Ok(cg);
+                        }
+                    }
                 }
 
                 Err(LlvmEmitError::UnsupportedMainBody {

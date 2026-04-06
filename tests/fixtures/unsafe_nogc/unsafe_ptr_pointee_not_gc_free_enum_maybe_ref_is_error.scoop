@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::ptr_pointee_must_be_gc_free
+// EXPECT-ERROR-AT: 16:16
+// EXPECT-ERROR: GC-free
+
+package fixtures.unsafe_nogc
+
+import scoop.unsafe.*
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+fun bad(p: Ptr<E>): Unit {
+    return ()
+}
+

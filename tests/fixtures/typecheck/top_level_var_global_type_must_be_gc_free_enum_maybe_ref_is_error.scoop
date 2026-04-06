@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::top_level_var_type_must_be_gc_free
+// EXPECT-ERROR-AT: 16:8
+// EXPECT-ERROR: 类型必须是 GC-free
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+@Global
+var y: E = B(0)
+

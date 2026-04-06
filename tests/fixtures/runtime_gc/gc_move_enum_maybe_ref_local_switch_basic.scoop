@@ -1,0 +1,63 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// ENV: SCOOP_GC_VERIFY_ROOTS=1
+// RUN-STDOUT: gc_move_enum_maybe_ref_local_switch_basic.stdout.txt
+//
+// T1517：enum（maybe ref variant）在栈上高频切换/复制/赋值 + moving GC 回归。
+//
+// 关键点：
+// - A：boxed variant（payload 为 GC-managed heap object，内部含 String ref）；
+// - B：纯标量 variant；切换到 B 时必须保证 enum 的 ref slots 为 NULL（避免 GC roots 误扫/UB）。
+
+package fixtures.codegen
+
+import scoop.core.*
+
+enum E {
+    A(val n: Int, val s: String),
+    B(val x: Int),
+}
+
+fun render(e: E): String {
+    return when (e) {
+        A(n, s) -> f"A n={n} s={s}"
+        B(x) -> f"B x={x}"
+    }
+}
+
+fun runSwitchLoop(): Unit {
+    var useA: Bool = true
+    var e: E = B(0)
+
+    var i: Int = 0
+    while (i < 12) {
+        if (useA) {
+            e = A(i, f"ref {i}")
+        } else {
+            e = B(i)
+        }
+
+        // 复制/赋值链路：确保 enum 的 ref slots 在所有路径上都保持 GC-safe。
+        val c0: E = e
+        val c1: E = c0
+        val c2: E = c1
+
+        __scoop_gc_debug_alloc_garbage(50)
+        __scoop_gc_collect()
+
+        // GC 之后读取/解构：若 ref slots 被污染或未被正确 fixup，这里可能崩溃或输出错误。
+        println(render(c2))
+
+        if (useA) {
+            useA = false
+        } else {
+            useA = true
+        }
+        i = i + 1
+    }
+}
+
+fun main() {
+    runSwitchLoop()
+    println("done")
+}
