@@ -285,13 +285,11 @@
 
 ### Phase E：fixtures / 工具链回归（Scoop 侧端到端证明“无需 shadow stack”）
 
-#### E1) [TODO] 移除 shadow stack fixtures，新增 stackmap/statepoint fixtures
-- 删除或改写：
-  - `tests/fixtures/run-pass/gc_shadow_stack_instrumentation_basic.*`
-  - 任何依赖 sysroot “shadow stack debug helper” 的用例
-- 新增：
-  - “stackmap roots keepalive” run-pass：在 Scoop 程序里制造多帧 live roots，触发 GC（含 moving）并断言行为正确；
-  - “FFI/native roots” run-pass：通过 `@Extern` 路径覆盖 `enter_native/leave_native` 的 roots 更新。
+#### E1) [DONE] 移除 shadow stack fixtures，新增 stackmap/statepoint fixtures
+- 已确认 fixtures 不再依赖 shadow stack 导出符号/调试 helper；并清理了残留的 “shadow stack roots” 注释表述。
+- 新增回归：
+  - `tests/fixtures/runtime_gc/gc_move_stackmap_roots_update_multi_frame.*`：moving GC 下多帧 stackmap spill slots 必须被原地写回更新；
+  - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.*` / `gc_stw_cross_thread_in_native_roots_basic.*`：通过 `@Extern` 覆盖 enter_native/leave_native 以及 InNative roots。
 
 #### E2) [TODO] `scoop dump-stackmaps` 升级为 GC 调试主工具
 - 输出应能定位：

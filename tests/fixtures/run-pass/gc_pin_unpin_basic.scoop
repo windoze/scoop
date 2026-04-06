@@ -2,7 +2,7 @@
 // RUN-STDOUT: gc_pin_unpin_basic.stdout
 //
 // 目标：TODO T1008 pin/unpin 语言层 API（sysroot + codegen → runtime）。
-// - `GC.pin(obj)`：把 heap 对象加入 runtime 的 pinned roots（即使没有 shadow stack roots 也应保活）
+// - `GC.pin(obj)`：把 heap 对象加入 runtime 的 pinned roots（即使没有栈 roots 也应保活）
 // - `GC.unpin(pinned)`：解除 pin；在仍有 roots 的情况下对象仍可访问
 
 import scoop.core.*
@@ -14,7 +14,7 @@ fun blackBoxAny(value: Any): Unit {}
 fun main(): Unit {
     // 1) 创建一个 heap 对象（Int -> Any boxing 会调用 `scoop_alloc`）。
     // 2) 在 unsafe context 内 pin，并返回 `Pinned` 值类型 handle。
-    // 3) 让 keep 离开作用域：此时对象是否保活完全取决于 runtime pin（而不是 shadow stack roots）。
+    // 3) 让 keep 离开作用域：此时对象是否保活完全取决于 runtime pin（而不是栈 roots）。
     val pinned: Pinned = @Unsafe {
         val keep: Any = 1
         val pinned_inner: Pinned = GC.pin(keep)
@@ -26,7 +26,7 @@ fun main(): Unit {
     __scoop_gc_collect()
     println(__scoop_gc_debug_heap_object_count())
 
-    // unpin 前先把引用放入一个 ref local（shadow stack roots），保证 unpin 后仍可访问。
+    // unpin 前先把引用放入一个 ref local（stackmap roots），保证 unpin 后仍可访问。
     val keep_again: Any = pinned.value
 
     @Unsafe { GC.unpin(pinned) }

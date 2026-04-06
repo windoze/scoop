@@ -483,8 +483,10 @@ fn run_statepoint_pass_pipeline<'ctx>(
     // - T1503b：从手工 stackmap probe 迁移到 statepoint 产出的 stackmaps；
     // - C2a：在 statepoint 重写前跑 SROA，把“聚合值里的 GC ref 字段”拆解为可追踪 SSA 值，
     //   避免需要在源码里手工提取字段 keepalive。
-    // - 当前阶段保持最小但足够正确的闭环：SROA + mem2reg + rewrite-statepoints-for-gc。
-    //   后续再逐步补齐 place-safepoints / pipeline 优化策略等。
+    // - `rewrite-statepoints-for-gc` 会把带 `gc "<strategy>"` 的函数内调用点重写为 statepoints，
+    //   并产出 stackmap records（用于 runtime 枚举/更新 spill slots roots）。
+    // - 注意：LLVM 18.1.8（Homebrew）下 `place-safepoints` pass 会在 `opt` 上稳定触发 SIGSEGV，
+    //   因此当前阶段不应把它纳入默认管线；需要 safepoint placement 时再结合上游修复/替代方案接入。
     const PASSES: &str = "function(sroa,mem2reg),rewrite-statepoints-for-gc";
 
     let options = PassBuilderOptions::create();

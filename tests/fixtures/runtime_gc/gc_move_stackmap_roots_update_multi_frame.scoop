@@ -1,0 +1,51 @@
+// EXPECT: pass
+// ENV: SCOOP_GC_MOVE=1
+// RUN-STDOUT: gc_move_stackmap_roots_update_multi_frame.stdout.txt
+//
+// T1511/T1512：moving GC 的 stackmap roots “可更新性”回归（多帧）。
+//
+// 目标：
+// - 当 `SCOOP_GC_MOVE=1` 时，baseline moving 会把所有 live 且未 pinned 的对象搬迁到新地址；
+// - 运行时必须：
+//   - 更新 stable handles（handle 表）；
+//   - 更新 stackmap spill slots（让 `gc.relocate`/后续 loads 读到新地址）。
+//
+// 本用例刻意构造“caller frame roots”：
+// - root `x` 只存在于 main 的局部变量；
+// - GC 在更深层调用触发（leaf → `__scoop_gc_collect()`）；
+// - GC 后：用 main 的局部变量 `x` 再创建 handle 必须成功（否则说明 spill slot 未被原地写回更新）。
+
+package fixtures.codegen
+
+import scoop.core.*
+import scoop.process.*
+
+@Unsafe
+@Extern("scoop_test_unwind_dump_frames_and_stackmap_hits")
+fun unwindDumpFramesAndStackmapHits(): Int
+
+fun leaf(): Unit {
+    // debug：设置 `SCOOP_UNWIND_DUMP_FRAMES=1` 时会向 stderr 打印每帧 stackmap hit/miss。
+    @Unsafe { unwindDumpFramesAndStackmapHits() }
+    __scoop_gc_collect()
+}
+
+fun mid(): Unit {
+    leaf()
+}
+
+fun main() {
+    // 1) 创建一个 heap 对象，并通过 stable handle 额外保活（避免“caller frame roots 未被枚举”时对象直接被回收）。
+    val x: Any = f"hello {7}"
+    val hx: GcHandle = @Unsafe { GC.handleNew(x) }
+
+    // 2) 在更深层调用触发一次 moving GC：需要能 walk 到 main frame 并更新其 roots slot。
+    mid()
+
+    // 3) 用 caller frame 的 `x` 再创建一个 handle：
+    // - 若 spill slot 未被更新，`GC.handleNew(x)` 会因为 heap membership 校验失败而返回 0；
+    // - 若正确更新，则应成功返回 non-zero handle。
+    val hx2: GcHandle = @Unsafe { GC.handleNew(x) }
+
+    println("ok")
+}
