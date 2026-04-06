@@ -14,8 +14,8 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 /// 执行 `scoop run <input>`。
 ///
 /// 说明：
-/// - 当未启用 `--features llvm` 时，当前阶段无法产出可执行文件，但仍会先做前端检查，
-///   然后给出明确报错（提示开启 LLVM feature）。
+/// - 当未启用 LLVM 后端时（例如用 `--no-default-features` 构建），当前阶段无法产出可执行文件；
+///   但仍会先做前端检查，然后给出明确报错（提示启用 LLVM）。
 /// - 若被运行程序退出码非 0，会直接以相同退出码退出当前进程（不打印额外诊断）。
 pub fn run(input: PathBuf, args: Vec<String>) -> Result<()> {
     let dir = super::temp::make_temp_dir("scoop_run")?;
@@ -42,7 +42,7 @@ fn run_for_exit_code(input: PathBuf, exe: &Path, args: Vec<String>) -> Result<i3
 
     if !cfg!(feature = "llvm") {
         return Err(miette::miette!(
-            "子命令 `run` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- run <file>`"
+            "子命令 `run` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- run <file>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
         ));
     }
 

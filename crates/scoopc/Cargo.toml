@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-# LLVM 后端（inkwell）默认关闭，以保证在未安装 LLVM 的环境（例如 CI）也能 `cargo build/test --all`。
+# 默认启用 LLVM 后端（inkwell）。如需在未安装 LLVM/llvm-config 的环境构建，可使用 `--no-default-features`。
+default = ["llvm"]
+
 llvm = ["dep:inkwell"]
 
 [dependencies]

@@ -103,7 +103,7 @@ pub const GC_CAPABILITIES: GcCapabilities = match GC_BACKEND {
 ///
 /// 备注：
 /// - `build.rs` 会把 C 侧的 `SCOOP_GC_BACKEND` 宏设置为同一选择；
-/// - 当未显式启用任何 backend feature 时，build.rs 与 C 侧都会默认回退到 baseline。
+/// - 当未显式启用任何 backend feature 时，build.rs 与 C 侧都会默认回退到 baseline（用于 `--no-default-features`）。
 const fn resolve_gc_backend() -> GcBackend {
     if cfg!(feature = "gc-immix") {
         return GcBackend::Immix;
@@ -113,6 +113,9 @@ const fn resolve_gc_backend() -> GcBackend {
     }
     if cfg!(feature = "gc-minimal") {
         return GcBackend::Minimal;
+    }
+    if cfg!(feature = "gc-baseline") {
+        return GcBackend::Baseline;
     }
     GcBackend::Baseline
 }

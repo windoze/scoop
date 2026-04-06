@@ -306,7 +306,7 @@ fn roots_contract_config_from_arch(
 ) -> Result<scoopc::stackmap::StackMapRootsContractConfig> {
     // 与 `runtime/c/scoop_stackmap.c` 中的 DWARF reg 编号约定保持一致。
     //
-    // 说明：当前 `scoop --features llvm` 默认按 host 目标编译，因此这里以输入文件的 arch 为准。
+    // 说明：当前 `scoop` 默认按 host 目标编译，因此这里以输入文件的 arch 为准。
     match arch {
         Architecture::Aarch64 => Ok(scoopc::stackmap::StackMapRootsContractConfig {
             pointer_size: 8,

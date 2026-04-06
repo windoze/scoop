@@ -167,11 +167,11 @@ pub(crate) fn run_fixture(
     exp: &FixtureExpectation<'_>,
     run_pass_env: &super::RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    // `scoop run` 需要 feature-gated 的 LLVM 后端。为保持在未安装 LLVM 的环境仍可跑 `scoop test`，
-    // 当未启用 `--features llvm` 时，这里仅校验 golden 文件可读并跳过执行。
+    // `scoop run` 需要 LLVM 后端。为保持在未安装 LLVM 的环境仍可跑 `scoop test`（例如用
+    // `--no-default-features` 构建），当未启用 LLVM 时这里仅校验 golden 文件可读并跳过执行。
     if !cfg!(feature = "llvm") {
         validate_golden_files_readable(fixture_path, exp)?;
-        // 重要：CI 默认不启用 `scoop` 的 `llvm` feature，因此 run-pass fixtures 通常会被“跳过执行”。
+        // 重要：即使在未启用 LLVM 的构建里，run-pass fixtures 仍应能回归 runner 的稳定诊断行为。
         //
         // 但对于 `EXPECT: fail` 的 run-pass fixtures，我们仍希望在不依赖 LLVM 的情况下，能够回归：
         // - stdout/stderr mismatch 的稳定错误码；

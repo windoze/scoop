@@ -86,7 +86,7 @@ pub enum Command {
         dump_records: bool,
     },
 
-    /// 构建可执行文件（默认仅做前端检查；启用 `--features llvm` 后会生成二进制）
+    /// 构建可执行文件（默认启用 LLVM 后端；如用 `--no-default-features` 则仅做前端检查）
     Build {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
@@ -107,7 +107,7 @@ pub enum Command {
         emit_asm: bool,
     },
 
-    /// 运行程序（先 build 后 exec；需要启用 `--features llvm`）
+    /// 运行程序（先 build 后 exec；需要启用 LLVM 后端；默认已启用）
     Run {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,

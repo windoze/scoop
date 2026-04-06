@@ -26,11 +26,11 @@ cargo run -p scoop_tools -- spec-fixtures check
 cargo run -p scoop -- test
 ```
 
-LLVM backend (optional): requires `clang` and `llvm-config` in `PATH`.
+LLVM backend (default): requires `clang` and `llvm-config` in `PATH` (use `--no-default-features` to disable).
 
 ```bash
-cargo build -p scoopc --features llvm
-cargo run -p scoop --features llvm -- build path/to/file.scoop -o /tmp/a.out
+cargo build -p scoopc
+cargo run -p scoop -- build path/to/file.scoop -o /tmp/a.out
 ```
 
 ## Coding Style & Naming Conventions

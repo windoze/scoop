@@ -17,7 +17,7 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 前提：
 - Rust（建议最新版 stable）
 - clang（用于 C runtime 构建）
-- LLVM（可选：仅当启用 `scoopc` 的 `llvm` feature 时需要；需提供 `llvm-config`）
+- LLVM 18.1（默认需要；需提供 `llvm-config`。如需在未安装 LLVM 的环境构建，可使用 `--no-default-features` 关闭 LLVM 后端）
 
 构建：
 
@@ -25,13 +25,19 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 cargo build
 ```
 
-如需启用 LLVM 后端（inkwell）：
+> 注：当前 LLVM 后端使用 inkwell 的 `llvm18-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 可被找到。
+>
+> 例如 macOS + Homebrew（llvm@18）：
+>
+> ```bash
+> export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
+> ```
+
+如需禁用 LLVM 后端（只构建前端/中端与 fixtures runner 的“无后端模式”）：
 
 ```bash
-cargo build -p scoopc --features llvm
+cargo build --no-default-features
 ```
-
-> 注：当前 `llvm` feature 选择了 inkwell 的 `llvm18-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 在 PATH 中。
 
 生成最小 LLVM IR（当前阶段仅生成空 `main`，返回 0）：
 
@@ -39,7 +45,7 @@ cargo build -p scoopc --features llvm
 # 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
 # export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
 PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
-  cargo run -p scoopc --features llvm --bin scoopc -- \
+  cargo run -p scoopc --bin scoopc -- \
   --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop \
   -o /tmp/overview_minimal_main.ll
 ```
@@ -62,7 +68,7 @@ cargo run -p scoop -- test
 # 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
 # export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
 PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
-  cargo run -p scoop --features llvm -- \
+  cargo run -p scoop -- \
   build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main
 ```
 
@@ -72,7 +78,7 @@ PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
 # 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
 # export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
 PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
-  cargo run -p scoop --features llvm -- \
+  cargo run -p scoop -- \
   run tests/fixtures/spec_doctest/overview_minimal_main.scoop
 ```
 
@@ -93,7 +99,7 @@ tools/gc_microbench.sh fragmentation --object-size 256 --initial 200000 --pin-st
 直接跑单个 backend（更容易做参数扫描）：
 
 ```bash
-cargo run -p scoop_runtime --release --bin gc_microbench --no-default-features --features gc-immix -- \
+cargo run -p scoop_runtime --release --bin gc_microbench -- \
   fragmentation --object-size 256 --initial 200000 --pin-stride 100
 ```
 

@@ -5,8 +5,8 @@ edition.workspace = true
 build = "build.rs"
 
 [features]
-# 默认选择 baseline GC backend，保持既有行为不变。
-default = ["gc-baseline"]
+# 默认选择 immix GC backend（v0：协作式 STW、moving/compaction）。
+default = ["gc-immix"]
 
 # baseline：带协作式 STW 的 mark-sweep（当前实现位于 `runtime/c/scoop_gc.c`）。
 gc-baseline = []

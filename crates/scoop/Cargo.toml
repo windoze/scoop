@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-# driver 默认不启用 LLVM 后端，以保持在未安装 LLVM/llvm-config 的环境也能构建与跑回归。
+# 默认启用 LLVM 后端；如需在未安装 LLVM/llvm-config 的环境构建，可使用 `--no-default-features`。
+default = ["llvm"]
+
 # 启用后 `scoop build` 将生成 object 并调用 clang 链接运行时（T0806）。
 llvm = ["scoopc/llvm"]
 
@@ -17,7 +19,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 serde_json = "1.0.149"
 object = { version = "0.37.3", default-features = false, features = ["read", "std"] }
 
-scoopc = { path = "../scoopc" }
+scoopc = { path = "../scoopc", default-features = false }
 
 [dev-dependencies]
 tempfile = "3.10.1"

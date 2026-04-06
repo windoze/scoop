@@ -53,6 +53,23 @@ fn gc_capabilities_match_selected_backend() {
         return;
     }
 
+    if cfg!(feature = "gc-baseline") {
+        assert_eq!(GC_BACKEND, GcBackend::Baseline);
+        assert_eq!(
+            GC_CAPABILITIES,
+            scoop_runtime::gc_backend::GcCapabilities {
+                stw: true,
+                multi_thread_roots_enum: true,
+                moving: false,
+                precise_roots_update: false,
+                stackmap_roots: true,
+                native_roots: true,
+            }
+        );
+        return;
+    }
+
+    // 未显式选择 backend 时：回退 baseline（用于 `--no-default-features`）。
     assert_eq!(GC_BACKEND, GcBackend::Baseline);
     assert_eq!(
         GC_CAPABILITIES,

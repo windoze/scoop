@@ -103,7 +103,7 @@ fn resolve_gc_backend() -> u8 {
         (false, true, false, false) => 2,
         (false, false, true, false) => 3,
         (false, false, false, true) => 4,
-        (false, false, false, false) => 1, // 未启用特性时默认 baseline（与 C 侧默认一致）
+        (false, false, false, false) => 1, // 未启用特性时回退到 baseline（用于 `--no-default-features`）
         _ => {
             panic!(
                 "GC backend features are mutually exclusive; select exactly one of `gc-baseline`, `gc-minimal`, `gc-immix`, or `gc-hosted` (use `--no-default-features` when selecting a non-default backend)"

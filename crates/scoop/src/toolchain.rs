@@ -76,6 +76,7 @@ fn clang_link_command_with_runtime(
     let runtime_sources = runtime_c_sources()?;
 
     let mut cmd = Command::new("clang");
+    cmd.arg("-DSCOOP_GC_BACKEND=3");
     cmd.arg(obj);
     for src in &runtime_sources {
         cmd.arg(src);

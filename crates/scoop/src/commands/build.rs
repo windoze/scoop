@@ -2,7 +2,7 @@
 //!
 //! T0805：实现“前端检查 + 输出路径准备”。
 //!
-//! T0806：在启用 `scoop` 的 `llvm` feature 时，额外执行：
+//! T0806：在启用 `scoop` 的 LLVM 后端时（默认开启；可用 `--no-default-features` 关闭），额外执行：
 //! - 生成最小 object（当前阶段仍是固定 `main → ret 0`）；
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
@@ -83,7 +83,7 @@ impl Default for BuildOptions {
 ///
 /// 当前阶段验收点：
 /// - 输入可通过 parse/resolve/typecheck 时返回 `Ok(())`；
-/// - 当启用 `--features llvm` 时：
+/// - 当启用 LLVM 后端时（默认已启用；若你用了 `--no-default-features` 则需要显式开启）：
 ///   - 默认产出可执行文件；
 ///   - 若指定 `--emit-llvm/--emit-obj/--emit-asm`，则改为产出对应单文件产物。
 pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Result<()> {
@@ -132,7 +132,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                 let _ = &session;
                 let _ = &output;
                 return Err(miette::miette!(
-                    "`--emit-llvm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-llvm <file> -o <out.ll>`"
+                    "`--emit-llvm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-llvm <file> -o <out.ll>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
                 ));
             }
         }
@@ -151,7 +151,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                 let _ = &session;
                 let _ = &output;
                 return Err(miette::miette!(
-                    "`--emit-obj` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-obj <file> -o <out.o>`"
+                    "`--emit-obj` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-obj <file> -o <out.o>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
                 ));
             }
         }
@@ -170,7 +170,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                 let _ = &session;
                 let _ = &output;
                 return Err(miette::miette!(
-                    "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop --features llvm -- build --emit-asm <file> -o <out.s>`"
+                    "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-asm <file> -o <out.s>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
                 ));
             }
         }
