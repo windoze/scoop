@@ -1,0 +1,4 @@
+package fixtures.run_pass_cone.missing
+
+public fun foo() / Pure! { }
+

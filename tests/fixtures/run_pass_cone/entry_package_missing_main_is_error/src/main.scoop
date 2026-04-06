@@ -1,0 +1,5 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::driver::entry_package_missing_main
+
+package fixtures.run_pass_cone.anchor
+

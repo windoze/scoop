@@ -1,0 +1,8 @@
+package fixtures.run_pass_cone.selected
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    println("selected")
+}
+
