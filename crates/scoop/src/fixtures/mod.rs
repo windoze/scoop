@@ -26,6 +26,7 @@
 //! - `tests/fixtures/comptime/**` → comptime（执行 `const val` 常量折叠并与 `.comptime` golden 比对）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/runtime_gc/**` → run-pass
+//! - `tests/fixtures/run_pass_cone/<case>/**` → run-pass（cone 包：以目录为单位 build + exec）
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
@@ -87,6 +88,8 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
     let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
     let typecheck_cone_archive_cases =
         collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
+    let run_pass_cone_root = fixtures_root.join("run_pass_cone");
+    let run_pass_cone_cases = collect_run_pass_cone_cases(&run_pass_cone_root)?;
 
     let mut files = Vec::new();
     let mut skip_dirs: Vec<&Path> = Vec::new();
@@ -105,6 +108,9 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
     if typecheck_cone_archive_root.is_dir() {
         skip_dirs.push(typecheck_cone_archive_root.as_path());
     }
+    if run_pass_cone_root.is_dir() {
+        skip_dirs.push(run_pass_cone_root.as_path());
+    }
     collect_scoop_files(fixtures_root, &mut files, &skip_dirs)?;
     files.sort();
 
@@ -113,6 +119,7 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
         && typecheck_multi_cases.is_empty()
         && typecheck_cone_cases.is_empty()
         && typecheck_cone_archive_cases.is_empty()
+        && run_pass_cone_cases.is_empty()
     {
         return Err(miette!(
             "fixtures 目录下未发现任何 .scoop 文件：{}",
@@ -154,7 +161,204 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
         )?;
     }
 
+    for case_dir in run_pass_cone_cases {
+        ok += run_run_pass_cone_case(fixtures_root, &case_dir, run_pass_env)
+            .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
+    }
+
     Ok(ok)
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("run_pass_cone case 缺少入口文件 `src/main.scoop`：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_pass_cone_missing_main_scoop))]
+struct RunPassConeMissingMainScoop {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("run_pass_cone 未生成可执行文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_pass_cone_missing_exe))]
+struct RunPassConeMissingExe {
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 run-pass golden 文件：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_pass_cone_golden_read_failed))]
+struct RunPassConeGoldenReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("run_pass_cone build 失败：{message}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::run_pass_cone_build_failed))]
+struct RunPassConeBuildFailed {
+    message: String,
+    fixture: String,
+}
+
+/// 运行一个 `tests/fixtures/run_pass_cone/<case>/` 用例（cone 包：以目录为单位 build + exec）。
+///
+/// 约定：
+/// - case 目录本身是一个 cone root（包含 `Cone.toml` + `src/**.scoop`）；
+/// - 期望与 golden 读取自 `src/main.scoop` 的文件头注释（复用 `FixtureExpectation` 语法）；
+/// - 运行时 stdout/stderr 断言使用 `fixtures/run_pass.rs` 的公共执行器（捕获 + golden 对比）。
+fn run_run_pass_cone_case(
+    fixtures_root: &Path,
+    case_dir: &Path,
+    run_pass_env: &RunPassEnvOverrides,
+) -> Result<usize> {
+    let rel_case = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
+    let expect_file_path = case_dir.join("src").join("main.scoop");
+
+    if !expect_file_path.is_file() {
+        return Err(RunPassConeMissingMainScoop {
+            path: expect_file_path.display().to_string(),
+            fixture: rel_case.display().to_string(),
+        }
+        .into());
+    }
+
+    let source = scoopc::source::SourceFile::load(&expect_file_path)?;
+    let exp = FixtureExpectation::from_source(source.text());
+
+    let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
+        let dir = crate::commands::temp::make_temp_dir("scoop_fixtures_run_pass_cone")?;
+        let exe = dir.join(default_exe_name());
+
+        let build_result = crate::commands::build::run(
+            case_dir.to_path_buf(),
+            Some(exe.clone()),
+            crate::commands::build::BuildOptions::default(),
+        );
+
+        match build_result {
+            Ok(()) => {
+                // 与 run-pass fixtures 一致：未启用 LLVM 时仅做“golden 文件可读性”校验并跳过执行。
+                if !cfg!(feature = "llvm") {
+                    validate_run_pass_golden_files_readable(&expect_file_path, &exp)?;
+                    let _ = std::fs::remove_dir_all(&dir);
+                    return Ok(());
+                }
+
+                if !exe.is_file() {
+                    let _ = std::fs::remove_dir_all(&dir);
+                    return Err(box_diagnostic(RunPassConeMissingExe {
+                        path: exe.display().to_string(),
+                        fixture: rel_case.display().to_string(),
+                    }));
+                }
+
+                let mut cmd = Command::new(&exe);
+                cmd.current_dir(case_dir);
+                cmd.args(&exp.args);
+                run_pass_env.apply_to_command(&mut cmd);
+                let out = run_pass::run_fixture_command(rel_case, &expect_file_path, &exp, cmd);
+
+                let _ = std::fs::remove_dir_all(&dir);
+                out
+            }
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&dir);
+
+                // `miette::Report` 本身不实现 `Diagnostic`，这里优先把我们关心的 driver 诊断
+                // downcast 出来，以便 fixtures 能断言稳定错误码（例如 T1113 的 entry-package 校验）。
+                let e = match e.downcast::<crate::commands::build::EntryPackageMissingMain>() {
+                    Ok(diag) => return Err(box_diagnostic(diag)),
+                    Err(e) => e,
+                };
+                let e = match e
+                    .downcast::<crate::commands::build::EntryPackageMainNotInConsumerCone>()
+                {
+                    Ok(diag) => return Err(box_diagnostic(diag)),
+                    Err(e) => e,
+                };
+                let e = match e.downcast::<crate::commands::build::EntryPackageOnlyForCone>() {
+                    Ok(diag) => return Err(box_diagnostic(diag)),
+                    Err(e) => e,
+                };
+
+                Err(box_diagnostic(RunPassConeBuildFailed {
+                    message: e.to_string(),
+                    fixture: rel_case.display().to_string(),
+                }))
+            }
+        }
+    })();
+
+    match (exp.expect, result) {
+        (Expect::Pass, Ok(())) => Ok(1),
+        (Expect::Pass, Err(e)) => Err(miette!("期望通过，但执行失败：{e}")),
+        (Expect::Fail, Ok(())) => Err(miette!("期望失败，但执行成功")),
+        (Expect::Fail, Err(e)) => {
+            assert_diagnostic_matches(&source, &exp, &*e)?;
+            Ok(1)
+        }
+    }
+}
+
+fn default_exe_name() -> String {
+    let ext = std::env::consts::EXE_EXTENSION;
+    if ext.is_empty() {
+        "a.out".to_string()
+    } else {
+        format!("a.{ext}")
+    }
+}
+
+fn validate_run_pass_golden_files_readable(
+    fixture_path: &Path,
+    exp: &FixtureExpectation<'_>,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    if let Some(stdout_rel) = exp.run_stdout {
+        let path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(stdout_rel);
+        let _ = std::fs::read_to_string(&path).map_err(|e| {
+            box_diagnostic(RunPassConeGoldenReadFailed {
+                path: path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+    }
+
+    if let Some(stderr_rel) = exp.run_stderr {
+        let path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(stderr_rel);
+        let _ = std::fs::read_to_string(&path).map_err(|e| {
+            box_diagnostic(RunPassConeGoldenReadFailed {
+                path: path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+    }
+
+    if let Some(stdin_rel) = exp.run_stdin {
+        let path = fixture_path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(stdin_rel);
+        let _ = std::fs::read(&path).map_err(|e| {
+            box_diagnostic(RunPassConeGoldenReadFailed {
+                path: path.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+    }
+
+    Ok(())
 }
 
 fn run_one(
@@ -538,7 +742,10 @@ fn build_fixture(
     crate::commands::build::run(
         fixture_path.to_path_buf(),
         Some(out.clone()),
-        crate::commands::build::BuildOptions { emit },
+        crate::commands::build::BuildOptions {
+            emit,
+            entry_package: None,
+        },
     )
     .map_err(|e| {
         box_diagnostic(BuildExecFailed {
@@ -2157,6 +2364,27 @@ fn collect_typecheck_cone_archive_cases(
     for entry in std::fs::read_dir(typecheck_cone_archive_root)
         .into_diagnostic()
         .wrap_err_with(|| format!("无法读取目录：{}", typecheck_cone_archive_root.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if entry.file_type().into_diagnostic()?.is_dir() {
+            cases.push(path);
+        }
+    }
+
+    cases.sort();
+    Ok(cases)
+}
+
+fn collect_run_pass_cone_cases(run_pass_cone_root: &Path) -> Result<Vec<PathBuf>> {
+    if !run_pass_cone_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut cases = Vec::new();
+    for entry in std::fs::read_dir(run_pass_cone_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", run_pass_cone_root.display()))?
     {
         let entry = entry.into_diagnostic()?;
         let path = entry.path();

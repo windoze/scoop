@@ -60,6 +60,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::Build {
             input,
             output,
+            entry_package,
             emit_llvm,
             emit_obj,
             emit_asm,
@@ -74,9 +75,20 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 build::BuildEmit::Executable
             };
 
-            build::run(input, output, build::BuildOptions { emit })
+            build::run(
+                input,
+                output,
+                build::BuildOptions {
+                    emit,
+                    entry_package,
+                },
+            )
         }
-        Command::Run { input, args } => run::run(input, args),
+        Command::Run {
+            input,
+            entry_package,
+            args,
+        } => run::run(input, args, entry_package),
         Command::Package { input, output } => package::run(input, output),
     }
 }

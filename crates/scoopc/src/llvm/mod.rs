@@ -129,7 +129,7 @@ pub fn emit_minimal_main_ir_from_lowered_hir(
     lowered: &hir::LoweredHir,
 ) -> Result<String, LlvmEmitError> {
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
     Ok(module.print_to_string().to_string())
 }
 
@@ -156,6 +156,24 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir(
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
     let ir = emit_minimal_main_ir_from_lowered_hir(source, lowered)?;
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
+    Ok(())
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+) -> Result<(), LlvmEmitError> {
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+    let ir = module.print_to_string().to_string();
+
     std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
         path: output.to_path_buf(),
         source: e,
@@ -205,7 +223,34 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    target_machine
+        .write_to_file(&module, FileType::Object, output)
+        .map_err(|e| LlvmEmitError::WriteObjFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
@@ -260,7 +305,34 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
     }
 
     let context = Context::create();
-    let module = build_main_module_from_lowered_hir(source, &context, lowered)?;
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
+
+    let (target_machine, _target_info) = target::host_target_machine()?;
+    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    target_machine
+        .write_to_file(&module, FileType::Assembly, output)
+        .map_err(|e| LlvmEmitError::WriteAsmFailed {
+            path: output.to_path_buf(),
+            message: e.to_string(),
+        })?;
+    Ok(())
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+) -> Result<(), LlvmEmitError> {
+    if output.to_str().is_none() {
+        return Err(LlvmEmitError::InvalidOutputPath {
+            path: output.to_path_buf(),
+        });
+    }
+
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
     let (target_machine, _target_info) = target::host_target_machine()?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
@@ -279,13 +351,14 @@ fn build_minimal_main_module<'ctx>(
     context: &'ctx Context,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     let lowered = hir::lower_for_dump(session, source)?;
-    build_main_module_from_lowered_hir(source, context, &lowered)
+    build_main_module_from_lowered_hir(source, context, &lowered, None)
 }
 
 fn build_main_module_from_lowered_hir<'ctx>(
     source: &SourceFile,
     context: &'ctx Context,
     lowered: &hir::LoweredHir,
+    entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
@@ -294,15 +367,18 @@ fn build_main_module_from_lowered_hir<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    let hir_main = lowered
-        .file
-        .items
-        .iter()
-        .find_map(|item| match item {
+    let hir_main = if let Some(entry_main_fqn) = entry_main_fqn {
+        lowered.file.items.iter().find_map(|item| match item {
+            hir::Item::Fun(fun) if fun.fqn == entry_main_fqn => Some(fun),
+            _ => None,
+        })
+    } else {
+        lowered.file.items.iter().find_map(|item| match item {
             hir::Item::Fun(fun) if fun.name == "main" => Some(fun),
             _ => None,
         })
-        .ok_or(LlvmEmitError::MissingEntryMain)?;
+    }
+    .ok_or(LlvmEmitError::MissingEntryMain)?;
 
     let builder = context.create_builder();
 

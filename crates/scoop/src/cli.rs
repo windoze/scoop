@@ -94,6 +94,10 @@ pub enum Command {
         #[arg(short, long)]
         output: Option<PathBuf>,
 
+        /// （cone 包模式）指定入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）
+        #[arg(long = "entry-package", value_name = "PACKAGE")]
+        entry_package: Option<String>,
+
         /// 输出 LLVM IR（`.ll`）
         #[arg(long, conflicts_with_all = ["emit_obj", "emit_asm"])]
         emit_llvm: bool,
@@ -111,6 +115,9 @@ pub enum Command {
     Run {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
         input: PathBuf,
+        /// （cone 包模式）指定入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）
+        #[arg(long = "entry-package", value_name = "PACKAGE")]
+        entry_package: Option<String>,
         /// 传递给被运行程序的参数（建议用 `--` 与 `scoop run` 自身参数分隔）
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,

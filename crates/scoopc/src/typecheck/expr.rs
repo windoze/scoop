@@ -1395,7 +1395,13 @@ fn check_file_exprs_impl(
                     && fun.kind == ast::FunDeclKind::Regular
                     && fun.receiver.is_none()
                 {
-                    if local_name == "main" {
+                    let is_selected_main = if let Some(entry) = index.runtime_entry_point() {
+                        fun_fqn == entry
+                    } else {
+                        local_name == "main"
+                    };
+
+                    if is_selected_main {
                         ProgramBoundaryKind::Main
                     } else if index.is_export_entry_point(&fun_fqn) {
                         ProgramBoundaryKind::Export

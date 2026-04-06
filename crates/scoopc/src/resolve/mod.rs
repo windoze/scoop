@@ -482,6 +482,14 @@ pub struct Index {
     pub by_fqn: HashMap<String, NamespacedSymbols>,
     /// 每个源文件所属的 cone（用于可见性过滤）。
     file_cones: HashMap<PathBuf, ConeId>,
+    /// runtime entry point：可执行入口函数（`fun main`）。
+    ///
+    /// 说明（T1113）：
+    /// - 该值由 driver 决定：
+    ///   - cone 包模式：由 `entry-package` 选择出的 `<pkg>.main`；
+    ///   - 单文件模式：可以保持为 None（沿用早期规则）。
+    /// - 当该值为 None 时，typecheck 会沿用早期规则：在 consumer cone 内把任意 `fun main` 按入口规则处理。
+    runtime_entry_point: Option<String>,
     /// program boundary：额外的入口函数集合（库导出入口 / host entry points，T0629b）。
     ///
     /// 说明：
@@ -549,6 +557,19 @@ impl Index {
 
     pub fn is_export_entry_point(&self, fqn: &str) -> bool {
         self.export_entry_points.contains(fqn)
+    }
+
+    /// 设置 runtime entry point（`fun main` 的 FQN）。
+    pub fn set_runtime_entry_point(&mut self, fqn: impl Into<String>) {
+        self.runtime_entry_point = Some(fqn.into());
+    }
+
+    pub fn runtime_entry_point(&self) -> Option<&str> {
+        self.runtime_entry_point.as_deref()
+    }
+
+    pub fn is_runtime_entry_point(&self, fqn: &str) -> bool {
+        self.runtime_entry_point.as_deref() == Some(fqn)
     }
 
     fn collect_extension_funs(&mut self, files: &[IndexedFile<'_>]) {

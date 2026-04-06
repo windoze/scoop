@@ -10,7 +10,8 @@ mod deps;
 
 use std::path::{Path, PathBuf};
 
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
+use thiserror::Error;
 
 #[derive(Debug)]
 struct BuildInput {
@@ -21,16 +22,30 @@ struct BuildInput {
     /// - 单文件模式下额外包含 1 个 user source；
     /// - cone 包模式下额外包含 `src/**/*.scoop`。
     sources: Vec<scoopc::source::SourceFile>,
-    /// 可执行入口（`main.scoop`）在 `sources` 中的下标。
+    /// 可执行入口（选定的 `fun main` 所在源文件）在 `sources` 中的下标。
     main_index: usize,
+    /// cone 包模式下的“锚点 main 文件”（`src/main.scoop`）在 `sources` 中的下标。
+    ///
+    /// 用途：
+    /// - 当未显式配置 `entry-package` 时，用它的 package 作为默认 entry package；
+    /// - 未来其它 driver/fixture 逻辑也可以用它作为“case 的稳定入口文件”。
+    cone_anchor_main_index: Option<usize>,
     /// 若输入为 cone 包目录，则包含其 root 与 manifest（用于 T1107 依赖图解析）。
     cone_root: Option<PathBuf>,
     cone_manifest: Option<scoopc::cone::ConeManifest>,
+    /// （cone 包模式）入口 package 覆盖（来自 CLI）。
+    entry_package_override: Option<String>,
+    /// 已选择的入口函数 FQN（仅 cone 包模式下会填充）。
+    entry_main_fqn: Option<String>,
 }
 
 impl BuildInput {
     fn main_source(&self) -> &scoopc::source::SourceFile {
         &self.sources[self.main_index]
+    }
+
+    fn cone_anchor_main_source(&self) -> Option<&scoopc::source::SourceFile> {
+        self.cone_anchor_main_index.map(|idx| &self.sources[idx])
     }
 }
 
@@ -66,17 +81,46 @@ pub enum BuildEmit {
     Asm,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub emit: BuildEmit,
+    /// （cone 包模式）入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）。
+    pub entry_package: Option<String>,
 }
 
 impl Default for BuildOptions {
     fn default() -> Self {
         Self {
             emit: BuildEmit::Executable,
+            entry_package: None,
         }
     }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("`--entry-package` 仅支持 cone 包目录输入：{input}")]
+#[diagnostic(code(scoop::driver::entry_package_only_for_cone))]
+pub(crate) struct EntryPackageOnlyForCone {
+    input: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("入口包 `{entry_package}` 中找不到入口函数 `fun main`")]
+#[diagnostic(code(scoop::driver::entry_package_missing_main))]
+pub(crate) struct EntryPackageMissingMain {
+    entry_package: String,
+    #[label("该 package 没有 `main`")]
+    span: miette::SourceSpan,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error(
+    "入口包 `{entry_package}` 的 `fun main` 不属于 consumer cone（它声明在依赖/其它 cone：{decl_file}）"
+)]
+#[diagnostic(code(scoop::driver::entry_package_main_not_in_consumer_cone))]
+pub(crate) struct EntryPackageMainNotInConsumerCone {
+    entry_package: String,
+    decl_file: String,
 }
 
 /// 执行 `scoop build <input> [-o <output>]`。
@@ -87,12 +131,17 @@ impl Default for BuildOptions {
 ///   - 默认产出可执行文件；
 ///   - 若指定 `--emit-llvm/--emit-obj/--emit-asm`，则改为产出对应单文件产物。
 pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Result<()> {
+    let BuildOptions {
+        emit,
+        entry_package,
+    } = options;
+
     let input = input
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
 
-    let output = output.unwrap_or_else(|| default_output_path_for_emit(options.emit));
+    let output = output.unwrap_or_else(|| default_output_path_for_emit(emit));
     ensure_output_parent_dir(&output)?;
 
     if output.exists() && output.is_dir() {
@@ -101,7 +150,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     let session = scoopc::session::Session::new()?;
 
-    let input = load_build_input(&input)?;
+    let input = load_build_input(&input, entry_package)?;
     let deps = match (&input.cone_root, &input.cone_manifest) {
         (Some(root), Some(manifest)) => deps::load_dependency_graph(manifest, root)?,
         _ => Vec::new(),
@@ -111,7 +160,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     // 同时也作为“加载逻辑能稳定定位入口”的最小一致性校验。
     let _ = front.main_source();
 
-    match options.emit {
+    match emit {
         BuildEmit::Executable => {
             // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
             #[cfg(feature = "llvm")]
@@ -121,10 +170,11 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir(
+                scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
                     front.main_source(),
                     &lowered,
                     &output,
+                    front.input.entry_main_fqn.as_deref(),
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -140,10 +190,11 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir(
+                scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
                     front.main_source(),
                     &lowered,
                     &output,
+                    front.input.entry_main_fqn.as_deref(),
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -159,10 +210,11 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir(
+                scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
                     front.main_source(),
                     &lowered,
                     &output,
+                    front.input.entry_main_fqn.as_deref(),
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -179,19 +231,28 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     Ok(())
 }
 
-fn load_build_input(input: &Path) -> Result<BuildInput> {
+fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Result<BuildInput> {
     let stdlib_sources = load_stdlib_sources()?;
 
     // 单文件模式：保持 `scoop build <file.scoop>` 的原有行为。
     if input.is_file() {
+        if entry_package_override.is_some() {
+            return Err(EntryPackageOnlyForCone {
+                input: input.display().to_string(),
+            }
+            .into());
+        }
         let mut sources = stdlib_sources;
         let main_index = sources.len();
         sources.push(scoopc::source::SourceFile::load(input)?);
         return Ok(BuildInput {
             sources,
             main_index,
+            cone_anchor_main_index: None,
             cone_root: None,
             cone_manifest: None,
+            entry_package_override: None,
+            entry_main_fqn: None,
         });
     }
 
@@ -220,8 +281,11 @@ fn load_build_input(input: &Path) -> Result<BuildInput> {
         return Ok(BuildInput {
             sources,
             main_index,
+            cone_anchor_main_index: Some(main_index),
             cone_root: Some(pkg.root),
             cone_manifest: Some(pkg.manifest),
+            entry_package_override,
+            entry_main_fqn: None,
         });
     }
 
@@ -277,7 +341,7 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 
 fn run_frontend(
     session: &scoopc::session::Session,
-    input: BuildInput,
+    mut input: BuildInput,
     deps: &[scoopc::cone::ConeArchiveApi],
 ) -> Result<FrontendOutput> {
     if input.sources.is_empty() {
@@ -337,6 +401,17 @@ fn run_frontend(
         next_dep_cone += 1;
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)
             .map_err(miette::Report::from)?;
+    }
+
+    // T1113：选择“入口包”的 `fun main`，并将其作为 runtime entry point。
+    //
+    // 说明：
+    // - 该选择仅在 cone 包模式下生效；单文件模式保持现有行为。
+    // - 该选择会影响：
+    //   - typecheck：仅对选定 `main` 按 entry point 规则强制 `Pure!`；
+    //   - HIR lowering / LLVM codegen：选定 `main` 所在文件作为 entry source（允许 source-backed literals）。
+    if input.cone_manifest.is_some() {
+        select_cone_entry_main(&mut input, &asts, &mut index)?;
     }
 
     // resolver phase：headers + bodies（逐文件运行，但共享同一个 index）。
@@ -416,6 +491,135 @@ fn run_frontend(
     })
 }
 
+fn package_prefix(
+    source: &scoopc::source::SourceFile,
+    pkg: Option<&scoopc::ast::PackageDecl>,
+) -> String {
+    let Some(pkg) = pkg else {
+        return String::new();
+    };
+    pkg.path
+        .iter()
+        .map(|id| source.slice(id.span))
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+fn cone_entry_main_fqn(entry_package: &str) -> String {
+    if entry_package.is_empty() {
+        "main".to_string()
+    } else {
+        format!("{entry_package}.main")
+    }
+}
+
+fn find_consumer_package_decl_span(
+    input: &BuildInput,
+    asts: &[scoopc::ast::File],
+    entry_package: &str,
+) -> miette::SourceSpan {
+    let Some(root) = input.cone_root.as_ref() else {
+        return scoopc::span::Span::new(0, 0).into();
+    };
+
+    for (source, file) in input.sources.iter().zip(asts.iter()) {
+        if !source.path().starts_with(root) {
+            continue;
+        }
+        let Some(pkg) = file.package.as_ref() else {
+            continue;
+        };
+        if package_prefix(source, Some(pkg)) == entry_package {
+            return pkg.span.into();
+        }
+    }
+
+    // fallback：锚点 main 文件的 package（如果存在）。
+    if let Some(anchor) = input.cone_anchor_main_index {
+        if let Some(pkg) = asts.get(anchor).and_then(|file| file.package.as_ref()) {
+            return pkg.span.into();
+        }
+    }
+
+    scoopc::span::Span::new(0, 0).into()
+}
+
+fn select_cone_entry_main(
+    input: &mut BuildInput,
+    asts: &[scoopc::ast::File],
+    index: &mut scoopc::resolve::Index,
+) -> Result<()> {
+    let Some(manifest) = input.cone_manifest.as_ref() else {
+        return Ok(());
+    };
+
+    let entry_package = if let Some(v) = input.entry_package_override.as_deref() {
+        v.trim().to_string()
+    } else if let Some(v) = manifest.native_build.entry_package.as_deref() {
+        v.trim().to_string()
+    } else {
+        let anchor = input.cone_anchor_main_index.unwrap_or(input.main_index);
+        let anchor_source = &input.sources[anchor];
+        let anchor_file = &asts[anchor];
+        package_prefix(anchor_source, anchor_file.package.as_ref())
+    };
+
+    let entry_main_fqn = cone_entry_main_fqn(&entry_package);
+    index.set_runtime_entry_point(entry_main_fqn.clone());
+    input.entry_main_fqn = Some(entry_main_fqn.clone());
+
+    // 约定（与本模块 build pipeline 对齐）：
+    // - cone 0：sysroot
+    // - cone 1：consumer（当前被 build 的 cone）
+    // - cone 2+：依赖 cones
+    let consumer_cone = scoopc::resolve::ConeId::new(1);
+
+    let overload_in_consumer = index.by_fqn.get(&entry_main_fqn).and_then(|syms| {
+        syms.fun.iter().find(|o| {
+            o.symbol.decl_cone == consumer_cone
+                && o.sig.receiver.is_none()
+                && o.sig.params.is_empty()
+        })
+    });
+
+    if let Some(overload) = overload_in_consumer {
+        let decl_file = overload.symbol.decl_file.as_path();
+        let Some((idx, _)) = input
+            .sources
+            .iter()
+            .enumerate()
+            .find(|(_idx, s)| s.path() == decl_file)
+        else {
+            return Err(miette::miette!(
+                "内部错误：入口 main 源文件未在 sources 列表中：{}",
+                decl_file.display()
+            ));
+        };
+
+        input.main_index = idx;
+        return Ok(());
+    }
+
+    if let Some(syms) = index.by_fqn.get(&entry_main_fqn) {
+        if let Some(overload) = syms.fun.first() {
+            if overload.symbol.decl_cone != consumer_cone {
+                return Err(EntryPackageMainNotInConsumerCone {
+                    entry_package,
+                    decl_file: overload.symbol.decl_file.display().to_string(),
+                }
+                .into());
+            }
+        }
+    }
+
+    let span = find_consumer_package_decl_span(input, asts, &entry_package);
+    Err(EntryPackageMissingMain {
+        entry_package,
+        span,
+    }
+    .into())
+}
+
 fn ensure_output_parent_dir(path: &Path) -> Result<()> {
     let Some(parent) = path.parent() else {
         return Ok(());
@@ -464,10 +668,11 @@ fn run_codegen_and_link(
     let obj = dir.join("main.o");
 
     let lowered = lower_main_hir_for_build(session, front)?;
-    scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir(
+    scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
         front.main_source(),
         &lowered,
         &obj,
+        front.input.entry_main_fqn.as_deref(),
     )?;
     crate::toolchain::link_obj_with_runtime(&obj, output, &lowered.extern_libs)?;
 
@@ -740,6 +945,7 @@ public fun main() / Pure! {
             Some(out.clone()),
             super::BuildOptions {
                 emit: super::BuildEmit::LlvmIr,
+                entry_package: None,
             },
         )
         .unwrap();

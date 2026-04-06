@@ -3802,7 +3802,7 @@
  - 验收：
    - `cargo test -p scoopc cone::manifest`
 
-### T1113 [TODO] driver：支持指定 entry package，并校验该包存在 `fun main`
+### T1113 [DONE] driver：支持指定 entry package，并校验该包存在 `fun main`
 - 描述：在 cone 包模式的 `scoop build/run` 中允许指定“入口包”（来自 `Cone.toml` 的 `entry-package` 或 CLI 选项），并将其作为 program boundary 的 `main` 来源：
   - 若指定的 entry package 不存在 `fun main`：必须在编译期报错（稳定错误码 + 准确定位）。
   - consumer cone 里允许其它包也定义 `main`，但只有 entry package 的 `main` 参与 entry point 规则（`Pure!` 门禁）与最终链接入口。
@@ -3815,6 +3815,17 @@
     - `entry_package_missing_main_is_error`：entry package 不含 `main` 时 compile-fail（断言错误码）。
   - `cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1107、T0629a
+ - 完成：
+   - `crates/scoop/src/cli.rs`：为 `scoop build/run` 增加 `--entry-package`（覆盖 `Cone.toml` 的 `native-build.entry-package`）。
+   - `crates/scoop/src/commands/build.rs`：cone 模式下选择入口 `main`（按 entry package），并在缺失/指向依赖 cone 时返回稳定错误码。
+   - `crates/scoopc/src/resolve/mod.rs`：`Index` 新增 runtime entry point（FQN）配置。
+   - `crates/scoopc/src/typecheck/expr.rs`：仅对选定 entry package 的 `main` 按 entry point 规则强制 `Pure!`。
+   - `crates/scoopc/src/llvm/mod.rs`：LLVM codegen 支持按入口 `main` 的 FQN 精确选择 `fun main`（避免多包同名 `main` 时选错）。
+   - `crates/scoop/src/fixtures/mod.rs`：新增 `tests/fixtures/run_pass_cone/<case>/` 目录型 run-pass fixtures runner。
+   - `tests/fixtures/run_pass_cone/**`：新增 2 个 cone fixtures（选择正确 main + 缺失 main 的 compile-fail）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1114 [TODO] toolchain：支持 `linker` 可执行与 `link-flags`（额外 linker args）
 - 描述：在最终链接阶段支持：
