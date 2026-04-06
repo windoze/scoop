@@ -6188,16 +6188,7 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `cargo test --all`
 
-### T1412c [BLOCKED] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
-- 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。
-- 目标：
-  - v0 先不追求并发/增量；一次 STW 内完成（依赖 nursery 小 + 入口集合可控）。
-  - 优先选择“nursery evacuation”而非 nursery 内 mark-sweep：便于在结束时 O(#nursery_blocks) 复位，并减少碎片化。
-  - 与 pin/handles 语义兼容：pinned 对象不得被移动；handles/roots 更新必须正确。
-- 验收：新增 `scoop_runtime` 集成测试：minor 后 live 对象可访问、garbage 被回收、pin/handle 场景不崩溃；`cargo test --all` 通过。
-- 依赖：T1412b、T1412d
-
-### T1412d [BLOCKED] 写屏障 hook v0：promote-on-store（为后续 remembered set/card table 预留）
+### T1412d [TODO] 写屏障 hook v0：promote-on-store（为后续 remembered set/card table 预留）
 - 描述：为编译器生成的“引用写入（store）”引入统一写屏障 hook；v0 采用 promote-on-store 策略维持不出现 old→nursery 指针，从而让 minor 不必先引入 remembered set/card table。
 - 目标：
   - 屏障入口保持最小：优先一个通用 runtime ABI（例如 `scoop_gc_write_barrier(slot_addr, value)`）供 codegen 调用，避免按类型/容器爆炸。
@@ -6206,7 +6197,16 @@
 - 验收：新增 run-pass 或 runtime fixture：构造 old 容器写入新对象后触发 minor，仍可正确保活；并回归 `cargo test --all`。
 - 依赖：T1412b（nursery 归属可判定）、T1507a（对象字段 trace 已闭环）
 
-### T1412e [BLOCKED] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
+### T1412c [TODO] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
+- 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。
+- 目标：
+  - v0 先不追求并发/增量；一次 STW 内完成（依赖 nursery 小 + 入口集合可控）。
+  - 优先选择“nursery evacuation”而非 nursery 内 mark-sweep：便于在结束时 O(#nursery_blocks) 复位，并减少碎片化。
+  - 与 pin/handles 语义兼容：pinned 对象不得被移动；handles/roots 更新必须正确。
+- 验收：新增 `scoop_runtime` 集成测试：minor 后 live 对象可访问、garbage 被回收、pin/handle 场景不崩溃；`cargo test --all` 通过。
+- 依赖：T1412b、T1412d
+
+### T1412e [TODO] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
 - 描述：为 GUI/VSync 等短窗口场景提供“尝试执行 minor”的接口：若协作式 STW 在截止时间内未达成，则放弃本轮 minor 并立刻返回，避免卡住渲染帧。
 - 目标：
   - 与现有协作式 STW 兼容：仅在达成 STW 后才进入 tracing/evacuation；未达成时必须安全撤销 STW 请求并唤醒已 park 线程。
