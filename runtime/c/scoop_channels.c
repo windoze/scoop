@@ -8,8 +8,10 @@
 // 设计约定（early stage）：
 // - `Channel<T>` 在 sysroot 侧声明为 class（引用类型），这里实现为 “GC-managed 对象”
 //   （以 `ScoopGcObjectHeader` 开头，并通过 `scoop_alloc` 分配）。
-// - 元素使用 “u64 word” 作为 ABI 承载：整数/布尔按 u64 编码；引用/字符串按 ptr→u64 编码。
-//   该 ABI 与 `scoop_array.c` 的 word array 对齐，便于编译器侧复用 `coerce_u64_word`。
+// - 当前阶段元素仅支持 “u64 word” ABI：整数/布尔按 u64 编码。
+//   注意：channel nodes 目前用 `malloc/free` 管理且不参与 GC trace，因此不能承载 GC 指针；
+//   否则会把队列内的 live 引用变成 silent roots hole。后续若要支持引用，应将 nodes 变为 GC-managed
+//   或把队列搬入可被 type descriptor 扫描的 GC-managed buffer。
 // - 队列节点用 `malloc/free` 管理（避免要求 GC 扫描 node 链表）；unbounded 语义下可能泄漏，
 //   但在 early stage 的 fixtures 回归范围内可接受。后续可接入 type descriptor 或 pinning 扩展。
 // - `close()` 幂等：多次调用不崩溃；close 会唤醒阻塞在 `recv` 的线程。

@@ -136,6 +136,17 @@ struct CgEnumLayout {
     variants: Vec<CgEnumVariant>,
 }
 
+/// rich enum / `Option<T>` 的 payload 载体（避免把 GC 指针做 ptr<->int 编码）。
+///
+/// 约定：
+/// - `word`：用于承载 `Bool/Int` 等 word-sized payload，或 boxed payload 的 native 指针（addrspace(0)）；
+/// - `gc_ptr`：用于承载 `Ref/String` 等 GC-managed 指针（addrspace(1)），并在 tagged union 表示下写入独立字段。
+#[derive(Debug, Clone, Copy, Default)]
+struct CgEnumPayload<'ctx> {
+    word: Option<IntValue<'ctx>>,
+    gc_ptr: Option<PointerValue<'ctx>>,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct CgValue<'ctx> {
     ty: CgTy,
@@ -2041,7 +2052,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.context.i32_type(),
                     "raise_runtime_error_tag_i32",
                 )?;
-                let payload_zero = self.int_type(self.enum_payload_ty()).const_int(0, false);
+                let payload_word_zero = self.int_type(self.enum_payload_ty()).const_int(0, false);
+                let payload_ptr_zero = self.llvm_gc_i8_ptr_type().const_null();
 
                 let llvm_enum_ty = self.llvm_enum_value_type(span, enum_ty)?;
                 let llvm_enum_ty = llvm_enum_ty.into_struct_type();
@@ -2051,9 +2063,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .build_insert_value(agg, tag_i32, 0, "raise_runtime_error_tag")?;
                 agg = self.builder.build_insert_value(
                     agg,
-                    payload_zero,
+                    payload_word_zero,
                     1,
-                    "raise_runtime_error_payload",
+                    "raise_runtime_error_payload_word",
+                )?;
+                agg = self.builder.build_insert_value(
+                    agg,
+                    payload_ptr_zero,
+                    2,
+                    "raise_runtime_error_payload_ptr",
                 )?;
                 CgValue {
                     ty: CgTy::Enum(enum_ty),
@@ -3354,25 +3372,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
                     CgValue::int(v, int_ty)
                 }
-                CgTy::String => {
-                    let ptr_ty = cg.llvm_scoop_string_ptr_type();
-                    let ptr = cg
-                        .builder
-                        .build_int_to_ptr(resume_word, ptr_ty, "resume_str")?;
-                    CgValue {
-                        ty: CgTy::String,
-                        value: Some(ptr.into()),
-                    }
-                }
-                CgTy::Ref => {
-                    let ptr_ty = cg.llvm_gc_i8_ptr_type();
-                    let ptr = cg
-                        .builder
-                        .build_int_to_ptr(resume_word, ptr_ty, "resume_ref")?;
-                    CgValue {
-                        ty: CgTy::Ref,
-                        value: Some(ptr.into()),
-                    }
+                CgTy::String | CgTy::Ref => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "continuation resume payload (gc ptr via u64 is forbidden)",
+                        at: perform_decl.span.into(),
+                    });
                 }
                 CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -5208,21 +5212,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok(self.cast_int(raw, from, to)?)
             }
-            CgTy::String | CgTy::Ref => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "u64 word from pointer value",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "u64 word from pointer type",
-                        at: at.into(),
-                    });
-                };
-                Ok(self.builder.build_ptr_to_int(ptr, i64_ty, "ptr_to_u64")?)
-            }
+            CgTy::String | CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "u64 word from gc pointer (ptr<->int is forbidden)",
+                at: at.into(),
+            }),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "u64 word from composite value",
@@ -7634,16 +7627,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // 优先从 receiver 的静态类型恢复 `T`，以便对 `value` 施加期望类型与编码方式。
+        //
+        // 注意（GC-FIX C2b）：当前 runtime 的 channel nodes 用 `malloc/free` 管理且不参与 GC trace，
+        // 因此这里暂只允许 word payload；Ref/String 若进入队列会变成 silent roots hole。
         let elem_cg = match self.types.kind(channel_expr.ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.channels.Channel" && nominal.args.len() == 1 =>
             {
-                self.cg_ty_of(nominal.args[0]).filter(|ty| {
-                    matches!(
-                        ty,
-                        CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-                    )
-                })
+                self.cg_ty_of(nominal.args[0])
+                    .filter(|ty| matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_)))
             }
             _ => None,
         };
@@ -7762,12 +7754,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // gate：确保元素是 “u64 word 可编码”的类型（与 `coerce_u64_word` 对齐）。
-        let elem_cg = self.cg_ty_of(elem_ty).filter(|ty| {
-            matches!(
-                ty,
-                CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            )
-        });
+        let elem_cg = self
+            .cg_ty_of(elem_ty)
+            .filter(|ty| matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_)));
         if elem_cg.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "channels.Channel.recv element type",
@@ -7842,7 +7831,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let payload_ty = self.enum_payload_ty();
         let payload_word = self.cast_int(word_u64, from, payload_ty)?;
-        let some_v = self.build_enum_value(span, option_ty, 0, Some(payload_word))?;
+        let some_v = self.build_enum_value(
+            span,
+            option_ty,
+            0,
+            CgEnumPayload {
+                word: Some(payload_word),
+                gc_ptr: None,
+            },
+        )?;
         let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "channels.Channel.recv Some value",
             at: span.into(),
@@ -7858,7 +7855,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // none branch：构造 `None`。
         self.builder.position_at_end(none_bb);
-        let none_v = self.build_enum_value(span, option_ty, 1, None)?;
+        let none_v = self.build_enum_value(span, option_ty, 1, CgEnumPayload::default())?;
         let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "channels.Channel.recv None value",
             at: span.into(),
@@ -9280,7 +9277,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: span.into(),
                             });
                         };
-                        self.decode_u64_word_to_cg_value(span, word_u64, elem_ty, gc_i8_ptr_ty)
+                        self.decode_u64_word_to_cg_value(span, word_u64, elem_ty)
                     }
                 }
             }
@@ -9422,7 +9419,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         word_u64: IntValue<'ctx>,
         to: CgTy,
-        i8_ptr_ty: PointerType<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let from_u64 = IntTy {
             bits: 64,
@@ -9444,25 +9440,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let decoded = self.cast_int(word_u64, from_u64, int_ty)?;
                 Ok(CgValue::int(decoded, int_ty))
             }
-            CgTy::Ref => {
-                let ptr = self
-                    .builder
-                    .build_int_to_ptr(word_u64, i8_ptr_ty, "u64_to_ref")?;
-                Ok(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(ptr.into()),
-                })
-            }
-            CgTy::String => {
-                let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-                let ptr = self
-                    .builder
-                    .build_int_to_ptr(word_u64, str_ptr_ty, "u64_to_string")?;
-                Ok(CgValue {
-                    ty: CgTy::String,
-                    value: Some(ptr.into()),
-                })
-            }
+            CgTy::Ref | CgTy::String => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "decode u64 word to gc pointer (ptr<->int is forbidden)",
+                at: at.into(),
+            }),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "decode u64 word to composite value",
@@ -12287,7 +12268,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        self.build_enum_value(span, enum_ty, tag, None)
+        self.build_enum_value(span, enum_ty, tag, CgEnumPayload::default())
     }
 
     fn codegen_enum_variant_ctor_call(
@@ -12374,7 +12355,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let payload_word =
                 self.builder
                     .build_ptr_to_int(payload_ptr, word_ty, "boxed_enum_payload_ptr")?;
-            return self.build_enum_value(span, enum_ty, variant.tag, Some(payload_word));
+            return self.build_enum_value(
+                span,
+                enum_ty,
+                variant.tag,
+                CgEnumPayload {
+                    word: Some(payload_word),
+                    gc_ptr: None,
+                },
+            );
         }
 
         // 2) inline（非 boxed）variant：当前阶段仍采用 “word payload” 承载的小 payload。
@@ -12386,9 +12375,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let payload = if let Some((field_cg, field_v)) = field_values.first().copied() {
-            Some(self.coerce_enum_payload_word(span, field_v, field_cg)?)
+            self.coerce_enum_payload(span, field_v, field_cg)?
         } else {
-            None
+            CgEnumPayload::default()
         };
 
         self.build_enum_value(span, enum_ty, variant.tag, payload)
@@ -12463,8 +12452,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // niche path：inner 提供可用 niche domain。
         if let Some(mut domain) = inner_layout.niche {
             if let Some(none_value) = domain.take_one() {
+                let storage = domain.storage;
+
+                // 关键约束（GC-FIX C2b）：
+                // - `addrspace(1)` 的 GC-managed 指针不允许用“非 NULL 小整数”做哨兵值；
+                // - 否则 `Option<Option<Ref>>` 会把 `None` 编码成 1/2/...，进入 stackmap roots 后无法区分，
+                //   进而在精确 GC 下造成误追踪或崩溃。
+                //
+                // 因此：Pointer niche 只允许使用一次（`None == NULL`），并禁止把剩余 niche domain 继续向外层传播。
+                if storage == NicheStorage::Pointer {
+                    domain.next = domain.end;
+                }
+
                 self.option_niche_cache
-                    .insert(option_ty, Some((domain.storage, none_value)));
+                    .insert(option_ty, Some((storage, none_value)));
 
                 let layout =
                     TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
@@ -12688,25 +12689,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn coerce_enum_payload_word(
+    fn coerce_enum_payload(
         &mut self,
         at: crate::span::Span,
         value: CgValue<'ctx>,
         value_ty: CgTy,
-    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+    ) -> Result<CgEnumPayload<'ctx>, LlvmEmitError> {
         let payload_ty = self.enum_payload_ty();
         let payload_int_ty = self.int_type(payload_ty);
 
         match value_ty {
-            CgTy::Unit => Ok(payload_int_ty.const_int(0, false)),
+            CgTy::Unit => Ok(CgEnumPayload {
+                word: Some(payload_int_ty.const_int(0, false)),
+                gc_ptr: None,
+            }),
             CgTy::Bool => {
                 let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "enum payload bool",
                     at: at.into(),
                 })?;
-                Ok(self
-                    .builder
-                    .build_int_z_extend(b, payload_int_ty, "enum_payload_bool")?)
+                let widened =
+                    self.builder
+                        .build_int_z_extend(b, payload_int_ty, "enum_payload_bool")?;
+                Ok(CgEnumPayload {
+                    word: Some(widened),
+                    gc_ptr: None,
+                })
             }
             CgTy::Int(from) => {
                 let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -12719,7 +12727,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: at.into(),
                     });
                 }
-                Ok(self.cast_int(v, from, payload_ty)?)
+                let casted = self.cast_int(v, from, payload_ty)?;
+                Ok(CgEnumPayload {
+                    word: Some(casted),
+                    gc_ptr: None,
+                })
             }
             CgTy::String => {
                 let Some(raw) = value.value else {
@@ -12734,9 +12746,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: at.into(),
                     });
                 };
-                Ok(self
-                    .builder
-                    .build_ptr_to_int(ptr, payload_int_ty, "enum_payload_str_ptr")?)
+                let casted = self.builder.build_pointer_cast(
+                    ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "enum_payload_str_as_ref",
+                )?;
+                Ok(CgEnumPayload {
+                    word: None,
+                    gc_ptr: Some(casted),
+                })
             }
             CgTy::Ref => {
                 let Some(raw) = value.value else {
@@ -12751,9 +12769,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: at.into(),
                     });
                 };
-                Ok(self
-                    .builder
-                    .build_ptr_to_int(ptr, payload_int_ty, "enum_payload_ref_ptr")?)
+                let casted = self.builder.build_pointer_cast(
+                    ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "enum_payload_ref_as_i8",
+                )?;
+                Ok(CgEnumPayload {
+                    word: None,
+                    gc_ptr: Some(casted),
+                })
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
@@ -12769,7 +12793,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         enum_ty: TypeId,
         tag: u64,
-        payload: Option<IntValue<'ctx>>,
+        payload: CgEnumPayload<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 注意：`cg_enum_layout(...)` 返回的是对缓存表的引用；为了避免与后续 `&mut self` 调用产生借用冲突，
         // 这里先把需要的字段拷贝出来再继续。
@@ -12792,7 +12816,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut agg: AggregateValueEnum<'ctx> = llvm_enum_ty.get_undef().into();
 
                 let tag_ty = self.context.i32_type();
-                let payload_ty = self.int_type(self.enum_payload_ty());
+                let payload_word_ty = self.int_type(self.enum_payload_ty());
+                let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
 
                 agg = self.builder.build_insert_value(
                     agg,
@@ -12801,10 +12826,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "enum_tag",
                 )?;
 
-                let payload_v = payload.unwrap_or_else(|| payload_ty.const_int(0, false));
+                let payload_word_v = payload
+                    .word
+                    .unwrap_or_else(|| payload_word_ty.const_int(0, false));
+                agg =
+                    self.builder
+                        .build_insert_value(agg, payload_word_v, 1, "enum_payload_word")?;
+
+                let payload_ptr_v = payload
+                    .gc_ptr
+                    .unwrap_or_else(|| payload_ptr_ty.const_null());
                 agg = self
                     .builder
-                    .build_insert_value(agg, payload_v, 1, "enum_payload")?;
+                    .build_insert_value(agg, payload_ptr_v, 2, "enum_payload_ptr")?;
 
                 Ok(CgValue {
                     ty: CgTy::Enum(enum_ty),
@@ -12819,10 +12853,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - `None`：payload 传 None（使用 `none_value` 作为编码）；
                 // - `Some(x)`：payload 传 Some(word(x))。
                 let word_ty = self.int_type(self.enum_payload_ty());
-                let encoded = payload.unwrap_or_else(|| word_ty.const_int(none_value, false));
-
                 let raw: BasicValueEnum<'ctx> = match storage {
                     NicheStorage::Pointer => {
+                        if none_value != 0 {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Option niche pointer none_value (must be NULL)",
+                                at: at.into(),
+                            });
+                        }
+
                         // 存储类型取 `Some` variant 的字段类型（通常为指针）。
                         let some_field = some_field.ok_or(LlvmEmitError::UnsupportedMainBody {
                             kind: "Option niche payload type",
@@ -12835,14 +12874,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: at.into(),
                             });
                         };
+
+                        match tag {
+                            0 => {
+                                let Some(raw_ptr) = payload.gc_ptr else {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "Option niche Some payload missing",
+                                        at: at.into(),
+                                    });
+                                };
+                                self.builder
+                                    .build_pointer_cast(raw_ptr, ptr_ty, "option_some_cast")?
+                                    .into()
+                            }
+                            1 => ptr_ty.const_null().into(),
+                            _ => {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "Option niche tag",
+                                    at: at.into(),
+                                });
+                            }
+                        }
+                    }
+                    NicheStorage::U8 => {
+                        let encoded = payload
+                            .word
+                            .unwrap_or_else(|| word_ty.const_int(none_value, false));
                         self.builder
-                            .build_int_to_ptr(encoded, ptr_ty, "option_niche_ptr")?
+                            .build_int_truncate(encoded, self.context.i8_type(), "option_niche_u8")?
                             .into()
                     }
-                    NicheStorage::U8 => self
-                        .builder
-                        .build_int_truncate(encoded, self.context.i8_type(), "option_niche_u8")?
-                        .into(),
                 };
 
                 Ok(CgValue {
@@ -13216,19 +13277,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let is_none = match storage {
                             NicheStorage::Pointer => {
                                 let ptr = subject_raw.into_pointer_value();
-                                let word_ty = self.int_type(self.enum_payload_ty());
-                                let as_int = self.builder.build_ptr_to_int(
-                                    ptr,
-                                    word_ty,
-                                    "option_ptr_as_int",
-                                )?;
-                                let expected = word_ty.const_int(none_value, false);
-                                self.builder.build_int_compare(
-                                    IntPredicate::EQ,
-                                    as_int,
-                                    expected,
-                                    "option_is_none",
-                                )?
+                                if none_value != 0 {
+                                    return Err(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "Option niche pointer none_value (must be NULL)",
+                                        at: span.into(),
+                                    });
+                                }
+                                self.builder.build_is_null(ptr, "option_is_none")?
                             }
                             NicheStorage::U8 => {
                                 let v = subject_raw.into_int_value();
@@ -13709,17 +13764,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_load(llvm_enum_ty, subject_ptr, "load_when_subject")?;
                 let raw_struct = loaded.into_struct_value();
-                let payload_raw = self
+                let payload_word = self
                     .builder
-                    .build_extract_value(raw_struct, 1, "when_payload")?
+                    .build_extract_value(raw_struct, 1, "when_payload_word")?
                     .into_int_value();
+                let payload_ptr = self
+                    .builder
+                    .build_extract_value(raw_struct, 2, "when_payload_ptr")?
+                    .into_pointer_value();
 
-                // 当前阶段 payload 固定为 word-sized int；按字段类型截断/转换。
+                // 当前阶段 tagged union payload 分成两路：
+                // - word：承载 Bool/Int 等标量
+                // - gc ptr：承载 Ref/String 等 GC-managed 指针
                 let extracted = match field_cg {
                     CgTy::Unit => CgValue::unit(),
                     CgTy::Bool => {
                         let b = self.builder.build_int_truncate(
-                            payload_raw,
+                            payload_word,
                             self.context.bool_type(),
                             "payload_to_bool",
                         )?;
@@ -13727,31 +13788,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                     CgTy::Int(int_ty) => {
                         let from = self.enum_payload_ty();
-                        let casted = self.cast_int(payload_raw, from, int_ty)?;
+                        let casted = self.cast_int(payload_word, from, int_ty)?;
                         CgValue::int(casted, int_ty)
                     }
                     CgTy::String => {
-                        let ptr = self.builder.build_int_to_ptr(
-                            payload_raw,
+                        let ptr = self.builder.build_pointer_cast(
+                            payload_ptr,
                             self.llvm_scoop_string_ptr_type(),
-                            "payload_to_str_ptr",
+                            "payload_to_str",
                         )?;
                         CgValue {
                             ty: CgTy::String,
                             value: Some(ptr.into()),
                         }
                     }
-                    CgTy::Ref => {
-                        let ptr = self.builder.build_int_to_ptr(
-                            payload_raw,
-                            self.context.i8_type().ptr_type(AddressSpace::default()),
-                            "payload_to_ref_ptr",
-                        )?;
-                        CgValue {
-                            ty: CgTy::Ref,
-                            value: Some(ptr.into()),
-                        }
-                    }
+                    CgTy::Ref => CgValue {
+                        ty: CgTy::Ref,
+                        value: Some(payload_ptr.into()),
+                    },
                     CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "when payload (non-scalar)",
@@ -13952,17 +14006,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let is_none = match storage {
                     NicheStorage::Pointer => {
                         let ptr = loaded.into_pointer_value();
-                        let word_ty = self.int_type(self.enum_payload_ty());
-                        let as_int =
-                            self.builder
-                                .build_ptr_to_int(ptr, word_ty, "option_ptr_as_int")?;
-                        let expected = word_ty.const_int(none_value, false);
-                        self.builder.build_int_compare(
-                            IntPredicate::EQ,
-                            as_int,
-                            expected,
-                            "option_is_none",
-                        )?
+                        if none_value != 0 {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "Option niche pointer none_value (must be NULL)",
+                                at: at.into(),
+                            });
+                        }
+                        self.builder.build_is_null(ptr, "option_is_none")?
                     }
                     NicheStorage::U8 => {
                         let v = loaded.into_int_value();
@@ -15579,7 +15629,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
 
-        let v = self.build_enum_value(at, enum_ty, tag, None)?;
+        let v = self.build_enum_value(at, enum_ty, tag, CgEnumPayload::default())?;
         Ok(Some(v))
     }
 
@@ -16398,8 +16448,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: target_cg,
             value: Some(casted_ptr.into()),
         };
-        let payload_word = self.coerce_enum_payload_word(span, casted, target_cg)?;
-        let some_v = self.build_enum_value(span, option_ty, 0, Some(payload_word))?;
+        let payload = self.coerce_enum_payload(span, casted, target_cg)?;
+        let some_v = self.build_enum_value(span, option_ty, 0, payload)?;
         let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "as? Some value",
             at: span.into(),
@@ -16408,7 +16458,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- fail：None ---
         self.builder.position_at_end(fail_bb);
-        let none_v = self.build_enum_value(span, option_ty, 1, None)?;
+        let none_v = self.build_enum_value(span, option_ty, 1, CgEnumPayload::default())?;
         let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
             kind: "as? None value",
             at: span.into(),
@@ -19709,16 +19759,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(existing.into());
                 }
 
-                // 最小 rich enum 表示：`{ tag: i32, payload: iN }`
+                // 最小 rich enum 表示：`{ tag: i32, payload_word: iN, payload_ptr: i8 addrspace(1)* }`
                 // - tag：按声明顺序分配的 variant id
-                // - payload：当前阶段用 machine word 承载 payload 或 boxed payload 指针
+                // - payload_word：承载整数/bool/boxed payload 指针（native ptr→word，非 GC 指针）
+                // - payload_ptr：承载 GC-managed 指针 payload（避免 ptr<->int，供 statepoint/stackmap 识别 roots）
                 let enum_ty = self.context.opaque_struct_type(fqn);
                 let tag_ty = self.context.i32_type();
-                let payload_ty = self.int_type(IntTy {
+                let payload_word_ty = self.int_type(IntTy {
                     bits: self.host.word_bit_width(),
                     signed: false,
                 });
-                enum_ty.set_body(&[tag_ty.into(), payload_ty.into()], false);
+                let payload_ptr_ty = self.llvm_gc_i8_ptr_type();
+                enum_ty.set_body(
+                    &[tag_ty.into(), payload_word_ty.into(), payload_ptr_ty.into()],
+                    false,
+                );
                 Ok(enum_ty.into())
             }
             CgEnumRepr::Niche { storage, .. } => match storage {

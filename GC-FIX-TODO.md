@@ -212,7 +212,7 @@
   - 更新/新增 run-pass fixture：`struct Wrap { s: String }` 直接整体跨越 `__scoop_gc_collect()` 仍正确；
   - `scoop dump-stackmaps <bin>` 仍能解析 stackmaps（records>0）。
 
-#### C2b) [TODO] 禁止 GC 指针 ptr<->int 编码/逃逸（移除剩余绕路）
+#### C2b) [DONE] 禁止 GC 指针 ptr<->int 编码/逃逸（移除剩余绕路）
 - 目标：对所有 GC-managed 指针（`addrspace(1)`），禁止 `ptrtoint/inttoptr` 编码（包括“塞进 word 再取回”的变体）。
 - 输出形态：必要时调整 runtime ABI（例如拆分 word/ptr 槽位）或改为明确的 ref 通道。
 - 验收：全仓 `rg "ptrtoint|inttoptr|ptr_to_u64|u64_to_"` 不再出现“GC 指针编码”路径（非 GC 指针例外需有注释说明）。
