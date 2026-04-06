@@ -675,6 +675,30 @@ fn run_codegen_and_link(
         front.input.entry_main_fqn.as_deref(),
     )?;
 
+    // T1115：cone native build 的 `c-sources/c-flags`：
+    // - 额外把用户声明的 C 源文件编译成 `.o`；
+    // - `c-flags` 仅作用于这些 user sources（不影响 runtime/c 的编译选项）。
+    let mut extra_objs: Vec<PathBuf> = Vec::new();
+    if let (Some(root), Some(manifest)) = (
+        front.input.cone_root.as_ref(),
+        front.input.cone_manifest.as_ref(),
+    ) {
+        if !manifest.native_build.c_sources.is_empty() {
+            extra_objs.reserve(manifest.native_build.c_sources.len());
+            for (idx, rel) in manifest.native_build.c_sources.iter().enumerate() {
+                let src = root.join(rel);
+                let out_obj = dir.join(format!("cone_c_{idx}.o"));
+                crate::toolchain::compile_c_source_to_obj(
+                    root,
+                    &src,
+                    &out_obj,
+                    &manifest.native_build.c_flags,
+                )?;
+                extra_objs.push(out_obj);
+            }
+        }
+    }
+
     // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
     let options = crate::toolchain::LinkOptions {
         linker: front
@@ -689,7 +713,10 @@ fn run_codegen_and_link(
             .map(|m| m.native_build.link_flags.as_slice())
             .unwrap_or(&[]),
     };
-    crate::toolchain::link_obj_with_runtime(&obj, output, &lowered.extern_libs, options)?;
+    let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
+    objs.push(obj);
+    objs.extend(extra_objs);
+    crate::toolchain::link_objs_with_runtime(&objs, output, &lowered.extern_libs, options)?;
 
     let _ = std::fs::remove_dir_all(&dir);
     Ok(())

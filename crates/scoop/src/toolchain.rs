@@ -11,6 +11,43 @@ use std::process::{Command, ExitStatus};
 use miette::Diagnostic;
 use thiserror::Error;
 
+/// C 源码编译阶段错误（T1115：cone native build 的 `c-sources`）。
+#[derive(Debug, Error, Diagnostic)]
+pub enum CompileCError {
+    #[error("找不到 C 编译器 `{compiler}`（需要安装并确保在 PATH 中）")]
+    #[diagnostic(code(scoop::toolchain::c_compiler_not_found))]
+    CompilerNotFound { compiler: String },
+
+    #[error("无法读取 C 源文件：{path}")]
+    #[diagnostic(code(scoop::toolchain::c_source_unreadable))]
+    SourceUnreadable {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("找不到 C 源文件：{path}")]
+    #[diagnostic(code(scoop::toolchain::c_source_missing))]
+    SourceMissing { path: PathBuf },
+
+    #[error("运行 C 编译器 `{compiler}` 失败：{source}")]
+    #[diagnostic(code(scoop::toolchain::c_compile_spawn_failed))]
+    CompileSpawnFailed {
+        compiler: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("编译失败（退出码：{status}）\n命令：{command}\nstdout：{stdout}\nstderr：{stderr}")]
+    #[diagnostic(code(scoop::toolchain::c_compile_failed))]
+    CompileFailed {
+        status: ExitStatus,
+        command: String,
+        stdout: String,
+        stderr: String,
+    },
+}
+
 /// 最终链接阶段的可选配置（T1114）。
 ///
 /// 约定：
@@ -66,6 +103,75 @@ pub enum LinkError {
     RuntimeSourceMissing { path: PathBuf },
 }
 
+/// 将 cone 额外 `c-sources` 的单个 C 源文件编译为 object。
+///
+/// 约定（v0）：
+/// - 使用 `clang -c` 编译；
+/// - `c_flags` 仅作用于该源文件（不影响 runtime/c 的编译参数）。
+pub fn compile_c_source_to_obj(
+    cone_root: &Path,
+    source: &Path,
+    output_obj: &Path,
+    c_flags: &[String],
+) -> Result<(), CompileCError> {
+    // 先在 driver 侧做“缺失/不可读”的稳定诊断，避免把错误形态交给 clang 的 stderr。
+    let meta = std::fs::metadata(source).map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => CompileCError::SourceMissing {
+            path: source.to_path_buf(),
+        },
+        _ => CompileCError::SourceUnreadable {
+            path: source.to_path_buf(),
+            source: e,
+        },
+    })?;
+    if !meta.is_file() {
+        return Err(CompileCError::SourceMissing {
+            path: source.to_path_buf(),
+        });
+    }
+
+    let compiler = "clang";
+    let mut cmd = Command::new(compiler);
+    cmd.current_dir(cone_root);
+    cmd.arg("-c");
+    for flag in c_flags {
+        if flag.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(flag);
+    }
+    cmd.arg(source);
+    cmd.arg("-o").arg(output_obj);
+
+    let compiler_for_error = cmd.get_program().to_string_lossy().to_string();
+    let output_res = cmd.output();
+    let output_res = match output_res {
+        Ok(v) => v,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(CompileCError::CompilerNotFound {
+                compiler: compiler_for_error,
+            });
+        }
+        Err(e) => {
+            return Err(CompileCError::CompileSpawnFailed {
+                compiler: compiler_for_error,
+                source: e,
+            });
+        }
+    };
+
+    if !output_res.status.success() {
+        return Err(CompileCError::CompileFailed {
+            status: output_res.status,
+            command: format_command_for_debug(&cmd),
+            stdout: String::from_utf8_lossy(&output_res.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output_res.stderr).to_string(),
+        });
+    }
+
+    Ok(())
+}
+
 /// 通过 clang 将单个 object 文件与 Scoop runtime 链接为可执行文件。
 ///
 /// 当前阶段实现策略：
@@ -77,7 +183,21 @@ pub fn link_obj_with_runtime(
     libs: &[String],
     options: LinkOptions<'_>,
 ) -> Result<(), LinkError> {
-    let mut cmd = link_command_with_runtime(obj, output, libs, options)?;
+    link_objs_with_runtime(&[obj.to_path_buf()], output, libs, options)
+}
+
+/// 通过 clang 将多个 object 文件与 Scoop runtime 链接为可执行文件。
+///
+/// 用途：
+/// - `objs[0]` 通常是 Scoop LLVM codegen 生成的 main object；
+/// - 其余 object 可来自 cone 的 `native-build.c-sources`（T1115）或未来的 C++/asm 等扩展。
+pub fn link_objs_with_runtime(
+    objs: &[PathBuf],
+    output: &Path,
+    libs: &[String],
+    options: LinkOptions<'_>,
+) -> Result<(), LinkError> {
+    let mut cmd = link_command_with_runtime(objs, output, libs, options)?;
     let linker_for_error = cmd.get_program().to_string_lossy().to_string();
 
     let output_res = cmd.output();
@@ -109,7 +229,7 @@ pub fn link_obj_with_runtime(
 }
 
 fn link_command_with_runtime(
-    obj: &Path,
+    objs: &[PathBuf],
     output: &Path,
     libs: &[String],
     options: LinkOptions<'_>,
@@ -119,7 +239,9 @@ fn link_command_with_runtime(
     let linker = options.linker.unwrap_or("clang");
     let mut cmd = Command::new(linker);
     cmd.arg("-DSCOOP_GC_BACKEND=3");
-    cmd.arg(obj);
+    for obj in objs {
+        cmd.arg(obj);
+    }
     for src in &runtime_sources {
         cmd.arg(src);
     }
@@ -315,7 +437,7 @@ fun cos(x: Int): Int
         let obj = dir.path().join("main.o");
         let out = dir.path().join("a.out");
         let cmd =
-            link_command_with_runtime(&obj, &out, &lowered.extern_libs, LinkOptions::default())
+            link_command_with_runtime(&[obj], &out, &lowered.extern_libs, LinkOptions::default())
                 .unwrap();
         let args = cmd
             .get_args()
@@ -343,7 +465,7 @@ fun cos(x: Int): Int
             linker: Some("my-linker"),
             link_flags: &link_flags,
         };
-        let cmd1 = link_command_with_runtime(&obj, &out, &libs, options).unwrap();
+        let cmd1 = link_command_with_runtime(&[obj.clone()], &out, &libs, options).unwrap();
         let args1 = cmd1
             .get_args()
             .map(|a| a.to_string_lossy().to_string())
@@ -375,11 +497,30 @@ fun cos(x: Int): Int
         );
 
         // 同一输入下命令构造应稳定（避免 debug command 抖动）。
-        let cmd2 = link_command_with_runtime(&obj, &out, &libs, options).unwrap();
+        let cmd2 = link_command_with_runtime(&[obj], &out, &libs, options).unwrap();
         let args2 = cmd2
             .get_args()
             .map(|a| a.to_string_lossy().to_string())
             .collect::<Vec<_>>();
         assert_eq!(args1, args2, "args 列表应稳定");
+    }
+
+    #[test]
+    fn compile_c_source_missing_has_stable_error_code() {
+        let dir = tempfile::tempdir().unwrap();
+        let cone_root = dir.path();
+        let missing = cone_root.join("missing.c");
+        let out = cone_root.join("missing.o");
+
+        let err = compile_c_source_to_obj(cone_root, &missing, &out, &[]).unwrap_err();
+        assert_eq!(
+            err.code().unwrap().to_string(),
+            "scoop::toolchain::c_source_missing",
+            "应返回稳定错误码"
+        );
+        assert!(
+            err.to_string().contains("missing.c"),
+            "错误信息应包含路径，实际：{err}"
+        );
     }
 }

@@ -3846,7 +3846,7 @@
    - `cargo test -p scoop toolchain::tests`
    - `cargo test --all`
 
-### T1115 [TODO] cone native build：支持 `c-sources` + `c-flags`（编译并链接额外 C 源码）
+### T1115 [DONE] cone native build：支持 `c-sources` + `c-flags`（编译并链接额外 C 源码）
 - 描述：当 `Cone.toml` 声明 `c-sources` 时：
   - driver 在生成最终可执行文件时，额外编译这些 C 源文件，并与 Scoop 生成的 `.o` + runtime 一起链接；
   - `c-flags` 仅作用于这些 `c-sources`，不作用于 runtime C 源文件。
@@ -3857,6 +3857,13 @@
   - 新增 run-pass cone fixture：Scoop 代码通过 `@Extern(name=...)` 调用由 `c-sources` 提供的 C 函数，运行输出正确。
   - `cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：T1112、T1114、T1107、T1006
+ - 完成：
+   - `crates/scoop/src/toolchain.rs`：新增 `compile_c_source_to_obj()` 与 `link_objs_with_runtime()`，并补齐“缺失源文件”的稳定错误码单测。
+   - `crates/scoop/src/commands/build.rs`：cone 包模式下编译 `native-build.c-sources` 并参与最终链接；`c-flags` 仅作用于 user sources。
+   - `tests/fixtures/run_pass_cone/c_sources_extern_call_basic/**`：新增端到端回归用例（通过 `@Extern(name=...)` 调用 cone 额外 C 源码并输出）。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop --features llvm -- test`
 
 ### T1116 [TODO] cone native build：支持 `cxx-sources` + `cxx-flags`（并正确链接 C++ stdlib）
 - 描述：当 `Cone.toml` 声明 `cxx-sources` 时：

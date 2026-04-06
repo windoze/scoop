@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.c_sources_extern_call_basic
+
+import scoop.core.*
+
+@Extern(name = "cone_add_int")
+fun cone_add_int(a: Int, b: Int): Int
+
+public fun main() / Pure! {
+    @Unsafe {
+        println(cone_add_int(40, 2))
+    }
+}
+
