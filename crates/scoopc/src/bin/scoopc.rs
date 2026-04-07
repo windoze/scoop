@@ -14,7 +14,7 @@ const USAGE: &str = "\
   scoopc --emit-obj  <input.scoop> [-o <out.o>]
 
 说明：
-  - 该二进制需要启用 `scoopc` 的 `llvm` feature（并安装对应 LLVM/llvm-config）。
+  - 该二进制需要启用 `scoopc` 的 `llvm` feature（需要 LLVM 21.1 + `llvm-config`）。
   - 当前只 codegen 入口 `fun main` 的一小部分表达式子集；其它顶层声明会被忽略。
 ";
 

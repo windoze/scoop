@@ -153,7 +153,7 @@ scoop run .
 
 说明：
 
-- `build/run` 需要 LLVM 后端（`--features llvm`），并确保 `clang` 与 `llvm-config` 在 `PATH` 中。
+- `build/run` 需要 LLVM 后端（`--features llvm`），并确保 `clang` 与 `llvm-config`（LLVM 21.1）在 `PATH` 中。
 "#
     )
 }

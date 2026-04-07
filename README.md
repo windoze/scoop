@@ -17,7 +17,7 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 前提：
 - Rust（建议最新版 stable）
 - clang（用于 C runtime 构建）
-- LLVM 18.1（默认需要；需提供 `llvm-config`。如需在未安装 LLVM 的环境构建，可使用 `--no-default-features` 关闭 LLVM 后端）
+- LLVM 21.1（默认需要；需提供 `llvm-config`。如需在未安装 LLVM 的环境构建，可使用 `--no-default-features` 关闭 LLVM 后端）
 
 构建：
 
@@ -25,13 +25,17 @@ Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME
 cargo build
 ```
 
-> 注：当前 LLVM 后端使用 inkwell 的 `llvm18-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 可被找到。
+> 注：当前 LLVM 后端使用 inkwell 的 `llvm21-1` 绑定，请安装对应版本的 LLVM 并确保 `llvm-config` 可被找到。
 >
-> 例如 macOS + Homebrew（llvm@18）：
+> 例如 macOS + Homebrew（llvm@21）：
 >
 > ```bash
-> export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
+> export PATH="/opt/homebrew/opt/llvm@21/bin:$PATH"
 > ```
+>
+> 也可以显式指定：
+> - `LLVM_CONFIG_PATH=/path/to/llvm-config`
+> - `LLVM_SYS_211_PREFIX=/path/to/llvm@21/prefix`（会使用 `$LLVM_SYS_211_PREFIX/bin/llvm-config`）
 
 如需禁用 LLVM 后端（只构建前端/中端与 fixtures runner 的“无后端模式”）：
 
@@ -42,9 +46,9 @@ cargo build --no-default-features
 生成最小 LLVM IR（当前阶段仅生成空 `main`，返回 0）：
 
 ```bash
-# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
-# export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
-PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
+# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@21）：
+# export PATH="/opt/homebrew/opt/llvm@21/bin:$PATH"
+PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
   cargo run -p scoopc --bin scoopc -- \
   --emit-llvm tests/fixtures/spec_doctest/overview_minimal_main.scoop \
   -o /tmp/overview_minimal_main.ll
@@ -65,9 +69,9 @@ cargo run -p scoop -- test
 生成最小可执行文件（需要启用 LLVM 后端，并安装 `llvm-config`；链接阶段使用 clang）：
 
 ```bash
-# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
-# export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
-PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
+# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@21）：
+# export PATH="/opt/homebrew/opt/llvm@21/bin:$PATH"
+PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
   cargo run -p scoop -- \
   build tests/fixtures/spec_doctest/overview_minimal_main.scoop -o /tmp/overview_minimal_main
 ```
@@ -75,9 +79,9 @@ PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
 运行程序（同样需要启用 LLVM 后端；`run` 会把产物写到临时目录后执行，并透传退出码）：
 
 ```bash
-# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@18）：
-# export PATH="/opt/homebrew/opt/llvm@18/bin:$PATH"
-PATH="/opt/homebrew/opt/llvm@18/bin:$PATH" \
+# 需要确保 llvm-config 可被找到；例如 macOS + Homebrew（llvm@21）：
+# export PATH="/opt/homebrew/opt/llvm@21/bin:$PATH"
+PATH="/opt/homebrew/opt/llvm@21/bin:$PATH" \
   cargo run -p scoop -- \
   run tests/fixtures/spec_doctest/overview_minimal_main.scoop
 ```

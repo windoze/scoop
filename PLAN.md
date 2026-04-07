@@ -25,8 +25,8 @@ cargo run -p scoop --features llvm -- test
 
 ## 0.2 工具链基线：LLVM 21（对齐 Rust stable）
 
-- 目标：将 LLVM 后端开发/测试基线从 LLVM 18 迁移到 LLVM 21，并把“可用版本/安装方式/验证命令”固定下来，避免本地/CI/不同机器间行为漂移。
-- 备注：迁移完成前，后续涉及 LLVM codegen / run-pass / Cone build 的任务，默认都以 LLVM 21 为前置假设（见 TODO T0101）。
+- 状态：已将 LLVM 后端基线对齐到 LLVM 21.1（inkwell `llvm21-1` / llvm-sys 211），并在 `scoopc` build script 中校验 `llvm-config` 版本，避免不同机器版本导致行为漂移。
+- 备注：后续涉及 LLVM codegen / run-pass / Cone build 的任务，默认都以 LLVM 21.1 为前置假设（见 TODO T0101）。
 
 ## 1. Cone（改进项吸收）
 
