@@ -61,7 +61,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0102a
 
-### T0102c [TODO] LLVM：抽出 type/layout lowering（`layout.rs` / `ty.rs`）
+### T0102c [DONE] LLVM：抽出 type/layout lowering（`layout.rs` / `ty.rs`）
 - 描述：把 `TypeId -> CgTy`、`TypeLayout`/niche/boxing 决策、struct/enum/class field GEP 等“布局相关逻辑”集中管理。
 - 目标：`cg_ty_of`/`llvm_basic_type_of` 等关键入口有明确模块归属，并避免与 expr/stmt 互相引用形成环。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
