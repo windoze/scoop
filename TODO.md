@@ -215,6 +215,33 @@ cargo run -p scoop --features llvm -- test
 - 验收：复跑既有 fixtures；补充嵌套 handler / re-perform / 跨线程 resume 的组合用例。
 - 依赖：T1606c、T1608、T1706/T1707
 
+### T1606e [TODO] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
+- 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在“线性 block”上正确。
+- 目标：新增 run-pass fixtures 覆盖：
+  - `if/else` / `match` 分支内的 perform（包含某些分支不执行 perform 的路径）；
+  - `while`/`loop`/`for` 中的 perform（含 `break`/`continue`），并覆盖 2..N 次 suspension/resume；
+  - perform 前后的局部变量在不同分支/迭代中被读取/更新，resume 后语义一致。
+- 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1606d
+
+### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）显式验证
+- 描述：显式验证 perform 不要求作为 handle body 的“直接语句”，允许出现在被调用函数或闭包中（含多层调用链），且捕获的 continuation 仍精确到外层 handle 边界。
+- 目标：新增 run-pass fixtures 覆盖：
+  - `handle { f() } with ...`，其中 `f()` 内部 perform（含 `f -> g -> perform` 的调用链）；
+  - closure 中 perform（closure 捕获 handle body 中定义的 locals，resume 后继续正确读取/更新这些 locals）；
+  - 组合：在 `if/loop` 中调用闭包/函数触发 perform，验证 lift + pc 恢复正确。
+- 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1606d
+
+### T1606g [TODO] Escape continuation：嵌套 handle 下的 perform 分发（内层 perform 由外层捕获）显式验证
+- 描述：显式验证 nested handle 的 handler stack 分发与 active/inactive 规则：在内层 `handle` 的 body/arm 中触发的 perform，若不被内层匹配，应由外层正确捕获并在 resume 后回到原控制流。
+- 目标：新增 run-pass fixtures 覆盖：
+  - 外层 handle 捕获 EffectB；内层 handle 捕获 EffectA；在内层 body 中 perform EffectB，应由外层处理；
+  - 在内层 handler arm 中 perform EffectB（含间接 perform：arm 调用函数/闭包触发），仍由外层处理；
+  - 组合：outer resume 后继续推进 inner 的多 perform state machine，保证顺序/返回值正确。
+- 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1606d（含 T1608）
+
 ### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
 - 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。
 - 目标：
