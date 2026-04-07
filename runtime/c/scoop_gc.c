@@ -13,6 +13,7 @@
 #include <sched.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "platform/unwind.h"
 #include "scoop_gc_stw_internal.h"
@@ -178,6 +179,16 @@ void scoop_gc_safepoint(void) { scoop_gc_safepoint_common(/*capture_stack_walkin
 void scoop_gc_safepoint_poll(void) {
   // T1505b：把“park 前捕获 stack walking ctx”的新语义落在 poll 上，避免扩大历史 ABI 的语义漂移。
   scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/1);
+}
+
+void *scoop_gc_write_barrier(void *slot_addr, void *value) {
+  if (slot_addr == 0) {
+    return value;
+  }
+
+  // baseline backend：无 nursery/minor 语义，写屏障退化为“写入 slot”本身。
+  (void)memcpy(slot_addr, &value, sizeof(void *));
+  return value;
 }
 
 // enter_native/leave_native（TODO T1505c）：

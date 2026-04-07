@@ -1633,6 +1633,101 @@ void scoop_gc_safepoint_poll(void) {
   scoop_gc_safepoint_common(/*capture_stack_walking_ctx=*/1);
 }
 
+static void scoop_gc_immix_nursery_remove_free_block_unlocked(ScoopGcImmixState *state,
+                                                              ScoopGcImmixBlock *target) {
+  if (state == 0 || target == 0) {
+    return;
+  }
+
+  ScoopGcImmixBlock **link = &state->nursery_free_blocks;
+  while (*link != 0) {
+    ScoopGcImmixBlock *it = *link;
+    if (it != target) {
+      link = &it->next_free;
+      continue;
+    }
+
+    *link = it->next_free;
+    it->next_free = 0;
+    return;
+  }
+}
+
+static void scoop_gc_immix_nursery_promote_block_to_old_unlocked(ScoopGcImmixState *state,
+                                                                 ScoopGcImmixBlock *block) {
+  if (state == 0 || block == 0) {
+    return;
+  }
+  if (block->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+    return;
+  }
+
+  // v0：promote-on-store 采用“整块 block 晋升”的策略：
+  // - 不搬迁对象（避免引入 read barrier / forwarding pointer 语义）；
+  // - minor GC 只需要 reset 仍为 nursery 的 blocks，从而无需 old→nursery remembered set。
+  block->generation = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD;
+
+  if (state->nursery_blocks > 0) {
+    state->nursery_blocks -= 1;
+  }
+
+  if (state->nursery_current_block == block) {
+    // 避免继续在已晋升为 old 的 block 上走 nursery bump 分配路径。
+    state->nursery_current_block = 0;
+  }
+
+  // 若该 block 已在 nursery free list 中，则移除，避免后续被当作 nursery 重用。
+  scoop_gc_immix_nursery_remove_free_block_unlocked(state, block);
+}
+
+void *scoop_gc_write_barrier(void *slot_addr, void *value) {
+  if (slot_addr == 0) {
+    return value;
+  }
+
+  // 与 `scoop_alloc` 一致：写屏障也作为 safepoint（poll）边界，避免 GC 请求 STW 时卡住。
+  void scoop_thread_register(void);
+  void scoop_gc_safepoint_poll(void);
+  scoop_thread_register();
+  scoop_gc_safepoint_poll();
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0 || !state->lock_inited) {
+    (void)memcpy(slot_addr, &value, sizeof(void *));
+    return value;
+  }
+
+  // fast path：绝大多数 store 不会形成 old→nursery 指针，尽量不抢全局锁。
+  ScoopGcImmixBlock *slot_block = scoop_gc_immix_block_from_object(slot_addr);
+  ScoopGcImmixBlock *value_block = scoop_gc_immix_block_from_object(value);
+
+  const uint8_t old = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_OLD;
+  const uint8_t nursery = (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY;
+
+  const uint32_t needs_promote =
+      (slot_block != 0 && value_block != 0 && slot_block->generation == old &&
+       value_block->generation == nursery);
+
+  if (!needs_promote) {
+    (void)memcpy(slot_addr, &value, sizeof(void *));
+    return value;
+  }
+
+  scoop_gc_immix_lock(state);
+
+  // re-check under lock：避免并发 store 重复扣减 nursery_blocks 或重复改写 free list。
+  slot_block = scoop_gc_immix_block_from_object(slot_addr);
+  value_block = scoop_gc_immix_block_from_object(value);
+  if (slot_block != 0 && value_block != 0 && slot_block->generation == old &&
+      value_block->generation == nursery) {
+    scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, value_block);
+  }
+
+  (void)memcpy(slot_addr, &value, sizeof(void *));
+  scoop_gc_immix_unlock(state);
+  return value;
+}
+
 // enter_native/leave_native（TODO T1505c）：
 // - 线程进入 native/extern 前调用 enter_native，切换线程状态为 InNative，并登记 native roots；
 // - 线程从 native 返回后调用 leave_native，清空 roots 并恢复 Running；

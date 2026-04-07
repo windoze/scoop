@@ -206,6 +206,20 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
 void scoop_gc_collect(void);
 
+// --- Write barrier（TODO T1412d） ---
+//
+// 为编译器生成的“引用写入（store）”提供统一写屏障 hook。
+//
+// 约定（v0 promote-on-store）：
+// - `slot_addr` 指向“要写入的引用槽位”的内存地址（slot 本身的地址，而非 `void**` 的二级指针）；
+// - `value` 为要写入的引用值（可为 NULL）；
+// - 返回值：最终写入的值（v0 等于入参 `value`；保留未来升级为“搬迁/重定向后返回新地址”的扩展点）。
+//
+// 注意：
+// - v0 选择用 `memcpy` 写入 slot，避免在某些承载类型为 `uintptr_t` 的场景（例如 Array word slots）
+//   触发严格别名规则的 UB；因此 `slot_addr` 采用 “void* 地址” 而非 “void** 指针”。
+void *scoop_gc_write_barrier(void *slot_addr, void *value);
+
 // --- Pinning（spec §15.10） ---
 //
 // 说明：

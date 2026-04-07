@@ -444,5 +444,7 @@ void scoop_array_set_ref(void *array_obj, int64_t index, void *value) {
     return;
   }
 
-  arr->data[idx] = (uintptr_t)value;
+  // T1412d：引用写入必须走统一写屏障，避免在 Immix nursery 模式下形成 old→nursery 指针。
+  // 注意：Array 的元素槽位为 `uintptr_t`（word slots），因此这里传入 “slot 的地址” 供 barrier 用 memcpy 写回。
+  (void)scoop_gc_write_barrier((void *)&arr->data[idx], value);
 }

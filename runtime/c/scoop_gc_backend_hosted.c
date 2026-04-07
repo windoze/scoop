@@ -18,6 +18,7 @@
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct ScoopThreadTls ScoopThreadTls;
 
@@ -114,6 +115,16 @@ void scoop_gc_safepoint(void) {
 void scoop_gc_safepoint_poll(void) {
   // T1505a：hosted backend 无 STW；poll 与 safepoint 一致为 no-op。
   scoop_gc_safepoint();
+}
+
+void *scoop_gc_write_barrier(void *slot_addr, void *value) {
+  if (slot_addr == 0) {
+    return value;
+  }
+
+  // hosted backend：无 nursery/minor 语义，写屏障退化为“写入 slot”本身。
+  (void)memcpy(slot_addr, &value, sizeof(void *));
+  return value;
 }
 
 // enter_native/leave_native（TODO T1505c）：

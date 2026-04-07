@@ -3546,7 +3546,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         gc_i8_ptr_ty,
                         "cont_state_capture_ref_i8",
                     )?;
-                    let _ = self.builder.build_store(field_ptr, casted)?;
+                    let _ = self.store_local_value(
+                        span,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
                 }
                 CgTy::String => {
                     let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
@@ -3566,7 +3574,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         gc_i8_ptr_ty,
                         "cont_state_capture_str_i8",
                     )?;
-                    let _ = self.builder.build_store(field_ptr, casted)?;
+                    let _ = self.store_local_value(
+                        span,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
                 }
                 CgTy::Bool => {
                     let loaded = self
@@ -11983,9 +11999,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 说明：
         // - closure object 的 type descriptor 会把 `env_ptr` 视为 GC pointer slot；
         // - 若在分配 env 期间发生 safepoint/GC，则必须避免扫描到未初始化的垃圾值。
-        let _ = self
-            .builder
-            .build_store(env_gep, gc_i8_ptr_ty.const_null())?;
+        let _ = self.store_local_value(
+            span,
+            env_gep,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(gc_i8_ptr_ty.const_null().into()),
+            },
+        )?;
 
         // 若有捕获，则分配 env 并写入捕获值；否则 env_ptr 为 NULL。
         let env_i8 = if captures.is_empty() {
@@ -12081,12 +12103,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     (idx + 1) as u32,
                     &format!("capture_gep_{name}"),
                 )?;
-                let _ = self.builder.build_store(field_gep, loaded)?;
+                let v = if cg_ty == CgTy::Unit {
+                    CgValue::unit()
+                } else {
+                    CgValue {
+                        ty: cg_ty,
+                        value: Some(loaded),
+                    }
+                };
+                let _ = self.store_local_value(span, field_gep, cg_ty, v)?;
             }
 
             env_i8
         };
-        let _ = self.builder.build_store(env_gep, env_i8)?;
+        let _ = self.store_local_value(
+            span,
+            env_gep,
+            CgTy::Ref,
+            CgValue {
+                ty: CgTy::Ref,
+                value: Some(env_i8.into()),
+            },
+        )?;
 
         let fn_ptr = llvm_fun.as_global_value().as_pointer_value();
         let fn_i8 = self
@@ -12508,13 +12546,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[desc_i8.into(), size_v.into()],
                 "rt_alloc_enum_boxed_payload",
             )?;
-            let raw = call
-                .try_as_basic_value()
-                .basic()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "scoop_alloc_typed return value (enum boxed payload)",
-                    at: span.into(),
-                })?;
+            let raw =
+                call.try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "scoop_alloc_typed return value (enum boxed payload)",
+                        at: span.into(),
+                    })?;
             let BasicValueEnum::PointerValue(raw_ptr) = raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "scoop_alloc_typed return type (enum boxed payload)",
@@ -19403,6 +19441,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    fn declare_runtime_gc_write_barrier(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = "scoop_gc_write_barrier";
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void* scoop_gc_write_barrier(void* slot_addr, void* value)`
+        //
+        // 说明：
+        // - `slot_addr` 是“slot 的地址”，而非 `void**` 的二级指针；
+        // - v0 采用 promote-on-store，避免 old→nursery 指针；
+        // - 返回值保留扩展点（未来可在需要时返回“写入后的新地址”）。
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
+            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
+        let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     fn declare_runtime_gc_collect_safepoint(&self) -> FunctionValue<'ctx> {
         const NAME: &str = "scoop_gc_collect_safepoint";
         if let Some(existing) = self.module.get_function(NAME) {
@@ -20250,7 +20307,41 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: at.into(),
                     });
                 };
-                let _ = self.builder.build_store(ptr, raw)?;
+                // T1412d：当写入目标位于 GC heap（addrspace(1)）且写入值为 GC ref 时，
+                // 必须走统一写屏障 hook，避免形成 old→nursery 指针（minor GC 的关键前置条件）。
+                //
+                // 注意：locals/alloca 在 addrspace(0)，因此不会触发该分支。
+                if matches!(ty, CgTy::Ref | CgTy::String)
+                    && ptr.get_type().get_address_space() == self.gc_address_space()
+                {
+                    let BasicValueEnum::PointerValue(value_ptr) = raw else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "write barrier value type (ptr)",
+                            at: at.into(),
+                        });
+                    };
+
+                    let wb = self.declare_runtime_gc_write_barrier();
+                    let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+
+                    // `slot_addr`：传入“slot 的地址”即可；runtime 用 memcpy 写回（避免 strict alias UB）。
+                    let slot_addr =
+                        self.builder
+                            .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr")?;
+                    let value_i8 = self.builder.build_pointer_cast(
+                        value_ptr,
+                        gc_i8_ptr_ty,
+                        "gc_wb_value_i8",
+                    )?;
+
+                    let _ = self.builder.build_call(
+                        wb,
+                        &[slot_addr.into(), value_i8.into()],
+                        "gc_write_barrier",
+                    )?;
+                } else {
+                    let _ = self.builder.build_store(ptr, raw)?;
+                }
             }
         }
         Ok(v)

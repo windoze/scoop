@@ -6188,14 +6188,23 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `cargo test --all`
 
-### T1412d [TODO] 写屏障 hook v0：promote-on-store（为后续 remembered set/card table 预留）
+### T1412d [DONE] 写屏障 hook v0：promote-on-store（为后续 remembered set/card table 预留）
 - 描述：为编译器生成的“引用写入（store）”引入统一写屏障 hook；v0 采用 promote-on-store 策略维持不出现 old→nursery 指针，从而让 minor 不必先引入 remembered set/card table。
 - 目标：
   - 屏障入口保持最小：优先一个通用 runtime ABI（例如 `scoop_gc_write_barrier(slot_addr, value)`）供 codegen 调用，避免按类型/容器爆炸。
   - v0 语义允许简单但必须正确：当 old 对象写入 nursery 指针时，屏障负责把值晋升到 old 并写回 slot（或等价策略），确保 minor 期间无需扫描老年代全堆。
   - 为未来升级保留扩展点：同一 hook 可演进为 “remembered set 记录 slot/card” 实现，而不改动 IR/ABI 形状。
-- 验收：新增 run-pass 或 runtime fixture：构造 old 容器写入新对象后触发 minor，仍可正确保活；并回归 `cargo test --all`。
+- 验收：新增 `scoop_runtime` 集成测试：old 容器写入 nursery 指针后，对象所在 nursery block 会被晋升为 old；并回归 `cargo test --all`。
 - 依赖：T1412b（nursery 归属可判定）、T1507a（对象字段 trace 已闭环）
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增写屏障 ABI `scoop_gc_write_barrier(slot_addr, value)`（slot_addr 为“slot 地址”，由 runtime 用 memcpy 写回，避免 strict-alias UB）。
+   - `runtime/c/scoop_gc_backend_immix.c`：实现 promote-on-store（old 写入 nursery 时把“值所在 nursery block”整体晋升为 old），并维护 `nursery_blocks/nursery_current_block/nursery_free_blocks` 的一致性（fast path 尽量不抢锁）。
+   - `runtime/c/scoop_gc.c`/`runtime/c/scoop_gc_backend_minimal.c`/`runtime/c/scoop_gc_backend_hosted.c`：提供可链接实现（退化为 memcpy 写入 slot）。
+   - `runtime/c/scoop_array.c`：`scoop_array_set_ref` 改为走写屏障（Array 元素为 word slots）。
+   - `crates/scoopc/src/llvm/codegen.rs`：当 store 目标在 addrspace(1) 且写入值为 ref/string 时，改为调用 `scoop_gc_write_barrier`（并把 closure env / continuation heap state 的相关 stores 收敛到该路径）。
+   - `crates/scoop_runtime/tests/gc_immix_write_barrier.rs`：新增集成测试回归“old store 触发 nursery block 晋升 + 晋升后仍可继续 nursery 分配”。
+ - 验收：
+   - `cargo test --all`
 
 ### T1412c [TODO] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
 - 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。
