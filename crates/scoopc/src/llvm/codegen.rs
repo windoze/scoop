@@ -1298,6 +1298,159 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    fn fun_ty_effects_is_pure(&self, ty: TypeId) -> Option<bool> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun_ty)) => Some(fun_ty.effects.is_pure()),
+            _ => None,
+        }
+    }
+
+    fn expr_may_perform(&self, expr: &hir::Expr) -> bool {
+        match &expr.kind {
+            hir::ExprKind::Missing
+            | hir::ExprKind::Literal(_)
+            | hir::ExprKind::VarRef(_)
+            | hir::ExprKind::UnresolvedIdent { .. } => false,
+
+            hir::ExprKind::StructLit { fields, .. } => {
+                fields.iter().any(|f| self.expr_may_perform(&f.value))
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                elements.iter().any(|e| self.expr_may_perform(e))
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => parts.iter().any(|p| match p {
+                hir::InterpolatedStringPart::Text { .. } => false,
+                hir::InterpolatedStringPart::Expr { expr } => self.expr_may_perform(expr),
+            }),
+
+            hir::ExprKind::Unary { expr: inner, .. } => self.expr_may_perform(inner),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                self.expr_may_perform(lhs) || self.expr_may_perform(rhs)
+            }
+            hir::ExprKind::TypeCheck { expr: inner, .. } => self.expr_may_perform(inner),
+
+            // `as` 失败会走 `Raise.raise(RuntimeError.ClassCastFailed)` 的语义落点，因此视为 perform 点；
+            // `as?` 不会 raise（失败返回 None），仅递归检查 operand。
+            hir::ExprKind::Cast {
+                expr: inner, op, ..
+            } => match op {
+                ast::CastOp::As => true,
+                ast::CastOp::AsQ => self.expr_may_perform(inner),
+            },
+
+            hir::ExprKind::Block(block) => self.block_may_perform(block),
+            hir::ExprKind::Closure(_) => false,
+
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr_may_perform(cond)
+                    || self.expr_may_perform(then_branch)
+                    || else_branch
+                        .as_ref()
+                        .is_some_and(|e| self.expr_may_perform(e))
+            }
+
+            hir::ExprKind::When { subject, arms } => {
+                if self.expr_may_perform(subject) {
+                    return true;
+                }
+                for arm in arms {
+                    if arm.guard.as_ref().is_some_and(|g| self.expr_may_perform(g)) {
+                        return true;
+                    }
+                    if self.expr_may_perform(&arm.body) {
+                        return true;
+                    }
+                }
+                false
+            }
+
+            // member access 本身不 perform，但 receiver 的求值可能 perform。
+            hir::ExprKind::MemberAccess { receiver, .. } => self.expr_may_perform(receiver),
+
+            hir::ExprKind::Call { callee, args } => {
+                // 实参求值可能包含 perform。
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(e) => {
+                            if self.expr_may_perform(e) {
+                                return true;
+                            }
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            if self.expr_may_perform(value) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                // callee 若是已知顶层函数/方法且 effects 为 Pure，则调用点本身不会触发 flag-based unwinding；
+                // 其它 callee（closure/local/未解析）先按“可能 perform”保守处理，避免误删 handler。
+                let Some(fqn) = self.try_extract_callee_fqn(callee) else {
+                    return true;
+                };
+                let Some(fun) = self.fun_index.get(fqn).copied() else {
+                    return true;
+                };
+                self.fun_ty_effects_is_pure(fun.ty)
+                    .map(|pure| !pure)
+                    .unwrap_or(true)
+            }
+
+            // `perform`/`handle`：直接视为会触发 effect 机制（或其内部可能触发）。
+            hir::ExprKind::Perform { .. } => true,
+            hir::ExprKind::Handle(_) => true,
+
+            hir::ExprKind::Todo(_) => true,
+        }
+    }
+
+    fn try_extract_callee_fqn<'b>(&self, callee: &'b hir::Expr) -> Option<&'b str> {
+        match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+            hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                hir::MemberRef::Fun { fqn, .. } => Some(fqn.as_str()),
+                hir::MemberRef::ExtensionFun { fqn, .. } => Some(fqn.as_str()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn block_may_perform(&self, block: &hir::Block) -> bool {
+        for stmt in &block.stmts {
+            if self.stmt_may_perform(stmt) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn stmt_may_perform(&self, stmt: &hir::Stmt) -> bool {
+        match &stmt.kind {
+            hir::StmtKind::Empty => false,
+            hir::StmtKind::Expr(expr) => self.expr_may_perform(expr),
+            hir::StmtKind::Val(decl) => {
+                decl.init.as_ref().is_some_and(|e| self.expr_may_perform(e))
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                self.expr_may_perform(lhs) || self.expr_may_perform(rhs)
+            }
+            hir::StmtKind::While { cond, body } => {
+                self.expr_may_perform(cond) || self.block_may_perform(body)
+            }
+            // 当前阶段这些语句在 block expression 中不支持；为避免误删 handler，这里保守视为可能 perform。
+            hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Return { .. }
+            | hir::StmtKind::Todo(_) => true,
+        }
+    }
+
     fn effect_trace_line_col(&self, at: crate::span::Span) -> Result<(u32, u32), LlvmEmitError> {
         // 注意：当前阶段 HIR span 仍是“无 file-id 的 byte offsets”，当 codegen 生成跨文件函数体
         //（例如 stdlib/helper 被内联为可 codegen 的顶层函数）时，span 可能不属于入口 `source`。
@@ -1726,6 +1879,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind: "handle needs expected type context",
             at: span.into(),
         })?;
+
+        // T1604：无 perform（含 effectful call）时不生成 handler frame/stack 链接。
+        //
+        // 说明：
+        // - 当前阶段的 effect 传播语义依赖 call-site 的 flag 检查与 handle boundary；
+        // - 若 handle body 内没有任何可能触发 perform 的点，则 arms 永远不可达，因此可直接降为：
+        //   `body; finally?; return body_value`，并避免引入 runtime effect 符号与 handler frame。
+        if !self.block_may_perform(&handle.body) {
+            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+        }
 
         if handle.arms.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -2175,6 +2338,98 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
                 let loaded = self.builder.build_load(llvm_ty, ptr, "handle_result")?;
+                Ok(CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle result type",
+                    at: span.into(),
+                })
+            }
+        }
+    }
+
+    fn codegen_handle_expr_no_perform(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        out_ty: CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // no-perform fast path：不生成 catch/merge CFG，仅保留顺序语义（body -> finally）。
+        let result_ptr = match out_ty {
+            CgTy::Unit => None,
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                Some(self.create_entry_alloca(span, "handle_noperform_result", out_ty)?)
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle result type",
+                    at: span.into(),
+                });
+            }
+        };
+
+        // body
+        let body_v = self.codegen_block_value_in_expected_context(&handle.body, Some(out_ty))?;
+        let body_v = if out_ty == CgTy::Unit {
+            CgValue::unit()
+        } else {
+            self.coerce_value(handle.body.span, body_v, out_ty)?
+        };
+        if let Some(ptr) = result_ptr {
+            let _ = self.store_local_value(handle.body.span, ptr, out_ty, body_v)?;
+        }
+
+        // finally（仅在当前路径可达时执行）
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                if let Some(finally) = handle.finally.as_ref() {
+                    let _ = self.codegen_block_value(finally)?;
+                }
+            }
+        }
+
+        // 若 body/finally 终止了当前块：为后续 codegen 创建一个 dead block。
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        if insert_block.get_terminator().is_some() {
+            let func = insert_block
+                .get_parent()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no parent function",
+                    at: span.into(),
+                })?;
+            let dead = self
+                .context
+                .append_basic_block(func, "handle_noperform_dead");
+            self.builder.position_at_end(dead);
+            return Ok(match out_ty {
+                CgTy::Unit => CgValue::unit(),
+                other => self.default_value(other),
+            });
+        }
+
+        match out_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, ptr, "handle_noperform_value")?;
                 Ok(CgValue {
                     ty: out_ty,
                     value: Some(loaded),
@@ -10581,10 +10836,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_call(leave, &[], "leave_native")?;
         }
 
-        // T0614：flag-based unwinding（最小 Raise）：
-        // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
-        // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
-        self.emit_effect_unwind_if_active(span)?;
+        // T1604：当 callee 的 effects row 为 Pure 时，调用点不应引入 effect flag 检查（避免在 no-perform
+        // 程序里把 runtime effect 符号拉进来）。
+        //
+        // 注意：当前阶段该判断以 HIR lowering 后的 function type 为准；若 future 引入更强的 effect 推断，
+        // 应在 lowering 侧确保 function type 的 effects 与 typecheck 结论一致。
+        let callee_is_pure = self.fun_ty_effects_is_pure(sig_fun.ty).unwrap_or(false);
+        if !callee_is_pure {
+            // flag-based unwinding（最小 Raise）：
+            // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
+            // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
+            self.emit_effect_unwind_if_active(span)?;
+        }
 
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)

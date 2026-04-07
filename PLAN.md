@@ -70,7 +70,7 @@ cargo run -p scoop --features llvm -- test
 
 ### 2.4 HIR/MIR 级优化（cheap wins）
 
-- 无 `perform` 的作用域不生成 `handle` 结构/handler 链接，减少 runtime 开销。
+- DONE（T1604）：无 `perform` 的作用域不生成 `handle` 结构/handler 链接，减少 runtime 开销。
 - 建立“高级优化候选清单”，后续按依赖逐项拆分立项（避免想到哪做哪）。
 
 ### 2.5 Effect/Continuation 完整语义（正确性优先：多次 suspend/resume）

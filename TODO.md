@@ -153,7 +153,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture：验证语义正确（stdout）。
 - 依赖：（历史）对象语义与方法调用链路已存在
 
-### T1604 [TODO] HIR/MIR 级优化 v0：无 `perform` 时不生成 `handle` 结构/帧
+### T1604 [DONE] HIR/MIR 级优化 v0：无 `perform` 时不生成 `handle` 结构/帧
 - 描述：在 lowering/codegen 前进行一次“cheap”静态分析：若某作用域（函数/块）内不存在 `perform`，则不应生成 `handle` 相关的结构体、栈帧或 TLS handler 链接，减少运行时开销。
 - 目标：
   - 只做“没有 perform → 不生成 handle”的消除；不做复杂的跨函数分析或效果推断优化。
