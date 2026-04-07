@@ -104,6 +104,14 @@ pub enum Command {
         #[arg(long = "entry-package", value_name = "PACKAGE")]
         entry_package: Option<String>,
 
+        /// 选择 debug profile（默认；便于脚本化）
+        #[arg(long, conflicts_with = "release")]
+        debug: bool,
+
+        /// 选择 release profile
+        #[arg(long, conflicts_with = "debug")]
+        release: bool,
+
         /// 输出 LLVM IR（`.ll`）
         #[arg(long, conflicts_with_all = ["emit_obj", "emit_asm"])]
         emit_llvm: bool,
@@ -143,6 +151,52 @@ pub enum Command {
 mod tests {
     use super::{Args, Command};
     use clap::Parser as _;
+
+    #[test]
+    fn test_command_parses_build_profile_default() {
+        let args =
+            Args::try_parse_from(["scoop", "build", "tests/fixtures/parse/minimal.scoop"]).unwrap();
+
+        match args.command {
+            Command::Build { debug, release, .. } => {
+                assert!(!debug, "默认不需要显式 `--debug`");
+                assert!(!release, "默认应为 debug profile（release flag 为 false）");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_parses_build_profile_release() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--release",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Build { debug, release, .. } => {
+                assert!(!debug);
+                assert!(release);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_rejects_conflicting_build_profile_flags() {
+        let err = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "--debug",
+            "--release",
+        ])
+        .unwrap_err();
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
 
     #[test]
     fn test_command_parses_run_pass_gc_flags() {

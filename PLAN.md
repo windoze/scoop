@@ -33,7 +33,7 @@ cargo run -p scoop --features llvm -- test
 - 已产出设计：`CONE-IMPROVEMENTS.md`（目录结构 / build 产物 / profile / 增量构建路线）。
 - 近期落地重点（见 TODO T1120~T1124）：
   - `scoop new`（DONE）：生成 `.gitignore`（忽略 `build/`）+ `src/main.scoop` 默认包含 `println`
-  - `scoop build`（DONE：T1121）：默认写入 `build/debug/bin/<project-name>`，中间产物进入 `build/debug/obj/`（并预留 `build/<target>/<profile>/…`）
+  - `scoop build`（DONE：T1121/T1122）：支持 `--debug/--release`；默认写入 `build/debug/bin/<project-name>`，`--release` 写入 `build/release/bin/<project-name>`；中间产物进入 `build/<profile>/obj/`（并预留 `build/<target>/<profile>/…`）
   - `scoop run`：在项目目录下“未构建则先构建再运行”，并支持 `--debug/--release`
   - incremental：先确保输出目录与行为稳定（v0 always rebuild），再做粗粒度 fingerprint 跳过构建（v1），细粒度依赖图后置（v2）
 

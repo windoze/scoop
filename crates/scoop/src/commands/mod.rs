@@ -63,6 +63,8 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             input,
             output,
             entry_package,
+            debug,
+            release,
             emit_llvm,
             emit_obj,
             emit_asm,
@@ -77,12 +79,14 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                 build::BuildEmit::Executable
             };
 
+            let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             build::run(
                 input,
                 output,
                 build::BuildOptions {
                     emit,
                     entry_package,
+                    profile,
                 },
             )
         }

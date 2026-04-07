@@ -82,11 +82,38 @@ pub enum BuildEmit {
     Asm,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BuildProfile {
+    Debug,
+    Release,
+}
+
+impl BuildProfile {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BuildProfile::Debug => "debug",
+            BuildProfile::Release => "release",
+        }
+    }
+
+    pub fn from_debug_release_flags(debug: bool, release: bool) -> Self {
+        // 冲突由 clap 处理；这里保持行为稳定且易于复用（T1122/T1123）。
+        let _ = debug;
+        if release {
+            BuildProfile::Release
+        } else {
+            BuildProfile::Debug
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub emit: BuildEmit,
     /// （cone 包模式）入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）。
     pub entry_package: Option<String>,
+    /// cone build profile（影响默认产物目录布局：`build/<profile>/...`）。
+    pub profile: BuildProfile,
 }
 
 impl Default for BuildOptions {
@@ -94,6 +121,7 @@ impl Default for BuildOptions {
         Self {
             emit: BuildEmit::Executable,
             entry_package: None,
+            profile: BuildProfile::Debug,
         }
     }
 }
@@ -135,6 +163,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
     let BuildOptions {
         emit,
         entry_package,
+        profile,
     } = options;
 
     let input = input
@@ -143,7 +172,8 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         .wrap_err("无法定位输入文件")?;
 
     let input = load_build_input(&input, entry_package)?;
-    let output = output.unwrap_or_else(|| default_output_path_for_input_and_emit(&input, emit));
+    let output =
+        output.unwrap_or_else(|| default_output_path_for_input_and_emit(&input, emit, profile));
     ensure_output_parent_dir(&output)?;
 
     if output.exists() && output.is_dir() {
@@ -165,7 +195,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Executable => {
             // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
             #[cfg(feature = "llvm")]
-            run_codegen_and_link(&session, &front, &output)?;
+            run_codegen_and_link(&session, &front, &output, profile)?;
         }
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
@@ -296,12 +326,16 @@ fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Res
     ))
 }
 
-fn default_output_path_for_input_and_emit(input: &BuildInput, emit: BuildEmit) -> PathBuf {
+fn default_output_path_for_input_and_emit(
+    input: &BuildInput,
+    emit: BuildEmit,
+    profile: BuildProfile,
+) -> PathBuf {
     if emit == BuildEmit::Executable {
         if let (Some(root), Some(manifest)) =
             (input.cone_root.as_ref(), input.cone_manifest.as_ref())
         {
-            return layout::cone_default_exe_path(root, &manifest.cone.name);
+            return layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
         }
     }
     default_output_path_for_emit(emit)
@@ -678,9 +712,10 @@ fn run_codegen_and_link(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     output: &Path,
+    profile: BuildProfile,
 ) -> Result<()> {
     // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
-    // - cone 包：写入 `build/debug/obj/`（profile 先固定为 debug；T1122 再引入 `--release`）。
+    // - cone 包：写入 `build/<profile>/obj/`（由 `scoop build --debug/--release` 控制）。
     // - 单文件模式：仍使用临时目录（保持行为不变）。
     let is_cone = front.input.cone_root.is_some() && front.input.cone_manifest.is_some();
 
@@ -690,7 +725,7 @@ fn run_codegen_and_link(
             .cone_root
             .as_ref()
             .ok_or_else(|| miette::miette!("内部错误：cone build 缺少 cone_root"))?;
-        let dir = layout::cone_obj_dir(root, None, layout::DEFAULT_CONE_BUILD_PROFILE);
+        let dir = layout::cone_obj_dir(root, None, profile.as_str());
         std::fs::create_dir_all(&dir)
             .into_diagnostic()
             .wrap_err_with(|| format!("无法创建 build obj 目录：{}", dir.display()))?;
@@ -1057,7 +1092,7 @@ public fun main() / Pure! {
             Some(out.clone()),
             super::BuildOptions {
                 emit: super::BuildEmit::LlvmIr,
-                entry_package: None,
+                ..super::BuildOptions::default()
             },
         )
         .unwrap();

@@ -8,9 +8,6 @@
 
 use std::path::{Path, PathBuf};
 
-/// v0 默认 profile（T1122 会引入 `--debug/--release` 后再让它可配置）。
-pub(crate) const DEFAULT_CONE_BUILD_PROFILE: &str = "debug";
-
 pub(crate) fn cone_build_dir(cone_root: &Path, target: Option<&str>, profile: &str) -> PathBuf {
     // 目录层级约定：
     // - `build/<profile>/`：默认/host（保持简单，兼容早期习惯）
@@ -37,10 +34,6 @@ pub(crate) fn cone_exe_file_name(project_name: &str) -> String {
     } else {
         format!("{project_name}.{ext}")
     }
-}
-
-pub(crate) fn cone_default_exe_path(cone_root: &Path, project_name: &str) -> PathBuf {
-    cone_exe_path(cone_root, None, DEFAULT_CONE_BUILD_PROFILE, project_name)
 }
 
 pub(crate) fn cone_exe_path(

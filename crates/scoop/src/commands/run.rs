@@ -45,6 +45,7 @@ fn run_for_exit_code(
         super::build::BuildOptions {
             emit: super::build::BuildEmit::Executable,
             entry_package,
+            profile: super::build::BuildProfile::Debug,
         },
     )?;
 

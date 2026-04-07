@@ -75,7 +75,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0101（统一 LLVM 21 基线，避免 build/run 行为在不同 LLVM 版本下漂移）
 
-### T1122 [TODO] build profile：`scoop build --debug/--release` 与默认策略落地
+### T1122 [DONE] build profile：`scoop build --debug/--release` 与默认策略落地
 - 描述：补齐 build profile 的对外接口与行为：默认 debug，`--release` 选择 release，`--debug` 显式选择 debug（便于脚本化）。
 - 目标：
   - CLI 行为要和 `scoop run` 保持一致（共用 profile 解析/默认值）。

@@ -229,74 +229,89 @@ fn run_run_pass_cone_case(
     let exp = FixtureExpectation::from_source(source.text());
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
-        // T1121：cone build 默认产物应写入 `<cone-root>/build/<profile>/...`，这里用默认输出路径做回归断言。
+        // T1121/T1122：cone build 产物应写入 `<cone-root>/build/<profile>/...`；
+        // 这里对 debug/release 两个 profile 都做回归断言。
         let cone_root = case_dir.canonicalize().into_diagnostic()?;
         let manifest = scoopc::cone::ConeManifest::load_from_dir(&cone_root)?;
-        let exe =
-            crate::commands::build::layout::cone_default_exe_path(&cone_root, &manifest.cone.name);
 
         // fixtures 需要自清理：先尽力清掉旧 build 产物，避免“上一次残留”影响本次断言。
         let build_root = cone_root.join("build");
         let _ = std::fs::remove_dir_all(&build_root);
 
-        let build_result = crate::commands::build::run(
-            cone_root.clone(),
-            None,
-            crate::commands::build::BuildOptions::default(),
-        );
+        let run_for_profile = |profile: crate::commands::build::BuildProfile| {
+            let exe = crate::commands::build::layout::cone_exe_path(
+                &cone_root,
+                None,
+                profile.as_str(),
+                &manifest.cone.name,
+            );
 
-        match build_result {
-            Ok(()) => {
-                // 与 run-pass fixtures 一致：未启用 LLVM 时仅做“golden 文件可读性”校验并跳过执行。
-                if !cfg!(feature = "llvm") {
-                    validate_run_pass_golden_files_readable(&expect_file_path, &exp)?;
-                    let _ = std::fs::remove_dir_all(&build_root);
-                    return Ok(());
+            let build_result = crate::commands::build::run(
+                cone_root.clone(),
+                None,
+                crate::commands::build::BuildOptions {
+                    profile,
+                    ..crate::commands::build::BuildOptions::default()
+                },
+            );
+
+            match build_result {
+                Ok(()) => {
+                    // 与 run-pass fixtures 一致：未启用 LLVM 时仅做“golden 文件可读性”校验并跳过执行。
+                    if !cfg!(feature = "llvm") {
+                        validate_run_pass_golden_files_readable(&expect_file_path, &exp)?;
+                        return Ok(());
+                    }
+
+                    if !exe.is_file() {
+                        return Err(box_diagnostic(RunPassConeMissingExe {
+                            path: exe.display().to_string(),
+                            fixture: rel_case.display().to_string(),
+                        }));
+                    }
+
+                    let mut cmd = Command::new(&exe);
+                    cmd.current_dir(case_dir);
+                    cmd.args(&exp.args);
+                    run_pass_env.apply_to_command(&mut cmd);
+                    run_pass::run_fixture_command(rel_case, &expect_file_path, &exp, cmd)
                 }
+                Err(e) => {
+                    // `miette::Report` 本身不实现 `Diagnostic`，这里优先把我们关心的 driver 诊断
+                    // downcast 出来，以便 fixtures 能断言稳定错误码（例如 T1113 的 entry-package 校验）。
+                    let e = match e.downcast::<crate::commands::build::EntryPackageMissingMain>() {
+                        Ok(diag) => return Err(box_diagnostic(diag)),
+                        Err(e) => e,
+                    };
+                    let e = match e
+                        .downcast::<crate::commands::build::EntryPackageMainNotInConsumerCone>()
+                    {
+                        Ok(diag) => return Err(box_diagnostic(diag)),
+                        Err(e) => e,
+                    };
+                    let e = match e.downcast::<crate::commands::build::EntryPackageOnlyForCone>() {
+                        Ok(diag) => return Err(box_diagnostic(diag)),
+                        Err(e) => e,
+                    };
 
-                if !exe.is_file() {
-                    let _ = std::fs::remove_dir_all(&build_root);
-                    return Err(box_diagnostic(RunPassConeMissingExe {
-                        path: exe.display().to_string(),
+                    Err(box_diagnostic(RunPassConeBuildFailed {
+                        message: format!("[profile:{}] {}", profile.as_str(), e),
                         fixture: rel_case.display().to_string(),
-                    }));
+                    }))
                 }
-
-                let mut cmd = Command::new(&exe);
-                cmd.current_dir(case_dir);
-                cmd.args(&exp.args);
-                run_pass_env.apply_to_command(&mut cmd);
-                let out = run_pass::run_fixture_command(rel_case, &expect_file_path, &exp, cmd);
-
-                let _ = std::fs::remove_dir_all(&build_root);
-                out
             }
-            Err(e) => {
-                let _ = std::fs::remove_dir_all(&build_root);
+        };
 
-                // `miette::Report` 本身不实现 `Diagnostic`，这里优先把我们关心的 driver 诊断
-                // downcast 出来，以便 fixtures 能断言稳定错误码（例如 T1113 的 entry-package 校验）。
-                let e = match e.downcast::<crate::commands::build::EntryPackageMissingMain>() {
-                    Ok(diag) => return Err(box_diagnostic(diag)),
-                    Err(e) => e,
-                };
-                let e = match e
-                    .downcast::<crate::commands::build::EntryPackageMainNotInConsumerCone>()
-                {
-                    Ok(diag) => return Err(box_diagnostic(diag)),
-                    Err(e) => e,
-                };
-                let e = match e.downcast::<crate::commands::build::EntryPackageOnlyForCone>() {
-                    Ok(diag) => return Err(box_diagnostic(diag)),
-                    Err(e) => e,
-                };
+        let out = match exp.expect {
+            // `EXPECT: pass`：要求 debug/release 两个 profile 都能 build，并且产物可运行。
+            Expect::Pass => run_for_profile(crate::commands::build::BuildProfile::Debug)
+                .and_then(|()| run_for_profile(crate::commands::build::BuildProfile::Release)),
+            // `EXPECT: fail`：只跑默认 profile（避免重复执行让诊断匹配更难定位）。
+            Expect::Fail => run_for_profile(crate::commands::build::BuildProfile::Debug),
+        };
 
-                Err(box_diagnostic(RunPassConeBuildFailed {
-                    message: e.to_string(),
-                    fixture: rel_case.display().to_string(),
-                }))
-            }
-        }
+        let _ = std::fs::remove_dir_all(&build_root);
+        out
     })();
 
     match (exp.expect, result) {
@@ -785,7 +800,7 @@ fn build_fixture(
         Some(out.clone()),
         crate::commands::build::BuildOptions {
             emit,
-            entry_package: None,
+            ..crate::commands::build::BuildOptions::default()
         },
     )
     .map_err(|e| {
