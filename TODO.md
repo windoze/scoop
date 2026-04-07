@@ -10,6 +10,8 @@
   - `[BLOCKED]`：依赖未满足（例如缺文件/缺前置能力）
   - `[DONE]`：已完成（短版 TODO 一般不搬运历史 DONE）
 - 每个任务包含：**描述 / 目标 / 验收 / 依赖**。
+- 术语（类型系统）：
+  - `Nothing`：bottom / uninhabited type。它是任意类型的子类型（`Nothing <: T`），但在运行时**不会产生值**；返回类型为 `Nothing` 的函数/表达式不会“正常返回”。后端若需要为工程实现引入某种占位表示，也必须保证该值永不可被观察（仅用于不可达路径的 IR 连通）。
 
 常用验收命令：
 
@@ -40,6 +42,43 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
   - `cargo run -p scoop --features llvm -- test`（使用 LLVM 21）
+- 依赖：无
+
+### T0102 [TODO] LLVM：重构 `crates/scoopc/src/llvm/codegen.rs`（拆分模块，降低维护成本）
+- 描述：`crates/scoopc/src/llvm/codegen.rs` 已超过 20K 行，包含类型布局、表达式/语句 codegen、runtime ABI glue、GC/statepoint 约束、effect/continuation 等多块逻辑，导致：
+  - 定位/修改成本高（跨区段耦合、helper 零散）；
+  - 新人/回归排查困难（同一概念的实现分散在文件各处）；
+  - 增量补齐能力（例如 T1610/T1612）容易引入重复逻辑或遗漏边界。
+- 目标：
+  - 将 `codegen.rs` 拆分为若干职责清晰的子模块（示例：`types.rs`/`layout.rs`/`expr.rs`/`stmt.rs`/`control_flow.rs`/`effect.rs`/`gc.rs`/`runtime_abi.rs`/`util.rs`），并在 `crates/scoopc/src/llvm/mod.rs` 中以清晰的结构组织导出。
+  - 以“行为不变”为前提进行重构：不改变 codegen 语义、不改 ABI、不改现有错误消息文本（除非明确作为独立任务）。
+  - 抽取并集中关键不变量与入口点：例如 `CgTy`/`CgValue`、`cg_ty_of`、`llvm_basic_type_of`、runtime 符号声明、effect handler stack 操作等，避免循环依赖与隐藏耦合。
+  - 降低局部变更的影响半径：让后续任务（如 T1610/T1611/T1612）可以在明确的模块边界内实现与回归。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - （可选但推荐）`cargo run -p scoop --features llvm -- test`
+  - 代码组织层面：
+    - 单个文件不再承载“所有 codegen 逻辑”；新增模块数量与命名能直观反映职责；
+    - 关键入口（main codegen / expr codegen / runtime decls）有明确的模块归属与导航路径。
+- 依赖：无（但建议在 LLVM 21 基线下推进以减少环境噪声；见 T0101）
+
+### T0103 [TODO] HIR lowering：重构 `crates/scoopc/src/hir/lower.rs`（拆分模块，降低维护成本）
+- 描述：`crates/scoopc/src/hir/lower.rs` 已超过 6K 行，承载了 AST→HIR lowering 的大量逻辑（语法糖/特殊 case、block/stmt/expr lowering、内建与 sysroot 约定、以及若干“为可回归而做的早期阶段特判”）。随着特性增加，该文件：
+  - 修改容易产生连锁影响（同一概念的 lowering 分散在多个 helper 中）；
+  - 复用/测试困难（缺少清晰的子模块边界与可单测的最小单元）；
+  - 为后续任务（例如更完整的控制流 lowering、effects/closures 相关 lowering）引入维护负担。
+- 目标：
+  - 将 `lower.rs` 拆分为若干职责清晰的子模块（示例：`lower/mod.rs` + `lower/block.rs`/`lower/stmt.rs`/`lower/expr.rs`/`lower/patterns.rs`/`lower/types.rs`/`lower/sugar.rs`/`lower/util.rs`），并在 `crates/scoopc/src/hir/mod.rs` 或 `crates/scoopc/src/hir/lower/mod.rs` 中组织入口。
+  - 保持行为不变：AST/HIR 结构、span 选择、以及既有 fixtures 的 HIR dump 输出尽量保持稳定（除非作为独立任务明确允许变更）。
+  - 收拢“阶段性特判/兼容逻辑”：把 early-stage 的临时约束集中到少数模块/函数中，并显式标注任务号（避免散落在各处难以清理）。
+  - 为未来拆分单测留出口：让核心 lowering 单元可以在 Rust 测试里以小输入（AST 片段）验证产物（即使暂时不新增测试，也要让结构上具备可测性）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - 代码组织层面：
+    - `crates/scoopc/src/hir/lower.rs` 不再是巨型单文件；lowering 的主要职责边界可通过目录/文件名直观看到；
+    - 入口/数据结构位置清晰，避免循环依赖与 `pub(crate)` 漫延。
 - 依赖：无
 
 ---
@@ -276,6 +315,38 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：在多次 `await` 的 handle 外层加 `finally`，用 stdout 断言 `finally` 的执行次数/顺序；并在 `--gc-stress` 下稳定。
   - 复跑 try/catch/finally 相关 fixtures，确保无回归。
 - 依赖：T1606、T1608（需要统一 dispatch/unwind 语义作为基础）
+
+### T1610 [TODO] LLVM：控制流表达式返回任意类型（`handle`/`if`/`when` 支持 tuple/struct/enum）
+- 描述：当前 LLVM codegen 对 `handle`/`if`/`when` 的结果类型仍是“标量子集”：只支持 `Unit/Bool/Int/String/Ref`，对 `tuple/struct/enum` 直接报错（例如 `handle result type` / `if result type` / `when result type`）。这与语言层面“表达式可返回任意类型”的预期不一致，也迫使 fixtures/stdlib 在一些位置用 workaround（例如把结果塞进 `Any` 或拆成多段语句）。
+- 目标：
+  - `handle { ... } with { ... }` 作为表达式：结果类型覆盖 `Unit/Bool/Int/String/Ref/tuple/struct/enum`（值类型以 by-value aggregate 形式返回/传递，ref/string 仍按 GC 指针）。
+  - 同步放开 `if` 与 `when` 的结果类型限制（否则 handle body / arm 中的常见写法仍会因 `if/when` 结果类型受限而卡住）。
+  - 统一 merge 策略并与 GC/statepoint 对齐：优先用 result slot（`alloca` + store + merge load）覆盖所有非 `Unit` 类型，避免为复合值单独引入多套 PHI/SSA 规则；并显式验证聚合值中包含 GC ref 时，SROA/statepoint rewrite 后 roots 仍可追踪/更新（moving GC 下不可漏扫）。
+- 验收：
+  - 新增 run-pass fixtures：`handle`/`if`/`when` 返回 `tuple/struct/enum` 的最小可观测用例（stdout 断言），并在 `--gc-stress` 下稳定。
+  - （可选）新增 build fixtures：`--emit-llvm` 对关键 IR 形态做 contains/not-contains 断言（例如避免 ptr<->int 编码、确认 result slot/aggregate load/store 形态稳定）。
+- 依赖：无（但建议与 T1606/T1607/T1608 的 GC/effect 回归一起跑，以尽早暴露“复合值 + statepoint”交互问题）
+
+### T1611 [TODO] LLVM：语句位置的 `handle` 不应依赖“期望类型语境” workaround
+- 描述：当前 LLVM codegen 的 `handle` 必须在“期望类型语境”（expected type context）下生成；但 `StmtKind::Expr`（表达式语句）路径会直接走 `codegen_expr(expr)`，导致 `handle { ... } with { ... }` 作为语句时报错，于是 fixtures 只能写 `val _: Unit = handle { ... } ...` 来人为提供 expected `Unit`。
+- 目标：
+  - 统一语句位置的语义：表达式语句的值应被丢弃，因此在 LLVM codegen 里应默认以 `Unit` 作为 expected（对 `handle/if/when/perform` 等都一致），而不是要求源码额外引入 `val _: Unit = ...` 绑定。
+  - 梳理所有 statement codegen 入口（普通 block、loop body、handle resume body 等），确保它们不会意外走到“expected = None”而触发不必要的限制。
+- 验收：
+  - 新增 run-pass fixture：`handle { ... } with { ... }` 作为**裸表达式语句**出现（不写 `val _: Unit = ...`），stdout 可断言且在 `--gc-stress` 下稳定。
+  - （可选）清理既有 fixtures：将“仅用于提供 expected type context”的 `val ignore/_: Unit = handle { ... }` workaround 移除或缩减到确有语义必要的场景。
+- 依赖：无
+
+### T1612 [TODO] LLVM：`Nothing`（bottom type）在 codegen 的表示与不变量（值永不可见）
+- 描述：`Nothing` 是 bottom / uninhabited type：它没有运行时值；任何返回类型为 `Nothing` 的函数都不应“正常返回”（只能通过 `Raise.raise`、无限循环、或其它控制流终止）。当前 LLVM codegen 侧尚未为 `Nothing` 提供一致的 `CgTy` 表示（`cg_ty_of` 也未覆盖它），同时许多“不可达 continuation block”会用 `default_value(...)` 产生占位值以维持 IR 生成推进，这在放开复合值返回后需要更明确的约束与实现策略。
+- 目标：
+  - 明确并固化后端不变量：`Nothing` 的值不可被 store/load/return/observed；若后端内部需要占位表示，只能用于不可达路径的 IR 连通（例如 dead block），且不得影响可达语义。
+  - 设计 `Nothing` 的 codegen 表示策略（例如引入 codegen-only 的 `Never`/`Unreachable` 形态，或将 `Nothing` 映射为一个“不可观察占位类型”并在关键点强制 `unreachable`），并补齐 `cg_ty_of` / `default_value` / merge 逻辑对该策略的适配。
+  - 审计 `default_value(...)` 的使用点：对 tuple/struct/enum 等复合类型提供可生成的占位 LLVM 值（例如 `undef`/zero initializer），同时确保这些占位仅在不可达路径被使用，不要求提供语言层面可观察语义。
+- 验收：
+  - 新增 run-pass fixtures：显式覆盖 `Nothing` 的典型来源（例如 `Raise.raise`、永不返回的 helper），并验证在 try/catch/handle 边界内外均不会出现“读取/打印/返回 Nothing 值”的路径。
+  - 新增/更新 build fixtures（可选）：在 `--emit-llvm` 下断言关键位置出现 `unreachable` 或等价形态，避免生成“可达但未初始化/乱值”的 IR。
+- 依赖：T1610（复合值 result + default_value 互相牵连，建议一起推进）
 
 ---
 
