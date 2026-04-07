@@ -75,7 +75,8 @@ pub fn host_target_machine_with_opt_level(
     let inkwell_opt_level = match opt_level {
         OptLevel::O0 => OptimizationLevel::None,
         OptLevel::O1 => OptimizationLevel::Less,
-        // `Os/Oz` 的 size pipeline 属于后续任务（T1602）；当前先按 codegen O2 处理，保持语义一致。
+        // `Os/Oz`：inkwell 的 `OptimizationLevel` 不区分 size 优化，因此 codegen 侧仍落到 O2（Default）。
+        // PassBuilder 的 size pipeline 由后端单独处理（`default<Os>`/`default<Oz>`；见 T1602）。
         OptLevel::O2 | OptLevel::Os | OptLevel::Oz => OptimizationLevel::Default,
         OptLevel::O3 => OptimizationLevel::Aggressive,
     };

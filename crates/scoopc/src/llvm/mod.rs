@@ -182,6 +182,32 @@ pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
     Ok(())
 }
 
+/// 基于 `hir::LoweredHir` 生成最小 LLVM IR，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+///
+/// 与 `emit_minimal_main_ir_to_file_from_lowered_hir_with_entry` 的区别：
+/// - 该版本会按 `opt_level` 运行 LLVM PassBuilder pipeline（包含 statepoint 重写），确保 `--emit-llvm`
+///   的输出能反映优化等级差异，便于 build fixtures 断言与回归。
+pub fn emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
+    let context = Context::create();
+    let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
+
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
+
+    let ir = module.print_to_string().to_string();
+    std::fs::write(output, ir).map_err(|e| LlvmEmitError::WriteLlFailed {
+        path: output.to_path_buf(),
+        source: e,
+    })?;
+    Ok(())
+}
+
 /// 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
 pub fn emit_minimal_main_obj_to_file(
     session: &Session,
@@ -210,7 +236,7 @@ pub fn emit_minimal_main_obj_to_file_with_opt_level(
     let module = build_minimal_main_module(session, source, &context)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
@@ -252,7 +278,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
     let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
@@ -296,7 +322,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
     let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
         .map_err(|e| LlvmEmitError::WriteObjFailed {
@@ -334,7 +360,7 @@ pub fn emit_minimal_main_asm_to_file_with_opt_level(
     let module = build_minimal_main_module(session, source, &context)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
         .map_err(|e| LlvmEmitError::WriteAsmFailed {
@@ -376,7 +402,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
     let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
         .map_err(|e| LlvmEmitError::WriteAsmFailed {
@@ -420,7 +446,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
     let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
     let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
-    run_statepoint_pass_pipeline(&module, &target_machine)?;
+    run_pass_pipeline(&module, &target_machine, opt_level)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
         .map_err(|e| LlvmEmitError::WriteAsmFailed {
@@ -636,26 +662,27 @@ fn build_main_module_from_lowered_hir<'ctx>(
     Ok(module)
 }
 
-fn run_statepoint_pass_pipeline<'ctx>(
+fn run_pass_pipeline<'ctx>(
     module: &inkwell::module::Module<'ctx>,
     target_machine: &inkwell::targets::TargetMachine,
+    opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     // 说明：
     // - T1503b：从手工 stackmap probe 迁移到 statepoint 产出的 stackmaps；
     // - C2a：在 statepoint 重写前跑 SROA，把“聚合值里的 GC ref 字段”拆解为可追踪 SSA 值，
     //   避免需要在源码里手工提取字段 keepalive。
+    // - T1602：按 opt-level 启用 LLVM 默认优化 pipeline；同时保证大多数优化发生在 statepoint 重写之前。
     // - `rewrite-statepoints-for-gc` 会把带 `gc "<strategy>"` 的函数内调用点重写为 statepoints，
     //   并产出 stackmap records（用于 runtime 枚举/更新 spill slots roots）。
     // - 注意：LLVM 18.1.8（Homebrew）下 `place-safepoints` pass 会在 `opt` 上稳定触发 SIGSEGV，
     //   因此当前阶段不应把它纳入默认管线；需要 safepoint placement 时再结合上游修复/替代方案接入。
-    const PASSES: &str = "function(sroa,mem2reg),rewrite-statepoints-for-gc";
-
+    let passes = llvm_pass_pipeline_for_opt_level(opt_level);
     let options = PassBuilderOptions::create();
     options.set_verify_each(true);
     module
-        .run_passes(PASSES, target_machine, options)
+        .run_passes(passes.as_str(), target_machine, options)
         .map_err(|e| LlvmEmitError::RunPassesFailed {
-            passes: PASSES.to_string(),
+            passes: passes.clone(),
             message: e.to_string(),
         })?;
 
@@ -666,6 +693,32 @@ fn run_statepoint_pass_pipeline<'ctx>(
         })?;
 
     Ok(())
+}
+
+fn llvm_pass_pipeline_for_opt_level(opt_level: OptLevel) -> String {
+    let default_pipeline = match opt_level {
+        OptLevel::O0 => None,
+        OptLevel::O1 => Some("default<O1>"),
+        OptLevel::O2 => Some("default<O2>"),
+        OptLevel::O3 => Some("default<O3>"),
+        OptLevel::Os => Some("default<Os>"),
+        OptLevel::Oz => Some("default<Oz>"),
+    };
+
+    let mut passes = String::new();
+    if let Some(default_pipeline) = default_pipeline {
+        passes.push_str(default_pipeline);
+        passes.push(',');
+    }
+
+    // GC/statepoint 约束：大多数优化放在 rewrite 之前；rewrite 之后只跑轻量清理，避免在
+    // `gc.statepoint/gc.relocate` 之后引入更多不确定性。
+    passes.push_str("function(sroa,mem2reg),rewrite-statepoints-for-gc");
+    if opt_level != OptLevel::O0 {
+        passes.push_str(",function(instcombine,simplifycfg)");
+    }
+
+    passes
 }
 
 #[cfg(test)]
@@ -1718,8 +1771,9 @@ fun main(): Int {
 
         let context = Context::create();
         let module = build_minimal_main_module(&session, &source, &context).unwrap();
-        let (target_machine, _target_info) = target::host_target_machine().unwrap();
-        run_statepoint_pass_pipeline(&module, &target_machine).unwrap();
+        let (target_machine, _target_info) =
+            target::host_target_machine_with_opt_level(OptLevel::O0).unwrap();
+        run_pass_pipeline(&module, &target_machine, OptLevel::O0).unwrap();
 
         let ir = module.print_to_string().to_string();
         assert!(

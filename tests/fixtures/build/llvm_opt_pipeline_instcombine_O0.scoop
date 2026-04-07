@@ -1,0 +1,22 @@
+// EXPECT: pass
+// ARGS: --emit-llvm -O0
+// BUILD-LLVM-CONTAINS: 123456789
+// BUILD-LLVM-CONTAINS: llvm.experimental.gc.statepoint
+//
+// 目标：T1602（O0 vs O2）回归证据
+// - O0：不启用 LLVM 默认优化 pipeline，应保留可被 instcombine 简化的模式。
+// - 同时确保 statepoint rewrite 仍然生效（能看到 gc.statepoint）。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun roundtrip(x: Int): Int {
+    val y: Int = x + 123456789
+    return y - 123456789
+}
+
+fun main(): Int {
+    val _: Any = 1
+    return roundtrip(7)
+}

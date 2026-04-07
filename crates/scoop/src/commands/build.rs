@@ -276,11 +276,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir_with_entry(
+                scoopc::llvm::emit_minimal_main_ir_to_file_from_lowered_hir_with_entry_with_opt_level(
                     front.main_source(),
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
+                    opt_level,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]

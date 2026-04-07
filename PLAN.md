@@ -49,8 +49,10 @@ cargo run -p scoop --features llvm -- test
 
 ### 2.2 LLVM pipeline（DCE/inlining/unroll 等）
 
-- 以 LLVM 默认 pipeline 为主，按 opt-level 启用常见 passes（DCE、inline、loop unroll、SROA 等）。
-- 用 `--emit-llvm` + build fixtures（contains/not-contains）提供最小“优化确实发生”的回归证据。
+- DONE（T1602）：LLVM 后端按 opt-level 运行 PassBuilder pipeline：
+  - `-O0`：仅跑 statepoint rewrite 前置（`sroa,mem2reg`）+ `rewrite-statepoints-for-gc`，尽量保持 IR 可读。
+  - `-O1/-O2/-O3/Os/Oz`：先跑 `default<…>`，再跑 statepoint rewrite；rewrite 之后仅做轻量清理（`instcombine,simplifycfg`）。
+- 用 `--emit-llvm` + build fixtures（contains/not-contains）提供最小“优化确实发生”的回归证据；build fixtures 允许在 `// ARGS:` 里声明 `-O.../--opt-level` 固定单个 fixture 的优化等级。
 - 低复杂度但高收益优先级（建议先接入再微调顺序）：
   - 必备清理：`instcombine`、`simplifycfg`
   - 早期冗余/内存优化：`early-cse`、`dse`、`dce`（必要时 `adce`）、`sccp`

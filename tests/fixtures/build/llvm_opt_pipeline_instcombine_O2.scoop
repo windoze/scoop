@@ -1,0 +1,22 @@
+// EXPECT: pass
+// ARGS: --emit-llvm -O2
+// BUILD-LLVM-NOT-CONTAINS: 123456789
+// BUILD-LLVM-CONTAINS: llvm.experimental.gc.statepoint
+//
+// 目标：T1602（O0 vs O2）回归证据
+// - O2：启用 `default<O2>` pipeline 后，应能通过 instcombine/simplifycfg 等把 `(x+C)-C` 简化为 `x`，
+//   因此 IR 中不应再出现常量 `123456789`。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun roundtrip(x: Int): Int {
+    val y: Int = x + 123456789
+    return y - 123456789
+}
+
+fun main(): Int {
+    val _: Any = 1
+    return roundtrip(7)
+}

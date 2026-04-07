@@ -122,7 +122,7 @@ cargo run -p scoop --features llvm -- test
   - 端到端：新增 `tests/fixtures/run_pass_cone/**` 用例分别在 `-O0` 与 `-O2` 下可构建并运行（语义一致）。
 - 依赖：T0101；（历史）LLVM build/run 链路已可用；细节见 `TODO-1.md` 的相关任务
 
-### T1602 [TODO] LLVM 优化流水线：按 opt-level 启用常见 passes（DCE/inlining/unroll 等）
+### T1602 [DONE] LLVM 优化流水线：按 opt-level 启用常见 passes（DCE/inlining/unroll 等）
 - 描述：基于 LLVM PassBuilder（`Module::run_passes`）按优化等级启用/禁用常见优化 passes，优先引入“低复杂度但高收益”的 IR 清理与 DCE/CSE/DSE，并在 release 下逐步接入更重的全局优化。
 - 目标：
   - `-O0`：尽量保持 IR 可读与可调试（最小化优化）。

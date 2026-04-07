@@ -757,6 +757,83 @@ struct BuildLlvmIrAssertRequiresEmitLlvm {
     fixture: String,
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures 指令缺少 opt-level 参数值（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_missing_opt_level_value))]
+struct BuildMissingOptLevelValue {
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures 指令包含无效的 opt-level：{value}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_invalid_opt_level))]
+struct BuildInvalidOptLevel {
+    value: String,
+    fixture: String,
+}
+
+fn parse_opt_level_from_fixture_args(
+    args: &[String],
+    fixture_path: &Path,
+) -> std::result::Result<Option<OptLevel>, Box<dyn miette::Diagnostic>> {
+    let mut iter = args.iter().peekable();
+    while let Some(arg) = iter.next() {
+        // 支持 `-O2` / `-Os` / `-Oz`
+        if let Some(rest) = arg.strip_prefix("-O") {
+            if rest.is_empty() {
+                // 支持 `-O 2`
+                let Some(value) = iter.next() else {
+                    return Err(box_diagnostic(BuildMissingOptLevelValue {
+                        fixture: fixture_path.display().to_string(),
+                    }));
+                };
+                return OptLevel::parse(value)
+                    .map(Some)
+                    .map_err(|e| {
+                        box_diagnostic(BuildInvalidOptLevel {
+                            value: e.value,
+                            fixture: fixture_path.display().to_string(),
+                        })
+                    });
+            }
+
+            return OptLevel::parse(rest).map(Some).map_err(|e| {
+                box_diagnostic(BuildInvalidOptLevel {
+                    value: e.value,
+                    fixture: fixture_path.display().to_string(),
+                })
+            });
+        }
+
+        // 支持 `--opt-level 2`
+        if arg == "--opt-level" {
+            let Some(value) = iter.next() else {
+                return Err(box_diagnostic(BuildMissingOptLevelValue {
+                    fixture: fixture_path.display().to_string(),
+                }));
+            };
+            return OptLevel::parse(value).map(Some).map_err(|e| {
+                box_diagnostic(BuildInvalidOptLevel {
+                    value: e.value,
+                    fixture: fixture_path.display().to_string(),
+                })
+            });
+        }
+
+        // 支持 `--opt-level=2`
+        if let Some(rest) = arg.strip_prefix("--opt-level=") {
+            return OptLevel::parse(rest).map(Some).map_err(|e| {
+                box_diagnostic(BuildInvalidOptLevel {
+                    value: e.value,
+                    fixture: fixture_path.display().to_string(),
+                })
+            });
+        }
+    }
+
+    Ok(None)
+}
+
 fn build_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
@@ -794,6 +871,10 @@ fn build_fixture(
     if !cfg!(feature = "llvm") {
         return Ok(());
     }
+
+    // 约定：build fixtures 可通过 `// ARGS: -O2` / `--opt-level 2` 在单个 fixture 内固定优化等级，
+    // 用于回归“优化确实发生”（T1602）。全局 `scoop test -O...` 仍然优先级更高。
+    let opt_level = opt_level.or(parse_opt_level_from_fixture_args(&exp.args, fixture_path)?);
 
     let mut out = PathBuf::from("target/fixtures").join(rel_fixture);
     let ext = match emit {
