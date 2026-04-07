@@ -199,7 +199,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
 
-### T1606b [TODO] Escape continuation：允许 perform 非首语句（仍单 perform）
+### T1606b [DONE] Escape continuation：允许 perform 非首语句（仍单 perform）
 - 描述：取消“perform 必须是 block 第一个语句”的限制；允许在 perform 前存在普通语句（val/assign/expr）。
 - 目标：补齐 capture：把 perform 前引入且在 perform 后仍需使用的 locals lift 到 heap state，并在 step trampoline 中恢复。
 - 验收：新增 run-pass fixture：perform 前后各有语句，resume 后能读到 pre-perform locals。

@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_perform_not_first_statement.stdout
+//
+// 目标：T1606b
+// - escape continuation（`, k ->`）允许 perform 不是 block 的第一个语句；
+// - perform 前引入的 locals（这里是 `pre`）在 resume 后仍可被读取。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun main() {
+    var saved: Continuation<Int>? = None()
+
+    // 注意：当前 LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val ignore: Unit = ...` 的形式提供。
+    val ignore: Unit = handle {
+        val pre: Int = 7
+        println("before_perform")
+
+        val x: Int = Yield.next()
+
+        println("after_perform")
+        println(pre)
+        println(x)
+    } with {
+        Yield.next(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            // `resume` 在类型系统里可能抛 `RuntimeError`；用 try/catch 维持 `main` 的 Pure 约束。
+            val _resume: Unit = try {
+                k.resume(42)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+}

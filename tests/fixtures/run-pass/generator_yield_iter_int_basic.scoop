@@ -24,7 +24,7 @@ fun main(): Int {
     //
     // 注意：LLVM codegen 的 `handle` 需要期望类型语境；这里用 `val _: Unit = ...` 提供。
     val _run: Unit = handle {
-        // 约束：escape continuation 的 perform 点必须是 block 的第一个语句（当前阶段实现限制）。
+        // 约束：当前阶段 escape continuation 仍只支持单 perform 点，并要求 perform 绑定到 `val`。
         val _x: Int = Yield.yield(1)
 
         // 继续推进（resume 后执行）：

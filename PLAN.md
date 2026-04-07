@@ -156,7 +156,7 @@ cargo run -p scoop --features llvm -- test
   - `finally` 组合语义补齐：在 suspend/resume/传播路径上不漏执行、不重复执行。
 - 落地顺序（T1606 已拆分为子任务 T1606a~T1606d）：
   - T1606a（DONE）：0 perform 时退化执行 body（arm 不可达）
-  - T1606b：取消“perform 必须首语句”（补齐 capture/lift）
+  - T1606b（DONE）：取消“perform 必须首语句”（补齐 capture/lift）
   - T1606c：多 perform（pc + heap state machine）
   - T1606d：多 perform + 动态上下文/GC 回归加固
 - 设计要点（implementation-level 约束）：

@@ -3271,11 +3271,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 仅支持单个 arm（在外层已校验）；
         // - 对匹配当前 arm 的 op：
         //   - 0 个 perform：退化为顺序执行 `body`（以及 `finally`，若存在），arm 不可达（T1606a）；
-        //   - 1 个 perform：当前仍要求为 block 的第一个语句（后续 T1606b 解除）；
+        //   - 1 个 perform：允许在 perform 前存在普通语句（val/assign/expr，T1606b）；
         // - heap state machine 先只承载 handler frame，并用 step trampoline 执行 perform 之后的剩余语句；
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
 
-        // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform` 且位于 block 首语句）。
+        // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform`）。
         let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
             None;
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
@@ -3319,12 +3319,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle finally (escape continuation)",
                 at: span.into(),
-            });
-        }
-        if perform_idx != 0 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle escape body (perform must be first statement)",
-                at: handle.body.span.into(),
             });
         }
         if perform_op.fqn != arm.op.op.fqn {
@@ -3376,6 +3370,167 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
 
+        // 1.5) 计算 perform 之后会用到的 locals（用于决定必须 lift 到 heap state 的 capture 集合）。
+        //
+        // 说明：
+        // - step trampoline 执行在“原函数栈已不存在”的异步时刻；
+        // - 因此：perform 之后引用到的“外层 locals / perform 前 locals”必须从 heap state 恢复；
+        // - perform 之后新引入的 locals（val/var）会在 step 内按顺序声明，不需要 capture。
+        fn collect_used_locals_in_block(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
+            for stmt in &block.stmts {
+                collect_used_locals_in_stmt(stmt, out);
+            }
+        }
+
+        fn collect_used_locals_in_stmt(stmt: &hir::Stmt, out: &mut HashSet<hir::SymbolId>) {
+            match &stmt.kind {
+                hir::StmtKind::Empty
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {}
+                hir::StmtKind::Expr(expr) => collect_used_locals_in_expr(expr, out),
+                hir::StmtKind::Val(decl) => {
+                    if let Some(init) = &decl.init {
+                        collect_used_locals_in_expr(init, out);
+                    }
+                }
+                hir::StmtKind::Assign { lhs, rhs, .. } => {
+                    collect_used_locals_in_expr(lhs, out);
+                    collect_used_locals_in_expr(rhs, out);
+                }
+                hir::StmtKind::While { cond, body } => {
+                    collect_used_locals_in_expr(cond, out);
+                    collect_used_locals_in_block(body, out);
+                }
+                hir::StmtKind::Return { value } => {
+                    if let Some(v) = value {
+                        collect_used_locals_in_expr(v, out);
+                    }
+                }
+            }
+        }
+
+        fn collect_used_locals_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
+            match &expr.kind {
+                hir::ExprKind::Missing
+                | hir::ExprKind::Literal(_)
+                | hir::ExprKind::UnresolvedIdent { .. }
+                | hir::ExprKind::Todo(_) => {}
+                hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                    out.insert(*id);
+                }
+                hir::ExprKind::VarRef(hir::ValueRef::TopLevel { .. }) => {}
+                hir::ExprKind::StructLit { fields, .. } => {
+                    for f in fields {
+                        collect_used_locals_in_expr(&f.value, out);
+                    }
+                }
+                hir::ExprKind::TupleLit { elements } => {
+                    for e in elements {
+                        collect_used_locals_in_expr(e, out);
+                    }
+                }
+                hir::ExprKind::InterpolatedString { parts, .. } => {
+                    for p in parts {
+                        if let hir::InterpolatedStringPart::Expr { expr } = p {
+                            collect_used_locals_in_expr(expr, out);
+                        }
+                    }
+                }
+                hir::ExprKind::Unary { expr, .. } => {
+                    collect_used_locals_in_expr(expr.as_ref(), out)
+                }
+                hir::ExprKind::Binary { lhs, rhs, .. } => {
+                    collect_used_locals_in_expr(lhs.as_ref(), out);
+                    collect_used_locals_in_expr(rhs.as_ref(), out);
+                }
+                hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
+                    collect_used_locals_in_expr(expr.as_ref(), out);
+                }
+                hir::ExprKind::Block(block) => collect_used_locals_in_block(block, out),
+                hir::ExprKind::Closure(closure) => {
+                    collect_used_locals_in_expr(closure.body.as_ref(), out);
+                }
+                hir::ExprKind::If {
+                    cond,
+                    then_branch,
+                    else_branch,
+                } => {
+                    collect_used_locals_in_expr(cond, out);
+                    collect_used_locals_in_expr(then_branch, out);
+                    if let Some(e) = else_branch.as_deref() {
+                        collect_used_locals_in_expr(e, out);
+                    }
+                }
+                hir::ExprKind::When { subject, arms } => {
+                    collect_used_locals_in_expr(subject, out);
+                    for arm in arms {
+                        if let Some(g) = &arm.guard {
+                            collect_used_locals_in_expr(g, out);
+                        }
+                        collect_used_locals_in_expr(&arm.body, out);
+                    }
+                }
+                hir::ExprKind::MemberAccess { receiver, .. } => {
+                    collect_used_locals_in_expr(receiver, out)
+                }
+                hir::ExprKind::Call { callee, args } => {
+                    collect_used_locals_in_expr(callee, out);
+                    for arg in args {
+                        match arg {
+                            hir::CallArg::Positional(expr) => {
+                                collect_used_locals_in_expr(expr, out)
+                            }
+                            hir::CallArg::Named { value, .. } => {
+                                collect_used_locals_in_expr(value, out)
+                            }
+                        }
+                    }
+                }
+                hir::ExprKind::Perform { args, .. } => {
+                    for arg in args {
+                        match arg {
+                            hir::CallArg::Positional(expr) => {
+                                collect_used_locals_in_expr(expr, out)
+                            }
+                            hir::CallArg::Named { value, .. } => {
+                                collect_used_locals_in_expr(value, out)
+                            }
+                        }
+                    }
+                }
+                hir::ExprKind::Handle(handle) => {
+                    collect_used_locals_in_block(&handle.body, out);
+                    for arm in &handle.arms {
+                        collect_used_locals_in_expr(&arm.body, out);
+                    }
+                    if let Some(finally) = &handle.finally {
+                        collect_used_locals_in_block(finally, out);
+                    }
+                }
+            }
+        }
+
+        let mut used_after_perform: HashSet<hir::SymbolId> = HashSet::new();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx <= perform_idx {
+                continue;
+            }
+            collect_used_locals_in_stmt(stmt, &mut used_after_perform);
+        }
+
+        let mut locals_declared_after_perform: HashSet<hir::SymbolId> = HashSet::new();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx <= perform_idx {
+                continue;
+            }
+            if let hir::StmtKind::Val(decl) = &stmt.kind {
+                if let Some(id) = decl.id {
+                    locals_declared_after_perform.insert(id);
+                }
+            }
+        }
+
         // escape continuation：把当前作用域内的引用类型 locals 捕获到 heap state 中，
         // 以便在 step trampoline（异步 resume）里继续访问它们。
         //
@@ -3384,11 +3539,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   - `Ref/String`：用于保活 closure/env 等引用类型；
         //   - `Bool/Int`：用于保活 word-sized handle（例如 sysroot 的 `Task<T>`/`Executor` 早期落点）。
         // - 这里按“当前可见的绑定”去重（内层 scope shadow 外层），并按 SymbolId 排序保证 determinism。
-        struct CapturedLocal<'ctx> {
+        struct CapturedLocal {
             id: hir::SymbolId,
-            local: CgLocal<'ctx>,
+            hir_ty: Option<TypeId>,
+            ty: CgTy,
+            mutable: bool,
         }
-        let mut captures: Vec<CapturedLocal<'ctx>> = Vec::new();
+
+        let mut pre_perform_decl_by_id: HashMap<hir::SymbolId, &hir::ValDecl> = HashMap::new();
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx >= perform_idx {
+                break;
+            }
+            let hir::StmtKind::Val(decl) = &stmt.kind else {
+                continue;
+            };
+            let Some(id) = decl.id else {
+                continue;
+            };
+            pre_perform_decl_by_id.insert(id, decl);
+        }
+
+        // 1) outer locals：来自当前 codegen env
+        let mut captures: Vec<CapturedLocal> = Vec::new();
         let mut seen: HashSet<hir::SymbolId> = HashSet::new();
         for scope in self.env.scopes.iter().rev() {
             for (&id, &local) in scope.iter() {
@@ -3399,10 +3572,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     local.ty,
                     CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
                 ) {
-                    captures.push(CapturedLocal { id, local });
+                    captures.push(CapturedLocal {
+                        id,
+                        hir_ty: local.hir_ty,
+                        ty: local.ty,
+                        mutable: local.mutable,
+                    });
                 }
             }
         }
+
+        // 2) perform 前 locals：只捕获 perform 后确实会用到的 bindings（否则会无谓膨胀 state）。
+        for &id in used_after_perform.iter() {
+            if id == perform_id {
+                continue;
+            }
+            if locals_declared_after_perform.contains(&id) {
+                continue;
+            }
+
+            let Some(decl) = pre_perform_decl_by_id.get(&id).copied() else {
+                continue;
+            };
+            if !seen.insert(id) {
+                continue;
+            }
+
+            let decl_ty = self
+                .cg_ty_of(decl.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture pre-perform local type",
+                    at: decl.span.into(),
+                })?;
+
+            if !matches!(
+                decl_ty,
+                CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
+            ) {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape capture local type",
+                    at: decl.span.into(),
+                });
+            }
+
+            captures.push(CapturedLocal {
+                id,
+                hir_ty: Some(decl.ty),
+                ty: decl_ty,
+                mutable: decl.mutable,
+            });
+        }
+
         captures.sort_by_key(|c| c.id.as_u32());
 
         let state_ty_name = format!("scoop.runtime.ContState__{func_name}_{seq}");
@@ -3416,7 +3636,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fields.push(header_ty.into());
             fields.push(frame_ty.into());
             for cap in &captures {
-                fields.push(match cap.local.ty {
+                fields.push(match cap.ty {
                     CgTy::Ref => gc_i8_ptr_ty.into(),
                     CgTy::String => gc_i8_ptr_ty.into(),
                     CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
@@ -3495,7 +3715,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "cont_step_capture_gep",
                     )?;
                     let name = format!("capture_{}", cap.id.as_u32());
-                    match cap.local.ty {
+                    match cap.ty {
                         CgTy::Ref => {
                             let loaded = cg
                                 .builder
@@ -3506,10 +3726,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             cg.env.insert(
                                 cap.id,
                                 CgLocal {
-                                    hir_ty: cap.local.hir_ty,
+                                    hir_ty: cap.hir_ty,
                                     ty: CgTy::Ref,
                                     ptr,
-                                    mutable: cap.local.mutable,
+                                    mutable: cap.mutable,
                                 },
                             );
                         }
@@ -3529,10 +3749,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             cg.env.insert(
                                 cap.id,
                                 CgLocal {
-                                    hir_ty: cap.local.hir_ty,
+                                    hir_ty: cap.hir_ty,
                                     ty: CgTy::String,
                                     ptr,
-                                    mutable: cap.local.mutable,
+                                    mutable: cap.mutable,
                                 },
                             );
                         }
@@ -3553,10 +3773,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             cg.env.insert(
                                 cap.id,
                                 CgLocal {
-                                    hir_ty: cap.local.hir_ty,
+                                    hir_ty: cap.hir_ty,
                                     ty: CgTy::Bool,
                                     ptr,
-                                    mutable: cap.local.mutable,
+                                    mutable: cap.mutable,
                                 },
                             );
                         }
@@ -3589,10 +3809,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             cg.env.insert(
                                 cap.id,
                                 CgLocal {
-                                    hir_ty: cap.local.hir_ty,
+                                    hir_ty: cap.hir_ty,
                                     ty: slot_ty,
                                     ptr,
-                                    mutable: cap.local.mutable,
+                                    mutable: cap.mutable,
                                 },
                             );
                         }
@@ -3753,11 +3973,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // heap state：`{ header, handler_frame, captured_refs... }`
         let total_size = self.target_data.get_store_size(&state_ty);
 
-        let rt_alloc = self.declare_runtime_alloc();
+        // 分配点统一走 typed alloc：在 runtime 内部写入对象头 `type_desc`，确保 GC 能扫描 capture fields。
+        let state_desc_global_name = format!("__scoop_type_desc_cont_state__{func_name}_{seq}");
+        let size_bytes = self.target_data.get_store_size(&state_ty);
+        let trace_start_offset_bytes = self
+            .target_data
+            .offset_of_element(&state_ty, 2)
+            .unwrap_or(size_bytes);
+        let state_desc = self.get_or_create_type_descriptor_global(
+            span,
+            &state_desc_global_name,
+            &state_ty_name,
+            state_ty,
+            trace_start_offset_bytes,
+            None,
+            None,
+            None,
+        )?;
+
+        let rt_alloc = self.declare_runtime_alloc_typed();
         let size_v = i64_ty.const_int(total_size, false);
-        let call = self
-            .builder
-            .build_call(rt_alloc, &[size_v.into()], "rt_alloc_cont_state")?;
+        let state_desc_i8 = self.builder.build_pointer_cast(
+            state_desc.as_pointer_value(),
+            i8_ptr_ty,
+            "cont_state_type_desc_i8",
+        )?;
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[state_desc_i8.into(), size_v.into()],
+            "rt_alloc_cont_state",
+        )?;
         let raw = call
             .try_as_basic_value()
             .basic()
@@ -3780,6 +4025,82 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder
                 .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
 
+        // typed alloc 下，GC 会按 type_desc 扫描 capture fields。
+        //
+        // 为避免在执行 perform 前语句（其中可能触发分配/GC）时扫描到未初始化垃圾值，
+        // 这里先把所有 capture fields 置零；在 perform 点再写入实际捕获值。
+        for (idx, cap) in captures.iter().enumerate() {
+            let field_idx = 2u32.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_capture_init_gep",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
+
+        // push handler frame（动态上下文）。
+        let rt_push = self.declare_runtime_effect_handler_stack_push();
+        let frame_i8 = self.builder.build_address_space_cast(
+            frame_ptr,
+            i8_ptr_ty,
+            "handle_escape_frame_i8",
+        )?;
+        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
+            self.context.i32_type().const_int(1, false)
+        } else {
+            self.context.i32_type().const_zero()
+        };
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_escape_effect_push",
+        )?;
+
+        // 执行 perform 之前的语句（仍在 handler scope 内）。
+        //
+        // 说明：
+        // - 当前阶段只支持单 perform 点；perform 之后的语句由 step trampoline 负责；
+        // - perform 前若出现更复杂控制流（return/loop 等），需要更完整的 state machine 语义（T1606c）。
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            if idx >= perform_idx {
+                break;
+            }
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let _ = self.codegen_expr(expr)?;
+                }
+                hir::StmtKind::Return { .. }
+                | hir::StmtKind::While { .. }
+                | hir::StmtKind::Break { .. }
+                | hir::StmtKind::Continue { .. }
+                | hir::StmtKind::Todo(_) => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "statement before perform (escape continuation)",
+                        at: stmt.span.into(),
+                    });
+                }
+            }
+        }
+
         // 把当前作用域内的 locals 写入 heap state：用于 step trampoline 在异步 resume 时恢复 env。
         for (idx, cap) in captures.iter().enumerate() {
             let field_idx = 2u32.saturating_add(idx as u32);
@@ -3790,12 +4111,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "cont_state_capture_gep",
             )?;
 
-            match cap.local.ty {
+            let local = self
+                .env
+                .get(cap.id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "cont state capture local not found",
+                    at: span.into(),
+                })?;
+            if local.ty != cap.ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "cont state capture local type mismatch",
+                    at: span.into(),
+                });
+            }
+
+            match cap.ty {
                 CgTy::Ref => {
                     let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
                     let loaded = self.builder.build_load(
                         llvm_ty,
-                        cap.local.ptr,
+                        local.ptr,
                         "cont_state_capture_load_ref",
                     )?;
                     let BasicValueEnum::PointerValue(ptr) = loaded else {
@@ -3823,7 +4158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
                     let loaded = self.builder.build_load(
                         llvm_ty,
-                        cap.local.ptr,
+                        local.ptr,
                         "cont_state_capture_load_str",
                     )?;
                     let BasicValueEnum::PointerValue(ptr) = loaded else {
@@ -3852,7 +4187,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .builder
                         .build_load(
                             self.llvm_basic_type_of(span, CgTy::Bool)?,
-                            cap.local.ptr,
+                            local.ptr,
                             "cont_state_capture_load_bool",
                         )?
                         .into_int_value();
@@ -3871,10 +4206,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     }
 
-                    let llvm_ty = self.llvm_basic_type_of(span, cap.local.ty)?;
+                    let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
                     let loaded = self
                         .builder
-                        .build_load(llvm_ty, cap.local.ptr, "cont_state_capture_load_int")?
+                        .build_load(llvm_ty, local.ptr, "cont_state_capture_load_int")?
                         .into_int_value();
                     let extended = if int_ty.bits == 64 {
                         loaded
@@ -3896,24 +4231,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => unreachable!("captures filtered by type"),
             }
         }
-
-        // push handler frame（动态上下文）。
-        let rt_push = self.declare_runtime_effect_handler_stack_push();
-        let frame_i8 = self.builder.build_address_space_cast(
-            frame_ptr,
-            i8_ptr_ty,
-            "handle_escape_frame_i8",
-        )?;
-        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
-            self.context.i32_type().const_int(1, false)
-        } else {
-            self.context.i32_type().const_zero()
-        };
-        let _ = self.builder.build_call(
-            rt_push,
-            &[frame_i8.into(), op_tag_i32.into()],
-            "handle_escape_effect_push",
-        )?;
 
         // --- perform site：计算 args → 写 binder slots → 创建 continuation ---
         for (slot, arg) in binder_slots.iter().zip(perform_args.iter()) {
