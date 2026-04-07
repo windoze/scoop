@@ -70,11 +70,29 @@ cargo run -p scoop --features llvm -- test
 - 无 `perform` 的作用域不生成 `handle` 结构/handler 链接，减少 runtime 开销。
 - 建立“高级优化候选清单”，后续按依赖逐项拆分立项（避免想到哪做哪）。
 
+### 2.5 Effect/Continuation 完整语义（正确性优先：多次 suspend/resume）
+
+> 背景：当前 escape continuation（`, k ->`）在 LLVM 后端仍是“最小可回归链路”，存在关键限制（例如单个 perform 点/位置约束/payload 受限），导致 stdlib 与 fixtures 需要手写 workaround（嵌套 handle/二段 handle），无法验证真实 async/await 的完整语义。
+
+- 目标（见 TODO：T1606~T1609）：
+  - `handle` body 支持 0..N perform 点：同一计算可经历多次 suspension/resume（每个 continuation one-shot）。
+  - 统一 dispatch/unwind：以 runtime handler stack + perform slot 为单一语义基座（避免多套“特判”长期并存）。
+  - resume payload 泛型化：`Continuation<T>` 的 `T` 覆盖 value/ref/复合类型，且与 moving GC 对齐（不允许 ptr<->int 作弊）。
+  - `finally` 组合语义补齐：在 suspend/resume/传播路径上不漏执行、不重复执行。
+- 设计要点（implementation-level 约束）：
+  - handler 分发必须以稳定 `op_tag` 为核心（Appendix A：最近匹配 + active/inactive）；fqn 字符串仅作为诊断输出。
+  - escaping continuation 的状态机应以 heap state 表示（pc + lifted locals），并在每次 perform 处生成 continuation；resume 进入 step trampoline 继续推进直到下一次 perform 或完成。
+  - GC：state 对象必须写入正确的 type descriptor（trace bitmap / trace_fn），确保 moving/compaction 下 roots 可更新。
+- 验收策略（见 TODO：T1706/T1707）：
+  - 用“单个 handle 内多次 await”的 fixtures 作为最关键回归点（禁止嵌套 handle workaround）。
+  - 控制流（if/when/循环）+ 多次 suspension 组合覆盖；在 `--gc-stress` 下稳定。
+
 ## 3. 端到端验证与回归（Continuation/GC/多线程）
 
 > GC 是 Scoop 的生命线：所有高风险特性都必须有“复杂但可回归”的 fixtures，而不是只靠最小 demo 证明能跑。
 
 - Escaping continuation：复杂 fixtures（模拟 async executor/scheduler），并在 `--gc-stress` 下稳定。
+- 关键补齐：单个 `handle` body 内多次 suspension/resume（多 perform 点），覆盖真实 async/await 写法（见 TODO：T1706/T1707）。
 - `Continuation<T>` 完整性：覆盖 `T` 的全类型空间（struct/tuple/enum/ref/Continuation 自身）。
 - GC correctness：跨函数复杂对象图、数组（value/ref 混合、value 内含 ref）、循环引用。
 - GC + escaping continuation：确保 continuation 捕获环境的 roots 扫描/更新正确。

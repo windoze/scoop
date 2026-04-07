@@ -108,7 +108,7 @@ cargo run -p scoop --features llvm -- test
 
 ---
 
-## T16：Scoop 编译器优化（优化等级/去虚化/HIR-MIR）
+## T16：Scoop 编译器（语义完善 + 优化等级/去虚化/HIR-MIR）
 
 ### T1601 [DONE] 对外接口：新增并统一优化等级（CLI + Cone.toml + 默认策略）
 - 描述：为 `scoop build/run/test` 增加明确的优化等级选项，并与 `Cone.toml[native-build]` 配置对齐，形成可预测的默认策略（debug/release）。
@@ -172,6 +172,57 @@ cargo run -p scoop --features llvm -- test
 - 验收：把清单维护在 `PLAN.md` 的“编译器优化”部分，并为每个候选项保留可拆分的任务入口（后续逐步补齐）。
 - 依赖：无
 
+### T1606 [TODO] LLVM：escape continuation `handle` 完整语义（0..N perform 点）
+- 描述：当前 LLVM 后端对 escape continuation（`, k ->`）的 `handle` 仍是“最小可回归链路”：只支持单个 perform 点，且要求为 block 的第一个语句。该限制导致 stdlib/fixtures 只能用“嵌套 handle / 二段 handle”绕开，无法表达真实 async/await 的直觉写法（同一 handle body 内多次 await）。
+- 目标：
+  - 语义完整性：支持 `handle { ... } with { Effect.op(...), k -> ... }` 的 body 含 **0..N** 个 perform 点：
+    - 0 个 perform：handle 直接执行到结束并返回 body 的值（不依赖 arm）。
+    - N≥1：每次 perform 触发一次 suspension，并生成新的 continuation；后续可多次 suspension/resume（每个 continuation one-shot，但同一“计算”可经历多个 suspension 点）。
+  - 结构完整性：不再要求 perform 必须是 block 第一个语句；允许在 perform 前后有普通语句（含 val/assign/expr）。
+  - 动态上下文正确性（Appendix A / spec §5.5）：
+    - continuation resume 时恢复其捕获的 handler stack；
+    - handler arm body 期间应避免自捕获（arm 内再次 perform 同一 op 应命中外层 handler，而不是自身）。
+  - GC 正确性：heap state machine 的状态对象必须是 GC-managed，且其内部引用字段可被准确扫描/更新（moving GC 下不可漏扫）。
+- 验收：
+  - 新增 run-pass fixtures：单个 `handle` body 内连续 2~3 次 `await/yield`（不使用嵌套 handle workaround），stdout 顺序可观测且在 `--gc-stress` 下稳定。
+  - 复跑既有 fixtures：`cargo run -p scoop -- test` 与（可选）`cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：（历史）T0617/T0914/T0915/T0916（escape continuation + handler stack 基础链路）；（新增）T1706/T1707（回归用例）
+
+### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
+- 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。
+- 目标：
+  - 设计并落地一个“可携带任意 `T`”的 resume payload ABI（至少覆盖：Unit/Bool/Int/String/Ref/tuple/struct/enum；允许 future 扩展）。
+  - 与 GC 对齐：payload 若包含引用类型，必须可被 GC 扫描/更新（moving GC 下 resume 后仍正确）。
+  - 维持 one-shot：重复 resume 必须表现为可捕获的 `Raise<RuntimeError.ContinuationAlreadyResumed>`（而非进程级 exit）。
+- 验收：
+  - 新增 run-pass fixtures：`Continuation<String>`、`Continuation<(Int, String)>`、`Continuation<MyStruct>` 等在 `--gc-stress` 下通过，并覆盖“resume 后继续分配触发多轮 GC”。
+  - 为 ABI 关键点补 build fixtures（可选）：断言不出现“ptr<->int”非法编码路径。
+- 依赖：T1606（多点 suspension 需要更通用 payload 才能覆盖真实案例）；（历史）T0630（payload ABI 统一化方向）
+
+### T1608 [TODO] Effect op_tag：稳定分配与统一 dispatch（运行期 handler stack / perform slot）
+- 描述：runtime handler stack 的“最近匹配”分发基于 `op_tag` 精确匹配；而当前 codegen 对自定义 effect 的 `op_tag` 仍大量写 0（除 `Raise` 以外）。这会在“嵌套 handler + re-perform + 多 effect 并存”时产生错误分发或无法诊断的语义漂移。
+- 目标：
+  - 为所有 compiler-known 的 effect op 分配稳定 `op_tag`（至少在单次编译产物内稳定；若要求跨版本稳定需额外讨论）。
+  - 统一 perform slot 编码：`perform` 写入 `op_tag + payload`；`handle` 边界解码并分派到最近匹配 handler。
+  - 让 `EscapeContinuation` 与 `ImmediateResume` / non-resuming handler 共享同一套 dispatch 规则（避免多套“特判语义”长期并存）。
+- 验收：
+  - 新增 run-pass fixture：三层嵌套 handler（至少两种不同 effect），arm 内 re-perform 验证“最近匹配 + active/inactive”规则成立。
+  - 针对错误分发给出稳定诊断（至少包含 op_tag / effect 名称 / src line/col）。
+- 依赖：（历史）T0913/T0916（runtime handler stack），T0617（escape continuation lowering）
+
+### T1609 [TODO] `finally` + escaping continuation：unwind/cleanup 的组合语义
+- 描述：当前 escaping continuation 的 `handle` 明确不支持 `finally`。要实现完整 effect 语义，必须定义并实现：当计算被 suspend / resume / abandon 时，`finally` 的执行时机与次数规则（并保证与 flag-based unwinding 一致）。
+- 目标：
+  - 定义并实现 `finally` 的语义：至少覆盖
+    - 正常执行（无 perform）；
+    - 多次 suspension/resume；
+    - arm 内抛 `Raise` 或发生未处理 effect 时的传播路径。
+  - 保证 `finally` 不会被重复执行或漏执行，并在嵌套 handle 下保持栈式顺序。
+- 验收：
+  - 新增 run-pass fixtures：在多次 `await` 的 handle 外层加 `finally`，用 stdout 断言 `finally` 的执行次数/顺序；并在 `--gc-stress` 下稳定。
+  - 复跑 try/catch/finally 相关 fixtures，确保无回归。
+- 依赖：T1606、T1608（需要统一 dispatch/unwind 语义作为基础）
+
 ---
 
 ## T17：验证套件（覆盖已实现语义：Continuation/GC/多线程）
@@ -225,6 +276,28 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：至少 2 个多线程用例（stdout 稳定），并在 `--gc-stress` 与默认模式均可通过。
   - 为避免 flakiness，必须固定调度策略（barrier/顺序号/确定性调度器）。
 - 依赖：（历史）多线程 STW/线程注册/并发分配基础能力已存在
+
+### T1706 [TODO] 多 perform 点（单个 handle）：async/await 真实写法回归
+- 描述：新增一组 fixtures，专门覆盖“单个 escape-continuation `handle` body 内出现多个 perform 点”的真实写法（例如连续 `await` 两到三次），不允许用“嵌套 handle / 二段 handle”的 workaround。
+- 目标：
+  - 覆盖：两次以上 suspension/resume；resume 后继续执行并再次 suspension。
+  - 覆盖：perform 前后都有普通语句与局部变量（确保 state machine 的 local lifting 正确）。
+  - 覆盖：arm body 将 continuation 入队（模拟 executor），并按确定性顺序恢复。
+- 验收：
+  - 新增 run-pass fixtures（stdout golden）：至少 2 个（一个单线程调度，一个跨线程 resume）。
+  - 所有用例在 `--gc-stress` 下稳定通过。
+- 依赖：T1606（多 perform codegen）、（历史）T0915a/T0618（跨线程 resume 运行期原语）
+
+### T1707 [TODO] 控制流 + 多次 suspension：if/when/循环边界的语义回归
+- 描述：针对多 suspension 点下最容易出错的控制流形态新增 fixtures：`if/when` 分支在不同路径上 perform 次数不同、以及在循环体内 suspension（至少先覆盖“有限次迭代的 while/for 等价形态”）。
+- 目标：
+  - 覆盖：分支合流（phi）上的局部变量在 suspend/resume 后仍正确。
+  - 覆盖：同一局部变量跨多个 suspension 点读写（包含 value/ref 混合）。
+  - 覆盖：arm 内 re-perform 与外层 handler 的交互（active/inactive 规则）。
+- 验收：
+  - 新增 run-pass fixtures：至少 3 个用例（分支/合流、循环、re-perform）。
+  - 可选 build fixtures：对关键 IR 形态做 contains 断言（例如 state machine 的 pc/dispatch 存在）。
+- 依赖：T1606、T1608
 
 ---
 
