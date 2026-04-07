@@ -775,7 +775,7 @@
 - [ ] 引用类型统一表示（GC pointer）：
   - 在 LLVM IR 中统一使用 `addrspace(1)` 指针表示 GC-managed object（例如 `i8 addrspace(1)*`），避免与原生/FFI 指针混淆
   - `Option<Ref>` 采用 pointer-niche（NULL → None），并在类型系统与 codegen 中统一规则（含 `T?` desugar）
-  - **GC 安全约束**（规范：`SCOOP_FULL_SPEC.md` §2.3.2）：对 GC-managed ref（以及“包含 GC ref 的值类型”）禁止使用非 NULL 的 nested niche（例如 `Option<Option<Ref>>` 不得压缩为单指针并用 `0x1` 编码外层 `None`）；此类场景必须回退到显式 tag 的表示（实现落地见 TODO T1518/T1519）
+  - **GC 安全约束**（规范：`SCOOP_FULL_SPEC.md` §2.3.2）：对 GC-managed ref（以及“包含 GC ref 的值类型”）禁止使用非 NULL 的 nested niche（例如 `Option<Option<Ref>>` 不得压缩为单指针并用 `0x1` 编码外层 `None`）；此类场景必须回退到显式 tag 的表示（实现已落地：T1518/T1519）
 - [ ] heap 对象模型（Object Model）：
   - 固定对象头布局与字段偏移：`next`（heap 链表）、`type_desc*`、`size_bytes`、`flags`、`mark`
   - payload 紧随对象头；class/array/string/box/closure env 均是“对象头 + payload”

@@ -7134,7 +7134,7 @@
    - `cargo run -p scoop_tools -- spec-fixtures check`
    - `cargo run -p scoop -- test`
 
-### T1519 [TODO] 编译器落地：对 ref niche 禁止 domain 传播，并对 nested option 回退 tagged union
+### T1519 [DONE] 编译器落地：对 ref niche 禁止 domain 传播，并对 nested option 回退 tagged union
 - 描述：按 T1518 的规则调整布局计算与 codegen，使 “ref niche 只用 NULL” 且不会触发 nested niche 压缩。
 - 目标：
   - typecheck 布局计算：
@@ -7148,3 +7148,11 @@
   - `cargo run -p scoop -- test`
   - （可选：若本机安装 LLVM + llvm-config）`cargo run -p scoop --features llvm -- test`
 - 依赖：T1518
+ - 完成：
+   - `crates/scoopc/src/typecheck/layout.rs`/`crates/scoopc/src/llvm/codegen.rs`：对 Pointer niche 收敛为仅 `NULL`，并确保 “剩余 niche domain” 不向外层传播（因此 `Option<Option<Ref>>` 外层回退 tagged union）。
+   - 回归 fixtures：
+     - `tests/fixtures/build/option_nested_ref_niche_forbidden_no_inttoptr_1.scoop`：断言 IR 不出现 `inttoptr ... 1` 等非法指针编码；
+     - `tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop`：语义回归（nested option pattern match 行为正确）。
+ - 验收（已运行）：
+   - `cargo test --all`
+   - `cargo run -p scoop -- test`
