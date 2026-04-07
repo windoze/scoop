@@ -188,7 +188,7 @@ cargo run -p scoop --features llvm -- test
   - 复跑既有 fixtures：`cargo run -p scoop -- test` 与（可选）`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：（历史）T0617/T0914/T0915/T0916（escape continuation + handler stack 基础链路）；（新增）T1706/T1707（回归用例）
 
-### T1606a [TODO] Escape continuation：0 perform 时退化执行 body（arm 不可达）
+### T1606a [DONE] Escape continuation：0 perform 时退化执行 body（arm 不可达）
 - 描述：当 `handle { ... } with { Effect.op(...), k -> ... }` 的 body 内**不存在匹配该 arm 的 perform 点**时：
   - 运行期不会创建 continuation；
   - arm 视为不可达（仅 typecheck，不参与 codegen）；

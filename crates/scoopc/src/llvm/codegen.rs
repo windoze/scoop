@@ -3269,15 +3269,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //
         // 当前阶段（最小可回归落点）：
         // - 仅支持单个 arm（在外层已校验）；
-        // - handle body 仅支持“单个 perform 点”，且要求为 block 的第一个语句；
+        // - 对匹配当前 arm 的 op：
+        //   - 0 个 perform：退化为顺序执行 `body`（以及 `finally`，若存在），arm 不可达（T1606a）；
+        //   - 1 个 perform：当前仍要求为 block 的第一个语句（后续 T1606b 解除）；
         // - heap state machine 先只承载 handler frame，并用 step trampoline 执行 perform 之后的剩余语句；
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
-        if handle.finally.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle finally (escape continuation)",
-                at: span.into(),
-            });
-        }
 
         // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform` 且位于 block 首语句）。
         let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
@@ -3289,6 +3285,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         continue;
                     };
                     if let hir::ExprKind::Perform { op, args } = &init.kind {
+                        if op.fqn != arm.op.op.fqn {
+                            continue;
+                        }
                         if perform_site.is_some() {
                             return Err(LlvmEmitError::UnsupportedMainBody {
                                 kind: "handle escape body (multiple perform points)",
@@ -3299,11 +3298,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
                 hir::StmtKind::Expr(expr) => {
-                    if matches!(expr.kind, hir::ExprKind::Perform { .. }) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "handle escape body (perform must be bound to val)",
-                            at: expr.span.into(),
-                        });
+                    if let hir::ExprKind::Perform { op, .. } = &expr.kind {
+                        if op.fqn == arm.op.op.fqn {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "handle escape body (perform must be bound to val)",
+                                at: expr.span.into(),
+                            });
+                        }
                     }
                 }
                 _ => {}
@@ -3311,11 +3312,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let Some((perform_idx, perform_decl, perform_op, perform_args)) = perform_site else {
+            // T1606a：没有匹配 op 的 perform 点，arm 不可达；退化为顺序执行 `body -> finally` 并返回 body 值。
+            return self.codegen_handle_expr_no_perform(span, handle, out_ty);
+        };
+        if handle.finally.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle escape body (missing perform)",
+                kind: "handle finally (escape continuation)",
                 at: span.into(),
             });
-        };
+        }
         if perform_idx != 0 {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle escape body (perform must be first statement)",
