@@ -53,7 +53,7 @@ cargo run -p scoop --features llvm -- test
   - 仓库根目录新增 `CONE-IMPROVEMENTS.md`，并覆盖本次需求列出的全部要点。
 - 依赖：无
 
-### T1120 [TODO] `scoop new`：生成 `.gitignore` + `main.scoop` 默认 `println`
+### T1120 [DONE] `scoop new`：生成 `.gitignore` + `main.scoop` 默认 `println`
 - 描述：更新 `scoop new <project-name>` 生成的 CONE 项目结构，使其符合 `CONE-IMPROVEMENTS.md`：
   - 生成 `.gitignore`（至少忽略 `/build/` 等）
   - 自动生成的 `src/main.scoop` 包含 `println("Hello, Scoop!")`（或等价可观察输出）

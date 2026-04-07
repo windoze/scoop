@@ -12,6 +12,7 @@ use thiserror::Error;
 
 const SRC_DIR_NAME: &str = "src";
 const MAIN_FILE_NAME: &str = "main.scoop";
+const GITIGNORE_FILE_NAME: &str = ".gitignore";
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum NewProjectError {
@@ -86,6 +87,7 @@ pub fn create_cone_app_project(
         source: e,
     })?;
 
+    write_file(project_dir.join(GITIGNORE_FILE_NAME), gitignore_template())?;
     write_file(project_dir.join("Cone.toml"), &cone_toml_template(name))?;
     write_file(src_dir.join(MAIN_FILE_NAME), &main_scoop_template(name))?;
     write_file(project_dir.join("README.md"), &readme_template(name))?;
@@ -115,10 +117,23 @@ fn main_scoop_template(name: &str) -> String {
     format!(
         r#"package {name}
 
+import scoop.core.*
+
 public fun main() / Pure! {{
+    println("Hello, Scoop!")
 }}
 "#
     )
+}
+
+fn gitignore_template() -> &'static str {
+    r#"# Scoop/Cone build artifacts
+/build/
+
+# OS / editor noise
+.DS_Store
+*.swp
+"#
 }
 
 fn readme_template(name: &str) -> String {
@@ -129,6 +144,7 @@ fn readme_template(name: &str) -> String {
 
 ## 布局
 
+- `.gitignore`：忽略本地构建产物（例如 `build/`）
 - `Cone.toml`：cone manifest（`[cone].name`）
 - `src/main.scoop`：入口源码（需要定义 `public fun main()`，并保持 `package` 与 `[cone].name` 一致）
 
@@ -185,11 +201,21 @@ mod tests {
         let project_dir = super::create_cone_app_project(dir.path(), "hello_world").unwrap();
 
         assert!(project_dir.is_dir(), "应创建项目目录");
+        assert!(
+            project_dir.join(".gitignore").is_file(),
+            "应生成 .gitignore"
+        );
         assert!(project_dir.join("Cone.toml").is_file(), "应生成 Cone.toml");
         assert!(project_dir.join("README.md").is_file(), "应生成 README.md");
         assert!(
             project_dir.join("src").join("main.scoop").is_file(),
             "应生成 src/main.scoop"
+        );
+
+        let gitignore = std::fs::read_to_string(project_dir.join(".gitignore")).unwrap();
+        assert!(
+            gitignore.contains("/build/"),
+            ".gitignore 应忽略 build/，实际：{gitignore}"
         );
 
         let cone_toml = std::fs::read_to_string(project_dir.join("Cone.toml")).unwrap();
@@ -203,6 +229,10 @@ mod tests {
         assert!(
             main_scoop.contains("package hello_world"),
             "main.scoop 应包含 package 声明，实际：{main_scoop}"
+        );
+        assert!(
+            main_scoop.contains("println(\"Hello, Scoop!\")"),
+            "main.scoop 应包含默认可观察输出，实际：{main_scoop}"
         );
 
         let readme = std::fs::read_to_string(project_dir.join("README.md")).unwrap();
