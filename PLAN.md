@@ -38,6 +38,16 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0102d）：抽出 expr/stmt/control-flow codegen
 - DONE（T0102e）：抽出 effect/continuation/GC/statepoint 相关逻辑（新增 `effect.rs`/`gc.rs`）
 
+## 0.4 HIR lowering 维护性重构（T0103）
+
+> 背景：`crates/scoopc/src/hir/lower.rs` 已增长到 6K+ 行；该任务按“行为不变（dump-hir/fixtures 输出稳定）”的原则拆成可回归的小步（见 TODO：T0103a~T0103e）。
+
+- DONE（T0103a）：`lower` 模块骨架 + 抽出 `types.rs`（共享类型与 side tables）
+- TODO（T0103b）：抽出 `util.rs`（通用 helper / early-stage 特判收拢）
+- TODO（T0103c）：抽出 `expr.rs`（表达式 lowering）
+- TODO（T0103d）：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
+- TODO（T0103e）：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
+
 ## 1. Cone（改进项吸收）
 
 - 已产出设计：`CONE-IMPROVEMENTS.md`（目录结构 / build 产物 / profile / 增量构建路线）。

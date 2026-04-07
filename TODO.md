@@ -79,7 +79,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0102a、T0102c、T0102d
 
-### T0103 [TODO] HIR lowering：重构 `crates/scoopc/src/hir/lower.rs`（拆分模块，降低维护成本）
+### T0103 HIR lowering：重构 `crates/scoopc/src/hir/lower.rs`（拆分）
 - 描述：`crates/scoopc/src/hir/lower.rs` 已超过 6K 行，承载了 AST→HIR lowering 的大量逻辑（语法糖/特殊 case、block/stmt/expr lowering、内建与 sysroot 约定、以及若干“为可回归而做的早期阶段特判”）。随着特性增加，该文件：
   - 修改容易产生连锁影响（同一概念的 lowering 分散在多个 helper 中）；
   - 复用/测试困难（缺少清晰的子模块边界与可单测的最小单元）；
@@ -96,6 +96,38 @@ cargo run -p scoop --features llvm -- test
     - `crates/scoopc/src/hir/lower.rs` 不再是巨型单文件；lowering 的主要职责边界可通过目录/文件名直观看到；
     - 入口/数据结构位置清晰，避免循环依赖与 `pub(crate)` 漫延。
 - 依赖：无
+
+### T0103a [DONE] HIR lowering：`lower` 模块骨架 + 抽出 `types.rs`（共享类型与 side tables）
+- 描述：把 `crates/scoopc/src/hir/lower.rs` 迁移为目录模块 `crates/scoopc/src/hir/lower/mod.rs`，并把大量“共享类型/side table”（例如 `LoweredHir`、默认参数信息、delegated property 信息等）抽到 `lower/types.rs`，为后续继续拆分 expr/stmt/block/sugar 打基础。
+- 目标：
+  - 模块路径不变（仍为 `crate::hir::lower`），行为不变（dump-hir/fixtures 输出稳定）。
+  - `types.rs` 内部类型尽量使用 `pub(super)` 暴露到父模块，避免 `pub(crate)` 漫延。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：无
+
+### T0103b [TODO] HIR lowering：抽出 `util.rs`（通用 helper / 早期阶段特判收拢）
+- 描述：把跨 lowering 分支复用的 helper（span/诊断、小型 AST 解析、sysroot 约定字符串等）集中到 `lower/util.rs`，并把 early-stage 的“临时特判/兼容逻辑”收拢到少数入口函数中。
+- 目标：降低后续拆分 `expr.rs`/`stmt.rs`/`block.rs` 时的重复粘贴与循环依赖风险。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0103a
+
+### T0103c [TODO] HIR lowering：抽出 `expr.rs`（表达式 lowering）
+- 描述：把 `lower_expr*`、字面量/调用/成员访问/控制流表达式等表达式 lowering 迁移到 `lower/expr.rs`。
+- 目标：表达式入口可直接导航；与 stmt/block 之间的共享接口通过 `types.rs`/`util.rs` 明确边界。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0103b
+
+### T0103d [TODO] HIR lowering：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
+- 描述：把 `lower_stmt*`、`lower_block*`、局部 `val/assign/return`、循环与 break/continue 等迁移到 `lower/stmt.rs` 与 `lower/block.rs`。
+- 目标：stmt/block 与 expr 的互相调用通过少数“公开到父模块的 helper”实现，避免模块环。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0103c
+
+### T0103e [TODO] HIR lowering：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
+- 描述：把 delegated properties、lazy/observable/vetoable、when 模式、以及其它语法糖/特殊 case 的 lowering 迁移到独立模块，避免它们散落在 expr/stmt 内部。
+- 目标：阶段性特判集中且显式标注任务号，便于后续清理；为未来加单测预留“可单测的最小入口”。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0103d
 
 ### T0104 [TODO] typecheck：重构 `crates/scoopc/src/typecheck/expr.rs`（拆分模块，降低维护成本）
 - 描述：`crates/scoopc/src/typecheck/expr.rs` 过长且职责密集，集中承载了表达式类型检查/推断的多个维度（各类 expr 语法分支、预期类型传递、错误生成与诊断、以及若干为可回归而引入的局部 helper）。随着语言特性与诊断要求增长，单文件结构会导致：

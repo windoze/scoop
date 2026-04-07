@@ -4,14 +4,15 @@
 //! - 这里的 lowering 仅用于 `dump-hir` 的调试输出，因此实现上优先保证“稳定输出 + 不 panic”；。
 //! - 完整 lowering（含类型推断结果、更多语法节点）会在后续任务（TODO T0702+）逐步补齐。
 
+mod types;
+
+pub use types::{HirLowerError, LoweredHir};
+
 use std::collections::{HashMap, HashSet};
 
-use miette::Diagnostic;
-use thiserror::Error;
-
 use crate::ast;
-use crate::parser::{ParseError, parse_file};
-use crate::resolve::{Index, ResolveError};
+use crate::parser::parse_file;
+use crate::resolve::Index;
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -31,229 +32,7 @@ use super::{
     StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
-#[derive(Debug, Clone)]
-struct GenericDelegatedPropertyInfo {
-    name: String,
-    delegate_field_fqn: String,
-    property_meta_fqn: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StdLazyThreadSafetyMode {
-    None,
-    Publication,
-    Synchronized,
-}
-
-impl StdLazyThreadSafetyMode {
-    fn default_for_lazy_call() -> Self {
-        // Kotlin-like：lazy 默认 thread-safe。
-        Self::Synchronized
-    }
-
-    fn requires_mutex(self) -> bool {
-        matches!(self, Self::Publication | Self::Synchronized)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct LazyDelegatedPropertyInfo {
-    name: String,
-    /// 属性类型（用于生成缓存字段的类型与 lazy initializer 的返回类型上下文）。
-    ty: Option<ast::TypeRef>,
-    /// `lazy(mode)` 的线程安全策略（默认为 `Synchronized`）。
-    mode: StdLazyThreadSafetyMode,
-    /// lazy 缓存值字段（class field fqn）。
-    value_field_fqn: String,
-    /// lazy 初始化标记字段（class field fqn）。
-    inited_field_fqn: String,
-    /// lazy 的互斥锁字段（class field fqn；仅当 mode 需要互斥锁时才存在）。
-    mutex_field_fqn: Option<String>,
-    /// initializer lambda 的 body（我们在 getter 内 inline 这段表达式，避免依赖 closure codegen）。
-    initializer_body: ast::Expr,
-}
-
-#[derive(Debug, Clone)]
-struct ObservableDelegatedPropertyInfo {
-    name: String,
-    ty: Option<ast::TypeRef>,
-    on_change: ast::LambdaExpr,
-    /// observable/vetoable 的内部互斥锁字段（class field fqn）。
-    ///
-    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
-    mutex_field_fqn: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-struct VetoableDelegatedPropertyInfo {
-    name: String,
-    ty: Option<ast::TypeRef>,
-    on_change: ast::LambdaExpr,
-    /// vetoable 的内部互斥锁字段（class field fqn）。
-    ///
-    /// 说明：该字段用于保证并发读写的可见性，并避免 data race（T1326b）。
-    mutex_field_fqn: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-enum DelegatedPropertyInfo {
-    /// 通用 delegated property lowering：仍按 spec 生成 `getValue/setValue` 调用形状（T1210）。
-    ///
-    /// 注意：当前 LLVM 后端不要求该路径可执行（主要用于 dump-hir/fixtures 稳定输出）。
-    Generic(GenericDelegatedPropertyInfo),
-    /// 标准 delegates：`lazy`（spec §10.4）。
-    Lazy(LazyDelegatedPropertyInfo),
-    /// 标准 delegates：`observable`（spec §10.4）。
-    Observable(ObservableDelegatedPropertyInfo),
-    /// 标准 delegates：`vetoable`（spec §10.4）。
-    Vetoable(VetoableDelegatedPropertyInfo),
-    /// map-backed delegated properties（spec §10.4）。
-    ///
-    /// 早期阶段的实现策略：
-    /// - 在 class 初始化阶段把 `val p by data` 的值“拷贝”到真实字段 `p`；
-    /// - 读取 `p` 直接走字段访问；
-    /// - 这避免了 `PropertyMeta` 运行期构造与 Map 查找（当前阶段尚未实现）。
-    MapBacked,
-}
-
-type DelegatedPropertyIndex = HashMap<String, DelegatedPropertyInfo>;
-
-/// 一个顶层函数的“默认参数信息”（用于在 HIR lowering 阶段做 call-site 默认参数补齐）。
-///
-/// 说明：
-/// - 当前阶段（T1305/T1323）支持“调用点省略默认参数”，并允许在使用命名参数时省略中间默认参数（Kotlin-like）；
-/// - 为避免向 HIR items 注入合成 wrapper 函数（会影响 `.cone` 的 public API 导出），
-///   我们把 `f(a0, a1)` 这类“少传参数”的调用点改写为 block：先按参数名把实参/默认值绑定为局部 `val`，
-///   再调用原函数的完整参数形态。
-#[derive(Debug, Clone)]
-struct DefaultArgFunInfo {
-    /// 最少需要提供的实参数量（即：无默认值形参个数）。
-    required: usize,
-    params: Vec<DefaultArgParamInfo>,
-}
-
-#[derive(Debug, Clone)]
-struct DefaultArgParamInfo {
-    decl_span: Span,
-    name: String,
-    ty_ref: Option<ast::TypeRef>,
-    default_value: Option<ast::Expr>,
-}
-
-/// HIR lowering 错误（目前仅包装 parser/resolve 错误）。
-#[derive(Debug, Error, Diagnostic)]
-pub enum HirLowerError {
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    Parse(#[from] ParseError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    Comptime(#[from] crate::comptime::ConstEvalError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    Resolve(#[from] ResolveError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    VtableLayout(#[from] crate::vtable::VtableLayoutError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    ItableLayout(#[from] crate::itable::ItableLayoutError),
-
-    #[error("multi-file lowering 暂不支持在非入口文件中出现需要源文本切片的字面量：{path}")]
-    #[diagnostic(code(scoop::hir::multi_file_non_entry_source_backed_literal))]
-    MultiFileNonEntrySourceBackedLiteral { path: String },
-}
-
-/// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。
-///
-/// 说明：HIR 节点里的 `TypeId` 仅在同一个 `TypeStore` 里可解码/展示。
-#[derive(Debug)]
-pub struct LoweredHir {
-    pub file: File,
-    /// class/object 的 member `fun` 降为可 codegen 的“顶层函数形态”（显式 `this` 参数）。
-    ///
-    /// 说明：
-    /// - 这是一个 side table：不影响 `dump-hir` 输出稳定性（`dump-hir` 只打印 `file`）；
-    /// - 供 LLVM 后端把 `receiver.method(args...)`（lowering 后的 `TopLevel(owner.method)` 调用）
-    ///   解析到真实函数体（T1508a）。
-    pub member_funs: Vec<FunDecl>,
-    pub types: TypeStore,
-    /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。
-    pub struct_layouts: StructLayoutIndex,
-    /// 由本次 lowering 过程中收集到的 enum variant 布局信息（供早期 LLVM codegen 查询）。
-    pub enum_layouts: EnumLayoutIndex,
-    /// `@Extern` 外部函数信息（供 LLVM codegen 声明正确的符号名与 ABI）。
-    pub extern_funs: super::ExternFunIndex,
-    /// 链接阶段需要额外加入的外部库（来自 `@Extern(lib = "...")`；去重 + 稳定排序）。
-    ///
-    /// 说明：
-    /// - 该信息作为后端/driver side table 保存，不影响 `dump-hir` 的输出稳定性；
-    /// - 当前阶段仅支持最小 `-l<name>` 形式（不处理 `-L`/rpath 等）。
-    pub extern_libs: Vec<String>,
-    /// 顶层可变全局变量信息（`@ThreadLocal/@Global`），供后端生成静态存储（TODO T1023）。
-    pub top_level_vars: super::TopLevelVarIndex,
-    /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
-    pub object_inits: ObjectInitIndex,
-    /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
-    pub class_inits: ClassInitIndex,
-    /// class vtable slots（TODO T1507c2 / T1508b）。
-    ///
-    /// 说明：
-    /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
-    /// - LLVM 后端用它生成每个 class 的 vtable 常量，并在虚调用点选择 slot。
-    pub class_vtables: crate::vtable::ClassVtableIndex,
-    /// interface 元数据（stable interface_id + method slots）与 class itable entries（T1507c3 / T1508c）。
-    ///
-    /// 说明：
-    /// - 该信息作为后端 side table 保存，不影响 `dump-hir` 的输出稳定性；
-    /// - LLVM 后端用它生成每个 class 的 itable 常量，并在 interface 调用点选择 slot。
-    pub interfaces: crate::itable::InterfaceIndex,
-    pub class_itables: crate::itable::ClassItableIndex,
-    /// ctor 调用点候选集合：用于让 codegen 识别 `UnresolvedIdent` 的 ctor 调用。
-    pub ctor_call_sites: CtorCallSiteIndex,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum SymbolKey {
-    Local { decl_span: crate::span::Span },
-    TopLevel { fqn: String },
-}
-
-/// 一个最小的 symbol interner：把“解析后的符号键”映射为一个紧凑的 `SymbolId`。
-///
-/// 说明：
-/// - 该表仅用于 HIR dump/fixtures 的稳定标识，并不试图提供跨 session 的全局稳定性；
-/// - `SymbolId` 的分配顺序依赖 traversal 顺序，但 traversal 对同一个 AST 是确定的，因此 golden 可回归。
-#[derive(Debug, Default)]
-struct SymbolInterner {
-    next: u32,
-    by_key: HashMap<SymbolKey, SymbolId>,
-}
-
-impl SymbolInterner {
-    fn intern_local(&mut self, decl_span: crate::span::Span) -> SymbolId {
-        self.intern(SymbolKey::Local { decl_span })
-    }
-
-    fn intern_top_level(&mut self, fqn: String) -> SymbolId {
-        self.intern(SymbolKey::TopLevel { fqn })
-    }
-
-    fn intern(&mut self, key: SymbolKey) -> SymbolId {
-        if let Some(id) = self.by_key.get(&key).copied() {
-            return id;
-        }
-
-        let id = SymbolId(self.next);
-        self.next = self.next.saturating_add(1);
-        self.by_key.insert(key, id);
-        id
-    }
-}
+use types::*;
 
 /// HIR lowering 的上下文（按单文件构建，用于 `dump-hir` 与 HIR fixtures）。
 struct HirLowering<'a> {
@@ -292,24 +71,6 @@ struct HirLowering<'a> {
     builtins: BuiltinTypes,
     /// type parameter 作用域栈：用于 lowering `T` 这类抽象类型引用。
     type_param_scopes: Vec<HashMap<String, TypeId>>,
-}
-
-/// `[...]` 数组字面量在 lowering 阶段需要知道“期望的容器类型”。
-///
-/// 说明：
-/// - Scoop 的数组字面量仅在“有明确期望类型”的语境下成立（见 TODO T1317a）；
-/// - `dump-hir`/HIR fixtures 当前不运行完整 typecheck，因此这里用一个极小的 hint
-///   从“语法层面的类型注解/函数签名”向下传播到 `ExprKind::ArrayLit`。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ArrayLitTarget {
-    Array,
-    MutableArray,
-}
-
-/// lowering 期间的“期望类型 hint”（仅覆盖当前需要的数组字面量目标类型）。
-#[derive(Debug, Clone, Copy, Default)]
-struct ExpectedExpr {
-    array_lit_target: Option<ArrayLitTarget>,
 }
 
 impl<'a> HirLowering<'a> {

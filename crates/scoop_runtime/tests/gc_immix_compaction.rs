@@ -163,7 +163,9 @@ mod immix {
                 assert_eq!(cur_b_payload.read_volatile(), 0x7B);
             }
             if !moved {
-                eprintln!("[gc_immix_compaction] note: non-pinned object never moved in this test run");
+                eprintln!(
+                    "[gc_immix_compaction] note: non-pinned object never moved in this test run"
+                );
             }
 
             scoop_leave_native();
