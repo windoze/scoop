@@ -71,7 +71,79 @@ cargo run -p scoop --features llvm -- test
 ### 2.4 HIR/MIR 级优化（cheap wins）
 
 - DONE（T1604）：无 `perform` 的作用域不生成 `handle` 结构/handler 链接，减少 runtime 开销。
-- 建立“高级优化候选清单”，后续按依赖逐项拆分立项（避免想到哪做哪）。
+- DONE（T1605）：建立“高级优化候选清单”，标注层级/收益/风险与依赖，并为每个候选项保留可拆分的任务入口（OPT-*）。
+
+#### 2.4.1 高级优化候选清单（维护：OPT-*）
+
+> 原则：每个候选项都必须（a）可单独开关，（b）可用 fixtures 提供回归证据，（c）明确与 GC/statepoint/effect 语义的关系与风险点。
+
+**HIR/MIR（中端）**
+
+- OPT-HIR-01：HIR 级常量折叠 + 简单 DCE（保守）
+  - 层级：HIR（typecheck 后，lowering 前）
+  - 预期收益：减少 IR 噪声；让后续 LLVM pipeline 更容易做 DCE/SCCP；对编译速度也有正向帮助
+  - 风险/依赖：必须保守判定副作用（不得消除 `perform` / 可能分配/抛错/IO 的调用）；需要与 effect 系统的“可观察行为”定义对齐
+  - 任务入口：OPT-HIR-01（后续可拆：pure 判定 → DCE → constfold）
+
+- OPT-MIR-01：逃逸分析 + 栈上分配（把“明显不逃逸”的短命对象/聚合值从 GC heap 挪到 stack）
+  - 层级：MIR 或 lowering→LLVM 边界（生成 `alloca` + mem2reg/SROA 友好形态）
+  - 预期收益：显著降低 GC 分配率与压力；提升热点路径性能；减少 statepoint live set
+  - 风险/依赖：必须严格排除“可能被 continuation 捕获/跨线程/写入堆容器/返回”的值；与 moving GC 的 root 更新协议要兼容（stack root 必须可枚举）；建议先从“局部 block 内、不含 perform 的范围”做最小可证明落地
+  - 任务入口：OPT-MIR-01（后续可拆：逃逸判定 → 可安全栈化的类型集合 → fixtures/IR 断言）
+
+- OPT-MIR-02：更精确的 live-range / root 缩减（降低 `gc.statepoint` 处的 live roots 数量）
+  - 层级：MIR（变量生命期）+ LLVM（statepoint 前的 liveness/RA 友好布局）
+  - 预期收益：减少 `gc.relocate` 数量与寄存器/栈槽压力；降低 safepoint 开销；对 `--gc-stress` 下的性能回归更敏感
+  - 风险/依赖：需要与现有 lowering 的“局部变量绑定/临时值”策略配合；必须用 `--emit-llvm` + build fixtures 锁住关键 IR 形态（避免误优化导致 root 漏扫）
+  - 任务入口：OPT-MIR-02（后续可拆：lowering 临时值策略 → liveness 缩减 → build fixtures）
+
+- OPT-MIR-03：中端内联/去包装（把“必经的薄封装函数”内联掉，减少 call 边界）
+  - 层级：MIR（自研内联）或 LLVM（通过属性/启发式增强 inlining）
+  - 预期收益：减少 call 开销；放大后续 SROA/GVN 的收益；为进一步去虚化创造条件
+  - 风险/依赖：会增加编译时间与 code size；与 statepoint rewrite 的顺序要谨慎（大多数内联应发生在 rewrite 前）；需要一个可控开关（例如仅 `-O2+`）
+  - 任务入口：OPT-MIR-03（后续可拆：内联白名单/阈值 → 开关策略 → fixtures）
+
+**LLVM（后端）**
+
+- OPT-LLVM-01：更强去虚化（CHA / sealed/final metadata / vcall 优化信息贯穿）
+  - 层级：HIR/MIR（类层级信息）→ LLVM（devirt/inlining 生效）
+  - 预期收益：进一步减少间接调用；提升 inlining 机会；改善 hot method dispatch 的性能
+  - 风险/依赖：需要“全程序可见”的 class hierarchy 视角（至少在单 crate/单编译单元内）；必须定义动态加载/反射（若有）的语义边界；建议先从 cone 单项目单编译单元场景落地
+  - 任务入口：OPT-LLVM-01（后续可拆：CHA 数据结构 → codegen metadata → build fixture）
+
+- OPT-LLVM-02：ThinLTO/LTO（release profile 的可选增强）
+  - 层级：driver/build（链接阶段）+ LLVM
+  - 预期收益：跨模块内联与 DCE；提升性能并可能减小体积
+  - 风险/依赖：构建时间与工具链复杂度上升（lld/clang 配置）；需要在 Cone build 目录结构下落一个稳定可重现的 cache/产物策略；建议做成 opt-in（例如 `--lto=thin`）
+  - 任务入口：OPT-LLVM-02（后续可拆：本机工具链探测 → CLI 开关 → fixtures/bench）
+
+- OPT-LLVM-03：PGO（profile-guided optimization）工作流（instrument → run → use）
+  - 层级：driver/build + LLVM
+  - 预期收益：在真实 workload 上显著提升分支预测/内联决策质量；对复杂控制流收益明显
+  - 风险/依赖：需要端到端工作流与样例/脚本；CI 运行成本较高；应先做“本地可用”的 v0 并提供文档与可选开关
+  - 任务入口：OPT-LLVM-03（后续可拆：instrument 支持 → profile 合并 → use profile）
+
+**Runtime/GC（运行期）**
+
+- OPT-GC-01：分代/新生代（nursery）或 bump-pointer 分配策略（降低 minor GC 成本）
+  - 层级：runtime/GC
+  - 预期收益：显著降低短命对象的回收成本；降低停顿；提升吞吐
+  - 风险/依赖：需要写屏障（card marking / remembered set）与更复杂的 GC 不变量；与多线程 STW/并发分配交互复杂；应以“可回归 fixtures + microbench”逐步推进
+  - 任务入口：OPT-GC-01（后续可拆：nursery allocator → barrier → 验证 fixtures）
+
+- OPT-GC-02：多线程下的 TLAB/线程本地分配缓存（减少全局分配锁竞争）
+  - 层级：runtime/GC + 多线程 runtime
+  - 预期收益：提升多线程分配吞吐；降低锁竞争；为 T1705 的多线程 fixtures 打基础
+  - 风险/依赖：需要与 GC safepoint/STW 协议严格对齐；线程结束/抢占时的缓冲区回收要正确；需确定性测试防 flakiness
+  - 任务入口：OPT-GC-02（后续可拆：TLAB 设计 → STW 协议 → 多线程 fixtures）
+
+**Effect/Continuation（语义不变前提下的优化）**
+
+- OPT-EFF-01：non-resuming / immediate resume fast-path（减少 continuation/state 分配）
+  - 层级：lowering/codegen + runtime dispatch
+  - 预期收益：常见 effect（例如错误传播、简单的同步 handler）可避免 heap state 机；降低 GC 压力与调度开销
+  - 风险/依赖：必须以统一 dispatch 语义为前提（见 TODO：T1608），避免“特判路径”导致 active/inactive 规则失真；需要用嵌套 handler fixtures 做强回归
+  - 任务入口：OPT-EFF-01（后续可拆：识别可 fast-path 的 handler → codegen → fixtures）
 
 ### 2.5 Effect/Continuation 完整语义（正确性优先：多次 suspend/resume）
 

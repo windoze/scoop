@@ -163,7 +163,7 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture：在默认模式与 `--gc-stress` 下行为一致。
 - 依赖：（历史）effect lowering/codegen 基础链路已存在
 
-### T1605 [TODO] 高级优化候选清单：建立并持续维护（不阻塞主线）
+### T1605 [DONE] 高级优化候选清单：建立并持续维护（不阻塞主线）
 - 描述：建立并维护一份 Scoop 编译器的高级优化候选清单，用于后续分阶段立项（避免“想到哪做哪”）。
 - 目标：清单必须标注：
   - 适用层级（HIR/MIR/LLVM）
