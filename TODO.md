@@ -123,7 +123,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0103c
 
-### T0103e [TODO] HIR lowering：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
+### T0103e [DONE] HIR lowering：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
 - 描述：把 delegated properties、lazy/observable/vetoable、when 模式、以及其它语法糖/特殊 case 的 lowering 迁移到独立模块，避免它们散落在 expr/stmt 内部。
 - 目标：阶段性特判集中且显式标注任务号，便于后续清理；为未来加单测预留“可单测的最小入口”。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`

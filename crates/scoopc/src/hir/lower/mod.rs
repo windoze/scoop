@@ -7,6 +7,9 @@
 mod types;
 mod util;
 
+mod patterns;
+mod sugar;
+
 mod block;
 mod expr;
 mod stmt;
@@ -27,13 +30,8 @@ use crate::ty::{
 };
 
 use super::{
-    Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
-    ClassField, ClassInit, ClassInitIndex, ClassInitStep, ClosureExpr, ClosureId,
-    CtorCallSiteIndex, EffectOpRef, EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout,
-    EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm, HandleArmKind, HandleBinder,
-    HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex,
-    ObjectInitStep, ObjectProperty, Param, StructCLayout, StructFieldLayout, StructLayout,
-    StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    CallArg, ClassInitIndex, CtorCallSiteIndex, Expr, ExprKind, File, FunDecl, Item,
+    ObjectInitIndex, Param, SymbolId, ValDecl, ValueRef,
 };
 
 use types::*;
@@ -769,83 +767,6 @@ impl<'a> HirLowering<'a> {
             self.index.type_ref_to_fqn_in_file(self.source, self.file, &ty),
             Some(fqn) if fqn == expected_fqn
         )
-    }
-
-    fn try_lower_delegated_property_assign(
-        &mut self,
-        pkg_prefix: &str,
-        span: Span,
-        lhs: &ast::Expr,
-        rhs: &ast::Expr,
-    ) -> Option<Expr> {
-        let ast::ExprKind::MemberAccess { receiver, member } = &lhs.kind else {
-            return None;
-        };
-        let Some(ast::ResolvedMemberRef::Value { fqn }) = member.resolved.as_ref() else {
-            return None;
-        };
-        let info = self.delegated_properties.get(fqn).cloned()?;
-
-        match info {
-            DelegatedPropertyInfo::Observable(info) => self
-                .lower_observable_delegated_property_assign(
-                    pkg_prefix,
-                    span,
-                    member.span,
-                    receiver,
-                    rhs,
-                    fqn,
-                    &info,
-                ),
-            DelegatedPropertyInfo::Vetoable(info) => self.lower_vetoable_delegated_property_assign(
-                pkg_prefix,
-                span,
-                member.span,
-                receiver,
-                rhs,
-                fqn,
-                &info,
-            ),
-            DelegatedPropertyInfo::Generic(info) => {
-                let receiver = self.lower_expr(pkg_prefix, receiver);
-                let this_ref = receiver.clone();
-                let delegate = self.lower_generic_delegated_property_delegate_access_expr(
-                    member.span,
-                    receiver.clone(),
-                    &info,
-                );
-                let callee = Expr {
-                    span: member.span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::MemberAccess {
-                        receiver: Box::new(delegate),
-                        member: MemberAccess {
-                            span: member.span,
-                            name: "setValue".to_string(),
-                            resolved: None,
-                        },
-                    },
-                };
-
-                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
-                let value = self.lower_expr(pkg_prefix, rhs);
-
-                Some(Expr {
-                    span,
-                    ty: self.builtins.unit,
-                    kind: ExprKind::Call {
-                        callee: Box::new(callee),
-                        args: vec![
-                            CallArg::Positional(this_ref),
-                            CallArg::Positional(meta),
-                            CallArg::Positional(value),
-                        ],
-                    },
-                })
-            }
-
-            DelegatedPropertyInfo::Lazy(_) | DelegatedPropertyInfo::MapBacked => None,
-        }
     }
 
     fn lower_type_ref(&mut self, t: &ast::TypeRef) -> TypeId {
