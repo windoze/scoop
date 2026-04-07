@@ -73,7 +73,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0102a、T0102c
 
-### T0102e [TODO] LLVM：抽出 effect/continuation/GC/statepoint 相关逻辑（`effect.rs` / `gc.rs`）
+### T0102e [DONE] LLVM：抽出 effect/continuation/GC/statepoint 相关逻辑（`effect.rs` / `gc.rs`）
 - 描述：把 handler stack、perform 分发、raise unwinding、statepoint rewrite 约束与 GC root 辅助等集中到独立模块，减少“语义不变量”分散在各处的风险。
 - 目标：effect/GC 关键不变量（stack discipline / addrspace / statepoint 约束）集中可读；后续 T1610~T1612 变更影响半径更小。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
