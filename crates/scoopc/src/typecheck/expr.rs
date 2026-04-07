@@ -5529,8 +5529,17 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
     let variant_name = source.slice(callee.span);
     let candidates = lower.env().find_enum_variants_named(variant_name);
 
-    // 只在“同名候选不唯一”的情况下尝试消歧，避免改变原有单候选/无候选的推导与诊断行为。
-    if candidates.len() <= 1 {
+    // 说明：
+    // - 当 callee ident 未被 resolver 绑定（`resolved == None`）时，我们会尝试把 `Foo(...)` 视为
+    //   enum variant ctor（T0426）。
+    // - 若该 call 处于“有 expected type”的语境下（例如 `val x: Option<Int> = Some(1)`），
+    //   我们优先用 expected enum type 来确定“它应该构造哪个 enum 的 variant”。
+    //
+    // 这同时覆盖两类场景：
+    // - 同名 variant 跨多个 enum 存在（需要按 expected type 消歧）；
+    // - variant 名在全局唯一（仍然可以用 expected type 把字段参数的 expected type 下推到子表达式，
+    //   例如 `Some(None())` 里的 `None()` 需要 `Option<T>` 的 expected type 才能推断）。
+    if candidates.is_empty() {
         return Ok(None);
     }
 

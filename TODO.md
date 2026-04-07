@@ -7101,7 +7101,7 @@
    - `cargo test --all`
    - `cargo run -p scoop -- test`
 
-### T1518 [TODO] Niche 优化的 GC 安全门禁：ref（含 ref 的值类型）禁止 nested niche
+### T1518 [DONE] Niche 优化的 GC 安全门禁：ref（含 ref 的值类型）禁止 nested niche
 - 描述：当前 `Option<T>` 的 niche 传播机制支持 nested niche（例如 `Option<Option<RefType>>` 外层 `None` 可能编码为 `0x1` 等非法地址），但在“精确 GC + stackmap/bitmap 静态枚举 roots”的体系下，这类 **非 NULL 的 pointer-shaped 非 GC 指针** 一旦落入可扫描 slot，就会导致 GC 把它当对象指针处理并崩溃/UB。为避免把 GC 安全性建立在“扫描时读 tag/判别指针合法性”的假设上，需要收紧 niche 规则。
 - 目标：
   - 规则选择（本任务落地的约束）：
@@ -7116,6 +7116,23 @@
   - 新增 `--emit-llvm`/codegen fixture：`Option<Option<String>>`（或等价 `String??`）在生成 IR 时不出现 `inttoptr 1`（或等价的非法指针 `None` 编码），并且语义（pattern match）正确。
   - 保持既有 `Option<Ref>` niche 用例（`None = null`）仍通过：`tests/fixtures/run-pass/option_ref_niche_basic.scoop`。
 - 依赖：T1502、T0826
+ - 完成：
+   - niche 规则收紧（与 spec §2.3.2 对齐）：
+     - `crates/scoopc/src/typecheck/layout.rs`：Pointer niche domain 收敛为仅 `0`（NULL），避免产生可向外层传播的“剩余 domain”，从而 `Option<Option<Ref>>` 外层必回退 tagged union。
+     - `crates/scoopc/src/llvm/codegen.rs`：保持 Pointer niche 只允许 `None = NULL` 的语义，并补齐注释说明“Pointer niche 不支持 nested niche”。
+   - 为能端到端回归 nested option（payload 为 `Option<Ref>`）：
+     - `crates/scoopc/src/typecheck/expr.rs`：在存在 expected type 的语境下，即便 variant 名全局唯一，也优先按 expected enum type 走 variant ctor 路径，并把字段参数 expected type 下推到子表达式（使 `Some(None())` 等嵌套构造可消歧）。
+     - `crates/scoopc/src/llvm/codegen.rs`：允许把 niche enum（当前主要为 `Option<T>`）作为外层 enum/Option 的 payload（映射到 `{ payload_word, payload_ptr }`），并在 `when` 解构时支持提取该 nested niche enum（避免 `inttoptr` 哨兵值并保持 GC safety）。
+   - fixtures：
+     - build（IR 断言）：`tests/fixtures/build/option_nested_ref_niche_forbidden_no_inttoptr_1.scoop`
+       - `--emit-llvm` + `BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1` / `inttoptr (i32 1`；
+     - run-pass（语义回归）：`tests/fixtures/run-pass/option_nested_ref_no_nested_niche_basic.scoop` + `.stdout`。
+   - fixtures runner：
+     - `crates/scoop/src/fixtures/expectations.rs`/`crates/scoop/src/fixtures/mod.rs`：build phase 支持 `BUILD-LLVM-(NOT-)CONTAINS` 子串断言。
+ - 验收：
+   - `cargo test --all`
+   - `cargo run -p scoop_tools -- spec-fixtures check`
+   - `cargo run -p scoop -- test`
 
 ### T1519 [TODO] 编译器落地：对 ref niche 禁止 domain 传播，并对 nested option 回退 tagged union
 - 描述：按 T1518 的规则调整布局计算与 codegen，使 “ref niche 只用 NULL” 且不会触发 nested niche 压缩。

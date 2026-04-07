@@ -1,0 +1,35 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1
+// BUILD-LLVM-NOT-CONTAINS: inttoptr (i32 1
+//
+// 目标：T1518 nested option（`Option<Option<String>>`）不应把外层 `None` 编码为 `0x1` 等非法指针哨兵值。
+
+package fixtures.build
+
+import scoop.core.*
+
+fun classify(x: Option<Option<String> >): Int {
+    return when (x) {
+        Some(inner) -> when (inner) {
+            Some(s) -> {
+                // 说明：这里只需要让 nested option 的 `Some(Some(_))` 分支可被区分即可；
+                // 不依赖 String 成员访问（early stage typecheck 尚未完整支持）。
+                val _: String = s
+                2
+            }
+            None -> 1
+        }
+        None -> 0
+    }
+}
+
+fun main() {
+    val a: Option<Option<String> > = Some(Some("hi"))
+    val b: Option<Option<String> > = Some(None())
+    val c: Option<Option<String> > = None()
+
+    println(classify(a))
+    println(classify(b))
+    println(classify(c))
+}

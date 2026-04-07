@@ -38,7 +38,9 @@ pub enum NicheStorage {
 /// 解释：
 /// - `next..end` 表示“仍可被占用”的 niche 值集合（按递增顺序分配）；
 /// - 当某个 `Option<...>` 使用 niche 优化时，会从 inner domain 中取走一个值作为 `None` 编码，
-///   并把剩余 domain 传递给外层（支持 nested niche，例如 `Option<Option<RefType>>`）。
+///   并把剩余 domain 传递给外层（支持 nested niche，例如 `Option<Option<Bool>>`）。
+///   对于 `Pointer` niche（GC-managed ref），实现侧会额外收紧规则以满足 GC trace safety：
+///   只允许 `None = NULL`，并禁止把“剩余 niche domain”继续向外传播（见 spec §2.3.2；T1518）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NicheDomain {
     pub storage: NicheStorage,
@@ -133,8 +135,9 @@ pub enum EnumRepr {
     ///
     /// 说明（spec §2.3.2）：
     /// - `Option<RefType>`：`None = null (0x0)`
-    /// - `Option<Option<RefType>>`：外层 `None` 使用 `0x1` 等非法地址值
     /// - `Option<Bool>`：`None = 2`
+    /// - 对于 GC-managed ref：禁止 non-NULL pointer-shaped niche；因此 `Option<Option<RefType>>`
+    ///   外层必须回退到 tagged union（而不是压缩为单指针并用 `0x1` 等哨兵值编码）。
     Niche {
         storage: NicheStorage,
         none_value: u64,

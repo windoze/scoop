@@ -157,15 +157,18 @@ impl<'a> LayoutComputer<'a> {
 
     fn pointer_layout(&self) -> TypeLayout {
         // 说明：
-        // - 引用类型在语言层语义为 non-null（nullable 走 `Option<T>`），因此 null 可作为 niche；
-        // - 同时，按指针对齐（至少 2），诸如 0x1 的 misaligned 值也可作为“非法地址 niche”。
+        // - 引用类型在语言层语义为 non-null（nullable 走 `Option<T>`），因此 `0`（NULL）可作为 niche；
+        // - GC trace safety（spec §2.3.2；T1518）：
+        //   对于 GC-managed ref，**禁止**用 `0x1` 等非 NULL 的 pointer-shaped 值编码 `None`。
+        //   这类值一旦落入“静态可枚举”的 GC pointer slot（stackmap/bitmap），精确 GC 会把它当作对象指针追踪并崩溃/UB。
         //
-        // 这里用 `[0, pointer_align)` 作为“可用 niche 值集合”（连续分配），以便支持 nested niche。
+        // 因此：Pointer niche 只提供一个值（NULL），并避免产生可向外层传播的“剩余 domain”
+        // （从而 `Option<Option<Ref>>` 外层会回退到 tagged union 表示）。
         TypeLayout::new(self.target.pointer_size, self.target.pointer_align).with_niche(
             NicheDomain {
                 storage: NicheStorage::Pointer,
                 next: 0,
-                end: self.target.pointer_align.max(1),
+                end: 1,
             },
         )
     }

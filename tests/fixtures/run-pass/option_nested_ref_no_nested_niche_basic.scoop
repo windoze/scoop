@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: option_nested_ref_no_nested_niche_basic.stdout
+//
+// 目标：T1518 对 GC-managed ref 禁止 nested niche；`Option<Option<String>>` 仍应保留三态语义且 pattern match 正确。
+
+import scoop.core.*
+
+fun show(x: Option<Option<String> >): String {
+    return when (x) {
+        Some(inner) -> when (inner) {
+            Some(s) -> s
+            None -> "inner-none"
+        }
+        None -> "outer-none"
+    }
+}
+
+fun main() {
+    val a: Option<Option<String> > = Some(Some("hi"))
+    val b: Option<Option<String> > = Some(None())
+    val c: Option<Option<String> > = None()
+
+    println(show(a))
+    println(show(b))
+    println(show(c))
+}

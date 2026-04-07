@@ -19,6 +19,7 @@
 
 ## 0.1 维护备注（TODO 顺序）
 
+- 2026-04-07：完成 T1518：对 GC-managed ref 收紧 pointer niche（仅允许 `None = NULL` 且禁止 nested niche 传播），并补齐 nested `Option<Option<String>>` 的 build IR 断言（不出现 `inttoptr 1`）与 run-pass 语义回归；同时让 typecheck 在 expected context 下也能为 enum variant ctor 下推字段 expected type（使 `Some(None())` 等嵌套构造可消歧），LLVM codegen 支持把 niche enum（`Option<T>`）作为外层 enum/Option payload 的标量承载与 `when` 解构。验收：`cargo test --all`、`cargo run -p scoop_tools -- spec-fixtures check`、`cargo run -p scoop -- test`。
 - 2026-04-07：完成 T1113：driver 支持 `--entry-package`/`Cone.toml[native-build].entry-package` 选择入口包，并在缺失 `fun main` 或入口指向依赖 cone 时给出稳定错误码；`scoopc::resolve::Index` 新增 runtime entry point（FQN），typecheck 仅对选定 `main` 强制 `Pure!`，LLVM codegen 按入口 FQN 精确选择 `main`；新增 `tests/fixtures/run_pass_cone/**` 覆盖“选择正确 main + 缺失 main compile-fail”。验收：`cargo test --all` + `cargo run -p scoop --features llvm -- test` 通过。
 - 2026-04-07：完成 T1114：toolchain 最终链接阶段支持 `native-build.linker/link-flags`：新增 `LinkOptions` 允许指定 linker 程序并稳定追加 `link-flags`；cone 包模式 `scoop build/run` 透传该配置；新增单测覆盖 `link-flags` 顺序稳定性。验收：`cargo test --all` 通过。
 - 2026-04-07：完成 T1115：cone native build 支持 `c-sources/c-flags`：driver 在最终链接前编译 `Cone.toml[native-build].c-sources` 并参与链接；`c-flags` 仅作用于 user sources；toolchain 增加 C 源码编译与多 object 链接 API；新增 `tests/fixtures/run_pass_cone/c_sources_extern_call_basic/**` 端到端回归。验收：`cargo test --all` + `cargo run -p scoop --features llvm -- test` 通过。

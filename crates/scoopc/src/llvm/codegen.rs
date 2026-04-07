@@ -286,7 +286,10 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     env: Env<'ctx>,
     /// `TypeId -> TypeLayout`（仅用于 codegen 侧的 niche 决策；不追求覆盖所有类型语法）。
     type_layout_cache: HashMap<TypeId, TypeLayout>,
-    /// `Option<T>` niche 表示的 `None` 编码（用于嵌套 niche）。
+    /// `Option<T>` niche 表示的 `None` 编码（用于 nested niche，例如 `Option<Option<Bool>>`）。
+    ///
+    /// 注意：对 GC-managed ref（Pointer niche）仅允许 `None = NULL`，并禁止剩余 domain 继续传播；
+    /// 因此 `Option<Option<Ref>>` 外层会回退 tagged union（T1518；spec §2.3.2）。
     option_niche_cache: HashMap<TypeId, Option<(NicheStorage, u64)>>,
     /// `enum/Option` 的 codegen 表示选择与 boxing 决策缓存。
     enum_cg_layout_cache: HashMap<TypeId, CgEnumLayout>,
@@ -12630,7 +12633,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .with_niche(NicheDomain {
                     storage: NicheStorage::Pointer,
                     next: 0,
-                    end: target.pointer_align.max(1),
+                    end: 1,
                 }),
             TypeKind::Param(_) => TypeLayout::new(target.pointer_size, target.pointer_align),
             TypeKind::Value(v) => match v {
@@ -13012,12 +13015,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     gc_ptr: Some(casted),
                 })
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum payload (non-scalar)",
-                    at: at.into(),
-                })
+            CgTy::Enum(nested_enum_ty) => {
+                // 允许把 “niche enum（当前主要是 `Option<...>`）” 作为 payload 承载到外层 enum/Option 中。
+                //
+                // 关键点：
+                // - niche enum 的运行期值本身就是一个“标量存储”（ptr 或 u8）；
+                // - 因此可以映射到 tagged union 的 `{ payload_word, payload_ptr }` 载体上，
+                //   且不引入 ptr<->int 编码（GC safety）。
+                let Some(raw) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload nested enum",
+                        at: at.into(),
+                    });
+                };
+
+                let repr = self.cg_enum_layout(at, nested_enum_ty)?.repr;
+                match repr {
+                    CgEnumRepr::Niche {
+                        storage,
+                        none_value,
+                    } => match storage {
+                        NicheStorage::Pointer => {
+                            // GC safety（T1518）：pointer niche 只允许 `None = NULL`。
+                            if none_value != 0 {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "nested niche enum pointer none_value (must be NULL)",
+                                    at: at.into(),
+                                });
+                            }
+
+                            let BasicValueEnum::PointerValue(ptr) = raw else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "nested niche enum payload (ptr)",
+                                    at: at.into(),
+                                });
+                            };
+
+                            let casted = self.builder.build_pointer_cast(
+                                ptr,
+                                self.llvm_gc_i8_ptr_type(),
+                                "enum_payload_nested_niche_ptr_as_i8",
+                            )?;
+                            Ok(CgEnumPayload {
+                                word: None,
+                                gc_ptr: Some(casted),
+                            })
+                        }
+                        NicheStorage::U8 => {
+                            let BasicValueEnum::IntValue(v) = raw else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "nested niche enum payload (u8)",
+                                    at: at.into(),
+                                });
+                            };
+                            let widened = self.builder.build_int_z_extend(
+                                v,
+                                payload_int_ty,
+                                "enum_payload_nested_niche_u8",
+                            )?;
+                            Ok(CgEnumPayload {
+                                word: Some(widened),
+                                gc_ptr: None,
+                            })
+                        }
+                    },
+                    _ => Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "enum payload (nested enum, unsupported repr)",
+                        at: at.into(),
+                    }),
+                }
             }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "enum payload (non-scalar)",
+                at: at.into(),
+            }),
         }
     }
 
@@ -14048,7 +14119,70 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ty: CgTy::Ref,
                         value: Some(payload_ptr.into()),
                     },
-                    CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                    CgTy::Enum(nested_enum_ty) => {
+                        let repr = self.cg_enum_layout(at, nested_enum_ty)?.repr;
+                        match repr {
+                            CgEnumRepr::Niche {
+                                storage,
+                                none_value,
+                            } => match storage {
+                                NicheStorage::Pointer => {
+                                    if none_value != 0 {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "when payload nested niche pointer none_value (must be NULL)",
+                                            at: arg_pat.span().into(),
+                                        });
+                                    }
+
+                                    let llvm_nested =
+                                        self.llvm_enum_value_type(at, nested_enum_ty)?;
+                                    let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "when payload nested niche storage (non-pointer)",
+                                            at: arg_pat.span().into(),
+                                        });
+                                    };
+
+                                    let casted = self.builder.build_pointer_cast(
+                                        payload_ptr,
+                                        ptr_ty,
+                                        "when_payload_nested_niche_ptr",
+                                    )?;
+                                    CgValue {
+                                        ty: CgTy::Enum(nested_enum_ty),
+                                        value: Some(casted.into()),
+                                    }
+                                }
+                                NicheStorage::U8 => {
+                                    let llvm_nested =
+                                        self.llvm_enum_value_type(at, nested_enum_ty)?;
+                                    let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "when payload nested niche storage (non-int)",
+                                            at: arg_pat.span().into(),
+                                        });
+                                    };
+
+                                    let v = self.builder.build_int_truncate(
+                                        payload_word,
+                                        int_ty,
+                                        "when_payload_nested_niche_u8",
+                                    )?;
+                                    CgValue {
+                                        ty: CgTy::Enum(nested_enum_ty),
+                                        value: Some(v.into()),
+                                    }
+                                }
+                            },
+                            _ => {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "when payload (nested enum, unsupported repr)",
+                                    at: arg_pat.span().into(),
+                                });
+                            }
+                        }
+                    }
+                    CgTy::Tuple(_) | CgTy::Struct(_) => {
                         return Err(LlvmEmitError::UnsupportedMainBody {
                             kind: "when payload (non-scalar)",
                             at: arg_pat.span().into(),

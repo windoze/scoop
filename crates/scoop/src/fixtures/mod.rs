@@ -678,6 +678,41 @@ struct BuildArtifactMetadataFailed {
     source: std::io::Error,
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("无法读取 build fixtures LLVM IR 产物：{path}（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_read_failed))]
+struct BuildLlvmIrReadFailed {
+    path: String,
+    fixture: String,
+    #[source]
+    source: std::io::Error,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures LLVM IR 未包含期望子串：{substring}（fixture: {fixture}；path: {path}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_missing_substring))]
+struct BuildLlvmIrMissingSubstring {
+    substring: String,
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures LLVM IR 包含禁止子串：{substring}（fixture: {fixture}；path: {path}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_unexpected_substring))]
+struct BuildLlvmIrUnexpectedSubstring {
+    substring: String,
+    path: String,
+    fixture: String,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("build fixtures LLVM IR 子串断言需要 `--emit-llvm`（fixture: {fixture}）")]
+#[diagnostic(code(scoop::fixtures::build_llvm_ir_assert_requires_emit_llvm))]
+struct BuildLlvmIrAssertRequiresEmitLlvm {
+    fixture: String,
+}
+
 fn build_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
@@ -687,11 +722,19 @@ fn build_fixture(
     let emit_obj = exp.args.iter().any(|a| a == "--emit-obj");
     let emit_asm = exp.args.iter().any(|a| a == "--emit-asm");
     let emit_requested = emit_llvm || emit_obj || emit_asm;
+    let needs_llvm_ir_assertions =
+        !exp.build_llvm_contains.is_empty() || !exp.build_llvm_not_contains.is_empty();
 
     // 约定：build fixtures 主要用于产出后端相关单文件产物（`.ll`/`.o`/`.s`）做排查；
     // 若未请求 emit，则该 fixture 在当前阶段视为“无操作”直接通过。
     if !emit_requested {
         return Ok(());
+    }
+
+    if needs_llvm_ir_assertions && !emit_llvm {
+        return Err(box_diagnostic(BuildLlvmIrAssertRequiresEmitLlvm {
+            fixture: fixture_path.display().to_string(),
+        }));
     }
 
     let emit = if emit_llvm {
@@ -775,6 +818,36 @@ fn build_fixture(
             path: out.display().to_string(),
             fixture: fixture_path.display().to_string(),
         }));
+    }
+
+    if needs_llvm_ir_assertions && matches!(emit, crate::commands::build::BuildEmit::LlvmIr) {
+        let ir = std::fs::read_to_string(&out).map_err(|e| {
+            box_diagnostic(BuildLlvmIrReadFailed {
+                path: out.display().to_string(),
+                fixture: fixture_path.display().to_string(),
+                source: e,
+            })
+        })?;
+
+        for &substring in &exp.build_llvm_contains {
+            if !ir.contains(substring) {
+                return Err(box_diagnostic(BuildLlvmIrMissingSubstring {
+                    substring: substring.to_string(),
+                    path: out.display().to_string(),
+                    fixture: fixture_path.display().to_string(),
+                }));
+            }
+        }
+
+        for &substring in &exp.build_llvm_not_contains {
+            if ir.contains(substring) {
+                return Err(box_diagnostic(BuildLlvmIrUnexpectedSubstring {
+                    substring: substring.to_string(),
+                    path: out.display().to_string(),
+                    fixture: fixture_path.display().to_string(),
+                }));
+            }
+        }
     }
 
     Ok(())
