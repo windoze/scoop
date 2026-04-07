@@ -35,7 +35,7 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0102a）：模块骨架 + 抽出 `types.rs`（先搬 `CgTy/CgValue/enum layout` 等共享类型/常量）
 - DONE（T0102b）：抽出 runtime ABI glue（runtime 符号声明/调用约定；新增 `runtime_abi.rs`/`runtime_symbols.rs`）
 - DONE（T0102c）：抽出 type/layout lowering（niche/boxing/field GEP 等）
-- T0102d：抽出 expr/stmt/control-flow codegen
+- DONE（T0102d）：抽出 expr/stmt/control-flow codegen
 - T0102e：抽出 effect/continuation/GC/statepoint 相关逻辑
 
 ## 1. Cone（改进项吸收）

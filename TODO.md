@@ -67,7 +67,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0102a
 
-### T0102d [TODO] LLVM：抽出表达式/语句 codegen（`expr.rs` / `stmt.rs` / `control_flow.rs`）
+### T0102d [DONE] LLVM：抽出表达式/语句 codegen（`expr.rs` / `stmt.rs` / `control_flow.rs`）
 - 描述：把 HIR expr/stmt 的 codegen 逻辑从主模块拆出，按职责分层，降低“在同一文件里跳转定位”的成本。
 - 目标：expr/stmt/control-flow 的入口函数可直接导航；局部 helper 尽量就近归属，减少跨区段耦合。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
