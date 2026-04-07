@@ -55,7 +55,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
 - 依赖：无
 
-### T0102b [TODO] LLVM：抽出 runtime ABI glue（`runtime_abi.rs` / `runtime_symbols.rs`）
+### T0102b [DONE] LLVM：抽出 runtime ABI glue（`runtime_abi.rs` / `runtime_symbols.rs`）
 - 描述：把 runtime 符号声明、调用约定、对象头/GC 相关的 ABI glue 从主 codegen 拆出，形成清晰“边界层”，便于后续排查与扩展。
 - 目标：runtime decls/ffi helper 有明确归属；避免在 expr/stmt codegen 中散落 `declare_*`/`get_or_declare_*`。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`

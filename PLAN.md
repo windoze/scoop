@@ -33,7 +33,7 @@ cargo run -p scoop --features llvm -- test
 > 背景：`crates/scoopc/src/llvm/codegen.rs` 已增长到 20K+ 行，定位与回归成本过高。该任务按“行为不变”的原则拆成可回归的小步（见 TODO：T0102a~T0102e）。
 
 - DONE（T0102a）：模块骨架 + 抽出 `types.rs`（先搬 `CgTy/CgValue/enum layout` 等共享类型/常量）
-- T0102b：抽出 runtime ABI glue（runtime 符号声明/调用约定）
+- DONE（T0102b）：抽出 runtime ABI glue（runtime 符号声明/调用约定；新增 `runtime_abi.rs`/`runtime_symbols.rs`）
 - T0102c：抽出 type/layout lowering（niche/boxing/field GEP 等）
 - T0102d：抽出 expr/stmt/control-flow codegen
 - T0102e：抽出 effect/continuation/GC/statepoint 相关逻辑
