@@ -229,12 +229,19 @@ fn run_run_pass_cone_case(
     let exp = FixtureExpectation::from_source(source.text());
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
-        let dir = crate::commands::temp::make_temp_dir("scoop_fixtures_run_pass_cone")?;
-        let exe = dir.join(default_exe_name());
+        // T1121：cone build 默认产物应写入 `<cone-root>/build/<profile>/...`，这里用默认输出路径做回归断言。
+        let cone_root = case_dir.canonicalize().into_diagnostic()?;
+        let manifest = scoopc::cone::ConeManifest::load_from_dir(&cone_root)?;
+        let exe =
+            crate::commands::build::layout::cone_default_exe_path(&cone_root, &manifest.cone.name);
+
+        // fixtures 需要自清理：先尽力清掉旧 build 产物，避免“上一次残留”影响本次断言。
+        let build_root = cone_root.join("build");
+        let _ = std::fs::remove_dir_all(&build_root);
 
         let build_result = crate::commands::build::run(
-            case_dir.to_path_buf(),
-            Some(exe.clone()),
+            cone_root.clone(),
+            None,
             crate::commands::build::BuildOptions::default(),
         );
 
@@ -243,12 +250,12 @@ fn run_run_pass_cone_case(
                 // 与 run-pass fixtures 一致：未启用 LLVM 时仅做“golden 文件可读性”校验并跳过执行。
                 if !cfg!(feature = "llvm") {
                     validate_run_pass_golden_files_readable(&expect_file_path, &exp)?;
-                    let _ = std::fs::remove_dir_all(&dir);
+                    let _ = std::fs::remove_dir_all(&build_root);
                     return Ok(());
                 }
 
                 if !exe.is_file() {
-                    let _ = std::fs::remove_dir_all(&dir);
+                    let _ = std::fs::remove_dir_all(&build_root);
                     return Err(box_diagnostic(RunPassConeMissingExe {
                         path: exe.display().to_string(),
                         fixture: rel_case.display().to_string(),
@@ -261,11 +268,11 @@ fn run_run_pass_cone_case(
                 run_pass_env.apply_to_command(&mut cmd);
                 let out = run_pass::run_fixture_command(rel_case, &expect_file_path, &exp, cmd);
 
-                let _ = std::fs::remove_dir_all(&dir);
+                let _ = std::fs::remove_dir_all(&build_root);
                 out
             }
             Err(e) => {
-                let _ = std::fs::remove_dir_all(&dir);
+                let _ = std::fs::remove_dir_all(&build_root);
 
                 // `miette::Report` 本身不实现 `Diagnostic`，这里优先把我们关心的 driver 诊断
                 // downcast 出来，以便 fixtures 能断言稳定错误码（例如 T1113 的 entry-package 校验）。
@@ -300,15 +307,6 @@ fn run_run_pass_cone_case(
             assert_diagnostic_matches(&source, &exp, &*e)?;
             Ok(1)
         }
-    }
-}
-
-fn default_exe_name() -> String {
-    let ext = std::env::consts::EXE_EXTENSION;
-    if ext.is_empty() {
-        "a.out".to_string()
-    } else {
-        format!("a.{ext}")
     }
 }
 

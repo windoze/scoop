@@ -63,7 +63,7 @@ cargo run -p scoop --features llvm -- test
   - （可选）新建项目后 `scoop run` 能输出固定字符串（与 T1123 一起验收）。
 - 依赖：无（已存在 `scoop new`；但后续端到端 run 验收建议在 LLVM 21 基线上做）
 
-### T1121 [TODO] build 输出目录：统一落到项目内 `build/<profile>/…`（并预留 `build/<target>/<profile>`）
+### T1121 [DONE] build 输出目录：统一落到项目内 `build/<profile>/…`（并预留 `build/<target>/<profile>`）
 - 描述：让 CONE 项目的 build 产物不再散落到 `/tmp` 或 workspace 其它目录，统一输出到项目内 `build/`：
   - 默认/host：`build/<profile>/…`
   - 预留 cross compile：`build/<target>/<profile>/…`（暂不要求实现 cross compile，只要求不要把路径写死导致未来迁移困难）

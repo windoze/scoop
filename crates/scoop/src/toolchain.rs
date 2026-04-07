@@ -140,6 +140,18 @@ pub enum LinkError {
     RuntimeSourceMissing { path: PathBuf },
 }
 
+/// 将 `runtime/c/*.c` 预编译为 object 文件时的错误（T1121：避免 build 产物散落到 `/tmp`）。
+#[derive(Debug, Error, Diagnostic)]
+pub enum RuntimeObjError {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Link(#[from] LinkError),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    CompileC(#[from] CompileCError),
+}
+
 /// 将 cone 额外 `c-sources` 的单个 C 源文件编译为 object。
 ///
 /// 约定（v0）：
@@ -356,6 +368,48 @@ pub fn link_objs_with_runtime(
     Ok(())
 }
 
+/// 通过 clang/clang++ 将多个 object 文件链接为可执行文件（不自动注入 runtime/c 源码）。
+///
+/// 用途（T1121）：
+/// - 当 driver 侧选择把 runtime/c 预编译为 `.o` 并写入 `build/<profile>/obj/` 时，
+///   用该函数把 `main.o + runtime.o + extra objs` 统一链接到最终可执行文件。
+pub fn link_objs(
+    objs: &[PathBuf],
+    output: &Path,
+    libs: &[String],
+    options: LinkOptions<'_>,
+) -> Result<(), LinkError> {
+    let mut cmd = link_command(objs, output, libs, options);
+    let linker_for_error = cmd.get_program().to_string_lossy().to_string();
+
+    let output_res = cmd.output();
+    let output_res = match output_res {
+        Ok(v) => v,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(LinkError::LinkerNotFound {
+                linker: linker_for_error,
+            });
+        }
+        Err(e) => {
+            return Err(LinkError::LinkerSpawnFailed {
+                linker: linker_for_error,
+                source: e,
+            });
+        }
+    };
+
+    if !output_res.status.success() {
+        return Err(LinkError::LinkFailed {
+            status: output_res.status,
+            command: format_command_for_debug(&cmd),
+            stdout: String::from_utf8_lossy(&output_res.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output_res.stderr).to_string(),
+        });
+    }
+
+    Ok(())
+}
+
 fn link_command_with_runtime(
     objs: &[PathBuf],
     output: &Path,
@@ -402,8 +456,68 @@ fn link_command_with_runtime(
     Ok(cmd)
 }
 
+fn link_command(
+    objs: &[PathBuf],
+    output: &Path,
+    libs: &[String],
+    options: LinkOptions<'_>,
+) -> Command {
+    let linker = options.linker.unwrap_or("clang");
+    let mut cmd = Command::new(linker);
+    for obj in objs {
+        cmd.arg(obj);
+    }
+    for lib in libs {
+        if lib.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(format!("-l{}", lib.trim()));
+    }
+    for flag in options.link_flags {
+        if flag.trim().is_empty() {
+            continue;
+        }
+        cmd.arg(flag);
+    }
+    cmd.arg("-o").arg(output);
+    cmd
+}
+
 fn runtime_c_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c")
+}
+
+/// 将 runtime/c 的全部 C 源码预编译为 object 文件，写入给定目录。
+///
+/// 说明：
+/// - 输出对象文件名采用 `rt_<stem>.o`（Windows 为 `.obj`），避免与用户 object 冲突；
+/// - v0 阶段不做增量缓存：每次调用都覆盖写出（T1124 再引入 fingerprint）。
+pub fn compile_runtime_c_sources_to_obj_dir(
+    output_dir: &Path,
+) -> Result<Vec<PathBuf>, RuntimeObjError> {
+    let sources = runtime_c_sources()?;
+    let runtime_dir = runtime_c_dir();
+
+    let mut out = Vec::with_capacity(sources.len());
+    for (idx, src) in sources.iter().enumerate() {
+        let stem = src
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("runtime");
+        let obj_name = if cfg!(windows) {
+            format!("rt_{stem}_{idx}.obj")
+        } else {
+            format!("rt_{stem}_{idx}.o")
+        };
+
+        // runtime/c 编译需要固定 GC backend（与旧的“直接把 runtime 源码交给 linker driver”一致）。
+        let flags = [String::from("-DSCOOP_GC_BACKEND=3")];
+        let out_obj = output_dir.join(obj_name);
+        compile_c_source_to_obj(&runtime_dir, src, &out_obj, &flags)?;
+        out.push(out_obj);
+    }
+
+    Ok(out)
 }
 
 fn runtime_c_sources() -> Result<Vec<PathBuf>, LinkError> {

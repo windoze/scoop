@@ -7,6 +7,7 @@
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
 mod deps;
+pub(crate) mod layout;
 
 use std::path::{Path, PathBuf};
 
@@ -141,7 +142,8 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         .into_diagnostic()
         .wrap_err("无法定位输入文件")?;
 
-    let output = output.unwrap_or_else(|| default_output_path_for_emit(emit));
+    let input = load_build_input(&input, entry_package)?;
+    let output = output.unwrap_or_else(|| default_output_path_for_input_and_emit(&input, emit));
     ensure_output_parent_dir(&output)?;
 
     if output.exists() && output.is_dir() {
@@ -150,7 +152,6 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     let session = scoopc::session::Session::new()?;
 
-    let input = load_build_input(&input, entry_package)?;
     let deps = match (&input.cone_root, &input.cone_manifest) {
         (Some(root), Some(manifest)) => deps::load_dependency_graph(manifest, root)?,
         _ => Vec::new(),
@@ -293,6 +294,17 @@ fn load_build_input(input: &Path, entry_package_override: Option<String>) -> Res
         "输入既不是文件也不是目录：{}",
         input.display()
     ))
+}
+
+fn default_output_path_for_input_and_emit(input: &BuildInput, emit: BuildEmit) -> PathBuf {
+    if emit == BuildEmit::Executable {
+        if let (Some(root), Some(manifest)) =
+            (input.cone_root.as_ref(), input.cone_manifest.as_ref())
+        {
+            return layout::cone_default_exe_path(root, &manifest.cone.name);
+        }
+    }
+    default_output_path_for_emit(emit)
 }
 
 fn default_stdlib_path() -> PathBuf {
@@ -667,8 +679,27 @@ fn run_codegen_and_link(
     front: &FrontendOutput,
     output: &Path,
 ) -> Result<()> {
-    let dir = super::temp::make_temp_dir("scoop_build")?;
-    let obj = dir.join("main.o");
+    // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
+    // - cone 包：写入 `build/debug/obj/`（profile 先固定为 debug；T1122 再引入 `--release`）。
+    // - 单文件模式：仍使用临时目录（保持行为不变）。
+    let is_cone = front.input.cone_root.is_some() && front.input.cone_manifest.is_some();
+
+    let (work_dir, keep_work_dir) = if is_cone {
+        let root = front
+            .input
+            .cone_root
+            .as_ref()
+            .ok_or_else(|| miette::miette!("内部错误：cone build 缺少 cone_root"))?;
+        let dir = layout::cone_obj_dir(root, None, layout::DEFAULT_CONE_BUILD_PROFILE);
+        std::fs::create_dir_all(&dir)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法创建 build obj 目录：{}", dir.display()))?;
+        (dir, true)
+    } else {
+        (super::temp::make_temp_dir("scoop_build")?, false)
+    };
+
+    let obj = work_dir.join(layout::obj_file_name("main"));
 
     let lowered = lower_main_hir_for_build(session, front)?;
     scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
@@ -691,7 +722,7 @@ fn run_codegen_and_link(
             extra_objs.reserve(manifest.native_build.c_sources.len());
             for (idx, rel) in manifest.native_build.c_sources.iter().enumerate() {
                 let src = root.join(rel);
-                let out_obj = dir.join(format!("cone_c_{idx}.o"));
+                let out_obj = work_dir.join(layout::obj_file_name(&format!("cone_c_{idx}")));
                 crate::toolchain::compile_c_source_to_obj(
                     root,
                     &src,
@@ -711,7 +742,7 @@ fn run_codegen_and_link(
             extra_objs.reserve(manifest.native_build.cxx_sources.len());
             for (idx, rel) in manifest.native_build.cxx_sources.iter().enumerate() {
                 let src = root.join(rel);
-                let out_obj = dir.join(format!("cone_cxx_{idx}.o"));
+                let out_obj = work_dir.join(layout::obj_file_name(&format!("cone_cxx_{idx}")));
                 crate::toolchain::compile_cxx_source_to_obj(
                     root,
                     &src,
@@ -744,11 +775,20 @@ fn run_codegen_and_link(
             .unwrap_or(&[]),
     };
     let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
-    objs.push(obj);
+    objs.push(obj.clone());
     objs.extend(extra_objs);
-    crate::toolchain::link_objs_with_runtime(&objs, output, &lowered.extern_libs, options)?;
 
-    let _ = std::fs::remove_dir_all(&dir);
+    if is_cone {
+        let runtime_objs = crate::toolchain::compile_runtime_c_sources_to_obj_dir(&work_dir)?;
+        objs.extend(runtime_objs);
+        crate::toolchain::link_objs(&objs, output, &lowered.extern_libs, options)?;
+    } else {
+        crate::toolchain::link_objs_with_runtime(&objs, output, &lowered.extern_libs, options)?;
+    }
+
+    if !keep_work_dir {
+        let _ = std::fs::remove_dir_all(&work_dir);
+    }
     Ok(())
 }
 
