@@ -27,8 +27,9 @@ pub fn run(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
+    incremental: bool,
 ) -> Result<()> {
-    match run_for_exit_code(input, args, entry_package, profile)? {
+    match run_for_exit_code(input, args, entry_package, profile, incremental)? {
         0 => Ok(()),
         code => std::process::exit(code),
     }
@@ -103,6 +104,7 @@ fn run_for_exit_code(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
+    incremental: bool,
 ) -> Result<i32> {
     let input = resolve_run_input(input)?;
     match input {
@@ -119,6 +121,7 @@ fn run_for_exit_code(
                     emit: super::build::BuildEmit::Executable,
                     entry_package,
                     profile,
+                    incremental,
                 },
             )?;
 
@@ -154,6 +157,7 @@ fn run_for_exit_code(
                     emit: super::build::BuildEmit::Executable,
                     entry_package,
                     profile,
+                    incremental,
                 },
             )?;
 
@@ -212,6 +216,7 @@ mod tests {
             Vec::new(),
             None,
             super::super::build::BuildProfile::Debug,
+            true,
         )
         .unwrap_err();
         assert!(
@@ -231,6 +236,7 @@ mod tests {
             Vec::new(),
             None,
             super::super::build::BuildProfile::Debug,
+            true,
         )
         .unwrap();
         assert_eq!(code, 0, "最小 main 应返回 0");

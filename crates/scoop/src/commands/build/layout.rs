@@ -27,6 +27,14 @@ pub(crate) fn cone_obj_dir(cone_root: &Path, target: Option<&str>, profile: &str
     cone_build_dir(cone_root, target, profile).join("obj")
 }
 
+pub(crate) fn cone_build_json_path(
+    cone_root: &Path,
+    target: Option<&str>,
+    profile: &str,
+) -> PathBuf {
+    cone_build_dir(cone_root, target, profile).join(super::incremental::BUILD_JSON_FILE_NAME)
+}
+
 pub(crate) fn cone_exe_file_name(project_name: &str) -> String {
     let ext = std::env::consts::EXE_EXTENSION;
     if ext.is_empty() {

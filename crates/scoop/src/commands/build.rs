@@ -7,6 +7,7 @@
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
 mod deps;
+mod incremental;
 pub(crate) mod layout;
 
 use std::path::{Path, PathBuf};
@@ -114,6 +115,8 @@ pub struct BuildOptions {
     pub entry_package: Option<String>,
     /// cone build profile（影响默认产物目录布局：`build/<profile>/...`）。
     pub profile: BuildProfile,
+    /// 是否启用粗粒度增量构建（T1124）。
+    pub incremental: bool,
 }
 
 impl Default for BuildOptions {
@@ -122,6 +125,7 @@ impl Default for BuildOptions {
             emit: BuildEmit::Executable,
             entry_package: None,
             profile: BuildProfile::Debug,
+            incremental: true,
         }
     }
 }
@@ -164,7 +168,10 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         emit,
         entry_package,
         profile,
+        incremental,
     } = options;
+
+    let entry_package_for_fingerprint = entry_package.clone();
 
     let input = input
         .canonicalize()
@@ -178,6 +185,43 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
 
     if output.exists() && output.is_dir() {
         return Err(miette::miette!("输出路径是目录：{}", output.display()));
+    }
+
+    // T1124：粗粒度增量构建（仅对 cone 项目 + 可执行产物生效）。
+    //
+    // 重要：为避免污染 run-pass fixtures 的 stdout，这里统一把“cache hit”信息输出到 stderr。
+    let mut computed_fingerprint: Option<incremental::BuildFingerprint> = None;
+    let incremental_ctx = (|| {
+        if !incremental || !cfg!(feature = "llvm") || emit != BuildEmit::Executable {
+            return None;
+        }
+        let (root, manifest) = match (input.cone_root.as_ref(), input.cone_manifest.as_ref()) {
+            (Some(root), Some(manifest)) => (root, manifest),
+            _ => return None,
+        };
+        let expected_out = layout::cone_exe_path(root, None, profile.as_str(), &manifest.cone.name);
+        if output != expected_out {
+            return None;
+        }
+        let build_json = layout::cone_build_json_path(root, None, profile.as_str());
+        Some((root.clone(), build_json))
+    })();
+
+    if let Some((cone_root, build_json)) = incremental_ctx.clone() {
+        if output.is_file() {
+            if let Some(cached) = incremental::read_cached_fingerprint(&build_json)? {
+                let fp = incremental::compute_cone_build_fingerprint(
+                    &cone_root,
+                    profile.as_str(),
+                    entry_package_for_fingerprint.as_deref(),
+                )?;
+                if fp.fingerprint == cached {
+                    eprintln!("skipping build (cache hit)");
+                    return Ok(());
+                }
+                computed_fingerprint = Some(fp);
+            }
+        }
     }
 
     let session = scoopc::session::Session::new()?;
@@ -256,6 +300,26 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     "`--emit-asm` 需要启用 LLVM 后端：请使用 `cargo run -p scoop -- build --emit-asm <file> -o <out.s>`（若你用了 `--no-default-features`，去掉它或加上 `--features llvm`）"
                 ));
             }
+        }
+    }
+
+    if let Some((cone_root, build_json)) = incremental_ctx {
+        // 仅当最终产物存在时才更新 build.json，避免“只有前端检查”时产生误导性的缓存条目。
+        if output.is_file() {
+            let fp = match computed_fingerprint {
+                Some(fp) => fp,
+                None => incremental::compute_cone_build_fingerprint(
+                    &cone_root,
+                    profile.as_str(),
+                    entry_package_for_fingerprint.as_deref(),
+                )?,
+            };
+            incremental::write_build_json(
+                &build_json,
+                profile.as_str(),
+                entry_package_for_fingerprint.as_deref(),
+                &fp,
+            )?;
         }
     }
 

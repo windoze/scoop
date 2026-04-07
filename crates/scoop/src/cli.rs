@@ -112,6 +112,12 @@ pub enum Command {
         #[arg(long, conflicts_with = "debug")]
         release: bool,
 
+        /// 禁用粗粒度增量构建（T1124）。
+        ///
+        /// 也可用环境变量 `SCOOP_INCREMENTAL=0` 全局禁用。
+        #[arg(long)]
+        no_incremental: bool,
+
         /// 输出 LLVM IR（`.ll`）
         #[arg(long, conflicts_with_all = ["emit_obj", "emit_asm"])]
         emit_llvm: bool,
@@ -140,6 +146,13 @@ pub enum Command {
         /// 选择 release profile
         #[arg(long, conflicts_with = "debug")]
         release: bool,
+
+        /// 禁用粗粒度增量构建（T1124）。
+        ///
+        /// 也可用环境变量 `SCOOP_INCREMENTAL=0` 全局禁用。
+        #[arg(long)]
+        no_incremental: bool,
+
         /// 传递给被运行程序的参数（建议用 `--` 与 `scoop run` 自身参数分隔）
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,

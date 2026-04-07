@@ -95,7 +95,7 @@ cargo run -p scoop --features llvm -- test
   - 另增 fixture：`scoop run --release` 运行 release 产物（与 debug 输出目录不同）。
 - 依赖：T0101、T1121、T1122
 
-### T1124 [TODO] 增量构建 v1（粗粒度）：输入 fingerprint 未变则跳过 build（优化项）
+### T1124 [DONE] 增量构建 v1（粗粒度）：输入 fingerprint 未变则跳过 build（优化项）
 - 描述：在 v0（always rebuild 但输出稳定）之后，引入最小增量优化：记录输入 fingerprint，未变化则跳过 build。
 - 目标：
   - 在 `build/<profile>/build.json` 写入 fingerprint（至少包含：`Cone.toml` + `src/**/*.scoop` + 关键 build flags + 工具链版本）。

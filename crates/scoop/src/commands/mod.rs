@@ -65,6 +65,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             entry_package,
             debug,
             release,
+            no_incremental,
             emit_llvm,
             emit_obj,
             emit_asm,
@@ -80,6 +81,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             };
 
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
+            let incremental = resolve_incremental_enabled(no_incremental);
             build::run(
                 input,
                 output,
@@ -87,6 +89,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                     emit,
                     entry_package,
                     profile,
+                    incremental,
                 },
             )
         }
@@ -95,11 +98,32 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             entry_package,
             debug,
             release,
+            no_incremental,
             args,
         } => {
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
-            run::run(input, args, entry_package, profile)
+            let incremental = resolve_incremental_enabled(no_incremental);
+            run::run(input, args, entry_package, profile, incremental)
         }
         Command::Package { input, output } => package::run(input, output),
+    }
+}
+
+fn resolve_incremental_enabled(no_incremental: bool) -> bool {
+    if no_incremental {
+        return false;
+    }
+
+    // 未启用 LLVM 后端时，build 会退化为“仅前端检查”，不应跳过（否则会让错误被缓存掩盖）。
+    if !cfg!(feature = "llvm") {
+        return false;
+    }
+
+    match std::env::var("SCOOP_INCREMENTAL") {
+        Ok(v) => {
+            let v = v.trim().to_ascii_lowercase();
+            !matches!(v.as_str(), "0" | "false" | "no" | "off")
+        }
+        Err(_) => true,
     }
 }

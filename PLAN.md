@@ -35,7 +35,7 @@ cargo run -p scoop --features llvm -- test
   - `scoop new`（DONE）：生成 `.gitignore`（忽略 `build/`）+ `src/main.scoop` 默认包含 `println`
   - `scoop build`（DONE：T1121/T1122）：支持 `--debug/--release`；默认写入 `build/debug/bin/<project-name>`，`--release` 写入 `build/release/bin/<project-name>`；中间产物进入 `build/<profile>/obj/`（并预留 `build/<target>/<profile>/…`）
   - `scoop run`（DONE：T1123）：在项目目录下“未构建则先构建再运行”，并支持 `--debug/--release`
-  - incremental：先确保输出目录与行为稳定（v0 always rebuild），再做粗粒度 fingerprint 跳过构建（v1），细粒度依赖图后置（v2）
+  - incremental（DONE：T1124）：写入 `build/<profile>/build.json` 记录 fingerprint；未变化且产物存在时打印 `skipping build (cache hit)` 并复用；可用 `--no-incremental` 或 `SCOOP_INCREMENTAL=0` 禁用；细粒度依赖图后置（v2）
 
 ## 2. Scoop 编译器优化（优化等级/去虚化/HIR-MIR）
 
