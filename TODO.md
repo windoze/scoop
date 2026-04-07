@@ -44,24 +44,40 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop --features llvm -- test`（使用 LLVM 21）
 - 依赖：无
 
-### T0102 [TODO] LLVM：重构 `crates/scoopc/src/llvm/codegen.rs`（拆分模块，降低维护成本）
-- 描述：`crates/scoopc/src/llvm/codegen.rs` 已超过 20K 行，包含类型布局、表达式/语句 codegen、runtime ABI glue、GC/statepoint 约束、effect/continuation 等多块逻辑，导致：
-  - 定位/修改成本高（跨区段耦合、helper 零散）；
-  - 新人/回归排查困难（同一概念的实现分散在文件各处）；
-  - 增量补齐能力（例如 T1610/T1612）容易引入重复逻辑或遗漏边界。
+### T0102a [DONE] LLVM：`codegen` 模块骨架 + 抽出 `types.rs`（先搬类型与不变量）
+- 描述：为后续逐步拆分 `codegen` 做最小可回归铺垫：先把单文件 `codegen.rs` 迁移到 `codegen/mod.rs`，并抽出“全局共享的 codegen 类型/常量”（例如 `CgTy`/`CgValue`/enum layout 等），降低后续拆分的冲突面。
 - 目标：
-  - 将 `codegen.rs` 拆分为若干职责清晰的子模块（示例：`types.rs`/`layout.rs`/`expr.rs`/`stmt.rs`/`control_flow.rs`/`effect.rs`/`gc.rs`/`runtime_abi.rs`/`util.rs`），并在 `crates/scoopc/src/llvm/mod.rs` 中以清晰的结构组织导出。
-  - 以“行为不变”为前提进行重构：不改变 codegen 语义、不改 ABI、不改现有错误消息文本（除非明确作为独立任务）。
-  - 抽取并集中关键不变量与入口点：例如 `CgTy`/`CgValue`、`cg_ty_of`、`llvm_basic_type_of`、runtime 符号声明、effect handler stack 操作等，避免循环依赖与隐藏耦合。
-  - 降低局部变更的影响半径：让后续任务（如 T1610/T1611/T1612）可以在明确的模块边界内实现与回归。
+  - `crates/scoopc/src/llvm/codegen.rs` → `crates/scoopc/src/llvm/codegen/mod.rs`（模块路径不变，行为不变）。
+  - 新增 `crates/scoopc/src/llvm/codegen/types.rs`：集中 `CgTy`/`CgValue`/`CgEnumLayout`/关键常量等“跨 codegen 逻辑共享”的定义。
+  - 不改 codegen 语义/ABI/错误消息文本。
 - 验收：
   - `cargo test --all`
   - `cargo run -p scoop -- test`
-  - （可选但推荐）`cargo run -p scoop --features llvm -- test`
-  - 代码组织层面：
-    - 单个文件不再承载“所有 codegen 逻辑”；新增模块数量与命名能直观反映职责；
-    - 关键入口（main codegen / expr codegen / runtime decls）有明确的模块归属与导航路径。
-- 依赖：无（但建议在 LLVM 21 基线下推进以减少环境噪声；见 T0101）
+- 依赖：无
+
+### T0102b [TODO] LLVM：抽出 runtime ABI glue（`runtime_abi.rs` / `runtime_symbols.rs`）
+- 描述：把 runtime 符号声明、调用约定、对象头/GC 相关的 ABI glue 从主 codegen 拆出，形成清晰“边界层”，便于后续排查与扩展。
+- 目标：runtime decls/ffi helper 有明确归属；避免在 expr/stmt codegen 中散落 `declare_*`/`get_or_declare_*`。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0102a
+
+### T0102c [TODO] LLVM：抽出 type/layout lowering（`layout.rs` / `ty.rs`）
+- 描述：把 `TypeId -> CgTy`、`TypeLayout`/niche/boxing 决策、struct/enum/class field GEP 等“布局相关逻辑”集中管理。
+- 目标：`cg_ty_of`/`llvm_basic_type_of` 等关键入口有明确模块归属，并避免与 expr/stmt 互相引用形成环。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0102a
+
+### T0102d [TODO] LLVM：抽出表达式/语句 codegen（`expr.rs` / `stmt.rs` / `control_flow.rs`）
+- 描述：把 HIR expr/stmt 的 codegen 逻辑从主模块拆出，按职责分层，降低“在同一文件里跳转定位”的成本。
+- 目标：expr/stmt/control-flow 的入口函数可直接导航；局部 helper 尽量就近归属，减少跨区段耦合。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0102a、T0102c
+
+### T0102e [TODO] LLVM：抽出 effect/continuation/GC/statepoint 相关逻辑（`effect.rs` / `gc.rs`）
+- 描述：把 handler stack、perform 分发、raise unwinding、statepoint rewrite 约束与 GC root 辅助等集中到独立模块，减少“语义不变量”分散在各处的风险。
+- 目标：effect/GC 关键不变量（stack discipline / addrspace / statepoint 约束）集中可读；后续 T1610~T1612 变更影响半径更小。
+- 验收：`cargo test --all` + `cargo run -p scoop -- test`
+- 依赖：T0102a、T0102c、T0102d
 
 ### T0103 [TODO] HIR lowering：重构 `crates/scoopc/src/hir/lower.rs`（拆分模块，降低维护成本）
 - 描述：`crates/scoopc/src/hir/lower.rs` 已超过 6K 行，承载了 AST→HIR lowering 的大量逻辑（语法糖/特殊 case、block/stmt/expr lowering、内建与 sysroot 约定、以及若干“为可回归而做的早期阶段特判”）。随着特性增加，该文件：

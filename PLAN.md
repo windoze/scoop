@@ -28,6 +28,16 @@ cargo run -p scoop --features llvm -- test
 - 状态：已将 LLVM 后端基线对齐到 LLVM 21.1（inkwell `llvm21-1` / llvm-sys 211），并在 `scoopc` build script 中校验 `llvm-config` 版本，避免不同机器版本导致行为漂移。
 - 备注：后续涉及 LLVM codegen / run-pass / Cone build 的任务，默认都以 LLVM 21.1 为前置假设（见 TODO T0101）。
 
+## 0.3 LLVM codegen 维护性重构（T0102）
+
+> 背景：`crates/scoopc/src/llvm/codegen.rs` 已增长到 20K+ 行，定位与回归成本过高。该任务按“行为不变”的原则拆成可回归的小步（见 TODO：T0102a~T0102e）。
+
+- DONE（T0102a）：模块骨架 + 抽出 `types.rs`（先搬 `CgTy/CgValue/enum layout` 等共享类型/常量）
+- T0102b：抽出 runtime ABI glue（runtime 符号声明/调用约定）
+- T0102c：抽出 type/layout lowering（niche/boxing/field GEP 等）
+- T0102d：抽出 expr/stmt/control-flow codegen
+- T0102e：抽出 effect/continuation/GC/statepoint 相关逻辑
+
 ## 1. Cone（改进项吸收）
 
 - 已产出设计：`CONE-IMPROVEMENTS.md`（目录结构 / build 产物 / profile / 增量构建路线）。
