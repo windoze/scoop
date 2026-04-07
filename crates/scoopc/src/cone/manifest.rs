@@ -14,6 +14,8 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
+use crate::opt::OptLevel;
+
 /// `Cone.toml` 的固定文件名。
 pub const CONE_TOML_FILE_NAME: &str = "Cone.toml";
 
@@ -57,6 +59,8 @@ pub struct ConeSelectEntry {
 pub struct ConeNativeBuildConfig {
     /// 入口包名（期望该包定义 `fun main`；校验由 T1113 实现）。
     pub entry_package: Option<String>,
+    /// 优化等级（对齐 `scoop build/run -O` 与 profile 默认策略）。
+    pub opt_level: Option<OptLevel>,
     /// 额外 C 源文件（相对 cone root）。
     pub c_sources: Vec<String>,
     /// 仅作用于 `c_sources` 的编译参数。
@@ -75,6 +79,7 @@ impl Default for ConeNativeBuildConfig {
     fn default() -> Self {
         Self {
             entry_package: None,
+            opt_level: None,
             c_sources: Vec::new(),
             c_flags: Vec::new(),
             cxx_sources: Vec::new(),
@@ -340,6 +345,34 @@ fn parse_native_build(root: &toml::Table) -> Result<ConeNativeBuildConfig> {
         Ok(Some(s.to_owned()))
     }
 
+    fn parse_optional_opt_level(
+        table: &toml::Table,
+        key: &str,
+        alt_key: &str,
+        section: &str,
+    ) -> Result<Option<OptLevel>> {
+        let value = table.get(key).or_else(|| table.get(alt_key));
+        let Some(value) = value else {
+            return Ok(None);
+        };
+
+        if let Some(v) = value.as_integer() {
+            let parsed =
+                OptLevel::from_i64(v).wrap_err_with(|| format!("解析 `[{section}].{key}` 失败"))?;
+            return Ok(Some(parsed));
+        }
+
+        if let Some(v) = value.as_str() {
+            let parsed =
+                OptLevel::parse(v).wrap_err_with(|| format!("解析 `[{section}].{key}` 失败"))?;
+            return Ok(Some(parsed));
+        }
+
+        Err(miette!(
+            "`[{section}].{key}` 必须是字符串或整数（例如 2 / \"2\" / \"s\"）"
+        ))
+    }
+
     fn parse_optional_string_array(
         table: &toml::Table,
         key: &str,
@@ -440,6 +473,7 @@ fn parse_native_build(root: &toml::Table) -> Result<ConeNativeBuildConfig> {
 
     let entry_package =
         get_optional_string(table, "entry-package", "entry_package", "native-build")?;
+    let opt_level = parse_optional_opt_level(table, "opt-level", "opt_level", "native-build")?;
     let c_sources = parse_optional_rel_path_array(table, "c-sources", "c_sources", "native-build")?;
     let c_flags = parse_optional_string_array(table, "c-flags", "c_flags", "native-build")?;
     let cxx_sources =
@@ -451,6 +485,7 @@ fn parse_native_build(root: &toml::Table) -> Result<ConeNativeBuildConfig> {
 
     Ok(ConeNativeBuildConfig {
         entry_package,
+        opt_level,
         c_sources,
         c_flags,
         cxx_sources,
@@ -607,6 +642,7 @@ version = "0.0.0"
 
 [native-build]
 entry-package = "my.app"
+opt-level = "2"
 c-sources = ["native\\foo.c", "./native/bar.c"]
 c-flags = ["-O2", "-DSCOOP=1"]
 cxx-sources = ["native/baz.cc"]
@@ -621,6 +657,7 @@ link-flags = ["-Wl,-dead_strip"]
             manifest.native_build.entry_package.as_deref(),
             Some("my.app")
         );
+        assert_eq!(manifest.native_build.opt_level, Some(OptLevel::O2));
         assert_eq!(
             manifest.native_build.c_sources,
             vec!["native/foo.c", "native/bar.c"]
@@ -642,6 +679,7 @@ version = "0.0.0"
 
 [native_build]
 entry_package = "my.app"
+opt_level = 0
 c_sources = ["native/foo.c"]
 c_flags = ["-O2"]
 cxx_sources = ["native/baz.cc"]
@@ -656,6 +694,7 @@ link_flags = ["-Wl,-dead_strip"]
             manifest.native_build.entry_package.as_deref(),
             Some("my.app")
         );
+        assert_eq!(manifest.native_build.opt_level, Some(OptLevel::O0));
         assert_eq!(manifest.native_build.c_sources, vec!["native/foo.c"]);
         assert_eq!(manifest.native_build.c_flags, vec!["-O2"]);
         assert_eq!(manifest.native_build.cxx_sources, vec!["native/baz.cc"]);

@@ -110,7 +110,7 @@ cargo run -p scoop --features llvm -- test
 
 ## T16：Scoop 编译器优化（优化等级/去虚化/HIR-MIR）
 
-### T1601 [TODO] 对外接口：新增并统一优化等级（CLI + Cone.toml + 默认策略）
+### T1601 [DONE] 对外接口：新增并统一优化等级（CLI + Cone.toml + 默认策略）
 - 描述：为 `scoop build/run/test` 增加明确的优化等级选项，并与 `Cone.toml[native-build]` 配置对齐，形成可预测的默认策略（debug/release）。
 - 目标：
   - CLI：支持 `-O/--opt-level <0|1|2|3|s|z>`（或等价 API），并允许覆盖 `Cone.toml` 默认值。

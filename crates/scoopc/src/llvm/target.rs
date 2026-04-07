@@ -16,6 +16,8 @@ use thiserror::Error;
 
 use std::sync::OnceLock;
 
+use crate::opt::OptLevel;
+
 /// LLVM target 初始化与构造过程可能出现的错误。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmTargetError {
@@ -65,7 +67,29 @@ impl HostTargetInfo {
 /// 注意：
 /// - 目前只支持 host；交叉编译的 triple/cpu/features 选择留给后续任务。
 /// - 该函数会完成 LLVM native target 初始化（一次性）。
+///
+/// v0 约定（T1601）：由 driver 决定 `opt-level`（0/1/2/3/s/z），这里仅做映射并创建 machine。
+pub fn host_target_machine_with_opt_level(
+    opt_level: OptLevel,
+) -> Result<(TargetMachine, HostTargetInfo), LlvmTargetError> {
+    let inkwell_opt_level = match opt_level {
+        OptLevel::O0 => OptimizationLevel::None,
+        OptLevel::O1 => OptimizationLevel::Less,
+        // `Os/Oz` 的 size pipeline 属于后续任务（T1602）；当前先按 codegen O2 处理，保持语义一致。
+        OptLevel::O2 | OptLevel::Os | OptLevel::Oz => OptimizationLevel::Default,
+        OptLevel::O3 => OptimizationLevel::Aggressive,
+    };
+
+    host_target_machine_with_optimization_level(inkwell_opt_level)
+}
+
 pub fn host_target_machine() -> Result<(TargetMachine, HostTargetInfo), LlvmTargetError> {
+    host_target_machine_with_optimization_level(OptimizationLevel::None)
+}
+
+fn host_target_machine_with_optimization_level(
+    optimization_level: OptimizationLevel,
+) -> Result<(TargetMachine, HostTargetInfo), LlvmTargetError> {
     init_native_target()?;
 
     let triple = TargetMachine::get_default_triple();
@@ -79,13 +103,12 @@ pub fn host_target_machine() -> Result<(TargetMachine, HostTargetInfo), LlvmTarg
     let cpu = TargetMachine::get_host_cpu_name().to_string();
     let features = TargetMachine::get_host_cpu_features().to_string();
 
-    // 早期阶段默认 O0（None）即可；优化策略属于后续任务（T080x）。
     let target_machine = target
         .create_target_machine(
             &triple,
             &cpu,
             &features,
-            OptimizationLevel::None,
+            optimization_level,
             RelocMode::Default,
             CodeModel::Default,
         )

@@ -13,6 +13,7 @@ pub(crate) mod layout;
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
+use scoopc::opt::OptLevel;
 use thiserror::Error;
 
 #[derive(Debug)]
@@ -108,6 +109,23 @@ impl BuildProfile {
     }
 }
 
+pub(crate) fn default_opt_level_for_profile(profile: BuildProfile) -> OptLevel {
+    match profile {
+        BuildProfile::Debug => OptLevel::O0,
+        BuildProfile::Release => OptLevel::O2,
+    }
+}
+
+pub(crate) fn resolve_opt_level(
+    cli_opt_level: Option<OptLevel>,
+    manifest_opt_level: Option<OptLevel>,
+    profile: BuildProfile,
+) -> OptLevel {
+    cli_opt_level
+        .or(manifest_opt_level)
+        .unwrap_or_else(|| default_opt_level_for_profile(profile))
+}
+
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub emit: BuildEmit,
@@ -115,6 +133,8 @@ pub struct BuildOptions {
     pub entry_package: Option<String>,
     /// cone build profile（影响默认产物目录布局：`build/<profile>/...`）。
     pub profile: BuildProfile,
+    /// 优化等级（CLI 覆盖；未指定时走 manifest/profile 默认策略）。
+    pub opt_level: Option<OptLevel>,
     /// 是否启用粗粒度增量构建（T1124）。
     pub incremental: bool,
 }
@@ -125,6 +145,7 @@ impl Default for BuildOptions {
             emit: BuildEmit::Executable,
             entry_package: None,
             profile: BuildProfile::Debug,
+            opt_level: None,
             incremental: true,
         }
     }
@@ -168,6 +189,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         emit,
         entry_package,
         profile,
+        opt_level: opt_level_override,
         incremental,
     } = options;
 
@@ -179,6 +201,14 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         .wrap_err("无法定位输入文件")?;
 
     let input = load_build_input(&input, entry_package)?;
+    let opt_level = resolve_opt_level(
+        opt_level_override,
+        input
+            .cone_manifest
+            .as_ref()
+            .and_then(|m| m.native_build.opt_level),
+        profile,
+    );
     let output =
         output.unwrap_or_else(|| default_output_path_for_input_and_emit(&input, emit, profile));
     ensure_output_parent_dir(&output)?;
@@ -214,6 +244,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     &cone_root,
                     profile.as_str(),
                     entry_package_for_fingerprint.as_deref(),
+                    opt_level,
                 )?;
                 if fp.fingerprint == cached {
                     eprintln!("skipping build (cache hit)");
@@ -239,7 +270,7 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
         BuildEmit::Executable => {
             // 只有在启用 LLVM 后端时才会真正生成可执行文件；默认构建仍保持“前端检查”可用。
             #[cfg(feature = "llvm")]
-            run_codegen_and_link(&session, &front, &output, profile)?;
+            run_codegen_and_link(&session, &front, &output, profile, opt_level)?;
         }
         BuildEmit::LlvmIr => {
             #[cfg(feature = "llvm")]
@@ -265,11 +296,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
+                scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
                     front.main_source(),
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
+                    opt_level,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -285,11 +317,12 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
             #[cfg(feature = "llvm")]
             {
                 let lowered = lower_main_hir_for_build(&session, &front)?;
-                scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
+                scoopc::llvm::emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
                     front.main_source(),
                     &lowered,
                     &output,
                     front.input.entry_main_fqn.as_deref(),
+                    opt_level,
                 )?;
             }
             #[cfg(not(feature = "llvm"))]
@@ -312,12 +345,14 @@ pub fn run(input: PathBuf, output: Option<PathBuf>, options: BuildOptions) -> Re
                     &cone_root,
                     profile.as_str(),
                     entry_package_for_fingerprint.as_deref(),
+                    opt_level,
                 )?,
             };
             incremental::write_build_json(
                 &build_json,
                 profile.as_str(),
                 entry_package_for_fingerprint.as_deref(),
+                opt_level,
                 &fp,
             )?;
         }
@@ -777,6 +812,7 @@ fn run_codegen_and_link(
     front: &FrontendOutput,
     output: &Path,
     profile: BuildProfile,
+    opt_level: OptLevel,
 ) -> Result<()> {
     // T1121：cone 包的 build 产物应落在项目内 `build/<profile>/...`，而不是 `/tmp`。
     // - cone 包：写入 `build/<profile>/obj/`（由 `scoop build --debug/--release` 控制）。
@@ -801,11 +837,12 @@ fn run_codegen_and_link(
     let obj = work_dir.join(layout::obj_file_name("main"));
 
     let lowered = lower_main_hir_for_build(session, front)?;
-    scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
+    scoopc::llvm::emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
         front.main_source(),
         &lowered,
         &obj,
         front.input.entry_main_fqn.as_deref(),
+        opt_level,
     )?;
 
     // T1115：cone native build 的 `c-sources/c-flags`：
@@ -929,7 +966,36 @@ fn lower_main_hir_for_build(
 mod tests {
     use std::path::PathBuf;
 
+    use scoopc::opt::OptLevel;
     use tempfile::tempdir;
+
+    #[test]
+    fn resolve_opt_level_prefers_cli_over_manifest() {
+        let out = super::resolve_opt_level(
+            Some(OptLevel::O2),
+            Some(OptLevel::O0),
+            super::BuildProfile::Debug,
+        );
+        assert_eq!(out, OptLevel::O2);
+    }
+
+    #[test]
+    fn resolve_opt_level_uses_manifest_when_cli_missing() {
+        let out = super::resolve_opt_level(None, Some(OptLevel::Oz), super::BuildProfile::Release);
+        assert_eq!(out, OptLevel::Oz);
+    }
+
+    #[test]
+    fn resolve_opt_level_defaults_by_profile() {
+        assert_eq!(
+            super::resolve_opt_level(None, None, super::BuildProfile::Debug),
+            OptLevel::O0
+        );
+        assert_eq!(
+            super::resolve_opt_level(None, None, super::BuildProfile::Release),
+            OptLevel::O2
+        );
+    }
 
     #[test]
     fn build_frontend_ok_and_creates_parent_dir() {

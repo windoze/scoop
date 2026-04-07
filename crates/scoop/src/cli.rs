@@ -28,6 +28,12 @@ pub enum Command {
         #[arg(long)]
         fixtures: Option<PathBuf>,
 
+        /// 优化等级（0|1|2|3|s|z）
+        ///
+        /// 说明：用于 `scoop test` 触发的 build/run-pass/build fixtures（默认随 profile 策略）。
+        #[arg(short = 'O', long = "opt-level", value_name = "LEVEL")]
+        opt_level: Option<String>,
+
         /// run-pass：在每次分配前触发额外 GC（env: `SCOOP_GC_STRESS=1`）
         #[arg(long)]
         gc_stress: bool,
@@ -112,6 +118,13 @@ pub enum Command {
         #[arg(long, conflicts_with = "debug")]
         release: bool,
 
+        /// 优化等级（0|1|2|3|s|z）
+        ///
+        /// - 若输入为 cone 包目录：CLI 会覆盖 `Cone.toml[native-build].opt-level`
+        /// - 若未显式指定：默认随 profile（debug=0，release=2）
+        #[arg(short = 'O', long = "opt-level", value_name = "LEVEL")]
+        opt_level: Option<String>,
+
         /// 禁用粗粒度增量构建（T1124）。
         ///
         /// 也可用环境变量 `SCOOP_INCREMENTAL=0` 全局禁用。
@@ -146,6 +159,13 @@ pub enum Command {
         /// 选择 release profile
         #[arg(long, conflicts_with = "debug")]
         release: bool,
+
+        /// 优化等级（0|1|2|3|s|z）
+        ///
+        /// - 若输入为 cone 包目录：CLI 会覆盖 `Cone.toml[native-build].opt-level`
+        /// - 若未显式指定：默认随 profile（debug=0，release=2）
+        #[arg(short = 'O', long = "opt-level", value_name = "LEVEL")]
+        opt_level: Option<String>,
 
         /// 禁用粗粒度增量构建（T1124）。
         ///
@@ -220,10 +240,29 @@ mod tests {
     }
 
     #[test]
+    fn test_command_parses_build_opt_level() {
+        let args = Args::try_parse_from([
+            "scoop",
+            "build",
+            "tests/fixtures/parse/minimal.scoop",
+            "-O2",
+        ])
+        .unwrap();
+
+        match args.command {
+            Command::Build { opt_level, .. } => {
+                assert_eq!(opt_level.as_deref(), Some("2"));
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
     fn test_command_parses_run_pass_gc_flags() {
         let args = Args::try_parse_from([
             "scoop",
             "test",
+            "-O2",
             "--gc-stress",
             "--gc-move",
             "--threads",
@@ -234,11 +273,13 @@ mod tests {
         match args.command {
             Command::Test {
                 fixtures,
+                opt_level,
                 gc_stress,
                 gc_move,
                 threads,
             } => {
                 assert!(fixtures.is_none());
+                assert_eq!(opt_level.as_deref(), Some("2"));
                 assert!(gc_stress);
                 assert!(gc_move);
                 assert_eq!(threads.unwrap().get(), 4);
@@ -256,11 +297,13 @@ mod tests {
                 input,
                 debug,
                 release,
+                opt_level,
                 ..
             } => {
                 assert!(input.is_none(), "未提供 input 时应为 None");
                 assert!(!debug, "默认不需要显式 `--debug`");
                 assert!(!release, "默认应为 debug profile（release flag 为 false）");
+                assert!(opt_level.is_none());
             }
             other => panic!("unexpected command: {other:?}"),
         }
@@ -268,12 +311,18 @@ mod tests {
 
     #[test]
     fn test_command_parses_run_profile_release() {
-        let args = Args::try_parse_from(["scoop", "run", "--release"]).unwrap();
+        let args = Args::try_parse_from(["scoop", "run", "--release", "--opt-level", "2"]).unwrap();
 
         match args.command {
-            Command::Run { debug, release, .. } => {
+            Command::Run {
+                debug,
+                release,
+                opt_level,
+                ..
+            } => {
                 assert!(!debug);
                 assert!(release);
+                assert_eq!(opt_level.as_deref(), Some("2"));
             }
             other => panic!("unexpected command: {other:?}"),
         }

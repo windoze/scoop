@@ -42,6 +42,7 @@ use std::process::Command;
 
 use miette::Diagnostic;
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
+use scoopc::opt::OptLevel;
 use thiserror::Error;
 
 use expectations::{Expect, FixtureExpectation};
@@ -73,7 +74,11 @@ impl RunPassEnvOverrides {
     }
 }
 
-pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Result<usize> {
+pub fn run_all(
+    fixtures_root: &Path,
+    opt_level: Option<OptLevel>,
+    run_pass_env: &RunPassEnvOverrides,
+) -> Result<usize> {
     // T0307：`resolve_multi/<case>/` 采用“目录作为编译单元”的形式，因此需要把这些 `.scoop`
     // 从单文件扫描里排除，并由专门的 case 运行器以“多文件 + 单一 index”方式执行。
     let resolve_multi_root = fixtures_root.join("resolve_multi");
@@ -130,7 +135,7 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
     let mut ok = 0usize;
     let session = scoopc::session::Session::new()?;
     for file in files {
-        run_one(&session, fixtures_root, &file, run_pass_env)
+        run_one(&session, fixtures_root, &file, opt_level, run_pass_env)
             .wrap_err_with(|| format!("fixture 失败：{}", file.display()))?;
         ok += 1;
     }
@@ -162,7 +167,7 @@ pub fn run_all(fixtures_root: &Path, run_pass_env: &RunPassEnvOverrides) -> Resu
     }
 
     for case_dir in run_pass_cone_cases {
-        ok += run_run_pass_cone_case(fixtures_root, &case_dir, run_pass_env)
+        ok += run_run_pass_cone_case(fixtures_root, &case_dir, opt_level, run_pass_env)
             .wrap_err_with(|| format!("run_pass_cone case 失败：{}", case_dir.display()))?;
     }
 
@@ -212,6 +217,7 @@ struct RunPassConeBuildFailed {
 fn run_run_pass_cone_case(
     fixtures_root: &Path,
     case_dir: &Path,
+    opt_level: Option<OptLevel>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<usize> {
     let rel_case = case_dir.strip_prefix(fixtures_root).unwrap_or(case_dir);
@@ -268,6 +274,14 @@ fn run_run_pass_cone_case(
 
                 let mut cmd = Command::new(&scoop_exe);
                 cmd.arg("run");
+                if let Some(level) = opt_level {
+                    let args_has_opt_level = exp.args.iter().any(|a| {
+                        a == "--opt-level" || a == "--opt_level" || a == "-O" || a.starts_with("-O")
+                    });
+                    if !args_has_opt_level {
+                        cmd.arg("--opt-level").arg(level.as_str());
+                    }
+                }
                 // 约定：run_pass_cone fixtures 的 `// ARGS:` 传给 `scoop run` 本身（例如 `--release`）。
                 if !exp.args.is_empty() {
                     cmd.args(&exp.args);
@@ -292,6 +306,7 @@ fn run_run_pass_cone_case(
                     None,
                     crate::commands::build::BuildOptions {
                         profile: crate::commands::build::BuildProfile::Debug,
+                        opt_level,
                         ..crate::commands::build::BuildOptions::default()
                     },
                 );
@@ -393,6 +408,7 @@ fn run_one(
     session: &scoopc::session::Session,
     fixtures_root: &Path,
     path: &Path,
+    opt_level: Option<OptLevel>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> Result<()> {
     let source = scoopc::source::SourceFile::load(path)?;
@@ -420,12 +436,12 @@ fn run_one(
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = match phase {
         FixturePhase::Parse => parse_fixture(&source, path, &exp),
-        FixturePhase::Build => build_fixture(rel, path, &exp),
+        FixturePhase::Build => build_fixture(rel, path, opt_level, &exp),
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
         FixturePhase::Comptime => comptime_fixture(&source, path),
-        FixturePhase::RunPass => run_pass::run_fixture(rel, path, &exp, run_pass_env),
+        FixturePhase::RunPass => run_pass::run_fixture(rel, path, opt_level, &exp, run_pass_env),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
@@ -744,6 +760,7 @@ struct BuildLlvmIrAssertRequiresEmitLlvm {
 fn build_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
+    opt_level: Option<OptLevel>,
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let emit_llvm = exp.args.iter().any(|a| a == "--emit-llvm");
@@ -815,6 +832,7 @@ fn build_fixture(
         Some(out.clone()),
         crate::commands::build::BuildOptions {
             emit,
+            opt_level,
             ..crate::commands::build::BuildOptions::default()
         },
     )

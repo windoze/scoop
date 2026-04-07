@@ -15,6 +15,8 @@ use std::path::{Path, PathBuf};
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use sha2::{Digest as _, Sha256};
 
+use scoopc::opt::OptLevel;
+
 pub(crate) const BUILD_JSON_FILE_NAME: &str = "build.json";
 pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 1;
 
@@ -51,6 +53,7 @@ pub(crate) fn compute_cone_build_fingerprint(
     cone_root: &Path,
     profile: &str,
     entry_package: Option<&str>,
+    opt_level: OptLevel,
 ) -> Result<BuildFingerprint> {
     let pkg = scoopc::cone::load_cone_source_package(cone_root)?;
 
@@ -91,6 +94,9 @@ pub(crate) fn compute_cone_build_fingerprint(
     hasher.update(b"\n");
     hasher.update(b"entry-package=");
     hasher.update(entry_package.unwrap_or("").as_bytes());
+    hasher.update(b"\n");
+    hasher.update(b"opt-level=");
+    hasher.update(opt_level.as_str().as_bytes());
     hasher.update(b"\n");
     hasher.update(b"cone_toml=");
     hasher.update(cone_toml_sha256.as_bytes());
@@ -153,12 +159,14 @@ pub(crate) fn write_build_json(
     build_json: &Path,
     profile: &str,
     entry_package: Option<&str>,
+    opt_level: OptLevel,
     fp: &BuildFingerprint,
 ) -> Result<()> {
     let value = serde_json::json!({
         "schema": BUILD_JSON_SCHEMA_VERSION,
         "profile": profile,
         "entry_package": entry_package,
+        "opt_level": opt_level.as_str(),
         "fingerprint": fp.fingerprint,
         "inputs": {
             "cone_toml_sha256": fp.cone_toml_sha256,
@@ -286,18 +294,18 @@ version = "0.0.0"
         .unwrap();
         std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
 
-        let fp1 = compute_cone_build_fingerprint(&root, "debug", None).unwrap();
+        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
 
         let build_dir = root.join("build").join("debug");
         std::fs::create_dir_all(&build_dir).unwrap();
         let build_json = build_dir.join(BUILD_JSON_FILE_NAME);
 
-        write_build_json(&build_json, "debug", None, &fp1).unwrap();
+        write_build_json(&build_json, "debug", None, OptLevel::O0, &fp1).unwrap();
         let cached = read_cached_fingerprint(&build_json).unwrap().unwrap();
         assert_eq!(cached, fp1.fingerprint);
 
         std::fs::write(root.join("src/main.scoop"), "fun main() { }\n").unwrap();
-        let fp2 = compute_cone_build_fingerprint(&root, "debug", None).unwrap();
+        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
         assert_ne!(fp1.fingerprint, fp2.fingerprint);
     }
 }

@@ -23,6 +23,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::hir;
+use crate::opt::OptLevel;
 use crate::parser::ParseError;
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -187,6 +188,16 @@ pub fn emit_minimal_main_obj_to_file(
     source: &SourceFile,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_obj_to_file_with_opt_level(session, source, output, OptLevel::O0)
+}
+
+/// 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
+pub fn emit_minimal_main_obj_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
     // 这里提前做 UTF-8 校验并返回结构化诊断。
     if output.to_str().is_none() {
@@ -198,7 +209,7 @@ pub fn emit_minimal_main_obj_to_file(
     let context = Context::create();
     let module = build_minimal_main_module(session, source, &context)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
@@ -216,6 +227,21 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
     lowered: &hir::LoweredHir,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
+        source,
+        lowered,
+        output,
+        OptLevel::O0,
+    )
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（通常为 `.o`）。
+pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_opt_level(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
         return Err(LlvmEmitError::InvalidOutputPath {
             path: output.to_path_buf(),
@@ -225,7 +251,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir(
     let context = Context::create();
     let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
@@ -243,6 +269,23 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
     output: &Path,
     entry_main_fqn: Option<&str>,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
+        source,
+        lowered,
+        output,
+        entry_main_fqn,
+        OptLevel::O0,
+    )
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM object，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry_with_opt_level(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
         return Err(LlvmEmitError::InvalidOutputPath {
             path: output.to_path_buf(),
@@ -252,7 +295,7 @@ pub fn emit_minimal_main_obj_to_file_from_lowered_hir_with_entry(
     let context = Context::create();
     let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Object, output)
@@ -269,6 +312,16 @@ pub fn emit_minimal_main_asm_to_file(
     source: &SourceFile,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_asm_to_file_with_opt_level(session, source, output, OptLevel::O0)
+}
+
+/// 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
+pub fn emit_minimal_main_asm_to_file_with_opt_level(
+    session: &Session,
+    source: &SourceFile,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     // `TargetMachine::write_to_file` 内部会 `path.to_str().expect(...)`，为了避免 panic，
     // 这里提前做 UTF-8 校验并返回结构化诊断。
     if output.to_str().is_none() {
@@ -280,7 +333,7 @@ pub fn emit_minimal_main_asm_to_file(
     let context = Context::create();
     let module = build_minimal_main_module(session, source, &context)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
@@ -298,6 +351,21 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
     lowered: &hir::LoweredHir,
     output: &Path,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
+        source,
+        lowered,
+        output,
+        OptLevel::O0,
+    )
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（通常为 `.s` / `.asm`）。
+pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_opt_level(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
         return Err(LlvmEmitError::InvalidOutputPath {
             path: output.to_path_buf(),
@@ -307,7 +375,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir(
     let context = Context::create();
     let module = build_main_module_from_lowered_hir(source, &context, lowered, None)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)
@@ -325,6 +393,23 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
     output: &Path,
     entry_main_fqn: Option<&str>,
 ) -> Result<(), LlvmEmitError> {
+    emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
+        source,
+        lowered,
+        output,
+        entry_main_fqn,
+        OptLevel::O0,
+    )
+}
+
+/// 基于 `hir::LoweredHir` 生成最小 LLVM assembly，并写入到指定路径（允许显式指定入口 `main` 的 FQN）。
+pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry_with_opt_level(
+    source: &SourceFile,
+    lowered: &hir::LoweredHir,
+    output: &Path,
+    entry_main_fqn: Option<&str>,
+    opt_level: OptLevel,
+) -> Result<(), LlvmEmitError> {
     if output.to_str().is_none() {
         return Err(LlvmEmitError::InvalidOutputPath {
             path: output.to_path_buf(),
@@ -334,7 +419,7 @@ pub fn emit_minimal_main_asm_to_file_from_lowered_hir_with_entry(
     let context = Context::create();
     let module = build_main_module_from_lowered_hir(source, &context, lowered, entry_main_fqn)?;
 
-    let (target_machine, _target_info) = target::host_target_machine()?;
+    let (target_machine, _target_info) = target::host_target_machine_with_opt_level(opt_level)?;
     run_statepoint_pass_pipeline(&module, &target_machine)?;
     target_machine
         .write_to_file(&module, FileType::Assembly, output)

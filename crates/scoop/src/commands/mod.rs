@@ -20,6 +20,7 @@ mod test;
 use tracing_subscriber::EnvFilter;
 
 use crate::cli::{Args, Command};
+use scoopc::opt::OptLevel;
 
 /// 初始化日志系统。
 ///
@@ -38,12 +39,14 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::New { project_name } => new::run(project_name),
         Command::Test {
             fixtures,
+            opt_level,
             gc_stress,
             gc_move,
             threads,
         } => test::run(
             fixtures,
             test::TestOptions {
+                opt_level: parse_opt_level_flag(opt_level)?,
                 gc_stress,
                 gc_move,
                 threads,
@@ -65,6 +68,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             entry_package,
             debug,
             release,
+            opt_level,
             no_incremental,
             emit_llvm,
             emit_obj,
@@ -89,6 +93,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
                     emit,
                     entry_package,
                     profile,
+                    opt_level: parse_opt_level_flag(opt_level)?,
                     incremental,
                 },
             )
@@ -98,15 +103,32 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             entry_package,
             debug,
             release,
+            opt_level,
             no_incremental,
             args,
         } => {
             let profile = build::BuildProfile::from_debug_release_flags(debug, release);
             let incremental = resolve_incremental_enabled(no_incremental);
-            run::run(input, args, entry_package, profile, incremental)
+            run::run(
+                input,
+                args,
+                entry_package,
+                profile,
+                parse_opt_level_flag(opt_level)?,
+                incremental,
+            )
         }
         Command::Package { input, output } => package::run(input, output),
     }
+}
+
+fn parse_opt_level_flag(opt_level: Option<String>) -> Result<Option<OptLevel>, miette::Report> {
+    let Some(value) = opt_level else {
+        return Ok(None);
+    };
+
+    let parsed = OptLevel::parse(&value).map_err(miette::Report::from)?;
+    Ok(Some(parsed))
 }
 
 fn resolve_incremental_enabled(no_incremental: bool) -> bool {

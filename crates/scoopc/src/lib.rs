@@ -16,6 +16,7 @@ pub mod infer;
 pub mod itable;
 pub mod mir;
 pub mod monomorph;
+pub mod opt;
 pub mod parser;
 pub mod resolve;
 pub mod rtti;

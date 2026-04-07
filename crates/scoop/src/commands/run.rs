@@ -27,9 +27,10 @@ pub fn run(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
+    opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
 ) -> Result<()> {
-    match run_for_exit_code(input, args, entry_package, profile, incremental)? {
+    match run_for_exit_code(input, args, entry_package, profile, opt_level, incremental)? {
         0 => Ok(()),
         code => std::process::exit(code),
     }
@@ -104,6 +105,7 @@ fn run_for_exit_code(
     args: Vec<String>,
     entry_package: Option<String>,
     profile: super::build::BuildProfile,
+    opt_level: Option<scoopc::opt::OptLevel>,
     incremental: bool,
 ) -> Result<i32> {
     let input = resolve_run_input(input)?;
@@ -121,6 +123,7 @@ fn run_for_exit_code(
                     emit: super::build::BuildEmit::Executable,
                     entry_package,
                     profile,
+                    opt_level,
                     incremental,
                 },
             )?;
@@ -157,6 +160,7 @@ fn run_for_exit_code(
                     emit: super::build::BuildEmit::Executable,
                     entry_package,
                     profile,
+                    opt_level,
                     incremental,
                 },
             )?;
@@ -216,6 +220,7 @@ mod tests {
             Vec::new(),
             None,
             super::super::build::BuildProfile::Debug,
+            None,
             true,
         )
         .unwrap_err();
@@ -236,6 +241,7 @@ mod tests {
             Vec::new(),
             None,
             super::super::build::BuildProfile::Debug,
+            None,
             true,
         )
         .unwrap();

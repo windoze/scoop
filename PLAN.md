@@ -35,15 +35,17 @@ cargo run -p scoop --features llvm -- test
   - `scoop new`（DONE）：生成 `.gitignore`（忽略 `build/`）+ `src/main.scoop` 默认包含 `println`
   - `scoop build`（DONE：T1121/T1122）：支持 `--debug/--release`；默认写入 `build/debug/bin/<project-name>`，`--release` 写入 `build/release/bin/<project-name>`；中间产物进入 `build/<profile>/obj/`（并预留 `build/<target>/<profile>/…`）
   - `scoop run`（DONE：T1123）：在项目目录下“未构建则先构建再运行”，并支持 `--debug/--release`
-  - incremental（DONE：T1124）：写入 `build/<profile>/build.json` 记录 fingerprint；未变化且产物存在时打印 `skipping build (cache hit)` 并复用；可用 `--no-incremental` 或 `SCOOP_INCREMENTAL=0` 禁用；细粒度依赖图后置（v2）
+  - incremental（DONE：T1124；增补：T1601）：写入 `build/<profile>/build.json` 记录 fingerprint（含 `opt_level`）；未变化且产物存在时打印 `skipping build (cache hit)` 并复用；可用 `--no-incremental` 或 `SCOOP_INCREMENTAL=0` 禁用；细粒度依赖图后置（v2）
 
 ## 2. Scoop 编译器优化（优化等级/去虚化/HIR-MIR）
 
 ### 2.1 优化等级（对外接口 + 默认策略）
 
-- 统一 CLI 与 `Cone.toml[native-build]` 的 `opt-level`（或等价字段）与优先级规则。
-- 明确 debug/release 默认映射，避免“同名不同义”。
-- 同步把 LLVM 后端的 `TargetMachine` 优化等级与 profile/opt-level 对齐（当前 `host_target_machine()` 仍是 `OptimizationLevel::None`）。
+- DONE（T1601）统一对外接口：
+  - CLI：`scoop build/run/test` 支持 `-O/--opt-level <0|1|2|3|s|z>`。
+  - manifest：`Cone.toml[native-build].opt-level`（支持字符串或整数），并定义优先级：CLI > toml > profile 默认值。
+  - 默认策略：debug → `-O0`，release → `-O2`。
+- DONE（T1601）LLVM 后端对齐：`TargetMachine` 的 `OptimizationLevel` 与 opt-level/profile 对齐（O0→None，O1→Less，O2/Os/Oz→Default，O3→Aggressive）。
 
 ### 2.2 LLVM pipeline（DCE/inlining/unroll 等）
 

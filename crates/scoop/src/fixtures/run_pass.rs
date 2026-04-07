@@ -164,6 +164,7 @@ struct RunExitCodeMismatch {
 pub(crate) fn run_fixture(
     rel_fixture: &Path,
     fixture_path: &Path,
+    opt_level: Option<scoopc::opt::OptLevel>,
     exp: &FixtureExpectation<'_>,
     run_pass_env: &super::RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
@@ -220,7 +221,11 @@ pub(crate) fn run_fixture(
         // 默认模式：真正运行该 fixture 对应的 Scoop 程序。
         "run" => {
             let mut cmd = Command::new(scoop_exe);
-            cmd.arg("run").arg(fixture_path);
+            cmd.arg("run");
+            if let Some(level) = opt_level {
+                cmd.arg("--opt-level").arg(level.as_str());
+            }
+            cmd.arg(fixture_path);
             run_pass_env.apply_to_command(&mut cmd);
             // 约定：run-pass fixtures 可通过 `// ARGS: ...` 向 `scoop run` 透传参数（最终作为程序 argv）。
             if !exp.args.is_empty() {

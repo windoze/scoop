@@ -16,6 +16,7 @@ use miette::{Context as _, IntoDiagnostic as _, Result};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TestOptions {
+    pub opt_level: Option<scoopc::opt::OptLevel>,
     pub gc_stress: bool,
     pub gc_move: bool,
     pub threads: Option<NonZeroU32>,
@@ -43,7 +44,7 @@ pub fn run(fixtures: Option<PathBuf>, options: TestOptions) -> Result<()> {
         run_pass_env.set("SCOOP_GC_IMMIX_PARALLEL_SWEEP", v);
     }
 
-    let ok = crate::fixtures::run_all(&root, &run_pass_env)?;
+    let ok = crate::fixtures::run_all(&root, options.opt_level, &run_pass_env)?;
     println!("fixtures: ok ({ok})");
     Ok(())
 }

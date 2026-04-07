@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// ARGS: -O0
+
+package fixtures.run_pass_cone.t1601_opt_level_o0
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    println("run-opt-level")
+}
+
