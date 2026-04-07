@@ -97,6 +97,24 @@ cargo run -p scoop --features llvm -- test
     - 入口/数据结构位置清晰，避免循环依赖与 `pub(crate)` 漫延。
 - 依赖：无
 
+### T0104 [TODO] typecheck：重构 `crates/scoopc/src/typecheck/expr.rs`（拆分模块，降低维护成本）
+- 描述：`crates/scoopc/src/typecheck/expr.rs` 过长且职责密集，集中承载了表达式类型检查/推断的多个维度（各类 expr 语法分支、预期类型传递、错误生成与诊断、以及若干为可回归而引入的局部 helper）。随着语言特性与诊断要求增长，单文件结构会导致：
+  - 导航成本高（同一语义路径跨多段 helper 跳转，难以定位责任边界）；
+  - 修改风险高（对某个 expr 分支的改动容易影响其它分支的约束传播/错误消息）；
+  - 缺少“可单测的最小单元”（想验证某一类 expr 的规则时，往往需要走完整 typecheck 入口）。
+- 目标：
+  - 将 `expr.rs` 拆分为职责清晰的子模块（示例：`typecheck/expr/mod.rs` + `typecheck/expr/lit.rs`/`call.rs`/`control_flow.rs`/`ops.rs`/`coerce.rs`/`util.rs`；文件名以“expr 分类/共享工具”表达意图）。
+  - 收拢共享能力：把错误构造、预期类型/约束传播、常用 “check_* / infer_*” helper 的共用部分集中到少数模块，避免循环依赖与 `pub(crate)` 漫延。
+  - 行为保持稳定：不改变类型规则与错误信息文本（除非作为独立任务明确允许调整）；现有 fixtures/单测应尽量保持不变。
+  - 为测试留出口：让关键规则以“较小输入”具备可被 Rust 单测覆盖的结构可能（即使本任务不强制新增测试，也要让模块边界更利于补测）。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - 代码组织层面：
+    - `crates/scoopc/src/typecheck/expr.rs` 不再是巨型单文件；通过目录/文件名能快速定位 expr 分支的实现位置；
+    - 模块依赖清晰（无明显环），公共入口与内部 helper 的可见性边界合理。
+- 依赖：无
+
 ---
 
 ## T11：Cone（改进项吸收）
