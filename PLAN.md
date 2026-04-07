@@ -64,6 +64,7 @@ cargo run -p scoop --features llvm -- test
 
 ### 2.3 去虚化（receiver 类型已知时直调用）
 
+- DONE（T1603）：LLVM 后端在 class vtable 调用点做最小去虚化：当 receiver 的静态 class 在编译单元内“无已知子类”时，直接调用该 slot 的 `impl_member_fqn`（不再走 `call_vtable` 间接调用）；并优先使用局部绑定的原始 `TypeId`（`env.local.hir_ty`）避免隐式 upcast 擦除类型导致漏优化。
 - value type 默认静态分派（direct call）。
 - final/sealed class 在可证明单一目标时生成直调用（或提供足够信息让 LLVM 去虚化）。
 

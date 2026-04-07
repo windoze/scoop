@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: member_call_devirt_final_receiver_direct_call_basic.stdout
+//
+// T1603：去虚化不应改变语义：final receiver 调用仍应执行正确的 override 目标。
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Int {
+        println("Base.ping")
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        println("Derived.ping")
+        return 2
+    }
+}
+
+fun main(): Int {
+    val d: Derived = Derived()
+    val x: Int = d.ping()
+    println("after")
+    println(x)
+    return 0
+}
+

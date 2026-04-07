@@ -1,0 +1,29 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: @fixtures.build.Derived.ping, i32 1
+// BUILD-LLVM-NOT-CONTAINS: call_vtable
+//
+// T1603：去虚化：当 receiver 的静态类型为“无已知子类”的 class 时，虚调用应降级为 direct call。
+
+package fixtures.build
+
+import scoop.core.*
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        return 2
+    }
+}
+
+fun main(): Int {
+    val d: Derived = Derived()
+    val x: Int = d.ping()
+    println(x)
+    return 0
+}

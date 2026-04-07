@@ -142,7 +142,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0101、T1601；（历史）`--emit-llvm` 与 build fixtures 子串断言能力已存在
 
-### T1603 [TODO] 去虚化：receiver 类型已知时确保能生成直调用（final/sealed/value）
+### T1603 [DONE] 去虚化：receiver 类型已知时确保能生成直调用（final/sealed/value）
 - 描述：当 method call 的 receiver 类型在编译期已知时，尽量走直调用路径，确保 LLVM 去虚化能生效（尤其是 receiver 为 final/sealed class 或 value type 时）。
 - 目标：
   - value type：默认应为静态分派（direct call），不得引入不必要的 vtable/间接调用。

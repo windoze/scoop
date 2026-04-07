@@ -10737,7 +10737,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some((receiver_arg, _call_args)) = args.split_first() else {
             return Ok(None);
         };
-        let hir::CallArg::Positional(_receiver_expr) = receiver_arg else {
+        let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
             return Ok(None);
         };
 
@@ -10757,6 +10757,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(slot) = slot else {
             return Ok(None);
         };
+
+        // T1603：去虚化（receiver 类型已知时直调用）。
+        //
+        // 设计取舍（v0）：
+        // - 仍以 “能在 vtable slot 表里命中” 作为是否需要虚调用的主判断（保证动态分发语义成立）；
+        // - 仅在我们能证明该调用点为“单一目标”时，把 vtable 间接调用降级为 direct call；
+        // - 当前实现优先覆盖最常见、最容易证明的 case：receiver 的静态类型对应的 class 在本次编译单元内
+        //   **不存在任何子类**（等价于 final class / 单一实现的 sealed class）。
+        //
+        // 重要：这里优先尝试使用“局部绑定的原始 HIR 类型”（`env.local.hir_ty`）作为 receiver 静态类型。
+        // - 这样可以避开 call-site 处的隐式 upcast/coerce 把 `receiver_expr.ty` 擦成父类的问题，
+        //   让 “`val d: Derived = ...; d.ping()`” 这类典型场景能被正确去虚化；
+        // - 若无法恢复精确类型，则回退到 `receiver_expr.ty`（保持保守正确性）。
+        let devirt_receiver_ty = match &receiver_expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                .env
+                .get(*id)
+                .and_then(|l| l.hir_ty)
+                .unwrap_or(receiver_expr.ty),
+            _ => receiver_expr.ty,
+        };
+        if let Some(target_fqn) = self.try_devirtualize_class_vtable_call_target(
+            devirt_receiver_ty,
+            slot,
+            method_name,
+            explicit_params_len,
+        ) {
+            let v = self.codegen_top_level_fun_call(span, callee_span, &target_fqn, args)?;
+            return Ok(Some(v));
+        }
 
         let sig_fun =
             self.fun_index
@@ -10920,6 +10950,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }))
             }
         }
+    }
+
+    fn try_devirtualize_class_vtable_call_target(
+        &mut self,
+        receiver_ty: TypeId,
+        slot: u32,
+        method_name: &str,
+        explicit_params_len: u32,
+    ) -> Option<String> {
+        let receiver_fqn = match self.types.kind(receiver_ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => return None,
+        };
+
+        // 当前阶段（v0）只对“本次 codegen 侧已收集到 class init 信息”的 class 启用去虚化：
+        // - `class_inits` 是后端可见的最小 class 元数据来源（字段/ctor/super 链等）；
+        // - 对 sysroot 或其它未收集到 init 信息的 class，无法可靠判断其继承关系，保持保守回退到 vtable 调用。
+        if !self.class_inits.contains_key(receiver_fqn) {
+            return None;
+        }
+
+        // 若该 receiver class 在编译单元内存在子类，则该调用点仍可能动态分发到 override 目标，
+        // 不应在后端做直调用替换。
+        let has_known_subclass = self
+            .class_inits
+            .values()
+            .any(|c| c.super_class_fqn.as_deref() == Some(receiver_fqn));
+        if has_known_subclass {
+            return None;
+        }
+
+        let receiver_slots = self.class_vtables.get(receiver_fqn)?;
+        let slot_entry = receiver_slots.get(slot as usize)?;
+        if slot_entry.name != method_name || slot_entry.params_len != explicit_params_len {
+            return None;
+        }
+
+        // 只在目标成员为“可 codegen 的函数实体”时启用去虚化：
+        // - 普通成员函数：要求有 body；
+        // - @Extern：允许无 body（由链接器提供实现）。
+        let target_fqn = slot_entry.impl_member_fqn.as_str();
+        let Some(target_fun) = self.fun_index.get(target_fqn).copied() else {
+            return None;
+        };
+        if target_fun.body.is_none() && !self.extern_funs.contains_key(target_fqn) {
+            return None;
+        }
+
+        Some(target_fqn.to_string())
     }
 
     fn try_codegen_interface_itable_call(

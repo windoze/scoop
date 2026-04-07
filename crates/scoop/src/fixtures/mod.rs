@@ -787,14 +787,12 @@ fn parse_opt_level_from_fixture_args(
                         fixture: fixture_path.display().to_string(),
                     }));
                 };
-                return OptLevel::parse(value)
-                    .map(Some)
-                    .map_err(|e| {
-                        box_diagnostic(BuildInvalidOptLevel {
-                            value: e.value,
-                            fixture: fixture_path.display().to_string(),
-                        })
-                    });
+                return OptLevel::parse(value).map(Some).map_err(|e| {
+                    box_diagnostic(BuildInvalidOptLevel {
+                        value: e.value,
+                        fixture: fixture_path.display().to_string(),
+                    })
+                });
             }
 
             return OptLevel::parse(rest).map(Some).map_err(|e| {
