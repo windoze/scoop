@@ -111,7 +111,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0103a
 
-### T0103c [TODO] HIR lowering：抽出 `expr.rs`（表达式 lowering）
+### T0103c [DONE] HIR lowering：抽出 `expr.rs`（表达式 lowering）
 - 描述：把 `lower_expr*`、字面量/调用/成员访问/控制流表达式等表达式 lowering 迁移到 `lower/expr.rs`。
 - 目标：表达式入口可直接导航；与 stmt/block 之间的共享接口通过 `types.rs`/`util.rs` 明确边界。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
