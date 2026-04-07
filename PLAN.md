@@ -45,7 +45,7 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0103a）：`lower` 模块骨架 + 抽出 `types.rs`（共享类型与 side tables）
 - DONE（T0103b）：抽出 `util.rs`（通用 helper / early-stage 特判收拢；新增 `crates/scoopc/src/hir/lower/util.rs`）
 - DONE（T0103c）：抽出 `expr.rs`（表达式 lowering；新增 `crates/scoopc/src/hir/lower/expr.rs`）
-- TODO（T0103d）：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
+- DONE（T0103d）：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
 - TODO（T0103e）：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
 
 ## 1. Cone（改进项吸收）

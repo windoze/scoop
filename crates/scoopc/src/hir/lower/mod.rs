@@ -7,7 +7,9 @@
 mod types;
 mod util;
 
+mod block;
 mod expr;
+mod stmt;
 
 pub use types::{HirLowerError, LoweredHir};
 
@@ -30,8 +32,8 @@ use super::{
     CtorCallSiteIndex, EffectOpRef, EnumLayout, EnumLayoutIndex, EnumRepr, EnumVariantFieldLayout,
     EnumVariantLayout, Expr, ExprKind, File, FunDecl, HandleArm, HandleArmKind, HandleBinder,
     HandleExpr, HandleOp, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex,
-    ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructCLayout, StructFieldLayout,
-    StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    ObjectInitStep, ObjectProperty, Param, StructCLayout, StructFieldLayout, StructLayout,
+    StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 use types::*;
@@ -637,87 +639,6 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    fn rewrite_async_fun_block(&mut self, mut block: Block, wrap_tail_expr: bool) -> Block {
-        // T0623：把 `async fun` 的返回值包装成 task 句柄：
-        // - `return expr` → `return __scoop_task_spawn_int(expr)`（early stage 仅支持 Int）；
-        // - block tail expr（隐式返回）同样做一次包装。
-
-        for stmt in &mut block.stmts {
-            match &mut stmt.kind {
-                StmtKind::While { body, .. } => {
-                    // 这里用 `replace` 把 body move 出来，避免对 Block 增加 Default 约束。
-                    let placeholder = Block {
-                        span: body.span,
-                        ty: body.ty,
-                        stmts: Vec::new(),
-                    };
-                    let old = std::mem::replace(body, placeholder);
-                    *body = self.rewrite_async_fun_block(old, false);
-                }
-                StmtKind::Return { value } => {
-                    if let Some(v) = value.take() {
-                        *value = Some(self.wrap_task_spawn_int_call(stmt.span, v));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if wrap_tail_expr {
-            // 隐式返回：若 block 末尾是表达式语句，则将其值包装为 task handle。
-            if let Some(last) = block.stmts.last_mut() {
-                if let StmtKind::Expr(expr) = &mut last.kind {
-                    // 用占位符把 expr move 出来，避免对 Expr 增加 Default 约束。
-                    let expr_span = expr.span;
-                    let expr_ty = expr.ty;
-                    let old = std::mem::replace(
-                        expr,
-                        Expr {
-                            span: expr_span,
-                            ty: expr_ty,
-                            kind: ExprKind::Missing,
-                        },
-                    );
-                    *expr = self.wrap_task_spawn_int_call(expr_span, old);
-                }
-            }
-        }
-
-        // 重新计算 block 类型：保持与 `lower_block` 的规则一致。
-        block.ty = block
-            .stmts
-            .last()
-            .and_then(|s| match &s.kind {
-                StmtKind::Expr(e) => Some(e.ty),
-                _ => None,
-            })
-            .unwrap_or(self.builtins.unit);
-
-        block
-    }
-
-    fn wrap_task_spawn_int_call(&mut self, at: Span, value: Expr) -> Expr {
-        // `__scoop_task_spawn_int(value)` → task handle (`UInt`)。
-        let fqn = Self::TASK_SPAWN_INT_FQN.to_string();
-        let callee = Expr {
-            span: at,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(fqn.clone()),
-                fqn,
-            }),
-        };
-
-        Expr {
-            span: at,
-            ty: self.builtins.uint,
-            kind: ExprKind::Call {
-                callee: Box::new(callee),
-                args: vec![CallArg::Positional(value)],
-            },
-        }
-    }
-
     fn call_top_level_fun(
         &mut self,
         span: Span,
@@ -848,98 +769,6 @@ impl<'a> HirLowering<'a> {
             self.index.type_ref_to_fqn_in_file(self.source, self.file, &ty),
             Some(fqn) if fqn == expected_fqn
         )
-    }
-
-    fn lower_block(&mut self, pkg_prefix: &str, b: &ast::Block) -> Block {
-        let mut stmts = Vec::with_capacity(b.stmts.len());
-        for s in &b.stmts {
-            stmts.push(self.lower_stmt(pkg_prefix, s));
-        }
-
-        // 当前阶段：用 block 最后一条“表达式语句”的类型作为 block 类型，否则视为 Unit。
-        let ty = stmts
-            .last()
-            .and_then(|s| match &s.kind {
-                StmtKind::Expr(e) => Some(e.ty),
-                _ => None,
-            })
-            .unwrap_or(self.builtins.unit);
-
-        Block {
-            span: b.span,
-            ty,
-            stmts,
-        }
-    }
-
-    fn lower_stmt(&mut self, pkg_prefix: &str, s: &ast::Stmt) -> Stmt {
-        let (kind, ty) = match &s.kind {
-            ast::StmtKind::Empty => (StmtKind::Empty, self.builtins.unit),
-            ast::StmtKind::Expr(e) => {
-                // 赋值在 AST 中以表达式节点承载，但在 HIR 中视为语句（便于后续 MIR lowering）。
-                if let ast::ExprKind::Assign { lhs, eq_span, rhs } = &e.kind {
-                    if let Some(call) =
-                        self.try_lower_delegated_property_assign(pkg_prefix, e.span, lhs, rhs)
-                    {
-                        (StmtKind::Expr(call), self.builtins.unit)
-                    } else {
-                        let lhs = self.lower_expr(pkg_prefix, lhs);
-                        let rhs = self.lower_expr(pkg_prefix, rhs);
-                        (
-                            StmtKind::Assign {
-                                lhs,
-                                eq_span: *eq_span,
-                                rhs,
-                            },
-                            self.builtins.unit,
-                        )
-                    }
-                } else {
-                    let e = self.lower_expr(pkg_prefix, e);
-                    (StmtKind::Expr(e), self.builtins.unit)
-                }
-            }
-            ast::StmtKind::Val(v) => {
-                let v = self.lower_val_decl(pkg_prefix, v, ValScope::Local);
-                (StmtKind::Val(v), self.builtins.unit)
-            }
-            ast::StmtKind::Return { value, .. } => {
-                let value = value.as_ref().map(|e| self.lower_expr(pkg_prefix, e));
-                (StmtKind::Return { value }, self.builtins.nothing)
-            }
-            ast::StmtKind::Missing => (StmtKind::Todo("missing_stmt"), self.builtins.unit),
-            ast::StmtKind::While { cond, body, .. } => (
-                StmtKind::While {
-                    cond: self.lower_expr(pkg_prefix, cond),
-                    body: self.lower_block(pkg_prefix, body),
-                },
-                self.builtins.unit,
-            ),
-            ast::StmtKind::For(_) => (StmtKind::Todo("for"), self.builtins.unit),
-            ast::StmtKind::Break { break_span } => (
-                StmtKind::Break {
-                    break_span: *break_span,
-                },
-                self.builtins.unit,
-            ),
-            ast::StmtKind::Continue { continue_span } => (
-                StmtKind::Continue {
-                    continue_span: *continue_span,
-                },
-                self.builtins.unit,
-            ),
-            ast::StmtKind::ComptimeBlock { .. } => {
-                (StmtKind::Todo("comptime_block"), self.builtins.unit)
-            }
-            ast::StmtKind::ComptimeIf(_) => (StmtKind::Todo("comptime_if"), self.builtins.unit),
-            ast::StmtKind::ComptimeFor(_) => (StmtKind::Todo("comptime_for"), self.builtins.unit),
-        };
-
-        Stmt {
-            span: s.span,
-            ty,
-            kind,
-        }
     }
 
     fn try_lower_delegated_property_assign(

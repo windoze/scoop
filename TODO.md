@@ -117,7 +117,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0103b
 
-### T0103d [TODO] HIR lowering：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
+### T0103d [DONE] HIR lowering：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
 - 描述：把 `lower_stmt*`、`lower_block*`、局部 `val/assign/return`、循环与 break/continue 等迁移到 `lower/stmt.rs` 与 `lower/block.rs`。
 - 目标：stmt/block 与 expr 的互相调用通过少数“公开到父模块的 helper”实现，避免模块环。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
