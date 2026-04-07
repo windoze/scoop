@@ -105,7 +105,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：无
 
-### T0103b [TODO] HIR lowering：抽出 `util.rs`（通用 helper / 早期阶段特判收拢）
+### T0103b [DONE] HIR lowering：抽出 `util.rs`（通用 helper / 早期阶段特判收拢）
 - 描述：把跨 lowering 分支复用的 helper（span/诊断、小型 AST 解析、sysroot 约定字符串等）集中到 `lower/util.rs`，并把 early-stage 的“临时特判/兼容逻辑”收拢到少数入口函数中。
 - 目标：降低后续拆分 `expr.rs`/`stmt.rs`/`block.rs` 时的重复粘贴与循环依赖风险。
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`

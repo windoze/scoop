@@ -43,7 +43,7 @@ cargo run -p scoop --features llvm -- test
 > 背景：`crates/scoopc/src/hir/lower.rs` 已增长到 6K+ 行；该任务按“行为不变（dump-hir/fixtures 输出稳定）”的原则拆成可回归的小步（见 TODO：T0103a~T0103e）。
 
 - DONE（T0103a）：`lower` 模块骨架 + 抽出 `types.rs`（共享类型与 side tables）
-- TODO（T0103b）：抽出 `util.rs`（通用 helper / early-stage 特判收拢）
+- DONE（T0103b）：抽出 `util.rs`（通用 helper / early-stage 特判收拢；新增 `crates/scoopc/src/hir/lower/util.rs`）
 - TODO（T0103c）：抽出 `expr.rs`（表达式 lowering）
 - TODO（T0103d）：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
 - TODO（T0103e）：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
