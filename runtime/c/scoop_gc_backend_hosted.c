@@ -548,6 +548,12 @@ void scoop_gc_collect_minor(void) {
   scoop_gc_collect();
 }
 
+uint32_t scoop_gc_try_collect_minor(uint32_t deadline_ms) {
+  (void)deadline_ms;
+  scoop_gc_collect_minor();
+  return 1;
+}
+
 uint64_t scoop_gc_debug_heap_object_count(void) {
   scoop_gc_lock_acquire();
   uint64_t count = 0;

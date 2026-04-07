@@ -6228,13 +6228,22 @@
    - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
    - `cargo test --all`
 
-### T1412e [TODO] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
+### T1412e [DONE] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
 - 描述：为 GUI/VSync 等短窗口场景提供“尝试执行 minor”的接口：若协作式 STW 在截止时间内未达成，则放弃本轮 minor 并立刻返回，避免卡住渲染帧。
 - 目标：
   - 与现有协作式 STW 兼容：仅在达成 STW 后才进入 tracing/evacuation；未达成时必须安全撤销 STW 请求并唤醒已 park 线程。
   - 不改变 major collect 语义；minor 失败只表示“这次没做”，不影响正确性。
 - 验收：新增 `scoop_runtime` 集成测试：构造一个故意不 poll 的线程，`try-minor(deadline)` 能在 deadline 后返回且不死锁；随后仍可跑 major collect。
 - 依赖：T1412c、T1505a（STW 状态机与 timedwait/诊断已落地）
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `scoop_gc_try_collect_minor(deadline_ms)` 声明与语义说明。
+   - `runtime/c/scoop_gc_backend_immix.c`：实现 `scoop_gc_stop_the_world_try_begin_unlocked`（deadline 超时撤销 STW 并唤醒已 park 线程）；为 minor collect 抽取 internal helper，并提供 `scoop_gc_try_collect_minor`（返回 0/1 表示本轮 minor 是否 commit）。
+   - `runtime/c/scoop_gc.c`/`runtime/c/scoop_gc_backend_minimal.c`/`runtime/c/scoop_gc_backend_hosted.c`：提供 `scoop_gc_try_collect_minor` 的退化实现（保持链接稳定）。
+   - `runtime/c/scoop_runtime_api.h`：ABI allowlist 登记 `scoop_gc_try_collect_minor`。
+   - `crates/scoop_runtime/tests/gc_immix_try_minor_deadline.rs`：新增集成测试回归“非 poll 线程导致 try-minor 超时返回 + poller 被唤醒 + 随后 major collect 可继续执行”。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test --all`
 
 ---
 

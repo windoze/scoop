@@ -36,9 +36,8 @@ fn scoopir_fixture_public_api_filter_golden() {
 fn scoopir_fixture_package_level_comptime_if_public_api_trimmed_golden() {
     let sess = Session::new().unwrap();
 
-    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-        "../../tests/fixtures/scoopir/package_level_comptime_if_public_api_trimmed.scoop",
-    );
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/scoopir/package_level_comptime_if_public_api_trimmed.scoop");
     let source = SourceFile::load(&fixture_path).unwrap();
 
     let ast = sess.parse(&source).unwrap();

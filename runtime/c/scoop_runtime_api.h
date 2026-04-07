@@ -90,6 +90,7 @@
   X(scoop_gc_self_check) \
   X(scoop_gc_thread_register) \
   X(scoop_gc_thread_unregister) \
+  X(scoop_gc_try_collect_minor) \
   X(scoop_gc_type_descriptor_trace) \
   X(scoop_gc_write_barrier) \
   X(scoop_handle_drop) \

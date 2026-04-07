@@ -214,6 +214,21 @@ void scoop_gc_collect(void);
 // - v0 目标：暂停时间与 nursery 大小近似线性；old→nursery 入口依赖写屏障（T1412d）维持为空。
 void scoop_gc_collect_minor(void);
 
+// 尝试触发一次 minor GC（young generation / nursery evacuation）。
+//
+// 语义（TODO T1412e，try-minor / deadline）：
+// - 若当前 backend 支持协作式 stop-the-world：
+//   - 只有在 `deadline_ms` 截止时间内达成 STW（所有线程 park 就绪）才会进入 tracing/evacuation；
+//   - 若未能在 deadline 内达成，则撤销本轮 STW 请求并唤醒已 park 线程，然后立刻返回；
+// - baseline/minimal/hosted backend 下该 API 退化为 `scoop_gc_collect_minor()`（忽略 deadline）
+//   以保持链接稳定，并返回 1；
+// - Immix backend 下若 nursery 未启用，则返回 0（no-op）。
+//
+// 返回值：
+// - 1：本轮 minor 已执行（可能为 no-op，但已进入 STW 并完成一轮 commit/reset）；
+// - 0：本轮 minor 放弃（例如 STW 超时、nursery 未启用、或内部资源不足导致回滚）。
+uint32_t scoop_gc_try_collect_minor(uint32_t deadline_ms);
+
 // --- Write barrier（TODO T1412d） ---
 //
 // 为编译器生成的“引用写入（store）”提供统一写屏障 hook。

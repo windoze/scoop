@@ -276,7 +276,28 @@ static uint64_t scoop_gc_stackmap_visit_roots_from_ctx(void *stack_walking_ctx,
   return walk.slots_visited;
 }
 
-static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
+static void scoop_gc_stop_the_world_end_unlocked(void);
+
+static int scoop_gc_timespec_cmp(const struct timespec *a, const struct timespec *b) {
+  if (a == 0 || b == 0) {
+    return 0;
+  }
+  if (a->tv_sec < b->tv_sec) {
+    return -1;
+  }
+  if (a->tv_sec > b->tv_sec) {
+    return 1;
+  }
+  if (a->tv_nsec < b->tv_nsec) {
+    return -1;
+  }
+  if (a->tv_nsec > b->tv_nsec) {
+    return 1;
+  }
+  return 0;
+}
+
+static uint32_t scoop_gc_stop_the_world_begin_prepare_unlocked(pthread_t initiator) {
   scoop_gc_stw_requested_store(&scoop_gc_stw, 1);
   scoop_gc_stw.initiator = initiator;
   scoop_gc_stw.epoch += 1;
@@ -308,6 +329,12 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
     need_to_park += 1;
   }
 
+  return need_to_park;
+}
+
+static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
+  const uint32_t need_to_park = scoop_gc_stop_the_world_begin_prepare_unlocked(initiator);
+
   ScoopGcImmixState *state = scoop_gc_immix_state();
   if (state == 0 || !state->lock_inited) {
     return;
@@ -322,6 +349,53 @@ static void scoop_gc_stop_the_world_begin_unlocked(pthread_t initiator) {
       scoop_gc_stw_diag_dump_threads_unlocked(&scoop_gc_stw, scoop_gc_threads, need_to_park);
     }
   }
+}
+
+static uint32_t scoop_gc_stop_the_world_try_begin_unlocked(pthread_t initiator, uint32_t deadline_ms) {
+  const uint32_t need_to_park = scoop_gc_stop_the_world_begin_prepare_unlocked(initiator);
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0 || !state->lock_inited) {
+    scoop_gc_stop_the_world_end_unlocked();
+    return 0;
+  }
+
+  if (need_to_park == 0) {
+    return 1;
+  }
+
+  // deadline=0：表示“不要等待其它线程进入 safepoint”，直接放弃本轮 STW/minor。
+  if (deadline_ms == 0) {
+    scoop_gc_stop_the_world_end_unlocked();
+    return 0;
+  }
+
+  struct timespec deadline_ts;
+  scoop_gc_stw_timespec_after_ms(deadline_ms, &deadline_ts);
+
+  while (scoop_gc_stw.parked_count < need_to_park) {
+    struct timespec diag_ts;
+    scoop_gc_stw_timespec_after_ms((uint32_t)SCOOP_GC_STW_DIAG_INTERVAL_MS, &diag_ts);
+
+    struct timespec ts = diag_ts;
+    uint32_t is_deadline_wait = 0;
+    if (scoop_gc_timespec_cmp(&deadline_ts, &diag_ts) <= 0) {
+      ts = deadline_ts;
+      is_deadline_wait = 1;
+    }
+
+    int rc = pthread_cond_timedwait(&scoop_gc_stw_cond, &state->lock, &ts);
+    if (rc == ETIMEDOUT) {
+      if (is_deadline_wait) {
+        // 未能在 deadline 内达成 STW：撤销请求并唤醒已 park 线程（避免卡住渲染帧）。
+        scoop_gc_stop_the_world_end_unlocked();
+        return 0;
+      }
+      scoop_gc_stw_diag_dump_threads_unlocked(&scoop_gc_stw, scoop_gc_threads, need_to_park);
+    }
+  }
+
+  return 1;
 }
 
 static void scoop_gc_stop_the_world_end_unlocked(void) {
@@ -3849,7 +3923,7 @@ static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state
   state->nursery_blocks = blocks;
 }
 
-void scoop_gc_collect_minor(void) {
+static uint32_t scoop_gc_collect_minor_internal(uint32_t use_deadline, uint32_t deadline_ms) {
   void scoop_runtime_init(void);
   void scoop_thread_register(void);
   scoop_runtime_init();
@@ -3857,15 +3931,15 @@ void scoop_gc_collect_minor(void) {
 
   ScoopGcImmixState *state = scoop_gc_immix_state();
   if (state == 0) {
-    return;
+    return 0;
   }
   if (!state->lock_inited) {
-    return;
+    return 0;
   }
 
   // 未启用 nursery：minor 为 no-op（保持语义可预期）。
   if (state->nursery_max_blocks == 0) {
-    return;
+    return 0;
   }
 
   pthread_t self = pthread_self();
@@ -3877,7 +3951,16 @@ void scoop_gc_collect_minor(void) {
     (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
   }
 
-  scoop_gc_stop_the_world_begin_unlocked(self);
+  if (use_deadline) {
+    if (!scoop_gc_stop_the_world_try_begin_unlocked(self, deadline_ms)) {
+      scoop_gc_immix_unlock(state);
+      return 0;
+    }
+  } else {
+    scoop_gc_stop_the_world_begin_unlocked(self);
+  }
+
+  uint32_t did_commit = 0;
 
   ScoopGcHeap *heap = &scoop_gc_heap;
   const size_t small_object_cap = scoop_gc_immix_block_payload_capacity();
@@ -3889,7 +3972,7 @@ void scoop_gc_collect_minor(void) {
   if (!scoop_gc_heap_membership_index_build_unlocked(&membership, heap)) {
     scoop_gc_stop_the_world_end_unlocked();
     scoop_gc_immix_unlock(state);
-    return;
+    return 0;
   }
 
   // B2b：Immix roots 枚举不再扫描 shadow stack。
@@ -4215,6 +4298,7 @@ void scoop_gc_collect_minor(void) {
   }
 
   // 6) reset nursery blocks：整体复位（工作量与 nursery blocks 数近似线性）。
+  did_commit = 1;
   scoop_gc_immix_minor_reset_nursery_unlocked(state);
 
 cleanup_and_return:
@@ -4233,6 +4317,13 @@ cleanup_and_return:
 
   scoop_gc_stop_the_world_end_unlocked();
   scoop_gc_immix_unlock(state);
+  return did_commit;
+}
+
+void scoop_gc_collect_minor(void) { (void)scoop_gc_collect_minor_internal(/*use_deadline=*/0, /*deadline_ms=*/0); }
+
+uint32_t scoop_gc_try_collect_minor(uint32_t deadline_ms) {
+  return scoop_gc_collect_minor_internal(/*use_deadline=*/1, deadline_ms);
 }
 
 // --- 并行 region sweep（TODO T1409c2） ---
