@@ -172,7 +172,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：把清单维护在 `PLAN.md` 的“编译器优化”部分，并为每个候选项保留可拆分的任务入口（后续逐步补齐）。
 - 依赖：无
 
-### T1606 [TODO] LLVM：escape continuation `handle` 完整语义（0..N perform 点）
+### T1606 LLVM：escape continuation `handle` 完整语义（0..N perform 点）（拆分）
 - 描述：当前 LLVM 后端对 escape continuation（`, k ->`）的 `handle` 仍是“最小可回归链路”：只支持单个 perform 点，且要求为 block 的第一个语句。该限制导致 stdlib/fixtures 只能用“嵌套 handle / 二段 handle”绕开，无法表达真实 async/await 的直觉写法（同一 handle body 内多次 await）。
 - 目标：
   - 语义完整性：支持 `handle { ... } with { Effect.op(...), k -> ... }` 的 body 含 **0..N** 个 perform 点：
@@ -187,6 +187,33 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：单个 `handle` body 内连续 2~3 次 `await/yield`（不使用嵌套 handle workaround），stdout 顺序可观测且在 `--gc-stress` 下稳定。
   - 复跑既有 fixtures：`cargo run -p scoop -- test` 与（可选）`cargo run -p scoop --features llvm -- test` 通过。
 - 依赖：（历史）T0617/T0914/T0915/T0916（escape continuation + handler stack 基础链路）；（新增）T1706/T1707（回归用例）
+
+### T1606a [TODO] Escape continuation：0 perform 时退化执行 body（arm 不可达）
+- 描述：当 `handle { ... } with { Effect.op(...), k -> ... }` 的 body 内**不存在匹配该 arm 的 perform 点**时：
+  - 运行期不会创建 continuation；
+  - arm 视为不可达（仅 typecheck，不参与 codegen）；
+  - `handle` 表达式应按顺序语义执行 `body`（以及 `finally`，若存在）并返回 body 的值。
+- 目标：放宽当前 LLVM codegen 中“escape continuation handle 必须有且仅有一个 perform”的硬限制，仅对**匹配的 op**生效；其它 effect/handle 仍可出现在 body 内并照常执行。
+- 验收：
+  - 新增 run-pass fixture：escape continuation handler 存在但 body 不 perform；stdout 断言 arm 未执行且返回值来自 body。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T1606b [TODO] Escape continuation：允许 perform 非首语句（仍单 perform）
+- 描述：取消“perform 必须是 block 第一个语句”的限制；允许在 perform 前存在普通语句（val/assign/expr）。
+- 目标：补齐 capture：把 perform 前引入且在 perform 后仍需使用的 locals lift 到 heap state，并在 step trampoline 中恢复。
+- 验收：新增 run-pass fixture：perform 前后各有语句，resume 后能读到 pre-perform locals。
+- 依赖：T1606a
+
+### T1606c [TODO] Escape continuation：多 perform 点（同一 handle body 内 2..N 次 suspend/resume）
+- 描述：引入可重入的 heap state machine（pc + lifted locals），使 step trampoline 每次推进到下一个 perform 或完成，并在每次 perform 处生成新的 continuation。
+- 验收：新增 run-pass fixtures：单 handle 内 2~3 次 yield/await（不使用嵌套 handle workaround），并在 `--gc-stress` 下稳定。
+- 依赖：T1606b
+
+### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
+- 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。
+- 验收：复跑既有 fixtures；补充嵌套 handler / re-perform / 跨线程 resume 的组合用例。
+- 依赖：T1606c、T1608、T1706/T1707
 
 ### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
 - 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。

@@ -154,6 +154,11 @@ cargo run -p scoop --features llvm -- test
   - 统一 dispatch/unwind：以 runtime handler stack + perform slot 为单一语义基座（避免多套“特判”长期并存）。
   - resume payload 泛型化：`Continuation<T>` 的 `T` 覆盖 value/ref/复合类型，且与 moving GC 对齐（不允许 ptr<->int 作弊）。
   - `finally` 组合语义补齐：在 suspend/resume/传播路径上不漏执行、不重复执行。
+- 落地顺序（T1606 已拆分为子任务 T1606a~T1606d）：
+  - T1606a：0 perform 时退化执行 body（arm 不可达）
+  - T1606b：取消“perform 必须首语句”（补齐 capture/lift）
+  - T1606c：多 perform（pc + heap state machine）
+  - T1606d：多 perform + 动态上下文/GC 回归加固
 - 设计要点（implementation-level 约束）：
   - handler 分发必须以稳定 `op_tag` 为核心（Appendix A：最近匹配 + active/inactive）；fqn 字符串仅作为诊断输出。
   - escaping continuation 的状态机应以 heap state 表示（pc + lifted locals），并在每次 perform 处生成 continuation；resume 进入 step trampoline 继续推进直到下一次 perform 或完成。
