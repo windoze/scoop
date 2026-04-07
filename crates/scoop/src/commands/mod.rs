@@ -93,8 +93,13 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
         Command::Run {
             input,
             entry_package,
+            debug,
+            release,
             args,
-        } => run::run(input, args, entry_package),
+        } => {
+            let profile = build::BuildProfile::from_debug_release_flags(debug, release);
+            run::run(input, args, entry_package, profile)
+        }
         Command::Package { input, output } => package::run(input, output),
     }
 }

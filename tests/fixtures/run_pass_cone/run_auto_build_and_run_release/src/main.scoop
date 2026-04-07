@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// ARGS: --release
+
+package fixtures.run_pass_cone.t1123_release
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    println("run-release")
+}
+

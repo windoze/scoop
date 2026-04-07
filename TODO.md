@@ -85,7 +85,7 @@ cargo run -p scoop --features llvm -- test
   - 端到端：同一 cone fixture 在 debug/release 两种 profile 下都可 build（路径不同）并可运行。
 - 依赖：T0101、T1121
 
-### T1123 [TODO] `scoop run`：在 CONE 项目目录下自动 build 并运行（支持 `--debug/--release`）
+### T1123 [DONE] `scoop run`：在 CONE 项目目录下自动 build 并运行（支持 `--debug/--release`）
 - 描述：当在 CONE 项目目录（存在 `Cone.toml`）下执行 `scoop run` 时：
   - 若目标 profile 的可执行文件不存在：先 build，再运行
   - 若已存在：v0 允许仍然 always rebuild，但至少要支持“未构建则构建”与 profile 选择

@@ -128,10 +128,18 @@ pub enum Command {
     /// 运行程序（先 build 后 exec；需要启用 LLVM 后端；默认已启用）
     Run {
         /// 输入源文件路径（.scoop）或包目录（包含 Cone.toml）
-        input: PathBuf,
+        ///
+        /// 省略时默认使用当前目录：若当前目录（或其祖先目录）包含 `Cone.toml`，则按 cone 项目运行。
+        input: Option<PathBuf>,
         /// （cone 包模式）指定入口 package（覆盖 `Cone.toml` 的 `native-build.entry-package`）
         #[arg(long = "entry-package", value_name = "PACKAGE")]
         entry_package: Option<String>,
+        /// 选择 debug profile（默认；便于脚本化）
+        #[arg(long, conflicts_with = "release")]
+        debug: bool,
+        /// 选择 release profile
+        #[arg(long, conflicts_with = "debug")]
+        release: bool,
         /// 传递给被运行程序的参数（建议用 `--` 与 `scoop run` 自身参数分隔）
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -224,5 +232,43 @@ mod tests {
             }
             other => panic!("unexpected command: {other:?}"),
         }
+    }
+
+    #[test]
+    fn test_command_parses_run_profile_default_and_optional_input() {
+        let args = Args::try_parse_from(["scoop", "run"]).unwrap();
+
+        match args.command {
+            Command::Run {
+                input,
+                debug,
+                release,
+                ..
+            } => {
+                assert!(input.is_none(), "未提供 input 时应为 None");
+                assert!(!debug, "默认不需要显式 `--debug`");
+                assert!(!release, "默认应为 debug profile（release flag 为 false）");
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_parses_run_profile_release() {
+        let args = Args::try_parse_from(["scoop", "run", "--release"]).unwrap();
+
+        match args.command {
+            Command::Run { debug, release, .. } => {
+                assert!(!debug);
+                assert!(release);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_rejects_conflicting_run_profile_flags() {
+        let err = Args::try_parse_from(["scoop", "run", "--debug", "--release"]).unwrap_err();
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }
 }
