@@ -206,6 +206,14 @@ void scoop_gc_heap_init(ScoopGcHeap *heap);
 // - 对象内部引用字段的扫描依赖 `ScoopTypeDescriptor`（若 `type_desc` 为 NULL 则视为无引用字段）。
 void scoop_gc_collect(void);
 
+// 手动触发一次 minor GC（young generation / nursery evacuation）。
+//
+// 说明（TODO T1412c）：
+// - 该 API 当前仅在 Immix backend 下具备完整语义：stop-the-world + nursery evacuation；
+// - baseline/minimal/hosted backend 下该 API 退化为 `scoop_gc_collect()`（或 no-op），用于保持链接稳定；
+// - v0 目标：暂停时间与 nursery 大小近似线性；old→nursery 入口依赖写屏障（T1412d）维持为空。
+void scoop_gc_collect_minor(void);
+
 // --- Write barrier（TODO T1412d） ---
 //
 // 为编译器生成的“引用写入（store）”提供统一写屏障 hook。

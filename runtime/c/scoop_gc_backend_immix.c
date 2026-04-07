@@ -3198,6 +3198,9 @@ static void scoop_gc_immix_tospace_abort(ScoopGcImmixToSpace *tospace, ScoopGcIm
   while (rb != 0) {
     ScoopGcImmixBlock *next = rb->next_free;
     scoop_gc_immix_block_reset(rb);
+    // 回收：放回 free list，避免 abort 后 state->free_blocks “悄悄丢块”。
+    rb->next_free = state->free_blocks;
+    state->free_blocks = rb;
     rb = next;
   }
 
@@ -3573,6 +3576,663 @@ static void scoop_gc_immix_compact(ScoopGcImmixState *state,
 
   free(moves);
   free(live);
+}
+
+// --- Minor GC（TODO T1412c）：nursery evacuation（stop-the-world） ---
+//
+// 设计要点（v0）：
+// - 只追踪 nursery 可达对象（roots + nursery 内部引用）；不扫描老年代对象字段；
+// - 存活对象复制到老年代（to-space），再整体 reset nursery blocks；
+// - roots / handle 槽位原地更新为新地址（forwarding pointer）；
+// - pinned 对象不得移动：若 pinned 位于 nursery，则先把其所在 block 晋升为 old（避免 reset）。
+
+typedef struct ScoopGcImmixMinorLiveSet {
+  ScoopGcObjectHeader **items;
+  size_t len;
+  size_t cap;
+} ScoopGcImmixMinorLiveSet;
+
+static uint32_t scoop_gc_immix_minor_live_set_push(ScoopGcImmixMinorLiveSet *set,
+                                                   ScoopGcObjectHeader *obj) {
+  if (set == 0 || obj == 0) {
+    return 0;
+  }
+
+  if (set->len == set->cap) {
+    size_t new_cap = (set->cap == 0) ? 1024u : set->cap * 2u;
+    if (new_cap < set->cap) {
+      return 0;
+    }
+    if (new_cap > (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+      return 0;
+    }
+    void *p = realloc(set->items, new_cap * sizeof(ScoopGcObjectHeader *));
+    if (p == 0) {
+      return 0;
+    }
+    set->items = (ScoopGcObjectHeader **)p;
+    set->cap = new_cap;
+  }
+
+  set->items[set->len++] = obj;
+  return 1;
+}
+
+typedef struct ScoopGcImmixMinorWorkStack {
+  ScoopGcObjectHeader **items;
+  size_t len;
+  size_t cap;
+} ScoopGcImmixMinorWorkStack;
+
+static uint32_t scoop_gc_immix_minor_work_stack_push(ScoopGcImmixMinorWorkStack *stack,
+                                                     ScoopGcObjectHeader *obj) {
+  if (stack == 0 || obj == 0) {
+    return 0;
+  }
+
+  if (stack->len == stack->cap) {
+    size_t new_cap = (stack->cap == 0) ? 1024u : stack->cap * 2u;
+    if (new_cap < stack->cap) {
+      return 0;
+    }
+    if (new_cap > (SIZE_MAX / sizeof(ScoopGcObjectHeader *))) {
+      return 0;
+    }
+    void *p = realloc(stack->items, new_cap * sizeof(ScoopGcObjectHeader *));
+    if (p == 0) {
+      return 0;
+    }
+    stack->items = (ScoopGcObjectHeader **)p;
+    stack->cap = new_cap;
+  }
+
+  stack->items[stack->len++] = obj;
+  return 1;
+}
+
+static ScoopGcObjectHeader *scoop_gc_immix_minor_work_stack_pop(ScoopGcImmixMinorWorkStack *stack) {
+  if (stack == 0 || stack->len == 0) {
+    return 0;
+  }
+  stack->len -= 1;
+  return stack->items[stack->len];
+}
+
+typedef struct ScoopGcImmixMinorMarkCtx {
+  ScoopGcHeap *heap;
+  uint32_t mark_value;
+  ScoopGcImmixMinorWorkStack *stack;
+  ScoopGcImmixMinorLiveSet *live;
+  const ScoopGcHeapMembershipIndex *membership;
+  size_t small_object_cap;
+  uint32_t oom;
+} ScoopGcImmixMinorMarkCtx;
+
+static void scoop_gc_immix_minor_mark_object_if_needed(ScoopGcImmixMinorMarkCtx *ctx,
+                                                       ScoopGcObjectHeader *obj) {
+  if (ctx == 0 || obj == 0) {
+    return;
+  }
+  if (ctx->oom) {
+    return;
+  }
+
+  if (obj->mark == ctx->mark_value) {
+    return;
+  }
+
+  obj->mark = ctx->mark_value;
+  if (!scoop_gc_immix_minor_work_stack_push(ctx->stack, obj) ||
+      !scoop_gc_immix_minor_live_set_push(ctx->live, obj)) {
+    ctx->oom = 1;
+    return;
+  }
+}
+
+static void scoop_gc_immix_minor_mark_slot_visitor(void **slot, void *raw_ctx) {
+  if (slot == 0 || raw_ctx == 0) {
+    return;
+  }
+
+  ScoopGcImmixMinorMarkCtx *ctx = (ScoopGcImmixMinorMarkCtx *)raw_ctx;
+  if (ctx->oom) {
+    return;
+  }
+  ScoopGcObjectHeader *obj = (ScoopGcObjectHeader *)(*slot);
+  if (obj == 0) {
+    return;
+  }
+
+  // 重要：stackmap records 里可能包含“刚好是 pointer-sized 但不是 GC roots”的 slot；
+  // 需要先做 membership 过滤，避免把垃圾值当作 `ScoopGcObjectHeader*` 解引用并崩溃。
+  if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
+    return;
+  }
+
+  // nursery 只包含 small objects（位于 Immix blocks 内）；large object 直接视为 old。
+  uint64_t raw_size = obj->size_bytes;
+  if (raw_size == 0 || raw_size > (uint64_t)SIZE_MAX) {
+    return;
+  }
+  if ((size_t)raw_size > ctx->small_object_cap) {
+    return;
+  }
+
+  ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+  if (block == 0) {
+    return;
+  }
+  if (block->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+    return;
+  }
+
+  scoop_gc_immix_minor_mark_object_if_needed(ctx, obj);
+}
+
+static void scoop_gc_immix_minor_promote_pinned_nursery_blocks_unlocked(
+    ScoopGcImmixState *state,
+    ScoopGcHeap *heap,
+    const ScoopGcHeapMembershipIndex *membership,
+    size_t small_object_cap) {
+  if (state == 0 || heap == 0 || membership == 0) {
+    return;
+  }
+
+  for (ScoopGcPinnedRecord *it = scoop_gc_pinned_objects; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    if (it->pin_count == 0) {
+      continue;
+    }
+
+    ScoopGcObjectHeader *obj = it->object;
+    if (!scoop_gc_heap_membership_index_contains(membership, heap, obj)) {
+      continue;
+    }
+
+    uint64_t raw_size = obj->size_bytes;
+    if (raw_size == 0 || raw_size > (uint64_t)SIZE_MAX) {
+      continue;
+    }
+    if ((size_t)raw_size > small_object_cap) {
+      continue;
+    }
+
+    ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+    if (block == 0) {
+      continue;
+    }
+    if (block->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+      continue;
+    }
+
+    // pinned 对象不得移动：把所在 nursery block 晋升为 old，避免 minor reset。
+    scoop_gc_immix_nursery_promote_block_to_old_unlocked(state, block);
+  }
+}
+
+static void scoop_gc_immix_minor_tospace_commit_blocks(ScoopGcImmixToSpace *tospace,
+                                                       ScoopGcImmixState *state) {
+  if (tospace == 0 || state == 0) {
+    return;
+  }
+
+  // 1) 将 “借用的 free blocks” 作为 reusable blocks 归还：它们已写入 live objects。
+  ScoopGcImmixBlock *rb = tospace->reused_blocks;
+  while (rb != 0) {
+    ScoopGcImmixBlock *next = rb->next_free;
+    rb->next_free = 0;
+
+    if (rb->cursor < rb->limit) {
+      rb->next_free = state->reusable_blocks;
+      state->reusable_blocks = rb;
+    } else if (rb->live_objects == 0) {
+      rb->next_free = state->free_blocks;
+      state->free_blocks = rb;
+    }
+
+    rb = next;
+  }
+
+  // 2) 挂入新分配的 blocks，并按 “是否仍有空间” 放入 reusable/free list。
+  ScoopGcImmixBlock *nb = tospace->new_blocks;
+  while (nb != 0) {
+    ScoopGcImmixBlock *next = nb->next_all;
+
+    nb->next_all = state->all_blocks;
+    state->all_blocks = nb;
+
+    nb->next_free = 0;
+    if (nb->cursor < nb->limit) {
+      nb->next_free = state->reusable_blocks;
+      state->reusable_blocks = nb;
+    } else if (nb->live_objects == 0) {
+      nb->next_free = state->free_blocks;
+      state->free_blocks = nb;
+    }
+
+    nb = next;
+  }
+
+  tospace->current = 0;
+  tospace->reused_blocks = 0;
+  tospace->new_blocks = 0;
+}
+
+static void scoop_gc_immix_minor_reset_nursery_unlocked(ScoopGcImmixState *state) {
+  if (state == 0) {
+    return;
+  }
+
+  state->nursery_free_blocks = 0;
+  state->nursery_current_block = 0;
+
+  uint32_t blocks = 0;
+  for (ScoopGcImmixBlock *it = state->all_blocks; it != 0; it = it->next_all) {
+    it->next_free = 0;
+
+    if (it->generation != (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+      continue;
+    }
+
+    scoop_gc_immix_block_reset(it);
+    it->next_free = state->nursery_free_blocks;
+    state->nursery_free_blocks = it;
+
+    if (blocks != UINT32_MAX) {
+      blocks += 1;
+    }
+  }
+
+  // 防御性同步：避免 `nursery_blocks` 与实际 generation 分类漂移。
+  state->nursery_blocks = blocks;
+}
+
+void scoop_gc_collect_minor(void) {
+  void scoop_runtime_init(void);
+  void scoop_thread_register(void);
+  scoop_runtime_init();
+  scoop_thread_register();
+
+  ScoopGcImmixState *state = scoop_gc_immix_state();
+  if (state == 0) {
+    return;
+  }
+  if (!state->lock_inited) {
+    return;
+  }
+
+  // 未启用 nursery：minor 为 no-op（保持语义可预期）。
+  if (state->nursery_max_blocks == 0) {
+    return;
+  }
+
+  pthread_t self = pthread_self();
+
+  scoop_gc_immix_lock(state);
+
+  // 保证同一时刻只允许一个 GC 周期（major/minor 都走同一 STW）。
+  while (scoop_gc_stw_requested_load(&scoop_gc_stw)) {
+    (void)pthread_cond_wait(&scoop_gc_stw_cond, &state->lock);
+  }
+
+  scoop_gc_stop_the_world_begin_unlocked(self);
+
+  ScoopGcHeap *heap = &scoop_gc_heap;
+  const size_t small_object_cap = scoop_gc_immix_block_payload_capacity();
+
+  // 0) 构建 heap membership 索引：
+  // - roots/slot tracing 需要过滤 stackmap 假 roots；
+  // - minor commit 后会写入 forwarding pointer 破坏 heap.objects 链表，因此需要提前快照。
+  ScoopGcHeapMembershipIndex membership = {0};
+  if (!scoop_gc_heap_membership_index_build_unlocked(&membership, heap)) {
+    scoop_gc_stop_the_world_end_unlocked();
+    scoop_gc_immix_unlock(state);
+    return;
+  }
+
+  // B2b：Immix roots 枚举不再扫描 shadow stack。
+  //
+  // 约定：
+  // - InNative 线程：roots 来自 `native_roots` slots（enter_native 注册），以及 pinned/handles；
+  // - 其余线程：roots 来自 stackmap（需要可用的 unwind ctx）。
+  uint32_t initiator_needs_stackmap_roots = 1;
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    if (!pthread_equal(it->thread, self)) {
+      continue;
+    }
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      initiator_needs_stackmap_roots = 0;
+    }
+    break;
+  }
+
+  void *initiator_stack_walking_ctx = 0;
+  if (initiator_needs_stackmap_roots) {
+    initiator_stack_walking_ctx = scoop_platform_unwind_ctx_capture();
+    if (initiator_stack_walking_ctx == 0) {
+      (void)fprintf(stderr, "[scooprt][gc][minor] failed to capture unwind ctx\n");
+      abort();
+    }
+  }
+
+  // pinned 对象不得移动：若 pinned 位于 nursery，则先把其所在 block 晋升为 old（避免 reset）。
+  scoop_gc_immix_minor_promote_pinned_nursery_blocks_unlocked(
+      state, heap, &membership, small_object_cap);
+
+  // 1) mark nursery live set（仅追踪 nursery；不扫描老年代对象字段）
+  uint32_t mark_value = scoop_gc_collect_next_mark_value(heap);
+  ScoopGcImmixMinorWorkStack stack = {0};
+  ScoopGcImmixMinorLiveSet live = {0};
+  ScoopGcImmixMinorMarkCtx mark_ctx = {
+      .heap = heap,
+      .mark_value = mark_value,
+      .stack = &stack,
+      .live = &live,
+      .membership = &membership,
+      .small_object_cap = small_object_cap,
+      .oom = 0,
+  };
+
+  // 2) to-space 分配与拷贝（可回滚）会用到的临时结构：
+  // - 注意：这些变量必须在任何 `goto cleanup_and_return` 之前完成初始化。
+  ScoopGcImmixMoveRecord *moves = 0;
+  size_t move_len = 0;
+  ScoopGcImmixToSpace tospace = {0};
+
+  for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+    // T1505c：InNative 线程 roots 来自 native_roots buffer。
+    if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+      (void)scoop_gc_native_roots_visit_slots(
+          it->native_roots, it->native_roots_len, scoop_gc_immix_minor_mark_slot_visitor, (void *)&mark_ctx);
+      continue;
+    }
+
+    if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
+        pthread_equal(it->thread, self)) {
+      uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+      uint32_t records_hit = 0;
+      (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
+                                                   scoop_gc_immix_minor_mark_slot_visitor,
+                                                   (void *)&mark_ctx,
+                                                   &err,
+                                                   &records_hit);
+      if (err != SCOOP_STACKMAP_VISIT_OK) {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][stackmap] minor mark initiator roots failed: err=%u\n",
+                      (unsigned)err);
+        abort();
+      }
+      continue;
+    }
+
+    if (it->state == SCOOP_GC_THREAD_PARKED) {
+      if (it->stack_walking_ctx != 0) {
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                     scoop_gc_immix_minor_mark_slot_visitor,
+                                                     (void *)&mark_ctx,
+                                                     &err,
+                                                     &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] minor mark roots failed: err=%u (thread=0x%" PRIxPTR
+                        ")\n",
+                        (unsigned)err,
+                        (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+          abort();
+        }
+      }
+      continue;
+    }
+
+    (void)fprintf(stderr,
+                  "[scooprt][gc][minor] unexpected thread state during mark roots: state=%u "
+                  "(thread=0x%" PRIxPTR ")\n",
+                  (unsigned)it->state,
+                  (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+    abort();
+  }
+
+  // 1c) mark stable handles（spec §15.10.1）：handle 表也可能直接引用 nursery 对象。
+  for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+    if (it->object == 0) {
+      continue;
+    }
+    scoop_gc_immix_minor_mark_slot_visitor((void **)&it->object, (void *)&mark_ctx);
+  }
+
+  // 1d) mark transitive closure（nursery 内引用）
+  while (!mark_ctx.oom && stack.len > 0) {
+    ScoopGcObjectHeader *obj = scoop_gc_immix_minor_work_stack_pop(&stack);
+    if (obj == 0) {
+      continue;
+    }
+    if (obj->type_desc == 0) {
+      continue;
+    }
+
+    (void)scoop_gc_type_descriptor_trace(obj->type_desc,
+                                         (void *)obj,
+                                         scoop_gc_immix_minor_mark_slot_visitor,
+                                         (void *)&mark_ctx);
+  }
+
+  if (mark_ctx.oom) {
+    goto cleanup_and_return;
+  }
+
+  // 2) to-space 分配与拷贝（可回滚）：失败则放弃本轮 minor，不修改 heap。
+  move_len = live.len;
+
+  if (move_len > 0) {
+    if (move_len <= (SIZE_MAX / sizeof(ScoopGcImmixMoveRecord))) {
+      moves = (ScoopGcImmixMoveRecord *)malloc(move_len * sizeof(ScoopGcImmixMoveRecord));
+    }
+    if (moves == 0) {
+      goto cleanup_and_return;
+    }
+
+    for (size_t i = 0; i < move_len; i++) {
+      ScoopGcObjectHeader *from = live.items[i];
+      if (from == 0) {
+        continue;
+      }
+
+      uint64_t raw_size = from->size_bytes;
+      void *p = scoop_gc_immix_tospace_alloc(&tospace, state, raw_size);
+      if (p == 0) {
+        scoop_gc_immix_tospace_abort(&tospace, state);
+        goto cleanup_and_return;
+      }
+
+      size_t size = (raw_size > (uint64_t)SIZE_MAX) ? (size_t)SIZE_MAX : (size_t)raw_size;
+      (void)memcpy(p, (const void *)from, size);
+
+      ScoopGcObjectHeader *to = (ScoopGcObjectHeader *)p;
+      to->next = 0;
+
+      moves[i].from = from;
+      moves[i].to = to;
+      moves[i].from_block = 0;
+      moves[i].size = raw_size;
+    }
+
+    // 3) commit：写入 forwarding pointer + 更新 roots + 修复对象内部引用槽位。
+    for (size_t i = 0; i < move_len; i++) {
+      if (moves[i].from == 0 || moves[i].to == 0) {
+        continue;
+      }
+      scoop_gc_immix_object_set_forwarding_ptr(moves[i].from, moves[i].to);
+    }
+
+    // roots update 的 membership 过滤依赖“被搬迁的 nursery live 集合”，避免 stackmap 假 roots 崩溃。
+    // 这里对 live 数组就地排序并用二分查找做判定（复用 compaction 的 update visitor）。
+    qsort(live.items, live.len, sizeof(ScoopGcObjectHeader *), scoop_gc_ptr_cmp);
+    ScoopGcImmixUpdateCtx update_ctx = {
+        .live_sorted = live.items,
+        .live_len = live.len,
+    };
+
+    // 3a) roots update（stackmap/native roots slots 原地改写为新地址）
+    for (ScoopGcThreadRecord *it = scoop_gc_threads; it != 0; it = it->next) {
+      if (it->state == SCOOP_GC_THREAD_IN_NATIVE) {
+        (void)scoop_gc_native_roots_visit_slots(
+            it->native_roots, it->native_roots_len, scoop_gc_immix_update_slot_visitor, &update_ctx);
+        continue;
+      }
+
+      if (initiator_needs_stackmap_roots && initiator_stack_walking_ctx != 0 &&
+          pthread_equal(it->thread, self)) {
+        uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+        uint32_t records_hit = 0;
+        (void)scoop_gc_stackmap_visit_roots_from_ctx(initiator_stack_walking_ctx,
+                                                     scoop_gc_immix_update_slot_visitor,
+                                                     &update_ctx,
+                                                     &err,
+                                                     &records_hit);
+        if (err != SCOOP_STACKMAP_VISIT_OK) {
+          (void)fprintf(stderr,
+                        "[scooprt][gc][stackmap] minor update initiator roots failed: err=%u\n",
+                        (unsigned)err);
+          abort();
+        }
+        continue;
+      }
+
+      if (it->state == SCOOP_GC_THREAD_PARKED) {
+        if (it->stack_walking_ctx != 0) {
+          uint32_t err = SCOOP_STACKMAP_VISIT_OK;
+          uint32_t records_hit = 0;
+          (void)scoop_gc_stackmap_visit_roots_from_ctx(it->stack_walking_ctx,
+                                                       scoop_gc_immix_update_slot_visitor,
+                                                       &update_ctx,
+                                                       &err,
+                                                       &records_hit);
+          if (err != SCOOP_STACKMAP_VISIT_OK) {
+            (void)fprintf(
+                stderr,
+                "[scooprt][gc][stackmap] minor update roots failed: err=%u (thread=0x%" PRIxPTR
+                ")\n",
+                (unsigned)err,
+                (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+            abort();
+          }
+        }
+        continue;
+      }
+
+      (void)fprintf(stderr,
+                    "[scooprt][gc][minor] unexpected thread state during roots update: state=%u "
+                    "(thread=0x%" PRIxPTR ")\n",
+                    (unsigned)it->state,
+                    (uintptr_t)scoop_gc_thread_id_for_diag(it->thread));
+      abort();
+    }
+
+    // 3a2) stable handle table update：handle->obj 槽位同样属于 roots。
+    for (ScoopGcHandleRecord *it = scoop_gc_handle_records; it != 0; it = it->next) {
+      if (it->object == 0) {
+        continue;
+      }
+      scoop_gc_immix_update_slot_visitor((void **)&it->object, &update_ctx);
+    }
+
+    // 3b) moved object fields update：只扫描 to-space 副本（不扫描老年代）。
+    for (size_t i = 0; i < move_len; i++) {
+      ScoopGcObjectHeader *to = moves[i].to;
+      if (to == 0) {
+        continue;
+      }
+      if (to->type_desc == 0) {
+        continue;
+      }
+
+      (void)scoop_gc_type_descriptor_trace(to->type_desc,
+                                           (void *)to,
+                                           scoop_gc_immix_update_slot_visitor,
+                                           &update_ctx);
+    }
+
+    // 4) 重建 heap.objects：移除全部 nursery（from-space）对象 + 追加 to-space 副本。
+    ScoopGcObjectHeader *new_list = 0;
+    for (size_t i = 0; i < membership.len; i++) {
+      ScoopGcObjectHeader *obj = membership.sorted[i];
+      if (obj == 0) {
+        continue;
+      }
+      if (scoop_gc_immix_object_is_forwarded(obj)) {
+        continue;
+      }
+
+      // nursery objects 一律移除：live 已搬迁；dead 将在 reset 中回收。
+      uint64_t raw_size = obj->size_bytes;
+      if (raw_size != 0 && raw_size <= (uint64_t)SIZE_MAX && (size_t)raw_size <= small_object_cap) {
+        ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+        if (block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+          continue;
+        }
+      }
+
+      obj->next = new_list;
+      new_list = obj;
+    }
+    for (size_t i = 0; i < move_len; i++) {
+      ScoopGcObjectHeader *obj = moves[i].to;
+      if (obj == 0) {
+        continue;
+      }
+      obj->next = new_list;
+      new_list = obj;
+    }
+    heap->objects = new_list;
+
+    // 5) commit to-space blocks：保证 allocator 可继续工作（不依赖全量 rebuild）。
+    scoop_gc_immix_minor_tospace_commit_blocks(&tospace, state);
+  } else {
+    // 无 live nursery：仅做“清空 nursery + 从 heap.objects 移除 nursery 对象”。
+    ScoopGcObjectHeader *new_list = 0;
+    for (size_t i = 0; i < membership.len; i++) {
+      ScoopGcObjectHeader *obj = membership.sorted[i];
+      if (obj == 0) {
+        continue;
+      }
+
+      uint64_t raw_size = obj->size_bytes;
+      if (raw_size != 0 && raw_size <= (uint64_t)SIZE_MAX && (size_t)raw_size <= small_object_cap) {
+        ScoopGcImmixBlock *block = scoop_gc_immix_block_from_object((void *)obj);
+        if (block != 0 && block->generation == (uint8_t)SCOOP_GC_IMMIX_BLOCK_GEN_NURSERY) {
+          continue;
+        }
+      }
+
+      obj->next = new_list;
+      new_list = obj;
+    }
+    heap->objects = new_list;
+  }
+
+  // 6) reset nursery blocks：整体复位（工作量与 nursery blocks 数近似线性）。
+  scoop_gc_immix_minor_reset_nursery_unlocked(state);
+
+cleanup_and_return:
+  if (moves != 0) {
+    free(moves);
+  }
+  if (live.items != 0) {
+    free(live.items);
+  }
+  if (stack.items != 0) {
+    free(stack.items);
+  }
+
+  scoop_gc_heap_membership_index_destroy(&membership);
+  scoop_platform_unwind_ctx_destroy(initiator_stack_walking_ctx);
+
+  scoop_gc_stop_the_world_end_unlocked();
+  scoop_gc_immix_unlock(state);
 }
 
 // --- 并行 region sweep（TODO T1409c2） ---

@@ -34,7 +34,8 @@
 - 2026-04-07：完成 T1517：补齐 enum “maybe ref variant” 的端到端回归矩阵：新增 `runtime_gc` run-pass fixtures 覆盖栈局部变量/struct 字段/closure capture 位置下的高频切换 + moving GC + verify-roots；并新增 compile-fail fixtures 覆盖 `Ptr<E>` pointee、`@CLayout` struct、`@Global var` 的 GC-free 门禁。验收：`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 2026-04-07：完成 T1412b：Immix nursery：引入 bump-only nursery 分配区 + 可配置 blocks/bytes 上限（env：`SCOOP_GC_IMMIX_NURSERY_BYTES`/`SCOOP_GC_IMMIX_NURSERY_BLOCKS`），并在 `scoop_alloc` 中优先从 nursery 分配、用尽后回退到现有 old allocator；新增 `gc_immix_nursery` 集成测试回归“上限生效 + 超限回退 + major collect 可回收”。验收：`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` + `cargo test --all` 通过。
 - 2026-04-07：完成 T1412d：Immix 写屏障 hook v0（promote-on-store）：新增 `scoop_gc_write_barrier(slot_addr, value)` ABI；Immix backend 在 old store nursery 时把 nursery block 晋升为 old，并更新 Array set_ref 与 LLVM codegen 的 heap ref stores；新增 `gc_immix_write_barrier` 集成测试回归。验收：`cargo test --all` 通过。
-- 2026-04-07：维护：为保证 TODO 顺序“首个未完成任务可直接实现”，将 T1412（minor GC）子任务按依赖关系重排为 `T1412d → T1412c → T1412e`，并移除该组三条任务的 `[BLOCKED]` 标记；当前 `T1412c` 已解除等待，可直接开始。
+- 2026-04-07：完成 T1412c：Immix minor collect v0（STW nursery evacuation）：pinned 位于 nursery 时先晋升其 block 为 old；minor 仅追踪 nursery live set（roots + nursery 内部引用）并复制到 old to-space，然后通过 forwarding pointer 更新 roots slots/handles 与 to-space 对象字段，最后重建 `heap.objects` 并整体 reset nursery blocks；新增 `gc_immix_minor_collect` 集成测试回归。验收：`cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1` + `cargo test --all` 通过。
+- 2026-04-07：维护：为保证 TODO 顺序“首个未完成任务可直接实现”，将 T1412（minor GC）子任务按依赖关系重排为 `T1412d → T1412c → T1412e`，并移除该组三条任务的 `[BLOCKED]` 标记；当前剩余未完成项为（可选）`T1412e`。
 - 2026-04-06：GC-FIX Phase C2（消除 statepoint 绕路）范围较大；为保持“每次 agent invocation 只做一个可交付步骤”，将 C2 拆分为 C2a（SROA 让聚合值内 ref 可追踪）、C2b（禁止 GC 指针 ptr<->int 逃逸）、C2c（println/字符串路径去绕路）、C2d（端到端 fixtures 回归补齐）。
 - 2026-04-06：完成 GC-FIX Phase C2a：statepoint pass pipeline 在 `rewrite-statepoints-for-gc` 前启用 `sroa`（并保留 `mem2reg`），使“聚合值里的 GC ref 字段”可被识别为 gc-live roots；同时新增 `scoop_gc_collect_safepoint()` wrapper 让 sysroot 的 `__scoop_gc_collect()` 在 LLVM statepoint 下稳定产出 stackmap record；修复 stackmap `Indirect` roots location 的 slot 语义（moving/compaction 需要可写回 `slot=base+off`）；并新增 run-pass fixture `gc_trace_struct_string_field_basic` 验收。
 - 2026-04-06：完成 GC-FIX Phase C2b：LLVM codegen 禁止把 `addrspace(1)` GC 指针做 `ptrtoint/inttoptr` 编码；rich enum/`Option<T>` 的 tagged union 表示拆分为 `{ payload_word, payload_ptr }`；Pointer niche 仅允许 `None == NULL`（并禁止向外层传播剩余 niche），`when` 判别改用 `is_null`；同时将 continuation/channels/thread-resume 的 `*_u64` ABI 限定为 word payload（Ref/String 在 codegen 侧 fail-fast）。验收：`cargo test --all` + `cargo run -p scoop -- test` 通过。
@@ -1179,8 +1180,8 @@ fixtures：
 - [ ] **低延迟 minor GC（nursery evacuation）**：
   - [x] T1412a：roots tracing 的 membership 过滤去 O(n)（避免按 `heap.objects` 线性扫描放大成本）
   - [x] T1412b：nursery 分配区（bump-only）+ 可配置上限（按 bytes 或 blocks）
-  - [ ] T1412d：写屏障 hook v0（先用“promote-on-store”保持不出现 old→nursery 指针；后续再演进到 remembered set/card table）
-  - [ ] T1412c：minor collect v0：STW 下 nursery evacuation（一次 GC 工作量与 nursery 大小近似线性）
+  - [x] T1412d：写屏障 hook v0（先用“promote-on-store”保持不出现 old→nursery 指针；后续再演进到 remembered set/card table）
+  - [x] T1412c：minor collect v0：STW 下 nursery evacuation（一次 GC 工作量与 nursery 大小近似线性）
   - [ ] （可选）T1412e：try-minor / deadline：协作式 STW 下“拿不到 STW 就放弃 minor”，避免卡住 VSync
 - [x] **GC backend capability matrix v0**：固化 STW/多线程 roots 枚举/moving/精确 roots 更新/shadow stack roots 等能力，并用于测试 gating（T1405b）。
 - [ ] **GC backend 可替换**：编译期可选 baseline/Immix/embedded/minimal/hosted(adapter)，并维护 capability matrix（尤其是 WASM/embedded）。

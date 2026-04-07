@@ -2910,6 +2910,11 @@ cleanup:
   return rc;
 }
 
+void scoop_gc_collect_minor(void) {
+  // baseline backend 无 nursery/minor 语义：minor 退化为一次 major collect，保持链接稳定。
+  scoop_gc_collect();
+}
+
 uint64_t scoop_gc_debug_heap_object_count(void) {
   (void)pthread_mutex_lock(&scoop_gc_lock);
   uint64_t count = 0;

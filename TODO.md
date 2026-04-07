@@ -6206,7 +6206,7 @@
  - 验收：
    - `cargo test --all`
 
-### T1412c [TODO] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
+### T1412c [DONE] Immix minor collect v0：STW 下 nursery evacuation（一次做完）
 - 描述：实现 `minor collect`：在 STW 阶段只追踪 nursery 的可达对象（roots + old→nursery 入口），把 nursery 存活对象复制/晋升到老年代，然后整体 reset nursery blocks，使暂停时间与 nursery 大小近似线性。
 - 目标：
   - v0 先不追求并发/增量；一次 STW 内完成（依赖 nursery 小 + 入口集合可控）。
@@ -6214,6 +6214,19 @@
   - 与 pin/handles 语义兼容：pinned 对象不得被移动；handles/roots 更新必须正确。
 - 验收：新增 `scoop_runtime` 集成测试：minor 后 live 对象可访问、garbage 被回收、pin/handle 场景不崩溃；`cargo test --all` 通过。
 - 依赖：T1412b、T1412d
+ - 完成：
+   - `runtime/c/scoop_gc.h`：新增 `scoop_gc_collect_minor()` API（minor GC 入口）。
+   - `runtime/c/scoop_runtime_api.h`：runtime ABI allowlist 增加 `scoop_gc_collect_minor`（避免未登记导出导致单测失败）。
+   - `runtime/c/scoop_gc_backend_immix.c`：实现 STW 下 nursery evacuation：
+     - pinned 位于 nursery 时先晋升其 block 为 old（避免 minor reset 移动/回收 pinned 对象）；
+     - 仅追踪 nursery live set（roots + nursery 内部引用），把 live 对象复制到 old to-space；
+     - 通过 forwarding pointer + roots slots 原地改写，实现 roots/handles 与对象字段的引用修复；
+     - 重建 `heap.objects`（移除全部 nursery from-space 对象并追加 to-space 副本），然后整体 reset nursery blocks 并重建 nursery free list。
+   - `runtime/c/scoop_gc.c`/`runtime/c/scoop_gc_backend_minimal.c`/`runtime/c/scoop_gc_backend_hosted.c`：提供 `scoop_gc_collect_minor()` 的退化实现（保持链接稳定）。
+   - `crates/scoop_runtime/tests/gc_immix_minor_collect.rs`：新增集成测试回归“roots 更新 + 对象字段修复 + nursery reset + pinned nursery block 晋升 + 继续 nursery 分配可用”。
+ - 验收：
+   - `cargo test -p scoop_runtime --no-default-features --features gc-immix -- --test-threads=1`
+   - `cargo test --all`
 
 ### T1412e [TODO] try-minor / deadline：短窗口场景下“拿不到 STW 就放弃”
 - 描述：为 GUI/VSync 等短窗口场景提供“尝试执行 minor”的接口：若协作式 STW 在截止时间内未达成，则放弃本轮 minor 并立刻返回，避免卡住渲染帧。
