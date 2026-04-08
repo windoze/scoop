@@ -3509,8 +3509,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 at: stmt.span.into(),
                             });
                         }
-                        hir::StmtKind::While { .. }
-                        | hir::StmtKind::Break { .. }
+                        hir::StmtKind::While { cond, body } => {
+                            cg.codegen_while_stmt(stmt.span, cond, body)?;
+                        }
+                        hir::StmtKind::Break { .. }
                         | hir::StmtKind::Continue { .. }
                         | hir::StmtKind::Todo(_) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -3759,8 +3761,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::StmtKind::Expr(expr) => {
                     let _ = self.codegen_expr(expr)?;
                 }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                }
                 hir::StmtKind::Return { .. }
-                | hir::StmtKind::While { .. }
                 | hir::StmtKind::Break { .. }
                 | hir::StmtKind::Continue { .. }
                 | hir::StmtKind::Todo(_) => {

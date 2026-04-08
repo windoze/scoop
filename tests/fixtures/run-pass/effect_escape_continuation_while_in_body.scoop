@@ -1,0 +1,109 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_while_in_body.stdout
+//
+// T1606e: While loops inside escape-continuation handle body.
+// - while loop BEFORE the first perform (initial body execution path)
+// - while loop BETWEEN two perform points (step function path)
+// - while loop AFTER the last perform (step function completion path)
+// - Variables modified in while loops survive across suspension/resume.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // While loop BEFORE first perform (initial body path).
+        var pre_count: Int = 0
+        while (pre_count < 3) {
+            pre_count = pre_count + 1
+        }
+        println("pre_count")
+        println(pre_count)
+
+        // First perform: fetch a value.
+        val x: Int = Suspend.fetch()
+        println("after_first_perform")
+        println(x)
+
+        // While loop BETWEEN performs (step function path).
+        // Compute sum = 1 + 2 + ... + x.
+        var sum: Int = 0
+        var i: Int = 0
+        while (i < x) {
+            i = i + 1
+            sum = sum + i
+        }
+        println("after_while")
+        println(sum)
+
+        // pre_count from before the first perform must still be correct.
+        println("pre_count_still")
+        println(pre_count)
+
+        // Second perform: fetch another value.
+        val y: Int = Suspend.fetch()
+        println("after_second_perform")
+        println(x)
+        println(sum)
+        println(y)
+
+        // While loop AFTER last perform (step function completion path).
+        var post_count: Int = 0
+        while (post_count < y) {
+            post_count = post_count + 1
+        }
+        println("post_count")
+        println(post_count)
+
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 5 => while loop computes sum = 1+2+3+4+5 = 15
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(5)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 4 => post while loop runs 4 times
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(4)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

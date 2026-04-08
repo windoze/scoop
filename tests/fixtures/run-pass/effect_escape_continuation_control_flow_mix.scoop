@@ -1,0 +1,121 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_control_flow_mix.stdout
+//
+// T1606e: Mixed control flow (if/else + while) between perform points.
+// - 3 perform points with if/else and while loops between them.
+// - Tests that branch decisions and loop accumulators all survive
+//   across multiple suspensions.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First perform: get a threshold.
+        val threshold: Int = Suspend.fetch()
+        println("threshold")
+        println(threshold)
+
+        // If/else branch based on threshold.
+        var mode: Int = 0
+        if (threshold > 10) {
+            mode = 1
+            println("mode_high")
+        } else {
+            mode = 2
+            println("mode_low")
+        }
+
+        // While loop: count up to threshold.
+        var counter: Int = 0
+        while (counter < threshold) {
+            counter = counter + 1
+        }
+        println("counter")
+        println(counter)
+
+        // Second perform: get a multiplier.
+        val multiplier: Int = Suspend.fetch()
+        println("multiplier")
+        println(multiplier)
+
+        // Compute result using mode from earlier branch.
+        val result: Int = counter * multiplier + mode
+        println("result")
+        println(result)
+
+        // Third perform: get a final offset.
+        val offset: Int = Suspend.fetch()
+        println("offset")
+        println(offset)
+
+        val final_val: Int = result + offset
+        println("final")
+        println(final_val)
+
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 5 (< 10, so mode_low, mode=2, counter=5)
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(5)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 3 (result = 5*3+2 = 17)
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(3)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 3: send 1000 (final = 17+1000 = 1017)
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            println("resume_3")
+            val _: Unit = try {
+                k3.resume(1000)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

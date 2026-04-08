@@ -1,0 +1,93 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_while_accumulate_string.stdout
+//
+// T1606e: While loop between performs with mixed Int/String locals.
+// - Tests that GC-managed String locals survive across while-loop iterations
+//   and across suspension/resume points.
+// - While loop iterates and reads both Int accumulators and String labels,
+//   verifying correct state machine lifting for mixed types.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        val label: String = "sum"
+
+        // First perform: fetch iteration count.
+        val count: Int = Suspend.fetch()
+        println("count")
+        println(count)
+
+        // While loop: accumulate sum, printing label each iteration.
+        var sum: Int = 0
+        var i: Int = 0
+        while (i < count) {
+            i = i + 1
+            sum = sum + i
+            println(label)
+            println(sum)
+        }
+
+        // Second perform: label and sum must survive.
+        val bonus: Int = Suspend.fetch()
+        println("bonus")
+        println(bonus)
+        println(label)
+
+        val total: Int = sum + bonus
+        println("total")
+        println(total)
+
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 3 => while loop computes sum = 1+2+3 = 6
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(3)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 100 => total = 6 + 100 = 106
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(100)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}
