@@ -48,6 +48,12 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0103d）：抽出 `stmt.rs`/`block.rs`（语句与块 lowering）
 - DONE（T0103e）：抽出 `sugar.rs`/`patterns.rs`（语法糖与模式相关 lowering）
 
+## 0.5 typecheck expr 维护性重构（T0104）
+
+> 背景：`crates/scoopc/src/typecheck/expr.rs` 已增长到 10K+ 行，导航与回归成本过高。该任务按“行为不变”的原则拆分为职责清晰的子模块。
+
+- DONE（T0104）：拆分为 `crates/scoopc/src/typecheck/expr/mod.rs` + `entry.rs`/`infer.rs`/`call.rs`/`ops.rs`/`member.rs`/`stmt.rs`/`collect.rs`/`util.rs`/`error.rs`（入口/推导/调用/语句/收集/工具分层）
+
 ## 1. Cone（改进项吸收）
 
 - 已产出设计：`CONE-IMPROVEMENTS.md`（目录结构 / build 产物 / profile / 增量构建路线）。

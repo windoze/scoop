@@ -129,7 +129,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：`cargo test --all` + `cargo run -p scoop -- test`
 - 依赖：T0103d
 
-### T0104 [TODO] typecheck：重构 `crates/scoopc/src/typecheck/expr.rs`（拆分模块，降低维护成本）
+### T0104 [DONE] typecheck：重构 `crates/scoopc/src/typecheck/expr.rs`（拆分模块，降低维护成本）
 - 描述：`crates/scoopc/src/typecheck/expr.rs` 过长且职责密集，集中承载了表达式类型检查/推断的多个维度（各类 expr 语法分支、预期类型传递、错误生成与诊断、以及若干为可回归而引入的局部 helper）。随着语言特性与诊断要求增长，单文件结构会导致：
   - 导航成本高（同一语义路径跨多段 helper 跳转，难以定位责任边界）；
   - 修改风险高（对某个 expr 分支的改动容易影响其它分支的约束传播/错误消息）；
