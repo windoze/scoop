@@ -1,0 +1,54 @@
+// EXPECT: pass
+// RUN-STDOUT: handle_as_expression_stmt.stdout
+//
+// T1611: handle as bare expression statement (no `val _: Unit = ...` workaround).
+// Tests try/catch and escape continuation handlers in statement position.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+fun main() {
+    // 1) try/catch as expression statement (no val binding).
+    try {
+        println("try_body")
+        Raise.raise(42)
+        println("unreachable")
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+    }
+
+    println("between")
+
+    // 2) escape continuation handle as expression statement (no val binding).
+    var cell_k: Continuation<Int>? = None()
+    handle {
+        println("handle_body")
+        val x: Int = Suspend.fetch()
+        println("resumed")
+        println(x)
+    } with {
+        Suspend.fetch(), k -> {
+            println("suspended")
+            cell_k = Some(k)
+        }
+    }
+
+    // Resume the continuation
+    when (cell_k) {
+        Some(k) -> {
+            println("resuming")
+            try {
+                k.resume(99)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

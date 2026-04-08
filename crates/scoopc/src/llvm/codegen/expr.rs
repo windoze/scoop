@@ -116,7 +116,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Perform { op, args } => {
                 self.codegen_perform_expr(expr.span, op, args, None)
             }
-            hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, None),
+            hir::ExprKind::Handle(handle) => {
+                // T1611: infer expected type from HIR when not in expected context,
+                // so statement-position handles don't need `val _: Unit = ...` workaround.
+                let inferred = self.cg_ty_of(expr.ty);
+                self.codegen_handle_expr(expr.span, handle, inferred)
+            }
         }
     }
 }
