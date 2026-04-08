@@ -1,0 +1,38 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_string.stdout
+//
+// 目标：T1607 — resume payload 为 String（GC 引用类型），验证 resume_gc_ref 通道。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+fun main() {
+    var saved: Continuation<String>? = None()
+
+    val _: Unit = handle {
+        val greeting: String = Ask.ask()
+        println(greeting)
+    } with {
+        Ask.ask(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume("hello world")
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}

@@ -761,8 +761,12 @@ void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
 // - one-shot 约束：同一个 continuation 只能成功 resume 一次（第二次是运行期错误）。
 //
 // 当前阶段（T0914）先只固定 ABI 布局并提供原子 one-shot 检查 API；
-// handler stack 的跨线程安装与恢复由 `scoop_continuation_resume_u64`（TODO T0915a）提供。
-typedef void (*ScoopContinuationStepFn)(void *state, uint64_t resume_value);
+// handler stack 的跨线程安装与恢复由 `scoop_continuation_resume`（T0915a / T1607）提供。
+//
+// T1607：step function 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)，
+// 允许传递任意类型的 resume payload（scalar 走 word，GC ref/boxed compound 走 gc_ref）。
+typedef void (*ScoopContinuationStepFn)(void *state, uint64_t resume_word,
+                                        void *resume_gc_ref);
 
 typedef struct ScoopContinuation {
   // 作为 GC-managed 对象，必须以对象头开头（与 `scoop_alloc` 约定一致）。
@@ -782,6 +786,12 @@ typedef struct ScoopContinuation {
 
   // step 函数（由编译器生成的 trampoline），用于推进 state machine。
   ScoopContinuationStepFn step_fn;
+
+  // T1607：resume payload 双槽——scalar 走 word，GC ref（String/Ref/boxed compound）走 gc_ref。
+  // resume 调用方在调用 `scoop_continuation_resume` 之前将值写入对应的槽位；
+  // runtime 在调用 step_fn 时把两个槽位都传入，由 step_fn 按类型选取。
+  uint64_t resume_word;
+  void *resume_gc_ref;  // GC-traced（见 scoop_continuation_trace）
 } ScoopContinuation;
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
@@ -792,6 +802,13 @@ _Static_assert(offsetof(ScoopContinuation, resumed) == sizeof(ScoopGcObjectHeade
 _Static_assert(offsetof(ScoopContinuation, captured_handler_stack_top) ==
                    (sizeof(ScoopGcObjectHeader) + 8u),
                "ScoopContinuation.captured_handler_stack_top offset must be header + 8");
+// T1607：resume_word 紧跟 step_fn；resume_gc_ref 紧跟 resume_word。
+_Static_assert(offsetof(ScoopContinuation, resume_word) ==
+                   offsetof(ScoopContinuation, step_fn) + sizeof(ScoopContinuationStepFn),
+               "ScoopContinuation.resume_word must follow step_fn");
+_Static_assert(offsetof(ScoopContinuation, resume_gc_ref) ==
+                   offsetof(ScoopContinuation, resume_word) + sizeof(uint64_t),
+               "ScoopContinuation.resume_gc_ref must follow resume_word");
 _Static_assert((sizeof(ScoopContinuation) % sizeof(void *)) == 0,
                "ScoopContinuation size must be pointer-aligned");
 #endif
@@ -802,14 +819,23 @@ static uint64_t scoop_continuation_trace(void *object, ScoopGcTraceVisitor visit
   }
 
   ScoopContinuation *k = (ScoopContinuation *)object;
-  if (k->state == 0) {
-    return 0;
-  }
+  uint64_t refs = 0;
 
   // `state` 预期指向一个 GC-managed heap 对象；把该槽位暴露给 visitor 以便 mark 更新/追踪。
-  void **slot = (void **)&k->state;
-  visitor(slot, ctx);
-  return 1;
+  if (k->state != 0) {
+    void **slot = (void **)&k->state;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  // T1607：`resume_gc_ref` 可能持有 GC-managed 的 resume payload（String/Ref/boxed compound）。
+  if (k->resume_gc_ref != 0) {
+    void **slot = (void **)&k->resume_gc_ref;
+    visitor(slot, ctx);
+    refs++;
+  }
+
+  return refs;
 }
 
 static const ScoopTypeDescriptor SCOOP_CONTINUATION_TYPE_DESC = {
@@ -859,6 +885,8 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->captured_handler_stack_top = __scoop_effect_handler_stack_top;
   k->state = state;
   k->step_fn = step_fn;
+  k->resume_word = 0;
+  k->resume_gc_ref = 0;
 
   if (state != 0) {
     scoop_unpin(state);
@@ -892,28 +920,31 @@ uint32_t scoop_continuation_try_resume(void *continuation) {
 // - fiber-local：resume 时需要恢复其捕获的 handler stack（Appendix A），允许在另一线程执行；
 //   并在 step_fn 返回后恢复调用方原 TLS handler stack。
 //
-// 当前阶段（T0915a）只切换 handler stack；perform slot/flag 等其它 TLS 状态仍由 lowering 约束其使用。
-void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
-  if (continuation == 0) {
-    return;
+// T1607：resume payload 由调用方预先写入 `k->resume_word` / `k->resume_gc_ref`；
+// runtime 在调用 step_fn 时把两个槽位都传入。
+static void scoop_continuation_resume_common(void *continuation) {
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  ScoopEffectHandlerFrame *saved =
+      scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
+
+  if (k->step_fn != 0) {
+    k->step_fn(k->state, k->resume_word, k->resume_gc_ref);
   }
 
-  // 允许在未显式 init/register 的情况下被调用（与其它 API 保持一致）。
+  (void)scoop_effect_handler_stack_swap_top(saved);
+}
+
+// one-shot 检查 + Raise 的公共入口：返回 1 表示可以继续 resume，0 表示已触发 Raise。
+static uint32_t scoop_continuation_resume_try(void *continuation) {
+  if (continuation == 0) {
+    return 0;
+  }
+
   if (!scoop_tls.registered) {
     scoop_thread_register();
   }
 
   if (!scoop_continuation_try_resume(continuation)) {
-    // spec §5.5 / §5.7：one-shot 违规应当表现为可捕获的运行时错误：
-    // `Raise.raise(RuntimeError.ContinuationAlreadyResumed)`（而不是进程级 exit/abort）。
-    //
-    // 说明：
-    // - runtime 侧复用既有的 Raise flag-based unwinding 机制：写入 perform slot + set flag；
-    // - 由 codegen 在 call-site 检查 flag 并跳转到最近的 try/catch/handle 边界；
-    // - 这里需要写入 `RuntimeError` 的 tag 值：当前按 sysroot `RuntimeError` 的声明顺序编码：
-    //   - 0: NullAssertionFailed
-    //   - 1: ClassCastFailed
-    //   - 2: ContinuationAlreadyResumed
     const uint32_t OP_TAG_RAISE = 1u;
     const uint64_t PAYLOAD_KIND_RUNTIME_ERROR = 2u;
     const uint64_t RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED = 2u;
@@ -922,25 +953,35 @@ void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
         PAYLOAD_KIND_RUNTIME_ERROR,
         RUNTIME_ERROR_TAG_CONTINUATION_ALREADY_RESUMED);
     scoop_effect_set_active();
+    return 0;
+  }
+  return 1;
+}
+
+// T1607：新 ABI——调用方已将 payload 写入 `k->resume_word` / `k->resume_gc_ref`。
+void scoop_continuation_resume(void *continuation) {
+  if (!scoop_continuation_resume_try(continuation)) {
     return;
   }
+  scoop_continuation_resume_common(continuation);
+}
 
-  ScoopContinuation *k = (ScoopContinuation *)continuation;
-  ScoopEffectHandlerFrame *saved =
-      scoop_effect_handler_stack_swap_top(k->captured_handler_stack_top);
-
-  if (k->step_fn != 0) {
-    k->step_fn(k->state, resume_value);
+// 旧 ABI 兼容：将 u64 payload 写入 resume_word 后调用新路径。
+void scoop_continuation_resume_u64(void *continuation, uint64_t resume_value) {
+  if (!scoop_continuation_resume_try(continuation)) {
+    return;
   }
-
-  (void)scoop_effect_handler_stack_swap_top(saved);
+  ScoopContinuation *k = (ScoopContinuation *)continuation;
+  k->resume_word = resume_value;
+  k->resume_gc_ref = 0;
+  scoop_continuation_resume_common(continuation);
 }
 
 // --- Continuation 跨线程 resume（spec §5.5 / TODO T0618） ---
 //
 // 说明：
-// - 该 helper 用于把“跨线程 resume”能力暴露给 end-to-end fixtures（不引入调度器）。
-// - 语义：在一个新线程中调用 `scoop_continuation_resume_u64`，并 join 等待其完成。
+// - 该 helper 用于把”跨线程 resume”能力暴露给 end-to-end fixtures（不引入调度器）。
+// - 语义：在一个新线程中调用 `scoop_continuation_resume`，并 join 等待其完成。
 // - 线程会在执行结束后调用 `scoop_thread_unregister`，避免 STW 线程表残留已退出线程的 TLS 槽位。
 typedef struct ScoopThreadResumeU64Args {
   void *continuation;
@@ -953,6 +994,8 @@ static void *scoop_thread_entry_resume_u64(void *arg) {
   }
 
   ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
+  // T1607：payload 已由调用方写入 continuation 的 resume_word/resume_gc_ref 槽位。
+  // 这里直接走新 ABI 的公共路径。
   scoop_continuation_resume_u64(args->continuation, args->resume_value);
 
   // 清理线程注册信息：避免 GC 的线程枚举残留无效条目。

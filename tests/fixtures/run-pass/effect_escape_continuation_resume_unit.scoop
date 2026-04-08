@@ -1,0 +1,40 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_unit.stdout
+//
+// 目标：T1607 — resume payload 为 Unit（resume_word=0, resume_gc_ref=null）。
+
+import scoop.core.*
+
+effect Suspend {
+    fun pause(): Unit
+}
+
+fun main() {
+    var saved: Continuation<Unit>? = None()
+
+    val _: Unit = handle {
+        println("before_pause")
+        val _p: Unit = Suspend.pause()
+        println("after_pause")
+    } with {
+        Suspend.pause(), k -> {
+            saved = Some(k)
+            println("arm_saved")
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(())
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}

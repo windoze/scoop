@@ -2570,10 +2570,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let step_name = format!("__scoop_cont_step__{func_name}_{seq}");
-        let step_fn_ty = self
-            .context
-            .void_type()
-            .fn_type(&[gc_i8_ptr_ty.into(), i64_ty.into()], false);
+        // T1607：step 签名扩展为 3 参数 (state, resume_word, resume_gc_ref)。
+        let step_fn_ty = self.context.void_type().fn_type(
+            &[gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
+            false,
+        );
         let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
         step_fn.set_linkage(Linkage::Internal);
         // continuation step 会执行 alloc/GC 相关调用，必须参与 statepoint rewrite；
@@ -2627,14 +2628,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 cg.builder
                     .build_pointer_cast(state_raw, state_ptr_ty, "cont_step_state_ptr")?;
 
-            // v0：resume_value 仍只支持 word-sized payload（T1607 会扩展为任意 T）。
+            // T1607：resume payload 双通道——scalar 走 resume_word (i64)，GC ref 走 resume_gc_ref。
             let resume_word = step_fn
                 .get_nth_param(1)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "continuation step resume param",
+                    kind: "continuation step resume_word param",
                     at: span.into(),
                 })?
                 .into_int_value();
+            let resume_gc_ref = step_fn
+                .get_nth_param(2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "continuation step resume_gc_ref param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
 
             // 恢复 lifted locals：把 heap state 中的字段读回到本函数栈 slot。
             //
@@ -2962,6 +2970,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ptr
                 };
 
+                // T1607：按 resume_value_ty 从 resume_word（scalar）或 resume_gc_ref（GC ptr / boxed）解码。
                 let resume_value = match resume_value_ty {
                     CgTy::Unit => CgValue::unit(),
                     CgTy::Bool => {
@@ -2984,17 +2993,62 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         };
                         CgValue::int(v, int_ty)
                     }
-                    CgTy::String | CgTy::Ref => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "continuation resume payload (gc ptr via u64 is forbidden)",
-                            at: site.decl.span.into(),
-                        });
+                    CgTy::String => {
+                        // resume_gc_ref 直接是 ScoopString* addrspace(1)
+                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                        let s = cg.builder.build_pointer_cast(
+                            resume_gc_ref,
+                            str_ptr_ty,
+                            "resume_string",
+                        )?;
+                        CgValue {
+                            ty: CgTy::String,
+                            value: Some(s.into()),
+                        }
+                    }
+                    CgTy::Ref => {
+                        // resume_gc_ref 直接是 i8* addrspace(1)
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(resume_gc_ref.into()),
+                        }
                     }
                     CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "continuation resume payload type",
-                            at: site.decl.span.into(),
-                        });
+                        // resume_gc_ref 指向 boxed payload: { GcObjectHeader, <payload> }
+                        let payload_llvm_ty = cg.llvm_basic_type_of(site.decl.span, resume_value_ty)?;
+                        let header_ty = cg.llvm_gc_object_header_type();
+                        let box_ty_name = format!(
+                            "scoop.runtime.ResumeBox__{func_name}_{seq}_pc{pc}"
+                        );
+                        let box_ty = if let Some(existing) = cg.context.get_struct_type(&box_ty_name)
+                        {
+                            existing
+                        } else {
+                            let t = cg.context.opaque_struct_type(&box_ty_name);
+                            t.set_body(&[header_ty.into(), payload_llvm_ty], false);
+                            t
+                        };
+                        let box_ptr_ty = box_ty.ptr_type(cg.gc_address_space());
+                        let box_ptr = cg.builder.build_pointer_cast(
+                            resume_gc_ref,
+                            box_ptr_ty,
+                            "resume_box_ptr",
+                        )?;
+                        let payload_ptr = cg.builder.build_struct_gep(
+                            box_ty,
+                            box_ptr,
+                            1,
+                            "resume_box_payload_gep",
+                        )?;
+                        let loaded = cg.builder.build_load(
+                            payload_llvm_ty,
+                            payload_ptr,
+                            "resume_box_payload",
+                        )?;
+                        CgValue {
+                            ty: resume_value_ty,
+                            value: Some(loaded),
+                        }
                     }
                 };
 
@@ -4241,9 +4295,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // spec §5.5：`k.resume(value)`。
         //
-        // 约束（early stage）：
-        // - 仅支持一个位置实参；
-        // - `value` 会被编码为一个 `u64` word 传给 runtime（T0914：`scoop_continuation_resume_u64`）。
+        // T1607：payload 不再受限于 u64 word；支持任意类型（scalar / GC ref / compound）。
+        // 实现：把值写入 continuation 的 resume_word / resume_gc_ref 槽位，再调用 scoop_continuation_resume。
         if args.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "Continuation.resume arity mismatch",
@@ -4274,15 +4327,270 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let value = self.codegen_expr(value_expr)?;
-        let word = self.coerce_u64_word(value_expr.span, value)?;
 
-        let rt_resume = self.declare_runtime_continuation_resume_u64();
+        // T1607：获取 continuation 结构体类型，GEP 到 resume_word / resume_gc_ref 槽位。
+        let cont_ty = self.llvm_continuation_struct_type();
+        let cont_ptr_ty = cont_ty.ptr_type(self.gc_address_space());
+        let cont_ptr =
+            self.builder
+                .build_pointer_cast(k_ptr, cont_ptr_ty, "cont_resume_k_typed")?;
+
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+
+        match value.ty {
+            CgTy::Unit => {
+                // Unit：写 0 到 resume_word，resume_gc_ref 置 null。
+                let word_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6,
+                    "cont_resume_word_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+            }
+            CgTy::Bool => {
+                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "Continuation.resume bool value",
+                    at: value_expr.span.into(),
+                })?;
+                let extended = self
+                    .builder
+                    .build_int_z_extend(b, i64_ty, "resume_bool_to_u64")?;
+                let word_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6,
+                    "cont_resume_word_gep",
+                )?;
+                let _ = self.builder.build_store(word_ptr, extended)?;
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+            }
+            CgTy::Int(_) => {
+                let word = self.coerce_u64_word(value_expr.span, value)?;
+                let word_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6,
+                    "cont_resume_word_gep",
+                )?;
+                let _ = self.builder.build_store(word_ptr, word)?;
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(ref_ptr, i8_ptr_ty.const_null())?;
+            }
+            CgTy::String | CgTy::Ref => {
+                // GC reference：写 0 到 resume_word，写 GC ptr 到 resume_gc_ref（with write barrier）。
+                let word_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6,
+                    "cont_resume_word_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
+
+                let Some(raw_val) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Continuation.resume gc ref value",
+                        at: value_expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(gc_val) = raw_val else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Continuation.resume gc ref type",
+                        at: value_expr.span.into(),
+                    });
+                };
+
+                // 使用 write barrier 写入 GC 堆对象的 GC 引用槽位。
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let wb = self.declare_runtime_gc_write_barrier();
+                // slot_addr 必须是 addrspace(0)（见 gc.rs 写屏障约定）。
+                let slot_addr_gc = self.builder.build_pointer_cast(
+                    ref_ptr,
+                    gc_i8_ptr_ty,
+                    "cont_resume_gc_ref_slot_gc",
+                )?;
+                let slot_addr = self.builder.build_address_space_cast(
+                    slot_addr_gc,
+                    i8_ptr_ty,
+                    "cont_resume_gc_ref_slot",
+                )?;
+                let value_i8 =
+                    self.builder
+                        .build_pointer_cast(gc_val, gc_i8_ptr_ty, "cont_resume_gc_val_i8")?;
+                let _ = self
+                    .builder
+                    .build_call(wb, &[slot_addr.into(), value_i8.into()], "cont_resume_wb")?;
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                // 复合类型：box 到 GC heap，将 box ptr 写入 resume_gc_ref。
+                let word_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    6,
+                    "cont_resume_word_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(word_ptr, i64_ty.const_int(0, false))?;
+
+                let Some(raw_val) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Continuation.resume compound value",
+                        at: value_expr.span.into(),
+                    });
+                };
+
+                // 创建 box type: { GcObjectHeader, <payload_type> }
+                let payload_llvm_ty = self.llvm_basic_type_of(value_expr.span, value.ty)?;
+                let header_ty = self.llvm_gc_object_header_type();
+                let box_ty_name = format!("scoop.runtime.ResumePayloadBox__{}", {
+                    // 使用 payload 类型的哈希作为唯一名称
+                    use std::hash::{Hash, Hasher};
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    format!("{:?}", value.ty).hash(&mut h);
+                    h.finish()
+                });
+                let box_ty = if let Some(existing) = self.context.get_struct_type(&box_ty_name) {
+                    existing
+                } else {
+                    let t = self.context.opaque_struct_type(&box_ty_name);
+                    t.set_body(&[header_ty.into(), payload_llvm_ty], false);
+                    t
+                };
+
+                // 创建 box 的 type descriptor
+                let box_desc_name =
+                    format!("__scoop_type_desc_resume_payload_box__{}", &box_ty_name);
+                let box_size = self.target_data.get_store_size(&box_ty);
+                let trace_start = self
+                    .target_data
+                    .offset_of_element(&box_ty, 1)
+                    .unwrap_or(box_size);
+                let box_desc = self.get_or_create_type_descriptor_global(
+                    span,
+                    &box_desc_name,
+                    &box_ty_name,
+                    box_ty,
+                    trace_start,
+                    None,
+                    None,
+                    None,
+                )?;
+
+                // 分配 box
+                let rt_alloc = self.declare_runtime_alloc_typed();
+                let size_v = self.context.i64_type().const_int(box_size, false);
+                let desc_i8 = self.builder.build_pointer_cast(
+                    box_desc.as_pointer_value(),
+                    i8_ptr_ty,
+                    "resume_box_desc_i8",
+                )?;
+                let alloc_call = self.builder.build_call(
+                    rt_alloc,
+                    &[desc_i8.into(), size_v.into()],
+                    "resume_box_alloc",
+                )?;
+                let box_raw = alloc_call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "resume box alloc return",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(box_gc_ptr) = box_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "resume box alloc return type",
+                        at: span.into(),
+                    });
+                };
+
+                // 存入 payload
+                let box_ptr_ty = box_ty.ptr_type(self.gc_address_space());
+                let box_typed =
+                    self.builder
+                        .build_pointer_cast(box_gc_ptr, box_ptr_ty, "resume_box_typed")?;
+                let payload_ptr = self.builder.build_struct_gep(
+                    box_ty,
+                    box_typed,
+                    1,
+                    "resume_box_payload_gep",
+                )?;
+                let _ = self.builder.build_store(payload_ptr, raw_val)?;
+
+                // 写入 continuation 的 resume_gc_ref（with write barrier）
+                let ref_ptr = self.builder.build_struct_gep(
+                    cont_ty,
+                    cont_ptr,
+                    7,
+                    "cont_resume_gc_ref_gep",
+                )?;
+                let wb = self.declare_runtime_gc_write_barrier();
+                let slot_addr_gc = self.builder.build_pointer_cast(
+                    ref_ptr,
+                    gc_i8_ptr_ty,
+                    "cont_resume_gc_ref_slot_gc",
+                )?;
+                let slot_addr = self.builder.build_address_space_cast(
+                    slot_addr_gc,
+                    i8_ptr_ty,
+                    "cont_resume_gc_ref_slot",
+                )?;
+                let box_i8 = self.builder.build_pointer_cast(
+                    box_gc_ptr,
+                    gc_i8_ptr_ty,
+                    "resume_box_i8",
+                )?;
+                let _ = self.builder.build_call(
+                    wb,
+                    &[slot_addr.into(), box_i8.into()],
+                    "cont_resume_box_wb",
+                )?;
+            }
+        }
+
+        // 调用新 ABI：payload 已在 continuation 槽位中。
+        let rt_resume = self.declare_runtime_continuation_resume();
         let k_i8 =
             self.builder
                 .build_pointer_cast(k_ptr, self.llvm_gc_i8_ptr_type(), "cont_k_i8")?;
         let _ = self
             .builder
-            .build_call(rt_resume, &[k_i8.into(), word.into()], "cont_resume")?;
+            .build_call(rt_resume, &[k_i8.into()], "cont_resume")?;
         // continuation resume 可能触发 `Raise<RuntimeError>`（例如 one-shot 违规），需要按 Raise 的最小约定传播。
         self.emit_effect_unwind_if_active(span)?;
 

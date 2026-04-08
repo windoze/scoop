@@ -1171,16 +1171,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void* state, uint64_t value))`
+        // T1607：step_fn 签名扩展为 3 参数——(state, resume_word, resume_gc_ref)。
+        // `void* scoop_continuation_alloc(void* state, void (*step_fn)(void*, uint64_t, void*))`
+        // resume_gc_ref 在 LLVM 侧声明为 addrspace(1)，使 statepoint rewrite 能追踪/relocate。
         let state_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let step_fn_ty = self
             .context
             .void_type()
-            .fn_type(&[state_ptr_ty.into(), i64_ty.into()], false)
+            .fn_type(
+                &[state_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
+                false,
+            )
             .ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [state_ptr_ty.into(), step_fn_ty.into()];
         let fn_ty = state_ptr_ty.fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// T1607：新 ABI——调用方已将 payload 写入 continuation 的 resume_word / resume_gc_ref 槽位。
+    pub(super) fn declare_runtime_continuation_resume(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_CONTINUATION_RESUME;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_continuation_resume(void* k)`
+        let i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i8_ptr_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }
 
@@ -1196,6 +1216,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [i8_ptr_ty.into(), i64_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// T1607：返回 `ScoopContinuation` 的 LLVM 结构类型（用于 GEP 到 resume_word / resume_gc_ref）。
+    ///
+    /// 布局与 `runtime/c/scoop_runtime.c` 的 `ScoopContinuation` 一致：
+    ///   { ScoopGcObjectHeader, i32 resumed, i32 _reserved, ptr captured_handler_stack_top,
+    ///     ptr state, ptr step_fn, i64 resume_word, ptr resume_gc_ref }
+    pub(super) fn llvm_continuation_struct_type(&self) -> inkwell::types::StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopContinuation";
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let header_ty = self.llvm_gc_object_header_type();
+        let i32_ty = self.context.i32_type();
+        let i64_ty = self.context.i64_type();
+        let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+        // resume_gc_ref 使用 native ptr（与 C 的 void* 对齐）；
+        // 因为 GC tracing 由 continuation 的 custom trace_fn 负责而不是 bitmap。
+        ty.set_body(
+            &[
+                header_ty.into(),     // 0: hdr
+                i32_ty.into(),        // 1: resumed (_Atomic uint32_t)
+                i32_ty.into(),        // 2: _reserved_u32
+                i8_ptr_ty.into(),     // 3: captured_handler_stack_top
+                i8_ptr_ty.into(),     // 4: state (GC ref, but handled by custom trace_fn)
+                i8_ptr_ty.into(),     // 5: step_fn
+                i64_ty.into(),        // 6: resume_word
+                i8_ptr_ty.into(),     // 7: resume_gc_ref
+            ],
+            false,
+        );
+        ty
     }
 
     pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {

@@ -326,7 +326,7 @@ cargo run -p scoop --features llvm -- test
   - 针对错误分发给出稳定诊断（至少包含 op_tag / effect 名称 / src line/col）。
 - 依赖：（历史）T0913/T0916（runtime handler stack），T0617（escape continuation lowering）
 
-### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
+### T1607 [DONE] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
 - 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。
 - 目标：
   - 设计并落地一个”可携带任意 `T`”的 resume payload ABI（至少覆盖：Unit/Bool/Int/String/Ref/tuple/struct/enum；允许 future 扩展）。
@@ -336,6 +336,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：`Continuation<String>`、`Continuation<(Int, String)>`、`Continuation<MyStruct>` 等在 `--gc-stress` 下通过，并覆盖”resume 后继续分配触发多轮 GC”。
   - 为 ABI 关键点补 build fixtures（可选）：断言不出现”ptr<->int”非法编码路径。
 - 依赖：T1606（多点 suspension 需要更通用 payload 才能覆盖真实案例）；（历史）T0630（payload ABI 统一化方向）
+- 完成说明：
+  - **设计**：双通道 ABI——`ScoopContinuation` 结构体新增 `resume_word`（u64，用于 scalar：Unit/Bool/Int）和 `resume_gc_ref`（void*，GC-traced，用于 String/Ref/compound）。Step 函数签名扩展为 3 参数 `(state, resume_word, resume_gc_ref)`。Resume 调用改为先写入 continuation 字段再调用无参 `scoop_continuation_resume(k)`。
+  - **C runtime**（`runtime/c/scoop_runtime.c`）：ScoopContinuation 新增两字段 + 更新 trace_fn（扫描 resume_gc_ref）；新增 `scoop_continuation_resume()` 入口；`scoop_continuation_resume_u64()` 保留向后兼容。
+  - **LLVM codegen**（`effect.rs` / `runtime_abi.rs` / `runtime_symbols.rs`）：step 函数 3 参数签名；resume 调用站点按类型分发写入 resume_word 或 resume_gc_ref（compound 类型先 box 到 GC heap）；step 函数 decode 按类型从对应通道读取。
+  - **Fixtures**：新增 4 个 run-pass fixtures——`effect_escape_continuation_resume_unit`、`effect_escape_continuation_resume_bool`、`effect_escape_continuation_resume_string`、`effect_escape_continuation_resume_string_multi`（含多次 suspend/resume）。
+  - **备注**：Tuple/Struct/Enum compound payload 的 codegen 路径已实现（box+unbox），但缺少 run-pass fixtures，因为 `Continuation<(Int,String)>` / `Continuation<MyStruct>` 需要 T1610（控制流表达式返回 compound 类型）先落地才能端到端验证。
 
 ### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
 - 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。

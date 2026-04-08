@@ -188,7 +188,7 @@ cargo run -p scoop --features llvm -- test
   - T1606b（DONE）：取消”perform 必须首语句”（补齐 capture/lift）
   - T1606c（DONE）：多 perform（pc + heap state machine）— 含 GC stackmap walker 修复：walk-through C frames 以覆盖 main→resume_u64(C)→step_fn 场景
   - T1608（DONE）：op_tag 稳定分配与统一 dispatch — T1606d 的前置依赖
-  - T1607：resume payload 泛型化（u64 → 任意 T）
+  - T1607（DONE）：resume payload 泛型化（u64 → 任意 T）— 双通道 ABI（resume_word + resume_gc_ref），step 函数 3 参数签名，compound 类型 box/unbox
   - T1606d：多 perform + 动态上下文/GC 回归加固（依赖 T1608 + T1706/T1707）
   - T1606e~g：控制流/间接 perform/嵌套 handle 的显式验证
 - 设计要点（implementation-level 约束）：

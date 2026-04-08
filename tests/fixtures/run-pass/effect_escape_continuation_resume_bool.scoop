@@ -1,0 +1,42 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_bool.stdout
+//
+// 目标：T1607 — resume payload 为 Bool（scalar 通道，通过 resume_word 传递并截断到 i1）。
+
+import scoop.core.*
+
+effect Confirm {
+    fun confirm(): Bool
+}
+
+fun main() {
+    var saved: Continuation<Bool>? = None()
+
+    val _: Unit = handle {
+        val answer: Bool = Confirm.confirm()
+        if (answer) {
+            println("yes")
+        } else {
+            println("no")
+        }
+    } with {
+        Confirm.confirm(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(true)
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}

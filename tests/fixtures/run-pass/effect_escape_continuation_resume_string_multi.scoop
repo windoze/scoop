@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_resume_string_multi.stdout
+//
+// 目标：T1607 — 多次 suspend/resume，每次 resume 传递 String payload（GC 引用），
+//       在多次 resume 周期中验证 GC ref 通道不泄漏/不失效。
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        val a: String = Ask.ask()
+        println(a)
+
+        val b: String = Ask.ask()
+        println(b)
+
+        val c: String = Ask.ask()
+        println(c)
+
+        println("body_done")
+    } with {
+        Ask.ask(), k -> {
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("err1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("err2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k3.resume("gamma")
+            } catch (e: RuntimeError) {
+                println("err3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+    println("done")
+}

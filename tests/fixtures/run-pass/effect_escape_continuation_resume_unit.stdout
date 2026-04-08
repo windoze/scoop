@@ -1,0 +1,6 @@
+before_pause
+arm_saved
+after_handle
+after_pause
+after_resume
+done
