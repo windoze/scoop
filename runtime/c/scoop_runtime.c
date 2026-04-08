@@ -732,6 +732,25 @@ ScoopEffectHandlerFrame *scoop_effect_handler_stack_find_nearest(uint32_t op_tag
   return 0;
 }
 
+// T1608: Pop non-matching intermediate handler frames until the matching op_tag
+// is on top (or the stack is empty).
+//
+// Used when an effect propagates through nested handlers of different effects:
+// the compile-time dispatch can skip non-matching handlers, but their runtime
+// frames need to be cleaned up before the matching handler's catch block runs.
+// The matching frame is NOT popped — the catch block will do that.
+void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag) {
+  while (__scoop_effect_handler_stack_top != 0) {
+    ScoopEffectHandlerFrame *top = __scoop_effect_handler_stack_top;
+    if (top->op_tag == op_tag) {
+      break;
+    }
+    __scoop_effect_handler_stack_top = top->prev;
+    top->prev = 0;
+    top->active = 0;
+  }
+}
+
 // --- Continuation（spec §5.5 / TODO T0914） ---
 //
 // 说明：

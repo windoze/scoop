@@ -315,7 +315,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：新增 run-pass fixtures：单 handle 内 2~3 次 yield/await（不使用嵌套 handle workaround），并在 `--gc-stress` 下稳定。
 - 依赖：T1606b
 
-### T1608 [TODO] Effect op_tag：稳定分配与统一 dispatch（运行期 handler stack / perform slot）
+### T1608 [DONE] Effect op_tag：稳定分配与统一 dispatch（运行期 handler stack / perform slot）
 - 描述：runtime handler stack 的”最近匹配”分发基于 `op_tag` 精确匹配；而当前 codegen 对自定义 effect 的 `op_tag` 仍大量写 0（除 `Raise` 以外）。这会在”嵌套 handler + re-perform + 多 effect 并存”时产生错误分发或无法诊断的语义漂移。
 - 目标：
   - 为所有 compiler-known 的 effect op 分配稳定 `op_tag`（至少在单次编译产物内稳定；若要求跨版本稳定需额外讨论）。

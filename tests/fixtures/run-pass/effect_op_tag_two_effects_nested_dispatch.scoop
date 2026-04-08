@@ -1,0 +1,72 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_op_tag_two_effects_nested_dispatch.stdout
+//
+// T1608: op_tag stable allocation and unified dispatch.
+//
+// This fixture verifies that two different custom effects with distinct op_tags
+// dispatch correctly in a three-level nested handler scenario:
+// - EffectA and EffectB are two independent non-resuming effects;
+// - Each handler only catches its own effect (no cross-matching);
+// - Re-perform from an arm body goes to the correct outer handler
+//   (not self-capture, and not wrong-effect capture).
+
+import scoop.core.*
+
+effect EffectA {
+    fun fireA(code: Int): Nothing
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+fun main(): Int {
+    // outer: catches EffectA
+    val result: Int = handle {
+        println("outer_body")
+
+        // middle: catches EffectB
+        val mid: Int = handle {
+            println("middle_body")
+
+            // inner: catches EffectA
+            val inner: Int = handle {
+                println("inner_body")
+                // This EffectA.fireA should be caught by the inner handler (nearest EffectA).
+                EffectA.fireA(10)
+                999
+            } with {
+                EffectA.fireA(e: Int) -> {
+                    println("inner_catch_A")
+                    println(e)
+                    // Re-perform EffectA: should skip inner (self, inactive) and skip middle
+                    // (catches EffectB, not EffectA), reaching the outer handler (EffectA).
+                    EffectA.fireA(20)
+                    888
+                }
+            }
+
+            println("unreachable_after_inner")
+            inner
+        } with {
+            EffectB.fireB(e: Int) -> {
+                println("middle_catch_B")
+                println(e)
+                0
+            }
+        }
+
+        println("unreachable_after_middle")
+        mid
+    } with {
+        EffectA.fireA(e: Int) -> {
+            println("outer_catch_A")
+            println(e)
+            42
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

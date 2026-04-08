@@ -27,6 +27,8 @@ pub(super) const SCOOP_EFFECT_HANDLER_STACK_PUSH: &str = "scoop_effect_handler_s
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SET_ACTIVE: &str =
     "scoop_effect_handler_stack_set_active";
 pub(super) const SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP: &str = "scoop_effect_handler_stack_swap_top";
+pub(super) const SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG: &str =
+    "scoop_effect_handler_stack_unwind_to_tag";
 pub(super) const SCOOP_EFFECT_IS_ACTIVE: &str = "scoop_effect_is_active";
 pub(super) const SCOOP_EFFECT_PERFORM_SLOT_READ_LEN_WORDS: &str =
     "scoop_effect_perform_slot_read_len_words";

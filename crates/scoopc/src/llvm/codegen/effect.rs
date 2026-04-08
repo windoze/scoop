@@ -2,11 +2,11 @@
 
 use super::*;
 
-/// flag-based unwinding（non-resuming effect）的“捕获边界”记录。
+/// flag-based unwinding（non-resuming effect）的"捕获边界"记录。
 ///
 /// 说明：
 /// - 当前阶段 `Raise.raise` 仍有独立的 `raise_target_stack`（历史原因，T0614）；
-/// - T0625 起，为最小自定义 non-resuming effect 增加同样的“最近匹配”捕获边界栈，
+/// - T0625 起，为最小自定义 non-resuming effect 增加同样的"最近匹配"捕获边界栈，
 ///   用于在一个函数内把 `perform` 直接分发到最近的 `handle` catch block。
 #[derive(Debug, Clone)]
 pub(super) struct EffectUnwindTarget<'ctx> {
@@ -14,10 +14,10 @@ pub(super) struct EffectUnwindTarget<'ctx> {
     target: inkwell::basic_block::BasicBlock<'ctx>,
 }
 
-/// `-> resume` lowering（T0616）在 codegen 阶段使用的“立即恢复”上下文。
+/// `-> resume` lowering（T0616）在 codegen 阶段使用的"立即恢复"上下文。
 ///
 /// 说明：
-/// - 当前实现先只覆盖“单个 perform 点”的最小栈上 state machine；
+/// - 当前实现先只覆盖"单个 perform 点"的最小栈上 state machine；
 /// - `resume(value)` 会写入 `resume_value_ptr`、更新 `state_ptr`，并跳回 `dispatch_bb`。
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ImmediateResumeCtx<'ctx> {
@@ -82,7 +82,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     /// 读取运行时 TLS effect flag，并返回 `i1`（是否 active）。
     ///
-    /// 说明：这里直接调用 runtime C ABI（`scoop_effect_is_active`），避免把该读取当作“普通函数调用”
+    /// 说明：这里直接调用 runtime C ABI（`scoop_effect_is_active`），避免把该读取当作"普通函数调用"
     /// 从而触发递归插桩（call site 检查 flag → 再调用 is_active → 再检查...）。
     pub(super) fn emit_effect_is_active_i1(
         &mut self,
@@ -111,7 +111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?)
     }
 
-    /// 在“最近 handler boundary”存在时跳转到 catch；否则返回默认值向外传播。
+    /// 在"最近 handler boundary"存在时跳转到 catch；否则返回默认值向外传播。
     ///
     /// 用途：
     /// - 普通函数调用返回后：callee 可能执行 `Raise.raise`，因此返回后需要检查 flag 并决定是否 unwind。
@@ -252,7 +252,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // callee 若是已知顶层函数/方法且 effects 为 Pure，则调用点本身不会触发 flag-based unwinding；
-                // 其它 callee（closure/local/未解析）先按“可能 perform”保守处理，避免误删 handler。
+                // 其它 callee（closure/local/未解析）先按"可能 perform"保守处理，避免误删 handler。
                 let Some(fqn) = self.try_extract_callee_fqn(callee) else {
                     return true;
                 };
@@ -318,10 +318,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         at: crate::span::Span,
     ) -> Result<(u32, u32), LlvmEmitError> {
-        // 注意：当前阶段 HIR span 仍是“无 file-id 的 byte offsets”，当 codegen 生成跨文件函数体
+        // 注意：当前阶段 HIR span 仍是"无 file-id 的 byte offsets"，当 codegen 生成跨文件函数体
         //（例如 stdlib/helper 被内联为可 codegen 的顶层函数）时，span 可能不属于入口 `source`。
         //
-        // 为避免把“诊断辅助信息”升级成 hard error，这里选择在无法映射时降级为 (0, 0)：
+        // 为避免把"诊断辅助信息"升级成 hard error，这里选择在无法映射时降级为 (0, 0)：
         // - 不影响 non-resuming effect 的语义（仍由 flag+slot 决定）；
         // - fixtures 可选择性断言：对入口文件的 raise/perform，line/col 仍可稳定；
         // - 未来当 span 携带 file-id 后，再把这里升级为精确映射。
@@ -336,7 +336,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 将 `Raise.raise(error)` 的 `error` 值编码为 runtime perform slot 的 payload words。
     ///
     /// 当前阶段（T0818）的目标是先把 `Raise<RuntimeError>` 跑通，以支持：
-    /// - `x!!` / `x as T` 等“运行期失败 → Raise<RuntimeError>”的语义落点；
+    /// - `x!!` / `x as T` 等"运行期失败 → Raise<RuntimeError>"的语义落点；
     /// - `try/catch` 能读回并匹配 `RuntimeError` 的 unit variants。
     ///
     /// ABI（TODO T0630）：
@@ -463,13 +463,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 说明：复用 `Raise.raise(RuntimeError.X)` 的最小 ABI 约定（T0818），但避免在这里构造 HIR 节点：
         // - slot: (op_tag=Raise, payload_kind=RuntimeError, payload_value=tag)
         // - set flag 并携带 line/col trace
-        const OP_TAG_RAISE: u64 = 1;
         const PAYLOAD_KIND_RUNTIME_ERROR: u64 = 2;
 
         let i32_ty = self.context.i32_type();
         let u64_ty = self.context.i64_type();
 
-        let op_tag_i32 = i32_ty.const_int(OP_TAG_RAISE, false);
+        let raise_tag = self.effect_op_tag("scoop.core.Raise.raise");
+        let op_tag_i32 = i32_ty.const_int(raise_tag as u64, false);
         let payload_kind_u64 = u64_ty.const_int(PAYLOAD_KIND_RUNTIME_ERROR, false);
         let payload_value_u64 = u64_ty.const_int(tag, false);
 
@@ -509,7 +509,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.emit_return(span, ret_ty, v)?;
         }
 
-        // 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        // 继续生成后续 IR：把 builder 移到一个"不可达 continuation block"，避免后续插入失败。
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -565,9 +565,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_raise_error_payload_words(err_expr)?;
 
         // 2) 写 slot + set flag。
-        // 说明：当前阶段只需要“可观测的最小表示”；op_tag 未来会与更通用的 payload ABI 对齐（T0630）。
-        const OP_TAG_RAISE: u64 = 1;
-        let tag_i32 = self.context.i32_type().const_int(OP_TAG_RAISE, false);
+        let raise_tag = self.effect_op_tag("scoop.core.Raise.raise");
+        let tag_i32 = self.context.i32_type().const_int(raise_tag as u64, false);
         let rt_write = self.declare_runtime_effect_perform_slot_write_u64_2();
         let _ = self.builder.build_call(
             rt_write,
@@ -590,7 +589,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "raise_set_active",
         )?;
 
-        // 3) “早退”：在 handler boundary 内跳到 catch，否则返回默认值向外传播。
+        // 3) "早退"：在 handler boundary 内跳到 catch，否则返回默认值向外传播。
         if let Some(target) = self.current_raise_target() {
             self.builder.build_unconditional_branch(target)?;
         } else {
@@ -604,7 +603,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.emit_return(span, ret_ty, v)?;
         }
 
-        // 4) 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        // 4) 继续生成后续 IR：把 builder 移到一个"不可达 continuation block"，避免后续插入失败。
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -622,7 +621,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(dead);
 
         // Raise 的返回类型在类型系统里是 `Nothing`，可用于任意期望类型；
-        // 这里返回一个“期望类型的默认值”以保持后续 codegen 可继续推进。
+        // 这里返回一个"期望类型的默认值"以保持后续 codegen 可继续推进。
         Ok(match expected {
             Some(ty) => self.default_value(ty),
             None => CgValue::unit(),
@@ -634,7 +633,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 当前阶段约束：
     /// - 仅支持 `op(arg)` 形式，且 `arg` 必须是 word-sized `Int`；
     /// - 仅支持在同一函数内存在匹配的 `handle ... with { Effect.op(x) -> ... }` 捕获边界：
-    ///   若不存在，则直接报错（避免与现有 `Raise` 的“返回默认值向外传播”机制混淆）。
+    ///   若不存在，则直接报错（避免与现有 `Raise` 的"返回默认值向外传播"机制混淆）。
     ///
     /// 语义：
     /// - 写入 runtime perform slot（1 word payload）并 set flag；
@@ -673,8 +672,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: payload_expr.span.into(),
             })?;
 
-        // v0：自定义 effect 的 op_tag 暂不分配稳定编号（runtime 仍会记录到 slot 里便于调试）。
-        let op_tag_i32 = self.context.i32_type().const_zero();
+        // T1608：使用统一的 op_tag 分配（按 FQN 精确匹配，与 handler_stack_push 一致）。
+        let tag = self.effect_op_tag(&op.fqn);
+        let op_tag_i32 = self.context.i32_type().const_int(tag as u64, false);
         let from_u64 = IntTy {
             bits: 64,
             signed: false,
@@ -704,9 +704,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             });
         };
+
+        // T1608: 跨 effect 传播——清理当前 handler stack 中不匹配的中间帧。
+        let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
+        let _ = self.builder.build_call(
+            rt_unwind,
+            &[op_tag_i32.into()],
+            "effect_unwind_to_tag",
+        )?;
+
         self.builder.build_unconditional_branch(target)?;
 
-        // 继续生成后续 IR：把 builder 移到一个“不可达 continuation block”，避免后续插入失败。
+        // 继续生成后续 IR：把 builder 移到一个"不可达 continuation block"，避免后续插入失败。
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -734,7 +743,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 当前阶段（T0614）约束：
     /// - 只支持捕获 `scoop.core.Raise.raise`；
     /// - 只支持单个 arm（最小示例）；finally 语义由 T0615 补齐；
-    /// - arm body 在“handler scope”之外生成，避免 self-capture（PLAN §6.2）。
+    /// - arm body 在"handler scope"之外生成，避免 self-capture（PLAN §6.2）。
     pub(super) fn codegen_handle_expr(
         &mut self,
         span: crate::span::Span,
@@ -804,11 +813,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        // TODO T0913：在动态层维护 handler stack（Appendix A）。
-        // 当前阶段只需要：
-        // - 进入 handle body 前 push；
-        // - 正常结束或进入 arm/catch 前 pop（arm body 在 dispatch scope 外执行，Appendix A.4）。
-        const OP_TAG_RAISE: u64 = 1;
+        // T0913 / T1608：在动态层维护 handler stack（Appendix A），使用统一 op_tag 分配。
+        let op_tag_val = self.effect_op_tag(&arm.op.op.fqn);
         let handler_frame_ty = self.llvm_effect_handler_frame_type();
         let handler_frame_ptr =
             self.create_entry_alloca_raw(span, "handle_effect_frame", handler_frame_ty.into())?;
@@ -818,7 +824,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let body_bb = self.context.append_basic_block(func, "handle_body");
         let catch_bb = self.context.append_basic_block(func, "handle_catch");
 
-        // `finally` 语义：保证在“正常路径 / catch 返回 / catch 继续 raise 向外传播”三种情况下都执行一次。
+        // `finally` 语义：保证在"正常路径 / catch 返回 / catch 继续 raise 向外传播"三种情况下都执行一次。
         // - 正常路径与 catch 返回：汇合到 finally_bb 再进入 merge；
         // - catch 内发生 raise：先进入 finally_unwind_bb 执行 finally，然后向外传播 raise（不清 flag/slot）。
         let finally_bb = self.context.append_basic_block(func, "handle_finally");
@@ -839,7 +845,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let frame_i8 =
             self.builder
                 .build_bit_cast(handler_frame_ptr, i8_ptr_ty, "handle_effect_frame_i8")?;
-        let op_tag_i32 = self.context.i32_type().const_int(OP_TAG_RAISE, false);
+        let op_tag_i32 = self.context.i32_type().const_int(op_tag_val as u64, false);
         let _ = self.builder.build_call(
             rt_push,
             &[frame_i8.into(), op_tag_i32.into()],
@@ -1351,15 +1357,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
 
-        // v0：自定义 effect 的 op_tag 暂用 0（与现有 resume/escape 代码保持一致）。
-        let op_tag_i32 = self.context.i32_type().const_zero();
+        // T1608：使用统一的 op_tag 分配。
+        let tag = self.effect_op_tag(&arm.op.op.fqn);
+        let op_tag_i32 = self.context.i32_type().const_int(tag as u64, false);
 
         let outer_target = self.current_effect_unwind_target(&arm.op.op.fqn);
 
         let body_bb = self.context.append_basic_block(func, "handle_custom_body");
         let catch_bb = self.context.append_basic_block(func, "handle_custom_catch");
 
-        // `finally` 语义：保证在“正常路径 / catch 返回 / catch 继续 perform 向外传播”三种情况下都执行一次。
+        // `finally` 语义：保证在"正常路径 / catch 返回 / catch 继续 perform 向外传播"三种情况下都执行一次。
         let finally_bb = self
             .context
             .append_basic_block(func, "handle_custom_finally");
@@ -1579,6 +1586,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(bb) = self.builder.get_insert_block() {
             if bb.get_terminator().is_none() {
                 if let Some(target) = outer_target {
+                    // T1608: 跨 effect 传播——清理中间帧后再跳到外层 handler。
+                    let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
+                    let _ = self.builder.build_call(
+                        rt_unwind,
+                        &[op_tag_i32.into()],
+                        "effect_unwind_to_tag",
+                    )?;
                     self.builder.build_unconditional_branch(target)?;
                 } else {
                     // 当前阶段：自定义 effect 在程序边界的处理策略尚未固定；先按运行期错误处理。
@@ -1637,7 +1651,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         resume_symbol: hir::SymbolId,
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // T0616：先实现最小“栈 state machine”版本的 `-> resume`：
+        // T0616：先实现最小"栈 state machine"版本的 `-> resume`：
         // - 只支持单个 perform 点（位于一个 `val x: T = Effect.op(...)` 的 init 中）
         // - `resume(value)` 必须恰好一次：重复/缺失先按运行期错误处理（exit(3)）
         if handle.finally.is_some() {
@@ -1808,7 +1822,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // push handler frame（动态上下文）。
         //
-        // 说明：op_tag 目前仅对 `Raise.raise` 固化为 1；其它 op 先写 0（未来由统一的 op_tag 分配规则补齐）。
+        // T1608：使用统一的 op_tag 分配（按 FQN 精确匹配）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
         let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
         let frame_i8 = self.builder.build_bit_cast(
@@ -1816,11 +1830,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i8_ptr_ty,
             "handle_resume_effect_frame_i8",
         )?;
-        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
-            self.context.i32_type().const_int(1, false)
-        } else {
-            self.context.i32_type().const_zero()
-        };
+        let resume_tag = self.effect_op_tag(&arm.op.op.fqn);
+        let op_tag_i32 = self
+            .context
+            .i32_type()
+            .const_int(resume_tag as u64, false);
         let _ = self.builder.build_call(
             rt_push,
             &[frame_i8.into(), op_tag_i32.into()],
@@ -2139,7 +2153,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   - 0 个 perform：退化为顺序执行 `body`（以及 `finally`，若存在），arm 不可达（T1606a）；
         //   - N≥1：支持同一 handle body 内 1..N 个 perform 点（T1606c）：
         //     - perform 仍要求绑定到 `val x: T = perform`（early stage 约束）；
-        //     - 当前只覆盖“线性 block”（不含 return/loop 等），更复杂 CFG 由 T1606e 单独验证；
+        //     - 当前只覆盖"线性 block"（不含 return/loop 等），更复杂 CFG 由 T1606e 单独验证；
         // - heap state machine 以 `{ frame, pc, lifted locals... }` 表达可重入执行；
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
 
@@ -2270,8 +2284,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 1.5) 计算 perform 之后会用到的 locals（用于决定必须 lift 到 heap state 的 capture 集合）。
         //
         // 说明：
-        // - step trampoline 执行在“原函数栈已不存在”的异步时刻；
-        // - 因此：perform 之后引用到的“外层 locals / perform 前 locals”必须从 heap state 恢复；
+        // - step trampoline 执行在"原函数栈已不存在"的异步时刻；
+        // - 因此：perform 之后引用到的"外层 locals / perform 前 locals"必须从 heap state 恢复；
         // - perform 之后新引入的 locals（val/var）会在 step 内按顺序声明，不需要 capture。
         fn collect_used_locals_in_block(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
             for stmt in &block.stmts {
@@ -2433,7 +2447,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 当前 v0 实现捕获 `Ref/String/Bool/Int`：
         //   - `Ref/String`：用于保活 closure/env 等引用类型；
         //   - `Bool/Int`：用于保活 word-sized handle（例如 sysroot 的 `Task<T>`/`Executor` 早期落点）。
-        // - 这里按“当前可见的绑定”去重（内层 scope shadow 外层），并按 SymbolId 排序保证 determinism。
+        // - 这里按"当前可见的绑定"去重（内层 scope shadow 外层），并按 SymbolId 排序保证 determinism。
         struct CapturedLocal {
             id: hir::SymbolId,
             hir_ty: Option<TypeId>,
@@ -2469,7 +2483,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //
         // 规则：
         // - 对每个 perform 点 p：
-        //   - 计算 “p 之后会用到的 locals 集合” used_after[p]；
+        //   - 计算 "p 之后会用到的 locals 集合" used_after[p]；
         //   - 若某 local 在 p 之后会被用到，且它在 body 中的声明位置 <= p，则该 local 必须 lift；
         // - 该集合取并集，得到 state machine 生命周期内需要保存/恢复的 locals。
         let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
@@ -2624,7 +2638,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             // 恢复 lifted locals：把 heap state 中的字段读回到本函数栈 slot。
             //
-            // 注意：这里选择“无条件恢复全部 lifted locals”，简化 pc 分支的环境构造；
+            // 注意：这里选择"无条件恢复全部 lifted locals"，简化 pc 分支的环境构造；
             // 未初始化的字段在 alloc 时已置零（null/0），因此恢复是安全的。
             let outer_field_base = 3u32;
             let body_field_base = outer_field_base.saturating_add(outer_captures.len() as u32);
@@ -2640,13 +2654,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let name = format!("lift_{}", cap.id.as_u32());
                 match cap.ty {
                     CgTy::Ref => {
-                        // 注意：这里不能把 “state 字段地址（addrspace(1)）” 直接当作 local slot。
+                        // 注意：这里不能把 "state 字段地址（addrspace(1)）" 直接当作 local slot。
                         //
                         // 原因：
                         // - `field_ptr` 是一个 **derived pointer**（指向 state 对象内部某字段的地址），且位于 GC
                         //   address space；
                         // - LLVM statepoint/stackmap 可能把它当作 GC root，进入 roots slots；但 runtime 的 roots 更新
-                        //   当前只支持 “slot value = 对象头指针”，不支持 derived pointer（否则 `--gc-stress` 下会出现
+                        //   当前只支持 "slot value = 对象头指针"，不支持 derived pointer（否则 `--gc-stress` 下会出现
                         //   invalid root / silent mis-update）。
                         //
                         // v0 策略：把外层 capture 的值恢复到本函数栈 slot（alloca）中，依赖 stackmap roots 更新
@@ -3322,7 +3336,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             },
                         )?;
 
-                        // 将 handler frame 从当前线程的 handler stack 顶部“摘除”（不清理 frame 字段），避免 self-capture。
+                        // 将 handler frame 从当前线程的 handler stack 顶部"摘除"（不清理 frame 字段），避免 self-capture。
                         let handler_frame_ty = cg.llvm_effect_handler_frame_type();
                         let frame_ptr = cg.builder.build_struct_gep(
                             state_ty,
@@ -3461,7 +3475,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // 若 state 对象在 step 执行期间被搬迁，会导致 TLS handler stack 里存的 frame 指针变成悬挂指针，
                     // 后续 perform/dispatch 访问 handler stack 时会发生崩溃。
                     //
-                    // v0 取舍：把 state 对象在整个 multi-perform 生命周期内 pin 住，并在 “执行到 handle body 结束”
+                    // v0 取舍：把 state 对象在整个 multi-perform 生命周期内 pin 住，并在 "执行到 handle body 结束"
                     // 的最终一步（即无下一次 perform）解除 pin（T1606c）。
                     let unpin = cg.declare_runtime_gc_unpin();
                     let _ = cg.builder.build_call(
@@ -3583,7 +3597,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // TLS handler stack 上。若 state 作为移动对象被搬迁，则 handler stack 中的 frame 指针会失效。
         //
         // v0 取舍（T1606c）：在 multi-perform 的生命周期内 pin 住 state，避免 moving GC 把它搬走；
-        // 并在 step trampoline 走到 “body 完成（无下一次 perform）” 路径时解除 pin。
+        // 并在 step trampoline 走到 "body 完成（无下一次 perform）" 路径时解除 pin。
         let pin = self.declare_runtime_gc_pin();
         let _ = self.builder.build_call(pin, &[state_raw.into()], "cont_state_pin")?;
 
@@ -3659,11 +3673,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             i8_ptr_ty,
             "handle_escape_frame_i8",
         )?;
-        let op_tag_i32 = if arm.op.op.fqn == "scoop.core.Raise.raise" {
-            self.context.i32_type().const_int(1, false)
-        } else {
-            self.context.i32_type().const_zero()
-        };
+        // T1608：使用统一的 op_tag 分配。
+        let escape_tag = self.effect_op_tag(&arm.op.op.fqn);
+        let op_tag_i32 = self
+            .context
+            .i32_type()
+            .const_int(escape_tag as u64, false);
         let _ = self.builder.build_call(
             rt_push,
             &[frame_i8.into(), op_tag_i32.into()],
@@ -4003,7 +4018,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // GC 重要性（T1606c）：
         // - handler arm body 里可能触发分配/GC（例如 println/f-string）；
-        // - 但 `k` 在 arm 内部可能尚未被存入任何“可被 GC 扫描的根”（heap field / handle / pin 等）；
+        // - 但 `k` 在 arm 内部可能尚未被存入任何"可被 GC 扫描的根"（heap field / handle / pin 等）；
         // - 因此这里先临时 pin 住，避免 `SCOOP_GC_STRESS=1` 下被提前回收/搬迁；
         // - 在 arm 结束、返回到 done_bb 前解除 pin（见下方 done_bb）。
         let pin = self.declare_runtime_gc_pin();
@@ -4021,7 +4036,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         )?;
 
-        // 将 handler frame 从当前线程的 handler stack 顶部“摘除”（不清理 frame 字段），以便：
+        // 将 handler frame 从当前线程的 handler stack 顶部"摘除"（不清理 frame 字段），以便：
         // - handler arm body 在 dispatch scope 外执行（Appendix A.4）
         // - continuation 捕获的 handler stack（frame->prev 链）保持完整（spec §5.5）
         let handler_frame_ty = self.llvm_effect_handler_frame_type();
@@ -4279,7 +4294,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        // 将一个可表示为 “word-sized u64 payload” 的值转换为 `i64`（在 ABI 层作为 `uint64_t` 使用）。
+        // 将一个可表示为 "word-sized u64 payload" 的值转换为 `i64`（在 ABI 层作为 `uint64_t` 使用）。
         //
         // 注意：这里不引入额外的 tag/布局；更复杂的 payload 由 TODO T0630 扩展。
         let i64_ty = self.context.i64_type();

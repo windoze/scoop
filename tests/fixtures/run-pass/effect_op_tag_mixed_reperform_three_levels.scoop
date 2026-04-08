@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_op_tag_mixed_reperform_three_levels.stdout
+//
+// T1608: op_tag stable allocation and unified dispatch (mixed effects).
+//
+// Three-level nested handlers with mixed effect types:
+// - outer: catches EffectB
+// - middle: catches EffectA
+// - inner: catches EffectB
+//
+// The fixture verifies:
+// 1. EffectB.fireB in inner body is caught by inner handler (nearest EffectB);
+// 2. Re-perform EffectA from inner arm crosses inner (wrong effect) to reach middle (EffectA);
+// 3. Re-perform EffectB from middle arm crosses middle (self, inactive) to reach outer (EffectB).
+
+import scoop.core.*
+
+effect EffectA {
+    fun fireA(code: Int): Nothing
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+fun main(): Int {
+    // outer: catches EffectB
+    val result: Int = handle {
+        println("outer_body")
+
+        // middle: catches EffectA
+        val mid: Int = handle {
+            println("middle_body")
+
+            // inner: catches EffectB
+            val inner: Int = handle {
+                println("inner_body")
+                EffectB.fireB(100)
+                999
+            } with {
+                EffectB.fireB(e: Int) -> {
+                    println("inner_catch_B")
+                    println(e)
+                    // Re-perform EffectA: inner catches EffectB (wrong effect), so
+                    // this should reach middle (catches EffectA).
+                    EffectA.fireA(200)
+                    888
+                }
+            }
+
+            println("unreachable_after_inner")
+            inner
+        } with {
+            EffectA.fireA(e: Int) -> {
+                println("middle_catch_A")
+                println(e)
+                // Re-perform EffectB: middle is self (inactive for EffectA, but also wrong effect).
+                // Should reach outer (catches EffectB).
+                EffectB.fireB(300)
+                777
+            }
+        }
+
+        println("unreachable_after_middle")
+        mid
+    } with {
+        EffectB.fireB(e: Int) -> {
+            println("outer_catch_B")
+            println(e)
+            55
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

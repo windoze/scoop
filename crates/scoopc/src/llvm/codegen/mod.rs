@@ -182,6 +182,16 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     immediate_resume_ctx_stack: Vec<effect::ImmediateResumeCtx<'ctx>>,
     /// `, k ->`（escape continuation，T0617）在单个函数内生成 step trampoline 时使用的序号。
     escape_continuation_seq: u32,
+    /// Effect op_tag 分配表（T1608）：FQN → 稳定的 u32 tag。
+    ///
+    /// 说明：
+    /// - 每个 effect operation 的 FQN 在单次编译中对应唯一的 `op_tag`；
+    /// - `scoop.core.Raise.raise` 固定为 1（与 runtime 约定兼容）；
+    /// - 其余 effect op 从 2 开始递增分配；
+    /// - runtime handler stack 的 `find_nearest(op_tag)` 以此做精确匹配。
+    effect_op_tag_map: HashMap<String, u32>,
+    /// 下一个可分配的 effect op_tag（从 2 开始，1 保留给 Raise）。
+    effect_op_tag_next: u32,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -234,7 +244,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             effect_unwind_target_stack: Vec::new(),
             immediate_resume_ctx_stack: Vec::new(),
             escape_continuation_seq: 0,
+            effect_op_tag_map: {
+                let mut m = HashMap::new();
+                // Raise.raise 固定为 1（与 runtime `scoop_continuation_resume_u64` 等约定兼容）。
+                m.insert("scoop.core.Raise.raise".to_string(), 1u32);
+                m
+            },
+            effect_op_tag_next: 2,
         }
+    }
+
+    /// 获取 effect operation 的稳定 op_tag（T1608）。
+    ///
+    /// 规则：
+    /// - `scoop.core.Raise.raise` → 1（固定；与 runtime 约定兼容）。
+    /// - 其余 effect op：首次出现时分配递增编号（从 2 开始），后续查表复用。
+    /// - 同一编译单元内 tag 稳定（相同 FQN 总是得到相同 tag）。
+    pub(super) fn effect_op_tag(&mut self, fqn: &str) -> u32 {
+        if let Some(&tag) = self.effect_op_tag_map.get(fqn) {
+            return tag;
+        }
+        let tag = self.effect_op_tag_next;
+        self.effect_op_tag_next = self.effect_op_tag_next.saturating_add(1);
+        self.effect_op_tag_map.insert(fqn.to_string(), tag);
+        tag
     }
 
     pub(crate) fn declare_top_level_fun(

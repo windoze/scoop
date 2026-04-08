@@ -1139,6 +1139,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    pub(super) fn declare_runtime_effect_handler_stack_unwind_to_tag(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_UNWIND_TO_TAG;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+
+        // `void scoop_effect_handler_stack_unwind_to_tag(uint32_t op_tag)`
+        let i32_ty = self.context.i32_type();
+        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i32_ty.into()];
+        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     pub(super) fn declare_runtime_effect_handler_stack_swap_top(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_EFFECT_HANDLER_STACK_SWAP_TOP;
         if let Some(existing) = self.module.get_function(NAME) {

@@ -49,6 +49,7 @@
   X(scoop_effect_handler_stack_push) \
   X(scoop_effect_handler_stack_set_active) \
   X(scoop_effect_handler_stack_swap_top) \
+  X(scoop_effect_handler_stack_unwind_to_tag) \
   X(scoop_effect_handler_stack_top) \
   X(scoop_effect_is_active) \
   X(scoop_effect_perform_slot_read_len_words) \
