@@ -390,14 +390,36 @@ cargo run -p scoop --features llvm -- test
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d
 
-### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）显式验证
-- 描述：显式验证 perform 不要求作为 handle body 的”直接语句”，允许出现在被调用函数或闭包中（含多层调用链），且捕获的 continuation 仍精确到外层 handle 边界。
-- 目标：新增 run-pass fixtures 覆盖：
-  - `handle { f() } with ...`，其中 `f()` 内部 perform（含 `f -> g -> perform` 的调用链）；
-  - closure 中 perform（closure 捕获 handle body 中定义的 locals，resume 后继续正确读取/更新这些 locals）；
-  - 组合：在 `if/loop` 中调用闭包/函数触发 perform，验证 lift + pc 恢复正确。
+### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）
+- 描述：当前 escape continuation 的 state machine 只支持 handle body 内的**直接** `val x = perform` 语句。间接 perform（在被调用函数或闭包中 perform）需要 call-site suspension 支持：handle body 的 step function 需要识别哪些 call 可能 perform，在 resume 时重新进入 call 并让被调用函数从 perform 点恢复。这是 escape continuation 迈向完整 algebraic effect 语义的关键一步。
+- 拆分为以下子任务：
+
+### T1606f-1 [TODO] Escape continuation indirect perform：non-resuming（flag-propagation）验证
+- 描述：对 non-resuming effect（handler arm 不使用 continuation `k`），间接 perform 通过 flag-propagation + handler stack dispatch 已经可以工作（与 Raise 相同路径）。本子任务验证这一路径并补充 fixtures。
+- 目标：新增 run-pass fixtures：
+  - `handle { f() } with { Effect.op(), k -> { /* no resume */ } }`，其中 `f()` 内部 perform；
+  - 多层调用链 `f -> g -> perform`；
+  - 闭包中 perform（non-resuming arm）。
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d
+
+### T1606f-2 [TODO] Escape continuation indirect perform：call-site suspension 设计与 codegen
+- 描述：为 handle body 的 step function 引入 call-site suspension 点：当 body 中的 call `f()` 可能 perform 时，step function 需要在该 call 前后保存/恢复状态，使 resume 时能重新进入该 call 并由被调用函数完成自身的 resumption。
+- 目标：
+  - 扫描 handle body 中的 call 表达式，标记可能触发匹配 effect 的 call 为”suspension call-site”；
+  - 在 step function 中为每个 suspension call-site 分配一个 pc 值，保存 call 前的 locals，resume 时跳到 call-site 并重新调用；
+  - 被调用函数的 resume 依赖 handler stack dispatch（已有）+ flag-propagation（已有）；
+  - 验证单层 call（`handle { f() } with ...`，`f()` 内部单 perform + resume）的正确性。
+- 验收：新增 run-pass fixture + GC stress 稳定。
+- 依赖：T1606f-1
+
+### T1606f-3 [TODO] Escape continuation indirect perform：闭包中 perform + locals 联动
+- 描述：闭包中 perform 时，闭包捕获的 locals 来自 handle body 的作用域。resume 后闭包需要看到 handle body 中 locals 的最新值（lift 已保存 + 恢复）。本任务验证闭包 + escape continuation 的组合语义。
+- 目标：新增 run-pass fixtures：
+  - closure 捕获 handle body locals，perform 在 closure 内，resume 后继续在 handle body 中正确读取/更新 locals；
+  - 组合：if/while 中调用闭包触发 perform。
+- 验收：fixtures 在 `--gc-stress` 下稳定。
+- 依赖：T1606f-2
 
 ### T1606g [TODO] Escape continuation：嵌套 handle 下的 perform 分发（内层 perform 由外层捕获）显式验证
 - 描述：显式验证 nested handle 的 handler stack 分发与 active/inactive 规则：在内层 `handle` 的 body/arm 中触发的 perform，若不被内层匹配，应由外层正确捕获并在 resume 后回到原控制流。
@@ -421,7 +443,7 @@ cargo run -p scoop --features llvm -- test
   - 复跑 try/catch/finally 相关 fixtures，确保无回归。
 - 依赖：T1606、T1608（需要统一 dispatch/unwind 语义作为基础）
 
-### T1610 [TODO] LLVM：控制流表达式返回任意类型（`handle`/`if`/`when` 支持 tuple/struct/enum）
+### T1610 [DONE] LLVM：控制流表达式返回任意类型（`handle`/`if`/`when` 支持 tuple/struct/enum）
 - 描述：当前 LLVM codegen 对 `handle`/`if`/`when` 的结果类型仍是“标量子集”：只支持 `Unit/Bool/Int/String/Ref`，对 `tuple/struct/enum` 直接报错（例如 `handle result type` / `if result type` / `when result type`）。这与语言层面“表达式可返回任意类型”的预期不一致，也迫使 fixtures/stdlib 在一些位置用 workaround（例如把结果塞进 `Any` 或拆成多段语句）。
 - 目标：
   - `handle { ... } with { ... }` 作为表达式：结果类型覆盖 `Unit/Bool/Int/String/Ref/tuple/struct/enum`（值类型以 by-value aggregate 形式返回/传递，ref/string 仍按 GC 指针）。
@@ -432,7 +454,7 @@ cargo run -p scoop --features llvm -- test
   - （可选）新增 build fixtures：`--emit-llvm` 对关键 IR 形态做 contains/not-contains 断言（例如避免 ptr<->int 编码、确认 result slot/aggregate load/store 形态稳定）。
 - 依赖：无（但建议与 T1606/T1607/T1608 的 GC/effect 回归一起跑，以尽早暴露“复合值 + statepoint”交互问题）
 
-### T1611 [TODO] LLVM：语句位置的 `handle` 不应依赖“期望类型语境” workaround
+### T1611 [DONE] LLVM：语句位置的 `handle` 不应依赖”期望类型语境” workaround
 - 描述：当前 LLVM codegen 的 `handle` 必须在“期望类型语境”（expected type context）下生成；但 `StmtKind::Expr`（表达式语句）路径会直接走 `codegen_expr(expr)`，导致 `handle { ... } with { ... }` 作为语句时报错，于是 fixtures 只能写 `val _: Unit = handle { ... } ...` 来人为提供 expected `Unit`。
 - 目标：
   - 统一语句位置的语义：表达式语句的值应被丢弃，因此在 LLVM codegen 里应默认以 `Unit` 作为 expected（对 `handle/if/when/perform` 等都一致），而不是要求源码额外引入 `val _: Unit = ...` 绑定。
