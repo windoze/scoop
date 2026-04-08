@@ -447,7 +447,7 @@ cargo run -p scoop --features llvm -- test
     - `effect_escape_continuation_indirect_perform_closure_locals`：闭包捕获 `x: Int` 和 `label: String`（GC ref），验证 Int + String 混合 captures 在 suspend/resume 后存活。
   - 两个 fixtures 均在 `SCOOP_GC_STRESS=1` 下通过。
 
-### T1606g [TODO] Escape continuation：嵌套 handle 下的 perform 分发（内层 perform 由外层捕获）显式验证
+### T1606g [DONE] Escape continuation：嵌套 handle 下的 perform 分发（内层 perform 由外层捕获）显式验证
 - 描述：显式验证 nested handle 的 handler stack 分发与 active/inactive 规则：在内层 `handle` 的 body/arm 中触发的 perform，若不被内层匹配，应由外层正确捕获并在 resume 后回到原控制流。
 - 目标：新增 run-pass fixtures 覆盖：
   - 外层 handle 捕获 EffectB；内层 handle 捕获 EffectA；在内层 body 中 perform EffectB，应由外层处理；
@@ -455,6 +455,13 @@ cargo run -p scoop --features llvm -- test
   - 组合：outer resume 后继续推进 inner 的多 perform state machine，保证顺序/返回值正确。
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d（含 T1608）
+- 完成说明：
+  - **前置修复**：移除 `CalleeSuspendSaveCtx` 中未使用的 `perform_binding_id` 和 `perform_binding_cg_ty` 字段（latest commit 引入的 clippy dead_code 警告）。
+  - **新增 3 个 run-pass fixtures**：
+    - `effect_escape_continuation_nested_dispatch_body_to_outer`：inner escape-cont handler 走 no-perform degenerate 路径（body 不 perform EffectA），body 内直接 perform `EffectB.fireB(42)` → outer non-resuming handler 捕获。验证：escape-cont no-perform path + 外层 handler flag-propagation 正确。
+    - `effect_escape_continuation_nested_arm_indirect_performs_outer`：inner escape-cont handler 捕获 EffectA，arm 通过 `doFire()` 函数间接 perform EffectB → outer non-resuming handler 捕获。验证：arm body 中的间接 perform（CalleeSuspend）正确 flag-propagate 到外层 handler。
+    - `effect_escape_continuation_nested_outer_resume_inner_multi`：inner escape-cont handler 捕获 EffectA（2 个 perform 点），arm 保存 continuation k。Handle 退出后，outer body 依次 resume k1 和 k2 推进 inner state machine，最后 perform EffectB → outer non-resuming handler 捕获。验证：多 perform state machine 在 outer handler body 作用域内正确运行 + outer handler 不干扰 inner EffectA 分发。
+  - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1609 [TODO] `finally` + escaping continuation：unwind/cleanup 的组合语义
 - 描述：当前 escaping continuation 的 `handle` 明确不支持 `finally`。要实现完整 effect 语义，必须定义并实现：当计算被 suspend / resume / abandon 时，`finally` 的执行时机与次数规则（并保证与 flag-based unwinding 一致）。

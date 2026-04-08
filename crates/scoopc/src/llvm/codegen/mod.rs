@@ -137,10 +137,6 @@ pub(super) struct CalleeSuspendLocal {
 pub(super) struct CalleeSuspendSaveCtx {
     /// Locals to save at the perform point.
     pub saved_locals: Vec<CalleeSuspendLocal>,
-    /// The perform binding's SymbolId (the val that receives the resume value).
-    pub perform_binding_id: hir::SymbolId,
-    /// The perform binding's CgTy.
-    pub perform_binding_cg_ty: CgTy,
 }
 
 /// T1606f-2: Info from pre-scanning a function body for callee suspension.
@@ -724,8 +720,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(fresh_bb);
         self.callee_suspend_save_ctx = Some(CalleeSuspendSaveCtx {
             saved_locals: saved_locals.clone(),
-            perform_binding_id: info.perform_binding_id,
-            perform_binding_cg_ty,
         });
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(fun.span, declared_return_cg, ret_v)?;
@@ -8575,8 +8569,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(fresh_bb);
         self.callee_suspend_save_ctx = Some(CalleeSuspendSaveCtx {
             saved_locals: saved_locals.clone(),
-            perform_binding_id: info.perform_binding_id,
-            perform_binding_cg_ty,
         });
         let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
         self.emit_return(span, declared_return_cg, ret_v)?;

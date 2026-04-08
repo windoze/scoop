@@ -1,0 +1,101 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_nested_outer_resume_inner_multi.stdout
+//
+// T1606g: Nested handle dispatch — outer resume continues inner multi-perform state machine.
+// - Outer non-resuming handler catches EffectB.
+// - Inner escape-continuation handler catches EffectA with 2 perform points.
+// - Inner arm saves continuation k without performing EffectB.
+// - After inner handle exits, outer body resumes k1 → inner body advances to 2nd perform.
+// - Outer body resumes k2 → inner body completes.
+// - After inner state machine finishes, outer body performs EffectB → outer catches.
+// - Verifies: multi-perform state machine works correctly when running within
+//   an outer handler's body scope; outer handler does not interfere with inner
+//   EffectA dispatch; outer EffectB dispatch works after inner completes.
+
+import scoop.core.*
+
+effect EffectA {
+    fun askA(): Int
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+class CellK(var k: Continuation<Int>?)
+
+fun main(): Int {
+    val none_k: Continuation<Int>? = None()
+    val cell: CellK = CellK(none_k)
+
+    val result: Int = handle {
+        println("outer_body")
+
+        // Inner: escape-continuation for EffectA, 2 perform points.
+        val _: Unit = handle {
+            println("inner_body_start")
+
+            val a1: Int = EffectA.askA()
+            println("inner_after_1")
+            println(a1)
+
+            val a2: Int = EffectA.askA()
+            println("inner_after_2")
+            println(a2)
+
+            println("inner_body_done")
+            println(a1 + a2)
+        } with {
+            EffectA.askA(), k -> {
+                println("inner_arm")
+                cell.k = Some(k)
+            }
+        }
+
+        println("after_inner_handle")
+
+        // Resume k1: inner body advances to 2nd perform.
+        when (cell.k) {
+            Some(k1) -> {
+                cell.k = none_k
+                println("resume_1")
+                val _: Unit = try {
+                    k1.resume(10)
+                } catch (e: RuntimeError) {
+                    println("resume_1_err")
+                }
+            }
+            None -> println("no_k1")
+        }
+        println("after_resume_1")
+
+        // Resume k2: inner body completes.
+        when (cell.k) {
+            Some(k2) -> {
+                cell.k = none_k
+                println("resume_2")
+                val _: Unit = try {
+                    k2.resume(20)
+                } catch (e: RuntimeError) {
+                    println("resume_2_err")
+                }
+            }
+            None -> println("no_k2")
+        }
+        println("after_resume_2")
+
+        // Now perform EffectB — outer handler catches it.
+        EffectB.fireB(42)
+        999
+    } with {
+        EffectB.fireB(code: Int) -> {
+            println("outer_catch_B")
+            println(code)
+            code + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

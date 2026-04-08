@@ -1,0 +1,52 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_nested_dispatch_body_to_outer.stdout
+//
+// T1606g: Nested handle dispatch — inner escape-cont body performs outer effect.
+// - Outer non-resuming handler catches EffectB.
+// - Inner escape-continuation handler catches EffectA (but body never performs EffectA).
+// - Inner body directly performs EffectB → should propagate to outer handler.
+// - Verifies: non-matching effect from escape-continuation body (0-perform path)
+//   correctly flag-propagates to the nearest matching outer handler.
+
+import scoop.core.*
+
+effect EffectA {
+    fun askA(): Int
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("outer_body")
+
+        // Inner: escape-continuation for EffectA, but body never performs EffectA.
+        // The handle takes the no-perform degenerate path (T1606a).
+        val _: Unit = handle {
+            println("inner_body")
+            // Perform EffectB — not matched by inner → propagates to outer.
+            EffectB.fireB(42)
+            // Unreachable: EffectB returns Nothing.
+            println("unreachable_inner")
+        } with {
+            EffectA.askA(), k -> {
+                println("unreachable_arm")
+            }
+        }
+
+        println("unreachable_outer")
+        999
+    } with {
+        EffectB.fireB(code: Int) -> {
+            println("outer_catch_B")
+            println(code)
+            code + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}
