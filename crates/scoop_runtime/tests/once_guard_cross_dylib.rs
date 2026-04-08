@@ -98,10 +98,13 @@ extern void scoop_once_end(uint64_t* guard_word);
 // macOS：dlsym("NAME") 会按 C 语义查找，并自动补一个前导 '_' 变为 "_NAME"。
 // 因此为了让 `dlsym(RTLD_DEFAULT, "{guard_symbol}")` 能命中，这里把实际导出符号名设为 "_{guard_symbol}"。
 // Linux：dlsym 不会自动补 '_'，所以直接使用 "{guard_symbol}" 即可。
+// Linux：使用 protected visibility 防止 RTLD_GLOBAL 下的符号互位 (interposition)，
+// 确保每个 dylib 的 &local_guard 指向自己的副本。在 glibc >= 2.36 上，
+// dlsym(RTLD_DEFAULT, ...) 能正确找到 protected 符号。
 #if defined(__APPLE__)
 uint64_t local_guard __asm("_{guard_symbol}") = 0;
 #else
-uint64_t local_guard __asm("{guard_symbol}") = 0;
+uint64_t __attribute__((visibility("protected"))) local_guard __asm("{guard_symbol}") = 0;
 #endif
 
 uintptr_t plugin_local_guard_addr(void) {{

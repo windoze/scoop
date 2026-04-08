@@ -259,9 +259,15 @@ static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbed
     },
 };
 
+// 注意：使用 `llvm_stackmaps`（无前导点）而非 `.llvm_stackmaps`（LLVM 实际生成的名称）。
+// 原因：GNU ld 只为名称是合法 C 标识符的 section 生成 `__start_`/`__stop_` 边界符号；
+// `.llvm_stackmaps` 以点开头，不是合法 C 标识符，因此 GNU ld 不会生成边界符号。
+// LLD 会自动剥除前导点（`.llvm_stackmaps` → `__start_llvm_stackmaps`），但
+// cargo/rustc 在大多数 Linux 发行版上默认使用 GNU ld。
+// 此处使用无点名称保证两种链接器都能正确生成边界符号，使 smoke test 稳定通过。
 #[cfg(not(target_vendor = "apple"))]
 #[used]
-#[unsafe(link_section = ".llvm_stackmaps")]
+#[unsafe(link_section = "llvm_stackmaps")]
 static EMBEDDED_STACKMAP_SECTION: StackMapSectionEmbedded = StackMapSectionEmbedded {
     header: StackMapHeader {
         version: 3,
