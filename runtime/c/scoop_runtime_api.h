@@ -23,11 +23,15 @@
 #define SCOOP_RUNTIME_API_SYMBOLS(X) \
   X(__start_llvm_stackmaps) \
   X(__stop_llvm_stackmaps) \
+  X(__scoop_callee_suspend_state) \
   X(__scoop_effect_active) \
   X(__scoop_effect_handler_stack_top) \
   X(__scoop_effect_perform_slot) \
   X(scoop_alloc) \
   X(scoop_alloc_typed) \
+  X(scoop_callee_suspend_state_clear) \
+  X(scoop_callee_suspend_state_get) \
+  X(scoop_callee_suspend_state_set) \
   X(scoop_array_builder_build_array) \
   X(scoop_array_builder_build_mutable_array) \
   X(scoop_array_builder_new) \
