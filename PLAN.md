@@ -189,8 +189,11 @@ cargo run -p scoop --features llvm -- test
   - T1606c（DONE）：多 perform（pc + heap state machine）— 含 GC stackmap walker 修复：walk-through C frames 以覆盖 main→resume_u64(C)→step_fn 场景
   - T1608（DONE）：op_tag 稳定分配与统一 dispatch — T1606d 的前置依赖
   - T1607（DONE）：resume payload 泛型化（u64 → 任意 T）— 双通道 ABI（resume_word + resume_gc_ref），step 函数 3 参数签名，compound 类型 box/unbox
+  - **T1706**：多 perform 点回归 fixtures（async/await 真实写法）— T1606d 的前置依赖，已从 T17 提前
+  - **T1707**：控制流 + 多次 suspension 回归 fixtures — T1606d 的前置依赖，已从 T17 提前
   - T1606d：多 perform + 动态上下文/GC 回归加固（依赖 T1608 + T1706/T1707）
   - T1606e~g：控制流/间接 perform/嵌套 handle 的显式验证
+- 顺序调整说明（2026-04-08）：T1606d 依赖 T1706/T1707 的 fixtures 作为验收基础，但 T1706/T1707 原在 T17（验证套件）中排在 T1606d 之后。由于 T1706/T1707 的前置依赖（T1606a-c、T1608）均已完成，将其提前到 T16 中 T1606d 之前执行，确保依赖顺序正确。
 - 设计要点（implementation-level 约束）：
   - handler 分发必须以稳定 `op_tag` 为核心（Appendix A：最近匹配 + active/inactive）；fqn 字符串仅作为诊断输出。
   - escaping continuation 的状态机应以 heap state 表示（pc + lifted locals），并在每次 perform 处生成 continuation；resume 进入 step trampoline 继续推进直到下一次 perform 或完成。

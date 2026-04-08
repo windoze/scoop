@@ -343,6 +343,28 @@ cargo run -p scoop --features llvm -- test
   - **Fixtures**：新增 4 个 run-pass fixtures——`effect_escape_continuation_resume_unit`、`effect_escape_continuation_resume_bool`、`effect_escape_continuation_resume_string`、`effect_escape_continuation_resume_string_multi`（含多次 suspend/resume）。
   - **备注**：Tuple/Struct/Enum compound payload 的 codegen 路径已实现（box+unbox），但缺少 run-pass fixtures，因为 `Continuation<(Int,String)>` / `Continuation<MyStruct>` 需要 T1610（控制流表达式返回 compound 类型）先落地才能端到端验证。
 
+### T1706 [TODO] 多 perform 点（单个 handle）：async/await 真实写法回归
+- 描述：新增一组 fixtures，专门覆盖"单个 escape-continuation `handle` body 内出现多个 perform 点"的真实写法（例如连续 `await` 两到三次），不允许用"嵌套 handle / 二段 handle"的 workaround。
+- 目标：
+  - 覆盖：两次以上 suspension/resume；resume 后继续执行并再次 suspension。
+  - 覆盖：perform 前后都有普通语句与局部变量（确保 state machine 的 local lifting 正确）。
+  - 覆盖：arm body 将 continuation 入队（模拟 executor），并按确定性顺序恢复。
+- 验收：
+  - 新增 run-pass fixtures（stdout golden）：至少 2 个（一个单线程调度，一个跨线程 resume）。
+  - 所有用例在 `--gc-stress` 下稳定通过。
+- 依赖：T1606（多 perform codegen）、（历史）T0915a/T0618（跨线程 resume 运行期原语）
+
+### T1707 [TODO] 控制流 + 多次 suspension：if/when/循环边界的语义回归
+- 描述：针对多 suspension 点下最容易出错的控制流形态新增 fixtures：`if/when` 分支在不同路径上 perform 次数不同、以及在循环体内 suspension（至少先覆盖"有限次迭代的 while/for 等价形态"）。
+- 目标：
+  - 覆盖：分支合流（phi）上的局部变量在 suspend/resume 后仍正确。
+  - 覆盖：同一局部变量跨多个 suspension 点读写（包含 value/ref 混合）。
+  - 覆盖：arm 内 re-perform 与外层 handler 的交互（active/inactive 规则）。
+- 验收：
+  - 新增 run-pass fixtures：至少 3 个用例（分支/合流、循环、re-perform）。
+  - 可选 build fixtures：对关键 IR 形态做 contains 断言（例如 state machine 的 pc/dispatch 存在）。
+- 依赖：T1606、T1608
+
 ### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
 - 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。
 - 验收：复跑既有 fixtures；补充嵌套 handler / re-perform / 跨线程 resume 的组合用例。
@@ -473,28 +495,6 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：至少 2 个多线程用例（stdout 稳定），并在 `--gc-stress` 与默认模式均可通过。
   - 为避免 flakiness，必须固定调度策略（barrier/顺序号/确定性调度器）。
 - 依赖：（历史）多线程 STW/线程注册/并发分配基础能力已存在
-
-### T1706 [TODO] 多 perform 点（单个 handle）：async/await 真实写法回归
-- 描述：新增一组 fixtures，专门覆盖“单个 escape-continuation `handle` body 内出现多个 perform 点”的真实写法（例如连续 `await` 两到三次），不允许用“嵌套 handle / 二段 handle”的 workaround。
-- 目标：
-  - 覆盖：两次以上 suspension/resume；resume 后继续执行并再次 suspension。
-  - 覆盖：perform 前后都有普通语句与局部变量（确保 state machine 的 local lifting 正确）。
-  - 覆盖：arm body 将 continuation 入队（模拟 executor），并按确定性顺序恢复。
-- 验收：
-  - 新增 run-pass fixtures（stdout golden）：至少 2 个（一个单线程调度，一个跨线程 resume）。
-  - 所有用例在 `--gc-stress` 下稳定通过。
-- 依赖：T1606（多 perform codegen）、（历史）T0915a/T0618（跨线程 resume 运行期原语）
-
-### T1707 [TODO] 控制流 + 多次 suspension：if/when/循环边界的语义回归
-- 描述：针对多 suspension 点下最容易出错的控制流形态新增 fixtures：`if/when` 分支在不同路径上 perform 次数不同、以及在循环体内 suspension（至少先覆盖“有限次迭代的 while/for 等价形态”）。
-- 目标：
-  - 覆盖：分支合流（phi）上的局部变量在 suspend/resume 后仍正确。
-  - 覆盖：同一局部变量跨多个 suspension 点读写（包含 value/ref 混合）。
-  - 覆盖：arm 内 re-perform 与外层 handler 的交互（active/inactive 规则）。
-- 验收：
-  - 新增 run-pass fixtures：至少 3 个用例（分支/合流、循环、re-perform）。
-  - 可选 build fixtures：对关键 IR 形态做 contains 断言（例如 state machine 的 pc/dispatch 存在）。
-- 依赖：T1606、T1608
 
 ---
 
