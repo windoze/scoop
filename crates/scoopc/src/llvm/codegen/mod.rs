@@ -280,9 +280,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|e| e.symbol.as_str())
             .unwrap_or(fun.fqn.as_str());
 
+        let has_body = fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn);
+
+        // LLVM's gc.result cannot lower aggregate types (struct/tuple/enum) that span
+        // multiple physical registers — causes "Cannot emit physreg copy instruction".
+        // For functions returning GC-free aggregates, we mark them as `gc-leaf-function`
+        // so that `rewrite-statepoints-for-gc` skips statepoint wrapping at call sites,
+        // avoiding the aggregate gc.result issue.
+        //
+        // Safety: GC-free aggregate constructors (e.g. IntProgression.rangeTo/downTo)
+        // don't trigger GC, so treating them as leaf is correct. For more complex
+        // functions that return GC-free aggregates but perform internal GC operations,
+        // the proper fix is to convert aggregate returns to sret (TODO: future task).
+        let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
+
         if let Some(existing) = self.module.get_function(llvm_name) {
-            if fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn) {
+            if has_body {
                 existing.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+            }
+            if returns_gc_free_aggregate {
+                let attr = self
+                    .context
+                    .create_string_attribute("gc-leaf-function", "");
+                existing.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
             }
             return Ok(existing);
         }
@@ -315,8 +335,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = self.module.add_function(llvm_name, fn_ty, linkage);
         // `@CallingConvention(...)`：缺省为 C ABI（LLVM callconv 0）。
         llvm_fun.set_call_conventions(self.llvm_call_convention_for_fqn(&fun.fqn));
-        if fun.body.is_some() && !self.extern_funs.contains_key(&fun.fqn) {
+        if has_body {
             llvm_fun.set_gc(super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+        }
+        if returns_gc_free_aggregate {
+            let attr = self
+                .context
+                .create_string_attribute("gc-leaf-function", "");
+            llvm_fun.add_attribute(inkwell::attributes::AttributeLoc::Function, attr);
         }
         Ok(llvm_fun)
     }

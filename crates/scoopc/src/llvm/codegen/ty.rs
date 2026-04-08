@@ -94,6 +94,104 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// Check if a return type is a GC-free aggregate (struct/tuple/enum containing no
+    /// GC reference fields). LLVM's `gc.result` cannot lower aggregate types that span
+    /// multiple physical registers during statepoint lowering, so functions returning
+    /// such types must not have `gc "statepoint-example"`.
+    pub(super) fn returns_gc_free_aggregate(&self, return_ty: TypeId) -> bool {
+        let Some(cg) = self.cg_ty_of(return_ty) else {
+            return false;
+        };
+        match cg {
+            CgTy::Struct(type_id) => self.struct_type_is_gc_free(type_id),
+            CgTy::Tuple(type_id) => self.tuple_type_is_gc_free(type_id),
+            CgTy::Enum(type_id) => self.enum_type_is_gc_free(type_id),
+            _ => false,
+        }
+    }
+
+    /// Check if a struct type contains no GC references (String/Ref) in any of its fields.
+    fn struct_type_is_gc_free(&self, ty: TypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return false;
+        };
+        let Some(layout) = self.struct_layouts.get(&nominal.fqn) else {
+            return false;
+        };
+        layout
+            .fields
+            .iter()
+            .all(|f| f.ty_fqn.as_deref().map_or(false, |fqn| self.type_fqn_is_gc_free(fqn)))
+    }
+
+    /// Check if a tuple type contains no GC references in any of its elements.
+    fn tuple_type_is_gc_free(&self, ty: TypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Tuple(elems)) = self.types.kind(ty) else {
+            return false;
+        };
+        elems.iter().all(|elem_ty| {
+            self.cg_ty_of(*elem_ty)
+                .map_or(false, |cg| !matches!(cg, CgTy::String | CgTy::Ref))
+        })
+    }
+
+    /// Check if an enum type contains no GC references in any variant's fields.
+    fn enum_type_is_gc_free(&self, ty: TypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return false;
+        };
+        let Some(layout) = self.enum_layouts.get(&nominal.fqn) else {
+            return false;
+        };
+        layout.variants.iter().all(|v| {
+            v.fields.iter().all(|f| {
+                f.ty_fqn.as_deref().map_or(false, |fqn| self.type_fqn_is_gc_free(fqn))
+            })
+        })
+    }
+
+    /// Check if a type FQN refers to a GC-free type (value type with no reference fields).
+    fn type_fqn_is_gc_free(&self, fqn: &str) -> bool {
+        match fqn {
+            "scoop.core.Unit" | "scoop.core.Bool" | "scoop.core.Int" | "scoop.core.UInt"
+            | "scoop.core.UIntPtr" => true,
+            "scoop.core.String" | "scoop.core.Any" => false,
+            other => {
+                // Fixed-width integer types: Int8, Int16, Int32, Int64, UInt8, etc.
+                if let Some(suffix) = other.strip_prefix("scoop.core.Int") {
+                    if suffix.parse::<u32>().is_ok() {
+                        return true;
+                    }
+                }
+                if let Some(suffix) = other.strip_prefix("scoop.core.UInt") {
+                    if suffix.parse::<u32>().is_ok() {
+                        return true;
+                    }
+                }
+                // Nested struct: check its fields recursively.
+                if let Some(layout) = self.struct_layouts.get(other) {
+                    return layout.fields.iter().all(|f| {
+                        f.ty_fqn
+                            .as_deref()
+                            .map_or(false, |inner| self.type_fqn_is_gc_free(inner))
+                    });
+                }
+                // Nested enum: check its variant fields recursively.
+                if let Some(layout) = self.enum_layouts.get(other) {
+                    return layout.variants.iter().all(|v| {
+                        v.fields.iter().all(|f| {
+                            f.ty_fqn
+                                .as_deref()
+                                .map_or(false, |inner| self.type_fqn_is_gc_free(inner))
+                        })
+                    });
+                }
+                // Unknown type: assume not GC-free (conservative).
+                false
+            }
+        }
+    }
+
     pub(super) fn cg_ty_of_type_fqn(
         &self,
         at: crate::span::Span,
