@@ -12,6 +12,10 @@
 // - 当前解析逻辑以 little-endian 为主（host x86_64/arm64 均为 LE）。
 // - 为了让 “未包含 stackmap section 的程序” 仍能运行：找不到 section 时不报错，只返回 0。
 
+#if defined(__linux__)
+#define _GNU_SOURCE   // dl_iterate_phdr / struct dl_phdr_info require __USE_GNU
+#endif
+
 #include "scoop_stackmap.h"
 
 #include <pthread.h>

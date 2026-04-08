@@ -41,6 +41,38 @@ pub use target::{HostTargetInfo, LlvmTargetError};
 /// - 当前阶段先复用 LLVM 内置的 `statepoint-example`，后续若需要更精细的 roots 策略再引入自定义 GC strategy。
 pub(crate) const LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE: &str = "statepoint-example";
 
+fn configure_llvm_global_options_once() {
+    // 说明：
+    // - 我们使用 LLVM statepoint + stackmap 做 moving GC roots 枚举/更新；
+    // - runtime 目前只支持更新“可写回的 spill slots roots”（栈槽 `void**`），不支持把 GC 指针放在寄存器里；
+    // - LLVM 后端在某些情况下会把 GC pointers 放进 callee-saved registers，并依赖
+    //   `fixup-statepoint-caller-saved` 等机器层 pass 做额外处理；
+    // - 在 `SCOOP_GC_STRESS=1` 下（频繁触发 compaction），若存在寄存器 roots，
+    //   可能导致 roots 未被更新而产生 use-after-move（典型症状：值“偶发变回 None/0”，T1606c）。
+    //
+    // v0 策略：强制禁用 “GC Ptrs in registers”，让所有 roots 走 spill slots，从而匹配 runtime 能力边界。
+    #[cfg(feature = "llvm")]
+    {
+        use std::sync::Once;
+
+        static ONCE: Once = Once::new();
+        ONCE.call_once(|| unsafe {
+            use std::ffi::c_char;
+
+            let arg0 = b"scoopc\0";
+            let arg1 = b"-fixup-max-csr-statepoints=0\0";
+            let args: [*const c_char; 2] = [arg0.as_ptr().cast(), arg1.as_ptr().cast()];
+
+            // Safety: LLVM global CLI options; must be called before codegen.
+            llvm_sys::support::LLVMParseCommandLineOptions(
+                args.len() as i32,
+                args.as_ptr(),
+                std::ptr::null(),
+            );
+        });
+    }
+}
+
 /// LLVM codegen（早期阶段）的错误集合。
 #[derive(Debug, Error, Diagnostic)]
 pub enum LlvmEmitError {
@@ -471,6 +503,8 @@ fn build_main_module_from_lowered_hir<'ctx>(
     lowered: &hir::LoweredHir,
     entry_main_fqn: Option<&str>,
 ) -> Result<inkwell::module::Module<'ctx>, LlvmEmitError> {
+    configure_llvm_global_options_once();
+
     let module_name = module_name_from_path(source.path());
     let module = context.create_module(&module_name);
 
@@ -713,7 +747,12 @@ fn llvm_pass_pipeline_for_opt_level(opt_level: OptLevel) -> String {
 
     // GC/statepoint 约束：大多数优化放在 rewrite 之前；rewrite 之后只跑轻量清理，避免在
     // `gc.statepoint/gc.relocate` 之后引入更多不确定性。
-    passes.push_str("function(sroa,mem2reg),rewrite-statepoints-for-gc");
+    // 注意：moving GC 的 roots 更新目前只支持“可写回的 spill slots”（栈槽），不支持寄存器 roots。
+    // 在 LLVM 后端启用 mem2reg 后，某些 GC 指针可能会长时间停留在寄存器中，导致 compaction 后
+    // root 未被更新，从而在 `SCOOP_GC_STRESS=1` 下出现 use-after-move/语义错乱（T1606c）。
+    //
+    // v0 策略：在 statepoint rewrite 之前只跑 SROA，不跑 mem2reg，尽量让 roots 落在可写回的栈槽。
+    passes.push_str("function(sroa),rewrite-statepoints-for-gc");
     if opt_level != OptLevel::O0 {
         passes.push_str(",function(instcombine,simplifycfg)");
     }

@@ -682,9 +682,9 @@ mod tests {
     use super::*;
     use crate::parser::parse_file;
     use crate::resolve::{ImportTable, Index};
+    use crate::ty::TypeStore;
     use crate::typecheck::TypeEnv;
     use crate::typecheck::assignable::is_type_assignable;
-    use crate::ty::TypeStore;
 
     #[test]
     fn nothing_is_assignable_to_any_type() {

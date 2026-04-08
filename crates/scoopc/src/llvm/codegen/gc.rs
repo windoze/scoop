@@ -1465,8 +1465,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // 必须走统一写屏障 hook，避免形成 old→nursery 指针（minor GC 的关键前置条件）。
                 //
                 // 注意：locals/alloca 在 addrspace(0)，因此不会触发该分支。
-                if matches!(ty, CgTy::Ref | CgTy::String)
-                    && ptr.get_type().get_address_space() == self.gc_address_space()
+                if ptr.get_type().get_address_space() == self.gc_address_space()
+                    && needs_write_barrier_for_value_ty(self, at, ty)?
                 {
                     let BasicValueEnum::PointerValue(value_ptr) = raw else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
@@ -1477,11 +1477,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     let wb = self.declare_runtime_gc_write_barrier();
                     let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+                    let i8_ptr_ty = self.llvm_i8_ptr_type();
 
                     // `slot_addr`：传入“slot 的地址”即可；runtime 用 memcpy 写回（避免 strict alias UB）。
-                    let slot_addr =
-                        self.builder
-                            .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr")?;
+                    //
+                    // 注意：该地址只是 native 指针（C ABI `void*`），不应位于 GC address space；
+                    // 否则会被 statepoint/stackmap 当作 GC root，产生 derived/non-header roots。
+                    let slot_addr_i8_gc = self
+                        .builder
+                        .build_pointer_cast(ptr, gc_i8_ptr_ty, "gc_wb_slot_addr_i8_gc")?;
+                    let slot_addr = self.builder.build_address_space_cast(
+                        slot_addr_i8_gc,
+                        i8_ptr_ty,
+                        "gc_wb_slot_addr",
+                    )?;
                     let value_i8 = self.builder.build_pointer_cast(
                         value_ptr,
                         gc_i8_ptr_ty,
@@ -1499,5 +1508,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
         Ok(v)
+    }
+}
+
+fn needs_write_barrier_for_value_ty<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    at: crate::span::Span,
+    ty: CgTy,
+) -> Result<bool, LlvmEmitError> {
+    // 说明：
+    // - `write_barrier(slot, value)` 语义上针对“写入 slot 的 GC-managed 指针”；
+    // - 大多数情况下，这对应 `CgTy::Ref/String`；
+    // - 但 `Option<Ref>` 这类 enum 可能通过 niche 优化降为“直接用 payload 指针承载 enum 值”，
+    //   在 LLVM IR 侧同样表现为 `ptr addrspace(1)`；
+    //   若仅按 `CgTy::Ref/String` 判断，会漏掉这类 heap field store，从而在 `--gc-stress` 下出现回归。
+    match ty {
+        CgTy::Ref | CgTy::String => Ok(true),
+        CgTy::Enum(enum_ty) => {
+            // 仅处理“niche pointer enum，且 payload 是 GC 指针”的子集。
+            //
+            // 备注：更复杂的 tagged union enum 若被 inline 存入 heap slot，
+            // 需要对其内部每个 GC 字段做 barrier（后续任务统一处理）。
+            let layout = cg.cg_enum_layout(at, enum_ty)?;
+            match layout.repr {
+                CgEnumRepr::Niche {
+                    storage: NicheStorage::Pointer,
+                    ..
+                } => {
+                    let some_field_is_gc_ptr = layout
+                        .variants
+                        .first()
+                        .and_then(|v| v.fields.first())
+                        .is_some_and(|f| matches!(f, CgTy::Ref | CgTy::String));
+                    Ok(some_field_is_gc_ptr)
+                }
+                _ => Ok(false),
+            }
+        }
+        _ => Ok(false),
     }
 }

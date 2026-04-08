@@ -815,8 +815,20 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
     scoop_thread_register();
   }
 
+  // GC 安全性（T1606c）：
+  // `state` 是 GC heap 上的对象（ContState），但本函数接收的是 raw void*——
+  // 如果 scoop_alloc 触发 GC 并搬迁了 state，本函数持有的局部变量 `state` 不会被更新
+  // （C 函数没有 statepoint 信息），导致下面 `k->state = state` 存入悬空指针。
+  // 通过在分配前 pin 住 state，阻止 GC 搬迁它。
+  if (state != 0) {
+    scoop_pin(state);
+  }
+
   ScoopContinuation *k = (ScoopContinuation *)scoop_alloc((uint64_t)sizeof(ScoopContinuation));
   if (k == 0) {
+    if (state != 0) {
+      scoop_unpin(state);
+    }
     return 0;
   }
 
@@ -828,6 +840,10 @@ void *scoop_continuation_alloc(void *state, ScoopContinuationStepFn step_fn) {
   k->captured_handler_stack_top = __scoop_effect_handler_stack_top;
   k->state = state;
   k->step_fn = step_fn;
+
+  if (state != 0) {
+    scoop_unpin(state);
+  }
 
   return (void *)k;
 }

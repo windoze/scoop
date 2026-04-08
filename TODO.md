@@ -310,7 +310,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：新增 run-pass fixture：perform 前后各有语句，resume 后能读到 pre-perform locals。
 - 依赖：T1606a
 
-### T1606c [TODO] Escape continuation：多 perform 点（同一 handle body 内 2..N 次 suspend/resume）
+### T1606c [DONE] Escape continuation：多 perform 点（同一 handle body 内 2..N 次 suspend/resume）
 - 描述：引入可重入的 heap state machine（pc + lifted locals），使 step trampoline 每次推进到下一个 perform 或完成，并在每次 perform 处生成新的 continuation。
 - 验收：新增 run-pass fixtures：单 handle 内 2~3 次 yield/await（不使用嵌套 handle workaround），并在 `--gc-stress` 下稳定。
 - 依赖：T1606b

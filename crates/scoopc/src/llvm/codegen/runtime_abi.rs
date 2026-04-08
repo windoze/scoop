@@ -874,9 +874,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - `slot_addr` 是“slot 的地址”，而非 `void**` 的二级指针；
         // - v0 采用 promote-on-store，避免 old→nursery 指针；
         // - 返回值保留扩展点（未来可在需要时返回“写入后的新地址”）。
+        //
+        // GC/stackmap 重要性：
+        // - `slot_addr` 只是一个 native 地址（指向某个 heap field/array slot 的地址），并不是 GC-managed 指针；
+        // - 若把它声明为 `addrspace(1)`，LLVM statepoint 会把它当作 GC root 纳入 stackmap roots，
+        //   从而在 `SCOOP_GC_VERIFY_ROOTS=1` 下产生“root 不是对象头地址”的误报，并可能导致 roots 更新协议混乱。
+        // - 因此这里必须使用 `addrspace(0)` 指针类型承载 slot_addr（与 C ABI 的 `void*` 对齐）。
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] =
-            [gc_i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
+            [i8_ptr_ty.into(), gc_i8_ptr_ty.into()];
         let fn_ty = gc_i8_ptr_ty.fn_type(&param_tys, false);
         self.module.add_function(NAME, fn_ty, None)
     }

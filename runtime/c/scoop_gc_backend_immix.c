@@ -214,11 +214,10 @@ static uint32_t scoop_gc_stackmap_roots_frame_visitor(uintptr_t sp,
 
   ScoopStackmapRecordRef rec = {0};
   if (!scoop_stackmap_registry_lookup(ra, &rec)) {
-    // 约定（T1506b）：先跳过 runtime/系统帧，直到首次命中 record；随后一旦未命中 record，
-    // 视为“离开 managed frames”，停止继续 walk（避免对 pthread/libc 等帧 fail-fast）。
-    if (ctx->records_hit > 0) {
-      return 0;
-    }
+    // T1606c fix：总是继续 walk 非 managed 帧（例如 C runtime 函数如
+    // scoop_continuation_resume_u64），以找到调用链上所有 managed 帧的 roots。
+    // 旧逻辑（T1506b）在首个 managed 帧后遇到非 managed 帧即停止，
+    // 导致 main → resume_u64(C) → step_fn 场景下 main 帧的 roots 未被枚举/更新。
     return 1;
   }
 
@@ -2898,6 +2897,45 @@ static void scoop_gc_verify_root_slot_visitor(void **slot, void *raw_ctx) {
   if (!scoop_gc_heap_membership_index_contains(ctx->membership, ctx->heap, obj)) {
     scoop_gc_verify_roots_record_error(
         ctx->state, ctx->kind, ctx->thread_id, (const void *)slot, (const void *)raw, "invalid root");
+
+    // 诊断辅助：判断该值是否“看起来像某个 GC 对象内部的 derived pointer”。
+    //
+    // 说明：
+    // - stackmap roots 在 v0 约定下应当只包含对象头指针（`ScoopGcObjectHeader*`）；
+    // - 若 value 指向某个对象的 payload/字段中间位置，说明 codegen/statepoint roots 里混入了
+    //   derived pointer（常见于 `getelementptr` 结果跨越了 safepoint 并被当作 root 溢出到 spill slot）。
+    if (ctx->heap != 0) {
+      const uintptr_t addr = (uintptr_t)raw;
+      ScoopGcObjectHeader *container = 0;
+      for (ScoopGcObjectHeader *it = ctx->heap->objects; it != 0; it = it->next) {
+        const uintptr_t start = (uintptr_t)it;
+        const uintptr_t size = (uintptr_t)it->size_bytes;
+        if (size == 0) {
+          continue;
+        }
+        const uintptr_t end = start + size;
+        if (addr >= start && addr < end) {
+          container = it;
+          break;
+        }
+      }
+
+      if (container != 0) {
+        const uintptr_t start = (uintptr_t)container;
+        const uintptr_t off = addr - start;
+        const uint64_t type_id = (container->type_desc != 0) ? container->type_desc->type_id : 0;
+        (void)fprintf(stderr,
+                      "[scooprt][gc][verify-roots] note: value looks like interior ptr: obj=%p off=0x%" PRIxPTR
+                      " size=0x%" PRIx64 " type_id=0x%" PRIx64 "\n",
+                      (void *)container,
+                      off,
+                      container->size_bytes,
+                      type_id);
+      } else {
+        (void)fprintf(stderr,
+                      "[scooprt][gc][verify-roots] note: value not in GC heap list\n");
+      }
+    }
   }
 }
 

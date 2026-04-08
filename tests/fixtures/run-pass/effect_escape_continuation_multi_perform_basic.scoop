@@ -1,0 +1,90 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_multi_perform_basic.stdout
+//
+// 目标：T1606c
+// - escape continuation（`, k ->`）支持同一 handle body 内 2..N 次 suspension/resume；
+// - 不使用“嵌套 handle workaround”；
+// - 使用 heap cell 保存最新 continuation，确保在 `--gc-stress` 下也能稳定回归。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    // 说明：当前阶段 typecheck 对“构造调用的实参”不会用形参类型做 enum variant ctor 消歧，
+    // 因此这里先用显式类型注解把 `None()` 固定为 `Option<Continuation<Int>>`。
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    // 注意：LLVM codegen 的 `handle` 仍需要期望类型语境；这里用 `val _: Unit = ...` 的形式提供。
+    val _: Unit = handle {
+        println("body_start")
+
+        val a: Int = Yield.next()
+        println("after1")
+        println(a)
+
+        val b: Int = Yield.next()
+        println("after2")
+        println(b)
+
+        val c: Int = Yield.next()
+        println("after3")
+        println(c)
+
+        println("body_done")
+    } with {
+        Yield.next(), k -> {
+            cell.n = cell.n + 1
+            println("arm")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _resume1: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _resume2: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _resume3: Unit = try {
+                k3.resume(30)
+            } catch (e: RuntimeError) {
+                println("unexpected_resume3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+    println("done")
+}

@@ -452,6 +452,12 @@ fn link_command_with_runtime(
         }
         cmd.arg(flag);
     }
+    // LLVM 后端使用默认 relocation mode（non-PIC），但现代 Linux linker 默认生成 PIE。
+    // 加 `-no-pie` 避免"relocation R_X86_64_32 against `.rodata' can not be used when making
+    // a PIE object"链接错误。
+    #[cfg(target_os = "linux")]
+    cmd.arg("-no-pie");
+
     cmd.arg("-o").arg(output);
     Ok(cmd)
 }
@@ -479,6 +485,9 @@ fn link_command(
         }
         cmd.arg(flag);
     }
+    #[cfg(target_os = "linux")]
+    cmd.arg("-no-pie");
+
     cmd.arg("-o").arg(output);
     cmd
 }

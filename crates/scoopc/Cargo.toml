@@ -7,7 +7,7 @@ edition.workspace = true
 # 默认启用 LLVM 后端（inkwell）。如需在未安装 LLVM/llvm-config 的环境构建，可使用 `--no-default-features`。
 default = ["llvm"]
 
-llvm = ["dep:inkwell"]
+llvm = ["dep:inkwell", "dep:llvm-sys"]
 
 [dependencies]
 miette = { version = "7.6.0", features = ["fancy"] }
@@ -19,6 +19,7 @@ serde_json = "1.0.149"
 tar = "0.4.44"
 sha2 = "0.10.9"
 inkwell = { version = "0.8.0", optional = true, features = ["llvm21-1"] }
+llvm-sys = { version = "211.0.0", optional = true }
 
 [dev-dependencies]
 object = { version = "0.37.3", default-features = false, features = ["read", "std"] }

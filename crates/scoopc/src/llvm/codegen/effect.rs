@@ -2133,17 +2133,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // T0617：`Effect.op(...), k -> { ... }`
         //
-        // 当前阶段（最小可回归落点）：
+        // 当前阶段（可回归语义子集）：
         // - 仅支持单个 arm（在外层已校验）；
         // - 对匹配当前 arm 的 op：
         //   - 0 个 perform：退化为顺序执行 `body`（以及 `finally`，若存在），arm 不可达（T1606a）；
-        //   - 1 个 perform：允许在 perform 前存在普通语句（val/assign/expr，T1606b）；
-        // - heap state machine 先只承载 handler frame，并用 step trampoline 执行 perform 之后的剩余语句；
+        //   - N≥1：支持同一 handle body 内 1..N 个 perform 点（T1606c）：
+        //     - perform 仍要求绑定到 `val x: T = perform`（early stage 约束）；
+        //     - 当前只覆盖“线性 block”（不含 return/loop 等），更复杂 CFG 由 T1606e 单独验证；
+        // - heap state machine 以 `{ frame, pc, lifted locals... }` 表达可重入执行；
         // - continuation one-shot 与 handler stack 捕获由 runtime（T0914/T0915a）保证。
 
-        // 1) 在 handle body 中找到唯一的 perform 点（当前阶段只支持 `val x: T = perform`）。
-        let mut perform_site: Option<(usize, &hir::ValDecl, &hir::EffectOpRef, &[hir::CallArg])> =
-            None;
+        // 1) 扫描 handle body：收集所有匹配该 arm 的 perform 点（当前阶段只支持 `val x: T = perform`）。
+        struct PerformSite<'hir> {
+            stmt_idx: usize,
+            decl: &'hir hir::ValDecl,
+            op: &'hir hir::EffectOpRef,
+            args: &'hir [hir::CallArg],
+            id: hir::SymbolId,
+        }
+
+        let mut perform_sites: Vec<PerformSite<'_>> = Vec::new();
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
             match &stmt.kind {
                 hir::StmtKind::Val(decl) => {
@@ -2154,13 +2163,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         if op.fqn != arm.op.op.fqn {
                             continue;
                         }
-                        if perform_site.is_some() {
+                        let Some(id) = decl.id else {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "handle escape body (multiple perform points)",
-                                at: init.span.into(),
+                                kind: "handle escape perform binding id",
+                                at: decl.span.into(),
                             });
-                        }
-                        perform_site = Some((idx, decl, op, args.as_slice()));
+                        };
+                        perform_sites.push(PerformSite {
+                            stmt_idx: idx,
+                            decl,
+                            op,
+                            args: args.as_slice(),
+                            id,
+                        });
                     }
                 }
                 hir::StmtKind::Expr(expr) => {
@@ -2177,10 +2192,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let Some((perform_idx, perform_decl, perform_op, perform_args)) = perform_site else {
+        let Some(first_site) = perform_sites.first() else {
             // T1606a：没有匹配 op 的 perform 点，arm 不可达；退化为顺序执行 `body -> finally` 并返回 body 值。
             return self.codegen_handle_expr_no_perform(span, handle, out_ty);
         };
+        let perform_idx = first_site.stmt_idx;
+        let perform_decl = first_site.decl;
+        let perform_op = first_site.op;
+        let perform_args = first_site.args;
         if handle.finally.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle finally (escape continuation)",
@@ -2193,19 +2212,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: perform_op.span.into(),
             });
         }
-        if arm.op.binders.len() != perform_args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle escape binder arity mismatch",
-                at: arm.op.span.into(),
-            });
-        }
+        let perform_id = first_site.id;
 
-        let Some(perform_id) = perform_decl.id else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle escape perform binding id",
-                at: perform_decl.span.into(),
-            });
-        };
+        for site in &perform_sites {
+            if arm.op.binders.len() != site.args.len() {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape binder arity mismatch",
+                    at: arm.op.span.into(),
+                });
+            }
+        }
 
         let resume_value_ty =
             self.cg_ty_of(perform_decl.ty)
@@ -2213,6 +2229,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     kind: "handle escape perform value type",
                     at: perform_decl.span.into(),
                 })?;
+        for site in &perform_sites {
+            let site_ty =
+                self.cg_ty_of(site.decl.ty)
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle escape perform value type",
+                        at: site.decl.span.into(),
+                    })?;
+            if site_ty != resume_value_ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle escape perform value type mismatch",
+                    at: site.decl.span.into(),
+                });
+            }
+        }
 
         // 2) 生成 step trampoline：`void step(void* state, uint64_t resume_value)`
         let insert_block =
@@ -2235,6 +2265,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let i64_ty = self.context.i64_type();
+        let i32_ty = self.context.i32_type();
 
         // 1.5) 计算 perform 之后会用到的 locals（用于决定必须 lift 到 heap state 的 capture 集合）。
         //
@@ -2377,24 +2408,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let mut used_after_perform: HashSet<hir::SymbolId> = HashSet::new();
+        // handle body 顶层 val decl：用于判断某个 local 的声明位置（是否可能跨 suspension）。
+        let mut body_decl_by_id: HashMap<hir::SymbolId, &hir::ValDecl> = HashMap::new();
+        let mut body_decl_index_by_id: HashMap<hir::SymbolId, usize> = HashMap::new();
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if idx <= perform_idx {
-                continue;
-            }
-            collect_used_locals_in_stmt(stmt, &mut used_after_perform);
-        }
-
-        let mut locals_declared_after_perform: HashSet<hir::SymbolId> = HashSet::new();
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if idx <= perform_idx {
-                continue;
-            }
             if let hir::StmtKind::Val(decl) = &stmt.kind {
                 if let Some(id) = decl.id {
-                    locals_declared_after_perform.insert(id);
+                    body_decl_by_id.insert(id, decl);
+                    body_decl_index_by_id.insert(id, idx);
                 }
             }
+        }
+
+        // pc 映射：stmt_idx -> pc（0..N-1）。
+        let mut pc_by_stmt_idx: HashMap<usize, usize> = HashMap::new();
+        for (pc, site) in perform_sites.iter().enumerate() {
+            pc_by_stmt_idx.insert(site.stmt_idx, pc);
         }
 
         // escape continuation：把当前作用域内的引用类型 locals 捕获到 heap state 中，
@@ -2412,33 +2441,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mutable: bool,
         }
 
-        let mut pre_perform_decl_by_id: HashMap<hir::SymbolId, &hir::ValDecl> = HashMap::new();
-        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-            if idx >= perform_idx {
-                break;
-            }
-            let hir::StmtKind::Val(decl) = &stmt.kind else {
-                continue;
-            };
-            let Some(id) = decl.id else {
-                continue;
-            };
-            pre_perform_decl_by_id.insert(id, decl);
-        }
-
         // 1) outer locals：来自当前 codegen env
-        let mut captures: Vec<CapturedLocal> = Vec::new();
-        let mut seen: HashSet<hir::SymbolId> = HashSet::new();
+        let mut outer_captures: Vec<CapturedLocal> = Vec::new();
+        let mut seen_outer: HashSet<hir::SymbolId> = HashSet::new();
         for scope in self.env.scopes.iter().rev() {
             for (&id, &local) in scope.iter() {
-                if !seen.insert(id) {
+                if !seen_outer.insert(id) {
                     continue;
                 }
                 if matches!(
                     local.ty,
                     CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
                 ) {
-                    captures.push(CapturedLocal {
+                    outer_captures.push(CapturedLocal {
                         id,
                         hir_ty: local.hir_ty,
                         ty: local.ty,
@@ -2448,26 +2463,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        // 2) perform 前 locals：只捕获 perform 后确实会用到的 bindings（否则会无谓膨胀 state）。
-        for &id in used_after_perform.iter() {
-            if id == perform_id {
-                continue;
-            }
-            if locals_declared_after_perform.contains(&id) {
-                continue;
-            }
+        outer_captures.sort_by_key(|c| c.id.as_u32());
 
-            let Some(decl) = pre_perform_decl_by_id.get(&id).copied() else {
+        // 2) body lifted locals：跨 suspension 使用的 handle body locals（Ref/String/Bool/Int）。
+        //
+        // 规则：
+        // - 对每个 perform 点 p：
+        //   - 计算 “p 之后会用到的 locals 集合” used_after[p]；
+        //   - 若某 local 在 p 之后会被用到，且它在 body 中的声明位置 <= p，则该 local 必须 lift；
+        // - 该集合取并集，得到 state machine 生命周期内需要保存/恢复的 locals。
+        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
+        for site in &perform_sites {
+            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
+            for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+                if idx <= site.stmt_idx {
+                    continue;
+                }
+                collect_used_locals_in_stmt(stmt, &mut used_after);
+            }
+            for id in used_after {
+                let Some(&decl_idx) = body_decl_index_by_id.get(&id) else {
+                    continue;
+                };
+                if decl_idx <= site.stmt_idx {
+                    body_lift_ids.insert(id);
+                }
+            }
+        }
+
+        let mut body_lifts: Vec<CapturedLocal> = Vec::new();
+        for &id in &body_lift_ids {
+            let Some(decl) = body_decl_by_id.get(&id).copied() else {
                 continue;
             };
-            if !seen.insert(id) {
-                continue;
-            }
 
             let decl_ty = self
                 .cg_ty_of(decl.ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle escape capture pre-perform local type",
+                    kind: "handle escape capture local type",
                     at: decl.span.into(),
                 })?;
 
@@ -2481,7 +2514,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
 
-            captures.push(CapturedLocal {
+            body_lifts.push(CapturedLocal {
                 id,
                 hir_ty: Some(decl.ty),
                 ty: decl_ty,
@@ -2489,7 +2522,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        captures.sort_by_key(|c| c.id.as_u32());
+        body_lifts.sort_by_key(|c| c.id.as_u32());
 
         let state_ty_name = format!("scoop.runtime.ContState__{func_name}_{seq}");
         let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
@@ -2501,7 +2534,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
             fields.push(header_ty.into());
             fields.push(frame_ty.into());
-            for cap in &captures {
+            fields.push(i32_ty.into()); // pc
+            for cap in &outer_captures {
+                fields.push(match cap.ty {
+                    CgTy::Ref => gc_i8_ptr_ty.into(),
+                    CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => unreachable!("captures filtered by type"),
+                });
+            }
+            for cap in &body_lifts {
                 fields.push(match cap.ty {
                     CgTy::Ref => gc_i8_ptr_ty.into(),
                     CgTy::String => gc_i8_ptr_ty.into(),
@@ -2520,6 +2562,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .fn_type(&[gc_i8_ptr_ty.into(), i64_ty.into()], false);
         let step_fn = self.module.add_function(&step_name, step_fn_ty, None);
         step_fn.set_linkage(Linkage::Internal);
+        // continuation step 会执行 alloc/GC 相关调用，必须参与 statepoint rewrite；
+        // 否则 `--gc-stress` 下会因为缺少 roots 而错误回收/失活。
+        step_fn.set_gc(super::super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
 
         // 保存外层插入点：step 生成会重定位 builder。
         let saved_block = insert_block;
@@ -2555,139 +2600,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             cg.env.push_scope();
 
-            // 恢复 captures：step 函数运行在“原函数栈已不存在”的异步时刻，
-            // 因此需要从 heap state 里把所需 locals 读回到本函数的 env。
-            if !captures.is_empty() {
-                let state_raw = step_fn
-                    .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "continuation step state param",
-                        at: span.into(),
-                    })?
-                    .into_pointer_value();
-                let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
-                let state_ptr = cg.builder.build_pointer_cast(
-                    state_raw,
-                    state_ptr_ty,
-                    "cont_step_state_ptr",
-                )?;
+            // state 参数
+            let state_raw = step_fn
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "continuation step state param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
+            let state_ptr =
+                cg.builder
+                    .build_pointer_cast(state_raw, state_ptr_ty, "cont_step_state_ptr")?;
 
-                for (idx, cap) in captures.iter().enumerate() {
-                    let field_idx = 2u32.saturating_add(idx as u32);
-                    let field_ptr = cg.builder.build_struct_gep(
-                        state_ty,
-                        state_ptr,
-                        field_idx,
-                        "cont_step_capture_gep",
-                    )?;
-                    let name = format!("capture_{}", cap.id.as_u32());
-                    match cap.ty {
-                        CgTy::Ref => {
-                            let loaded = cg
-                                .builder
-                                .build_load(gc_i8_ptr_ty, field_ptr, "cont_step_capture_load_ref")?
-                                .into_pointer_value();
-                            let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
-                            let _ = cg.builder.build_store(ptr, loaded)?;
-                            cg.env.insert(
-                                cap.id,
-                                CgLocal {
-                                    hir_ty: cap.hir_ty,
-                                    ty: CgTy::Ref,
-                                    ptr,
-                                    mutable: cap.mutable,
-                                },
-                            );
-                        }
-                        CgTy::String => {
-                            let loaded = cg
-                                .builder
-                                .build_load(gc_i8_ptr_ty, field_ptr, "cont_step_capture_load_str")?
-                                .into_pointer_value();
-                            let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
-                            let casted = cg.builder.build_pointer_cast(
-                                loaded,
-                                str_ptr_ty,
-                                "cont_step_capture_str",
-                            )?;
-                            let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
-                            let _ = cg.builder.build_store(ptr, casted)?;
-                            cg.env.insert(
-                                cap.id,
-                                CgLocal {
-                                    hir_ty: cap.hir_ty,
-                                    ty: CgTy::String,
-                                    ptr,
-                                    mutable: cap.mutable,
-                                },
-                            );
-                        }
-                        CgTy::Bool => {
-                            let loaded = cg
-                                .builder
-                                .build_load(i64_ty, field_ptr, "cont_step_capture_load_bool")?
-                                .into_int_value();
-                            let zero = i64_ty.const_zero();
-                            let b = cg.builder.build_int_compare(
-                                IntPredicate::NE,
-                                loaded,
-                                zero,
-                                "cont_step_capture_bool",
-                            )?;
-                            let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
-                            let _ = cg.builder.build_store(ptr, b)?;
-                            cg.env.insert(
-                                cap.id,
-                                CgLocal {
-                                    hir_ty: cap.hir_ty,
-                                    ty: CgTy::Bool,
-                                    ptr,
-                                    mutable: cap.mutable,
-                                },
-                            );
-                        }
-                        CgTy::Int(int_ty) => {
-                            if int_ty.bits > 64 {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "cont state capture int width > 64",
-                                    at: span.into(),
-                                });
-                            }
-
-                            let loaded = cg
-                                .builder
-                                .build_load(i64_ty, field_ptr, "cont_step_capture_load_int")?
-                                .into_int_value();
-                            let to = cg.int_type(int_ty);
-                            let v = if int_ty.bits == 64 {
-                                loaded
-                            } else {
-                                cg.builder.build_int_truncate(
-                                    loaded,
-                                    to,
-                                    "cont_step_capture_trunc",
-                                )?
-                            };
-
-                            let slot_ty = CgTy::Int(int_ty);
-                            let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
-                            let _ = cg.builder.build_store(ptr, v)?;
-                            cg.env.insert(
-                                cap.id,
-                                CgLocal {
-                                    hir_ty: cap.hir_ty,
-                                    ty: slot_ty,
-                                    ptr,
-                                    mutable: cap.mutable,
-                                },
-                            );
-                        }
-                        _ => unreachable!("captures filtered by type"),
-                    }
-                }
-            }
-
-            // v0：只支持把 resume_value 当作一个 word-sized payload 写回到 perform binding。
+            // v0：resume_value 仍只支持 word-sized payload（T1607 会扩展为任意 T）。
             let resume_word = step_fn
                 .get_nth_param(1)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -2696,96 +2622,858 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?
                 .into_int_value();
 
-            let local_name = perform_decl.name.as_deref().unwrap_or("resume_value");
-            let target_ptr = cg.create_entry_alloca(span, local_name, resume_value_ty)?;
+            // 恢复 lifted locals：把 heap state 中的字段读回到本函数栈 slot。
+            //
+            // 注意：这里选择“无条件恢复全部 lifted locals”，简化 pc 分支的环境构造；
+            // 未初始化的字段在 alloc 时已置零（null/0），因此恢复是安全的。
+            let outer_field_base = 3u32;
+            let body_field_base = outer_field_base.saturating_add(outer_captures.len() as u32);
 
-            let resume_value = match resume_value_ty {
-                CgTy::Unit => CgValue::unit(),
-                CgTy::Bool => {
-                    let zero = i64_ty.const_int(0, false);
-                    let b = cg.builder.build_int_compare(
-                        IntPredicate::NE,
-                        resume_word,
-                        zero,
-                        "resume_bool",
+            for (idx, cap) in outer_captures.iter().enumerate() {
+                let field_idx = outer_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "cont_step_lift_gep",
+                )?;
+                let name = format!("lift_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Ref => {
+                        // 注意：这里不能把 “state 字段地址（addrspace(1)）” 直接当作 local slot。
+                        //
+                        // 原因：
+                        // - `field_ptr` 是一个 **derived pointer**（指向 state 对象内部某字段的地址），且位于 GC
+                        //   address space；
+                        // - LLVM statepoint/stackmap 可能把它当作 GC root，进入 roots slots；但 runtime 的 roots 更新
+                        //   当前只支持 “slot value = 对象头指针”，不支持 derived pointer（否则 `--gc-stress` 下会出现
+                        //   invalid root / silent mis-update）。
+                        //
+                        // v0 策略：把外层 capture 的值恢复到本函数栈 slot（alloca）中，依赖 stackmap roots 更新
+                        // 来保持其在 moving GC 下可写回。
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_ref")?
+                            .into_pointer_value();
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_str")?
+                            .into_pointer_value();
+                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                        let casted = cg
+                            .builder
+                            .build_pointer_cast(loaded, str_ptr_ty, "lift_str")?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "lift_load_bool")?
+                            .into_int_value();
+                        let zero = i64_ty.const_zero();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            zero,
+                            "lift_bool",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Int(int_ty) => {
+                        if int_ty.bits > 64 {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "cont state capture int width > 64",
+                                at: span.into(),
+                            });
+                        }
+
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "lift_load_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder
+                                .build_int_truncate(loaded, to, "lift_trunc_int")?
+                        };
+
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("captures filtered by type"),
+                }
+            }
+
+            for (idx, cap) in body_lifts.iter().enumerate() {
+                let field_idx = body_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "cont_step_lift_gep",
+                )?;
+                let name = format!("lift_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Ref => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_ref")?
+                            .into_pointer_value();
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "lift_load_str")?
+                            .into_pointer_value();
+                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                        let casted = cg
+                            .builder
+                            .build_pointer_cast(loaded, str_ptr_ty, "lift_str")?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::String)?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "lift_load_bool")?
+                            .into_int_value();
+                        let zero = i64_ty.const_zero();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            zero,
+                            "lift_bool",
+                        )?;
+                        let ptr = cg.create_entry_alloca(span, &name, CgTy::Bool)?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Int(int_ty) => {
+                        if int_ty.bits > 64 {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "cont state capture int width > 64",
+                                at: span.into(),
+                            });
+                        }
+
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "lift_load_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder
+                                .build_int_truncate(loaded, to, "lift_trunc_int")?
+                        };
+
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr = cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("captures filtered by type"),
+                }
+            }
+
+            // binder slots：在 perform 点写入，在 arm body 中读取。
+            struct BinderSlot<'ctx> {
+                id: hir::SymbolId,
+                hir_ty: TypeId,
+                ty: CgTy,
+                ptr: PointerValue<'ctx>,
+            }
+            let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
+            for binder in &arm.op.binders {
+                let binder_ty =
+                    cg.cg_ty_of(binder.ty)
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape binder type",
+                            at: binder.span.into(),
+                        })?;
+                let ptr = cg.create_entry_alloca(binder.span, &binder.name, binder_ty)?;
+                binder_slots.push(BinderSlot {
+                    id: binder.id,
+                    hir_ty: binder.ty,
+                    ty: binder_ty,
+                    ptr,
+                });
+            }
+
+            // continuation binder local：在 perform 点写入，在 arm body 中读取。
+            let cont_ptr =
+                cg.create_entry_alloca(span, &format!("handle_escape_k_{seq}"), CgTy::Ref)?;
+
+            // pc dispatch
+            let dispatch_bb = self
+                .context
+                .append_basic_block(step_fn, "cont_step_dispatch");
+            let bad_state_bb = self.context.append_basic_block(step_fn, "cont_step_bad_pc");
+            let mut state_bbs = Vec::new();
+            for pc in 0..perform_sites.len() {
+                state_bbs.push(
+                    self.context
+                        .append_basic_block(step_fn, &format!("cont_step_pc_{pc}")),
+                );
+            }
+
+            cg.builder.build_unconditional_branch(dispatch_bb)?;
+
+            cg.builder.position_at_end(dispatch_bb);
+            let pc_ptr = cg
+                .builder
+                .build_struct_gep(state_ty, state_ptr, 2, "cont_step_pc_gep")?;
+            let pc = cg
+                .builder
+                .build_load(i32_ty, pc_ptr, "cont_step_pc")?
+                .into_int_value();
+            let mut cases = Vec::new();
+            for (pc, bb) in state_bbs.iter().enumerate() {
+                cases.push((i32_ty.const_int(pc as u64, false), *bb));
+            }
+            cg.builder.build_switch(pc, bad_state_bb, &cases)?;
+
+            cg.builder.position_at_end(bad_state_bb);
+            cg.emit_exit_with_code(span, 3)?;
+
+            // --- pc blocks ---
+            for (pc, bb) in state_bbs.iter().enumerate() {
+                let site = &perform_sites[pc];
+                cg.builder.position_at_end(*bb);
+
+                // 将本次 resume_value 写入对应的 perform binding。
+                let target_ptr = if let Some(local) = cg.env.get(site.id) {
+                    if local.ty != resume_value_ty {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "handle escape perform value type mismatch",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                    local.ptr
+                } else {
+                    let local_name = site.decl.name.as_deref().unwrap_or("resume_value");
+                    let ptr =
+                        cg.create_entry_alloca(site.decl.span, local_name, resume_value_ty)?;
+                    cg.env.insert(
+                        site.id,
+                        CgLocal {
+                            hir_ty: Some(site.decl.ty),
+                            ty: resume_value_ty,
+                            ptr,
+                            mutable: site.decl.mutable,
+                        },
+                    );
+                    ptr
+                };
+
+                let resume_value = match resume_value_ty {
+                    CgTy::Unit => CgValue::unit(),
+                    CgTy::Bool => {
+                        let zero = i64_ty.const_int(0, false);
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            resume_word,
+                            zero,
+                            "resume_bool",
+                        )?;
+                        CgValue::bool(b)
+                    }
+                    CgTy::Int(int_ty) => {
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            resume_word
+                        } else {
+                            cg.builder
+                                .build_int_truncate(resume_word, to, "resume_int")?
+                        };
+                        CgValue::int(v, int_ty)
+                    }
+                    CgTy::String | CgTy::Ref => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "continuation resume payload (gc ptr via u64 is forbidden)",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                    CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "continuation resume payload type",
+                            at: site.decl.span.into(),
+                        });
+                    }
+                };
+
+                let _stored =
+                    cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
+
+                // 继续执行该 perform 之后的语句，直到下一次 perform 或结束。
+                let mut terminated = false;
+                for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+                    if idx <= site.stmt_idx {
+                        continue;
+                    }
+
+                    if let Some(&next_pc) = pc_by_stmt_idx.get(&idx) {
+                        // --- 下一次 perform：创建新的 continuation，执行 arm，然后返回 ---
+                        let next_site = &perform_sites[next_pc];
+
+                        // args → binder slots
+                        for (slot, arg) in binder_slots.iter().zip(next_site.args.iter()) {
+                            let hir::CallArg::Positional(expr) = arg else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle escape named perform arg",
+                                    at: span.into(),
+                                });
+                            };
+                            let v = cg.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
+                            let _stored = cg.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+                        }
+
+                        // 写回 lifted locals（为下一次 resume 做准备）
+                        for (i, cap) in outer_captures.iter().enumerate() {
+                            let field_idx = outer_field_base.saturating_add(i as u32);
+                            let field_ptr = cg.builder.build_struct_gep(
+                                state_ty,
+                                state_ptr,
+                                field_idx,
+                                "cont_state_capture_gep",
+                            )?;
+                            let local =
+                                cg.env
+                                    .get(cap.id)
+                                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "cont state capture local not found",
+                                        at: span.into(),
+                                    })?;
+                            if local.ty != cap.ty {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "cont state capture local type mismatch",
+                                    at: span.into(),
+                                });
+                            }
+                            match cap.ty {
+                                CgTy::Ref => {
+                                    let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                                    let loaded = cg.builder.build_load(
+                                        llvm_ty,
+                                        local.ptr,
+                                        "cont_state_capture_load_ref",
+                                    )?;
+                                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture value type (ref ptr)",
+                                            at: span.into(),
+                                        });
+                                    };
+                                    let casted = cg.builder.build_pointer_cast(
+                                        ptr,
+                                        gc_i8_ptr_ty,
+                                        "cont_state_capture_ref_i8",
+                                    )?;
+                                    let _ = cg.store_local_value(
+                                        span,
+                                        field_ptr,
+                                        CgTy::Ref,
+                                        CgValue {
+                                            ty: CgTy::Ref,
+                                            value: Some(casted.into()),
+                                        },
+                                    )?;
+                                }
+                                CgTy::String => {
+                                    let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
+                                    let loaded = cg.builder.build_load(
+                                        llvm_ty,
+                                        local.ptr,
+                                        "cont_state_capture_load_str",
+                                    )?;
+                                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture value type (str ptr)",
+                                            at: span.into(),
+                                        });
+                                    };
+                                    let casted = cg.builder.build_pointer_cast(
+                                        ptr,
+                                        gc_i8_ptr_ty,
+                                        "cont_state_capture_str_i8",
+                                    )?;
+                                    let _ = cg.store_local_value(
+                                        span,
+                                        field_ptr,
+                                        CgTy::Ref,
+                                        CgValue {
+                                            ty: CgTy::Ref,
+                                            value: Some(casted.into()),
+                                        },
+                                    )?;
+                                }
+                                CgTy::Bool => {
+                                    let loaded = cg
+                                        .builder
+                                        .build_load(
+                                            cg.llvm_basic_type_of(span, CgTy::Bool)?,
+                                            local.ptr,
+                                            "cont_state_capture_load_bool",
+                                        )?
+                                        .into_int_value();
+                                    let extended = cg.builder.build_int_z_extend(
+                                        loaded,
+                                        i64_ty,
+                                        "cont_state_capture_zext_bool",
+                                    )?;
+                                    let _ = cg.builder.build_store(field_ptr, extended)?;
+                                }
+                                CgTy::Int(int_ty) => {
+                                    if int_ty.bits > 64 {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture int width > 64",
+                                            at: span.into(),
+                                        });
+                                    }
+                                    let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
+                                    let loaded = cg
+                                        .builder
+                                        .build_load(
+                                            llvm_ty,
+                                            local.ptr,
+                                            "cont_state_capture_load_int",
+                                        )?
+                                        .into_int_value();
+                                    let extended = if int_ty.bits == 64 {
+                                        loaded
+                                    } else if int_ty.signed {
+                                        cg.builder.build_int_s_extend(
+                                            loaded,
+                                            i64_ty,
+                                            "cont_state_capture_sext_int",
+                                        )?
+                                    } else {
+                                        cg.builder.build_int_z_extend(
+                                            loaded,
+                                            i64_ty,
+                                            "cont_state_capture_zext_int",
+                                        )?
+                                    };
+                                    let _ = cg.builder.build_store(field_ptr, extended)?;
+                                }
+                                _ => unreachable!("captures filtered by type"),
+                            }
+                        }
+
+                        for (i, cap) in body_lifts.iter().enumerate() {
+                            let field_idx = body_field_base.saturating_add(i as u32);
+                            let field_ptr = cg.builder.build_struct_gep(
+                                state_ty,
+                                state_ptr,
+                                field_idx,
+                                "cont_state_capture_gep",
+                            )?;
+                            let local =
+                                cg.env
+                                    .get(cap.id)
+                                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                        kind: "cont state capture local not found",
+                                        at: span.into(),
+                                    })?;
+                            if local.ty != cap.ty {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "cont state capture local type mismatch",
+                                    at: span.into(),
+                                });
+                            }
+                            match cap.ty {
+                                CgTy::Ref => {
+                                    let llvm_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                                    let loaded = cg.builder.build_load(
+                                        llvm_ty,
+                                        local.ptr,
+                                        "cont_state_capture_load_ref",
+                                    )?;
+                                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture value type (ref ptr)",
+                                            at: span.into(),
+                                        });
+                                    };
+                                    let casted = cg.builder.build_pointer_cast(
+                                        ptr,
+                                        gc_i8_ptr_ty,
+                                        "cont_state_capture_ref_i8",
+                                    )?;
+                                    let _ = cg.store_local_value(
+                                        span,
+                                        field_ptr,
+                                        CgTy::Ref,
+                                        CgValue {
+                                            ty: CgTy::Ref,
+                                            value: Some(casted.into()),
+                                        },
+                                    )?;
+                                }
+                                CgTy::String => {
+                                    let llvm_ty = cg.llvm_basic_type_of(span, CgTy::String)?;
+                                    let loaded = cg.builder.build_load(
+                                        llvm_ty,
+                                        local.ptr,
+                                        "cont_state_capture_load_str",
+                                    )?;
+                                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture value type (str ptr)",
+                                            at: span.into(),
+                                        });
+                                    };
+                                    let casted = cg.builder.build_pointer_cast(
+                                        ptr,
+                                        gc_i8_ptr_ty,
+                                        "cont_state_capture_str_i8",
+                                    )?;
+                                    let _ = cg.store_local_value(
+                                        span,
+                                        field_ptr,
+                                        CgTy::Ref,
+                                        CgValue {
+                                            ty: CgTy::Ref,
+                                            value: Some(casted.into()),
+                                        },
+                                    )?;
+                                }
+                                CgTy::Bool => {
+                                    let loaded = cg
+                                        .builder
+                                        .build_load(
+                                            cg.llvm_basic_type_of(span, CgTy::Bool)?,
+                                            local.ptr,
+                                            "cont_state_capture_load_bool",
+                                        )?
+                                        .into_int_value();
+                                    let extended = cg.builder.build_int_z_extend(
+                                        loaded,
+                                        i64_ty,
+                                        "cont_state_capture_zext_bool",
+                                    )?;
+                                    let _ = cg.builder.build_store(field_ptr, extended)?;
+                                }
+                                CgTy::Int(int_ty) => {
+                                    if int_ty.bits > 64 {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "cont state capture int width > 64",
+                                            at: span.into(),
+                                        });
+                                    }
+                                    let llvm_ty = cg.llvm_basic_type_of(span, cap.ty)?;
+                                    let loaded = cg
+                                        .builder
+                                        .build_load(
+                                            llvm_ty,
+                                            local.ptr,
+                                            "cont_state_capture_load_int",
+                                        )?
+                                        .into_int_value();
+                                    let extended = if int_ty.bits == 64 {
+                                        loaded
+                                    } else if int_ty.signed {
+                                        cg.builder.build_int_s_extend(
+                                            loaded,
+                                            i64_ty,
+                                            "cont_state_capture_sext_int",
+                                        )?
+                                    } else {
+                                        cg.builder.build_int_z_extend(
+                                            loaded,
+                                            i64_ty,
+                                            "cont_state_capture_zext_int",
+                                        )?
+                                    };
+                                    let _ = cg.builder.build_store(field_ptr, extended)?;
+                                }
+                                _ => unreachable!("captures filtered by type"),
+                            }
+                        }
+
+                        // 更新 pc
+                        let pc_ptr = cg.builder.build_struct_gep(
+                            state_ty,
+                            state_ptr,
+                            2,
+                            "cont_state_pc_gep",
+                        )?;
+                        let _ = cg
+                            .builder
+                            .build_store(pc_ptr, i32_ty.const_int(next_pc as u64, false))?;
+
+                        // 创建 continuation（捕获 handler stack top）
+                        let rt_cont_alloc = cg.declare_runtime_continuation_alloc();
+                        let step_ptr = step_fn.as_global_value().as_pointer_value();
+                        let call = cg.builder.build_call(
+                            rt_cont_alloc,
+                            &[state_raw.into(), step_ptr.into()],
+                            "cont_alloc",
+                        )?;
+                        let raw = call.try_as_basic_value().basic().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "continuation alloc return value",
+                                at: span.into(),
+                            },
+                        )?;
+                        let BasicValueEnum::PointerValue(k_raw) = raw else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "continuation alloc return type",
+                                at: span.into(),
+                            });
+                        };
+
+                        // 与 handle 初始执行一致：arm body 期间临时 pin 住 k，避免在被存入 heap roots 前
+                        // 因 `SCOOP_GC_STRESS=1` 的额外 GC 提前回收/搬迁。
+                        let pin = cg.declare_runtime_gc_pin();
+                        let _ =
+                            cg.builder
+                                .build_call(pin, &[k_raw.into()], "handle_escape_k_pin")?;
+
+                        let _stored = cg.store_local_value(
+                            span,
+                            cont_ptr,
+                            CgTy::Ref,
+                            CgValue {
+                                ty: CgTy::Ref,
+                                value: Some(k_raw.into()),
+                            },
+                        )?;
+
+                        // 将 handler frame 从当前线程的 handler stack 顶部“摘除”（不清理 frame 字段），避免 self-capture。
+                        let handler_frame_ty = cg.llvm_effect_handler_frame_type();
+                        let frame_ptr = cg.builder.build_struct_gep(
+                            state_ty,
+                            state_ptr,
+                            1,
+                            "cont_state_frame_gep",
+                        )?;
+                        let prev_ptr = cg.builder.build_struct_gep(
+                            handler_frame_ty,
+                            frame_ptr,
+                            0,
+                            "handle_escape_prev_gep",
+                        )?;
+                        let prev_raw =
+                            cg.builder
+                                .build_load(i8_ptr_ty, prev_ptr, "handle_escape_prev")?;
+                        let rt_swap = cg.declare_runtime_effect_handler_stack_swap_top();
+                        let _ = cg.builder.build_call(
+                            rt_swap,
+                            &[prev_raw.into()],
+                            "handle_escape_detach",
+                        )?;
+
+                        // arm
+                        cg.env.push_scope();
+                        for slot in &binder_slots {
+                            cg.env.insert(
+                                slot.id,
+                                CgLocal {
+                                    hir_ty: Some(slot.hir_ty),
+                                    ty: slot.ty,
+                                    ptr: slot.ptr,
+                                    mutable: false,
+                                },
+                            );
+                        }
+                        cg.env.insert(
+                            continuation_symbol,
+                            CgLocal {
+                                hir_ty: None,
+                                ty: CgTy::Ref,
+                                ptr: cont_ptr,
+                                mutable: false,
+                            },
+                        );
+                        let arm_v = cg.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+                        let _arm_v = if out_ty == CgTy::Unit {
+                            CgValue::unit()
+                        } else {
+                            cg.coerce_value(arm.body.span, arm_v, out_ty)?
+                        };
+                        cg.env.pop_scope();
+
+                        // arm 结束：解除 pin。
+                        let llvm_ref_ty = cg.llvm_basic_type_of(span, CgTy::Ref)?;
+                        let k_loaded = cg
+                            .builder
+                            .build_load(llvm_ref_ty, cont_ptr, "handle_escape_k_unpin_load")?
+                            .into_pointer_value();
+                        let unpin = cg.declare_runtime_gc_unpin();
+                        let _ = cg.builder.build_call(
+                            unpin,
+                            &[k_loaded.into()],
+                            "handle_escape_k_unpin",
+                        )?;
+
+                        cg.builder.build_return(None)?;
+                        terminated = true;
+                        break;
+                    }
+
+                    match &stmt.kind {
+                        hir::StmtKind::Empty => {}
+                        hir::StmtKind::Val(decl) => {
+                            // 若该 local 被 lift，则复用已存在的 slot，避免在不同 pc 分支间产生 slot 绑定漂移。
+                            if let Some(id) = decl.id {
+                                if body_lift_ids.contains(&id) {
+                                    let Some(init) = decl.init.as_ref() else {
+                                        return Err(LlvmEmitError::UnsupportedMainBody {
+                                            kind: "lifted local without init",
+                                            at: decl.span.into(),
+                                        });
+                                    };
+                                    let decl_ty = cg.cg_ty_of(decl.ty).ok_or(
+                                        LlvmEmitError::UnsupportedMainBody {
+                                            kind: "lifted local type",
+                                            at: decl.span.into(),
+                                        },
+                                    )?;
+                                    let local = cg.env.get(id).ok_or(
+                                        LlvmEmitError::UnsupportedMainBody {
+                                            kind: "lifted local slot missing",
+                                            at: decl.span.into(),
+                                        },
+                                    )?;
+                                    let v =
+                                        cg.codegen_expr_in_expected_context(init, Some(decl_ty))?;
+                                    let _stored =
+                                        cg.store_local_value(decl.span, local.ptr, decl_ty, v)?;
+                                } else {
+                                    cg.codegen_val_decl(decl)?;
+                                }
+                            } else {
+                                cg.codegen_val_decl(decl)?;
+                            }
+                        }
+                        hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                            cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                        }
+                        hir::StmtKind::Expr(expr) => {
+                            let _ = cg.codegen_expr(expr)?;
+                        }
+                        hir::StmtKind::Return { .. } => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "`return` inside continuation step",
+                                at: stmt.span.into(),
+                            });
+                        }
+                        hir::StmtKind::While { .. }
+                        | hir::StmtKind::Break { .. }
+                        | hir::StmtKind::Continue { .. }
+                        | hir::StmtKind::Todo(_) => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "statement inside continuation step",
+                                at: stmt.span.into(),
+                            });
+                        }
+                    }
+                }
+
+                if !terminated {
+                    // GC 重要性：escape continuation 的 handler frame 当前存放在 heap state 内部，
+                    // 并会被链接到 TLS handler stack（`__scoop_effect_handler_stack_top`）上。
+                    //
+                    // 在 moving GC（以及 `--gc-stress` 会频繁触发的 minor collection）下，
+                    // 若 state 对象在 step 执行期间被搬迁，会导致 TLS handler stack 里存的 frame 指针变成悬挂指针，
+                    // 后续 perform/dispatch 访问 handler stack 时会发生崩溃。
+                    //
+                    // v0 取舍：把 state 对象在整个 multi-perform 生命周期内 pin 住，并在 “执行到 handle body 结束”
+                    // 的最终一步（即无下一次 perform）解除 pin（T1606c）。
+                    let unpin = cg.declare_runtime_gc_unpin();
+                    let _ = cg.builder.build_call(
+                        unpin,
+                        &[state_raw.into()],
+                        "cont_state_unpin",
                     )?;
-                    CgValue::bool(b)
-                }
-                CgTy::Int(int_ty) => {
-                    let to = cg.int_type(int_ty);
-                    let v = if int_ty.bits == 64 {
-                        resume_word
-                    } else {
-                        cg.builder
-                            .build_int_truncate(resume_word, to, "resume_int")?
-                    };
-                    CgValue::int(v, int_ty)
-                }
-                CgTy::String | CgTy::Ref => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "continuation resume payload (gc ptr via u64 is forbidden)",
-                        at: perform_decl.span.into(),
-                    });
-                }
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "continuation resume payload type",
-                        at: perform_decl.span.into(),
-                    });
-                }
-            };
-
-            let _stored = cg.store_local_value(span, target_ptr, resume_value_ty, resume_value)?;
-            cg.env.insert(
-                perform_id,
-                CgLocal {
-                    hir_ty: Some(perform_decl.ty),
-                    ty: resume_value_ty,
-                    ptr: target_ptr,
-                    mutable: false,
-                },
-            );
-
-            // 执行 perform 之后的剩余语句。
-            let mut _value: CgValue<'ctx> = CgValue::unit();
-            for (idx, stmt) in handle.body.stmts.iter().enumerate() {
-                if idx <= perform_idx {
-                    continue;
-                }
-                match &stmt.kind {
-                    hir::StmtKind::Empty => {}
-                    hir::StmtKind::Val(decl) => {
-                        cg.codegen_val_decl(decl)?;
-                        _value = CgValue::unit();
-                    }
-                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
-                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
-                        _value = CgValue::unit();
-                    }
-                    hir::StmtKind::Expr(expr) => {
-                        let _ = cg.codegen_expr(expr)?;
-                        _value = CgValue::unit();
-                    }
-                    hir::StmtKind::Return { .. } => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "`return` inside continuation step",
-                            at: stmt.span.into(),
-                        });
-                    }
-                    hir::StmtKind::While { .. }
-                    | hir::StmtKind::Break { .. }
-                    | hir::StmtKind::Continue { .. }
-                    | hir::StmtKind::Todo(_) => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "statement inside continuation step",
-                            at: stmt.span.into(),
-                        });
-                    }
+                    cg.builder.build_return(None)?;
                 }
             }
 
             cg.env.pop_scope();
-            cg.builder.build_return(None)?;
         }
 
         // 恢复外层插入点。
@@ -2836,16 +3524,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(body_bb);
         self.env.push_scope();
 
-        // heap state：`{ header, handler_frame, captured_refs... }`
+        // heap state：`{ header, handler_frame, pc, captures... }`
         let total_size = self.target_data.get_store_size(&state_ty);
 
         // 分配点统一走 typed alloc：在 runtime 内部写入对象头 `type_desc`，确保 GC 能扫描 capture fields。
         let state_desc_global_name = format!("__scoop_type_desc_cont_state__{func_name}_{seq}");
         let size_bytes = self.target_data.get_store_size(&state_ty);
-        let trace_start_offset_bytes = self
-            .target_data
-            .offset_of_element(&state_ty, 2)
-            .unwrap_or(size_bytes);
+        // GC trace 起点必须指向第一个 capture field（field index 3），而不是 pc:i32（field index 2）。
+        // pc 是 i32，其偏移量通常不满足 pointer alignment；runtime 的
+        // scoop_gc_type_descriptor_trace 在 trace_start % sizeof(void*) != 0 时直接返回 0，
+        // 导致所有 capture 中的 GC 引用不可见，在 GC stress 下崩溃。
+        let first_capture_field_index = 3u32; // 0=header, 1=handler_frame, 2=pc, 3=first capture
+        let trace_start_offset_bytes = if outer_captures.is_empty() && body_lifts.is_empty() {
+            size_bytes // 无 capture → 不需要 trace
+        } else {
+            self.target_data
+                .offset_of_element(&state_ty, first_capture_field_index)
+                .unwrap_or(size_bytes)
+        };
         let state_desc = self.get_or_create_type_descriptor_global(
             span,
             &state_desc_global_name,
@@ -2883,20 +3579,55 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        // GC 重要性：escape continuation 的 handler frame 存在于 state 对象内部，且该 frame 会被链接到
+        // TLS handler stack 上。若 state 作为移动对象被搬迁，则 handler stack 中的 frame 指针会失效。
+        //
+        // v0 取舍（T1606c）：在 multi-perform 的生命周期内 pin 住 state，避免 moving GC 把它搬走；
+        // 并在 step trampoline 走到 “body 完成（无下一次 perform）” 路径时解除 pin。
+        let pin = self.declare_runtime_gc_pin();
+        let _ = self.builder.build_call(pin, &[state_raw.into()], "cont_state_pin")?;
+
         let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
         let state_ptr =
             self.builder
                 .build_pointer_cast(state_raw, state_ptr_ty, "cont_state_ptr")?;
-        let frame_ptr =
-            self.builder
-                .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
 
         // typed alloc 下，GC 会按 type_desc 扫描 capture fields。
         //
         // 为避免在执行 perform 前语句（其中可能触发分配/GC）时扫描到未初始化垃圾值，
         // 这里先把所有 capture fields 置零；在 perform 点再写入实际捕获值。
-        for (idx, cap) in captures.iter().enumerate() {
-            let field_idx = 2u32.saturating_add(idx as u32);
+        {
+            // 注意：不要把 `pc_ptr`（state 内部 derived pointer）跨越任何可能触发 GC 的调用长期保活，
+            // 否则 stackmap roots 里会出现 non-header roots，在 `SCOOP_GC_VERIFY_ROOTS=1` 下 fail-fast。
+            let pc_ptr = self
+                .builder
+                .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
+            let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
+        }
+        let outer_field_base = 3u32;
+        let body_field_base = outer_field_base.saturating_add(outer_captures.len() as u32);
+        for (idx, cap) in outer_captures.iter().enumerate() {
+            let field_idx = outer_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_capture_init_gep",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self.builder.build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
+        for (idx, cap) in body_lifts.iter().enumerate() {
+            let field_idx = body_field_base.saturating_add(idx as u32);
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
@@ -2918,6 +3649,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // push handler frame（动态上下文）。
         let rt_push = self.declare_runtime_effect_handler_stack_push();
+        // 注意：不要把 `frame_ptr`（state 内部 derived pointer）跨越 perform 前的语句长期保活，
+        // 否则会在后续 GC safepoint 的 stackmap roots 中出现 derived/non-header roots。
+        let frame_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
         let frame_i8 = self.builder.build_address_space_cast(
             frame_ptr,
             i8_ptr_ty,
@@ -2968,8 +3704,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 把当前作用域内的 locals 写入 heap state：用于 step trampoline 在异步 resume 时恢复 env。
-        for (idx, cap) in captures.iter().enumerate() {
-            let field_idx = 2u32.saturating_add(idx as u32);
+        for (idx, cap) in outer_captures.iter().enumerate() {
+            let field_idx = outer_field_base.saturating_add(idx as u32);
             let field_ptr = self.builder.build_struct_gep(
                 state_ty,
                 state_ptr,
@@ -3097,6 +3833,132 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => unreachable!("captures filtered by type"),
             }
         }
+        for (idx, cap) in body_lifts.iter().enumerate() {
+            let field_idx = body_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_capture_gep",
+            )?;
+
+            let Some(local) = self.env.get(cap.id) else {
+                // 该 local 尚未执行到声明位置：保持 alloc 时的 0 初始化值即可。
+                continue;
+            };
+            if local.ty != cap.ty {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "cont state capture local type mismatch",
+                    at: span.into(),
+                });
+            }
+
+            match cap.ty {
+                CgTy::Ref => {
+                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        local.ptr,
+                        "cont_state_capture_load_ref",
+                    )?;
+                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture value type (ref ptr)",
+                            at: span.into(),
+                        });
+                    };
+                    let casted = self.builder.build_pointer_cast(
+                        ptr,
+                        gc_i8_ptr_ty,
+                        "cont_state_capture_ref_i8",
+                    )?;
+                    let _ = self.store_local_value(
+                        span,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
+                }
+                CgTy::String => {
+                    let llvm_ty = self.llvm_basic_type_of(span, CgTy::String)?;
+                    let loaded = self.builder.build_load(
+                        llvm_ty,
+                        local.ptr,
+                        "cont_state_capture_load_str",
+                    )?;
+                    let BasicValueEnum::PointerValue(ptr) = loaded else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture value type (str ptr)",
+                            at: span.into(),
+                        });
+                    };
+                    let casted = self.builder.build_pointer_cast(
+                        ptr,
+                        gc_i8_ptr_ty,
+                        "cont_state_capture_str_i8",
+                    )?;
+                    let _ = self.store_local_value(
+                        span,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
+                }
+                CgTy::Bool => {
+                    let loaded = self
+                        .builder
+                        .build_load(
+                            self.llvm_basic_type_of(span, CgTy::Bool)?,
+                            local.ptr,
+                            "cont_state_capture_load_bool",
+                        )?
+                        .into_int_value();
+                    let extended = self.builder.build_int_z_extend(
+                        loaded,
+                        i64_ty,
+                        "cont_state_capture_zext_bool",
+                    )?;
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                CgTy::Int(int_ty) => {
+                    if int_ty.bits > 64 {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "cont state capture int width > 64",
+                            at: span.into(),
+                        });
+                    }
+
+                    let llvm_ty = self.llvm_basic_type_of(span, cap.ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, local.ptr, "cont_state_capture_load_int")?
+                        .into_int_value();
+                    let extended = if int_ty.bits == 64 {
+                        loaded
+                    } else if int_ty.signed {
+                        self.builder.build_int_s_extend(
+                            loaded,
+                            i64_ty,
+                            "cont_state_capture_sext_int",
+                        )?
+                    } else {
+                        self.builder.build_int_z_extend(
+                            loaded,
+                            i64_ty,
+                            "cont_state_capture_zext_int",
+                        )?
+                    };
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                _ => unreachable!("captures filtered by type"),
+            }
+        }
 
         // --- perform site：计算 args → 写 binder slots → 创建 continuation ---
         for (slot, arg) in binder_slots.iter().zip(perform_args.iter()) {
@@ -3108,6 +3970,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let v = self.codegen_expr_in_expected_context(expr, Some(slot.ty))?;
             let _stored = self.store_local_value(expr.span, slot.ptr, slot.ty, v)?;
+        }
+
+        // 第一条 continuation resume 对应 pc=0（从第 1 个 perform 点之后继续）。
+        {
+            let pc_ptr = self
+                .builder
+                .build_struct_gep(state_ty, state_ptr, 2, "cont_state_pc_gep")?;
+            let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
         }
 
         let rt_cont_alloc = self.declare_runtime_continuation_alloc();
@@ -3131,6 +4001,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        // GC 重要性（T1606c）：
+        // - handler arm body 里可能触发分配/GC（例如 println/f-string）；
+        // - 但 `k` 在 arm 内部可能尚未被存入任何“可被 GC 扫描的根”（heap field / handle / pin 等）；
+        // - 因此这里先临时 pin 住，避免 `SCOOP_GC_STRESS=1` 下被提前回收/搬迁；
+        // - 在 arm 结束、返回到 done_bb 前解除 pin（见下方 done_bb）。
+        let pin = self.declare_runtime_gc_pin();
+        let _ = self
+            .builder
+            .build_call(pin, &[k_raw.into()], "handle_escape_k_pin")?;
+
         let _stored = self.store_local_value(
             span,
             cont_ptr,
@@ -3145,6 +4025,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - handler arm body 在 dispatch scope 外执行（Appendix A.4）
         // - continuation 捕获的 handler stack（frame->prev 链）保持完整（spec §5.5）
         let handler_frame_ty = self.llvm_effect_handler_frame_type();
+        let frame_ptr =
+            self.builder
+                .build_struct_gep(state_ty, state_ptr, 1, "cont_state_frame_gep")?;
         let prev_ptr = self.builder.build_struct_gep(
             handler_frame_ty,
             frame_ptr,
@@ -3203,6 +4086,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // --- done ---
         self.builder.position_at_end(done_bb);
+
+        // 解除上面为 arm 临时 pin 的 continuation。
+        let llvm_ref_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+        let k_loaded = self
+            .builder
+            .build_load(llvm_ref_ty, cont_ptr, "handle_escape_k_unpin_load")?
+            .into_pointer_value();
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self
+            .builder
+            .build_call(unpin, &[k_loaded.into()], "handle_escape_k_unpin")?;
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
