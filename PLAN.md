@@ -194,7 +194,8 @@ cargo run -p scoop --features llvm -- test
   - T1606d（DONE）：多 perform + 动态上下文/GC 回归加固 — 新增 4 个 run-pass fixtures：GC stress multi-string（SCOOP_GC_STRESS=1 下 3 次 String suspend/resume）、arm-performs-outer-effect（escape arm 内 perform 不同 effect 路由到外层 handler）、nested-escape-handlers（两独立 escape-continuation 交叉 resume）、reperform-from-escape-arm（escape arm re-perform 同一 effect 验证 self-capture prevention）
   - T1606e（DONE）：handle body 任意控制流（分支/循环）显式验证
   - T1606f-1（DONE）：间接 perform（non-resuming）— codegen 修复：perform 无本函数内 handler 时回退 flag-propagation；handler 新增 dispatch trampoline（raise_target_stack + op_tag 检查）确保间接 perform 正确路由且 Raise 等其它 effect 不被误捕获。新增 3 个 run-pass fixtures：basic/call-chain/closure，均在 `--gc-stress` 下稳定。
-  - T1606f-2~f-3, T1606g：call-site suspension / 闭包 locals 联动 / 嵌套 handle 显式验证
+  - T1606f-2（DONE）：间接 perform（call-site suspension）— 两级状态保存设计：callee saves locals to TLS CalleeSuspendState（`{ GcObjectHeader, resume_word, locals... }`），handle body saves captures/lifts to ContState。`codegen_top_level_fun_suspendable` 添加 fresh/resume 双路径入口（TLS 检查）；`emit_callee_suspend_state_save` 在 perform 的 flag-propagation 前分配+PIN+保存 locals 到 TLS；`codegen_handle_expr_escape_continuation_indirect` (~700 行) 生成 ContState + step function + dispatch trampoline。Resume 时 step function 写 resume_word 到 CalleeSuspendState 并重新调用 callee。GC/statepoint 修正：TLS 指针保持 addrspace(0) 避免 statepoint 追踪问题。新增 1 个 run-pass fixture。
+  - T1606f-3, T1606g：闭包 locals 联动 / 嵌套 handle 显式验证
 - 顺序调整说明（2026-04-08）：T1606d 依赖 T1706/T1707 的 fixtures 作为验收基础，但 T1706/T1707 原在 T17（验证套件）中排在 T1606d 之后。由于 T1706/T1707 的前置依赖（T1606a-c、T1608）均已完成，将其提前到 T16 中 T1606d 之前执行，确保依赖顺序正确。
 - 设计要点（implementation-level 约束）：
   - handler 分发必须以稳定 `op_tag` 为核心（Appendix A：最近匹配 + active/inactive）；fqn 字符串仅作为诊断输出。

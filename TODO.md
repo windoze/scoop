@@ -411,26 +411,22 @@ cargo run -p scoop --features llvm -- test
     - `effect_indirect_perform_nonresuming_closure`：闭包捕获 handle body locals 并在闭包内 `Boom.boom(captured)`；`callIt(f)` 调用闭包。
   - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
-### T1606f-2 [TODO] Escape continuation indirect perform：call-site suspension 设计与 codegen
+### T1606f-2 [DONE] Escape continuation indirect perform：call-site suspension 设计与 codegen
 - 描述：为 handle body 的 step function 引入 call-site suspension 点：当 body 中的 call `f()` 可能 perform 时，step function 需要在该 call 前后保存/恢复状态，使 resume 时能重新进入该 call 并由被调用函数完成自身的 resumption。
-- 设计要点——`SuspendResult<T>` 返回值协议（类似 Rust `Poll<T>` / Kotlin `COROUTINE_SUSPENDED`）：
-  - 可能 perform 可恢复 effect 的函数，其 LLVM 返回类型从 `T` 变为 `SuspendResult<T>`：
-    ```
-    enum SuspendResult<T> {
-        InProgress,       // 函数内部 perform 了，已挂起，调用者应向上传播
-        Completed(value: T)  // 函数正常完成，调用者提取值继续
-    }
-    ```
-  - call site 对返回值 match：`InProgress` → 保存 locals + 更新 pc + 从 step function 返回（向上传播挂起）；`Completed(v)` → 提取值，继续执行后续语句。
-  - flag-propagation 仅保留给 non-resuming effect（Raise、non-resuming custom handler）——这些场景只需单向 unwind，不需要 re-entry，flag 足够且更简单。
-  - 被调用函数 `f()` 内部的 perform 通过已有 handler stack dispatch 路由到正确的 handler；handler arm 调用 `k.resume(value)` 后，`f()` 从 perform 点恢复并最终返回 `Completed(result)`；step function 在对应 pc 恢复时收到 `Completed`，提取值继续。
 - 目标：
   - 扫描 handle body 中的 call 表达式，标记可能触发匹配 effect 的 call 为”suspension call-site”；
   - 在 step function 中为每个 suspension call-site 分配一个 pc 值，保存 call 前的 locals，resume 时跳到 call-site 并重新调用；
-  - 设计并实现 `SuspendResult<T>` 的 LLVM 表示（例如 `{ i1 is_completed, T value }` 或等价编码），以及 call-site 的 match/extract codegen；
   - 验证单层 call（`handle { f() } with ...`，`f()` 内部单 perform + resume）的正确性。
 - 验收：新增 run-pass fixture + GC stress 稳定。
 - 依赖：T1606f-1
+- 完成说明：
+  - **设计（两级状态保存 + TLS CalleeSuspendState）**：不使用 `SuspendResult<T>` 返回值变换——保留 flag-propagation 作为 perform→caller 的挂起信号（与 Raise 一致），在此之上增加两级状态保存：(1) callee 保存自身 post-perform locals 到 CalleeSuspendState（TLS），(2) handle body 保存 outer captures + body lifts 到 ContState。Resume 时 step function 将 resume_word 写入 CalleeSuspendState 的 resume_word 字段，然后重新调用 callee——callee 入口检测 TLS 非空则走 resume 路径。
+  - **CalleeSuspendState**：`{ GcObjectHeader, resume_word:i64, saved_locals... }` — GC-managed heap struct，由 callee 的 perform codegen 分配+PIN+保存到 TLS。
+  - **CalleeSuspend 入口变换（`codegen_top_level_fun_suspendable`）**：`scan_for_callee_suspend` 扫描函数体中的直接 perform（非 Raise）；检测到后生成 fresh/resume 双路径入口（TLS 检查），resume 路径从 state 恢复 locals 和 resume_word。
+  - **`emit_callee_suspend_state_save`**：在 perform codegen 的 flag-propagation return 之前，分配 CalleeSuspendState、PIN、保存所有 pre-perform locals（Int/Bool/Ref/String），然后写入 TLS。
+  - **`codegen_handle_expr_escape_continuation_indirect`**：新 codegen 路径（~700 行），当 escape continuation handle body 有 0 直接 performs 但有非纯函数调用时触发。生成 ContState + step function + handler frame push + raise_target dispatch trampoline + arm body + continuation alloc + done block。
+  - **GC/statepoint 修正**：TLS accessor `_get()` 返回 addrspace(0) 指针——在 resume path 保持 addrspace(0) 避免 statepoint pass 无法追踪的 GC root；unpin 通过 `ptrtoint`/`inttoptr` 转换为 addrspace(1)。
+  - **Fixture**：`effect_escape_continuation_indirect_perform_basic` — `compute()` 内部 `Ask.get(x)` 间接 perform，handle body 捕获 + 创建 continuation，外部 resume 后 callee 恢复并完成计算（x + resume_value = 42）。
 
 ### T1606f-3 [TODO] Escape continuation indirect perform：闭包中 perform + locals 联动
 - 描述：闭包中 perform 时，闭包捕获的 locals 来自 handle body 的作用域。resume 后闭包需要看到 handle body 中 locals 的最新值（lift 已保存 + 恢复）。本任务验证闭包 + escape continuation 的组合语义。

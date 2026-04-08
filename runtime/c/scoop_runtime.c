@@ -420,6 +420,16 @@ SCOOP_THREAD_LOCAL uint32_t __scoop_effect_active = 0;
 // flag-based unwinding：每线程 perform slot（后续由 `perform` 写入）。
 SCOOP_THREAD_LOCAL ScoopEffectPerformSlot __scoop_effect_perform_slot = {0};
 
+// T1606f-2：callee suspend state（间接 perform 的被调函数状态指针）。
+//
+// 说明：
+// - 当一个函数内部 perform 了 escape continuation effect 并通过 flag propagation 返回时，
+//   该函数需要保存自身的 post-perform locals 到 GC heap 上的 CalleeSuspendState 对象，
+//   并将指针存入此 TLS 变量，以便 handle body 的 dispatch trampoline 取回并保存到 ContState。
+// - 存入前该对象应已被 PIN（避免 GC 搬迁），handler 侧取回后负责 unpin。
+// - 不参与 GC root 扫描——对象通过 pin 保持存活，handler 取回后由 ContState 追踪。
+SCOOP_THREAD_LOCAL void *__scoop_callee_suspend_state = 0;
+
 static inline void scoop_effect_trace_reset(uint32_t src_line, uint32_t src_col) {
   scoop_effect_trace.version = 0;
   scoop_effect_trace.src_line = src_line;
@@ -586,6 +596,19 @@ void scoop_effect_set_active_with_trace(uint32_t src_line, uint32_t src_col) {
 void scoop_effect_clear(void) {
   __scoop_effect_active = 0;
   (void)memset(&__scoop_effect_perform_slot, 0, sizeof(__scoop_effect_perform_slot));
+}
+
+// T1606f-2：callee suspend state 访问器。
+void *scoop_callee_suspend_state_get(void) {
+  return __scoop_callee_suspend_state;
+}
+
+void scoop_callee_suspend_state_set(void *state) {
+  __scoop_callee_suspend_state = state;
+}
+
+void scoop_callee_suspend_state_clear(void) {
+  __scoop_callee_suspend_state = 0;
 }
 
 // effect runtime（TODO T1411c）：读取最近一次 non-resuming effect 的诊断信息。

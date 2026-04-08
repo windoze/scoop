@@ -1,0 +1,56 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_basic.stdout
+//
+// T1606f-2: Escape continuation with indirect perform through a function call.
+// - `compute()` internally performs `Ask.get(10)` and uses the resume value
+//   to compute its return value (x + y where y is the resume value).
+// - The handle in `main` catches the indirect perform via dispatch trampoline,
+//   creates a continuation, and the arm saves k for later resume.
+// - Verifies: indirect perform through a single-layer function call correctly
+//   suspends (saving callee state), resumes (callee restores state and completes),
+//   and the handle body continues with the callee's actual return value.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun compute(): Int / (Ask) {
+    val x: Int = 10
+    val y: Int = Ask.get(x)
+    return x + y
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        println("body_start")
+        val v: Int = compute()
+        println("body_done")
+        println(v)
+        v
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            99
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(32)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("arm_after_resume")
+        }
+        None -> println("no_continuation")
+    }
+    return
+}

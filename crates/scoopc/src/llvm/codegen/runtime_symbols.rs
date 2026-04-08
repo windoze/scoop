@@ -4,6 +4,9 @@
 
 pub(super) const SCOOP_ALLOC: &str = "scoop_alloc";
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
+pub(super) const SCOOP_CALLEE_SUSPEND_STATE_CLEAR: &str = "scoop_callee_suspend_state_clear";
+pub(super) const SCOOP_CALLEE_SUSPEND_STATE_GET: &str = "scoop_callee_suspend_state_get";
+pub(super) const SCOOP_CALLEE_SUSPEND_STATE_SET: &str = "scoop_callee_suspend_state_set";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY: &str = "scoop_array_builder_build_array";
 pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY: &str =
     "scoop_array_builder_build_mutable_array";

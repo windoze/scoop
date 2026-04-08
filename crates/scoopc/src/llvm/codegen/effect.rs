@@ -29,6 +29,16 @@ pub(super) struct ImmediateResumeCtx<'ctx> {
     next_state: u32,
 }
 
+/// T1606f-2: Info about a function call site in the handle body that may indirectly perform.
+struct IndirectPerformCallSite {
+    /// Index of the stmt in handle.body.stmts.
+    stmt_idx: usize,
+    /// SymbolId of the val binding for the call result.
+    result_id: hir::SymbolId,
+    /// HIR type of the call result.
+    result_ty: TypeId,
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn current_raise_target(&self) -> Option<inkwell::basic_block::BasicBlock<'ctx>> {
         self.raise_target_stack.last().copied()
@@ -158,6 +168,254 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         self.builder.position_at_end(cont_bb);
+        Ok(())
+    }
+
+    /// T1606f-2: Save callee locals to a heap CalleeSuspendState before flag propagation return.
+    ///
+    /// Called from `codegen_perform_expr_nonresuming_custom_int` when the function is "suspendable"
+    /// and there's no local handler — i.e., the perform will propagate through flag propagation.
+    fn emit_callee_suspend_state_save(
+        &mut self,
+        at: crate::span::Span,
+        ctx: &CalleeSuspendSaveCtx,
+    ) -> Result<(), LlvmEmitError> {
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let header_ty = self.llvm_gc_object_header_type();
+
+        // Build (or reuse) the CalleeSuspendState struct type.
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: at.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: at.into(),
+            })?;
+        let func_name = func.get_name().to_str().unwrap_or("anon");
+        let func_name_san = sanitize_llvm_ident(func_name);
+        let state_ty_name =
+            format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
+        let state_ty =
+            if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+                existing
+            } else {
+                let ty = self.context.opaque_struct_type(&state_ty_name);
+                let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+                fields.push(header_ty.into()); // 0: GC header
+                fields.push(i64_ty.into()); // 1: resume_word
+                for local in &ctx.saved_locals {
+                    fields.push(match local.cg_ty {
+                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                        _ => {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "callee suspend local type",
+                                at: at.into(),
+                            })
+                        }
+                    });
+                }
+                ty.set_body(&fields, false);
+                ty
+            };
+
+        // Create type descriptor for GC.
+        let size_bytes = self.target_data.get_store_size(&state_ty);
+        let has_gc_fields = ctx
+            .saved_locals
+            .iter()
+            .any(|l| matches!(l.cg_ty, CgTy::Ref | CgTy::String));
+        let first_local_field = 2u32; // 0=header, 1=resume_word
+        let trace_start = if has_gc_fields {
+            self.target_data
+                .offset_of_element(&state_ty, first_local_field)
+                .unwrap_or(size_bytes)
+        } else {
+            size_bytes
+        };
+        let desc_name = format!(
+            "__scoop_type_desc_callee_suspend__{func_name_san}"
+        );
+        let state_desc = self.get_or_create_type_descriptor_global(
+            at,
+            &desc_name,
+            &state_ty_name,
+            state_ty,
+            trace_start,
+            None,
+            None,
+            None,
+        )?;
+
+        // Allocate CalleeSuspendState.
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let total_size = i64_ty.const_int(size_bytes, false);
+        let desc_i8 = self.builder.build_pointer_cast(
+            state_desc.as_pointer_value(),
+            i8_ptr_ty,
+            "callee_state_desc_i8",
+        )?;
+        let alloc_call = self.builder.build_call(
+            rt_alloc,
+            &[desc_i8.into(), total_size.into()],
+            "callee_state_alloc",
+        )?;
+        let state_raw = alloc_call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "callee state alloc return",
+                at: at.into(),
+            })?
+            .into_pointer_value();
+
+        // PIN the state to prevent GC from moving/collecting it.
+        let pin = self.declare_runtime_gc_pin();
+        let _ = self
+            .builder
+            .build_call(pin, &[state_raw.into()], "callee_state_pin")?;
+
+        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            state_ptr_ty,
+            "callee_state_ptr",
+        )?;
+
+        // Zero-initialize resume_word (field 1).
+        let rw_ptr = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            1,
+            "callee_state_rw_gep",
+        )?;
+        let _ = self.builder.build_store(rw_ptr, i64_ty.const_zero())?;
+
+        // Save locals to state.
+        for (idx, local_info) in ctx.saved_locals.iter().enumerate() {
+            let field_idx = 2 + idx as u32;
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                &format!("callee_save_{}", local_info.name),
+            )?;
+
+            let local = self
+                .env
+                .get(local_info.id)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "callee suspend save: local not found",
+                    at: at.into(),
+                })?;
+
+            match local_info.cg_ty {
+                CgTy::Int(int_ty) => {
+                    let llvm_ty = self.llvm_basic_type_of(at, local_info.cg_ty)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, local.ptr, "callee_save_int")?
+                        .into_int_value();
+                    let extended = if int_ty.bits == 64 {
+                        loaded
+                    } else if int_ty.signed {
+                        self.builder.build_int_s_extend(
+                            loaded,
+                            i64_ty,
+                            "callee_save_sext",
+                        )?
+                    } else {
+                        self.builder.build_int_z_extend(
+                            loaded,
+                            i64_ty,
+                            "callee_save_zext",
+                        )?
+                    };
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                CgTy::Bool => {
+                    let llvm_ty = self.llvm_basic_type_of(at, CgTy::Bool)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, local.ptr, "callee_save_bool")?
+                        .into_int_value();
+                    let extended = self.builder.build_int_z_extend(
+                        loaded,
+                        i64_ty,
+                        "callee_save_bool_zext",
+                    )?;
+                    let _ = self.builder.build_store(field_ptr, extended)?;
+                }
+                CgTy::Ref => {
+                    let llvm_ty = self.llvm_basic_type_of(at, CgTy::Ref)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, local.ptr, "callee_save_ref")?
+                        .into_pointer_value();
+                    let casted = self.builder.build_pointer_cast(
+                        loaded,
+                        gc_i8_ptr_ty,
+                        "callee_save_ref_i8",
+                    )?;
+                    let _ = self.store_local_value(
+                        at,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
+                }
+                CgTy::String => {
+                    let llvm_ty = self.llvm_basic_type_of(at, CgTy::String)?;
+                    let loaded = self
+                        .builder
+                        .build_load(llvm_ty, local.ptr, "callee_save_str")?
+                        .into_pointer_value();
+                    let casted = self.builder.build_pointer_cast(
+                        loaded,
+                        gc_i8_ptr_ty,
+                        "callee_save_str_i8",
+                    )?;
+                    let _ = self.store_local_value(
+                        at,
+                        field_ptr,
+                        CgTy::Ref,
+                        CgValue {
+                            ty: CgTy::Ref,
+                            value: Some(casted.into()),
+                        },
+                    )?;
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "callee suspend save: unsupported local type",
+                        at: at.into(),
+                    })
+                }
+            }
+        }
+
+        // Store state pointer to TLS (cast GC ptr to plain ptr for C ABI).
+        let rt_set = self.declare_runtime_callee_suspend_state_set();
+        let state_raw_plain = self.builder.build_address_space_cast(
+            state_raw,
+            i8_ptr_ty,
+            "callee_state_raw_plain",
+        )?;
+        let _ = self
+            .builder
+            .build_call(rt_set, &[state_raw_plain.into()], "callee_suspend_set")?;
+
         Ok(())
     }
 
@@ -714,6 +972,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // （与 Raise.raise 的"返回默认值"路径一致）。
             // flag 与 slot 已在上方写入；caller 的 emit_effect_unwind_if_active 会检查 flag
             // 并路由到最近的匹配 handler 或继续向外 return。
+
+            // T1606f-2: If this function is "suspendable" (callee_suspend_save_ctx is set),
+            // save locals to a heap CalleeSuspendState before returning default.
+            if let Some(ctx) = self.callee_suspend_save_ctx.clone() {
+                self.emit_callee_suspend_state_save(span, &ctx)?;
+            }
+
             let ret_ty = self
                 .current_fun_return_ty
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -2512,6 +2777,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let Some(first_site) = perform_sites.first() else {
+            // T1606f-2: No direct performs found. Check for indirect performs through function calls.
+            let indirect_sites = self.scan_for_indirect_perform_call_sites(
+                &handle.body,
+                &arm.op.op.fqn,
+            );
+            if !indirect_sites.is_empty() {
+                return self.codegen_handle_expr_escape_continuation_indirect(
+                    span,
+                    handle,
+                    arm,
+                    continuation_symbol,
+                    seq,
+                    out_ty,
+                    indirect_sites,
+                );
+            }
             // T1606a：没有匹配 op 的 perform 点，arm 不可达；退化为顺序执行 `body -> finally` 并返回 body 值。
             return self.codegen_handle_expr_no_perform(span, handle, out_ty);
         };
@@ -6209,6 +6490,1402 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
         })
+    }
+
+    // ── T1606f-2: Indirect perform support for escape continuations ──
+
+    /// Scan handle body stmts for `val x = f(...)` where f may perform (non-pure).
+    fn scan_for_indirect_perform_call_sites(
+        &self,
+        body: &hir::Block,
+        _arm_op_fqn: &str,
+    ) -> Vec<IndirectPerformCallSite> {
+        let mut sites = Vec::new();
+        for (idx, stmt) in body.stmts.iter().enumerate() {
+            if let hir::StmtKind::Val(decl) = &stmt.kind {
+                if let Some(init) = &decl.init {
+                    if let hir::ExprKind::Call { callee, .. } = &init.kind {
+                        if let Some(fqn) = self.try_extract_callee_fqn(callee) {
+                            if let Some(fun) = self.fun_index.get(fqn) {
+                                let is_pure = self
+                                    .fun_ty_effects_is_pure(fun.ty)
+                                    .unwrap_or(false);
+                                if !is_pure {
+                                    if let Some(id) = decl.id {
+                                        sites.push(IndirectPerformCallSite {
+                                            stmt_idx: idx,
+                                            result_id: id,
+                                            result_ty: decl.ty,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        sites
+    }
+
+    /// T1606f-2: Escape continuation codegen when the handle body has no direct performs,
+    /// but has function calls that may indirectly perform.
+    ///
+    /// Architecture:
+    /// - Handle body executes stmts normally (including function calls).
+    /// - A raise_target dispatches flag-based unwind after calls to a catch block.
+    /// - The catch block checks op_tag: if matching, saves state, creates continuation, runs arm.
+    /// - The step function resumes by writing resume_word to TLS callee state and re-calling.
+    fn codegen_handle_expr_escape_continuation_indirect(
+        &mut self,
+        span: crate::span::Span,
+        handle: &hir::HandleExpr,
+        arm: &hir::HandleArm,
+        continuation_symbol: hir::SymbolId,
+        seq: u32,
+        out_ty: CgTy,
+        indirect_sites: Vec<IndirectPerformCallSite>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if handle.finally.is_some() {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "handle finally (escape continuation indirect)",
+                at: span.into(),
+            });
+        }
+
+        let insert_block =
+            self.builder
+                .get_insert_block()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "builder has no insert block",
+                    at: span.into(),
+                })?;
+        let func = insert_block
+            .get_parent()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "builder has no parent function",
+                at: span.into(),
+            })?;
+        let func_name = func
+            .get_name()
+            .to_str()
+            .unwrap_or("anonymous")
+            .to_string();
+        let func_name = sanitize_llvm_ident(&func_name);
+
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let i64_ty = self.context.i64_type();
+        let i32_ty = self.context.i32_type();
+
+        // For indirect performs, we need the call result type (= resume value type for the callee).
+        let first_site = &indirect_sites[0];
+        let call_result_cg_ty =
+            self.cg_ty_of(first_site.result_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "indirect perform call result type",
+                    at: span.into(),
+                })?;
+
+        // Compute outer captures: locals from enclosing scope used inside handle body.
+        struct CapturedLocal {
+            id: hir::SymbolId,
+            hir_ty: Option<TypeId>,
+            ty: CgTy,
+            mutable: bool,
+        }
+        let mut outer_used: HashSet<hir::SymbolId> = HashSet::new();
+        for stmt in &handle.body.stmts {
+            Self::collect_used_locals_in_stmt_static(stmt, &mut outer_used);
+        }
+        let mut outer_captures: Vec<CapturedLocal> = Vec::new();
+        for id in &outer_used {
+            if let Some(local) = self.env.get(*id) {
+                if matches!(
+                    local.ty,
+                    CgTy::Ref | CgTy::String | CgTy::Bool | CgTy::Int(_)
+                ) {
+                    outer_captures.push(CapturedLocal {
+                        id: *id,
+                        hir_ty: local.hir_ty,
+                        ty: local.ty,
+                        mutable: local.mutable,
+                    });
+                }
+            }
+        }
+        outer_captures.sort_by_key(|c| c.id.as_u32());
+
+        // Compute body lifts: locals declared before the indirect perform that are used after.
+        let mut body_lift_ids: HashSet<hir::SymbolId> = HashSet::new();
+        {
+            // Collect locals declared before each indirect perform site.
+            let mut decls_before: Vec<(hir::SymbolId, usize)> = Vec::new();
+            for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+                if idx >= first_site.stmt_idx {
+                    break;
+                }
+                if let hir::StmtKind::Val(decl) = &stmt.kind {
+                    if let Some(id) = decl.id {
+                        decls_before.push((id, idx));
+                    }
+                }
+            }
+            // Collect locals used after the indirect perform.
+            let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
+            for stmt in handle.body.stmts.iter().skip(first_site.stmt_idx + 1) {
+                Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
+            }
+            for (id, _) in &decls_before {
+                if used_after.contains(id) {
+                    body_lift_ids.insert(*id);
+                }
+            }
+        }
+
+        let mut body_lifts: Vec<CapturedLocal> = Vec::new();
+        for &id in &body_lift_ids {
+            // These locals haven't been codegen'd yet (body hasn't run), so we can't look them up.
+            // We need their type info from the HIR decls.
+            for stmt in &handle.body.stmts {
+                if let hir::StmtKind::Val(decl) = &stmt.kind {
+                    if decl.id == Some(id) {
+                        let decl_ty = self.cg_ty_of(decl.ty).ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "indirect perform body lift type",
+                                at: decl.span.into(),
+                            },
+                        )?;
+                        body_lifts.push(CapturedLocal {
+                            id,
+                            hir_ty: Some(decl.ty),
+                            ty: decl_ty,
+                            mutable: decl.mutable,
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+        body_lifts.sort_by_key(|c| c.id.as_u32());
+
+        // ContState struct: { header, handler_frame, pc, outer_captures..., body_lifts... }
+        let state_ty_name = format!(
+            "scoop.runtime.ContState__{func_name}_{seq}"
+        );
+        let state_ty =
+            if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+                existing
+            } else {
+                let ty = self.context.opaque_struct_type(&state_ty_name);
+                let header_ty = self.llvm_gc_object_header_type();
+                let frame_ty = self.llvm_effect_handler_frame_type();
+                let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+                fields.push(header_ty.into()); // 0: header
+                fields.push(frame_ty.into()); // 1: handler_frame
+                fields.push(i32_ty.into()); // 2: pc
+                for cap in &outer_captures {
+                    fields.push(match cap.ty {
+                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                        _ => unreachable!("captures filtered by type"),
+                    });
+                }
+                for cap in &body_lifts {
+                    fields.push(match cap.ty {
+                        CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                        CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                        _ => unreachable!("lifts filtered by type"),
+                    });
+                }
+                ty.set_body(&fields, false);
+                ty
+            };
+
+        // Step function: void step(void* state, u64 resume_word, void* resume_gc_ref)
+        let step_name = format!(
+            "__scoop_cont_step__{func_name}_{seq}"
+        );
+        let step_fn_ty = self.context.void_type().fn_type(
+            &[gc_i8_ptr_ty.into(), i64_ty.into(), gc_i8_ptr_ty.into()],
+            false,
+        );
+        let step_fn =
+            self.module.add_function(&step_name, step_fn_ty, None);
+        step_fn.set_linkage(Linkage::Internal);
+        step_fn.set_gc(super::super::LLVM_GC_STRATEGY_STATEPOINT_EXAMPLE);
+
+        let saved_block = insert_block;
+
+        // ── Generate step function body ──
+        {
+            let mut cg = MainCodegen::new(
+                self.context,
+                self.module,
+                self.builder,
+                self.target_data,
+                self.host,
+                self.source,
+                self.types,
+                self.struct_layouts,
+                self.enum_layouts,
+                self.top_level_vars,
+                self.object_inits,
+                self.class_inits,
+                self.class_vtables,
+                self.interfaces,
+                self.class_itables,
+                self.ctor_call_sites,
+                self.extern_funs,
+                self.fun_index,
+            );
+
+            let entry = self
+                .context
+                .append_basic_block(step_fn, "entry");
+            cg.builder.position_at_end(entry);
+            cg.current_fun_return_ty = Some(CgTy::Unit);
+            cg.env.push_scope();
+
+            // Parse step function params.
+            let state_raw = step_fn
+                .get_nth_param(0)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step state param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+            let state_ptr_ty = state_ty.ptr_type(cg.gc_address_space());
+            let state_ptr = cg.builder.build_pointer_cast(
+                state_raw,
+                state_ptr_ty,
+                "step_state_ptr",
+            )?;
+            let resume_word = step_fn
+                .get_nth_param(1)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step resume_word param",
+                    at: span.into(),
+                })?
+                .into_int_value();
+            let _resume_gc_ref = step_fn
+                .get_nth_param(2)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step resume_gc_ref param",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+
+            // Restore outer captures from ContState.
+            let outer_field_base = 3u32;
+            let body_field_base =
+                outer_field_base.saturating_add(outer_captures.len() as u32);
+            for (idx, cap) in outer_captures.iter().enumerate() {
+                let field_idx = outer_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "step_capture_gep",
+                )?;
+                let name = format!("cap_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Ref => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "step_cap_ref")?
+                            .into_pointer_value();
+                        let ptr =
+                            cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "step_cap_str")?
+                            .into_pointer_value();
+                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                        let casted = cg.builder.build_pointer_cast(
+                            loaded,
+                            str_ptr_ty,
+                            "step_cap_str_cast",
+                        )?;
+                        let ptr = cg.create_entry_alloca(
+                            span,
+                            &name,
+                            CgTy::String,
+                        )?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "step_cap_bool")?
+                            .into_int_value();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            i64_ty.const_zero(),
+                            "step_cap_bool_cmp",
+                        )?;
+                        let ptr = cg.create_entry_alloca(
+                            span,
+                            &name,
+                            CgTy::Bool,
+                        )?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Int(int_ty) => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "step_cap_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "step_cap_trunc",
+                            )?
+                        };
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr =
+                            cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("captures filtered"),
+                }
+            }
+
+            // Restore body lifts.
+            for (idx, cap) in body_lifts.iter().enumerate() {
+                let field_idx = body_field_base.saturating_add(idx as u32);
+                let field_ptr = cg.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "step_lift_gep",
+                )?;
+                let name = format!("lift_{}", cap.id.as_u32());
+                match cap.ty {
+                    CgTy::Int(int_ty) => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "step_lift_int")?
+                            .into_int_value();
+                        let to = cg.int_type(int_ty);
+                        let v = if int_ty.bits == 64 {
+                            loaded
+                        } else {
+                            cg.builder.build_int_truncate(
+                                loaded,
+                                to,
+                                "step_lift_trunc",
+                            )?
+                        };
+                        let slot_ty = CgTy::Int(int_ty);
+                        let ptr =
+                            cg.create_entry_alloca(span, &name, slot_ty)?;
+                        let _ = cg.builder.build_store(ptr, v)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: slot_ty,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => {
+                        // For T1606f-2, only support Int lifts. Other types can be added later.
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "indirect perform: body lift type (only Int supported for now)",
+                            at: span.into(),
+                        });
+                    }
+                }
+            }
+
+            // Step function body for pc=0 (indirect perform call-site):
+            // 1. Read callee_suspend_state from TLS
+            // 2. Write resume_word into CalleeSuspendState's resume_word field
+            // 3. Re-call the function (with default args since callee resume path ignores them)
+            // 4. Continue with post-call stmts
+            // 5. Unpin state + return
+
+            // Read callee_suspend_state from TLS.
+            let rt_get_callee = cg.declare_runtime_callee_suspend_state_get();
+            let get_call = cg
+                .builder
+                .build_call(rt_get_callee, &[], "step_callee_state_get")?;
+            let callee_state_raw = get_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "step callee_state_get return",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+
+            // Write resume_word into callee state's field 1 (resume_word).
+            // CalleeSuspendState: { header, resume_word:i64, locals... }
+            // We access field 1 via a raw GEP on i64 offset.
+            let callee_rw_byte_offset = self
+                .target_data
+                .get_store_size(&self.llvm_gc_object_header_type());
+            let callee_rw_ptr = cg.builder.build_pointer_cast(
+                callee_state_raw,
+                i8_ptr_ty,
+                "callee_state_i8",
+            )?;
+            let offset_val =
+                i64_ty.const_int(callee_rw_byte_offset, false);
+            let callee_rw_gep = unsafe {
+                cg.builder.build_gep(
+                    cg.context.i8_type(),
+                    callee_rw_ptr,
+                    &[offset_val],
+                    "callee_rw_byte_gep",
+                )?
+            };
+            let callee_rw_i64_ptr = cg.builder.build_pointer_cast(
+                callee_rw_gep,
+                i64_ty.ptr_type(AddressSpace::default()),
+                "callee_rw_i64_ptr",
+            )?;
+            let _ = cg
+                .builder
+                .build_store(callee_rw_i64_ptr, resume_word)?;
+
+            // Re-call the callee function.
+            // The callee will detect its saved state in TLS, use the resume_word, and return the actual result.
+            let site = &indirect_sites[0];
+            let call_stmt = &handle.body.stmts[site.stmt_idx];
+            let hir::StmtKind::Val(call_decl) = &call_stmt.kind else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "indirect perform: expected val decl",
+                    at: call_stmt.span.into(),
+                });
+            };
+            let Some(call_init) = &call_decl.init else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "indirect perform: expected init",
+                    at: call_decl.span.into(),
+                });
+            };
+
+            // Codegen the call expression (the callee will detect resume via TLS).
+            let call_result = cg.codegen_expr_in_expected_context(
+                call_init,
+                Some(call_result_cg_ty),
+            )?;
+
+            // Bind the call result to the val decl's local.
+            if let Some(id) = call_decl.id {
+                let ptr = cg.create_entry_alloca(
+                    call_decl.span,
+                    call_decl.name.as_deref().unwrap_or("v"),
+                    call_result_cg_ty,
+                )?;
+                let _ = cg.store_local_value(
+                    call_decl.span,
+                    ptr,
+                    call_result_cg_ty,
+                    call_result,
+                )?;
+                cg.env.insert(
+                    id,
+                    CgLocal {
+                        hir_ty: Some(call_decl.ty),
+                        ty: call_result_cg_ty,
+                        ptr,
+                        mutable: call_decl.mutable,
+                    },
+                );
+            }
+
+            // Execute remaining stmts after the call.
+            for stmt in
+                handle.body.stmts.iter().skip(site.stmt_idx + 1)
+            {
+                match &stmt.kind {
+                    hir::StmtKind::Empty => {}
+                    hir::StmtKind::Val(decl) => {
+                        cg.codegen_val_decl(decl)?;
+                    }
+                    hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                        cg.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    }
+                    hir::StmtKind::Expr(expr) => {
+                        let _ = cg.codegen_expr(expr)?;
+                    }
+                    hir::StmtKind::While { cond, body } => {
+                        cg.codegen_while_stmt(stmt.span, cond, body)?;
+                    }
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "stmt in step function (indirect perform)",
+                            at: stmt.span.into(),
+                        })
+                    }
+                }
+            }
+
+            // Unpin cont_state + return.
+            let unpin = cg.declare_runtime_gc_unpin();
+            let _ = cg.builder.build_call(
+                unpin,
+                &[state_raw.into()],
+                "step_unpin",
+            )?;
+            cg.builder.build_return(None)?;
+
+            cg.env.pop_scope();
+        }
+
+        // Restore outer insertion point.
+        self.builder.position_at_end(saved_block);
+
+        // ── Handle body: initial execution ──
+        let body_bb = self
+            .context
+            .append_basic_block(func, "handle_indirect_body");
+        let dispatch_bb = self
+            .context
+            .append_basic_block(func, "handle_indirect_dispatch");
+        let dispatch_no_match_bb = self
+            .context
+            .append_basic_block(func, "handle_indirect_dispatch_nomatch");
+        let arm_bb = self
+            .context
+            .append_basic_block(func, "handle_indirect_arm");
+        let done_bb = self
+            .context
+            .append_basic_block(func, "handle_indirect_done");
+
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(
+                span,
+                "handle_indirect_result",
+                out_ty,
+            )?)
+        };
+
+        // Continuation binder local.
+        let cont_ptr = self.create_entry_alloca(
+            span,
+            &format!("handle_indirect_k_{seq}"),
+            CgTy::Ref,
+        )?;
+
+        // Binder slots for the arm pattern (e.g., op args).
+        struct BinderSlot<'ctx> {
+            id: hir::SymbolId,
+            hir_ty: TypeId,
+            ty: CgTy,
+            ptr: PointerValue<'ctx>,
+        }
+        let mut binder_slots: Vec<BinderSlot<'ctx>> = Vec::new();
+        for binder in &arm.op.binders {
+            let binder_ty = self.cg_ty_of(binder.ty).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "handle indirect binder type",
+                    at: binder.span.into(),
+                },
+            )?;
+            let ptr = self.create_entry_alloca(
+                binder.span,
+                &binder.name,
+                binder_ty,
+            )?;
+            binder_slots.push(BinderSlot {
+                id: binder.id,
+                hir_ty: binder.ty,
+                ty: binder_ty,
+                ptr,
+            });
+        }
+
+        self.builder.build_unconditional_branch(body_bb)?;
+
+        // ── Body ──
+        self.builder.position_at_end(body_bb);
+        self.env.push_scope();
+
+        // Allocate and pin ContState.
+        let total_size = self.target_data.get_store_size(&state_ty);
+        let state_desc_global_name = format!(
+            "__scoop_type_desc_cont_state__{func_name}_{seq}"
+        );
+        let first_capture_field_index = 3u32;
+        let trace_start_offset_bytes =
+            if outer_captures.is_empty() && body_lifts.is_empty() {
+                total_size
+            } else {
+                self.target_data
+                    .offset_of_element(
+                        &state_ty,
+                        first_capture_field_index,
+                    )
+                    .unwrap_or(total_size)
+            };
+        let state_desc = self.get_or_create_type_descriptor_global(
+            span,
+            &state_desc_global_name,
+            &state_ty_name,
+            state_ty,
+            trace_start_offset_bytes,
+            None,
+            None,
+            None,
+        )?;
+
+        let rt_alloc = self.declare_runtime_alloc_typed();
+        let size_v = i64_ty.const_int(total_size, false);
+        let state_desc_i8 = self.builder.build_pointer_cast(
+            state_desc.as_pointer_value(),
+            i8_ptr_ty,
+            "cont_state_type_desc_i8",
+        )?;
+        let call = self.builder.build_call(
+            rt_alloc,
+            &[state_desc_i8.into(), size_v.into()],
+            "rt_alloc_cont_state",
+        )?;
+        let raw = call.try_as_basic_value().basic().ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return value",
+                at: span.into(),
+            },
+        )?;
+        let BasicValueEnum::PointerValue(state_raw) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "scoop_alloc return type",
+                at: span.into(),
+            });
+        };
+
+        let pin = self.declare_runtime_gc_pin();
+        let _ = self
+            .builder
+            .build_call(pin, &[state_raw.into()], "cont_state_pin")?;
+
+        let state_ptr_ty = state_ty.ptr_type(self.gc_address_space());
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            state_ptr_ty,
+            "cont_state_ptr",
+        )?;
+
+        // Zero-init pc and capture fields.
+        {
+            let pc_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                2,
+                "cont_state_pc_gep",
+            )?;
+            let _ = self.builder.build_store(pc_ptr, i32_ty.const_zero())?;
+        }
+        let outer_field_base = 3u32;
+        let body_field_base =
+            outer_field_base.saturating_add(outer_captures.len() as u32);
+        for (idx, cap) in outer_captures.iter().enumerate() {
+            let field_idx = outer_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_cap_init",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!(),
+            }
+        }
+        for (idx, cap) in body_lifts.iter().enumerate() {
+            let field_idx = body_field_base.saturating_add(idx as u32);
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                "cont_state_lift_init",
+            )?;
+            match cap.ty {
+                CgTy::Ref | CgTy::String => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, gc_i8_ptr_ty.const_null())?;
+                }
+                CgTy::Bool | CgTy::Int(_) => {
+                    let _ = self
+                        .builder
+                        .build_store(field_ptr, i64_ty.const_zero())?;
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        // Push handler frame.
+        let rt_push =
+            self.declare_runtime_effect_handler_stack_push();
+        let frame_ptr = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            1,
+            "cont_state_frame_gep",
+        )?;
+        let frame_i8 = self.builder.build_address_space_cast(
+            frame_ptr,
+            i8_ptr_ty,
+            "handle_indirect_frame_i8",
+        )?;
+        let escape_tag = self.effect_op_tag(&arm.op.op.fqn);
+        let op_tag_i32 = i32_ty.const_int(escape_tag as u64, false);
+        let _ = self.builder.build_call(
+            rt_push,
+            &[frame_i8.into(), op_tag_i32.into()],
+            "handle_indirect_push",
+        )?;
+
+        // Push raise_target → dispatch_bb so emit_effect_unwind_if_active routes there.
+        let outer_raise_target = self.current_raise_target();
+        self.raise_target_stack.push(dispatch_bb);
+
+        // Execute body stmts.
+        let mut body_tail: Option<CgValue<'ctx>> = None;
+        for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            let is_last = idx + 1 == handle.body.stmts.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                    body_tail = None;
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                    body_tail = None;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let expected = if is_last {
+                        Some(out_ty)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self
+                        .codegen_expr_in_expected_context(expr, expected)?;
+                    body_tail = if is_last { Some(v) } else { None };
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                    body_tail = None;
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "stmt in handle body (indirect perform)",
+                        at: stmt.span.into(),
+                    })
+                }
+            }
+        }
+
+        // Pop raise_target.
+        self.raise_target_stack.pop();
+
+        // Body completed normally (no perform happened).
+        // Pop handler frame and store body result.
+        let rt_pop =
+            self.declare_runtime_effect_handler_stack_pop();
+        let _ = self.builder.build_call(
+            rt_pop,
+            &[frame_i8.into()],
+            "handle_indirect_pop",
+        )?;
+
+        // Unpin cont_state (no continuation needed).
+        let unpin_fn = self.declare_runtime_gc_unpin();
+        let _ = self.builder.build_call(
+            unpin_fn,
+            &[state_raw.into()],
+            "cont_state_unpin_body",
+        )?;
+
+        if out_ty != CgTy::Unit {
+            if let Some(v) = body_tail {
+                let v = self.coerce_value(span, v, out_ty)?;
+                if let Some(ptr) = result_ptr {
+                    let _ =
+                        self.store_local_value(span, ptr, out_ty, v)?;
+                }
+            }
+        }
+
+        self.env.pop_scope();
+        self.builder.build_unconditional_branch(done_bb)?;
+
+        // ── Dispatch (flag-based unwind after a call in the body) ──
+        self.builder.position_at_end(dispatch_bb);
+        {
+            let rt_read_tag = self
+                .declare_runtime_effect_perform_slot_read_op_tag();
+            let tag_call = self
+                .builder
+                .build_call(rt_read_tag, &[], "dispatch_read_op_tag")?;
+            let tag_raw = tag_call.try_as_basic_value().basic().ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch read_op_tag return value",
+                    at: span.into(),
+                },
+            )?;
+            let BasicValueEnum::IntValue(slot_tag) = tag_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch read_op_tag return type",
+                    at: span.into(),
+                });
+            };
+
+            let tag_matches = self.builder.build_int_compare(
+                IntPredicate::EQ,
+                slot_tag,
+                op_tag_i32,
+                "dispatch_tag_eq",
+            )?;
+            self.builder.build_conditional_branch(
+                tag_matches,
+                arm_bb,
+                dispatch_no_match_bb,
+            )?;
+        }
+
+        // ── Dispatch no match ──
+        self.builder.position_at_end(dispatch_no_match_bb);
+        {
+            let rt_pop =
+                self.declare_runtime_effect_handler_stack_pop();
+            let _ = self.builder.build_call(
+                rt_pop,
+                &[frame_i8.into()],
+                "dispatch_nomatch_pop",
+            )?;
+            if let Some(outer) = outer_raise_target {
+                self.builder.build_unconditional_branch(outer)?;
+            } else {
+                let ret_ty = self.current_fun_return_ty.ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "dispatch no-match needs function return type",
+                        at: span.into(),
+                    },
+                )?;
+                let v = self.default_value(ret_ty);
+                self.emit_return(span, ret_ty, v)?;
+            }
+        }
+
+        // ── Arm (tag matched) ──
+        self.builder.position_at_end(arm_bb);
+        {
+            // Save captures to ContState.
+            for (idx, cap) in outer_captures.iter().enumerate() {
+                let field_idx =
+                    outer_field_base.saturating_add(idx as u32);
+                let field_ptr = self.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    field_idx,
+                    "arm_save_cap",
+                )?;
+                let local = self.env.get(cap.id).ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "arm save capture not found",
+                        at: span.into(),
+                    },
+                )?;
+                match cap.ty {
+                    CgTy::Int(int_ty) => {
+                        let llvm_ty =
+                            self.llvm_basic_type_of(span, cap.ty)?;
+                        let loaded = self
+                            .builder
+                            .build_load(llvm_ty, local.ptr, "arm_cap_int")?
+                            .into_int_value();
+                        let ext = if int_ty.bits == 64 {
+                            loaded
+                        } else if int_ty.signed {
+                            self.builder.build_int_s_extend(
+                                loaded,
+                                i64_ty,
+                                "arm_cap_sext",
+                            )?
+                        } else {
+                            self.builder.build_int_z_extend(
+                                loaded,
+                                i64_ty,
+                                "arm_cap_zext",
+                            )?
+                        };
+                        let _ =
+                            self.builder.build_store(field_ptr, ext)?;
+                    }
+                    CgTy::Bool => {
+                        let llvm_ty = self
+                            .llvm_basic_type_of(span, CgTy::Bool)?;
+                        let loaded = self
+                            .builder
+                            .build_load(llvm_ty, local.ptr, "arm_cap_bool")?
+                            .into_int_value();
+                        let ext = self.builder.build_int_z_extend(
+                            loaded,
+                            i64_ty,
+                            "arm_cap_bool_zext",
+                        )?;
+                        let _ =
+                            self.builder.build_store(field_ptr, ext)?;
+                    }
+                    CgTy::Ref => {
+                        let llvm_ty =
+                            self.llvm_basic_type_of(span, CgTy::Ref)?;
+                        let loaded = self
+                            .builder
+                            .build_load(llvm_ty, local.ptr, "arm_cap_ref")?
+                            .into_pointer_value();
+                        let casted = self.builder.build_pointer_cast(
+                            loaded,
+                            gc_i8_ptr_ty,
+                            "arm_cap_ref_i8",
+                        )?;
+                        let _ = self.store_local_value(
+                            span,
+                            field_ptr,
+                            CgTy::Ref,
+                            CgValue {
+                                ty: CgTy::Ref,
+                                value: Some(casted.into()),
+                            },
+                        )?;
+                    }
+                    CgTy::String => {
+                        let llvm_ty = self
+                            .llvm_basic_type_of(span, CgTy::String)?;
+                        let loaded = self
+                            .builder
+                            .build_load(llvm_ty, local.ptr, "arm_cap_str")?
+                            .into_pointer_value();
+                        let casted = self.builder.build_pointer_cast(
+                            loaded,
+                            gc_i8_ptr_ty,
+                            "arm_cap_str_i8",
+                        )?;
+                        let _ = self.store_local_value(
+                            span,
+                            field_ptr,
+                            CgTy::Ref,
+                            CgValue {
+                                ty: CgTy::Ref,
+                                value: Some(casted.into()),
+                            },
+                        )?;
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            // Set pc = 0.
+            {
+                let pc_ptr = self.builder.build_struct_gep(
+                    state_ty,
+                    state_ptr,
+                    2,
+                    "arm_pc_gep",
+                )?;
+                let _ = self
+                    .builder
+                    .build_store(pc_ptr, i32_ty.const_zero())?;
+            }
+
+            // Read binder values from perform slot (for arm pattern binders).
+            for (slot_idx, slot) in binder_slots.iter().enumerate() {
+                // Read from perform slot. For single-arg effects, read slot_read_u64.
+                if slot_idx == 0 {
+                    let rt_read = self
+                        .declare_runtime_effect_perform_slot_read_u64();
+                    let read_call = self.builder.build_call(
+                        rt_read,
+                        &[],
+                        "arm_read_binder",
+                    )?;
+                    let raw =
+                        read_call.try_as_basic_value().basic().ok_or(
+                            LlvmEmitError::UnsupportedMainBody {
+                                kind: "arm read binder return",
+                                at: span.into(),
+                            },
+                        )?;
+                    let BasicValueEnum::IntValue(binder_u64) = raw else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "arm read binder type",
+                            at: span.into(),
+                        });
+                    };
+                    // Decode binder value.
+                    let binder_v = match slot.ty {
+                        CgTy::Int(int_ty) => {
+                            let to = self.int_type(int_ty);
+                            let v = if int_ty.bits == 64 {
+                                binder_u64
+                            } else {
+                                self.builder.build_int_truncate(
+                                    binder_u64,
+                                    to,
+                                    "arm_binder_trunc",
+                                )?
+                            };
+                            CgValue::int(v, int_ty)
+                        }
+                        _ => CgValue::unit(), // For now, unsupported
+                    };
+                    let _ = self.store_local_value(
+                        span,
+                        slot.ptr,
+                        slot.ty,
+                        binder_v,
+                    )?;
+                }
+            }
+
+            // Clear effect active flag (the dispatch caught it).
+            let rt_clear = self.declare_runtime_effect_clear();
+            let _ = self
+                .builder
+                .build_call(rt_clear, &[], "arm_effect_clear")?;
+
+            // Create continuation.
+            let rt_cont_alloc =
+                self.declare_runtime_continuation_alloc();
+            let step_ptr =
+                step_fn.as_global_value().as_pointer_value();
+            let cont_call = self.builder.build_call(
+                rt_cont_alloc,
+                &[state_raw.into(), step_ptr.into()],
+                "arm_cont_alloc",
+            )?;
+            let k_raw = cont_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "continuation alloc return",
+                    at: span.into(),
+                })?
+                .into_pointer_value();
+
+            // Pin continuation.
+            let _ = self.builder.build_call(
+                pin,
+                &[k_raw.into()],
+                "arm_k_pin",
+            )?;
+            let _ = self.store_local_value(
+                span,
+                cont_ptr,
+                CgTy::Ref,
+                CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(k_raw.into()),
+                },
+            )?;
+
+            // Detach handler frame from TLS handler stack.
+            let handler_frame_ty =
+                self.llvm_effect_handler_frame_type();
+            let frame_ptr_for_detach = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                1,
+                "arm_frame_gep",
+            )?;
+            let prev_ptr = self.builder.build_struct_gep(
+                handler_frame_ty,
+                frame_ptr_for_detach,
+                0,
+                "arm_prev_gep",
+            )?;
+            let prev_raw = self
+                .builder
+                .build_load(i8_ptr_ty, prev_ptr, "arm_prev")?;
+            let rt_swap = self
+                .declare_runtime_effect_handler_stack_swap_top();
+            let _ = self.builder.build_call(
+                rt_swap,
+                &[prev_raw.into()],
+                "arm_detach",
+            )?;
+
+            // Execute arm body.
+            self.env.push_scope();
+            for slot in &binder_slots {
+                self.env.insert(
+                    slot.id,
+                    CgLocal {
+                        hir_ty: Some(slot.hir_ty),
+                        ty: slot.ty,
+                        ptr: slot.ptr,
+                        mutable: false,
+                    },
+                );
+            }
+            self.env.insert(
+                continuation_symbol,
+                CgLocal {
+                    hir_ty: None,
+                    ty: CgTy::Ref,
+                    ptr: cont_ptr,
+                    mutable: false,
+                },
+            );
+
+            let arm_v = self.codegen_expr_in_expected_context(
+                &arm.body,
+                Some(out_ty),
+            )?;
+            let arm_v = if out_ty == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(arm.body.span, arm_v, out_ty)?
+            };
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(
+                    arm.body.span,
+                    ptr,
+                    out_ty,
+                    arm_v,
+                )?;
+            }
+
+            self.env.pop_scope();
+            self.builder.build_unconditional_branch(done_bb)?;
+        }
+
+        // ── Done ──
+        self.builder.position_at_end(done_bb);
+        let llvm_ref_ty = self.llvm_basic_type_of(span, CgTy::Ref)?;
+        let k_loaded = self
+            .builder
+            .build_load(llvm_ref_ty, cont_ptr, "handle_indirect_k_unpin_load")?
+            .into_pointer_value();
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self.builder.build_call(
+            unpin,
+            &[k_loaded.into()],
+            "handle_indirect_k_unpin",
+        )?;
+
+        Ok(match out_ty {
+            CgTy::Unit => CgValue::unit(),
+            CgTy::Bool
+            | CgTy::Int(_)
+            | CgTy::String
+            | CgTy::Ref
+            | CgTy::Tuple(_)
+            | CgTy::Struct(_)
+            | CgTy::Enum(_) => {
+                let Some(ptr) = result_ptr else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "handle indirect result slot",
+                        at: span.into(),
+                    });
+                };
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(
+                    llvm_ty,
+                    ptr,
+                    "handle_indirect_result",
+                )?;
+                CgValue {
+                    ty: out_ty,
+                    value: Some(loaded),
+                }
+            }
+        })
+    }
+
+    /// Helper: collect used locals in a stmt (static, no codegen state needed).
+    fn collect_used_locals_in_stmt_static(
+        stmt: &hir::Stmt,
+        out: &mut HashSet<hir::SymbolId>,
+    ) {
+        match &stmt.kind {
+            hir::StmtKind::Empty
+            | hir::StmtKind::Break { .. }
+            | hir::StmtKind::Continue { .. }
+            | hir::StmtKind::Todo(_) => {}
+            hir::StmtKind::Expr(expr) => {
+                Self::collect_used_locals_in_expr_static(expr, out)
+            }
+            hir::StmtKind::Val(decl) => {
+                if let Some(init) = &decl.init {
+                    Self::collect_used_locals_in_expr_static(init, out);
+                }
+            }
+            hir::StmtKind::Assign { lhs, rhs, .. } => {
+                Self::collect_used_locals_in_expr_static(lhs, out);
+                Self::collect_used_locals_in_expr_static(rhs, out);
+            }
+            hir::StmtKind::Return { value } => {
+                if let Some(expr) = value {
+                    Self::collect_used_locals_in_expr_static(expr, out);
+                }
+            }
+            hir::StmtKind::While { cond, body } => {
+                Self::collect_used_locals_in_expr_static(cond, out);
+                for s in &body.stmts {
+                    Self::collect_used_locals_in_stmt_static(s, out);
+                }
+            }
+        }
+    }
+
+    /// Helper: collect used locals in an expression (static).
+    fn collect_used_locals_in_expr_static(
+        expr: &hir::Expr,
+        out: &mut HashSet<hir::SymbolId>,
+    ) {
+        match &expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                out.insert(*id);
+            }
+            hir::ExprKind::Call { callee, args } => {
+                Self::collect_used_locals_in_expr_static(callee, out);
+                for arg in args {
+                    match arg {
+                        hir::CallArg::Positional(e) => {
+                            Self::collect_used_locals_in_expr_static(
+                                e, out,
+                            )
+                        }
+                        hir::CallArg::Named { value, .. } => {
+                            Self::collect_used_locals_in_expr_static(
+                                value, out,
+                            )
+                        }
+                    }
+                }
+            }
+            hir::ExprKind::Block(block) => {
+                for s in &block.stmts {
+                    Self::collect_used_locals_in_stmt_static(s, out);
+                }
+            }
+            hir::ExprKind::If {
+                cond,
+                then_branch,
+                else_branch,
+            } => {
+                Self::collect_used_locals_in_expr_static(cond, out);
+                Self::collect_used_locals_in_expr_static(
+                    then_branch,
+                    out,
+                );
+                if let Some(e) = else_branch {
+                    Self::collect_used_locals_in_expr_static(e, out);
+                }
+            }
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                Self::collect_used_locals_in_expr_static(lhs, out);
+                Self::collect_used_locals_in_expr_static(rhs, out);
+            }
+            hir::ExprKind::Unary { expr: inner, .. }
+            | hir::ExprKind::Cast { expr: inner, .. }
+            | hir::ExprKind::TypeCheck { expr: inner, .. }
+            | hir::ExprKind::MemberAccess {
+                receiver: inner, ..
+            } => {
+                Self::collect_used_locals_in_expr_static(inner, out);
+            }
+            hir::ExprKind::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let hir::InterpolatedStringPart::Expr { expr } =
+                        part
+                    {
+                        Self::collect_used_locals_in_expr_static(
+                            expr, out,
+                        );
+                    }
+                }
+            }
+            hir::ExprKind::StructLit { fields, .. } => {
+                for f in fields {
+                    Self::collect_used_locals_in_expr_static(
+                        &f.value, out,
+                    );
+                }
+            }
+            hir::ExprKind::TupleLit { elements } => {
+                for e in elements {
+                    Self::collect_used_locals_in_expr_static(e, out);
+                }
+            }
+            hir::ExprKind::When { subject, arms } => {
+                Self::collect_used_locals_in_expr_static(subject, out);
+                for arm in arms {
+                    if let Some(g) = &arm.guard {
+                        Self::collect_used_locals_in_expr_static(g, out);
+                    }
+                    Self::collect_used_locals_in_expr_static(
+                        &arm.body, out,
+                    );
+                }
+            }
+            _ => {}
+        }
     }
 
     pub(super) fn codegen_immediate_resume_call(
