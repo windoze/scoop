@@ -1,0 +1,119 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_multi_perform_while_loop.stdout
+//
+// T1707: Multi-perform with value/ref mixed locals across suspension points.
+// - Handle body has 3 performs; between them, both Int (value) and String (ref)
+//   locals are read and accumulated, testing state machine local lifting for
+//   mixed types and GC root correctness across suspensions.
+// - Uses a manually unrolled "loop equivalent" pattern: each iteration performs
+//   Suspend.fetch(), accumulates sum (Int) and reads label (String), then
+//   increments a counter i. This simulates `while (i < 3) { ... }` semantics
+//   with the current linear-block multi-perform codegen (T1606c).
+//   True while-loop support inside handle body is tracked by T1606e.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+        var sum: Int = 0
+        val label: String = "total"
+        var i: Int = 0
+
+        // Iteration 0
+        val v0: Int = Suspend.fetch()
+        sum = sum + v0
+        println("iter")
+        println(i)
+        println(v0)
+        println(sum)
+        println(label)
+        i = i + 1
+
+        // Iteration 1
+        val v1: Int = Suspend.fetch()
+        sum = sum + v1
+        println("iter")
+        println(i)
+        println(v1)
+        println(sum)
+        println(label)
+        i = i + 1
+
+        // Iteration 2
+        val v2: Int = Suspend.fetch()
+        sum = sum + v2
+        println("iter")
+        println(i)
+        println(v2)
+        println(sum)
+        println(label)
+        i = i + 1
+
+        println("body_done")
+        println(sum)
+        println(label)
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 10
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 20
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 3: send 30
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            println("resume_3")
+            val _: Unit = try {
+                k3.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

@@ -1,0 +1,92 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_multi_perform_if_branch.stdout
+//
+// T1707: Branch merge (phi) + multi-perform escape continuation.
+// - Handle body: first perform gets a value, if/else branches based on it,
+//   then second perform happens after the merge.
+// - Tests: phi values (branch_val) survive suspension/resume;
+//   locals from before the branch (cond) also survive.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First perform: gets the "condition" value
+        val cond: Int = Suspend.fetch()
+        println("got_cond")
+        println(cond)
+
+        // Branch based on resumed value — sets branch_val differently
+        var branch_val: Int = 0
+        if (cond > 5) {
+            println("branch_true")
+            branch_val = cond + 100
+        } else {
+            println("branch_false")
+            branch_val = cond + 200
+        }
+
+        // After merge: branch_val reflects the correct branch
+        println("after_merge")
+        println(branch_val)
+
+        // Second perform: cond and branch_val must survive this suspension
+        val result: Int = Suspend.fetch()
+        println("after_second_perform")
+        println(cond)
+        println(branch_val)
+        println(result)
+
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 10 (> 5, takes true branch)
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 42
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(42)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

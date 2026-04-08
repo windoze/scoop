@@ -1,0 +1,66 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_reperform_nested_handlers_control_flow.stdout
+//
+// T1707: Re-perform with nested handlers + control flow in body and arm.
+// - Body uses if/else to choose which effect to perform.
+// - Inner arm re-performs EffectB to outer handler.
+// - Tests: active/inactive dispatch rules; value propagation through
+//   re-perform chain; control flow determining the effect dispatch path.
+
+import scoop.core.*
+
+effect EffectA {
+    fun fireA(code: Int): Nothing
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+fun main(): Int {
+    val x: Int = 10
+    val y: Int = 20
+
+    // Outer: catches EffectB
+    val result: Int = handle {
+        println("outer_body")
+
+        // Inner: catches EffectA
+        val mid: Int = handle {
+            println("inner_body")
+
+            // Control flow in body: choose path based on comparison
+            if (x < y) {
+                println("branch_lt")
+                EffectA.fireA(x + y)
+            } else {
+                println("branch_ge")
+                EffectA.fireA(x - y)
+            }
+
+            999
+        } with {
+            EffectA.fireA(code: Int) -> {
+                println("inner_catch_A")
+                println(code)
+                // Re-perform EffectB: inner only catches EffectA,
+                // so EffectB propagates to outer handler.
+                EffectB.fireB(code * 2)
+                888
+            }
+        }
+
+        println("unreachable_after_inner")
+        mid
+    } with {
+        EffectB.fireB(code: Int) -> {
+            println("outer_catch_B")
+            println(code)
+            code
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

@@ -761,10 +761,11 @@ fn infer_join_expr_type(
 ///
 /// 说明：
 /// - 该入口主要用于 `handle { ... }` 与 handler arm body 的类型检查（T0606）；
-/// - 当前实现只覆盖“表达式语境”的最小子集：
+/// - 当前实现只覆盖”表达式语境”的最小子集：
 ///   - 顺序 `val/var` 声明（用于后续语句引用）；
 ///   - 普通表达式语句（递归调用 `infer_expr_type`），以便记录 required effects；
-/// - `return/while/break/continue/comptime` 等语句暂不支持（后续可对齐 `check_block_exprs` 的能力）。
+///   - `while` 语句（T1707：条件必须为 Bool，body 递归检查）。
+/// - `return/break/continue/comptime` 等语句暂不支持（后续可对齐 `check_block_exprs` 的能力）。
 fn infer_block_value_type(
     source: &SourceFile,
     block: &ast::Block,
@@ -818,6 +819,36 @@ fn infer_block_value_type(
                     tail_expr_ty = Some(ty);
                 }
             }
+            ast::StmtKind::While { cond, body, .. } => {
+                let cond_ty = infer_expr_type(
+                    source,
+                    cond,
+                    lower,
+                    builtins,
+                    &block_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+                if !is_type_assignable(cond_ty, builtins.bool_, lower, builtins) {
+                    return Err(ExprTypeError::WhileConditionNotBool {
+                        found: lower.fmt_type(cond_ty),
+                        span: cond.span.into(),
+                    });
+                }
+                // Recursively typecheck the while body as a block expression.
+                // The body sees the same locals as the surrounding block.
+                infer_block_value_type(
+                    source,
+                    body,
+                    lower,
+                    builtins,
+                    &block_locals,
+                    top_level_types,
+                    top_level_funs,
+                    struct_field_types,
+                )?;
+            }
             ast::StmtKind::Missing => {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "block expression（missing stmt）",
@@ -826,7 +857,7 @@ fn infer_block_value_type(
             }
             _ => {
                 return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "block expression（statement kinds other than val/expr）",
+                    kind: "block expression（statement kinds other than val/expr/while）",
                     span: stmt.span.into(),
                 });
             }

@@ -354,7 +354,7 @@ cargo run -p scoop --features llvm -- test
   - 所有用例在 `--gc-stress` 下稳定通过。
 - 依赖：T1606（多 perform codegen）、（历史）T0915a/T0618（跨线程 resume 运行期原语）
 
-### T1707 [TODO] 控制流 + 多次 suspension：if/when/循环边界的语义回归
+### T1707 [DONE] 控制流 + 多次 suspension：if/when/循环边界的语义回归
 - 描述：针对多 suspension 点下最容易出错的控制流形态新增 fixtures：`if/when` 分支在不同路径上 perform 次数不同、以及在循环体内 suspension（至少先覆盖"有限次迭代的 while/for 等价形态"）。
 - 目标：
   - 覆盖：分支合流（phi）上的局部变量在 suspend/resume 后仍正确。
@@ -364,6 +364,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：至少 3 个用例（分支/合流、循环、re-perform）。
   - 可选 build fixtures：对关键 IR 形态做 contains 断言（例如 state machine 的 pc/dispatch 存在）。
 - 依赖：T1606、T1608
+- 完成说明：
+  - 新增 3 个 run-pass fixtures：
+    - `effect_escape_continuation_multi_perform_if_branch`：if/else 分支在两个 perform 点之间，验证 phi 合流后 `branch_val` 在 suspend/resume 后仍正确（`var` 通过 if/else 分支设置不同值，跨 suspension 后可读取）。
+    - `effect_escape_continuation_multi_perform_while_loop`：手动展开 3 次 "循环迭代"，每次 perform 后累积 `sum`（Int，value type）并读取 `label`（String，ref type），验证 value/ref 混合 locals 跨多个 suspension 点的 state machine lifting 与 GC 正确性。（注：真正的 `while` 循环内 perform 需 T1606e 的嵌套控制流 codegen 支持，此处以等价线性形态先覆盖。）
+    - `effect_reperform_nested_handlers_control_flow`：嵌套 handler（inner 捕获 EffectA，outer 捕获 EffectB），body 使用 if/else 决定 perform 路径；inner arm 内 re-perform EffectB 到 outer，验证 active/inactive dispatch 规则与控制流组合的正确性。
+  - typecheck 扩展：`infer_block_value_type`（handle body 块表达式类型检查）新增 `While` 语句支持（条件必须为 Bool，body 递归检查）。虽然当前 escape continuation codegen 尚不支持 handle body 内 while 包含 perform（T1606e），但该扩展使 while 循环在 handle body 的非 perform 用途（如 resume 后的循环逻辑）不再报 typecheck 错误。
 
 ### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
 - 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。

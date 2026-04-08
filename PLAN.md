@@ -190,7 +190,7 @@ cargo run -p scoop --features llvm -- test
   - T1608（DONE）：op_tag 稳定分配与统一 dispatch — T1606d 的前置依赖
   - T1607（DONE）：resume payload 泛型化（u64 → 任意 T）— 双通道 ABI（resume_word + resume_gc_ref），step 函数 3 参数签名，compound 类型 box/unbox
   - T1706（DONE）：多 perform 点回归 fixtures（async/await 真实写法）— 新增 2 个 run-pass fixtures：`effect_escape_continuation_async_executor_fifo`（单线程 executor 模式，3 次 perform，局部变量跨 suspension 累积）+ `effect_escape_continuation_multi_perform_cross_thread`（跨线程 resume + 2 次 perform）；单线程 fixture 在 `--gc-stress` 下稳定；跨线程 + GC stress 为既有限制（见 `effect_escape_continuation_resume_cross_thread` 同样挂起）
-  - **T1707**：控制流 + 多次 suspension 回归 fixtures — T1606d 的前置依赖，已从 T17 提前
+  - T1707（DONE）：控制流 + 多次 suspension 回归 fixtures — 新增 3 个 run-pass fixtures：if/else 分支合流（phi 变量跨 suspension 存活）、value/ref 混合 locals 跨多 perform 点（手动展开循环等价形态）、嵌套 handler re-perform + 控制流（active/inactive dispatch 规则）；typecheck 扩展 `infer_block_value_type` 支持 `while` 语句（handle body 块表达式中可使用 while 循环）
   - T1606d：多 perform + 动态上下文/GC 回归加固（依赖 T1608 + T1706/T1707）
   - T1606e~g：控制流/间接 perform/嵌套 handle 的显式验证
 - 顺序调整说明（2026-04-08）：T1606d 依赖 T1706/T1707 的 fixtures 作为验收基础，但 T1706/T1707 原在 T17（验证套件）中排在 T1606d 之后。由于 T1706/T1707 的前置依赖（T1606a-c、T1608）均已完成，将其提前到 T16 中 T1606d 之前执行，确保依赖顺序正确。
