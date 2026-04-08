@@ -6631,8 +6631,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
             }
-            // Collect locals used after the indirect perform.
+            // Collect locals used at and after the indirect perform site.
+            // T1606f-3: The step function re-codegens the call expression at the
+            // perform site (e.g., `callIt { Ask.get(x) }` where the closure captures
+            // handle body locals), so we must include locals used within the call
+            // expression itself, not just stmts after it.
             let mut used_after: HashSet<hir::SymbolId> = HashSet::new();
+            Self::collect_used_locals_in_stmt_static(
+                &handle.body.stmts[first_site.stmt_idx],
+                &mut used_after,
+            );
             for stmt in handle.body.stmts.iter().skip(first_site.stmt_idx + 1) {
                 Self::collect_used_locals_in_stmt_static(stmt, &mut used_after);
             }
@@ -6935,13 +6943,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             },
                         );
                     }
-                    _ => {
-                        // For T1606f-2, only support Int lifts. Other types can be added later.
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "indirect perform: body lift type (only Int supported for now)",
-                            at: span.into(),
-                        });
+                    CgTy::Ref => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "step_lift_ref")?
+                            .into_pointer_value();
+                        let ptr =
+                            cg.create_entry_alloca(span, &name, CgTy::Ref)?;
+                        let _ = cg.builder.build_store(ptr, loaded)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Ref,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
                     }
+                    CgTy::String => {
+                        let loaded = cg
+                            .builder
+                            .build_load(gc_i8_ptr_ty, field_ptr, "step_lift_str")?
+                            .into_pointer_value();
+                        let str_ptr_ty = cg.llvm_scoop_string_ptr_type();
+                        let casted = cg.builder.build_pointer_cast(
+                            loaded,
+                            str_ptr_ty,
+                            "step_lift_str_cast",
+                        )?;
+                        let ptr = cg.create_entry_alloca(
+                            span,
+                            &name,
+                            CgTy::String,
+                        )?;
+                        let _ = cg.builder.build_store(ptr, casted)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::String,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    CgTy::Bool => {
+                        let loaded = cg
+                            .builder
+                            .build_load(i64_ty, field_ptr, "step_lift_bool")?
+                            .into_int_value();
+                        let b = cg.builder.build_int_compare(
+                            IntPredicate::NE,
+                            loaded,
+                            i64_ty.const_zero(),
+                            "step_lift_bool_cmp",
+                        )?;
+                        let ptr = cg.create_entry_alloca(
+                            span,
+                            &name,
+                            CgTy::Bool,
+                        )?;
+                        let _ = cg.builder.build_store(ptr, b)?;
+                        cg.env.insert(
+                            cap.id,
+                            CgLocal {
+                                hir_ty: cap.hir_ty,
+                                ty: CgTy::Bool,
+                                ptr,
+                                mutable: cap.mutable,
+                            },
+                        );
+                    }
+                    _ => unreachable!("body lifts filtered by type")
                 }
             }
 
@@ -7305,6 +7379,117 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Execute body stmts.
         let mut body_tail: Option<CgValue<'ctx>> = None;
         for (idx, stmt) in handle.body.stmts.iter().enumerate() {
+            // T1606f-3: Save body lifts into ContState right before the
+            // indirect perform call site. At this point, all body lift locals
+            // are in scope and have their correct values. If the call triggers
+            // a perform and dispatch routes to arm_bb, the body lifts will
+            // already be saved in ContState for the step function to restore.
+            if idx == first_site.stmt_idx && !body_lifts.is_empty() {
+                for (li, cap) in body_lifts.iter().enumerate() {
+                    let field_idx =
+                        body_field_base.saturating_add(li as u32);
+                    let field_ptr = self.builder.build_struct_gep(
+                        state_ty,
+                        state_ptr,
+                        field_idx,
+                        "body_save_lift",
+                    )?;
+                    let local = self.env.get(cap.id).ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "body save lift not found",
+                            at: span.into(),
+                        },
+                    )?;
+                    match cap.ty {
+                        CgTy::Int(int_ty) => {
+                            let llvm_ty =
+                                self.llvm_basic_type_of(span, cap.ty)?;
+                            let loaded = self
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "body_lift_int")?
+                                .into_int_value();
+                            let ext = if int_ty.bits == 64 {
+                                loaded
+                            } else if int_ty.signed {
+                                self.builder.build_int_s_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "body_lift_sext",
+                                )?
+                            } else {
+                                self.builder.build_int_z_extend(
+                                    loaded,
+                                    i64_ty,
+                                    "body_lift_zext",
+                                )?
+                            };
+                            let _ =
+                                self.builder.build_store(field_ptr, ext)?;
+                        }
+                        CgTy::Bool => {
+                            let llvm_ty = self
+                                .llvm_basic_type_of(span, CgTy::Bool)?;
+                            let loaded = self
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "body_lift_bool")?
+                                .into_int_value();
+                            let ext = self.builder.build_int_z_extend(
+                                loaded,
+                                i64_ty,
+                                "body_lift_bool_zext",
+                            )?;
+                            let _ =
+                                self.builder.build_store(field_ptr, ext)?;
+                        }
+                        CgTy::Ref => {
+                            let llvm_ty =
+                                self.llvm_basic_type_of(span, CgTy::Ref)?;
+                            let loaded = self
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "body_lift_ref")?
+                                .into_pointer_value();
+                            let casted = self.builder.build_pointer_cast(
+                                loaded,
+                                gc_i8_ptr_ty,
+                                "body_lift_ref_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        CgTy::String => {
+                            let llvm_ty = self
+                                .llvm_basic_type_of(span, CgTy::String)?;
+                            let loaded = self
+                                .builder
+                                .build_load(llvm_ty, local.ptr, "body_lift_str")?
+                                .into_pointer_value();
+                            let casted = self.builder.build_pointer_cast(
+                                loaded,
+                                gc_i8_ptr_ty,
+                                "body_lift_str_i8",
+                            )?;
+                            let _ = self.store_local_value(
+                                span,
+                                field_ptr,
+                                CgTy::Ref,
+                                CgValue {
+                                    ty: CgTy::Ref,
+                                    value: Some(casted.into()),
+                                },
+                            )?;
+                        }
+                        _ => unreachable!("body lifts filtered by type"),
+                    }
+                }
+            }
+
             let is_last = idx + 1 == handle.body.stmts.len();
             match &stmt.kind {
                 hir::StmtKind::Empty => {}
@@ -7538,6 +7723,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     _ => unreachable!(),
                 }
             }
+
+            // Note: body lifts are saved before the call site in the body
+            // execution loop (T1606f-3), so they are already in ContState here.
 
             // Set pc = 0.
             {
@@ -7883,6 +8071,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         &arm.body, out,
                     );
                 }
+            }
+            hir::ExprKind::Closure(closure) => {
+                // T1606f-3: Closure captures reference outer locals that must
+                // be included in body-lift analysis.
+                for cap in &closure.captures {
+                    out.insert(cap.id);
+                }
+                Self::collect_used_locals_in_expr_static(
+                    &closure.body, out,
+                );
             }
             _ => {}
         }

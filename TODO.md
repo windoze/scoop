@@ -428,13 +428,24 @@ cargo run -p scoop --features llvm -- test
   - **GC/statepoint 修正**：TLS accessor `_get()` 返回 addrspace(0) 指针——在 resume path 保持 addrspace(0) 避免 statepoint pass 无法追踪的 GC root；unpin 通过 `ptrtoint`/`inttoptr` 转换为 addrspace(1)。
   - **Fixture**：`effect_escape_continuation_indirect_perform_basic` — `compute()` 内部 `Ask.get(x)` 间接 perform，handle body 捕获 + 创建 continuation，外部 resume 后 callee 恢复并完成计算（x + resume_value = 42）。
 
-### T1606f-3 [TODO] Escape continuation indirect perform：闭包中 perform + locals 联动
+### T1606f-3 [DONE] Escape continuation indirect perform：闭包中 perform + locals 联动
 - 描述：闭包中 perform 时，闭包捕获的 locals 来自 handle body 的作用域。resume 后闭包需要看到 handle body 中 locals 的最新值（lift 已保存 + 恢复）。本任务验证闭包 + escape continuation 的组合语义。
 - 目标：新增 run-pass fixtures：
   - closure 捕获 handle body locals，perform 在 closure 内，resume 后继续在 handle body 中正确读取/更新 locals；
   - 组合：if/while 中调用闭包触发 perform。
 - 验收：fixtures 在 `--gc-stress` 下稳定。
 - 依赖：T1606f-2
+- 完成说明：
+  - **闭包 callee-suspend 变换（`codegen_closure_fun_body_suspendable`）**：当闭包体包含直接 perform 时，生成与 `codegen_top_level_fun_suspendable` 相同的 TLS entry check + CalleeSuspendState save/restore 双路径，但操作闭包的 captures + params + block-locals（而非 FunDecl 的参数）。在 `codegen_closure_fun_body` 中检测 suspendable closure 并路由到新方法。
+  - **Body lift 扩展（handle body 侧）**：
+    - `collect_used_locals_in_expr_static` 新增 `ExprKind::Closure` 处理：收集闭包 captures 的 SymbolId（使 body-lift 分析能发现闭包捕获的 handle body locals）。
+    - `used_after` 计算扩展为 `used_at_and_after`：也扫描 call site stmt 本身（step function 会重新 codegen 该 call expression，包括创建闭包对象）。
+    - Body lift 在 body 执行流中的 call site stmt **之前**保存到 ContState（此时 locals 在作用域内），而非在 arm BB（此时 body scope 已 pop）。
+    - Step function 的 body lift 恢复逻辑扩展为支持 Int/Bool/Ref/String 四种类型（原先仅 Int）。
+  - **Fixtures**：
+    - `effect_escape_continuation_indirect_perform_closure`：闭包捕获 `x: Int`，通过 `callIt` 间接 perform `Ask.get(x)`，resume(32) 后闭包计算 `x + 32 = 42`。
+    - `effect_escape_continuation_indirect_perform_closure_locals`：闭包捕获 `x: Int` 和 `label: String`（GC ref），验证 Int + String 混合 captures 在 suspend/resume 后存活。
+  - 两个 fixtures 均在 `SCOOP_GC_STRESS=1` 下通过。
 
 ### T1606g [TODO] Escape continuation：嵌套 handle 下的 perform 分发（内层 perform 由外层捕获）显式验证
 - 描述：显式验证 nested handle 的 handler stack 分发与 active/inactive 规则：在内层 `handle` 的 body/arm 中触发的 perform，若不被内层匹配，应由外层正确捕获并在 resume 后回到原控制流。

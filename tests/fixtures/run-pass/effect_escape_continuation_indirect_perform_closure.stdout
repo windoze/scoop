@@ -1,0 +1,10 @@
+body_start
+closure_enter
+arm
+result
+99
+closure_resume
+32
+body_done
+42
+after_resume

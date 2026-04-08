@@ -8418,7 +8418,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
+        // T1606f-3: Check if the closure body contains a direct perform that needs
+        // callee-suspend transformation (same mechanism as codegen_top_level_fun_suspendable).
         let body_expr = closure.body.as_ref();
+        if let hir::ExprKind::Block(block) = &body_expr.kind {
+            let suspend_info = self.scan_for_callee_suspend(block);
+            if let Some(info) = suspend_info {
+                // Gather captures + params as pre-existing locals to include in saved state.
+                let mut pre_locals: Vec<(hir::SymbolId, Option<String>, TypeId, bool)> =
+                    Vec::new();
+                for (id, name, ty_id) in capture_bindings {
+                    pre_locals.push((*id, Some(name.clone()), *ty_id, false));
+                }
+                for (id, name, ty_id) in param_bindings {
+                    pre_locals.push((*id, Some(name.clone()), *ty_id, false));
+                }
+                // Combine pre-existing locals with block-locals-before-perform from scan.
+                let mut all_saved = pre_locals;
+                all_saved.extend(info.saved_locals.iter().cloned());
+                let combined_info = CalleeSuspendInfo {
+                    perform_stmt_idx: info.perform_stmt_idx,
+                    perform_binding_id: info.perform_binding_id,
+                    perform_binding_ty: info.perform_binding_ty,
+                    saved_locals: all_saved,
+                };
+                self.codegen_closure_fun_body_suspendable(
+                    closure,
+                    llvm_fun,
+                    block,
+                    declared_return_cg,
+                    combined_info,
+                )?;
+                self.env.pop_scope();
+                return Ok(());
+            }
+        }
+
         let ret_v = match &body_expr.kind {
             hir::ExprKind::Block(block) => {
                 self.codegen_block_as_return_value(block, declared_return_cg)?
@@ -8435,6 +8470,391 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.emit_return(closure.span, declared_return_cg, ret_v)?;
+
+        self.env.pop_scope();
+        Ok(())
+    }
+
+    /// T1606f-3: Generate a suspendable closure function with TLS entry check, fresh/resume paths.
+    /// Mirrors `codegen_top_level_fun_suspendable` but for closure lambda functions.
+    fn codegen_closure_fun_body_suspendable(
+        &mut self,
+        closure: &hir::ClosureExpr,
+        llvm_fun: FunctionValue<'ctx>,
+        body: &hir::Block,
+        declared_return_cg: CgTy,
+        info: CalleeSuspendInfo,
+    ) -> Result<(), LlvmEmitError> {
+        let span = closure.span;
+        let i64_ty = self.context.i64_type();
+        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
+        let header_ty = self.llvm_gc_object_header_type();
+
+        // Compute CgTy for saved locals and perform binding.
+        let saved_locals: Vec<CalleeSuspendLocal> = info
+            .saved_locals
+            .iter()
+            .filter_map(|&(id, ref name, ty_id, mutable)| {
+                let cg_ty = self.cg_ty_of(ty_id)?;
+                Some(CalleeSuspendLocal {
+                    id,
+                    name: name.clone().unwrap_or_default(),
+                    cg_ty,
+                    hir_ty: ty_id,
+                    mutable,
+                })
+            })
+            .collect();
+        let perform_binding_cg_ty =
+            self.cg_ty_of(info.perform_binding_ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "closure callee suspend perform binding type",
+                    at: span.into(),
+                })?;
+
+        // Build CalleeSuspendState struct type: { header, resume_word:i64, locals... }
+        let func_name_str = llvm_fun.get_name().to_str().unwrap_or("anon");
+        let func_name_san = sanitize_llvm_ident(func_name_str);
+        let state_ty_name = format!("scoop.runtime.CalleeSuspendState__{func_name_san}");
+        let state_ty = if let Some(existing) = self.context.get_struct_type(&state_ty_name) {
+            existing
+        } else {
+            let ty = self.context.opaque_struct_type(&state_ty_name);
+            let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+            fields.push(header_ty.into()); // field 0: GC header
+            fields.push(i64_ty.into()); // field 1: resume_word
+            for local in &saved_locals {
+                fields.push(match local.cg_ty {
+                    CgTy::Ref | CgTy::String => gc_i8_ptr_ty.into(),
+                    CgTy::Bool | CgTy::Int(_) => i64_ty.into(),
+                    _ => {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "closure callee suspend local type (only Int/Bool/Ref/String)",
+                            at: span.into(),
+                        })
+                    }
+                });
+            }
+            ty.set_body(&fields, false);
+            ty
+        };
+
+        // ── Entry check: is this a resume? ──
+        let rt_get = self.declare_runtime_callee_suspend_state_get();
+        let get_call = self
+            .builder
+            .build_call(rt_get, &[], "callee_suspend_get")?;
+        let state_raw = get_call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "callee_suspend_state_get return",
+                at: span.into(),
+            })?
+            .into_pointer_value();
+        let state_int = self
+            .builder
+            .build_ptr_to_int(state_raw, i64_ty, "callee_state_int")?;
+        let is_resume = self.builder.build_int_compare(
+            IntPredicate::NE,
+            state_int,
+            i64_ty.const_zero(),
+            "is_callee_resume",
+        )?;
+
+        let fresh_bb = self
+            .context
+            .append_basic_block(llvm_fun, "fresh_entry");
+        let resume_bb = self
+            .context
+            .append_basic_block(llvm_fun, "resume_entry");
+        self.builder
+            .build_conditional_branch(is_resume, resume_bb, fresh_bb)?;
+
+        // ── Fresh path ──
+        self.builder.position_at_end(fresh_bb);
+        self.callee_suspend_save_ctx = Some(CalleeSuspendSaveCtx {
+            saved_locals: saved_locals.clone(),
+            perform_binding_id: info.perform_binding_id,
+            perform_binding_cg_ty,
+        });
+        let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
+        self.emit_return(span, declared_return_cg, ret_v)?;
+        self.callee_suspend_save_ctx = None;
+
+        // ── Resume path ──
+        self.builder.position_at_end(resume_bb);
+
+        // Cast state pointer to typed CalleeSuspendState* (keep in addrspace 0).
+        let i8_ptr_ty = self.llvm_i8_ptr_type();
+        let state_ptr_ty = state_ty.ptr_type(AddressSpace::default());
+        let state_ptr = self.builder.build_pointer_cast(
+            state_raw,
+            state_ptr_ty,
+            "callee_state_typed",
+        )?;
+
+        // Clear TLS.
+        let rt_clear = self.declare_runtime_callee_suspend_state_clear();
+        let _ = self
+            .builder
+            .build_call(rt_clear, &[], "callee_suspend_clear")?;
+
+        // Read resume_word from state (field 1).
+        let rw_ptr = self.builder.build_struct_gep(
+            state_ty,
+            state_ptr,
+            1,
+            "callee_resume_word_gep",
+        )?;
+        let resume_word = self
+            .builder
+            .build_load(i64_ty, rw_ptr, "callee_resume_word")?
+            .into_int_value();
+
+        // Restore saved locals from state into new allocas.
+        self.env.push_scope();
+        for (idx, local) in saved_locals.iter().enumerate() {
+            let field_idx = 2 + idx as u32; // 0=header, 1=resume_word, 2+=locals
+            let field_ptr = self.builder.build_struct_gep(
+                state_ty,
+                state_ptr,
+                field_idx,
+                &format!("restore_{}", local.name),
+            )?;
+            let alloca_name = format!("resumed_{}", local.name);
+            match local.cg_ty {
+                CgTy::Int(int_ty) => {
+                    let loaded = self
+                        .builder
+                        .build_load(i64_ty, field_ptr, "restore_load_int")?
+                        .into_int_value();
+                    let to = self.int_type(int_ty);
+                    let v = if int_ty.bits == 64 {
+                        loaded
+                    } else {
+                        self.builder
+                            .build_int_truncate(loaded, to, "restore_trunc")?
+                    };
+                    let ptr =
+                        self.create_entry_alloca(span, &alloca_name, local.cg_ty)?;
+                    let _ = self.builder.build_store(ptr, v)?;
+                    self.env.insert(
+                        local.id,
+                        CgLocal {
+                            hir_ty: Some(local.hir_ty),
+                            ty: local.cg_ty,
+                            ptr,
+                            mutable: local.mutable,
+                        },
+                    );
+                }
+                CgTy::Bool => {
+                    let loaded = self
+                        .builder
+                        .build_load(i64_ty, field_ptr, "restore_load_bool")?
+                        .into_int_value();
+                    let b = self.builder.build_int_compare(
+                        IntPredicate::NE,
+                        loaded,
+                        i64_ty.const_zero(),
+                        "restore_bool",
+                    )?;
+                    let ptr =
+                        self.create_entry_alloca(span, &alloca_name, CgTy::Bool)?;
+                    let _ = self.builder.build_store(ptr, b)?;
+                    self.env.insert(
+                        local.id,
+                        CgLocal {
+                            hir_ty: Some(local.hir_ty),
+                            ty: CgTy::Bool,
+                            ptr,
+                            mutable: local.mutable,
+                        },
+                    );
+                }
+                CgTy::Ref => {
+                    let loaded = self
+                        .builder
+                        .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_ref")?
+                        .into_pointer_value();
+                    let ptr =
+                        self.create_entry_alloca(span, &alloca_name, CgTy::Ref)?;
+                    let _ = self.builder.build_store(ptr, loaded)?;
+                    self.env.insert(
+                        local.id,
+                        CgLocal {
+                            hir_ty: Some(local.hir_ty),
+                            ty: CgTy::Ref,
+                            ptr,
+                            mutable: local.mutable,
+                        },
+                    );
+                }
+                CgTy::String => {
+                    let loaded = self
+                        .builder
+                        .build_load(gc_i8_ptr_ty, field_ptr, "restore_load_str")?
+                        .into_pointer_value();
+                    let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+                    let casted = self.builder.build_pointer_cast(
+                        loaded,
+                        str_ptr_ty,
+                        "restore_str_cast",
+                    )?;
+                    let ptr = self.create_entry_alloca(
+                        span,
+                        &alloca_name,
+                        CgTy::String,
+                    )?;
+                    let _ = self.builder.build_store(ptr, casted)?;
+                    self.env.insert(
+                        local.id,
+                        CgLocal {
+                            hir_ty: Some(local.hir_ty),
+                            ty: CgTy::String,
+                            ptr,
+                            mutable: local.mutable,
+                        },
+                    );
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "closure callee suspend restore local type",
+                        at: span.into(),
+                    })
+                }
+            }
+        }
+
+        // Unpin state (all fields loaded to stack allocas).
+        let state_int = self.builder.build_ptr_to_int(
+            state_raw,
+            i64_ty,
+            "callee_state_int_for_unpin",
+        )?;
+        let state_gc_for_unpin = self.builder.build_int_to_ptr(
+            state_int,
+            gc_i8_ptr_ty,
+            "callee_state_gc_for_unpin",
+        )?;
+        let unpin = self.declare_runtime_gc_unpin();
+        let _ = self
+            .builder
+            .build_call(unpin, &[state_gc_for_unpin.into()], "callee_state_unpin")?;
+
+        // Bind the perform-binding to the resume value.
+        let perform_alloca = self.create_entry_alloca(
+            span,
+            "callee_resume_val",
+            perform_binding_cg_ty,
+        )?;
+        match perform_binding_cg_ty {
+            CgTy::Int(int_ty) => {
+                let to = self.int_type(int_ty);
+                let v = if int_ty.bits == 64 {
+                    resume_word
+                } else {
+                    self.builder
+                        .build_int_truncate(resume_word, to, "resume_trunc")?
+                };
+                let _ = self.builder.build_store(perform_alloca, v)?;
+            }
+            CgTy::Bool => {
+                let b = self.builder.build_int_compare(
+                    IntPredicate::NE,
+                    resume_word,
+                    i64_ty.const_zero(),
+                    "resume_bool_cmp",
+                )?;
+                let _ = self.builder.build_store(perform_alloca, b)?;
+            }
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "closure callee suspend resume value type (only Int/Bool supported)",
+                    at: span.into(),
+                })
+            }
+        }
+        self.env.insert(
+            info.perform_binding_id,
+            CgLocal {
+                hir_ty: Some(info.perform_binding_ty),
+                ty: perform_binding_cg_ty,
+                ptr: perform_alloca,
+                mutable: false,
+            },
+        );
+
+        // Re-codegen post-perform stmts.
+        let stmts_after = &body.stmts[info.perform_stmt_idx + 1..];
+        for (idx, stmt) in stmts_after.iter().enumerate() {
+            let is_last = idx + 1 == stmts_after.len();
+            match &stmt.kind {
+                hir::StmtKind::Empty => {}
+                hir::StmtKind::Val(decl) => {
+                    self.codegen_val_decl(decl)?;
+                }
+                hir::StmtKind::Assign { lhs, eq_span, rhs } => {
+                    self.codegen_assign_stmt(*eq_span, lhs, rhs)?;
+                }
+                hir::StmtKind::Expr(expr) => {
+                    let expected = if is_last {
+                        Some(declared_return_cg)
+                    } else {
+                        Some(CgTy::Unit)
+                    };
+                    let v = self.codegen_expr_in_expected_context(expr, expected)?;
+                    if is_last {
+                        if let Some(bb) = self.builder.get_insert_block() {
+                            if bb.get_terminator().is_none() {
+                                let rv = self.coerce_value(
+                                    expr.span,
+                                    v,
+                                    declared_return_cg,
+                                )?;
+                                self.emit_return(span, declared_return_cg, rv)?;
+                            }
+                        }
+                    }
+                }
+                hir::StmtKind::Return { value } => {
+                    let out = match value {
+                        Some(expr) => {
+                            let v = self.codegen_expr_in_expected_context(
+                                expr,
+                                Some(declared_return_cg),
+                            )?;
+                            if declared_return_cg == CgTy::Unit {
+                                CgValue::unit()
+                            } else {
+                                self.coerce_value(expr.span, v, declared_return_cg)?
+                            }
+                        }
+                        None => self.default_value(declared_return_cg),
+                    };
+                    self.emit_return(span, declared_return_cg, out)?;
+                    break;
+                }
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                }
+                _ => {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "stmt in closure callee resume path",
+                        at: stmt.span.into(),
+                    })
+                }
+            }
+        }
+
+        // If no explicit return/branch emitted, emit default return.
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                let v = self.default_value(declared_return_cg);
+                self.emit_return(span, declared_return_cg, v)?;
+            }
+        }
 
         self.env.pop_scope();
         Ok(())

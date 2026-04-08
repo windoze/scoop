@@ -1,0 +1,59 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_closure_locals.stdout
+//
+// T1606f-3: Escape continuation with closure capturing multiple locals (Int + String).
+// - Closure captures `x: Int` and `label: String` from handle body scope.
+// - Performs `Ask.get(x)` inside closure, resume sends back 100.
+// - After resume, closure reads both `x` and `label` from restored CalleeSuspendState,
+//   verifying that both Int and String (GC ref) captures survive suspend/resume.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun runAction(f: () -> Int / (Ask)): Int / (Ask) {
+    f()
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        val x: Int = 7
+        val label: String = "hello"
+        println("body_start")
+        val r: Int = runAction {
+            println(label)
+            val y: Int = Ask.get(x)
+            println(label)
+            println(y)
+            x + y
+        }
+        println("body_done")
+        println(r)
+        r
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            0
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(100)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+    return
+}

@@ -1,0 +1,63 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_indirect_perform_closure.stdout
+//
+// T1606f-3: Escape continuation with indirect perform through a closure.
+// - A closure captures `x` from the handle body scope and performs `Ask.get(x)`.
+// - `callIt()` invokes the closure; the handle body catches the indirect perform,
+//   creates a continuation, and the arm saves k for later resume.
+// - On resume(32): step function re-calls callIt(closure), closure detects
+//   TLS CalleeSuspendState → resume path, restores x=10 and binds y=32
+//   from resume_word, returns x+y=42.
+// - Verifies: closure callee-suspend transformation correctly saves/restores
+//   captures + block-locals across suspend/resume, and body lifts (x) are
+//   available in the step function for re-creating the closure.
+
+import scoop.core.*
+
+effect Ask {
+    fun get(key: Int): Int
+}
+
+fun callIt(f: () -> Int / (Ask)): Int / (Ask) {
+    f()
+}
+
+fun main() {
+    var saved_k: Continuation<Int>? = None()
+
+    val result: Int = handle {
+        println("body_start")
+        val x: Int = 10
+        val r: Int = callIt {
+            println("closure_enter")
+            val y: Int = Ask.get(x)
+            println("closure_resume")
+            println(y)
+            x + y
+        }
+        println("body_done")
+        println(r)
+        r
+    } with {
+        Ask.get(key), k -> {
+            println("arm")
+            saved_k = Some(k)
+            99
+        }
+    }
+    println("result")
+    println(result)
+
+    when (saved_k) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(32)
+            } catch (e: RuntimeError) {
+                println("resume_error")
+            }
+            println("after_resume")
+        }
+        None -> println("no_continuation")
+    }
+    return
+}
