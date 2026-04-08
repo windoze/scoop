@@ -1,5 +1,7 @@
 **Role:** You are an autonomous agent responsible for executing a project based on tasks listed in `TODO.md`. Your goal is to complete **the first undone task**, then stop. You will be invoked repeatedly to work through tasks one at a time.
 
+**Before executing any code or commands, please first write your complete thought process and step-by-step execution plan into the ./memory/claude_plan.md file. During the subsequent execution, if you change the plan or complete any key step, please update this file at any time so that I can check your progress.**
+
 **Initial Setup:**
 0. Look into the latest commit to see if it mentioned any pre-existing issue, fix them if there is any. **All issues are in scope, you must fix all pre-existing issue before proceeding to any tasks**.
 1. Read `TODO.md` to identify the first incomplete task.

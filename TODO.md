@@ -413,10 +413,21 @@ cargo run -p scoop --features llvm -- test
 
 ### T1606f-2 [TODO] Escape continuation indirect perform：call-site suspension 设计与 codegen
 - 描述：为 handle body 的 step function 引入 call-site suspension 点：当 body 中的 call `f()` 可能 perform 时，step function 需要在该 call 前后保存/恢复状态，使 resume 时能重新进入该 call 并由被调用函数完成自身的 resumption。
+- 设计要点——`SuspendResult<T>` 返回值协议（类似 Rust `Poll<T>` / Kotlin `COROUTINE_SUSPENDED`）：
+  - 可能 perform 可恢复 effect 的函数，其 LLVM 返回类型从 `T` 变为 `SuspendResult<T>`：
+    ```
+    enum SuspendResult<T> {
+        InProgress,       // 函数内部 perform 了，已挂起，调用者应向上传播
+        Completed(value: T)  // 函数正常完成，调用者提取值继续
+    }
+    ```
+  - call site 对返回值 match：`InProgress` → 保存 locals + 更新 pc + 从 step function 返回（向上传播挂起）；`Completed(v)` → 提取值，继续执行后续语句。
+  - flag-propagation 仅保留给 non-resuming effect（Raise、non-resuming custom handler）——这些场景只需单向 unwind，不需要 re-entry，flag 足够且更简单。
+  - 被调用函数 `f()` 内部的 perform 通过已有 handler stack dispatch 路由到正确的 handler；handler arm 调用 `k.resume(value)` 后，`f()` 从 perform 点恢复并最终返回 `Completed(result)`；step function 在对应 pc 恢复时收到 `Completed`，提取值继续。
 - 目标：
   - 扫描 handle body 中的 call 表达式，标记可能触发匹配 effect 的 call 为”suspension call-site”；
   - 在 step function 中为每个 suspension call-site 分配一个 pc 值，保存 call 前的 locals，resume 时跳到 call-site 并重新调用；
-  - 被调用函数的 resume 依赖 handler stack dispatch（已有）+ flag-propagation（已有）；
+  - 设计并实现 `SuspendResult<T>` 的 LLVM 表示（例如 `{ i1 is_completed, T value }` 或等价编码），以及 call-site 的 match/extract codegen；
   - 验证单层 call（`handle { f() } with ...`，`f()` 内部单 perform + resume）的正确性。
 - 验收：新增 run-pass fixture + GC stress 稳定。
 - 依赖：T1606f-1
