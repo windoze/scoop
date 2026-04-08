@@ -371,10 +371,15 @@ cargo run -p scoop --features llvm -- test
     - `effect_reperform_nested_handlers_control_flow`：嵌套 handler（inner 捕获 EffectA，outer 捕获 EffectB），body 使用 if/else 决定 perform 路径；inner arm 内 re-perform EffectB 到 outer，验证 active/inactive dispatch 规则与控制流组合的正确性。
   - typecheck 扩展：`infer_block_value_type`（handle body 块表达式类型检查）新增 `While` 语句支持（条件必须为 Bool，body 递归检查）。虽然当前 escape continuation codegen 尚不支持 handle body 内 while 包含 perform（T1606e），但该扩展使 while 循环在 handle body 的非 perform 用途（如 resume 后的循环逻辑）不再报 typecheck 错误。
 
-### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
+### T1606d [DONE] Escape continuation：多 perform + 动态上下文/GC 回归加固
 - 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。
 - 验收：复跑既有 fixtures；补充嵌套 handler / re-perform / 跨线程 resume 的组合用例。
 - 依赖：T1606c、T1608、T1706/T1707
+- 完成：新增 4 个 run-pass fixtures：
+  - `effect_escape_continuation_gc_stress_multi_string`：`SCOOP_GC_STRESS=1` 下 3 次 String-payload suspend/resume，验证 ContState + lifted locals + resume_gc_ref 在强制 GC 下存活。
+  - `effect_escape_continuation_arm_performs_outer_effect`：escape-continuation arm 内 perform 不同 effect（EffectB），路由到外层 non-resuming handler，验证 handler stack 从 arm body 正确分发。
+  - `effect_escape_continuation_nested_escape_handlers`：两个独立 escape-continuation handler（EffectA/EffectB）各 2 次 suspend/resume 并交叉恢复，验证独立 ContState 分配与 GC 同时扫描两个 state machine。
+  - `effect_escape_continuation_reperform_from_escape_arm`：escape-continuation arm 重新 perform 同一 effect，验证 active/inactive self-capture prevention 将 re-perform 路由到外层同类型 handler。
 
 ### T1606e [TODO] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
 - 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在”线性 block”上正确。

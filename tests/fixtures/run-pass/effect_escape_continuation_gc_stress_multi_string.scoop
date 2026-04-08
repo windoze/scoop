@@ -1,0 +1,99 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_gc_stress_multi_string.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1606d: GC stress + escape continuation multi-perform with String payloads.
+// - Forces GC on every allocation via SCOOP_GC_STRESS=1.
+// - 3 suspend/resume cycles, each resuming with a different String (GC ref).
+// - Extra string allocations between performs to increase GC pressure.
+// - Verifies: ContState + lifted locals + resume_gc_ref survive forced GC.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        val prefix: String = "val"
+
+        val a: String = Ask.ask()
+        println("step_1")
+        println(a)
+        println(prefix)
+
+        // Extra allocation to force GC between suspensions.
+        val tag1: String = "tag1"
+        println(tag1)
+
+        val b: String = Ask.ask()
+        println("step_2")
+        println(b)
+        println(prefix)
+
+        val tag2: String = "tag2"
+        println(tag2)
+
+        val c: String = Ask.ask()
+        println("step_3")
+        println(c)
+        println(prefix)
+
+        println("body_done")
+    } with {
+        Ask.ask(), k -> {
+            println("arm")
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("err1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("err2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k3.resume("gamma")
+            } catch (e: RuntimeError) {
+                println("err3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+    println("done")
+}

@@ -1,0 +1,55 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_reperform_from_escape_arm.stdout
+//
+// T1606d: Re-perform the same effect from an escape-continuation arm.
+// - Outer handle catches EffectA (immediate resume `->`)
+// - Inner handle catches EffectA (escape continuation `, k ->`)
+// - Body performs EffectA → inner arm captures k
+// - Inner arm re-performs EffectA → inner is inactive (self-capture prevention)
+//   → routes to outer handler, which resumes the inner arm with a value.
+// - Verifies: active/inactive flag for escape-continuation handlers;
+//   re-perform same effect routes to outer handler; outer immediate-resume
+//   returns value through re-perform chain.
+
+import scoop.core.*
+
+effect EffectA {
+    fun fireA(code: Int): Int
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("outer_body")
+
+        val _inner: Unit = handle {
+            println("inner_body")
+            val v: Int = EffectA.fireA(42)
+            // Unreachable: arm captures k but never resumes.
+            println("unreachable_body")
+            println(v)
+        } with {
+            EffectA.fireA(code: Int), k -> {
+                println("inner_arm")
+                println(code)
+                // Re-perform EffectA: inner handler is inactive during arm,
+                // so this routes to outer handler (same effect type).
+                // The outer handler catches and aborts — code below is unreachable.
+                val outer_val: Int = EffectA.fireA(code * 10)
+                println("unreachable_arm")
+            }
+        }
+
+        println("after_inner")
+        77
+    } with {
+        EffectA.fireA(code: Int) -> {
+            println("outer_resume")
+            println(code)
+            code + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

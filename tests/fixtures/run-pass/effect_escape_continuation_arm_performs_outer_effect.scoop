@@ -1,0 +1,57 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_arm_performs_outer_effect.stdout
+//
+// T1606d: Escape-continuation arm body performs a different effect.
+// - Inner handle catches EffectA (escape continuation with `, k ->`).
+// - Inner arm body performs EffectB, which routes to outer handler.
+// - Tests: handler stack routing from escape-continuation arm body;
+//   active/inactive flag + op_tag dispatch coexistence.
+
+import scoop.core.*
+
+effect EffectA {
+    fun fireA(code: Int): Int
+}
+
+effect EffectB {
+    fun fireB(code: Int): Nothing
+}
+
+fun main(): Int {
+    // Outer: catches EffectB (non-resuming)
+    val result: Int = handle {
+        println("outer_body")
+
+        // Inner: catches EffectA (escape continuation)
+        val _: Unit = handle {
+            println("inner_body")
+            val v: Int = EffectA.fireA(42)
+            println("after_fireA")
+            println(v)
+        } with {
+            EffectA.fireA(code: Int), k -> {
+                println("inner_arm_A")
+                println(code)
+                // Perform EffectB from inside escape-continuation arm.
+                // Inner handler is inactive (catches EffectA anyway),
+                // so EffectB must route to outer handler.
+                EffectB.fireB(code * 3)
+                // Unreachable: EffectB is non-resuming.
+                println("unreachable_arm")
+            }
+        }
+
+        println("unreachable_after_inner")
+        999
+    } with {
+        EffectB.fireB(code: Int) -> {
+            println("outer_catch_B")
+            println(code)
+            code + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

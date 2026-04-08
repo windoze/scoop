@@ -1,0 +1,137 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_nested_escape_handlers.stdout
+//
+// T1606d: Two independent escape-continuation handlers with interleaved resume.
+// - Two handles (EffectA, EffectB), each with 2 suspend/resume cycles.
+// - Resumes are interleaved: A1, B1, A2, B2.
+// - Both ContStates and their lifted locals are alive simultaneously.
+// - Verifies: independent ContState allocation; GC tracing of two
+//   state machines with overlapping lifetimes; no cross-contamination
+//   of lifted locals between independent escape continuations.
+
+import scoop.core.*
+
+effect EffectA {
+    fun askA(): Int
+}
+
+effect EffectB {
+    fun askB(): Int
+}
+
+class CellA(var k: Continuation<Int>?)
+class CellB(var k: Continuation<Int>?)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cellA: CellA = CellA(none_k)
+    val cellB: CellB = CellB(none_k)
+
+    // Handle A: two performs with lifted local
+    val _ha: Unit = handle {
+        println("bodyA_start")
+        val baseA: Int = 1000
+
+        val a1: Int = EffectA.askA()
+        println("A_step1")
+        println(a1)
+        println(baseA)
+
+        val a2: Int = EffectA.askA()
+        println("A_step2")
+        println(a2)
+        println(baseA + a1)
+
+        println("bodyA_done")
+        println(baseA + a1 + a2)
+    } with {
+        EffectA.askA(), k -> {
+            println("armA")
+            cellA.k = Some(k)
+        }
+    }
+
+    // Handle B: two performs with lifted local
+    val _hb: Unit = handle {
+        println("bodyB_start")
+        val baseB: Int = 2000
+
+        val b1: Int = EffectB.askB()
+        println("B_step1")
+        println(b1)
+        println(baseB)
+
+        val b2: Int = EffectB.askB()
+        println("B_step2")
+        println(b2)
+        println(baseB + b1)
+
+        println("bodyB_done")
+        println(baseB + b1 + b2)
+    } with {
+        EffectB.askB(), k -> {
+            println("armB")
+            cellB.k = Some(k)
+        }
+    }
+
+    println("interleave_start")
+
+    // Resume A first time
+    when (cellA.k) {
+        Some(k1) -> {
+            cellA.k = none_k
+            println("resumeA_1")
+            val _r1: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("errA1")
+            }
+        }
+        None -> println("missingA1")
+    }
+
+    // Resume B first time (interleaved — both ContStates alive)
+    when (cellB.k) {
+        Some(k2) -> {
+            cellB.k = none_k
+            println("resumeB_1")
+            val _r2: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("errB1")
+            }
+        }
+        None -> println("missingB1")
+    }
+
+    // Resume A second time
+    when (cellA.k) {
+        Some(k3) -> {
+            cellA.k = none_k
+            println("resumeA_2")
+            val _r3: Unit = try {
+                k3.resume(30)
+            } catch (e: RuntimeError) {
+                println("errA2")
+            }
+        }
+        None -> println("missingA2")
+    }
+
+    // Resume B second time
+    when (cellB.k) {
+        Some(k4) -> {
+            cellB.k = none_k
+            println("resumeB_2")
+            val _r4: Unit = try {
+                k4.resume(40)
+            } catch (e: RuntimeError) {
+                println("errB2")
+            }
+        }
+        None -> println("missingB2")
+    }
+
+    println("done")
+}
