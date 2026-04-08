@@ -1200,7 +1200,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -1215,12 +1216,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(loaded),
                 })
             }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle result type",
-                    at: span.into(),
-                })
-            }
         }
     }
 
@@ -1231,17 +1226,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // no-perform fast path：不生成 catch/merge CFG，仅保留顺序语义（body -> finally）。
-        let result_ptr = match out_ty {
-            CgTy::Unit => None,
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
-                Some(self.create_entry_alloca(span, "handle_noperform_result", out_ty)?)
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle result type",
-                    at: span.into(),
-                });
-            }
+        let result_ptr = if out_ty == CgTy::Unit {
+            None
+        } else {
+            Some(self.create_entry_alloca(span, "handle_noperform_result", out_ty)?)
         };
 
         // body
@@ -1291,7 +1279,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -1305,12 +1294,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue {
                     ty: out_ty,
                     value: Some(loaded),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle result type",
-                    at: span.into(),
                 })
             }
         }
@@ -1617,7 +1600,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -1632,12 +1616,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue {
                     ty: out_ty,
                     value: Some(loaded),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle result type",
-                    at: span.into(),
                 })
             }
         }
@@ -2113,7 +2091,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle result slot",
@@ -2126,12 +2105,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: out_ty,
                     value: Some(loaded),
                 }
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle result type",
-                    at: span.into(),
-                });
             }
         })
     }
@@ -6123,7 +6096,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "handle escape result slot",
@@ -6138,12 +6112,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     ty: out_ty,
                     value: Some(loaded),
                 }
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "handle escape result type",
-                    at: span.into(),
-                })?
             }
         })
     }

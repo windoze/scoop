@@ -189,7 +189,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(merge_bb);
         match out_cg {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "if result slot",
@@ -199,12 +200,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let llvm_ty = self.llvm_basic_type_of(span, out_cg)?;
                 let loaded = self.builder.build_load(llvm_ty, ptr, "if_result")?;
                 self.cg_value_from_loaded(span, out_cg, loaded)
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "if result type",
-                    at: span.into(),
-                })
             }
         }
     }
@@ -380,28 +375,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let out_ty = out_ty.unwrap_or(CgTy::Unit);
             return match out_ty {
                 CgTy::Unit => Ok(CgValue::unit()),
-                CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
-                    let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
-                    let phi = self.builder.build_phi(phi_ty, "when_phi")?;
-
+                CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+                | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                    // T1610: use alloca/store/load to support compound types (and scalars).
+                    let result_ptr = self.create_entry_alloca(span, "when_chain_result", out_ty)?;
                     for (bb, v) in incoming {
-                        let raw = v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when arm value",
-                            at: span.into(),
-                        })?;
-                        phi.add_incoming(&[(&raw, bb)]);
+                        self.builder.position_at_end(bb);
+                        // Remove the unconditional branch we already emitted, re-emit after store.
+                        if let Some(term) = bb.get_terminator() {
+                            term.erase_from_basic_block();
+                        }
+                        let _ = self.store_local_value(span, result_ptr, out_ty, v)?;
+                        self.builder.build_unconditional_branch(merge_bb)?;
                     }
-
-                    Ok(CgValue {
-                        ty: out_ty,
-                        value: Some(phi.as_basic_value()),
-                    })
-                }
-                CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                    Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when result type",
-                        at: span.into(),
-                    })
+                    self.builder.position_at_end(merge_bb);
+                    let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                    let loaded = self.builder.build_load(llvm_ty, result_ptr, "when_chain_result")?;
+                    self.cg_value_from_loaded(span, out_ty, loaded)
                 }
             };
         }
@@ -659,28 +649,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let out_ty = out_ty.unwrap_or(CgTy::Unit);
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
-            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => {
-                let phi_ty = self.llvm_basic_type_of(span, out_ty)?;
-                let phi = self.builder.build_phi(phi_ty, "when_phi")?;
-
+            CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
+            | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                // T1610: use alloca/store/load to support compound types (and scalars).
+                let result_ptr = self.create_entry_alloca(span, "when_result", out_ty)?;
                 for (bb, v) in incoming {
-                    let raw = v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when arm value",
-                        at: span.into(),
-                    })?;
-                    phi.add_incoming(&[(&raw, bb)]);
+                    self.builder.position_at_end(bb);
+                    if let Some(term) = bb.get_terminator() {
+                        term.erase_from_basic_block();
+                    }
+                    let _ = self.store_local_value(span, result_ptr, out_ty, v)?;
+                    self.builder.build_unconditional_branch(merge_bb)?;
                 }
-
-                Ok(CgValue {
-                    ty: out_ty,
-                    value: Some(phi.as_basic_value()),
-                })
-            }
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when result type",
-                    at: span.into(),
-                })
+                self.builder.position_at_end(merge_bb);
+                let llvm_ty = self.llvm_basic_type_of(span, out_ty)?;
+                let loaded = self.builder.build_load(llvm_ty, result_ptr, "when_result")?;
+                self.cg_value_from_loaded(span, out_ty, loaded)
             }
         }
     }

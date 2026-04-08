@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: when_compound_result.stdout
+//
+// T1610: when expressions returning compound types (struct, enum).
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+enum Result {
+    Ok(val value: Int),
+    Err(val code: Int),
+}
+
+fun main() {
+    // 1) when returning struct (bool-switch path)
+    val flag: Bool = true
+    val p: Point = when (flag) {
+        true -> Point { x: 10, y: 20 }
+        false -> Point { x: 0, y: 0 }
+    }
+    println(p.x)
+    println(p.y)
+
+    // 2) when returning struct (enum-switch path)
+    val r: Result = Ok(42)
+    val p2: Point = when (r) {
+        Ok(v) -> Point { x: v, y: v + 1 }
+        Err(c) -> Point { x: 0, y: c }
+    }
+    println(p2.x)
+    println(p2.y)
+
+    // 3) when returning enum (bool-switch path)
+    val b: Bool = false
+    val r2: Result = when (b) {
+        true -> Ok(1)
+        false -> Err(99)
+    }
+    when (r2) {
+        Ok(v) -> println(v)
+        Err(c) -> println(c)
+    }
+
+    println("done")
+}

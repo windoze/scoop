@@ -1,0 +1,31 @@
+// EXPECT: pass
+// RUN-STDOUT: handle_compound_result.stdout
+//
+// T1610: handle (try/catch) returning compound types (struct, enum).
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun main() {
+    // 1) try/catch returning struct (normal path)
+    val p: Point = try {
+        Point { x: 10, y: 20 }
+    } catch (e: Int) {
+        Point { x: e, y: e }
+    }
+    println(p.x)
+    println(p.y)
+
+    // 2) try/catch returning struct (catch path)
+    val q: Point = try {
+        Raise.raise(99)
+        Point { x: 0, y: 0 }
+    } catch (e: Int) {
+        Point { x: e, y: e + 1 }
+    }
+    println(q.x)
+    println(q.y)
+
+    println("done")
+}
