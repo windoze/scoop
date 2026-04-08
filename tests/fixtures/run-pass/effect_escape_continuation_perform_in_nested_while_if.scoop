@@ -1,0 +1,113 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_perform_in_nested_while_if.stdout
+//
+// T1606e: While loop containing if/else with perform in then-branch.
+// - First perform at top level (pc=0) returns iteration count.
+// - While loop iterates `count` times; on odd iterations, if-then branch
+//   performs to get extra value. Even iterations skip the perform.
+// - Tests: while body re-execution + if-branch interception within while,
+//   loop variable accumulation across multiple suspensions.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First perform: top level (pc=0).
+        val count: Int = Suspend.fetch()
+        println("count")
+        println(count)
+
+        var i: Int = 0
+        var sum: Int = 0
+        while (i < count) {
+            i = i + 1
+            // Odd iterations: perform to get extra value.
+            // Even iterations: just add the iteration number.
+            val remainder: Int = i - (i / 2) * 2
+            if (remainder == 1) {
+                println("odd_iter")
+                println(i)
+                val extra: Int = Suspend.fetch()
+                println("extra")
+                println(extra)
+                sum = sum + extra
+            } else {
+                println("even_iter")
+                println(i)
+                sum = sum + i
+            }
+        }
+
+        println("sum")
+        println(sum)
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 4 (count=4)
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(4)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 100 (iter 1 is odd → extra=100)
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(100)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // iter 2 is even → sum += 2, no suspend
+
+    // Resume 3: send 200 (iter 3 is odd → extra=200)
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            println("resume_3")
+            val _: Unit = try {
+                k3.resume(200)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // iter 4 is even → sum += 4, no suspend
+
+    println("done")
+}

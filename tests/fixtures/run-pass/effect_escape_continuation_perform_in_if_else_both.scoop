@@ -1,0 +1,90 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_perform_in_if_else_both.stdout
+//
+// T1606e: Performs in both then and else branches.
+// - First perform at top level (pc=0) returns a selector.
+// - Second perform inside if-then (pc=1) if selector > 0.
+// - Second perform inside if-else (pc=2) if selector <= 0.
+// - Tests both IfThen and IfElse nested interception,
+//   exercising different pc values for each branch.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First perform: top level (pc=0).
+        val selector: Int = Suspend.fetch()
+        println("selector")
+        println(selector)
+
+        // Performs in both branches (different pcs).
+        var result: Int = 0
+        if (selector > 0) {
+            println("positive_branch")
+            val pos_val: Int = Suspend.fetch()
+            println("pos_val")
+            println(pos_val)
+            result = selector + pos_val
+        } else {
+            println("non_positive_branch")
+            val neg_val: Int = Suspend.fetch()
+            println("neg_val")
+            println(neg_val)
+            result = selector * 10 + neg_val
+        }
+
+        println("result")
+        println(result)
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 5 (selector=5, >0, takes positive branch)
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(5)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 100 (pos_val=100, result=5+100=105)
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(100)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

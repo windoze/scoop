@@ -1,0 +1,112 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_perform_in_while_loop.stdout
+//
+// T1606e: Perform inside while loop body.
+// - First perform at top level (pc=0) to get iteration count.
+// - Perform inside while loop body (pc=1), fires on each iteration.
+// - Loop runs 3 times, suspending and resuming each iteration.
+// - Tests while body perform interception + re-execution in step function.
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First perform: top level (pc=0). Get iteration count.
+        val count: Int = Suspend.fetch()
+        println("count")
+        println(count)
+
+        // While loop with perform inside (pc=1).
+        var i: Int = 0
+        var sum: Int = 0
+        while (i < count) {
+            val value: Int = Suspend.fetch()
+            sum = sum + value
+            i = i + 1
+            println("iter")
+            println(i)
+        }
+
+        println("sum")
+        println(sum)
+        println("body_done")
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Resume 1: send 3 (count=3, loop runs 3 times)
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(3)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 2: send 10 (first iteration value)
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 3: send 20 (second iteration value)
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            println("resume_3")
+            val _: Unit = try {
+                k3.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    // Resume 4: send 30 (third iteration value)
+    when (cell.k) {
+        Some(k4) -> {
+            cell.k = none_k
+            println("resume_4")
+            val _: Unit = try {
+                k4.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("done")
+}

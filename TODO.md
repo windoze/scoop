@@ -381,7 +381,7 @@ cargo run -p scoop --features llvm -- test
   - `effect_escape_continuation_nested_escape_handlers`：两个独立 escape-continuation handler（EffectA/EffectB）各 2 次 suspend/resume 并交叉恢复，验证独立 ContState 分配与 GC 同时扫描两个 state machine。
   - `effect_escape_continuation_reperform_from_escape_arm`：escape-continuation arm 重新 perform 同一 effect，验证 active/inactive self-capture prevention 将 re-perform 路由到外层同类型 handler。
 
-### T1606e [DONE] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
+### T1606e [TODO] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
 - 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在”线性 block”上正确。
 - 目标：新增 run-pass fixtures 覆盖：
   - `if/else` / `match` 分支内的 perform（包含某些分支不执行 perform 的路径）；
@@ -389,13 +389,6 @@ cargo run -p scoop --features llvm -- test
   - perform 前后的局部变量在不同分支/迭代中被读取/更新，resume 后语义一致。
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d
-- 完成：
-  - **codegen 修改**：解除 escape continuation handle body 中 `while` 语句的限制（之前 `StmtKind::While` 在初始 body 执行路径和 step function pc 分支中被显式拒绝）。现在 while 循环可出现在 perform 点之前/之间/之后。
-  - 新增 3 个 run-pass fixtures，全部在 `SCOOP_GC_STRESS=1` 下稳定：
-    - `effect_escape_continuation_while_in_body`：while 循环分别出现在 first perform 之前（初始 body 路径）、两个 perform 之间（step function 路径）、last perform 之后（step 完成路径），验证变量跨 while + suspension 存活。
-    - `effect_escape_continuation_while_accumulate_string`：while 循环 + GC-managed String locals 混合 Int 累加器，验证 state machine lifting 对混合类型的正确性。
-    - `effect_escape_continuation_control_flow_mix`：3 个 perform 点之间交替使用 if/else 分支与 while 循环，验证分支决策 + 循环累加器跨多次 suspension 均正确保持。
-  - 既有限制：perform 点仍必须在 handle body 顶层语句（不可嵌套在 if/while 块内部），这是 state machine 架构的结构限制，需要更深层的 CPS 变换才能支持（tracked as future work）。
 
 ### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）显式验证
 - 描述：显式验证 perform 不要求作为 handle body 的”直接语句”，允许出现在被调用函数或闭包中（含多层调用链），且捕获的 continuation 仍精确到外层 handle 边界。
