@@ -315,13 +315,35 @@ cargo run -p scoop --features llvm -- test
 - 验收：新增 run-pass fixtures：单 handle 内 2~3 次 yield/await（不使用嵌套 handle workaround），并在 `--gc-stress` 下稳定。
 - 依赖：T1606b
 
+### T1608 [TODO] Effect op_tag：稳定分配与统一 dispatch（运行期 handler stack / perform slot）
+- 描述：runtime handler stack 的”最近匹配”分发基于 `op_tag` 精确匹配；而当前 codegen 对自定义 effect 的 `op_tag` 仍大量写 0（除 `Raise` 以外）。这会在”嵌套 handler + re-perform + 多 effect 并存”时产生错误分发或无法诊断的语义漂移。
+- 目标：
+  - 为所有 compiler-known 的 effect op 分配稳定 `op_tag`（至少在单次编译产物内稳定；若要求跨版本稳定需额外讨论）。
+  - 统一 perform slot 编码：`perform` 写入 `op_tag + payload`；`handle` 边界解码并分派到最近匹配 handler。
+  - 让 `EscapeContinuation` 与 `ImmediateResume` / non-resuming handler 共享同一套 dispatch 规则（避免多套”特判语义”长期并存）。
+- 验收：
+  - 新增 run-pass fixture：三层嵌套 handler（至少两种不同 effect），arm 内 re-perform 验证”最近匹配 + active/inactive”规则成立。
+  - 针对错误分发给出稳定诊断（至少包含 op_tag / effect 名称 / src line/col）。
+- 依赖：（历史）T0913/T0916（runtime handler stack），T0617（escape continuation lowering）
+
+### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
+- 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。
+- 目标：
+  - 设计并落地一个”可携带任意 `T`”的 resume payload ABI（至少覆盖：Unit/Bool/Int/String/Ref/tuple/struct/enum；允许 future 扩展）。
+  - 与 GC 对齐：payload 若包含引用类型，必须可被 GC 扫描/更新（moving GC 下 resume 后仍正确）。
+  - 维持 one-shot：重复 resume 必须表现为可捕获的 `Raise<RuntimeError.ContinuationAlreadyResumed>`（而非进程级 exit）。
+- 验收：
+  - 新增 run-pass fixtures：`Continuation<String>`、`Continuation<(Int, String)>`、`Continuation<MyStruct>` 等在 `--gc-stress` 下通过，并覆盖”resume 后继续分配触发多轮 GC”。
+  - 为 ABI 关键点补 build fixtures（可选）：断言不出现”ptr<->int”非法编码路径。
+- 依赖：T1606（多点 suspension 需要更通用 payload 才能覆盖真实案例）；（历史）T0630（payload ABI 统一化方向）
+
 ### T1606d [TODO] Escape continuation：多 perform + 动态上下文/GC 回归加固
 - 描述：补齐 active/inactive（避免 self-capture）与 handler stack 捕获/恢复的边界用例，并验证 heap state 的 GC 扫描正确性。
 - 验收：复跑既有 fixtures；补充嵌套 handler / re-perform / 跨线程 resume 的组合用例。
 - 依赖：T1606c、T1608、T1706/T1707
 
 ### T1606e [TODO] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
-- 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在“线性 block”上正确。
+- 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在”线性 block”上正确。
 - 目标：新增 run-pass fixtures 覆盖：
   - `if/else` / `match` 分支内的 perform（包含某些分支不执行 perform 的路径）；
   - `while`/`loop`/`for` 中的 perform（含 `break`/`continue`），并覆盖 2..N 次 suspension/resume；
@@ -330,7 +352,7 @@ cargo run -p scoop --features llvm -- test
 - 依赖：T1606d
 
 ### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）显式验证
-- 描述：显式验证 perform 不要求作为 handle body 的“直接语句”，允许出现在被调用函数或闭包中（含多层调用链），且捕获的 continuation 仍精确到外层 handle 边界。
+- 描述：显式验证 perform 不要求作为 handle body 的”直接语句”，允许出现在被调用函数或闭包中（含多层调用链），且捕获的 continuation 仍精确到外层 handle 边界。
 - 目标：新增 run-pass fixtures 覆盖：
   - `handle { f() } with ...`，其中 `f()` 内部 perform（含 `f -> g -> perform` 的调用链）；
   - closure 中 perform（closure 捕获 handle body 中定义的 locals，resume 后继续正确读取/更新这些 locals）；
@@ -346,28 +368,6 @@ cargo run -p scoop --features llvm -- test
   - 组合：outer resume 后继续推进 inner 的多 perform state machine，保证顺序/返回值正确。
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d（含 T1608）
-
-### T1607 [TODO] Continuation resume payload：从 `u64` 扩展为可表达任意 `T`
-- 描述：当前 `k.resume(value)` 的 LLVM lowering 只支持把 `value` 编码为 `u64` word，且明确禁止 GC 指针（Ref/String）与复合值。这与 spec 对 `Continuation<T>` 的泛型语义不一致，也限制了 async/await/generator 在真实场景中的可用性。
-- 目标：
-  - 设计并落地一个“可携带任意 `T`”的 resume payload ABI（至少覆盖：Unit/Bool/Int/String/Ref/tuple/struct/enum；允许 future 扩展）。
-  - 与 GC 对齐：payload 若包含引用类型，必须可被 GC 扫描/更新（moving GC 下 resume 后仍正确）。
-  - 维持 one-shot：重复 resume 必须表现为可捕获的 `Raise<RuntimeError.ContinuationAlreadyResumed>`（而非进程级 exit）。
-- 验收：
-  - 新增 run-pass fixtures：`Continuation<String>`、`Continuation<(Int, String)>`、`Continuation<MyStruct>` 等在 `--gc-stress` 下通过，并覆盖“resume 后继续分配触发多轮 GC”。
-  - 为 ABI 关键点补 build fixtures（可选）：断言不出现“ptr<->int”非法编码路径。
-- 依赖：T1606（多点 suspension 需要更通用 payload 才能覆盖真实案例）；（历史）T0630（payload ABI 统一化方向）
-
-### T1608 [TODO] Effect op_tag：稳定分配与统一 dispatch（运行期 handler stack / perform slot）
-- 描述：runtime handler stack 的“最近匹配”分发基于 `op_tag` 精确匹配；而当前 codegen 对自定义 effect 的 `op_tag` 仍大量写 0（除 `Raise` 以外）。这会在“嵌套 handler + re-perform + 多 effect 并存”时产生错误分发或无法诊断的语义漂移。
-- 目标：
-  - 为所有 compiler-known 的 effect op 分配稳定 `op_tag`（至少在单次编译产物内稳定；若要求跨版本稳定需额外讨论）。
-  - 统一 perform slot 编码：`perform` 写入 `op_tag + payload`；`handle` 边界解码并分派到最近匹配 handler。
-  - 让 `EscapeContinuation` 与 `ImmediateResume` / non-resuming handler 共享同一套 dispatch 规则（避免多套“特判语义”长期并存）。
-- 验收：
-  - 新增 run-pass fixture：三层嵌套 handler（至少两种不同 effect），arm 内 re-perform 验证“最近匹配 + active/inactive”规则成立。
-  - 针对错误分发给出稳定诊断（至少包含 op_tag / effect 名称 / src line/col）。
-- 依赖：（历史）T0913/T0916（runtime handler stack），T0617（escape continuation lowering）
 
 ### T1609 [TODO] `finally` + escaping continuation：unwind/cleanup 的组合语义
 - 描述：当前 escaping continuation 的 `handle` 明确不支持 `finally`。要实现完整 effect 语义，必须定义并实现：当计算被 suspend / resume / abandon 时，`finally` 的执行时机与次数规则（并保证与 flag-based unwinding 一致）。

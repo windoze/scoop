@@ -183,11 +183,14 @@ cargo run -p scoop --features llvm -- test
   - 语句位置的 `handle` 不再需要 `val _: Unit = ...` workaround：后端在表达式语句位置默认以 `Unit` 期望类型生成并丢弃结果（见 TODO：T1611）。
   - `Nothing` 明确为 bottom type：运行时没有值；返回类型为 `Nothing` 的函数不会正常 return。后端若需要占位表示它，也只能用于不可达路径的 IR 连通，且该值永不可被观察（见 TODO：T1612）。
   - `finally` 组合语义补齐：在 suspend/resume/传播路径上不漏执行、不重复执行。
-- 落地顺序（T1606 已拆分为子任务 T1606a~T1606d）：
+- 落地顺序（T1606 已拆分为子任务 T1606a~T1606g；T1608/T1607 前置）：
   - T1606a（DONE）：0 perform 时退化执行 body（arm 不可达）
-  - T1606b（DONE）：取消“perform 必须首语句”（补齐 capture/lift）
+  - T1606b（DONE）：取消”perform 必须首语句”（补齐 capture/lift）
   - T1606c（DONE）：多 perform（pc + heap state machine）— 含 GC stackmap walker 修复：walk-through C frames 以覆盖 main→resume_u64(C)→step_fn 场景
-  - T1606d：多 perform + 动态上下文/GC 回归加固
+  - **T1608**（next）：op_tag 稳定分配与统一 dispatch — T1606d 的前置依赖，已提升到 T1606d 之前
+  - T1607：resume payload 泛型化（u64 → 任意 T）
+  - T1606d：多 perform + 动态上下文/GC 回归加固（依赖 T1608 + T1706/T1707）
+  - T1606e~g：控制流/间接 perform/嵌套 handle 的显式验证
 - 设计要点（implementation-level 约束）：
   - handler 分发必须以稳定 `op_tag` 为核心（Appendix A：最近匹配 + active/inactive）；fqn 字符串仅作为诊断输出。
   - escaping continuation 的状态机应以 heap state 表示（pc + lifted locals），并在每次 perform 处生成 continuation；resume 进入 step trampoline 继续推进直到下一次 perform 或完成。
