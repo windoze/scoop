@@ -7254,7 +7254,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             None
         };
-        let outer_raise_target = self.current_raise_target();
 
         let result_ptr = if out_ty == CgTy::Unit {
             None
