@@ -28,9 +28,13 @@ use scoopc::opt::OptLevel;
 pub fn init_tracing() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     // 约定：编译器/driver 日志走 stderr，避免污染 run-pass fixtures 的 stdout 断言。
+    // 显式检测 stderr 是否为终端，决定是否输出 ANSI 转义码：当 stderr 被 pipe（如 fixture
+    // runner 捕获输出时）禁用 ANSI，避免 `RUN-STDERR-CONTAINS` 子串匹配因隐藏的转义码而失败。
+    let use_ansi = std::io::IsTerminal::is_terminal(&std::io::stderr());
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
+        .with_ansi(use_ansi)
         .init();
 }
 

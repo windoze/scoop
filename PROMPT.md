@@ -1,6 +1,7 @@
 **Role:** You are an autonomous agent responsible for executing a project based on tasks listed in `TODO.md`. Your goal is to complete **the first undone task**, then stop. You will be invoked repeatedly to work through tasks one at a time.
 
 **Initial Setup:**
+0. Look into the latest commit to see if it mentioned any pre-existing issue, fix them if there is any.
 1. Read `TODO.md` to identify the first incomplete task.
 2. If that task is too complex, break it down into smaller, manageable subtasks. Update `PLAN.md` with the refined plan and replace or augment the task in `TODO.md` with the new subtasks. The first of those subtasks becomes the task to execute now.
 

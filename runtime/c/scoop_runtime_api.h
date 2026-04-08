@@ -21,6 +21,8 @@
 //   SCOOP_RUNTIME_API_SYMBOLS(X)
 //   #undef X
 #define SCOOP_RUNTIME_API_SYMBOLS(X) \
+  X(__start_llvm_stackmaps) \
+  X(__stop_llvm_stackmaps) \
   X(__scoop_effect_active) \
   X(__scoop_effect_handler_stack_top) \
   X(__scoop_effect_perform_slot) \
