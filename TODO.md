@@ -381,7 +381,7 @@ cargo run -p scoop --features llvm -- test
   - `effect_escape_continuation_nested_escape_handlers`：两个独立 escape-continuation handler（EffectA/EffectB）各 2 次 suspend/resume 并交叉恢复，验证独立 ContState 分配与 GC 同时扫描两个 state machine。
   - `effect_escape_continuation_reperform_from_escape_arm`：escape-continuation arm 重新 perform 同一 effect，验证 active/inactive self-capture prevention 将 re-perform 路由到外层同类型 handler。
 
-### T1606e [TODO] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
+### T1606e [DONE] Escape continuation：handle body 任意控制流结构（分支/循环）显式验证
 - 描述：在实现多 perform + heap state machine 后，理论上 handle body 内可以是任意语句/表达式组合；但需要用 fixtures 显式覆盖复杂控制流（CFG）以避免只在”线性 block”上正确。
 - 目标：新增 run-pass fixtures 覆盖：
   - `if/else` / `match` 分支内的 perform（包含某些分支不执行 perform 的路径）；
