@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: nothing_raise_in_helper_basic.stdout
+//
+// T1612: Nothing (bottom type) codegen – Raise.raise in helper function.
+//
+// 目标覆盖：
+// - `alwaysFail()` calls Raise.raise so it never reaches the subsequent code;
+// - Caller in a try block, flag-propagation catches the raise;
+// - Code after Raise.raise inside `alwaysFail` and after the call is dead;
+// - try/catch correctly catches the raised value.
+
+import scoop.core.*
+
+fun alwaysFail(): Int / Raise<Int> {
+    println("before_raise")
+    Raise.raise(42)
+    println("unreachable_in_helper")
+    return 0
+}
+
+fun main(): Int {
+    val result: Int = try {
+        println("before_call")
+        val x: Int = alwaysFail()
+        println("unreachable_after_call")
+        x
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        e
+    }
+
+    println("after")
+    println(result)
+    return 0
+}

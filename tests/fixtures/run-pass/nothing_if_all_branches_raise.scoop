@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: nothing_if_all_branches_raise.stdout
+//
+// T1612: Nothing (bottom type) codegen – if-expression where all branches raise.
+//
+// 目标覆盖：
+// - Both then and else branches call Raise.raise, so the if-expression type is Nothing;
+// - Merge block emits unreachable (never reached at runtime);
+// - Code after the if is dead;
+// - try/catch catches the correct value depending on condition.
+
+import scoop.core.*
+
+fun main(): Int {
+    val r1: Int = try {
+        println("case_true")
+        val x: Int = if (true) {
+            Raise.raise(10)
+        } else {
+            Raise.raise(20)
+        }
+        println("unreachable")
+        x
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        e
+    }
+
+    val r2: Int = try {
+        println("case_false")
+        val y: Int = if (false) {
+            Raise.raise(30)
+        } else {
+            Raise.raise(40)
+        }
+        println("unreachable")
+        y
+    } catch (e: Int) {
+        println("caught")
+        println(e)
+        e
+    }
+
+    println("done")
+    println(r1 + r2)
+    return 0
+}

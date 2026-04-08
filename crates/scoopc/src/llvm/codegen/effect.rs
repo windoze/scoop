@@ -1474,6 +1474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -1553,6 +1554,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -1960,6 +1962,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -2451,6 +2454,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
+            CgTy::Never => CgValue::never(),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -3607,6 +3611,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // T1607：按 resume_value_ty 从 resume_word（scalar）或 resume_gc_ref（GC ptr / boxed）解码。
                 let resume_value = match resume_value_ty {
                     CgTy::Unit => CgValue::unit(),
+                    CgTy::Never => CgValue::never(),
                     CgTy::Bool => {
                         let zero = i64_ty.const_int(0, false);
                         let b = cg.builder.build_int_compare(
@@ -6539,6 +6544,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
+            CgTy::Never => CgValue::never(),
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -8048,6 +8054,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(match out_ty {
             CgTy::Unit => CgValue::unit(),
+            CgTy::Never => CgValue::never(),
             CgTy::Bool
             | CgTy::Int(_)
             | CgTy::String
@@ -8362,8 +8369,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
 
         match value.ty {
-            CgTy::Unit => {
-                // Unit：写 0 到 resume_word，resume_gc_ref 置 null。
+            CgTy::Unit | CgTy::Never => {
+                // Unit/Never：写 0 到 resume_word，resume_gc_ref 置 null。
                 let word_ptr = self.builder.build_struct_gep(
                     cont_ty,
                     cont_ptr,
@@ -8629,7 +8636,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 注意：这里不引入额外的 tag/布局；更复杂的 payload 由 TODO T0630 扩展。
         let i64_ty = self.context.i64_type();
         match value.ty {
-            CgTy::Unit => Ok(i64_ty.const_int(0, false)),
+            CgTy::Unit | CgTy::Never => Ok(i64_ty.const_int(0, false)),
             CgTy::Bool => {
                 let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "u64 word from bool",

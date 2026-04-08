@@ -40,6 +40,15 @@ pub(super) enum CgTy {
     ///
     /// 未来将替换为带对象头（type descriptor/flags/size）的具体布局（PLAN §8.2/§9.1）。
     Ref,
+    /// T1612: bottom type (`Nothing`)。
+    ///
+    /// `Nothing` 是 uninhabited type：运行时没有值。任何返回类型为 `Nothing` 的表达式都不会
+    /// "正常返回"（只能通过 `Raise.raise`、无限循环等控制流终止）。
+    ///
+    /// 后端不变量：
+    /// - `CgTy::Never` 的值不可被 store/load/return/observed；
+    /// - 若后端需要占位表示（例如在不可达路径保持 IR 连通），使用 `CgValue::never()`（value: None）。
+    Never,
 }
 
 /// LLVM GC address space（用于标记 GC-managed 引用指针，后续接入 statepoint/stackmap）。
@@ -137,6 +146,14 @@ impl<'ctx> CgValue<'ctx> {
                 _ => None,
             },
             _ => None,
+        }
+    }
+
+    /// T1612: placeholder for `Nothing` (bottom type). No runtime value exists.
+    pub(super) fn never() -> Self {
+        Self {
+            ty: CgTy::Never,
+            value: None,
         }
     }
 }

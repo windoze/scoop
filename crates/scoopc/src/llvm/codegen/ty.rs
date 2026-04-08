@@ -36,6 +36,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }))
             }
             TypeKind::Ref(_) => Some(CgTy::Ref),
+            TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),
             TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
             TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
             TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
@@ -273,7 +274,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: CgTy,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
         Ok(match ty {
-            // 说明：Unit 没有运行期值；当前阶段仅用于“可放入 alloca”与保持 load/store 管线统一。
+            // 说明：Unit 没有运行期值；当前阶段仅用于”可放入 alloca”与保持 load/store 管线统一。
             CgTy::Unit => self.context.i8_type().into(),
             CgTy::Bool => self.context.bool_type().into(),
             CgTy::Int(int_ty) => self.int_type(int_ty).into(),
@@ -282,6 +283,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Tuple(tuple_ty) => self.llvm_tuple_type(at, tuple_ty)?.into(),
             CgTy::Struct(struct_ty) => self.llvm_struct_type(at, struct_ty)?.into(),
             CgTy::Enum(enum_ty) => self.llvm_enum_value_type(at, enum_ty)?,
+            // T1612: Nothing/Never 不应有运行期值；此处仅为不可达路径的 IR 连通提供占位类型。
+            CgTy::Never => self.context.i8_type().into(),
         })
     }
 

@@ -537,7 +537,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn cg_ty_layout(&self, ty: CgTy) -> Result<TypeLayout, LlvmEmitError> {
         let target = self.target_layout();
         Ok(match ty {
-            CgTy::Unit => TypeLayout::new(0, 1),
+            CgTy::Unit | CgTy::Never => TypeLayout::new(0, 1),
             // 当前阶段 Bool 在 LLVM 中用 i1 表示，但 layout/lint/niche 计算按“存储为 u8”建模。
             CgTy::Bool => TypeLayout::new(1, 1),
             CgTy::Int(int_ty) => {

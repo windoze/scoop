@@ -1,0 +1,48 @@
+// EXPECT: pass
+// RUN-STDOUT: nothing_raise_coerce_to_any_type.stdout
+//
+// T1612: Nothing (bottom type) codegen – Raise.raise in nested try/catch.
+//
+// 目标覆盖：
+// - Multiple try/catch blocks with Raise.raise(e);
+// - Raise.raise returns Nothing, dead code after it is never executed;
+// - Different catch bodies verify raise value is propagated correctly;
+// - Nested try/catch with outer and inner raises.
+
+import scoop.core.*
+
+fun main(): Int {
+    // Simple raise + catch
+    val r1: Int = try {
+        println("try1")
+        Raise.raise(10)
+        println("unreachable1")
+        0
+    } catch (e: Int) {
+        println("catch1")
+        e
+    }
+    println(r1)
+
+    // Nested try/catch: inner raise is caught by inner handler
+    val r2: Int = try {
+        val inner: Int = try {
+            println("inner_try")
+            Raise.raise(20)
+            println("unreachable_inner")
+            0
+        } catch (e: Int) {
+            println("inner_catch")
+            e
+        }
+        println("outer_try_after_inner")
+        inner + 1
+    } catch (e: Int) {
+        println("outer_catch_unreachable")
+        e
+    }
+    println(r2)
+
+    println("done")
+    return 0
+}

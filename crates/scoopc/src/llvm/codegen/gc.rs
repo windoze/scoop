@@ -1444,6 +1444,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - struct/enum（值类型）：以 LLVM struct by-value 形式存入栈 slot（`alloca`）
         let v = self.coerce_value(at, value, ty)?;
         match ty {
+            // T1612: Nothing/Never has no runtime value; storing is a no-op (unreachable path).
+            CgTy::Never => return Ok(CgValue::never()),
             CgTy::Unit => {
                 let zero = self.context.i8_type().const_int(0, false);
                 let _ = self.builder.build_store(ptr, zero)?;

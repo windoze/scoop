@@ -509,16 +509,31 @@ cargo run -p scoop --features llvm -- test
   - （可选）清理既有 fixtures：将“仅用于提供 expected type context”的 `val ignore/_: Unit = handle { ... }` workaround 移除或缩减到确有语义必要的场景。
 - 依赖：无
 
-### T1612 [TODO] LLVM：`Nothing`（bottom type）在 codegen 的表示与不变量（值永不可见）
-- 描述：`Nothing` 是 bottom / uninhabited type：它没有运行时值；任何返回类型为 `Nothing` 的函数都不应“正常返回”（只能通过 `Raise.raise`、无限循环、或其它控制流终止）。当前 LLVM codegen 侧尚未为 `Nothing` 提供一致的 `CgTy` 表示（`cg_ty_of` 也未覆盖它），同时许多“不可达 continuation block”会用 `default_value(...)` 产生占位值以维持 IR 生成推进，这在放开复合值返回后需要更明确的约束与实现策略。
+### T1612 [DONE] LLVM：`Nothing`（bottom type）在 codegen 的表示与不变量（值永不可见）
+- 描述：`Nothing` 是 bottom / uninhabited type：它没有运行时值；任何返回类型为 `Nothing` 的函数都不应”正常返回”（只能通过 `Raise.raise`、无限循环、或其它控制流终止）。当前 LLVM codegen 侧尚未为 `Nothing` 提供一致的 `CgTy` 表示（`cg_ty_of` 也未覆盖它），同时许多”不可达 continuation block”会用 `default_value(...)` 产生占位值以维持 IR 生成推进，这在放开复合值返回后需要更明确的约束与实现策略。
 - 目标：
   - 明确并固化后端不变量：`Nothing` 的值不可被 store/load/return/observed；若后端内部需要占位表示，只能用于不可达路径的 IR 连通（例如 dead block），且不得影响可达语义。
-  - 设计 `Nothing` 的 codegen 表示策略（例如引入 codegen-only 的 `Never`/`Unreachable` 形态，或将 `Nothing` 映射为一个“不可观察占位类型”并在关键点强制 `unreachable`），并补齐 `cg_ty_of` / `default_value` / merge 逻辑对该策略的适配。
+  - 设计 `Nothing` 的 codegen 表示策略（例如引入 codegen-only 的 `Never`/`Unreachable` 形态，或将 `Nothing` 映射为一个”不可观察占位类型”并在关键点强制 `unreachable`），并补齐 `cg_ty_of` / `default_value` / merge 逻辑对该策略的适配。
   - 审计 `default_value(...)` 的使用点：对 tuple/struct/enum 等复合类型提供可生成的占位 LLVM 值（例如 `undef`/zero initializer），同时确保这些占位仅在不可达路径被使用，不要求提供语言层面可观察语义。
 - 验收：
-  - 新增 run-pass fixtures：显式覆盖 `Nothing` 的典型来源（例如 `Raise.raise`、永不返回的 helper），并验证在 try/catch/handle 边界内外均不会出现“读取/打印/返回 Nothing 值”的路径。
-  - 新增/更新 build fixtures（可选）：在 `--emit-llvm` 下断言关键位置出现 `unreachable` 或等价形态，避免生成“可达但未初始化/乱值”的 IR。
+  - 新增 run-pass fixtures：显式覆盖 `Nothing` 的典型来源（例如 `Raise.raise`、永不返回的 helper），并验证在 try/catch/handle 边界内外均不会出现”读取/打印/返回 Nothing 值”的路径。
+  - 新增/更新 build fixtures（可选）：在 `--emit-llvm` 下断言关键位置出现 `unreachable` 或等价形态，避免生成”可达但未初始化/乱值”的 IR。
 - 依赖：T1610（复合值 result + default_value 互相牵连，建议一起推进）
+- 完成说明：
+  - **设计**：引入 `CgTy::Never` 作为 `Nothing` 的 codegen 表示。`CgValue::never()` 构造器返回 `{ ty: CgTy::Never, value: None }`。运行时 `Nothing` 值永不可观察——所有通向 Nothing 值的路径都是 dead code（由 Raise.raise、divergent calls 等保证）。
+  - **类型映射**（`ty.rs`）：`ValueTypeKind::Nothing => Some(CgTy::Never)` in `cg_ty_of`；`CgTy::Never => i8_type()` in `llvm_basic_type_of`（占位，永不实际使用）。
+  - **布局**（`layout.rs`）：`CgTy::Never => TypeLayout::new(0, 1)`（零大小，与 Unit 一致）。
+  - **default_value**（`mod.rs`）：`CgTy::Never => CgValue::never()`。
+  - **emit_return**（`mod.rs`）：`CgTy::Never => build_unreachable()`——返回 Nothing 的函数永远不会正常返回。
+  - **coerce_value**（`mod.rs`）：`(CgTy::Never, _) => default_value(target)`——Nothing 可以 coerce 到任意目标类型（仅在不可达路径上需要占位值）。
+  - **控制流**（`control_flow.rs`）：if/when merge block 中，当结果类型为 Never 时跳过 alloca 并在 merge block 发出 `unreachable`（所有分支都 diverge 时 merge 不可达）。
+  - **effect/continuation**（`effect.rs`）：handle merge results、resume value decode、cont resume slot encoding、coerce_u64_word 等 9 处 match 添加 `CgTy::Never` 分支。
+  - **GC**（`gc.rs`）：`store_local_value` 中 `CgTy::Never => return Ok(CgValue::never())` 作为 no-op。
+  - **全面审计**：mod.rs（~15 处 match）、effect.rs（9 处）、control_flow.rs（5 处）、layout.rs（1 处）、gc.rs（1 处）——共 30+ 个 match arm 覆盖所有 CgTy 分支。
+  - **新增 3 个 run-pass fixtures**：
+    - `nothing_raise_in_helper_basic`：Raise.raise 在 helper 函数中，flag-propagation + try/catch 捕获。
+    - `nothing_if_all_branches_raise`：if 两分支都 Raise.raise，merge block 不可达，try/catch 正确捕获。
+    - `nothing_raise_coerce_to_any_type`：嵌套 try/catch + Raise.raise，验证 dead code 不执行。
 
 ---
 

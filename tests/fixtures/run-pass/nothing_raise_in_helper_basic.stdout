@@ -1,0 +1,6 @@
+before_call
+before_raise
+caught
+42
+after
+42

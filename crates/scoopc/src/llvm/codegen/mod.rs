@@ -356,7 +356,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let fn_ty = match return_cg {
-            CgTy::Unit => self.context.void_type().fn_type(&llvm_params, false),
+            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_params, false),
             other => self
                 .llvm_basic_type_of(fun.span, other)?
                 .fn_type(&llvm_params, false),
@@ -453,7 +453,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         Ok(match cg_ty {
-            CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+            CgTy::Unit | CgTy::Never => self.context.i8_type().const_int(0, false).into(),
             CgTy::Bool => {
                 let value =
                     self.const_eval_bool_expr(init)
@@ -5894,7 +5894,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 当前 runtime array 以 “u64 word buffer” 表示元素，因此这里限制为可编码为 u64 的类型。
         match cg {
             CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => Some(cg),
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => None,
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) | CgTy::Never => None,
         }
     }
 
@@ -5911,6 +5911,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match to {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool => {
                 let is_true = self.builder.build_int_compare(
                     IntPredicate::NE,
@@ -6569,6 +6570,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool => {
                 let value = call_site
                     .try_as_basic_value()
@@ -6793,7 +6795,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         let llvm_fun_ty = match ret_cg {
-            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
             other => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
@@ -6871,6 +6873,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
+            CgTy::Never => Ok(Some(CgValue::never())),
             CgTy::Bool => {
                 let value = call_site
                     .try_as_basic_value()
@@ -7049,7 +7052,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         let llvm_fun_ty = match ret_cg {
-            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
             other => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
@@ -7161,6 +7164,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 4) 返回值装箱（保持与 `codegen_top_level_fun_call` 一致）。
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
+            CgTy::Never => Ok(Some(CgValue::never())),
             CgTy::Bool => {
                 let value = call_site
                     .try_as_basic_value()
@@ -7562,7 +7566,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let llvm_fun_ty = match ret_cg {
-            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
             other => self
                 .llvm_basic_type_of(callee_span, other)?
                 .fn_type(&llvm_param_tys, false),
@@ -7630,6 +7634,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool => {
                 let value = call_site
                     .try_as_basic_value()
@@ -7761,7 +7766,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let llvm_fun_ty = match ret_cg {
-            CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+            CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
             CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
             CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
             CgTy::String => self
@@ -7822,6 +7827,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match ret_cg {
             CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
             CgTy::Bool => {
                 let value = call_site
                     .try_as_basic_value()
@@ -7933,7 +7939,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })?;
 
             let fn_ty = match ret_cg {
-                CgTy::Unit => self.context.void_type().fn_type(&llvm_param_tys, false),
+                CgTy::Unit | CgTy::Never => self.context.void_type().fn_type(&llvm_param_tys, false),
                 CgTy::Bool => self.context.bool_type().fn_type(&llvm_param_tys, false),
                 CgTy::Int(int_ty) => self.int_type(int_ty).fn_type(&llvm_param_tys, false),
                 CgTy::String => self
@@ -8345,6 +8351,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let init = match target_ty {
                 CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
                 CgTy::Bool => {
                     let raw = llvm_fun
                         .get_nth_param((idx + 1) as u32)
@@ -9097,7 +9104,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_int_ty = self.int_type(payload_ty);
 
         match value_ty {
-            CgTy::Unit => Ok(CgEnumPayload {
+            CgTy::Unit | CgTy::Never => Ok(CgEnumPayload {
                 word: Some(payload_int_ty.const_int(0, false)),
                 gc_ptr: None,
             }),
@@ -9412,7 +9419,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value: CgValue<'ctx>,
     ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
         Ok(match param_ty {
-            CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
+            CgTy::Unit | CgTy::Never => self.context.i8_type().const_int(0, false).into(),
             CgTy::Bool
             | CgTy::Int(_)
             | CgTy::String
@@ -9445,6 +9452,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let ptr = self.create_entry_alloca(param.span, &param.name, target_ty)?;
             let init = match target_ty {
                 CgTy::Unit => CgValue::unit(),
+                CgTy::Never => CgValue::never(),
                 CgTy::Bool => {
                     let raw = llvm_fun
                         .get_nth_param(idx as u32)
@@ -9546,6 +9554,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::Enum(ty),
                 value: None,
             },
+            // T1612: Nothing/Never has no runtime value.
+            CgTy::Never => CgValue::never(),
         }
     }
 
@@ -9594,6 +9604,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match declared_return_ty {
             CgTy::Unit => {
                 self.builder.build_return(None)?;
+                Ok(())
+            }
+            // T1612: A function declared as returning Nothing never returns normally.
+            // Emit `unreachable` instead of a return instruction.
+            CgTy::Never => {
+                self.builder.build_unreachable()?;
                 Ok(())
             }
             CgTy::Bool
@@ -10083,6 +10099,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         value: Some(loaded),
                     },
                     CgTy::Unit => CgValue::unit(),
+                    CgTy::Never => CgValue::never(),
                 })
             }
             hir::ValueRef::Local { id, .. } => {
@@ -10096,6 +10113,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 match local.ty {
                     CgTy::Unit => Ok(CgValue::unit()),
+                    CgTy::Never => Ok(CgValue::never()),
                     CgTy::Bool => {
                         let raw = self
                             .builder
@@ -10883,6 +10901,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: CgTy::Enum(enum_ty),
                 value: Some(raw),
             },
+            CgTy::Never => CgValue::never(),
         })
     }
 
@@ -11930,6 +11949,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match (value.ty, target) {
+            // T1612: Nothing (bottom type) coerces to any target type.
+            // This only occurs on unreachable paths (after Raise.raise, etc.),
+            // so we return a phantom default value of the target type.
+            (CgTy::Never, _) => Ok(self.default_value(target)),
             (CgTy::Unit, CgTy::Unit) => Ok(CgValue::unit()),
             (CgTy::Unit, CgTy::Ref) => {
                 // early stage：允许把 `Unit` 装箱到 `Any`。
@@ -12183,7 +12206,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i32_ty = self.context.i32_type();
 
         match value.ty {
-            CgTy::Unit => Ok(i32_ty.const_int(0, false)),
+            CgTy::Unit | CgTy::Never => Ok(i32_ty.const_int(0, false)),
             CgTy::Bool => {
                 let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "exit bool",

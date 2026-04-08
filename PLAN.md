@@ -181,7 +181,7 @@ cargo run -p scoop --features llvm -- test
   - resume payload 泛型化：`Continuation<T>` 的 `T` 覆盖 value/ref/复合类型，且与 moving GC 对齐（不允许 ptr<->int 作弊）。
   - 控制流表达式返回任意类型：`handle/if/when` 作为表达式支持 `tuple/struct/enum` 等复合值返回，避免后端“只能返回标量子集”的限制（见 TODO：T1610）。
   - 语句位置的 `handle` 不再需要 `val _: Unit = ...` workaround：后端在表达式语句位置默认以 `Unit` 期望类型生成并丢弃结果（见 TODO：T1611）。
-  - `Nothing` 明确为 bottom type：运行时没有值；返回类型为 `Nothing` 的函数不会正常 return。后端若需要占位表示它，也只能用于不可达路径的 IR 连通，且该值永不可被观察（见 TODO：T1612）。
+  - `Nothing` 明确为 bottom type：运行时没有值；返回类型为 `Nothing` 的函数不会正常 return。后端若需要占位表示它，也只能用于不可达路径的 IR 连通，且该值永不可被观察（见 TODO：T1612）。**DONE**：引入 `CgTy::Never` + `CgValue::never()`；30+ match arms 全面覆盖；零大小布局；emit_return 发出 `unreachable`；coerce_value 处理 `(Never, _)` → `default_value(target)`；新增 3 个 run-pass fixtures。
   - `finally` 组合语义补齐：在 suspend/resume/传播路径上不漏执行、不重复执行。
 - 落地顺序（T1606 已拆分为子任务 T1606a~T1606g；T1608/T1607 前置）：
   - T1606a（DONE）：0 perform 时退化执行 body（arm 不可达）

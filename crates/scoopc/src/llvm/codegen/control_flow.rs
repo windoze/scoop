@@ -134,7 +134,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_conditional_branch(cond_i1, then_bb, else_bb)?;
 
         let result_ptr = match out_cg {
-            CgTy::Unit => None,
+            CgTy::Unit | CgTy::Never => None,
             _ => Some(self.create_entry_alloca(span, "if_result", out_cg)?),
         };
 
@@ -189,6 +189,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(merge_bb);
         match out_cg {
             CgTy::Unit => Ok(CgValue::unit()),
+            // T1612: all branches diverge → merge is unreachable.
+            CgTy::Never => {
+                self.builder.build_unreachable()?;
+                Ok(CgValue::never())
+            }
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
@@ -375,6 +380,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let out_ty = out_ty.unwrap_or(CgTy::Unit);
             return match out_ty {
                 CgTy::Unit => Ok(CgValue::unit()),
+                // T1612: all arms diverge → merge is unreachable.
+                CgTy::Never => {
+                    self.builder.build_unreachable()?;
+                    Ok(CgValue::never())
+                }
                 CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
                 | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                     // T1610: use alloca/store/load to support compound types (and scalars).
@@ -649,6 +659,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let out_ty = out_ty.unwrap_or(CgTy::Unit);
         match out_ty {
             CgTy::Unit => Ok(CgValue::unit()),
+            // T1612: all arms diverge → merge is unreachable.
+            CgTy::Never => {
+                self.builder.build_unreachable()?;
+                Ok(CgValue::never())
+            }
             CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
             | CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 // T1610: use alloca/store/load to support compound types (and scalars).
@@ -866,7 +881,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             ty: CgTy::Ref,
                             value: Some(loaded.into_pointer_value().into()),
                         },
-                        CgTy::Unit
+                        CgTy::Never
+                        | CgTy::Unit
                         | CgTy::Int(_)
                         | CgTy::Tuple(_)
                         | CgTy::Struct(_)
@@ -937,6 +953,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - word：承载 Bool/Int 等标量
                 // - gc ptr：承载 Ref/String 等 GC-managed 指针
                 let extracted = match field_cg {
+                    CgTy::Never => CgValue::never(),
                     CgTy::Unit => CgValue::unit(),
                     CgTy::Bool => {
                         let b = self.builder.build_int_truncate(
