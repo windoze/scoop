@@ -1,0 +1,101 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_async_executor_fifo.stdout
+//
+// 目标：T1706 — 模拟 async executor 的 FIFO 调度模式。
+// - 单个 handle body 内 3 次 perform（模拟 3 次 await）；
+// - arm 将 continuation 保存到 heap cell（模拟入队）；
+// - 外层按 FIFO 顺序逐一 resume（模拟 executor drain）；
+// - 每个 perform 前后有局部变量，且跨 suspension 累积（验证 state machine local lifting）；
+// - 在 --gc-stress 下稳定。
+
+import scoop.core.*
+
+effect Suspend {
+    fun fetch(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("task_start")
+
+        val base: Int = 100
+
+        val a: Int = Suspend.fetch()
+        println("step_1")
+        println(a)
+        println(base)
+
+        val acc1: Int = base + a
+
+        val b: Int = Suspend.fetch()
+        println("step_2")
+        println(b)
+        println(acc1)
+
+        val acc2: Int = acc1 + b
+
+        val c: Int = Suspend.fetch()
+        println("step_3")
+        println(c)
+        println(acc2)
+
+        println("task_done")
+        println(acc2 + c)
+    } with {
+        Suspend.fetch(), k -> {
+            cell.n = cell.n + 1
+            println("enqueue")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("drain_start")
+
+    // Executor drain: resume queued continuations in FIFO order
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("resume_1")
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("resume_2")
+            val _: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            println("resume_3")
+            val _: Unit = try {
+                k3.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("missing")
+    }
+
+    println("drain_done")
+}

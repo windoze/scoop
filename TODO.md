@@ -343,7 +343,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixtures**：新增 4 个 run-pass fixtures——`effect_escape_continuation_resume_unit`、`effect_escape_continuation_resume_bool`、`effect_escape_continuation_resume_string`、`effect_escape_continuation_resume_string_multi`（含多次 suspend/resume）。
   - **备注**：Tuple/Struct/Enum compound payload 的 codegen 路径已实现（box+unbox），但缺少 run-pass fixtures，因为 `Continuation<(Int,String)>` / `Continuation<MyStruct>` 需要 T1610（控制流表达式返回 compound 类型）先落地才能端到端验证。
 
-### T1706 [TODO] 多 perform 点（单个 handle）：async/await 真实写法回归
+### T1706 [DONE] 多 perform 点（单个 handle）：async/await 真实写法回归
 - 描述：新增一组 fixtures，专门覆盖"单个 escape-continuation `handle` body 内出现多个 perform 点"的真实写法（例如连续 `await` 两到三次），不允许用"嵌套 handle / 二段 handle"的 workaround。
 - 目标：
   - 覆盖：两次以上 suspension/resume；resume 后继续执行并再次 suspension。

@@ -1,0 +1,74 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_multi_perform_cross_thread.stdout
+//
+// 目标：T1706 — 跨线程 resume + 多 perform 点组合验证。
+// - 单个 handle body 内 2 次 perform；
+// - 每次 resume 均在新线程中执行（__scoop_thread_spawn_join_resume_u64）；
+// - perform 前后有局部变量，验证跨线程 resume 后 local lifting 仍正确；
+// - 注意：跨线程 resume + --gc-stress 组合为已知限制（既有单 perform 的
+//   effect_escape_continuation_resume_cross_thread 也会挂起），不在本 fixture 覆盖范围。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        val pre: Int = 7
+
+        val a: Int = Yield.next()
+        println("after_yield_1")
+        println(a)
+        println(pre)
+
+        val sum: Int = pre + a
+
+        val b: Int = Yield.next()
+        println("after_yield_2")
+        println(b)
+        println(sum)
+
+        println("body_done")
+        println(sum + b)
+    } with {
+        Yield.next(), k -> {
+            cell.n = cell.n + 1
+            println("arm")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            println("cross_thread_1")
+            __scoop_thread_spawn_join_resume_u64(k1, 10)
+            println("joined_1")
+        }
+        None -> println("missing1")
+    }
+
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            println("cross_thread_2")
+            __scoop_thread_spawn_join_resume_u64(k2, 20)
+            println("joined_2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

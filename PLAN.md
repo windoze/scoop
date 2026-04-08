@@ -189,7 +189,7 @@ cargo run -p scoop --features llvm -- test
   - T1606c（DONE）：多 perform（pc + heap state machine）— 含 GC stackmap walker 修复：walk-through C frames 以覆盖 main→resume_u64(C)→step_fn 场景
   - T1608（DONE）：op_tag 稳定分配与统一 dispatch — T1606d 的前置依赖
   - T1607（DONE）：resume payload 泛型化（u64 → 任意 T）— 双通道 ABI（resume_word + resume_gc_ref），step 函数 3 参数签名，compound 类型 box/unbox
-  - **T1706**：多 perform 点回归 fixtures（async/await 真实写法）— T1606d 的前置依赖，已从 T17 提前
+  - T1706（DONE）：多 perform 点回归 fixtures（async/await 真实写法）— 新增 2 个 run-pass fixtures：`effect_escape_continuation_async_executor_fifo`（单线程 executor 模式，3 次 perform，局部变量跨 suspension 累积）+ `effect_escape_continuation_multi_perform_cross_thread`（跨线程 resume + 2 次 perform）；单线程 fixture 在 `--gc-stress` 下稳定；跨线程 + GC stress 为既有限制（见 `effect_escape_continuation_resume_cross_thread` 同样挂起）
   - **T1707**：控制流 + 多次 suspension 回归 fixtures — T1606d 的前置依赖，已从 T17 提前
   - T1606d：多 perform + 动态上下文/GC 回归加固（依赖 T1608 + T1706/T1707）
   - T1606e~g：控制流/间接 perform/嵌套 handle 的显式验证
