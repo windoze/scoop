@@ -555,16 +555,26 @@ cargo run -p scoop --features llvm -- test
     - `effect_escape_continuation_scheduler_round_robin`：3 个独立任务（使用 3 种不同 effect），分别 1/2/3 次 suspend。调度器循环 3 轮：每轮依次尝试恢复 T0、T1、T2；已完成的任务被跳过。展示公平调度下不等量工作的任务分布。
   - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
-### T1702 [TODO] `Continuation<T>` 完整性：覆盖 `T` 的全类型空间与操作组合
+### T1702 [DONE] `Continuation<T>` 完整性：覆盖 `T` 的全类型空间与操作组合
 - 描述：验证 `Continuation<T>` 的泛型完整性：`T` 可以是任意类型（struct/tuple/enum/ref/甚至 `Continuation` 本身），并且所有对 `Continuation<T>` 的操作都按预期工作。
 - 目标：
   - 覆盖 value/ref 混合：`Continuation<(Int, String)>`、`Continuation<Option<MyRef>>`、`Continuation<MyStruct>` 等。
   - 覆盖自递归：`Continuation<Continuation<Int>>` 的捕获与恢复（避免布局/GC root 漏洞）。
-  - 不追求“性能最优”；先确保语义与内存安全。
+  - 不追求”性能最优”；先确保语义与内存安全。
 - 验收：
   - 新增 run-pass fixtures：至少覆盖上述 5 类 `T`（struct/tuple/enum/ref/Continuation），并在 `--gc-stress` 下通过。
   - 必要时补 build fixtures：对关键 IR 形态做 contains/not-contains 断言（避免隐藏的 pointer encoding/roots 漏扫风险）。
 - 依赖：（历史）escaping continuation + GC 安全布局规则已存在
+- 完成说明：
+  - **Parser 增强**：修复嵌套泛型 `>>` 解析（`Continuation<Continuation<Int>>`）。在 `parse_type_args` 中新增 `expect_gt_or_split_gtgt` 方法，当遇到 `>>` (GtGt) 时将其拆分为两个 `>` token，使嵌套泛型类型标注正确解析。
+  - **新增 6 个 run-pass fixtures**（覆盖 T 的 6 种类型类别）：
+    - `continuation_resume_struct`：`Continuation<Point>` — 纯值 struct（`Point{x:Int, y:Int}`），单次 suspend/resume，验证 resume_gc_ref boxed payload 编码/解码。
+    - `continuation_resume_tuple`：`Continuation<(Int, String)>` — tuple 混合 value+ref，验证 boxed tuple payload 中 GC ref 字段正确追踪。
+    - `continuation_resume_enum`：`Continuation<Result>` — 富 enum（Ok/Err 变体），两轮 handle（Ok + Err），验证 boxed enum payload 的 discriminant+field 正确编码/解码。
+    - `continuation_resume_ref_class`：`Continuation<Box>` — class（GC heap 引用类型），2 次 suspend/resume，验证 class 对象在 multi-perform state machine 的 resume_gc_ref 通道中 GC root 存活。
+    - `continuation_resume_struct_with_ref`：`Continuation<Named>` — struct 含 String ref 字段（`Named{name:String, score:Int}`），验证 compound payload 内嵌 GC ref 在 box/unbox 后存活。
+    - `continuation_resume_continuation`：`Continuation<Continuation<Int>>` — 自递归 continuation，outer resume 接收 inner continuation 后再 resume inner，验证 GC root 嵌套扫描正确。
+  - 所有 6 个 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1703 [TODO] GC 正确性：跨函数、复杂 value/ref 混合环境的 fixtures
 - 描述：创建 fixtures 验证 GC 在跨函数场景下的正确性：多函数/多类/tuple/struct/enum 互相引用，以及“值类型包含 ref 字段”的深层嵌套与数组容器。

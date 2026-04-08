@@ -186,6 +186,7 @@ impl<'a> Parser<'a> {
         let _lt = self.expect_symbol(Symbol::Lt)?;
         let mut args = Vec::new();
 
+        // Handle empty type args `<>`.
         if self.peek_symbol(Symbol::Gt) {
             let gt = self.bump();
             return Ok((args, gt.span.end));
@@ -207,7 +208,7 @@ impl<'a> Parser<'a> {
 
                 // allow trailing comma, but `eff` 必须是最后一个条目。
                 if self.eat_symbol(Symbol::Comma) {
-                    if !self.peek_symbol(Symbol::Gt) {
+                    if !self.peek_gt_or_gtgt() {
                         let tok = *self.peek();
                         return Err(ParseError::Expected {
                             expected: "`>`（`eff` 实参必须位于类型实参列表末尾）",
@@ -228,14 +229,16 @@ impl<'a> Parser<'a> {
                 args.push(self.parse_type_ref()?);
             }
             if self.eat_symbol(Symbol::Comma) {
-                if self.peek_symbol(Symbol::Gt) {
+                // Allow trailing comma before `>` or `>>` (nested generics).
+                if self.peek_gt_or_gtgt() {
                     break;
                 }
                 continue;
             }
             break;
         }
-        let gt = self.expect_symbol(Symbol::Gt)?;
+        // Handle `>>` as two `>` tokens for nested generics (e.g., `Continuation<Continuation<Int>>`).
+        let gt = self.expect_gt_or_split_gtgt()?;
         Ok((args, gt.span.end))
     }
 

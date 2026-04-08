@@ -1,0 +1,43 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_tuple.stdout
+//
+// T1702: Continuation<(Int, String)> — resume payload is a tuple mixing value (Int) and
+// ref (String) types. Verifies that compound tuple payloads are correctly boxed/unboxed
+// through the resume_gc_ref channel, and that GC ref fields survive moving GC.
+// Must pass under --gc-stress.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): (Int, String)
+}
+
+fun main() {
+    var saved: Continuation<(Int, String)>? = None()
+
+    val _: Unit = handle {
+        val pair: (Int, String) = Ask.ask()
+        println("got_pair")
+        println(pair._0)
+        println(pair._1)
+    } with {
+        Ask.ask(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume((42, "hello"))
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}

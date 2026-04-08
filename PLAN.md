@@ -215,6 +215,7 @@ cargo run -p scoop --features llvm -- test
   - DONE（T1701）：新增 3 个多任务调度器 fixtures（FIFO/LIFO/round-robin），覆盖多独立任务×多 suspension×不同调度策略，均在 `--gc-stress` 下稳定。
 - 关键补齐：单个 `handle` body 内多次 suspension/resume（多 perform 点），覆盖真实 async/await 写法（见 TODO：T1706/T1707）。
 - `Continuation<T>` 完整性：覆盖 `T` 的全类型空间（struct/tuple/enum/ref/Continuation 自身）。
+  - DONE（T1702）：新增 6 个 run-pass fixtures——struct、tuple(Int,String)、enum(Ok/Err)、ref class(multi-perform)、struct+ref field、Continuation<Continuation<Int>>。Parser 增强：修复嵌套泛型 `>>` 解析（split GtGt → Gt+Gt）。均在 `--gc-stress` 下稳定。
 - GC correctness：跨函数复杂对象图、数组（value/ref 混合、value 内含 ref）、循环引用。
 - GC + escaping continuation：确保 continuation 捕获环境的 roots 扫描/更新正确。
 - 多线程扩展：把上述场景搬到多线程，固定调度避免 flakiness。

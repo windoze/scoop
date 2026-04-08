@@ -1,0 +1,9 @@
+after_outer_handle
+after_inner_handle
+resuming_outer_with_inner_k
+got_inner_k
+inner_got
+42
+inner_resumed
+after_outer_resume
+done

@@ -1,0 +1,80 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_continuation.stdout
+//
+// T1702: Resume payload is itself a Continuation (ref type / GC-managed object).
+// The outer effect returns a Continuation<Int>, so the outer handle arm captures
+// a continuation whose resume payload is a Continuation<Int> object.
+// Verifies that continuation objects can be passed as resume payloads through the
+// resume_gc_ref channel, and that the received continuation can subsequently be
+// resumed correctly. Tests GC root scanning of nested continuation objects.
+// Must pass under --gc-stress.
+
+import scoop.core.*
+
+effect Outer {
+    fun getK(): Continuation<Int>
+}
+
+effect Inner {
+    fun pause(): Int
+}
+
+fun main() {
+    var outerK: Continuation<Continuation<Int>>? = None()
+
+    // Outer handle: body performs Outer.getK() to receive a continuation
+    val _h1: Unit = handle {
+        val innerK: Continuation<Int> = Outer.getK()
+        println("got_inner_k")
+
+        // Resume the received continuation with a value
+        val _r1: Unit = try {
+            innerK.resume(42)
+        } catch (e: RuntimeError) {
+            println("inner_resume_error")
+        }
+        println("inner_resumed")
+    } with {
+        Outer.getK(), k -> {
+            outerK = Some(k)
+        }
+    }
+
+    println("after_outer_handle")
+
+    // Now create an inner continuation by running another handle
+    var innerSaved: Continuation<Int>? = None()
+
+    val _h2: Unit = handle {
+        val v: Int = Inner.pause()
+        println("inner_got")
+        println(v)
+    } with {
+        Inner.pause(), k -> {
+            innerSaved = Some(k)
+        }
+    }
+
+    println("after_inner_handle")
+
+    // Resume outer with the inner continuation as payload
+    when (outerK) {
+        Some(ok) -> {
+            when (innerSaved) {
+                Some(ik) -> {
+                    println("resuming_outer_with_inner_k")
+                    val _r2: Unit = try {
+                        ok.resume(ik)
+                    } catch (e: RuntimeError) {
+                        println("outer_resume_error")
+                    }
+                    println("after_outer_resume")
+                }
+                None -> println("no_inner_k")
+            }
+        }
+        None -> println("no_outer_k")
+    }
+
+    println("done")
+}

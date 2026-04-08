@@ -111,6 +111,42 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Check if the current token is `>` or `>>` (for nested generic closing).
+    pub(super) fn peek_gt_or_gtgt(&self) -> bool {
+        self.peek_symbol(Symbol::Gt) || self.peek_symbol(Symbol::GtGt)
+    }
+
+    /// Expect a closing `>` for generic type arguments. If the current token is `>>` (GtGt),
+    /// split it: consume the first `>` and mutate the token in-place to a single `>` (Gt)
+    /// with an adjusted span, so the outer generic parser can consume it next.
+    /// This handles nested generics like `Continuation<Continuation<Int>>`.
+    pub(super) fn expect_gt_or_split_gtgt(&mut self) -> Result<Token, ParseError> {
+        if self.peek_symbol(Symbol::Gt) {
+            return Ok(self.bump());
+        }
+        if self.peek_symbol(Symbol::GtGt) {
+            let tok = *self.peek();
+            // Synthesize a Gt token for the first `>` (left half of `>>`).
+            let first_gt = Token {
+                kind: TokenKind::Symbol(Symbol::Gt),
+                span: Span::new(tok.span.start, tok.span.start + 1),
+            };
+            // Mutate the current token in-place to a Gt for the second `>`.
+            self.tokens[self.i] = Token {
+                kind: TokenKind::Symbol(Symbol::Gt),
+                span: Span::new(tok.span.start + 1, tok.span.end),
+            };
+            return Ok(first_gt);
+        }
+        // Neither Gt nor GtGt — report the standard error.
+        let tok = *self.peek();
+        Err(ParseError::Expected {
+            expected: "`>`",
+            found: tok.kind,
+            span: tok.span.into(),
+        })
+    }
+
     pub(super) fn eat_symbol(&mut self, sym: Symbol) -> bool {
         if self.peek_symbol(sym) {
             self.bump();

@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_struct.stdout
+//
+// T1702: Continuation<MyStruct> — resume payload is a struct (value type with mixed fields).
+// Verifies that compound struct payloads are correctly boxed on resume and unboxed in the
+// step function via the resume_gc_ref channel. Must pass under --gc-stress.
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+effect Fetch {
+    fun fetch(): Point
+}
+
+fun main() {
+    var saved: Continuation<Point>? = None()
+
+    val _: Unit = handle {
+        val p: Point = Fetch.fetch()
+        println("got_point")
+        println(p.x)
+        println(p.y)
+        val sum: Int = p.x + p.y
+        println(sum)
+    } with {
+        Fetch.fetch(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _: Unit = try {
+                k.resume(Point { x: 10, y: 20 })
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}

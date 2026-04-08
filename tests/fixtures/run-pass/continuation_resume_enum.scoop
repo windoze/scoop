@@ -1,0 +1,94 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_enum.stdout
+//
+// T1702: Continuation<MyEnum> — resume payload is a rich enum (tagged union with payload
+// variants). Verifies that enum payloads are correctly boxed/unboxed through resume_gc_ref,
+// and pattern matching on the resumed value works. Must pass under --gc-stress.
+
+import scoop.core.*
+
+enum Result {
+    Ok(val value: Int),
+    Err(val code: Int),
+}
+
+effect Query {
+    fun query(): Result
+}
+
+fun main() {
+    var saved: Continuation<Result>? = None()
+
+    // First pass: resume with Ok variant
+    val _h1: Unit = handle {
+        val r: Result = Query.query()
+        when (r) {
+            Ok(v) -> {
+                println("ok")
+                println(v)
+            }
+            Err(c) -> {
+                println("err")
+                println(c)
+            }
+        }
+    } with {
+        Query.query(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle1")
+
+    when (saved) {
+        Some(k) -> {
+            // Use explicit typed binding for enum construction (codegen needs expected type).
+            val payload: Result = Ok(42)
+            val _r1: Unit = try {
+                k.resume(payload)
+            } catch (e: RuntimeError) {
+                println("unexpected_error")
+            }
+            println("after_resume1")
+        }
+        None -> println("missing1")
+    }
+
+    // Second pass: resume with Err variant
+    var saved2: Continuation<Result>? = None()
+
+    val _h2: Unit = handle {
+        val r2: Result = Query.query()
+        when (r2) {
+            Ok(v) -> {
+                println("ok2")
+                println(v)
+            }
+            Err(c) -> {
+                println("err2")
+                println(c)
+            }
+        }
+    } with {
+        Query.query(), k -> {
+            saved2 = Some(k)
+        }
+    }
+
+    println("after_handle2")
+
+    when (saved2) {
+        Some(k2) -> {
+            val payload2: Result = Err(99)
+            val _r2: Unit = try {
+                k2.resume(payload2)
+            } catch (e: RuntimeError) {
+                println("unexpected_error2")
+            }
+            println("after_resume2")
+        }
+        None -> println("missing2")
+    }
+
+    println("done")
+}

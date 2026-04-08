@@ -1,0 +1,76 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_ref_class.stdout
+//
+// T1702: Continuation<MyClass> — resume payload is a reference type (class instance on GC heap).
+// Verifies that class object payloads are correctly passed through the resume_gc_ref channel
+// and survive GC cycles. Also tests multi-perform with class payloads to verify state machine
+// lifting and GC root scanning across suspensions. Must pass under --gc-stress.
+
+import scoop.core.*
+
+class Box(val label: String, val value: Int)
+
+effect Provide {
+    fun provide(): Box
+}
+
+class Cell(var k: Continuation<Box>?)
+
+fun main() {
+    val none_k: Continuation<Box>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        val b1: Box = Provide.provide()
+        println("got1")
+        println(b1.label)
+        println(b1.value)
+
+        val b2: Box = Provide.provide()
+        println("got2")
+        println(b2.label)
+        println(b2.value)
+
+        // Verify both references survive after second resume
+        val total: Int = b1.value + b2.value
+        println("total")
+        println(total)
+        println("body_done")
+    } with {
+        Provide.provide(), k -> {
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    // Resume 1: provide first Box
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume(Box("alpha", 10))
+            } catch (e: RuntimeError) {
+                println("err1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    // Resume 2: provide second Box
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume(Box("beta", 32))
+            } catch (e: RuntimeError) {
+                println("err2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    println("done")
+}

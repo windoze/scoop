@@ -1,0 +1,9 @@
+after_handle1
+ok
+42
+after_resume1
+after_handle2
+err2
+99
+after_resume2
+done

@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: continuation_resume_struct_with_ref.stdout
+//
+// T1702: Continuation<Named> where Named is a struct with both value (Int) and ref (String)
+// fields. Verifies that compound struct payloads with embedded GC references are correctly
+// boxed through the resume_gc_ref channel, and pattern-decomposed fields survive GC.
+// Tests single-perform to focus on the resume payload encoding/decoding for struct+ref.
+// Must pass under --gc-stress.
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+effect GetNamed {
+    fun get(): Named
+}
+
+fun main() {
+    var saved: Continuation<Named>? = None()
+
+    val _h: Unit = handle {
+        val n: Named = GetNamed.get()
+        println(n.name)
+        println(n.score)
+        println("body_done")
+    } with {
+        GetNamed.get(), k -> {
+            saved = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    when (saved) {
+        Some(k) -> {
+            val _r: Unit = try {
+                k.resume(Named { name: "alice", score: 42 })
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+            println("after_resume")
+        }
+        None -> println("missing")
+    }
+    println("done")
+}
