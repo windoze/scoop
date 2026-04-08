@@ -1,0 +1,164 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_scheduler_fifo_multi_task.stdout
+//
+// T1701: FIFO scheduler with multiple independent tasks.
+// - 2 tasks (A, B), each suspending 2 times via the same Await effect.
+// - Arm enqueues continuations into a shared FIFO queue (fixed 4 slots).
+// - Scheduler drains queue in FIFO order: kA1, kB1, kA2, kB2.
+// - Demonstrates fair interleaving: A step1, B step1, A step2, B step2.
+// - Each task accumulates resume values across suspensions.
+// - Must pass under --gc-stress.
+
+import scoop.core.*
+
+effect Await {
+    fun pause(): Int
+}
+
+// Fixed-capacity FIFO queue holding up to 4 continuations.
+class Queue(
+    var k0: Continuation<Int>?,
+    var k1: Continuation<Int>?,
+    var k2: Continuation<Int>?,
+    var k3: Continuation<Int>?,
+    var writePos: Int
+)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val q: Queue = Queue(none_k, none_k, none_k, none_k, 0)
+
+    // --- Task A: 2 suspensions, accumulates values ---
+    val _ha: Unit = handle {
+        println("taskA_start")
+        val baseA: Int = 100
+
+        val a1: Int = Await.pause()
+        println("taskA_step1")
+        println(a1)
+        val accA: Int = baseA + a1
+
+        val a2: Int = Await.pause()
+        println("taskA_step2")
+        println(a2)
+        println("taskA_result")
+        println(accA + a2)
+        println("taskA_done")
+    } with {
+        Await.pause(), k -> {
+            println("enqueue")
+            if (q.writePos == 0) {
+                q.k0 = Some(k)
+            } else {
+                if (q.writePos == 1) {
+                    q.k1 = Some(k)
+                } else {
+                    if (q.writePos == 2) {
+                        q.k2 = Some(k)
+                    } else {
+                        q.k3 = Some(k)
+                    }
+                }
+            }
+            q.writePos = q.writePos + 1
+        }
+    }
+
+    // --- Task B: 2 suspensions, accumulates values ---
+    val _hb: Unit = handle {
+        println("taskB_start")
+        val baseB: Int = 200
+
+        val b1: Int = Await.pause()
+        println("taskB_step1")
+        println(b1)
+        val accB: Int = baseB + b1
+
+        val b2: Int = Await.pause()
+        println("taskB_step2")
+        println(b2)
+        println("taskB_result")
+        println(accB + b2)
+        println("taskB_done")
+    } with {
+        Await.pause(), k -> {
+            println("enqueue")
+            if (q.writePos == 0) {
+                q.k0 = Some(k)
+            } else {
+                if (q.writePos == 1) {
+                    q.k1 = Some(k)
+                } else {
+                    if (q.writePos == 2) {
+                        q.k2 = Some(k)
+                    } else {
+                        q.k3 = Some(k)
+                    }
+                }
+            }
+            q.writePos = q.writePos + 1
+        }
+    }
+
+    println("fifo_drain_start")
+
+    // FIFO drain: resume slot 0 (kA1), slot 1 (kB1), slot 2 (kA2), slot 3 (kB2)
+
+    // Slot 0: kA1
+    when (q.k0) {
+        Some(k0) -> {
+            q.k0 = none_k
+            println("resume_0")
+            val _r0: Unit = try {
+                k0.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty_0")
+    }
+
+    // Slot 1: kB1
+    when (q.k1) {
+        Some(k1) -> {
+            q.k1 = none_k
+            println("resume_1")
+            val _r1: Unit = try {
+                k1.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty_1")
+    }
+
+    // Slot 2: kA2 (enqueued when kA1 was resumed and task A performed again)
+    when (q.k2) {
+        Some(k2) -> {
+            q.k2 = none_k
+            println("resume_2")
+            val _r2: Unit = try {
+                k2.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty_2")
+    }
+
+    // Slot 3: kB2 (enqueued when kB1 was resumed and task B performed again)
+    when (q.k3) {
+        Some(k3) -> {
+            q.k3 = none_k
+            println("resume_3")
+            val _r3: Unit = try {
+                k3.resume(40)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty_3")
+    }
+
+    println("fifo_done")
+}

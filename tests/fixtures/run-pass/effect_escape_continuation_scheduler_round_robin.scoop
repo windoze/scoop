@@ -1,0 +1,244 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_scheduler_round_robin.stdout
+//
+// T1701: Round-robin scheduler with 3 tasks of varying suspension counts.
+// - Task 0: 1 suspension (lightest workload)
+// - Task 1: 2 suspensions (medium workload)
+// - Task 2: 3 suspensions (heaviest workload)
+// - Per-task slots: scheduler cycles through tasks 0, 1, 2 in each round.
+// - Completed tasks are skipped in subsequent rounds.
+// - Demonstrates fair scheduling with unequal work: Task 0 finishes first,
+//   Task 2 runs the longest, but all get equal opportunity per round.
+// - Each task accumulates resume values across suspensions.
+// - Must pass under --gc-stress.
+
+import scoop.core.*
+
+effect AwaitT0 {
+    fun pause0(): Int
+}
+
+effect AwaitT1 {
+    fun pause1(): Int
+}
+
+effect AwaitT2 {
+    fun pause2(): Int
+}
+
+// Per-task continuation slots for round-robin scheduling.
+class Scheduler(
+    var t0: Continuation<Int>?,
+    var t1: Continuation<Int>?,
+    var t2: Continuation<Int>?
+)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val sched: Scheduler = Scheduler(none_k, none_k, none_k)
+
+    // --- Task 0: 1 suspension (finishes after first resume) ---
+    val _h0: Unit = handle {
+        println("task0_start")
+        val v0: Int = AwaitT0.pause0()
+        println("task0_step1")
+        println(v0)
+        println("task0_done")
+    } with {
+        AwaitT0.pause0(), k -> {
+            println("enqueue_t0")
+            sched.t0 = Some(k)
+        }
+    }
+
+    // --- Task 1: 2 suspensions ---
+    val _h1: Unit = handle {
+        println("task1_start")
+        val baseT1: Int = 100
+
+        val v1a: Int = AwaitT1.pause1()
+        println("task1_step1")
+        println(v1a)
+        val acc1: Int = baseT1 + v1a
+
+        val v1b: Int = AwaitT1.pause1()
+        println("task1_step2")
+        println(v1b)
+        println("task1_result")
+        println(acc1 + v1b)
+        println("task1_done")
+    } with {
+        AwaitT1.pause1(), k -> {
+            println("enqueue_t1")
+            sched.t1 = Some(k)
+        }
+    }
+
+    // --- Task 2: 3 suspensions ---
+    val _h2: Unit = handle {
+        println("task2_start")
+        val baseT2: Int = 200
+
+        val v2a: Int = AwaitT2.pause2()
+        println("task2_step1")
+        println(v2a)
+        val acc2a: Int = baseT2 + v2a
+
+        val v2b: Int = AwaitT2.pause2()
+        println("task2_step2")
+        println(v2b)
+        val acc2b: Int = acc2a + v2b
+
+        val v2c: Int = AwaitT2.pause2()
+        println("task2_step3")
+        println(v2c)
+        println("task2_result")
+        println(acc2b + v2c)
+        println("task2_done")
+    } with {
+        AwaitT2.pause2(), k -> {
+            println("enqueue_t2")
+            sched.t2 = Some(k)
+        }
+    }
+
+    // Initial state: sched.t0=kT0_1, sched.t1=kT1_1, sched.t2=kT2_1
+    println("round_robin_start")
+
+    // === Round 1: resume all three tasks ===
+    println("round_1")
+
+    // T0: resume(10) -> task0 completes (1 suspension), no new k -> t0=None
+    when (sched.t0) {
+        Some(k) -> {
+            sched.t0 = none_k
+            println("resume_t0")
+            val _r0a: Unit = try {
+                k.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t0")
+    }
+
+    // T1: resume(20) -> task1_step1, performs again -> arm saves kT1_2
+    when (sched.t1) {
+        Some(k) -> {
+            sched.t1 = none_k
+            println("resume_t1")
+            val _r1a: Unit = try {
+                k.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t1")
+    }
+
+    // T2: resume(30) -> task2_step1, performs again -> arm saves kT2_2
+    when (sched.t2) {
+        Some(k) -> {
+            sched.t2 = none_k
+            println("resume_t2")
+            val _r2a: Unit = try {
+                k.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t2")
+    }
+
+    // === Round 2: T0 done, resume T1 and T2 ===
+    println("round_2")
+
+    // T0: no pending continuation -> skip
+    when (sched.t0) {
+        Some(k) -> {
+            sched.t0 = none_k
+            println("resume_t0")
+            val _r0b: Unit = try {
+                k.resume(0)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t0")
+    }
+
+    // T1: resume(40) -> task1_step2, task1 completes
+    when (sched.t1) {
+        Some(k) -> {
+            sched.t1 = none_k
+            println("resume_t1")
+            val _r1b: Unit = try {
+                k.resume(40)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t1")
+    }
+
+    // T2: resume(50) -> task2_step2, performs again -> arm saves kT2_3
+    when (sched.t2) {
+        Some(k) -> {
+            sched.t2 = none_k
+            println("resume_t2")
+            val _r2b: Unit = try {
+                k.resume(50)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t2")
+    }
+
+    // === Round 3: T0 and T1 done, resume T2 ===
+    println("round_3")
+
+    // T0: skip
+    when (sched.t0) {
+        Some(k) -> {
+            sched.t0 = none_k
+            println("resume_t0")
+            val _r0c: Unit = try {
+                k.resume(0)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t0")
+    }
+
+    // T1: skip
+    when (sched.t1) {
+        Some(k) -> {
+            sched.t1 = none_k
+            println("resume_t1")
+            val _r1c: Unit = try {
+                k.resume(0)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t1")
+    }
+
+    // T2: resume(60) -> task2_step3, task2 completes
+    when (sched.t2) {
+        Some(k) -> {
+            sched.t2 = none_k
+            println("resume_t2")
+            val _r2c: Unit = try {
+                k.resume(60)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("skip_t2")
+    }
+
+    println("scheduler_done")
+}

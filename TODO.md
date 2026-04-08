@@ -539,7 +539,7 @@ cargo run -p scoop --features llvm -- test
 
 ## T17：验证套件（覆盖已实现语义：Continuation/GC/多线程）
 
-### T1701 [TODO] Escaping continuation：构造复杂 fixtures（模拟 async executor/scheduler）
+### T1701 [DONE] Escaping continuation：构造复杂 fixtures（模拟 async executor/scheduler）
 - 描述：创建一组更复杂的 fixtures，模拟 async executor/scheduler 的行为：continuation 逃逸到数据结构中、跨函数/跨作用域恢复、多个任务交错调度。
 - 目标：
   - 覆盖：多层 handler 嵌套 + continuation 多次捕获/恢复 + 恢复顺序变化（队列/栈/优先级等）。
@@ -548,6 +548,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：至少 3 个用例（FIFO/LIFO/round-robin），stdout 稳定可断言。
   - 同时在 `--gc-stress` 下运行不崩溃且输出一致。
 - 依赖：（历史）escaping continuation 已实现；fixtures runner 支持 run-pass
+- 完成说明：
+  - 新增 3 个 run-pass fixtures，均模拟多任务调度器模型：
+    - `effect_escape_continuation_scheduler_fifo_multi_task`：2 个独立任务（Task A、Task B），各 2 次 suspend/resume，共享 FIFO 队列（4 槽位）。展示公平交错执行：A step1→B step1→A step2→B step2。每个任务基于 resume 值做累加验证状态正确性。
+    - `effect_escape_continuation_scheduler_lifo_multi_task`：2 个独立任务，各 2 次 suspend/resume，共享 LIFO 栈（2 槽位）。展示深度优先执行：B 完全完成后 A 才开始恢复，验证栈式调度导致的任务饥饿行为。
+    - `effect_escape_continuation_scheduler_round_robin`：3 个独立任务（使用 3 种不同 effect），分别 1/2/3 次 suspend。调度器循环 3 轮：每轮依次尝试恢复 T0、T1、T2；已完成的任务被跳过。展示公平调度下不等量工作的任务分布。
+  - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1702 [TODO] `Continuation<T>` 完整性：覆盖 `T` 的全类型空间与操作组合
 - 描述：验证 `Continuation<T>` 的泛型完整性：`T` 可以是任意类型（struct/tuple/enum/ref/甚至 `Continuation` 本身），并且所有对 `Continuation<T>` 的操作都按预期工作。

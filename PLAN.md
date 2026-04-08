@@ -212,6 +212,7 @@ cargo run -p scoop --features llvm -- test
 > GC 是 Scoop 的生命线：所有高风险特性都必须有“复杂但可回归”的 fixtures，而不是只靠最小 demo 证明能跑。
 
 - Escaping continuation：复杂 fixtures（模拟 async executor/scheduler），并在 `--gc-stress` 下稳定。
+  - DONE（T1701）：新增 3 个多任务调度器 fixtures（FIFO/LIFO/round-robin），覆盖多独立任务×多 suspension×不同调度策略，均在 `--gc-stress` 下稳定。
 - 关键补齐：单个 `handle` body 内多次 suspension/resume（多 perform 点），覆盖真实 async/await 写法（见 TODO：T1706/T1707）。
 - `Continuation<T>` 完整性：覆盖 `T` 的全类型空间（struct/tuple/enum/ref/Continuation 自身）。
 - GC correctness：跨函数复杂对象图、数组（value/ref 混合、value 内含 ref）、循环引用。

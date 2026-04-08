@@ -1,0 +1,156 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_scheduler_lifo_multi_task.stdout
+//
+// T1701: LIFO (stack-based) scheduler with multiple independent tasks.
+// - 2 tasks (A, B), each suspending 2 times via the same Await effect.
+// - Arm pushes continuations onto a shared stack (fixed 2 slots).
+// - Scheduler pops from the stack top (most recent first).
+// - LIFO order causes depth-first execution: B completes fully before A resumes.
+// - Demonstrates task starvation under stack-based scheduling.
+// - Each task accumulates resume values across suspensions.
+// - Must pass under --gc-stress.
+
+import scoop.core.*
+
+effect Await {
+    fun pause(): Int
+}
+
+// Fixed-capacity stack holding up to 2 continuations.
+// Push writes at stack.top, then increments top.
+// Pop decrements top, then reads at stack.top.
+class Stack(
+    var k0: Continuation<Int>?,
+    var k1: Continuation<Int>?,
+    var top: Int
+)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val s: Stack = Stack(none_k, none_k, 0)
+
+    // --- Task A: 2 suspensions, accumulates values ---
+    val _ha: Unit = handle {
+        println("taskA_start")
+        val baseA: Int = 100
+
+        val a1: Int = Await.pause()
+        println("taskA_step1")
+        println(a1)
+        val accA: Int = baseA + a1
+
+        val a2: Int = Await.pause()
+        println("taskA_step2")
+        println(a2)
+        println("taskA_result")
+        println(accA + a2)
+        println("taskA_done")
+    } with {
+        Await.pause(), k -> {
+            println("push")
+            if (s.top == 0) {
+                s.k0 = Some(k)
+            } else {
+                s.k1 = Some(k)
+            }
+            s.top = s.top + 1
+        }
+    }
+
+    // --- Task B: 2 suspensions, accumulates values ---
+    val _hb: Unit = handle {
+        println("taskB_start")
+        val baseB: Int = 200
+
+        val b1: Int = Await.pause()
+        println("taskB_step1")
+        println(b1)
+        val accB: Int = baseB + b1
+
+        val b2: Int = Await.pause()
+        println("taskB_step2")
+        println(b2)
+        println("taskB_result")
+        println(accB + b2)
+        println("taskB_done")
+    } with {
+        Await.pause(), k -> {
+            println("push")
+            if (s.top == 0) {
+                s.k0 = Some(k)
+            } else {
+                s.k1 = Some(k)
+            }
+            s.top = s.top + 1
+        }
+    }
+
+    // After both handles: stack = [kA1 @slot0, kB1 @slot1], top=2
+    println("lifo_drain_start")
+
+    // Pop 1: top=2->1, resume slot 1 (kB1).
+    // B continues, performs again -> arm pushes kB2 at slot 1, top=2.
+    s.top = s.top - 1
+    when (s.k1) {
+        Some(k1) -> {
+            s.k1 = none_k
+            println("pop_resume")
+            val _r1: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty")
+    }
+
+    // Pop 2: top=2->1, resume slot 1 (kB2).
+    // B completes, no push. top stays 1.
+    s.top = s.top - 1
+    when (s.k1) {
+        Some(k2) -> {
+            s.k1 = none_k
+            println("pop_resume")
+            val _r2: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty")
+    }
+
+    // Pop 3: top=1->0, resume slot 0 (kA1).
+    // A continues, performs again -> arm pushes kA2 at slot 0, top=1.
+    s.top = s.top - 1
+    when (s.k0) {
+        Some(k3) -> {
+            s.k0 = none_k
+            println("pop_resume")
+            val _r3: Unit = try {
+                k3.resume(30)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty")
+    }
+
+    // Pop 4: top=1->0, resume slot 0 (kA2).
+    // A completes, no push. top stays 0.
+    s.top = s.top - 1
+    when (s.k0) {
+        Some(k4) -> {
+            s.k0 = none_k
+            println("pop_resume")
+            val _r4: Unit = try {
+                k4.resume(40)
+            } catch (e: RuntimeError) {
+                println("error")
+            }
+        }
+        None -> println("empty")
+    }
+
+    println("lifo_done")
+}
