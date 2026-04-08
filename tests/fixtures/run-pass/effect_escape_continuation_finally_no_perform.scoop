@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_finally_no_perform.stdout
+//
+// T1609: escape continuation + finally when body has no matching perform.
+//
+// 目标覆盖：
+// - handle body 不执行匹配 arm 的 perform → arm 不可达；
+// - finally 在 body 完成后执行一次；
+// - handle 表达式返回 body 的值。
+
+import scoop.core.*
+
+effect Ask {
+    fun get(): Int
+}
+
+fun main() {
+    println("before_handle")
+    val result: Int = handle {
+        println("body_start")
+        val x: Int = 10 + 32
+        println("body_done")
+        x
+    } with {
+        Ask.get(), k -> {
+            println("arm_unreachable")
+            0
+        }
+    } finally {
+        println("finally")
+    }
+    println("result")
+    println(result)
+    println("done")
+}

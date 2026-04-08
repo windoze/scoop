@@ -1,0 +1,52 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_finally_normal.stdout
+//
+// T1609: escape continuation + finally 的正常执行路径。
+//
+// 目标覆盖：
+// - handle body 执行 perform，arm 获取 continuation；
+// - arm 完成后 finally 执行一次；
+// - finally 的执行顺序：在 arm 完成后、handle 表达式返回前；
+// - resume 后 body 继续执行到完成。
+
+import scoop.core.*
+
+effect Ask {
+    fun get(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    println("before_handle")
+    val result: Int = handle {
+        println("body_start")
+        val x: Int = Ask.get()
+        println("body_after_perform")
+        println(x)
+        x + 1
+    } with {
+        Ask.get(), k -> {
+            println("arm_start")
+            cell.k = Some(k)
+            println("arm_done")
+            99
+        }
+    } finally {
+        println("finally")
+    }
+    println("result")
+    println(result)
+
+    // Resume the continuation (after handle has completed).
+    when (cell.k) {
+        Some(k1) -> {
+            k1.resume(42)
+        }
+        None -> println("no_k")
+    }
+    println("done")
+}

@@ -2800,12 +2800,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let perform_decl = first_site.decl;
         let perform_op = first_site.op;
         let perform_args = first_site.args;
-        if handle.finally.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle finally (escape continuation)",
-                at: span.into(),
-            });
-        }
         if perform_op.fqn != arm.op.op.fqn {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "handle escape op mismatch",
@@ -5853,6 +5847,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let arm_bb = self.context.append_basic_block(func, "handle_escape_arm");
         let done_bb = self.context.append_basic_block(func, "handle_escape_done");
 
+        // T1609: finally blocks for escape continuation.
+        let has_finally = handle.finally.is_some();
+        let finally_bb = if has_finally {
+            Some(
+                self.context
+                    .append_basic_block(func, "handle_escape_finally"),
+            )
+        } else {
+            None
+        };
+        let finally_unwind_bb = if has_finally {
+            Some(
+                self.context
+                    .append_basic_block(func, "handle_escape_finally_unwind"),
+            )
+        } else {
+            None
+        };
+        let outer_raise_target = self.current_raise_target();
+
         let result_ptr = if out_ty == CgTy::Unit {
             None
         } else {
@@ -6443,18 +6457,71 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         );
 
+        // T1609: arm body 若发生 Raise，先执行 finally 再向外传播。
+        if let Some(fu_bb) = finally_unwind_bb {
+            self.push_raise_target(fu_bb);
+        }
         let arm_v = self.codegen_expr_in_expected_context(&arm.body, Some(out_ty))?;
+        if finally_unwind_bb.is_some() {
+            self.pop_raise_target();
+        }
         let arm_v = if out_ty == CgTy::Unit {
             CgValue::unit()
         } else {
             self.coerce_value(arm.body.span, arm_v, out_ty)?
         };
-        if let Some(ptr) = result_ptr {
-            let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+
+        // arm 正常完成：保存结果，跳到 finally（若有）或 done。
+        if let Some(bb) = self.builder.get_insert_block() {
+            if bb.get_terminator().is_none() {
+                if let Some(ptr) = result_ptr {
+                    let _ = self.store_local_value(arm.body.span, ptr, out_ty, arm_v)?;
+                }
+                let target = finally_bb.unwrap_or(done_bb);
+                self.builder.build_unconditional_branch(target)?;
+            }
         }
 
         self.env.pop_scope();
-        self.builder.build_unconditional_branch(done_bb)?;
+
+        // --- finally_unwind (T1609) ---
+        // arm body 内发生 Raise 时：先执行 finally，再向外层传播 raise（不清 flag/slot）。
+        if let Some(fu_bb) = finally_unwind_bb {
+            self.builder.position_at_end(fu_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block() {
+                if bb.get_terminator().is_none() {
+                    if let Some(target) = outer_raise_target {
+                        self.builder.build_unconditional_branch(target)?;
+                    } else {
+                        let ret_ty =
+                            self.current_fun_return_ty
+                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle escape finally unwind needs function return type",
+                                    at: span.into(),
+                                })?;
+                        let v = self.default_value(ret_ty);
+                        self.emit_return(span, ret_ty, v)?;
+                    }
+                }
+            }
+        }
+
+        // --- finally (T1609) ---
+        // arm body 正常完成：执行 finally，然后进入 done。
+        if let Some(f_bb) = finally_bb {
+            self.builder.position_at_end(f_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block() {
+                if bb.get_terminator().is_none() {
+                    self.builder.build_unconditional_branch(done_bb)?;
+                }
+            }
+        }
 
         // --- done ---
         self.builder.position_at_end(done_bb);
@@ -6546,13 +6613,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: CgTy,
         indirect_sites: Vec<IndirectPerformCallSite>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if handle.finally.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "handle finally (escape continuation indirect)",
-                at: span.into(),
-            });
-        }
-
         let insert_block =
             self.builder
                 .get_insert_block()
@@ -7175,6 +7235,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let done_bb = self
             .context
             .append_basic_block(func, "handle_indirect_done");
+
+        // T1609: finally blocks for indirect escape continuation.
+        let has_finally = handle.finally.is_some();
+        let finally_bb = if has_finally {
+            Some(
+                self.context
+                    .append_basic_block(func, "handle_indirect_finally"),
+            )
+        } else {
+            None
+        };
+        let finally_unwind_bb = if has_finally {
+            Some(
+                self.context
+                    .append_basic_block(func, "handle_indirect_finally_unwind"),
+            )
+        } else {
+            None
+        };
+        let outer_raise_target = self.current_raise_target();
 
         let result_ptr = if out_ty == CgTy::Unit {
             None
@@ -7880,26 +7960,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
             );
 
+            // T1609: arm body 若发生 Raise，先执行 finally 再向外传播。
+            if let Some(fu_bb) = finally_unwind_bb {
+                self.push_raise_target(fu_bb);
+            }
             let arm_v = self.codegen_expr_in_expected_context(
                 &arm.body,
                 Some(out_ty),
             )?;
+            if finally_unwind_bb.is_some() {
+                self.pop_raise_target();
+            }
             let arm_v = if out_ty == CgTy::Unit {
                 CgValue::unit()
             } else {
                 self.coerce_value(arm.body.span, arm_v, out_ty)?
             };
-            if let Some(ptr) = result_ptr {
-                let _ = self.store_local_value(
-                    arm.body.span,
-                    ptr,
-                    out_ty,
-                    arm_v,
-                )?;
+
+            // arm 正常完成：保存结果，跳到 finally（若有）或 done。
+            if let Some(bb) = self.builder.get_insert_block() {
+                if bb.get_terminator().is_none() {
+                    if let Some(ptr) = result_ptr {
+                        let _ = self.store_local_value(
+                            arm.body.span,
+                            ptr,
+                            out_ty,
+                            arm_v,
+                        )?;
+                    }
+                    let target = finally_bb.unwrap_or(done_bb);
+                    self.builder.build_unconditional_branch(target)?;
+                }
             }
 
             self.env.pop_scope();
-            self.builder.build_unconditional_branch(done_bb)?;
+        }
+
+        // --- finally_unwind (T1609) ---
+        if let Some(fu_bb) = finally_unwind_bb {
+            self.builder.position_at_end(fu_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block() {
+                if bb.get_terminator().is_none() {
+                    if let Some(target) = outer_raise_target {
+                        self.builder.build_unconditional_branch(target)?;
+                    } else {
+                        let ret_ty =
+                            self.current_fun_return_ty
+                                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "handle indirect finally unwind needs function return type",
+                                    at: span.into(),
+                                })?;
+                        let v = self.default_value(ret_ty);
+                        self.emit_return(span, ret_ty, v)?;
+                    }
+                }
+            }
+        }
+
+        // --- finally (T1609) ---
+        if let Some(f_bb) = finally_bb {
+            self.builder.position_at_end(f_bb);
+            if let Some(finally) = handle.finally.as_ref() {
+                let _ = self.codegen_block_value(finally)?;
+            }
+            if let Some(bb) = self.builder.get_insert_block() {
+                if bb.get_terminator().is_none() {
+                    self.builder.build_unconditional_branch(done_bb)?;
+                }
+            }
         }
 
         // ── Done ──

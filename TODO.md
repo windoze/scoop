@@ -390,7 +390,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d
 
-### T1606f [TODO] Escape continuation：间接 perform（跨函数调用/闭包）
+### T1606f [DONE] Escape continuation：间接 perform（跨函数调用/闭包）
 - 描述：当前 escape continuation 的 state machine 只支持 handle body 内的**直接** `val x = perform` 语句。间接 perform（在被调用函数或闭包中 perform）需要 call-site suspension 支持：handle body 的 step function 需要识别哪些 call 可能 perform，在 resume 时重新进入 call 并让被调用函数从 perform 点恢复。这是 escape continuation 迈向完整 algebraic effect 语义的关键一步。
 - 拆分为以下子任务：
 
@@ -463,7 +463,7 @@ cargo run -p scoop --features llvm -- test
     - `effect_escape_continuation_nested_outer_resume_inner_multi`：inner escape-cont handler 捕获 EffectA（2 个 perform 点），arm 保存 continuation k。Handle 退出后，outer body 依次 resume k1 和 k2 推进 inner state machine，最后 perform EffectB → outer non-resuming handler 捕获。验证：多 perform state machine 在 outer handler body 作用域内正确运行 + outer handler 不干扰 inner EffectA 分发。
   - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
-### T1609 [TODO] `finally` + escaping continuation：unwind/cleanup 的组合语义
+### T1609 [DONE] `finally` + escaping continuation：unwind/cleanup 的组合语义
 - 描述：当前 escaping continuation 的 `handle` 明确不支持 `finally`。要实现完整 effect 语义，必须定义并实现：当计算被 suspend / resume / abandon 时，`finally` 的执行时机与次数规则（并保证与 flag-based unwinding 一致）。
 - 目标：
   - 定义并实现 `finally` 的语义：至少覆盖
@@ -475,6 +475,18 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：在多次 `await` 的 handle 外层加 `finally`，用 stdout 断言 `finally` 的执行次数/顺序；并在 `--gc-stress` 下稳定。
   - 复跑 try/catch/finally 相关 fixtures，确保无回归。
 - 依赖：T1606、T1608（需要统一 dispatch/unwind 语义作为基础）
+- 完成说明：
+  - **设计**：`finally` 在 escape continuation handle 中的语义与 non-resuming handler 一致——在 handle 表达式完成时执行一次。对于 escape continuation，这意味着 `finally` 在初始 arm body 完成后、handle 表达式返回前执行。后续通过 continuation resume 触发的 arm body（在 step function 内部）不触发 `finally`。
+  - **codegen 修改**（`effect.rs`）：
+    - 直接 perform 路径（`codegen_handle_expr_escape_continuation`）：移除 `handle.finally.is_some()` 错误检查；新增 `finally_bb` + `finally_unwind_bb`；arm body 期间 `push_raise_target(finally_unwind_bb)` 确保 Raise 先经过 finally；arm 正常完成 → `finally_bb` → `done_bb`；raise 传播 → `finally_unwind_bb` → outer_raise_target。
+    - 间接 perform 路径（`codegen_handle_expr_escape_continuation_indirect`）：同样的 finally 支持。
+    - 0 perform 退化路径（`codegen_handle_expr_no_perform`）：已原生支持 `finally`，无需修改。
+  - **新增 4 个 run-pass fixtures**：
+    - `effect_escape_continuation_finally_normal`：单 perform + finally，验证 finally 在 arm 完成后执行一次。
+    - `effect_escape_continuation_finally_multi_perform`：2 次 perform + finally，验证 finally 仅在初始 arm 完成时执行一次，后续 resume 不触发。
+    - `effect_escape_continuation_finally_no_perform`：0 perform + finally，验证退化路径下 finally 执行一次。
+    - `effect_escape_continuation_finally_arm_raise`：arm body 内 Raise.raise + finally，验证 finally 在 raise 传播前执行。
+  - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1610 [DONE] LLVM：控制流表达式返回任意类型（`handle`/`if`/`when` 支持 tuple/struct/enum）
 - 描述：当前 LLVM codegen 对 `handle`/`if`/`when` 的结果类型仍是“标量子集”：只支持 `Unit/Bool/Int/String/Ref`，对 `tuple/struct/enum` 直接报错（例如 `handle result type` / `if result type` / `when result type`）。这与语言层面“表达式可返回任意类型”的预期不一致，也迫使 fixtures/stdlib 在一些位置用 workaround（例如把结果塞进 `Any` 或拆成多段语句）。

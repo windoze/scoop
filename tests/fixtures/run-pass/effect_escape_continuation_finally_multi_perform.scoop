@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_escape_continuation_finally_multi_perform.stdout
+//
+// T1609: escape continuation + finally with multiple suspension/resume.
+//
+// 目标覆盖：
+// - handle body 有多个 perform 点（2 次 await）；
+// - 所有 suspension/resume 完成后，finally 执行一次；
+// - finally 不会在中间 suspension 时执行。
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+class Cell(var k: Continuation<Int>?, var n: Int)
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k, 0)
+
+    println("before_handle")
+    val _: Unit = handle {
+        println("body_start")
+
+        val a: Int = Yield.next()
+        println("after1")
+        println(a)
+
+        val b: Int = Yield.next()
+        println("after2")
+        println(b)
+
+        println("body_done")
+    } with {
+        Yield.next(), k -> {
+            cell.n = cell.n + 1
+            println("arm")
+            println(cell.n)
+            cell.k = Some(k)
+        }
+    } finally {
+        println("finally")
+    }
+
+    println("after_handle")
+
+    // Resume first continuation
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("unexpected1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    // Resume second continuation
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("unexpected2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

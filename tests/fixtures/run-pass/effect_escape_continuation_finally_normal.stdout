@@ -1,0 +1,10 @@
+before_handle
+body_start
+arm_start
+arm_done
+finally
+result
+99
+body_after_perform
+42
+done

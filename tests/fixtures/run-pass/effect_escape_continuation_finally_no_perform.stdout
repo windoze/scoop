@@ -1,0 +1,7 @@
+before_handle
+body_start
+body_done
+finally
+result
+42
+done
