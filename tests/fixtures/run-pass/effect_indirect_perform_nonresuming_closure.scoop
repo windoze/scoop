@@ -1,0 +1,49 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_closure.stdout
+//
+// T1606f-1: Non-resuming effect with indirect perform through a closure.
+// - A closure captures locals from the handle body scope and performs `Boom.boom(code)`.
+// - `callIt()` invokes the closure; the handler in `main` catches the effect.
+// - Verifies: closure perform uses the same flag-propagation + handler stack dispatch
+//   as regular function calls; captured locals are correctly accessible before perform.
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun callIt(f: () -> Int / Boom): Int / Boom {
+    println("callIt_before")
+    val r: Int = f()
+    println("callIt_unreachable")
+    return r
+}
+
+fun main(): Int {
+    val tag: Int = 100
+
+    val result: Int = handle {
+        println("body")
+        val captured: Int = tag + 5
+        val r: Int = callIt {
+            println("closure_before")
+            println(captured)
+            Boom.boom(captured)
+            println("closure_unreachable")
+            0
+        }
+        println("body_unreachable")
+        r
+    } with {
+        Boom.boom(e: Int) -> {
+            println("caught")
+            println(e)
+            e + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

@@ -1,0 +1,41 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_basic.stdout
+//
+// T1606f-1: Non-resuming effect with indirect perform (through function call).
+// - `doFire()` internally performs `Boom.boom(code)`;
+// - The handle in `main` catches it via flag-propagation + handler stack dispatch
+//   (same mechanism as Raise.raise through a function call).
+// - Verifies: non-resuming custom effect dispatches correctly when perform is not
+//   directly in the handle body but inside a called function.
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun doFire(code: Int): Int / Boom {
+    println("doFire_before")
+    Boom.boom(code)
+    println("doFire_unreachable")
+    return 0
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("body")
+        val v: Int = doFire(42)
+        println("body_unreachable")
+        v
+    } with {
+        Boom.boom(e: Int) -> {
+            println("caught")
+            println(e)
+            e + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

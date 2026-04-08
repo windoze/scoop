@@ -394,7 +394,7 @@ cargo run -p scoop --features llvm -- test
 - 描述：当前 escape continuation 的 state machine 只支持 handle body 内的**直接** `val x = perform` 语句。间接 perform（在被调用函数或闭包中 perform）需要 call-site suspension 支持：handle body 的 step function 需要识别哪些 call 可能 perform，在 resume 时重新进入 call 并让被调用函数从 perform 点恢复。这是 escape continuation 迈向完整 algebraic effect 语义的关键一步。
 - 拆分为以下子任务：
 
-### T1606f-1 [TODO] Escape continuation indirect perform：non-resuming（flag-propagation）验证
+### T1606f-1 [DONE] Escape continuation indirect perform：non-resuming（flag-propagation）验证
 - 描述：对 non-resuming effect（handler arm 不使用 continuation `k`），间接 perform 通过 flag-propagation + handler stack dispatch 已经可以工作（与 Raise 相同路径）。本子任务验证这一路径并补充 fixtures。
 - 目标：新增 run-pass fixtures：
   - `handle { f() } with { Effect.op(), k -> { /* no resume */ } }`，其中 `f()` 内部 perform；
@@ -402,6 +402,14 @@ cargo run -p scoop --features llvm -- test
   - 闭包中 perform（non-resuming arm）。
 - 验收：fixtures 在 `--gc-stress` 下稳定；`cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1606d
+- 完成说明：
+  - **codegen 修复**：`codegen_perform_expr_nonresuming_custom_int` 原先要求在同一函数内存在匹配的 `handle` boundary，否则报错。修改为：当无本函数内 handler boundary 时，回退到 flag-propagation（与 `Raise.raise` 一致：写入 slot/flag 后返回默认值，由 caller 的 `emit_effect_unwind_if_active` 传播）。
+  - **dispatch trampoline**：`codegen_handle_expr_nonresuming_custom_int_payload` 新增"dispatch trampoline block"并推入 `raise_target_stack`，使 `emit_effect_unwind_if_active` 在 body 中的函数调用返回后能检测到 flag 并跳到此 block。trampoline 读取 slot 的 `op_tag` 并判断是否匹配本 handler：匹配则跳到 `catch_bb`，不匹配则 pop handler frame 并向外传播（确保 Raise 等其它 effect 不会被误捕获）。
+  - **新增 3 个 run-pass fixtures**：
+    - `effect_indirect_perform_nonresuming_basic`：函数 `doFire()` 内部 `Boom.boom(code)`，外层 `handle` 捕获。
+    - `effect_indirect_perform_nonresuming_call_chain`：两级调用链 `outer -> inner -> Boom.boom(code)`。
+    - `effect_indirect_perform_nonresuming_closure`：闭包捕获 handle body locals 并在闭包内 `Boom.boom(captured)`；`callIt(f)` 调用闭包。
+  - 所有 fixtures 在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1606f-2 [TODO] Escape continuation indirect perform：call-site suspension 设计与 codegen
 - 描述：为 handle body 的 step function 引入 call-site suspension 点：当 body 中的 call `f()` 可能 perform 时，step function 需要在该 call 前后保存/恢复状态，使 resume 时能重新进入该 call 并由被调用函数完成自身的 resumption。

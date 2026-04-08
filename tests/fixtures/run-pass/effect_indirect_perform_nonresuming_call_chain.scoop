@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: effect_indirect_perform_nonresuming_call_chain.stdout
+//
+// T1606f-1: Non-resuming effect with multi-level indirect perform (f -> g -> perform).
+// - `outer()` calls `inner()` which performs `Boom.boom(code)`;
+// - The handle in `main` catches the effect through two levels of function calls.
+// - Also verifies: statements after perform in callee are unreachable;
+//   handler arm receives the correct payload.
+
+import scoop.core.*
+
+effect Boom {
+    fun boom(code: Int): Nothing
+}
+
+fun inner(code: Int): Int / Boom {
+    println("inner_before")
+    Boom.boom(code)
+    println("inner_unreachable")
+    return 0
+}
+
+fun outer(code: Int): Int / Boom {
+    println("outer_before")
+    val v: Int = inner(code * 2)
+    println("outer_unreachable")
+    return v
+}
+
+fun main(): Int {
+    val result: Int = handle {
+        println("body")
+        val v: Int = outer(21)
+        println("body_unreachable")
+        v
+    } with {
+        Boom.boom(e: Int) -> {
+            println("caught")
+            println(e)
+            e + 1
+        }
+    }
+
+    println("result")
+    println(result)
+    return 0
+}

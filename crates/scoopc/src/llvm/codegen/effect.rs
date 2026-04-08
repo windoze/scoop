@@ -698,13 +698,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "effect_set_active",
         )?;
 
-        let Some(target) = self.current_effect_unwind_target(&op.fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect op without handle boundary (custom non-resuming)",
-                at: span.into(),
-            });
-        };
-
         // T1608: 跨 effect 传播——清理当前 handler stack 中不匹配的中间帧。
         let rt_unwind = self.declare_runtime_effect_handler_stack_unwind_to_tag();
         let _ = self.builder.build_call(
@@ -713,7 +706,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "effect_unwind_to_tag",
         )?;
 
-        self.builder.build_unconditional_branch(target)?;
+        if let Some(target) = self.current_effect_unwind_target(&op.fqn) {
+            // 同一函数内存在匹配的 handle boundary → 直接跳转到 catch block。
+            self.builder.build_unconditional_branch(target)?;
+        } else {
+            // T1606f-1: 无本函数内 handler boundary → 通过 flag-propagation 向外传播
+            // （与 Raise.raise 的"返回默认值"路径一致）。
+            // flag 与 slot 已在上方写入；caller 的 emit_effect_unwind_if_active 会检查 flag
+            // 并路由到最近的匹配 handler 或继续向外 return。
+            let ret_ty = self
+                .current_fun_return_ty
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "effect perform (indirect) needs function return type",
+                    at: span.into(),
+                })?;
+            let v = self.default_value(ret_ty);
+            self.emit_return(span, ret_ty, v)?;
+        }
 
         // 继续生成后续 IR：把 builder 移到一个"不可达 continuation block"，避免后续插入失败。
         let insert_block =
@@ -1384,13 +1393,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "handle_custom_effect_push",
         )?;
 
+        // T1606f-1: 间接 perform（跨函数调用）支持。
+        //
+        // 当 handle body 内调用的函数执行了匹配的 perform，该函数会通过 flag-propagation 返回
+        // 默认值；call-site 的 emit_effect_unwind_if_active 检查 flag → 跳到最近的
+        // raise_target_stack 入口。因此需要在 raise_target_stack 中放置一个"dispatch trampoline"，
+        // 该 trampoline 读取 op_tag 并：
+        //   - 若匹配本 handler 的 op_tag → 跳到 catch_bb（处理 effect）
+        //   - 若不匹配（例如 Raise.raise 或其它 effect）→ pop handler frame 并向外传播。
+        let dispatch_bb = self
+            .context
+            .append_basic_block(func, "handle_custom_dispatch");
+        let dispatch_no_match_bb = self
+            .context
+            .append_basic_block(func, "handle_custom_dispatch_nomatch");
+        let outer_raise_target = self.current_raise_target();
+
         // 进入 handle：先执行 body；若发生 perform，则跳到 catch_bb。
         self.builder.build_unconditional_branch(body_bb)?;
 
         // --- body ---
         self.builder.position_at_end(body_bb);
         self.push_effect_unwind_target(&arm.op.op.fqn, catch_bb);
+        self.push_raise_target(dispatch_bb);
         let body_v = self.codegen_block_value_in_expected_context(&handle.body, Some(out_ty))?;
+        self.pop_raise_target();
         self.pop_effect_unwind_target();
 
         let body_v = if out_ty == CgTy::Unit {
@@ -1592,6 +1619,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(bb) = self.builder.get_insert_block() {
             if bb.get_terminator().is_none() {
                 self.builder.build_unconditional_branch(merge_bb)?;
+            }
+        }
+
+        // --- dispatch trampoline (T1606f-1) ---
+        // emit_effect_unwind_if_active 在 body 中的函数调用返回后，若 flag 被设置，
+        // 会跳到 dispatch_bb（通过 raise_target_stack）。
+        // dispatch_bb 读取 op_tag，判断是否为本 handler 匹配的 effect。
+        self.builder.position_at_end(dispatch_bb);
+        {
+            let rt_read_tag = self.declare_runtime_effect_perform_slot_read_op_tag();
+            let tag_call = self
+                .builder
+                .build_call(rt_read_tag, &[], "dispatch_read_op_tag")?;
+            let tag_raw = tag_call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch read_op_tag return value",
+                    at: span.into(),
+                })?;
+            let BasicValueEnum::IntValue(slot_tag) = tag_raw else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "dispatch read_op_tag return type",
+                    at: span.into(),
+                });
+            };
+
+            let tag_matches = self.builder.build_int_compare(
+                IntPredicate::EQ,
+                slot_tag,
+                op_tag_i32,
+                "dispatch_tag_eq",
+            )?;
+            self.builder.build_conditional_branch(
+                tag_matches,
+                catch_bb,
+                dispatch_no_match_bb,
+            )?;
+        }
+
+        // --- dispatch no match (T1606f-1) ---
+        // op_tag 不匹配：pop handler frame，向外传播。
+        self.builder.position_at_end(dispatch_no_match_bb);
+        {
+            let rt_pop = self.declare_runtime_effect_handler_stack_pop();
+            let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
+            let frame_i8 = self.builder.build_bit_cast(
+                handler_frame_ptr,
+                i8_ptr_ty,
+                "dispatch_nomatch_frame_i8",
+            )?;
+            let _ = self
+                .builder
+                .build_call(rt_pop, &[frame_i8.into()], "dispatch_nomatch_pop")?;
+
+            if let Some(outer) = outer_raise_target {
+                // 存在外层 raise handler → 传播到外层。
+                self.builder.build_unconditional_branch(outer)?;
+            } else {
+                // 无外层 handler → 返回默认值向外传播（flag 保持 active）。
+                let ret_ty = self
+                    .current_fun_return_ty
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "dispatch no-match needs function return type",
+                        at: span.into(),
+                    })?;
+                let v = self.default_value(ret_ty);
+                self.emit_return(span, ret_ty, v)?;
             }
         }
 

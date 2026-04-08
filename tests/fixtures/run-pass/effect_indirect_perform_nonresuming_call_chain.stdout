@@ -1,0 +1,7 @@
+body
+outer_before
+inner_before
+caught
+42
+result
+43
