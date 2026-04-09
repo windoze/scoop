@@ -576,9 +576,8 @@ cargo run -p scoop --features llvm -- test
   - `llvm/codegen/control_flow.rs:1704-1718`：block expression 内 return/break/continue 同样被拒绝。
   - `llvm/codegen/control_flow.rs:52-74`：顶层 `main` 的 `return` 可直接 emit `ret`，但 while/break/continue 被拒绝。
   - 顶层函数 return 可工作是因为可直接 emit LLVM `ret` 指令，无需跳转。
-- 可选方案：
-  1. **轻量预分配方案**（增量）：在 codegen 进入每个函数时预分配一个 `exit_block`（存 return 值的 alloca + 跳转目标），进入每个 while 循环时预分配 `loop_continue_block` 和 `loop_break_block`。遇到 return/break/continue 时 emit `br` 到对应目标块。这在现有 expression-based codegen 基础上增量实现，不需要完整 MIR/CFG。
-  2. **完整 MIR/CFG**（PLAN §8）：在 HIR → LLVM IR 之间插入一层 MIR，先构建完整 CFG 再 emit LLVM IR。更通用但工作量大。
+- 方案：
+  **完整 MIR/CFG**（PLAN §8）：在 HIR → LLVM IR 之间插入一层 MIR，先构建完整 CFG 再 emit LLVM IR。更通用但工作量大。
 - 目标：
   - 函数体内任意嵌套深度的 `return` 语句正确跳转到函数出口。
   - `while` 循环体内 `break` 跳出循环、`continue` 跳转到循环头。
@@ -809,6 +808,41 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
+### T0150 [TODO] 多文件字面量重实现：SourceMap + Span 方案替代 T0140 轻量方案
+
+- 描述：T0140 采用了"HIR lowering 时直接解析字面量值"的轻量方案——`LiteralKind::Int(u128)` / `LiteralKind::String(Vec<u8>)` 在 lowering 时存储解析后的值，codegen 不再依赖 source text slicing。该方案成功解除了多文件字面量限制，但存在根本缺陷：解析后的值丢失了与源文本的关联，一旦字面量解析出错（整数溢出、非法 escape 序列、未来的 hex/binary/float 格式错误），错误信息无法精确指向源文件中的原始文本位置。
+  随着后续 T0145（hex/binary）、T0146（Char）、T0148（Float）等更复杂字面量格式的引入，解析失败场景会显著增多，缺乏精确诊断将成为严重障碍。本任务**用 SourceMap + Span 方案重新实现 T0140 的多文件字面量支持**，从根本上解决诊断能力问题，同时保持多文件字面量的正常工作。
+- 已知相关代码（T0140 修改的位置，本任务需重新调整）：
+  - `hir/mod.rs`：`LiteralKind::Int(u128)` / `LiteralKind::String(Vec<u8>)` —— T0140 改为存储解析后的值。
+  - `hir/lower/expr.rs`：`IntLit` / `StringLit` lowering 时调用 `parse_int_literal_decimal` / `parse_string_literal_bytes` 并存入值。
+  - `syntax/int_literal.rs`：T0140 从 codegen 提取的共享解析模块。
+  - `llvm/codegen/mod.rs`：`codegen_literal` 对 `Int(value)` 直接使用存储值——T0140 移除了 `self.source.slice(span)` 调用。
+  - `llvm/codegen/control_flow.rs`：`WhenPat::IntLit` 使用存储的 `value` 字段。
+  - `hir/lower/util.rs`：T0140 移除了 `expr_contains_source_backed_literals` 等函数。
+  - `hir/lower/types.rs`：T0140 移除了 `MultiFileNonEntrySourceBackedLiteral` 错误变体。
+- 方案：
+  **SourceMap + Span 重实现**——引入多文件 SourceMap，使 Span 可跨文件解析源文本，从而 codegen 和诊断均能通过 Span 访问任意文件的字面量原文：
+  1. **SourceMap 结构**：引入 `SourceMap`，管理所有编译单元的源文本（文件路径 + 内容）。每个源文件分配一个不重叠的字节偏移区间，`Span` 的 `start..end` 在全局偏移空间中唯一标识一段文本。SourceMap 提供 `span_to_source(span) -> &str`（取原文）、`span_to_location(span) -> (file, line, col)`（取位置）等查询接口。
+  2. **Span 不变或微调**：如果当前 `Span` 已是文件内偏移，需扩展为全局偏移（或在 Span 中增加 file_id）。如果 Span 已含足够信息则保持不变，仅需 SourceMap 持有各文件的偏移映射。
+  3. **回退 LiteralKind**：`LiteralKind::Int` / `LiteralKind::String` 回退为不存储解析后的值，恢复为 Span-based（或保留值但同时保留 Span，视实现复杂度决定）。关键是 codegen 通过 SourceMap + Span 获取字面量原文，而非仅依赖存储的值。
+  4. **Codegen 接入 SourceMap**：`MainCodegen` 持有 `&SourceMap` 而非单个 `&SourceFile`，`codegen_literal` 通过 `source_map.span_to_source(span)` 获取字面量文本，不再受限于入口文件。
+  5. **诊断集成**：字面量解析错误携带 Span，诊断层通过 SourceMap 转换为 `file.scoop:12:5: error: ...` 格式，包含文件名、行号、列号和原始文本片段。
+  6. **清理 T0140 遗留**：移除 `syntax/int_literal.rs` 中 T0140 引入的共享解析函数（如不再需要），或保留但调整调用方式——解析仍在 codegen/comptime 中通过 SourceMap 获取原文后进行。
+- 目标：
+  - 多文件字面量支持继续正常工作——非入口文件的 Int/String 字面量正确编译运行（T0140 的功能不退化）。
+  - codegen 通过 SourceMap 访问任意文件的源文本，不再受限于入口文件的 `self.source`。
+  - 字面量解析错误能精确报告源文件位置（文件名、行号、列号）和原始字面量文本。
+  - 为后续 T0145（hex/binary）、T0146（Char）、T0148（Float）提供统一的 SourceMap 基础设施，新字面量格式直接复用 Span → 源文本 → 解析 → 诊断的管线。
+- 验收：
+  - T0140 的所有验收条件继续满足：多文件编译中非入口文件使用 Int/String 字面量正确运行。
+  - `MainCodegen` 持有 `SourceMap` 而非单个 `SourceFile`，codegen 通过 SourceMap 解析字面量。
+  - 字面量解析错误（如整数溢出）的诊断输出包含文件名、行号、列号和原始字面量文本。
+  - 多文件编译中，非入口文件的字面量解析错误同样能正确定位。
+  - 现有 run-pass fixtures 全部通过。
+  - HIR golden fixtures 更新（如 LiteralKind 表示发生变化）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（本任务重新实现 T0140 的功能，不依赖 T0140 的具体实现方式）
+
 ### T0145 [TODO] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
 
 - 描述：当前词法器 `lex_int_literal`（`syntax/lexer.rs:232-240`）仅消费十进制数字和 `_` 分隔符，不识别 `0x`/`0X`（十六进制）和 `0b`/`0B`（二进制）前缀。解析器 `parse_int_literal_decimal`（`syntax/int_literal.rs`）也仅处理十进制。此外 `comptime/eval.rs:1282-1293` 存在一份重复的解析函数副本，同样仅支持十进制。
@@ -903,7 +937,7 @@ cargo run -p scoop --features llvm -- test
       - `fun hash(): Int`。
       - `fun abs(): Float64`（`Float32` 版同理）。
       - `fun isNaN(): Bool`、`fun isInfinite(): Bool`。
-    - 类型别名（可选）：`typealias Float = Float64`（如果想提供简写）。
+    - 类型别名：`typealias Double = Float64`。
   - **LLVM codegen 类型映射**（`llvm/codegen/`）：
     - `CgTy` 新增 `Float64` 和 `Float32` 变体。
     - `cg_ty_of`：`ValueTypeKind::Float64 => CgTy::Float64`，`Float32 => CgTy::Float32`。
