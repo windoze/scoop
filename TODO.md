@@ -206,6 +206,265 @@ cargo run -p scoop --features llvm -- test
   - **N/A（无 scoop_alloc 调用）**：`scoop_channels_send/recv_u64`（仅 malloc）、`scoop_sync_*` locking functions、`scoop_test.c`、`scoop_task_executor.c`（全 malloc）。
   - **验证**：139 单元测试 + 774 fixtures 通过。
 
+### 编译器 + 核心库规范合规审计（2026-04-09）
+
+> 以下任务来自对 `SCOOP_FULL_SPEC.md` 与编译器/核心库实现的系统审计。
+> 审计方法：逐节比对 spec 定义的语言特性与 parser→typecheck→HIR lowering→codegen 四阶段的实际覆盖度，以及核心库中的 hardcoded 类型限制。
+
+### T0107 [TODO] String `==`/`!=` codegen：字符串相等性比较
+
+- 描述：当前 codegen 对 `String == String` 返回 `UnsupportedMainBody { kind: "equality lhs" }`。`codegen_equality`（`codegen/mod.rs:12360`）仅处理 `Bool` 和整数类型；String 因 `as_int()` 返回 `None` 而落入错误分支。同时 `runtime_symbols.rs` 中不存在 `scoop_string_equals` 符号。
+- 规范引用：Spec §2.3.4（所有类型支持 `==`/`!=`）；String 是 Scoop 核心类型，相等性比较是基础能力。
+- 影响：`stdlib/test.scoop` 的 `assertEqString` 被迫使用 `length() == length() && startsWith()` workaround。
+- 目标：
+  - runtime/c 新增 `scoop_string_equals(a, b) -> i64`（长度检查 + `memcmp`）。
+  - codegen `codegen_equality` 在 `CgTy::String` 时调用 runtime 函数。
+  - 同步处理 `!=`。
+- 验收：
+  - 新增 run-pass fixture：`"hello" == "hello"`、`"a" != "b"`、空字符串比较。
+  - `assertEqString` 改用 `==`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0108 [TODO] Nullable 运算符 codegen：`?.`（safe call）和 `!!`（non-null assert）
+
+- 描述：`?.` 和 `!!` 在 parser / typecheck 中已完整实现，但 HIR lowering 为 `Todo("safe_member_access")` / `Todo("not_null_assert")`（`lower/expr.rs:552,555`），codegen 报 `UnsupportedMainBody`。这直接阻塞 `Option<T>` 的惯用写法。
+- 规范引用：Spec §2.4（Nullability）、Appendix B.3（Kotlin null-safe operators `?.`/`?:`/`!!`）。
+- 目标：
+  - `?.`：HIR lowering 展开为 `when (receiver) { Some(v) -> Some(v.member); None -> None }`（或等价 if + pattern match）。
+  - `!!`：HIR lowering 展开为 `when (receiver) { Some(v) -> v; None -> perform Raise.raise(RuntimeError.NullAssertionFailed) }`。
+  - codegen 自动继承现有 `when` / `Raise` 路径。
+- 验收：
+  - 新增 run-pass fixtures：`?.` 链式调用、`!!` 正常/失败路径（try/catch 捕获 RuntimeError）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0109 [TODO] `with` 表达式 codegen（值类型更新）
+
+- 描述：Spec §2.6 定义 `val p2 = p with { x: 5 }`。Parser 和 typecheck 已完整实现（包含字段存在性/类型兼容性/嵌套路径校验，`typecheck/expr/infer.rs:2405`），但 HIR lowering 为 `Todo("with_update")`（`lower/expr.rs:645`）。
+- 规范引用：Spec §2.6（Value Type Update）——所有 RHS 表达式基于原始值求值（parallel semantics），路径可任意深度嵌套。
+- 目标：
+  - HIR lowering：copy 原值 → 逐字段 store 新值 → 返回新值。
+  - 支持嵌套路径：`line with { start.x: 1; start.y: 2 }`。
+  - codegen 自动继承 struct literal / field access 路径。
+- 验收：
+  - 新增 run-pass fixtures：简单 struct 更新、嵌套更新、多字段更新。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0110 [TODO] `for (x in iterable)` HIR lowering + codegen
+
+- 描述：当前 `for` 语句在 HIR lowering 中为 `Todo("for")`（`lower/stmt.rs:58`）。Typecheck 已完整实现 `for-in` 的 Iterator 协议解析（`typecheck/expr/stmt.rs:688`：解析 `.iterator()`/`.next()`、提取 `Option<T>` 元素类型、注入 binder），但产物无法进入 codegen。
+- 规范引用：Spec §16.2——`for (x in xs)` desugar 为 `val it = xs.iterator(); while (true) { when (it.next()) { Some(x) -> body; None -> break } }`。
+- 目标：
+  - HIR lowering 将 `for (x in xs)` 展开为 while + `iterator().next()` + pattern match（复用已有 `while`/`when`/`break` HIR 节点）。
+  - 至少支持 `Array<Int>`、`IntProgression`（ranges）作为 iterable。
+- 验收：
+  - 新增 run-pass fixtures：`for (x in [1,2,3])`、`for (x in 1.rangeTo(5,1))`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+- 备注：T1819（Ranges 增强）的 `for (x in range)` integration 依赖此任务。
+
+### T0111 [TODO] 运算符重载：用户定义类型的方法分发 + 缺失运算符
+
+- 描述：当前运算符重载存在两个层面的缺陷：
+  1. **codegen 不分发到用户方法**：typecheck 能识别 `plus`/`minus`/`and`/`or`/`xor`/`shl`/`shr`（`typecheck/expr/ops.rs:106`），但 codegen 的 `codegen_binary`（`codegen/mod.rs:11457`）仅发出 LLVM 内建整数指令，不会对 struct/class 类型分发到对应方法调用。
+  2. **缺失运算符**：Spec B.8 额外要求 `times`（`*`）、`div`（`/`）、`rem`（`%`）、`compareTo`（`<`/`<=`/`>`/`>=`）、`get`/`set`（`[]` indexing），这些在 typecheck 的 `operator_overload_method_name` 中均返回 `None`，仅走内建整数路径。
+- 规范引用：Spec Appendix B.8（Operator Overloading）。
+- 目标：
+  - Phase 1：codegen 检测到运算符重载方法时，发出方法调用（而非内建指令）。
+  - Phase 2：typecheck 新增 `times`/`div`/`rem` 映射（`Mul`→`times`, `Div`→`div`, `Rem`→`rem`）。
+  - Phase 3：typecheck + codegen 新增 `compareTo` → 比较运算符映射。
+  - Phase 4：typecheck + codegen 新增 `get`/`set` → 索引表达式映射。
+- 验收：
+  - 新增 run-pass fixtures：自定义 struct 实现 `plus`/`times`/`compareTo`/`get` 并在表达式中使用运算符语法。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0112 [TODO] Extension property codegen
+
+- 描述：扩展属性（Spec §10.3）在 codegen 中返回 `UnsupportedMainBody { kind: "member access target" }`。`codegen_member_access`（`codegen/mod.rs:10859`）仅处理 `MemberRef::Value { fqn }`，对 `MemberRef::ExtensionValue` 落入 `Some(_)` catch-all 报错（`mod.rs:10969`）。
+- 规范引用：Spec §10.3——扩展属性无 backing field，必须为 computed（getter-only）。
+- 目标：
+  - codegen 对 `ExtensionValue` 调用对应的 getter 函数（FQN 已在 typecheck 阶段解析）。
+  - 如有 setter（spec 不允许用于值类型，但 ref 类型可以），支持赋值路径。
+- 验收：
+  - 新增 run-pass fixture：定义扩展属性并在表达式中访问。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0113 [TODO] Varargs spread `*arr` codegen
+
+- 描述：Spec B.5 定义 `vararg` 参数和 spread 运算符 `*arr`。当前 HIR lowering 为 `Todo("spread_arg")`（`lower/expr.rs:301`），注释说明"spread 仅在调用实参语境下有意义；HIR v0 暂不承载该语义"。
+- 规范引用：Spec Appendix B.5（Functions：varargs）。
+- 目标：
+  - HIR lowering 将 `f(*arr)` 在 vararg 参数位置展开为数组元素访问序列。
+  - codegen 发出对应的 LLVM IR。
+- 验收：
+  - 新增 run-pass fixture：`fun sum(vararg xs: Int): Int` + `sum(*[1,2,3])`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0114 [TODO] `Bool.toString()` + `print`/`println` Bool 重载
+
+- 描述：当前 `Bool` 无 `toString()` 方法（resolver 白名单中无 Bool 相关项），也无法直接传入 `print`/`println`（sysroot 仅声明 `String`/`Int` 两种重载）。用户必须手写 `if (b) "true" else "false"` 或使用 `when` 转换。Spec Appendix B 的 Kotlin 语义预期所有基本类型可 toString。
+- 目标：
+  - resolver 白名单新增 `Bool.toString()`；codegen 内联 `if tag == 1 then "true" else "false"`。
+  - sysroot 新增 `print(value: Bool)` / `println(value: Bool)` 重载（通过 `toString()` + 已有 `print(String)` 路由）。
+- 验收：
+  - 新增 run-pass fixture：`println(true)`、`false.toString()`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0115 [TODO] String 补齐：`trim`/`replace`/`charAt`/`isEmpty` 等缺失方法
+
+- 描述：当前 String 仅有 11 个 resolver 白名单方法（`trimIndent`/`length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split`/`toInt`/`concat`/`hash`）。多个常用方法缺失，调用时在 resolver 阶段报 `UnresolvedMember`。
+- 目标（按优先级）：
+  - P0：`trim(): String`（去除首尾空白）、`isEmpty(): Bool`（长度为零判断）
+  - P1：`replace(old: String, new: String): String`、`charAt(index: Int): Int`（返回字节值）
+  - P2：`trimStart(): String`、`trimEnd(): String`、`repeat(n: Int): String`、`compareTo(other: String): Int`
+- 路径：runtime/c 新增底层 API → `scoop_runtime_api.h` 注册 → resolver 白名单 → typecheck 参数/返回类型 → codegen 路由。
+- 验收：
+  - 新增 run-pass fixtures 覆盖每个方法。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0116 [TODO] 核心库 hardcoded 类型限制清单（跟踪任务）
+
+- 描述：当前核心库存在大量 hardcoded Int-only 限制。本任务统一记录所有已知限制，为后续逐项解除提供清晰入口。
+- 已知限制清单：
+  1. **Set 元素 Int-only**：`Set`/`MutableSet` 为 `Array<Int>` typealias，仅支持 Int 元素 → **T1818**
+  2. **Map 键值 Int-only**：`MapView`/`MutableMap` 仅 `Int→Int`，无泛型 `Map<K,V>` → **T1818**
+  3. **集合操作 Int-only**：`forEach`/`map`/`filter`/`fold`/`reduce`/`zip`/`joinToString` 仅 `Array<Int>`/`MutableArray<Int>` → **T1822**
+  4. **Scope functions Int-only**：`let`/`run`/`also`/`apply` 仅 `Int` 版本 → **T1822**
+  5. **Task\<T\> Int-only**：executor/spawn/await 仅 `Task<Int>`（64-bit payload）→ 待编译器泛型 codegen 完善
+  6. **print/println 仅 String/Int**：无 Bool 重载 → **T0114**；无 Float 重载 → 待 Float 类型系统支持
+  7. **Hashable 默认 hash() 返回 0**：除 Int（SplitMix64）和 String（FNV-1a）外，Bool/Int8-UInt64 等类型 hash 均为 0 → 依赖 codegen 扩展或纯 Scoop 实现
+  8. **MutableArray COW 语义**：`push`/`pop`/`insert`/`removeAt`/`splice` 返回新数组（copy-on-write），仅 `set(index, value)` 和 `sort()` 原地修改 → 需确认此为设计决策还是临时限制
+- 目标：本任务不做实现，仅作为审计记录。各项解除依赖上述独立任务完成。
+- 验收：所有限制项有对应任务链接或明确标注"设计决策/后置"。
+- 依赖：无
+
+### T0117 [TODO] `@Extern(lib=...)` 参数传递到链接器
+
+- 描述：`@Extern(lib = "libm")` 的 `lib` 参数在 parser 和 typecheck 中正确解析和验证，但 **未传递到 `ExternFun` 结构体**（`hir/mod.rs:626`，结构体仅有 `abi`/`symbol`/`calling_convention`，无 `lib` 字段）。`collect_extern_libs()`（`lower/util.rs:1697`）将 `lib` 值收集到独立的 `Vec<String>` 中，但该列表是否到达链接器调用不明确。
+- 规范引用：Spec §15.5（`@Extern(lib?, name?)`）——`lib` 参数用于指示需要链接的外部库。
+- 目标：
+  - `ExternFun` 结构体新增 `lib: Option<String>` 字段。
+  - LLVM codegen / 链接阶段将所有 `lib` 值传递给链接器（例如 `-lm`）。
+  - 验证 `@Extern(lib = "m") fun sin(x: Float): Float` 等场景可正确链接到系统库（可先用 Int-only 测试验证链接器 `-l` 参数传递）。
+- 验收：
+  - 新增 run-pass fixture 或 Cone fixture：使用 `@Extern(lib = "...")` 调用外部 C 库函数。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0118 [TODO] `@CLayout(packed)` store alignment 修复 + run-pass 测试
+
+- 描述：`@CLayout(packed = 1)` 在 codegen 中创建 packed LLVM struct（`set_body(fields, true)`），且 **load** 指令的 alignment 已正确降为 1（`codegen/mod.rs:10932-10941`）。但 **store** 指令在写入 packed struct 字段时**未降低 alignment**，在严格对齐的架构（如 ARM、MIPS）上可能导致未定义行为。此外，`@CLayout` 的全部 codegen 路径（aligned + packed）目前 **零 run-pass 测试覆盖**（仅有 3 个 typecheck 错误用例）。
+- 目标：
+  - 审计 `@CLayout(packed = 1)` 的所有 store 路径，确保 store alignment 降为 1（与 load 一致）。
+  - 新增 run-pass fixtures 覆盖：
+    - `@CLayout(packed = 1)` struct 的字段读/写正确性。
+    - `@CLayout(aligned = 16)` struct 的 alloca 对齐。
+    - `@CLayout(aligned = 8, packed = 1)` 组合。
+  - （可选）新增 build fixtures：`--emit-llvm` 断言 packed struct type、load/store alignment 属性。
+- 验收：
+  - run-pass fixtures 在 x86-64 下通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0119 [TODO] `@CLayout(packed = N)` 支持 N > 1（`#pragma pack(N)` 语义）
+
+- 描述：当前 typecheck 仅接受 `packed = 1`（`annotations.rs:1895-1903`），任何其它非零值报 `CLayoutPackedValueNotSupported`。Spec §15.5 定义 `packed` 为"max field alignment"，语义等价于 C 的 `#pragma pack(N)`——即每个字段的 alignment 取 `min(field_natural_align, N)`。常见有意义的值为 1、2、4、8。
+- 目标：
+  - typecheck 放开 `packed` 为 1/2/4/8/16（均为 2 的幂）。
+  - codegen：不再简单地用 `set_body(fields, true)`（仅对 `packed=1` 有效），而是显式计算每个字段的 offset 和 padding，使 `min(natural_align, packed)` 生效。
+  - 新增 run-pass fixtures：`@CLayout(packed = 4)` struct 含 `Int64` 字段（natural align 8），验证字段 offset 为 4 而非 8。
+- 验收：
+  - typecheck fixtures 覆盖 `packed = 2`/`4`/`8` 均通过。
+  - run-pass fixture 验证布局正确性（可通过 `sizeOf<T>()` 或 `@Extern` 互操作断言）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0118（先确保 packed=1 的 store alignment 正确）
+
+### T0120 [TODO] String 字节访问器：`getByte(index: Int): Byte` + `byteLength(): UInt`
+
+- 描述：为 `String` 提供严格 O(1) 的只读字节级访问能力，不执行 UTF-8 验证。这是将 `substring`/`split`/`indexOf` 等操作从 runtime/c 迁移到纯 Scoop 的前置能力。
+- 目标：
+  - `String.byteLength(): UInt`：返回底层 UTF-8 字节数组的长度。O(1)，直接读取 `ScoopString.len` 字段。
+  - `String.getByte(index: Int): Byte`（`Byte = UInt8`）：返回指定字节偏移处的原始字节值。O(1)，直接索引 `ScoopString.data`。越界行为：返回 0 或 `Raise<RuntimeError>`（建议 Raise，与 Array 越界行为一致）。
+  - 两个方法均为编译器 intrinsic（resolver 白名单 + codegen 内联 LLVM IR）。
+  - 不需要 `@Unsafe`：返回 `Byte` 是值类型，不暴露内部指针，只读访问无安全风险。
+- 路径：resolver 白名单 → typecheck 参数/返回类型 → codegen 发出 GEP + load（`byteLength` 读 header field，`getByte` 读 data 数组元素）。
+- 验收：
+  - 新增 run-pass fixtures：验证 ASCII 字符串的 `byteLength`、逐字节 `getByte`、多字节 UTF-8 字符的字节序列。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0121 [TODO] `@Unsafe` String 构造 intrinsic：从源 String + 字节偏移 + 字节长度创建子串
+
+- 描述：提供一个 `@Unsafe` intrinsic，从现有 `String` 的字节范围创建新 `String`，**不执行 UTF-8 验证**。这是纯 Scoop 实现 `substring`/`split`/`trim` 等操作的底层构建块。调用者负责保证字节范围落在合法的 UTF-8 字符边界上。
+- 签名（建议）：
+  ```kotlin
+  @Intrinsic @Unsafe @NoGC
+  fun String.unsafeSliceBytes(byteOffset: Int, byteLength: Int): String
+  ```
+  - 从 `this` 的 `data + byteOffset` 复制 `byteLength` 字节到新分配的 `ScoopString`。
+  - 前置条件（调用者保证）：`byteOffset >= 0`，`byteOffset + byteLength <= this.byteLength()`，切片范围在 UTF-8 字符边界上。
+  - 违反前置条件：UB（与 `@Unsafe` 语义一致）。
+- 实现路径：
+  - sysroot 声明（`sysroot/core.scoop` 或 `sysroot/unsafe.scoop`）。
+  - resolver 白名单 + typecheck。
+  - codegen：调用 runtime/c 的 `scoop_string_from_bytes(data + offset, len)`（已存在，用于从 raw bytes 创建 String）。
+  - 注意：虽标记 `@NoGC`，但内部需要分配新 `ScoopString`——这里 `@NoGC` 限制可能需要放宽，或改用 `@Unsafe` 但不标 `@NoGC`。需确认 GC 约束。
+- 验收：
+  - 新增 run-pass fixture（在 `@Unsafe` 块中）：从 `"Hello, World!"` 切出 `"World"` 并验证。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0120（`byteLength` 用于边界计算）
+
+### T0122 [TODO] String 操作迁移：将 runtime/c substring 类函数替换为纯 Scoop 实现
+
+- 描述：基于 T0120（字节访问器）和 T0121（unsafe slice intrinsic），将以下 runtime/c 字符串操作重写为纯 Scoop 源码：
+  - `substring(start, end)` → 用 `getByte` 做边界校验 + `unsafeSliceBytes` 切片
+  - `indexOf(substr)` → 纯 Scoop 逐字节扫描（`getByte` + `byteLength`）
+  - `contains(substr)` → 委托 `indexOf >= 0`
+  - `startsWith(prefix)` → 逐字节比较
+  - `endsWith(suffix)` → 逐字节比较
+  - `split(delimiter)` → 扫描 + `unsafeSliceBytes` 切割
+  - `trim()` / `trimStart()` / `trimEnd()`（T0115）→ 扫描空白字节 + `unsafeSliceBytes`
+- 好处：
+  - 减少 runtime/c 维护面和 GC pin/unpin 复杂度（C 侧 `scoop_string_split` 等函数的 GC rooting 曾导致 T0106/T1812 的 bug）。
+  - 纯 Scoop 实现可被 `const fun` 求值（T0123）。
+  - 用户可在 stdlib 源码中直接阅读和理解实现。
+- 目标：
+  - 新增 `stdlib/string.scoop`（或扩展 `stdlib/prelude.scoop`），实现上述操作为 extension functions。
+  - runtime/c 中对应的 `scoop_string_substring`/`scoop_string_index_of`/`scoop_string_contains`/`scoop_string_starts_with`/`scoop_string_ends_with`/`scoop_string_split` 标记为 deprecated 或移除。
+  - codegen 中这些方法不再硬编码路由到 C 函数，改为走正常的 extension function 调用路径。
+  - resolver 白名单中移除迁移后的方法（改由 sysroot/stdlib 声明驱动）。
+- 验收：
+  - 现有 String 相关 run-pass fixtures 全部通过（行为不变）。
+  - GC stress 下稳定（不再有 C 侧 pin/unpin 风险）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0120、T0121
+
+### T0123 [TODO] `const fun` 支持 String `+` 和 substring 类操作
+
+- 描述：当前 `const fun` / `comptime` 求值器仅支持整数算术和布尔逻辑（`comptime/eval.rs`），不支持 String 操作。Spec §6.2 明确列出 `String ops` 为 `const fun` 允许的操作。在 T0122 将 substring 类操作迁移到纯 Scoop 后，这些操作理论上可在 comptime 求值。
+- 目标：
+  - **comptime evaluator**（`comptime/eval.rs`）：
+    - String `+`（concatenation）：两个 compile-time String 常量拼接，产出新常量。
+    - String `==` / `!=`：编译期字符串比较。
+    - `String.byteLength()`：返回编译期常量。
+    - `String.getByte(index)`：返回编译期常量。
+  - **comptime interpreter**（`comptime/interpreter.rs`）：
+    - 支持调用 `const fun` 的 String extension functions（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split` 等——前提是它们在 T0122 后已是纯 Scoop `const fun`）。
+    - 支持 String 类型的局部 `val` 绑定和传参。
+  - 使 `trimIndent()` 可完全在 comptime 求值（当前已部分实现为编译器特殊处理，迁移后可统一走 comptime interpreter）。
+- 验收：
+  - 新增 comptime fixtures：`const fun greet(name: String): String = "Hello, " + name`，编译期求值并验证。
+  - 新增 comptime fixture：`comptime { val s = "a,b,c"; val parts = s.split(","); ... }`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
+
 ---
 
 ## T11：Cone（改进项吸收）
