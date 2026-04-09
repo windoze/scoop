@@ -809,6 +809,249 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
+### T0145 [TODO] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
+
+- 描述：当前词法器 `lex_int_literal`（`syntax/lexer.rs:232-240`）仅消费十进制数字和 `_` 分隔符，不识别 `0x`/`0X`（十六进制）和 `0b`/`0B`（二进制）前缀。解析器 `parse_int_literal_decimal`（`syntax/int_literal.rs`）也仅处理十进制。此外 `comptime/eval.rs:1282-1293` 存在一份重复的解析函数副本，同样仅支持十进制。
+- 目标：
+  - **词法器**（`syntax/lexer.rs`）：在 `lex_int_literal` 中检测前缀：
+    - `0x`/`0X`：消费后续 hex digits（`0-9a-fA-F`）和 `_` 分隔符。
+    - `0b`/`0B`：消费后续 binary digits（`0`/`1`）和 `_` 分隔符。
+    - 不改变 `TokenKind`——仍产出 `IntLiteral`，值解析延迟到 HIR lowering。
+  - **解析函数**（`syntax/int_literal.rs`）：将 `parse_int_literal_decimal` 扩展为通用 `parse_int_literal`（或新增 `parse_int_literal_hex`/`parse_int_literal_binary`），根据前缀选择基数。保持返回 `u128`。
+  - **HIR lowering**（`hir/lower/expr.rs`）：`ExprKind::IntLit` 的 lowering 调用更新后的解析函数。
+  - **Comptime**（`comptime/eval.rs`）：移除私有重复的 `parse_int_literal_decimal`（lines 1282-1293），改为调用 `syntax/int_literal.rs` 的公共函数，使 hex/binary 在 comptime 中同样可用。
+  - **when 模式**（`hir/lower/patterns.rs`）：`WhenPat::IntLit` 的值解析同样使用更新后的函数，使 `when (x) { 0xFF -> ... }` 可工作。
+  - 可选：支持 `0o`/`0O`（八进制），但可后置。
+- 验收：
+  - 新增 run-pass fixture：`val a = 0xFF; val b = 0b1010; println(a.toString()); println(b.toString())`，stdout 断言 `255` 和 `10`。
+  - 新增 run-pass fixture：hex/binary 字面量在 `when` pattern 中匹配。
+  - 新增 comptime fixture（或更新现有）：`const val mask = 0xFF` 在编译期正确求值。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0140（多文件字面量支持，确保新格式在非入口文件中也可用）
+
+### T0146 [TODO] Char 类型与 Char 字面量：全管线实现
+
+- 描述：Scoop 当前没有字符类型。需要在类型系统、sysroot、词法器、解析器、AST、HIR、类型检查、LLVM codegen、comptime 求值器中全面引入 `Char` 类型和 `'c'` 字面量语法。`Char` 表示一个 Unicode 码点（scalar value），运行时表示为 `i32`（U+0000..U+10FFFF）。
+- 目标：
+  - **类型系统**（`ty/mod.rs`）：
+    - `ValueTypeKind` 新增 `Char` 变体。
+    - `BuiltinTypes` 新增 `char_: TypeId`。
+  - **Sysroot**（`sysroot/core.scoop`）：
+    - 新增 `struct Char` 声明。
+    - 基础方法：`fun toInt(): Int`（码点值）、`fun toString(): String`（UTF-8 编码的单字符字符串）。
+    - 实现 `Hashable` 接口（`fun hash(): Int`）。
+  - **词法器**（`syntax/lexer.rs`）：
+    - 识别 `'...'` 单引号语法，产出 `TokenKind::CharLiteral` token。
+    - 支持转义序列：`'\n'`、`'\t'`、`'\r'`、`'\\'`、`'\''`、`'\0'`、`'\uXXXX'`（Unicode escape）。
+    - 错误处理：空 char `''`、多字符 `'ab'`、未闭合引号。
+  - **Token**（`syntax/token.rs`）：新增 `TokenKind::CharLiteral`。
+  - **AST**（`ast/mod.rs`）：
+    - `ExprKind` 新增 `CharLit` 变体（span-only，与 `IntLit`/`StringLit` 一致）。
+    - `WhenPat` 新增 `CharLit { span }` 变体。
+  - **HIR**（`hir/mod.rs`）：
+    - `LiteralKind` 新增 `Char(char)` 变体（存储解析后的 Unicode 码点）。
+    - `WhenPat` 新增 `CharLit { value: char, span }` 变体。
+  - **Char 字面量解析**（新增 `syntax/char_literal.rs` 或放入 `string_literal.rs`）：
+    - `parse_char_literal(text: &str) -> char`：解析引号内的内容，处理转义序列。
+  - **HIR lowering**（`hir/lower/expr.rs`）：
+    - `ExprKind::CharLit` → `LiteralKind::Char(parsed_char)`，类型为 `Char`。
+  - **类型检查**（`typecheck/`）：
+    - Char 字面量推断为 `Char` 类型。
+    - Char 比较运算符：`==`、`!=`、`<`、`>`、`<=`、`>=`。
+    - `when` 模式中的 `CharLit` 类型检查。
+  - **LLVM codegen**（`llvm/codegen/`）：
+    - `CgTy` 新增 `Char` 变体，映射到 LLVM `i32`。
+    - `codegen_literal`：`LiteralKind::Char(c)` → `i32` 常量。
+    - Char 比较运算符 codegen。
+    - `Char.toInt()`、`Char.toString()`、`Char.hash()` 的 codegen。
+    - `when` 模式中 Char 的 codegen（整数比较）。
+  - **Runtime/C**（`runtime/c/scoop_runtime.c`）：
+    - `scoop_char_to_string(i32 codepoint) -> ScoopString*`：将 Unicode 码点编码为 UTF-8 字符串。
+  - **Comptime**（`comptime/eval.rs`）：
+    - `ExprKind::CharLit` → `ConstValue::Char(char)`。
+    - `ConstValue` 新增 `Char(char)` 变体。
+    - Char 比较与 `toInt()` 在编译期可求值。
+- 验收：
+  - 新增 run-pass fixtures：
+    - Char 字面量赋值与 `println`：`val c = 'A'; println(c.toString())`。
+    - 转义序列：`'\n'`、`'\t'`、`'\\'`、`'\''`、`'\0'`。
+    - Unicode 转义：`'\u0041'` == `'A'`。
+    - Char 比较：`'a' < 'b'`、`'x' == 'x'`。
+    - `Char.toInt()`：`'A'.toInt()` == 65。
+    - `when` 模式匹配：`when (c) { 'a' -> ..., 'b' -> ... }`。
+    - 多文件：非入口源文件中使用 Char 字面量。
+  - 新增 comptime fixture：`const val c = 'A'; const val code = c.toInt()`。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0140（多文件字面量框架可复用）
+
+### T0147 [TODO] Float 类型系统与 sysroot 基础
+
+- 描述：Scoop 当前没有浮点类型。本任务在类型系统和 sysroot 中引入 `Float64`（主力浮点类型，对应 IEEE 754 binary64/double）和 `Float32`（对应 IEEE 754 binary32/float），并在 LLVM codegen 中实现基础布局、默认值和类型映射。`Float64` 作为"默认浮点类型"（类似 `Int` 作为默认整数类型），在无显式标注时浮点字面量推断为 `Float64`。
+- 目标：
+  - **类型系统**（`ty/mod.rs`）：
+    - `ValueTypeKind` 新增 `Float64` 和 `Float32` 变体。
+    - `BuiltinTypes` 新增 `float64: TypeId` 和 `float32: TypeId`。
+    - 定义 **float absorption** 规则（类似整数的 integer absorption）：浮点字面量在类型上下文已知时可隐式适配为 `Float32`（截断精度）。
+  - **Sysroot**（`sysroot/core.scoop`）：
+    - 新增 `struct Float64 : Hashable` 声明。
+    - 新增 `struct Float32 : Hashable` 声明。
+    - 基础方法声明：
+      - `fun toInt(): Int`（截断取整）。
+      - `fun toString(): String`（十进制字符串表示）。
+      - `fun hash(): Int`。
+      - `fun abs(): Float64`（`Float32` 版同理）。
+      - `fun isNaN(): Bool`、`fun isInfinite(): Bool`。
+    - 类型别名（可选）：`typealias Float = Float64`（如果想提供简写）。
+  - **LLVM codegen 类型映射**（`llvm/codegen/`）：
+    - `CgTy` 新增 `Float64` 和 `Float32` 变体。
+    - `cg_ty_of`：`ValueTypeKind::Float64 => CgTy::Float64`，`Float32 => CgTy::Float32`。
+    - `llvm_basic_type_of`：`CgTy::Float64 => context.f64_type()`，`CgTy::Float32 => context.f32_type()`。
+    - `TypeLayout`：`Float64 => size=8, align=8`；`Float32 => size=4, align=4`。
+    - `default_value`：`Float64 => 0.0 f64 常量`，`Float32 => 0.0 f32 常量`。
+    - 所有 `match CgTy` 穷举点（`mod.rs`、`effect.rs`、`control_flow.rs`、`gc.rs`）添加 `Float64`/`Float32` 分支。
+  - **Runtime/C**（`runtime/c/scoop_runtime.c`）：
+    - `scoop_float64_to_string(double) -> ScoopString*`。
+    - `scoop_float32_to_string(float) -> ScoopString*`。
+    - `scoop_float64_to_int(double) -> int64_t`（截断）。
+    - `scoop_string_to_float64(ScoopString*) -> double`（解析，失败返回 `0.0` 或 NaN）。
+  - **Resolver**（`resolve/scopes.rs`）：Float64/Float32 方法白名单。
+  - **Typecheck**（`typecheck/`）：Float64/Float32 方法调用类型检查。
+- 验收：
+  - Float64/Float32 类型在编译器中可被引用、实例化（通过构造或类型转换）。
+  - `CgTy::Float64`/`Float32` 在所有 codegen match 穷举中不 panic。
+  - `cargo test --all` 通过（类型系统 + codegen 骨架不破坏现有功能）。
+- 依赖：无
+
+### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
+
+- 描述：在 T0147 引入 Float 类型后，本任务实现浮点字面量的完整词法分析、解析和代码生成管线，使 `3.14`、`1.0e-5`、`0.5f` 等浮点字面量可从 Scoop 源码到 LLVM IR 到可执行程序完整工作。
+- 目标：
+  - **词法器**（`syntax/lexer.rs`）：
+    - 扩展 `lex_int_literal`（或新增 `lex_number_literal`）：当十进制数字序列后遇到 `.`（且下一个字符是数字，避免与方法调用 `1.toString()` 冲突）时，切换到浮点模式。
+    - 浮点格式：`[digits].[digits]`（小数部分）、`[digits][eE][+-]?[digits]`（科学计数法）、两者组合。
+    - `_` 分隔符在整数和小数部分均允许。
+    - 产出 `TokenKind::FloatLiteral` token。
+    - 可选后缀：`f` 或 `f32` 表示 `Float32`（无后缀默认 `Float64`）。
+  - **Token**（`syntax/token.rs`）：新增 `TokenKind::FloatLiteral`。
+  - **AST**（`ast/mod.rs`）：
+    - `ExprKind` 新增 `FloatLit` 变体（span-only）。
+    - 注意：不为 `WhenPat` 新增 `FloatLit`——浮点数在模式匹配中不建议使用（精度问题），可后置或明确禁止。
+  - **Float 字面量解析**（新增 `syntax/float_literal.rs`）：
+    - `parse_float_literal(text: &str) -> (f64, bool)`：返回解析后的值和是否有 `f32` 后缀。
+    - 处理 `_` 分隔符移除、科学计数法、后缀剥离。
+  - **HIR**（`hir/mod.rs`）：
+    - `LiteralKind` 新增 `Float64(f64)` 变体。
+    - 当有 `f32` 后缀时，可存储为 `Float32(f32)` 或在 typecheck 阶段通过 absorption 处理。
+  - **HIR lowering**（`hir/lower/expr.rs`）：
+    - `ExprKind::FloatLit` → `LiteralKind::Float64(parsed_value)`，默认类型为 `Float64`。
+    - 当有 `f32` 后缀时，类型为 `Float32`。
+  - **类型检查**（`typecheck/`）：
+    - Float 字面量默认推断为 `Float64`。
+    - **Float absorption**：当期望类型为 `Float32` 时，Float64 字面量隐式适配（截断）。
+    - Float 算术运算符类型推断：`Float64 + Float64 -> Float64` 等。
+    - Float 比较运算符：`==`、`!=`、`<`、`>`、`<=`、`>=`（返回 `Bool`）。
+    - Float 一元取负：`-1.5`。
+  - **LLVM codegen**（`llvm/codegen/`）：
+    - `codegen_literal`：`LiteralKind::Float64(v)` → `f64_type().const_float(v)`。
+    - Float 算术运算符 codegen：`fadd`、`fsub`、`fmul`、`fdiv`、`frem`。
+    - Float 比较运算符 codegen：`fcmp` 指令（ordered comparisons）。
+    - Float 一元取负：`fneg` 或 `fsub(0.0, x)`。
+    - Float → Int 转换（`toInt()`）：`fptosi` 指令。
+    - Int → Float 转换：`sitofp` 指令（需要在 sysroot 声明 `Int.toFloat64(): Float64` 等）。
+    - Float64 ↔ Float32 转换：`fptrunc`/`fpext`。
+    - Float `toString()`/`hash()`/`abs()`/`isNaN()`/`isInfinite()` 的 codegen。
+  - **Comptime**（`comptime/eval.rs`）：
+    - `ExprKind::FloatLit` → `ConstValue::Float64(f64)`。
+    - `ConstValue` 新增 `Float64(f64)` 变体。
+    - Float 算术和比较在编译期可求值。
+  - **多文件支持**：确保 Float 字面量在非入口源文件中可用（T0140 框架已为 Int/String 解决，Float 需同样纳入）。
+- 验收：
+  - 新增 run-pass fixtures：
+    - 基础：`val x = 3.14; val y = 2.0; println((x + y).toString())`。
+    - 科学计数法：`val x = 1.5e3; println(x.toString())`（1500.0）。
+    - 算术：`+`、`-`、`*`、`/`、`%` 运算。
+    - 比较：`1.0 < 2.0`、`3.14 == 3.14`、`1.0 != 2.0`。
+    - 一元取负：`val x = -1.5`。
+    - 类型转换：`val n = 3.14.toInt()`（结果为 3）；`val f = 42.toFloat64()`。
+    - Float32 后缀：`val x = 1.5f`（或 `1.5f32`），验证 Float32 类型。
+    - Float64 ↔ Float32 转换。
+    - 多文件：非入口源文件中使用 Float 字面量。
+    - `Float64.abs()`、`Float64.isNaN()`、`Float64.isInfinite()`。
+    - `Float64.toString()` 和 `String.toFloat64()`。
+  - 新增 comptime fixture：`const val pi = 3.14159; const val area = pi * 2.0 * 2.0`。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0147（Float 类型系统基础）、T0140（多文件字面量框架）
+
+### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
+
+- 描述：当前 Array 字面量 `[e0, e1, e2]` 的 HIR lowering **要求**外部提供 `ArrayLitTarget`（通过期望类型上下文推断，如 `val x: Array<Int> = [1, 2, 3]`）。当没有类型上下文时（如 `val x = [1, 2, 3]`、作为函数参数传递给类型未知的函数、嵌套在其他表达式中），lowering 退化为 `ExprKind::Todo("array_lit")`（`hir/lower/expr.rs:50-53`），产出 `Any` 类型占位——在 codegen 中不会产生可工作的代码。
+- 目标：
+  - **元素类型推断**：当 `array_lit_target` 为 `None` 时，从元素表达式推断元素类型：
+    - 非空数组 `[e0, e1, ...]`：推断所有元素的公共类型 `T`。
+    - 如果所有元素为同类型（如全是 `Int` 字面量），推断为 `Array<T>`。
+    - 如果元素类型不一致，报类型错误。
+    - 空数组 `[]`：无上下文时报类型错误（要求显式标注 `val x: Array<Int> = []`）。
+  - **默认目标**：无上下文时默认推断为 `ArrayLitTarget::Array`（不可变数组），而非 `MutableArray`。
+  - **传播上下文**：在以下位置向下传播期望类型：
+    - 函数参数：当形参类型为 `Array<T>` 时，向实参传播。
+    - `val` 绑定：当绑定有类型标注时传播。
+    - `return` 表达式：当函数返回类型已知时传播。
+    - 赋值右侧：当左侧类型已知时传播。
+  - **移除 `Todo("array_lit")`**：所有合法的 array literal 使用场景都应产出有效 HIR，不再退化到 `Todo`。
+  - **嵌套 Array**：`[[1, 2], [3, 4]]` 应推断为 `Array<Array<Int>>`（如果嵌套 Array codegen 已支持；否则可先报明确的"不支持嵌套 Array 字面量"错误，而非静默退化）。
+- 验收：
+  - 新增 run-pass fixtures：
+    - 无标注推断：`val x = [1, 2, 3]; println(x.size().toString())`。
+    - 作为函数参数：`fun sum(arr: Array<Int>): Int { ... }; println(sum([1, 2, 3]).toString())`。
+    - 字符串数组：`val names = ["a", "b", "c"]`。
+    - 空数组带标注：`val x: Array<Int> = []; println(x.size().toString())`。
+    - Char 数组（若 T0146 已完成）：`val chars = ['a', 'b', 'c']`。
+    - Float 数组（若 T0148 已完成）：`val nums = [1.0, 2.0, 3.0]`。
+  - 新增 compile-fail fixture：`val x = []` 无标注报错。
+  - 新增 compile-fail fixture：`val x = [1, "a"]` 混合类型报错。
+  - 现有 Array 相关 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（现有 `ArrayLitTarget` 机制和 array builder intrinsics 可复用）
+
+### T0150 [TODO] 字面量完整性：所有字面量在所有语境下可工作
+
+- 描述：T0145-T0149 分别实现了各类字面量的核心管线。本任务是一个收尾/审计任务，确保**所有字面量类型**（Int/hex/binary、String、Bool、Char、Float64/Float32、Array、Tuple、Unit）在**所有语境**下均可正确工作，消除遗漏的边角场景。
+- 审计与补齐范围：
+  1. **when/match 模式**：
+     - Int（含 hex/binary）、String、Bool、Char 字面量可用作 `when` arm 的模式。
+     - Float 字面量在 `when` 模式中应报明确错误（浮点比较不建议用于精确匹配）。
+     - 多个 `when` arm 中使用相同类型的不同字面量（exhaustiveness 不要求，但至少不 panic）。
+  2. **Comptime 求值**：
+     - 所有标量字面量（Int/hex/binary、Bool、Char、Float64）在 `const fun`/`const val` 中可求值。
+     - 标量算术/比较在编译期完成。
+     - Array/Tuple 字面量在 comptime 中至少有合理行为（可工作或报明确错误，不静默忽略）。
+  3. **多文件**：
+     - 所有字面量类型在非入口源文件（`*.scoop` 非 `main.scoop`/非 entry-point）中可使用。
+     - T0140 框架已为 Int/String 解决；需确保 Char、Float、Array 同样通过。
+  4. **插值字符串**：
+     - `"value = ${expr}"` 中 `expr` 可以是任意字面量类型（通过 `toString()` 转换）。
+     - `"char = ${'A'}"` 等组合可工作。
+  5. **类型上下文交互**：
+     - Int absorption：`val x: UInt8 = 255`、`val y: Int32 = 0xFF` 等整数字面量适配目标类型。
+     - Float absorption：`val x: Float32 = 1.5`。
+     - Array 字面量在各种上下文中的类型推断（函数参数、返回值、嵌套表达式）。
+  6. **运算符重载/方法调用**：
+     - 字面量上的直接方法调用：`42.toString()`、`'A'.toInt()`、`3.14.abs()`、`[1,2,3].size()`。
+     - 字面量之间的运算符：`0xFF + 1`、`3.14 * 2.0`、`'a' < 'z'`。
+  7. **边界值与错误处理**：
+     - 整数溢出（超过 `u128` 或目标类型范围）的编译期诊断。
+     - 非法 Float 字面量（如 `1.`、`.5` 若不支持）的词法器错误。
+     - 非法 Char 字面量（空、多字符、无效 Unicode）的词法器错误。
+     - 非法 hex/binary 字面量（`0x` 后无 hex digit、`0b` 后非 0/1）的词法器错误。
+- 验收：
+  - 对每个审计项，如有缺口则新增 run-pass/compile-fail fixture 覆盖。
+  - 审计完成后所有字面量类型在所有列出的语境中行为正确。
+  - `cargo test --all` + `cargo run -p scoop -- test` + `cargo run -p scoop --features llvm -- test` 通过。
+- 依赖：T0145、T0146、T0147、T0148、T0149
+
 ### T0144 [TODO] 审计：编译器 codegen 限制全面排查与任务拆分
 
 - 描述：T0140-T0142 是从 `stdlib/string.scoop` 中发现的三个 codegen 限制（source-backed literal 单文件限制、block 内 return/break/continue 不支持、if-without-else 非 Unit 报错）。这些限制的发现是偶发的——因为纯 Scoop stdlib 代码恰好触碰到了它们。编译器中可能还存在其它类似的"硬性拒绝"或"降级处理"路径，尚未被用户代码触发但会在语言功能扩展时成为障碍。
