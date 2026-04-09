@@ -28,6 +28,7 @@ For the first incomplete task (or subtask) in `TODO.md`:
 
 **Code Organization & Quality:**
 - **Quality:** Ensure that there is no warning during compilation and linting, e.g. `cargo clippy --all-targets -- -D warnings`.
+- **Completeness:** Make sure that all features are implemented as planned, you must either **fully** complete the task or break it down into smaller subtasks until it is manageable.
 - **Modularity:** Break long source files into smaller, focused modules to improve readability and maintainability.
 - **Tests:** If test files grow too large, split them into separate test modules or files.
 - **Documentation:**
