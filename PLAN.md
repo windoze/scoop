@@ -233,6 +233,8 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0108）：Nullable 运算符 codegen（`?.`/`!!`）——HIR lowering 将 `?.`/`!!` 展开为 `when` + `Perform`（codegen 无修改，自动继承 `when`/`Raise` 路径）。`!!` 全链路可用（run-pass）；`?.` desugar 已实现（HIR golden 验证），端到端受阻于 typecheck（仅 struct receiver）+ codegen（`Option<Struct>` payload）组合缺口。777 fixtures 通过。
 - DONE（T0109）：`with` 表达式 codegen（值类型更新）——HIR lowering 将 `base with { field: value }` 展开为 StructLit：typecheck 通过 OnceCell 写回各层 struct FQN 映射表，lowering 绑定 base 到合成 val（单次求值），递归构造 StructLit（直接覆盖的字段用 update 值，未更新字段用 MemberAccess 复制）。支持嵌套路径（`start.x: 1`）。新增 4 个 run-pass fixtures（简单更新/多字段/保持不变字段/嵌套路径）。781 fixtures 通过。
 - DONE（T0114）：`Bool.toString()` + `print`/`println` Bool 重载——runtime/c 新增 `scoop_bool_to_string`（返回 GC-managed `"true"`/`"false"`），resolver/typecheck 新增 Bool.toString()，codegen 统一 `codegen_to_string_method` 分发（evaluate receiver first → dispatch by CgTy，解决 `(x==y).toString()` 路由问题），sysroot 新增 `print(Bool)`/`println(Bool)` 重载。新增 2 个 run-pass fixtures（minimal + comprehensive 17 场景）。788 fixtures 通过。
+- DONE（T0115）：String 补齐 8 个方法——`trim`/`trimStart`/`trimEnd`/`isEmpty`/`replace`/`charAt`/`repeat`/`compareTo`。完整 pipeline：C runtime（8 个 GC-safe 函数）→ API 注册 → resolver 白名单 → typecheck → codegen symbols/ABI/dispatch。新增 `stdlib_string_methods_extended` fixture（27 场景）。789 fixtures 通过。
+- DONE（T0116）：核心库 hardcoded 类型限制清单——审计 8 项限制并逐项标注归属：4 项有后续任务（T1818/T1822/T0131）、2 项后置（Task<T>/Float print）、1 项后置按需补齐（其他类型 hash）、1 项确认为设计决策（MutableArray COW）。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 

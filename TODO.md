@@ -364,21 +364,24 @@ cargo run -p scoop --features llvm -- test
   - 新增 `stdlib_string_methods_extended.scoop` + `.stdout` fixture，覆盖 27 个测试场景。
   - 全部 139 unit tests + 789 fixtures + spec-fixtures 通过。
 
-### T0116 [TODO] 核心库 hardcoded 类型限制清单（跟踪任务）
+### T0116 [DONE] 核心库 hardcoded 类型限制清单（跟踪任务）
 
 - 描述：当前核心库存在大量 hardcoded Int-only 限制。本任务统一记录所有已知限制，为后续逐项解除提供清晰入口。
-- 已知限制清单：
-  1. **Set 元素 Int-only**：`Set`/`MutableSet` 为 `Array<Int>` typealias，仅支持 Int 元素 → **T1818**
-  2. **Map 键值 Int-only**：`MapView`/`MutableMap` 仅 `Int→Int`，无泛型 `Map<K,V>` → **T1818**
-  3. **集合操作 Int-only**：`forEach`/`map`/`filter`/`fold`/`reduce`/`zip`/`joinToString` 仅 `Array<Int>`/`MutableArray<Int>` → **T1822**
-  4. **Scope functions Int-only**：`let`/`run`/`also`/`apply` 仅 `Int` 版本 → **T1822**
-  5. **Task\<T\> Int-only**：executor/spawn/await 仅 `Task<Int>`（64-bit payload）→ 待编译器泛型 codegen 完善
-  6. **print/println 仅 String/Int/Bool**：Bool 重载已完成 → **T0114 [DONE]**；无 Float 重载 → 待 Float 类型系统支持
-  7. **Hashable 默认 hash() 返回 0**：除 Int（SplitMix64）和 String（FNV-1a）外，Bool/Int8-UInt64 等类型 hash 均为 0 → 依赖 codegen 扩展或纯 Scoop 实现
-  8. **MutableArray COW 语义**：`push`/`pop`/`insert`/`removeAt`/`splice` 返回新数组（copy-on-write），仅 `set(index, value)` 和 `sort()` 原地修改 → 需确认此为设计决策还是临时限制
+- 已知限制清单（2026-04-09 审计确认）：
+  1. **Set 元素 Int-only**：`Set`/`MutableSet` 为 `Array<Int>` typealias（`stdlib/collections_set.scoop`），仅支持 Int 元素 → **T1818**（Hash-based Set/Map）
+  2. **Map 键值 Int-only**：`MapView`/`MutableMap` 为 `Array<Int>` typealias（`stdlib/collections_map.scoop`），仅 `Int→Int` → **T1818**（Hash-based Set/Map）
+  3. **集合操作 Int-only**：`forEach`/`map`/`filter`/`fold`/`reduce`/`zip`/`joinToString` 仅 `Array<Int>`/`MutableArray<Int>`（`stdlib/array_iter.scoop` + `stdlib/mutable_array_iter.scoop`）→ **T1822**（泛型 Collections API，依赖编译器泛型 codegen）
+  4. **Scope functions Int-only**：`let`/`also`/`apply` 仅 `Int` 版本（`stdlib/prelude.scoop:61-74`）→ **T1822**（泛型化，依赖编译器泛型 codegen）
+  5. **Task\<T\> Int-only**：`Executor.spawn`/`await` 仅 `Task<Int>`（`sysroot/task.scoop:81-87`，64-bit payload）→ 后置，待编译器泛型 codegen 完善（T0124-T0128）
+  6. **print/println 仅 String/Int/Bool**：Bool 重载已完成（**T0114 [DONE]**）；Float 重载待 Float 类型系统支持 → 后置。泛型化（`fun <T> println(value: T) where T: ToString`）→ **T0131**（依赖 T0129/T0130 where 约束能力）
+  7. **Hashable 默认 hash() 返回 0**：Int hash（SplitMix64 codegen inline）和 String hash（FNV-1a runtime/c）已实现（**T1817 [DONE]**）。Bool/Int8-UInt64 等类型 hash 仍为 Hashable 接口默认值 0（`sysroot/core.scoop:20-22`）→ 后置，待按需逐类型补齐
+  8. **MutableArray COW 语义**：`push`/`pop`/`insert`/`removeAt`/`splice` 返回新数组（`stdlib/mutable_array.scoop`），仅 `set(index, value)` 和 `sort()` 原地修改 → **设计决策**：当前为值语义一致性的有意选择（value type 不做原地变异）；后续若引入引用语义 `MutableList` 可重新评估
 - 目标：本任务不做实现，仅作为审计记录。各项解除依赖上述独立任务完成。
 - 验收：所有限制项有对应任务链接或明确标注"设计决策/后置"。
 - 依赖：无
+- 完成记录（2026-04-09）：
+  - 审计 8 项限制，逐项确认当前状态并标注归属：4 项有明确后续任务（T1818/T1822/T0131）、2 项后置（Task<T>/Float print 待泛型/类型系统完善）、1 项后置按需补齐（其他类型 hash）、1 项确认为设计决策（MutableArray COW）。
+  - 补充文件位置引用，便于后续追溯。
 
 ### T0117 [TODO] `@Extern(lib=...)` 参数传递到链接器
 

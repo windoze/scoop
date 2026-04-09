@@ -1,53 +1,16 @@
-# Current Task: T0115 — String 补齐: trim/replace/charAt/isEmpty 等缺失方法
+# Current Task: T0116 — 核心库 hardcoded 类型限制清单（跟踪任务）
 
-## Status: IN PROGRESS
+## Status: COMPLETED
 
-## Task Description
-Add missing String methods. Currently String has ~11+7 resolver whitelist methods. Need to add:
-- P0: `trim(): String`, `isEmpty(): Bool`
-- P1: `replace(old: String, new: String): String`, `charAt(index: Int): Int`
-- P2: `trimStart(): String`, `trimEnd(): String`, `repeat(n: Int): String`, `compareTo(other: String): Int`
+## Summary
+Audited all 8 hardcoded type limitation items against the current codebase:
+1. Set Int-only → T1818
+2. Map Int-only → T1818
+3. Collection ops Int-only → T1822
+4. Scope functions Int-only → T1822
+5. Task<T> Int-only → deferred (awaiting T0124-T0128 generics)
+6. print/println limited → T0131 (where constraints); Float deferred
+7. Hashable hash() default 0 → Int/String done (T1817), others deferred
+8. MutableArray COW → design decision (value semantics consistency)
 
-## Implementation Path
-runtime/c → scoop_runtime_api.h → resolver whitelist → typecheck → codegen → fixtures
-
-## Step-by-step Plan
-
-### Step 1: Runtime/C Implementation
-Add C functions in `runtime/c/scoop_runtime.c`:
-- `scoop_string_trim(s) -> ScoopString*`
-- `scoop_string_is_empty(s) -> i64`
-- `scoop_string_replace(s, old, new) -> ScoopString*`
-- `scoop_string_char_at(s, index) -> i64`
-- `scoop_string_trim_start(s) -> ScoopString*`
-- `scoop_string_trim_end(s) -> ScoopString*`
-- `scoop_string_repeat(s, n) -> ScoopString*`
-- `scoop_string_compare_to(a, b) -> i64`
-
-Register in `scoop_runtime_api.h`.
-
-### Step 2: Resolver Whitelist
-Add method names to String whitelist in `resolve/scopes.rs`.
-
-### Step 3: Typecheck
-Add parameter/return type validation in `typecheck/expr/call.rs`.
-
-### Step 4: Codegen (LLVM)
-- Add runtime symbol constants in `runtime_symbols.rs`
-- Add LLVM declarations in `runtime_abi.rs`
-- Add dispatch in `codegen/mod.rs` `codegen_string_method`
-
-### Step 5: Fixtures
-Create run-pass fixtures covering each method.
-
-### Step 6: Test & Verify
-- `cargo test --all`
-- `cargo run -p scoop -- test`
-
-## Progress
-- [ ] Step 1: Runtime/C
-- [ ] Step 2: Resolver
-- [ ] Step 3: Typecheck
-- [ ] Step 4: Codegen
-- [ ] Step 5: Fixtures
-- [ ] Step 6: Test & Verify
+All items now have task links or explicit "design decision/deferred" annotations with file location references.
