@@ -1,0 +1,144 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_continuation_escape_deep_object_graph.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1704: GC + escaping continuation — deep object graph captured across suspensions.
+// - struct Tag(String, Int) + class Node(String, Tag, Int, Node?) form a multi-level chain.
+// - Handle body builds a 3-node chain (root→mid→leaf), then suspends/resumes 2 times.
+// - All node locals are in scope across suspensions (lifted to ContState).
+// - After first resume, extends the graph with an extra node attached to leaf.
+// - After each resume, verifies entire object graph intact (fields + child links).
+// - GC stress verifies ContState's lifted ref locals (class objects, their struct fields
+//   containing Strings) are correctly traced through the full nesting depth:
+//   ContState → Node (class ref) → Tag (struct field) → String (ref).
+
+import scoop.core.*
+
+effect Await {
+    fun pause(): Int
+}
+
+class Cell(var k: Continuation<Int>?)
+
+struct Tag(val label: String, val score: Int)
+
+class Node(val name: String, val tag: Tag, val value: Int) {
+    var child: Node? = None()
+}
+
+fun makeNode(name: String, label: String, score: Int, value: Int): Node {
+    val t: Tag = Tag { label: f"{label}_tag", score: score }
+    return Node(name, t, value)
+}
+
+fun attachChild(parent: Node, c: Node): Unit {
+    parent.child = Some(c)
+}
+
+fun describeNode(n: Node): String {
+    val t: Tag = n.tag
+    return f"{n.name}({t.label},{t.score},{n.value})"
+}
+
+fun main() {
+    val none_k: Continuation<Int>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        // Build a 3-node chain: root -> mid -> leaf
+        val root: Node = makeNode("root", "alpha", 10, 100)
+        val mid: Node = makeNode("mid", "beta", 20, 200)
+        val leaf: Node = makeNode("leaf", "gamma", 30, 300)
+        attachChild(root, mid)
+        attachChild(mid, leaf)
+
+        println("body_start")
+        println(describeNode(root))
+        println(describeNode(mid))
+        println(describeNode(leaf))
+
+        // First suspension — root, mid, leaf all captured in ContState
+        val r1: Int = Await.pause()
+        println(f"resume1={r1}")
+
+        // Verify entire object graph survived GC across suspension
+        println(describeNode(root))
+        println(describeNode(mid))
+        println(describeNode(leaf))
+
+        // Verify child links survived
+        when (root.child) {
+            Some(c) -> {
+                val desc: String = describeNode(c)
+                println(f"root.child={desc}")
+            }
+            None -> println("root.child=NONE")
+        }
+        when (mid.child) {
+            Some(c) -> {
+                val desc: String = describeNode(c)
+                println(f"mid.child={desc}")
+            }
+            None -> println("mid.child=NONE")
+        }
+
+        // Extend graph: attach new node to leaf
+        val extra: Node = makeNode("extra", "delta", 40, 400)
+        attachChild(leaf, extra)
+
+        // Second suspension — now 4 nodes in graph + extra, all must be traced
+        val r2: Int = Await.pause()
+        println(f"resume2={r2}")
+
+        // Verify extended graph
+        println(describeNode(root))
+        println(describeNode(leaf))
+        println(describeNode(extra))
+        when (leaf.child) {
+            Some(c) -> {
+                val desc: String = describeNode(c)
+                println(f"leaf.child={desc}")
+            }
+            None -> println("leaf.child=NONE")
+        }
+
+        println(f"sum={r1 + r2}")
+        println("body_done")
+    } with {
+        Await.pause(), k -> {
+            println("arm")
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    // Resume 1
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k1.resume(10)
+            } catch (e: RuntimeError) {
+                println("err1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    // Resume 2
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            val _: Unit = try {
+                k2.resume(20)
+            } catch (e: RuntimeError) {
+                println("err2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+    println("done")
+}

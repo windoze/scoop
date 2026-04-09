@@ -597,14 +597,19 @@ cargo run -p scoop --features llvm -- test
   - GC verify（`SCOOP_GC_VERIFY_ROOTS=1`）为环境变量级别开关，可手动启用但未作为 fixture 默认 ENV（避免与 stress 组合引入额外不稳定性）。
   - 同时修复 T1702 引入的 2 个 clippy 警告（parser/types.rs：redundant closure、collapsible if）。
 
-### T1704 [TODO] GC + escaping continuation：验证 continuation 逃逸时的 roots/scan 正确性
+### T1704 [DONE] GC + escaping continuation：验证 continuation 逃逸时的 roots/scan 正确性
 - 描述：把 T1701 的 escaping continuation 与 T1703 的复杂对象图结合，验证 continuation 逃逸时 GC roots 枚举与更新完全正确。
 - 目标：
   - 覆盖：continuation 捕获的环境中包含复杂对象图（数组/struct/enum/ref 混合）。
   - 覆盖：恢复 continuation 后继续分配，触发多轮 GC。
 - 验收：
-  - 新增 run-pass fixtures：至少 2 个用例（一个强调“深层对象图”，一个强调“高频捕获/恢复 + GC 压力”），在 `--gc-stress` 下通过。
+  - 新增 run-pass fixtures：至少 2 个用例（一个强调”深层对象图”，一个强调”高频捕获/恢复 + GC 压力”），在 `--gc-stress` 下通过。
 - 依赖：T1701、T1703
+- 完成说明：
+  - 新增 2 个 run-pass fixtures：
+    - `gc_continuation_escape_deep_object_graph`：escape continuation 捕获含 3-node class 链（root→mid→leaf）的环境，struct Tag(String, Int) 嵌套在 class Node 中。2 次 suspend/resume，第一次 resume 后扩展图（新增 extra 节点挂载到 leaf.child）。每次 resume 后验证完整对象图（字段值 + child 链接）存活。验证 ContState → class ref → struct field → String ref 的多级 GC tracing。
+    - `gc_continuation_escape_alloc_heavy_resume`：escape continuation 的 3 次 suspend/resume，每次 resume 返回 String（GC ref）。每次 resume 后分配新 Record 对象（class with struct Entry field containing String），累积 r1/r2/r3 全部在后续 suspension 跨越时存活。Caller 侧在每次 resume 前显式 `__scoop_gc_debug_alloc_garbage(50)` + `__scoop_gc_collect()`。验证 ContState 中持续增长的 live ref 集合在高频 GC 下全部存活。
+  - 两个 fixtures 均在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
 ### T1705 [TODO] 多线程扩展：在多线程下验证 continuation 与 GC 的组合正确性
 - 描述：把上述验证场景扩展到多线程：跨线程恢复 continuation、并发分配、并发触发 GC（或协作式 STW），确保线程注册、root 枚举与对象移动/更新正确。

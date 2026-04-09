@@ -1,0 +1,133 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_continuation_escape_alloc_heavy_resume.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1704: GC + escaping continuation — high-frequency allocation pressure across resumes.
+// - Each resume returns a String (GC ref), which is captured in ContState for subsequent steps.
+// - After each resume, allocates new Record objects (class with struct Entry field containing String).
+// - Accumulates state: r1, r2, r3 Records all remain live across subsequent suspensions.
+// - Between resumes (caller side): explicit garbage allocation + GC collect to force
+//   collection while ContState is live.
+// - Verifies all previously-created Records survive post-resume GC pressure.
+// - Exercises: ContState with growing set of live GC refs + allocation-heavy post-resume paths.
+
+import scoop.core.*
+
+effect Ask {
+    fun ask(): String
+}
+
+class Cell(var k: Continuation<String>?)
+
+struct Entry(val key: String, val value: Int)
+
+class Record(val entry: Entry, val label: String)
+
+fun makeRecord(key: String, value: Int, label: String): Record {
+    val e: Entry = Entry { key: key, value: value }
+    return Record(e, label)
+}
+
+fun describeRecord(r: Record): String {
+    val e: Entry = r.entry
+    return f"{r.label}:{e.key}={e.value}"
+}
+
+fun main() {
+    val none_k: Continuation<String>? = None()
+    val cell: Cell = Cell(none_k)
+
+    val _: Unit = handle {
+        println("body_start")
+
+        // First suspension
+        val s1: String = Ask.ask()
+        println(f"got1={s1}")
+
+        // Allocate after resume — creates GC pressure while captured vars live
+        val r1: Record = makeRecord(s1, 1, f"rec_{s1}")
+        val d1: String = describeRecord(r1)
+        println(d1)
+
+        // Second suspension — s1, r1 must survive in ContState
+        val s2: String = Ask.ask()
+        println(f"got2={s2}")
+
+        // More allocation — r1 still live, create r2 referencing s2
+        val r2: Record = makeRecord(s2, 2, f"rec_{s2}")
+        val d1b: String = describeRecord(r1)
+        val d2: String = describeRecord(r2)
+        println(d1b)
+        println(d2)
+
+        // Third suspension — s1, s2, r1, r2 all in ContState
+        val s3: String = Ask.ask()
+        println(f"got3={s3}")
+
+        // Final allocation + verify all previous refs intact
+        val r3: Record = makeRecord(s3, 3, f"rec_{s3}")
+        val d1c: String = describeRecord(r1)
+        val d2c: String = describeRecord(r2)
+        val d3: String = describeRecord(r3)
+        println(d1c)
+        println(d2c)
+        println(d3)
+        println("body_done")
+    } with {
+        Ask.ask(), k -> {
+            println("arm")
+            cell.k = Some(k)
+        }
+    }
+
+    println("after_handle")
+
+    // Resume 1 with garbage allocation pressure
+    when (cell.k) {
+        Some(k1) -> {
+            cell.k = none_k
+            __scoop_gc_debug_alloc_garbage(50)
+            __scoop_gc_collect()
+            val _: Unit = try {
+                k1.resume("alpha")
+            } catch (e: RuntimeError) {
+                println("err1")
+            }
+        }
+        None -> println("missing1")
+    }
+    println("after_resume1")
+
+    // Resume 2 with more garbage
+    when (cell.k) {
+        Some(k2) -> {
+            cell.k = none_k
+            __scoop_gc_debug_alloc_garbage(50)
+            __scoop_gc_collect()
+            val _: Unit = try {
+                k2.resume("beta")
+            } catch (e: RuntimeError) {
+                println("err2")
+            }
+        }
+        None -> println("missing2")
+    }
+    println("after_resume2")
+
+    // Resume 3 with more garbage
+    when (cell.k) {
+        Some(k3) -> {
+            cell.k = none_k
+            __scoop_gc_debug_alloc_garbage(50)
+            __scoop_gc_collect()
+            val _: Unit = try {
+                k3.resume("gamma")
+            } catch (e: RuntimeError) {
+                println("err3")
+            }
+        }
+        None -> println("missing3")
+    }
+    println("after_resume3")
+    println("done")
+}

@@ -219,6 +219,7 @@ cargo run -p scoop --features llvm -- test
 - GC correctness：跨函数复杂对象图、数组（value/ref 混合、value 内含 ref）、循环引用。
   - DONE（T1703）：新增 6 个 run-pass fixtures——struct-with-ref cross-function、class object graph（树结构）、Array<String> cross-function、short-lived/long-lived interleave、deep nested struct/class/ref、enum-with-ref-variant cross-function。4 个在 `--gc-stress` 下稳定；2 个使用显式 `__scoop_gc_collect()`（Array<String>/enum + GC stress 存在已知 double-free 问题）。
 - GC + escaping continuation：确保 continuation 捕获环境的 roots 扫描/更新正确。
+  - DONE（T1704）：新增 2 个 run-pass fixtures——deep object graph（class chain + struct-with-ref 嵌套，2 次 suspend/resume，graph 扩展后验证 child 链接存活）、alloc-heavy resume（3 次 suspend/resume + 累积 Record 对象 + caller 侧显式 GC collect）。均在 `--gc-stress` 下稳定。
 - 多线程扩展：把上述场景搬到多线程，固定调度避免 flakiness。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
