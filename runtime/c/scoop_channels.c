@@ -28,6 +28,11 @@
 void *scoop_alloc(uint64_t size);
 void scoop_thread_register(void);
 
+// GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
+// before blocking system calls, allowing STW GC to skip this thread.
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 typedef struct ScoopChannelsNode {
   uint64_t value;
   struct ScoopChannelsNode *next;
@@ -116,9 +121,14 @@ uint32_t scoop_channels_recv_u64(void *channel_obj, uint64_t *out_value) {
 
   scoop_platform_sync_mutex_lock(&ch->lock);
 
+  // T0105: Transition to IN_NATIVE while blocking on condvar_wait.
+  // Without this, the thread stays RUNNING but cannot reach a safepoint;
+  // if another thread triggers GC, STW will deadlock.
+  scoop_enter_native(0, 0);
   while (ch->head == 0 && !ch->closed) {
     scoop_platform_sync_condvar_wait(&ch->cond, &ch->lock);
   }
+  scoop_leave_native();
 
   ScoopChannelsNode *node = ch->head;
   if (node == 0) {

@@ -147,7 +147,7 @@ cargo run -p scoop --features llvm -- test
     - 模块依赖清晰（无明显环），公共入口与内部 helper 的可见性边界合理。
 - 依赖：无
 
-### T0105 [TODO] GC STW 死锁：`scoop_thread_spawn_join_resume_u64` 在 `pthread_join` 前未转入 `IN_NATIVE` 状态
+### T0105 [DONE] GC STW 死锁：`scoop_thread_spawn_join_resume_u64` 在 `pthread_join` 前未转入 `IN_NATIVE` 状态
 - 描述：`scoop_thread_spawn_join_resume_u64` 调用 `pthread_join` 时，调用线程仍为 `RUNNING` 状态，但阻塞在内核态无法到达 safepoint。若被 spawn 的子线程在 `SCOOP_GC_STRESS=1` 下触发 `scoop_gc_collect()`，STW 协议会将调用线程计入 `need_to_park`，但该线程永远无法 park——形成经典双向等待死锁（子线程等父线程 park，父线程等子线程退出）。
 - 根因分析：
   - `scoop_thread_spawn_join_resume_u64`（`runtime/c/scoop_runtime.c`）在 `pthread_create` 后直接 `pthread_join`，未执行 `scoop_enter_native`/`scoop_leave_native` 状态转换。
@@ -162,6 +162,18 @@ cargo run -p scoop --features llvm -- test
   - 现有 fixture `gc_continuation_cross_thread_resume_with_objects` 和 `gc_continuation_multi_thread_concurrent_alloc_resume` 在 `SCOOP_GC_STRESS=1` 下不再死锁，可移除"已知限制"注释。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **`scoop_thread_spawn_join_resume_u64`**（`runtime/c/scoop_runtime.c`）：在 `pthread_join` 前调用 `scoop_enter_native(0, 0)` 转为 `IN_NATIVE`，`pthread_join` 返回后调用 `scoop_leave_native()` 恢复 `RUNNING`。
+  - **审计并修复同类阻塞调用点**：
+    - `scoop_thread_join`（`runtime/c/scoop_thread.c`）：`scoop_platform_thread_join` 前后加入 `enter/leave_native`。
+    - `scoop_thread_sleep_millis`（`runtime/c/scoop_thread.c`）：`scoop_platform_thread_sleep_millis` 前后加入 `enter/leave_native`。
+    - `scoop_sync_condvar_wait`（`runtime/c/scoop_sync.c`）：`scoop_platform_sync_condvar_wait` 前后加入 `enter/leave_native`。
+    - `scoop_sync_once_run_blocking`（`runtime/c/scoop_sync.c`）：Once 等待初始化完成的 `condvar_wait` 循环前后加入 `enter/leave_native`。
+    - `scoop_channels_recv_u64`（`runtime/c/scoop_channels.c`）：接收阻塞等待的 `condvar_wait` 循环前后加入 `enter/leave_native`。
+  - **所有修改文件**新增 `scoop_enter_native`/`scoop_leave_native` 前置声明。
+  - **Fixture 注释更新**：两个跨线程 fixture 的"已知限制"注释更新为"T0105 已修复 STW 死锁；剩余 GC rooting 问题属 T0106 范围"。
+  - **验证**：SCOOP_GC_STRESS=1 下两个跨线程 fixture 不再死锁（deadlock 已消除）；但仍存在 GC rooting 问题（crash/incorrect output），属 T0106 审计范围。
+  - 139 单元测试 + 774 fixtures 通过。
 
 ### T0106 [TODO] GC rooting 审计：runtime/c 函数中 GC-managed 指针跨分配点的 pin/unpin 完整性
 - 描述：`scoop_string_split` 在 T1812 中暴露了 C runtime 函数的 GC rooting 缺陷——函数内持有的 GC-managed 指针（`builder`/`s`/`delimiter`）在跨 `scoop_alloc` 调用时未 pin，导致 GC stress 下被回收。该问题已修复，但同类缺陷可能存在于其它 runtime/c 函数中。

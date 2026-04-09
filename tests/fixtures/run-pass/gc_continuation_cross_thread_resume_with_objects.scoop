@@ -12,8 +12,10 @@
 //
 // Deterministic ordering: join() after each cross-thread resume ensures sequential execution.
 //
-// Note: SCOOP_GC_STRESS=1 + cross-thread resume is a known limitation (hangs);
-// this fixture uses explicit __scoop_gc_collect() instead.
+// Note: T0105 fixed the STW deadlock (pthread_join now transitions to IN_NATIVE).
+// SCOOP_GC_STRESS=1 no longer hangs, but a GC rooting issue (T0106 scope) causes
+// a crash during the second cross-thread resume — this fixture uses explicit
+// __scoop_gc_collect() instead until GC rooting is fully audited.
 
 import scoop.core.*
 

@@ -16,8 +16,10 @@
 // - GC correctness after thread lifecycle changes (thread list shrinks between GC calls).
 // - Object allocation in resumed continuation code executes in worker thread context.
 //
-// Note: SCOOP_GC_STRESS=1 + cross-thread resume is a known limitation;
-// uses explicit __scoop_gc_collect() on main thread after worker threads join.
+// Note: T0105 fixed the STW deadlock (thread join/sleep now transition to IN_NATIVE).
+// SCOOP_GC_STRESS=1 no longer hangs, but GC rooting issues (T0106 scope) cause
+// continuations to be collected — this fixture uses explicit __scoop_gc_collect()
+// on main thread after worker threads join until GC rooting is fully audited.
 
 import scoop.core.*
 import scoop.thread.*

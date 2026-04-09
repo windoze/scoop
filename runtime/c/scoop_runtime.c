@@ -474,6 +474,11 @@ uint32_t scoop_thread_is_registered(void) {
 // `scoop_runtime_init` 定义在文件后部；这里给出前置声明以避免隐式声明警告。
 void scoop_runtime_init(void);
 
+// GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
+// before blocking system calls, allowing STW GC to skip this thread.
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 // 线程注册接口（占位）。
 //
 // 说明：
@@ -1049,7 +1054,13 @@ void scoop_thread_spawn_join_resume_u64(void *continuation, uint64_t resume_valu
     exit(3);
   }
 
+  // T0105: Transition to IN_NATIVE before blocking on pthread_join.
+  // Without this, the calling thread stays RUNNING but cannot reach a safepoint
+  // (blocked in kernel); if the child thread triggers GC, STW will deadlock
+  // waiting for this thread to park.
+  scoop_enter_native(0, 0);
   rc = pthread_join(t, 0);
+  scoop_leave_native();
   if (rc != 0) {
     exit(3);
   }

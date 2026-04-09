@@ -24,6 +24,11 @@ void *scoop_alloc(uint64_t size);
 void scoop_thread_register(void);
 void scoop_thread_unregister(void);
 
+// GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
+// before blocking system calls, allowing STW GC to skip this thread.
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 typedef void (*ScoopThreadStartFn)(void *env);
 
 typedef struct ScoopThreadHandle {
@@ -100,7 +105,13 @@ void scoop_thread_join(void *thread_obj) {
   }
 
   t->joined = 1;
+
+  // T0105: Transition to IN_NATIVE before blocking on thread join.
+  // Without this, the calling thread stays RUNNING but cannot reach a safepoint
+  // (blocked in kernel); if the child thread triggers GC, STW will deadlock.
+  scoop_enter_native(0, 0);
   (void)scoop_platform_thread_join(t->thread);
+  scoop_leave_native();
 }
 
 void scoop_thread_yield(void) {
@@ -114,7 +125,11 @@ void scoop_thread_sleep_millis(int64_t ms) {
   }
 
   scoop_thread_register();
+
+  // T0105: Transition to IN_NATIVE before blocking on sleep.
+  scoop_enter_native(0, 0);
   scoop_platform_thread_sleep_millis(ms);
+  scoop_leave_native();
 }
 
 int64_t scoop_thread_current_id(void) {

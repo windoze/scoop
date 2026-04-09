@@ -24,6 +24,11 @@
 void *scoop_alloc(uint64_t size);
 void scoop_thread_register(void);
 
+// GC native transition (defined in scoop_gc.c / backend): transition to IN_NATIVE
+// before blocking system calls, allowing STW GC to skip this thread.
+void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
+void scoop_leave_native(void);
+
 // --- Mutex ---
 
 typedef struct ScoopSyncMutex {
@@ -132,7 +137,14 @@ void scoop_sync_condvar_wait(void *condvar_obj, void *mutex_obj) {
 
   // 约定：调用方必须在进入 wait 前持有 mutex；pthread_cond_wait 会原子地解锁并等待，
   // 被唤醒后在返回前重新加锁。
+  //
+  // T0105: Transition to IN_NATIVE before blocking on condvar_wait.
+  // Without this, the thread stays RUNNING but cannot reach a safepoint (blocked
+  // in kernel); if another thread triggers GC, STW will deadlock waiting for this
+  // thread to park.
+  scoop_enter_native(0, 0);
   scoop_platform_sync_condvar_wait(&cv->cond, &m->mutex);
+  scoop_leave_native();
 }
 
 void scoop_sync_condvar_notify_one(void *condvar_obj) {
@@ -258,9 +270,12 @@ void scoop_sync_once_run(void *once_obj, void *env_ptr, ScoopSyncOnceInitFn fn) 
     }
 
     // 其它线程正在初始化：等待其完成。
+    // T0105: Transition to IN_NATIVE while blocking on condvar_wait.
+    scoop_enter_native(0, 0);
     while (o->state == (uint32_t)SCOOP_SYNC_ONCE_STATE_INITIALIZING) {
       scoop_platform_sync_condvar_wait(&o->cond, &o->lock);
     }
+    scoop_leave_native();
     scoop_platform_sync_mutex_unlock(&o->lock);
     return;
   }
