@@ -11491,10 +11491,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// (since HIR lowering often assigns `Any` to VarRef expressions).
     fn resolve_expr_cg_ty(&self, expr: &hir::Expr) -> Option<CgTy> {
         // Try the local environment first (has accurate types for locals).
-        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind {
-            if let Some(local) = self.env.get(*id) {
-                return Some(local.ty);
-            }
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind
+            && let Some(local) = self.env.get(*id)
+        {
+            return Some(local.ty);
         }
         // Fall back to HIR expression type.
         self.cg_ty_of(expr.ty)

@@ -300,7 +300,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
 
-### T0112 [TODO] Extension property codegen
+### T0112 [DONE] Extension property codegen
 
 - 描述：扩展属性（Spec §10.3）在 codegen 中返回 `UnsupportedMainBody { kind: "member access target" }`。`codegen_member_access`（`codegen/mod.rs:10859`）仅处理 `MemberRef::Value { fqn }`，对 `MemberRef::ExtensionValue` 落入 `Some(_)` catch-all 报错（`mod.rs:10969`）。
 - 规范引用：Spec §10.3——扩展属性无 backing field，必须为 computed（getter-only）。

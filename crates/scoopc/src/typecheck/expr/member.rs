@@ -470,9 +470,20 @@ pub(super) fn infer_member_access_expr_type(
                 }
             })
         }
+        Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
+            // T0112：Extension property getter — look up the getter function's return type.
+            if let Some(sigs) = top_level_funs.get(fqn.as_str()) {
+                if let Some(sig) = sigs.first() {
+                    return Ok(sig.return_ty);
+                }
+            }
+            Err(ExprTypeError::UnsupportedMemberAccess {
+                fqn: fqn.clone(),
+                span: member.span.into(),
+            })
+        }
         Some(
             ast::ResolvedMemberRef::Fun { fqn }
-            | ast::ResolvedMemberRef::ExtensionValue { fqn }
             | ast::ResolvedMemberRef::ExtensionFun { fqn },
         ) => Err(ExprTypeError::UnsupportedMemberAccess {
             fqn: fqn.clone(),

@@ -1648,6 +1648,14 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        // T0112：extension property fallback。
+        let ext_prop_candidates =
+            self.extension_property_candidates(receiver_ty_fqn, member_name);
+        if let Some(fqn) = ext_prop_candidates.first().cloned() {
+            member.resolved = Some(ast::ResolvedMemberRef::ExtensionValue { fqn });
+            return Ok(());
+        }
+
         // 内建 String API（early stage）。
         //
         // 说明：
@@ -1871,6 +1879,120 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         Ok(candidates)
+    }
+
+    /// 查找"在当前文件作用域内可见"的 extension property 候选集合（T0112）。
+    ///
+    /// 规则与 `extension_fun_candidates` 保持一致：同包隐式可见 + star import + 显式 import。
+    /// 可见性直接从 `ExtensionPropertySymbol` 读取，不依赖 `by_fqn`。
+    fn extension_property_candidates(
+        &self,
+        receiver_ty_fqn: &str,
+        member_name: &str,
+    ) -> Vec<String> {
+        fn normalize_collections_alias(fqn: &str) -> &str {
+            match fqn {
+                "scoop.core.List" => "scoop.core.Array",
+                "scoop.core.MutableList" => "scoop.core.MutableArray",
+                "scoop.collections.Set" => "scoop.core.Array",
+                "scoop.collections.MapView" => "scoop.core.Array",
+                "scoop.collections.MutableSet" => "scoop.core.MutableArray",
+                "scoop.collections.MutableMap" => "scoop.core.MutableArray",
+                _ => fqn,
+            }
+        }
+        let receiver_ty_fqn_norm = normalize_collections_alias(receiver_ty_fqn);
+
+        let mut candidates: Vec<String> = Vec::new();
+
+        let is_visible = |ext: &super::ExtensionPropertySymbol| -> bool {
+            match ext.visibility {
+                super::Visibility::Public => true,
+                super::Visibility::Internal => ext.decl_cone == self.use_cone,
+                super::Visibility::Private => ext.decl_file == self.source.path(),
+            }
+        };
+
+        // 1) 同包（同 cone）隐式可见。
+        for ext in &self.index.extension_properties {
+            if ext.decl_cone != self.use_cone {
+                continue;
+            }
+            if ext.pkg_prefix != self.pkg_prefix {
+                continue;
+            }
+            if ext.name != member_name {
+                continue;
+            }
+            let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                Some(ext_receiver) => {
+                    normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                        || ext_receiver == "scoop.core.Any"
+                }
+                None => false,
+            };
+            if !receiver_matches {
+                continue;
+            }
+            if is_visible(ext) {
+                candidates.push(ext.fqn.clone());
+            }
+        }
+
+        // 2) star import。
+        for prefix in &self.imports.star {
+            for ext in &self.index.extension_properties {
+                if ext.pkg_prefix != *prefix {
+                    continue;
+                }
+                if ext.name != member_name {
+                    continue;
+                }
+                let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                    Some(ext_receiver) => {
+                        normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                            || ext_receiver == "scoop.core.Any"
+                    }
+                    None => false,
+                };
+                if !receiver_matches {
+                    continue;
+                }
+                if is_visible(ext) {
+                    candidates.push(ext.fqn.clone());
+                }
+            }
+        }
+
+        // 3) 显式 import。
+        if let Some(imported) = self.imports.value.explicit.get(member_name) {
+            for imported_fqn in imported {
+                for ext in self
+                    .index
+                    .extension_properties
+                    .iter()
+                    .filter(|e| e.fqn == *imported_fqn)
+                {
+                    let receiver_matches = match ext.receiver_ty_fqn.as_deref() {
+                        Some(ext_receiver) => {
+                            normalize_collections_alias(ext_receiver) == receiver_ty_fqn_norm
+                                || ext_receiver == "scoop.core.Any"
+                        }
+                        None => false,
+                    };
+                    if !receiver_matches {
+                        continue;
+                    }
+                    if is_visible(ext) {
+                        candidates.push(ext.fqn.clone());
+                    }
+                }
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+        candidates
     }
 
     fn resolve_member_access_on_type_receiver(

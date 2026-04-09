@@ -274,6 +274,62 @@ pub(super) fn collect_top_level_fun_signatures(
         result?;
     }
 
+    // T0112: Collect extension property getter signatures.
+    // Extension properties are synthesized as getter functions during HIR lowering.
+    // Register their signatures here so typecheck can resolve the return type.
+    for item in &file.items {
+        let ast::Item::ExtensionProperty(prop) = item else {
+            continue;
+        };
+        if prop.getter.is_none() {
+            continue;
+        }
+
+        let local_name = source.slice(prop.name.span);
+        let fqn = if pkg_prefix.is_empty() {
+            local_name.to_string()
+        } else {
+            format!("{pkg_prefix}.{local_name}")
+        };
+        let decl_span = prop.name.span;
+
+        lower.push_type_params(&prop.type_params);
+        let result: Result<(), ExprTypeError> = (|| {
+            let receiver_ty = lower.lower_type_ref(&prop.receiver)?;
+            let return_ty = match &prop.ty {
+                Some(t) => lower.lower_type_ref(t)?,
+                None => builtins.any,
+            };
+
+            map.entry(fqn).or_default().push(FunSigOwned {
+                decl_span,
+                decl_file: source.path().to_path_buf(),
+                is_extension: true,
+                is_inline: false,
+                is_const: false,
+                is_unsafe: false,
+                is_nogc: false,
+                is_extern: false,
+                is_intrinsic: false,
+                param_names: vec!["<receiver>".to_string()],
+                param_has_defaults: vec![false],
+                param_is_vararg: vec![false],
+                type_params: Vec::new(),
+                eff_param: None,
+                param_fn_effect_eff_base: vec![None],
+                param_nominal_eff_eff_base: vec![None],
+                param_eff_row_var_subst: vec![EffRowVarSubstPlan::None],
+                return_eff_row_var_subst: EffRowVarSubstPlan::None,
+                params: vec![receiver_ty],
+                return_ty,
+                effects: None,
+            });
+            Ok(())
+        })();
+        lower.pop_type_params(&prop.type_params);
+        result?;
+    }
+
     Ok(map)
 }
 pub(super) fn collect_member_mutabilities(

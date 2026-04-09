@@ -1370,6 +1370,28 @@ impl<'a> HirLowering<'a> {
             }
         }
 
+        // T0112：extension property access → desugar to getter call.
+        // `receiver.extProp` → `extPropGetterFqn(receiver)`
+        if let Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) = member.resolved.as_ref() {
+            let receiver = self.lower_expr(pkg_prefix, receiver);
+            let callee_id = self.symbols.intern_top_level(fqn.clone());
+            let callee = Expr {
+                span: member.span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::TopLevel {
+                    id: callee_id,
+                    fqn: fqn.clone(),
+                }),
+            };
+            return (
+                ExprKind::Call {
+                    callee: Box::new(callee),
+                    args: vec![CallArg::Positional(receiver)],
+                },
+                self.builtins.any,
+            );
+        }
+
         let receiver = Box::new(self.lower_expr(pkg_prefix, receiver));
 
         let resolved = member

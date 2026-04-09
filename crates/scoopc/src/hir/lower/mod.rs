@@ -30,8 +30,8 @@ use crate::ty::{
 };
 
 use super::{
-    CallArg, ClassInitIndex, CtorCallSiteIndex, Expr, ExprKind, File, FunDecl, Item,
-    ObjectInitIndex, Param, SymbolId, ValDecl, ValueRef,
+    Block, CallArg, ClassInitIndex, CtorCallSiteIndex, Expr, ExprKind, File, FunDecl, Item,
+    ObjectInitIndex, Param, Stmt, StmtKind, SymbolId, ValDecl, ValueRef,
 };
 
 use types::*;
@@ -227,10 +227,9 @@ impl<'a> HirLowering<'a> {
                 span: obj.span,
                 kind: "object",
             },
-            ast::Item::ExtensionProperty(p) => Item::Todo {
-                span: p.span,
-                kind: "extension_property",
-            },
+            ast::Item::ExtensionProperty(p) => {
+                self.lower_extension_property(pkg_prefix, p)
+            }
         }
     }
 
@@ -442,7 +441,96 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    /// 降低一个 class/object 的 member `fun` 为“顶层函数形态”（显式 `this` 参数）。
+    /// T0112: Synthesize an extension property's getter as a top-level function.
+    ///
+    /// The getter function has:
+    /// - FQN = property FQN (e.g., `pkg.lastIndex`)
+    /// - params = `[this: ReceiverType]`
+    /// - return type = declared property type
+    /// - body = getter body
+    fn lower_extension_property(
+        &mut self,
+        pkg_prefix: &str,
+        prop: &ast::ExtensionPropertyDecl,
+    ) -> Item {
+        let Some(getter) = &prop.getter else {
+            return Item::Todo {
+                span: prop.span,
+                kind: "extension_property_no_getter",
+            };
+        };
+
+        self.push_type_params(&prop.type_params);
+
+        let name = self.source.slice(prop.name.span).to_string();
+        let fqn = if pkg_prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{pkg_prefix}.{name}")
+        };
+
+        let receiver_ty = self.lower_type_ref(&prop.receiver);
+
+        // Receiver as first parameter (same as extension functions).
+        let receiver_span = prop.receiver.span();
+        let receiver_id = self.intern_local_symbol(receiver_span, false);
+        let params = vec![Param {
+            span: receiver_span,
+            id: receiver_id,
+            name: "this".to_string(),
+            ty: receiver_ty,
+        }];
+
+        let return_ty = prop
+            .ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+
+        let effects = EffectRow::pure();
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            effects,
+            false,
+        );
+
+        // Lower getter body.
+        let body = match &getter.body {
+            ast::AccessorBody::Block(b) => Some(self.lower_block(pkg_prefix, b)),
+            ast::AccessorBody::Expr(e) => {
+                // `get() = expr` → synthesize a block with the expression as tail stmt.
+                let lowered_expr = self.lower_expr(pkg_prefix, e);
+                let expr_ty = lowered_expr.ty;
+                Some(Block {
+                    span: e.span,
+                    ty: expr_ty,
+                    stmts: vec![Stmt {
+                        span: e.span,
+                        ty: expr_ty,
+                        kind: StmtKind::Expr(lowered_expr),
+                    }],
+                })
+            }
+            ast::AccessorBody::Missing => None,
+        };
+
+        self.pop_type_params();
+
+        Item::Fun(FunDecl {
+            span: prop.span,
+            fqn,
+            name,
+            is_const: false,
+            ty,
+            params,
+            return_ty,
+            body,
+        })
+    }
+
+    /// 降低一个 class/object 的 member `fun` 为”顶层函数形态”（显式 `this` 参数）。
     ///
     /// 约定：
     /// - `this_decl_span` 必须与 resolver 为 `this` 写回的 `ResolvedValueRef::Local { decl_span }` 对齐：

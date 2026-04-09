@@ -1,0 +1,21 @@
+// EXPECT: pass
+// EXPECT-EXIT: 7
+//
+// T0112: extension property codegen（Spec §10.3）
+//
+// 说明：
+// - 验证扩展属性的 getter 能被正确编译和调用；
+// - 扩展属性必须是 computed（getter-only），没有 backing field；
+// - `receiver.extProp` 在 HIR 阶段脱糖为 `getter(receiver)` 的函数调用。
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+val Point.sum: Int
+    get() = this.x + this.y
+
+fun main(): Int {
+    val p: Point = Point { x: 3, y: 4 }
+    return p.sum
+}

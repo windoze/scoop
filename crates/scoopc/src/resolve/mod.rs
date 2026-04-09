@@ -402,9 +402,33 @@ pub struct ConstructorOverload {
 
 /// Index 侧记录的扩展函数信息（T0312）。
 ///
+/// 扩展属性的索引信息（T0112）。
+///
+/// 与 `ExtensionFunSymbol` 类似，记录 receiver 类型 FQN 用于成员访问时的 extension property fallback。
+/// 扩展属性必须为 computed（getter-only），没有 backing field。
+#[derive(Debug, Clone)]
+pub struct ExtensionPropertySymbol {
+    /// 扩展属性自身的 FQN（例如 `pkg.lastIndex`）。
+    pub fqn: String,
+    /// 该声明所在文件的 package 前缀。
+    pub pkg_prefix: String,
+    /// 该声明所在 cone。
+    pub decl_cone: ConeId,
+    /// property 名称（例如 `lastIndex`）。
+    pub name: String,
+    /// receiver 的类型 FQN（例如 `scoop.core.String`）。
+    pub receiver_ty_fqn: Option<String>,
+    /// 可见性（存储在此，不依赖 by_fqn 查找）。
+    pub visibility: Visibility,
+    /// 声明的源文件路径（用于 Private 可见性判断）。
+    pub decl_file: PathBuf,
+    /// 声明 span（用于诊断）。
+    pub span: Span,
+}
+
 /// 说明：
-/// - 扩展函数在语法上仍是“顶层 fun 声明”，因此其符号本体仍存放在 `by_fqn` 的 fun 命名空间里；
-/// - 这里额外记录 receiver 的“可用于匹配的类型 FQN”，用于把 `receiver.member()` 的 `member`
+/// - 扩展函数在语法上仍是”顶层 fun 声明”，因此其符号本体仍存放在 `by_fqn` 的 fun 命名空间里；
+/// - 这里额外记录 receiver 的”可用于匹配的类型 FQN”，用于把 `receiver.member()` 的 `member`
 ///   在无同名 member 时解析到 extension；
 /// - 当前阶段仅用于 name resolution（不做重载/最具体匹配），并且只会在**同包**内查找扩展声明。
 #[derive(Debug, Clone)]
@@ -500,6 +524,8 @@ pub struct Index {
     pub constructors: HashMap<String, Vec<ConstructorOverload>>,
     /// 扩展函数集合（用于成员访问的 extension fallback，T0312）。
     pub extension_funs: Vec<ExtensionFunSymbol>,
+    /// 扩展属性集合（用于成员访问的 extension property fallback，T0112）。
+    pub extension_properties: Vec<ExtensionPropertySymbol>,
     /// 类型（class/struct/...）的 companion object FQN 列表（T0317）。
     ///
     /// key：宿主类型的 FQN（例如 `a.C`）
@@ -543,6 +569,7 @@ impl Index {
             index.add_file_in_cone(f.cone, f.source, f.file)?;
         }
         index.collect_extension_funs(files);
+        index.collect_extension_properties(files);
         Ok(index)
     }
 
@@ -626,6 +653,52 @@ impl Index {
                     name,
                     receiver_ty_fqn,
                     receiver_is_type_param,
+                });
+            }
+        }
+    }
+
+    /// 收集所有源文件中的扩展属性声明（T0112）。
+    fn collect_extension_properties(&mut self, files: &[IndexedFile<'_>]) {
+        self.extension_properties.clear();
+
+        for f in files {
+            let pkg_prefix = package_prefix(f.source, f.file.package.as_ref());
+
+            for item in &f.file.items {
+                let ast::Item::ExtensionProperty(prop) = item else {
+                    continue;
+                };
+
+                // 必须有 getter（typecheck 已验证，这里做防御性检查）。
+                if prop.getter.is_none() {
+                    continue;
+                }
+
+                let name = f.source.slice(prop.name.span).to_string();
+                let fqn = if pkg_prefix.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{pkg_prefix}.{name}")
+                };
+
+                let receiver_ty_fqn =
+                    self.type_ref_to_fqn_in_file(f.source, f.file, &prop.receiver);
+
+                let visibility = match visibility_from_modifiers(&prop.modifiers, prop.span) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+
+                self.extension_properties.push(ExtensionPropertySymbol {
+                    fqn,
+                    pkg_prefix: pkg_prefix.clone(),
+                    decl_cone: f.cone,
+                    name,
+                    receiver_ty_fqn,
+                    visibility,
+                    decl_file: f.source.path().to_path_buf(),
+                    span: prop.name.span,
                 });
             }
         }
