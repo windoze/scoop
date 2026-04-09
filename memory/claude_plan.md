@@ -1,17 +1,18 @@
-# Current Task: T0117 — `@Extern(lib=...)` 参数传递到链接器
+# Current Task: T0118 — @CLayout(packed) store alignment fix + run-pass tests
 
 ## Status: COMPLETED
 
 ## Summary
-Audited and completed the `@Extern(lib=...)` parameter pipeline:
 
-1. **Discovery**: The linker parameter passing was ALREADY fully implemented — `collect_extern_libs()` → `LoweredHir.extern_libs` → `link_objs()` → `clang -l<name>`. Unit test `clang_link_command_includes_extern_libs` already verified this.
+1. **Store alignment fix** (`codegen/gc.rs` `store_local_value`): Added `store_inst.set_alignment(1)` for packed struct stores, matching the existing load alignment fix.
 
-2. **Changes made**:
-   - `ExternFun` struct (`hir/mod.rs`): Added `lib: Option<String>` field for per-function lib traceability
-   - `extern_fun_of_decl` (`hir/lower/util.rs`): Populates `ExternFun.lib` from `parse_extern_annotation_args().lib`
-   - `toolchain.rs`: Updated existing test to verify `ExternFun.lib` field
-   - New run-pass fixture: `extern_lib_link_basic.scoop` — calls `labs()` via `@Extern(lib = "c", name = "labs")`
-   - New Cone fixture: `extern_lib_link_basic/` — same test in Cone project form
+2. **Audit conclusion**: Current codegen has no GEP + store path for individual packed struct fields (struct values constructed via `build_insert_value`, stored as whole aggregate). Only `store_local_value` does whole-aggregate store to alloca. Class types can't be `@CLayout`, so no class field store fix needed.
 
-3. **Verification**: 139 unit tests + 791 fixtures pass
+3. **Fixtures** (3 run-pass):
+   - `clayout_packed_basic.scoop` — packed=1, field read/write, function passing, negative values, var reassignment (18 stdout lines)
+   - `clayout_aligned_basic.scoop` — aligned=16/8, field access, function passing, var reassignment (12 stdout lines)
+   - `clayout_aligned_packed_combined.scoop` — aligned=8+packed=1 combination (13 stdout lines)
+
+4. **Note**: Fixtures use `:` syntax (`@CLayout(packed: 1)`) not `=` syntax, because `=` syntax is rejected by the general annotation checker (T1019) while the CLayout-specific parser handles both.
+
+5. **Verification**: 139 unit tests + 794 fixtures pass (including LLVM backend).

@@ -1,0 +1,51 @@
+// EXPECT: pass
+// RUN-STDOUT: clayout_aligned_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0118: @CLayout(aligned = 16) struct alloca alignment correctness.
+//
+// Verifies that a struct with explicit alignment annotation can be
+// constructed and its fields accessed correctly.
+
+import scoop.core.*
+
+@CLayout(aligned: 16)
+struct Aligned16(val x: Int, val y: Int)
+
+@CLayout(aligned: 8)
+struct Aligned8(val a: Int, val b: Int, val c: Int)
+
+fun readAligned(s: Aligned16): Int {
+    return s.x
+}
+
+fun main(): Int {
+    // Test 1: aligned struct construction and field access
+    val a: Aligned16 = Aligned16 { x: 42, y: 99 }
+    println(a.x)
+    println(a.y)
+
+    // Test 2: aligned struct passed to function
+    println(readAligned(a))
+
+    // Test 3: multiple aligned struct locals
+    val b: Aligned16 = Aligned16 { x: 100, y: 200 }
+    println(b.x)
+    println(b.y)
+
+    // Test 4: 8-byte aligned struct
+    val c: Aligned8 = Aligned8 { a: 10, b: 20, c: 30 }
+    println(c.a)
+    println(c.b)
+    println(c.c)
+
+    // Test 5: re-assignment of aligned struct local
+    var m: Aligned16 = Aligned16 { x: 1, y: 2 }
+    println(m.x)
+    println(m.y)
+    m = Aligned16 { x: 3, y: 4 }
+    println(m.x)
+    println(m.y)
+
+    0
+}

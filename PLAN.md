@@ -304,3 +304,8 @@ cargo run -p scoop --features llvm -- test
   - **Smoke fixtures**（3 个）：`stdlib_smoke_collections_and_iteration`（Array/MutableArray/map/filter/fold/Set/Map）、`stdlib_smoke_ranges_and_io`（IntProgression rangeTo/downTo/forEach）、`stdlib_smoke_test_and_preconditions`（assertTrue/assertEqInt/require/check + try/catch）。
   - **Matrix tool**：`fixtures-matrix stdlib` 模式——21 个 stdlib 领域 × fixture 前缀映射；当前 15/21 域有覆盖，6 个缺口（Text formatting / Math / Hashing / Random / Net / Reflection）。
   - 运行：`cargo run -p scoop_tools -- fixtures-matrix stdlib`。
+- DONE（T0118）：`@CLayout(packed)` store alignment 修复 + run-pass 测试：
+  - **Store alignment 修复**：`store_local_value`（`gc.rs`）在 `build_store` 后对 packed struct 显式 `set_alignment(1)`。
+  - **审计结论**：当前 packed struct store 仅通过 `store_local_value`（整体 aggregate store）；field-level GEP + store 不存在于用户 struct 路径。
+  - **Fixtures**（3 个 run-pass）：`clayout_packed_basic`（packed=1 字段读/写/函数传参/负值/var 重赋值）、`clayout_aligned_basic`（aligned=16/8 字段读/写）、`clayout_aligned_packed_combined`（aligned=8+packed=1 组合）。
+  - 139 单元测试 + 794 fixtures 通过。

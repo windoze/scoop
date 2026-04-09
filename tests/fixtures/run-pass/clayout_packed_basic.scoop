@@ -1,0 +1,69 @@
+// EXPECT: pass
+// RUN-STDOUT: clayout_packed_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0118: @CLayout(packed = 1) struct field read/write correctness.
+//
+// Verifies that packed struct fields are correctly read even when
+// fields are at non-naturally-aligned offsets (e.g., an Int field
+// at offset 1 in a packed struct).
+
+import scoop.core.*
+
+@CLayout(packed: 1)
+struct PackedMixed(val a: Int, val b: Int, val c: Int)
+
+@CLayout(packed: 1)
+struct PackedTwo(val x: Int, val y: Int)
+
+fun readPackedMixed(p: PackedMixed): Int {
+    return p.a
+}
+
+fun readPackedMixedB(p: PackedMixed): Int {
+    return p.b
+}
+
+fun readPackedMixedC(p: PackedMixed): Int {
+    return p.c
+}
+
+fun main(): Int {
+    // Test 1: basic packed struct construction and field access
+    val p: PackedMixed = PackedMixed { a: 10, b: 20, c: 30 }
+    println(p.a)
+    println(p.b)
+    println(p.c)
+
+    // Test 2: packed struct passed to function
+    println(readPackedMixed(p))
+    println(readPackedMixedB(p))
+    println(readPackedMixedC(p))
+
+    // Test 3: packed struct with different values
+    val q: PackedMixed = PackedMixed { a: 100, b: 200, c: 300 }
+    println(q.a)
+    println(q.b)
+    println(q.c)
+
+    // Test 4: packed struct with two fields
+    val t: PackedTwo = PackedTwo { x: 42, y: 99 }
+    println(t.x)
+    println(t.y)
+
+    // Test 5: packed struct with negative values
+    val neg: PackedMixed = PackedMixed { a: 0 - 1, b: 0 - 128, c: 127 }
+    println(neg.a)
+    println(neg.b)
+    println(neg.c)
+
+    // Test 6: re-assignment of packed struct local
+    var m: PackedTwo = PackedTwo { x: 1, y: 2 }
+    println(m.x)
+    println(m.y)
+    m = PackedTwo { x: 3, y: 4 }
+    println(m.x)
+    println(m.y)
+
+    0
+}

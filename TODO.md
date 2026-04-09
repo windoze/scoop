@@ -405,7 +405,7 @@ cargo run -p scoop --features llvm -- test
     - `extern_lib_link_basic/`（run_pass_cone）：Cone 项目形式的相同测试，验证 `scoop build` 全链路。
   - 139 单元测试 + 791 fixtures 通过。
 
-### T0118 [TODO] `@CLayout(packed)` store alignment 修复 + run-pass 测试
+### T0118 [DONE] `@CLayout(packed)` store alignment 修复 + run-pass 测试
 
 - 描述：`@CLayout(packed = 1)` 在 codegen 中创建 packed LLVM struct（`set_body(fields, true)`），且 **load** 指令的 alignment 已正确降为 1（`codegen/mod.rs:10932-10941`）。但 **store** 指令在写入 packed struct 字段时**未降低 alignment**，在严格对齐的架构（如 ARM、MIPS）上可能导致未定义行为。此外，`@CLayout` 的全部 codegen 路径（aligned + packed）目前 **零 run-pass 测试覆盖**（仅有 3 个 typecheck 错误用例）。
 - 目标：
@@ -419,6 +419,15 @@ cargo run -p scoop --features llvm -- test
   - run-pass fixtures 在 x86-64 下通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **store alignment 修复**（`codegen/gc.rs` `store_local_value`）：在 `build_store(ptr, raw)` 之后，当目标类型为 `CgTy::Struct(struct_ty)` 且该 struct 有 `@CLayout(packed)` 时，显式调用 `store_inst.set_alignment(1)` 降低 store alignment 到 1，与 load 路径保持一致。
+  - **审计结论**：当前 codegen 中 packed struct 的 store 路径仅有 `store_local_value`（整个 aggregate store 到 alloca）。struct 字段级 GEP + store 不存在于用户 struct 路径（struct 值通过 `build_insert_value` 构造，然后整体 store）。Class 类型不允许 `@CLayout`，因此 class field store 无需修复。
+  - **Fixtures**（3 个 run-pass）：
+    - `clayout_packed_basic.scoop` + `.stdout`：`@CLayout(packed: 1)` struct — 字段读取（直接 + 函数传参）、var 重新赋值、负值，18 行 stdout。
+    - `clayout_aligned_basic.scoop` + `.stdout`：`@CLayout(aligned: 16)` + `@CLayout(aligned: 8)` — 字段读取、函数传参、var 重新赋值，12 行 stdout。
+    - `clayout_aligned_packed_combined.scoop` + `.stdout`：`@CLayout(aligned: 8, packed: 1)` 组合 — 字段读取、函数传参、var 重新赋值，13 行 stdout。
+  - **注意**：Fixtures 使用 `:` 语法（`@CLayout(packed: 1)`）而非 `=` 语法（`@CLayout(packed = 1)`），因为 `=` 语法在 general annotation checker（T1019）中被误判为非常量表达式；CLayout-specific `parse_clayout_args` 支持两种语法，但 general checker 先执行。
+  - 139 单元测试 + 794 fixtures 通过（含 LLVM 后端）。
 
 ### T0119 [TODO] `@CLayout(packed = N)` 支持 N > 1（`#pragma pack(N)` 语义）
 

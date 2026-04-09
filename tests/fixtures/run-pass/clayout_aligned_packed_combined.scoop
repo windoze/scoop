@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: clayout_aligned_packed_combined.stdout
+// EXPECT-EXIT: 0
+//
+// T0118: @CLayout(aligned = 8, packed = 1) combination.
+//
+// Verifies that combining aligned and packed attributes works correctly:
+// the struct is packed (no inter-field padding) but the overall struct
+// alloca is aligned to the specified boundary.
+
+import scoop.core.*
+
+@CLayout(aligned: 8, packed: 1)
+struct AlignedPacked(val a: Int, val b: Int, val c: Int)
+
+fun readFields(s: AlignedPacked): Int {
+    return s.a
+}
+
+fun main(): Int {
+    // Test 1: construction and field access
+    val s: AlignedPacked = AlignedPacked { a: 11, b: 22, c: 33 }
+    println(s.a)
+    println(s.b)
+    println(s.c)
+
+    // Test 2: function call with combined layout struct
+    println(readFields(s))
+
+    // Test 3: multiple locals
+    val t: AlignedPacked = AlignedPacked { a: 100, b: 200, c: 300 }
+    println(t.a)
+    println(t.b)
+    println(t.c)
+
+    // Test 4: re-assignment
+    var m: AlignedPacked = AlignedPacked { a: 1, b: 2, c: 3 }
+    println(m.a)
+    println(m.b)
+    println(m.c)
+    m = AlignedPacked { a: 4, b: 5, c: 6 }
+    println(m.a)
+    println(m.b)
+    println(m.c)
+
+    0
+}

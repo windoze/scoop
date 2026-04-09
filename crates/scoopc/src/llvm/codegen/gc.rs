@@ -1505,7 +1505,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         "gc_write_barrier",
                     )?;
                 } else {
-                    let _ = self.builder.build_store(ptr, raw)?;
+                    let store_inst = self.builder.build_store(ptr, raw)?;
+                    // T0118: `@CLayout(packed = 1)` — 字段可能位于非自然对齐偏移，
+                    // 必须把 store alignment 降到 1，与 load 路径保持一致（见 mod.rs
+                    // `codegen_member_access` 的对应注释）。
+                    if let CgTy::Struct(struct_ty) = ty {
+                        if self
+                            .struct_clayout(struct_ty)
+                            .and_then(|c| c.packed)
+                            .is_some()
+                        {
+                            store_inst.set_alignment(1)?;
+                        }
+                    }
                 }
             }
         }
