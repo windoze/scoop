@@ -1663,7 +1663,8 @@ impl<'a> BlockScopeChecker<'a> {
                 || member_name == "indexOf"
                 || member_name == "contains"
                 || member_name == "split"
-                || member_name == "toInt";
+                || member_name == "toInt"
+                || member_name == "concat";
             if is_known_string_method {
                 return Ok(());
             }

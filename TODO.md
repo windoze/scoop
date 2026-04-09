@@ -821,7 +821,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_collections_algorithms_basic.scoop` + `.stdout`——覆盖 sort（5 场景：逆序/已排序/重复/单元素/负数）、reduce（4 场景：求和/取最大值/单元素/MutableArray）、zip（3 场景：等长/首短/次短）、组合用例（sort+reduce、zip+reduce）。
   - 139 单元测试 + 772 fixtures 通过。
 
-### T1816 [TODO] Text 格式化：`StringBuilder` + `joinToString`
+### T1816 [DONE] Text 格式化：`StringBuilder` + `joinToString`
 - 描述：提供基础的字符串拼接工具，减少 `+` 链式拼接的分配开销。
 - 目标：
   - `StringBuilder`：可变字符串构建器——`append(s: String): Unit`、`toString(): String`。
@@ -832,6 +832,14 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_string_builder_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1812（`Int.toString` 用于 `joinToString`）
+- 完成说明：
+  - **`scoop_string_concat`**（`runtime/c/scoop_runtime.c`）：连接两个 `ScoopString*`，返回新的 GC-managed 字符串。GC 安全：分配前 pin 住 a 和 b。
+  - **API 注册**（`scoop_runtime_api.h`）：新增 `scoop_string_concat` 符号。
+  - **`String.concat(other: String): String`**：通过 resolver（`scopes.rs` 白名单）→ typecheck（`call.rs` 参数/返回类型）→ codegen（`runtime_symbols.rs` + `runtime_abi.rs` + `mod.rs` dispatch）完整管线接入。
+  - **`Array<Int>.joinToString(separator: String): String`**（`stdlib/array_iter.scoop`）：使用 `concat()` + `toString()` 实现。空字符串通过 `separator.substring(zero, zero)` 派生（无字面量约束）。
+  - **StringBuilder v0**：由于当前 stdlib 不支持字面量和类方法字段修改，v0 以 `var + String.concat()` 的累积模式在 fixture 中演示等价功能。后续可在编译器类方法能力完善后提升为 stdlib 类。
+  - **Fixture**：`stdlib_string_builder_basic.scoop` + `.stdout`——覆盖 16 个场景：concat 基础/空串/链式、StringBuilder 累积模式（含 Int.toString）、joinToString（基础/单元素/空分隔符/长分隔符/负数）、组合测试。
+  - 139 单元测试 + 773 fixtures 通过（含 LLVM 后端）。
 
 ### T1817 [TODO] Hashing 落地：Int/String 的真实 hash 实现
 - 描述：为 `sysroot/core.scoop` 中的 `Hashable` 接口提供 Int 和 String 的真实 hash 实现（替换当前 `hash() -> 0` 占位）。

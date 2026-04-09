@@ -4070,6 +4070,18 @@ fn infer_member_call_expr_type(
             )?;
             return Ok(array_string_ty);
         }
+        // T1816: String.concat(other: String): String — 字符串连接。
+        if member_name == "concat" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "concat".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
         // T1812: String.toInt() — 文本→数值转换。
         if member_name == "toInt" {
             if !args.is_empty() {

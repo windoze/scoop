@@ -1,0 +1,127 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_string_builder_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T1816: StringBuilder + joinToString — text formatting utilities.
+// Tests String.concat() and Array<Int>.joinToString().
+//
+// StringBuilder v0 pattern：由于当前 stdlib 不支持字面量和类方法修改字段，
+// 这里直接使用 String.concat() 的累积模式演示 StringBuilder 等价功能。
+
+import scoop.core.*
+import scoop.core.array.*
+import scoop.test.*
+
+fun main(): Int {
+    // --- String.concat basic ---
+    println("concat_basic")
+    val a: String = "Hello"
+    val b: String = ", World!"
+    val c: String = a.concat(b)
+    assertEqString("Hello, World!", c)
+    println("ok")
+
+    // concat with empty
+    println("concat_empty_left")
+    val empty: String = ""
+    val d: String = empty.concat("abc")
+    assertEqString("abc", d)
+    println("ok")
+
+    println("concat_empty_right")
+    val e: String = "xyz".concat("")
+    assertEqString("xyz", e)
+    println("ok")
+
+    println("concat_both_empty")
+    val f: String = "".concat("")
+    assertEqString("", f)
+    println("ok")
+
+    // concat chain
+    println("concat_chain")
+    val g: String = "a".concat("b").concat("c").concat("d")
+    assertEqString("abcd", g)
+    println("ok")
+
+    // --- StringBuilder pattern (using var + concat) ---
+    println("sb_basic")
+    var sb: String = ""
+    sb = sb.concat("Hello")
+    sb = sb.concat(", ")
+    sb = sb.concat("World!")
+    assertEqString("Hello, World!", sb)
+    println("ok")
+
+    println("sb_empty")
+    var sb2: String = ""
+    assertEqString("", sb2)
+    println("ok")
+
+    println("sb_single")
+    var sb3: String = ""
+    sb3 = sb3.concat("only")
+    assertEqString("only", sb3)
+    println("ok")
+
+    println("sb_int")
+    var sb4: String = ""
+    sb4 = sb4.concat("count=")
+    sb4 = sb4.concat(42.toString())
+    assertEqString("count=42", sb4)
+    println("ok")
+
+    println("sb_multi_int")
+    var sb5: String = ""
+    sb5 = sb5.concat(1.toString())
+    sb5 = sb5.concat("+")
+    sb5 = sb5.concat(2.toString())
+    sb5 = sb5.concat("=")
+    sb5 = sb5.concat(3.toString())
+    assertEqString("1+2=3", sb5)
+    println("ok")
+
+    // --- joinToString ---
+    println("join_basic")
+    val arr: Array<Int> = [1, 2, 3]
+    val joined: String = arr.joinToString(", ")
+    assertEqString("1, 2, 3", joined)
+    println("ok")
+
+    println("join_single")
+    val arr2: Array<Int> = [42]
+    val joined2: String = arr2.joinToString("-")
+    assertEqString("42", joined2)
+    println("ok")
+
+    println("join_empty_sep")
+    val arr3: Array<Int> = [1, 2, 3]
+    val joined3: String = arr3.joinToString("")
+    assertEqString("123", joined3)
+    println("ok")
+
+    println("join_long_sep")
+    val arr4: Array<Int> = [10, 20]
+    val joined4: String = arr4.joinToString(" + ")
+    assertEqString("10 + 20", joined4)
+    println("ok")
+
+    println("join_negative")
+    val arr5: Array<Int> = [-1, 0, 1]
+    val joined5: String = arr5.joinToString(",")
+    assertEqString("-1,0,1", joined5)
+    println("ok")
+
+    // --- combo: StringBuilder pattern + joinToString ---
+    println("combo")
+    var sb6: String = ""
+    sb6 = sb6.concat("items=[")
+    val items: Array<Int> = [10, 20, 30]
+    sb6 = sb6.concat(items.joinToString(", "))
+    sb6 = sb6.concat("]")
+    assertEqString("items=[10, 20, 30]", sb6)
+    println("ok")
+
+    println("all_done")
+    return 0
+}

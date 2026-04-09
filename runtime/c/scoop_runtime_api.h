@@ -133,6 +133,7 @@
   X(scoop_stackmap_registry_register_section) \
   X(scoop_stackmap_registry_reset) \
   X(scoop_int_to_string) \
+  X(scoop_string_concat) \
   X(scoop_string_contains) \
   X(scoop_string_ends_with) \
   X(scoop_string_index_of) \

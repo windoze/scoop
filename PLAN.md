@@ -267,6 +267,13 @@ cargo run -p scoop --features llvm -- test
   - `flatten`：推迟到 T1822（需 `Array<Array<Int>>` codegen 支持）。
   - Fixture：`stdlib_collections_algorithms_basic.scoop`（sort 5 + reduce 4 + zip 3 + 组合 2）。
   - 下一步：T1816（Text 格式化：`StringBuilder` + `joinToString`）。
+- DONE（T1816）：Text 格式化——`StringBuilder` + `joinToString`：
+  - **`scoop_string_concat`**（runtime/c）：连接两个 ScoopString*，GC-safe（pin a/b before alloc）。注册到 `scoop_runtime_api.h`。
+  - **`String.concat(other: String): String`**：完整管线——resolver 白名单 + typecheck（1 arg, returns String）+ codegen dispatch 到 C 函数。
+  - **`Array<Int>.joinToString(separator: String): String`**（stdlib/array_iter.scoop）：使用 `concat` + `toString`，空串通过 `substring(zero, zero)` 派生。
+  - **StringBuilder v0**：以 `var + String.concat()` 累积模式在 fixture 演示（stdlib 无法定义类/使用字面量）。
+  - Fixture：`stdlib_string_builder_basic.scoop`（concat 5 + sb 模式 5 + joinToString 5 + 组合 1 = 16 场景）。
+  - 下一步：T1817（Hashing 落地：Int/String hash 实现）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

@@ -2569,3 +2569,50 @@ int64_t scoop_string_to_int(const ScoopString *s) {
   }
   return (int64_t)result;
 }
+
+// ---------------------------------------------------------------------------
+// T1816: String.concat — 连接两个字符串
+// ---------------------------------------------------------------------------
+
+// scoop_string_concat：连接两个 ScoopString，返回新的 GC-managed ScoopString*。
+//
+// GC 安全性：a 和 b 均为 GC heap 上的对象。scoop_alloc（通过 scoop_string_from_bytes）
+// 可能触发 GC，因此在分配前 pin 住 a 和 b，防止 raw 指针悬空。
+const ScoopString *scoop_string_concat(const ScoopString *a, const ScoopString *b) {
+  // Null/empty cases: return the non-null/non-empty side (or empty).
+  if (a == 0 || a->data == 0 || a->len == 0) {
+    if (b == 0 || b->data == 0 || b->len == 0) {
+      return scoop_string_empty();
+    }
+    return b;
+  }
+  if (b == 0 || b->data == 0 || b->len == 0) {
+    return a;
+  }
+
+  uint64_t alen = a->len;
+  uint64_t blen = b->len;
+  uint64_t total = alen + blen;
+
+  // Pin both inputs — malloc + scoop_alloc may trigger GC.
+  scoop_pin((void *)a);
+  scoop_pin((void *)b);
+
+  // Allocate a temporary buffer, copy both halves, then create a GC string.
+  uint8_t *buf = (uint8_t *)malloc((size_t)total);
+  if (buf == 0) {
+    scoop_unpin((void *)a);
+    scoop_unpin((void *)b);
+    return scoop_string_empty();
+  }
+
+  (void)memcpy(buf, a->data, (size_t)alen);
+  (void)memcpy(buf + alen, b->data, (size_t)blen);
+
+  const ScoopString *result = scoop_string_from_bytes(buf, total);
+  free(buf);
+
+  scoop_unpin((void *)a);
+  scoop_unpin((void *)b);
+  return result;
+}

@@ -126,3 +126,28 @@ fun Array<Int>.zip(other: Array<Int>): Array<Int> {
     }
     return __scoop_array_builder_build_array(b)
 }
+
+/// T1816: 将 Array<Int> 的元素以指定分隔符连接为字符串。
+///
+/// 使用 `Int.toString()` 和 `String.concat()` 实现。
+/// 空数组返回空字符串（通过 separator.substring(0, 0) 派生）。
+fun Array<Int>.joinToString(separator: String): String {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    // 空字符串派生：separator.substring(0, 0) 返回空字符串，无需字面量。
+    var result: String = separator.substring(zero, zero)
+
+    var i: Int = zero
+    while (i < n) {
+        when (i > zero) {
+            true -> { result = result.concat(separator) }
+            false -> ()
+        }
+        val elem: String = this.get(i).toString()
+        result = result.concat(elem)
+        i = i + one
+    }
+    return result
+}

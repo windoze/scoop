@@ -1440,6 +1440,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "contains"
                     | "split"
                     | "toInt"
+                    | "concat"
             ) {
                 return self.codegen_string_method(
                     span,
@@ -2581,6 +2582,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            "concat" => {
+                // scoop_string_concat(a, b) -> ScoopString*
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(other_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat named arg",
+                        at: span.into(),
+                    });
+                };
+                let other = self.codegen_expr_in_expected_context(other_expr, Some(CgTy::String))?;
+                let other_coerced = self.coerce_value(other_expr.span, other, CgTy::String)?;
+                let Some(other_raw) = other_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat arg value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(other_ptr) = other_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat arg type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_string_concat();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), other_ptr.into()],
+                    "rt_string_concat",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(result_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.concat return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(result_ptr.into()),
+                })
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown String method",
