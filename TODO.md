@@ -508,7 +508,7 @@ cargo run -p scoop --features llvm -- test
     - `string_unsafe_slice_bytes_requires_unsafe_is_error.scoop`（typecheck error）：非 unsafe context 调用报错。
   - 139 单元测试 + 801 fixtures 通过。
 
-### T0122 [TODO] String 操作迁移：将 runtime/c substring 类函数替换为纯 Scoop 实现
+### T0122 [DONE] String 操作迁移：将 runtime/c substring 类函数替换为纯 Scoop 实现
 
 - 描述：基于 T0120（字节访问器）和 T0121（unsafe slice intrinsic），将以下 runtime/c 字符串操作重写为纯 Scoop 源码：
   - `substring(start, end)` → 用 `getByte` 做边界校验 + `unsafeSliceBytes` 切片

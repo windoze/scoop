@@ -4030,58 +4030,9 @@ fn infer_member_call_expr_type(
                 builtins.string
             });
         }
-        if member_name == "substring" {
-            if args.len() != 2 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "substring".into(),
-                    expected: 2,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
-        }
-        if member_name == "startsWith"
-            || member_name == "endsWith"
-            || member_name == "contains"
-        {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: member_name.to_string(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.bool_);
-        }
-        if member_name == "indexOf" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "indexOf".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.int);
-        }
-        if member_name == "split" {
-            if args.len() != 1 {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: "split".into(),
-                    expected: 1,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            let array_string_ty = lower.lower_type_fqn_with_args(
-                "scoop.core.Array".into(),
-                vec![builtins.string],
-                call_expr.span,
-            )?;
-            return Ok(array_string_ty);
-        }
+        // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
+        // 已迁移到 stdlib/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
+
         // T1816: String.concat(other: String): String — 字符串连接。
         if member_name == "concat" {
             if args.len() != 1 {
@@ -4105,18 +4056,6 @@ fn infer_member_call_expr_type(
                 });
             }
             return Ok(builtins.int);
-        }
-        // T0115: String.trim()/trimStart()/trimEnd() — 0 args → String
-        if member_name == "trim" || member_name == "trimStart" || member_name == "trimEnd" {
-            if !args.is_empty() {
-                return Err(ExprTypeError::CallArityMismatch {
-                    callee: member_name.to_string(),
-                    expected: 0,
-                    found: args.len(),
-                    span: call_expr.span.into(),
-                });
-            }
-            return Ok(builtins.string);
         }
         // T0115: String.isEmpty() — 0 args → Bool
         if member_name == "isEmpty" {

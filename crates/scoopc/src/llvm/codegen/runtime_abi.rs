@@ -110,16 +110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// `const ScoopString* scoop_string_substring(const ScoopString* s, int64_t start, int64_t end)`
-    pub(super) fn declare_runtime_string_substring(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_SUBSTRING;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into(), i64_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
+    // T0122: declare_runtime_string_substring 已移除（迁移到 stdlib/string.scoop）
 
     /// `const ScoopString* scoop_string_unsafe_slice_bytes(const ScoopString* source, int64_t offset, int64_t len)`
     pub(super) fn declare_runtime_string_unsafe_slice_bytes(&self) -> FunctionValue<'ctx> {
@@ -144,100 +135,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
-    /// `int64_t scoop_string_starts_with(const ScoopString* s, const ScoopString* prefix)`
-    pub(super) fn declare_runtime_string_starts_with(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_STARTS_WITH;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
+    // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
+    // 已移除（迁移到 stdlib/string.scoop）
 
-    /// `int64_t scoop_string_ends_with(const ScoopString* s, const ScoopString* suffix)`
-    pub(super) fn declare_runtime_string_ends_with(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_ENDS_WITH;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `int64_t scoop_string_index_of(const ScoopString* s, const ScoopString* substr)`
-    pub(super) fn declare_runtime_string_index_of(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_INDEX_OF;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `int64_t scoop_string_contains(const ScoopString* s, const ScoopString* substr)`
-    pub(super) fn declare_runtime_string_contains(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_CONTAINS;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `void* scoop_string_split(const ScoopString* s, const ScoopString* delimiter)`
-    pub(super) fn declare_runtime_string_split(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_SPLIT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let fn_ty = gc_i8_ptr_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    // T0115: String 補齐 — trim/trimStart/trimEnd/isEmpty/replace/charAt/repeat/compareTo
-
-    /// `const ScoopString* scoop_string_trim(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_trim(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `const ScoopString* scoop_string_trim_start(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_trim_start(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM_START;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
-
-    /// `const ScoopString* scoop_string_trim_end(const ScoopString* s)`
-    pub(super) fn declare_runtime_string_trim_end(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM_END;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
-        self.module.add_function(NAME, fn_ty, None)
-    }
+    // T0115: String 補齐 — isEmpty/replace/charAt/repeat/compareTo
 
     /// `int64_t scoop_string_is_empty(const ScoopString* s)`
     pub(super) fn declare_runtime_string_is_empty(&self) -> FunctionValue<'ctx> {

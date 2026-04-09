@@ -1440,20 +1440,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
             // T1811: String P0 methods + T1812 toInt + T0115 extended methods.
+            // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
+            // 已迁移到 stdlib/string.scoop 的纯 Scoop 扩展函数。
             if matches!(
                 member.name.as_str(),
                 "length"
-                    | "substring"
-                    | "startsWith"
-                    | "endsWith"
-                    | "indexOf"
-                    | "contains"
-                    | "split"
                     | "toInt"
                     | "concat"
-                    | "trim"
-                    | "trimStart"
-                    | "trimEnd"
                     | "isEmpty"
                     | "replace"
                     | "charAt"
@@ -2374,238 +2367,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
             }
-            "substring" => {
-                // scoop_string_substring(s, start, end) -> ScoopString*
-                if args.len() != 2 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.substring arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let hir::CallArg::Positional(start_expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.substring named arg",
-                        at: span.into(),
-                    });
-                };
-                let hir::CallArg::Positional(end_expr) = &args[1] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.substring named arg",
-                        at: span.into(),
-                    });
-                };
-                let start = self.codegen_expr_in_expected_context(
-                    start_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
-                )?;
-                let end = self.codegen_expr_in_expected_context(
-                    end_expr,
-                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
-                )?;
-                let start_val = start.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "String.substring start value",
-                    at: span.into(),
-                })?;
-                let end_val = end.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "String.substring end value",
-                    at: span.into(),
-                })?;
-                let rt_fun = self.declare_runtime_string_substring();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[recv_ptr.into(), start_val.into(), end_val.into()],
-                    "rt_string_substring",
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.substring return value",
-                        at: span.into(),
-                    })?;
-                let BasicValueEnum::PointerValue(out_ptr) = ret else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.substring return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: CgTy::String,
-                    value: Some(out_ptr.into()),
-                })
-            }
-            "startsWith" | "endsWith" | "contains" => {
-                // scoop_string_starts_with/ends_with/contains(s, arg) -> i64 (0/1)
-                if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let hir::CallArg::Positional(arg_expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method named arg",
-                        at: span.into(),
-                    });
-                };
-                let arg = self.codegen_expr_in_expected_context(
-                    arg_expr,
-                    Some(CgTy::String),
-                )?;
-                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
-                let Some(arg_raw) = arg_coerced.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method arg value",
-                        at: span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method arg type",
-                        at: span.into(),
-                    });
-                };
-                let rt_fun = match method_name {
-                    "startsWith" => self.declare_runtime_string_starts_with(),
-                    "endsWith" => self.declare_runtime_string_ends_with(),
-                    "contains" => self.declare_runtime_string_contains(),
-                    _ => unreachable!(),
-                };
-                let label = format!("rt_string_{method_name}");
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[recv_ptr.into(), arg_ptr.into()],
-                    &label,
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method return value",
-                        at: span.into(),
-                    })?;
-                let BasicValueEnum::IntValue(iv) = ret else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String method return type",
-                        at: span.into(),
-                    });
-                };
-                // Convert i64 (0/1) to Bool (i1).
-                let bool_val = self.builder.build_int_compare(
-                    inkwell::IntPredicate::NE,
-                    iv,
-                    self.context.i64_type().const_zero(),
-                    "to_bool",
-                )?;
-                Ok(CgValue::bool(bool_val))
-            }
-            "indexOf" => {
-                // scoop_string_index_of(s, substr) -> i64
-                if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let hir::CallArg::Positional(arg_expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf named arg",
-                        at: span.into(),
-                    });
-                };
-                let arg = self.codegen_expr_in_expected_context(
-                    arg_expr,
-                    Some(CgTy::String),
-                )?;
-                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
-                let Some(arg_raw) = arg_coerced.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf arg value",
-                        at: span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf arg type",
-                        at: span.into(),
-                    });
-                };
-                let rt_fun = self.declare_runtime_string_index_of();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[recv_ptr.into(), arg_ptr.into()],
-                    "rt_string_indexOf",
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf return value",
-                        at: span.into(),
-                    })?;
-                let BasicValueEnum::IntValue(iv) = ret else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.indexOf return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
-            }
-            "split" => {
-                // scoop_string_split(s, delimiter) -> void* (ScoopArray*)
-                if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let hir::CallArg::Positional(arg_expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split named arg",
-                        at: span.into(),
-                    });
-                };
-                let arg = self.codegen_expr_in_expected_context(
-                    arg_expr,
-                    Some(CgTy::String),
-                )?;
-                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
-                let Some(arg_raw) = arg_coerced.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split arg value",
-                        at: span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split arg type",
-                        at: span.into(),
-                    });
-                };
-                let rt_fun = self.declare_runtime_string_split();
-                let call = self.builder.build_call(
-                    rt_fun,
-                    &[recv_ptr.into(), arg_ptr.into()],
-                    "rt_string_split",
-                )?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split return value",
-                        at: span.into(),
-                    })?;
-                let BasicValueEnum::PointerValue(out_ptr) = ret else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.split return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(out_ptr.into()),
-                })
-            }
+            // T0122: substring/indexOf/contains/startsWith/endsWith/split 已迁移到 stdlib/string.scoop
             "toInt" => {
                 // scoop_string_to_int(s) -> i64
                 let rt_fun = self.declare_runtime_string_to_int();
@@ -2700,36 +2462,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
             }
-            // T0115: String.trim()/trimStart()/trimEnd() — 0 args → String
-            "trim" | "trimStart" | "trimEnd" => {
-                let rt_fun = match method_name {
-                    "trim" => self.declare_runtime_string_trim(),
-                    "trimStart" => self.declare_runtime_string_trim_start(),
-                    "trimEnd" => self.declare_runtime_string_trim_end(),
-                    _ => unreachable!(),
-                };
-                let label = format!("rt_string_{method_name}");
-                let call = self
-                    .builder
-                    .build_call(rt_fun, &[recv_ptr.into()], &label)?;
-                let ret = call
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.trim* return value",
-                        at: span.into(),
-                    })?;
-                let BasicValueEnum::PointerValue(out_ptr) = ret else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.trim* return type",
-                        at: span.into(),
-                    });
-                };
-                Ok(CgValue {
-                    ty: CgTy::String,
-                    value: Some(out_ptr.into()),
-                })
-            }
+            // T0122: trim/trimStart/trimEnd 已迁移到 stdlib/string.scoop
             // T0115: String.isEmpty() — 0 args → Bool (i64 0/1 → i1)
             "isEmpty" => {
                 let rt_fun = self.declare_runtime_string_is_empty();
@@ -6538,7 +6271,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(ptr.into()),
                 })
             }
-            "scoop.core.__scoop_array_builder_push" => {
+            "scoop.core.__scoop_array_builder_push"
+            | "scoop.core.__scoop_array_builder_push_string" => {
                 if args.len() != 2 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "array_builder_push arity mismatch",
@@ -6614,7 +6348,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::unit())
             }
             "scoop.core.__scoop_array_builder_build_array"
-            | "scoop.core.__scoop_array_builder_build_mutable_array" => {
+            | "scoop.core.__scoop_array_builder_build_mutable_array"
+            | "scoop.core.__scoop_array_builder_build_array_string" => {
                 if args.len() != 1 {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "array_builder_build arity mismatch",
@@ -6646,7 +6381,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
 
                 let rt = match fqn {
-                    "scoop.core.__scoop_array_builder_build_array" => {
+                    "scoop.core.__scoop_array_builder_build_array"
+                    | "scoop.core.__scoop_array_builder_build_array_string" => {
                         self.declare_runtime_array_builder_build_array()
                     }
                     "scoop.core.__scoop_array_builder_build_mutable_array" => {

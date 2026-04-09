@@ -327,3 +327,11 @@ cargo run -p scoop --features llvm -- test
   - **typecheck error fixture**：非 unsafe context 调用报 `UnsafeCallRequiresUnsafeContext`。
   - **run-pass fixture**：`string_unsafe_slice_bytes`（15 个输出行：基本切片 + 空切片 + 边界防御 + byteLength/getByte 联合验证）。
   - 139 单元测试 + 801 fixtures 通过。
+
+- DONE（T0122）：String 操作迁移——将 runtime/c substring 类函数替换为纯 Scoop 实现：
+  - **新增 `stdlib/string.scoop`**：9 个 extension functions（substring/indexOf/contains/startsWith/endsWith/split/trimStart/trimEnd/trim），基于 T0120 byteLength/getByte + T0121 unsafeSliceBytes 实现。
+  - **codegen 新增**：`__scoop_array_builder_push_string` / `__scoop_array_builder_build_array_string` @Intrinsic 支持（split 返回 Array<String>）。
+  - **移除 C runtime**：9 个 C 函数（scoop_string_substring/index_of/contains/starts_with/ends_with/split/trim/trim_start/trim_end）+ is_ascii_whitespace helper。
+  - **移除编译器硬编码路径**：resolver 白名单（9 项）、typecheck 签名规则（9 组）、codegen string_method dispatch（9 分支）、runtime_abi（9 个 declare_runtime_*）、runtime_symbols（9 个常量）、runtime API allowlist（9 个 X-macro）。
+  - **codegen 限制适配**：stdlib 函数避免 return/break/continue in block expressions（当前 LLVM codegen 不支持 function-level CFG）；使用 flag+越界赋值模拟 break；if 必须有 else 分支；常量通过 sizeOf 派生（无 Int/String 字面量）。
+  - 139 单元测试 + 801 fixtures 通过（行为完全不变）。

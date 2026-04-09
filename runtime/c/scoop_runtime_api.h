@@ -137,23 +137,14 @@
   X(scoop_string_char_at) \
   X(scoop_string_compare_to) \
   X(scoop_string_concat) \
-  X(scoop_string_contains) \
-  X(scoop_string_ends_with) \
   X(scoop_string_equals) \
   X(scoop_string_hash) \
-  X(scoop_string_index_of) \
   X(scoop_string_is_empty) \
   X(scoop_string_length) \
   X(scoop_string_repeat) \
   X(scoop_string_replace) \
-  X(scoop_string_split) \
-  X(scoop_string_starts_with) \
-  X(scoop_string_substring) \
   X(scoop_string_to_int) \
-  X(scoop_string_trim) \
-  X(scoop_string_trim_end) \
   X(scoop_string_trim_indent) \
-  X(scoop_string_trim_start) \
   X(scoop_string_unsafe_slice_bytes) \
   X(scoop_sync_condvar_create) \
   X(scoop_sync_condvar_destroy) \
