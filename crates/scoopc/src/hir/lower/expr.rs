@@ -295,21 +295,40 @@ impl<'a> HirLowering<'a> {
 
                     let callee_fqn = self.callee_top_level_fqn(callee);
                     let sig = callee_fqn.and_then(|fqn| self.fun_sig_by_fqn(fqn));
+
+                    // T0113: find the vararg param index (if any) from the callee sig.
+                    let vararg_param_index = sig.as_ref().and_then(|s| {
+                        // Account for receiver: if the function has a receiver, params
+                        // in the sig start with it, but call args don't include receiver.
+                        let offset = if s.receiver.is_some() { 1 } else { 0 };
+                        s.params.iter().enumerate().find_map(|(i, p)| {
+                            if p.is_vararg { Some(i.saturating_sub(offset)) } else { None }
+                        })
+                    });
+
                     let callee = Box::new(self.lower_expr(pkg_prefix, callee));
-                    let mut positional_index = 0usize;
-                    let mut lowered_args: Vec<CallArg> = Vec::with_capacity(args.len());
-                    for arg in args {
-                        let expected = self.expected_expr_for_fun_call_arg(
-                            sig.as_ref(),
-                            arg,
-                            positional_index,
-                        );
-                        if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
-                            positional_index = positional_index.saturating_add(1);
+
+                    // T0113: if there's a vararg param, split args into pre-vararg,
+                    // vararg, and post-vararg, and wrap the vararg args in an array literal.
+                    let lowered_args = if let Some(va_idx) = vararg_param_index {
+                        self.lower_call_args_with_vararg(pkg_prefix, e.span, args, sig.as_ref(), va_idx)
+                    } else {
+                        let mut positional_index = 0usize;
+                        let mut out: Vec<CallArg> = Vec::with_capacity(args.len());
+                        for arg in args {
+                            let expected = self.expected_expr_for_fun_call_arg(
+                                sig.as_ref(),
+                                arg,
+                                positional_index,
+                            );
+                            if !matches!(arg.kind, ast::ExprKind::NamedArg { .. }) {
+                                positional_index = positional_index.saturating_add(1);
+                            }
+                            out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
                         }
-                        lowered_args
-                            .push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
-                    }
+                        out
+                    };
+
                     (
                         ExprKind::Call {
                             callee,
@@ -956,6 +975,226 @@ impl<'a> HirLowering<'a> {
                 value: self.lower_expr_with_expected(pkg_prefix, value, expected),
             },
             _ => CallArg::Positional(self.lower_expr_with_expected(pkg_prefix, arg, expected)),
+        }
+    }
+
+    /// T0113: Lower call arguments when the callee has a vararg parameter.
+    ///
+    /// Strategy:
+    /// - Args before the vararg index are lowered as normal positional args.
+    /// - Args at and after the vararg index (up to the end) are collected:
+    ///   - If a single spread arg `*arr`: pass the inner expression directly as the array.
+    ///   - Otherwise: wrap individual args into an array literal using the builder pattern.
+    /// - The vararg slot becomes a single `CallArg::Positional(Array<T>)` expression.
+    fn lower_call_args_with_vararg(
+        &mut self,
+        pkg_prefix: &str,
+        call_span: Span,
+        args: &[ast::Expr],
+        sig: Option<&crate::resolve::FunSig>,
+        vararg_idx: usize,
+    ) -> Vec<CallArg> {
+        let mut out: Vec<CallArg> = Vec::with_capacity(args.len());
+        let mut positional_index = 0usize;
+        let mut vararg_args: Vec<&ast::Expr> = Vec::new();
+        let mut has_spread = false;
+
+        for arg in args {
+            // Named args are passed through without affecting positional index.
+            if let ast::ExprKind::NamedArg { .. } = &arg.kind {
+                let expected = self.expected_expr_for_fun_call_arg(
+                    sig,
+                    arg,
+                    positional_index,
+                );
+                out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
+                continue;
+            }
+
+            if positional_index < vararg_idx {
+                // Pre-vararg: normal positional arg.
+                let expected = self.expected_expr_for_fun_call_arg(
+                    sig,
+                    arg,
+                    positional_index,
+                );
+                out.push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
+            } else {
+                // Vararg slot: collect for later wrapping.
+                if matches!(&arg.kind, ast::ExprKind::SpreadArg { .. }) {
+                    has_spread = true;
+                }
+                vararg_args.push(arg);
+            }
+            positional_index = positional_index.saturating_add(1);
+        }
+
+        // Build the vararg array arg.
+        let vararg_expr = if vararg_args.is_empty() {
+            // No args for vararg slot: pass an empty array.
+            self.synth_empty_array_lit(call_span)
+        } else if vararg_args.len() == 1 && has_spread {
+            // Single spread arg: unwrap and pass the inner expression directly.
+            let arg = vararg_args[0];
+            match &arg.kind {
+                ast::ExprKind::SpreadArg { expr: inner, .. } => {
+                    self.lower_expr(pkg_prefix, inner)
+                }
+                _ => unreachable!("has_spread is true but arg is not SpreadArg"),
+            }
+        } else {
+            // Individual args: wrap in an array literal using the builder pattern.
+            let elements: Vec<&ast::Expr> = vararg_args
+                .into_iter()
+                .map(|arg| match &arg.kind {
+                    // Unwrap spread args — this is a mixed case, currently unsupported;
+                    // fall back to passing the inner expr as an element.
+                    ast::ExprKind::SpreadArg { expr: inner, .. } => inner.as_ref(),
+                    _ => arg,
+                })
+                .collect();
+            self.synth_array_lit_from_exprs(pkg_prefix, call_span, &elements)
+        };
+
+        out.push(CallArg::Positional(vararg_expr));
+        out
+    }
+
+    /// Synthesize an empty array literal expression.
+    fn synth_empty_array_lit(&mut self, span: Span) -> Expr {
+        self.synth_array_lit_from_exprs("", span, &[])
+    }
+
+    /// Synthesize an array literal from a list of AST expressions.
+    ///
+    /// Uses the same builder pattern as `lower_array_lit_expr`:
+    /// `__scoop_array_builder_new()` → push elements → `__scoop_array_builder_build_array()`.
+    fn synth_array_lit_from_exprs(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        elements: &[&ast::Expr],
+    ) -> Expr {
+        let builder_decl_span = Span::new(span.start, span.start);
+        let builder_id = self.intern_local_symbol(builder_decl_span, false);
+        let builder_name = "__vararg_builder".to_string();
+
+        // val __vararg_builder = __scoop_array_builder_new()
+        let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
+        let new_callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(new_fqn.clone()),
+                fqn: new_fqn,
+            }),
+        };
+        let new_call = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(new_callee),
+                args: Vec::new(),
+            },
+        };
+
+        let builder_decl = ValDecl {
+            span,
+            id: Some(builder_id),
+            name: Some(builder_name.clone()),
+            mutable: false,
+            ty: self.builtins.any,
+            init: Some(new_call),
+        };
+
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(elements.len() + 2);
+        stmts.push(Stmt {
+            span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(builder_decl),
+        });
+
+        // __scoop_array_builder_push(builder, element) for each element
+        for element in elements {
+            let element_expr = self.lower_expr(pkg_prefix, element);
+            let builder_ref = Expr {
+                span: builder_decl_span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id: builder_id,
+                    name: builder_name.clone(),
+                    decl_span: builder_decl_span,
+                }),
+            };
+
+            let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
+            let push_callee = Expr {
+                span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::TopLevel {
+                    id: self.symbols.intern_top_level(push_fqn.clone()),
+                    fqn: push_fqn,
+                }),
+            };
+            let push_call = Expr {
+                span,
+                ty: self.builtins.unit,
+                kind: ExprKind::Call {
+                    callee: Box::new(push_callee),
+                    args: vec![
+                        CallArg::Positional(builder_ref),
+                        CallArg::Positional(element_expr),
+                    ],
+                },
+            };
+            stmts.push(Stmt {
+                span,
+                ty: self.builtins.unit,
+                kind: StmtKind::Expr(push_call),
+            });
+        }
+
+        // __scoop_array_builder_build_array(builder)
+        let builder_ref_final = Expr {
+            span: builder_decl_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: builder_id,
+                name: builder_name.clone(),
+                decl_span: builder_decl_span,
+            }),
+        };
+        let build_fqn = Self::ARRAY_BUILDER_BUILD_ARRAY_FQN.to_string();
+        let build_callee = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                id: self.symbols.intern_top_level(build_fqn.clone()),
+                fqn: build_fqn,
+            }),
+        };
+        let build_call = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(build_callee),
+                args: vec![CallArg::Positional(builder_ref_final)],
+            },
+        };
+        stmts.push(Stmt {
+            span,
+            ty: self.builtins.any,
+            kind: StmtKind::Expr(build_call),
+        });
+
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: self.builtins.any,
+                stmts,
+            }),
         }
     }
 

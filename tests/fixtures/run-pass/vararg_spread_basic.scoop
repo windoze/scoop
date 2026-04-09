@@ -1,0 +1,36 @@
+// EXPECT: pass
+// RUN-STDOUT: vararg_spread_basic.stdout
+//
+// T0113: vararg 参数 + spread `*arr` codegen
+//
+// 覆盖：
+// - vararg 函数声明（callee 侧 `xs` 为 `Array<Int>`）
+// - 个别参数调用 `sum(1, 2, 3)` → 打包为 ArrayLit
+// - spread 调用 `sum(*arr)` → 直接传递数组
+// - 零参数调用 `sum()` → 空数组
+
+import scoop.core.*
+
+fun sum(vararg xs: Int): Int {
+    var total: Int = 0
+    var i: Int = 0
+    while (i < xs.size()) {
+        total = total + xs.get(i)
+        i = i + 1
+    }
+    return total
+}
+
+fun main(): Int {
+    // individual args → packed into array
+    println(sum(1, 2, 3))
+
+    // zero args → empty array
+    println(sum())
+
+    // spread → pass array directly
+    val arr: Array<Int> = [10, 20, 30]
+    println(sum(*arr))
+
+    return 0
+}

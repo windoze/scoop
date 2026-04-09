@@ -334,6 +334,7 @@ pub fn inject_cone_dependency_public_api(
                 name_span: synth.alloc(&p.name),
                 ty: Some(ir_type_to_type_ref(&mut synth, &p.ty)),
                 has_default: false,
+                is_vararg: false,
             })
             .collect::<Vec<_>>();
 

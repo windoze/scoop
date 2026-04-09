@@ -375,10 +375,22 @@ impl<'a> HirLowering<'a> {
         for p in &fun.params {
             let name = p.name.text(self.source).to_string();
             let id = self.intern_local_symbol(p.name.span, false);
-            let ty =
+            let elem_ty =
                 p.ty.as_ref()
                     .map(|t| self.lower_type_ref(t))
                     .unwrap_or(self.builtins.any);
+            // T0113: vararg param type `T` → `Array<T>` (the function body uses it as an array).
+            let ty = if p.is_vararg {
+                self.types.intern(crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: "scoop.core.Array".to_string(),
+                        args: vec![elem_ty],
+                        eff: None,
+                    },
+                )))
+            } else {
+                elem_ty
+            };
             params.push(Param {
                 span: p.name.span,
                 id,
@@ -667,10 +679,22 @@ impl<'a> HirLowering<'a> {
         for p in &fun.params {
             let name = p.name.text(self.source).to_string();
             let id = self.intern_local_symbol(p.name.span, false);
-            let ty =
+            let elem_ty =
                 p.ty.as_ref()
                     .map(|t| self.lower_type_ref(t))
                     .unwrap_or(self.builtins.any);
+            // T0113: vararg param type `T` → `Array<T>` (the function body uses it as an array).
+            let ty = if p.is_vararg {
+                self.types.intern(crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(
+                    crate::ty::NominalType {
+                        fqn: "scoop.core.Array".to_string(),
+                        args: vec![elem_ty],
+                        eff: None,
+                    },
+                )))
+            } else {
+                elem_ty
+            };
             params.push(Param {
                 span: p.name.span,
                 id,

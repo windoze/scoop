@@ -293,6 +293,7 @@ pub struct ParamSig {
     pub name_span: Span,
     pub ty: Option<ast::TypeRef>,
     pub has_default: bool,
+    pub is_vararg: bool,
 }
 
 /// Index 侧记录的函数 type parameter（仅名字与 span）。
@@ -1255,6 +1256,7 @@ impl Index {
                 name_span: p.name.span,
                 ty: p.ty.clone(),
                 has_default: p.default_value.is_some(),
+                is_vararg: p.is_vararg,
             })
             .collect::<Vec<_>>();
 
@@ -1304,6 +1306,7 @@ impl Index {
                 name_span: p.name.span,
                 ty: p.ty.clone(),
                 has_default: p.default_value.is_some(),
+                is_vararg: p.is_vararg,
             })
             .collect::<Vec<_>>();
 

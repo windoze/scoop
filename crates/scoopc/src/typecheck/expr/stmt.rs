@@ -343,7 +343,17 @@ pub(super) fn check_fun_body_exprs(
                 let Some(ty_ref) = &p.ty else {
                     continue;
                 };
-                let ty = lower.lower_type_ref(ty_ref)?;
+                let elem_ty = lower.lower_type_ref(ty_ref)?;
+                // T0113: vararg 参数在函数体内被视为 Array<T>。
+                let ty = if p.is_vararg {
+                    lower.lower_type_fqn_with_args(
+                        "scoop.core.Array".into(),
+                        vec![elem_ty],
+                        p.name.span,
+                    )?
+                } else {
+                    elem_ty
+                };
                 locals.insert(p.name.span, ty);
                 stable_bindings.insert(p.name.span);
 

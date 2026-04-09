@@ -52,6 +52,9 @@ struct BlockScopeChecker<'a> {
 struct LocalBinding {
     decl_span: Span,
     ty: Option<ast::TypeRef>,
+    /// T0113: vararg 参数声明时，receiver FQN 应为 `Array<T>` 而非 `T` 本身。
+    /// 用于 `infer_member_receiver_kind` 覆盖 `type_ref_to_fqn` 的结果。
+    ty_fqn_override: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -356,6 +359,15 @@ impl<'a> BlockScopeChecker<'a> {
         self.push_scope();
         for p in &mut fun.params {
             self.declare_ident_typed(&p.name, p.ty.clone())?;
+            // T0113: vararg 参数在函数体内被视为 Array<T>，覆盖 receiver FQN。
+            if p.is_vararg {
+                let name = p.name.text(self.source).to_string();
+                if let Some(cur) = self.scopes.last_mut() {
+                    if let Some(binding) = cur.get_mut(&name) {
+                        binding.ty_fqn_override = Some("scoop.core.Array".to_string());
+                    }
+                }
+            }
             if let Some(default) = &mut p.default_value {
                 self.check_expr(default)?;
             }
@@ -1526,6 +1538,7 @@ impl<'a> BlockScopeChecker<'a> {
             LocalBinding {
                 decl_span: span,
                 ty,
+                ty_fqn_override: None,
             },
         );
         Ok(())
@@ -2186,6 +2199,12 @@ impl<'a> BlockScopeChecker<'a> {
                 }
 
                 if let Some(binding) = self.local_binding(name) {
+                    // T0113: vararg override 优先于 TypeRef 推导。
+                    if let Some(fqn) = &binding.ty_fqn_override {
+                        return Some(MemberReceiverKind::Value {
+                            ty_fqn: fqn.clone(),
+                        });
+                    }
                     return self
                         .type_ref_to_fqn(binding.ty.as_ref()?)
                         .map(|ty_fqn| MemberReceiverKind::Value { ty_fqn });

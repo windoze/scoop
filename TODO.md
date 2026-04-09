@@ -312,7 +312,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
 
-### T0113 [TODO] Varargs spread `*arr` codegen
+### T0113 [DONE] Varargs spread `*arr` codegen
 
 - 描述：Spec B.5 定义 `vararg` 参数和 spread 运算符 `*arr`。当前 HIR lowering 为 `Todo("spread_arg")`（`lower/expr.rs:301`），注释说明"spread 仅在调用实参语境下有意义；HIR v0 暂不承载该语义"。
 - 规范引用：Spec Appendix B.5（Functions：varargs）。
