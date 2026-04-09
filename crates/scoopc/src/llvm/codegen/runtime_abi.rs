@@ -110,7 +110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// `const ScoopString* scoop_string_substring(const ScoopString* s, int64_t start, int64_t end)`
-    // T0122: declare_runtime_string_substring 已移除（迁移到 stdlib/string.scoop）
+    // T0122/T0143: declare_runtime_string_substring 已移除（迁移到 sysroot/string.scoop）
 
     /// `const ScoopString* scoop_string_unsafe_slice_bytes(const ScoopString* source, int64_t offset, int64_t len)`
     pub(super) fn declare_runtime_string_unsafe_slice_bytes(&self) -> FunctionValue<'ctx> {
@@ -136,7 +136,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
-    // 已移除（迁移到 stdlib/string.scoop）
+    // 已移除（迁移到 sysroot/string.scoop）
 
     // T0115: String 補齐 — isEmpty/replace/charAt/repeat/compareTo
 

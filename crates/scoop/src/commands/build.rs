@@ -457,6 +457,16 @@ fn load_stdlib_sources() -> Result<Vec<scoopc::source::SourceFile>> {
 
     let mut paths = Vec::new();
     collect_scoop_files(&root, &mut paths)?;
+
+    // T0143：加载 sysroot 中的"可编译"源文件（如 sysroot/string.scoop）。
+    // 这些文件含有需要编译的函数体（纯 Scoop 实现），与 stdlib 一起参与完整管线。
+    // Sysroot::load_from() 会将它们排除在签名索引之外，避免双重声明。
+    let sysroot_root = scoopc::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（T0143）")?;
+    scoopc::sysroot::collect_compilable_sysroot_files(&sysroot_root, &mut paths)?;
+
     paths.sort();
 
     let mut out = Vec::with_capacity(paths.len());
@@ -944,8 +954,6 @@ fn lower_main_hir_for_build(
     }
 
     // T1315a：stdlib 注入后需要 multi-file lowering（否则 stdlib 顶层函数不会出现在 fun_index 中）。
-    // 说明：当前 LLVM 后端仍以“单一 SourceFile”读取字面量文本；multi-file lowering 会拒绝
-    // 非入口文件中的源文本字面量（见 `scoopc::hir::lower_for_compilation_unit_multi_files`）。
     let files_to_lower = front
         .input
         .sources

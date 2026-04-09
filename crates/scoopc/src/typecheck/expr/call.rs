@@ -4031,7 +4031,7 @@ fn infer_member_call_expr_type(
             });
         }
         // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-        // 已迁移到 stdlib/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
+        // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 extension fun 路径处理。
 
         // T1816: String.concat(other: String): String — 字符串连接。
         if member_name == "concat" {

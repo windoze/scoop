@@ -1677,7 +1677,7 @@ impl<'a> BlockScopeChecker<'a> {
         //   让后续 typecheck/codegen 走 intrinsic 路径。
         if receiver_ty_fqn == "scoop.core.String" {
             // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-            // 已迁移到 stdlib/string.scoop 的纯 Scoop 扩展函数，由 resolver extension fun 路径处理。
+            // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数，由 resolver extension fun 路径处理。
             let is_known_string_method = member_name == "trimIndent"
                 || member_name == "length"
                 || member_name == "toInt"

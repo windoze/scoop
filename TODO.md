@@ -637,21 +637,15 @@ cargo run -p scoop --features llvm -- test
     - `if_without_else_as_value_is_error.scoop`（typecheck fail）：`val x: Int = if (true) { 5 }` → `initializer_type_mismatch`。
   - 139 单元测试 + 809 fixtures 通过。
 
-### T0143 [TODO] String 扩展方法从 stdlib 迁移到 sysroot core 库
+### T0143 [DONE] String 扩展方法从 stdlib 迁移到 sysroot core 库
 
-- 描述：`stdlib/string.scoop` 中的 String 扩展方法（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split`/`trim`/`trimStart`/`trimEnd`）属于 String 类型的基础操作，应作为 core 库的一部分（`sysroot/`），而非 stdlib。当前放在 `stdlib/` 是因为 T0122 迁移时受限于编译器能力（字面量、控制流），选择了阻力最小的路径。T0140-T0142 解决编译器限制后，应将这些方法迁移到 `sysroot/` 并利用新能力重写简化。
-- 目标：
-  1. 将 `stdlib/string.scoop` 的内容迁移到 `sysroot/` 下（可新建 `sysroot/string.scoop` 或合并入 `sysroot/core.scoop`，视文件体量决定）。
-  2. 利用 T0140（字面量支持）移除 `__string_zero`/`__string_one`/`__string_is_whitespace_byte` 等 hack 函数，直接使用 `0`、`1`、`32` 等字面量。
-  3. 利用 T0141（块级控制流）将 flag + 越界赋值模式改写为 `break`/`continue`/`return`。
-  4. 利用 T0142（if-without-else）移除所有多余的 `else { }` 空分支。
-  5. 更新编译器中所有引用 `stdlib/string.scoop` 的路径（`resolve/scopes.rs`、`typecheck/expr/call.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/runtime_abi.rs` 中的注释等）。
-  6. 删除 `stdlib/string.scoop`。
-- 验收：
-  - String 扩展方法作为 sysroot core 库的一部分被编译，无需用户显式 import。
-  - 代码中不再有 `__string_zero`/`__string_one` 等辅助函数。
-  - 现有 String 相关 run-pass fixtures 全部通过（行为不变）。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 描述：`stdlib/string.scoop` 中的 String 扩展方法（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split`/`trim`/`trimStart`/`trimEnd`）属于 String 类型的基础操作，应作为 core 库的一部分（`sysroot/`），而非 stdlib。
+- 实现：
+  1. 新建 `sysroot/string.scoop`：利用 T0140 字面量替换 `__string_zero`/`__string_one` 等 hack、T0141 `break`/`continue`/`return` 替换 flag+越界赋值模式、T0142 移除多余 `else { }`。
+  2. 编译器 sysroot 加载分离：`Sysroot` 新增 `compilable_source_paths` 字段，`is_compilable_sysroot_file()` 将 `string.scoop` 从签名索引中排除，通过 `collect_compilable_sysroot_files()` 公共函数供 build pipeline 的 `load_stdlib_sources()` 加入 `input.sources`（走完整 resolve → typecheck → HIR → codegen 管线）。
+  3. 更新编译器中所有引用 `stdlib/string.scoop` 的注释（`resolve/scopes.rs`、`typecheck/expr/call.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c`）。
+  4. 删除 `stdlib/string.scoop`。
+- 验收：139 单元测试 + 809 fixtures 通过（行为完全不变）。
 - 依赖：T0140、T0141、T0142
 
 ### T0124 [TODO] 泛型验证与修复：monomorphization 扩展至泛型 class/struct/enum

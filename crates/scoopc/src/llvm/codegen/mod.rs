@@ -1511,7 +1511,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             // T1811: String P0 methods + T1812 toInt + T0115 extended methods.
             // T0122: substring/indexOf/contains/startsWith/endsWith/split/trim/trimStart/trimEnd
-            // 已迁移到 stdlib/string.scoop 的纯 Scoop 扩展函数。
+            // 已迁移到 sysroot/string.scoop 的纯 Scoop 扩展函数。
             if matches!(
                 member.name.as_str(),
                 "length"
@@ -2437,7 +2437,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
             }
-            // T0122: substring/indexOf/contains/startsWith/endsWith/split 已迁移到 stdlib/string.scoop
+            // T0122/T0143: substring/indexOf/contains/startsWith/endsWith/split 已迁移到 sysroot/string.scoop
             "toInt" => {
                 // scoop_string_to_int(s) -> i64
                 let rt_fun = self.declare_runtime_string_to_int();
@@ -2532,7 +2532,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
             }
-            // T0122: trim/trimStart/trimEnd 已迁移到 stdlib/string.scoop
+            // T0122/T0143: trim/trimStart/trimEnd 已迁移到 sysroot/string.scoop
             // T0115: String.isEmpty() — 0 args → Bool (i64 0/1 → i1)
             "isEmpty" => {
                 let rt_fun = self.declare_runtime_string_is_empty();

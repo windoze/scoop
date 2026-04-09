@@ -2393,7 +2393,7 @@ int64_t scoop_string_length(const ScoopString *s) {
 }
 
 // T0122: substring/starts_with/ends_with/index_of/contains/split
-// 已迁移到 stdlib/string.scoop（纯 Scoop 实现）。
+// 已迁移到 sysroot/string.scoop（纯 Scoop 实现）。
 
 // ---------------------------------------------------------------------------
 // T1812: 数値↔文本 変換 (Int.toString / String.toInt)
@@ -2551,7 +2551,7 @@ int64_t scoop_string_equals(const ScoopString *a, const ScoopString *b) {
 }
 
 // T0122: trim/trimStart/trimEnd + is_ascii_whitespace helper
-// 已迁移到 stdlib/string.scoop（纯 Scoop 实现）。
+// 已迁移到 sysroot/string.scoop（纯 Scoop 实现）。
 
 // ── T0115: String 补齐（未迁移部分） ─────────────────────────────────
 

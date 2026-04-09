@@ -350,3 +350,10 @@ cargo run -p scoop --features llvm -- test
   - **typecheck**：if-without-else 作为值表达式已正确报 `initializer_type_mismatch`。
   - **2 个 fixtures**：`if_without_else`（run-pass，12 行输出）+ `if_without_else_as_value_is_error`（typecheck fail）。
   - 139 单元测试 + 809 fixtures 通过。
+
+- DONE（T0143）：String 扩展方法从 stdlib 迁移到 sysroot core 库：
+  - **`sysroot/string.scoop`**（新建）：9 个 extension methods 重写——字面量替换 `__string_zero`/`__string_one`、`break`/`return` 替换 flag+越界赋值、移除冗余 `else { }`。
+  - **编译器 sysroot 加载分离**：`Sysroot` 新增 `compilable_source_paths`；`is_compilable_sysroot_file()` 按文件名分流；`collect_compilable_sysroot_files()` 供 build pipeline 将可编译 sysroot 文件加入 `input.sources`（走完整 resolve → typecheck → HIR → codegen 管线）。
+  - **注释更新**：`resolve/scopes.rs`、`typecheck/expr/call.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/runtime_abi.rs`、`runtime/c/scoop_runtime.c` 中的 `stdlib/string.scoop` → `sysroot/string.scoop`。
+  - **删除 `stdlib/string.scoop`**。
+  - 139 单元测试 + 809 fixtures 通过。

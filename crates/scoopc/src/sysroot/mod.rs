@@ -12,10 +12,17 @@ use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
 use crate::source::SourceFile;
 
+/// T0143：sysroot 文件分为两类：
+/// - `files`：签名文件（仅声明，不编译函数体）。用于 Index 与类型检查。
+/// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `string.scoop`），
+///   需作为编译单元的一部分参与完整的 resolve → typecheck → HIR lowering → codegen 管线。
+///   这些文件不重复加入 `files`，以避免 Index 中出现双重声明。
 #[derive(Debug)]
 pub struct Sysroot {
     pub root: PathBuf,
     pub files: Vec<SysrootFile>,
+    /// T0143：需要被编译（而非仅作为签名索引）的 sysroot 源文件路径。
+    pub compilable_source_paths: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -55,7 +62,15 @@ impl Sysroot {
         }
 
         let mut files = Vec::new();
+        let mut compilable_source_paths = Vec::new();
         for path in paths {
+            // T0143：含有顶层函数体的 sysroot 文件（如 string.scoop）需要走完整编译管线，
+            // 而非仅作为签名索引。将它们分离出来，由 build pipeline 加入 input.sources。
+            if is_compilable_sysroot_file(&path) {
+                compilable_source_paths.push(path);
+                continue;
+            }
+
             let source = SourceFile::load(&path)?;
             let mut ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
@@ -70,8 +85,33 @@ impl Sysroot {
             files.push(SysrootFile { path, source, ast });
         }
 
-        Ok(Self { root, files })
+        Ok(Self {
+            root,
+            files,
+            compilable_source_paths,
+        })
     }
+}
+
+/// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
+/// 当前规则：文件名为 `string.scoop` 的 sysroot 文件含有 String 扩展方法的纯 Scoop 实现，
+/// 需要走完整编译管线。后续可扩展为基于文件内容或 annotation 的判断。
+fn is_compilable_sysroot_file(path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name == "string.scoop")
+}
+
+/// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
+/// 供 build pipeline 的 `load_stdlib_sources()` 调用，将这些文件与 stdlib 一同加入 `input.sources`。
+pub fn collect_compilable_sysroot_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    let mut all = Vec::new();
+    collect_scoop_files(root, &mut all)?;
+    for path in all {
+        if is_compilable_sysroot_file(&path) {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
