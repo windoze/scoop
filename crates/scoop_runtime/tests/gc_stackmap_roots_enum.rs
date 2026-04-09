@@ -13,7 +13,7 @@ unsafe extern "C" {
 )]
 fn gc_stackmap_roots_enum_smoke() {
     assert!(
-        GC_CAPABILITIES.stw && GC_CAPABILITIES.multi_thread_roots_enum,
+        std::hint::black_box(GC_CAPABILITIES.stw && GC_CAPABILITIES.multi_thread_roots_enum),
         "该测试要求 STW + 多线程 roots 枚举能力；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
     );
 

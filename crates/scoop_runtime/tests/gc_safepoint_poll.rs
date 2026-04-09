@@ -22,7 +22,7 @@ unsafe extern "C" {
 )]
 fn gc_safepoint_poll_can_park_and_resume_other_threads() {
     assert!(
-        GC_CAPABILITIES.stw,
+        std::hint::black_box(GC_CAPABILITIES.stw),
         "该测试要求 STW 能力；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
     );
 

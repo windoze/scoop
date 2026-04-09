@@ -34,7 +34,7 @@ unsafe extern "C" {
 )]
 fn gc_verify_roots_env_smoke() {
     assert!(
-        GC_CAPABILITIES.stw && GC_CAPABILITIES.native_roots,
+        std::hint::black_box(GC_CAPABILITIES.stw && GC_CAPABILITIES.native_roots),
         "该测试要求 STW + native_roots；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
     );
 

@@ -211,10 +211,9 @@ fn once_guard_is_canonical_across_dylibs() {
         type AddrFn = unsafe extern "C" fn() -> usize;
         type AccessFn = unsafe extern "C" fn(*mut u64) -> u32;
 
-        let local_addr: &CStr = CStr::from_bytes_with_nul(b"plugin_local_guard_addr\0").unwrap();
-        let canon_addr: &CStr =
-            CStr::from_bytes_with_nul(b"plugin_canonical_guard_addr\0").unwrap();
-        let access: &CStr = CStr::from_bytes_with_nul(b"plugin_access\0").unwrap();
+        let local_addr: &CStr = c"plugin_local_guard_addr";
+        let canon_addr: &CStr = c"plugin_canonical_guard_addr";
+        let access: &CStr = c"plugin_access";
 
         // 先加载 A 并触发一次访问，再加载 B：
         // - 覆盖“先访问后 dlopen”的真实插件场景；

@@ -74,7 +74,7 @@ unsafe extern "C" {
 )]
 fn type_descriptor_release_callback_runs_once_on_sweep() {
     assert!(
-        GC_CAPABILITIES.native_roots,
+        std::hint::black_box(GC_CAPABILITIES.native_roots),
         "该测试依赖 native_roots（enter_native roots slots）；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
     );
 

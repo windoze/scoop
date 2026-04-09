@@ -426,10 +426,10 @@ pub fn run_stdlib_check(fixtures_root: &Path) -> Result<StdlibReport> {
         {
             let entry = entry.into_diagnostic()?;
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("scoop") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    fixture_stems.push(stem.to_string());
-                }
+            if path.extension().and_then(|e| e.to_str()) == Some("scoop")
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                fixture_stems.push(stem.to_string());
             }
         }
     }

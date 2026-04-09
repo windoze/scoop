@@ -182,7 +182,6 @@ mod immix {
             let published = published.clone();
             let start = start.clone();
             let stop = stop.clone();
-            let desc_addr = desc_addr;
 
             handles.push(std::thread::spawn(move || unsafe {
                 scoop_thread_register();
@@ -238,7 +237,7 @@ mod immix {
                     let next_root = root_payload.add(0).read();
 
                     // 周期性“断链”，让旧链条变成垃圾，从而逼迫 sweep/holes 复用路径跑起来。
-                    let keep_chain = (i % 64) != 0;
+                    let keep_chain = !i.is_multiple_of(64);
                     let node_prev = if keep_chain {
                         local_head
                     } else {
@@ -261,7 +260,7 @@ mod immix {
                     payload.add(1).write(node);
 
                     // 额外制造一小批“立即变成垃圾”的对象，增加 sweep 工作量。
-                    if (i % 16) == 0 {
+                    if i.is_multiple_of(16) {
                         let _garbage0 = alloc_node(
                             desc_addr as *const ScoopTypeDescriptor,
                             header_size,
@@ -286,7 +285,7 @@ mod immix {
                     assert_eq!(read_node_sentinel(root_now, header_size), tid as u64);
 
                     // 偶尔检查 pinned anchor 的 payload 未被覆盖。
-                    if (i % 256) == 0 {
+                    if i.is_multiple_of(256) {
                         assert_anchor_sentinel(anchor, header_size, 0xCD);
                         std::thread::yield_now();
                     }

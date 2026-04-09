@@ -68,6 +68,9 @@ use types::{
     CgEnumLayout, CgEnumPayload, CgEnumRepr, CgEnumVariant, CgTy, CgValue, GC_ADDRSPACE, IntTy,
 };
 
+/// Closure parameter bindings: explicit/implicit params paired with their types, plus remaining captures.
+type ClosureParamBindings = (Vec<(hir::SymbolId, String, TypeId)>, Vec<hir::Capture>);
+
 /// 一个局部变量（`val`/`var`）在 LLVM 里的存储形态。
 ///
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
@@ -434,10 +437,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         gv.set_initializer(&init);
 
         // `@CLayout(aligned = N)`：对显式对齐的值类型，在全局存储上透传 alignment。
-        if let CgTy::Struct(struct_ty) = cg_ty {
-            if let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned) {
-                gv.set_alignment(aligned);
-            }
+        if let CgTy::Struct(struct_ty) = cg_ty
+            && let Some(aligned) = self.struct_clayout(struct_ty).and_then(|c| c.aligned)
+        {
+            gv.set_alignment(aligned);
         }
         Ok(gv)
     }
@@ -1040,12 +1043,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // T0616：`-> resume` arm body 内的 `resume(value)`（隐式注入的局部符号）。
-        if let Some(ctx) = self.current_immediate_resume_ctx() {
-            if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind {
-                if *id == ctx.resume_symbol {
-                    return self.codegen_immediate_resume_call(span, args, expected, ctx);
-                }
-            }
+        if let Some(ctx) = self.current_immediate_resume_ctx()
+            && let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind
+            && *id == ctx.resume_symbol
+        {
+            return self.codegen_immediate_resume_call(span, args, expected, ctx);
         }
 
         // 0.5) 调用局部函数值（闭包/函数类型参数）：`f(args...)`。
@@ -1075,46 +1077,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // T1026：`FunPtr<F>` 的直接调用：`fp(args...)`（unsafe）。
-                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty) {
-                    if nominal.fqn == "scoop.unsafe.FunPtr" {
-                        let sig_ty = nominal.args.first().copied().ok_or(
-                            LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr signature type",
-                                at: callee.span.into(),
-                            },
-                        )?;
-                        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
-                        else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr signature kind",
-                                at: callee.span.into(),
-                            });
-                        };
+                if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty)
+                    && nominal.fqn == "scoop.unsafe.FunPtr"
+                {
+                    let sig_ty = nominal.args.first().copied().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr signature type",
+                            at: callee.span.into(),
+                        },
+                    )?;
+                    let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
+                    else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr signature kind",
+                            at: callee.span.into(),
+                        });
+                    };
 
-                        let CgTy::Int(int_ty) = local.ty else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr local cg type",
-                                at: callee.span.into(),
-                            });
-                        };
-                        let loaded = self
-                            .builder
-                            .build_load(
-                                self.llvm_basic_type_of(callee.span, local.ty)?,
-                                local.ptr,
-                                "load_funptr",
-                            )?
-                            .into_int_value();
+                    let CgTy::Int(int_ty) = local.ty else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "funptr local cg type",
+                            at: callee.span.into(),
+                        });
+                    };
+                    let loaded = self
+                        .builder
+                        .build_load(
+                            self.llvm_basic_type_of(callee.span, local.ty)?,
+                            local.ptr,
+                            "load_funptr",
+                        )?
+                        .into_int_value();
 
-                        return self.codegen_funptr_value_call(
-                            span,
-                            callee.span,
-                            loaded,
-                            int_ty,
-                            fun_ty,
-                            args,
-                        );
-                    }
+                    return self.codegen_funptr_value_call(
+                        span,
+                        callee.span,
+                        loaded,
+                        int_ty,
+                        fun_ty,
+                        args,
+                    );
                 }
             }
         }
@@ -1917,6 +1919,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(out)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_class_ctor_call_super(
         &mut self,
         span: crate::span::Span,
@@ -2060,6 +2063,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn codegen_class_ctor_invoke_inner(
         &mut self,
         span: crate::span::Span,
@@ -2143,74 +2147,74 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
 
             // secondary ctor delegation（T1327c）
-            if ctor_kind == hir::ClassCtorKind::Secondary {
-                if let Some(deleg) = delegation {
-                    match deleg.kind {
-                        ast::CtorDelegationKind::This => {
-                            let target = self.pick_class_ctor_by_arity(
-                                callee_span,
-                                class,
-                                deleg.args.len(),
-                                Some(ctor_span),
-                                "class this delegation overload mismatch/ambiguous",
-                            )?;
+            if ctor_kind == hir::ClassCtorKind::Secondary
+                && let Some(deleg) = delegation
+            {
+                match deleg.kind {
+                    ast::CtorDelegationKind::This => {
+                        let target = self.pick_class_ctor_by_arity(
+                            callee_span,
+                            class,
+                            deleg.args.len(),
+                            Some(ctor_span),
+                            "class this delegation overload mismatch/ambiguous",
+                        )?;
 
-                            let target_params: &[hir::ClassCtorParam] = match target {
-                                Some(c) => c.params.as_slice(),
-                                None => &[][..],
-                            };
-                            let target_values = self.codegen_class_ctor_eval_args(
-                                callee_span,
-                                callee_span,
-                                deleg.args.as_slice(),
-                                target_params,
-                                "class this delegation arg eval",
-                            )?;
+                        let target_params: &[hir::ClassCtorParam] = match target {
+                            Some(c) => c.params.as_slice(),
+                            None => &[][..],
+                        };
+                        let target_values = self.codegen_class_ctor_eval_args(
+                            callee_span,
+                            callee_span,
+                            deleg.args.as_slice(),
+                            target_params,
+                            "class this delegation arg eval",
+                        )?;
 
-                            self.codegen_class_ctor_invoke_inner(
-                                span,
-                                callee_span,
-                                class,
-                                target,
-                                target_values.as_slice(),
-                                obj_ptr,
-                                stack,
-                            )?;
+                        self.codegen_class_ctor_invoke_inner(
+                            span,
+                            callee_span,
+                            class,
+                            target,
+                            target_values.as_slice(),
+                            obj_ptr,
+                            stack,
+                        )?;
 
-                            if let Some(body) = ctor_body {
-                                let _ = self.codegen_block_value(body)?;
-                            }
-
-                            self.env.pop_scope();
-                            return Ok(());
+                        if let Some(body) = ctor_body {
+                            let _ = self.codegen_block_value(body)?;
                         }
-                        ast::CtorDelegationKind::Super => {
-                            self.codegen_class_ctor_call_super(
-                                span,
-                                callee_span,
-                                class,
-                                deleg.args.as_slice(),
-                                obj_ptr,
-                                stack,
-                                "class super delegation overload mismatch/ambiguous",
-                            )?;
 
-                            self.codegen_class_ctor_run_init_steps(
-                                span,
-                                callee_span,
-                                class,
-                                ctor_params,
-                                stored_args.as_slice(),
-                                obj_ptr,
-                            )?;
+                        self.env.pop_scope();
+                        return Ok(());
+                    }
+                    ast::CtorDelegationKind::Super => {
+                        self.codegen_class_ctor_call_super(
+                            span,
+                            callee_span,
+                            class,
+                            deleg.args.as_slice(),
+                            obj_ptr,
+                            stack,
+                            "class super delegation overload mismatch/ambiguous",
+                        )?;
 
-                            if let Some(body) = ctor_body {
-                                let _ = self.codegen_block_value(body)?;
-                            }
+                        self.codegen_class_ctor_run_init_steps(
+                            span,
+                            callee_span,
+                            class,
+                            ctor_params,
+                            stored_args.as_slice(),
+                            obj_ptr,
+                        )?;
 
-                            self.env.pop_scope();
-                            return Ok(());
+                        if let Some(body) = ctor_body {
+                            let _ = self.codegen_block_value(body)?;
                         }
+
+                        self.env.pop_scope();
+                        return Ok(());
                     }
                 }
             }
@@ -2235,10 +2239,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 obj_ptr,
             )?;
 
-            if ctor_kind == hir::ClassCtorKind::Secondary {
-                if let Some(body) = ctor_body {
-                    let _ = self.codegen_block_value(body)?;
-                }
+            if ctor_kind == hir::ClassCtorKind::Secondary
+                && let Some(body) = ctor_body
+            {
+                let _ = self.codegen_block_value(body)?;
             }
 
             self.env.pop_scope();
@@ -7479,9 +7483,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 普通成员函数：要求有 body；
         // - @Extern：允许无 body（由链接器提供实现）。
         let target_fqn = slot_entry.impl_member_fqn.as_str();
-        let Some(target_fun) = self.fun_index.get(target_fqn).copied() else {
-            return None;
-        };
+        let target_fun = self.fun_index.get(target_fqn).copied()?;
         if target_fun.body.is_none() && !self.extern_funs.contains_key(target_fqn) {
             return None;
         }
@@ -8720,7 +8722,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
-    ) -> Result<(Vec<(hir::SymbolId, String, TypeId)>, Vec<hir::Capture>), LlvmEmitError> {
+    ) -> Result<ClosureParamBindings, LlvmEmitError> {
         if fun_ty.receiver.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "receiver lambda",

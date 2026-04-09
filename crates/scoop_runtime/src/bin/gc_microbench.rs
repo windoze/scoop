@@ -361,7 +361,7 @@ fn run_throughput(args: &Args) -> BenchResult {
                     total_bytes.fetch_add(object_size, Ordering::Relaxed);
 
                     i += 1;
-                    if (i % 1024) == 0 {
+                    if i.is_multiple_of(1024) {
                         std::thread::yield_now();
                     }
                 }
@@ -454,8 +454,7 @@ fn run_fragmentation(args: &Args) -> BenchResult {
     // 通过“稀疏存活（pinned）”把 live 对象分散到大量 blocks 中：
     // - baseline：对象逐个 malloc，GC 后 reserved≈live
     // - Immix（non-moving）：block 不能因为少量 live 对象而整体回收，reserved 可能远大于 live
-    let mut pinned: Vec<*mut c_void> = Vec::new();
-    pinned.reserve((initial / pin_stride).max(1) as usize);
+    let mut pinned: Vec<*mut c_void> = Vec::with_capacity((initial / pin_stride).max(1) as usize);
 
     for i in 0..initial {
         let p = unsafe { scoop_alloc(args.object_size) };
@@ -611,29 +610,27 @@ impl BenchResult {
             out.push_str(&format!("pinned={}\n", pinned));
         }
 
-        if matches!(&self.params, BenchParams::Throughput { .. }) {
-            if !self.rounds.is_empty() {
-                out.push_str(&format!("rounds: count={}\n", self.rounds.len()));
-                for r in &self.rounds {
-                    out.push_str(&format!(
-                        "round: i={} allocs={} bytes={} alloc_ms={} stw_ms={} total_ms={} allocs/s={:.2} bytes/s={:.2}\n",
-                        r.round,
-                        r.allocations,
-                        r.bytes,
-                        r.alloc_elapsed_ms(),
-                        r.stw_ms(),
-                        r.total_elapsed_ms(),
-                        r.allocs_per_sec(),
-                        r.bytes_per_sec()
-                    ));
-                }
+        if matches!(&self.params, BenchParams::Throughput { .. }) && !self.rounds.is_empty() {
+            out.push_str(&format!("rounds: count={}\n", self.rounds.len()));
+            for r in &self.rounds {
+                out.push_str(&format!(
+                    "round: i={} allocs={} bytes={} alloc_ms={} stw_ms={} total_ms={} allocs/s={:.2} bytes/s={:.2}\n",
+                    r.round,
+                    r.allocations,
+                    r.bytes,
+                    r.alloc_elapsed_ms(),
+                    r.stw_ms(),
+                    r.total_elapsed_ms(),
+                    r.allocs_per_sec(),
+                    r.bytes_per_sec()
+                ));
+            }
 
-                if let Some(s) = self.stw_summary() {
-                    out.push_str(&format!(
-                        "stw_summary: total_ms={} avg_ms={} min_ms={} max_ms={}\n",
-                        s.total_ms, s.avg_ms, s.min_ms, s.max_ms
-                    ));
-                }
+            if let Some(s) = self.stw_summary() {
+                out.push_str(&format!(
+                    "stw_summary: total_ms={} avg_ms={} min_ms={} max_ms={}\n",
+                    s.total_ms, s.avg_ms, s.min_ms, s.max_ms
+                ));
             }
         }
 
@@ -729,35 +726,33 @@ impl BenchResult {
 
         kv.push(format!("\"params\":{}", params_json));
 
-        if matches!(&self.params, BenchParams::Throughput { .. }) {
-            if !self.rounds.is_empty() {
-                let mut rounds_json = String::new();
-                rounds_json.push('[');
-                for (i, r) in self.rounds.iter().enumerate() {
-                    if i != 0 {
-                        rounds_json.push(',');
-                    }
-                    rounds_json.push_str(&format!(
-                        "{{\"round\":{},\"allocations\":{},\"bytes\":{},\"alloc_ms\":{},\"stw_ms\":{},\"total_ms\":{},\"allocs_per_sec\":{},\"bytes_per_sec\":{}}}",
-                        r.round,
-                        r.allocations,
-                        r.bytes,
-                        r.alloc_elapsed_ms(),
-                        r.stw_ms(),
-                        r.total_elapsed_ms(),
-                        r.allocs_per_sec(),
-                        r.bytes_per_sec()
-                    ));
+        if matches!(&self.params, BenchParams::Throughput { .. }) && !self.rounds.is_empty() {
+            let mut rounds_json = String::new();
+            rounds_json.push('[');
+            for (i, r) in self.rounds.iter().enumerate() {
+                if i != 0 {
+                    rounds_json.push(',');
                 }
-                rounds_json.push(']');
-                kv.push(format!("\"rounds\":{}", rounds_json));
+                rounds_json.push_str(&format!(
+                    "{{\"round\":{},\"allocations\":{},\"bytes\":{},\"alloc_ms\":{},\"stw_ms\":{},\"total_ms\":{},\"allocs_per_sec\":{},\"bytes_per_sec\":{}}}",
+                    r.round,
+                    r.allocations,
+                    r.bytes,
+                    r.alloc_elapsed_ms(),
+                    r.stw_ms(),
+                    r.total_elapsed_ms(),
+                    r.allocs_per_sec(),
+                    r.bytes_per_sec()
+                ));
+            }
+            rounds_json.push(']');
+            kv.push(format!("\"rounds\":{}", rounds_json));
 
-                if let Some(s) = self.stw_summary() {
-                    kv.push(format!(
-                        "\"stw_summary\":{{\"total_ms\":{},\"avg_ms\":{},\"min_ms\":{},\"max_ms\":{}}}",
-                        s.total_ms, s.avg_ms, s.min_ms, s.max_ms
-                    ));
-                }
+            if let Some(s) = self.stw_summary() {
+                kv.push(format!(
+                    "\"stw_summary\":{{\"total_ms\":{},\"avg_ms\":{},\"min_ms\":{},\"max_ms\":{}}}",
+                    s.total_ms, s.avg_ms, s.min_ms, s.max_ms
+                ));
             }
         }
 
@@ -782,10 +777,10 @@ fn emit_output(args: &Args, result: &BenchResult) {
 
     print!("{text}");
 
-    if let Some(path) = &args.output {
-        if let Err(err) = std::fs::write(path, &text) {
-            eprintln!("写入失败：path={} err={}", path.display(), err);
-        }
+    if let Some(path) = &args.output
+        && let Err(err) = std::fs::write(path, &text)
+    {
+        eprintln!("写入失败：path={} err={}", path.display(), err);
     }
 }
 

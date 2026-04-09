@@ -34,7 +34,7 @@ unsafe extern "C" {
 )]
 fn gc_collect_mark_sweep_keeps_rooted_objects_and_frees_garbage() {
     assert!(
-        GC_CAPABILITIES.native_roots,
+        std::hint::black_box(GC_CAPABILITIES.native_roots),
         "该测试依赖 native_roots（enter_native roots slots）；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
     );
 

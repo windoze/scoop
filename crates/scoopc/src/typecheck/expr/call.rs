@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
-use crate::resolve::{ConeId, ConstructorOverload, ImportTable, Index, Visibility};
+use crate::resolve::{ConeId, ConstructorOverload, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};

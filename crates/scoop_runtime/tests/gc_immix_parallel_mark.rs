@@ -153,7 +153,6 @@ mod immix {
             let published = published.clone();
             let start = start.clone();
             let stop = stop.clone();
-            let desc_addr = desc_addr;
 
             handles.push(std::thread::spawn(move || unsafe {
                 scoop_thread_register();
@@ -222,7 +221,7 @@ mod immix {
 
                     // 避免单线程跑满 CPU（让主线程更容易插入 collect）。
                     i += 1;
-                    if (i % 256) == 0 {
+                    if i.is_multiple_of(256) {
                         std::thread::yield_now();
                     }
                 }
