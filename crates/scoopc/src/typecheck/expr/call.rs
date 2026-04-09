@@ -4178,6 +4178,30 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.int);
         }
+        // T0120: String.byteLength() — 0 args → Int (byte count of underlying UTF-8 data)
+        if member_name == "byteLength" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "byteLength".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
+        // T0120: String.getByte(index) — 1 Int arg → Int (raw byte value at index)
+        if member_name == "getByte" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "getByte".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
     }
 
     // T1812: Int.toString() — 数值→文本転換。

@@ -309,3 +309,15 @@ cargo run -p scoop --features llvm -- test
   - **审计结论**：当前 packed struct store 仅通过 `store_local_value`（整体 aggregate store）；field-level GEP + store 不存在于用户 struct 路径。
   - **Fixtures**（3 个 run-pass）：`clayout_packed_basic`（packed=1 字段读/写/函数传参/负值/var 重赋值）、`clayout_aligned_basic`（aligned=16/8 字段读/写）、`clayout_aligned_packed_combined`（aligned=8+packed=1 组合）。
   - 139 单元测试 + 794 fixtures 通过。
+- DONE（T0119）：`@CLayout(packed = N)` 支持 N > 1（`#pragma pack(N)` 语义）：
+  - **Typecheck**：`packed` 值验证接受 1/2/4/8/16（2 的幂）。
+  - **Codegen**：`packed=1` 继续使用 LLVM 原生 packed struct；`packed>1` 使用手动 padding insertion + `pack_field_indices` 映射。
+  - **关键 bug 修复**：`pack_field_indices` 缓存在 per-function `MainCodegen` 实例间丢失——early return 路径中重新推导。
+  - 139 单元测试 + 798 fixtures 通过。
+- DONE（T0120）：String 字节访问器——`byteLength()` + `getByte(index)`：
+  - **两个方法均为编译器 intrinsic**（resolver 白名单 + codegen 内联 LLVM IR），无 runtime/c 函数调用。
+  - `byteLength()`：GEP 到 `ScoopString.len`（字段 1）+ load i64。
+  - `getByte(index)`：bounds check（index < 0 || index >= len → 返回 0）+ GEP 到 `data[index]` + load i8 + zero-extend to i64。
+  - 返回类型为 `Int`（与现有 `length()`/`charAt()` 保持一致）。
+  - Fixture：`string_byte_accessors`（20 个场景：byteLength 4 + getByte 12 + 联合验证 4）。
+  - 139 单元测试 + 799 fixtures 通过。

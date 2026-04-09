@@ -1459,6 +1459,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "charAt"
                     | "repeat"
                     | "compareTo"
+                    | "byteLength"
+                    | "getByte"
             ) {
                 return self.codegen_string_method(
                     span,
@@ -2966,6 +2968,155 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
                 Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            // T0120: String.byteLength() — 0 args → Int (inline LLVM IR: read ScoopString.len)
+            "byteLength" => {
+                if !args.is_empty() {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.byteLength arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let scoop_str_ty = self.llvm_scoop_string_type();
+                let len_ptr = self.builder.build_struct_gep(
+                    scoop_str_ty,
+                    recv_ptr,
+                    1,
+                    "str_byte_length_gep",
+                )?;
+                let len_val = self
+                    .builder
+                    .build_load(self.context.i64_type(), len_ptr, "str_byte_length")?;
+                let BasicValueEnum::IntValue(iv) = len_val else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.byteLength load type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            // T0120: String.getByte(index) — 1 Int arg → Int (inline LLVM IR: bounds-checked byte read)
+            "getByte" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.getByte arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(idx_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.getByte named arg",
+                        at: span.into(),
+                    });
+                };
+                let idx = self.codegen_expr_in_expected_context(
+                    idx_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let idx_val = idx.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.getByte index value",
+                    at: span.into(),
+                })?;
+                let BasicValueEnum::IntValue(idx_int) = idx_val else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.getByte index type",
+                        at: span.into(),
+                    });
+                };
+
+                let scoop_str_ty = self.llvm_scoop_string_type();
+                let i64_ty = self.context.i64_type();
+                let i8_ty = self.context.i8_type();
+
+                // Load string length for bounds check
+                let len_ptr = self
+                    .builder
+                    .build_struct_gep(scoop_str_ty, recv_ptr, 1, "get_byte_len_gep")?;
+                let len_val = self
+                    .builder
+                    .build_load(i64_ty, len_ptr, "get_byte_len")?
+                    .into_int_value();
+
+                // Load data pointer
+                let data_ptr_ptr = self
+                    .builder
+                    .build_struct_gep(scoop_str_ty, recv_ptr, 2, "get_byte_data_gep")?;
+                let data_ptr = self
+                    .builder
+                    .build_load(
+                        self.context.i8_type().ptr_type(inkwell::AddressSpace::default()),
+                        data_ptr_ptr,
+                        "get_byte_data",
+                    )?
+                    .into_pointer_value();
+
+                // Bounds check: index < 0 || index >= len → return 0
+                let current_fn = self
+                    .builder
+                    .get_insert_block()
+                    .unwrap()
+                    .get_parent()
+                    .unwrap();
+                let in_bounds_bb =
+                    self.context.append_basic_block(current_fn, "getByte_in_bounds");
+                let out_of_bounds_bb =
+                    self.context
+                        .append_basic_block(current_fn, "getByte_out_of_bounds");
+                let merge_bb = self.context.append_basic_block(current_fn, "getByte_merge");
+
+                // Check index < 0
+                let is_negative = self.builder.build_int_compare(
+                    inkwell::IntPredicate::SLT,
+                    idx_int,
+                    i64_ty.const_zero(),
+                    "idx_negative",
+                )?;
+                let not_negative_bb = self
+                    .context
+                    .append_basic_block(current_fn, "getByte_not_negative");
+                self.builder
+                    .build_conditional_branch(is_negative, out_of_bounds_bb, not_negative_bb)?;
+
+                // Check index >= len
+                self.builder.position_at_end(not_negative_bb);
+                let is_ge_len = self.builder.build_int_compare(
+                    inkwell::IntPredicate::SGE,
+                    idx_int,
+                    len_val,
+                    "idx_ge_len",
+                )?;
+                self.builder
+                    .build_conditional_branch(is_ge_len, out_of_bounds_bb, in_bounds_bb)?;
+
+                // Out of bounds: return 0
+                self.builder.position_at_end(out_of_bounds_bb);
+                let zero_val = i64_ty.const_zero();
+                self.builder.build_unconditional_branch(merge_bb)?;
+
+                // In bounds: load byte and zero-extend to i64
+                self.builder.position_at_end(in_bounds_bb);
+                let byte_ptr = unsafe {
+                    self.builder
+                        .build_in_bounds_gep(i8_ty, data_ptr, &[idx_int], "get_byte_elem_gep")?
+                };
+                let byte_val = self
+                    .builder
+                    .build_load(i8_ty, byte_ptr, "get_byte_val")?
+                    .into_int_value();
+                let byte_i64 =
+                    self.builder
+                        .build_int_z_extend(byte_val, i64_ty, "get_byte_zext")?;
+                self.builder.build_unconditional_branch(merge_bb)?;
+
+                // Merge: phi node
+                self.builder.position_at_end(merge_bb);
+                let phi = self.builder.build_phi(i64_ty, "get_byte_result")?;
+                phi.add_incoming(&[
+                    (&zero_val, out_of_bounds_bb),
+                    (&byte_i64, in_bounds_bb),
+                ]);
+                let result = phi.as_basic_value().into_int_value();
+                Ok(CgValue::int(result, IntTy { bits: 64, signed: true }))
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown String method",

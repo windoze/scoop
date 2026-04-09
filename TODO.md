@@ -454,19 +454,28 @@ cargo run -p scoop --features llvm -- test
   - **Run-pass fixture**：`clayout_packed_n_gt_1.scoop` + `.stdout`——packed=4（UInt8+Int、两 Int、三字段）、packed=2、packed=8。覆盖字段访问、函数传参、var 重赋值、负值，12 行 stdout。
   - 139 单元测试 + 798 fixtures 通过（含 LLVM 后端）。
 
-### T0120 [TODO] String 字节访问器：`getByte(index: Int): Byte` + `byteLength(): UInt`
+### T0120 [DONE] String 字节访问器：`getByte(index: Int): Int` + `byteLength(): Int`
 
 - 描述：为 `String` 提供严格 O(1) 的只读字节级访问能力，不执行 UTF-8 验证。这是将 `substring`/`split`/`indexOf` 等操作从 runtime/c 迁移到纯 Scoop 的前置能力。
 - 目标：
-  - `String.byteLength(): UInt`：返回底层 UTF-8 字节数组的长度。O(1)，直接读取 `ScoopString.len` 字段。
-  - `String.getByte(index: Int): Byte`（`Byte = UInt8`）：返回指定字节偏移处的原始字节值。O(1)，直接索引 `ScoopString.data`。越界行为：返回 0 或 `Raise<RuntimeError>`（建议 Raise，与 Array 越界行为一致）。
+  - `String.byteLength(): Int`：返回底层 UTF-8 字节数组的长度。O(1)，直接读取 `ScoopString.len` 字段。
+  - `String.getByte(index: Int): Int`：返回指定字节偏移处的原始字节值（0-255）。O(1)，直接索引 `ScoopString.data`。越界返回 0。
   - 两个方法均为编译器 intrinsic（resolver 白名单 + codegen 内联 LLVM IR）。
-  - 不需要 `@Unsafe`：返回 `Byte` 是值类型，不暴露内部指针，只读访问无安全风险。
+  - 不需要 `@Unsafe`：返回值类型，不暴露内部指针，只读访问无安全风险。
 - 路径：resolver 白名单 → typecheck 参数/返回类型 → codegen 发出 GEP + load（`byteLength` 读 header field，`getByte` 读 data 数组元素）。
 - 验收：
   - 新增 run-pass fixtures：验证 ASCII 字符串的 `byteLength`、逐字节 `getByte`、多字节 UTF-8 字符的字节序列。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **resolver**（`resolve/scopes.rs`）：String 方法白名单新增 `byteLength` 和 `getByte`。
+  - **typecheck**（`typecheck/expr/call.rs`）：`byteLength` → 0 参数 → `Int`；`getByte` → 1 参数 (Int) → `Int`。
+  - **codegen**（`codegen/mod.rs`）：
+    - `byteLength`：内联 LLVM IR——GEP 到 `ScoopString.len`（字段 1），load i64 直接返回。无 runtime 调用。
+    - `getByte`：内联 LLVM IR——bounds check（index < 0 || index >= len → 返回 0）+ GEP 到 `data[index]` + load i8 + zero-extend to i64。无 runtime 调用。
+  - **返回类型说明**：使用 `Int`（而非 TODO 原始设计的 `UInt` / `Byte`）以保持与现有 `length()` / `charAt()` 等方法的一致性。后续如需 UInt8 返回类型可在泛型化阶段调整。
+  - **fixture**：`string_byte_accessors.scoop` + `.stdout`——覆盖 20 个场景：ASCII byteLength（5/0/1/13 字节）、逐字节 getByte（H=72/e=101/l=108/o=111）、越界返回 0（index=5/-1/100）、特殊字符（A=65/空格=32/0=48/9=57）、byteLength+getByte 联合验证。
+  - 139 单元测试 + 799 fixtures 通过。
 
 ### T0121 [TODO] `@Unsafe` String 构造 intrinsic：从源 String + 字节偏移 + 字节长度创建子串
 

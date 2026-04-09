@@ -1,0 +1,63 @@
+// EXPECT: pass
+// RUN-STDOUT: string_byte_accessors.stdout
+//
+// T0120: String byte accessors — byteLength() and getByte(index).
+
+import scoop.core.*
+
+fun main() {
+    // ── byteLength ──
+
+    // ASCII string: 5 bytes
+    val hello: String = "Hello"
+    println(hello.byteLength())
+
+    // Empty string: 0 bytes
+    val empty: String = ""
+    println(empty.byteLength())
+
+    // Single char: 1 byte
+    val a: String = "a"
+    println(a.byteLength())
+
+    // Longer ASCII string
+    val longer: String = "Hello, World!"
+    println(longer.byteLength())
+
+    // ── getByte ──
+
+    // Read ASCII bytes: 'H' = 72, 'e' = 101, 'l' = 108
+    val s: String = "Hello"
+    println(s.getByte(0))
+    println(s.getByte(1))
+    println(s.getByte(2))
+    println(s.getByte(3))
+    println(s.getByte(4))
+
+    // Out of bounds: returns 0
+    println(s.getByte(5))
+    println(s.getByte(-1))
+    println(s.getByte(100))
+
+    // Single character byte
+    val x: String = "A"
+    println(x.getByte(0))
+
+    // Space character: ' ' = 32
+    val sp: String = " "
+    println(sp.getByte(0))
+
+    // Newline character: '\n' = 10
+    // Use a string that starts with newline
+    val digits: String = "0123456789"
+    println(digits.getByte(0))
+    println(digits.getByte(9))
+
+    // Verify byteLength matches iteration
+    val test: String = "abc"
+    val len: Int = test.byteLength()
+    println(len)
+    println(test.getByte(0))
+    println(test.getByte(1))
+    println(test.getByte(2))
+}

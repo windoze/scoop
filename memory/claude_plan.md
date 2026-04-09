@@ -1,39 +1,41 @@
-# Current Task: T0119 — @CLayout(packed = N) support for N > 1
+# Current Task: T0120 — String 字节访问器: getByte + byteLength
 
-## Status: IN PROGRESS
+## Status: COMPLETE
 
 ## Task Description
-Extend `@CLayout(packed = N)` to support N > 1 (`#pragma pack(N)` semantics).
-Currently typecheck only accepts `packed = 1`; other values produce `CLayoutPackedValueNotSupported`.
-Spec §15.5 defines `packed` as "max field alignment" — equivalent to C `#pragma pack(N)`.
+为 `String` 提供 O(1) 的只读字节级访问能力：
+- `String.byteLength(): UInt` — 返回底层 UTF-8 字节数组长度
+- `String.getByte(index: Int): Byte`（`Byte = UInt8`）— 返回指定偏移处的字节值
+
+两个方法均为编译器 intrinsic（resolver 白名单 + codegen 内联 LLVM IR），不需要 runtime/c 函数。
 
 ## Plan
 
-### Step 1: Typecheck — Accept packed = 1/2/4/8/16
-- File: `crates/scoopc/src/typecheck/annotations.rs` (around line 1895-1903)
-- Change validation to accept powers of 2 up to 16
+### Step 1: 了解现有 String 方法实现管线
+- resolver 白名单（`resolve/scopes.rs`）
+- typecheck（`typecheck/expr/call.rs`）
+- codegen（`codegen/mod.rs`）
+- 了解 ScoopString 的内存布局（len + data）
 
-### Step 2: Codegen — Implement #pragma pack(N) semantics
-- For packed=1: keep existing behavior (LLVM packed struct)
-- For packed>1: need to compute per-field alignment as `min(natural_align, N)`
-  - Cannot use LLVM `set_body(fields, true)` since that's only packed=1
-  - Need to either: (a) manually insert padding bytes, or (b) use LLVM's built-in struct layout with custom alignment attributes
-- Also ensure store alignment is set to `min(natural_align, N)` for each field
+### Step 2: 实现 byteLength()
+- resolver 白名单新增 `byteLength`
+- typecheck：0 参数 → 返回 `UInt` 或 `Int`
+- codegen：GEP 到 ScoopString.len，load 返回
 
-### Step 3: HIR/data structures
-- Ensure the `packed` value (not just bool) is propagated through StructLayout / CLayout info
+### Step 3: 实现 getByte(index: Int)
+- resolver 白名单新增 `getByte`
+- typecheck：1 参数 (Int) → 返回适当类型
+- codegen：越界检查 + GEP 到 data[index] + load i8 + zext
 
-### Step 4: Fixtures
-- Typecheck fixtures: `packed = 2`/`4`/`8` pass, non-power-of-2 values fail
-- Run-pass fixtures: `@CLayout(packed = 4)` struct with Int64 field, verify correct behavior
+### Step 4: 新增 run-pass fixture
+- ASCII 字符串 byteLength + 逐字节 getByte
+- 多字节 UTF-8 字节序列
 
-### Step 5: Testing
-- `cargo test --all` + `cargo run -p scoop -- test`
+### Step 5: 验证全部测试通过 + commit
 
 ## Progress
-- [ ] Explore current code
-- [ ] Implement typecheck changes
-- [ ] Implement codegen changes
-- [ ] Add fixtures
-- [ ] Run tests
-- [ ] Commit
+- [x] 步骤1：了解现有管线
+- [x] 步骤2：实现 byteLength()
+- [x] 步骤3：实现 getByte()
+- [x] 步骤4：新增 fixture
+- [x] 步骤5：验证 + commit

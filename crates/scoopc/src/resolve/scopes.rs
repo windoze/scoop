@@ -1695,7 +1695,10 @@ impl<'a> BlockScopeChecker<'a> {
                 || member_name == "replace"
                 || member_name == "charAt"
                 || member_name == "repeat"
-                || member_name == "compareTo";
+                || member_name == "compareTo"
+                // T0120: String byte accessors
+                || member_name == "byteLength"
+                || member_name == "getByte";
             if is_known_string_method {
                 return Ok(());
             }
