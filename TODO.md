@@ -465,6 +465,93 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
+### T0124 [TODO] 泛型验证与修复：monomorphization 扩展至泛型 class/struct/enum
+
+- 描述：当前 monomorphization pass（`monomorph/lower.rs:6`）仅处理泛型函数（`ast::Item::Fun`），完全不处理泛型 class/struct/enum 定义。用户定义的 `class Box<T>` 等无法被单态化为具体的 `Box<Int>`、`Box<String>` 等变体。这是泛型 class 无法工作的根本原因。
+- 已知问题：
+  - `monomorph/lower.rs` 的 `lower_for_dump` 只遍历 `ast::Item::Fun`，跳过所有 class/struct/enum。
+  - `MonomorphKey` / `MonomorphSymbol` 仅建模函数签名，无 class/struct/enum 对应物。
+  - `collect_struct_layouts`（`hir/lower/util.rs:2001-2006`）显式跳过有 type_params 的 struct。
+  - `collect_enum_layouts`（`hir/lower/util.rs:2077-2081`）显式跳过有 type_params 的 enum。
+  - `collect_class_decl_init`（`hir/lower/util.rs:816`）未调用 `push_type_params`，导致类型参数被错误地解析为 `Any`。
+- 目标：
+  1. 扩展 monomorph pass，收集所有泛型 class/struct/enum 的实例化点（构造调用、字段访问、类型注解），生成具体的单态化变体。
+  2. 为每个单态化变体生成独立的 `MonomorphKey`（含类型实参），使后续 HIR/codegen 能区分 `Box<Int>` 与 `Box<String>`。
+  3. `collect_struct_layouts` / `collect_enum_layouts` 不再跳过泛型类型，而是为每个单态化变体生成独立布局。
+  4. `collect_class_decl_init` 正确绑定 type params，使字段类型在每个变体中被替换为具体类型。
+- 验收：
+  - 新增 run-pass fixture：`class Box<T>(val inner: T)` + `Box<Int>(42).inner` + `Box<String>("hello").inner`。
+  - 新增 run-pass fixture：`struct Pair<A, B>(val first: A, val second: B)` + 多种实例化。
+  - 新增 run-pass fixture：`enum Either<L, R> { Left(val v: L); Right(val v: R) }` + pattern match。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0125 [TODO] 泛型验证与修复：codegen 支持 `TypeKind::Param` 及参数化类型查找
+
+- 描述：当前 codegen 的类型映射（`llvm/codegen/ty.rs`）无法处理泛型类型参数和参数化的名义类型。即使 monomorph 正确生成了变体，codegen 仍无法发出正确的 LLVM 类型。
+- 已知问题：
+  - `cg_ty_of`（`ty.rs:94`）对 `TypeKind::Param` 落入 `_ => None`，返回错误而非具体类型。
+  - `cg_ty_of_type_fqn`（`ty.rs:251-254`）硬编码 `nominal.args.is_empty()` 过滤，导致参数化类型如 `Box<Int>` 无法被查找。
+  - `llvm_struct_type`（`ty.rs:302-310`）使用裸 FQN 作为 key（无类型实参），`Box<Int>` 和 `Box<String>` 共享同一个 LLVM struct layout。
+  - `llvm_class_payload_type` / `llvm_class_object_type` 同理，对同一个 FQN 的不同实例化不产出不同结构体。
+- 目标：
+  1. 在 monomorph 后 codegen 阶段，`TypeKind::Param` 应已被替换为具体类型——如果仍出现则视为 monomorph 遗漏并报告 ICE。
+  2. 移除 `nominal.args.is_empty()` 过滤，或改为按 mangled FQN（含类型实参）查找布局。
+  3. struct/enum/class layout 缓存改用含类型实参的 mangled key（如 `"Box<scoop.core.Int>"`），为每个单态化变体生成独立 LLVM struct。
+  4. `llvm_class_payload_type` / `llvm_class_object_type` 同步使用 mangled key。
+- 验收：
+  - LLVM IR dump 中可见不同的 struct 类型：`%scoop.runtime.ClassPayload__Box__Int` vs `%scoop.runtime.ClassPayload__Box__String`。
+  - T0124 的 run-pass fixtures 在此修复后全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0124
+
+### T0126 [TODO] 泛型验证与修复：泛型方法调用与构造函数
+
+- 描述：泛型 class/struct 的方法调用和构造函数在 codegen 中需要正确分发到单态化后的变体。
+- 需验证并修复的场景：
+  1. **泛型 class 构造**：`Box<Int>(42)` — `codegen_class_ctor_call` 必须查找单态化后的 `ClassInit`（含类型实参），正确计算 payload 大小和字段偏移。
+  2. **泛型 class 成员访问**：`box.inner` — codegen 必须从单态化后的 payload struct 中提取正确偏移/类型的字段。
+  3. **泛型 class 方法调用**：`box.someMethod()` — 方法体中的 `T` 必须已替换为具体类型。
+  4. **泛型 struct 构造 / 字段访问**：同理。
+  5. **泛型 enum variant 构造 / pattern match**：`Either.Left<Int, String>(42)` → match 时正确提取。
+  6. **泛型类型作为函数参数/返回值**：`fun wrap<T>(v: T): Box<T>` — Box 的实例化由 monomorph 传递推断。
+- 验收：
+  - 新增 run-pass fixture：泛型 class 带方法 + 调用。
+  - 新增 run-pass fixture：泛型函数返回泛型 class 实例。
+  - 新增 run-pass fixture：泛型 class 嵌套（`Box<Box<Int>>`）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0124、T0125
+
+### T0127 [TODO] 泛型验证与修复：泛型函数边界场景
+
+- 描述：泛型函数的 monomorphization 已基本工作，但需验证并修复以下边界场景。
+- 需验证并修复的场景：
+  1. **多类型参数**：`fun <A, B> pair(a: A, b: B): ...` — 是否为每个 `(A, B)` 组合生成独立变体。
+  2. **类型参数约束**（`<T : Comparable>`）：monomorph 是否尊重 bound 约束，codegen 是否能分发 trait 方法。
+  3. **传递实例化**：`fun <T> wrap(v: T) = Box<T>(v)` 调用时是否触发 `Box<T>` 的实例化。
+  4. **泛型扩展函数**：`fun <T> T.toBox(): Box<T>` — resolver/monomorph 是否正确处理。
+  5. **泛型高阶函数**：`fun <T, R> myMap(v: T, f: (T) -> R): R` — lambda 参数的类型参数替换。
+  6. **泛型递归**：`fun <T> foo(x: T): T = foo(x)` — monomorph 是否处理自递归而不无限展开。
+- 验收：
+  - 每个场景新增 run-pass fixture。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0124（部分场景需要泛型 class 工作）
+
+### T0128 [TODO] 泛型验证与修复：泛型与 GC / 特殊化类型交互
+
+- 描述：泛型类型实例化涉及 GC 管理（class 为堆分配 + GC trace）和编译器特殊化类型（Array/Channel/Task 等）的交互，需要验证正确性。
+- 需验证并修复的场景：
+  1. **泛型 class 持有引用字段**：`class Holder<T>(val v: T)` 当 `T` 为引用类型时，GC trace 函数必须扫描该字段。单态化后的 trace 函数需按具体类型生成。
+  2. **泛型 class 持有值类型字段**：`Holder<Int>` — GC trace 不应扫描 Int 字段；payload 布局应为值语义。
+  3. **泛型 class 持有 nullable 引用**：`Holder<String?>` — niche 优化 + GC trace 需正确处理。
+  4. **泛型类型实例化为 Array/Channel 等特殊化类型**：`class Wrapper<T>(val items: Array<T>)` → `Wrapper<Int>` 中 `items` 应使用 Array 的特殊化路径而非通用 class 路径。
+  5. **GC 分配点安全**：泛型 class 构造时，若涉及多次 GC alloc（如构造参数含其他堆对象），需验证 pin/unpin 正确性。
+- 验收：
+  - 新增 run-pass fixture：泛型 class 持有不同种类的 T（Int、String、Array<Int>、Option<String>）+ GC pressure。
+  - GC stress 测试通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0124、T0125、T0126
+
 ---
 
 ## T11：Cone（改进项吸收）
@@ -1232,6 +1319,49 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_random_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+
+### T1823 [TODO] 编译器特殊化 `Atomic<T>` class：统一原子封装
+
+- 描述：当前原子操作以底层 intrinsic 形式暴露（`sysroot/unsafe.scoop`：`__AtomicInt` typealias + `__atomicIntLoad`/`__atomicIntStore`/`__atomicIntCompareExchange`），要求调用者直接操作 lvalue slot 且不提供面向对象 API。需要一个编译器特殊化的 `Atomic<T>` class，统一覆盖 `AtomicInt`/`AtomicBool`/`AtomicRef` 三种场景，根据 `T` 的类型自动选择底层策略。
+- 目标：
+  - 分类：`needs_runtime_lib`（编译器特殊化 class，类似 `Array<T>`/`Channel<T>` 的 FQN 匹配模式）。
+  - `class Atomic<T>(initialValue: T)` in `sysroot/sync.scoop`：
+    - `fun get(): T` — atomic load（SeqCst）
+    - `fun set(value: T): Unit` — atomic store（SeqCst）
+    - `fun compareAndSet(expected: T, desired: T): Bool` — CAS（SeqCst）
+    - `fun getAndSet(value: T): T` — exchange（CAS loop）
+  - **当 `T` 为 `Int` 时**额外提供数值便捷方法（编译器根据单态化 `T` 有条件生成）：
+    - `fun getAndIncrement(): Int`
+    - `fun getAndDecrement(): Int`
+    - `fun getAndAdd(delta: Int): Int`
+    - `fun incrementAndGet(): Int`
+    - `fun decrementAndGet(): Int`
+    - `fun addAndGet(delta: Int): Int`
+  - **编译器特殊化策略**（codegen 时按单态化后的 `T` 分发）：
+    1. **Machine-word-sized `T`**（`Int`、`Bool`、`Char`、任何 class/interface 引用 `T`、nullable 引用 `T?`）：
+       - class 内部持有一个与 `T` 同布局的字段，直接发出 LLVM `atomicrmw`/`cmpxchg`/`load atomic`/`store atomic` 指令。
+       - `Bool`：编码为 i8/i1 原子操作，getter/setter 做转换。
+       - 引用类型：操作 GC addrspace(1) 指针，发出指针级原子指令。
+       - **Nullable 引用 `T?`（如 `Atomic<String?>`）**：利用 niche 优化——`Option<ref>` 已经是 machine word（null = None），直接做指针级原子操作，**不需要额外 boxing**。
+    2. **超过 machine word 的 `T`**（struct、enum、tuple 等复合值类型）：
+       - 自动 box `T` 到 GC-managed heap object，内部退化为 `AtomicRef` 语义——对 boxed pointer 做原子操作。
+       - 用户无感知，API 签名不变，但 CAS 比较的是 boxed pointer identity（非结构化相等）。
+  - **GC 兼容性**：
+    - 引用类型的 atomic store 写入的指针必须对 GC 可见。当前 non-moving GC 下简单原子操作即可。
+    - 若未来升级到 moving GC，需增加 write barrier。
+  - **编译器实现要点**：
+    - 在 `codegen/mod.rs` 中注册 `Atomic` FQN，与 `Array`/`Channel`/`Continuation`/`Task` 同样的特殊化路径。
+    - 单态化时确定 `T` 的具体类型，在 codegen 中选择上述策略 1 或 2。
+    - 需新增 `__atomicRefLoad`/`__atomicRefStore`/`__atomicRefCompareExchange` intrinsic（操作 GC addrspace(1) 指针），供引用类型路径使用。
+    - `Int` 路径复用已有 `__atomicInt*` intrinsic。
+- 验收：
+  - `Atomic<Int>`：单线程 CAS loop + 多线程 `getAndIncrement` 竞争（`threadSpawn` + barrier 验证最终值）。
+  - `Atomic<Bool>`：多线程 flag 翻转（`compareAndSet(false, true)` 竞争，恰好一个线程成功）。
+  - `Atomic<String>`（引用类型）：多线程 `compareAndSet` 竞争赋值。
+  - `Atomic<String?>`（nullable 引用）：验证 niche 优化生效，`None` 用 null 表示，整体为 machine word 原子操作。
+  - GC stress 下稳定。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：新增 `__atomicRef*` intrinsic；编译器 FQN 特殊化注册
 
 ### T1822 [TODO] 泛型 Collections API（`<T>` 版 forEach/map/filter/fold）
 - 描述：把当前仅 `Int` 专用的 collections 操作泛型化。
