@@ -2616,3 +2616,24 @@ const ScoopString *scoop_string_concat(const ScoopString *a, const ScoopString *
   scoop_unpin((void *)b);
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// T1817: String.hash — FNV-1a hash
+// ---------------------------------------------------------------------------
+
+// scoop_string_hash：对字符串内容计算 FNV-1a 哈希值，返回 i64。
+//
+// 算法：FNV-1a（Fowler-Noll-Vo）——简单、分布良好、适合短字符串。
+// - offset basis: 14695981039346656037
+// - prime: 1099511628211
+int64_t scoop_string_hash(const ScoopString *s) {
+  if (s == 0 || s->data == 0 || s->len == 0) {
+    return 0;
+  }
+  uint64_t hash = 14695981039346656037ULL;
+  for (int64_t i = 0; i < (int64_t)s->len; i++) {
+    hash ^= (uint64_t)(uint8_t)s->data[i];
+    hash *= 1099511628211ULL;
+  }
+  return (int64_t)hash;
+}

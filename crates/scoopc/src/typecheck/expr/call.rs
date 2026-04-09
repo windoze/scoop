@@ -4003,6 +4003,18 @@ fn infer_member_call_expr_type(
     // T1811: String P0 methods (length/substring/startsWith/endsWith/indexOf/contains/split).
     let member_name = source.slice(member.span);
     if actual_receiver_ty == builtins.string {
+        // T1817: String.hash() — 0 args, returns Int.
+        if member_name == "hash" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "hash".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
         if member_name == "trimIndent" || member_name == "length" {
             if !args.is_empty() {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4108,6 +4120,18 @@ fn infer_member_call_expr_type(
                 });
             }
             return Ok(builtins.string);
+        }
+        // T1817: Int.hash() — SplitMix64 bit-mixing, returns Int.
+        if member_name == "hash" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "hash".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
         }
     }
 

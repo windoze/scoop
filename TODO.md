@@ -841,7 +841,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_string_builder_basic.scoop` + `.stdout`——覆盖 16 个场景：concat 基础/空串/链式、StringBuilder 累积模式（含 Int.toString）、joinToString（基础/单元素/空分隔符/长分隔符/负数）、组合测试。
   - 139 单元测试 + 773 fixtures 通过（含 LLVM 后端）。
 
-### T1817 [TODO] Hashing 落地：Int/String 的真实 hash 实现
+### T1817 [DONE] Hashing 落地：Int/String 的真实 hash 实现
 - 描述：为 `sysroot/core.scoop` 中的 `Hashable` 接口提供 Int 和 String 的真实 hash 实现（替换当前 `hash() -> 0` 占位）。
 - 目标：
   - `Int.hash() -> Int`：纯 Scoop（位运算混合，例如 xorshift-based）。
@@ -852,6 +852,16 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_hash_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T1811（String hash 可能需要 `String.length` 或字节访问能力）
+- 完成说明：
+  - **`Int.hash()`**（LLVM codegen inline）：SplitMix64-style bit-mixing——`x ^= x>>30; x *= 0xbf58476d1ce4e5b9; x ^= x>>27; x *= 0x94d049bb133111eb; x ^= x>>31`。无 C runtime 调用，直接生成 LLVM IR（XOR/shift/mul 指令）。
+  - **`String.hash()`**（runtime/c）：FNV-1a 哈希——offset basis `14695981039346656037`，prime `1099511628211`，逐字节 XOR+multiply。空字符串返回 `0`。
+  - **C runtime**（`runtime/c/scoop_runtime.c`）：新增 `scoop_string_hash(const ScoopString* s) -> int64_t`。API 注册到 `scoop_runtime_api.h`。
+  - **Resolver**（`resolve/scopes.rs`）：Int 和 String 方法白名单均新增 `"hash"`。
+  - **Typecheck**（`typecheck/expr/call.rs`）：`Int.hash()` 和 `String.hash()` 均为 0 参数、返回 `Int`。
+  - **Codegen dispatch**（`codegen/mod.rs`）：`hash()` 通过 receiver HIR 类型判断路由——`ValueTypeKind::Int` → inline bit-mixing，其它 → C runtime `scoop_string_hash` 调用。
+  - **Runtime symbols + ABI**（`runtime_symbols.rs` + `runtime_abi.rs`）：`SCOOP_STRING_HASH` 常量 + `declare_runtime_string_hash` 声明（`i64 fn(ScoopString*)`）。
+  - **Fixture**：`stdlib_hash_basic.scoop` + `.stdout`——覆盖 13 个场景：Int 确定性/非零/差异性/负数 + String 确定性/非零/差异性 + 回归值断言。
+  - 139 单元测试 + 774 fixtures 通过。
 
 ### T1818 [TODO] Hash-based Set/Map（Int key）
 - 描述：基于 T1817 的 hash 实现，用开放寻址（linear probing）替换当前 `collections_set.scoop`/`collections_map.scoop` 的线性扫描实现。

@@ -1453,6 +1453,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "toString" {
                 return self.codegen_int_method_to_string(span, receiver);
             }
+            // T1817: hash() — route to Int or String based on receiver type.
+            if member.name == "hash" {
+                let recv_ty = match &receiver.kind {
+                    hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
+                        self.env.get(*id).and_then(|l| l.hir_ty).unwrap_or(receiver.ty)
+                    }
+                    _ => receiver.ty,
+                };
+                match self.types.kind(recv_ty) {
+                    TypeKind::Value(ValueTypeKind::Int) => {
+                        return self.codegen_int_method_hash(span, receiver);
+                    }
+                    _ => {
+                        return self.codegen_string_method(span, receiver, "hash", args);
+                    }
+                }
+            }
         }
 
         // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，
@@ -2635,6 +2652,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(result_ptr.into()),
                 })
             }
+            // T1817: String.hash() — FNV-1a via C runtime.
+            "hash" => {
+                let rt_fun = self.declare_runtime_string_hash();
+                let call = self
+                    .builder
+                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_hash")?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.hash return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.hash return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown String method",
                 at: span.into(),
@@ -2685,6 +2723,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ty: CgTy::String,
             value: Some(str_ptr.into()),
         })
+    }
+
+    /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
+    ///
+    /// Algorithm: x ^= x >> 30; x *= 0xbf58476d1ce4e5b9;
+    ///            x ^= x >> 27; x *= 0x94d049bb133111eb;
+    ///            x ^= x >> 31;
+    fn codegen_int_method_hash(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let int_cg_ty = CgTy::Int(IntTy { bits: 64, signed: true });
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(int_cg_ty))?;
+        let coerced = self.coerce_value(receiver.span, recv, int_cg_ty)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.hash receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::IntValue(x) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.hash receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        let i64_ty = self.context.i64_type();
+        // x ^= x >> 30
+        let s1 = self.builder.build_right_shift(x, i64_ty.const_int(30, false), false, "hash_s1")?;
+        let x1 = self.builder.build_xor(x, s1, "hash_x1")?;
+        // x *= 0xbf58476d1ce4e5b9
+        let c1 = i64_ty.const_int(0xbf58476d1ce4e5b9, false);
+        let x2 = self.builder.build_int_mul(x1, c1, "hash_x2")?;
+        // x ^= x >> 27
+        let s2 = self.builder.build_right_shift(x2, i64_ty.const_int(27, false), false, "hash_s2")?;
+        let x3 = self.builder.build_xor(x2, s2, "hash_x3")?;
+        // x *= 0x94d049bb133111eb
+        let c2 = i64_ty.const_int(0x94d049bb133111eb, false);
+        let x4 = self.builder.build_int_mul(x3, c2, "hash_x4")?;
+        // x ^= x >> 31
+        let s3 = self.builder.build_right_shift(x4, i64_ty.const_int(31, false), false, "hash_s3")?;
+        let x5 = self.builder.build_xor(x4, s3, "hash_x5")?;
+
+        Ok(CgValue::int(x5, IntTy { bits: 64, signed: true }))
     }
 
     fn codegen_sysroot_print_like(

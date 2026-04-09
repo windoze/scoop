@@ -77,6 +77,7 @@ pub(super) const SCOOP_PROCESS_EXIT: &str = "scoop_process_exit";
 pub(super) const SCOOP_INT_TO_STRING: &str = "scoop_int_to_string";
 pub(super) const SCOOP_STRING_CONCAT: &str = "scoop_string_concat";
 pub(super) const SCOOP_STRING_CONTAINS: &str = "scoop_string_contains";
+pub(super) const SCOOP_STRING_HASH: &str = "scoop_string_hash";
 pub(super) const SCOOP_STRING_ENDS_WITH: &str = "scoop_string_ends_with";
 pub(super) const SCOOP_STRING_INDEX_OF: &str = "scoop_string_index_of";
 pub(super) const SCOOP_STRING_LENGTH: &str = "scoop_string_length";

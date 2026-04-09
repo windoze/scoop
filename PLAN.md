@@ -274,6 +274,12 @@ cargo run -p scoop --features llvm -- test
   - **StringBuilder v0**：以 `var + String.concat()` 累积模式在 fixture 演示（stdlib 无法定义类/使用字面量）。
   - Fixture：`stdlib_string_builder_basic.scoop`（concat 5 + sb 模式 5 + joinToString 5 + 组合 1 = 16 场景）。
   - 下一步：T1817（Hashing 落地：Int/String hash 实现）。
+- DONE（T1817）：Hashing 落地——Int/String hash 实现：
+  - **`Int.hash()`**（LLVM codegen inline）：SplitMix64-style bit-mixing（XOR/shift/mul 5 步），无 C runtime 调用。
+  - **`String.hash()`**（runtime/c）：FNV-1a 哈希（offset basis 14695981039346656037，prime 1099511628211），逐字节处理。
+  - **Codegen dispatch**：通过 receiver HIR 类型判断路由——`ValueTypeKind::Int` → inline，其它 → `scoop_string_hash` C 调用。
+  - Fixture：`stdlib_hash_basic.scoop`（Int 6 + String 4 + 回归值 6 = 13 场景 + 完成标记）。
+  - 下一步：T1818（Hash-based Set/Map）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

@@ -1,0 +1,17 @@
+int_deterministic: ok
+int_nonzero_1: ok
+int_nonzero_42: ok
+int_different_1_2: ok
+int_different_100_200: ok
+int_negative: ok
+6238072747940578789
+-6387817139659442654
+-5417735806833148549
+str_deterministic: ok
+str_nonzero_hello: ok
+str_different_hello_world: ok
+str_different_abc_def: ok
+-6615550055289275125
+5717881983045765875
+-1792535898324117685
+hash_tests_done

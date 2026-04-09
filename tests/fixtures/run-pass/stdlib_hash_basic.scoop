@@ -1,0 +1,110 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_hash_basic.stdout
+//
+// T1817: Int.hash() (SplitMix64 bit-mixing) + String.hash() (FNV-1a via C runtime).
+
+import scoop.core.*
+
+fun main() {
+    // --- Int.hash() ---
+
+    // Determinism: same input -> same output.
+    val h1: Int = 42.hash()
+    val h2: Int = 42.hash()
+    if (h1 == h2) {
+        println("int_deterministic: ok")
+    } else {
+        println("int_deterministic: FAIL")
+    }
+
+    // Non-zero for non-zero input.
+    val h3: Int = 1.hash()
+    if (h3 == 0) {
+        println("int_nonzero_1: FAIL")
+    } else {
+        println("int_nonzero_1: ok")
+    }
+
+    val h4: Int = 42.hash()
+    if (h4 == 0) {
+        println("int_nonzero_42: FAIL")
+    } else {
+        println("int_nonzero_42: ok")
+    }
+
+    // Different inputs -> different outputs.
+    val ha: Int = 1.hash()
+    val hb: Int = 2.hash()
+    if (ha == hb) {
+        println("int_different_1_2: FAIL")
+    } else {
+        println("int_different_1_2: ok")
+    }
+
+    val hc: Int = 100.hash()
+    val hd: Int = 200.hash()
+    if (hc == hd) {
+        println("int_different_100_200: FAIL")
+    } else {
+        println("int_different_100_200: ok")
+    }
+
+    // Negative input produces non-zero hash.
+    val negOne: Int = 0 - 1
+    val hNeg: Int = negOne.hash()
+    if (hNeg == 0) {
+        println("int_negative: FAIL")
+    } else {
+        println("int_negative: ok")
+    }
+
+    // Print specific hash values for regression.
+    println(1.hash())
+    println(42.hash())
+    val negOneB: Int = 0 - 1
+    println(negOneB.hash())
+
+    // --- String.hash() ---
+
+    // Determinism: same input -> same output.
+    val sh1: Int = "hello".hash()
+    val sh2: Int = "hello".hash()
+    if (sh1 == sh2) {
+        println("str_deterministic: ok")
+    } else {
+        println("str_deterministic: FAIL")
+    }
+
+    // Non-zero for non-empty input.
+    val sh3: Int = "hello".hash()
+    if (sh3 == 0) {
+        println("str_nonzero_hello: FAIL")
+    } else {
+        println("str_nonzero_hello: ok")
+    }
+
+    // Different inputs -> different outputs.
+    val sha: Int = "hello".hash()
+    val shb: Int = "world".hash()
+    if (sha == shb) {
+        println("str_different_hello_world: FAIL")
+    } else {
+        println("str_different_hello_world: ok")
+    }
+
+    val shc: Int = "abc".hash()
+    val shd: Int = "def".hash()
+    if (shc == shd) {
+        println("str_different_abc_def: FAIL")
+    } else {
+        println("str_different_abc_def: ok")
+    }
+
+    // Print specific hash values for regression.
+    println("hello".hash())
+    println("world".hash())
+    println("abc".hash())
+
+    // --- Combined ---
+    println("hash_tests_done")
+}
