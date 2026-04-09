@@ -781,7 +781,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_test_assertions_extended.scoop` + `.stdout` 覆盖 7 个场景：String 相等通过、String 内容不同失败、String 长度不同失败、String 前缀匹配但长度不同失败、Bool 相等通过、Bool true≠false 失败、Bool false≠true 失败、以及组合测试（`Int.toString()` 结果与字面量比较）。
   - 139 单元测试 + 770 fixtures 通过。
 
-### T1814 [TODO] Math 基础：`abs`/`min`/`max`（Int）
+### T1814 [DONE] Math 基础：`abs`/`min`/`max`（Int）
 - 描述：在 `stdlib/` 中实现 `abs`/`min`/`max` 的 `Int` 版本。
 - 目标：
   - 分类：`pure_scoop_ok`（纯 Scoop 条件表达式实现）。
@@ -791,6 +791,13 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_math_basic.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **新增 `stdlib/math.scoop`**（`package scoop.core`）：纯 Scoop 实现，不使用 Int 字面量（零值通过 `sizeOf(x) - sizeOf(x)` 派生）。
+    - `abs(x: Int): Int`：与零比较，负数取 `-x`。
+    - `min(a: Int, b: Int): Int`：`a <= b` 时返回 `a`，否则 `b`。
+    - `max(a: Int, b: Int): Int`：`a >= b` 时返回 `a`，否则 `b`。
+  - **Fixture**：`stdlib_math_basic.scoop` + `.stdout` 覆盖 16 个场景：abs（正/负/零/1/大数）、min（两种序/相等/负数/双负）、max（两种序/相等/负数/双负）、组合嵌套调用。
+  - 139 单元测试 + 771 fixtures 通过（含 LLVM 后端）。
 
 ### T1815 [TODO] Collections 算法：`sort`/`reduce`/`zip`/`flatten`（Int 专用）
 - 描述：为 `MutableArray<Int>` / `Array<Int>` 补齐常用算法。

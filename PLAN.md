@@ -255,6 +255,11 @@ cargo run -p scoop --features llvm -- test
   - `assertEqBool`：使用 `require(expected == actual)`（`Bool ==` 已在 typecheck + codegen 中支持）。
   - Fixture：`stdlib_test_assertions_extended.scoop` + `.stdout`（7 个场景 + 组合测试 `Int.toString()` roundtrip）。
   - 下一步：T1814（Math 基础：`abs`/`min`/`max`）。
+- DONE（T1814）：Math 基础——`abs`/`min`/`max`（Int）：
+  - 新增 `stdlib/math.scoop`（`package scoop.core`）：纯 Scoop 实现，不使用 Int 字面量（零值通过 `sizeOf(x) - sizeOf(x)` 派生）。
+  - `abs(x)`：与零比较，负数取 `-x`；`min(a, b)`：`a <= b ? a : b`；`max(a, b)`：`a >= b ? a : b`。
+  - Fixture：`stdlib_math_basic.scoop` + `.stdout`（16 个场景：abs 5 + min 5 + max 5 + 组合嵌套 1）。
+  - 下一步：T1815（Collections 算法：`sort`/`reduce`/`zip`/`flatten`）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

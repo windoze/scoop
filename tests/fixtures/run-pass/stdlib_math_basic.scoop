@@ -1,0 +1,94 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_math_basic.stdout
+// EXPECT-EXIT: 0
+//
+// stdlib math test: abs/min/max (Int) — pure Scoop implementation.
+// Exercises basic math utilities from stdlib/math.scoop.
+
+import scoop.core.*
+import scoop.test.*
+
+fun main(): Int {
+    // --- abs ---
+    println("abs_positive")
+    assertEqInt(42, abs(42))
+    println("ok")
+
+    println("abs_negative")
+    assertEqInt(42, abs(-42))
+    println("ok")
+
+    println("abs_zero")
+    assertEqInt(0, abs(0))
+    println("ok")
+
+    println("abs_one")
+    assertEqInt(1, abs(-1))
+    println("ok")
+
+    println("abs_large")
+    assertEqInt(1000000, abs(-1000000))
+    println("ok")
+
+    // --- min ---
+    println("min_first_smaller")
+    assertEqInt(3, min(3, 7))
+    println("ok")
+
+    println("min_second_smaller")
+    assertEqInt(3, min(7, 3))
+    println("ok")
+
+    println("min_equal")
+    assertEqInt(5, min(5, 5))
+    println("ok")
+
+    println("min_negative")
+    assertEqInt(-10, min(-10, 5))
+    println("ok")
+
+    println("min_both_negative")
+    assertEqInt(-20, min(-10, -20))
+    println("ok")
+
+    // --- max ---
+    println("max_first_larger")
+    assertEqInt(7, max(7, 3))
+    println("ok")
+
+    println("max_second_larger")
+    assertEqInt(7, max(3, 7))
+    println("ok")
+
+    println("max_equal")
+    assertEqInt(5, max(5, 5))
+    println("ok")
+
+    println("max_negative")
+    assertEqInt(5, max(-10, 5))
+    println("ok")
+
+    println("max_both_negative")
+    assertEqInt(-10, max(-10, -20))
+    println("ok")
+
+    // --- Combined usage ---
+    println("combined")
+    val x: Int = -15
+    val y: Int = 8
+    val z: Int = -3
+
+    // abs(-15) = 15, max(15, 8) = 15
+    assertEqInt(15, max(abs(x), y))
+
+    // min(abs(-15), abs(-3)) = min(15, 3) = 3
+    assertEqInt(3, min(abs(x), abs(z)))
+
+    // max(min(8, 15), abs(-3)) = max(8, 3) = 8
+    assertEqInt(8, max(min(y, abs(x)), abs(z)))
+
+    println("ok")
+
+    println("done")
+    return 0
+}

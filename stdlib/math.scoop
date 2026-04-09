@@ -1,0 +1,40 @@
+// Scoop stdlib（pure scoop）：math utilities v0
+//
+// 说明：
+// - 本文件提供 Int 专用的基础数学操作（abs/min/max）。
+// - 不使用 Int/String 字面量（跨文件 codegen 限制）；零值通过 `sizeOf` 派生。
+
+package scoop.core
+
+/// 返回 Int 的绝对值。
+///
+/// 实现：通过 `sizeOf` 派生零值（避免字面量），与 x 比较后选择返回 x 或 -x。
+fun abs(x: Int): Int {
+    val zero: Int = sizeOf(x) - sizeOf(x)
+    var result: Int = x
+    when (x >= zero) {
+        true -> { result = x }
+        false -> { result = -x }
+    }
+    return result
+}
+
+/// 返回两个 Int 中较小的值。
+fun min(a: Int, b: Int): Int {
+    var result: Int = a
+    when (a <= b) {
+        true -> { result = a }
+        false -> { result = b }
+    }
+    return result
+}
+
+/// 返回两个 Int 中较大的值。
+fun max(a: Int, b: Int): Int {
+    var result: Int = a
+    when (a >= b) {
+        true -> { result = a }
+        false -> { result = b }
+    }
+    return result
+}
