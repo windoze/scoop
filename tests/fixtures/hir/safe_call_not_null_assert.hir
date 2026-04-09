@@ -1,0 +1,306 @@
+File {
+    items: [
+        Todo {
+            span: 32..59,
+            kind: "type",
+        },
+        Fun(
+            FunDecl {
+                span: 61..106,
+                fqn: "a.f",
+                name: "f",
+                ty: TypeId(
+                    10,
+                ),
+                params: [
+                    Param {
+                        span: 67..68,
+                        id: S0,
+                        name: "w",
+                        ty: TypeId(
+                            8,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    9,
+                ),
+                body: Some(
+                    Block {
+                        span: 83..106,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 89..104,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 96..104,
+                                            ty: TypeId(
+                                                0,
+                                            ),
+                                            kind: When {
+                                                subject: Expr {
+                                                    span: 96..97,
+                                                    ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: VarRef(
+                                                        Local {
+                                                            id: S0,
+                                                            name: "w",
+                                                            decl_span: 67..68,
+                                                        },
+                                                    ),
+                                                },
+                                                arms: [
+                                                    WhenArm {
+                                                        span: 97..99,
+                                                        pat: Variant {
+                                                            span: 97..99,
+                                                            name_span: 97..99,
+                                                            name: "Some",
+                                                            args: [
+                                                                Bind {
+                                                                    span: 97..99,
+                                                                    id: S1,
+                                                                    name: "__safe_v",
+                                                                },
+                                                            ],
+                                                        },
+                                                        guard: None,
+                                                        arrow_span: 97..99,
+                                                        body: Expr {
+                                                            span: 97..99,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: Call {
+                                                                callee: Expr {
+                                                                    span: 97..99,
+                                                                    ty: TypeId(
+                                                                        0,
+                                                                    ),
+                                                                    kind: UnresolvedIdent {
+                                                                        name: "Some",
+                                                                    },
+                                                                },
+                                                                args: [
+                                                                    Positional(
+                                                                        Expr {
+                                                                            span: 99..104,
+                                                                            ty: TypeId(
+                                                                                0,
+                                                                            ),
+                                                                            kind: MemberAccess {
+                                                                                receiver: Expr {
+                                                                                    span: 97..99,
+                                                                                    ty: TypeId(
+                                                                                        0,
+                                                                                    ),
+                                                                                    kind: VarRef(
+                                                                                        Local {
+                                                                                            id: S1,
+                                                                                            name: "__safe_v",
+                                                                                            decl_span: 97..99,
+                                                                                        },
+                                                                                    ),
+                                                                                },
+                                                                                member: MemberAccess {
+                                                                                    span: 99..104,
+                                                                                    name: "value",
+                                                                                    resolved: None,
+                                                                                },
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                            },
+                                                        },
+                                                    },
+                                                    WhenArm {
+                                                        span: 97..99,
+                                                        pat: Variant {
+                                                            span: 97..99,
+                                                            name_span: 97..99,
+                                                            name: "None",
+                                                            args: [],
+                                                        },
+                                                        guard: None,
+                                                        arrow_span: 97..99,
+                                                        body: Expr {
+                                                            span: 97..99,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: UnresolvedIdent {
+                                                                name: "None",
+                                                            },
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 108..174,
+                fqn: "a.g",
+                name: "g",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 114..115,
+                        id: S2,
+                        name: "x",
+                        ty: TypeId(
+                            11,
+                        ),
+                    },
+                ],
+                return_ty: TypeId(
+                    1,
+                ),
+                body: Some(
+                    Block {
+                        span: 156..174,
+                        ty: TypeId(
+                            2,
+                        ),
+                        stmts: [
+                            Stmt {
+                                span: 162..172,
+                                ty: TypeId(
+                                    3,
+                                ),
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 169..172,
+                                            ty: TypeId(
+                                                0,
+                                            ),
+                                            kind: When {
+                                                subject: Expr {
+                                                    span: 169..170,
+                                                    ty: TypeId(
+                                                        0,
+                                                    ),
+                                                    kind: VarRef(
+                                                        Local {
+                                                            id: S2,
+                                                            name: "x",
+                                                            decl_span: 114..115,
+                                                        },
+                                                    ),
+                                                },
+                                                arms: [
+                                                    WhenArm {
+                                                        span: 170..172,
+                                                        pat: Variant {
+                                                            span: 170..172,
+                                                            name_span: 170..172,
+                                                            name: "Some",
+                                                            args: [
+                                                                Bind {
+                                                                    span: 170..172,
+                                                                    id: S3,
+                                                                    name: "__not_null_v",
+                                                                },
+                                                            ],
+                                                        },
+                                                        guard: None,
+                                                        arrow_span: 170..172,
+                                                        body: Expr {
+                                                            span: 170..172,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    id: S3,
+                                                                    name: "__not_null_v",
+                                                                    decl_span: 170..172,
+                                                                },
+                                                            ),
+                                                        },
+                                                    },
+                                                    WhenArm {
+                                                        span: 170..172,
+                                                        pat: Variant {
+                                                            span: 170..172,
+                                                            name_span: 170..172,
+                                                            name: "None",
+                                                            args: [],
+                                                        },
+                                                        guard: None,
+                                                        arrow_span: 170..172,
+                                                        body: Expr {
+                                                            span: 170..172,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            kind: Perform {
+                                                                op: EffectOpRef {
+                                                                    span: 170..172,
+                                                                    fqn: "scoop.core.Raise.raise",
+                                                                },
+                                                                args: [
+                                                                    Positional(
+                                                                        Expr {
+                                                                            span: 170..172,
+                                                                            ty: TypeId(
+                                                                                0,
+                                                                            ),
+                                                                            kind: MemberAccess {
+                                                                                receiver: Expr {
+                                                                                    span: 170..172,
+                                                                                    ty: TypeId(
+                                                                                        0,
+                                                                                    ),
+                                                                                    kind: Missing,
+                                                                                },
+                                                                                member: MemberAccess {
+                                                                                    span: 170..172,
+                                                                                    name: "NullAssertionFailed",
+                                                                                    resolved: Some(
+                                                                                        Value {
+                                                                                            id: S4,
+                                                                                            fqn: "scoop.core.RuntimeError.NullAssertionFailed",
+                                                                                        },
+                                                                                    ),
+                                                                                },
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                            },
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        ],
+                    },
+                ),
+            },
+        ),
+    ],
+}

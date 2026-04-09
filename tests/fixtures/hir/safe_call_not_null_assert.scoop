@@ -1,0 +1,13 @@
+package a
+
+import scoop.core.*
+
+struct Wrap(val value: Int)
+
+fun f(w: Wrap?): Int? {
+    return w?.value
+}
+
+fun g(x: String?): String / Raise<RuntimeError> {
+    return x!!
+}

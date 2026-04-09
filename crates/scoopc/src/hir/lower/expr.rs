@@ -15,7 +15,7 @@ use super::util::*;
 use super::super::{
     Block, CallArg, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind, HandleArm, HandleArmKind,
     HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart, LiteralKind, MemberAccess,
-    MemberRef, Param, Stmt, StmtKind, StructLitField, ValDecl, ValueRef,
+    MemberRef, Param, Stmt, StmtKind, StructLitField, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 impl<'a> HirLowering<'a> {
@@ -91,6 +91,28 @@ impl<'a> HirLowering<'a> {
                 (inner.kind, inner.ty)
             }
             ast::ExprKind::Call { callee, args } => {
+                // T0108：safe call 方法调用：`receiver?.method(args)` → when desugar。
+                if let ast::ExprKind::SafeMemberAccess {
+                    receiver: inner_receiver,
+                    op_span,
+                    member,
+                } = &callee.kind
+                {
+                    let (kind, ty) = self.lower_safe_call_expr(
+                        pkg_prefix,
+                        e.span,
+                        inner_receiver,
+                        *op_span,
+                        member,
+                        args,
+                    );
+                    return Expr {
+                        span: e.span,
+                        ty,
+                        kind,
+                    };
+                }
+
                 // 扩展函数调用（T0312）：把 `receiver.ext(args...)` 降糖为普通顶层调用：
                 // `ext(receiver, args...)`。
                 //
@@ -549,11 +571,13 @@ impl<'a> HirLowering<'a> {
             ast::ExprKind::SpliceField { .. } => {
                 (ExprKind::Todo("splice_field"), self.builtins.any)
             }
-            ast::ExprKind::SafeMemberAccess { .. } => {
-                (ExprKind::Todo("safe_member_access"), self.builtins.any)
-            }
-            ast::ExprKind::NotNullAssert { .. } => {
-                (ExprKind::Todo("not_null_assert"), self.builtins.any)
+            ast::ExprKind::SafeMemberAccess {
+                receiver,
+                op_span,
+                member,
+            } => self.lower_safe_member_access_expr(pkg_prefix, e.span, receiver, *op_span, member),
+            ast::ExprKind::NotNullAssert { expr, op_span } => {
+                self.lower_not_null_assert_expr(pkg_prefix, e.span, expr, *op_span)
             }
             ast::ExprKind::Unary { op, op_span, expr } => {
                 let expr = Box::new(self.lower_expr(pkg_prefix, expr));
@@ -1162,6 +1186,380 @@ impl<'a> HirLowering<'a> {
         syms.fun
             .iter()
             .any(|o| o.sig.kind == ast::FunDeclKind::EffectOp)
+    }
+
+    // ── T0108: nullable operators (`?.` and `!!`) desugar ──────────────────
+
+    /// `expr!!` → `when (expr) { Some(v) -> v; None -> Raise.raise(RuntimeError.NullAssertionFailed) }`
+    fn lower_not_null_assert_expr(
+        &mut self,
+        pkg_prefix: &str,
+        _span: Span,
+        expr: &ast::Expr,
+        op_span: Span,
+    ) -> (ExprKind, TypeId) {
+        let subject = Box::new(self.lower_expr(pkg_prefix, expr));
+        let v_sym = self.intern_local_symbol(op_span, false);
+
+        let some_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "Some".to_string(),
+                args: vec![WhenPat::Bind {
+                    span: op_span,
+                    id: v_sym,
+                    name: "__not_null_v".to_string(),
+                }],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: Expr {
+                span: op_span,
+                ty: self.builtins.any,
+                kind: ExprKind::VarRef(ValueRef::Local {
+                    id: v_sym,
+                    name: "__not_null_v".to_string(),
+                    decl_span: op_span,
+                }),
+            },
+        };
+
+        let none_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "None".to_string(),
+                args: vec![],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: self.synth_raise_null_assertion_failed(op_span),
+        };
+
+        (
+            ExprKind::When {
+                subject,
+                arms: vec![some_arm, none_arm],
+            },
+            self.builtins.any,
+        )
+    }
+
+    /// `receiver?.field` → `when (receiver) { Some(v) -> Some(v.field); None -> None }`
+    fn lower_safe_member_access_expr(
+        &mut self,
+        pkg_prefix: &str,
+        _span: Span,
+        receiver: &ast::Expr,
+        op_span: Span,
+        member: &ast::MemberIdent,
+    ) -> (ExprKind, TypeId) {
+        let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let v_sym = self.intern_local_symbol(op_span, false);
+
+        // Lower the member access info for the inner `v.field` expression.
+        let resolved = member
+            .resolved
+            .as_ref()
+            .map(|r| self.lower_resolved_member_ref(r));
+        let member_name = self.source.slice(member.span).to_string();
+
+        let v_ref = Expr {
+            span: op_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: v_sym,
+                name: "__safe_v".to_string(),
+                decl_span: op_span,
+            }),
+        };
+
+        // Some(v) -> Some(v.field)
+        let inner_access = Expr {
+            span: member.span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(v_ref),
+                member: MemberAccess {
+                    span: member.span,
+                    name: member_name,
+                    resolved,
+                },
+            },
+        };
+
+        let some_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "Some".to_string(),
+                args: vec![WhenPat::Bind {
+                    span: op_span,
+                    id: v_sym,
+                    name: "__safe_v".to_string(),
+                }],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: self.synth_some_wrap(op_span, inner_access),
+        };
+
+        let none_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "None".to_string(),
+                args: vec![],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: self.synth_none(op_span),
+        };
+
+        (
+            ExprKind::When {
+                subject,
+                arms: vec![some_arm, none_arm],
+            },
+            self.builtins.any,
+        )
+    }
+
+    /// `receiver?.method(args)` → `when (receiver) { Some(v) -> Some(v.method(args)); None -> None }`
+    fn lower_safe_call_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        receiver: &ast::Expr,
+        op_span: Span,
+        member: &ast::MemberIdent,
+        args: &[ast::Expr],
+    ) -> (ExprKind, TypeId) {
+        let subject = Box::new(self.lower_expr(pkg_prefix, receiver));
+        let v_sym = self.intern_local_symbol(op_span, false);
+
+        let v_ref = Expr {
+            span: op_span,
+            ty: self.builtins.any,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: v_sym,
+                name: "__safe_v".to_string(),
+                decl_span: op_span,
+            }),
+        };
+
+        // Build the inner call `v.method(args)` using the same lowering strategies
+        // as the normal Call path (extension fun → TopLevel, class member → TopLevel, fallback).
+        let inner_call = self.lower_safe_call_inner_call(pkg_prefix, span, op_span, member, &v_ref, args);
+
+        let some_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "Some".to_string(),
+                args: vec![WhenPat::Bind {
+                    span: op_span,
+                    id: v_sym,
+                    name: "__safe_v".to_string(),
+                }],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: self.synth_some_wrap(op_span, inner_call),
+        };
+
+        let none_arm = WhenArm {
+            span: op_span,
+            pat: WhenPat::Variant {
+                span: op_span,
+                name_span: op_span,
+                name: "None".to_string(),
+                args: vec![],
+            },
+            guard: None,
+            arrow_span: op_span,
+            body: self.synth_none(op_span),
+        };
+
+        (
+            ExprKind::When {
+                subject,
+                arms: vec![some_arm, none_arm],
+            },
+            self.builtins.any,
+        )
+    }
+
+    /// Build the inner call for safe call desugaring.
+    /// Mirrors the normal Call lowering: extension fun → TopLevel call, class member → TopLevel call.
+    fn lower_safe_call_inner_call(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        op_span: Span,
+        member: &ast::MemberIdent,
+        v_ref: &Expr,
+        args: &[ast::Expr],
+    ) -> Expr {
+        let lowered_args_without_receiver: Vec<CallArg> = args
+            .iter()
+            .map(|arg| self.lower_call_arg(pkg_prefix, arg))
+            .collect();
+
+        // Extension function: `receiver?.ext(args)` → `ext(v, args...)`
+        if let Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) = member.resolved.as_ref() {
+            let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
+            all_args.push(CallArg::Positional(v_ref.clone()));
+            all_args.extend(lowered_args_without_receiver);
+            return Expr {
+                span,
+                ty: self.builtins.any,
+                kind: ExprKind::Call {
+                    callee: Box::new(Expr {
+                        span: op_span,
+                        ty: self.builtins.any,
+                        kind: ExprKind::VarRef(ValueRef::TopLevel {
+                            id: self.symbols.intern_top_level(fqn.clone()),
+                            fqn: fqn.clone(),
+                        }),
+                    }),
+                    args: all_args,
+                },
+            };
+        }
+
+        // Class/interface member function: `receiver?.method(args)` → `Owner.method(v, args...)`
+        if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
+            if let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.') {
+                let owner_is_class =
+                    matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
+                let owner_is_interface = matches!(
+                    self.type_kinds.get(owner_fqn),
+                    Some(ast::TypeKind::Interface)
+                );
+                let owner_is_object = self.index.object_types.contains(owner_fqn);
+                if owner_is_class || owner_is_interface || owner_is_object {
+                    let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
+                    all_args.push(CallArg::Positional(v_ref.clone()));
+                    all_args.extend(lowered_args_without_receiver);
+                    return Expr {
+                        span,
+                        ty: self.builtins.any,
+                        kind: ExprKind::Call {
+                            callee: Box::new(Expr {
+                                span: op_span,
+                                ty: self.builtins.any,
+                                kind: ExprKind::VarRef(ValueRef::TopLevel {
+                                    id: self.symbols.intern_top_level(fqn.clone()),
+                                    fqn: fqn.clone(),
+                                }),
+                            }),
+                            args: all_args,
+                        },
+                    };
+                }
+            }
+        }
+
+        // Fallback: `v.method(args)` as MemberAccess call.
+        let resolved = member
+            .resolved
+            .as_ref()
+            .map(|r| self.lower_resolved_member_ref(r));
+        let member_name = self.source.slice(member.span).to_string();
+        let callee = Expr {
+            span: member.span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(v_ref.clone()),
+                member: MemberAccess {
+                    span: member.span,
+                    name: member_name,
+                    resolved,
+                },
+            },
+        };
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(callee),
+                args: lowered_args_without_receiver,
+            },
+        }
+    }
+
+    // ── Synthesized HIR helpers for nullable desugar ───────────────────────
+
+    /// Synthesize `Raise.raise(RuntimeError.NullAssertionFailed)` as a `Perform` node.
+    fn synth_raise_null_assertion_failed(&mut self, span: Span) -> Expr {
+        let error_expr = Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::MemberAccess {
+                receiver: Box::new(Expr {
+                    span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Missing,
+                }),
+                member: MemberAccess {
+                    span,
+                    name: "NullAssertionFailed".to_string(),
+                    resolved: Some(MemberRef::Value {
+                        id: self.symbols.intern_top_level(
+                            Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
+                        ),
+                        fqn: Self::RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN.to_string(),
+                    }),
+                },
+            },
+        };
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Perform {
+                op: EffectOpRef {
+                    span,
+                    fqn: Self::RAISE_RAISE_FQN.to_string(),
+                },
+                args: vec![CallArg::Positional(error_expr)],
+            },
+        }
+    }
+
+    /// Synthesize `Some(inner)` as a `Call { callee: UnresolvedIdent("Some"), args: [inner] }`.
+    fn synth_some_wrap(&self, span: Span, inner: Expr) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::UnresolvedIdent {
+                        name: "Some".to_string(),
+                    },
+                }),
+                args: vec![CallArg::Positional(inner)],
+            },
+        }
+    }
+
+    /// Synthesize `None` as `UnresolvedIdent { name: "None" }`.
+    fn synth_none(&self, span: Span) -> Expr {
+        Expr {
+            span,
+            ty: self.builtins.any,
+            kind: ExprKind::UnresolvedIdent {
+                name: "None".to_string(),
+            },
+        }
     }
 
     fn lower_handle_expr(

@@ -1,0 +1,21 @@
+// EXPECT: pass
+// RUN-STDOUT: not_null_assert_basic.stdout
+//
+// T0108: `!!` (non-null assert) codegen.
+//
+// Covers:
+//   - `expr!!` on a `Some` value -> unwraps successfully.
+
+import scoop.core.*
+
+fun main() {
+    val result: Int = try {
+        val o: String? = Some("hello")
+        val s: String = o!!
+        println(s)
+        0
+    } catch (e: RuntimeError) {
+        val _unused: RuntimeError = e
+        1
+    }
+}

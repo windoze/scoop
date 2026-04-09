@@ -91,6 +91,9 @@ impl<'a> HirLowering<'a> {
     const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
     const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &'static str =
         "scoop.core.__scoop_array_builder_build_mutable_array";
+    const RAISE_RAISE_FQN: &'static str = "scoop.core.Raise.raise";
+    const RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN: &'static str =
+        "scoop.core.RuntimeError.NullAssertionFailed";
 
     fn new(
         source: &'a SourceFile,

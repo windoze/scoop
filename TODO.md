@@ -234,7 +234,7 @@ cargo run -p scoop --features llvm -- test
   - **fixture**：`string_equality_basic.scoop` + `.stdout`——覆盖 10 个场景：同内容 `==`、不同内容 `==`、不同内容 `!=`、同内容 `!=`、空串 `==`、空串 vs 非空、同长不同内容、变量比较 `==`/`!=`。
   - 139 单元测试 + 775 fixtures 通过（含 LLVM 后端）。
 
-### T0108 [TODO] Nullable 运算符 codegen：`?.`（safe call）和 `!!`（non-null assert）
+### T0108 [DONE] Nullable 运算符 codegen：`?.`（safe call）和 `!!`（non-null assert）
 
 - 描述：`?.` 和 `!!` 在 parser / typecheck 中已完整实现，但 HIR lowering 为 `Todo("safe_member_access")` / `Todo("not_null_assert")`（`lower/expr.rs:552,555`），codegen 报 `UnsupportedMainBody`。这直接阻塞 `Option<T>` 的惯用写法。
 - 规范引用：Spec §2.4（Nullability）、Appendix B.3（Kotlin null-safe operators `?.`/`?:`/`!!`）。
@@ -246,6 +246,17 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：`?.` 链式调用、`!!` 正常/失败路径（try/catch 捕获 RuntimeError）。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成：
+  - **HIR lowering**（`hir/lower/expr.rs`）：
+    - `!!`（`lower_not_null_assert_expr`）：展开为 `when (expr) { Some(v) -> v; None -> Raise.raise(RuntimeError.NullAssertionFailed) }`。
+    - `?.` 字段访问（`lower_safe_member_access_expr`）：展开为 `when (receiver) { Some(v) -> Some(v.field); None -> None }`。
+    - `?.` 方法调用（`lower_safe_call_expr`）：`Call { callee: SafeMemberAccess }` 检测后展开为 `when`，内部调用复用 extension/class member fun rewrite 逻辑。
+    - 辅助函数：`synth_raise_null_assertion_failed`、`synth_some_wrap`、`synth_none`、`lower_safe_call_inner_call`。
+  - **FQN 常量**（`hir/lower/mod.rs`）：`RAISE_RAISE_FQN`、`RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN`。
+  - **codegen 继承**：无 codegen 修改——生成的 `When`/`Perform`/`UnresolvedIdent` 节点自动走现有路径（expected type 通过 when arm 传播给 `Some`/`None` 构造）。
+  - **fixture**：`not_null_assert_basic.scoop` + `.stdout`（run-pass，`!!` 正常路径）；`safe_call_not_null_assert.hir`（HIR golden，验证 `?.`/`!!` desugar 结构）。
+  - **已知限制**：`?.` 端到端 run-pass 受阻于 typecheck 仅支持 struct receiver + codegen 不支持 `Option<Struct>` payload 的组合缺口；待后续 `Option<Struct>` codegen（non-scalar enum payload）落地后可补充 run-pass 覆盖。
+  - 139 单元测试 + 777 fixtures 通过（含 LLVM 后端）。
 
 ### T0109 [TODO] `with` 表达式 codegen（值类型更新）
 
