@@ -1,0 +1,154 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_collections_algorithms_basic.stdout
+// EXPECT-EXIT: 0
+//
+// stdlib collections algorithms test: sort/reduce/zip (Int).
+// Exercises collection algorithms from stdlib/mutable_array_iter.scoop and stdlib/array_iter.scoop.
+// flatten is deferred to T1822 (requires Array<Array<Int>> codegen support).
+
+import scoop.core.*
+import scoop.core.array.*
+import scoop.core.mutable_array.*
+import scoop.test.*
+
+fun printMutableArray(label: String, xs: MutableArray<Int>): Unit {
+    println(label)
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun printArray(label: String, xs: Array<Int>): Unit {
+    println(label)
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun main(): Int {
+    // ================================================================
+    // sort: in-place selection sort on MutableArray<Int>
+    // ================================================================
+
+    // --- sort: reverse order ---
+    println("sort_reverse")
+    var arr1: MutableArray<Int> = [5, 4, 3, 2, 1]
+    arr1.sort()
+    printMutableArray("sorted", arr1)
+
+    // --- sort: already sorted ---
+    println("sort_already_sorted")
+    var arr2: MutableArray<Int> = [1, 2, 3, 4, 5]
+    arr2.sort()
+    printMutableArray("sorted", arr2)
+
+    // --- sort: duplicates ---
+    println("sort_duplicates")
+    var arr3: MutableArray<Int> = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]
+    arr3.sort()
+    printMutableArray("sorted", arr3)
+
+    // --- sort: single element ---
+    println("sort_single")
+    var arr4: MutableArray<Int> = [42]
+    arr4.sort()
+    printMutableArray("sorted", arr4)
+
+    // --- sort: negative numbers ---
+    println("sort_negative")
+    var arr5: MutableArray<Int> = [3, -1, 4, -5, 2]
+    arr5.sort()
+    printMutableArray("sorted", arr5)
+
+    // ================================================================
+    // reduce: fold from first element (Array<Int>)
+    // ================================================================
+
+    // --- reduce: sum ---
+    println("reduce_sum")
+    val data: Array<Int> = [10, 20, 30, 40]
+    val sum: Int = data.reduce { acc, x -> acc + x }
+    assertEqInt(100, sum)
+    println("ok")
+
+    // --- reduce: max ---
+    println("reduce_max")
+    val nums: Array<Int> = [3, 7, 2, 9, 1, 8]
+    val mx: Int = nums.reduce { acc, x ->
+        var r: Int = acc
+        when (x > acc) {
+            true -> { r = x }
+            false -> ()
+        }
+        r
+    }
+    assertEqInt(9, mx)
+    println("ok")
+
+    // --- reduce: single element ---
+    println("reduce_single")
+    val single: Array<Int> = [42]
+    val s: Int = single.reduce { acc, x -> acc + x }
+    assertEqInt(42, s)
+    println("ok")
+
+    // --- reduce on MutableArray ---
+    println("reduce_mutable")
+    var mbuf: MutableArray<Int> = [5, 10, 15]
+    val msum: Int = mbuf.reduce { acc, x -> acc + x }
+    assertEqInt(30, msum)
+    println("ok")
+
+    // ================================================================
+    // zip: flat interleaved [a0,b0,a1,b1,...]
+    // ================================================================
+
+    // --- zip: equal length ---
+    println("zip_equal")
+    val a1: Array<Int> = [1, 2, 3]
+    val b1: Array<Int> = [10, 20, 30]
+    val z1: Array<Int> = a1.zip(b1)
+    assertEqInt(6, z1.size())
+    printArray("zipped", z1)
+
+    // --- zip: first shorter ---
+    println("zip_first_shorter")
+    val a2: Array<Int> = [1, 2]
+    val b2: Array<Int> = [10, 20, 30, 40]
+    val z2: Array<Int> = a2.zip(b2)
+    assertEqInt(4, z2.size())
+    printArray("zipped", z2)
+
+    // --- zip: second shorter ---
+    println("zip_second_shorter")
+    val a3: Array<Int> = [1, 2, 3, 4]
+    val b3: Array<Int> = [10, 20]
+    val z3: Array<Int> = a3.zip(b3)
+    assertEqInt(4, z3.size())
+    printArray("zipped", z3)
+
+    // ================================================================
+    // Combined usage
+    // ================================================================
+    println("combined")
+    // Sort then reduce to sum
+    var combo: MutableArray<Int> = [5, 3, 1, 4, 2]
+    combo.sort()
+    val comboSum: Int = combo.reduce { acc, x -> acc + x }
+    assertEqInt(15, comboSum)
+
+    // Zip then reduce: sum of all interleaved elements
+    val left: Array<Int> = [1, 2, 3]
+    val right: Array<Int> = [4, 5, 6]
+    val zipped: Array<Int> = left.zip(right)
+    val zipSum: Int = zipped.reduce { acc, x -> acc + x }
+    assertEqInt(21, zipSum)
+    println("ok")
+
+    println("done")
+    return 0
+}

@@ -799,7 +799,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_math_basic.scoop` + `.stdout` 覆盖 16 个场景：abs（正/负/零/1/大数）、min（两种序/相等/负数/双负）、max（两种序/相等/负数/双负）、组合嵌套调用。
   - 139 单元测试 + 771 fixtures 通过（含 LLVM 后端）。
 
-### T1815 [TODO] Collections 算法：`sort`/`reduce`/`zip`/`flatten`（Int 专用）
+### T1815 [DONE] Collections 算法：`sort`/`reduce`/`zip`/`flatten`（Int 专用）
 - 描述：为 `MutableArray<Int>` / `Array<Int>` 补齐常用算法。
 - 目标：
   - 分类：`pure_scoop_ok`。
@@ -813,6 +813,13 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无（基础 `Array<Int>` / `MutableArray<Int>` 已存在）
 - 备注：`zip`/`flatten` 可能受限于当前泛型/嵌套 Array codegen 能力，允许降级或推迟到 T1822。
+- 完成说明：
+  - **`MutableArray<Int>.sort(): Unit`**（`stdlib/mutable_array_iter.scoop`）：原地选择排序，使用 `get`/`set` 交换，O(n²)，不分配新数组。
+  - **`Array<Int>.reduce(op)` + `MutableArray<Int>.reduce(op)`**（`stdlib/array_iter.scoop` + `stdlib/mutable_array_iter.scoop`）：从第一个元素开始归约，effect-polymorphic 签名，要求非空数组。
+  - **`Array<Int>.zip(other: Array<Int>): Array<Int>`**（`stdlib/array_iter.scoop`）：flat interleaved 布局 `[a0,b0,a1,b1,...]`，长度为 `min(a.size, b.size) * 2`（tuple array 尚不支持，按降级方案处理）。
+  - **`flatten`**：推迟到 T1822（需要 `Array<Array<Int>>` codegen 支持，当前泛型能力不足）。
+  - **Fixture**：`stdlib_collections_algorithms_basic.scoop` + `.stdout`——覆盖 sort（5 场景：逆序/已排序/重复/单元素/负数）、reduce（4 场景：求和/取最大值/单元素/MutableArray）、zip（3 场景：等长/首短/次短）、组合用例（sort+reduce、zip+reduce）。
+  - 139 单元测试 + 772 fixtures 通过。
 
 ### T1816 [TODO] Text 格式化：`StringBuilder` + `joinToString`
 - 描述：提供基础的字符串拼接工具，减少 `+` 链式拼接的分配开销。

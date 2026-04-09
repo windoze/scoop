@@ -80,3 +80,50 @@ fun <eff E = Pure> MutableArray<Int>.fold(
     }
     return acc
 }
+
+/// 归约：从第一个元素开始，依次合并为一个值（要求非空数组）。
+///
+/// 与 `fold` 的区别：不需要 `initial`，直接以 `this.get(0)` 作为初始累加器，
+/// 从索引 1 开始迭代。空数组行为未定义（当前阶段不做额外检查）。
+fun <eff E = Pure> MutableArray<Int>.reduce(op: (Int, Int) -> Int / E): Int / E {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var acc: Int = this.get(zero)
+    var i: Int = one
+    while (i < n) {
+        acc = op(acc, this.get(i))
+        i = i + one
+    }
+    return acc
+}
+
+/// 原地排序（选择排序，O(n²)；性能后置）。
+///
+/// 使用 `get`/`set` 进行原地交换，不分配新数组。
+fun MutableArray<Int>.sort(): Unit {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var i: Int = zero
+    while (i < n) {
+        // 在 [i, n) 中找到最小值的索引
+        var minIdx: Int = i
+        var j: Int = i + one
+        while (j < n) {
+            when (this.get(j) < this.get(minIdx)) {
+                true -> { minIdx = j }
+                false -> ()
+            }
+            j = j + one
+        }
+        // 交换 this[i] 与 this[minIdx]
+        val tmp: Int = this.get(i)
+        this.set(i, this.get(minIdx))
+        this.set(minIdx, tmp)
+        i = i + one
+    }
+    return ()
+}

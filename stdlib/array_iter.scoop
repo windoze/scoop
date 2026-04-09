@@ -81,3 +81,48 @@ fun <eff E = Pure> Array<Int>.fold(initial: Int, op: (Int, Int) -> Int / E): Int
     }
     return acc
 }
+
+/// 归约：从第一个元素开始，依次合并为一个值（要求非空数组）。
+///
+/// 与 `fold` 的区别：不需要 `initial`，直接以 `this.get(0)` 作为初始累加器，
+/// 从索引 1 开始迭代。空数组行为未定义（当前阶段不做额外检查）。
+fun <eff E = Pure> Array<Int>.reduce(op: (Int, Int) -> Int / E): Int / E {
+    val n: Int = this.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    var acc: Int = this.get(zero)
+    var i: Int = one
+    while (i < n) {
+        acc = op(acc, this.get(i))
+        i = i + one
+    }
+    return acc
+}
+
+/// 配对：将两个 `Array<Int>` 按索引配对，返回 flat interleaved `Array<Int>`。
+///
+/// 结果格式：`[a[0], b[0], a[1], b[1], ...]`，长度为 `min(a.size, b.size) * 2`。
+/// 当前阶段返回 flat 布局（tuple array 尚不支持）。
+fun Array<Int>.zip(other: Array<Int>): Array<Int> {
+    val n: Int = this.size()
+    val m: Int = other.size()
+    val one: Int = __stdlib_int_one(n)
+    val zero: Int = __stdlib_int_zero(n)
+
+    // len = min(n, m)
+    var len: Int = n
+    when (m < n) {
+        true -> { len = m }
+        false -> ()
+    }
+
+    val b: Any = __scoop_array_builder_new()
+    var i: Int = zero
+    while (i < len) {
+        __scoop_array_builder_push(b, this.get(i))
+        __scoop_array_builder_push(b, other.get(i))
+        i = i + one
+    }
+    return __scoop_array_builder_build_array(b)
+}

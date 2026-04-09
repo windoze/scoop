@@ -260,6 +260,13 @@ cargo run -p scoop --features llvm -- test
   - `abs(x)`：与零比较，负数取 `-x`；`min(a, b)`：`a <= b ? a : b`；`max(a, b)`：`a >= b ? a : b`。
   - Fixture：`stdlib_math_basic.scoop` + `.stdout`（16 个场景：abs 5 + min 5 + max 5 + 组合嵌套 1）。
   - 下一步：T1815（Collections 算法：`sort`/`reduce`/`zip`/`flatten`）。
+- DONE（T1815）：Collections 算法——`sort`/`reduce`/`zip`（Int 专用）：
+  - `MutableArray<Int>.sort()`：原地选择排序（get/set 交换，O(n²)）。
+  - `Array<Int>.reduce(op)` + `MutableArray<Int>.reduce(op)`：从首元素归约，effect-polymorphic。
+  - `Array<Int>.zip(other)`：flat interleaved 布局 `[a0,b0,a1,b1,...]`（tuple array 尚不支持，降级方案）。
+  - `flatten`：推迟到 T1822（需 `Array<Array<Int>>` codegen 支持）。
+  - Fixture：`stdlib_collections_algorithms_basic.scoop`（sort 5 + reduce 4 + zip 3 + 组合 2）。
+  - 下一步：T1816（Text 格式化：`StringBuilder` + `joinToString`）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。
