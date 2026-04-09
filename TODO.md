@@ -796,6 +796,25 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
+### T0144 [TODO] 审计：编译器 codegen 限制全面排查与任务拆分
+
+- 描述：T0140-T0142 是从 `stdlib/string.scoop` 中发现的三个 codegen 限制（source-backed literal 单文件限制、block 内 return/break/continue 不支持、if-without-else 非 Unit 报错）。这些限制的发现是偶发的——因为纯 Scoop stdlib 代码恰好触碰到了它们。编译器中可能还存在其它类似的"硬性拒绝"或"降级处理"路径，尚未被用户代码触发但会在语言功能扩展时成为障碍。
+  本任务是一个伞型审计任务（umbrella audit），系统性扫描编译器 codegen 及相关阶段，识别所有此类限制，为每个限制创建独立的后续任务。
+- 审计范围：
+  1. **LLVM codegen 硬性拒绝**：搜索所有返回 `LlvmEmitError::UnsupportedMainBody` / `Unsupported` / `Todo` / `unimplemented!` / `todo!` 的路径，逐一评估是否为用户可感知的功能缺口。
+  2. **HIR lowering 限制**：搜索 `HirLowerError` 的所有变体，识别哪些是暂时性限制（如 `MultiFileNonEntrySourceBackedLiteral`）而非永久性语义约束。
+  3. **Resolver / Typechecker 特判与白名单**：搜索 `resolve/scopes.rs`、`typecheck/` 中的硬编码方法名白名单、类型特判、`// TODO`/`// HACK`/`// FIXME` 注释，识别因编译器能力不足而采用的 workaround。
+  4. **Codegen 降级路径**：搜索 codegen 中将泛型/复杂类型 fallback 到 `Any`、跳过 type params、硬编码 `is_empty()` 过滤等模式。
+  5. **Runtime/C 残留依赖**：识别仍由 C runtime 实现但理论上可迁移到纯 Scoop 的函数（类似 T0122 对 String 方法的迁移），评估迁移可行性。
+- 目标：
+  - 产出一份限制清单（可作为本任务的注释或单独文档），每项包含：代码位置、限制描述、影响范围、建议优先级。
+  - 为每个值得修复的限制创建独立的 TODO 任务（编号续接当前序列）。
+- 验收：
+  - 审计覆盖 `crates/scoopc/src/llvm/`、`crates/scoopc/src/hir/`、`crates/scoopc/src/resolve/`、`crates/scoopc/src/typecheck/` 四个主要目录。
+  - 所有 `UnsupportedMainBody`、`todo!`、`unimplemented!`、`HACK`、`FIXME` 出现点均已分类（已知任务已覆盖 / 新建任务 / 刻意保留）。
+  - 新建的后续任务已添加到 TODO.md 对应 section。
+- 依赖：无（可随时执行，建议在 T0140-T0142 完成前开始，以便发现更多类似问题并批量规划）
+
 ---
 
 ## T11：Cone（改进项吸收）
