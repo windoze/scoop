@@ -558,7 +558,7 @@ cargo run -p scoop --features llvm -- test
 - 描述：泛型函数的 monomorphization 已基本工作，但需验证并修复以下边界场景。
 - 需验证并修复的场景：
   1. **多类型参数**：`fun <A, B> pair(a: A, b: B): ...` — 是否为每个 `(A, B)` 组合生成独立变体。
-  2. **类型参数约束**（`<T : Comparable>`）：monomorph 是否尊重 bound 约束，codegen 是否能分发 trait 方法。
+  2. **类型参数约束**（`<T : Comparable>`）：monomorph 是否尊重 bound 约束，codegen 是否能分发 trait 方法。→ 完整实现见 **T0129**（调用处 bound 检查）+ **T0130**（bound 驱动方法分发）。
   3. **传递实例化**：`fun <T> wrap(v: T) = Box<T>(v)` 调用时是否触发 `Box<T>` 的实例化。
   4. **泛型扩展函数**：`fun <T> T.toBox(): Box<T>` — resolver/monomorph 是否正确处理。
   5. **泛型高阶函数**：`fun <T, R> myMap(v: T, f: (T) -> R): R` — lambda 参数的类型参数替换。
@@ -567,6 +567,82 @@ cargo run -p scoop --features llvm -- test
   - 每个场景新增 run-pass fixture。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124（部分场景需要泛型 class 工作）
+
+### T0129 [TODO] 泛型 where 约束：实例化处 bound 检查（函数调用 + 类型构造）
+
+- 描述：当前 `where` 子句在声明处验证合法性（`typecheck/where_clause.rs`），在**类型实例化**处有检查（`TypeSymbol.where_constraints` + `check_where_constraints_on_instantiation`），但**泛型函数调用处完全不检查 bound**。`FunSigOwned` 没有 `where_constraints` 字段，`instantiate_generic_call` 推断出类型实参后不验证其是否满足声明处的 `where` 约束。例如：
+  ```
+  interface Show { fun show(): String }
+  fun <T> show(x: T): String where T: Show { return x.show() }
+  show(42)  // Int 未实现 Show，但当前不报错
+  ```
+- 目标：
+  1. **函数调用处**：`FunSigOwned`（`typecheck/expr/mod.rs`）新增 `where_constraints` 字段，收集函数声明的 `where` 子句信息（复用 `WhereConstraintInfo` 或等价结构）。`collect_fun_sigs` / `collect_overload_sigs` 等签名收集路径填充该字段。`instantiate_generic_call`（`typecheck/expr/call.rs`）在推断出具体类型实参后，遍历 `where_constraints`，对每条约束调用 `is_type_assignable(arg_ty, bound_ty)` 验证满足性；不满足时发出 `where_constraint_not_satisfied` 诊断。
+  2. **类型构造处**：验证已有的 `check_where_constraints_on_instantiation` 对 `class/struct/enum` 构造（`Box<Int>(42)`、`struct Pair<A, B> where A: Show` 的字面量构造等）也覆盖到位。构造函数调用路径（`codegen_class_ctor_call` / struct literal）应与 `lower_type_ref` 路径一样触发约束检查。
+  3. 当实参仍为 type param 时（泛型传递调用 / 嵌套声明），跳过检查（与已有类型实例化处的策略一致）。
+- 验收：
+  - 新增 typecheck fail fixture：泛型函数 `where T: I` 但调用处类型不满足 → 报 `where_constraint_not_satisfied`。
+  - 新增 typecheck pass fixture：泛型函数 `where T: I` 调用处类型满足 → 通过。
+  - 新增 typecheck fail fixture：`class Box<T> where T: I` 构造 `Box<Bad>(...)` 不满足 → 报错。
+  - 已有 `where_clause_satisfies_bound_ok.scoop` 等 fixtures 不受影响。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0130 [TODO] 泛型 where 约束：bound 驱动的方法分发（函数体 + 类型成员体内通过约束调用接口方法）
+
+- 描述：当泛型代码体内通过类型参数调用方法时（如 `x.show()`），typechecker 需要利用 `where T: Show` 约束得知 `T` 拥有 `Show` 接口的方法，而非报 `UnresolvedMember`。这同时影响两类场景：
+  - **泛型函数体**：`fun <T> f(x: T) where T: Show { x.show() }`
+  - **泛型类型成员方法体**：`class Wrapper<T>(val v: T) where T: Show { fun print() { println(v.show()) } }`
+
+  当前 typechecker 对 `TypeKind::Param` 接收者的方法查找没有查询 bound 信息，导致上述两种场景均无法通过类型检查。
+- 目标：
+  1. **Typecheck 方法解析**：在 `typecheck/expr/member.rs` 或 `typecheck/expr/call.rs` 的方法解析路径中，当接收者类型为 `TypeKind::Param` 时，查找该 type param 的 `where` 约束，将 bound 接口的方法集合纳入候选。约束来源包括：
+     - 当前函数声明的 `where_clause`（AST）/ `where_constraints`（T0129 新增）
+     - 外层类型声明的 `where_clause`（当前成员方法所属 `class/struct/enum` 的约束）
+  2. **返回类型与参数类型**：bound 接口方法的返回类型和参数类型应在 type param 的上下文中正确替换（例如 `interface Mapper<T> { fun map(): T }` + `where U: Mapper<U>` → `u.map()` 返回 `U`）。
+  3. **Codegen / Monomorph**：monomorphization 阶段 type param 已被替换为具体类型，方法调用应自然分发到具体类型的实现方法（静态分发，无 vtable）。需验证 monomorph 后的 HIR/MIR 中方法 FQN 已指向具体类型的实现。
+- 验收：
+  - 新增 typecheck pass fixture：`fun <T> f(x: T): String where T: Show { return x.show() }` 通过。
+  - 新增 typecheck fail fixture：`fun <T> f(x: T): String { return x.show() }` 无约束时报 `UnresolvedMember`。
+  - 新增 typecheck pass fixture：`class Wrapper<T>(val v: T) where T: Show { fun display(): String { return v.show() } }` 通过。
+  - 新增 typecheck fail fixture：`class Wrapper<T>(val v: T) { fun display(): String { return v.show() } }` 无约束时报 `UnresolvedMember`。
+  - 新增 run-pass fixture（泛型函数）：定义 `interface ToString { fun toString(): String }`，`struct Foo : ToString { ... }`，`fun <T> stringify(x: T): String where T: ToString { return x.toString() }` → `println(stringify(Foo()))` 输出正确结果。
+  - 新增 run-pass fixture（泛型类型成员）：`class Printer<T>(val v: T) where T: ToString { fun print() { println(v.toString()) } }` → `Printer<Foo>(Foo()).print()` 输出正确结果。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0129
+
+### T0131 [TODO] `interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化
+
+- 描述：当前 `Int.toString()` 和 `Bool.toString()` 均为编译器硬编码路径：resolver 白名单特判（`resolve/scopes.rs`）、typecheck 特判（`typecheck/expr/call.rs`）、codegen 直接路由到 C runtime 函数（`scoop_int_to_string` / `scoop_bool_to_string`）。`print`/`println` 在 sysroot 中声明了 `String`/`Int`/`Bool` 三组重载。这种设计无法扩展到用户自定义类型，且每新增一个 printable 类型就需要同时修改 resolver + typecheck + codegen + sysroot 四处。
+  本任务引入 `interface ToString`，将现有硬编码迁移为接口实现，并利用 T0129/T0130 的 where 约束能力将 `print`/`println` 泛型化。
+- 目标：
+  1. **定义 `interface ToString`**：在 sysroot（`core.scoop`）新增：
+     ```
+     interface ToString {
+         fun toString(): String
+     }
+     ```
+  2. **内建类型实现 `ToString`**：
+     - `Int`：实现 `ToString`（底层仍调用 `scoop_int_to_string`，但通过接口方法分发而非硬编码特判）。
+     - `Bool`：实现 `ToString`（底层仍调用 `scoop_bool_to_string`，或内联为 `if (this) "true" else "false"`，移除 C runtime 函数）。
+     - `String`：实现 `ToString`（`toString()` 返回自身）。
+  3. **移除硬编码路径**：
+     - resolver 白名单中 `Int.toString` / `Bool.toString` 的特判 → 改为通过接口成员正常解析。
+     - typecheck 中 `Int.toString()` / `Bool.toString()` 的特判分支 → 改为通过接口方法签名正常检查。
+     - codegen 中 `codegen_to_string_method` 的 CgTy 分发 → 改为 monomorph 后的具体类型方法调用（静态分发）。
+  4. **`print`/`println` 泛型化**：sysroot 中将现有三组重载替换为：
+     ```
+     fun <T> print(value: T): Unit where T: ToString
+     fun <T> println(value: T): Unit where T: ToString
+     ```
+     实现：调用 `value.toString()` 后路由到已有的 `print(String)` / `println(String)` runtime 函数。monomorphization 将为每个具体类型生成特化版本，避免 boxing 开销。
+  5. **用户自定义类型自动受益**：任何实现 `ToString` 的 struct/class/enum 均可直接传入 `println`，无需额外编译器支持。
+- 验收：
+  - `println(42)` / `println(true)` / `println("hello")` 行为不变。
+  - 新增 run-pass fixture：用户定义 `struct Foo : ToString { fun toString(): String { return "Foo" } }` → `println(Foo())` 输出 `Foo`。
+  - resolver / typecheck / codegen 中 `toString` 相关硬编码特判已移除（不再有 `member_name == "toString"` 白名单分支）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0129、T0130
 
 ### T0128 [TODO] 泛型验证与修复：泛型与 GC / 特殊化类型交互
 
