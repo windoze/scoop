@@ -250,6 +250,11 @@ cargo run -p scoop --features llvm -- test
   - **P1 Random/PRNG**：T1821（xorshift64）
   - **P0 泛型 collections**：T1822（依赖编译器泛型 codegen 完善，当前 BLOCKED）
   - 建议实现顺序：T1810 → T1811 → T1812 → T1813 → T1814 → T1815 → …
+- DONE（T1813）：Test utilities 扩展——`assertEqString` + `assertEqBool`：
+  - `assertEqString`：使用 `length() + startsWith()` 实现等价比较（`String ==` 运算符尚未实现）；失败时打印 expected/actual 后 `Raise.raise`。
+  - `assertEqBool`：使用 `require(expected == actual)`（`Bool ==` 已在 typecheck + codegen 中支持）。
+  - Fixture：`stdlib_test_assertions_extended.scoop` + `.stdout`（7 个场景 + 组合测试 `Int.toString()` roundtrip）。
+  - 下一步：T1814（Math 基础：`abs`/`min`/`max`）。
 - DONE（T1810）：Text runtime/c 底层 API：
   - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
   - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。

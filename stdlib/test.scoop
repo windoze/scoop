@@ -55,6 +55,37 @@ fun assertSomeInt(value: Int?): Int / Raise<RuntimeError> {
     return result
 }
 
+/// 断言：两个 String 必须相等。
+///
+/// 说明：v0 使用 length + startsWith 实现等价比较（operator == for String 尚未实现）。
+/// 失败时打印 expected/actual 值（方便诊断）并通过 `Raise.raise` 终止。
+fun assertEqString(expected: String, actual: String): Unit / Raise<RuntimeError> {
+    val lenEq: Bool = expected.length() == actual.length()
+    when (lenEq) {
+        true -> {
+            val eq: Bool = expected.startsWith(actual)
+            when (eq) {
+                true -> ()
+                false -> {
+                    println(expected)
+                    println(actual)
+                    Raise.raise(RuntimeError.NullAssertionFailed)
+                }
+            }
+        }
+        false -> {
+            println(expected)
+            println(actual)
+            Raise.raise(RuntimeError.NullAssertionFailed)
+        }
+    }
+}
+
+/// 断言：两个 Bool 必须相等。
+fun assertEqBool(expected: Bool, actual: Bool): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
+
 /// 断言：`value` 必须是 `None`。
 fun assertNoneInt(value: Int?): Unit / Raise<RuntimeError> {
     when (value) {

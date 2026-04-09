@@ -1,0 +1,105 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_test_assertions_extended.stdout
+// EXPECT-EXIT: 0
+//
+// T1813: assertEqString + assertEqBool — extended test assertions
+// Covers: passing cases, failing cases (caught by try/catch), and edge cases.
+
+import scoop.core.*
+import scoop.test.*
+
+fun main(): Int {
+    // --- assertEqString: matching strings ---
+    println("eq_string_pass")
+    try {
+        assertEqString("hello", "hello")
+        assertEqString("", "")
+        assertEqString("abc def", "abc def")
+        println("ok")
+    } catch (e: RuntimeError) {
+        println("unexpected_fail")
+    }
+
+    // --- assertEqString: mismatch (different content) ---
+    println("eq_string_content_fail")
+    val r1: Int = try {
+        assertEqString("hello", "world")
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r1)
+
+    // --- assertEqString: mismatch (different length) ---
+    println("eq_string_length_fail")
+    val r2: Int = try {
+        assertEqString("abc", "abcd")
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r2)
+
+    // --- assertEqString: prefix match but different length ---
+    println("eq_string_prefix_fail")
+    val r3: Int = try {
+        assertEqString("ab", "abc")
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r3)
+
+    // --- assertEqBool: matching booleans ---
+    println("eq_bool_pass")
+    try {
+        assertEqBool(true, true)
+        assertEqBool(false, false)
+        println("ok")
+    } catch (e: RuntimeError) {
+        println("unexpected_fail")
+    }
+
+    // --- assertEqBool: true != false ---
+    println("eq_bool_tf_fail")
+    val r4: Int = try {
+        assertEqBool(true, false)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r4)
+
+    // --- assertEqBool: false != true ---
+    println("eq_bool_ft_fail")
+    val r5: Int = try {
+        assertEqBool(false, true)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r5)
+
+    // --- Combined: assertEqString with computed values ---
+    println("combined")
+    try {
+        val x: Int = 42
+        val s: String = x.toString()
+        assertEqString("42", s)
+
+        val y: Int = 0
+        val t: String = y.toString()
+        assertEqString("0", t)
+
+        val neg: Int = 0 - 123
+        val u: String = neg.toString()
+        assertEqString("-123", u)
+
+        println("ok")
+    } catch (e: RuntimeError) {
+        println("unexpected_fail")
+    }
+
+    println("done")
+    return 0
+}

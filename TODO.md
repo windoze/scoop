@@ -765,7 +765,7 @@ cargo run -p scoop --features llvm -- test
   - **Fixture**：`stdlib_int_string_conversion_basic.scoop` + `.stdout` 覆盖正数/负数/零/大数/非数字输入/空字符串/roundtrip。
   - 139 单元测试 + 769 fixtures 通过。
 
-### T1813 [TODO] Test utilities 扩展：`assertEqString` + `assertEqBool`
+### T1813 [DONE] Test utilities 扩展：`assertEqString` + `assertEqBool`
 - 描述：在 `stdlib/test.scoop` 中补齐 `assertEqString` 和 `assertEqBool`，使后续 fixtures 可用。
 - 目标：
   - `assertEqString(expected: String, actual: String): Unit`：基于 `==` 比较；失败时打印 expected/actual 并 `Raise.raise`。
@@ -775,6 +775,11 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_test_assertions_extended.scoop` + `.stdout`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无（`String ==` 和 `Raise.raise` 已存在）
+- 完成说明：
+  - **`assertEqString`**（`stdlib/test.scoop`）：使用 `length() == length() && startsWith()` 实现等价比较（`String ==` 运算符尚未实现）。失败时通过 `println(expected)` + `println(actual)` 打印两个值，再 `Raise.raise`。
+  - **`assertEqBool`**（`stdlib/test.scoop`）：使用 `require(expected == actual)`（`Bool ==` 已在 typecheck + codegen 中支持）。
+  - **Fixture**：`stdlib_test_assertions_extended.scoop` + `.stdout` 覆盖 7 个场景：String 相等通过、String 内容不同失败、String 长度不同失败、String 前缀匹配但长度不同失败、Bool 相等通过、Bool true≠false 失败、Bool false≠true 失败、以及组合测试（`Int.toString()` 结果与字面量比较）。
+  - 139 单元测试 + 770 fixtures 通过。
 
 ### T1814 [TODO] Math 基础：`abs`/`min`/`max`（Int）
 - 描述：在 `stdlib/` 中实现 `abs`/`min`/`max` 的 `Int` 版本。
