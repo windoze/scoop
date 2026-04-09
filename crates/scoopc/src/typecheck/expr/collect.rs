@@ -558,6 +558,11 @@ pub(super) fn collect_struct_field_types(
     // 拷贝出来，避免同时持有 `lower.index()` 的不可变借用导致 borrow checker 冲突。
     let constructors = lower.index().constructors.clone();
     for (type_fqn, ctors) in &constructors {
+        // T0124: skip generic types — their field types contain unresolved type params
+        // that cannot be lowered without concrete instantiation arguments.
+        if lower.env().type_param_count(type_fqn).unwrap_or(0) > 0 {
+            continue;
+        }
         for ctor in ctors {
             if ctor.kind != crate::resolve::ConstructorKind::Primary {
                 continue;
@@ -602,6 +607,9 @@ fn collect_struct_field_types_in_type_decl(
     };
 
     if matches!(decl.kind, ast::TypeKind::Struct) {
+        // T0124: push type params so generic field types (e.g. `A`, `B`) resolve correctly.
+        lower.push_type_params(&decl.type_params);
+
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
                 let Some(ty_ref) = &p.ty else {
@@ -625,6 +633,8 @@ fn collect_struct_field_types_in_type_decl(
                 }
             }
         }
+
+        lower.pop_type_params(&decl.type_params);
     }
 
     if matches!(decl.kind, ast::TypeKind::Class) {

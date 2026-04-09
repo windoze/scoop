@@ -252,8 +252,10 @@ pub(super) enum ArrayLitTarget {
     MutableArray,
 }
 
-/// lowering 期间的“期望类型 hint”（仅覆盖当前需要的数组字面量目标类型）。
+/// lowering 期间的”期望类型 hint”（仅覆盖当前需要的数组字面量目标类型）。
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct ExpectedExpr {
     pub(super) array_lit_target: Option<ArrayLitTarget>,
+    /// T0124: expected type for struct literal (used to infer type args for generic structs).
+    pub(super) struct_lit_ty: Option<crate::ty::TypeId>,
 }

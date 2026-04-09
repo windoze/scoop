@@ -11165,9 +11165,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        let layout_key = self.nominal_layout_key(nominal);
         let layout =
             self.struct_layouts
-                .get(&nominal.fqn)
+                .get(&layout_key)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "struct literal layout",
                     at: span.into(),
@@ -11211,7 +11212,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T0119: For `@CLayout(packed = N)` with N > 1, use the remapped LLVM element index.
             let llvm_idx = self
                 .pack_field_indices
-                .get(&nominal.fqn)
+                .get(&layout_key)
                 .map_or(idx as u32, |indices| indices[idx]);
 
             let name = format!("insert_{}", field.name);

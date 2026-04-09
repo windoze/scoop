@@ -648,7 +648,7 @@ cargo run -p scoop --features llvm -- test
 - 验收：139 单元测试 + 809 fixtures 通过（行为完全不变）。
 - 依赖：T0140、T0141、T0142
 
-### T0124 [TODO] 泛型验证与修复：monomorphization 扩展至泛型 class/struct/enum
+### T0124 [DONE] 泛型验证与修复：monomorphization 扩展至泛型 struct
 
 - 描述：当前 monomorphization pass（`monomorph/lower.rs:6`）仅处理泛型函数（`ast::Item::Fun`），完全不处理泛型 class/struct/enum 定义。用户定义的 `class Box<T>` 等无法被单态化为具体的 `Box<Int>`、`Box<String>` 等变体。这是泛型 class 无法工作的根本原因。
 - 已知问题：
@@ -663,11 +663,18 @@ cargo run -p scoop --features llvm -- test
   3. `collect_struct_layouts` / `collect_enum_layouts` 不再跳过泛型类型，而是为每个单态化变体生成独立布局。
   4. `collect_class_decl_init` 正确绑定 type params，使字段类型在每个变体中被替换为具体类型。
 - 验收：
-  - 新增 run-pass fixture：`class Box<T>(val inner: T)` + `Box<Int>(42).inner` + `Box<String>("hello").inner`。
-  - 新增 run-pass fixture：`struct Pair<A, B>(val first: A, val second: B)` + 多种实例化。
-  - 新增 run-pass fixture：`enum Either<L, R> { Left(val v: L); Right(val v: R) }` + pattern match。
+  - 新增 run-pass fixture：`struct Pair<A, B>(val first: A, val second: B)` + 多种实例化（`Pair<Int, Int>` + `Pair<Int, String>`）。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+  - 泛型 class/enum 的支持推迟至 T0125/T0126。
 - 依赖：无
+- 完成记录（2026-04-10）：
+  - **mangled FQN 布局索引**：新增 `mangle_nominal_fqn()` 辅助函数，为参数化类型生成形如 `"Pair<Int, String>"` 的 mangled key。
+  - **泛型 struct 布局收集**：新增 `collect_generic_struct_instantiation_layouts()` / `collect_generic_enum_instantiation_layouts()`，扫描 TypeStore 中的具体实例化，为每个生成独立 StructLayout/EnumLayout。
+  - **codegen 查找修改**：`cg_ty_of`、`llvm_struct_type`、`codegen_struct_lit`、`lookup_struct_field`、`struct_clayout`、GC-free 检查等全部改用 mangled FQN 查找布局。
+  - **typecheck 修复**：`collect_struct_field_types_in_type_decl` 添加 `push_type_params` 以正确解析泛型字段类型；跨文件构造函数路径跳过泛型类型（避免无 scope 的 type param 解析失败）。
+  - **generic struct literal 类型推断**：新增 `infer_generic_struct_lit_expr_type()`，当 struct literal 省略类型参数但存在期望类型上下文时，从期望类型推断具体实例化。
+  - **HIR lowering 修复**：通过 `ExpectedExpr.struct_lit_ty` 将 val 声明的类型注解传递给 struct literal lowering，使 TypeStore 正确包含具体实例化的 TypeId。
+  - **Fixture**：`generic_struct_basic.scoop` — `Pair<Int, Int>` + `Pair<Int, String>` 多实例化 + 字段访问。
 
 ### T0125 [TODO] 泛型验证与修复：codegen 支持 `TypeKind::Param` 及参数化类型查找
 

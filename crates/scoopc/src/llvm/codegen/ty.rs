@@ -9,12 +9,19 @@ use inkwell::types::StructType;
 use inkwell::values::GlobalValue;
 
 use crate::hir;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
 use super::{LlvmEmitError, MainCodegen, sanitize_llvm_ident};
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    /// 返回名义类型在 struct_layouts/enum_layouts 中的查找 key（T0124）。
+    ///
+    /// 对于无 type args 的类型返回 base FQN；对于参数化类型返回 mangled FQN。
+    pub(super) fn nominal_layout_key(&self, nominal: &NominalType) -> String {
+        crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types)
+    }
+
     pub(super) fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
@@ -83,10 +90,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: false,
                     }));
                 }
-                if self.struct_layouts.contains_key(&nominal.fqn) {
+                // T0124：使用 mangled FQN 查找（支持泛型 struct/enum 的具体实例化）。
+                let key = self.nominal_layout_key(nominal);
+                if self.struct_layouts.contains_key(&key) {
                     return Some(CgTy::Struct(ty));
                 }
-                if self.enum_layouts.contains_key(&nominal.fqn) {
+                if self.enum_layouts.contains_key(&key) {
                     return Some(CgTy::Enum(ty));
                 }
                 None
@@ -116,7 +125,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return false;
         };
-        let Some(layout) = self.struct_layouts.get(&nominal.fqn) else {
+        let key = self.nominal_layout_key(nominal);
+        let Some(layout) = self.struct_layouts.get(&key) else {
             return false;
         };
         layout
@@ -141,7 +151,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return false;
         };
-        let Some(layout) = self.enum_layouts.get(&nominal.fqn) else {
+        let key = self.nominal_layout_key(nominal);
+        let Some(layout) = self.enum_layouts.get(&key) else {
             return false;
         };
         layout.variants.iter().all(|v| {
@@ -246,11 +257,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - `hir::StructFieldLayout.ty_fqn` 当前仅保存 “字段类型的 FQN”；
                 // - 对于 `struct Wrap(val e: E)` 这类场景，需要能把 `E` 映射为 `CgTy::Enum`，
                 //   以便在 LLVM struct type 中内嵌该字段，并支持后续的 field GEP/load/store。
+                // - T0124：支持 mangled FQN（含 type args）的查找。
                 if self.struct_layouts.contains_key(other) || self.enum_layouts.contains_key(other)
                 {
                     if let Some(ty) = self.types.iter_ids().find(|id| match self.types.kind(*id) {
                         TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                            nominal.fqn == other && nominal.args.is_empty() && nominal.eff.is_none()
+                            // T0124：使用 mangled FQN 比较（支持参数化类型如 “Pair<Int, String>”）。
+                            let key = self.nominal_layout_key(nominal);
+                            key == other
                         }
                         _ => false,
                     }) {
@@ -300,9 +314,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
+        let key = self.nominal_layout_key(nominal);
         let layout =
             self.struct_layouts
-                .get(&nominal.fqn)
+                .get(&key)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "struct layout",
                     at: at.into(),

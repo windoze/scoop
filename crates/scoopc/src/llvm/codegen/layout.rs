@@ -155,9 +155,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
 
+        // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
+        let key = self.nominal_layout_key(nominal);
         let layout =
             self.struct_layouts
-                .get(&nominal.fqn)
+                .get(&key)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
                     kind: "struct layout",
                     at: at.into(),
@@ -179,7 +181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // elements inserted, so the logical field index differs from the LLVM element index.
         let llvm_idx = self
             .pack_field_indices
-            .get(&nominal.fqn)
+            .get(&key)
             .map_or(idx as u32, |indices| indices[idx]);
 
         Ok((llvm_idx, field_ty))
@@ -189,8 +191,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
             return None;
         };
+        // T0124：使用 mangled FQN 查找。
+        let key = self.nominal_layout_key(nominal);
         self.struct_layouts
-            .get(&nominal.fqn)
+            .get(&key)
             .and_then(|layout| layout.c_layout)
     }
 
@@ -439,7 +443,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                let hir_layout = self.enum_layouts.get(&nominal.fqn).ok_or(
+                let enum_key = self.nominal_layout_key(nominal);
+                let hir_layout = self.enum_layouts.get(&enum_key).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "enum layout",
                         at: at.into(),

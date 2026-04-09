@@ -148,6 +148,7 @@ impl<'a> HirLowering<'a> {
                                 .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
                             false => None,
                         },
+                        struct_lit_ty: None,
                     };
                     let receiver =
                         self.lower_expr_with_expected(pkg_prefix, receiver, receiver_expected);
@@ -362,7 +363,7 @@ impl<'a> HirLowering<'a> {
             }
             ast::ExprKind::Lambda(lam) => self.lower_lambda_expr(pkg_prefix, e.span, lam),
             ast::ExprKind::StructLit { ty, fields } => {
-                self.lower_struct_lit_expr(pkg_prefix, e.span, ty, fields)
+                self.lower_struct_lit_expr(pkg_prefix, e.span, ty, fields, expected.struct_lit_ty)
             }
             ast::ExprKind::If {
                 cond,
@@ -800,6 +801,7 @@ impl<'a> HirLowering<'a> {
         if !arg_is_array_lit {
             return ExpectedExpr {
                 array_lit_target: None,
+                struct_lit_ty: None,
             };
         }
 
@@ -820,7 +822,7 @@ impl<'a> HirLowering<'a> {
             _ => None,
         };
 
-        ExpectedExpr { array_lit_target }
+        ExpectedExpr { array_lit_target, struct_lit_ty: None }
     }
 
     /// 将 `[...]` 降到统一的 builder/intrinsics 调用形态（TODO T1317c）。
@@ -1261,8 +1263,28 @@ impl<'a> HirLowering<'a> {
         _span: Span,
         ty: &ast::TypePath,
         fields: &[ast::StructLitField],
+        expected_ty: Option<TypeId>,
     ) -> (ExprKind, TypeId) {
-        let ty_id = self.lower_type_path(ty);
+        // T0124: For generic structs, use the expected type (from val declaration) when the
+        // struct literal's type path has no type args but the expected type is a concrete
+        // instantiation of the same struct.
+        let ty_id = if ty.args.is_empty() {
+            if let Some(expected) = expected_ty {
+                if let crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(nominal)) = self.types.kind(expected) {
+                    if !nominal.args.is_empty() {
+                        expected
+                    } else {
+                        self.lower_type_path(ty)
+                    }
+                } else {
+                    self.lower_type_path(ty)
+                }
+            } else {
+                self.lower_type_path(ty)
+            }
+        } else {
+            self.lower_type_path(ty)
+        };
 
         let lowered_fields = fields
             .iter()
@@ -2308,18 +2330,19 @@ impl<'a> HirLowering<'a> {
                 ast::ExprKind::NamedArg { value, .. } => value.as_ref(),
                 _ => arg,
             };
-            let expected = ExpectedExpr {
-                array_lit_target: param
-                    .ty_ref
-                    .as_ref()
-                    .and_then(|t| self.array_lit_target_from_type_ref(t)),
-            };
-            let init = self.lower_expr_with_expected(pkg_prefix, arg_value, expected);
             let param_ty = param
                 .ty_ref
                 .as_ref()
                 .map(|t| self.lower_type_ref(t))
                 .unwrap_or(self.builtins.any);
+            let expected = ExpectedExpr {
+                array_lit_target: param
+                    .ty_ref
+                    .as_ref()
+                    .and_then(|t| self.array_lit_target_from_type_ref(t)),
+                struct_lit_ty: Some(param_ty),
+            };
+            let init = self.lower_expr_with_expected(pkg_prefix, arg_value, expected);
             let id = self.intern_local_symbol(param.decl_span, false);
             let decl = ValDecl {
                 span: call_span,
@@ -2346,6 +2369,7 @@ impl<'a> HirLowering<'a> {
                     .ty_ref
                     .as_ref()
                     .and_then(|t| self.array_lit_target_from_type_ref(t)),
+                struct_lit_ty: None,
             };
             let init = self.lower_expr_with_expected(pkg_prefix, default_value, expected);
             let param_ty = param

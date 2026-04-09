@@ -2035,6 +2035,235 @@ pub(super) fn collect_enum_layouts(
     out
 }
 
+/// 为参数化名义类型构造 mangled FQN（用作 struct_layouts/enum_layouts 的 key）。
+///
+/// 规则：
+/// - 无 type args 时返回 base FQN 本身（如 `"pkg.Point"`）
+/// - 有 type args 时返回 `"pkg.Pair<Int, String>"` 格式（与 TypeStore display 格式对齐）
+pub fn mangle_nominal_fqn(fqn: &str, args: &[crate::ty::TypeId], types: &TypeStore) -> String {
+    if args.is_empty() {
+        return fqn.to_string();
+    }
+    let arg_str = args
+        .iter()
+        .map(|id| types.display(*id).to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{fqn}<{arg_str}>")
+}
+
+/// 将 TypeId 转为 layout 索引中使用的 FQN 字符串。
+///
+/// 用途：为泛型 struct/enum 的字段类型生成 `StructFieldLayout.ty_fqn` / `EnumVariantFieldLayout.ty_fqn`。
+/// 返回 `None` 表示无法确定（例如未知类型或未支持的类型类别）。
+pub(super) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) -> Option<String> {
+    match types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Unit) => Some("scoop.core.Unit".to_string()),
+        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
+        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int".to_string()),
+        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt".to_string()),
+        TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),
+        TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(format!("scoop.core.UInt{bits}")),
+        TypeKind::Value(ValueTypeKind::Nothing) => Some("scoop.core.Nothing".to_string()),
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            Some(mangle_nominal_fqn(&nominal.fqn, &nominal.args, types))
+        }
+        TypeKind::Ref(RefTypeKind::Any) => Some("scoop.core.Any".to_string()),
+        TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String".to_string()),
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            Some(mangle_nominal_fqn(&nominal.fqn, &nominal.args, types))
+        }
+        _ => None,
+    }
+}
+
+/// 收集泛型 struct 的具体实例化布局（T0124）。
+///
+/// 在 typecheck 之后运行：扫描 TypeStore 中所有 `ValueTypeKind::Nominal`（args 非空），
+/// 匹配到编译单元中声明的泛型 struct 后，为每个具体实例化生成 StructLayout。
+///
+/// 布局的 key 使用 mangled FQN（如 `"pkg.Pair<Int, String>"`），
+/// 字段的 ty_fqn 通过 type param 替换为具体类型。
+pub(super) fn collect_generic_struct_instantiation_layouts(
+    pairs: &[(&SourceFile, &ast::File)],
+    types: &TypeStore,
+) -> StructLayoutIndex {
+    // 1) 收集泛型 struct 声明：base_fqn → (source, decl)
+    let mut generic_structs: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else { continue };
+            if !matches!(ty.kind, ast::TypeKind::Struct) { continue }
+            if ty.type_params.is_empty() { continue }
+
+            let name = ty.name.text(source).to_string();
+            let fqn = if pkg_prefix.is_empty() { name } else { format!("{pkg_prefix}.{name}") };
+            generic_structs.insert(fqn, (source, ty));
+        }
+    }
+
+    if generic_structs.is_empty() {
+        return HashMap::new();
+    }
+
+    // 2) 扫描 TypeStore 中的具体实例化
+    let mut out: StructLayoutIndex = HashMap::new();
+    for ty_id in types.iter_ids() {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
+        if nominal.args.is_empty() { continue }
+
+        let Some((source, decl)) = generic_structs.get(&nominal.fqn) else { continue };
+
+        let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        if out.contains_key(&mangled) { continue }
+
+        // 构建 type param name → concrete TypeId 映射
+        let type_params = &decl.type_params;
+        if type_params.len() != nominal.args.len() { continue }
+
+        let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
+        for (idx, p) in type_params.iter().enumerate() {
+            let name = p.name.text(source).to_string();
+            param_map.insert(name, nominal.args[idx]);
+        }
+
+        // 为每个字段解析 ty_fqn
+        let mut fields: Vec<StructFieldLayout> = Vec::new();
+        if let Some(primary_ctor) = &decl.primary_ctor {
+            for p in &primary_ctor.params {
+                let field_name = p.name.text(source).to_string();
+                let field_fqn = format!("{}.{field_name}", nominal.fqn);
+
+                // 解析字段类型：优先检查是否为 type param，若是则替换为具体类型
+                let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
+
+                fields.push(StructFieldLayout {
+                    span: p.name.span,
+                    name: field_name,
+                    fqn: field_fqn,
+                    ty_fqn,
+                });
+            }
+        }
+
+        out.insert(mangled.clone(), StructLayout {
+            fqn: mangled,
+            fields,
+            c_layout: None,
+        });
+    }
+
+    out
+}
+
+/// 收集泛型 enum 的具体实例化布局（T0124）。
+///
+/// 与 `collect_generic_struct_instantiation_layouts` 类似，为泛型 enum 的具体实例化生成布局。
+pub(super) fn collect_generic_enum_instantiation_layouts(
+    pairs: &[(&SourceFile, &ast::File)],
+    types: &TypeStore,
+) -> EnumLayoutIndex {
+    // 1) 收集泛型 enum 声明
+    let mut generic_enums: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        for item in &file.items {
+            let ast::Item::Type(ty) = item else { continue };
+            if !matches!(ty.kind, ast::TypeKind::Enum) { continue }
+            if ty.type_params.is_empty() { continue }
+
+            let name = ty.name.text(source).to_string();
+            let fqn = if pkg_prefix.is_empty() { name } else { format!("{pkg_prefix}.{name}") };
+            generic_enums.insert(fqn, (source, ty));
+        }
+    }
+
+    if generic_enums.is_empty() {
+        return HashMap::new();
+    }
+
+    // 2) 扫描 TypeStore
+    let mut out: EnumLayoutIndex = HashMap::new();
+    for ty_id in types.iter_ids() {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
+        if nominal.args.is_empty() { continue }
+
+        let Some((source, decl)) = generic_enums.get(&nominal.fqn) else { continue };
+
+        let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        if out.contains_key(&mangled) { continue }
+
+        let type_params = &decl.type_params;
+        if type_params.len() != nominal.args.len() { continue }
+
+        let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
+        for (idx, p) in type_params.iter().enumerate() {
+            let name = p.name.text(source).to_string();
+            param_map.insert(name, nominal.args[idx]);
+        }
+
+        let mut variants: Vec<EnumVariantLayout> = Vec::new();
+        let mut next_tag: u64 = 0;
+
+        if let Some(body) = &decl.body {
+            for member in &body.members {
+                let ast::TypeMember::EnumVariant(v) = member else { continue };
+                let variant_name = v.name.text(source).to_string();
+                let tag = next_tag;
+                next_tag = next_tag.saturating_add(1);
+
+                let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
+                for p in &v.params {
+                    let field_name = p.name.text(source).to_string();
+                    let ty_fqn = resolve_field_type_fqn(source, p.ty.as_ref(), &param_map, types);
+                    fields.push(EnumVariantFieldLayout {
+                        span: p.name.span,
+                        name: field_name,
+                        ty_fqn,
+                    });
+                }
+
+                variants.push(EnumVariantLayout {
+                    span: v.span,
+                    name: variant_name,
+                    tag,
+                    fields,
+                });
+            }
+        }
+
+        out.insert(mangled.clone(), EnumLayout {
+            fqn: mangled,
+            repr: EnumRepr::TaggedUnion,
+            variants,
+        });
+    }
+
+    out
+}
+
+/// 解析字段的类型 FQN：如果字段类型是 type param，替换为具体类型的 FQN。
+fn resolve_field_type_fqn(
+    source: &SourceFile,
+    ty_ref: Option<&ast::TypeRef>,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+    types: &TypeStore,
+) -> Option<String> {
+    let ty_ref = ty_ref?;
+    // 如果是简单路径（单段），检查是否为 type param
+    if let ast::TypeRef::Path(path) = ty_ref {
+        if path.segments.len() == 1 && path.args.is_empty() {
+            let name = path.segments[0].text(source);
+            if let Some(concrete_ty) = param_map.get(name) {
+                return type_id_to_layout_fqn(types, *concrete_ty);
+            }
+        }
+    }
+    // 非 type param：暂不解析（泛型嵌套留到后续任务）
+    None
+}
+
 fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {
     match &expr.kind {
         ast::ExprKind::IntLit => {

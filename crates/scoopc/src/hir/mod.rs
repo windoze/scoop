@@ -13,6 +13,7 @@
 //! 并用 `Todo(...)` 节点保留结构位置，避免 `panic!()` 阻断调试。
 
 mod lower;
+pub use lower::mangle_nominal_fqn;
 
 use std::collections::HashMap;
 use std::fmt;

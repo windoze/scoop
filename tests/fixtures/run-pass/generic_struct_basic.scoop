@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_struct_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0124: Generic struct monomorphization — basic struct with type parameters.
+//
+// Covers:
+// - struct Pair<A, B> with multiple type parameter instantiations
+// - Pair<Int, Int> and Pair<Int, String> field access
+// - Multiple instantiations coexist
+
+import scoop.core.*
+
+struct Pair<A, B>(val first: A, val second: B)
+
+fun main(): Int {
+    val p1: Pair<Int, Int> = Pair { first: 10, second: 20 }
+    println(p1.first)
+    println(p1.second)
+
+    val p2: Pair<Int, String> = Pair { first: 42, second: "hello" }
+    println(p2.first)
+    println(p2.second)
+
+    0
+}

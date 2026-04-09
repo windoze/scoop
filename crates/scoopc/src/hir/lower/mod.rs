@@ -15,6 +15,7 @@ mod expr;
 mod stmt;
 
 pub use types::{HirLowerError, LoweredHir};
+pub use util::mangle_nominal_fqn;
 
 use std::collections::HashMap;
 
@@ -780,22 +781,24 @@ impl<'a> HirLowering<'a> {
     }
 
     fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
-        // T1317c：数组字面量 `[...]` 的 lowering 依赖“期望的容器类型”（Array vs MutableArray）。
+        // T0124: lower the declared type first so we can pass it as expected type for struct literals.
+        let declared_ty_early = v.ty.as_ref().map(|t| self.lower_type_ref(t));
+
+        // T1317c：数组字面量 `[...]` 的 lowering 依赖”期望的容器类型”（Array vs MutableArray）。
         // 这里从显式的类型注解（若存在）向 initializer 传播该 hint。
         let init_expected = ExpectedExpr {
             array_lit_target: v
                 .ty
                 .as_ref()
                 .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+            struct_lit_ty: declared_ty_early,
         };
         let init = v
             .init
             .as_ref()
             .map(|e| self.lower_expr_with_expected(pkg_prefix, e, init_expected));
 
-        let declared_ty = v.ty.as_ref().map(|t| self.lower_type_ref(t));
-
-        let ty = declared_ty
+        let ty = declared_ty_early
             .or_else(|| init.as_ref().map(|e| e.ty))
             .unwrap_or(self.builtins.any);
 
@@ -1142,9 +1145,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let extern_libs = collect_extern_libs(&pairs);
 
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
-    let struct_layouts = collect_struct_layouts(&pairs, &index);
+    let mut struct_layouts = collect_struct_layouts(&pairs, &index);
     // T0813：早期 LLVM codegen 需要知道 enum 的 variant tag 与 payload 字段类型，用于生成判别与解构。
-    let enum_layouts = collect_enum_layouts(&pairs, &index);
+    let mut enum_layouts = collect_enum_layouts(&pairs, &index);
+    // T0124：泛型 struct/enum 的具体实例化布局。
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(&pairs, &types));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(&pairs, &types));
     Ok(LoweredHir {
         file,
         member_funs,
@@ -1218,8 +1224,11 @@ pub fn lower_for_compilation_unit(
     ctor_call_sites.extend(class_ctor_call_sites);
     let extern_funs = collect_extern_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
-    let struct_layouts = collect_struct_layouts(compilation_unit, index);
-    let enum_layouts = collect_enum_layouts(compilation_unit, index);
+    let mut struct_layouts = collect_struct_layouts(compilation_unit, index);
+    let mut enum_layouts = collect_enum_layouts(compilation_unit, index);
+    // T0124：泛型 struct/enum 的具体实例化布局。
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(compilation_unit, &types));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(compilation_unit, &types));
 
     Ok(LoweredHir {
         file: file_hir,
@@ -1310,8 +1319,11 @@ pub fn lower_for_compilation_unit_multi_files(
         .flat_map(|(source, file)| collect_extern_funs(source, file))
         .collect();
     let extern_libs = collect_extern_libs(compilation_unit);
-    let struct_layouts = collect_struct_layouts(compilation_unit, index);
-    let enum_layouts = collect_enum_layouts(compilation_unit, index);
+    let mut struct_layouts = collect_struct_layouts(compilation_unit, index);
+    let mut enum_layouts = collect_enum_layouts(compilation_unit, index);
+    // T0124：泛型 struct/enum 的具体实例化布局。
+    struct_layouts.extend(collect_generic_struct_instantiation_layouts(compilation_unit, &types));
+    enum_layouts.extend(collect_generic_enum_instantiation_layouts(compilation_unit, &types));
 
     let mut object_inits = ObjectInitIndex::new();
     let mut class_inits = ClassInitIndex::new();
