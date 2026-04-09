@@ -258,7 +258,7 @@ cargo run -p scoop --features llvm -- test
   - **已知限制**：`?.` 端到端 run-pass 受阻于 typecheck 仅支持 struct receiver + codegen 不支持 `Option<Struct>` payload 的组合缺口；待后续 `Option<Struct>` codegen（non-scalar enum payload）落地后可补充 run-pass 覆盖。
   - 139 单元测试 + 777 fixtures 通过（含 LLVM 后端）。
 
-### T0109 [TODO] `with` 表达式 codegen（值类型更新）
+### T0109 [DONE] `with` 表达式 codegen（值类型更新）
 
 - 描述：Spec §2.6 定义 `val p2 = p with { x: 5 }`。Parser 和 typecheck 已完整实现（包含字段存在性/类型兼容性/嵌套路径校验，`typecheck/expr/infer.rs:2405`），但 HIR lowering 为 `Todo("with_update")`（`lower/expr.rs:645`）。
 - 规范引用：Spec §2.6（Value Type Update）——所有 RHS 表达式基于原始值求值（parallel semantics），路径可任意深度嵌套。

@@ -231,6 +231,7 @@ cargo run -p scoop --features llvm -- test
 
 - DONE（T0107）：String `==`/`!=` codegen——runtime/c 新增 `scoop_string_equals`（指针/长度/memcmp 三级比较），typecheck 扩展 `Eq`/`Ne` 接受 `String` 操作数，codegen 在 `CgTy::String` 时调用 runtime 函数并转为 Bool；`assertEqString` 改用 `==`；新增 `string_equality_basic` fixture（10 场景）。775 fixtures 通过。
 - DONE（T0108）：Nullable 运算符 codegen（`?.`/`!!`）——HIR lowering 将 `?.`/`!!` 展开为 `when` + `Perform`（codegen 无修改，自动继承 `when`/`Raise` 路径）。`!!` 全链路可用（run-pass）；`?.` desugar 已实现（HIR golden 验证），端到端受阻于 typecheck（仅 struct receiver）+ codegen（`Option<Struct>` payload）组合缺口。777 fixtures 通过。
+- DONE（T0109）：`with` 表达式 codegen（值类型更新）——HIR lowering 将 `base with { field: value }` 展开为 StructLit：typecheck 通过 OnceCell 写回各层 struct FQN 映射表，lowering 绑定 base 到合成 val（单次求值），递归构造 StructLit（直接覆盖的字段用 update 值，未更新字段用 MemberAccess 复制）。支持嵌套路径（`start.x: 1`）。新增 4 个 run-pass fixtures（简单更新/多字段/保持不变字段/嵌套路径）。781 fixtures 通过。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 

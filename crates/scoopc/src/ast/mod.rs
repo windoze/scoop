@@ -6,6 +6,8 @@
 //!
 //! 注意：随着 parser/typechecker 完善，AST 结构可能会演进。
 
+use std::cell::OnceCell;
+
 use crate::span::Span;
 
 #[derive(Clone)]
@@ -1419,11 +1421,16 @@ pub enum ExprKind {
     /// 说明：
     /// - 语法建模见 T0216；
     /// - 字段存在性与类型检查已在 typecheck 阶段实现（T0415）；
-    /// - lowering 仍待实现（见 PLAN §4.5）。
+    /// - HIR lowering 将 `with` 展开为 struct literal（T0109）。
     WithUpdate {
         base: Box<Expr>,
         with_span: Span,
         updates: Vec<WithUpdateField>,
+        /// typecheck 写回的各层 struct FQN 映射表。
+        /// key 为字段路径前缀（`""` = base struct，`"start"` = start 字段的 struct 类型），
+        /// value 为对应 struct 的 FQN（例如 `"pkg.Point"`）。
+        /// 使用 `OnceCell` 允许 typecheck 以共享引用写回。
+        resolved_struct_fqns: OnceCell<std::collections::HashMap<String, String>>,
     },
 }
 

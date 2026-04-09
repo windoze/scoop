@@ -1,0 +1,21 @@
+// EXPECT: pass
+// EXPECT-EXIT: 99
+//
+// T0109: `with` expression — nested field path update.
+// `line with { start.x: 99 }` should update the nested field
+// while preserving all other fields.
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+struct Line(val start: Point, val end: Point)
+
+fun main(): Int {
+    val line: Line = Line {
+        start: Point { x: 1, y: 2 },
+        end: Point { x: 3, y: 4 },
+    }
+    val line2: Line = line with { start.x: 99 }
+    val s: Point = line2.start
+    return s.x
+}

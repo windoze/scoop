@@ -437,10 +437,16 @@ pub(super) fn infer_expr_type(
             top_level_funs,
             struct_field_types,
         ),
-        ast::ExprKind::WithUpdate { base, updates, .. } => infer_with_update_expr_type(
+        ast::ExprKind::WithUpdate {
+            base,
+            updates,
+            resolved_struct_fqns,
+            ..
+        } => infer_with_update_expr_type(
             source,
             base,
             updates,
+            resolved_struct_fqns,
             lower,
             builtins,
             locals,
@@ -2406,6 +2412,7 @@ fn infer_with_update_expr_type(
     source: &SourceFile,
     base: &ast::Expr,
     updates: &[ast::WithUpdateField],
+    resolved_struct_fqns: &std::cell::OnceCell<std::collections::HashMap<String, String>>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     locals: &HashMap<Span, TypeId>,
@@ -2446,6 +2453,10 @@ fn infer_with_update_expr_type(
             span: base.span.into(),
         });
     }
+
+    // 收集各层 struct FQN：key 为路径前缀，value 为 struct FQN。
+    let mut fqn_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    fqn_map.insert(String::new(), base_struct_fqn.clone());
 
     // `with` 的并行语义：update 之间没有顺序依赖，因此要求：
     // - 完全相同的 path 不能重复出现（否则“谁覆盖谁”会引入顺序）
@@ -2508,6 +2519,7 @@ fn infer_with_update_expr_type(
         // - 中间段字段类型必须是 struct（才能继续向下更新）
         let mut current_struct_fqn = base_struct_fqn.clone();
         let mut current_struct_name = lower.fmt_type(base_ty);
+        let mut path_prefix_parts: Vec<String> = Vec::new();
 
         if u.path.segments.is_empty() {
             // parser 不会产生空路径；这里仅保持健壮性。
@@ -2587,12 +2599,20 @@ fn infer_with_update_expr_type(
                 });
             }
 
+            // 记录中间 struct FQN：path_prefix → struct FQN。
+            path_prefix_parts.push(field.clone());
+            let prefix_key = path_prefix_parts.join(".");
+            fqn_map.insert(prefix_key, next_fqn.clone());
+
             current_struct_fqn = next_fqn;
             current_struct_name = next_name;
         }
 
         // loop 中在最后一段已完成 value typecheck；这里无需额外动作。
     }
+
+    // 写回所有层级的 struct FQN，供 HIR lowering 使用。
+    let _ = resolved_struct_fqns.set(fqn_map);
 
     Ok(base_ty)
 }

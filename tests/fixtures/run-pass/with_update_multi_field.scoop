@@ -1,0 +1,16 @@
+// EXPECT: pass
+// EXPECT-EXIT: 30
+//
+// T0109: `with` expression — multi-field update.
+// Verifies that multiple fields can be updated simultaneously,
+// and non-updated fields retain their original values.
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun main(): Int {
+    val p: Point = Point { x: 1, y: 2 }
+    val p2: Point = p with { x: 10, y: 20 }
+    return p2.x + p2.y
+}

@@ -666,7 +666,21 @@ impl<'a> HirLowering<'a> {
                     out_ty,
                 )
             }
-            ast::ExprKind::WithUpdate { .. } => (ExprKind::Todo("with_update"), self.builtins.any),
+            ast::ExprKind::WithUpdate {
+                base,
+                with_span,
+                updates,
+                resolved_struct_fqns,
+            } => {
+                return self.lower_with_update_expr(
+                    pkg_prefix,
+                    e.span,
+                    *with_span,
+                    base,
+                    updates,
+                    resolved_struct_fqns,
+                );
+            }
         };
 
         Expr {
@@ -1023,6 +1037,250 @@ impl<'a> HirLowering<'a> {
             },
             ty_id,
         )
+    }
+
+    /// `with` 表达式 lowering（spec §2.6）。
+    ///
+    /// 将 `base with { field1: v1; nested.field: v2 }` 展开为一个 block：
+    /// ```text
+    /// {
+    ///   val $with_base = <base>
+    ///   StructLit { field1: v1, field2: $with_base.field2, ... }
+    /// }
+    /// ```
+    /// 对于嵌套路径，递归生成内层 StructLit。
+    fn lower_with_update_expr(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        base: &ast::Expr,
+        updates: &[ast::WithUpdateField],
+        resolved_struct_fqns: &std::cell::OnceCell<std::collections::HashMap<String, String>>,
+    ) -> Expr {
+        // 读取 typecheck 写回的 FQN map。
+        let fqn_map = match resolved_struct_fqns.get() {
+            Some(map) => map,
+            None => {
+                // dump-hir（无 typecheck）时回退。
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
+
+        let base_fqn = match fqn_map.get("") {
+            Some(fqn) => fqn.clone(),
+            None => {
+                return Expr {
+                    span: expr_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Todo("with_update"),
+                };
+            }
+        };
+
+        let ty_id = self.intern_nominal(base_fqn.clone(), vec![], None);
+
+        // lower base expression，绑定到合成 val 以保证单次求值。
+        let base_lowered = self.lower_expr(pkg_prefix, base);
+        let base_ty = ty_id;
+        let base_id = self.intern_local_symbol(with_span, false);
+
+        let base_ref = Expr {
+            span: with_span,
+            ty: base_ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id: base_id,
+                name: "$with_base".to_string(),
+                decl_span: with_span,
+            }),
+        };
+
+        // 将 updates 按第一段 field name 分组。
+        let mut grouped: std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>> =
+            std::collections::HashMap::new();
+        for u in updates {
+            let segs = &u.path.segments;
+            if segs.is_empty() {
+                continue;
+            }
+            let first = self.source.slice(segs[0].span).to_string();
+            grouped
+                .entry(first)
+                .or_default()
+                .push((&segs[1..], &u.value));
+        }
+
+        // 生成 struct lit 字段列表。
+        let struct_lit = self.build_with_struct_lit(
+            pkg_prefix,
+            expr_span,
+            with_span,
+            &base_fqn,
+            ty_id,
+            &base_ref,
+            &grouped,
+            fqn_map,
+            "",
+        );
+
+        // 包装为 block：{ val $with_base = base; struct_lit }
+        let val_stmt = Stmt {
+            span: with_span,
+            ty: base_ty,
+            kind: StmtKind::Val(ValDecl {
+                span: with_span,
+                id: Some(base_id),
+                name: Some("$with_base".to_string()),
+                mutable: false,
+                ty: base_ty,
+                init: Some(base_lowered),
+            }),
+        };
+
+        let result_stmt = Stmt {
+            span: expr_span,
+            ty: ty_id,
+            kind: StmtKind::Expr(struct_lit),
+        };
+
+        Expr {
+            span: expr_span,
+            ty: ty_id,
+            kind: ExprKind::Block(Block {
+                span: expr_span,
+                ty: ty_id,
+                stmts: vec![val_stmt, result_stmt],
+            }),
+        }
+    }
+
+    /// 递归构造 with-update 的 StructLit 表达式。
+    ///
+    /// `base_access` 是访问当前层级 base 值的表达式（例如 `$with_base` 或 `$with_base.start`）。
+    /// `grouped` 中 key 为当前层级的 field name，value 为 (remaining path segments, value expr)。
+    /// `fqn_map` 为 typecheck 写回的 path_prefix → struct FQN 映射。
+    /// `current_prefix` 为当前层级的路径前缀（例如 `""` 或 `"start"`）。
+    #[allow(clippy::too_many_arguments)]
+    fn build_with_struct_lit(
+        &mut self,
+        pkg_prefix: &str,
+        expr_span: Span,
+        with_span: Span,
+        struct_fqn: &str,
+        struct_ty: TypeId,
+        base_access: &Expr,
+        grouped: &std::collections::HashMap<String, Vec<(&[ast::Ident], &ast::Expr)>>,
+        fqn_map: &std::collections::HashMap<String, String>,
+        current_prefix: &str,
+    ) -> Expr {
+        // 从 index.constructors 查找 primary constructor 的字段列表。
+        let field_names: Vec<String> = self
+            .index
+            .constructors
+            .get(struct_fqn)
+            .and_then(|ctors| {
+                ctors
+                    .iter()
+                    .find(|c| c.kind == crate::resolve::ConstructorKind::Primary)
+            })
+            .map(|ctor| ctor.params.iter().map(|p| p.name.clone()).collect())
+            .unwrap_or_default();
+
+        let mut fields = Vec::with_capacity(field_names.len());
+
+        for field_name in &field_names {
+            let field_fqn = format!("{}.{}", struct_fqn, field_name);
+            let field_id = self.symbols.intern_top_level(field_fqn.clone());
+            let field_access = Expr {
+                span: with_span,
+                ty: self.builtins.any,
+                kind: ExprKind::MemberAccess {
+                    receiver: Box::new(base_access.clone()),
+                    member: MemberAccess {
+                        span: with_span,
+                        name: field_name.clone(),
+                        resolved: Some(MemberRef::Value {
+                            id: field_id,
+                            fqn: field_fqn,
+                        }),
+                    },
+                },
+            };
+
+            let value = if let Some(update_group) = grouped.get(field_name) {
+                // 检查是否有直接赋值（剩余 segments 为空）。
+                if let Some((_, val_expr)) = update_group.iter().find(|(rest, _)| rest.is_empty()) {
+                    // 直接覆盖：`field: value`
+                    self.lower_expr(pkg_prefix, val_expr)
+                } else {
+                    // 嵌套路径：查找 fqn_map 中该字段的 struct FQN。
+                    let nested_prefix = if current_prefix.is_empty() {
+                        field_name.clone()
+                    } else {
+                        format!("{}.{}", current_prefix, field_name)
+                    };
+
+                    if let Some(nested_fqn) = fqn_map.get(&nested_prefix) {
+                        let nested_ty =
+                            self.intern_nominal(nested_fqn.clone(), vec![], None);
+
+                        // 按下一段 field name 重新分组。
+                        let mut nested_grouped: std::collections::HashMap<
+                            String,
+                            Vec<(&[ast::Ident], &ast::Expr)>,
+                        > = std::collections::HashMap::new();
+                        for (rest, val) in update_group {
+                            if !rest.is_empty() {
+                                let next = self.source.slice(rest[0].span).to_string();
+                                nested_grouped
+                                    .entry(next)
+                                    .or_default()
+                                    .push((&rest[1..], *val));
+                            }
+                        }
+
+                        self.build_with_struct_lit(
+                            pkg_prefix,
+                            expr_span,
+                            with_span,
+                            nested_fqn,
+                            nested_ty,
+                            &field_access,
+                            &nested_grouped,
+                            fqn_map,
+                            &nested_prefix,
+                        )
+                    } else {
+                        // 回退：无法解析嵌套类型时使用 field access
+                        field_access
+                    }
+                }
+            } else {
+                // 未被更新的字段：从 base 复制。
+                field_access
+            };
+
+            fields.push(StructLitField {
+                span: with_span,
+                name: field_name.clone(),
+                name_span: with_span,
+                colon_span: with_span,
+                value,
+            });
+        }
+
+        Expr {
+            span: expr_span,
+            ty: struct_ty,
+            kind: ExprKind::StructLit {
+                ty: struct_ty,
+                fields,
+            },
+        }
     }
 
     fn lower_member_access_expr(
@@ -1435,35 +1693,35 @@ impl<'a> HirLowering<'a> {
         }
 
         // Class/interface member function: `receiver?.method(args)` → `Owner.method(v, args...)`
-        if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
-            if let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.') {
-                let owner_is_class =
-                    matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
-                let owner_is_interface = matches!(
-                    self.type_kinds.get(owner_fqn),
-                    Some(ast::TypeKind::Interface)
-                );
-                let owner_is_object = self.index.object_types.contains(owner_fqn);
-                if owner_is_class || owner_is_interface || owner_is_object {
-                    let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
-                    all_args.push(CallArg::Positional(v_ref.clone()));
-                    all_args.extend(lowered_args_without_receiver);
-                    return Expr {
-                        span,
-                        ty: self.builtins.any,
-                        kind: ExprKind::Call {
-                            callee: Box::new(Expr {
-                                span: op_span,
-                                ty: self.builtins.any,
-                                kind: ExprKind::VarRef(ValueRef::TopLevel {
-                                    id: self.symbols.intern_top_level(fqn.clone()),
-                                    fqn: fqn.clone(),
-                                }),
+        if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref()
+            && let Some((owner_fqn, _)) = fqn.as_str().rsplit_once('.')
+        {
+            let owner_is_class =
+                matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class));
+            let owner_is_interface = matches!(
+                self.type_kinds.get(owner_fqn),
+                Some(ast::TypeKind::Interface)
+            );
+            let owner_is_object = self.index.object_types.contains(owner_fqn);
+            if owner_is_class || owner_is_interface || owner_is_object {
+                let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
+                all_args.push(CallArg::Positional(v_ref.clone()));
+                all_args.extend(lowered_args_without_receiver);
+                return Expr {
+                    span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::Call {
+                        callee: Box::new(Expr {
+                            span: op_span,
+                            ty: self.builtins.any,
+                            kind: ExprKind::VarRef(ValueRef::TopLevel {
+                                id: self.symbols.intern_top_level(fqn.clone()),
+                                fqn: fqn.clone(),
                             }),
-                            args: all_args,
-                        },
-                    };
-                }
+                        }),
+                        args: all_args,
+                    },
+                };
             }
         }
 

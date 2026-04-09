@@ -25,6 +25,8 @@
 //! - 该模块的目标是支撑顶层 `val/var` initializer 的增量解析；
 //! - 更复杂的表达式（调用/成员访问/二元运算/控制流等）会在后续任务中逐步补齐。
 
+use std::cell::OnceCell;
+
 use crate::ast;
 use crate::span::Span;
 use crate::syntax::lexer::{LexError, lex};
@@ -2313,6 +2315,7 @@ impl<'a> Parser<'a> {
                 base: Box::new(base),
                 with_span: with_kw.span,
                 updates,
+                resolved_struct_fqns: OnceCell::new(),
             },
         })
     }
