@@ -147,6 +147,43 @@ cargo run -p scoop --features llvm -- test
     - 模块依赖清晰（无明显环），公共入口与内部 helper 的可见性边界合理。
 - 依赖：无
 
+### T0105 [TODO] GC STW 死锁：`scoop_thread_spawn_join_resume_u64` 在 `pthread_join` 前未转入 `IN_NATIVE` 状态
+- 描述：`scoop_thread_spawn_join_resume_u64` 调用 `pthread_join` 时，调用线程仍为 `RUNNING` 状态，但阻塞在内核态无法到达 safepoint。若被 spawn 的子线程在 `SCOOP_GC_STRESS=1` 下触发 `scoop_gc_collect()`，STW 协议会将调用线程计入 `need_to_park`，但该线程永远无法 park——形成经典双向等待死锁（子线程等父线程 park，父线程等子线程退出）。
+- 根因分析：
+  - `scoop_thread_spawn_join_resume_u64`（`runtime/c/scoop_runtime.c`）在 `pthread_create` 后直接 `pthread_join`，未执行 `scoop_enter_native`/`scoop_leave_native` 状态转换。
+  - STW 协议（`scoop_gc_stop_the_world_begin_unlocked`）正确地跳过 `IN_NATIVE` 线程（因其 roots 已通过 `native_roots` 注册），但对 `RUNNING` 线程要求其必须在有限时间内到达 safepoint 并 park。
+  - `pthread_join` 是一个阻塞内核调用，不经过任何 Scoop safepoint，因此违反了 STW 协作合约。
+  - 这与 JVM 的 thread state machine 设计一致：JVM 在任何阻塞系统调用前都会将线程转为 `_thread_in_native`，使 GC 可以安全跳过。
+- 目标：
+  - 在 `pthread_join` 前调用 `scoop_enter_native(NULL, 0)` 将线程转为 `IN_NATIVE`（该函数无需持有 GC roots，因为 continuation 对象已被子线程引用），在 `pthread_join` 返回后调用 `scoop_leave_native()` 恢复为 `RUNNING`。
+  - `scoop_leave_native` 内置的 transition barrier 会在 STW 活跃时自动阻塞，直到 GC 完成——与 JVM 的 native→Java 转换语义一致。
+  - 审计 runtime/c 中所有类似的阻塞调用点（`pthread_join`、`pthread_cond_wait` 等在非 GC 协议上下文中的使用），确认无遗漏。
+- 验收：
+  - 现有 fixture `gc_continuation_cross_thread_resume_with_objects` 和 `gc_continuation_multi_thread_concurrent_alloc_resume` 在 `SCOOP_GC_STRESS=1` 下不再死锁，可移除"已知限制"注释。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0106 [TODO] GC rooting 审计：runtime/c 函数中 GC-managed 指针跨分配点的 pin/unpin 完整性
+- 描述：`scoop_string_split` 在 T1812 中暴露了 C runtime 函数的 GC rooting 缺陷——函数内持有的 GC-managed 指针（`builder`/`s`/`delimiter`）在跨 `scoop_alloc` 调用时未 pin，导致 GC stress 下被回收。该问题已修复，但同类缺陷可能存在于其它 runtime/c 函数中。
+- 根因分析：
+  - LLVM stackmap 机制仅对编译后的 Scoop 代码生效——C runtime 函数的栈帧对 GC 不可见。
+  - C 函数中持有的 GC-managed 对象指针（`ScoopString*`、`ScoopArray*`、`ScoopArrayBuilder*` 等）如果跨越 `scoop_alloc` 调用点（即 GC 触发点）而未 pin，就会成为 dangling pointer。
+  - 在正常模式下因 GC 触发频率低而不易暴露；`SCOOP_GC_STRESS=1` 使每次分配都触发 GC，从而确定性地复现问题。
+  - 当前 runtime 使用 `scoop_pin`/`scoop_unpin`（而非 shadow stack 或 PUSH_ROOT 宏）作为 C 侧 GC rooting 机制。
+- 目标：
+  - 系统审计 `runtime/c/scoop_runtime.c` 和 `runtime/c/scoop_array.c` 中所有调用 `scoop_alloc` 的函数，检查是否存在"GC-managed 指针在 `scoop_alloc` 调用点仍被本地变量持有但未 pin"的情况。
+  - 已知待审计的高风险函数（持有 GC 指针且调用 `scoop_alloc`）：
+    - `scoop_string_trim_indent`：持有 `value`（`ScoopString*`），在函数末尾调用 `scoop_alloc`（通过 `scoop_string_from_bytes`）但未 pin——非移动 GC 下安全（对象不重定位），但在移动 GC（`SCOOP_GC_MOVE=1`）下为潜在缺陷。
+    - `scoop_array_builder_build_common`：持有 `ScoopArrayBuilder*`（调用者传入），内部 `scoop_alloc` 创建结果数组——依赖调用者 pin builder。
+    - 其它含"分配 + 引用已有 GC 对象"模式的函数。
+  - 对发现的缺陷补充 `scoop_pin`/`scoop_unpin` 保护。
+  - 考虑引入编码规范或静态检查建议（例如注释标注 `/* GC-SAFE: pinned */`），降低未来回归风险。
+- 验收：
+  - 审计报告列出所有已检查函数及结论（safe / fixed / N/A）。
+  - 修复的函数新增或更新对应 `SCOOP_GC_STRESS=1` fixtures。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
 ---
 
 ## T11：Cone（改进项吸收）
