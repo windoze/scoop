@@ -333,7 +333,7 @@ cargo run -p scoop --features llvm -- test
   - **codegen 新增**：`__scoop_array_builder_push_string` / `__scoop_array_builder_build_array_string` @Intrinsic 支持（split 返回 Array<String>）。
   - **移除 C runtime**：9 个 C 函数（scoop_string_substring/index_of/contains/starts_with/ends_with/split/trim/trim_start/trim_end）+ is_ascii_whitespace helper。
   - **移除编译器硬编码路径**：resolver 白名单（9 项）、typecheck 签名规则（9 组）、codegen string_method dispatch（9 分支）、runtime_abi（9 个 declare_runtime_*）、runtime_symbols（9 个常量）、runtime API allowlist（9 个 X-macro）。
-  - **codegen 限制适配**：stdlib 函数避免 return/break/continue in block expressions（~~当前 LLVM codegen 不支持 function-level CFG~~ **T0141 已解除 return/break/continue 限制**）；使用 flag+越界赋值模拟 break；if 必须有 else 分支；常量通过 sizeOf 派生（无 Int/String 字面量）。
+  - **codegen 限制适配**：stdlib 函数避免 return/break/continue in block expressions（~~当前 LLVM codegen 不支持 function-level CFG~~ **T0141 已解除 return/break/continue 限制**）；使用 flag+越界赋值模拟 break；~~if 必须有 else 分支~~（**T0142 已解除 if-without-else 限制**）；常量通过 sizeOf 派生（~~无 Int/String 字面量~~ **T0140 已解除字面量限制**）。
   - 139 单元测试 + 801 fixtures 通过（行为完全不变）。
 
 - DONE（T0141）：块级控制流——支持 block/loop 内 return/break/continue：
@@ -343,3 +343,10 @@ cargo run -p scoop --features llvm -- test
   - **`codegen_top_level_fun`**：创建 return_bb + return_alloca，正常/early return 两条路径都经由 return_bb emit LLVM ret。
   - **5 个 run-pass fixtures**：block_early_return、while_break_basic、while_continue_basic、nested_loop_break、return_from_loop。
   - 139 单元测试 + 807 fixtures 通过。
+
+- DONE（T0142）：if 表达式无 else 分支支持：
+  - **`codegen_if_expr`**：当 `else_branch` 为 `None` 时强制 `out_cg = CgTy::Unit`，移除原有非 Unit 报错。
+  - **`stdlib/string.scoop`**：移除全部 9 处多余的 `else { }` 空分支。
+  - **typecheck**：if-without-else 作为值表达式已正确报 `initializer_type_mismatch`。
+  - **2 个 fixtures**：`if_without_else`（run-pass，12 行输出）+ `if_without_else_as_value_is_error`（typecheck fail）。
+  - 139 单元测试 + 809 fixtures 通过。

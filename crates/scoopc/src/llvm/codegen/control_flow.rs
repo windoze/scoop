@@ -124,12 +124,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         else_branch: Option<&hir::Expr>,
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let out_cg = expected.or_else(|| self.cg_ty_of(out_ty)).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "if output type",
-                at: span.into(),
-            },
-        )?;
+        // T0142: if-without-else is always Unit — the missing else path produces no value,
+        // so we force the output type to Unit regardless of the caller's expected type.
+        let out_cg = if else_branch.is_none() {
+            CgTy::Unit
+        } else {
+            expected.or_else(|| self.cg_ty_of(out_ty)).ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "if output type",
+                    at: span.into(),
+                },
+            )?
+        };
 
         let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
         let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
@@ -189,15 +195,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(else_bb);
         let else_v = match else_branch {
             Some(expr) => self.codegen_expr_in_expected_context(expr, Some(out_cg))?,
-            None => {
-                if out_cg != CgTy::Unit {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "if without else (non-Unit)",
-                        at: span.into(),
-                    });
-                }
-                CgValue::unit()
-            }
+            // T0142: else_branch is None → out_cg is guaranteed Unit (see above).
+            None => CgValue::unit(),
         };
         // T0141: Same check for else branch.
         let else_terminated = self

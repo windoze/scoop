@@ -1,0 +1,64 @@
+// EXPECT: pass
+// RUN-STDOUT: if_without_else.stdout
+// EXPECT-EXIT: 0
+//
+// T0142: if-without-else in statement position — then-branch value is discarded,
+// the whole if statement is Unit.
+
+import scoop.core.*
+
+fun clamp(x: Int, lo: Int, hi: Int): Int {
+    var s: Int = x
+    if (s < lo) { s = lo }
+    if (s > hi) { s = hi }
+    return s
+}
+
+fun firstPositive(a: Int, b: Int): Int {
+    var result: Int = 0
+    if (a > 0) { result = a }
+    if (result == 0) {
+        if (b > 0) { result = b }
+    }
+    return result
+}
+
+fun main(): Int {
+    // 1) basic if-without-else: condition true
+    var x: Int = 10
+    if (x == 10) { x = 42 }
+    println(x)
+
+    // 2) basic if-without-else: condition false (no side-effect)
+    var y: Int = 5
+    if (y == 99) { y = 0 }
+    println(y)
+
+    // 3) if-without-else with assignment in then-branch
+    var z: Int = 0 - 3
+    if (z < 0) { z = 0 - z }
+    println(z)
+
+    // 4) multiple if-without-else in sequence (clamp pattern)
+    println(clamp(0 - 5, 0, 10))
+    println(clamp(15, 0, 10))
+    println(clamp(7, 0, 10))
+
+    // 5) nested if-without-else
+    println(firstPositive(3, 5))
+    println(firstPositive(0, 7))
+    println(firstPositive(0, 0))
+
+    // 6) if-without-else inside while loop
+    var sum: Int = 0
+    var i: Int = 1
+    while (i < 6) {
+        if (i == 3) { i = i + 1 }
+        sum = sum + i
+        i = i + 1
+    }
+    println(sum)
+
+    println("done")
+    return 0
+}

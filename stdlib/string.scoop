@@ -6,8 +6,9 @@
 // 重要限制：
 // - LLVM 后端暂不支持 block 内 return/break/continue（需 function-level CFG）。
 //   因此所有函数只在顶层使用一次 return；循环提前退出用 flag + 越界赋值模拟。
+//   (T0141 已解除 return/break/continue 限制，但本文件尚未迁移利用。)
 // - 非入口文件不可使用 source-backed literals（Int/String），常量通过 sizeOf 派生。
-// - if 表达式必须有 else 分支（codegen 不支持 non-Unit if-without-else）。
+//   (T0140 已解除字面量限制，但本文件尚未迁移利用。)
 
 package scoop.core
 
@@ -54,12 +55,12 @@ fun String.substring(start: Int, end: Int): String {
     val zero: Int = __string_zero(len)
 
     var s: Int = start
-    if (s < zero) { s = zero } else { }
-    if (s > len) { s = len } else { }
+    if (s < zero) { s = zero }
+    if (s > len) { s = len }
 
     var e: Int = end
-    if (e < s) { e = s } else { }
-    if (e > len) { e = len } else { }
+    if (e < s) { e = s }
+    if (e > len) { e = len }
 
     val sliceLen: Int = e - s
     return @Unsafe { this.unsafeSliceBytes(s, sliceLen) }
@@ -85,7 +86,7 @@ fun String.indexOf(substr: String): Int {
                 if (this.getByte(i + j) != substr.getByte(j)) {
                     matched = false
                     j = dlen
-                } else { }
+                }
                 j = j + one
             }
             if (matched) {
@@ -95,7 +96,7 @@ fun String.indexOf(substr: String): Int {
                 i = i + one
             }
         }
-    } else { }
+    }
     return result
 }
 
@@ -119,7 +120,7 @@ fun String.startsWith(prefix: String): Bool {
             if (this.getByte(i) != prefix.getByte(i)) {
                 result = false
                 i = plen
-            } else { }
+            }
             i = i + one
         }
     }
@@ -142,7 +143,7 @@ fun String.endsWith(suffix: String): Bool {
             if (this.getByte(offset + i) != suffix.getByte(i)) {
                 result = false
                 i = plen
-            } else { }
+            }
             i = i + one
         }
     }
@@ -174,7 +175,7 @@ fun String.split(delimiter: String): Array<String> {
                 if (this.getByte(i + j) != delimiter.getByte(j)) {
                     matched = false
                     j = dlen
-                } else { }
+                }
                 j = j + one
             }
 

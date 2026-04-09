@@ -611,7 +611,7 @@ cargo run -p scoop --features llvm -- test
   - **已知限制**：if-without-else 在 non-Unit 上下文仍报错（T0142）；fixtures 使用 if-else 形式回避。suspendable 函数（T1606f-2 callee suspend）暂未接入 return_context。
   - 139 单元测试 + 807 fixtures 通过（含 LLVM 后端）。
 
-### T0142 [TODO] if 表达式无 else 分支支持（non-Unit if-without-else）
+### T0142 [DONE] if 表达式无 else 分支支持（non-Unit if-without-else）
 
 - 描述：当前 codegen 的 `codegen_if_expr`（`llvm/codegen/control_flow.rs:160-178`）为 if 表达式分配 `result_ptr`（alloca），then 和 else 分支各写入值后跳转到 merge block。当 `else_branch` 为 `None` 且输出类型非 Unit 时，else 路径没有值可写入 `result_ptr`，导致 merge 点取到未定义值，因此硬性报错 `"if without else (non-Unit)"`。Unit 类型的 if-without-else 已可工作（不分配 result_ptr）。
   这导致 `stdlib/string.scoop` 中即使是纯 statement 用途的 if（如 `if (s < zero) { s = zero }`），也必须写成 `if (s < zero) { s = zero } else { }`，增加噪音。
@@ -628,6 +628,14 @@ cargo run -p scoop --features llvm -- test
   - 现有 run-pass fixtures 全部通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **codegen**（`llvm/codegen/control_flow.rs`）：`codegen_if_expr` 在 `else_branch` 为 `None` 时强制 `out_cg = CgTy::Unit`（无论 caller 的 `expected` 类型），移除原有 `"if without else (non-Unit)"` 硬性错误。else 路径直接跳转到 merge block 并返回 `CgValue::unit()`。
+  - **typecheck**：if-without-else 用作值表达式（`val x: Int = if (...) { 5 }`）在 typecheck 阶段已正确报 `initializer_type_mismatch`（if-without-else 返回 Unit，与期望类型 Int 不匹配）。
+  - **stdlib**（`stdlib/string.scoop`）：移除全部 9 处多余的 `else { }` 空分支；更新文件头注释标注 T0141/T0140 限制已解除。
+  - **fixtures**：
+    - `if_without_else.scoop` + `.stdout`（run-pass，12 行输出）：基本 if-without-else（condition true/false）、clamp 模式（多个连续 if-without-else）、嵌套 if-without-else、while 循环内 if-without-else。
+    - `if_without_else_as_value_is_error.scoop`（typecheck fail）：`val x: Int = if (true) { 5 }` → `initializer_type_mismatch`。
+  - 139 单元测试 + 809 fixtures 通过。
 
 ### T0143 [TODO] String 扩展方法从 stdlib 迁移到 sysroot core 库
 
