@@ -4106,6 +4106,78 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.int);
         }
+        // T0115: String.trim()/trimStart()/trimEnd() — 0 args → String
+        if member_name == "trim" || member_name == "trimStart" || member_name == "trimEnd" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: member_name.to_string(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
+        // T0115: String.isEmpty() — 0 args → Bool
+        if member_name == "isEmpty" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "isEmpty".into(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.bool_);
+        }
+        // T0115: String.replace(old, new) — 2 args → String
+        if member_name == "replace" {
+            if args.len() != 2 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "replace".into(),
+                    expected: 2,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
+        // T0115: String.charAt(index) — 1 arg → Int
+        if member_name == "charAt" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "charAt".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
+        // T0115: String.repeat(n) — 1 arg → String
+        if member_name == "repeat" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "repeat".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
+        // T0115: String.compareTo(other) — 1 arg → Int
+        if member_name == "compareTo" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "compareTo".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
     }
 
     // T1812: Int.toString() — 数值→文本転換。

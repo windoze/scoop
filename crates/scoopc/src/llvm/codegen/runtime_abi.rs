@@ -192,6 +192,103 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    // T0115: String 補齐 — trim/trimStart/trimEnd/isEmpty/replace/charAt/repeat/compareTo
+
+    /// `const ScoopString* scoop_string_trim(const ScoopString* s)`
+    pub(super) fn declare_runtime_string_trim(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `const ScoopString* scoop_string_trim_start(const ScoopString* s)`
+    pub(super) fn declare_runtime_string_trim_start(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM_START;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `const ScoopString* scoop_string_trim_end(const ScoopString* s)`
+    pub(super) fn declare_runtime_string_trim_end(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_TRIM_END;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `int64_t scoop_string_is_empty(const ScoopString* s)`
+    pub(super) fn declare_runtime_string_is_empty(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_IS_EMPTY;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `const ScoopString* scoop_string_replace(const ScoopString* s, const ScoopString* old, const ScoopString* new_str)`
+    pub(super) fn declare_runtime_string_replace(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_REPLACE;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(
+            &[str_ptr_ty.into(), str_ptr_ty.into(), str_ptr_ty.into()],
+            false,
+        );
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `int64_t scoop_string_char_at(const ScoopString* s, int64_t index)`
+    pub(super) fn declare_runtime_string_char_at(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_CHAR_AT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `const ScoopString* scoop_string_repeat(const ScoopString* s, int64_t n)`
+    pub(super) fn declare_runtime_string_repeat(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_REPEAT;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
+    /// `int64_t scoop_string_compare_to(const ScoopString* a, const ScoopString* b)`
+    pub(super) fn declare_runtime_string_compare_to(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_COMPARE_TO;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // T0114: Bool→String conversion.
 
     /// `const ScoopString* scoop_bool_to_string(int64_t value)`

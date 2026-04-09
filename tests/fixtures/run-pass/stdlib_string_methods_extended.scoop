@@ -1,0 +1,122 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_string_methods_extended.stdout
+//
+// T0115: String methods — trim/trimStart/trimEnd/isEmpty/replace/charAt/repeat/compareTo.
+
+import scoop.core.*
+
+fun main() {
+    // ── trim ──
+    val padded: String = "  hello  "
+    println(padded.trim())
+
+    // trim with tabs and newlines
+    val tabbed: String = "	 hi 	"
+    println(tabbed.trim())
+
+    // trim empty result
+    val spaces: String = "   "
+    println(spaces.trim().isEmpty())
+
+    // trim no-op (no whitespace)
+    val clean: String = "abc"
+    println(clean.trim())
+
+    // ── trimStart ──
+    val leading: String = "  world"
+    println(leading.trimStart())
+
+    // trimStart with no leading whitespace
+    println(clean.trimStart())
+
+    // ── trimEnd ──
+    val trailing: String = "world  "
+    println(trailing.trimEnd())
+
+    // trimEnd with no trailing whitespace
+    println(clean.trimEnd())
+
+    // ── isEmpty ──
+    val empty: String = ""
+    if (empty.isEmpty()) {
+        println("empty_yes")
+    } else {
+        println("empty_no")
+    }
+
+    if (clean.isEmpty()) {
+        println("notempty_yes")
+    } else {
+        println("notempty_no")
+    }
+
+    // ── replace ──
+    val greeting: String = "hello world"
+    println(greeting.replace("world", "scoop"))
+
+    // replace multiple occurrences
+    val multi: String = "aabaa"
+    println(multi.replace("a", "x"))
+
+    // replace with empty string (deletion)
+    println(greeting.replace("world", ""))
+
+    // replace no match
+    println(greeting.replace("xyz", "abc"))
+
+    // ── charAt ──
+    val abc: String = "ABC"
+    println(abc.charAt(0))
+    println(abc.charAt(1))
+    println(abc.charAt(2))
+
+    // charAt out of bounds returns -1
+    println(abc.charAt(3))
+    println(abc.charAt(0 - 1))
+
+    // ── repeat ──
+    val ha: String = "ha"
+    println(ha.repeat(3))
+
+    // repeat 1 time (identity)
+    println(ha.repeat(1))
+
+    // repeat 0 times (empty)
+    println(ha.repeat(0).isEmpty())
+
+    // ── compareTo ──
+    val a: String = "abc"
+    val b: String = "abd"
+    val c: String = "abc"
+
+    // equal strings → 0
+    if (a.compareTo(c) == 0) {
+        println("eq_yes")
+    } else {
+        println("eq_no")
+    }
+
+    // a < b → negative
+    if (a.compareTo(b) < 0) {
+        println("lt_yes")
+    } else {
+        println("lt_no")
+    }
+
+    // b > a → positive
+    if (b.compareTo(a) > 0) {
+        println("gt_yes")
+    } else {
+        println("gt_no")
+    }
+
+    // shorter string is "less" when prefix matches
+    val short: String = "ab"
+    if (short.compareTo(a) < 0) {
+        println("short_lt_yes")
+    } else {
+        println("short_lt_no")
+    }
+
+    println("DONE")
+}

@@ -1431,7 +1431,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
-            // T1811: String P0 methods + T1812 toInt.
+            // T1811: String P0 methods + T1812 toInt + T0115 extended methods.
             if matches!(
                 member.name.as_str(),
                 "length"
@@ -1443,6 +1443,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "split"
                     | "toInt"
                     | "concat"
+                    | "trim"
+                    | "trimStart"
+                    | "trimEnd"
+                    | "isEmpty"
+                    | "replace"
+                    | "charAt"
+                    | "repeat"
+                    | "compareTo"
             ) {
                 return self.codegen_string_method(
                     span,
@@ -2676,6 +2684,276 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let BasicValueEnum::IntValue(iv) = ret else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "String.hash return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            // T0115: String.trim()/trimStart()/trimEnd() — 0 args → String
+            "trim" | "trimStart" | "trimEnd" => {
+                let rt_fun = match method_name {
+                    "trim" => self.declare_runtime_string_trim(),
+                    "trimStart" => self.declare_runtime_string_trim_start(),
+                    "trimEnd" => self.declare_runtime_string_trim_end(),
+                    _ => unreachable!(),
+                };
+                let label = format!("rt_string_{method_name}");
+                let call = self
+                    .builder
+                    .build_call(rt_fun, &[recv_ptr.into()], &label)?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.trim* return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.trim* return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(out_ptr.into()),
+                })
+            }
+            // T0115: String.isEmpty() — 0 args → Bool (i64 0/1 → i1)
+            "isEmpty" => {
+                let rt_fun = self.declare_runtime_string_is_empty();
+                let call = self
+                    .builder
+                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_isEmpty")?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.isEmpty return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.isEmpty return type",
+                        at: span.into(),
+                    });
+                };
+                let bool_val = self.builder.build_int_compare(
+                    inkwell::IntPredicate::NE,
+                    iv,
+                    self.context.i64_type().const_zero(),
+                    "to_bool",
+                )?;
+                Ok(CgValue::bool(bool_val))
+            }
+            // T0115: String.replace(old, new) — 2 String args → String
+            "replace" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(old_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace named arg",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(new_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace named arg",
+                        at: span.into(),
+                    });
+                };
+                let old_val =
+                    self.codegen_expr_in_expected_context(old_expr, Some(CgTy::String))?;
+                let old_coerced = self.coerce_value(old_expr.span, old_val, CgTy::String)?;
+                let Some(old_raw) = old_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace old value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(old_ptr) = old_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace old type",
+                        at: span.into(),
+                    });
+                };
+                let new_val =
+                    self.codegen_expr_in_expected_context(new_expr, Some(CgTy::String))?;
+                let new_coerced = self.coerce_value(new_expr.span, new_val, CgTy::String)?;
+                let Some(new_raw) = new_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace new value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(new_ptr) = new_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace new type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_string_replace();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), old_ptr.into(), new_ptr.into()],
+                    "rt_string_replace",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.replace return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(out_ptr.into()),
+                })
+            }
+            // T0115: String.charAt(index) — 1 Int arg → Int
+            "charAt" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.charAt arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(idx_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.charAt named arg",
+                        at: span.into(),
+                    });
+                };
+                let idx = self.codegen_expr_in_expected_context(
+                    idx_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let idx_val = idx.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.charAt index value",
+                    at: span.into(),
+                })?;
+                let rt_fun = self.declare_runtime_string_char_at();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), idx_val.into()],
+                    "rt_string_charAt",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.charAt return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.charAt return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            // T0115: String.repeat(n) — 1 Int arg → String
+            "repeat" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.repeat arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(n_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.repeat named arg",
+                        at: span.into(),
+                    });
+                };
+                let n = self.codegen_expr_in_expected_context(
+                    n_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let n_val = n.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.repeat n value",
+                    at: span.into(),
+                })?;
+                let rt_fun = self.declare_runtime_string_repeat();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), n_val.into()],
+                    "rt_string_repeat",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.repeat return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.repeat return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(out_ptr.into()),
+                })
+            }
+            // T0115: String.compareTo(other) — 1 String arg → Int
+            "compareTo" => {
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(other_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo named arg",
+                        at: span.into(),
+                    });
+                };
+                let other =
+                    self.codegen_expr_in_expected_context(other_expr, Some(CgTy::String))?;
+                let other_coerced = self.coerce_value(other_expr.span, other, CgTy::String)?;
+                let Some(other_raw) = other_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo arg value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(other_ptr) = other_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo arg type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_string_compare_to();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), other_ptr.into()],
+                    "rt_string_compareTo",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.compareTo return type",
                         at: span.into(),
                     });
                 };

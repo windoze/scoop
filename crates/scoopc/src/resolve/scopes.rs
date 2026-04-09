@@ -1686,7 +1686,16 @@ impl<'a> BlockScopeChecker<'a> {
                 || member_name == "split"
                 || member_name == "toInt"
                 || member_name == "concat"
-                || member_name == "hash";
+                || member_name == "hash"
+                // T0115: String 补齐
+                || member_name == "trim"
+                || member_name == "trimStart"
+                || member_name == "trimEnd"
+                || member_name == "isEmpty"
+                || member_name == "replace"
+                || member_name == "charAt"
+                || member_name == "repeat"
+                || member_name == "compareTo";
             if is_known_string_method {
                 return Ok(());
             }

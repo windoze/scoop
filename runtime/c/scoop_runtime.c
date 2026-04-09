@@ -2705,3 +2705,207 @@ int64_t scoop_string_equals(const ScoopString *a, const ScoopString *b) {
   }
   return memcmp(a->data, b->data, (size_t)a->len) == 0 ? 1 : 0;
 }
+
+// ── T0115: String 补齐 ─────────────────────────────────────────────
+
+// Helper: check if byte is ASCII whitespace (space, tab, CR, LF, etc.)
+static int is_ascii_whitespace(uint8_t c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\x0b' || c == '\x0c';
+}
+
+// `String.trim(): String` — remove leading and trailing ASCII whitespace.
+const ScoopString *scoop_string_trim(const ScoopString *s) {
+  if (s == 0 || s->len == 0 || s->data == 0) {
+    return s;
+  }
+  uint64_t start = 0;
+  uint64_t end = s->len;
+  while (start < end && is_ascii_whitespace(s->data[start])) {
+    start++;
+  }
+  while (end > start && is_ascii_whitespace(s->data[end - 1])) {
+    end--;
+  }
+  if (start == 0 && end == s->len) {
+    return s;
+  }
+  return scoop_string_from_bytes(s->data + start, end - start);
+}
+
+// `String.trimStart(): String` — remove leading ASCII whitespace.
+const ScoopString *scoop_string_trim_start(const ScoopString *s) {
+  if (s == 0 || s->len == 0 || s->data == 0) {
+    return s;
+  }
+  uint64_t start = 0;
+  while (start < s->len && is_ascii_whitespace(s->data[start])) {
+    start++;
+  }
+  if (start == 0) {
+    return s;
+  }
+  return scoop_string_from_bytes(s->data + start, s->len - start);
+}
+
+// `String.trimEnd(): String` — remove trailing ASCII whitespace.
+const ScoopString *scoop_string_trim_end(const ScoopString *s) {
+  if (s == 0 || s->len == 0 || s->data == 0) {
+    return s;
+  }
+  uint64_t end = s->len;
+  while (end > 0 && is_ascii_whitespace(s->data[end - 1])) {
+    end--;
+  }
+  if (end == s->len) {
+    return s;
+  }
+  return scoop_string_from_bytes(s->data, end);
+}
+
+// `String.isEmpty(): Bool` — returns 1 if length is zero, 0 otherwise.
+int64_t scoop_string_is_empty(const ScoopString *s) {
+  if (s == 0) {
+    return 1;
+  }
+  return s->len == 0 ? 1 : 0;
+}
+
+// `String.replace(old: String, new: String): String`
+// Replace all occurrences of `old` with `new_str`. GC-safe: pin inputs before alloc.
+const ScoopString *scoop_string_replace(const ScoopString *s,
+                                        const ScoopString *old,
+                                        const ScoopString *new_str) {
+  if (s == 0 || s->len == 0 || s->data == 0) {
+    return s;
+  }
+  if (old == 0 || old->len == 0 || old->data == 0) {
+    return s;
+  }
+  if (new_str == 0) {
+    // Treat null replacement as empty string.
+    new_str = scoop_string_empty();
+  }
+
+  // Count occurrences of `old` in `s`.
+  uint64_t count = 0;
+  uint64_t pos = 0;
+  while (pos + old->len <= s->len) {
+    if (memcmp(s->data + pos, old->data, (size_t)old->len) == 0) {
+      count++;
+      pos += old->len;
+    } else {
+      pos++;
+    }
+  }
+
+  if (count == 0) {
+    return s;
+  }
+
+  // Calculate result length.
+  uint64_t result_len = s->len - (count * old->len) + (count * new_str->len);
+  if (result_len == 0) {
+    return scoop_string_empty();
+  }
+
+  uint8_t *buf = (uint8_t *)malloc((size_t)result_len);
+  if (buf == 0) {
+    return s;
+  }
+
+  // Build result.
+  uint64_t src = 0;
+  uint64_t dst = 0;
+  while (src < s->len) {
+    if (src + old->len <= s->len &&
+        memcmp(s->data + src, old->data, (size_t)old->len) == 0) {
+      if (new_str->len > 0 && new_str->data != 0) {
+        memcpy(buf + dst, new_str->data, (size_t)new_str->len);
+      }
+      dst += new_str->len;
+      src += old->len;
+    } else {
+      buf[dst++] = s->data[src++];
+    }
+  }
+
+  // Pin inputs before GC allocation.
+  scoop_pin((void *)s);
+  scoop_pin((void *)old);
+  scoop_pin((void *)new_str);
+
+  const ScoopString *result = scoop_string_from_bytes(buf, result_len);
+  free(buf);
+
+  scoop_unpin((void *)new_str);
+  scoop_unpin((void *)old);
+  scoop_unpin((void *)s);
+
+  return result;
+}
+
+// `String.charAt(index: Int): Int` — returns the byte value at the given index.
+// Out-of-bounds returns -1 (consistent with indexOf returning -1 for not-found).
+int64_t scoop_string_char_at(const ScoopString *s, int64_t index) {
+  if (s == 0 || s->data == 0 || index < 0 || (uint64_t)index >= s->len) {
+    return -1;
+  }
+  return (int64_t)s->data[index];
+}
+
+// `String.repeat(n: Int): String` — repeat the string n times.
+const ScoopString *scoop_string_repeat(const ScoopString *s, int64_t n) {
+  if (s == 0 || s->len == 0 || s->data == 0 || n <= 0) {
+    return scoop_string_empty();
+  }
+  if (n == 1) {
+    return s;
+  }
+
+  uint64_t result_len = s->len * (uint64_t)n;
+  uint8_t *buf = (uint8_t *)malloc((size_t)result_len);
+  if (buf == 0) {
+    return s;
+  }
+
+  for (int64_t i = 0; i < n; i++) {
+    memcpy(buf + ((uint64_t)i * s->len), s->data, (size_t)s->len);
+  }
+
+  // Pin input before GC allocation.
+  scoop_pin((void *)s);
+  const ScoopString *result = scoop_string_from_bytes(buf, result_len);
+  free(buf);
+  scoop_unpin((void *)s);
+
+  return result;
+}
+
+// `String.compareTo(other: String): Int` — lexicographic comparison.
+// Returns negative if s < other, 0 if equal, positive if s > other.
+int64_t scoop_string_compare_to(const ScoopString *a, const ScoopString *b) {
+  if (a == b) {
+    return 0;
+  }
+  if (a == 0) {
+    return -1;
+  }
+  if (b == 0) {
+    return 1;
+  }
+  uint64_t min_len = a->len < b->len ? a->len : b->len;
+  if (min_len > 0 && a->data != 0 && b->data != 0) {
+    int cmp = memcmp(a->data, b->data, (size_t)min_len);
+    if (cmp != 0) {
+      return (int64_t)cmp;
+    }
+  }
+  // If prefixes are equal, shorter string is "less".
+  if (a->len < b->len) {
+    return -1;
+  }
+  if (a->len > b->len) {
+    return 1;
+  }
+  return 0;
+}

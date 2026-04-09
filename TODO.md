@@ -347,7 +347,7 @@ cargo run -p scoop --features llvm -- test
     - `bool_to_string_print_basic.scoop` + `.stdout`：综合 17 行 stdout 覆盖——`println(true/false)`、`print(true/false)`、`true.toString()`/`false.toString()`、variable Bool print + toString、`(x == y).toString()` 表达式 Bool、`String.concat(true.toString())` 组合。
   - 全部 788 fixtures + cargo test 通过。
 
-### T0115 [TODO] String 补齐：`trim`/`replace`/`charAt`/`isEmpty` 等缺失方法
+### T0115 [DONE] String 补齐：`trim`/`replace`/`charAt`/`isEmpty` 等缺失方法
 
 - 描述：当前 String 仅有 11 个 resolver 白名单方法（`trimIndent`/`length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split`/`toInt`/`concat`/`hash`）。多个常用方法缺失，调用时在 resolver 阶段报 `UnresolvedMember`。
 - 目标（按优先级）：
@@ -359,6 +359,10 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures 覆盖每个方法。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成记录（2026-04-09）：
+  - 全 8 个方法已实现完整 pipeline：C runtime → API 注册 → resolver → typecheck → codegen symbols/ABI/dispatch。
+  - 新增 `stdlib_string_methods_extended.scoop` + `.stdout` fixture，覆盖 27 个测试场景。
+  - 全部 139 unit tests + 789 fixtures + spec-fixtures 通过。
 
 ### T0116 [TODO] 核心库 hardcoded 类型限制清单（跟踪任务）
 
