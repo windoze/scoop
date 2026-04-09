@@ -157,7 +157,9 @@ File {
                                                     5,
                                                 ),
                                                 kind: Literal(
-                                                    Int,
+                                                    Int(
+                                                        1,
+                                                    ),
                                                 ),
                                             },
                                         ),

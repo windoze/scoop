@@ -35,9 +35,16 @@ impl<'a> HirLowering<'a> {
     ) -> Expr {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
-            ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
+            ast::ExprKind::IntLit => {
+                let text = self.source.slice(e.span);
+                let value = crate::syntax::int_literal::parse_int_literal_decimal(text);
+                (ExprKind::Literal(LiteralKind::Int(value)), self.builtins.int)
+            }
             ast::ExprKind::StringLit => {
-                (ExprKind::Literal(LiteralKind::String), self.builtins.string)
+                let text = self.source.slice(e.span);
+                let bytes = crate::syntax::string_literal::parse_string_literal_bytes(text)
+                    .unwrap_or_default();
+                (ExprKind::Literal(LiteralKind::String(bytes)), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
             ast::ExprKind::ArrayLit { elements } => match expected.array_lit_target {
@@ -837,8 +844,7 @@ impl<'a> HirLowering<'a> {
         elements: &[ast::Expr],
         target: ArrayLitTarget,
     ) -> (ExprKind, TypeId) {
-        // 说明：HIR v0 的 `LiteralKind::Int` 依赖 span 回切解析数值，因此这里避免生成
-        // “需要携带长度/索引常量”的形态，改用 push-based builder 语义承载元素顺序。
+        // 说明：使用 push-based builder 语义承载元素顺序。
         let builder_decl_span = Span::new(span.start, span.start);
         let builder_id = self.intern_local_symbol(builder_decl_span, false);
         let builder_name = "__array_builder".to_string();
@@ -2478,8 +2484,8 @@ impl<'a> HirLowering<'a> {
                 return Some(lhs.ty);
             }
 
-            let lhs_is_int_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Int));
-            let rhs_is_int_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Int));
+            let lhs_is_int_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Int(_)));
+            let rhs_is_int_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Int(_)));
 
             if lhs_is_int_lit && self.is_integer_type(rhs.ty) {
                 return Some(rhs.ty);

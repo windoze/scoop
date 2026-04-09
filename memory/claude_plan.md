@@ -1,14 +1,22 @@
-# Current Task: T0121 — @Unsafe String.unsafeSliceBytes intrinsic
+# Current Task: T0140 — Multi-file Literal Support
 
-## Status: COMPLETE
+## Status: COMPLETED
 
-## Task Description
-提供 `String.unsafeSliceBytes(byteOffset: Int, byteLength: Int): String` — 一个 `@Unsafe` intrinsic，从源 String 的字节范围创建新 String，不执行 UTF-8 验证。
+## Problem
+`LiteralKind::Int` and `LiteralKind::String` store no data — they rely on `self.source.slice(span)` at codegen time. But `MainCodegen.source` only holds the entry file's `SourceFile`, so non-entry file spans would slice wrong text. The `MultiFileNonEntrySourceBackedLiteral` guard prevents this but blocks stdlib files from using int/string literals.
 
-## Progress
-- [x] Step 1: Runtime/C — `scoop_string_unsafe_slice_bytes` with defensive clamping + GC pin
-- [x] Step 2: Resolver whitelist — `unsafeSliceBytes` added to String method whitelist
-- [x] Step 3: Typecheck — unsafe context check + 2 args → String
-- [x] Step 4: Codegen — runtime symbols + ABI declaration + dispatch in codegen_string_method
-- [x] Step 5: Fixtures — run-pass (15 output lines) + typecheck error (non-unsafe context)
-- [x] Step 6: 139 unit tests + 801 fixtures pass → TODO/PLAN updated → committed
+## Approach: Store parsed values in `LiteralKind` at HIR lowering time
+This avoids the need for a multi-file SourceMap in codegen. The HIR lowering context already has access to each file's `SourceFile`.
+
+## Summary of Changes
+- `LiteralKind::Int` → `LiteralKind::Int(u128)`, `LiteralKind::String` → `LiteralKind::String(Vec<u8>)`
+- `WhenPat::IntLit` now carries parsed `value: u128`
+- `parse_int_literal_decimal` extracted to `syntax/int_literal.rs` (shared module)
+- HIR lowering (expr.rs, patterns.rs) parses literal values at lowering time
+- Codegen reads stored values instead of slicing source text
+- Removed `MultiFileNonEntrySourceBackedLiteral` guard and related utility functions
+- Lifted member_funs restriction: now collects from all files
+- `MainCodegen.source` retained (still needed for interpolated strings)
+- All 12 HIR golden tests regenerated
+- New cone fixture: `multi_file_literal_basic` (Int, String, arithmetic in non-entry file)
+- All tests pass: 139 unit + 802 fixtures

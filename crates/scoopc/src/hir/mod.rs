@@ -374,13 +374,16 @@ pub struct EffectOpRef {
 
 #[derive(Debug, Clone)]
 pub enum LiteralKind {
-    Int,
-    String,
+    /// Integer literal with its parsed decimal value (T0140: parsed at HIR lowering time,
+    /// no longer source-span-backed). Bit masking to target int type happens at codegen.
+    Int(u128),
+    /// String literal with its parsed byte content (T0140: parsed at HIR lowering time,
+    /// no longer source-span-backed). Escape sequences already resolved.
+    String(Vec<u8>),
     Unit,
     Bool(bool),
-    /// Synthesized integer literal (not backed by source span).
-    ///
-    /// Used for compiler-generated desugaring (e.g., for-loop index init/step).
+    /// Synthesized integer literal (compiler-generated desugaring, e.g., for-loop index init/step).
+    /// Always typed as Int (i64 signed).
     SynthInt(i64),
 }
 
@@ -765,6 +768,8 @@ pub enum WhenPat {
     },
     IntLit {
         span: Span,
+        /// Parsed decimal value (T0140: resolved at HIR lowering time).
+        value: u128,
     },
     StringLit {
         span: Span,
@@ -786,7 +791,7 @@ impl WhenPat {
             WhenPat::Bind { span, .. } => *span,
             WhenPat::Tuple { span, .. } => *span,
             WhenPat::Variant { span, .. } => *span,
-            WhenPat::IntLit { span } => *span,
+            WhenPat::IntLit { span, .. } => *span,
             WhenPat::StringLit { span } => *span,
             WhenPat::BoolLit { span, .. } => *span,
         }

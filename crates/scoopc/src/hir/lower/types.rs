@@ -151,9 +151,6 @@ pub enum HirLowerError {
     #[diagnostic(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
 
-    #[error("multi-file lowering 暂不支持在非入口文件中出现需要源文本切片的字面量：{path}")]
-    #[diagnostic(code(scoop::hir::multi_file_non_entry_source_backed_literal))]
-    MultiFileNonEntrySourceBackedLiteral { path: String },
 }
 
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。

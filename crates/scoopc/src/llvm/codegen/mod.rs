@@ -46,7 +46,7 @@ use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::SourceFile;
 use crate::syntax::string_literal::{
-    StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
+    StringLiteralParseError, parse_normal_string_bytes,
 };
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -505,10 +505,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn const_eval_int_expr_bits(&self, expr: &hir::Expr, int_ty: IntTy) -> Option<u128> {
         match &expr.kind {
-            hir::ExprKind::Literal(hir::LiteralKind::Int) => {
-                let text = self.source.slice(expr.span);
-                let value = parse_int_literal_decimal(text);
-                Some(mask_to_bits(value, int_ty.bits))
+            hir::ExprKind::Literal(hir::LiteralKind::Int(raw_value)) => {
+                Some(mask_to_bits(*raw_value, int_ty.bits))
             }
             hir::ExprKind::Literal(hir::LiteralKind::SynthInt(v)) => {
                 Some(mask_to_bits(*v as u128, int_ty.bits))
@@ -10491,22 +10489,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::LiteralKind::Bool(v) => Ok(CgValue::bool(
                 self.context.bool_type().const_int(*v as u64, false),
             )),
-            hir::LiteralKind::Int => {
+            hir::LiteralKind::Int(raw_value) => {
                 let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "int literal type",
                         at: span.into(),
                     });
                 };
-                let text = self.source.slice(span);
-                let value = parse_int_literal_decimal(text);
-                let value = mask_to_bits(value, int_ty.bits) as u64;
+                let value = mask_to_bits(*raw_value, int_ty.bits) as u64;
                 Ok(CgValue::int(
                     self.int_type(int_ty).const_int(value, false),
                     int_ty,
                 ))
             }
-            hir::LiteralKind::String => self.codegen_string_literal(span),
+            hir::LiteralKind::String(bytes) => self.codegen_string_literal_from_bytes(span, bytes),
             hir::LiteralKind::SynthInt(value) => {
                 // Synthesized integer literal from compiler desugaring (T0110).
                 let int_ty = IntTy {
@@ -10521,30 +10517,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn codegen_string_literal(
+    /// Emit LLVM IR for a string literal from pre-parsed bytes (T0140: bytes resolved at HIR lowering time).
+    fn codegen_string_literal_from_bytes(
         &mut self,
         span: crate::span::Span,
+        bytes: &[u8],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let text = self.source.slice(span);
-
-        let bytes = match parse_string_literal_bytes(text) {
-            Ok(bytes) => bytes,
-            Err(StringLiteralParseError::Interpolated) => {
-                // 插值字符串（`f"..."`/`f"""..."""`）由后续任务 T0823 lowering 处理；
-                // 当前阶段避免"把原始文本当作普通字符串"导致语义错误。
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "interpolated string literal",
-                    at: span.into(),
-                });
-            }
-            Err(StringLiteralParseError::Invalid | StringLiteralParseError::InvalidUtf8) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "invalid string literal",
-                    at: span.into(),
-                });
-            }
-        };
-
         // 1) 分配一个 GC-managed `ScoopString` 对象：
         //    - LLVM 侧类型为 `ScoopString addrspace(1)*`
         //    - 分配通过 `scoop_alloc_typed(desc, sizeof(ScoopString))`（runtime 写入对象头 type_desc）
@@ -10600,7 +10578,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _ = self.builder.build_store(data_ptr, i8_ptr_ty.const_null())?;
         } else {
             // 把字节序列落到一个只读全局常量：`[N x i8] @__scoop_str_data_*`
-            let data_gv = self.get_or_create_global_bytes(span, &bytes);
+            let data_gv = self.get_or_create_global_bytes(span, bytes);
             let i8_ptr_ty = self.context.i8_type().ptr_type(AddressSpace::default());
             let data_i8_ptr = self.builder.build_pointer_cast(
                 data_gv.as_pointer_value(),
@@ -12785,8 +12763,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
 
         let (l_raw, l_ty) =
             self.codegen_expr(lhs)?
@@ -12914,8 +12892,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
 
         let (l_raw, l_ty) =
             self.codegen_expr(lhs)?
@@ -12971,8 +12949,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
 
         let lhs_v = self.codegen_expr(lhs)?;
         let rhs_v = self.codegen_expr(rhs)?;
@@ -13648,18 +13626,6 @@ fn sanitize_llvm_ident(text: &str) -> String {
     if out.is_empty() { "_".to_string() } else { out }
 }
 
-fn parse_int_literal_decimal(text: &str) -> u128 {
-    let mut out: u128 = 0;
-    for ch in text.chars() {
-        if ch == '_' {
-            continue;
-        }
-        if let Some(d) = ch.to_digit(10) {
-            out = out.saturating_mul(10).saturating_add(u128::from(d));
-        }
-    }
-    out
-}
 
 fn mask_to_bits(value: u128, bits: u32) -> u128 {
     if bits == 0 {

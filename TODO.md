@@ -533,7 +533,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0120、T0121
 
-### T0140 [TODO] 多文件字面量支持：非入口源文件允许使用 Int/String 字面量
+### T0140 [DONE] 多文件字面量支持：非入口源文件允许使用 Int/String 字面量
 
 - 描述：当前 `LiteralKind::Int` 和 `LiteralKind::String` 不存储实际值，仅存储 `Span`（字节偏移），codegen 时通过 `self.source.slice(span)` 从源文本中截取字面量文本。但 `MainCodegen` 的 `self.source` 只持有入口文件的 `SourceFile`（`llvm/codegen/mod.rs:163`），非入口文件的 Span 如果切入入口文件的源文本会得到错误内容。因此 `hir/lower/mod.rs:1302-1306` 在多文件编译时对非入口文件硬性禁止 source-backed literals，报 `MultiFileNonEntrySourceBackedLiteral` 错误。
   这导致 `stdlib/string.scoop` 等非入口文件无法使用任何整数字面量（`0`、`1`、`32` 等），只能通过 `sizeOf` 算术迂回派生常量（`__string_zero`/`__string_one`/`__string_is_whitespace_byte`），严重损害可读性。
@@ -543,7 +543,7 @@ cargo run -p scoop --features llvm -- test
   - `hir/lower/util.rs:452-462`：`expr_contains_source_backed_literals` 判定 Int/String 为 source-backed。
   - `hir/lower/types.rs:154-156`：错误定义。
 - 方案：
-  **多文件 SourceMap**：让 codegen 持有所有参与编译的 `SourceFile`，Span 扩展为 `(file_id, offset, len)`，`slice` 时按 file_id 查找对应源文本。
+  **在 HIR lowering 时解析字面量值**（替代原方案 SourceMap）：`LiteralKind::Int(u128)` 和 `LiteralKind::String(Vec<u8>)` 在 lowering 时直接存储解析后的值，codegen 不再依赖 source text slicing。
 - 目标：
   - 移除 `MultiFileNonEntrySourceBackedLiteral` 限制，非入口文件可正常使用 Int/String 字面量。
   - `stdlib/string.scoop` 中的 `__string_zero`/`__string_one`/`__string_is_whitespace_byte` 等辅助函数可用直接字面量重写，大幅简化代码。
@@ -552,6 +552,20 @@ cargo run -p scoop --features llvm -- test
   - 现有 run-pass fixtures 全部通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **方案选择**：使用"HIR lowering 时解析字面量值"方案，而非原方案"多文件 SourceMap + Span 扩展"。后者需要修改 `Span` 结构体（影响全局），侵入性极大；前者仅修改 `LiteralKind` 枚举及相关 match 点。
+  - **`hir/mod.rs`**：`LiteralKind::Int` → `LiteralKind::Int(u128)`（存储解析后的十进制值，bit masking 留给 codegen）；`LiteralKind::String` → `LiteralKind::String(Vec<u8>)`（存储解析后的字节内容，escape 已处理）；`WhenPat::IntLit` 新增 `value: u128` 字段。
+  - **`syntax/int_literal.rs`**（新文件）：从 `codegen/mod.rs` 提取 `parse_int_literal_decimal` 到共享模块，HIR lowering 和 codegen 共用。
+  - **`hir/lower/expr.rs`**：`IntLit` → 调用 `parse_int_literal_decimal(self.source.slice(span))` 存入值；`StringLit` → 调用 `parse_string_literal_bytes(self.source.slice(span))` 存入字节。
+  - **`hir/lower/patterns.rs`**：`WhenPat::IntLit` 在 lowering 时解析整数值。
+  - **`llvm/codegen/mod.rs`**：`codegen_literal` 对 `Int(value)` 直接使用存储值 + `mask_to_bits`，不再调用 `self.source.slice`；`codegen_string_literal` 重命名为 `codegen_string_literal_from_bytes`，接受 `&[u8]` 参数；`const_eval_int_expr_bits` 同步更新；移除 `parse_int_literal_decimal` 本地定义和 `parse_string_literal_bytes` import。
+  - **`llvm/codegen/control_flow.rs`**：`WhenPat::IntLit` 使用存储的 `value` 字段。
+  - **`hir/lower/mod.rs`**：移除 `MultiFileNonEntrySourceBackedLiteral` 检查（原 1302-1306 行）；解除 member_funs 仅入口文件收集的限制。
+  - **`hir/lower/types.rs`**：移除 `MultiFileNonEntrySourceBackedLiteral` 错误变体。
+  - **`hir/lower/util.rs`**：移除 `file_contains_source_backed_literals`、`block_contains_source_backed_literals`、`expr_contains_source_backed_literals` 三个函数（~150 行）。
+  - **HIR golden fixtures**：12 个 `.hir` 文件重新生成（`LiteralKind::Int` Debug 输出从 `Int,` 变为 `Int(N,)`）。
+  - **新增 fixture**：`run_pass_cone/multi_file_literal_basic/`——非入口文件含 Int literal（`42`）、String literal（`"hello from helper"`）、Int 算术（`x + 10`），验证多文件编译正确性。
+  - 139 单元测试 + 802 fixtures 通过（含 LLVM 后端）。
 
 ### T0141 [TODO] 块级控制流：支持 block/loop 内 return/break/continue
 

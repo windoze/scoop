@@ -1,0 +1,21 @@
+// Non-entry file with Int and String literals (T0140).
+// Before T0140, this would fail with MultiFileNonEntrySourceBackedLiteral.
+
+package fixtures.run_pass_cone.multi_file_literal_basic
+
+import scoop.core.*
+
+// Int literal in non-entry file
+public fun magic_number(): Int {
+    return 42
+}
+
+// String literal in non-entry file
+public fun greeting(): String {
+    return "hello from helper"
+}
+
+// Int arithmetic with literals
+public fun add_ten(x: Int): Int {
+    return x + 10
+}

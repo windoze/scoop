@@ -1239,13 +1239,12 @@ pub fn lower_for_compilation_unit(
     })
 }
 
-/// 在“给定编译单元（多个源文件）”的上下文中，把多个文件一起 lowering 为一个 `LoweredHir`。
+/// 在”给定编译单元（多个源文件）”的上下文中，把多个文件一起 lowering 为一个 `LoweredHir`。
 ///
 /// 用途（T1315a）：
 /// - `scoop build/run` 注入 `stdlib/*.scoop` 后，需要让这些文件里的顶层函数在后端可见；
-/// - 当前 LLVM 后端仍以“单一 SourceFile”切片读取字面量文本（Span -> SourceFile），
-///   因此本入口会拒绝 **非入口文件** 中出现 `Int/String/插值文本` 等“需要源文本切片”的字面量，
-///   避免 silent miscompile。
+/// - T0140: `LiteralKind::Int/String` 在 HIR lowering 时直接存储解析后的值，不再依赖 source span，
+///   因此所有文件（包括非入口文件）均可正常使用 Int/String 字面量。
 pub fn lower_for_compilation_unit_multi_files(
     entry_source: &SourceFile,
     index: &Index,
@@ -1281,14 +1280,9 @@ pub fn lower_for_compilation_unit_multi_files(
                 builtins,
             );
             let file_hir = ctx.lower_file();
-            // multi-file lowering 当前只允许入口文件包含“需要源文本切片”的字面量；
-            // member_funs 同样可能包含字面量，因此只为入口文件收集即可。
-            let file_member_funs = if source.path() == entry_source.path() {
-                let pkg_prefix = package_prefix(source, file.package.as_ref());
-                ctx.collect_member_funs(&pkg_prefix)
-            } else {
-                Vec::new()
-            };
+            // T0140: Literals now store parsed values, so member_funs from all files are safe.
+            let pkg_prefix = package_prefix(source, file.package.as_ref());
+            let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             (
@@ -1298,12 +1292,6 @@ pub fn lower_for_compilation_unit_multi_files(
                 file_top_level_vars,
             )
         };
-
-        if source.path() != entry_source.path() && file_contains_source_backed_literals(&file_hir) {
-            return Err(HirLowerError::MultiFileNonEntrySourceBackedLiteral {
-                path: source.path().display().to_string(),
-            });
-        }
 
         // `CtorCallSiteIndex` 当前以 `Span` 作为 key（offset-only，不含文件标识）。
         // 为避免跨文件 span 冲突导致错误 codegen，当前阶段只保留入口文件的 ctor call-sites。

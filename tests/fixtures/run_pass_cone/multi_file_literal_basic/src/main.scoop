@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.multi_file_literal_basic
+
+import scoop.core.*
+
+fun main() {
+    println(magic_number())
+    println(greeting())
+    println(add_ten(5))
+}
