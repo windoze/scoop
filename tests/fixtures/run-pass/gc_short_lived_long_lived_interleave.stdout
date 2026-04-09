@@ -1,0 +1,10 @@
+r1-a: id=1, tag=anchor_1
+r1-b: id=2, tag=anchor_2
+r2-a: id=1, tag=anchor_1
+r2-c: id=3, tag=anchor_3
+r3-a: id=1, tag=anchor_1
+r3-d: id=4, tag=anchor_4
+final-a: id=1, tag=anchor_1
+final-b: id=2, tag=anchor_2
+final-c: id=3, tag=anchor_3
+final-d: id=4, tag=anchor_4

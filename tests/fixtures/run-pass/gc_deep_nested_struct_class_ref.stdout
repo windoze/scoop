@@ -1,0 +1,13 @@
+i1: label=alpha_tag, value=10
+i2: label=beta_tag, value=20
+i3: label=gamma_tag, value=30
+o1:
+outer.name=outer_X
+  first: label=alpha_tag, value=10
+  second: label=beta_tag, value=20
+o2:
+outer.name=outer_Y
+  first: label=beta_tag, value=20
+  second: label=gamma_tag, value=30
+i1-again: label=alpha_tag, value=10
+i3-again: label=gamma_tag, value=30

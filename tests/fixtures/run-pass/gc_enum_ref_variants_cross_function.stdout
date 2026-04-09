@@ -1,0 +1,6 @@
+circle(r=42)
+labeled(polygon_3, sides=5)
+labeled(polygon_5, sides=7)
+holder_A: circle(r=42)
+holder_B: labeled(polygon_4, sides=6)
+labeled(polygon_3, sides=5)

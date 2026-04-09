@@ -1,0 +1,75 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_cross_function_class_object_graph.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1703: GC correctness — class object graph across function boundaries.
+// - Multiple class types with ref fields referencing each other.
+// - Factory functions create objects; caller wires them into a graph.
+// - GC triggers between graph construction steps.
+// - Verifies that all inter-object references (class->class, class->String) survive GC.
+
+import scoop.core.*
+
+class Node(val name: String, val value: Int) {
+    var left: Node? = None()
+    var right: Node? = None()
+}
+
+fun makeNode(name: String, v: Int): Node {
+    return Node(f"{name}_{v}", v)
+}
+
+fun setLeft(parent: Node, child: Node): Unit {
+    parent.left = Some(child)
+}
+
+fun setRight(parent: Node, child: Node): Unit {
+    parent.right = Some(child)
+}
+
+fun printNode(label: String, n: Node): Unit {
+    println(f"{label}: name={n.name}, value={n.value}")
+}
+
+fun main() {
+    // Build a tree: root -> (left, right)
+    val root: Node = makeNode("root", 1)
+    __scoop_gc_collect()
+
+    val left: Node = makeNode("left", 2)
+    __scoop_gc_collect()
+
+    val right: Node = makeNode("right", 3)
+    __scoop_gc_collect()
+
+    // Wire the tree
+    setLeft(root, left)
+    setRight(root, right)
+    __scoop_gc_collect()
+
+    // Verify all nodes survived GC
+    printNode("root", root)
+    printNode("left", left)
+    printNode("right", right)
+
+    // Add a second level: left -> (ll, lr)
+    val ll: Node = makeNode("ll", 4)
+    val lr: Node = makeNode("lr", 5)
+    setLeft(left, ll)
+    setRight(left, lr)
+    __scoop_gc_collect()
+
+    // Verify the full tree
+    printNode("root", root)
+    printNode("left", left)
+    printNode("ll", ll)
+    printNode("lr", lr)
+    printNode("right", right)
+
+    // Access values transitively via local refs
+    println(f"root.value={root.value}")
+    println(f"left.value={left.value}")
+    println(f"ll.name={ll.name}")
+    println(f"lr.name={lr.name}")
+    println(f"right.name={right.name}")
+}

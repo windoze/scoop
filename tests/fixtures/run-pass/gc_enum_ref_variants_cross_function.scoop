@@ -1,0 +1,78 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_enum_ref_variants_cross_function.stdout
+//
+// T1703: GC correctness — enum with ref-typed variant fields across functions.
+// - Enum Shape has variants with String (ref) and Int (value) fields.
+// - Class ShapeHolder holds a Shape enum value.
+// - Factory functions create enum values and containers, passing them across boundaries.
+// - GC triggers between creation/consumption to verify enum ref fields are correctly traced.
+// - Exercises the GC's enum slot scanning (variant discriminant + ref field offsets).
+
+import scoop.core.*
+
+enum Shape {
+    Circle(val radius: Int),
+    Labeled(val name: String, val sides: Int),
+}
+
+class ShapeHolder(val shape: Shape, val label: String)
+
+fun makeCircle(r: Int): Shape {
+    return Circle(r)
+}
+
+fun makeLabeled(name: String, sides: Int): Shape {
+    return Labeled(name, sides)
+}
+
+fun makeHolder(label: String, s: Shape): ShapeHolder {
+    return ShapeHolder(s, f"holder_{label}")
+}
+
+fun describeShape(s: Shape): String {
+    return when (s) {
+        Circle(r) -> f"circle(r={r})"
+        Labeled(n, sides) -> f"labeled({n}, sides={sides})"
+    }
+}
+
+fun printHolder(h: ShapeHolder): Unit {
+    val desc: String = describeShape(h.shape)
+    println(f"{h.label}: {desc}")
+}
+
+fun main() {
+    // Create various shapes via factory functions.
+    val s1: Shape = makeCircle(42)
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    val s2: Shape = makeLabeled(f"polygon_{3}", 5)
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    val s3: Shape = makeLabeled(f"polygon_{5}", 7)
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    // Describe shapes after GC — ref fields in Labeled variant must survive.
+    println(describeShape(s1))
+    println(describeShape(s2))
+    println(describeShape(s3))
+
+    // Wrap in containers via another function layer.
+    val h1: ShapeHolder = makeHolder("A", makeCircle(42))
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    val h2: ShapeHolder = makeHolder("B", makeLabeled(f"polygon_{4}", 6))
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    // Read back containers — both enum ref fields and container label must survive.
+    printHolder(h1)
+    printHolder(h2)
+
+    // Original shapes still intact.
+    println(describeShape(s2))
+}

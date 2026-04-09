@@ -1,0 +1,60 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_short_lived_long_lived_interleave.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1703: GC correctness — short-lived vs long-lived object interleaving.
+// - Long-lived objects are created and kept alive across the entire program.
+// - Short-lived garbage objects are created in loops/functions and become unreachable.
+// - GC is triggered periodically, must collect garbage while preserving long-lived objects.
+// - Exercises the GC's ability to distinguish live roots from dead allocations under stress.
+
+import scoop.core.*
+
+class LongLived(val id: Int, val tag: String)
+
+fun createGarbage(n: Int): Unit {
+    // Create n temporary strings that immediately become garbage.
+    var i: Int = 0
+    while (i < n) {
+        val _tmp: String = f"garbage_{i}"
+        i = i + 1
+    }
+}
+
+fun verifyLongLived(label: String, obj: LongLived): Unit {
+    println(f"{label}: id={obj.id}, tag={obj.tag}")
+}
+
+fun main() {
+    // Create long-lived objects.
+    val a: LongLived = LongLived(1, f"anchor_{1}")
+    val b: LongLived = LongLived(2, f"anchor_{2}")
+    val c: LongLived = LongLived(3, f"anchor_{3}")
+
+    // Round 1: create garbage, collect, verify.
+    createGarbage(10)
+    __scoop_gc_collect()
+    verifyLongLived("r1-a", a)
+    verifyLongLived("r1-b", b)
+
+    // Round 2: more garbage, collect, verify.
+    createGarbage(20)
+    __scoop_gc_collect()
+    verifyLongLived("r2-a", a)
+    verifyLongLived("r2-c", c)
+
+    // Round 3: interleave new long-lived object with garbage.
+    val d: LongLived = LongLived(4, f"anchor_{4}")
+    createGarbage(15)
+    __scoop_gc_collect()
+    verifyLongLived("r3-a", a)
+    verifyLongLived("r3-d", d)
+
+    // Round 4: all four long-lived objects must still be intact.
+    createGarbage(10)
+    __scoop_gc_collect()
+    verifyLongLived("final-a", a)
+    verifyLongLived("final-b", b)
+    verifyLongLived("final-c", c)
+    verifyLongLived("final-d", d)
+}

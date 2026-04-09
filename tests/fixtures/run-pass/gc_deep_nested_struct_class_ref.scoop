@@ -1,0 +1,74 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_deep_nested_struct_class_ref.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1703: GC correctness — deep nesting of struct/class with ref fields.
+// - struct Tag { label: String }  (value type with ref field)
+// - class Inner { tag: Tag, value: Int }  (heap object containing value struct with ref)
+// - struct Pair { a: Inner, b: Inner }  (value type containing two class refs — but actually
+//   Inner is a class so Pair holds two GC pointers)
+// - class Outer { pair: Pair, name: String }  (heap object with value struct containing refs)
+// - All levels built across function boundaries, with GC triggers at each step.
+// - Verifies that GC correctly traces through: Outer -> Pair (value) -> Inner (ref) -> Tag (value) -> String (ref).
+
+import scoop.core.*
+
+struct Tag(val label: String)
+
+class Inner(val tag: Tag, val value: Int)
+
+fun makeInner(label: String, v: Int): Inner {
+    val t: Tag = Tag { label: f"{label}_tag" }
+    return Inner(t, v)
+}
+
+class Outer(val first: Inner, val second: Inner, val name: String)
+
+fun makeOuter(name: String, a: Inner, b: Inner): Outer {
+    return Outer(a, b, f"outer_{name}")
+}
+
+fun printInner(prefix: String, obj: Inner): Unit {
+    val t: Tag = obj.tag
+    println(f"{prefix}: label={t.label}, value={obj.value}")
+}
+
+fun printOuter(obj: Outer): Unit {
+    println(f"outer.name={obj.name}")
+    printInner("  first", obj.first)
+    printInner("  second", obj.second)
+}
+
+fun main() {
+    // Build inner objects across function calls with GC between each.
+    val i1: Inner = makeInner("alpha", 10)
+    __scoop_gc_collect()
+
+    val i2: Inner = makeInner("beta", 20)
+    __scoop_gc_collect()
+
+    val i3: Inner = makeInner("gamma", 30)
+    __scoop_gc_collect()
+
+    // Verify inner objects survived.
+    printInner("i1", i1)
+    printInner("i2", i2)
+    printInner("i3", i3)
+
+    // Build outer objects that reference inner objects.
+    val o1: Outer = makeOuter("X", i1, i2)
+    __scoop_gc_collect()
+
+    val o2: Outer = makeOuter("Y", i2, i3)
+    __scoop_gc_collect()
+
+    // Verify outer objects and their nested references survived.
+    println("o1:")
+    printOuter(o1)
+    println("o2:")
+    printOuter(o2)
+
+    // Verify original inner objects are still intact (shared references).
+    printInner("i1-again", i1)
+    printInner("i3-again", i3)
+}

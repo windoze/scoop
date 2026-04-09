@@ -1,0 +1,5 @@
+a: name=alice_1, score=10
+b: name=bob_2, score=20
+c: name=carol_3, score=30
+d: name=dave_42, score=420
+e: name=alice_1_20, score=200

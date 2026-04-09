@@ -1,0 +1,73 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_array_class_elements_cross_function.stdout
+//
+// T1703: GC correctness — arrays containing ref elements across function boundaries.
+// - Array<String> created in one function, read in another after GC.
+// - Multiple arrays held simultaneously while GC is triggered.
+// - Cross-function array passing and reading exercises element scanning.
+// Note: SCOOP_GC_STRESS=1 is not used here due to a known Array<String>+gc_collect
+// interaction issue; explicit __scoop_gc_collect() is used instead.
+
+import scoop.core.*
+
+fun makeStrings(prefix: String): Array<String> {
+    val xs: Array<String> = [f"{prefix}_1", f"{prefix}_2", f"{prefix}_3"]
+    return xs
+}
+
+fun printArray(label: String, xs: Array<String>): Unit {
+    println(label)
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun readFirst(xs: Array<String>): String {
+    return xs.get(0)
+}
+
+fun readLast(xs: Array<String>): String {
+    val idx: Int = xs.size() - 1
+    return xs.get(idx)
+}
+
+fun main() {
+    // Step 1: create arrays via factory functions.
+    val arr1: Array<String> = makeStrings("alpha")
+    // Create garbage to give GC something to collect.
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    val arr2: Array<String> = makeStrings("beta")
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    // Both arrays must survive GC.
+    printArray("arr1:", arr1)
+    printArray("arr2:", arr2)
+
+    // Step 2: cross-function reads after more GC.
+    __scoop_gc_debug_alloc_garbage(200)
+    __scoop_gc_collect()
+    val first1: String = readFirst(arr1)
+    val last2: String = readLast(arr2)
+    println(f"first1={first1}")
+    println(f"last2={last2}")
+
+    // Step 3: create a third array while first two are live.
+    val arr3: Array<String> = makeStrings("gamma")
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+
+    // All three arrays must survive simultaneously.
+    println(f"arr1[0]={readFirst(arr1)}")
+    println(f"arr2[0]={readFirst(arr2)}")
+    println(f"arr3[0]={readFirst(arr3)}")
+
+    // Step 4: verify array size after GC.
+    __scoop_gc_debug_alloc_garbage(100)
+    __scoop_gc_collect()
+    println(f"sizes={arr1.size()},{arr2.size()},{arr3.size()}")
+}

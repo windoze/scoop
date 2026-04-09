@@ -1,0 +1,55 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_cross_function_struct_with_ref_fields.stdout
+// ENV: SCOOP_GC_STRESS=1
+//
+// T1703: GC correctness — struct with ref fields across function boundaries.
+// - Struct containing String (ref) + Int (value) fields.
+// - Factory function creates struct, caller holds it across GC.
+// - Multiple factory calls build up a set of live structs, each holding distinct Strings.
+// - GC stress forces collection on every allocation; if struct ref fields are not traced
+//   correctly across function call boundaries, String fields will be corrupted.
+
+import scoop.core.*
+
+struct Named(val name: String, val score: Int)
+
+fun makeNamed(prefix: String, n: Int): Named {
+    val s: String = f"{prefix}_{n}"
+    return Named { name: s, score: n * 10 }
+}
+
+fun printNamed(label: String, item: Named): Unit {
+    println(f"{label}: name={item.name}, score={item.score}")
+}
+
+fun buildTwo(tag: String): Named {
+    // Create a temporary that becomes garbage after return.
+    val tmp: Named = makeNamed("tmp", 0)
+    val _discard: String = tmp.name
+    // The actual result:
+    return makeNamed(tag, 42)
+}
+
+fun main() {
+    // Step 1: create structs via cross-function calls.
+    val a: Named = makeNamed("alice", 1)
+    val b: Named = makeNamed("bob", 2)
+    val c: Named = makeNamed("carol", 3)
+
+    // Step 2: trigger GC — all three must survive (their String fields are the roots).
+    __scoop_gc_collect()
+
+    printNamed("a", a)
+    printNamed("b", b)
+    printNamed("c", c)
+
+    // Step 3: call a function that creates garbage internally, then returns a new struct.
+    val d: Named = buildTwo("dave")
+    __scoop_gc_collect()
+    printNamed("d", d)
+
+    // Step 4: pass structs through another function layer.
+    val e: Named = makeNamed(a.name, b.score)
+    __scoop_gc_collect()
+    printNamed("e", e)
+}

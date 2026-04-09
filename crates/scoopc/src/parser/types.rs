@@ -144,7 +144,7 @@ impl<'a> Parser<'a> {
 
         Ok(ast::TypeRef::Function(ast::TypeFunction {
             span: Span::new(start, end),
-            receiver: receiver.map(|r| Box::new(r)),
+            receiver: receiver.map(Box::new),
             params_span: params.span,
             params: params.elements,
             return_ty: Box::new(return_ty),
@@ -207,15 +207,13 @@ impl<'a> Parser<'a> {
                 });
 
                 // allow trailing comma, but `eff` 必须是最后一个条目。
-                if self.eat_symbol(Symbol::Comma) {
-                    if !self.peek_gt_or_gtgt() {
-                        let tok = *self.peek();
-                        return Err(ParseError::Expected {
-                            expected: "`>`（`eff` 实参必须位于类型实参列表末尾）",
-                            found: tok.kind,
-                            span: tok.span.into(),
-                        });
-                    }
+                if self.eat_symbol(Symbol::Comma) && !self.peek_gt_or_gtgt() {
+                    let tok = *self.peek();
+                    return Err(ParseError::Expected {
+                        expected: "`>`（`eff` 实参必须位于类型实参列表末尾）",
+                        found: tok.kind,
+                        span: tok.span.into(),
+                    });
                 }
 
                 break;

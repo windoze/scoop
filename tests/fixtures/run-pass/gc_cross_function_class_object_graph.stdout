@@ -1,0 +1,13 @@
+root: name=root_1, value=1
+left: name=left_2, value=2
+right: name=right_3, value=3
+root: name=root_1, value=1
+left: name=left_2, value=2
+ll: name=ll_4, value=4
+lr: name=lr_5, value=5
+right: name=right_3, value=3
+root.value=1
+left.value=2
+ll.name=ll_4
+lr.name=lr_5
+right.name=right_3
