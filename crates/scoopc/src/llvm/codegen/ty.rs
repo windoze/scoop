@@ -309,19 +309,99 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
+            // T0119: Each top-level function gets a fresh MainCodegen instance, so
+            // pack_field_indices may have been populated by a previous (now-dropped)
+            // instance. Re-derive the mapping when the LLVM type already exists but
+            // our local cache is empty.
+            let pack_value = layout.c_layout.as_ref().and_then(|c| c.packed);
+            if let Some(n) = pack_value {
+                if n > 1 && !self.pack_field_indices.contains_key(&layout.fqn) {
+                    let mut user_fields: Vec<BasicTypeEnum<'ctx>> =
+                        Vec::with_capacity(layout.fields.len());
+                    for field in &layout.fields {
+                        let field_cg =
+                            self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
+                        user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
+                    }
+
+                    let mut indices: Vec<u32> = Vec::new();
+                    let mut elem_idx: u32 = 0;
+                    let mut off: u64 = 0;
+                    for field_ty in &user_fields {
+                        let natural_align =
+                            self.target_data.get_abi_alignment(field_ty) as u64;
+                        let effective_align = std::cmp::min(natural_align, n as u64);
+                        let aligned_offset =
+                            (off + effective_align - 1) & !(effective_align - 1);
+                        if aligned_offset > off {
+                            elem_idx += 1; // skip padding element
+                        }
+                        indices.push(elem_idx);
+                        elem_idx += 1;
+                        off = aligned_offset + self.target_data.get_store_size(field_ty);
+                    }
+
+                    self.pack_field_indices
+                        .insert(layout.fqn.clone(), indices);
+                }
+            }
             return Ok(existing);
         }
 
         let struct_ty = self.context.opaque_struct_type(&layout.fqn);
 
-        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
+        let mut user_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(layout.fields.len());
         for field in &layout.fields {
             let field_cg = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
-            llvm_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
+            user_fields.push(self.llvm_basic_type_of(field.span, field_cg)?);
         }
 
-        let is_packed = layout.c_layout.as_ref().and_then(|c| c.packed).is_some();
-        struct_ty.set_body(&llvm_fields, is_packed);
+        let pack_value = layout.c_layout.as_ref().and_then(|c| c.packed);
+        match pack_value {
+            Some(1) => {
+                // packed = 1: LLVM native packed struct (all fields at align 1, no padding).
+                struct_ty.set_body(&user_fields, true);
+            }
+            Some(n) if n > 1 => {
+                // packed = N > 1: `#pragma pack(N)` semantics.
+                // Each field's effective alignment = min(field_natural_align, N).
+                // We use LLVM packed struct (is_packed=true) with explicit padding bytes
+                // so that LLVM doesn't add its own padding rules.
+                let mut packed_fields: Vec<BasicTypeEnum<'ctx>> = Vec::new();
+                let mut field_element_indices: Vec<u32> = Vec::new();
+                let mut offset: u64 = 0;
+
+                for field_ty in &user_fields {
+                    let natural_align = self
+                        .target_data
+                        .get_abi_alignment(field_ty)
+                        as u64;
+                    let effective_align = std::cmp::min(natural_align, n as u64);
+
+                    // Insert padding bytes to reach the next aligned offset.
+                    let aligned_offset = (offset + effective_align - 1) & !(effective_align - 1);
+                    let padding = aligned_offset - offset;
+                    if padding > 0 {
+                        let pad_ty = self.context.i8_type().array_type(padding as u32);
+                        packed_fields.push(pad_ty.into());
+                    }
+
+                    field_element_indices.push(packed_fields.len() as u32);
+                    packed_fields.push(*field_ty);
+
+                    let field_size = self.target_data.get_store_size(field_ty);
+                    offset = aligned_offset + field_size;
+                }
+
+                struct_ty.set_body(&packed_fields, true);
+                self.pack_field_indices
+                    .insert(layout.fqn.clone(), field_element_indices);
+            }
+            _ => {
+                // No packing: normal LLVM struct layout.
+                struct_ty.set_body(&user_fields, false);
+            }
+        }
         Ok(struct_ty)
     }
 

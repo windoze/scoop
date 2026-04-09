@@ -452,7 +452,7 @@ pub struct StructLayout {
 pub struct StructCLayout {
     /// 显式指定的结构体整体对齐（单位：字节）。`None` 表示未指定（使用默认 ABI）。
     pub aligned: Option<u32>,
-    /// pack 值（单位：字节）。`None` 表示未指定；当前阶段仅支持 `Some(1)`（packed struct）。
+    /// pack 值（单位：字节）。`None` 表示未指定；支持 1/2/4/8/16（`#pragma pack(N)` 语义）。
     pub packed: Option<u32>,
 }
 

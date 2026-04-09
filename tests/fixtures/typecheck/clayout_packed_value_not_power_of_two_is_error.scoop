@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::clayout_packed_value_not_supported
+// EXPECT-ERROR: 2 的幂
+// EXPECT-ERROR-AT: 10:18
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CLayout(packed: 3)
+struct Bad(val a: UInt8, val b: Int)
+

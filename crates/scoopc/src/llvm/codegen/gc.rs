@@ -1506,16 +1506,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     )?;
                 } else {
                     let store_inst = self.builder.build_store(ptr, raw)?;
-                    // T0118: `@CLayout(packed = 1)` — 字段可能位于非自然对齐偏移，
-                    // 必须把 store alignment 降到 1，与 load 路径保持一致（见 mod.rs
-                    // `codegen_member_access` 的对应注释）。
+                    // T0119: `@CLayout(packed = N)` — aggregate store 到 alloca 时，
+                    // store alignment 降到 packed value（与 load 路径保持一致）。
+                    // packed=1 时 alignment=1，packed>1 时 alignment=min(struct_natural, N)。
                     if let CgTy::Struct(struct_ty) = ty {
-                        if self
-                            .struct_clayout(struct_ty)
-                            .and_then(|c| c.packed)
-                            .is_some()
+                        if let Some(pack_n) =
+                            self.struct_clayout(struct_ty).and_then(|c| c.packed)
                         {
-                            store_inst.set_alignment(1)?;
+                            // For whole-aggregate store, use pack_n as alignment
+                            // (the struct is packed, so its overall alignment is at most pack_n).
+                            store_inst.set_alignment(pack_n)?;
                         }
                     }
                 }

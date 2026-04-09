@@ -1,0 +1,20 @@
+// EXPECT: pass
+//
+// T0119: Verify that @CLayout(packed = N) for N = 2, 4, 8, 16 all pass typecheck.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CLayout(packed: 2)
+struct Pack2(val a: UInt8, val b: Int)
+
+@CLayout(packed: 4)
+struct Pack4(val a: UInt8, val b: Int)
+
+@CLayout(packed: 8)
+struct Pack8(val a: UInt8, val b: Int)
+
+@CLayout(packed: 16)
+struct Pack16(val a: UInt8, val b: Int)
+

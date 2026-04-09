@@ -212,7 +212,7 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@CLayout(packed = ...)` 当前阶段仅支持 `packed = 1`（得到 {value}）")]
+    #[error("`@CLayout(packed = ...)` 必须是正的 2 的幂且 ≤ 16（得到 {value}）")]
     #[diagnostic(code(scoop::typecheck::clayout_packed_value_not_supported))]
     CLayoutPackedValueNotSupported {
         value: u64,
@@ -1893,8 +1893,9 @@ fn check_clayout_struct_decl(
     let (aligned, aligned_span, packed, packed_span) = parse_clayout_args(source, ann)?;
 
     if let Some(value) = packed {
-        // v0：只支持 packed = 1；其它值后续可扩展为 pack(n) 的 data layout 行为。
-        if value != 1 {
+        // `packed` 必须是正的 2 的幂且 ≤ 16（等价于 C `#pragma pack(N)` 的合法值）。
+        // 语义：每个字段的 alignment 取 `min(field_natural_align, N)`。
+        if value == 0 || !value.is_power_of_two() || value > 16 {
             return Err(AnnotationError::CLayoutPackedValueNotSupported {
                 value,
                 span: packed_span.unwrap_or(ann.span).into(),

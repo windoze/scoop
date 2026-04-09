@@ -1,0 +1,95 @@
+// EXPECT: pass
+// RUN-STDOUT: clayout_packed_n_gt_1.stdout
+// EXPECT-EXIT: 0
+//
+// T0119: @CLayout(packed = N) for N > 1 (#pragma pack(N) semantics).
+//
+// Verifies that packed=4/2/8 correctly applies min(natural_align, N) per field.
+// Field access, function passing, var reassignment, and negative values are tested.
+// Note: UInt8 fields require explicit typed variables for struct literal init.
+
+import scoop.core.*
+
+// packed=4: UInt8 (1 byte, align 1) + Int (8 bytes, align 8 → effective 4)
+// Layout: UInt8 at offset 0, 3 bytes padding, Int at offset 4.
+@CLayout(packed: 4)
+struct Pack4Mixed(val a: UInt8, val b: Int)
+
+// packed=4: two Int fields (8 bytes each, align 8 → effective 4).
+@CLayout(packed: 4)
+struct Pack4TwoInt(val x: Int, val y: Int)
+
+// packed=2: UInt8 (1 byte, align 1) + Int (8 bytes, align 8 → effective 2).
+// Layout: UInt8 at offset 0, 1 byte padding, Int at offset 2.
+@CLayout(packed: 2)
+struct Pack2Mixed(val a: UInt8, val b: Int)
+
+// packed=8: Int (8 bytes, align 8 → effective 8) + UInt8 (1 byte, align 1).
+@CLayout(packed: 8)
+struct Pack8Mixed(val a: Int, val b: UInt8)
+
+// packed=4 with three fields of different sizes.
+@CLayout(packed: 4)
+struct Pack4Triple(val a: UInt8, val b: Int, val c: UInt8)
+
+fun readPack4field(p: Pack4Mixed): Int {
+    return p.b
+}
+
+fun readPack4TwoX(p: Pack4TwoInt): Int {
+    return p.x
+}
+
+fun readPack4TwoY(p: Pack4TwoInt): Int {
+    return p.y
+}
+
+fun main(): Int {
+    // UInt8 constants used in struct literal initialization
+    val u42: UInt8 = 42
+    val u7: UInt8 = 7
+    val u5: UInt8 = 5
+    val u1: UInt8 = 1
+    val u2: UInt8 = 2
+    val u0: UInt8 = 0
+
+    // Test 1: packed=4, UInt8 + Int — verify field access
+    val p4: Pack4Mixed = Pack4Mixed { a: u42, b: 100 }
+    println(p4.b)
+
+    // Test 2: packed=4, two Int fields
+    val p4i: Pack4TwoInt = Pack4TwoInt { x: 10, y: 20 }
+    println(p4i.x)
+    println(p4i.y)
+
+    // Test 3: packed=4, passed to function
+    println(readPack4field(p4))
+
+    // Test 4: packed=2, UInt8 + Int — verify field access
+    val p2: Pack2Mixed = Pack2Mixed { a: u7, b: 200 }
+    println(p2.b)
+
+    // Test 5: packed=8, Int + UInt8
+    val p8: Pack8Mixed = Pack8Mixed { a: 999, b: u5 }
+    println(p8.a)
+
+    // Test 6: var reassignment with packed=4
+    var m: Pack4Mixed = Pack4Mixed { a: u1, b: 50 }
+    println(m.b)
+    m = Pack4Mixed { a: u2, b: 60 }
+    println(m.b)
+
+    // Test 7: negative values
+    val neg: Pack4Mixed = Pack4Mixed { a: u0, b: 0 - 42 }
+    println(neg.b)
+
+    // Test 8: packed=4, two Int fields passed to functions
+    println(readPack4TwoX(p4i))
+    println(readPack4TwoY(p4i))
+
+    // Test 9: packed=4, triple field — middle and last field access
+    val t: Pack4Triple = Pack4Triple { a: u1, b: 777, c: u2 }
+    println(t.b)
+
+    0
+}

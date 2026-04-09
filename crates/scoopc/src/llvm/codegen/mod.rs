@@ -229,6 +229,13 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// `codegen_perform_expr_nonresuming_custom_int` saves locals to a CalleeSuspendState before
     /// flag propagation return.
     pub(super) callee_suspend_save_ctx: Option<CalleeSuspendSaveCtx>,
+    /// T0119: `@CLayout(packed = N)` で N > 1 の場合、LLVM struct に挿入した padding 要素を
+    /// 考慮して、「論理フィールド番号 → LLVM struct 要素番号」のマッピングを保持するキャッシュ。
+    ///
+    /// - `packed = 1`：LLVM ネイティブ packed struct、identity mapping → エントリなし。
+    /// - `packed = N > 1`：explicit padding bytes を挿入するため index がずれる → エントリあり。
+    /// - unpacked：identity mapping → エントリなし。
+    pack_field_indices: HashMap<String, Vec<u32>>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -289,6 +296,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
             effect_op_tag_next: 2,
             callee_suspend_save_ctx: None,
+            pack_field_indices: HashMap::new(),
         }
     }
 
@@ -11169,10 +11177,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?,
             };
 
+            // T0119: For `@CLayout(packed = N)` with N > 1, use the remapped LLVM element index.
+            let llvm_idx = self
+                .pack_field_indices
+                .get(&nominal.fqn)
+                .map_or(idx as u32, |indices| indices[idx]);
+
             let name = format!("insert_{}", field.name);
             agg = self
                 .builder
-                .build_insert_value(agg, raw, idx as u32, &name)?;
+                .build_insert_value(agg, raw, llvm_idx, &name)?;
         }
 
         Ok(CgValue {
@@ -11321,15 +11335,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let loaded =
                         self.builder
                             .build_load(llvm_field_ty, field_ptr, "load_field")?;
-                    // `@CLayout(packed = 1)`：字段地址可能是未对齐的，因此必须把 load 的 alignment
-                    // 降到 1，避免 LLVM 以 ABI 对齐假设做错误优化（UB）。
-                    if self
-                        .struct_clayout(struct_ty)
-                        .and_then(|c| c.packed)
-                        .is_some()
-                        && let Some(inst) = loaded.as_instruction_value()
-                    {
-                        inst.set_alignment(1)?;
+                    // `@CLayout(packed = N)`：字段地址可能是非自然对齐的，需要把 load
+                    // alignment 降到 `min(field_natural_align, N)` 以避免 UB。
+                    if let Some(pack_n) = self.struct_clayout(struct_ty).and_then(|c| c.packed) {
+                        if let Some(inst) = loaded.as_instruction_value() {
+                            let natural = self.target_data.get_abi_alignment(&llvm_field_ty);
+                            let effective = std::cmp::min(natural, pack_n);
+                            inst.set_alignment(effective)?;
+                        }
                     }
                     return self.cg_value_from_loaded(member.span, field_ty, loaded);
                 }

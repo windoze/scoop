@@ -174,7 +174,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let field = &layout.fields[idx];
         let field_ty = self.cg_ty_of_type_fqn(field.span, field.ty_fqn.as_deref())?;
-        Ok((idx as u32, field_ty))
+
+        // T0119: For `@CLayout(packed = N)` with N > 1, the LLVM struct has padding
+        // elements inserted, so the logical field index differs from the LLVM element index.
+        let llvm_idx = self
+            .pack_field_indices
+            .get(&nominal.fqn)
+            .map_or(idx as u32, |indices| indices[idx]);
+
+        Ok((llvm_idx, field_ty))
     }
 
     pub(super) fn struct_clayout(&self, struct_ty: TypeId) -> Option<hir::StructCLayout> {

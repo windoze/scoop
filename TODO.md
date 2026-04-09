@@ -429,7 +429,7 @@ cargo run -p scoop --features llvm -- test
   - **注意**：Fixtures 使用 `:` 语法（`@CLayout(packed: 1)`）而非 `=` 语法（`@CLayout(packed = 1)`），因为 `=` 语法在 general annotation checker（T1019）中被误判为非常量表达式；CLayout-specific `parse_clayout_args` 支持两种语法，但 general checker 先执行。
   - 139 单元测试 + 794 fixtures 通过（含 LLVM 后端）。
 
-### T0119 [TODO] `@CLayout(packed = N)` 支持 N > 1（`#pragma pack(N)` 语义）
+### T0119 [DONE] `@CLayout(packed = N)` 支持 N > 1（`#pragma pack(N)` 语义）
 
 - 描述：当前 typecheck 仅接受 `packed = 1`（`annotations.rs:1895-1903`），任何其它非零值报 `CLayoutPackedValueNotSupported`。Spec §15.5 定义 `packed` 为"max field alignment"，语义等价于 C 的 `#pragma pack(N)`——即每个字段的 alignment 取 `min(field_natural_align, N)`。常见有意义的值为 1、2、4、8。
 - 目标：
@@ -441,6 +441,18 @@ cargo run -p scoop --features llvm -- test
   - run-pass fixture 验证布局正确性（可通过 `sizeOf<T>()` 或 `@Extern` 互操作断言）。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0118（先确保 packed=1 的 store alignment 正确）
+- 完成说明：
+  - **Typecheck**（`annotations.rs`）：`packed` 值验证从 `value != 1` 改为 `!is_power_of_two() || value > 16`，接受 1/2/4/8/16。错误消息更新为"必须是正的 2 的幂且 ≤ 16"。
+  - **Codegen type lowering**（`codegen/ty.rs` `llvm_struct_type`）：`packed=1` 继续使用 LLVM 原生 packed struct；`packed>1` 使用手动 padding insertion——LLVM packed struct（`is_packed=true`）+ 显式 `[N x i8]` padding 字节，字段有效对齐 = `min(natural_align, N)`。维护 `pack_field_indices` 缓存：逻辑字段号 → LLVM struct 元素号的映射。
+  - **关键 bug 修复**（`codegen/ty.rs` `llvm_struct_type` early return path）：每个顶层函数获得独立的 `MainCodegen` 实例（`mut self` 消费），`pack_field_indices` 在函数间不共享。LLVM named struct type 在 context 中持久化，导致后续函数的 `llvm_struct_type` 走 early return 但 `pack_field_indices` 为空。修复：在 early return 路径中检测 `packed>1 && !pack_field_indices.contains_key`，重新推导 padding/field index 映射。
+  - **Field access codegen**（`codegen/layout.rs` `lookup_struct_field`、`codegen/mod.rs` `codegen_member_access`、`codegen_struct_lit`）：使用 `pack_field_indices` 将逻辑字段索引映射到 LLVM 元素索引（GEP、insert_value、load alignment）。
+  - **Store alignment**（`codegen/gc.rs`）：packed struct 的 store 使用 `set_alignment(pack_n)` 而非硬编码 1。
+  - **Typecheck fixtures**（3 个）：
+    - `clayout_packed_values_2_4_8_16_ok.scoop`：packed=2/4/8/16 均通过 typecheck。
+    - `clayout_packed_value_not_power_of_two_is_error.scoop`：packed=3 报错。
+    - `clayout_packed_value_too_large_is_error.scoop`：packed=32 报错。
+  - **Run-pass fixture**：`clayout_packed_n_gt_1.scoop` + `.stdout`——packed=4（UInt8+Int、两 Int、三字段）、packed=2、packed=8。覆盖字段访问、函数传参、var 重赋值、负值，12 行 stdout。
+  - 139 单元测试 + 798 fixtures 通过（含 LLVM 后端）。
 
 ### T0120 [TODO] String 字节访问器：`getByte(index: Int): Byte` + `byteLength(): UInt`
 
