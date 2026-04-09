@@ -235,5 +235,19 @@ cargo run -p scoop --features llvm -- test
   7. Ranges 增强（P1）：`..` syntax / `until` / for-in integration
   8. Duration/Random/Test utilities（P1）
   - intrinsic 结论不变：无需新增编译器 intrinsic
-- 再拆任务（T1802）：按领域/优先级把缺口拆成可单独回归的小步。
+- DONE（T1802）：将 P0/P1 缺口拆分为 13 个可单独实现/验收的子任务（T1810~T1822）：
+  - **P0 Text（最高优先级）**：
+    - T1810：runtime/c 新增 `scoop_string_*` 底层 API（length/substring/startsWith/endsWith/indexOf/contains/split）
+    - T1811：sysroot 声明 + codegen 路由 + run-pass fixtures
+    - T1812：`Int.toString()` / `String.toInt()` 数值转换
+  - **P0 Test utilities**：T1813（`assertEqString`/`assertEqBool`）
+  - **P1 Math**：T1814（`abs`/`min`/`max` — 纯 Scoop）
+  - **P1 Collections 算法**：T1815（`sort`/`reduce`/`zip`/`flatten` — Int 专用）
+  - **P1 Text 格式化**：T1816（`StringBuilder`/`joinToString`）
+  - **P1 Hashing**：T1817（Int/String hash 实现）→ T1818（Hash-based Set/Map）
+  - **P1 Ranges**：T1819（`..` syntax / `until` / `for-in`）
+  - **P1 Duration**：T1820
+  - **P1 Random/PRNG**：T1821（xorshift64）
+  - **P0 泛型 collections**：T1822（依赖编译器泛型 codegen 完善，当前 BLOCKED）
+  - 建议实现顺序：T1810 → T1811 → T1812 → T1813 → T1814 → T1815 → …
 - 建立 stdlib 的 smoke + matrix fixtures（T1803），持续报告覆盖缺口。

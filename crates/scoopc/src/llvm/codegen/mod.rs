@@ -10474,28 +10474,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         // 优先路径：`localTuple._0` —— 用 GEP 从 alloca slot 取元素。
-        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
-            if let Some(local) = self.env.get(*id) {
-                if let CgTy::Tuple(tuple_ty) = local.ty {
-                    let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
-                    if elem_ty == CgTy::Unit {
-                        return Ok(CgValue::unit());
-                    }
-
-                    let llvm_tuple_ty = self.llvm_tuple_type(member.span, tuple_ty)?;
-                    let elem_ptr = self.builder.build_struct_gep(
-                        llvm_tuple_ty,
-                        local.ptr,
-                        elem_idx,
-                        "tuple_elem_gep",
-                    )?;
-                    let llvm_elem_ty = self.llvm_basic_type_of(member.span, elem_ty)?;
-                    let loaded =
-                        self.builder
-                            .build_load(llvm_elem_ty, elem_ptr, "load_tuple_elem")?;
-                    return self.cg_value_from_loaded(member.span, elem_ty, loaded);
-                }
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
+            && let Some(local) = self.env.get(*id)
+            && let CgTy::Tuple(tuple_ty) = local.ty
+        {
+            let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
+            if elem_ty == CgTy::Unit {
+                return Ok(CgValue::unit());
             }
+
+            let llvm_tuple_ty = self.llvm_tuple_type(member.span, tuple_ty)?;
+            let elem_ptr = self.builder.build_struct_gep(
+                llvm_tuple_ty,
+                local.ptr,
+                elem_idx,
+                "tuple_elem_gep",
+            )?;
+            let llvm_elem_ty = self.llvm_basic_type_of(member.span, elem_ty)?;
+            let loaded =
+                self.builder
+                    .build_load(llvm_elem_ty, elem_ptr, "load_tuple_elem")?;
+            return self.cg_value_from_loaded(member.span, elem_ty, loaded);
         }
 
         // fallback：先把 receiver 降到值，再用 extractvalue 取元素。
@@ -12117,7 +12116,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //
         // 注意：这里不尝试做“复用 box 类型”或 cache；LLVM named struct 会在 module 内复用。
         let target = self.target_layout();
-        let payload_size = (u64::from(value_ty.bits) + 7) / 8;
+        let payload_size = u64::from(value_ty.bits).div_ceil(8);
         let payload_align = payload_size.clamp(1, target.pointer_align.max(1));
 
         // 对象头布局与 C runtime 对齐（见 `runtime/c/scoop_gc.h` 的 static asserts）。
@@ -12134,7 +12133,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_align = header_align.max(payload_align);
         let total_size = align_to(payload_offset.saturating_add(payload_size), obj_align);
 
-        let size_v = self.context.i64_type().const_int(total_size as u64, false);
+        let size_v = self.context.i64_type().const_int(total_size, false);
 
         let desc = self.get_or_create_boxed_int_type_desc_global(at, value_ty)?;
         let desc_i8 = self.builder.build_pointer_cast(
@@ -12550,7 +12549,7 @@ fn undouble_braces_preserving_escapes(text: &str) -> String {
             // `\u{...}`：把整个 `{...}` 视为转义语法的一部分，原样拷贝。
             if next == 'u' && matches!(chars.peek(), Some('{')) {
                 out.push(chars.next().expect("peek 已保证存在"));
-                while let Some(c) = chars.next() {
+                for c in chars.by_ref() {
                     out.push(c);
                     if c == '}' {
                         break;

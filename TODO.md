@@ -645,7 +645,7 @@ cargo run -p scoop --features llvm -- test
   - 产出 P0/P1 缺口优先级排序（10 项），最高优先级为 Text 基础（`String.length`/`substring`/`split` 等）和泛型 collections 操作。
   - 确认 intrinsic 结论不变：当前不需要新增编译器 intrinsic。
 
-### T1802 [TODO] 拆分任务：按领域/优先级把缺口拆成可单独回归的小任务
+### T1802 [DONE] 拆分任务：按领域/优先级把缺口拆成可单独回归的小任务
 - 描述：把 std 完整性缺口按领域拆分为可实现的任务组（collections/text/ranges/sequences/math/random/time/io 等），并明确每组是纯 Scoop、需要 runtime lib，还是必须走 intrinsic gate。
 - 目标：
   - 默认不新增 intrinsic：任何 “needs_new_intrinsic” 结论必须回到 `RUNTIME_STDLIB_INTRINSIC_AUDIT.md` 的 gate 流程。
@@ -653,9 +653,23 @@ cargo run -p scoop --features llvm -- test
 - 验收：
   - TODO 中为每个 P0/P1 能力项至少创建 1 个任务条目，并标注依赖与验收命令。
 - 依赖：T1801
+- 完成说明：
+  - 拆分为 13 个子任务（T1810~T1822），覆盖所有 P0/P1 缺口：
+    - **P0 Text**：T1810（runtime/c String API）、T1811（sysroot 声明 + fixtures）、T1812（`Int.toString`/`String.toInt` 数值转换）
+    - **P0 Test utilities**：T1813（`assertEqString`/`assertEqBool`）
+    - **P1 Math**：T1814（`abs`/`min`/`max`）
+    - **P1 Collections algorithms**：T1815（`sort`/`reduce`/`zip`/`flatten`）
+    - **P1 Text formatting**：T1816（`StringBuilder`/`joinToString`）
+    - **P1 Hashing**：T1817（Int/String hash 实现）、T1818（Hash-based Set/Map）
+    - **P1 Ranges**：T1819（`..` syntax / `until` / `for-in`）
+    - **P1 Duration**：T1820
+    - **P1 Random/PRNG**：T1821
+    - **P0 泛型 collections**：T1822（依赖编译器泛型 codegen 完善，标记为 BLOCKED）
+  - 每个任务标注分类（pure_scoop_ok / needs_runtime_lib）、依赖、fixtures 计划。
+  - 建议实现顺序：T1810 → T1811 → T1812 → T1813 → T1814 → T1815 → T1816 → T1817 → T1818 → T1819 → T1820 → T1821。T1822 待编译器泛型能力就绪后启动。
 
 ### T1803 [TODO] 回归基座：建立 stdlib 的 smoke + matrix fixtures
-- 描述：为 stdlib 建立一组“冒烟测试”与“覆盖矩阵”fixtures，确保每次改动都能覆盖核心能力面，并能指出缺口。
+- 描述：为 stdlib 建立一组”冒烟测试”与”覆盖矩阵”fixtures，确保每次改动都能覆盖核心能力面，并能指出缺口。
 - 目标：
   - smoke：少量但高价值的端到端示例（文本/集合/迭代/范围/基础 IO）。
   - matrix：按领域扫描 fixtures 覆盖度（可复用 `scoop_tools fixtures-matrix` 的机制）。
@@ -664,11 +678,174 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop_tools -- fixtures-matrix check` 能报告 stdlib 领域覆盖度（缺口提示即可，是否 gating 后续再定）。
 - 依赖：T1802
 
-### T1804 [TODO] 优先补齐（P0/P1）：从审计表中挑选最能提升可用性的缺口先落地
-- 描述：在 T1801/T1802 的基础上，挑选最有 fixture 价值、最能提升“写示例的体验”的能力项，优先补齐。
-- 目标（建议起步）：
-  - text：`substring/startsWith/split` 的最小可用版本（必要时引入 runtime lib，但不新增 intrinsic）。
-  - formatting：`StringBuilder/joinToString`（优先纯 Scoop，性能后置）。
-  - time/io：`now()/readLine()` 的最小平台实现（走 `runtime/c/platform`）。
-- 验收：每个能力项新增至少 1 个 run-pass fixture，并在 `--gc-stress` 下通过。
-- 依赖：T1802
+---
+
+## T18-A：Text 基础（P0，最高优先级缺口）
+
+> 路径：`runtime/c` 新增底层 API → `sysroot/core.scoop` 声明 → 编译器 codegen 识别 → `stdlib/` 封装（可选）→ fixtures
+> 分类：`needs_runtime_lib`
+> 约束：不新增 intrinsic；复用已有的 `declare_runtime_*` + `codegen_call_*` 模式（参考 `scoop_string_trim_indent` 或 `scoop_print`）。
+
+### T1810 [TODO] Text runtime/c：新增 `scoop_string_*` 底层 API（length/substring/startsWith/endsWith/indexOf/contains/split）
+- 描述：在 `runtime/c/scoop_runtime.c` 中实现基础字符串操作的 C 函数，并在 `scoop_runtime_api.h` 的 `RUNTIME_FN_LIST` 中注册。
+- 目标：
+  - `scoop_string_length(s) -> i64`：返回 UTF-8 字节长度（与 Kotlin 的 `String.length` 一致——对 ASCII 友好，后续可扩展为 codepoint/grapheme 版本）。
+  - `scoop_string_substring(s, start, end) -> ScoopString*`：字节级切片，`start` inclusive / `end` exclusive；越界返回空字符串（与 runtime/c 现有风格一致）。
+  - `scoop_string_starts_with(s, prefix) -> i64`（0/1）。
+  - `scoop_string_ends_with(s, suffix) -> i64`（0/1）。
+  - `scoop_string_index_of(s, substr) -> i64`：返回首次出现位置（字节偏移），未找到返回 `-1`。
+  - `scoop_string_contains(s, substr) -> i64`（0/1）。
+  - `scoop_string_split(s, delimiter) -> ScoopArray*`：返回 `Array<String>`（GC-managed 数组；复用 `scoop_array_builder_*` 构建）。
+- 验收：
+  - 在 `runtime/c/scoop_runtime.c` 中实现；`scoop_runtime_api.h` 注册。
+  - `cargo test --all` 通过（不需要 Scoop 侧 fixture，先验证 C 编译通过且 API 注册正确）。
+- 依赖：无
+
+### T1811 [TODO] Text sysroot + codegen：`String.length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split` 可从 Scoop 调用
+- 描述：在 `sysroot/core.scoop` 的 `String` 类型上声明 P0 Text 方法，并在编译器的 codegen（LLVM 后端）中识别这些方法调用并路由到 T1810 的 C runtime 函数。
+- 目标：
+  - sysroot 声明：`fun length(): Int`、`fun substring(start: Int, end: Int): String`、`fun startsWith(prefix: String): Bool`、`fun endsWith(suffix: String): Bool`、`fun indexOf(substr: String): Int`、`fun contains(substr: String): Bool`、`fun split(delimiter: String): Array<String>`。
+  - codegen：参考 `scoop_string_trim_indent` 的 codegen 路径，为每个方法生成对应 C 函数调用。
+  - 新增 run-pass fixtures：至少 1 个综合用例覆盖上述 7 个方法（stdout 断言），并在 `--gc-stress` 下通过。
+- 验收：
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+  - 新增 `tests/fixtures/run-pass/stdlib_string_basic.scoop` + `.stdout`。
+- 依赖：T1810
+
+### T1812 [TODO] Text 数值转换：`Int.toString()` + `String.toInt()`
+- 描述：补齐数值↔文本的最基础转换。
+- 目标：
+  - runtime/c 新增：`scoop_int_to_string(i64) -> ScoopString*`、`scoop_string_to_int(ScoopString*) -> i64`。
+  - `scoop_string_to_int` 对非数字输入的行为：返回 `0`（或后续引入 `Option<Int>` 版本；v0 先走简单路径）。
+  - sysroot 声明：`Int.toString(): String`、`String.toInt(): Int`。
+  - codegen：路由到 C 函数。
+  - 新增 run-pass fixture：覆盖正数/负数/零/边界值转换。
+- 验收：
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+  - 新增 `tests/fixtures/run-pass/stdlib_int_string_conversion_basic.scoop` + `.stdout`。
+- 依赖：T1810（共享 runtime/c 构建管线；实际实现无直接依赖，但建议顺序执行以减少冲突）
+
+### T1813 [TODO] Test utilities 扩展：`assertEqString` + `assertEqBool`
+- 描述：在 `stdlib/test.scoop` 中补齐 `assertEqString` 和 `assertEqBool`，使后续 fixtures 可用。
+- 目标：
+  - `assertEqString(expected: String, actual: String): Unit`：基于 `==` 比较；失败时打印 expected/actual 并 `Raise.raise`。
+  - `assertEqBool(expected: Bool, actual: Bool): Unit`：同上。
+  - 分类：`pure_scoop_ok`（依赖已有的 `String ==` 和 `Bool ==`）。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_test_assertions_extended.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（`String ==` 和 `Raise.raise` 已存在）
+
+### T1814 [TODO] Math 基础：`abs`/`min`/`max`（Int）
+- 描述：在 `stdlib/` 中实现 `abs`/`min`/`max` 的 `Int` 版本。
+- 目标：
+  - 分类：`pure_scoop_ok`（纯 Scoop 条件表达式实现）。
+  - 在 `stdlib/prelude.scoop`（或新增 `stdlib/math.scoop`）中实现。
+  - 新增 run-pass fixture。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_math_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T1815 [TODO] Collections 算法：`sort`/`reduce`/`zip`/`flatten`（Int 专用）
+- 描述：为 `MutableArray<Int>` / `Array<Int>` 补齐常用算法。
+- 目标：
+  - 分类：`pure_scoop_ok`。
+  - `sort`: 原地排序（简单的插入排序或选择排序，性能后置）。
+  - `reduce`: `(acc: Int, elem: Int) -> Int`，折叠到单值。
+  - `zip`: 两个 `Array<Int>` 配对返回 `Array<(Int, Int)>`（依赖 tuple array 支持；若不可行则先返回 flat interleaved `Array<Int>`）。
+  - `flatten`: `Array<Array<Int>>` → `Array<Int>`（依赖嵌套 Array codegen；若不可行则降级为”二维 flat 展开”）。
+  - 新增 run-pass fixtures。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_collections_algorithms_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（基础 `Array<Int>` / `MutableArray<Int>` 已存在）
+- 备注：`zip`/`flatten` 可能受限于当前泛型/嵌套 Array codegen 能力，允许降级或推迟到 T1822。
+
+### T1816 [TODO] Text 格式化：`StringBuilder` + `joinToString`
+- 描述：提供基础的字符串拼接工具，减少 `+` 链式拼接的分配开销。
+- 目标：
+  - `StringBuilder`：可变字符串构建器——`append(s: String): Unit`、`toString(): String`。
+  - 分类：`pure_scoop_ok`（v0 可基于 `MutableArray<String>` + 最终拼接实现）或 `needs_runtime_lib`（高效版本走 runtime/c buffer）。建议 v0 先走纯 Scoop。
+  - `joinToString`：`Array<Int>.joinToString(separator: String): String`（仅 Int 版本；依赖 `Int.toString`）。
+  - 新增 run-pass fixture。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_string_builder_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1812（`Int.toString` 用于 `joinToString`）
+
+### T1817 [TODO] Hashing 落地：Int/String 的真实 hash 实现
+- 描述：为 `sysroot/core.scoop` 中的 `Hashable` 接口提供 Int 和 String 的真实 hash 实现（替换当前 `hash() -> 0` 占位）。
+- 目标：
+  - `Int.hash() -> Int`：纯 Scoop（位运算混合，例如 xorshift-based）。
+  - `String.hash() -> Int`：`needs_runtime_lib`（在 runtime/c 中实现 FNV-1a 或 xxHash 的简化版本），或纯 Scoop 逐字节访问（依赖 `charAt` / byte 访问能力）。
+  - 分类：Int 为 `pure_scoop_ok`；String 可能需 `needs_runtime_lib`。
+  - 新增 run-pass fixture 验证 hash 值的基本性质（非全零、不同输入不同输出）。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_hash_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1811（String hash 可能需要 `String.length` 或字节访问能力）
+
+### T1818 [TODO] Hash-based Set/Map（Int key）
+- 描述：基于 T1817 的 hash 实现，用开放寻址（linear probing）替换当前 `collections_set.scoop`/`collections_map.scoop` 的线性扫描实现。
+- 目标：
+  - 分类：`pure_scoop_ok`。
+  - `HashSet<Int>`：基于 `MutableArray<Int>` + 开放寻址，支持 `add`/`contains`/`remove`/`size`。
+  - `HashMap<Int, Int>`：基于 flat kv 数组 + 开放寻址，支持 `put`/`get`/`containsKey`/`remove`/`size`。
+  - 新增 run-pass fixture。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T1817
+
+### T1819 [TODO] Ranges 增强：`..` syntax sugar / `until` / `for (x in range)` integration
+- 描述：为 `IntProgression` 补齐语法糖和 for-in 集成。
+- 目标：
+  - `..` operator：前端语法糖，`a..b` desugars 为 `a.rangeTo(b, 1)`。
+  - `until`：`a.until(b)` 返回 `IntProgression(a, b-1, 1)`（exclusive end）。
+  - `for (x in range)`：lowering `for (x in prog)` 到 `prog.forEach { x -> ... }`（或等价 while 循环）。
+  - 分类：`pure_scoop_ok`（前端语法糖 + lowering 变换）。
+  - 新增 run-pass fixtures。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_ranges_enhanced_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（`IntProgression` 和 `rangeTo`/`downTo`/`forEach` 已存在）
+- 备注：此任务涉及 parser + lowering 变更，可能较大；可进一步拆分为 T1819a（`..` syntax）、T1819b（`until`）、T1819c（`for-in`）。
+
+### T1820 [TODO] Duration 值类型
+- 描述：在 `stdlib/` 中实现 `Duration` 值类型。
+- 目标：
+  - 分类：`pure_scoop_ok`。
+  - `Duration` struct：`millis: Int`。
+  - 工厂方法：`Duration.ofMillis(ms: Int)`、`Duration.ofSeconds(s: Int)`。
+  - 操作：`plus`/`minus`/`toMillis`/`toSeconds`。
+  - 新增 run-pass fixture。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_duration_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无（`nowUnixMillis()` 已存在于 `sysroot/time.scoop`）
+
+### T1821 [TODO] Random/PRNG：纯 Scoop xorshift 实现
+- 描述：实现最小可用的 PRNG。
+- 目标：
+  - 分类：`pure_scoop_ok`（算法级别）。
+  - `Random` class：`seed: Int`，`nextInt(): Int`，`nextIntBound(bound: Int): Int`。
+  - 算法：xorshift64 或 SplitMix64。
+  - Default seed：可接受用户传入 seed；后续与 `nowUnixMillis()` 集成。
+  - 新增 run-pass fixture（用固定 seed 验证确定性序列）。
+- 验收：
+  - 新增 `tests/fixtures/run-pass/stdlib_random_basic.scoop` + `.stdout`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T1822 [TODO] 泛型 Collections API（`<T>` 版 forEach/map/filter/fold）
+- 描述：把当前仅 `Int` 专用的 collections 操作泛型化。
+- 目标：
+  - 分类：`pure_scoop_ok`。
+  - `Array<T>.forEach`/`map`/`filter`/`fold` 的泛型版本。
+  - `MutableArray<T>.push`/`pop`/`forEach`/`map`/`filter`/`fold` 的泛型版本。
+- 验收：
+  - 新增 run-pass fixtures：`Array<String>.map`、`Array<MyStruct>.filter` 等。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：编译器泛型单态化 / 跨文件 codegen 完善（当前为编译器能力限制，非 stdlib 任务）
+- 备注：此任务的前置依赖为编译器侧泛型能力完善，当该能力就绪后再启动。在此之前，Int 专用版本继续作为 workaround。

@@ -1669,7 +1669,7 @@ fun main() {
             .data()
             .expect("failed to read stackmap section data");
 
-        let header = super::stackmap::StackMapHeader::parse(section_data.as_ref())
+        let header = super::stackmap::StackMapHeader::parse(section_data)
             .expect("stackmap header should be parseable");
         assert!(
             header.num_records > 0,
@@ -1720,7 +1720,7 @@ fun main(): Unit {
             .data()
             .expect("failed to read stackmap section data");
 
-        let section = crate::stackmap::StackMapSection::parse(section_data.as_ref())
+        let section = crate::stackmap::StackMapSection::parse(section_data)
             .expect("stackmap section should be parseable (v3)");
 
         let cfg = if cfg!(target_arch = "x86_64") {
