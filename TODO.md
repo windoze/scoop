@@ -668,7 +668,7 @@ cargo run -p scoop --features llvm -- test
   - 每个任务标注分类（pure_scoop_ok / needs_runtime_lib）、依赖、fixtures 计划。
   - 建议实现顺序：T1810 → T1811 → T1812 → T1813 → T1814 → T1815 → T1816 → T1817 → T1818 → T1819 → T1820 → T1821。T1822 待编译器泛型能力就绪后启动。
 
-### T1803 [TODO] 回归基座：建立 stdlib 的 smoke + matrix fixtures
+### T1803 [DONE] 回归基座：建立 stdlib 的 smoke + matrix fixtures
 - 描述：为 stdlib 建立一组”冒烟测试”与”覆盖矩阵”fixtures，确保每次改动都能覆盖核心能力面，并能指出缺口。
 - 目标：
   - smoke：少量但高价值的端到端示例（文本/集合/迭代/范围/基础 IO）。
@@ -677,6 +677,14 @@ cargo run -p scoop --features llvm -- test
   - 新增 `tests/fixtures/run-pass/stdlib_smoke/**`（或等价目录）至少 3 个。
   - `cargo run -p scoop_tools -- fixtures-matrix check` 能报告 stdlib 领域覆盖度（缺口提示即可，是否 gating 后续再定）。
 - 依赖：T1802
+- 完成说明：
+  - **新增 3 个 stdlib smoke run-pass fixtures**：
+    - `stdlib_smoke_collections_and_iteration`：Array + MutableArray + map/filter/fold + Set/Map 联合测试（域：Collections）。
+    - `stdlib_smoke_ranges_and_io`：IntProgression rangeTo/downTo/forEach 组合测试，覆盖升序/降序/步长/乘法（域：Ranges + IO）。
+    - `stdlib_smoke_test_and_preconditions`：assertTrue/assertFalse/assertEqInt + require/check + try/catch 组合测试，含数组验证（域：Test utilities + Preconditions + Collections）。
+  - **stdlib 覆盖矩阵工具**：`fixtures-matrix` 新增 `stdlib` 模式（`cargo run -p scoop_tools -- fixtures-matrix stdlib`），定义 21 个 stdlib 领域及其 fixture 文件名前缀映射，扫描 `run-pass/` 报告覆盖度。当前报告：15/21 域有 fixture 覆盖，6 个缺口（Text formatting / Math / Hashing / Random / Net / Reflection）。
+  - **pre-existing fix**：修复最新 commit 遗留的 2 个 `collapsible_if` clippy 警告（`codegen/mod.rs` struct 访问路径）。
+  - 所有 767 fixtures 通过。
 
 ---
 

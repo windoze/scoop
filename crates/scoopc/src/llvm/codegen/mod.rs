@@ -10396,40 +10396,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // 优先路径：`localStruct.field` —— 用 GEP 从 alloca slot 取字段（更贴近后续可变字段语义）。
-                if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind {
-                    if let Some(local) = self.env.get(*id) {
-                        if let CgTy::Struct(struct_ty) = local.ty {
-                            let (field_idx, field_ty) =
-                                self.lookup_struct_field(struct_ty, fqn, member.span)?;
-                            if field_ty == CgTy::Unit {
-                                return Ok(CgValue::unit());
-                            }
-
-                            let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
-                            let field_ptr = self.builder.build_struct_gep(
-                                llvm_struct_ty,
-                                local.ptr,
-                                field_idx,
-                                "field_gep",
-                            )?;
-                            let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
-                            let loaded =
-                                self.builder
-                                    .build_load(llvm_field_ty, field_ptr, "load_field")?;
-                            // `@CLayout(packed = 1)`：字段地址可能是未对齐的，因此必须把 load 的 alignment
-                            // 降到 1，避免 LLVM 以 ABI 对齐假设做错误优化（UB）。
-                            if self
-                                .struct_clayout(struct_ty)
-                                .and_then(|c| c.packed)
-                                .is_some()
-                            {
-                                if let Some(inst) = loaded.as_instruction_value() {
-                                    inst.set_alignment(1)?;
-                                }
-                            }
-                            return self.cg_value_from_loaded(member.span, field_ty, loaded);
-                        }
+                if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
+                    && let Some(local) = self.env.get(*id)
+                    && let CgTy::Struct(struct_ty) = local.ty
+                {
+                    let (field_idx, field_ty) =
+                        self.lookup_struct_field(struct_ty, fqn, member.span)?;
+                    if field_ty == CgTy::Unit {
+                        return Ok(CgValue::unit());
                     }
+
+                    let llvm_struct_ty = self.llvm_struct_type(member.span, struct_ty)?;
+                    let field_ptr = self.builder.build_struct_gep(
+                        llvm_struct_ty,
+                        local.ptr,
+                        field_idx,
+                        "field_gep",
+                    )?;
+                    let llvm_field_ty = self.llvm_basic_type_of(member.span, field_ty)?;
+                    let loaded =
+                        self.builder
+                            .build_load(llvm_field_ty, field_ptr, "load_field")?;
+                    // `@CLayout(packed = 1)`：字段地址可能是未对齐的，因此必须把 load 的 alignment
+                    // 降到 1，避免 LLVM 以 ABI 对齐假设做错误优化（UB）。
+                    if self
+                        .struct_clayout(struct_ty)
+                        .and_then(|c| c.packed)
+                        .is_some()
+                        && let Some(inst) = loaded.as_instruction_value()
+                    {
+                        inst.set_alignment(1)?;
+                    }
+                    return self.cg_value_from_loaded(member.span, field_ty, loaded);
                 }
 
                 // fallback：先把 receiver 降到值，再用 extractvalue 取字段。

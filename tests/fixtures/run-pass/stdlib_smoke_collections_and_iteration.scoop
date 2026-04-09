@@ -1,0 +1,69 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_smoke_collections_and_iteration.stdout
+// EXPECT-EXIT: 0
+//
+// stdlib smoke test: collections + iteration (Array, MutableArray, forEach, map, filter, fold, Set, Map)
+// Exercises multiple stdlib domains together in a single coherent program.
+
+import scoop.core.*
+import scoop.core.array.*
+import scoop.core.mutable_array.*
+import scoop.collections.*
+
+fun printArray(label: String, xs: Array<Int>): Unit {
+    println(label)
+    var i: Int = 0
+    while (i < xs.size()) {
+        println(xs.get(i))
+        i = i + 1
+    }
+}
+
+fun main(): Int {
+    // --- Step 1: Build data from MutableArray ---
+    println("step1:build")
+    var buf: MutableArray<Int> = [10, 20, 30]
+    buf = buf.push(40)
+    buf = buf.push(50)
+    val data: Array<Int> = buf.toArray()
+    printArray("data", data)
+
+    // --- Step 2: Transform with map ---
+    println("step2:map")
+    val doubled: Array<Int> = data.map { it * 2 }
+    printArray("doubled", doubled)
+
+    // --- Step 3: Filter ---
+    println("step3:filter")
+    val big: Array<Int> = data.filter { it > 25 }
+    printArray("big", big)
+
+    // --- Step 4: Fold ---
+    println("step4:fold")
+    val sum: Int = data.fold(0) { acc, x -> acc + x }
+    println(sum)
+
+    // --- Step 5: Set operations ---
+    println("step5:set")
+    var s: MutableSet = mutableIntSet()
+    s = s.add(10)
+    s = s.add(20)
+    s = s.add(30)
+    s = s.add(40)
+    s = s.add(50)
+    // Add a duplicate — should be no-op
+    s = s.add(10)
+    println(s.len())
+
+    // --- Step 6: Map operations ---
+    println("step6:map_kv")
+    var m: MutableMap = mutableIntIntMap()
+    m = m.put(10, 100)
+    m = m.put(20, 400)
+    m = m.put(30, 900)
+    println(m.entryCount())
+    println(m.getByKey(30))
+
+    println("done")
+    return 0
+}

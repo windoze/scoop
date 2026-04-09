@@ -288,11 +288,236 @@ fn parse_expectation_from_source(source: &str) -> ExpectationKind {
     ExpectationKind::Unknown
 }
 
+// ---------------------------------------------------------------------------
+// Stdlib 领域覆盖矩阵（T1803）
+// ---------------------------------------------------------------------------
+
+/// stdlib 领域定义：id / 显示名 / fixture 文件名前缀匹配模式。
+///
+/// 约定：一个 run-pass fixture 匹配某领域，当且仅当其文件名（不含路径与 `.scoop`）
+/// 以该领域的某个前缀开头（`starts_with` 匹配）。
+const STDLIB_DOMAINS: &[(&str, &str, &[&str])] = &[
+    ("1", "Core types & primitives", &[
+        "minimal_", "value_type_", "class_", "enum_", "option_", "struct_",
+        "string_", "bool_", "int_", "float_", "array_", "tuple_",
+    ]),
+    ("2", "Properties / Delegates", &[
+        "delegated_prop", "lazy_", "observable_", "vetoable_",
+    ]),
+    ("3", "Collections", &[
+        "stdlib_iter_", "stdlib_set_", "stdlib_smoke_collections",
+        "mutable_array_", "list_and_mutable_list",
+        "stdlib_collections",
+    ]),
+    ("4", "Ranges / Progressions", &[
+        "kotlin_ranges_", "stdlib_smoke_ranges",
+    ]),
+    ("5", "Text (String)", &[
+        "stdlib_string_", "string_interp", "string_escape",
+        "string_multiline", "string_trim",
+    ]),
+    ("6", "Text formatting", &[
+        "stdlib_string_builder", "stdlib_format",
+    ]),
+    ("7", "Math", &[
+        "stdlib_math",
+    ]),
+    ("8", "Hashing", &[
+        "stdlib_hash",
+    ]),
+    ("9", "Random", &[
+        "stdlib_random",
+    ]),
+    ("10", "Time", &[
+        "std_env_time",
+    ]),
+    ("11", "IO (stdin/stdout/stderr)", &[
+        "std_io_",
+    ]),
+    ("12", "File system", &[
+        "std_fs_",
+    ]),
+    ("13", "Process / Env / Path", &[
+        "std_process_", "std_path_", "std_env_",
+    ]),
+    ("14", "Concurrency / Threading", &[
+        "std_sync_", "std_thread_",
+    ]),
+    ("15", "Task / Executor (async)", &[
+        "std_task_",
+    ]),
+    ("16", "Net", &[
+        "std_net_",
+    ]),
+    ("17", "Unsafe / Pointers", &[
+        "unsafe_", "nogc_",
+    ]),
+    ("18", "Scope functions", &[
+        "kotlin_scope_functions",
+    ]),
+    ("19", "Preconditions", &[
+        "kotlin_require_", "kotlin_check_",
+        "stdlib_smoke_test_and_preconditions",
+    ]),
+    ("20", "Test utilities", &[
+        "std_test_",
+    ]),
+    ("21", "Reflection", &[
+        "comptime_reflect", "comptime_fields", "comptime_variants",
+    ]),
+];
+
+/// 按 stdlib 领域扫描 `run-pass/` 下的 fixture 覆盖度。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StdlibDomainCoverage {
+    pub domain_id: String,
+    pub title: String,
+    pub fixture_count: usize,
+    pub fixture_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StdlibReport {
+    pub domain_count: usize,
+    pub total_fixtures: usize,
+    pub covered: Vec<StdlibDomainCoverage>,
+    pub gaps: Vec<StdlibDomainCoverage>,
+}
+
+impl StdlibReport {
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        let covered_count = self.covered.len();
+        let gap_count = self.gaps.len();
+
+        out.push_str(&format!(
+            "stdlib coverage: {}/{} domains covered ({} fixtures)\n",
+            covered_count, self.domain_count, self.total_fixtures
+        ));
+
+        if !self.gaps.is_empty() {
+            out.push_str(&format!("\ngaps ({} domains without fixtures):\n", gap_count));
+            for g in &self.gaps {
+                out.push_str(&format!("  - §{} {}\n", g.domain_id, g.title));
+            }
+        }
+
+        out.push_str("\ncovered domains:\n");
+        for c in &self.covered {
+            out.push_str(&format!(
+                "  + §{} {} ({} fixtures)\n",
+                c.domain_id, c.title, c.fixture_count
+            ));
+        }
+
+        out
+    }
+}
+
+pub fn run_stdlib_check(fixtures_root: &Path) -> Result<StdlibReport> {
+    let run_pass_dir = fixtures_root.join("run-pass");
+
+    // Collect all .scoop filenames (stem only) from run-pass/.
+    let mut fixture_stems: Vec<String> = Vec::new();
+    if run_pass_dir.is_dir() {
+        for entry in std::fs::read_dir(&run_pass_dir)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法读取 run-pass 目录：{}", run_pass_dir.display()))?
+        {
+            let entry = entry.into_diagnostic()?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("scoop") {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    fixture_stems.push(stem.to_string());
+                }
+            }
+        }
+    }
+    fixture_stems.sort();
+
+    let mut covered: Vec<StdlibDomainCoverage> = Vec::new();
+    let mut gaps: Vec<StdlibDomainCoverage> = Vec::new();
+    let mut total_matched: usize = 0;
+
+    for &(id, title, prefixes) in STDLIB_DOMAINS {
+        let mut matched: Vec<String> = Vec::new();
+        for stem in &fixture_stems {
+            if prefixes.iter().any(|p| stem.starts_with(p)) {
+                matched.push(stem.clone());
+            }
+        }
+        let count = matched.len();
+        total_matched += count;
+
+        let entry = StdlibDomainCoverage {
+            domain_id: id.to_string(),
+            title: title.to_string(),
+            fixture_count: count,
+            fixture_names: matched,
+        };
+
+        if count > 0 {
+            covered.push(entry);
+        } else {
+            gaps.push(entry);
+        }
+    }
+
+    Ok(StdlibReport {
+        domain_count: STDLIB_DOMAINS.len(),
+        total_fixtures: total_matched,
+        covered,
+        gaps,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
+
+    #[test]
+    fn stdlib_coverage_reports_gaps_and_covered() {
+        let dir = tempdir().unwrap();
+        let fixtures_root = dir.path().join("tests").join("fixtures");
+        let run_pass = fixtures_root.join("run-pass");
+        std::fs::create_dir_all(&run_pass).unwrap();
+
+        // Create fixtures matching some domains.
+        std::fs::write(
+            run_pass.join("std_io_basic.scoop"),
+            "// EXPECT: pass\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            run_pass.join("stdlib_iter_basic.scoop"),
+            "// EXPECT: pass\nfun main() {}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            run_pass.join("kotlin_scope_functions_basic.scoop"),
+            "// EXPECT: pass\nfun main() {}\n",
+        )
+        .unwrap();
+
+        let report = run_stdlib_check(&fixtures_root).unwrap();
+
+        // Should have 21 domains total.
+        assert_eq!(report.domain_count, 21);
+
+        // IO, Collections, and Scope functions should be covered.
+        let covered_ids: Vec<&str> = report.covered.iter().map(|c| c.domain_id.as_str()).collect();
+        assert!(covered_ids.contains(&"3"), "Collections should be covered");
+        assert!(covered_ids.contains(&"11"), "IO should be covered");
+        assert!(covered_ids.contains(&"18"), "Scope functions should be covered");
+
+        // Math, Random, Net should be gaps.
+        let gap_ids: Vec<&str> = report.gaps.iter().map(|g| g.domain_id.as_str()).collect();
+        assert!(gap_ids.contains(&"7"), "Math should be a gap");
+        assert!(gap_ids.contains(&"9"), "Random should be a gap");
+        assert!(gap_ids.contains(&"16"), "Net should be a gap");
+    }
 
     #[test]
     fn reports_missing_pass_or_fail_per_chapter() {

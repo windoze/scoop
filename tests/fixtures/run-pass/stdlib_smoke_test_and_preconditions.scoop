@@ -1,0 +1,97 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_smoke_test_and_preconditions.stdout
+// EXPECT-EXIT: 0
+//
+// stdlib smoke test: test utilities + preconditions (assertTrue, assertFalse, assertEqInt, require, check)
+// Exercises test/assertion utilities combined with try/catch for validation patterns.
+
+import scoop.core.*
+import scoop.core.array.*
+import scoop.test.*
+
+fun main(): Int {
+    // --- Basic assertions pass ---
+    println("assert_pass")
+    try {
+        assertTrue(true)
+        assertFalse(false)
+        assertEqInt(42, 42)
+        println("ok")
+    } catch (e: RuntimeError) {
+        println("unexpected_fail")
+    }
+
+    // --- assertTrue(false) raises ---
+    println("assert_true_fail")
+    val r1: Int = try {
+        assertTrue(false)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r1)
+
+    // --- assertFalse(true) raises ---
+    println("assert_false_fail")
+    val r2: Int = try {
+        assertFalse(true)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r2)
+
+    // --- assertEqInt mismatch raises ---
+    println("assert_eq_fail")
+    val r3: Int = try {
+        assertEqInt(10, 20)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r3)
+
+    // --- require(true) passes, require(false) raises ---
+    println("require")
+    val r4: Int = try {
+        require(true)
+        require(false)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r4)
+
+    // --- check(true) passes, check(false) raises ---
+    println("check")
+    val r5: Int = try {
+        check(true)
+        check(false)
+        0
+    } catch (e: RuntimeError) {
+        1
+    }
+    println(r5)
+
+    // --- Combined: validate array operations with assertions ---
+    println("combined")
+    try {
+        val xs: Array<Int> = [10, 20, 30]
+        assertEqInt(3, xs.size())
+        assertEqInt(10, xs.get(0))
+        assertEqInt(30, xs.get(2))
+
+        val sum: Int = xs.fold(0) { acc, x -> acc + x }
+        assertEqInt(60, sum)
+
+        val big: Array<Int> = xs.filter { it > 15 }
+        assertEqInt(2, big.size())
+
+        println("all_passed")
+    } catch (e: RuntimeError) {
+        println("unexpected_fail")
+    }
+
+    println("done")
+    return 0
+}
