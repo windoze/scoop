@@ -631,14 +631,19 @@ cargo run -p scoop --features llvm -- test
 
 ## T18：标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md` 的持续补齐）
 
-### T1801 [TODO] 现状对照：把 `KOTLIN_RUNTIME_GAP_AUDIT.md` 转成“可执行的 std 完整性清单”
+### T1801 [DONE] 现状对照：把 `KOTLIN_RUNTIME_GAP_AUDIT.md` 转成”可执行的 std 完整性清单”
 - 描述：基于 `KOTLIN_RUNTIME_GAP_AUDIT.md` 的能力矩阵，梳理当前 `sysroot/` + `stdlib/` 的实现覆盖度，并产出一份可执行的清单（DONE/TODO/Blockers）。
 - 目标：
-  - 以“能力项”为粒度，而不是以 API 名称为粒度（保持与审计文档一致）。
+  - 以”能力项”为粒度，而不是以 API 名称为粒度（保持与审计文档一致）。
   - 每个能力项必须链接到：实现位置（sysroot/stdlib/runtime/c）+ 对应 fixtures（若已有）或计划新增的 fixtures（若缺失）。
 - 验收：
   - 更新 `KOTLIN_RUNTIME_GAP_AUDIT.md` 的表格/结论（或新增 `STDLIB_COMPLETENESS.md` 并从审计文档链接过去），并给出下一步 TODO 入口（T1802）。
 - 依赖：无
+- 完成说明：
+  - 新增 `STDLIB_COMPLETENESS.md`：覆盖 21 个能力领域（core/properties/collections/ranges/text/formatting/math/hashing/random/time/io/fs/process-env-path/concurrency/task-executor/net/unsafe/scope-functions/preconditions/test-utilities/reflection）。
+  - 每个能力项标注：状态（DONE/PARTIAL/DECL-ONLY/TODO）、分类（pure_scoop_ok/needs_runtime_lib）、实现位置（sysroot/stdlib/runtime 具体文件）、对应 fixtures。
+  - 产出 P0/P1 缺口优先级排序（10 项），最高优先级为 Text 基础（`String.length`/`substring`/`split` 等）和泛型 collections 操作。
+  - 确认 intrinsic 结论不变：当前不需要新增编译器 intrinsic。
 
 ### T1802 [TODO] 拆分任务：按领域/优先级把缺口拆成可单独回归的小任务
 - 描述：把 std 完整性缺口按领域拆分为可实现的任务组（collections/text/ranges/sequences/math/random/time/io 等），并明确每组是纯 Scoop、需要 runtime lib，还是必须走 intrinsic gate。

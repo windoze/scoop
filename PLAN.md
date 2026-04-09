@@ -225,6 +225,15 @@ cargo run -p scoop --features llvm -- test
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 
-- 先做 investigation：把 gap 审计表转换为“可执行清单”（DONE/TODO/Blockers + 实现位置 + fixtures 链接）。
-- 再拆任务：按领域/优先级拆成可单独回归的小步（collections/text/ranges/sequences/math/random/time/io 等）。
-- 建立 stdlib 的 smoke + matrix fixtures，持续报告覆盖缺口（是否 gating 后置）。
+- DONE（T1801）：产出 `STDLIB_COMPLETENESS.md`，覆盖 21 个能力领域，每个能力项标注状态/分类/实现位置/fixtures。P0/P1 缺口排序：
+  1. **Text 基础（P0）**：`String.length`/`substring`/`startsWith`/`split`/`indexOf`/`contains`/`toInt`/`toString` — 当前最大缺口，需 runtime/c 新增 `scoop_string_*` API
+  2. **泛型 collections（P0）**：`<T>` 版 forEach/map/filter/fold — 依赖编译器泛型单态化完善
+  3. Text 格式化（P1）：StringBuilder/joinToString
+  4. Math 基础（P1）：abs/min/max
+  5. Hashing（P1）：真实 hash + hash-based Set/Map
+  6. Collections 算法（P1）：sort/reduce/zip/flatten
+  7. Ranges 增强（P1）：`..` syntax / `until` / for-in integration
+  8. Duration/Random/Test utilities（P1）
+  - intrinsic 结论不变：无需新增编译器 intrinsic
+- 再拆任务（T1802）：按领域/优先级把缺口拆成可单独回归的小步。
+- 建立 stdlib 的 smoke + matrix fixtures（T1803），持续报告覆盖缺口。
