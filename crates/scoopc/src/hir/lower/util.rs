@@ -724,7 +724,11 @@ fn collect_class_decl_init(
         init.fields.push(field);
     };
 
-    // primary ctor（若存在）。注意：resolver 当前只会把“显式 primary ctor”加入 constructors overload set，
+    // T0125：泛型 class 的 ctor 参数类型可能引用 type params（如 `T`），
+    // 需要在 lowering 之前推入 type param 作用域，使 `lower_type_ref` 能够解析为 `TypeKind::Param`。
+    ctx.push_type_params(&decl.type_params);
+
+    // primary ctor（若存在）。注意：resolver 当前只会把”显式 primary ctor”加入 constructors overload set，
     // 因此这里也只收集显式 primary ctor。
     if let Some(primary) = &decl.primary_ctor {
         let mut params: Vec<ClassCtorParam> = Vec::with_capacity(primary.params.len());
@@ -1057,6 +1061,7 @@ fn collect_class_decl_init(
         }
     }
 
+    ctx.pop_type_params();
     out.entry(class_fqn.to_string()).or_insert(init);
 }
 
@@ -2241,6 +2246,181 @@ pub(super) fn collect_generic_enum_instantiation_layouts(
     }
 
     out
+}
+
+/// 收集泛型 class 的具体实例化 ClassInit（T0125）。
+///
+/// 与 `collect_generic_struct_instantiation_layouts` 类似，为泛型 class（如 `class Box<T>`）
+/// 的每个具体实例化（如 `Box<Int>`、`Box<String>`）生成独立的 ClassInit 条目。
+///
+/// 实例化的 ClassInit 使用 mangled FQN 作为 key（如 `"pkg.Box<Int>"`），
+/// 字段的 TypeId 通过 type param 替换为具体类型（Param("T") → Int）。
+pub(super) fn collect_generic_class_instantiation_inits(
+    pairs: &[(&SourceFile, &ast::File)],
+    types: &TypeStore,
+    base_class_inits: &ClassInitIndex,
+) -> ClassInitIndex {
+    // 1) 收集泛型 class 声明：base_fqn → (source, decl)
+    let mut generic_classes: HashMap<String, (&SourceFile, &ast::TypeDecl)> = HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        collect_generic_class_decls_in_items(source, &pkg_prefix, &pkg_prefix, &file.items, &mut generic_classes);
+    }
+
+    if generic_classes.is_empty() {
+        return HashMap::new();
+    }
+
+    // 2) 扫描 TypeStore 中的具体实例化（class 是 ref type → RefTypeKind::Nominal）
+    let mut out: ClassInitIndex = HashMap::new();
+    for ty_id in types.iter_ids() {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else { continue };
+        if nominal.args.is_empty() { continue }
+
+        let Some((source, decl)) = generic_classes.get(&nominal.fqn) else { continue };
+
+        let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        if out.contains_key(&mangled) { continue }
+
+        // base ClassInit 必须存在
+        let Some(base_init) = base_class_inits.get(&nominal.fqn) else { continue };
+
+        let type_params = &decl.type_params;
+        if type_params.len() != nominal.args.len() { continue }
+
+        // 构建 type param name → concrete TypeId 映射
+        let mut param_map: HashMap<String, crate::ty::TypeId> = HashMap::new();
+        for (idx, p) in type_params.iter().enumerate() {
+            let name = p.name.text(source).to_string();
+            param_map.insert(name, nominal.args[idx]);
+        }
+
+        // 替换字段类型：Param("T") → 具体 TypeId
+        let fields: Vec<ClassField> = base_init
+            .fields
+            .iter()
+            .map(|f| ClassField {
+                fqn: f.fqn.clone(),
+                name: f.name.clone(),
+                mutable: f.mutable,
+                ty: substitute_type_param(types, f.ty, &param_map),
+            })
+            .collect();
+
+        let mut field_indices = base_init.field_indices.clone();
+        // 如果 field FQN 中使用了基础 FQN 前缀，替换为 mangled 版本不需要——
+        // field FQN 使用原始 class FQN 前缀（如 "pkg.Box.inner"），保持不变。
+        let _ = &field_indices; // 保留原始映射
+
+        // 替换 ctor 参数类型
+        let ctors: Vec<ClassCtor> = base_init
+            .ctors
+            .iter()
+            .map(|ctor| ClassCtor {
+                kind: ctor.kind,
+                span: ctor.span,
+                params: ctor
+                    .params
+                    .iter()
+                    .map(|p| ClassCtorParam {
+                        id: p.id,
+                        name: p.name.clone(),
+                        decl_span: p.decl_span,
+                        ty: substitute_type_param(types, p.ty, &param_map),
+                        has_default: p.has_default,
+                        is_property: p.is_property,
+                        property_field_fqn: p.property_field_fqn.clone(),
+                    })
+                    .collect(),
+                delegation: ctor.delegation.clone(),
+                body: ctor.body.clone(),
+            })
+            .collect();
+
+        out.insert(mangled.clone(), ClassInit {
+            fqn: mangled,
+            super_class_fqn: base_init.super_class_fqn.clone(),
+            super_ctor_args_span: base_init.super_ctor_args_span,
+            super_ctor_args: base_init.super_ctor_args.clone(),
+            this_id: base_init.this_id,
+            fields,
+            field_indices,
+            steps: base_init.steps.clone(),
+            ctors,
+        });
+    }
+
+    out
+}
+
+/// 递归收集泛型 class 声明（支持嵌套在 type/object 内的 class）。
+fn collect_generic_class_decls_in_items<'a>(
+    source: &'a SourceFile,
+    _pkg_prefix: &str,
+    owner_prefix: &str,
+    items: &'a [ast::Item],
+    out: &mut HashMap<String, (&'a SourceFile, &'a ast::TypeDecl)>,
+) {
+    for item in items {
+        match item {
+            ast::Item::Type(ty) => {
+                let name = ty.name.text(source).to_string();
+                let fqn = join_prefix(owner_prefix, &name);
+
+                if matches!(ty.kind, ast::TypeKind::Class) && !ty.type_params.is_empty() {
+                    out.insert(fqn.clone(), (source, ty));
+                }
+
+                // 嵌套声明
+                if let Some(body) = &ty.body {
+                    for member in &body.members {
+                        match member {
+                            ast::TypeMember::Type(nested) => {
+                                let nested_name = nested.name.text(source).to_string();
+                                let nested_fqn = join_prefix(&fqn, &nested_name);
+                                if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
+                                    out.insert(nested_fqn, (source, nested));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            ast::Item::Object(obj) => {
+                let obj_name = obj.name.as_ref().map(|n| n.text(source).to_string());
+                if let Some(obj_name) = obj_name {
+                    let obj_fqn = join_prefix(owner_prefix, &obj_name);
+                    if let Some(body) = &obj.body {
+                        for member in &body.members {
+                            if let ast::TypeMember::Type(nested) = member {
+                                let nested_name = nested.name.text(source).to_string();
+                                let nested_fqn = join_prefix(&obj_fqn, &nested_name);
+                                if matches!(nested.kind, ast::TypeKind::Class) && !nested.type_params.is_empty() {
+                                    out.insert(nested_fqn, (source, nested));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// 替换 TypeId 中的 TypeKind::Param 为具体类型。
+fn substitute_type_param(
+    types: &TypeStore,
+    ty: crate::ty::TypeId,
+    param_map: &HashMap<String, crate::ty::TypeId>,
+) -> crate::ty::TypeId {
+    match types.kind(ty) {
+        TypeKind::Param(p) => {
+            param_map.get(&p.name).copied().unwrap_or(ty)
+        }
+        _ => ty,
+    }
 }
 
 /// 解析字段的类型 FQN：如果字段类型是 type param，替换为具体类型的 FQN。

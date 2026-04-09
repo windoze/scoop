@@ -95,6 +95,16 @@ pub(super) fn is_type_assignable(
     let found_kind = lower.type_kind(found);
     let expected_kind = lower.type_kind(expected);
 
+    // T0125：TypeKind::Param 作为期望类型时，接受任何值/引用类型（未约束的类型参数）。
+    // 完整的泛型约束检查（where clauses）留给后续任务。
+    if matches!(expected_kind, TypeKind::Param(_)) {
+        return true;
+    }
+    // T0125：TypeKind::Param 作为 found 类型也应可赋值给任何目标类型（ erasure 语义）。
+    if matches!(found_kind, TypeKind::Param(_)) {
+        return true;
+    }
+
     // T0435：函数类型的最小子类型关系。
     //
     // 规则（常见的函数子类型规则）：

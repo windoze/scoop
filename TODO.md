@@ -676,7 +676,7 @@ cargo run -p scoop --features llvm -- test
   - **HIR lowering 修复**：通过 `ExpectedExpr.struct_lit_ty` 将 val 声明的类型注解传递给 struct literal lowering，使 TypeStore 正确包含具体实例化的 TypeId。
   - **Fixture**：`generic_struct_basic.scoop` — `Pair<Int, Int>` + `Pair<Int, String>` 多实例化 + 字段访问。
 
-### T0125 [TODO] 泛型验证与修复：codegen 支持 `TypeKind::Param` 及参数化类型查找
+### T0125 [DONE] 泛型验证与修复：codegen 支持 `TypeKind::Param` 及参数化类型查找
 
 - 描述：当前 codegen 的类型映射（`llvm/codegen/ty.rs`）无法处理泛型类型参数和参数化的名义类型。即使 monomorph 正确生成了变体，codegen 仍无法发出正确的 LLVM 类型。
 - 已知问题：

@@ -638,6 +638,9 @@ fn collect_struct_field_types_in_type_decl(
     }
 
     if matches!(decl.kind, ast::TypeKind::Class) {
+        // T0125: push type params so generic field types (e.g. `T`) resolve correctly.
+        lower.push_type_params(&decl.type_params);
+
         // class ctor `val/var` 参数声明同名字段/属性；裸参数不应进入 member 类型表。
         if let Some(primary_ctor) = &decl.primary_ctor {
             for p in &primary_ctor.params {
@@ -665,6 +668,8 @@ fn collect_struct_field_types_in_type_decl(
                 }
             }
         }
+
+        lower.pop_type_params(&decl.type_params);
     }
 
     // 无论外层是否 struct，都递归收集 nested type（可能存在 nested struct）。

@@ -1119,6 +1119,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee: &hir::Expr,
         args: &[hir::CallArg],
         expected: Option<CgTy>,
+        // T0125：call expression 的结果 TypeId（用于泛型 class ctor 的 mangled FQN 查找）。
+        result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // T0616：`-> resume` arm body 内的 `resume(value)`（隐式注入的局部符号）。
         if let Some(ctx) = self.current_immediate_resume_ctx()
@@ -1566,7 +1568,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
             // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
             if let Some(candidates) = self.ctor_call_sites.get(&callee.span) {
-                return self.codegen_class_ctor_call(span, callee.span, name, args, candidates);
+                return self.codegen_class_ctor_call(span, callee.span, name, args, candidates, result_ty);
             }
 
             let Some(CgTy::Enum(enum_ty)) = expected else {
@@ -1760,8 +1762,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _name: &str,
         args: &[hir::CallArg],
         candidates: &[String],
+        result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 1) 选择唯一可用的 class candidate（HIR side table 里必须存在该 class 的 init 信息）。
+        //
+        // T0125：对于泛型 class，优先使用 mangled FQN 查找（如 "pkg.Box<Int>"）。
+        // 通过 result_ty 的 Nominal 类型参数构造 mangled key。
         let mut class_candidates: Vec<&String> = candidates
             .iter()
             .filter(|fqn| self.class_inits.contains_key(*fqn))
@@ -1770,12 +1776,61 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class_candidates.dedup();
 
         let class_fqn = match class_candidates.as_slice() {
-            [one] => (*one).clone(),
+            [one] => {
+                let base_fqn = (*one).clone();
+                // T0125：如果 result_ty 提供了类型参数，尝试使用 mangled FQN 查找。
+                if let Some(rty) = result_ty {
+                    if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
+                        if !nominal.args.is_empty() {
+                            let mangled = self.nominal_layout_key(nominal);
+                            if self.class_inits.contains_key(&mangled) {
+                                mangled
+                            } else {
+                                base_fqn
+                            }
+                        } else {
+                            base_fqn
+                        }
+                    } else {
+                        base_fqn
+                    }
+                } else {
+                    base_fqn
+                }
+            }
             [] => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call candidate class",
-                    at: callee_span.into(),
-                });
+                // T0125：base FQN 不在 class_inits 中，但可能仅有 mangled 版本（pure generic class）。
+                // 通过 result_ty 查找。
+                if let Some(rty) = result_ty {
+                    if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
+                        if !nominal.args.is_empty() {
+                            let mangled = self.nominal_layout_key(nominal);
+                            if self.class_inits.contains_key(&mangled) {
+                                mangled
+                            } else {
+                                return Err(LlvmEmitError::UnsupportedMainBody {
+                                    kind: "class ctor call candidate class",
+                                    at: callee_span.into(),
+                                });
+                            }
+                        } else {
+                            return Err(LlvmEmitError::UnsupportedMainBody {
+                                kind: "class ctor call candidate class",
+                                at: callee_span.into(),
+                            });
+                        }
+                    } else {
+                        return Err(LlvmEmitError::UnsupportedMainBody {
+                            kind: "class ctor call candidate class",
+                            at: callee_span.into(),
+                        });
+                    }
+                } else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "class ctor call candidate class",
+                        at: callee_span.into(),
+                    });
+                }
             }
             _ => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
@@ -11313,9 +11368,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(v);
                 }
 
+                // T0125：从 receiver 局部变量获取精确的 hir_ty（receiver.ty 在 HIR 中总是 Any，
+                // 但 CgLocal.hir_ty 保留了声明时的参数化类型，例如 Box<Int>）。
+                let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local {
+                    id, ..
+                }) = &receiver.kind
+                {
+                    self.env
+                        .get(*id)
+                        .and_then(|local| local.hir_ty)
+                        .unwrap_or(receiver.ty)
+                } else {
+                    receiver.ty
+                };
+
                 // T1312：class 实例字段访问（`this.x` / `obj.x`）。
                 if let Some((class, field_idx, field_cg)) =
-                    self.lookup_class_field_by_fqn(fqn, member.span)?
+                    self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
                 {
                     if field_cg == CgTy::Unit {
                         return Ok(CgValue::unit());

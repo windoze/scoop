@@ -1151,6 +1151,16 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(&pairs, &types));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(&pairs, &types));
+    // T0125：泛型 class 的具体实例化 ClassInit。
+    let class_inits = {
+        let mut ci = class_inits;
+        ci.extend(collect_generic_class_instantiation_inits(
+            &pairs,
+            &types,
+            &ci,
+        ));
+        ci
+    };
     Ok(LoweredHir {
         file,
         member_funs,
@@ -1229,6 +1239,16 @@ pub fn lower_for_compilation_unit(
     // T0124：泛型 struct/enum 的具体实例化布局。
     struct_layouts.extend(collect_generic_struct_instantiation_layouts(compilation_unit, &types));
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(compilation_unit, &types));
+    // T0125：泛型 class 的具体实例化 ClassInit。
+    let class_inits = {
+        let mut ci = class_inits;
+        ci.extend(collect_generic_class_instantiation_inits(
+            compilation_unit,
+            &types,
+            &ci,
+        ));
+        ci
+    };
 
     Ok(LoweredHir {
         file: file_hir,
@@ -1342,6 +1362,12 @@ pub fn lower_for_compilation_unit_multi_files(
             ctor_call_sites.extend(file_class_ctor_call_sites);
         }
     }
+    // T0125：泛型 class 的具体实例化 ClassInit。
+    class_inits.extend(collect_generic_class_instantiation_inits(
+        compilation_unit,
+        &types,
+        &class_inits,
+    ));
 
     Ok(LoweredHir {
         file: File { items },

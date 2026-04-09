@@ -3027,6 +3027,8 @@ fn infer_class_constructor_call_expr_type(
         defaults_used: usize,
         /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
         signature: String,
+        /// T0125：从实参类型推断出的泛型 type args（按声明顺序）。
+        inferred_type_args: Vec<TypeId>,
     }
 
     fn is_strictly_more_specific_ctor_overload(
@@ -3112,6 +3114,14 @@ fn infer_class_constructor_call_expr_type(
                 continue;
             };
 
+            // T0125：泛型 class 的 ctor 参数类型可能引用 type params（如 `T`）。
+            // 需要将 type param names 注入 lowering 作用域，使其解析为 TypeKind::Param。
+            let type_param_names: Vec<String> = lower
+                .env()
+                .type_symbol(&ty_fqn)
+                .map(|sym| sym.type_param_names.clone())
+                .unwrap_or_default();
+
             let mut param_tys: Vec<TypeId> = Vec::with_capacity(ctor.params.len());
             let mut param_ty_strs: Vec<String> = Vec::with_capacity(ctor.params.len());
             let mut ok = true;
@@ -3120,7 +3130,11 @@ fn infer_class_constructor_call_expr_type(
                     ok = false;
                     break;
                 };
-                let ty = lower.lower_type_ref_in_decl_file(&ctor.decl_file, ty_ref)?;
+                let ty = lower.lower_type_ref_in_decl_file_with_fresh_type_params(
+                    &ctor.decl_file,
+                    &type_param_names,
+                    ty_ref,
+                )?;
                 param_tys.push(ty);
                 param_ty_strs.push(lower.fmt_type(ty));
             }
@@ -3155,12 +3169,30 @@ fn infer_class_constructor_call_expr_type(
             }
 
             if ok {
+                // T0125：从 param_tys (TypeKind::Param) 与 arg types 推断 type args。
+                let inferred_type_args = {
+                    use std::collections::HashMap;
+                    let mut inferred: HashMap<String, TypeId> = HashMap::new();
+                    for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
+                        let Some(arg_idx) = arg_idx else { continue };
+                        let Some(&expected_ty) = param_tys.get(param_idx) else { continue };
+                        if let crate::ty::TypeKind::Param(p) = lower.type_kind(expected_ty) {
+                            let arg_ty = call_args[arg_idx].ty;
+                            inferred.entry(p.name.clone()).or_insert(arg_ty);
+                        }
+                    }
+                    type_param_names
+                        .iter()
+                        .map(|name| inferred.get(name).copied().unwrap_or(builtins.any))
+                        .collect::<Vec<_>>()
+                };
                 let defaults_used = mapping.iter().filter(|a| a.is_none()).count();
                 matched.push(MatchedCtorOverload {
                     ty_fqn: ty_fqn.clone(),
                     expected_arg_tys,
                     defaults_used,
                     signature: format!("{ty_fqn}({})", param_ty_strs.join(", ")),
+                    inferred_type_args,
                 });
             }
         }
@@ -3173,8 +3205,8 @@ fn infer_class_constructor_call_expr_type(
         });
     }
     if matched.len() == 1 {
-        let ty_fqn = matched.pop().map(|m| m.ty_fqn).expect("len == 1");
-        let ty = lower.lower_type_fqn_with_args(ty_fqn, Vec::new(), callee.span)?;
+        let m = matched.pop().expect("len == 1");
+        let ty = lower.lower_type_fqn_with_args(m.ty_fqn, m.inferred_type_args, callee.span)?;
         return Ok(Some(ty));
     }
 
@@ -3189,7 +3221,7 @@ fn infer_class_constructor_call_expr_type(
     };
 
     let chosen = matched.swap_remove(idx);
-    let ty = lower.lower_type_fqn_with_args(chosen.ty_fqn, Vec::new(), callee.span)?;
+    let ty = lower.lower_type_fqn_with_args(chosen.ty_fqn, chosen.inferred_type_args, callee.span)?;
     Ok(Some(ty))
 }
 

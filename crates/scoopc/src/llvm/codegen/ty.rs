@@ -100,6 +100,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 None
             }
+            // T0125：monomorphization 后，TypeKind::Param 不应出现在 codegen 阶段。
+            // 若仍出现，说明 monomorph 遗漏了替换——返回 None 并由调用方报告诊断。
+            TypeKind::Param(p) => {
+                tracing::warn!(
+                    "cg_ty_of: TypeKind::Param({}) encountered in codegen (monomorph miss)",
+                    p.name
+                );
+                None
+            }
             _ => None,
         }
     }

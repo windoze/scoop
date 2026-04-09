@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0125: Generic class monomorphization — class with type parameter.
+//
+// Covers:
+// - class Box<T> with primary ctor property of type T
+// - Box<Int> and Box<String> instantiations with distinct ClassPayload types
+// - field access on generic class instances
+
+import scoop.core.*
+
+class Box<T>(val inner: T)
+
+fun main(): Int {
+    val b1: Box<Int> = Box(42)
+    val x: Int = b1.inner
+    println(x)
+
+    val b2: Box<String> = Box("hello")
+    val y: String = b2.inner
+    println(y)
+
+    0
+}

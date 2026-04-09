@@ -13,7 +13,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_unresolved_ident(expr.span, name, expected)
             }
             hir::ExprKind::Call { callee, args } => {
-                self.codegen_call(expr.span, callee, args, expected)
+                self.codegen_call(expr.span, callee, args, expected, Some(expr.ty))
             }
             hir::ExprKind::Perform { op, args } => {
                 self.codegen_perform_expr(expr.span, op, args, expected)
@@ -87,7 +87,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } => self.codegen_cast_expr(expr.span, *op, inner, *target_ty, expr.ty),
             hir::ExprKind::Block(block) => self.codegen_block_value(block),
             hir::ExprKind::Call { callee, args } => {
-                self.codegen_call(expr.span, callee, args, None)
+                self.codegen_call(expr.span, callee, args, None, Some(expr.ty))
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.codegen_member_access(expr.span, receiver, member)

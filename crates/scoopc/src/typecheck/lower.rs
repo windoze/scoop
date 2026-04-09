@@ -705,7 +705,52 @@ impl<'a> TypeLowering<'a> {
         ctx.lower_type_ref(ty)
     }
 
-    /// 在“声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`，并注入 use-site type args。
+    /// T0125：在”声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`，并将指定的
+    /// type param 名称注册为 `TypeKind::Param` scope（用于泛型 class ctor 参数类型解析）。
+    pub(super) fn lower_type_ref_in_decl_file_with_fresh_type_params(
+        &mut self,
+        decl_file: &Path,
+        type_param_names: &[String],
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        if type_param_names.is_empty() {
+            return self.lower_type_ref_in_decl_file(decl_file, ty);
+        }
+
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+
+        // 为每个 type param name 创建一个 fresh TypeKind::Param。
+        let mut scope: HashMap<String, TypeId> = HashMap::new();
+        for name in type_param_names {
+            let id = ctx.types.ty_param(crate::ty::TypeParamType {
+                name: name.clone(),
+                decl_file: decl_file.to_path_buf(),
+                decl_span: crate::span::Span::new(0, 0),
+            });
+            scope.insert(name.clone(), id);
+        }
+        ctx.type_param_scopes.push(scope);
+
+        let out = ctx.lower_type_ref(ty);
+        let _ = ctx.type_param_scopes.pop();
+        out
+    }
+
+    /// 在”声明处文件”的 package/import 上下文中 lower 一个 `TypeRef`，并注入 use-site type args。
     ///
     /// 用途（T0458）：
     /// - `where` 子句满足性检查需要把 bound 中出现的 `T` 等 type param 引用替换为具体实参类型；

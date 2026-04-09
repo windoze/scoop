@@ -23,6 +23,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::ExprKind::Closure(closure) => {
                     self.codegen_closure_expr(expr.span, closure, decl.ty)?
                 }
+                // T0125：Call 表达式的 expr.ty 在 HIR 中总是 Any，但 val 声明的 decl.ty
+                // 保留了精确类型（如 Box<Int>）。直接传递 decl.ty 作为 result_ty，
+                // 使泛型 class ctor 能够通过 mangled FQN 查找正确的 ClassInit。
+                hir::ExprKind::Call { callee, args } => {
+                    self.codegen_call(expr.span, callee, args, Some(target_ty), Some(decl.ty))?
+                }
                 _ => self.codegen_expr_in_expected_context(expr, Some(target_ty))?,
             },
             None => {
@@ -108,8 +114,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     });
                 };
 
+                // T0125：同 codegen_member_access，使用局部变量的 hir_ty 获取精确泛型类型。
+                let receiver_hir_ty =
+                    if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver.kind
+                    {
+                        self.env
+                            .get(*id)
+                            .and_then(|local| local.hir_ty)
+                            .unwrap_or(receiver.ty)
+                    } else {
+                        receiver.ty
+                    };
+
                 let Some((class, field_idx, field_cg)) =
-                    self.lookup_class_field_by_fqn(fqn, member.span)?
+                    self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
                 else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "assignment lhs",

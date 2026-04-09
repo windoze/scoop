@@ -114,14 +114,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         field_fqn: &str,
         at: crate::span::Span,
+        // T0125：receiver 的 TypeId，用于泛型 class 的 mangled FQN 查找。
+        receiver_ty: Option<TypeId>,
     ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
         let Some((owner_fqn, _name)) = field_fqn.rsplit_once('.') else {
             return Ok(None);
         };
-        if !self.class_inits.contains_key(owner_fqn) {
-            return Ok(None);
+
+        // T0125：若 receiver 类型携带 type args，优先用 mangled FQN 查找具体实例化的 ClassInit。
+        let lookup_key = if let Some(recv_ty) = receiver_ty {
+            self.mangled_class_key_from_receiver(recv_ty)
+                .unwrap_or_else(|| owner_fqn.to_string())
+        } else {
+            owner_fqn.to_string()
+        };
+
+        if !self.class_inits.contains_key(&lookup_key) {
+            // Fallback to base FQN for non-generic classes.
+            if !self.class_inits.contains_key(owner_fqn) {
+                return Ok(None);
+            }
+            return self.lookup_class_field_by_fqn_inner(field_fqn, at, owner_fqn);
         }
-        let class = self.class_init_layout(at, owner_fqn)?;
+        self.lookup_class_field_by_fqn_inner(field_fqn, at, &lookup_key)
+    }
+
+    fn lookup_class_field_by_fqn_inner(
+        &mut self,
+        field_fqn: &str,
+        at: crate::span::Span,
+        class_key: &str,
+    ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
+        let class = self.class_init_layout(at, class_key)?;
         let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
             return Ok(None);
         };
@@ -140,6 +164,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: at.into(),
             })?;
         Ok(Some((class, field_idx, field_cg)))
+    }
+
+    /// T0125：从 receiver TypeId 提取泛型 class 的 mangled FQN。
+    fn mangled_class_key_from_receiver(&self, ty: TypeId) -> Option<String> {
+        use crate::ty::{RefTypeKind, TypeKind};
+        match self.types.kind(ty) {
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if !nominal.args.is_empty() => {
+                Some(self.nominal_layout_key(nominal))
+            }
+            _ => None,
+        }
     }
 
     pub(super) fn lookup_struct_field(
