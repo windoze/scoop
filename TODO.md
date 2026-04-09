@@ -542,9 +542,8 @@ cargo run -p scoop --features llvm -- test
   - `llvm/codegen/mod.rs:10494-10528`：`codegen_literal` 对 Int/String 调用 `self.source.slice(span)`。
   - `hir/lower/util.rs:452-462`：`expr_contains_source_backed_literals` 判定 Int/String 为 source-backed。
   - `hir/lower/types.rs:154-156`：错误定义。
-- 可选方案：
-  1. **HIR 内联值**（推荐）：将 `LiteralKind::Int` 改为携带解析后的数值（类似 `SynthInt`），`LiteralKind::String` 改为携带 `String` 值。在 HIR lowering 阶段（parse → HIR）即从 Span 提取文本并存入节点，之后 codegen 不再依赖 `self.source`。这是最小侵入的方案，`SynthInt` 已证明此路径可行。
-  2. **多文件 SourceMap**：让 codegen 持有所有参与编译的 `SourceFile`，Span 扩展为 `(file_id, offset, len)`，`slice` 时按 file_id 查找对应源文本。侵入面更大但更通用。
+- 方案：
+  **多文件 SourceMap**：让 codegen 持有所有参与编译的 `SourceFile`，Span 扩展为 `(file_id, offset, len)`，`slice` 时按 file_id 查找对应源文本。
 - 目标：
   - 移除 `MultiFileNonEntrySourceBackedLiteral` 限制，非入口文件可正常使用 Int/String 字面量。
   - `stdlib/string.scoop` 中的 `__string_zero`/`__string_one`/`__string_is_whitespace_byte` 等辅助函数可用直接字面量重写，大幅简化代码。
