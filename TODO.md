@@ -694,7 +694,7 @@ cargo run -p scoop --features llvm -- test
 > 分类：`needs_runtime_lib`
 > 约束：不新增 intrinsic；复用已有的 `declare_runtime_*` + `codegen_call_*` 模式（参考 `scoop_string_trim_indent` 或 `scoop_print`）。
 
-### T1810 [TODO] Text runtime/c：新增 `scoop_string_*` 底层 API（length/substring/startsWith/endsWith/indexOf/contains/split）
+### T1810 [DONE] Text runtime/c：新增 `scoop_string_*` 底层 API（length/substring/startsWith/endsWith/indexOf/contains/split）
 - 描述：在 `runtime/c/scoop_runtime.c` 中实现基础字符串操作的 C 函数，并在 `scoop_runtime_api.h` 的 `RUNTIME_FN_LIST` 中注册。
 - 目标：
   - `scoop_string_length(s) -> i64`：返回 UTF-8 字节长度（与 Kotlin 的 `String.length` 一致——对 ASCII 友好，后续可扩展为 codepoint/grapheme 版本）。
@@ -708,6 +708,18 @@ cargo run -p scoop --features llvm -- test
   - 在 `runtime/c/scoop_runtime.c` 中实现；`scoop_runtime_api.h` 注册。
   - `cargo test --all` 通过（不需要 Scoop 侧 fixture，先验证 C 编译通过且 API 注册正确）。
 - 依赖：无
+- 完成说明：
+  - **实现**（`runtime/c/scoop_runtime.c`）：在文件末尾新增 7 个非 static 函数：
+    - `scoop_string_length(s)` — 返回 `(int64_t)s->len`，null 安全。
+    - `scoop_string_substring(s, start, end)` — 字节级切片，clamp 到有效范围，使用 `scoop_string_from_bytes` 复制。
+    - `scoop_string_starts_with(s, prefix)` — `memcmp` 前缀匹配。
+    - `scoop_string_ends_with(s, suffix)` — `memcmp` 后缀匹配。
+    - `scoop_string_index_of(s, substr)` — 线性扫描 + `memcmp`，返回字节偏移或 -1。
+    - `scoop_string_contains(s, substr)` — 委托 `scoop_string_index_of >= 0`。
+    - `scoop_string_split(s, delimiter)` — 使用 `scoop_array_builder_*` 构建 `Array<String>`；空分隔符返回单元素数组。
+  - **API 注册**（`runtime/c/scoop_runtime_api.h`）：7 个新符号按字典序插入 `SCOOP_RUNTIME_API_SYMBOLS` X-macro 列表。
+  - **pre-existing fix**：修复 `codegen/mod.rs` 中 2 个 `collapsible_if` clippy 警告（lines ~8808, ~8851）。
+  - 所有 139 单元测试 + 767 fixtures 通过。
 
 ### T1811 [TODO] Text sysroot + codegen：`String.length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split` 可从 Scoop 调用
 - 描述：在 `sysroot/core.scoop` 的 `String` 类型上声明 P0 Text 方法，并在编译器的 codegen（LLVM 后端）中识别这些方法调用并路由到 T1810 的 C runtime 函数。

@@ -132,6 +132,13 @@
   X(scoop_stackmap_registry_register_current_process) \
   X(scoop_stackmap_registry_register_section) \
   X(scoop_stackmap_registry_reset) \
+  X(scoop_string_contains) \
+  X(scoop_string_ends_with) \
+  X(scoop_string_index_of) \
+  X(scoop_string_length) \
+  X(scoop_string_split) \
+  X(scoop_string_starts_with) \
+  X(scoop_string_substring) \
   X(scoop_string_trim_indent) \
   X(scoop_sync_condvar_create) \
   X(scoop_sync_condvar_destroy) \

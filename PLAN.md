@@ -250,6 +250,12 @@ cargo run -p scoop --features llvm -- test
   - **P1 Random/PRNG**：T1821（xorshift64）
   - **P0 泛型 collections**：T1822（依赖编译器泛型 codegen 完善，当前 BLOCKED）
   - 建议实现顺序：T1810 → T1811 → T1812 → T1813 → T1814 → T1815 → …
+- DONE（T1810）：Text runtime/c 底层 API：
+  - 在 `runtime/c/scoop_runtime.c` 中实现 7 个 `scoop_string_*` 函数（length/substring/startsWith/endsWith/indexOf/contains/split）。
+  - 所有函数遵循现有 runtime/c 风格：null check → 边界 clamp → 实际逻辑。
+  - `split` 使用 `scoop_array_builder_*` 构建 GC-managed `Array<String>`。
+  - 7 个符号按字典序注册到 `scoop_runtime_api.h` 的 X-macro 列表。
+  - 下一步：T1811（sysroot 声明 + codegen 路由 + run-pass fixtures）。
 - DONE（T1803）：stdlib smoke + matrix fixtures 回归基座：
   - **Smoke fixtures**（3 个）：`stdlib_smoke_collections_and_iteration`（Array/MutableArray/map/filter/fold/Set/Map）、`stdlib_smoke_ranges_and_io`（IntProgression rangeTo/downTo/forEach）、`stdlib_smoke_test_and_preconditions`（assertTrue/assertEqInt/require/check + try/catch）。
   - **Matrix tool**：`fixtures-matrix stdlib` 模式——21 个 stdlib 领域 × fixture 前缀映射；当前 15/21 域有覆盖，6 个缺口（Text formatting / Math / Hashing / Random / Net / Reflection）。

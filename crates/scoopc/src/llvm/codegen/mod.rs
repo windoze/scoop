@@ -8805,15 +8805,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
                     if is_last {
-                        if let Some(bb) = self.builder.get_insert_block() {
-                            if bb.get_terminator().is_none() {
-                                let rv = self.coerce_value(
-                                    expr.span,
-                                    v,
-                                    declared_return_cg,
-                                )?;
-                                self.emit_return(span, declared_return_cg, rv)?;
-                            }
+                        if let Some(bb) = self.builder.get_insert_block()
+                            && bb.get_terminator().is_none()
+                        {
+                            let rv = self.coerce_value(
+                                expr.span,
+                                v,
+                                declared_return_cg,
+                            )?;
+                            self.emit_return(span, declared_return_cg, rv)?;
                         }
                     }
                 }
@@ -8848,11 +8848,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // If no explicit return/branch emitted, emit default return.
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
-                let v = self.default_value(declared_return_cg);
-                self.emit_return(span, declared_return_cg, v)?;
-            }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            let v = self.default_value(declared_return_cg);
+            self.emit_return(span, declared_return_cg, v)?;
         }
 
         self.env.pop_scope();

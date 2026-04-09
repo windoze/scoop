@@ -2353,3 +2353,151 @@ const ScoopString *scoop_path_dirname(const ScoopString *path) {
   }
   return scoop_string_from_bytes(data, dir_len);
 }
+
+// --- std v2：Text 基础（T1810）---
+//
+// 说明：
+// - 基础字符串操作的 C 实现，供 sysroot/core.scoop 的 String 方法路由使用。
+// - 当前为字节级操作（UTF-8 byte length/offset）；后续可扩展 codepoint/grapheme 版本。
+// - 所有函数遵循 runtime/c 现有风格：null check → 边界处理 → 实际逻辑。
+
+// scoop_string_length：返回字符串的 UTF-8 字节长度。
+int64_t scoop_string_length(const ScoopString *s) {
+  if (s == 0) {
+    return 0;
+  }
+  return (int64_t)s->len;
+}
+
+// scoop_string_substring：字节级切片，start inclusive / end exclusive。
+// 越界时 clamp 到有效范围（与 runtime/c 现有风格一致：不崩溃）。
+const ScoopString *scoop_string_substring(const ScoopString *s, int64_t start, int64_t end) {
+  if (s == 0) {
+    return scoop_string_empty();
+  }
+  int64_t len = (int64_t)s->len;
+  // Clamp start/end to valid range.
+  if (start < 0) { start = 0; }
+  if (end < 0) { end = 0; }
+  if (start > len) { start = len; }
+  if (end > len) { end = len; }
+  if (start >= end) {
+    return scoop_string_empty();
+  }
+  if (s->data == 0) {
+    return scoop_string_empty();
+  }
+  return scoop_string_from_bytes(s->data + start, (uint64_t)(end - start));
+}
+
+// scoop_string_starts_with：检查 s 是否以 prefix 开头。返回 1/0。
+int64_t scoop_string_starts_with(const ScoopString *s, const ScoopString *prefix) {
+  if (s == 0 || prefix == 0) {
+    return 0;
+  }
+  if (prefix->len == 0) {
+    return 1;
+  }
+  if (s->len < prefix->len) {
+    return 0;
+  }
+  if (s->data == 0 || prefix->data == 0) {
+    return 0;
+  }
+  return memcmp(s->data, prefix->data, (size_t)prefix->len) == 0 ? 1 : 0;
+}
+
+// scoop_string_ends_with：检查 s 是否以 suffix 结尾。返回 1/0。
+int64_t scoop_string_ends_with(const ScoopString *s, const ScoopString *suffix) {
+  if (s == 0 || suffix == 0) {
+    return 0;
+  }
+  if (suffix->len == 0) {
+    return 1;
+  }
+  if (s->len < suffix->len) {
+    return 0;
+  }
+  if (s->data == 0 || suffix->data == 0) {
+    return 0;
+  }
+  uint64_t offset = s->len - suffix->len;
+  return memcmp(s->data + offset, suffix->data, (size_t)suffix->len) == 0 ? 1 : 0;
+}
+
+// scoop_string_index_of：返回 substr 在 s 中首次出现的字节偏移，未找到返回 -1。
+int64_t scoop_string_index_of(const ScoopString *s, const ScoopString *substr) {
+  if (s == 0 || substr == 0) {
+    return -1;
+  }
+  if (substr->len == 0) {
+    return 0;
+  }
+  if (s->len < substr->len) {
+    return -1;
+  }
+  if (s->data == 0 || substr->data == 0) {
+    return -1;
+  }
+  uint64_t limit = s->len - substr->len;
+  for (uint64_t i = 0; i <= limit; i++) {
+    if (memcmp(s->data + i, substr->data, (size_t)substr->len) == 0) {
+      return (int64_t)i;
+    }
+  }
+  return -1;
+}
+
+// scoop_string_contains：检查 s 是否包含 substr。返回 1/0。
+int64_t scoop_string_contains(const ScoopString *s, const ScoopString *substr) {
+  return scoop_string_index_of(s, substr) >= 0 ? 1 : 0;
+}
+
+// scoop_string_split：按 delimiter 分割 s，返回 Array<String>（GC-managed 数组）。
+// 使用 scoop_array_builder_* 构建。
+void *scoop_string_split(const ScoopString *s, const ScoopString *delimiter) {
+  // Array builder 由 `runtime/c/scoop_array.c` 提供。
+  void *scoop_array_builder_new(void);
+  void scoop_array_builder_push_ref(void *builder, void *value);
+  void *scoop_array_builder_build_array(void *builder);
+
+  void *builder = scoop_array_builder_new();
+  if (builder == 0) {
+    return 0;
+  }
+
+  // Null/empty string → single-element array containing empty string.
+  if (s == 0 || s->len == 0 || s->data == 0) {
+    const ScoopString *empty = scoop_string_empty();
+    scoop_array_builder_push_ref(builder, (void *)empty);
+    return scoop_array_builder_build_array(builder);
+  }
+
+  // Empty/null delimiter → single-element array containing the whole string.
+  if (delimiter == 0 || delimiter->len == 0 || delimiter->data == 0) {
+    scoop_array_builder_push_ref(builder, (void *)s);
+    return scoop_array_builder_build_array(builder);
+  }
+
+  const uint8_t *data = s->data;
+  uint64_t slen = s->len;
+  uint64_t dlen = delimiter->len;
+  const uint8_t *ddata = delimiter->data;
+
+  uint64_t start = 0;
+  for (uint64_t i = 0; i + dlen <= slen; i++) {
+    if (memcmp(data + i, ddata, (size_t)dlen) == 0) {
+      // Found delimiter at position i: emit segment [start, i).
+      const ScoopString *seg = scoop_string_from_bytes(data + start, i - start);
+      scoop_array_builder_push_ref(builder, (void *)seg);
+      start = i + dlen;
+      i = start - 1; // -1 because loop will increment
+    }
+  }
+
+  // Emit trailing segment [start, slen).
+  const ScoopString *tail = scoop_string_from_bytes(data + start, slen - start);
+  scoop_array_builder_push_ref(builder, (void *)tail);
+
+  return scoop_array_builder_build_array(builder);
+}
