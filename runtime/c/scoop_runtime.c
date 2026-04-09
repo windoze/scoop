@@ -1298,18 +1298,24 @@ const ScoopString *scoop_string_trim_indent(const ScoopString *value) {
     }
   }
 
+  // GC safety (T0106): pin `value` before scoop_alloc — GC could relocate/collect it,
+  // and the OOM path below returns `value` which must remain valid.
+  scoop_pin((void *)value);
+
   ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     // OOM：尽力回收已分配的 buffer。
     free(out);
     free(starts);
     free(ends);
+    scoop_unpin((void *)value);
     return value;
   }
 
   out_str->len = out_len;
   out_str->data = out;
 
+  scoop_unpin((void *)value);
   free(starts);
   free(ends);
   return out_str;
@@ -2080,10 +2086,15 @@ void *scoop_process_args_array(void) {
     return 0;
   }
 
+  // GC safety (T0106): pin `builder` — it's GC-managed and held across
+  // scoop_string_from_cstr / scoop_array_builder_build_array calls that trigger scoop_alloc.
+  scoop_pin(builder);
+
   int32_t argc = scoop_process_argc;
   const char **argv = scoop_process_argv;
   if (argc <= 1 || argv == 0) {
     void *arr = scoop_array_builder_build_array(builder);
+    scoop_unpin(builder);
     scoop_process_args_cache = arr;
     return arr;
   }
@@ -2096,6 +2107,7 @@ void *scoop_process_args_array(void) {
   }
 
   void *arr = scoop_array_builder_build_array(builder);
+  scoop_unpin(builder);
   scoop_process_args_cache = arr;
   return arr;
 }

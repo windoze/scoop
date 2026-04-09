@@ -64,8 +64,17 @@ static void *scoop_thread_entry(void *arg) {
 void *scoop_thread_spawn(void *env_ptr, ScoopThreadStartFn fn) {
   scoop_thread_register();
 
+  // GC safety (T0106): pin `env_ptr` if non-null — it may be a GC-managed closure
+  // environment pointer held across scoop_alloc below.
+  if (env_ptr != 0) {
+    scoop_pin(env_ptr);
+  }
+
   ScoopThreadHandle *t = (ScoopThreadHandle *)scoop_alloc((uint64_t)sizeof(ScoopThreadHandle));
   if (t == 0) {
+    if (env_ptr != 0) {
+      scoop_unpin(env_ptr);
+    }
     return 0;
   }
 
@@ -75,10 +84,18 @@ void *scoop_thread_spawn(void *env_ptr, ScoopThreadStartFn fn) {
 
   ScoopThreadStartArgs *args = (ScoopThreadStartArgs *)malloc(sizeof(ScoopThreadStartArgs));
   if (args == 0) {
+    if (env_ptr != 0) {
+      scoop_unpin(env_ptr);
+    }
     return 0;
   }
   args->env = env_ptr;
   args->fn = fn;
+
+  // env_ptr is now saved in malloc'd args — safe to unpin.
+  if (env_ptr != 0) {
+    scoop_unpin(env_ptr);
+  }
 
   if (!scoop_platform_thread_spawn(&t->thread, scoop_thread_entry, (void *)args)) {
     free(args);

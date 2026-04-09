@@ -175,7 +175,7 @@ cargo run -p scoop --features llvm -- test
   - **验证**：SCOOP_GC_STRESS=1 下两个跨线程 fixture 不再死锁（deadlock 已消除）；但仍存在 GC rooting 问题（crash/incorrect output），属 T0106 审计范围。
   - 139 单元测试 + 774 fixtures 通过。
 
-### T0106 [TODO] GC rooting 审计：runtime/c 函数中 GC-managed 指针跨分配点的 pin/unpin 完整性
+### T0106 [DONE] GC rooting 审计：runtime/c 函数中 GC-managed 指针跨分配点的 pin/unpin 完整性
 - 描述：`scoop_string_split` 在 T1812 中暴露了 C runtime 函数的 GC rooting 缺陷——函数内持有的 GC-managed 指针（`builder`/`s`/`delimiter`）在跨 `scoop_alloc` 调用时未 pin，导致 GC stress 下被回收。该问题已修复，但同类缺陷可能存在于其它 runtime/c 函数中。
 - 根因分析：
   - LLVM stackmap 机制仅对编译后的 Scoop 代码生效——C runtime 函数的栈帧对 GC 不可见。
@@ -195,6 +195,16 @@ cargo run -p scoop --features llvm -- test
   - 修复的函数新增或更新对应 `SCOOP_GC_STRESS=1` fixtures。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成记录：
+  - **审计范围**：`scoop_runtime.c`、`scoop_array.c`、`scoop_thread.c`、`scoop_channels.c`、`scoop_sync.c`、`scoop_task_executor.c`、`scoop_test.c`。
+  - **修复（4 个函数）**：
+    1. `scoop_string_trim_indent`（scoop_runtime.c）：pin `value` before `scoop_alloc`，unpin on both OOM and normal return paths.
+    2. `scoop_process_args_array`（scoop_runtime.c）：pin `builder` after `scoop_array_builder_new()`，unpin after `scoop_array_builder_build_array()` on both early-return and normal paths.
+    3. `scoop_array_builder_build_common`（scoop_array.c）：pin `b` before `scoop_alloc(bytes)`，unpin on OOM path and after all `b->` field accesses.
+    4. `scoop_thread_spawn`（scoop_thread.c）：pin `env_ptr` (if non-null) before `scoop_alloc`，unpin after `args->env = env_ptr` saves it to malloc'd struct.
+  - **已验证安全（无需修复）**：`scoop_continuation_alloc`（已 pin）、`scoop_string_split`（已 pin, T1812）、`scoop_string_concat`（已 pin, T1816）、`scoop_string_from_bytes/cstr/owned_bytes/static_bytes`（仅持有 malloc'd 指针）、`scoop_string_empty/substring`（无跨分配 GC 指针）、`scoop_alloc_typed`（type_desc 为 static）、`scoop_path_*`（data 指针来自 malloc）、`scoop_env_get/int_to_string/io_stdin_read_line_utf8`（无 GC 指针跨分配）、`scoop_channels_channel_create/sync_*_create`（无 GC 指针跨分配）。
+  - **N/A（无 scoop_alloc 调用）**：`scoop_channels_send/recv_u64`（仅 malloc）、`scoop_sync_*` locking functions、`scoop_test.c`、`scoop_task_executor.c`（全 malloc）。
+  - **验证**：139 单元测试 + 774 fixtures 通过。
 
 ---
 

@@ -327,8 +327,13 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
     bytes += add;
   }
 
+  // GC safety (T0106): pin `b` — it's GC-managed and accessed after scoop_alloc
+  // (elem_kind, data, len, cap fields are read/written below).
+  scoop_pin((void *)b);
+
   ScoopArray *arr = (ScoopArray *)scoop_alloc(bytes);
   if (arr == 0) {
+    scoop_unpin((void *)b);
     return 0;
   }
 
@@ -353,6 +358,7 @@ static void *scoop_array_builder_build_common(ScoopArrayBuilder *b) {
   b->cap = 0;
   b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
 
+  scoop_unpin((void *)b);
   return (void *)arr;
 }
 
