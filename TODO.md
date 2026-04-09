@@ -533,25 +533,6 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0120、T0121
 
-### T0123 [TODO] `const fun` 支持 String `+` 和 substring 类操作
-
-- 描述：当前 `const fun` / `comptime` 求值器仅支持整数算术和布尔逻辑（`comptime/eval.rs`），不支持 String 操作。Spec §6.2 明确列出 `String ops` 为 `const fun` 允许的操作。在 T0122 将 substring 类操作迁移到纯 Scoop 后，这些操作理论上可在 comptime 求值。
-- 目标：
-  - **comptime evaluator**（`comptime/eval.rs`）：
-    - String `+`（concatenation）：两个 compile-time String 常量拼接，产出新常量。
-    - String `==` / `!=`：编译期字符串比较。
-    - `String.byteLength()`：返回编译期常量。
-    - `String.getByte(index)`：返回编译期常量。
-  - **comptime interpreter**（`comptime/interpreter.rs`）：
-    - 支持调用 `const fun` 的 String extension functions（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split` 等——前提是它们在 T0122 后已是纯 Scoop `const fun`）。
-    - 支持 String 类型的局部 `val` 绑定和传参。
-  - 使 `trimIndent()` 可完全在 comptime 求值（当前已部分实现为编译器特殊处理，迁移后可统一走 comptime interpreter）。
-- 验收：
-  - 新增 comptime fixtures：`const fun greet(name: String): String = "Hello, " + name`，编译期求值并验证。
-  - 新增 comptime fixture：`comptime { val s = "a,b,c"; val parts = s.split(","); ... }`。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
-- 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
-
 ### T0124 [TODO] 泛型验证与修复：monomorphization 扩展至泛型 class/struct/enum
 
 - 描述：当前 monomorphization pass（`monomorph/lower.rs:6`）仅处理泛型函数（`ast::Item::Fun`），完全不处理泛型 class/struct/enum 定义。用户定义的 `class Box<T>` 等无法被单态化为具体的 `Box<Int>`、`Box<String>` 等变体。这是泛型 class 无法工作的根本原因。
@@ -714,6 +695,25 @@ cargo run -p scoop --features llvm -- test
   - GC stress 测试通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124、T0125、T0126
+
+### T0123 [TODO] `const fun` 支持 String `+` 和 substring 类操作
+
+- 描述：当前 `const fun` / `comptime` 求值器仅支持整数算术和布尔逻辑（`comptime/eval.rs`），不支持 String 操作。Spec §6.2 明确列出 `String ops` 为 `const fun` 允许的操作。在 T0122 将 substring 类操作迁移到纯 Scoop 后，这些操作理论上可在 comptime 求值。
+- 目标：
+  - **comptime evaluator**（`comptime/eval.rs`）：
+    - String `+`（concatenation）：两个 compile-time String 常量拼接，产出新常量。
+    - String `==` / `!=`：编译期字符串比较。
+    - `String.byteLength()`：返回编译期常量。
+    - `String.getByte(index)`：返回编译期常量。
+  - **comptime interpreter**（`comptime/interpreter.rs`）：
+    - 支持调用 `const fun` 的 String extension functions（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split` 等——前提是它们在 T0122 后已是纯 Scoop `const fun`）。
+    - 支持 String 类型的局部 `val` 绑定和传参。
+  - 使 `trimIndent()` 可完全在 comptime 求值（当前已部分实现为编译器特殊处理，迁移后可统一走 comptime interpreter）。
+- 验收：
+  - 新增 comptime fixtures：`const fun greet(name: String): String = "Hello, " + name`，编译期求值并验证。
+  - 新增 comptime fixture：`comptime { val s = "a,b,c"; val parts = s.split(","); ... }`。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
 ---
 
