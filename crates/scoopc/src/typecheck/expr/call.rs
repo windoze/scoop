@@ -42,10 +42,10 @@ pub(super) struct CallArgInfo<'a> {
     pub(super) is_spread: bool,
 }
 
-/// 把 AST 的调用实参列表归一化为“用于重载筛选”的结构，并预先推导每个实参表达式的类型。
+/// 把 AST 的调用实参列表归一化为"用于重载筛选"的结构，并预先推导每个实参表达式的类型。
 ///
 /// 说明：
-/// - `ExprKind::NamedArg { name = value }` 在调用语境内是“语法糖节点”，其类型应以 `value` 为准；
+/// - `ExprKind::NamedArg { name = value }` 在调用语境内是"语法糖节点"，其类型应以 `value` 为准；
 /// - 这里提前推导所有实参类型，保证：
 ///   - 子表达式的类型错误不会被重载筛选吞掉；
 ///   - 后续候选过滤只做纯比较，不再递归进入表达式树。
@@ -72,8 +72,8 @@ fn collect_call_arg_infos<'a>(
                     _ => (expr, false),
                 };
                 let ty = match expr_for_ty.kind {
-                    // lambda 的类型通常依赖 expected type；在“预收集实参信息”阶段先用占位类型，
-                    // 以便后续在“已选定签名”的语境下重新 typecheck（T0504）。
+                    // lambda 的类型通常依赖 expected type；在"预收集实参信息"阶段先用占位类型，
+                    // 以便后续在"已选定签名"的语境下重新 typecheck（T0504）。
                     ast::ExprKind::Lambda(_) => builtins.any,
                     _ => infer_expr_type(
                         source,
@@ -225,7 +225,7 @@ fn check_call_arg_named_rules(
                     // Kotlin-like：允许把 trailing lambda 写在命名参数之后。
                     //
                     // T1324：支持多个 trailing lambda，因此这里放开一个更一般的例外：
-                    // - 一旦出现命名实参，后续若出现位置实参，则必须全部为“末尾连续的 lambda 实参”。
+                    // - 一旦出现命名实参，后续若出现位置实参，则必须全部为"末尾连续的 lambda 实参"。
                     let all_trailing_lambdas = call_args[idx..].iter().all(|a| {
                         matches!(a.kind, CallArgKind::Positional)
                             && matches!(a.expr.kind, ast::ExprKind::Lambda(_))
@@ -273,7 +273,7 @@ fn trailing_lambda_suffix_len(call_args: &[CallArgInfo<'_>]) -> usize {
 ///
 /// 说明：
 /// - 对于重载集合：若某个 name 不存在于任何候选签名的形参名中，则该调用必然非法；
-/// - 这样可以在“重载筛选失败”之前给出更精确的 name-span 诊断（满足 fixtures 断言）。
+/// - 这样可以在"重载筛选失败"之前给出更精确的 name-span 诊断（满足 fixtures 断言）。
 fn check_call_named_args_exist_in_any_candidate<'a>(
     callee: &str,
     call_args: &[CallArgInfo<'_>],
@@ -306,11 +306,11 @@ fn check_call_named_args_exist_in_any_candidate<'a>(
     Ok(())
 }
 
-/// 将调用点的“位置/命名实参”映射到某个候选签名的形参槽位。
+/// 将调用点的"位置/命名实参"映射到某个候选签名的形参槽位。
 ///
 /// 当前阶段（T0453）最小规则：
 /// - 不支持默认参数：必须为每个形参提供一个实参；
-/// - 命名实参仅按“同名形参”匹配；
+/// - 命名实参仅按"同名形参"匹配；
 /// - 位置实参按从左到右填充尚未被命名实参占用的槽位。
 fn map_call_args_to_params(
     call_args: &[CallArgInfo<'_>],
@@ -366,11 +366,11 @@ fn map_call_args_to_params(
     Some(mapping.into_iter().map(|x| x.expect("checked")).collect())
 }
 
-/// 将调用点的“位置/命名实参”映射到某个候选签名的形参槽位（支持默认参数）。
+/// 将调用点的"位置/命名实参"映射到某个候选签名的形参槽位（支持默认参数）。
 ///
 /// 当前阶段（T0454）最小规则：
 /// - 允许省略带默认值的形参；
-/// - 命名实参仅按“同名形参”匹配；
+/// - 命名实参仅按"同名形参"匹配；
 /// - 位置实参按从左到右填充尚未被命名实参占用的槽位；
 /// - 若某个未填充的槽位没有默认值，则该候选不匹配。
 fn map_call_args_to_params_with_defaults_strict(
@@ -382,7 +382,7 @@ fn map_call_args_to_params_with_defaults_strict(
         return None;
     }
 
-    // 默认参数允许“少传”，但不能“多传”。
+    // 默认参数允许"少传"，但不能"多传"。
     if call_args.len() > param_names.len() {
         return None;
     }
@@ -460,7 +460,7 @@ pub(super) fn map_call_args_to_params_with_defaults(
     //
     // 允许：
     // - 调用点末尾连续 N 个实参为 lambda（trailing lambdas）；
-    // - 这些 lambda 绑定到“最后 N 个形参槽位”；
+    // - 这些 lambda 绑定到"最后 N 个形参槽位"；
     // - 中间缺失的槽位若有默认值则可省略（用于 `f(1) { ... }` 匹配 `f(x, y = 0, block)`）。
     let k = trailing_lambda_suffix_len(call_args);
     if k == 0 {
@@ -503,7 +503,7 @@ fn vararg_param_index(param_is_vararg: &[bool]) -> Option<usize> {
             continue;
         }
         if found.is_some() {
-            // 当前阶段：只支持一个 vararg；多于一个视为“无法映射”。
+            // 当前阶段：只支持一个 vararg；多于一个视为"无法映射"。
             return None;
         }
         found = Some(idx);
@@ -635,7 +635,7 @@ fn map_call_args_to_params_with_defaults_and_varargs_strict(
         }
     }
 
-    // 无 vararg 时：默认参数允许“少传”，但不能“多传”。
+    // 无 vararg 时：默认参数允许"少传"，但不能"多传"。
     if vararg_idx.is_none() && call_args.len() > param_names.len() {
         return None;
     }
@@ -646,7 +646,7 @@ fn map_call_args_to_params_with_defaults_and_varargs_strict(
     }
 
     // Kotlin-like：命名实参之后不能再出现位置实参（该规则已由 `check_call_arg_named_rules` 检查）。
-    // 这里仅用于找到“位置实参段”的长度。
+    // 这里仅用于找到"位置实参段"的长度。
     let mut positional_count = 0usize;
     for arg in call_args {
         match arg.kind {
@@ -736,7 +736,7 @@ fn spread_operand_element_types(
     }
 }
 
-/// 为 vararg spread 的“常见集合类型”提供迁移诊断提示（T1325b）。
+/// 为 vararg spread 的"常见集合类型"提供迁移诊断提示（T1325b）。
 ///
 /// 说明：
 /// - 语言层的 spread 当前只接受 `Array<T>` 与 tuple（Appendix B.5.5）。
@@ -780,7 +780,7 @@ fn infer_function_value_call_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    // spec §6.2：`const fun` 禁止闭包/lambda；因此也禁止调用“函数值”（无论其来源是参数还是局部绑定）。
+    // spec §6.2：`const fun` 禁止闭包/lambda；因此也禁止调用"函数值"（无论其来源是参数还是局部绑定）。
     if lower.in_const_context() {
         return Err(ExprTypeError::ConstFunFunctionValueCallNotAllowed {
             callee: callee_name.to_string(),
@@ -790,7 +790,7 @@ fn infer_function_value_call_expr_type(
 
     // `@NoGC`：保守门禁。
     //
-    // 说明：当前阶段我们无法证明“某个函数值/闭包”是否为 `@NoGC`，
+    // 说明：当前阶段我们无法证明"某个函数值/闭包"是否为 `@NoGC`，
     // 因此在 `@NoGC` 上下文中一律拒绝这类调用（宁可误杀也不放过）。
     if lower.in_nogc_context() {
         return Err(ExprTypeError::NoGcCallForbidden {
@@ -799,7 +799,7 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    // 当前阶段（TODO T0710）最小实现：允许调用“局部值中的函数类型”（lambda/闭包/函数值）。
+    // 当前阶段（TODO T0710）最小实现：允许调用"局部值中的函数类型"（lambda/闭包/函数值）。
     //
     // 约束：
     // - 暂不支持 receiver function type（`T.(...) -> ...`）；
@@ -856,7 +856,7 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    // 在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
+    // 在"期望类型语境"下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
     for (idx, arg) in call_args.iter().enumerate() {
         let expected_ty = fun.params[idx];
@@ -875,7 +875,7 @@ fn infer_function_value_call_expr_type(
         checked_arg_tys.push(found_ty);
     }
 
-    // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
+    // 再做"可赋值"检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
     for (idx, (arg, found_ty)) in call_args
         .iter()
         .zip(checked_arg_tys.iter().copied())
@@ -1113,11 +1113,11 @@ fn collect_top_level_fun_signatures_from_index(
         return Ok(Vec::new());
     }
 
-    // sysroot 的 “declaration-only” overload（`has_body = false`）用于 resolver/typecheck 可见性；
+    // sysroot 的 "declaration-only" overload（`has_body = false`）用于 resolver/typecheck 可见性；
     // 但当当前编译单元（或其注入的 stdlib）提供了同签名的实现（`has_body = true`）时，
-    // 若把两者同时暴露给重载决议，会导致“同签名重复候选 → ambiguous overload”。
+    // 若把两者同时暴露给重载决议，会导致"同签名重复候选 → ambiguous overload"。
     //
-    // 因此这里先收集一份“已有实现的签名 key”，并在生成 `FunSigOwned` 时过滤掉同 key 的无 body 声明。
+    // 因此这里先收集一份"已有实现的签名 key"，并在生成 `FunSigOwned` 时过滤掉同 key 的无 body 声明。
     fn normalize_sig_piece(s: &str) -> String {
         s.split_whitespace().collect()
     }
@@ -1194,11 +1194,11 @@ fn collect_top_level_fun_signatures_from_index(
             }
         }
 
-        // 注意：跨文件签名 lowering 在早期阶段曾只收集“单一 type param”的候选；
+        // 注意：跨文件签名 lowering 在早期阶段曾只收集"单一 type param"的候选；
         // 但随着泛型实例化能力扩展（例如 `Ptr<T>.cast<U>()` 需要 2 个 type params），
         // 这里需要允许多 type params 的函数进入候选集，由 typecheck 在调用点做推断/门禁。
 
-        // `FunSigOwned` 要求“扩展函数 receiver 降糖为第一个参数”；这里与
+        // `FunSigOwned` 要求"扩展函数 receiver 降糖为第一个参数"；这里与
         // `collect_top_level_fun_signatures` 的约定保持一致。
         let is_extension = o.sig.receiver.is_some();
         // NOTE: `Index::Symbol` 的 `ModifierSet` 当前只保留 override/继承语义所需的少量标记（T0439），
@@ -1474,11 +1474,11 @@ pub(super) fn check_nogc_call_gate(
         return Ok(());
     }
 
-    // spec §15.8：`@NoGC` 函数体内必须保守拒绝“可能分配”的调用点。
+    // spec §15.8：`@NoGC` 函数体内必须保守拒绝"可能分配"的调用点。
     //
     // 当前阶段（TODO T1005）最小实现：
     // - 仅允许调用 `@NoGC`（含 `@Extern` 隐含 `@NoGC`）的函数；
-    // - 其它调用一律视为“可能分配/可能触发 GC”，直接报错。
+    // - 其它调用一律视为"可能分配/可能触发 GC"，直接报错。
     if sig.is_nogc || sig.is_extern {
         return Ok(());
     }
@@ -1519,7 +1519,7 @@ pub(super) fn check_fn_value_to_any_erasure_gate(
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    // 仅在“擦除/上转到 Any”的位置生效。
+    // 仅在"擦除/上转到 Any"的位置生效。
     if expected != builtins.any {
         return Ok(());
     }
@@ -1529,7 +1529,7 @@ pub(super) fn check_fn_value_to_any_erasure_gate(
     };
 
     // spec §7.5：effects 为编译期信息；只有闭合 `Pure!` 的函数类型允许擦除到 `Any`，
-    // 否则运行时无法验证该函数值是否真的“只可能是 Pure”。
+    // 否则运行时无法验证该函数值是否真的"只可能是 Pure"。
     if fun.effects.is_pure() && fun.effects_closed {
         return Ok(());
     }
@@ -1552,12 +1552,12 @@ pub(super) fn check_nogc_boxing_gate(
         return Ok(());
     }
 
-    // `Nothing` 不会在运行时产生值；将其视为“不会发生装箱/分配”。
+    // `Nothing` 不会在运行时产生值；将其视为"不会发生装箱/分配"。
     if found == builtins.nothing {
         return Ok(());
     }
 
-    // 当前阶段的“已知分配点”之一：值类型（或无法判定是否为值类型的 type param）
+    // 当前阶段的"已知分配点"之一：值类型（或无法判定是否为值类型的 type param）
     // 被上下文吸收到引用类型（`Any`/interface 等）时，需要 boxing（T0817）。
     let expected_is_ref = matches!(lower.type_kind(expected), TypeKind::Ref(_));
     if !expected_is_ref {
@@ -1641,7 +1641,7 @@ pub(super) fn infer_call_expr_type(
                 }
 
                 // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
-                // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在“未 resolve 的 ident”
+                // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在"未 resolve 的 ident"
                 // 情况下尝试按 enum variant ctor 处理。
                 if let Some(ctor_ty) = infer_enum_variant_ctor_call_expr_type(
                     source,
@@ -1718,7 +1718,7 @@ pub(super) fn infer_call_expr_type(
                 }
             };
 
-            // 当前阶段：优先使用“当前文件内”的函数签名信息（支持 return type 推断等回写），
+            // 当前阶段：优先使用"当前文件内"的函数签名信息（支持 return type 推断等回写），
             // 并在缺失时回退到 `Index`（用于 sysroot / 跨文件顶层函数调用）。
             let sigs_from_index: Vec<FunSigOwned>;
             let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
@@ -1775,7 +1775,7 @@ pub(super) fn infer_call_expr_type(
                 });
             };
 
-            // 只有一个可用候选：沿用旧的“给出精确 arity/type mismatch 诊断”的路径，
+            // 只有一个可用候选：沿用旧的"给出精确 arity/type mismatch 诊断"的路径，
             // 但补齐命名实参的形参映射（T0453）。
             if direct_call_candidates.len() == 1 {
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
@@ -1800,7 +1800,7 @@ pub(super) fn infer_call_expr_type(
 
                 // 默认参数（T0512）：允许省略带默认值的形参。
                 //
-                // 注意：当前阶段只做“候选可用性/形参映射/类型检查”，不在 AST/HIR 层补齐默认值表达式
+                // 注意：当前阶段只做"候选可用性/形参映射/类型检查"，不在 AST/HIR 层补齐默认值表达式
                 //（默认值补齐语义留给后续任务 T1305）。
                 let has_vararg = vararg_param_index(&sig.param_is_vararg).is_some();
 
@@ -1854,7 +1854,7 @@ pub(super) fn infer_call_expr_type(
                         })
                         .collect()
                 } else {
-                    // vararg：允许“多传”，并把多余的实参归入 vararg 槽位。
+                    // vararg：允许"多传"，并把多余的实参归入 vararg 槽位。
                     let required =
                         required_param_count(&sig.param_has_defaults, &sig.param_is_vararg)
                             .unwrap_or_else(|| {
@@ -1957,7 +1957,7 @@ pub(super) fn infer_call_expr_type(
                         builtins,
                     )?;
 
-                // 先在“期望类型语境”下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
+                // 先在"期望类型语境"下推导每个实参的最终类型（lambda 会在此处被真正类型检查）。
                 let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
@@ -1993,7 +1993,7 @@ pub(super) fn infer_call_expr_type(
                 let eff_arg = if let Some(eff_param) = &sig.eff_param {
                     let mut terms: Vec<TypeId> = eff_param.default.terms.clone();
 
-                    // T0624/T0628a：从 `Type<eff Row>` 的“实参类型”中提取 row 约束。
+                    // T0624/T0628a：从 `Type<eff Row>` 的"实参类型"中提取 row 约束。
                     //
                     // 约束形态：`found ⊆ (E + base)`，因此对 `E` 的最小贡献为 `found - base`。
                     for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
@@ -2079,7 +2079,7 @@ pub(super) fn infer_call_expr_type(
                     call_expr.span,
                 )?;
 
-                // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
+                // 再做"可赋值"检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
                     let arg = &call_args[arg_idx];
                     let expected_ty = instantiated.params[param_idx];
@@ -2212,9 +2212,9 @@ pub(super) fn infer_call_expr_type(
                 sig: &'a FunSigOwned,
                 instantiated: InstantiatedFunSig,
                 eff_arg: EffectRow,
-                /// `call_args[arg_idx]` 对应的“期望类型”。
+                /// `call_args[arg_idx]` 对应的"期望类型"。
                 expected_arg_tys: Vec<TypeId>,
-                /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+                /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
                 defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
@@ -2245,7 +2245,7 @@ pub(super) fn infer_call_expr_type(
                 lower: &TypeLowering<'_>,
                 builtins: BuiltinTypes,
             ) -> Option<usize> {
-                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都“更具体”（可赋值到 B 的形参类型），
+                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都"更具体"（可赋值到 B 的形参类型），
                 //    且至少有一个位置严格更具体，则认为 A 严格更具体。
                 for (idx, cand) in candidates.iter().enumerate() {
                     let mut ok = true;
@@ -2263,7 +2263,7 @@ pub(super) fn infer_call_expr_type(
                     }
                 }
 
-                // 2) tie-break：默认参数更少者优先（“非默认参数优先”）。
+                // 2) tie-break：默认参数更少者优先（"非默认参数优先"）。
                 let min_defaults = candidates
                     .iter()
                     .map(|c| c.defaults_used)
@@ -2367,7 +2367,7 @@ pub(super) fn infer_call_expr_type(
                         Err(_) => continue,
                     };
 
-                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
+                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
                 let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
                 for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
@@ -2619,7 +2619,7 @@ pub(super) fn infer_call_expr_type(
             // `@NoGC`：已知分配点（boxing）门禁。
             //
             // 说明：多候选路径中我们不会为所有实参做第二遍 expected-context 推断（避免额外副作用），
-            // 这里用“预收集到的实参类型 + 已选定候选的期望实参类型”做最小判定即可：
+            // 这里用"预收集到的实参类型 + 已选定候选的期望实参类型"做最小判定即可：
             // - 若某个实参是值类型（或 type param 占位），且被期望类型吸收到引用类型，则需要 boxing；
             // - 在 `@NoGC` 上下文中应当保守拒绝。
             for (arg_idx, arg) in call_args.iter().enumerate() {
@@ -2750,7 +2750,7 @@ fn infer_unsafe_ptr_primitive_call_expr_type(
         });
     }
 
-    // 当前阶段（T1009）实现为“语言内建函数”形态：
+    // 当前阶段（T1009）实现为"语言内建函数"形态：
     // - `addrOf(x)`：返回 `Ptr<T>`（T 为 x 的类型）
     // - `load(p)`：`p: Ptr<T>` 时返回 `T`
     // - `store(p, v)`：`p: Ptr<T>` 且 `v: T`，返回 `Unit`
@@ -2878,7 +2878,7 @@ fn pick_ptr_type_fqn(lower: &TypeLowering<'_>) -> String {
         return "scoop.unsafe.Ptr".to_string();
     }
 
-    // T1009 阶段允许 fixtures 在“当前包”内声明一个 `struct Ptr<T>` 作为最小落点。
+    // T1009 阶段允许 fixtures 在"当前包"内声明一个 `struct Ptr<T>` 作为最小落点。
     let pkg = lower.pkg_prefix();
     if pkg.is_empty() {
         return "Ptr".to_string();
@@ -2987,7 +2987,7 @@ fn infer_class_constructor_call_expr_type(
         // 预检查：如果某个命名实参的 name 在所有可见 ctor 中都不存在，则该调用必然非法。
         //
         // 说明：class ctor 的候选集合来自 resolver 的 call candidates（可能包含多个类型），
-        // 因此这里按“所有可见 ctor 的形参名并集”做一次 name existence 检查，便于给出
+        // 因此这里按"所有可见 ctor 的形参名并集"做一次 name existence 检查，便于给出
         // name-span 的稳定诊断（fixtures 断言）。
         let mut all_names: HashSet<String> = HashSet::new();
         for ty_fqn in ctor_types.iter() {
@@ -3021,9 +3021,9 @@ fn infer_class_constructor_call_expr_type(
     #[derive(Debug, Clone)]
     struct MatchedCtorOverload {
         ty_fqn: String,
-        /// `call_args[arg_idx]` 对应的“期望类型”。
+        /// `call_args[arg_idx]` 对应的"期望类型"。
         expected_arg_tys: Vec<TypeId>,
-        /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+        /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
         defaults_used: usize,
         /// 用于歧义诊断打印的 ctor 签名（稳定排序后展示）。
         signature: String,
@@ -3073,7 +3073,7 @@ fn infer_class_constructor_call_expr_type(
             }
         }
 
-        // tie-break：默认参数更少者优先（“非默认参数优先”）。
+        // tie-break：默认参数更少者优先（"非默认参数优先"）。
         let min_defaults = candidates
             .iter()
             .map(|c| c.defaults_used)
@@ -3272,7 +3272,7 @@ fn infer_enum_variant_ctor_call_expr_type(
     let type_param_set: HashSet<&str> = type_params.iter().map(|s| s.as_str()).collect();
 
     // 早期最小泛型推断（T0426）：
-    // - 只从 “payload 字段类型为直接 type param（例如 `T`）” 的位置推断；
+    // - 只从 "payload 字段类型为直接 type param（例如 `T`）" 的位置推断；
     // - 若同一 type param 被多次约束，要求相等（或其中一个为 `Nothing`）。
     let mut subst: HashMap<String, TypeId> = HashMap::new();
     for (idx, (field, found_ty)) in variant
@@ -3631,7 +3631,7 @@ pub(super) fn infer_effect_op_call_expr_type(
     // - effect type 的 type params：`effect Raise<in E> { fun raise(error: E): Nothing }`
     //
     // 约定：把 op type params 放在前面，使 `Async.await<Int>(...)` 这类显式 type args
-    // 按“函数泛型”的直觉绑定到 op，而不是 effect type。
+    // 按"函数泛型"的直觉绑定到 op，而不是 effect type。
     let mut type_params: Vec<TypeId> = Vec::new();
     let mut bindings: Vec<(String, TypeId)> = Vec::new();
 
@@ -3799,7 +3799,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         });
     }
 
-    // required effects（T0604）：effect op call 视为“立即执行的 perform”，记录到当前函数体的 effects 集合中。
+    // required effects（T0604）：effect op call 视为"立即执行的 perform"，记录到当前函数体的 effects 集合中。
     let effect_param_count = effect_sym.type_param_names.len();
     let effect_type_args = if effect_param_count == 0 {
         Vec::new()
@@ -3841,8 +3841,8 @@ fn try_infer_continuation_resume_call_expr_type(
     //
     // 说明：
     // - 当前阶段 typecheck 尚未支持 class/interface 的实例方法调用；因此这里把 `resume` 视为一个
-    //   “内建 member call 形态”，独立于扩展函数解析。
-    // - `Continuation<T, eff E>` 的 `E` 视为“调用 resume 可能执行的 required effects”。
+    //   "内建 member call 形态"，独立于扩展函数解析。
+    // - `Continuation<T, eff E>` 的 `E` 视为"调用 resume 可能执行的 required effects"。
     if source.slice(member.span) != "resume" {
         return Ok(None);
     }
@@ -3914,7 +3914,7 @@ fn try_infer_continuation_resume_call_expr_type(
         }
     }
 
-    // required effects：`resume` 视为“立即执行 continuation 的下一步”，因此把 `E` 计入当前函数体的 required effects。
+    // required effects：`resume` 视为"立即执行 continuation 的下一步"，因此把 `E` 计入当前函数体的 required effects。
     for effect in effects.terms.iter().copied() {
         lower.record_performed_effect(effect, call_expr.span);
     }
@@ -3998,30 +3998,84 @@ fn infer_member_call_expr_type(
         return Ok(ret);
     }
 
-    // spec §8.4：`String.trimIndent()` 是内建的 `const fun`（运行期可回退为普通调用）。
+    // Built-in String API (early stage).
     //
-    // 说明：
-    // - 早期阶段 `String` API 尚未完整通过 sysroot 声明并接入“扩展函数调用”路径；
-    // - 这里先以 intrinsic 的形式固定最小类型规则：`String.trimIndent(): String`。
-    //
-    // TODO T1216：接入编译期求值（当 receiver 为编译期常量时折叠）。
+    // T1811: String P0 methods (length/substring/startsWith/endsWith/indexOf/contains/split).
     let member_name = source.slice(member.span);
-    if member_name == "trimIndent" && actual_receiver_ty == builtins.string {
-        if !args.is_empty() {
-            return Err(ExprTypeError::CallArityMismatch {
-                callee: "trimIndent".to_string(),
-                expected: 0,
-                found: args.len(),
-                span: call_expr.span.into(),
+    if actual_receiver_ty == builtins.string {
+        if member_name == "trimIndent" || member_name == "length" {
+            if !args.is_empty() {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: member_name.to_string(),
+                    expected: 0,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(if member_name == "length" {
+                builtins.int
+            } else {
+                builtins.string
             });
         }
-        return Ok(builtins.string);
+        if member_name == "substring" {
+            if args.len() != 2 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "substring".into(),
+                    expected: 2,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
+        if member_name == "startsWith"
+            || member_name == "endsWith"
+            || member_name == "contains"
+        {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: member_name.to_string(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.bool_);
+        }
+        if member_name == "indexOf" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "indexOf".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.int);
+        }
+        if member_name == "split" {
+            if args.len() != 1 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "split".into(),
+                    expected: 1,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            let array_string_ty = lower.lower_type_fqn_with_args(
+                "scoop.core.Array".into(),
+                vec![builtins.string],
+                call_expr.span,
+            )?;
+            return Ok(array_string_ty);
+        }
     }
 
     // spec §15.10：GC pin/unpin（early stage）。
     //
     // 说明：
-    // - 当前阶段尚未接入“普通成员函数调用”（class/object methods），这里只对 sysroot 的 `GC.pin/unpin`
+    // - 当前阶段尚未接入"普通成员函数调用"（class/object methods），这里只对 sysroot 的 `GC.pin/unpin`
     //   做最小落点：让前端可以通过 typecheck，并由后端 intrinsic lowering 映射到 runtime；
     // - 语义约束（TODO T1008）：仅允许 pin 引用类型/box 对象；值类型（含 type param）暂不支持。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
@@ -4396,8 +4450,8 @@ fn infer_member_call_expr_type(
     // T1508a：直连成员函数调用（final/private）。
     //
     // 说明：
-    // - resolver 在 member access 阶段只做“存在性 + FQN 写回”，不会为 member fun call 收集 overload set；
-    // - 这里把 `receiver.method(args...)` 降到“对 FQN overload set 的普通调用”来做重载决议，
+    // - resolver 在 member access 阶段只做"存在性 + FQN 写回"，不会为 member fun call 收集 overload set；
+    // - 这里把 `receiver.method(args...)` 降到"对 FQN overload set 的普通调用"来做重载决议，
     //   并把 `receiver` 作为隐式第 0 个参数参与类型检查；
     // - T1508b 起支持 class virtual dispatch（vtable）；interface dispatch 仍留给 TODO T1508c。
     if let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() {
@@ -4433,7 +4487,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            // 预先推导所有“显式实参”的类型（不含 receiver），并归一化 named arg 的语法糖节点，
+            // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
             // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
             let call_args = collect_call_arg_infos(
                 source,
@@ -4469,9 +4523,9 @@ fn infer_member_call_expr_type(
                 sig: &'a FunSigOwned,
                 instantiated: InstantiatedFunSig,
                 eff_arg: EffectRow,
-                /// `call_args_with_receiver[arg_idx]` 对应的“期望类型”。
+                /// `call_args_with_receiver[arg_idx]` 对应的"期望类型"。
                 expected_arg_tys: Vec<TypeId>,
-                /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+                /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
                 defaults_used: usize,
                 /// 形参 -> 实参绑定（用于后续门禁，例如 `addressOf(var: T)`）。
                 mapping: Vec<ParamArgBinding>,
@@ -4502,7 +4556,7 @@ fn infer_member_call_expr_type(
                 lower: &TypeLowering<'_>,
                 builtins: BuiltinTypes,
             ) -> Option<usize> {
-                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都“更具体”（可赋值到 B 的形参类型），
+                // 1) Kotlin-like most-specific：候选 A 的每个形参类型都"更具体"（可赋值到 B 的形参类型），
                 //    且至少有一个位置严格更具体，则认为 A 严格更具体。
                 for (idx, cand) in candidates.iter().enumerate() {
                     let mut ok = true;
@@ -4521,7 +4575,7 @@ fn infer_member_call_expr_type(
                     }
                 }
 
-                // 2) tie-break：默认参数更少者优先（“非默认参数优先”）。
+                // 2) tie-break：默认参数更少者优先（"非默认参数优先"）。
                 let min_defaults = candidates
                     .iter()
                     .map(|c| c.defaults_used)
@@ -4628,7 +4682,7 @@ fn infer_member_call_expr_type(
                         Err(_) => continue,
                     };
 
-                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把“候选相关”的
+                // 只在需要时（lambda）进入 expected-context typecheck，避免在候选尝试期间把"候选相关"的
                 // 副作用（例如调用 required effects）写进外层函数体的 effects 集合。
                 let mut checked_arg_tys: Vec<TypeId> =
                     call_args_with_receiver.iter().map(|a| a.ty).collect();
@@ -4838,10 +4892,10 @@ fn infer_member_call_expr_type(
         }
     }
 
-    // 当前阶段只支持“扩展函数调用”（T0312）：`receiver.member(args...)`。
+    // 当前阶段只支持"扩展函数调用"（T0312）：`receiver.member(args...)`。
     // - 若 resolver 已写回 `ExtensionFun`，优先使用；
     // - 否则（例如 `receiver` 为 `T?` 时 resolver 无法静态确定 receiver 类型），
-    //   尝试在“当前包”内按同名顶层 fun 查找 receiver fun。
+    //   尝试在"当前包"内按同名顶层 fun 查找 receiver fun。
     let callee_fqn = match member.resolved.as_ref() {
         Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => fqn.clone(),
         Some(ast::ResolvedMemberRef::Fun { fqn })
@@ -4854,7 +4908,7 @@ fn infer_member_call_expr_type(
         }
         None => {
             // resolver 无法静态确定 receiver 类型时（例如 `Shared.t1Go.recv()` 这类非裸 ident receiver），
-            // `member.resolved` 可能为空；此时在 typecheck 阶段用“已推导出的 receiver 类型 + import 表”
+            // `member.resolved` 可能为空；此时在 typecheck 阶段用"已推导出的 receiver 类型 + import 表"
             // 再做一次 extension fun 查找（与 resolver 的 extension fallback 规则保持一致）。
 
             // T1317f2：`List/MutableList` 等为 typealias（resolver 侧按名义 FQN 匹配，这里做同样归一化）。
@@ -5013,7 +5067,7 @@ fn infer_member_call_expr_type(
         }
     };
 
-    // 当前阶段：优先使用“当前文件内”的函数签名信息；缺失时回退到 `Index`
+    // 当前阶段：优先使用"当前文件内"的函数签名信息；缺失时回退到 `Index`
     //（用于 sysroot / 跨文件扩展函数调用）。
     let sigs_from_index: Vec<FunSigOwned>;
     let sigs: &[FunSigOwned] = match top_level_funs.get(&callee_fqn) {
@@ -5040,7 +5094,7 @@ fn infer_member_call_expr_type(
         });
     };
 
-    // 预先推导所有“显式实参”的类型（不含 receiver），并归一化 named arg 的语法糖节点，
+    // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
     // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
     let call_args = collect_call_arg_infos(
         source,
@@ -5067,7 +5121,7 @@ fn infer_member_call_expr_type(
         });
     };
 
-    // 只有一个扩展候选：沿用旧的“给出精确 mismatch 诊断”的路径，但补齐命名实参映射（T0453）。
+    // 只有一个扩展候选：沿用旧的"给出精确 mismatch 诊断"的路径，但补齐命名实参映射（T0453）。
     if ext_candidates.len() == 1 {
         check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
@@ -5225,7 +5279,7 @@ fn infer_member_call_expr_type(
         // receiver mismatch 检查：
         // - 默认路径：在推断 `eff` row 参数之前就可以做 receiver 可赋值检查，给出更精确诊断；
         // - 但当 receiver 的期望类型依赖 `E`（例如 `Type<eff (E + IO)>`，或更深的嵌套位置）时，
-        //   receiver 的“期望类型”必须等到 `E` 被实例化后才能确定（T0624）。
+        //   receiver 的"期望类型"必须等到 `E` 被实例化后才能确定（T0624）。
         let receiver_uses_eff = sig.eff_param.is_some()
             && sig
                 .param_eff_row_var_subst
@@ -5261,7 +5315,7 @@ fn infer_member_call_expr_type(
             )?;
         }
 
-        // 先在“期望类型语境”下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
+        // 先在"期望类型语境"下推导每个显式实参的最终类型（lambda 会在此处被真正类型检查）。
         let mut checked_arg_tys: Vec<TypeId> = call_args.iter().map(|a| a.ty).collect();
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
@@ -5417,7 +5471,7 @@ fn infer_member_call_expr_type(
             )?;
         }
 
-        // 再做“可赋值”检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
+        // 再做"可赋值"检查（此时 lambda 的 effects 也已经被推断并写入 found_ty）。
         for (param_idx, arg_idx) in mapping_pairs.iter().copied() {
             let expected_ty = instantiated.params[param_idx + 1];
             let arg = &call_args[arg_idx];
@@ -5481,7 +5535,7 @@ fn infer_member_call_expr_type(
 
             return Err(ExprTypeError::CallArgTypeMismatch {
                 callee: callee_fqn,
-                // extension 调用：`receiver.member(arg1, arg2, ...)` 的第 1 个“显式参数”
+                // extension 调用：`receiver.member(arg1, arg2, ...)` 的第 1 个"显式参数"
                 // 对应 `sig.params[1]`（跳过 receiver 参数）。
                 index: param_idx + 1,
                 expected: lower.fmt_type(expected_ty),
@@ -5532,9 +5586,9 @@ fn infer_member_call_expr_type(
         instantiated: InstantiatedFunSig,
         eff_arg: EffectRow,
         receiver_ty: TypeId,
-        /// `call_args[arg_idx]` 对应的“期望类型”（排除了 receiver 参数）。
+        /// `call_args[arg_idx]` 对应的"期望类型"（排除了 receiver 参数）。
         expected_arg_tys: Vec<TypeId>,
-        /// 调用点需要用默认值补齐的形参个数（越少越“具体”）。
+        /// 调用点需要用默认值补齐的形参个数（越少越"具体"）。
         defaults_used: usize,
     }
 
@@ -5579,7 +5633,7 @@ fn infer_member_call_expr_type(
             }
         }
 
-        // tie-break：默认参数更少者优先（“非默认参数优先”）。
+        // tie-break：默认参数更少者优先（"非默认参数优先"）。
         let min_defaults = candidates
             .iter()
             .map(|c| c.defaults_used)
@@ -6090,10 +6144,10 @@ pub(super) struct InstantiatedFunSig {
 pub(super) struct GenericArgConstraint {
     pub(super) expected: TypeId,
     pub(super) found: TypeId,
-    /// 若为 `true`，表示 `found` 只是“为了 overload 筛选占位”的类型（例如 lambda 在预收集阶段被记为 `Any`），
+    /// 若为 `true`，表示 `found` 只是"为了 overload 筛选占位"的类型（例如 lambda 在预收集阶段被记为 `Any`），
     /// 不应当用于泛型推断。
     pub(super) found_is_placeholder: bool,
-    /// 该约束来自哪里（用于 diagnostics；例如“第 2 个实参”/“receiver”）。
+    /// 该约束来自哪里（用于 diagnostics；例如"第 2 个实参"/"receiver"）。
     pub(super) from: String,
     /// 约束来源对应的 span（用于把推断失败映射回具体位置）。
     pub(super) span: Span,
@@ -6619,7 +6673,7 @@ pub(super) fn substitute_single_type_param(
 /// 将签名类型里出现的 `E + base`（包含嵌套位置）统一实例化为 `E_arg + base`（T0628b）。
 ///
 /// 说明：
-/// - `sig` 来自“声明处默认 `E = default`”语境下的 lowering；
+/// - `sig` 来自"声明处默认 `E = default`"语境下的 lowering；
 /// - `instantiated` 已完成 type args 的 substitution（T0505），但其内部仍可能残留：
 ///   - function type effects 上的默认 `E` 结果（例如默认 `Pure`）
 ///   - nominal use-site `eff` 实参里的默认 `E` 结果
@@ -6762,7 +6816,7 @@ pub(super) fn substitute_type_args_in_effect_row(
 ///
 /// 说明：
 /// - 该路径只做 substitution，不做类型实参推断；
-/// - 主要用于“无值实参可用于推断”的调用（例如反射 intrinsics：`nameOf<T>()`）。
+/// - 主要用于"无值实参可用于推断"的调用（例如反射 intrinsics：`nameOf<T>()`）。
 fn instantiate_fun_sig_for_call_with_optional_explicit_type_args(
     callee: &str,
     call_span: Span,
@@ -6804,7 +6858,7 @@ fn instantiate_fun_sig_for_call_with_optional_explicit_type_args(
         span: Span,
     }
 
-    // 先写入“显式类型实参”（若存在）；剩余 type params 尝试从约束中推断。
+    // 先写入"显式类型实参"（若存在）；剩余 type params 尝试从约束中推断。
     let mut inferred: HashMap<TypeId, (TypeId, InferredTypeArgSource)> = HashMap::new();
     if let Some(explicit_type_args) = explicit_type_args {
         for (idx, arg_ty) in explicit_type_args.iter().copied().enumerate() {

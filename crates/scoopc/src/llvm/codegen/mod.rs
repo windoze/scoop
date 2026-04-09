@@ -10,7 +10,7 @@
 //! - 二元运算：算术/比较/位运算/移位（含 shift count mask）；
 //! - 局部绑定：`val`/`var`（映射为 `alloca` + `load/store`）；
 //! - 赋值语句：`x = expr`（仅支持 local `var`）；
-//! - `return`（以及“block 最后表达式”作为隐式返回）。
+//! - `return`（以及"block 最后表达式"作为隐式返回）。
 //! - `when`（T0813：仅支持 enum tag 判别 + variant binder；不支持 guard/or-pattern）。
 //!
 //! 非目标（后续任务逐步补齐）：
@@ -73,7 +73,7 @@ use types::{
 /// 当前阶段（T0809）统一用栈分配（`alloca`）承载 locals，并用 `load/store` 实现读写。
 #[derive(Debug, Clone, Copy)]
 struct CgLocal<'ctx> {
-    /// 该局部绑定在 HIR/type 层面的原始 `TypeId`（用于需要“精确类型结构”的场景，例如函数值调用）。
+    /// 该局部绑定在 HIR/type 层面的原始 `TypeId`（用于需要"精确类型结构"的场景，例如函数值调用）。
     ///
     /// 说明：
     /// - 早期 codegen 的 `CgTy::Ref` 统一覆盖所有引用类型（Any/class/function/union...），
@@ -184,23 +184,23 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     ///
     /// 说明：
     /// - 对于 `class Derived : Base()`，`Derived` 的对象 payload 需要以前缀形式包含 `Base` 的字段；
-    /// - codegen 侧会把该布局“按继承链展开”，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
+    /// - codegen 侧会把该布局"按继承链展开"，并把字段索引写回到 `field_indices`，以便 field GEP 正确。
     class_init_layout_cache: HashMap<String, hir::ClassInit>,
-    /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的“早退返回默认值”）。
+    /// 当前正在生成的函数返回类型（用于 effect flag-based unwinding 的"早退返回默认值"）。
     ///
     /// 说明：
     /// - 当 `Raise.raise` 发生且当前不存在 handler boundary 时，需要沿调用链向外传播：
     ///   通过返回默认值结束当前函数，并保持 effect flag/slot 不被消费；
     /// - 若在 handler boundary 内，则会跳转到 catch 分支而不是 return。
     current_fun_return_ty: Option<CgTy>,
-    /// Raise/try-catch 的“当前捕获边界”栈（用于最小 flag-based unwinding，TODO T0614）。
+    /// Raise/try-catch 的"当前捕获边界"栈（用于最小 flag-based unwinding，TODO T0614）。
     ///
     /// 语义（当前阶段）：
     /// - `Raise.raise(e)`：写 slot + set flag，然后跳到栈顶 catch block；
     /// - 普通函数调用返回后：若 flag 被置位，则跳到栈顶 catch block；
     /// - 若栈为空，则返回默认值继续向外传播。
     raise_target_stack: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
-    /// 最小自定义 non-resuming effect 的“当前捕获边界”栈（T0625）。
+    /// 最小自定义 non-resuming effect 的"当前捕获边界"栈（T0625）。
     ///
     /// 语义：
     /// - `perform` 发生时，根据 op FQN 在该栈中从内到外查找最近匹配的 catch block，并跳转；
@@ -476,7 +476,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let value = mask_to_bits(bits, int_ty.bits) as u64;
                 self.int_type(int_ty).const_int(value, false).into()
             }
-            // 早期阶段：仅支持“静态全零初始化”；更复杂的值类型常量构造留给后续任务补齐。
+            // 早期阶段：仅支持"静态全零初始化"；更复杂的值类型常量构造留给后续任务补齐。
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "top-level var initializer (aggregate const)",
@@ -1013,7 +1013,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mut self,
         fun: &hir::FunDecl,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能“早退”。
+        // 入口 `i32 @main()` 的返回类型固定为 i32；这里记录下来以便最小 Raise 传播时能"早退"。
         self.current_fun_return_ty = Some(CgTy::Int(IntTy {
             bits: 32,
             signed: true,
@@ -1429,10 +1429,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
+            // T1811: String P0 methods.
+            if matches!(
+                member.name.as_str(),
+                "length"
+                    | "substring"
+                    | "startsWith"
+                    | "endsWith"
+                    | "indexOf"
+                    | "contains"
+                    | "split"
+            ) {
+                return self.codegen_string_method(
+                    span,
+                    receiver,
+                    &member.name,
+                    args,
+                );
+            }
         }
 
         // 2) enum variant ctor：`Some(x)` 这类调用在 resolver 阶段不会 resolve，
-        //    需要依赖“期望类型语境”才能决定属于哪个 enum。
+        //    需要依赖"期望类型语境"才能决定属于哪个 enum。
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             // T1312：class ctor call —— resolver 在 call-site 写回 ctor candidates，
             // HIR v0 仍把 callee 降为 `UnresolvedIdent`，因此这里需要通过 side table 判断并执行 ctor。
@@ -1621,7 +1639,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///
     /// 当前阶段的约束（为保持 run-pass 可落地且实现量可控）：
     /// - 调用点仅支持位置参数（positional args），不支持 named args / default args；
-    /// - ctor 选择规则：按“参数个数”在已收集 ctor 集合中匹配；若不唯一则报错；
+    /// - ctor 选择规则：按"参数个数"在已收集 ctor 集合中匹配；若不唯一则报错；
     /// - class 单继承初始化链：会从最基类到派生类逐层执行 init steps；
     /// - super ctor args 与 secondary ctor delegation args 同样只支持位置参数，并按源码顺序求值。
     fn codegen_class_ctor_call(
@@ -1772,7 +1790,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   - 否则先执行 super ctor call，再执行本类的参数属性赋值、property initializer、init blocks，
         //     最后执行 secondary ctor body（若有）。
 
-        // 调用点实参求值（按源码顺序），供“被调用的 ctor”注入 params locals。
+        // 调用点实参求值（按源码顺序），供"被调用的 ctor"注入 params locals。
         let mut evaluated_args: Vec<CgValue<'ctx>> = Vec::with_capacity(positional_args.len());
         for (param, arg_expr) in ctor_params.iter().zip(positional_args.iter()) {
             let param_cg = self
@@ -2260,6 +2278,291 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    /// T1811: codegen for String P0 methods (length/substring/startsWith/endsWith/indexOf/contains/split).
+    fn codegen_string_method(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+        method_name: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // Evaluate receiver as String pointer.
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::String))?;
+        let coerced = self.coerce_value(receiver.span, recv, CgTy::String)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "String method receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(recv_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "String method receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        match method_name {
+            "length" => {
+                // scoop_string_length(s) -> i64
+                let rt_fun = self.declare_runtime_string_length();
+                let call = self
+                    .builder
+                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_length")?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.length return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.length return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            "substring" => {
+                // scoop_string_substring(s, start, end) -> ScoopString*
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.substring arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(start_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.substring named arg",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(end_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.substring named arg",
+                        at: span.into(),
+                    });
+                };
+                let start = self.codegen_expr_in_expected_context(
+                    start_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let end = self.codegen_expr_in_expected_context(
+                    end_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let start_val = start.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.substring start value",
+                    at: span.into(),
+                })?;
+                let end_val = end.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.substring end value",
+                    at: span.into(),
+                })?;
+                let rt_fun = self.declare_runtime_string_substring();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), start_val.into(), end_val.into()],
+                    "rt_string_substring",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.substring return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.substring return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(out_ptr.into()),
+                })
+            }
+            "startsWith" | "endsWith" | "contains" => {
+                // scoop_string_starts_with/ends_with/contains(s, arg) -> i64 (0/1)
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(arg_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method named arg",
+                        at: span.into(),
+                    });
+                };
+                let arg = self.codegen_expr_in_expected_context(
+                    arg_expr,
+                    Some(CgTy::String),
+                )?;
+                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
+                let Some(arg_raw) = arg_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method arg value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method arg type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = match method_name {
+                    "startsWith" => self.declare_runtime_string_starts_with(),
+                    "endsWith" => self.declare_runtime_string_ends_with(),
+                    "contains" => self.declare_runtime_string_contains(),
+                    _ => unreachable!(),
+                };
+                let label = format!("rt_string_{method_name}");
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), arg_ptr.into()],
+                    &label,
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String method return type",
+                        at: span.into(),
+                    });
+                };
+                // Convert i64 (0/1) to Bool (i1).
+                let bool_val = self.builder.build_int_compare(
+                    inkwell::IntPredicate::NE,
+                    iv,
+                    self.context.i64_type().const_zero(),
+                    "to_bool",
+                )?;
+                Ok(CgValue::bool(bool_val))
+            }
+            "indexOf" => {
+                // scoop_string_index_of(s, substr) -> i64
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(arg_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf named arg",
+                        at: span.into(),
+                    });
+                };
+                let arg = self.codegen_expr_in_expected_context(
+                    arg_expr,
+                    Some(CgTy::String),
+                )?;
+                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
+                let Some(arg_raw) = arg_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf arg value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf arg type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_string_index_of();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), arg_ptr.into()],
+                    "rt_string_indexOf",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.indexOf return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
+            "split" => {
+                // scoop_string_split(s, delimiter) -> void* (ScoopArray*)
+                if args.len() != 1 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(arg_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split named arg",
+                        at: span.into(),
+                    });
+                };
+                let arg = self.codegen_expr_in_expected_context(
+                    arg_expr,
+                    Some(CgTy::String),
+                )?;
+                let arg_coerced = self.coerce_value(arg_expr.span, arg, CgTy::String)?;
+                let Some(arg_raw) = arg_coerced.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split arg value",
+                        at: span.into(),
+                    });
+                };
+                let BasicValueEnum::PointerValue(arg_ptr) = arg_raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split arg type",
+                        at: span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_string_split();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), arg_ptr.into()],
+                    "rt_string_split",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.split return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::Ref,
+                    value: Some(out_ptr.into()),
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unknown String method",
+                at: span.into(),
+            }),
+        }
+    }
+
     fn codegen_sysroot_print_like(
         &mut self,
         span: crate::span::Span,
@@ -2294,14 +2597,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 说明：
         // - sysroot 中允许 `print/println` 以 overload set 的形式声明（例如 `String` 与 `Int`）；
-        // - HIR 当前阶段不保留“已选定 overload”的信息，因此这里以实参 codegen 后的 `CgTy`
+        // - HIR 当前阶段不保留"已选定 overload"的信息，因此这里以实参 codegen 后的 `CgTy`
         //   来决定使用哪条 lowering 路径。
         //
         // 注意：这里**不要**强制把 expected type 设为 `String`：
         // - 对于 `when/if/block` 等表达式，expected 会导致其 arm/body 被强制 coercion 为 `String`，
         //   进而在 `Int -> String` 这类尚未实现的 coercion 上报错；
         // - `print/println` 的整数路径会在 codegen 后把 `Int` 提升/截断到 i64/u64 并调用 runtime 直接打印（见下方分支），
-        //   因此应先让表达式产出其“自然值类型”，再在这里做转换。
+        //   因此应先让表达式产出其"自然值类型"，再在这里做转换。
         let v = self.codegen_expr(expr)?;
         match v.ty {
             CgTy::String => {
@@ -2376,7 +2679,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 1) 先把整数格式化到栈上的临时 buffer（native addrspace(0)），得到实际字节长度。
         //
         // 说明：
-        // - `scoop_format_{i64,u64}` 为 “caller 提供 buffer + cap” 形式；
+        // - `scoop_format_{i64,u64}` 为 "caller 提供 buffer + cap" 形式；
         // - 这里的 `buf` 是纯 native bytes，不应被当作 GC-managed roots。
         let cap = i64_ty.const_int(64, false);
         let buf = self
@@ -3636,10 +3939,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Closure(closure) => {
                 // 说明：
                 // - `Once.run` 的参数类型在 sysroot 中固定为 `() -> Unit`；
-                // - 但 early stage 的 `fun_index` 只包含“本编译单元内有 body 的函数”，不含 sysroot 声明；
+                // - 但 early stage 的 `fun_index` 只包含"本编译单元内有 body 的函数"，不含 sysroot 声明；
                 // - 同时 HIR v0 对 closure expr 的 `ty` 也不总是可用作 expected type（需要 MIR/CFG 才能更稳）。
                 //
-                // 因此这里从 `TypeStore` 中查找一个“无参、返回 Unit、Pure”的函数类型作为 expected context。
+                // 因此这里从 `TypeStore` 中查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。
                 let expected_fun_ty = self.lookup_pure_unit_closure_type().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "sync.Once.run block fun type",
@@ -3806,7 +4109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // 说明：
                 // - `thread.spawn` 的参数类型在 sysroot 中固定为 `() -> Unit`；
                 // - 与 `sync.Once.run` 一致：为了在 early stage 稳定 codegen，这里从 `TypeStore` 中
-                //   查找一个“无参、返回 Unit、Pure”的函数类型作为 expected context。
+                //   查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。
                 let expected_fun_ty = self.lookup_pure_unit_closure_type().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "thread.threadSpawn block fun type",
@@ -4237,7 +4540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             },
         };
 
-        // gate：确保元素是 “u64 word 可编码”的类型（与 `coerce_u64_word` 对齐）。
+        // gate：确保元素是 "u64 word 可编码"的类型（与 `coerce_u64_word` 对齐）。
         let elem_cg = self
             .cg_ty_of(elem_ty)
             .filter(|ty| matches!(ty, CgTy::Unit | CgTy::Bool | CgTy::Int(_)));
@@ -5807,7 +6110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let idx_i64 = self.cast_int(idx_raw, idx_from, idx_to)?;
 
                 // 尽量使用 receiver 的静态类型（type args）来决定 value 的 codegen/编码方式；
-                // 若无法恢复，则退化为“按 value 表达式自身的 codegen 类型编码为 u64”。
+                // 若无法恢复，则退化为"按 value 表达式自身的 codegen 类型编码为 u64"。
                 let elem_ty = self.infer_array_element_word_cg_ty(recv_expr);
                 match elem_ty {
                     Some(CgTy::Ref) | Some(CgTy::String) => {
@@ -5877,7 +6180,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         };
         // T1317f2：`List/MutableList` 在 sysroot 中作为 `Array/MutableArray` 的 typealias。
-        // codegen 侧需要把它们视为“array-like”，否则 `xs.get(i)` 在被 `print/println` 等
+        // codegen 侧需要把它们视为"array-like"，否则 `xs.get(i)` 在被 `print/println` 等
         // 以 `String` expected context 调用时，可能会错误地把元素解码为 `String`。
         if !matches!(
             nominal.fqn.as_str(),
@@ -5891,7 +6194,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let elem_ty = *nominal.args.first()?;
         let cg = self.cg_ty_of(elem_ty)?;
 
-        // 当前 runtime array 以 “u64 word buffer” 表示元素，因此这里限制为可编码为 u64 的类型。
+        // 当前 runtime array 以 "u64 word buffer" 表示元素，因此这里限制为可编码为 u64 的类型。
         match cg {
             CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref => Some(cg),
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) | CgTy::Never => None,
@@ -6478,7 +6781,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // T1510c：`@Extern` 调用点需要显式标记“进入 native”并向 runtime 暴露 roots slots，
+        // T1510c：`@Extern` 调用点需要显式标记"进入 native"并向 runtime 暴露 roots slots，
         // 以便 stop-the-world GC 在 InNative 线程上扫描/更新 roots（moving GC 也需写回 slot）。
         let is_extern = self.extern_funs.contains_key(fqn);
 
@@ -6556,7 +6859,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let callee_is_pure = self.fun_ty_effects_is_pure(sig_fun.ty).unwrap_or(false);
         if !callee_is_pure {
             // flag-based unwinding（最小 Raise）：
-            // - callee 可能执行 `Raise.raise` 并通过“设置 flag + 返回默认值”向外传播；
+            // - callee 可能执行 `Raise.raise` 并通过"设置 flag + 返回默认值"向外传播；
             // - 因此 call site 必须检查 flag，并跳转到最近的 handler boundary（或继续向外 return）。
             self.emit_effect_unwind_if_active(span)?;
         }
@@ -6737,14 +7040,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T1603：去虚化（receiver 类型已知时直调用）。
         //
         // 设计取舍（v0）：
-        // - 仍以 “能在 vtable slot 表里命中” 作为是否需要虚调用的主判断（保证动态分发语义成立）；
-        // - 仅在我们能证明该调用点为“单一目标”时，把 vtable 间接调用降级为 direct call；
+        // - 仍以 "能在 vtable slot 表里命中" 作为是否需要虚调用的主判断（保证动态分发语义成立）；
+        // - 仅在我们能证明该调用点为"单一目标"时，把 vtable 间接调用降级为 direct call；
         // - 当前实现优先覆盖最常见、最容易证明的 case：receiver 的静态类型对应的 class 在本次编译单元内
         //   **不存在任何子类**（等价于 final class / 单一实现的 sealed class）。
         //
-        // 重要：这里优先尝试使用“局部绑定的原始 HIR 类型”（`env.local.hir_ty`）作为 receiver 静态类型。
+        // 重要：这里优先尝试使用"局部绑定的原始 HIR 类型"（`env.local.hir_ty`）作为 receiver 静态类型。
         // - 这样可以避开 call-site 处的隐式 upcast/coerce 把 `receiver_expr.ty` 擦成父类的问题，
-        //   让 “`val d: Derived = ...; d.ping()`” 这类典型场景能被正确去虚化；
+        //   让 "`val d: Derived = ...; d.ping()`" 这类典型场景能被正确去虚化；
         // - 若无法恢复精确类型，则回退到 `receiver_expr.ty`（保持保守正确性）。
         let devirt_receiver_ty = match &receiver_expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
@@ -6941,7 +7244,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => return None,
         };
 
-        // 当前阶段（v0）只对“本次 codegen 侧已收集到 class init 信息”的 class 启用去虚化：
+        // 当前阶段（v0）只对"本次 codegen 侧已收集到 class init 信息"的 class 启用去虚化：
         // - `class_inits` 是后端可见的最小 class 元数据来源（字段/ctor/super 链等）；
         // - 对 sysroot 或其它未收集到 init 信息的 class，无法可靠判断其继承关系，保持保守回退到 vtable 调用。
         if !self.class_inits.contains_key(receiver_fqn) {
@@ -6964,7 +7267,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return None;
         }
 
-        // 只在目标成员为“可 codegen 的函数实体”时启用去虚化：
+        // 只在目标成员为"可 codegen 的函数实体"时启用去虚化：
         // - 普通成员函数：要求有 body；
         // - @Extern：允许无 body（由链接器提供实现）。
         let target_fqn = slot_entry.impl_member_fqn.as_str();
@@ -7575,7 +7878,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 2) 将 `word-sized address` 转换为函数指针。
         //
         // 说明：
-        // - 当前阶段我们把 `scoop.unsafe.FunPtr<F>` 视为 “opaque native function address”；
+        // - 当前阶段我们把 `scoop.unsafe.FunPtr<F>` 视为 "opaque native function address"；
         // - `fp(args...)` 会在 codegen 阶段执行 `inttoptr` 并生成 indirect call；
         // - v0 阶段仅支持 C ABI（callconv 0）。
         let fun_ptr_ty = llvm_fun_ty.ptr_type(AddressSpace::default());
@@ -7910,7 +8213,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 2) 确保 closure 函数本体存在（module-level function）。
         //
-        // 注意：我们会在“第一次 codegen 到该 lambda 表达式”时生成其函数体；之后复用同名符号。
+        // 注意：我们会在"第一次 codegen 到该 lambda 表达式"时生成其函数体；之后复用同名符号。
         let saved_block =
             self.builder
                 .get_insert_block()
@@ -8266,7 +8569,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.env.push_scope();
 
-        // 入口的返回类型由期望函数类型决定（用于 Raise 的“早退默认值”）。
+        // 入口的返回类型由期望函数类型决定（用于 Raise 的"早退默认值"）。
         let declared_return_cg =
             self.cg_ty_of(fun_ty.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -8956,7 +9259,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        // 先把所有实参在“字段期望类型”下 codegen 并做最小 coercion，避免后续重复走 codegen。
+        // 先把所有实参在"字段期望类型"下 codegen 并做最小 coercion，避免后续重复走 codegen。
         let mut field_values: Vec<(CgTy, CgValue<'ctx>)> = Vec::with_capacity(args.len());
         for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args.iter()).enumerate() {
             let hir::CallArg::Positional(arg_expr) = arg else {
@@ -9077,7 +9380,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        // 2) inline（非 boxed）variant：当前阶段仍采用 “word payload” 承载的小 payload。
+        // 2) inline（非 boxed）variant：当前阶段仍采用 "word payload" 承载的小 payload。
         if variant.fields.len() > 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "enum variant payload (multi-field, not boxed)",
@@ -9185,10 +9488,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::Enum(nested_enum_ty) => {
-                // 允许把 “niche enum（当前主要是 `Option<...>`）” 作为 payload 承载到外层 enum/Option 中。
+                // 允许把 "niche enum（当前主要是 `Option<...>`）" 作为 payload 承载到外层 enum/Option 中。
                 //
                 // 关键点：
-                // - niche enum 的运行期值本身就是一个“标量存储”（ptr 或 u8）；
+                // - niche enum 的运行期值本身就是一个"标量存储"（ptr 或 u8）；
                 // - 因此可以映射到 tagged union 的 `{ payload_word, payload_ptr }` 载体上，
                 //   且不引入 ptr<->int 编码（GC safety）。
                 let Some(raw) = value.value else {
@@ -9671,7 +9974,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Ok(bytes) => bytes,
             Err(StringLiteralParseError::Interpolated) => {
                 // 插值字符串（`f"..."`/`f"""..."""`）由后续任务 T0823 lowering 处理；
-                // 当前阶段避免“把原始文本当作普通字符串”导致语义错误。
+                // 当前阶段避免"把原始文本当作普通字符串"导致语义错误。
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "interpolated string literal",
                     at: span.into(),
@@ -9762,7 +10065,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         raw: bool,
         parts: &[hir::InterpolatedStringPart],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 当前阶段的落点：把 f-string 分片后“拼接”为一段连续 UTF-8 字节序列，
+        // 当前阶段的落点：把 f-string 分片后"拼接"为一段连续 UTF-8 字节序列，
         // 返回一个 GC-managed `ScoopString` 对象（addrspace(1)），其 `data` 指向 `malloc` 的 bytes buffer。
         //
         // 约束（与 TODO T0823 对齐）：
@@ -10051,7 +10354,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ValueRef::TopLevel { fqn, .. } => {
                 // T1311：object/companion object 单例值在表达式位置可用：
                 // - 读取单例值应触发一次初始化（init block / 属性 init）；
-                // - 运行期用一个 module-local 的唯一地址作为“单例实例指针”（ref type）。
+                // - 运行期用一个 module-local 的唯一地址作为"单例实例指针"（ref type）。
                 if self.object_inits.contains_key(fqn) {
                     return self.codegen_object_value_access(span, fqn);
                 }
@@ -10346,7 +10649,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match member.resolved.as_ref() {
             Some(hir::MemberRef::Value { fqn, .. }) => {
-                // T1311：`TypeName.NestedObject` / `Obj.NestedObject` 的“object 值”访问。
+                // T1311：`TypeName.NestedObject` / `Obj.NestedObject` 的"object 值"访问。
                 if self.object_inits.contains_key(fqn) {
                     return self.codegen_object_value_access(member.span, fqn);
                 }
@@ -10520,7 +10823,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(member.span, elem_ty, extracted)
     }
 
-    /// 将一个“限定名 enum unit variant 值”（例如 `RuntimeError.NullAssertionFailed`）降低为 enum 常量。
+    /// 将一个"限定名 enum unit variant 值"（例如 `RuntimeError.NullAssertionFailed`）降低为 enum 常量。
     ///
     /// 说明：
     /// - parser 会把 `EnumName.Variant` 表示为 member access；
@@ -10811,7 +11114,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 说明：
-        // - 早期阶段我们用一个 module-local 的唯一地址充当 object 单例实例的“身份”（指针值）；
+        // - 早期阶段我们用一个 module-local 的唯一地址充当 object 单例实例的"身份"（指针值）；
         // - 该地址不参与 GC，也不承载字段布局；静态属性仍单独走 `__scoop_object_prop__*` 全局存储。
         let gv = self.module.add_global(self.context.i8_type(), None, &name);
         gv.set_linkage(Linkage::Internal);
@@ -10995,7 +11298,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - interface：扫描 itable 是否包含 interface_id。
         //
         // 说明：typecheck 阶段对 `is/!is` 的静态约束仍偏弱（只保证 type lowering），
-        // 因此 codegen 侧需要做“不可支持场景”的防御式报错，避免 silent miscompile。
+        // 因此 codegen 侧需要做"不可支持场景"的防御式报错，避免 silent miscompile。
         let v = self.codegen_expr(expr)?;
         let v = match v.ty {
             CgTy::Ref => v,
@@ -11783,7 +12086,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .builder
             .build_int_truncate(rhs, lhs_int, "shift_rhs_trunc")?;
 
-        // 2) mask：shiftCount & (bitWidth - 1)，避免 LLVM 对“超范围 shift”的 UB。
+        // 2) mask：shiftCount & (bitWidth - 1)，避免 LLVM 对"超范围 shift"的 UB。
         let mask = lhs_int.const_int((lhs_bits.saturating_sub(1)) as u64, false);
         Ok(self.builder.build_and(rhs_trunc, mask, "shift_masked")?)
     }
@@ -11955,9 +12258,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // early stage：允许把 `Unit` 装箱到 `Any`。
                 //
                 // 说明：
-                // - 当前阶段有一部分“语句位置”的表达式仍会被类型系统视为 `Any`（例如某些 `block/when`），
+                // - 当前阶段有一部分"语句位置"的表达式仍会被类型系统视为 `Any`（例如某些 `block/when`），
                 //   因此后端需要支持 `Unit -> Any` 的值提升；
-                // - v0 阶段 runtime type descriptor 仍是占位（NULL），这里只保证“可执行/可回归”。
+                // - v0 阶段 runtime type descriptor 仍是占位（NULL），这里只保证"可执行/可回归"。
                 let boxed = self.codegen_box_unit_to_ref(at)?;
                 Ok(CgValue {
                     ty: CgTy::Ref,
@@ -11979,7 +12282,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // early stage：允许把 `Bool` 装箱到 `Any`（与 `Int -> Any` 一致）。
                 //
                 // 注意：
-                // - 当前阶段 runtime type descriptor 仍是占位（NULL），因此这里只保证“可执行/可回归”，
+                // - 当前阶段 runtime type descriptor 仍是占位（NULL），因此这里只保证"可执行/可回归"，
                 //   不承诺后续 runtime type casts 的可观察语义；
                 // - 为复用现有 box 形态，这里把 `Bool` 扩展为 word-sized 无符号整数后按 int box 存储。
                 let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -12112,7 +12415,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         //   - `size_bytes = alloc_size`
         //   - `flags/mark = 0`
         //
-        // 注意：这里不尝试做“复用 box 类型”或 cache；LLVM named struct 会在 module 内复用。
+        // 注意：这里不尝试做"复用 box 类型"或 cache；LLVM named struct 会在 module 内复用。
         let target = self.target_layout();
         let payload_size = u64::from(value_ty.bits).div_ceil(8);
         let payload_align = payload_size.clamp(1, target.pointer_align.max(1));
@@ -12245,7 +12548,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 在当前 compilation unit 的 `TypeStore` 中查找 `() -> Unit / Pure` 的函数类型。
     ///
     /// 用途：
-    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 early stage 是“只有声明没有 body 的外部落点”，
+    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 early stage 是"只有声明没有 body 的外部落点"，
     ///   因此不在 `fun_index` 中；但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
     fn lookup_pure_unit_closure_type(&self) -> Option<TypeId> {
         let unit = self
@@ -12497,7 +12800,7 @@ fn mask_to_bits(value: u128, bits: u32) -> u128 {
 }
 
 fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLiteralParseError> {
-    // f-string 的 Text 片段来自 parser 拆分后的“内容区间 slice”，不包含包裹引号。
+    // f-string 的 Text 片段来自 parser 拆分后的"内容区间 slice"，不包含包裹引号。
     // 这里需要补齐两类语义：
     // - `{{` / `}}`：字面量大括号（spec §8.2）；
     // - 非 raw f-string：支持最小转义（与普通字符串一致）。
@@ -12506,7 +12809,7 @@ fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLit
         return Ok(undoubled.into_bytes());
     }
 
-    // 非 raw：先在源码层“去双大括号”，并避免把 `\u{...}` 的 `{}` 当作候选；
+    // 非 raw：先在源码层"去双大括号"，并避免把 `\u{...}` 的 `{}` 当作候选；
     // 再复用普通字符串的转义解析。
     let undoubled = undouble_braces_preserving_escapes(text);
     parse_normal_string_bytes(&undoubled)

@@ -1,0 +1,50 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_string_basic.stdout
+//
+// T1811: String P0 methods (length/substring/startsWith/endsWith/indexOf/contains/split).
+
+import scoop.core.*
+
+fun main() {
+    val s: String = "Hello, World!"
+
+    // length
+    val len: Int = s.length()
+    println(len)
+
+    // substring
+    val sub: String = s.substring(0, 5)
+    println(sub)
+
+    // startsWith
+    if (s.startsWith("Hello")) {
+        println("yes_starts")
+    } else {
+        println("no_starts")
+    }
+
+    // endsWith
+    if (s.endsWith("World!")) {
+        println("yes_ends")
+    } else {
+        println("no_ends")
+    }
+
+    // indexOf
+    val idx: Int = s.indexOf("World")
+    println(idx)
+
+    // contains
+    if (s.contains("World")) {
+        println("yes_contains")
+    } else {
+        println("no_contains")
+    }
+
+    // split
+    val parts: Array<String> = "a,b,c".split(",")
+    println(parts.size())
+    println(parts.get(0))
+    println(parts.get(1))
+    println(parts.get(2))
+}

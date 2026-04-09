@@ -721,7 +721,7 @@ cargo run -p scoop --features llvm -- test
   - **pre-existing fix**：修复 `codegen/mod.rs` 中 2 个 `collapsible_if` clippy 警告（lines ~8808, ~8851）。
   - 所有 139 单元测试 + 767 fixtures 通过。
 
-### T1811 [TODO] Text sysroot + codegen：`String.length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split` 可从 Scoop 调用
+### T1811 [DONE] Text sysroot + codegen：`String.length`/`substring`/`startsWith`/`endsWith`/`indexOf`/`contains`/`split` 可从 Scoop 调用
 - 描述：在 `sysroot/core.scoop` 的 `String` 类型上声明 P0 Text 方法，并在编译器的 codegen（LLVM 后端）中识别这些方法调用并路由到 T1810 的 C runtime 函数。
 - 目标：
   - sysroot 声明：`fun length(): Int`、`fun substring(start: Int, end: Int): String`、`fun startsWith(prefix: String): Bool`、`fun endsWith(suffix: String): Bool`、`fun indexOf(substr: String): Int`、`fun contains(substr: String): Bool`、`fun split(delimiter: String): Array<String>`。
@@ -731,6 +731,15 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
   - 新增 `tests/fixtures/run-pass/stdlib_string_basic.scoop` + `.stdout`。
 - 依赖：T1810
+- 完成记录：
+  - **Resolver**（`resolve/scopes.rs`）：扩展 String 方法白名单，新增 7 个方法名。
+  - **Typecheck**（`typecheck/expr/call.rs`）：为每个方法添加参数数量和返回类型验证。
+  - **Runtime symbols**（`codegen/runtime_symbols.rs`）：7 个新 C 函数名常量。
+  - **Runtime ABI**（`codegen/runtime_abi.rs`）：7 个 `declare_runtime_string_*` LLVM 函数类型声明。
+  - **Codegen**（`codegen/mod.rs`）：新增 `codegen_string_method` 分发函数，处理所有 7 个方法的 LLVM IR 生成。
+  - **Fixture**：`stdlib_string_basic.scoop` + `.stdout` 覆盖全部 7 个方法。
+  - 139 单元测试 + 768 fixtures 通过。
+  - 注意：`split` 在 GC stress 下返回结果不正确（size=1 而非 3），疑似 C runtime `scoop_string_split` 中间分配未正确 root，属 T1810 runtime 层问题。
 
 ### T1812 [TODO] Text 数值转换：`Int.toString()` + `String.toInt()`
 - 描述：补齐数值↔文本的最基础转换。

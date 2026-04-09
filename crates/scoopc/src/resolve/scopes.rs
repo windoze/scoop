@@ -41,9 +41,9 @@ struct BlockScopeChecker<'a> {
     /// - 类型体成员（property init/accessor、member fun）里：`this` 指向当前类型实例
     /// - 扩展函数体里：`this` 指向 extension receiver
     this_context: Vec<ThisContext>,
-    /// class 初始化阶段的“可见成员集合”栈（T0316）。
+    /// class 初始化阶段的"可见成员集合"栈（T0316）。
     ///
-    /// 用途：在 property initializer / `init { ... }` 中禁止访问“尚未初始化”的后置属性，
+    /// 用途：在 property initializer / `init { ... }` 中禁止访问"尚未初始化"的后置属性，
     /// 并给出稳定诊断（`scoop::resolve::forward_reference`）。
     init_value_members: Vec<InitValueMembersContext>,
 }
@@ -56,7 +56,7 @@ struct LocalBinding {
 
 #[derive(Debug, Clone)]
 struct ThisContext {
-    /// 用作 `ResolvedValueRef::Local { decl_span }` 的最小“身份标识”。
+    /// 用作 `ResolvedValueRef::Local { decl_span }` 的最小"身份标识"。
     decl_span: Span,
     /// `this` 的类型 FQN（用于 `this.member` 的成员解析）；若无法静态确定则为 None。
     ty_fqn: Option<String>,
@@ -69,7 +69,7 @@ struct InitValueMembersContext {
     /// 在当前初始化点之前，已经完成初始化（或至少已声明）的 value members（属性/字段）集合。
     ///
     /// 说明：这里刻意只追踪 value namespace。
-    /// - methods（fun namespace）在 Kotlin 语义下不受“前向引用”限制；
+    /// - methods（fun namespace）在 Kotlin 语义下不受"前向引用"限制；
     /// - 具体的初始化顺序与更深语义由 typecheck 处理（见 TODO T0316 目标）。
     visible_value_members: HashSet<String>,
 }
@@ -142,7 +142,7 @@ impl<'a> BlockScopeChecker<'a> {
         ty: &mut ast::TypeDecl,
         prefix: &str,
     ) -> Result<(), ResolveError> {
-        // T0313：主构造参数默认值属于“初始化语境”，但不引入 `this`；
+        // T0313：主构造参数默认值属于"初始化语境"，但不引入 `this`；
         // 这里先做最小值名字解析（可引用同一 ctor 中更早声明的参数）。
         if let Some(primary_ctor) = &mut ty.primary_ctor {
             self.check_primary_ctor_defaults(primary_ctor)?;
@@ -185,12 +185,12 @@ impl<'a> BlockScopeChecker<'a> {
             })?;
         }
 
-        // T0316：class 初始化阶段的“前向引用”规则需要按成员声明顺序推进：
+        // T0316：class 初始化阶段的"前向引用"规则需要按成员声明顺序推进：
         // - property initializer / init block 只能访问在其之前已完成初始化的属性；
         // - method（fun namespace）不受该限制（Kotlin-like）。
         let mut init_visible_value_members: HashSet<String> = HashSet::new();
         if matches!(ty.kind, ast::TypeKind::Class) {
-            // Kotlin-like：primary ctor 的 `val/var` 参数属性在进入 type body 之前就已“就绪”，
+            // Kotlin-like：primary ctor 的 `val/var` 参数属性在进入 type body 之前就已"就绪"，
             // 因此它们不应被 class init 的 forward reference 规则拦截。
             for p in ctor_params {
                 if p.kind.is_some() {
@@ -331,7 +331,7 @@ impl<'a> BlockScopeChecker<'a> {
                 this.check_expr(init)?;
             }
 
-            // 与 class 属性一致：为 `field` 注入一个隐式局部绑定，便于后续 typecheck 给出“无 backing field”
+            // 与 class 属性一致：为 `field` 注入一个隐式局部绑定，便于后续 typecheck 给出"无 backing field"
             // 的专门诊断（而不是在 resolve 阶段提前报 UnresolvedValue）。
             let backing_field = BackingFieldBinding {
                 decl_span: p.name.span,
@@ -413,7 +413,7 @@ impl<'a> BlockScopeChecker<'a> {
             // 属性初始化表达式：允许引用主构造参数（T0313）。
             if let Some(init) = &mut p.init {
                 this.with_ctor_params_scope(ctor_params, |this| {
-                    // T0316：property initializer 属于 class 初始化阶段，禁止访问“后置属性”（前向引用）。
+                    // T0316：property initializer 属于 class 初始化阶段，禁止访问"后置属性"（前向引用）。
                     //
                     // 说明：这里只对 value namespace 做限制；method 仍可通过 `this.m()` 访问。
                     if let Some(visible) = init_visible_value_members {
@@ -532,7 +532,7 @@ impl<'a> BlockScopeChecker<'a> {
         ctor_params: &[ast::Param],
         backing_field: Option<&BackingFieldBinding>,
     ) -> Result<(), ResolveError> {
-        // accessor 是“函数体”语境：可见 `this`（由调用者提供 this context），并引入：
+        // accessor 是"函数体"语境：可见 `this`（由调用者提供 this context），并引入：
         // - 主构造参数（外层 frame）
         // - setter 形参（内层 frame）
         self.with_ctor_params_scope(ctor_params, |this| {
@@ -541,7 +541,7 @@ impl<'a> BlockScopeChecker<'a> {
             // spec §10.1：`field` 仅在属性 accessor 内可用，用作 backing field 的引用。
             //
             // 说明：
-            // - 当前阶段我们把 `field` 作为一个“隐式局部绑定”注入 accessor scope，
+            // - 当前阶段我们把 `field` 作为一个"隐式局部绑定"注入 accessor scope，
             //   使 resolver 能为其写回 `ResolvedValueRef::Local`；
             // - 是否允许在该属性中使用 `field`（以及是否真的生成 backing field）由后续 typecheck（T0431）决定。
             if let Some(field) = backing_field {
@@ -698,7 +698,7 @@ impl<'a> BlockScopeChecker<'a> {
                 // Kotlin-like：`{ body }` 形式的 lambda 可能在期望类型为 `(T) -> R` 时拥有隐式单参数 `it`（T1307a）。
                 //
                 // 说明：
-                // - resolve 阶段无法得知期望函数类型，因此这里先把 `it` 当作一个“潜在的局部绑定”引入作用域；
+                // - resolve 阶段无法得知期望函数类型，因此这里先把 `it` 当作一个"潜在的局部绑定"引入作用域；
                 // - typecheck 会在存在期望函数类型语境时决定它是否成立，并写入具体类型；若期望为 `() -> R` 则使用 `it`
                 //   会在 typecheck 阶段报错（缺少局部类型信息）。
                 if lam.params.is_empty() && lam.arrow_span.is_none() {
@@ -817,7 +817,7 @@ impl<'a> BlockScopeChecker<'a> {
                 //
                 // - 对于裸标识符 `callee(args...)`，若该名字无法在 resolve 阶段解析到
                 //   局部/顶层符号，我们**不**在此处报 `unresolved_value`，而是留给 typecheck
-                //   给出“不可调用/enum variant ctor”等更贴近语义的诊断（T0311/T0426）。
+                //   给出"不可调用/enum variant ctor"等更贴近语义的诊断（T0311/T0426）。
                 // - 对于非裸标识符（member access / lambda / 其它表达式），仍按普通表达式递归检查。
                 match &mut callee.kind {
                     ast::ExprKind::Ident(id) => match self.resolve_value_ident(id) {
@@ -905,8 +905,8 @@ impl<'a> BlockScopeChecker<'a> {
     /// 解析调用点（T0319）：收集候选集合 + 调用形状，并写回到 AST。
     ///
     /// 说明：
-    /// - resolve 阶段不做 overload 决议，不在“多候选”时报错；
-    /// - 若候选集合为空，则保持现状（让 typecheck 给出“不可调用/enum variant ctor”等更贴近语义的诊断）。
+    /// - resolve 阶段不做 overload 决议，不在"多候选"时报错；
+    /// - 若候选集合为空，则保持现状（让 typecheck 给出"不可调用/enum variant ctor"等更贴近语义的诊断）。
     fn resolve_call_site(
         &self,
         callee: &mut ast::Expr,
@@ -1000,8 +1000,8 @@ impl<'a> BlockScopeChecker<'a> {
             // 当 receiver 形态较复杂（例如 `Shared.t1Go.recv()`）时，`resolve_member_access`
             // 可能无法静态推断 receiver 类型，从而不会写回 `member.resolved`。
             //
-            // 但在“调用点”（`receiver.member(args...)`）我们仍可以基于 import 表收集
-            // “同名 extension fun”候选集合写回到 `member.call`，用于后续 typecheck 做最终决议。
+            // 但在"调用点"（`receiver.member(args...)`）我们仍可以基于 import 表收集
+            // "同名 extension fun"候选集合写回到 `member.call`，用于后续 typecheck 做最终决议。
             //
             // 额外约束：只有当候选集合唯一时，才把 `member.resolved` 绑定为该 `ExtensionFun`，
             // 以便后续 lowering/codegen 能把 extension call 降糖为顶层调用（避免后端无法处理 `MemberAccess` callee）。
@@ -1108,7 +1108,7 @@ impl<'a> BlockScopeChecker<'a> {
                 // 说明：
                 // - member access 解析阶段会把 `receiver.member` 绑定为某个 `ExtensionFun { fqn }`，
                 //   以保持旧的 typecheck 增量（依赖单一 fqn）可用；
-                // - 但在调用点层面，我们需要把“当前作用域内可见的 extension 候选集合”写回，
+                // - 但在调用点层面，我们需要把"当前作用域内可见的 extension 候选集合"写回，
                 //   以便后续 typecheck/infer 做 most-specific/歧义诊断。
                 let fqns: Vec<String> = match self.infer_member_receiver_kind(receiver) {
                     Some(MemberReceiverKind::Value { ty_fqn }) => {
@@ -1168,7 +1168,7 @@ impl<'a> BlockScopeChecker<'a> {
         let name = self.source.slice(id.span);
 
         // `true/false` 当前阶段仍以 ident token 形式存在，但语义上属于字面量。
-        // 因此它们不应参与名字解析，也不应在 resolve 阶段报“未定义符号”。
+        // 因此它们不应参与名字解析，也不应在 resolve 阶段报"未定义符号"。
         //
         // 说明：
         // - 未来 lexer/parser 很可能会把它们升级为专门的 BoolLit token/ExprKind；
@@ -1223,7 +1223,7 @@ impl<'a> BlockScopeChecker<'a> {
         name: &str,
         use_span: Span,
     ) -> Result<Option<String>, ResolveError> {
-        // T1310：import alias / wildcard import 的交互需要固定“查找优先级”，避免解析结果依赖 fqn 字典序。
+        // T1310：import alias / wildcard import 的交互需要固定"查找优先级"，避免解析结果依赖 fqn 字典序。
         //
         // 优先级（高 → 低）：
         // 1) 同包（含 root package）
@@ -1421,7 +1421,7 @@ impl<'a> BlockScopeChecker<'a> {
                 }
 
                 let Some(ctors) = self.index.constructors.get(ty_fqn) else {
-                    // 当前阶段（T0319）只把“显式收集到 constructors overload set” 的类型纳入构造候选；
+                    // 当前阶段（T0319）只把"显式收集到 constructors overload set" 的类型纳入构造候选；
                     // 隐式默认构造器规则留给后续 typecheck/语义任务补齐。
                     continue;
                 };
@@ -1549,7 +1549,7 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         let Some(receiver_kind) = self.infer_member_receiver_kind(receiver) else {
-            // 当前阶段（T0310/T0317）只处理“静态可确定”的 receiver：
+            // 当前阶段（T0310/T0317）只处理"静态可确定"的 receiver：
             // - value receiver：可确定类型（局部类型注解 / this / struct literal / object 单例）
             // - type receiver：可解析为一个类型 FQN（用于 companion member access）
             //
@@ -1589,7 +1589,7 @@ impl<'a> BlockScopeChecker<'a> {
         let member_fqn = format!("{receiver_ty_fqn}.{member_name}");
 
         if let Some(syms) = self.index.by_fqn.get(&member_fqn) {
-            // 与调用解析（T0311）解耦：这里只做存在性与最小“绑定写回”。
+            // 与调用解析（T0311）解耦：这里只做存在性与最小"绑定写回"。
             // 目前策略：优先解析为方法（fun namespace），否则退化到字段/属性（value namespace）。
             let mut not_visible: Option<(String, Visibility, Span)> = None;
 
@@ -1608,7 +1608,7 @@ impl<'a> BlockScopeChecker<'a> {
 
             if let Some(sym) = syms.get(SymbolKind::Value) {
                 if is_symbol_visible_from(self.use_cone, self.source, sym) {
-                    // T0316：class 初始化阶段禁止访问“后置属性”（前向引用）。
+                    // T0316：class 初始化阶段禁止访问"后置属性"（前向引用）。
                     if let Some(init_ctx) = self.init_value_members.last() {
                         if init_ctx.this_ty_fqn == receiver_ty_fqn
                             && self.is_receiver_this(receiver)
@@ -1648,20 +1648,30 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
-        // spec §8.4：`String.trimIndent()` 是内建的字符串 API（const fun）。
+        // 内建 String API（early stage）。
         //
         // 说明：
-        // - 早期阶段我们尚未把 `String` 的成员函数完整建模为可解析的符号（TODO T1216/T0827）；
-        // - resolver 在这里对“已知 receiver 类型为 `scoop.core.String`”的 case 做保守放行，
-        //   让后续 typecheck/codegen 走 intrinsic 路径（并在运行期 fallback）。
-        if receiver_ty_fqn == "scoop.core.String" && member_name == "trimIndent" {
-            return Ok(());
+        // - 早期阶段我们尚未把 `String` 的成员函数完整建模为可解析的符号；
+        // - resolver 在这里对"已知 receiver 类型为 `scoop.core.String`"的已知方法做保守放行，
+        //   让后续 typecheck/codegen 走 intrinsic 路径。
+        if receiver_ty_fqn == "scoop.core.String" {
+            let is_known_string_method = member_name == "trimIndent"
+                || member_name == "length"
+                || member_name == "substring"
+                || member_name == "startsWith"
+                || member_name == "endsWith"
+                || member_name == "indexOf"
+                || member_name == "contains"
+                || member_name == "split";
+            if is_known_string_method {
+                return Ok(());
+            }
         }
 
         // spec §5.5：`Continuation.resume` 是内建操作。
         //
         // 说明：
-        // - 现阶段 resolver 主要负责“把可静态确定的成员名解析到一个 FQN”，用于后续 typecheck；
+        // - 现阶段 resolver 主要负责"把可静态确定的成员名解析到一个 FQN"，用于后续 typecheck；
         // - 但 `Continuation.resume` 在语义上并不是普通成员/扩展函数（更像语言关键操作），并且我们
         //   还未在 sysroot 中暴露其完整声明；
         // - 为了避免把该语义强行建模为一个普通符号，这里对该内建操作做保守放行：不报 unresolved，
@@ -1676,7 +1686,7 @@ impl<'a> BlockScopeChecker<'a> {
         })
     }
 
-    /// 查找“在当前文件作用域内可见”的 extension fun 候选集合（T0322）。
+    /// 查找"在当前文件作用域内可见"的 extension fun 候选集合（T0322）。
     ///
     /// 规则（当前阶段最小落地）：
     /// - 同包（同 cone）声明的 extension 无需 import 可见；
@@ -1692,7 +1702,7 @@ impl<'a> BlockScopeChecker<'a> {
         use_span: Span,
     ) -> Result<Vec<String>, ResolveError> {
         // T1317f2：`List/MutableList` 在 sysroot 中是 `Array/MutableArray` 的 typealias。
-        // resolver 的 member/extension 匹配当前只看“名义类型 FQN”，因此这里对 receiver/extension
+        // resolver 的 member/extension 匹配当前只看"名义类型 FQN"，因此这里对 receiver/extension
         // receiver 做一个最小的归一化，让 `xs: List<Int>` 也能调用 `size/get`，以及让
         // `ys: MutableList<Int>` 也能调用 `push/pop/...` 等 `MutableArray` 扩展。
         fn normalize_collections_alias(fqn: &str) -> &str {
@@ -1933,7 +1943,7 @@ impl<'a> BlockScopeChecker<'a> {
         for c in companions {
             // T1311：`TypeName.member` 经 companion object 分发时，companion 自身的可见性是上界：
             // - 若 companion object 对 use-site 不可见，则其成员不应通过 `TypeName.member` 被访问到；
-            // - 这避免了 “private companion object 但成员 public” 这类绕过可见性的情况。
+            // - 这避免了 "private companion object 但成员 public" 这类绕过可见性的情况。
             if let Some(companion_syms) = self.index.by_fqn.get(c) {
                 if let Some(companion_value) = companion_syms.get(SymbolKind::Value) {
                     if !is_symbol_visible_from(self.use_cone, self.source, companion_value) {
@@ -2054,7 +2064,7 @@ impl<'a> BlockScopeChecker<'a> {
                         });
                     }
                     // enum 也会在 value namespace 中注入一个同名值（见 `Index::add_type_decl`），
-                    // 以支持 `EnumName.Variant` 的限定名引用；此时同样可把其“接收者类型”视为同名类型。
+                    // 以支持 `EnumName.Variant` 的限定名引用；此时同样可把其"接收者类型"视为同名类型。
                     if self
                         .index
                         .by_fqn
@@ -2069,7 +2079,7 @@ impl<'a> BlockScopeChecker<'a> {
                     return None;
                 }
 
-                // `TypeName.member`：若 receiver 解析不到 value，但能解析到 type，则按“类型接收者”处理。
+                // `TypeName.member`：若 receiver 解析不到 value，但能解析到 type，则按"类型接收者"处理。
                 //
                 // 注意：这里刻意不把 type receiver 写回到 `ValueIdent.resolved`，避免把类型名误当成值名
                 //（例如 `val x = C`）在其它语境里被放行。
