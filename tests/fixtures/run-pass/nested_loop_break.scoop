@@ -1,0 +1,53 @@
+// EXPECT: pass
+// RUN-STDOUT: nested_loop_break.stdout
+// EXPECT-EXIT: 0
+//
+// T0141: Nested loops — break only exits innermost loop.
+
+import scoop.core.*
+
+fun main(): Int {
+    // Nested loops: inner break doesn't affect outer
+    var outer: Int = 0
+    var total: Int = 0
+    while (outer < 3) {
+        var inner: Int = 0
+        while (inner < 10) {
+            if (inner >= 2) {
+                break
+            } else {
+                total = total + 1
+                inner = inner + 1
+            }
+        }
+        outer = outer + 1
+    }
+    // Each outer iteration runs inner 2 times (0, 1), then break. 3 * 2 = 6.
+    println(total)
+    println(outer)
+
+    // Nested: outer break with inner continue
+    var result: Int = 0
+    var a: Int = 1
+    while (a <= 5) {
+        var b: Int = 1
+        while (b <= 5) {
+            if (b % 2 == 0) {
+                b = b + 1
+                continue
+            } else {
+                result = result + a * b
+                b = b + 1
+            }
+        }
+        if (a == 3) {
+            break
+        } else {
+            a = a + 1
+        }
+    }
+    println(result)
+
+    println("done")
+    return 0
+}

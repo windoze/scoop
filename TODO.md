@@ -567,7 +567,7 @@ cargo run -p scoop --features llvm -- test
   - **新增 fixture**：`run_pass_cone/multi_file_literal_basic/`——非入口文件含 Int literal（`42`）、String literal（`"hello from helper"`）、Int 算术（`x + 10`），验证多文件编译正确性。
   - 139 单元测试 + 802 fixtures 通过（含 LLVM 后端）。
 
-### T0141 [TODO] 块级控制流：支持 block/loop 内 return/break/continue
+### T0141 [DONE] 块级控制流：支持 block/loop 内 return/break/continue
 
 - 描述：当前 LLVM codegen 采用递归表达式求值模式（expression-based codegen），没有预分配的 function-level 基本块（basic block）图。`return`/`break`/`continue` 在嵌套 block 或 loop 体内出现时，需要跳转到尚不存在的目标基本块（函数出口块 / 循环后继块 / 循环头块），因此被硬性拒绝（`LlvmEmitError::UnsupportedMainBody`）。
   这导致 `stdlib/string.scoop` 中所有循环提前退出只能用 flag 变量（`scanning = false`）或越界赋值（`j = dlen` 模拟 break、`i = limit + one` 模拟外层循环退出），逻辑晦涩且易出错。
@@ -577,7 +577,7 @@ cargo run -p scoop --features llvm -- test
   - `llvm/codegen/control_flow.rs:52-74`：顶层 `main` 的 `return` 可直接 emit `ret`，但 while/break/continue 被拒绝。
   - 顶层函数 return 可工作是因为可直接 emit LLVM `ret` 指令，无需跳转。
 - 方案：
-  **完整 MIR/CFG**（PLAN §8）：在 HIR → LLVM IR 之间插入一层 MIR，先构建完整 CFG 再 emit LLVM IR。更通用但工作量大。
+  **增量式块级控制流**（不引入 MIR）：在 `MainCodegen` 上增加 `loop_context_stack`（break/continue 目标 BB 栈）和 `return_context`（函数级 return BB + return alloca），在已有 expression-based codegen 基础上支持跳转。
 - 目标：
   - 函数体内任意嵌套深度的 `return` 语句正确跳转到函数出口。
   - `while` 循环体内 `break` 跳出循环、`continue` 跳转到循环头。
@@ -590,6 +590,26 @@ cargo run -p scoop --features llvm -- test
   - 现有 run-pass fixtures 全部通过。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **`MainCodegen` 新增字段**（`codegen/mod.rs`）：
+    - `loop_context_stack: Vec<LoopContext>`：每项持有 `break_bb`（循环后 BB）和 `continue_bb`（循环条件 BB），嵌套循环用栈管理。
+    - `return_context: Option<ReturnContext>`：持有 `return_bb`（函数出口 BB）和 `return_alloca`（return 值的 alloca slot；Unit/Never 返回类型为 None）。
+  - **`codegen_top_level_fun`**（`codegen/mod.rs`）：在函数体 codegen 前创建 `return_bb` + `return_alloca`，设置 `return_context`；正常路径 store + branch to return_bb；return_bb 统一 emit LLVM ret。
+  - **`codegen_early_return`**（`codegen/mod.rs` 新增 helper）：store value to return_alloca + branch to return_bb，供所有 block codegen 路径复用。
+  - **`codegen_while_stmt`**（`codegen/stmt.rs`）：在 body codegen 前 push `LoopContext { break_bb: after_bb, continue_bb: cond_bb }`，完成后 pop。
+  - **`codegen_block_stmt`**（`codegen/stmt.rs`）：`Break` → branch to `loop_context_stack.last().break_bb`；`Continue` → branch to `continue_bb`；`Return` → `codegen_early_return`。
+  - **`codegen_block_as_return_value`**（`codegen/control_flow.rs`）：`Return` 优先使用 `return_context`（在有返回上下文时走 early return 路径）；新增 `Break`/`Continue` arm。
+  - **`codegen_block_value_in_expected_context`**（`codegen/control_flow.rs`）：新增 `Return`/`Break`/`Continue` arm（require 对应 context 存在）。
+  - **`codegen_block_as_exit_code`**（`codegen/control_flow.rs`）：新增 `While` 支持 + `Break`/`Continue` arm。
+  - **`codegen_if_expr`**（`codegen/control_flow.rs`）：then/else 分支在处理后检测 terminator（来自 break/continue/return），若已终止则跳过 coercion、result store 和 merge branch——避免"Terminator found in the middle of a basic block"LLVM 验证错误。
+  - **Fixtures**（4 个 run-pass）：
+    - `block_early_return.scoop` + `.stdout`：函数内 if 块中 early return（abs + classify，7 行输出）。
+    - `while_break_basic.scoop` + `.stdout`：break 基础场景（找倍数、求和中断、首次迭代 break，5 行输出）。
+    - `while_continue_basic.scoop` + `.stdout`：continue 跳过偶数/3 的倍数（2 个场景，3 行输出）。
+    - `nested_loop_break.scoop` + `.stdout`：嵌套循环 inner break + inner continue + outer break 组合（4 行输出）。
+    - `return_from_loop.scoop` + `.stdout`：while 循环体内 return（findFirst + countUntil，6 行输出）。
+  - **已知限制**：if-without-else 在 non-Unit 上下文仍报错（T0142）；fixtures 使用 if-else 形式回避。suspendable 函数（T1606f-2 callee suspend）暂未接入 return_context。
+  - 139 单元测试 + 807 fixtures 通过（含 LLVM 后端）。
 
 ### T0142 [TODO] if 表达式无 else 分支支持（non-Unit if-without-else）
 

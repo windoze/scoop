@@ -1,0 +1,46 @@
+// EXPECT: pass
+// RUN-STDOUT: return_from_loop.stdout
+// EXPECT-EXIT: 0
+//
+// T0141: return from inside a while loop body.
+
+import scoop.core.*
+
+fun findFirst(target: Int): Int {
+    var i: Int = 0
+    while (i < 100) {
+        if (i * i >= target) {
+            return i
+        } else {
+            i = i + 1
+        }
+    }
+    return 0 - 1
+}
+
+fun countUntil(limit: Int): Int {
+    var count: Int = 0
+    while (true) {
+        count = count + 1
+        if (count >= limit) {
+            return count
+        } else {
+            count = count
+        }
+    }
+    return 0
+}
+
+fun main(): Int {
+    // First integer whose square >= 50 → 8 (8*8=64)
+    println(findFirst(50))
+    // First integer whose square >= 100 → 10 (10*10=100)
+    println(findFirst(100))
+    // First integer whose square >= 1 → 1
+    println(findFirst(1))
+    // countUntil
+    println(countUntil(5))
+    println(countUntil(1))
+    println("done")
+    return 0
+}

@@ -62,11 +62,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.env.pop_scope();
                     return Ok(exit);
                 }
-                // 控制流留待后续任务（需要 function-level CFG/MIR codegen）。
-                hir::StmtKind::While { .. }
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+                // T0141: While loops in main body.
+                hir::StmtKind::While { cond, body } => {
+                    self.codegen_while_stmt(stmt.span, cond, body)?;
+                    tail_value = None;
+                }
+                // T0141: break/continue in main body (inside a loop).
+                hir::StmtKind::Break { break_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "break outside loop",
+                            at: (*break_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.env.pop_scope();
+                    return Ok(self.context.i32_type().const_int(0, false));
+                }
+                hir::StmtKind::Continue { continue_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "continue outside loop",
+                            at: (*continue_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.continue_bb)?;
+                    self.env.pop_scope();
+                    return Ok(self.context.i32_type().const_int(0, false));
+                }
+                hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement",
                         at: stmt.span.into(),
@@ -141,31 +167,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // --- then ---
         self.builder.position_at_end(then_bb);
         let then_v = self.codegen_expr_in_expected_context(then_branch, Some(out_cg))?;
-        let then_v = if out_cg == CgTy::Unit {
-            CgValue::unit()
-        } else {
-            self.coerce_value(then_branch.span, then_v, out_cg)?
-        };
-        if let Some(ptr) = result_ptr {
-            let _ = self.store_local_value(then_branch.span, ptr, out_cg, then_v)?;
-        }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
-                self.builder.build_unconditional_branch(merge_bb)?;
+        // T0141: Check if the then-block already has a terminator (e.g., from break/continue/return).
+        // If so, skip coercion, store, and merge branch — they would emit into a terminated block.
+        let then_terminated = self
+            .builder
+            .get_insert_block()
+            .map_or(true, |bb| bb.get_terminator().is_some());
+        if !then_terminated {
+            let then_v = if out_cg == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(then_branch.span, then_v, out_cg)?
+            };
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(then_branch.span, ptr, out_cg, then_v)?;
             }
+            self.builder.build_unconditional_branch(merge_bb)?;
         }
 
         // --- else ---
         self.builder.position_at_end(else_bb);
         let else_v = match else_branch {
-            Some(expr) => {
-                let v = self.codegen_expr_in_expected_context(expr, Some(out_cg))?;
-                if out_cg == CgTy::Unit {
-                    CgValue::unit()
-                } else {
-                    self.coerce_value(expr.span, v, out_cg)?
-                }
-            }
+            Some(expr) => self.codegen_expr_in_expected_context(expr, Some(out_cg))?,
             None => {
                 if out_cg != CgTy::Unit {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -176,13 +199,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CgValue::unit()
             }
         };
-        if let Some(ptr) = result_ptr {
-            let _ = self.store_local_value(span, ptr, out_cg, else_v)?;
-        }
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
-                self.builder.build_unconditional_branch(merge_bb)?;
+        // T0141: Same check for else branch.
+        let else_terminated = self
+            .builder
+            .get_insert_block()
+            .map_or(true, |bb| bb.get_terminator().is_some());
+        if !else_terminated {
+            let else_v = if out_cg == CgTy::Unit {
+                CgValue::unit()
+            } else {
+                self.coerce_value(span, else_v, out_cg)?
+            };
+            if let Some(ptr) = result_ptr {
+                let _ = self.store_local_value(span, ptr, out_cg, else_v)?;
             }
+            self.builder.build_unconditional_branch(merge_bb)?;
         }
 
         // --- merge ---
@@ -1610,6 +1641,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     tail_value = if is_last { Some(v) } else { None };
                 }
                 hir::StmtKind::Return { value } => {
+                    // T0141: If we have a return context (early return from nested block),
+                    // use it. Otherwise, fall back to old behavior (return value directly).
+                    if self.return_context.is_some() {
+                        self.codegen_early_return(stmt.span, value.as_ref())?;
+                        self.env.pop_scope();
+                        // After branch, return a dummy — the normal path won't use it.
+                        return Ok(self.default_value(declared_return_ty));
+                    }
                     let out = match value {
                         Some(expr) => {
                             let v = self
@@ -1630,9 +1669,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_while_stmt(stmt.span, cond, body)?;
                     tail_value = None;
                 }
-                hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+                // T0141: break/continue in function-level block (inside a loop).
+                hir::StmtKind::Break { break_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "break outside loop",
+                            at: (*break_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.env.pop_scope();
+                    return Ok(self.default_value(declared_return_ty));
+                }
+                hir::StmtKind::Continue { continue_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "continue outside loop",
+                            at: (*continue_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.continue_bb)?;
+                    self.env.pop_scope();
+                    return Ok(self.default_value(declared_return_ty));
+                }
+                hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement",
                         at: stmt.span.into(),
@@ -1699,16 +1761,44 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_while_stmt(stmt.span, cond, body)?;
                     value = CgValue::unit();
                 }
-                // block 作为表达式时，`return` 语义在当前阶段暂不支持（需要 function-level CFG）。
-                hir::StmtKind::Return { .. } => {
+                // T0141: return inside block expression — use early return context.
+                hir::StmtKind::Return { value } => {
+                    if self.return_context.is_some() {
+                        self.codegen_early_return(stmt.span, value.as_ref())?;
+                        self.env.pop_scope();
+                        return Ok(CgValue::unit());
+                    }
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "`return` inside block expression",
                         at: stmt.span.into(),
                     });
                 }
-                hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+                // T0141: break/continue inside block expression (must be inside a loop).
+                hir::StmtKind::Break { break_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "break outside loop",
+                            at: (*break_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.env.pop_scope();
+                    return Ok(CgValue::unit());
+                }
+                hir::StmtKind::Continue { continue_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "continue outside loop",
+                            at: (*continue_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.continue_bb)?;
+                    self.env.pop_scope();
+                    return Ok(CgValue::unit());
+                }
+                hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement inside block expression",
                         at: stmt.span.into(),

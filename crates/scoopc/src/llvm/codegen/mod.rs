@@ -236,6 +236,27 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// - `packed = N > 1`：explicit padding bytes を挿入するため index がずれる → エントリあり。
     /// - unpacked：identity mapping → エントリなし。
     pack_field_indices: HashMap<String, Vec<u32>>,
+    /// T0141: Loop context stack for break/continue support.
+    /// Each entry holds the break target (loop-after BB) and continue target (loop-head BB).
+    loop_context_stack: Vec<LoopContext<'ctx>>,
+    /// T0141: Function-level return context for early return support.
+    /// When set, `return` statements branch to `return_bb` after storing the value in `return_alloca`.
+    return_context: Option<ReturnContext<'ctx>>,
+}
+
+/// T0141: Loop context for break/continue targets.
+#[derive(Debug, Clone, Copy)]
+struct LoopContext<'ctx> {
+    break_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    continue_bb: inkwell::basic_block::BasicBlock<'ctx>,
+}
+
+/// T0141: Function-level return context for early return from nested blocks.
+#[derive(Debug, Clone, Copy)]
+struct ReturnContext<'ctx> {
+    return_bb: inkwell::basic_block::BasicBlock<'ctx>,
+    /// Alloca for storing the return value (None for Unit return type).
+    return_alloca: Option<inkwell::values::PointerValue<'ctx>>,
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -297,6 +318,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             effect_op_tag_next: 2,
             callee_suspend_save_ctx: None,
             pack_field_indices: HashMap::new(),
+            loop_context_stack: Vec::new(),
+            return_context: None,
         }
     }
 
@@ -624,8 +647,57 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 info,
             )?;
         } else {
+            // T0141: Set up function-level return context for early return support.
+            // Alloca is placed here (still in the entry block before body codegen).
+            let return_bb = self.context.append_basic_block(llvm_fun, "return");
+            let return_alloca = match declared_return_cg {
+                CgTy::Unit | CgTy::Never => None,
+                _ => Some(self.builder.build_alloca(
+                    self.llvm_basic_type_of(fun.span, declared_return_cg)?,
+                    "return_val",
+                )?),
+            };
+            self.return_context = Some(ReturnContext {
+                return_bb,
+                return_alloca,
+            });
+
             let ret_v = self.codegen_block_as_return_value(body, declared_return_cg)?;
-            self.emit_return(fun.span, declared_return_cg, ret_v)?;
+
+            // Normal path: store return value and branch to return_bb.
+            if self.builder.get_insert_block().map_or(false, |bb| bb.get_terminator().is_none()) {
+                if let Some(alloca) = return_alloca {
+                    if let Some(raw) = ret_v.value {
+                        self.builder.build_store(alloca, raw)?;
+                    }
+                }
+                self.builder.build_unconditional_branch(return_bb)?;
+            }
+
+            // Emit the return block.
+            self.builder.position_at_end(return_bb);
+            match declared_return_cg {
+                CgTy::Unit => {
+                    self.builder.build_return(None)?;
+                }
+                CgTy::Never => {
+                    self.builder.build_unreachable()?;
+                }
+                _ => {
+                    if let Some(alloca) = return_alloca {
+                        let loaded = self.builder.build_load(
+                            self.llvm_basic_type_of(fun.span, declared_return_cg)?,
+                            alloca,
+                            "ret_load",
+                        )?;
+                        self.builder.build_return(Some(&loaded))?;
+                    } else {
+                        self.builder.build_return(None)?;
+                    }
+                }
+            }
+
+            self.return_context = None;
         }
 
         self.env.pop_scope();
@@ -10439,6 +10511,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.builder.build_call(exit, &[code_i32.into()], "exit")?;
         self.builder.build_unreachable()?;
         let _ = at;
+        Ok(())
+    }
+
+    /// T0141: Codegen an early `return` from inside a nested block or loop.
+    /// Stores the return value into the function-level return alloca and branches to the return BB.
+    pub(super) fn codegen_early_return(
+        &mut self,
+        span: crate::span::Span,
+        value: Option<&hir::Expr>,
+    ) -> Result<(), LlvmEmitError> {
+        let return_ctx = self.return_context.ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "return outside function with return context",
+            at: span.into(),
+        })?;
+        let declared_return_cg = self.current_fun_return_ty.unwrap_or(CgTy::Unit);
+
+        match value {
+            Some(expr) => {
+                let v = self.codegen_expr_in_expected_context(expr, Some(declared_return_cg))?;
+                if let Some(alloca) = return_ctx.return_alloca {
+                    let coerced = self.coerce_value(expr.span, v, declared_return_cg)?;
+                    if let Some(raw) = coerced.value {
+                        self.builder.build_store(alloca, raw)?;
+                    }
+                }
+            }
+            None => {
+                // `return` without value — for Unit functions, no store needed.
+            }
+        }
+
+        self.builder
+            .build_unconditional_branch(return_ctx.return_bb)?;
         Ok(())
     }
 

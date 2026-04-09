@@ -333,5 +333,13 @@ cargo run -p scoop --features llvm -- test
   - **codegen 新增**：`__scoop_array_builder_push_string` / `__scoop_array_builder_build_array_string` @Intrinsic 支持（split 返回 Array<String>）。
   - **移除 C runtime**：9 个 C 函数（scoop_string_substring/index_of/contains/starts_with/ends_with/split/trim/trim_start/trim_end）+ is_ascii_whitespace helper。
   - **移除编译器硬编码路径**：resolver 白名单（9 项）、typecheck 签名规则（9 组）、codegen string_method dispatch（9 分支）、runtime_abi（9 个 declare_runtime_*）、runtime_symbols（9 个常量）、runtime API allowlist（9 个 X-macro）。
-  - **codegen 限制适配**：stdlib 函数避免 return/break/continue in block expressions（当前 LLVM codegen 不支持 function-level CFG）；使用 flag+越界赋值模拟 break；if 必须有 else 分支；常量通过 sizeOf 派生（无 Int/String 字面量）。
+  - **codegen 限制适配**：stdlib 函数避免 return/break/continue in block expressions（~~当前 LLVM codegen 不支持 function-level CFG~~ **T0141 已解除 return/break/continue 限制**）；使用 flag+越界赋值模拟 break；if 必须有 else 分支；常量通过 sizeOf 派生（无 Int/String 字面量）。
   - 139 单元测试 + 801 fixtures 通过（行为完全不变）。
+
+- DONE（T0141）：块级控制流——支持 block/loop 内 return/break/continue：
+  - **`MainCodegen` 新增字段**：`loop_context_stack`（break/continue 目标 BB 栈）+ `return_context`（函数级 return BB + return alloca）。
+  - **`codegen_while_stmt`** push/pop `LoopContext`；**`codegen_block_stmt`/`codegen_block_as_return_value`/`codegen_block_value_in_expected_context`/`codegen_block_as_exit_code`** 全部支持 `Break`/`Continue`/`Return`。
+  - **`codegen_if_expr`**：then/else 分支在 break/continue/return 后检测 terminator，跳过 coercion/store/merge branch。
+  - **`codegen_top_level_fun`**：创建 return_bb + return_alloca，正常/early return 两条路径都经由 return_bb emit LLVM ret。
+  - **5 个 run-pass fixtures**：block_early_return、while_break_basic、while_continue_basic、nested_loop_break、return_from_loop。
+  - 139 单元测试 + 807 fixtures 通过。

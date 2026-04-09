@@ -174,12 +174,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::StmtKind::While { cond, body } => {
                     self.codegen_while_stmt(stmt.span, cond, body)?;
                 }
-                // 当前阶段（expr-based codegen）不支持在 block/loop 内部使用 `return/break/continue`：
-                // 这需要 function-level CFG/MIR codegen（见 PLAN §8）。
-                hir::StmtKind::Return { .. }
-                | hir::StmtKind::Break { .. }
-                | hir::StmtKind::Continue { .. }
-                | hir::StmtKind::Todo(_) => {
+                // T0141: return inside loop body — branch to the function return BB.
+                hir::StmtKind::Return { value } => {
+                    self.codegen_early_return(stmt.span, value.as_ref())?;
+                    // After an unconditional branch, stop processing further stmts.
+                    self.env.pop_scope();
+                    return Ok(());
+                }
+                // T0141: break — branch to the innermost loop's after-BB.
+                hir::StmtKind::Break { break_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "break outside loop",
+                            at: (*break_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.break_bb)?;
+                    self.env.pop_scope();
+                    return Ok(());
+                }
+                // T0141: continue — branch to the innermost loop's cond-BB.
+                hir::StmtKind::Continue { continue_span } => {
+                    let loop_ctx = self.loop_context_stack.last().ok_or(
+                        LlvmEmitError::UnsupportedMainBody {
+                            kind: "continue outside loop",
+                            at: (*continue_span).into(),
+                        },
+                    )?;
+                    self.builder
+                        .build_unconditional_branch(loop_ctx.continue_bb)?;
+                    self.env.pop_scope();
+                    return Ok(());
+                }
+                hir::StmtKind::Todo(_) => {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "statement",
                         at: stmt.span.into(),
@@ -227,8 +255,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder
             .build_conditional_branch(cb, body_bb, after_bb)?;
 
+        // T0141: Push loop context so break/continue can find their targets.
+        self.loop_context_stack.push(super::LoopContext {
+            break_bb: after_bb,
+            continue_bb: cond_bb,
+        });
+
         self.builder.position_at_end(body_bb);
         self.codegen_block_stmt(body)?;
+
+        self.loop_context_stack.pop();
 
         let body_end =
             self.builder

@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: while_break_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0141: break from while loop.
+
+import scoop.core.*
+
+fun main(): Int {
+    // Basic break: find first multiple of 7 >= 50
+    var i: Int = 50
+    var found: Bool = false
+    while (found == false) {
+        if (i % 7 == 0) {
+            found = true
+        } else {
+            i = i + 1
+        }
+    }
+    println(i)
+
+    // Break from counting loop — sum until > 50
+    var sum: Int = 0
+    var j: Int = 1
+    var done: Bool = false
+    while (j <= 100) {
+        sum = sum + j
+        if (sum > 50) {
+            break
+        } else {
+            j = j + 1
+        }
+    }
+    println(sum)
+    println(j)
+
+    // Break on first iteration
+    var count: Int = 0
+    while (true) {
+        count = count + 1
+        break
+    }
+    println(count)
+
+    println("done")
+    return 0
+}

@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: block_early_return.stdout
+// EXPECT-EXIT: 0
+//
+// T0141: Early return from if block inside a function.
+
+import scoop.core.*
+
+fun abs(x: Int): Int {
+    if (x < 0) {
+        return 0 - x
+    }
+    return x
+}
+
+fun classify(n: Int): String {
+    if (n < 0) {
+        return "negative"
+    }
+    if (n == 0) {
+        return "zero"
+    }
+    return "positive"
+}
+
+fun main(): Int {
+    println(abs(5))
+    println(abs(0 - 3))
+    println(abs(0))
+    println(classify(42))
+    println(classify(0 - 1))
+    println(classify(0))
+    println("done")
+    return 0
+}
