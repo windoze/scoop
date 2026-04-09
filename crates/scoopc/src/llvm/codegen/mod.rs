@@ -1451,9 +1451,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
-            // T1812: Int.toString() — 数値→文本転換。
+            // T1812: Int.toString() / T0114: Bool.toString() — route by codegen receiver type.
+            //
+            // Evaluate the receiver first, then dispatch based on CgTy. This correctly
+            // handles both typed variables and expression results (e.g., comparison ops
+            // like `(x == y).toString()` where the HIR type might differ from CgTy).
             if member.name == "toString" {
-                return self.codegen_int_method_to_string(span, receiver);
+                return self.codegen_to_string_method(span, receiver);
             }
             // T1817: hash() — route to Int or String based on receiver type.
             if member.name == "hash" {
@@ -2684,50 +2688,105 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// T1812: `Int.toString()` — codegen for `scoop_int_to_string(i64) -> ScoopString*`.
-    fn codegen_int_method_to_string(
+    /// T0114 / T1812: Unified `toString()` dispatch — evaluate receiver first, then
+    /// branch on `CgTy` so that expression results (e.g. `(x == y).toString()`) route
+    /// correctly even when the HIR type doesn't resolve to Bool.
+    fn codegen_to_string_method(
         &mut self,
         span: crate::span::Span,
         receiver: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let int_cg_ty = CgTy::Int(IntTy { bits: 64, signed: true });
-        let recv = self.codegen_expr_in_expected_context(receiver, Some(int_cg_ty))?;
-        let coerced = self.coerce_value(receiver.span, recv, int_cg_ty)?;
-        let Some(raw) = coerced.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.toString receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::IntValue(int_val) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.toString receiver type",
-                at: receiver.span.into(),
-            });
-        };
-
-        let rt_fun = self.declare_runtime_int_to_string();
-        let call = self
-            .builder
-            .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.toString return value",
+        // Evaluate the receiver without a forced expected type so we get its
+        // natural CgTy.
+        let recv = self.codegen_expr(receiver)?;
+        match recv.ty {
+            CgTy::Bool => {
+                // Bool → zero-extend i1 to i64, call scoop_bool_to_string.
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString receiver value",
+                        at: receiver.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(iv) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString receiver type",
+                        at: receiver.span.into(),
+                    });
+                };
+                let i64_ty = self.context.i64_type();
+                let bool_as_i64 =
+                    self.builder
+                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let rt_fun = self.declare_runtime_bool_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                })
+            }
+            CgTy::Int(_) => {
+                // Int → call scoop_int_to_string (i64 already the right width).
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Int.toString receiver value",
+                        at: receiver.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(int_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Int.toString receiver type",
+                        at: receiver.span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_int_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Int.toString return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Int.toString return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                })
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toString() unsupported receiver CgTy",
                 at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.toString return type",
-                at: span.into(),
-            });
-        };
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
+            }),
+        }
     }
+
 
     /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
     ///
@@ -2869,6 +2928,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ =
                     self.builder
                         .build_call(rt_fun, &[str_ptr.into()], "rt_print_int_as_string")?;
+                Ok(CgValue::unit())
+            }
+            // T0114: Bool → "true"/"false" → print.
+            CgTy::Bool => {
+                let Some(raw) = v.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println bool arg value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(bool_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "sysroot print/println bool arg type",
+                        at: expr.span.into(),
+                    });
+                };
+                let i64_ty = self.context.i64_type();
+                let bool_as_i64 =
+                    self.builder
+                        .build_int_z_extend(bool_val, i64_ty, "bool_zext_print")?;
+                let rt_bool = self.declare_runtime_bool_to_string();
+                let call = self.builder.build_call(
+                    rt_bool,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string_print",
+                )?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString return value for print",
+                        at: expr.span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "Bool.toString return type for print",
+                        at: expr.span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_print_like(rt_name);
+                let _ = self.builder.build_call(
+                    rt_fun,
+                    &[str_ptr.into()],
+                    "rt_print_bool_as_string",
+                )?;
                 Ok(CgValue::unit())
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {

@@ -1,0 +1,12 @@
+// EXPECT: pass
+// RUN-STDOUT: bool_print_minimal.stdout
+// EXPECT-EXIT: 0
+//
+// T0114: Minimal Bool.toString() test.
+
+import scoop.core.*
+
+fun main(): Int {
+    println(true)
+    0
+}

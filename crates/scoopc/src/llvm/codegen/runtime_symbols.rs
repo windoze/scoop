@@ -74,6 +74,7 @@ pub(super) const SCOOP_PATH_NORMALIZE: &str = "scoop_path_normalize";
 pub(super) const SCOOP_PIN: &str = "scoop_pin";
 pub(super) const SCOOP_PROCESS_ARGS_ARRAY: &str = "scoop_process_args_array";
 pub(super) const SCOOP_PROCESS_EXIT: &str = "scoop_process_exit";
+pub(super) const SCOOP_BOOL_TO_STRING: &str = "scoop_bool_to_string";
 pub(super) const SCOOP_INT_TO_STRING: &str = "scoop_int_to_string";
 pub(super) const SCOOP_STRING_CONCAT: &str = "scoop_string_concat";
 pub(super) const SCOOP_STRING_CONTAINS: &str = "scoop_string_contains";

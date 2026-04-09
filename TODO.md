@@ -324,7 +324,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
 
-### T0114 [TODO] `Bool.toString()` + `print`/`println` Bool 重载
+### T0114 [DONE] `Bool.toString()` + `print`/`println` Bool 重载
 
 - 描述：当前 `Bool` 无 `toString()` 方法（resolver 白名单中无 Bool 相关项），也无法直接传入 `print`/`println`（sysroot 仅声明 `String`/`Int` 两种重载）。用户必须手写 `if (b) "true" else "false"` 或使用 `when` 转换。Spec Appendix B 的 Kotlin 语义预期所有基本类型可 toString。
 - 目标：
@@ -334,6 +334,18 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture：`println(true)`、`false.toString()`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **runtime/c**（`scoop_runtime.c`）：新增 `scoop_bool_to_string(int64_t value) -> ScoopString*`——返回 GC-managed `"true"` 或 `"false"` 字符串。注册到 `scoop_runtime_api.h`。
+  - **resolver**（`resolve/scopes.rs`）：Bool 方法白名单新增 `toString`（`scoop.core.Bool` receiver FQN 匹配）。
+  - **typecheck**（`typecheck/expr/call.rs`）：`Bool.toString()` → 0 args → `String`。
+  - **runtime symbols + ABI**（`runtime_symbols.rs` + `runtime_abi.rs`）：`SCOOP_BOOL_TO_STRING` 常量 + `declare_runtime_bool_to_string` 声明（`ScoopString* fn(i64)`）。
+  - **codegen**（`codegen/mod.rs`）：统一 `codegen_to_string_method` 分发——evaluate receiver first, then dispatch by CgTy（Bool → zero-extend i1 to i64 + `scoop_bool_to_string`, Int → `scoop_int_to_string`）。解决了 `(x == y).toString()` 等表达式结果的类型路由问题（HIR type 与 CgTy 不一致时走 CgTy 判断）。
+  - **codegen print/println**（`codegen/mod.rs`）：`codegen_sysroot_print_like` 新增 `CgTy::Bool` arm——zero-extend + `scoop_bool_to_string` + existing `print(String)` 路由。
+  - **sysroot**（`sysroot/core.scoop`）：新增 `fun print(value: Bool): Unit` 和 `fun println(value: Bool): Unit`。
+  - **fixtures**：
+    - `bool_print_minimal.scoop` + `.stdout`：最小 `println(true)` smoke test。
+    - `bool_to_string_print_basic.scoop` + `.stdout`：综合 17 行 stdout 覆盖——`println(true/false)`、`print(true/false)`、`true.toString()`/`false.toString()`、variable Bool print + toString、`(x == y).toString()` 表达式 Bool、`String.concat(true.toString())` 组合。
+  - 全部 788 fixtures + cargo test 通过。
 
 ### T0115 [TODO] String 补齐：`trim`/`replace`/`charAt`/`isEmpty` 等缺失方法
 
@@ -357,7 +369,7 @@ cargo run -p scoop --features llvm -- test
   3. **集合操作 Int-only**：`forEach`/`map`/`filter`/`fold`/`reduce`/`zip`/`joinToString` 仅 `Array<Int>`/`MutableArray<Int>` → **T1822**
   4. **Scope functions Int-only**：`let`/`run`/`also`/`apply` 仅 `Int` 版本 → **T1822**
   5. **Task\<T\> Int-only**：executor/spawn/await 仅 `Task<Int>`（64-bit payload）→ 待编译器泛型 codegen 完善
-  6. **print/println 仅 String/Int**：无 Bool 重载 → **T0114**；无 Float 重载 → 待 Float 类型系统支持
+  6. **print/println 仅 String/Int/Bool**：Bool 重载已完成 → **T0114 [DONE]**；无 Float 重载 → 待 Float 类型系统支持
   7. **Hashable 默认 hash() 返回 0**：除 Int（SplitMix64）和 String（FNV-1a）外，Bool/Int8-UInt64 等类型 hash 均为 0 → 依赖 codegen 扩展或纯 Scoop 实现
   8. **MutableArray COW 语义**：`push`/`pop`/`insert`/`removeAt`/`splice` 返回新数组（copy-on-write），仅 `set(index, value)` 和 `sort()` 原地修改 → 需确认此为设计决策还是临时限制
 - 目标：本任务不做实现，仅作为审计记录。各项解除依赖上述独立任务完成。

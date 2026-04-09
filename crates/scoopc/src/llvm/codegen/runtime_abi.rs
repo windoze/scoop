@@ -192,6 +192,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    // T0114: Bool→String conversion.
+
+    /// `const ScoopString* scoop_bool_to_string(int64_t value)`
+    pub(super) fn declare_runtime_bool_to_string(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_BOOL_TO_STRING;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[i64_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     // T1812: Int↔String conversion methods.
 
     /// `const ScoopString* scoop_int_to_string(int64_t value)`

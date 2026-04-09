@@ -1702,6 +1702,11 @@ impl<'a> BlockScopeChecker<'a> {
             }
         }
 
+        // T0114: Bool.toString() — 内建布尔值→文本转換。
+        if receiver_ty_fqn == "scoop.core.Bool" && member_name == "toString" {
+            return Ok(());
+        }
+
         // spec §5.5：`Continuation.resume` 是内建操作。
         //
         // 说明：

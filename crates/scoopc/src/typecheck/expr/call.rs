@@ -4135,6 +4135,19 @@ fn infer_member_call_expr_type(
         }
     }
 
+    // T0114: Bool.toString() — 布尔値→文本転換。
+    if actual_receiver_ty == builtins.bool_ && member_name == "toString" {
+        if !args.is_empty() {
+            return Err(ExprTypeError::CallArityMismatch {
+                callee: "toString".into(),
+                expected: 0,
+                found: args.len(),
+                span: call_expr.span.into(),
+            });
+        }
+        return Ok(builtins.string);
+    }
+
     // spec §15.10：GC pin/unpin（early stage）。
     //
     // 说明：

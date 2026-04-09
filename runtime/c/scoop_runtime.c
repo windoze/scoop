@@ -2555,6 +2555,18 @@ void *scoop_string_split(const ScoopString *s, const ScoopString *delimiter) {
 // T1812: 数値↔文本 変換 (Int.toString / String.toInt)
 // ---------------------------------------------------------------------------
 
+// T0114: scoop_bool_to_string：将布尔值转换为 "true" 或 "false"。
+// 返回 GC-managed ScoopString*。
+const ScoopString *scoop_bool_to_string(int64_t value) {
+  static const uint8_t TRUE_BYTES[]  = { 't', 'r', 'u', 'e' };
+  static const uint8_t FALSE_BYTES[] = { 'f', 'a', 'l', 's', 'e' };
+  if (value != 0) {
+    return scoop_string_from_static_bytes(TRUE_BYTES, 4);
+  } else {
+    return scoop_string_from_static_bytes(FALSE_BYTES, 5);
+  }
+}
+
 // scoop_int_to_string：将 int64_t 转换为十进制字符串表示。
 // 返回 GC-managed ScoopString*。
 const ScoopString *scoop_int_to_string(int64_t value) {

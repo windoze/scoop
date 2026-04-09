@@ -123,6 +123,8 @@ fun print(value: String): Unit
 fun println(value: String): Unit
 fun print(value: Int): Unit
 fun println(value: Int): Unit
+fun print(value: Bool): Unit
+fun println(value: Bool): Unit
 
 // GC（测试辅助）。
 //

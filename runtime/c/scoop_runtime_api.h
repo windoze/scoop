@@ -132,6 +132,7 @@
   X(scoop_stackmap_registry_register_current_process) \
   X(scoop_stackmap_registry_register_section) \
   X(scoop_stackmap_registry_reset) \
+  X(scoop_bool_to_string) \
   X(scoop_int_to_string) \
   X(scoop_string_concat) \
   X(scoop_string_contains) \

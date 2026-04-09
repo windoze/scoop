@@ -1,0 +1,56 @@
+// EXPECT: pass
+// RUN-STDOUT: bool_to_string_print_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0114: Bool.toString() + print/println Bool overloads.
+//
+// Covers:
+// 1. println(true) / println(false) — direct Bool print overload
+// 2. print(true) / print(false) — non-newline Bool print
+// 3. true.toString() / false.toString() — explicit conversion
+// 4. Variable Bool print and toString
+// 5. Bool expression toString
+// 6. Combination with string concat
+
+import scoop.core.*
+
+fun main(): Int {
+    // 1) println(Bool) — direct overload
+    println(true)
+    println(false)
+
+    // 2) print(Bool) — non-newline
+    print(true)
+    print(false)
+    println("")
+
+    // 3) explicit toString()
+    println(true.toString())
+    println(false.toString())
+
+    // 4) variable Bool
+    val t: Bool = true
+    val f: Bool = false
+    println(t)
+    println(f)
+    println(t.toString())
+    println(f.toString())
+
+    // 5) Bool expression toString
+    val x: Int = 5
+    val y: Int = 5
+    println((x == y).toString())
+    println((x == y))
+    val z: Int = 3
+    println((x == z).toString())
+    println((x == z))
+
+    // 6) Combination with string concat
+    val label: String = "result: ".concat(true.toString())
+    println(label)
+    val label2: String = "is_zero: ".concat(false.toString())
+    println(label2)
+
+    println("done")
+    0
+}
