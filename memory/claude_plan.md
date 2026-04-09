@@ -1,16 +1,17 @@
-# Current Task: T0116 — 核心库 hardcoded 类型限制清单（跟踪任务）
+# Current Task: T0117 — `@Extern(lib=...)` 参数传递到链接器
 
 ## Status: COMPLETED
 
 ## Summary
-Audited all 8 hardcoded type limitation items against the current codebase:
-1. Set Int-only → T1818
-2. Map Int-only → T1818
-3. Collection ops Int-only → T1822
-4. Scope functions Int-only → T1822
-5. Task<T> Int-only → deferred (awaiting T0124-T0128 generics)
-6. print/println limited → T0131 (where constraints); Float deferred
-7. Hashable hash() default 0 → Int/String done (T1817), others deferred
-8. MutableArray COW → design decision (value semantics consistency)
+Audited and completed the `@Extern(lib=...)` parameter pipeline:
 
-All items now have task links or explicit "design decision/deferred" annotations with file location references.
+1. **Discovery**: The linker parameter passing was ALREADY fully implemented — `collect_extern_libs()` → `LoweredHir.extern_libs` → `link_objs()` → `clang -l<name>`. Unit test `clang_link_command_includes_extern_libs` already verified this.
+
+2. **Changes made**:
+   - `ExternFun` struct (`hir/mod.rs`): Added `lib: Option<String>` field for per-function lib traceability
+   - `extern_fun_of_decl` (`hir/lower/util.rs`): Populates `ExternFun.lib` from `parse_extern_annotation_args().lib`
+   - `toolchain.rs`: Updated existing test to verify `ExternFun.lib` field
+   - New run-pass fixture: `extern_lib_link_basic.scoop` — calls `labs()` via `@Extern(lib = "c", name = "labs")`
+   - New Cone fixture: `extern_lib_link_basic/` — same test in Cone project form
+
+3. **Verification**: 139 unit tests + 791 fixtures pass

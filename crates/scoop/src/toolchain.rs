@@ -921,6 +921,18 @@ fun cos(x: Int): Int
 
         assert_eq!(lowered.extern_libs, vec!["m".to_string()]);
 
+        // T0117: verify ExternFun.lib field is populated
+        let cos_fqn = lowered
+            .extern_funs
+            .iter()
+            .find(|(fqn, _)| fqn.ends_with(".cos"))
+            .expect("should find extern fun 'cos'");
+        assert_eq!(
+            cos_fqn.1.lib,
+            Some("m".to_string()),
+            "ExternFun.lib should carry the lib parameter"
+        );
+
         let obj = dir.path().join("main.o");
         let out = dir.path().join("a.out");
         let cmd =

@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+//
+// T0117: @Extern(lib = "...") parameter passing to linker.
+// Verifies that the `lib` parameter in @Extern is collected and passed to the linker as `-l<name>`.
+// Uses `labs()` from libc (C standard library) via @Extern(lib = "c", name = "labs").
+// On x86_64 Linux, `long` is 64-bit, matching Scoop's Int.
+
+package fixtures.run_pass_cone.extern_lib_link_basic
+
+import scoop.core.*
+
+@Extern(lib = "c", name = "labs")
+fun c_abs(x: Int): Int
+
+public fun main() / Pure! {
+    @Unsafe {
+        println(c_abs(0 - 42))
+        println(c_abs(7))
+        println(c_abs(0))
+    }
+}

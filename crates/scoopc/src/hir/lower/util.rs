@@ -1690,6 +1690,7 @@ fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<ExternF
             abi: ExternAbi::C,
             symbol,
             calling_convention: calling_convention.clone(),
+            lib: args.lib,
         });
     }
 

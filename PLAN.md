@@ -235,6 +235,7 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0114）：`Bool.toString()` + `print`/`println` Bool 重载——runtime/c 新增 `scoop_bool_to_string`（返回 GC-managed `"true"`/`"false"`），resolver/typecheck 新增 Bool.toString()，codegen 统一 `codegen_to_string_method` 分发（evaluate receiver first → dispatch by CgTy，解决 `(x==y).toString()` 路由问题），sysroot 新增 `print(Bool)`/`println(Bool)` 重载。新增 2 个 run-pass fixtures（minimal + comprehensive 17 场景）。788 fixtures 通过。
 - DONE（T0115）：String 补齐 8 个方法——`trim`/`trimStart`/`trimEnd`/`isEmpty`/`replace`/`charAt`/`repeat`/`compareTo`。完整 pipeline：C runtime（8 个 GC-safe 函数）→ API 注册 → resolver 白名单 → typecheck → codegen symbols/ABI/dispatch。新增 `stdlib_string_methods_extended` fixture（27 场景）。789 fixtures 通过。
 - DONE（T0116）：核心库 hardcoded 类型限制清单——审计 8 项限制并逐项标注归属：4 项有后续任务（T1818/T1822/T0131）、2 项后置（Task<T>/Float print）、1 项后置按需补齐（其他类型 hash）、1 项确认为设计决策（MutableArray COW）。
+- DONE（T0117）：`@Extern(lib=...)` 参数传递到链接器——审计确认链接器传递管线已完整实现（`collect_extern_libs` → `LoweredHir.extern_libs` → `link_objs` → `clang -l<name>`）。新增 `ExternFun.lib: Option<String>` 字段用于诊断追溯，`extern_fun_of_decl` 填充该字段。新增 2 个 fixtures（run-pass + Cone）验证 `@Extern(lib = "c", name = "labs")` 端到端链接。791 fixtures 通过。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 

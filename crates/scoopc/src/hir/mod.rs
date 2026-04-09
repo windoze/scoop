@@ -641,6 +641,11 @@ pub struct ExternFun {
     ///
     /// 说明：当前阶段后端只保证 `c/cdecl`；其它 calling convention 的支持留待后续扩展。
     pub calling_convention: Option<String>,
+    /// `@Extern(lib = "...")`（可选）：需要链接的外部库名（传递给链接器作为 `-l<name>`）。
+    ///
+    /// 说明：链接阶段同时通过 `LoweredHir.extern_libs`（由 `collect_extern_libs` 收集的去重列表）
+    /// 将所有 lib 传递给链接器。此字段记录单个函数关联的 lib，用于诊断与追溯。
+    pub lib: Option<String>,
 }
 
 /// `@Extern` 的 ABI 约定（当前阶段只落地 C ABI）。

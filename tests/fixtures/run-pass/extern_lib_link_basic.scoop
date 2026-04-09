@@ -1,0 +1,20 @@
+// EXPECT: pass
+// RUN-STDOUT: extern_lib_link_basic.stdout
+//
+// T0117: @Extern(lib = "...") parameter passing to linker.
+// Verifies that the `lib` parameter in @Extern is collected by collect_extern_libs(),
+// passed to the linker as `-l<name>`, and the extern function can be called correctly.
+// Uses `labs()` from libc via @Extern(lib = "c", name = "labs").
+
+import scoop.core.*
+
+@Extern(lib = "c", name = "labs")
+fun c_abs(x: Int): Int
+
+fun main() {
+    @Unsafe {
+        println(c_abs(0 - 42))
+        println(c_abs(7))
+        println(c_abs(0))
+    }
+}

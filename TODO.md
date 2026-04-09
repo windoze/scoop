@@ -383,7 +383,7 @@ cargo run -p scoop --features llvm -- test
   - 审计 8 项限制，逐项确认当前状态并标注归属：4 项有明确后续任务（T1818/T1822/T0131）、2 项后置（Task<T>/Float print 待泛型/类型系统完善）、1 项后置按需补齐（其他类型 hash）、1 项确认为设计决策（MutableArray COW）。
   - 补充文件位置引用，便于后续追溯。
 
-### T0117 [TODO] `@Extern(lib=...)` 参数传递到链接器
+### T0117 [DONE] `@Extern(lib=...)` 参数传递到链接器
 
 - 描述：`@Extern(lib = "libm")` 的 `lib` 参数在 parser 和 typecheck 中正确解析和验证，但 **未传递到 `ExternFun` 结构体**（`hir/mod.rs:626`，结构体仅有 `abi`/`symbol`/`calling_convention`，无 `lib` 字段）。`collect_extern_libs()`（`lower/util.rs:1697`）将 `lib` 值收集到独立的 `Vec<String>` 中，但该列表是否到达链接器调用不明确。
 - 规范引用：Spec §15.5（`@Extern(lib?, name?)`）——`lib` 参数用于指示需要链接的外部库。
@@ -395,6 +395,15 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture 或 Cone fixture：使用 `@Extern(lib = "...")` 调用外部 C 库函数。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **审计结论**：`@Extern(lib = "...")` 的链接器传递管线**已完整实现**（由历史任务 T1020 完成）：`collect_extern_libs()` 收集 `lib` 值到 `LoweredHir.extern_libs`，build 命令通过 `link_objs()` / `link_objs_with_runtime()` 将其传递给 `clang` 作为 `-l<name>` 标志。单元测试 `clang_link_command_includes_extern_libs` 已覆盖此路径。
+  - **`ExternFun` 结构体**（`hir/mod.rs`）：新增 `lib: Option<String>` 字段，用于记录单个函数关联的外部库名（诊断与追溯）。
+  - **`extern_fun_of_decl`**（`hir/lower/util.rs`）：填充 `ExternFun.lib` 字段（从 `parse_extern_annotation_args().lib` 获取）。
+  - **单元测试**（`toolchain.rs`）：`clang_link_command_includes_extern_libs` 新增 `ExternFun.lib` 字段断言。
+  - **Fixtures**：
+    - `extern_lib_link_basic.scoop` + `.stdout`（run-pass）：`@Extern(lib = "c", name = "labs")` 调用 C 标准库 `labs()` 函数，验证 `-lc` 链接器参数传递 + 函数调用正确性。
+    - `extern_lib_link_basic/`（run_pass_cone）：Cone 项目形式的相同测试，验证 `scoop build` 全链路。
+  - 139 单元测试 + 791 fixtures 通过。
 
 ### T0118 [TODO] `@CLayout(packed)` store alignment 修复 + run-pass 测试
 
