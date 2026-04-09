@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: for_in_array_int_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0110: for (x in array) — Array<Int> のイテレーション。
+// HIR lowering が index-based while ループに降糖し、codegen を経て実行可能に。
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [10, 20, 30]
+    for (x in xs) {
+        println(x)
+    }
+
+    val empty: Array<Int> = []
+    for (y in empty) {
+        println(y)
+    }
+
+    println("done")
+    return 0
+}

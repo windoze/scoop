@@ -502,6 +502,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let value = parse_int_literal_decimal(text);
                 Some(mask_to_bits(value, int_ty.bits))
             }
+            hir::ExprKind::Literal(hir::LiteralKind::SynthInt(v)) => {
+                Some(mask_to_bits(*v as u128, int_ty.bits))
+            }
             hir::ExprKind::Unary {
                 op: ast::UnaryOp::Neg,
                 expr: inner,
@@ -957,17 +960,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(CgTy::Unit)
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
-                    if is_last {
-                        if let Some(bb) = self.builder.get_insert_block() {
-                            if bb.get_terminator().is_none() {
-                                let rv = self.coerce_value(
-                                    expr.span,
-                                    v,
-                                    declared_return_cg,
-                                )?;
-                                self.emit_return(fun.span, declared_return_cg, rv)?;
-                            }
-                        }
+                    if is_last
+                        && let Some(bb) = self.builder.get_insert_block()
+                        && bb.get_terminator().is_none()
+                    {
+                        let rv = self.coerce_value(
+                            expr.span,
+                            v,
+                            declared_return_cg,
+                        )?;
+                        self.emit_return(fun.span, declared_return_cg, rv)?;
                     }
                 }
                 hir::StmtKind::Return { value } => {
@@ -1001,11 +1003,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // If no explicit return/branch emitted, emit default return.
-        if let Some(bb) = self.builder.get_insert_block() {
-            if bb.get_terminator().is_none() {
-                let v = self.default_value(declared_return_cg);
-                self.emit_return(fun.span, declared_return_cg, v)?;
-            }
+        if let Some(bb) = self.builder.get_insert_block()
+            && bb.get_terminator().is_none()
+        {
+            let v = self.default_value(declared_return_cg);
+            self.emit_return(fun.span, declared_return_cg, v)?;
         }
 
         self.env.pop_scope();
@@ -10170,6 +10172,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             hir::LiteralKind::String => self.codegen_string_literal(span),
+            hir::LiteralKind::SynthInt(value) => {
+                // Synthesized integer literal from compiler desugaring (T0110).
+                let int_ty = IntTy {
+                    bits: 64,
+                    signed: true,
+                };
+                Ok(CgValue::int(
+                    self.int_type(int_ty).const_int(*value as u64, false),
+                    int_ty,
+                ))
+            }
         }
     }
 

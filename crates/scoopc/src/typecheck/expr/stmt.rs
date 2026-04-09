@@ -710,72 +710,99 @@ pub(super) fn check_stmt_exprs(
                 });
             };
 
-            let Some(iterator_sig) = collect_unique_zero_arg_member_method_sig(
-                source,
-                iter_ty,
-                &iter_fqn,
-                &iter_args,
-                "iterator",
-                f.iter.span,
-                lower,
-                builtins,
-            )?
-            else {
-                return Err(ExprTypeError::ForMissingIteratorMethod {
-                    found: lower.fmt_type(iter_ty),
-                    span: f.iter.span.into(),
-                });
-            };
+            // T0110：Array / IntProgression は .iterator() を持たないため、
+            // 型特化で直接要素型を決定し、iterator protocol をバイパスする。
+            use crate::ast::{ForLoopIterableKind, ForLoopResolvedInfo};
 
-            record_member_method_effects_as_performed(
-                &iter_fqn,
-                &iter_args,
-                &iterator_sig,
-                f.for_span,
-                lower,
-            )?;
-            let iterator_ty = iterator_sig.return_ty;
-
-            let Some((iterator_fqn, iterator_args)) =
-                try_extract_nominal_fqn_and_args(iterator_ty, lower)
-            else {
-                return Err(ExprTypeError::ForMissingNextMethod {
-                    found: lower.fmt_type(iterator_ty),
-                    span: f.iter.span.into(),
+            let elem_ty = if iter_fqn == "scoop.core.Array"
+                || iter_fqn == "scoop.core.MutableArray"
+            {
+                let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
+                    kind: ForLoopIterableKind::ArrayInt,
                 });
-            };
-
-            let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
-                source,
-                iterator_ty,
-                &iterator_fqn,
-                &iterator_args,
-                "next",
-                f.iter.span,
-                lower,
-                builtins,
-            )?
-            else {
-                return Err(ExprTypeError::ForMissingNextMethod {
-                    found: lower.fmt_type(iterator_ty),
-                    span: f.iter.span.into(),
+                // Array<T> — 要素型は最初の型引数
+                iter_args.first().copied().unwrap_or(builtins.any)
+            } else if iter_fqn == "scoop.core.IntProgression" {
+                let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
+                    kind: ForLoopIterableKind::IntProgression,
                 });
-            };
-            record_member_method_effects_as_performed(
-                &iterator_fqn,
-                &iterator_args,
-                &next_sig,
-                f.for_span,
-                lower,
-            )?;
-            let elem_ty = match lower.type_kind(next_sig.return_ty) {
-                TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
-                _ => {
-                    return Err(ExprTypeError::ForNextNotOption {
-                        found: lower.fmt_type(next_sig.return_ty),
+                // IntProgression — 要素型は常に Int
+                builtins.int
+            } else {
+                // Generic iterator protocol: xs.iterator().next(): Option<Elem>
+                let Some(iterator_sig) = collect_unique_zero_arg_member_method_sig(
+                    source,
+                    iter_ty,
+                    &iter_fqn,
+                    &iter_args,
+                    "iterator",
+                    f.iter.span,
+                    lower,
+                    builtins,
+                )?
+                else {
+                    return Err(ExprTypeError::ForMissingIteratorMethod {
+                        found: lower.fmt_type(iter_ty),
                         span: f.iter.span.into(),
                     });
-                }
+                };
+
+                record_member_method_effects_as_performed(
+                    &iter_fqn,
+                    &iter_args,
+                    &iterator_sig,
+                    f.for_span,
+                    lower,
+                )?;
+                let iterator_ty = iterator_sig.return_ty;
+
+                let Some((iterator_fqn, iterator_args)) =
+                    try_extract_nominal_fqn_and_args(iterator_ty, lower)
+                else {
+                    return Err(ExprTypeError::ForMissingNextMethod {
+                        found: lower.fmt_type(iterator_ty),
+                        span: f.iter.span.into(),
+                    });
+                };
+
+                let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
+                    source,
+                    iterator_ty,
+                    &iterator_fqn,
+                    &iterator_args,
+                    "next",
+                    f.iter.span,
+                    lower,
+                    builtins,
+                )?
+                else {
+                    return Err(ExprTypeError::ForMissingNextMethod {
+                        found: lower.fmt_type(iterator_ty),
+                        span: f.iter.span.into(),
+                    });
+                };
+                record_member_method_effects_as_performed(
+                    &iterator_fqn,
+                    &iterator_args,
+                    &next_sig,
+                    f.for_span,
+                    lower,
+                )?;
+                let elem = match lower.type_kind(next_sig.return_ty) {
+                    TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
+                    _ => {
+                        return Err(ExprTypeError::ForNextNotOption {
+                            found: lower.fmt_type(next_sig.return_ty),
+                            span: f.iter.span.into(),
+                        });
+                    }
+                };
+
+                let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
+                    kind: ForLoopIterableKind::Custom,
+                });
+
+                elem
             };
 
             // binder 仅在 body 作用域内可见：进入时注入，退出时回滚。

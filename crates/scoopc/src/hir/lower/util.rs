@@ -457,7 +457,9 @@ fn expr_contains_source_backed_literals(expr: &super::super::Expr) -> bool {
         | super::super::ExprKind::Todo(_) => false,
 
         super::super::ExprKind::Literal(LiteralKind::Int | LiteralKind::String) => true,
-        super::super::ExprKind::Literal(LiteralKind::Unit | LiteralKind::Bool(_)) => false,
+        super::super::ExprKind::Literal(
+            LiteralKind::Unit | LiteralKind::Bool(_) | LiteralKind::SynthInt(_),
+        ) => false,
 
         super::super::ExprKind::StructLit { fields, .. } => fields
             .iter()

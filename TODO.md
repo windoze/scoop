@@ -271,7 +271,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
 
-### T0110 [TODO] `for (x in iterable)` HIR lowering + codegen
+### T0110 [DONE] `for (x in iterable)` HIR lowering + codegen
 
 - 描述：当前 `for` 语句在 HIR lowering 中为 `Todo("for")`（`lower/stmt.rs:58`）。Typecheck 已完整实现 `for-in` 的 Iterator 协议解析（`typecheck/expr/stmt.rs:688`：解析 `.iterator()`/`.next()`、提取 `Option<T>` 元素类型、注入 binder），但产物无法进入 codegen。
 - 规范引用：Spec §16.2——`for (x in xs)` desugar 为 `val it = xs.iterator(); while (true) { when (it.next()) { Some(x) -> body; None -> break } }`。

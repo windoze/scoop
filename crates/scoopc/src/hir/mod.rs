@@ -378,6 +378,10 @@ pub enum LiteralKind {
     String,
     Unit,
     Bool(bool),
+    /// Synthesized integer literal (not backed by source span).
+    ///
+    /// Used for compiler-generated desugaring (e.g., for-loop index init/step).
+    SynthInt(i64),
 }
 
 /// 已解析的“值引用”（local/top-level）。

@@ -1699,7 +1699,7 @@ pub struct ComptimeFor {
 ///
 /// 说明：
 /// - 语义上会被 lowering 为迭代协议（`iterator`/`next(): Option<T>`）；
-/// - 当前阶段仅做语法建模；实际 lowering 留给后续阶段（T08xx codegen）。
+/// - typecheck 写回 `resolved_for_info`，HIR lowering 读取以做类型特化降糖。
 #[derive(Debug, Clone)]
 pub struct ForStmt {
     pub span: Span,
@@ -1708,6 +1708,25 @@ pub struct ForStmt {
     pub in_span: Span,
     pub iter: Expr,
     pub body: Block,
+    /// typecheck 写回的 for-loop 降糖信息（T0110）。
+    pub resolved_for_info: OnceCell<ForLoopResolvedInfo>,
+}
+
+/// typecheck → HIR lowering 间传递的 for-loop 降糖信息（T0110）。
+#[derive(Debug, Clone)]
+pub struct ForLoopResolvedInfo {
+    pub kind: ForLoopIterableKind,
+}
+
+/// for-in 迭代器的底层类型类别（决定 HIR lowering 的降糖策略）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ForLoopIterableKind {
+    /// `Array<Int>` — 降糖为基于索引的 while 循环（`size`/`get`）。
+    ArrayInt,
+    /// `IntProgression` — 降糖为 progression while 循环（字段访问）。
+    IntProgression,
+    /// 其它实现了 iterator()/next() 协议的类型。
+    Custom,
 }
 
 /// 语句（最小骨架）。

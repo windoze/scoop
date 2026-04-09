@@ -245,6 +245,7 @@ impl<'a> Parser<'a> {
                 in_span,
                 iter,
                 body,
+                resolved_for_info: std::cell::OnceCell::new(),
             };
 
             let mut span = for_stmt.span;

@@ -1,0 +1,27 @@
+// EXPECT: pass
+// RUN-STDOUT: for_in_int_progression_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0110: for (x in progression) — IntProgression のイテレーション。
+// HIR lowering が if/while (ascending/descending) に降糖し、codegen を経て実行可能に。
+
+import scoop.core.*
+
+fun main(): Int {
+    println("up")
+    val upStart: Int = 1
+    val up: IntProgression = upStart.rangeTo(5, 1)
+    for (x in up) {
+        println(x)
+    }
+
+    println("down")
+    val downStart: Int = 5
+    val down: IntProgression = downStart.downTo(1, 1)
+    for (x in down) {
+        println(x)
+    }
+
+    println("done")
+    return 0
+}
