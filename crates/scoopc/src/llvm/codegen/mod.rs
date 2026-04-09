@@ -1461,6 +1461,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "compareTo"
                     | "byteLength"
                     | "getByte"
+                    | "unsafeSliceBytes"
             ) {
                 return self.codegen_string_method(
                     span,
@@ -3117,6 +3118,66 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ]);
                 let result = phi.as_basic_value().into_int_value();
                 Ok(CgValue::int(result, IntTy { bits: 64, signed: true }))
+            }
+            // T0121: String.unsafeSliceBytes(byteOffset, byteLength) — @Unsafe, 2 Int args → String
+            "unsafeSliceBytes" => {
+                if args.len() != 2 {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.unsafeSliceBytes arity mismatch",
+                        at: span.into(),
+                    });
+                }
+                let hir::CallArg::Positional(offset_expr) = &args[0] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.unsafeSliceBytes named arg",
+                        at: span.into(),
+                    });
+                };
+                let hir::CallArg::Positional(len_expr) = &args[1] else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.unsafeSliceBytes named arg",
+                        at: span.into(),
+                    });
+                };
+                let offset_cg = self.codegen_expr_in_expected_context(
+                    offset_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let len_cg = self.codegen_expr_in_expected_context(
+                    len_expr,
+                    Some(CgTy::Int(IntTy { bits: 64, signed: true })),
+                )?;
+                let offset_val = offset_cg.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.unsafeSliceBytes offset value",
+                    at: span.into(),
+                })?;
+                let len_val = len_cg.value.ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String.unsafeSliceBytes len value",
+                    at: span.into(),
+                })?;
+                let rt_fun = self.declare_runtime_string_unsafe_slice_bytes();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[recv_ptr.into(), offset_val.into(), len_val.into()],
+                    "rt_string_unsafe_slice_bytes",
+                )?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.unsafeSliceBytes return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::PointerValue(out_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.unsafeSliceBytes return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(out_ptr.into()),
+                })
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown String method",

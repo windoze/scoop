@@ -1,0 +1,71 @@
+// EXPECT: pass
+// RUN-STDOUT: string_unsafe_slice_bytes.stdout
+//
+// T0121: String.unsafeSliceBytes(byteOffset, byteLength) — @Unsafe intrinsic.
+// Creates a new String from a byte range without UTF-8 validation.
+
+import scoop.core.*
+
+fun main() {
+    // ── Basic slicing ──
+
+    // Slice "World" from "Hello, World!"
+    val s: String = "Hello, World!"
+    val world: String = @Unsafe { s.unsafeSliceBytes(7, 5) }
+    println(world)
+
+    // Slice "Hello" from the beginning
+    val hello: String = @Unsafe { s.unsafeSliceBytes(0, 5) }
+    println(hello)
+
+    // Slice single character
+    val comma: String = @Unsafe { s.unsafeSliceBytes(5, 1) }
+    println(comma)
+
+    // ── Empty slices ──
+
+    // Zero-length slice
+    val empty: String = @Unsafe { s.unsafeSliceBytes(0, 0) }
+    println(empty.byteLength())
+
+    // Negative length → empty
+    val neg: String = @Unsafe { s.unsafeSliceBytes(0, -1) }
+    println(neg.byteLength())
+
+    // ── Edge cases (defensive clamping) ──
+
+    // Offset beyond length → empty
+    val beyond: String = @Unsafe { s.unsafeSliceBytes(100, 5) }
+    println(beyond.byteLength())
+
+    // Slice extends past end → clamped
+    val clamped: String = @Unsafe { s.unsafeSliceBytes(7, 100) }
+    println(clamped)
+
+    // Negative offset → clamped to 0
+    val negOff: String = @Unsafe { s.unsafeSliceBytes(-1, 5) }
+    println(negOff)
+
+    // ── Full string slice ──
+
+    val full: String = @Unsafe { s.unsafeSliceBytes(0, 13) }
+    println(full)
+
+    // ── Using with byteLength ──
+
+    val msg: String = "abcdef"
+    val len: Int = msg.byteLength()
+    // Slice last 3 bytes
+    val tail: String = @Unsafe { msg.unsafeSliceBytes(len - 3, 3) }
+    println(tail)
+
+    // ── Verify content via getByte ──
+
+    val sliced: String = @Unsafe { s.unsafeSliceBytes(0, 3) }
+    println(sliced.getByte(0))
+    println(sliced.getByte(1))
+    println(sliced.getByte(2))
+    println(sliced.byteLength())
+
+    println("done")
+}

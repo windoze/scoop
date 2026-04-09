@@ -154,6 +154,7 @@
   X(scoop_string_trim_end) \
   X(scoop_string_trim_indent) \
   X(scoop_string_trim_start) \
+  X(scoop_string_unsafe_slice_bytes) \
   X(scoop_sync_condvar_create) \
   X(scoop_sync_condvar_destroy) \
   X(scoop_sync_condvar_notify_all) \

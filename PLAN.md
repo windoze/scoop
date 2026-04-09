@@ -321,3 +321,9 @@ cargo run -p scoop --features llvm -- test
   - 返回类型为 `Int`（与现有 `length()`/`charAt()` 保持一致）。
   - Fixture：`string_byte_accessors`（20 个场景：byteLength 4 + getByte 12 + 联合验证 4）。
   - 139 单元测试 + 799 fixtures 通过。
+- DONE（T0121）：`@Unsafe` String.unsafeSliceBytes intrinsic：
+  - **runtime/c**：新增 `scoop_string_unsafe_slice_bytes(source, offset, len)`，defensive clamping + GC-safe（pin source）。
+  - **完整 pipeline**：resolver 白名单 + typecheck（`in_unsafe_context()` 门禁 + 2 args → String）+ codegen 调用 runtime 函数。
+  - **typecheck error fixture**：非 unsafe context 调用报 `UnsafeCallRequiresUnsafeContext`。
+  - **run-pass fixture**：`string_unsafe_slice_bytes`（15 个输出行：基本切片 + 空切片 + 边界防御 + byteLength/getByte 联合验证）。
+  - 139 单元测试 + 801 fixtures 通过。

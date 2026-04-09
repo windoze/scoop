@@ -121,6 +121,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// `const ScoopString* scoop_string_unsafe_slice_bytes(const ScoopString* source, int64_t offset, int64_t len)`
+    pub(super) fn declare_runtime_string_unsafe_slice_bytes(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_UNSAFE_SLICE_BYTES;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into(), i64_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// `const ScoopString* scoop_string_concat(const ScoopString* a, const ScoopString* b)`
     pub(super) fn declare_runtime_string_concat(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_STRING_CONCAT;

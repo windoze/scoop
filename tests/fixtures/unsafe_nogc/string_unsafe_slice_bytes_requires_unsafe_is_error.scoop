@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::unsafe_call_requires_unsafe
+// EXPECT-ERROR-AT: 10:21
+// EXPECT-ERROR: 需要 unsafe context
+
+package fixtures.unsafe_nogc
+
+fun main() {
+    val s: String = "Hello"
+    val x: String = s.unsafeSliceBytes(0, 3)
+}

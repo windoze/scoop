@@ -477,7 +477,7 @@ cargo run -p scoop --features llvm -- test
   - **fixture**：`string_byte_accessors.scoop` + `.stdout`——覆盖 20 个场景：ASCII byteLength（5/0/1/13 字节）、逐字节 getByte（H=72/e=101/l=108/o=111）、越界返回 0（index=5/-1/100）、特殊字符（A=65/空格=32/0=48/9=57）、byteLength+getByte 联合验证。
   - 139 单元测试 + 799 fixtures 通过。
 
-### T0121 [TODO] `@Unsafe` String 构造 intrinsic：从源 String + 字节偏移 + 字节长度创建子串
+### T0121 [DONE] `@Unsafe` String 构造 intrinsic：从源 String + 字节偏移 + 字节长度创建子串
 
 - 描述：提供一个 `@Unsafe` intrinsic，从现有 `String` 的字节范围创建新 `String`，**不执行 UTF-8 验证**。这是纯 Scoop 实现 `substring`/`split`/`trim` 等操作的底层构建块。调用者负责保证字节范围落在合法的 UTF-8 字符边界上。
 - 签名（建议）：
@@ -497,6 +497,16 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixture（在 `@Unsafe` 块中）：从 `"Hello, World!"` 切出 `"World"` 并验证。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0120（`byteLength` 用于边界计算）
+- 完成说明：
+  - **runtime/c**（`scoop_runtime.c`）：新增 `scoop_string_unsafe_slice_bytes(source, byte_offset, byte_length) -> ScoopString*`——defensive clamping（null/empty/negative/overflow），pin source before `scoop_string_from_bytes` 调用（GC safety）。注册到 `scoop_runtime_api.h`。
+  - **resolver**（`resolve/scopes.rs`）：String 方法白名单新增 `unsafeSliceBytes`。
+  - **typecheck**（`typecheck/expr/call.rs`）：`unsafeSliceBytes` → 要求 `in_unsafe_context()` → 2 个参数 → 返回 `String`。非 unsafe context 报 `UnsafeCallRequiresUnsafeContext`。
+  - **runtime symbols + ABI**（`runtime_symbols.rs` + `runtime_abi.rs`）：`SCOOP_STRING_UNSAFE_SLICE_BYTES` 常量 + `declare_runtime_string_unsafe_slice_bytes` 声明（`ScoopString* fn(ScoopString*, i64, i64)`）。
+  - **codegen**（`codegen/mod.rs`）：`codegen_string_method` 新增 `"unsafeSliceBytes"` arm——codegen 2 个 Int 参数 + 调用 runtime 函数 + 返回 `CgValue { ty: CgTy::String }`。
+  - **Fixtures**：
+    - `string_unsafe_slice_bytes.scoop` + `.stdout`（run-pass）：在 `@Unsafe { ... }` 块中测试——基本切片（"World"/"Hello"/单字符）、空切片（零长度/负长度）、边界防御（offset 越界/length 超长/负 offset clamping）、完整字符串切片、byteLength 联合使用、getByte 内容验证，共 15 个输出行。
+    - `string_unsafe_slice_bytes_requires_unsafe_is_error.scoop`（typecheck error）：非 unsafe context 调用报错。
+  - 139 单元测试 + 801 fixtures 通过。
 
 ### T0122 [TODO] String 操作迁移：将 runtime/c substring 类函数替换为纯 Scoop 实现
 

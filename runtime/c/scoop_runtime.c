@@ -2909,3 +2909,30 @@ int64_t scoop_string_compare_to(const ScoopString *a, const ScoopString *b) {
   }
   return 0;
 }
+
+// T0121: `String.unsafeSliceBytes(byteOffset, byteLength)` — @Unsafe intrinsic.
+// Creates a new String from a byte range of the source String without UTF-8 validation.
+// Caller guarantees: offset >= 0, offset + len <= source.byteLength(), range on UTF-8 boundary.
+const ScoopString *scoop_string_unsafe_slice_bytes(const ScoopString *source, int64_t byte_offset, int64_t byte_length) {
+  if (source == 0 || source->data == 0) {
+    return scoop_string_empty();
+  }
+  if (byte_length <= 0) {
+    return scoop_string_empty();
+  }
+  if (byte_offset < 0) {
+    byte_offset = 0;
+  }
+  int64_t src_len = (int64_t)source->len;
+  if (byte_offset >= src_len) {
+    return scoop_string_empty();
+  }
+  if (byte_offset + byte_length > src_len) {
+    byte_length = src_len - byte_offset;
+  }
+  // Pin source — scoop_string_from_bytes calls scoop_alloc which may trigger GC.
+  scoop_pin((void *)source);
+  const ScoopString *result = scoop_string_from_bytes(source->data + byte_offset, (uint64_t)byte_length);
+  scoop_unpin((void *)source);
+  return result;
+}

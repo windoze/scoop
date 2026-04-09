@@ -96,6 +96,7 @@ pub(super) const SCOOP_STRING_TRIM: &str = "scoop_string_trim";
 pub(super) const SCOOP_STRING_TRIM_END: &str = "scoop_string_trim_end";
 pub(super) const SCOOP_STRING_TRIM_INDENT: &str = "scoop_string_trim_indent";
 pub(super) const SCOOP_STRING_TRIM_START: &str = "scoop_string_trim_start";
+pub(super) const SCOOP_STRING_UNSAFE_SLICE_BYTES: &str = "scoop_string_unsafe_slice_bytes";
 pub(super) const SCOOP_SYNC_CONDVAR_CREATE: &str = "scoop_sync_condvar_create";
 pub(super) const SCOOP_SYNC_CONDVAR_DESTROY: &str = "scoop_sync_condvar_destroy";
 pub(super) const SCOOP_SYNC_CONDVAR_NOTIFY_ALL: &str = "scoop_sync_condvar_notify_all";

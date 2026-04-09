@@ -4202,6 +4202,24 @@ fn infer_member_call_expr_type(
             }
             return Ok(builtins.int);
         }
+        // T0121: String.unsafeSliceBytes(byteOffset, byteLength) — @Unsafe, 2 Int args → String
+        if member_name == "unsafeSliceBytes" {
+            if !lower.in_unsafe_context() {
+                return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
+                    callee: "String.unsafeSliceBytes".into(),
+                    span: call_expr.span.into(),
+                });
+            }
+            if args.len() != 2 {
+                return Err(ExprTypeError::CallArityMismatch {
+                    callee: "unsafeSliceBytes".into(),
+                    expected: 2,
+                    found: args.len(),
+                    span: call_expr.span.into(),
+                });
+            }
+            return Ok(builtins.string);
+        }
     }
 
     // T1812: Int.toString() — 数值→文本転換。

@@ -1698,7 +1698,9 @@ impl<'a> BlockScopeChecker<'a> {
                 || member_name == "compareTo"
                 // T0120: String byte accessors
                 || member_name == "byteLength"
-                || member_name == "getByte";
+                || member_name == "getByte"
+                // T0121: @Unsafe byte-level String construction
+                || member_name == "unsafeSliceBytes";
             if is_known_string_method {
                 return Ok(());
             }
