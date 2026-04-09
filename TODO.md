@@ -533,6 +533,87 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0120、T0121
 
+### T0140 [TODO] 多文件字面量支持：非入口源文件允许使用 Int/String 字面量
+
+- 描述：当前 `LiteralKind::Int` 和 `LiteralKind::String` 不存储实际值，仅存储 `Span`（字节偏移），codegen 时通过 `self.source.slice(span)` 从源文本中截取字面量文本。但 `MainCodegen` 的 `self.source` 只持有入口文件的 `SourceFile`（`llvm/codegen/mod.rs:163`），非入口文件的 Span 如果切入入口文件的源文本会得到错误内容。因此 `hir/lower/mod.rs:1302-1306` 在多文件编译时对非入口文件硬性禁止 source-backed literals，报 `MultiFileNonEntrySourceBackedLiteral` 错误。
+  这导致 `stdlib/string.scoop` 等非入口文件无法使用任何整数字面量（`0`、`1`、`32` 等），只能通过 `sizeOf` 算术迂回派生常量（`__string_zero`/`__string_one`/`__string_is_whitespace_byte`），严重损害可读性。
+- 已知相关代码：
+  - `hir/mod.rs:376-385`：`LiteralKind::Int`/`String` 不存值；`SynthInt(i64)` 携带值（可跨文件）。
+  - `llvm/codegen/mod.rs:10494-10528`：`codegen_literal` 对 Int/String 调用 `self.source.slice(span)`。
+  - `hir/lower/util.rs:452-462`：`expr_contains_source_backed_literals` 判定 Int/String 为 source-backed。
+  - `hir/lower/types.rs:154-156`：错误定义。
+- 可选方案：
+  1. **HIR 内联值**（推荐）：将 `LiteralKind::Int` 改为携带解析后的数值（类似 `SynthInt`），`LiteralKind::String` 改为携带 `String` 值。在 HIR lowering 阶段（parse → HIR）即从 Span 提取文本并存入节点，之后 codegen 不再依赖 `self.source`。这是最小侵入的方案，`SynthInt` 已证明此路径可行。
+  2. **多文件 SourceMap**：让 codegen 持有所有参与编译的 `SourceFile`，Span 扩展为 `(file_id, offset, len)`，`slice` 时按 file_id 查找对应源文本。侵入面更大但更通用。
+- 目标：
+  - 移除 `MultiFileNonEntrySourceBackedLiteral` 限制，非入口文件可正常使用 Int/String 字面量。
+  - `stdlib/string.scoop` 中的 `__string_zero`/`__string_one`/`__string_is_whitespace_byte` 等辅助函数可用直接字面量重写，大幅简化代码。
+- 验收：
+  - 新增 run-pass fixture：多文件编译，非入口文件中使用 Int/String 字面量并正确运行。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0141 [TODO] 块级控制流：支持 block/loop 内 return/break/continue
+
+- 描述：当前 LLVM codegen 采用递归表达式求值模式（expression-based codegen），没有预分配的 function-level 基本块（basic block）图。`return`/`break`/`continue` 在嵌套 block 或 loop 体内出现时，需要跳转到尚不存在的目标基本块（函数出口块 / 循环后继块 / 循环头块），因此被硬性拒绝（`LlvmEmitError::UnsupportedMainBody`）。
+  这导致 `stdlib/string.scoop` 中所有循环提前退出只能用 flag 变量（`scanning = false`）或越界赋值（`j = dlen` 模拟 break、`i = limit + one` 模拟外层循环退出），逻辑晦涩且易出错。
+- 已知相关代码：
+  - `llvm/codegen/stmt.rs:177-187`：`codegen_block_stmt` 中 `Return`/`Break`/`Continue` 直接返回 `UnsupportedMainBody`。
+  - `llvm/codegen/control_flow.rs:1704-1718`：block expression 内 return/break/continue 同样被拒绝。
+  - `llvm/codegen/control_flow.rs:52-74`：顶层 `main` 的 `return` 可直接 emit `ret`，但 while/break/continue 被拒绝。
+  - 顶层函数 return 可工作是因为可直接 emit LLVM `ret` 指令，无需跳转。
+- 可选方案：
+  1. **轻量预分配方案**（增量）：在 codegen 进入每个函数时预分配一个 `exit_block`（存 return 值的 alloca + 跳转目标），进入每个 while 循环时预分配 `loop_continue_block` 和 `loop_break_block`。遇到 return/break/continue 时 emit `br` 到对应目标块。这在现有 expression-based codegen 基础上增量实现，不需要完整 MIR/CFG。
+  2. **完整 MIR/CFG**（PLAN §8）：在 HIR → LLVM IR 之间插入一层 MIR，先构建完整 CFG 再 emit LLVM IR。更通用但工作量大。
+- 目标：
+  - 函数体内任意嵌套深度的 `return` 语句正确跳转到函数出口。
+  - `while` 循环体内 `break` 跳出循环、`continue` 跳转到循环头。
+  - `stdlib/string.scoop` 中的 flag + 越界赋值 hack 可改写为正常 break/continue/return。
+- 验收：
+  - 新增 run-pass fixture：函数内 if 块中 early return。
+  - 新增 run-pass fixture：while 循环中使用 break 提前退出。
+  - 新增 run-pass fixture：while 循环中使用 continue 跳过迭代。
+  - 新增 run-pass fixture：嵌套循环中 break 只退出内层循环。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0142 [TODO] if 表达式无 else 分支支持（non-Unit if-without-else）
+
+- 描述：当前 codegen 的 `codegen_if_expr`（`llvm/codegen/control_flow.rs:160-178`）为 if 表达式分配 `result_ptr`（alloca），then 和 else 分支各写入值后跳转到 merge block。当 `else_branch` 为 `None` 且输出类型非 Unit 时，else 路径没有值可写入 `result_ptr`，导致 merge 点取到未定义值，因此硬性报错 `"if without else (non-Unit)"`。Unit 类型的 if-without-else 已可工作（不分配 result_ptr）。
+  这导致 `stdlib/string.scoop` 中即使是纯 statement 用途的 if（如 `if (s < zero) { s = zero }`），也必须写成 `if (s < zero) { s = zero } else { }`，增加噪音。
+- 已知相关代码：
+  - `llvm/codegen/control_flow.rs:137-138`：`result_ptr` 分配逻辑。
+  - `llvm/codegen/control_flow.rs:160-178`：else_branch 为 None 时的 non-Unit 检查。
+- 目标：
+  1. 当 if-without-else 出现在语句位置（statement context）时，即使 then 分支的表达式类型非 Unit，也应允许——整个 if 语句的类型视为 Unit，不分配 result_ptr。
+  2. 当 if-without-else 用作值表达式（`val x = if (...) { ... }`）且 then 类型非 Unit 时，可选择：报 type error（更安全），或将结果类型推断为 `T?`/`Option<T>`（语义更丰富，但依赖 Option 类型系统）。推荐前者——此场景应由 typechecker 报错而非 codegen。
+  3. 移除 `stdlib/string.scoop` 中所有多余的 `else { }` 空分支。
+- 验收：
+  - 新增 run-pass fixture：if-without-else 在 statement 位置，then 分支含赋值等 non-Unit 表达式。
+  - 新增 typecheck fail fixture：if-without-else 用作值表达式且 then 类型非 Unit → 报错。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：无
+
+### T0143 [TODO] String 扩展方法从 stdlib 迁移到 sysroot core 库
+
+- 描述：`stdlib/string.scoop` 中的 String 扩展方法（`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split`/`trim`/`trimStart`/`trimEnd`）属于 String 类型的基础操作，应作为 core 库的一部分（`sysroot/`），而非 stdlib。当前放在 `stdlib/` 是因为 T0122 迁移时受限于编译器能力（字面量、控制流），选择了阻力最小的路径。T0140-T0142 解决编译器限制后，应将这些方法迁移到 `sysroot/` 并利用新能力重写简化。
+- 目标：
+  1. 将 `stdlib/string.scoop` 的内容迁移到 `sysroot/` 下（可新建 `sysroot/string.scoop` 或合并入 `sysroot/core.scoop`，视文件体量决定）。
+  2. 利用 T0140（字面量支持）移除 `__string_zero`/`__string_one`/`__string_is_whitespace_byte` 等 hack 函数，直接使用 `0`、`1`、`32` 等字面量。
+  3. 利用 T0141（块级控制流）将 flag + 越界赋值模式改写为 `break`/`continue`/`return`。
+  4. 利用 T0142（if-without-else）移除所有多余的 `else { }` 空分支。
+  5. 更新编译器中所有引用 `stdlib/string.scoop` 的路径（`resolve/scopes.rs`、`typecheck/expr/call.rs`、`llvm/codegen/mod.rs`、`llvm/codegen/runtime_abi.rs` 中的注释等）。
+  6. 删除 `stdlib/string.scoop`。
+- 验收：
+  - String 扩展方法作为 sysroot core 库的一部分被编译，无需用户显式 import。
+  - 代码中不再有 `__string_zero`/`__string_one` 等辅助函数。
+  - 现有 String 相关 run-pass fixtures 全部通过（行为不变）。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0140、T0141、T0142
+
 ### T0124 [TODO] 泛型验证与修复：monomorphization 扩展至泛型 class/struct/enum
 
 - 描述：当前 monomorphization pass（`monomorph/lower.rs:6`）仅处理泛型函数（`ast::Item::Fun`），完全不处理泛型 class/struct/enum 定义。用户定义的 `class Box<T>` 等无法被单态化为具体的 `Box<Int>`、`Box<String>` 等变体。这是泛型 class 无法工作的根本原因。
