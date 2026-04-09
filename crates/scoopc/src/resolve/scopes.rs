@@ -1662,8 +1662,17 @@ impl<'a> BlockScopeChecker<'a> {
                 || member_name == "endsWith"
                 || member_name == "indexOf"
                 || member_name == "contains"
-                || member_name == "split";
+                || member_name == "split"
+                || member_name == "toInt";
             if is_known_string_method {
+                return Ok(());
+            }
+        }
+
+        // T1812: Int.toString() — 内建数值→文本转换。
+        if receiver_ty_fqn == "scoop.core.Int" {
+            let is_known_int_method = member_name == "toString";
+            if is_known_int_method {
                 return Ok(());
             }
         }

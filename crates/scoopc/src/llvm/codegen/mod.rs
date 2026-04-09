@@ -1429,7 +1429,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if member.name == "trimIndent" {
                 return self.codegen_string_trim_indent(span, receiver, args);
             }
-            // T1811: String P0 methods.
+            // T1811: String P0 methods + T1812 toInt.
             if matches!(
                 member.name.as_str(),
                 "length"
@@ -1439,6 +1439,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | "indexOf"
                     | "contains"
                     | "split"
+                    | "toInt"
             ) {
                 return self.codegen_string_method(
                     span,
@@ -1446,6 +1447,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &member.name,
                     args,
                 );
+            }
+            // T1812: Int.toString() — 数値→文本転換。
+            if member.name == "toString" {
+                return self.codegen_int_method_to_string(span, receiver);
             }
         }
 
@@ -2556,11 +2561,77 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(out_ptr.into()),
                 })
             }
+            "toInt" => {
+                // scoop_string_to_int(s) -> i64
+                let rt_fun = self.declare_runtime_string_to_int();
+                let call = self
+                    .builder
+                    .build_call(rt_fun, &[recv_ptr.into()], "rt_string_to_int")?;
+                let ret = call
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.toInt return value",
+                        at: span.into(),
+                    })?;
+                let BasicValueEnum::IntValue(iv) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "String.toInt return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue::int(iv, IntTy { bits: 64, signed: true }))
+            }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unknown String method",
                 at: span.into(),
             }),
         }
+    }
+
+    /// T1812: `Int.toString()` — codegen for `scoop_int_to_string(i64) -> ScoopString*`.
+    fn codegen_int_method_to_string(
+        &mut self,
+        span: crate::span::Span,
+        receiver: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let int_cg_ty = CgTy::Int(IntTy { bits: 64, signed: true });
+        let recv = self.codegen_expr_in_expected_context(receiver, Some(int_cg_ty))?;
+        let coerced = self.coerce_value(receiver.span, recv, int_cg_ty)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.toString receiver value",
+                at: receiver.span.into(),
+            });
+        };
+        let BasicValueEnum::IntValue(int_val) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.toString receiver type",
+                at: receiver.span.into(),
+            });
+        };
+
+        let rt_fun = self.declare_runtime_int_to_string();
+        let call = self
+            .builder
+            .build_call(rt_fun, &[int_val.into()], "rt_int_to_string")?;
+        let ret = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.toString return value",
+                at: span.into(),
+            })?;
+        let BasicValueEnum::PointerValue(str_ptr) = ret else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "Int.toString return type",
+                at: span.into(),
+            });
+        };
+        Ok(CgValue {
+            ty: CgTy::String,
+            value: Some(str_ptr.into()),
+        })
     }
 
     fn codegen_sysroot_print_like(
@@ -9107,17 +9178,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(CgTy::Unit)
                     };
                     let v = self.codegen_expr_in_expected_context(expr, expected)?;
-                    if is_last {
-                        if let Some(bb) = self.builder.get_insert_block()
-                            && bb.get_terminator().is_none()
-                        {
-                            let rv = self.coerce_value(
-                                expr.span,
-                                v,
-                                declared_return_cg,
-                            )?;
-                            self.emit_return(span, declared_return_cg, rv)?;
-                        }
+                    if is_last
+                        && let Some(bb) = self.builder.get_insert_block()
+                        && bb.get_terminator().is_none()
+                    {
+                        let rv = self.coerce_value(
+                            expr.span,
+                            v,
+                            declared_return_cg,
+                        )?;
+                        self.emit_return(span, declared_return_cg, rv)?;
                     }
                 }
                 hir::StmtKind::Return { value } => {

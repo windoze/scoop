@@ -739,9 +739,9 @@ cargo run -p scoop --features llvm -- test
   - **Codegen**（`codegen/mod.rs`）：新增 `codegen_string_method` 分发函数，处理所有 7 个方法的 LLVM IR 生成。
   - **Fixture**：`stdlib_string_basic.scoop` + `.stdout` 覆盖全部 7 个方法。
   - 139 单元测试 + 768 fixtures 通过。
-  - 注意：`split` 在 GC stress 下返回结果不正确（size=1 而非 3），疑似 C runtime `scoop_string_split` 中间分配未正确 root，属 T1810 runtime 层问题。
+  - 注意：`split` 在 GC stress 下返回结果不正确（size=1 而非 3）——已在 T1812 中修复（`scoop_string_split` 的 `builder`/`s`/`delimiter` 未 pin 导致 GC 回收）。
 
-### T1812 [TODO] Text 数值转换：`Int.toString()` + `String.toInt()`
+### T1812 [DONE] Text 数值转换：`Int.toString()` + `String.toInt()`
 - 描述：补齐数值↔文本的最基础转换。
 - 目标：
   - runtime/c 新增：`scoop_int_to_string(i64) -> ScoopString*`、`scoop_string_to_int(ScoopString*) -> i64`。
@@ -753,6 +753,17 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
   - 新增 `tests/fixtures/run-pass/stdlib_int_string_conversion_basic.scoop` + `.stdout`。
 - 依赖：T1810（共享 runtime/c 构建管线；实际实现无直接依赖，但建议顺序执行以减少冲突）
+- 完成说明：
+  - **pre-existing fix**：修复 T1811 遗留的 `scoop_string_split` GC stress bug——`builder`/`s`/`delimiter` 在分割循环期间未 pin 导致 GC 回收。使用 `scoop_pin`/`scoop_unpin` 保护全部三个对象。修复 `collapsible_if` clippy 警告。
+  - **C runtime**（`runtime/c/scoop_runtime.c`）：新增 `scoop_int_to_string(i64)` — `snprintf` 格式化为十进制字符串，返回 GC-managed `ScoopString*`；`scoop_string_to_int(ScoopString*)` — `strtoll` 解析，非数字输入返回 `0`。
+  - **API 注册**（`scoop_runtime_api.h`）：2 个新符号按字典序插入。
+  - **Resolver**（`resolve/scopes.rs`）：Int 方法白名单新增 `toString`；String 方法白名单新增 `toInt`。
+  - **Typecheck**（`typecheck/expr/call.rs`）：`String.toInt()` → 0 args → `Int`；`Int.toString()` → 0 args → `String`。
+  - **Runtime symbols**（`codegen/runtime_symbols.rs`）：`SCOOP_INT_TO_STRING` + `SCOOP_STRING_TO_INT`。
+  - **Runtime ABI**（`codegen/runtime_abi.rs`）：`declare_runtime_int_to_string` + `declare_runtime_string_to_int`。
+  - **Codegen**（`codegen/mod.rs`）：`codegen_int_method_to_string` 新方法；`codegen_string_method` 新增 `"toInt"` arm。
+  - **Fixture**：`stdlib_int_string_conversion_basic.scoop` + `.stdout` 覆盖正数/负数/零/大数/非数字输入/空字符串/roundtrip。
+  - 139 单元测试 + 769 fixtures 通过。
 
 ### T1813 [TODO] Test utilities 扩展：`assertEqString` + `assertEqBool`
 - 描述：在 `stdlib/test.scoop` 中补齐 `assertEqString` 和 `assertEqBool`，使后续 fixtures 可用。

@@ -1,0 +1,64 @@
+// EXPECT: pass
+// RUN-STDOUT: stdlib_int_string_conversion_basic.stdout
+//
+// T1812: Int.toString() + String.toInt() — numeric/text conversion.
+
+import scoop.core.*
+
+fun main() {
+    // --- Int.toString() ---
+
+    // Positive integer
+    val s1: String = 42.toString()
+    println(s1)
+
+    // Zero
+    val s2: String = 0.toString()
+    println(s2)
+
+    // Negative integer
+    val s3: String = (-123).toString()
+    println(s3)
+
+    // Large value
+    val big: Int = 1000000
+    val s4: String = big.toString()
+    println(s4)
+
+    // --- String.toInt() ---
+
+    // Positive
+    val n1: Int = "42".toInt()
+    println(n1)
+
+    // Zero
+    val n2: Int = "0".toInt()
+    println(n2)
+
+    // Negative
+    val n3: Int = "-123".toInt()
+    println(n3)
+
+    // Non-numeric → 0
+    val n4: Int = "abc".toInt()
+    println(n4)
+
+    // Empty string → 0
+    val n5: Int = "".toInt()
+    println(n5)
+
+    // --- Roundtrip ---
+
+    // Int → String → Int
+    val original: Int = 99
+    val asStr: String = original.toString()
+    val back: Int = asStr.toInt()
+    println(back)
+
+    // Verify equality
+    if (back == original) {
+        println("roundtrip_ok")
+    } else {
+        println("roundtrip_fail")
+    }
+}

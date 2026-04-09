@@ -2455,28 +2455,49 @@ int64_t scoop_string_contains(const ScoopString *s, const ScoopString *substr) {
 
 // scoop_string_split：按 delimiter 分割 s，返回 Array<String>（GC-managed 数组）。
 // 使用 scoop_array_builder_* 构建。
+//
+// GC 安全性：builder / s / delimiter 均为 GC heap 上的对象，而 C 局部变量不是 GC root。
+// scoop_string_from_bytes → scoop_alloc 可能触发 GC，导致未 pin 的对象被回收/搬迁。
+// 因此在整个分割循环期间 pin 住 builder、s、delimiter，保证 raw 指针（data/ddata）不悬空。
 void *scoop_string_split(const ScoopString *s, const ScoopString *delimiter) {
   // Array builder 由 `runtime/c/scoop_array.c` 提供。
   void *scoop_array_builder_new(void);
   void scoop_array_builder_push_ref(void *builder, void *value);
   void *scoop_array_builder_build_array(void *builder);
 
+  // Pin s and delimiter first — scoop_array_builder_new may trigger GC.
+  if (s != 0) scoop_pin((void *)s);
+  if (delimiter != 0) scoop_pin((void *)delimiter);
+
   void *builder = scoop_array_builder_new();
   if (builder == 0) {
+    if (s != 0) scoop_unpin((void *)s);
+    if (delimiter != 0) scoop_unpin((void *)delimiter);
     return 0;
   }
+
+  // Pin builder — subsequent scoop_string_from_bytes calls may trigger GC.
+  scoop_pin(builder);
 
   // Null/empty string → single-element array containing empty string.
   if (s == 0 || s->len == 0 || s->data == 0) {
     const ScoopString *empty = scoop_string_empty();
     scoop_array_builder_push_ref(builder, (void *)empty);
-    return scoop_array_builder_build_array(builder);
+    void *result = scoop_array_builder_build_array(builder);
+    scoop_unpin(builder);
+    if (s != 0) scoop_unpin((void *)s);
+    if (delimiter != 0) scoop_unpin((void *)delimiter);
+    return result;
   }
 
   // Empty/null delimiter → single-element array containing the whole string.
   if (delimiter == 0 || delimiter->len == 0 || delimiter->data == 0) {
     scoop_array_builder_push_ref(builder, (void *)s);
-    return scoop_array_builder_build_array(builder);
+    void *result = scoop_array_builder_build_array(builder);
+    scoop_unpin(builder);
+    scoop_unpin((void *)s);
+    if (delimiter != 0) scoop_unpin((void *)delimiter);
+    return result;
   }
 
   const uint8_t *data = s->data;
@@ -2488,6 +2509,7 @@ void *scoop_string_split(const ScoopString *s, const ScoopString *delimiter) {
   for (uint64_t i = 0; i + dlen <= slen; i++) {
     if (memcmp(data + i, ddata, (size_t)dlen) == 0) {
       // Found delimiter at position i: emit segment [start, i).
+      // scoop_string_from_bytes may trigger GC — s/delimiter/builder are pinned.
       const ScoopString *seg = scoop_string_from_bytes(data + start, i - start);
       scoop_array_builder_push_ref(builder, (void *)seg);
       start = i + dlen;
@@ -2499,5 +2521,51 @@ void *scoop_string_split(const ScoopString *s, const ScoopString *delimiter) {
   const ScoopString *tail = scoop_string_from_bytes(data + start, slen - start);
   scoop_array_builder_push_ref(builder, (void *)tail);
 
-  return scoop_array_builder_build_array(builder);
+  void *result = scoop_array_builder_build_array(builder);
+  scoop_unpin(builder);
+  scoop_unpin((void *)s);
+  scoop_unpin((void *)delimiter);
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// T1812: 数値↔文本 変換 (Int.toString / String.toInt)
+// ---------------------------------------------------------------------------
+
+// scoop_int_to_string：将 int64_t 转换为十进制字符串表示。
+// 返回 GC-managed ScoopString*。
+const ScoopString *scoop_int_to_string(int64_t value) {
+  // snprintf with NULL first to determine length, then allocate.
+  // INT64_MIN = -9223372036854775808 → max 20 digits + sign + NUL = 22 bytes.
+  char buf[22];
+  int n = snprintf(buf, sizeof(buf), "%lld", (long long)value);
+  if (n <= 0) {
+    return scoop_string_empty();
+  }
+
+  return scoop_string_from_bytes((const uint8_t *)buf, (uint64_t)n);
+}
+
+// scoop_string_to_int：将十进制字符串解析为 int64_t。
+// 对非数字输入返回 0（v0 简单路径；后续可引入 Option<Int>）。
+// 支持可选的前导 '-' 或 '+' 号，跳过前导空白。
+int64_t scoop_string_to_int(const ScoopString *s) {
+  if (s == 0 || s->data == 0 || s->len == 0) {
+    return 0;
+  }
+
+  // 复制到 NUL-terminated 缓冲区（ScoopString 不保证 NUL 终止）。
+  uint64_t len = s->len;
+  if (len > 64) len = 64; // 防止栈溢出；int64_t 最多 20 位
+  char buf[65];
+  (void)memcpy(buf, s->data, (size_t)len);
+  buf[len] = '\0';
+
+  char *endptr = 0;
+  long long result = strtoll(buf, &endptr, 10);
+  // 如果没有成功解析任何字符，返回 0。
+  if (endptr == buf) {
+    return 0;
+  }
+  return (int64_t)result;
 }
