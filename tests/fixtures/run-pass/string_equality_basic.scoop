@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: string_equality_basic.stdout
+//
+// T0107: String == and != codegen.
+
+import scoop.core.*
+
+fun main() {
+    // == : same content
+    if ("hello" == "hello") {
+        println("eq_same_yes")
+    } else {
+        println("eq_same_no")
+    }
+
+    // == : different content
+    if ("hello" == "world") {
+        println("eq_diff_yes")
+    } else {
+        println("eq_diff_no")
+    }
+
+    // != : different content
+    if ("a" != "b") {
+        println("ne_diff_yes")
+    } else {
+        println("ne_diff_no")
+    }
+
+    // != : same content
+    if ("a" != "a") {
+        println("ne_same_yes")
+    } else {
+        println("ne_same_no")
+    }
+
+    // empty string equality
+    if ("" == "") {
+        println("eq_empty_yes")
+    } else {
+        println("eq_empty_no")
+    }
+
+    // empty vs non-empty
+    if ("" == "x") {
+        println("eq_empty_nonempty_yes")
+    } else {
+        println("eq_empty_nonempty_no")
+    }
+
+    // same length, different content
+    if ("abc" == "abd") {
+        println("eq_samelength_yes")
+    } else {
+        println("eq_samelength_no")
+    }
+
+    // variable comparison
+    val s1: String = "test"
+    val s2: String = "test"
+    val s3: String = "other"
+    if (s1 == s2) {
+        println("var_eq_yes")
+    } else {
+        println("var_eq_no")
+    }
+    if (s1 == s3) {
+        println("var_diff_yes")
+    } else {
+        println("var_diff_no")
+    }
+    if (s1 != s3) {
+        println("var_ne_yes")
+    } else {
+        println("var_ne_no")
+    }
+}

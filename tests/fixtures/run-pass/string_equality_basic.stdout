@@ -1,0 +1,10 @@
+eq_same_yes
+eq_diff_no
+ne_diff_yes
+ne_same_no
+eq_empty_yes
+eq_empty_nonempty_no
+eq_samelength_no
+var_eq_yes
+var_diff_no
+var_ne_yes

@@ -2660,3 +2660,36 @@ int64_t scoop_string_hash(const ScoopString *s) {
   }
   return (int64_t)hash;
 }
+
+// ---------------------------------------------------------------------------
+// T0107: String.equals — structural equality comparison
+// ---------------------------------------------------------------------------
+
+// scoop_string_equals：比较两个字符串是否内容相等。返回 1（相等）或 0（不相等）。
+// 语义：长度相同且字节序列相同。NULL 或空字符串之间的比较按长度判断。
+int64_t scoop_string_equals(const ScoopString *a, const ScoopString *b) {
+  // Same pointer (including both NULL) → equal
+  if (a == b) {
+    return 1;
+  }
+  // One NULL, the other not → not equal
+  if (a == 0 || b == 0) {
+    return 0;
+  }
+  // Different lengths → not equal
+  if (a->len != b->len) {
+    return 0;
+  }
+  // Both empty → equal
+  if (a->len == 0) {
+    return 1;
+  }
+  // Data pointer checks
+  if (a->data == 0 && b->data == 0) {
+    return 1;
+  }
+  if (a->data == 0 || b->data == 0) {
+    return 0;
+  }
+  return memcmp(a->data, b->data, (size_t)a->len) == 0 ? 1 : 0;
+}

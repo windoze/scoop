@@ -225,6 +225,12 @@ cargo run -p scoop --features llvm -- test
   - DONE（T0105）：修复 STW 死锁——所有 runtime/c 中的阻塞系统调用（`pthread_join`、`pthread_cond_wait`、`sleep`）前后添加 `scoop_enter_native`/`scoop_leave_native` 状态转换，使阻塞线程在 STW 期间被跳过。涉及 5 个函数（scoop_thread_spawn_join_resume_u64、scoop_thread_join、scoop_thread_sleep_millis、scoop_sync_condvar_wait、scoop_sync_once_run_blocking、scoop_channels_recv_u64）。SCOOP_GC_STRESS=1 下不再死锁；剩余 GC rooting 问题属 T0106 范围。
   - DONE（T0106）：GC rooting 审计——系统审计 runtime/c 全部 7 个源文件中所有调用 `scoop_alloc` 的函数，修复 4 个存在 GC-managed 指针跨分配点未 pin 的函数：`scoop_string_trim_indent`（pin value）、`scoop_process_args_array`（pin builder）、`scoop_array_builder_build_common`（pin b）、`scoop_thread_spawn`（pin env_ptr）。其余函数验证为已安全或无需修复。
 
+## 3.1 编译器 + 核心库规范合规审计
+
+> 以下任务来自对 `SCOOP_FULL_SPEC.md` 与编译器/核心库实现的系统审计。
+
+- DONE（T0107）：String `==`/`!=` codegen——runtime/c 新增 `scoop_string_equals`（指针/长度/memcmp 三级比较），typecheck 扩展 `Eq`/`Ne` 接受 `String` 操作数，codegen 在 `CgTy::String` 时调用 runtime 函数并转为 Bool；`assertEqString` 改用 `==`；新增 `string_equality_basic` fixture（10 场景）。775 fixtures 通过。
+
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 
 - DONE（T1801）：产出 `STDLIB_COMPLETENESS.md`，覆盖 21 个能力领域，每个能力项标注状态/分类/实现位置/fixtures。P0/P1 缺口排序：

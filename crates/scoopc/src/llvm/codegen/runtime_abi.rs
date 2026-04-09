@@ -85,6 +85,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.module.add_function(NAME, fn_ty, None)
     }
 
+    /// T0107: `int64_t scoop_string_equals(const ScoopString* a, const ScoopString* b)`
+    pub(super) fn declare_runtime_string_equals(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_STRING_EQUALS;
+        if let Some(existing) = self.module.get_function(NAME) {
+            return existing;
+        }
+        let i64_ty = self.context.i64_type();
+        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
+        let fn_ty = i64_ty.fn_type(&[str_ptr_ty.into(), str_ptr_ty.into()], false);
+        self.module.add_function(NAME, fn_ty, None)
+    }
+
     /// T1817: `int64_t scoop_string_hash(const ScoopString* s)`
     pub(super) fn declare_runtime_string_hash(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_STRING_HASH;

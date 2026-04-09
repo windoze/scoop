@@ -211,7 +211,7 @@ cargo run -p scoop --features llvm -- test
 > 以下任务来自对 `SCOOP_FULL_SPEC.md` 与编译器/核心库实现的系统审计。
 > 审计方法：逐节比对 spec 定义的语言特性与 parser→typecheck→HIR lowering→codegen 四阶段的实际覆盖度，以及核心库中的 hardcoded 类型限制。
 
-### T0107 [TODO] String `==`/`!=` codegen：字符串相等性比较
+### T0107 [DONE] String `==`/`!=` codegen：字符串相等性比较
 
 - 描述：当前 codegen 对 `String == String` 返回 `UnsupportedMainBody { kind: "equality lhs" }`。`codegen_equality`（`codegen/mod.rs:12360`）仅处理 `Bool` 和整数类型；String 因 `as_int()` 返回 `None` 而落入错误分支。同时 `runtime_symbols.rs` 中不存在 `scoop_string_equals` 符号。
 - 规范引用：Spec §2.3.4（所有类型支持 `==`/`!=`）；String 是 Scoop 核心类型，相等性比较是基础能力。
@@ -225,6 +225,14 @@ cargo run -p scoop --features llvm -- test
   - `assertEqString` 改用 `==`。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无
+- 完成说明：
+  - **runtime/c**（`scoop_runtime.c`）：新增 `scoop_string_equals(a, b) -> i64`——指针相等短路、长度比较、`memcmp` 内容比较。注册到 `scoop_runtime_api.h`。
+  - **typecheck**（`typecheck/expr/ops.rs`）：`Eq`/`Ne` 分支新增 `String == String` 支持（`lhs_ty == builtins.string && rhs_ty == builtins.string`）。
+  - **codegen**（`codegen/mod.rs`）：`codegen_equality` 在 `CgTy::String` 时调用 `scoop_string_equals`，返回 i64 (1/0)，再转为 Bool；`!=` 通过 `build_not` 取反。
+  - **runtime symbols + ABI**（`runtime_symbols.rs` + `runtime_abi.rs`）：`SCOOP_STRING_EQUALS` 常量 + `declare_runtime_string_equals` 声明（`i64 fn(ScoopString*, ScoopString*)`）。
+  - **stdlib**（`stdlib/test.scoop`）：`assertEqString` 从 `length() + startsWith()` workaround 改为直接 `expected == actual`。
+  - **fixture**：`string_equality_basic.scoop` + `.stdout`——覆盖 10 个场景：同内容 `==`、不同内容 `==`、不同内容 `!=`、同内容 `!=`、空串 `==`、空串 vs 非空、同长不同内容、变量比较 `==`/`!=`。
+  - 139 单元测试 + 775 fixtures 通过（含 LLVM 后端）。
 
 ### T0108 [TODO] Nullable 运算符 codegen：`?.`（safe call）和 `!!`（non-null assert）
 

@@ -12387,6 +12387,63 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?));
         }
 
+        // T0107: String == String — call scoop_string_equals(a, b) -> i64 (1=equal, 0=not)
+        if matches!((lhs_v.ty, rhs_v.ty), (CgTy::String, CgTy::String)) {
+            let BasicValueEnum::PointerValue(l) = lhs_v.value.ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "equality lhs string value",
+                    at: span.into(),
+                },
+            )?
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "equality lhs string type",
+                    at: span.into(),
+                });
+            };
+            let BasicValueEnum::PointerValue(r) = rhs_v.value.ok_or(
+                LlvmEmitError::UnsupportedMainBody {
+                    kind: "equality rhs string value",
+                    at: span.into(),
+                },
+            )?
+            else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "equality rhs string type",
+                    at: span.into(),
+                });
+            };
+            let fn_val = self.declare_runtime_string_equals();
+            let call = self
+                .builder
+                .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
+            let raw_result = call
+                .try_as_basic_value()
+                .basic()
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String equals return value",
+                    at: span.into(),
+                })?;
+            let BasicValueEnum::IntValue(eq_i64) = raw_result else {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "String equals return type",
+                    at: span.into(),
+                });
+            };
+            let is_eq = self.builder.build_int_compare(
+                IntPredicate::NE,
+                eq_i64,
+                self.context.i64_type().const_zero(),
+                "str_eq_bool",
+            )?;
+            let result = match op {
+                ast::BinaryOp::Eq => is_eq,
+                ast::BinaryOp::Ne => self.builder.build_not(is_eq, "str_ne_bool")?,
+                _ => unreachable!("filtered by caller"),
+            };
+            return Ok(CgValue::bool(result));
+        }
+
         // Int == Int（含 int literal 吸收）
         let Some((l_raw, l_ty)) = lhs_v.as_int() else {
             return Err(LlvmEmitError::UnsupportedMainBody {

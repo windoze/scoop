@@ -947,9 +947,13 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             }
             Err(mismatch("相同的整数类型"))
         }
-        // equality: (T == T) -> Bool; (Bool == Bool) -> Bool
+        // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (String == String) -> Bool
         ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
             if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
+                return Ok(builtins.bool_);
+            }
+            // T0107: String == String
+            if lhs_ty == builtins.string && rhs_ty == builtins.string {
                 return Ok(builtins.bool_);
             }
             if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
@@ -957,7 +961,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             {
                 return Ok(builtins.bool_);
             }
-            Err(mismatch("相同的整数类型或 Bool"))
+            Err(mismatch("相同的整数类型、Bool 或 String"))
         }
         // boolean logic: Bool op Bool -> Bool
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {

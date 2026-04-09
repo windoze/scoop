@@ -135,8 +135,9 @@
   X(scoop_int_to_string) \
   X(scoop_string_concat) \
   X(scoop_string_contains) \
-  X(scoop_string_hash) \
   X(scoop_string_ends_with) \
+  X(scoop_string_equals) \
+  X(scoop_string_hash) \
   X(scoop_string_index_of) \
   X(scoop_string_length) \
   X(scoop_string_split) \
