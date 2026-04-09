@@ -1,0 +1,147 @@
+// EXPECT: pass
+// RUN-STDOUT: gc_continuation_multi_thread_concurrent_alloc_resume.stdout
+//
+// T1705: Multi-thread + GC + escaping continuation — worker threads resume continuations.
+//
+// Scenario:
+// - Two independent tasks (A and B) each suspend once via escape continuation.
+// - Worker thread A resumes continuation A, then joins.
+// - Main thread does explicit GC (safe: only main thread alive after join).
+// - Worker thread B resumes continuation B, then joins.
+// - Main thread does explicit GC again.
+//
+// Verifies:
+// - Thread registration/unregistration lifecycle (2 separate worker threads).
+// - Continuation state (lifted locals including String refs) survives cross-thread resume.
+// - GC correctness after thread lifecycle changes (thread list shrinks between GC calls).
+// - Object allocation in resumed continuation code executes in worker thread context.
+//
+// Note: SCOOP_GC_STRESS=1 + cross-thread resume is a known limitation;
+// uses explicit __scoop_gc_collect() on main thread after worker threads join.
+
+import scoop.core.*
+import scoop.thread.*
+
+effect AwaitA {
+    fun pauseA(): Int
+}
+
+effect AwaitB {
+    fun pauseB(): Int
+}
+
+class CellA(var k: Continuation<Int>?)
+class CellB(var k: Continuation<Int>?)
+
+object Shared {
+    val cellA: CellA = CellA(None())
+    val cellB: CellB = CellB(None())
+}
+
+fun workerAFn() {
+    val cell: CellA = Shared.cellA
+    val theK: Continuation<Int>? = cell.k
+    when (theK) {
+        Some(ka) -> {
+            println("workerA_resuming")
+            val _: Unit = try {
+                ka.resume(10)
+            } catch (e: RuntimeError) {
+                println("workerA_error")
+            }
+        }
+        None -> println("workerA_missing")
+    }
+    println("workerA_fn_done")
+}
+
+fun workerBFn() {
+    val cell: CellB = Shared.cellB
+    val theK: Continuation<Int>? = cell.k
+    when (theK) {
+        Some(kb) -> {
+            println("workerB_resuming")
+            val _: Unit = try {
+                kb.resume(20)
+            } catch (e: RuntimeError) {
+                println("workerB_error")
+            }
+        }
+        None -> println("workerB_missing")
+    }
+    println("workerB_fn_done")
+}
+
+fun main() {
+    val cellA: CellA = Shared.cellA
+    val cellB: CellB = Shared.cellB
+
+    // --- Task A: suspend once, capture String locals ---
+    val _ha: Unit = handle {
+        val labelA: String = "task_A_data"
+        val baseA: Int = 100
+        println("taskA_body_start")
+        println(labelA)
+
+        val a1: Int = AwaitA.pauseA()
+        println("taskA_resumed")
+        println(a1)
+        println(labelA)
+        println(f"taskA_result={baseA + a1}")
+        println("taskA_done")
+    } with {
+        AwaitA.pauseA(), k -> {
+            println("taskA_arm")
+            cellA.k = Some(k)
+        }
+    }
+
+    // --- Task B: suspend once, capture String locals ---
+    val _hb: Unit = handle {
+        val labelB: String = "task_B_data"
+        val baseB: Int = 200
+        println("taskB_body_start")
+        println(labelB)
+
+        val b1: Int = AwaitB.pauseB()
+        println("taskB_resumed")
+        println(b1)
+        println(labelB)
+        println(f"taskB_result={baseB + b1}")
+        println("taskB_done")
+    } with {
+        AwaitB.pauseB(), k -> {
+            println("taskB_arm")
+            cellB.k = Some(k)
+        }
+    }
+
+    println("both_captured")
+
+    // GC before any worker thread (only main thread alive)
+    __scoop_gc_debug_alloc_garbage(30)
+    __scoop_gc_collect()
+    println("gc_before_workers")
+
+    // Worker A: resumes continuation A in a new thread
+    val workerA: Thread = threadSpawn { workerAFn() }
+    workerA.join()
+    println("workerA_joined")
+
+    // GC after worker A joined (main thread only; thread list shrunk)
+    __scoop_gc_debug_alloc_garbage(30)
+    __scoop_gc_collect()
+    println("gc_after_workerA")
+
+    // Worker B: resumes continuation B in a new thread
+    val workerB: Thread = threadSpawn { workerBFn() }
+    workerB.join()
+    println("workerB_joined")
+
+    // Final GC
+    __scoop_gc_debug_alloc_garbage(30)
+    __scoop_gc_collect()
+    println("gc_final")
+
+    println("all_done")
+}

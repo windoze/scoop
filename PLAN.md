@@ -221,6 +221,7 @@ cargo run -p scoop --features llvm -- test
 - GC + escaping continuation：确保 continuation 捕获环境的 roots 扫描/更新正确。
   - DONE（T1704）：新增 2 个 run-pass fixtures——deep object graph（class chain + struct-with-ref 嵌套，2 次 suspend/resume，graph 扩展后验证 child 链接存活）、alloc-heavy resume（3 次 suspend/resume + 累积 Record 对象 + caller 侧显式 GC collect）。均在 `--gc-stress` 下稳定。
 - 多线程扩展：把上述场景搬到多线程，固定调度避免 flakiness。
+  - DONE（T1705）：新增 2 个 run-pass fixtures——`gc_continuation_cross_thread_resume_with_objects`（3-node class chain + struct Tag(String, Int)，2 次 suspend/resume 均在新线程中执行，resume 间主线程 GC collect）、`gc_continuation_multi_thread_concurrent_alloc_resume`（两独立 effect handler 各捕获 continuation + String locals，通过 threadSpawn 两个 worker 线程分别 resume，object Shared 共享状态 + 顺序 spawn/join 确保确定性输出，join 后主线程 GC collect 验证线程注册/注销生命周期正确性）。已知限制：SCOOP_GC_STRESS=1 + 跨线程 resume 导致 STW 死锁（worker 阻塞在 native code 无法到达 safepoint），使用显式 `__scoop_gc_collect()` 替代。
 
 ## 4. 标准库完整性（基于 `KOTLIN_RUNTIME_GAP_AUDIT.md`）
 

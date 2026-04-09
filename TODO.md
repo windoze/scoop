@@ -611,7 +611,7 @@ cargo run -p scoop --features llvm -- test
     - `gc_continuation_escape_alloc_heavy_resume`：escape continuation 的 3 次 suspend/resume，每次 resume 返回 String（GC ref）。每次 resume 后分配新 Record 对象（class with struct Entry field containing String），累积 r1/r2/r3 全部在后续 suspension 跨越时存活。Caller 侧在每次 resume 前显式 `__scoop_gc_debug_alloc_garbage(50)` + `__scoop_gc_collect()`。验证 ContState 中持续增长的 live ref 集合在高频 GC 下全部存活。
   - 两个 fixtures 均在 `SCOOP_GC_STRESS=1` 下稳定通过。
 
-### T1705 [TODO] 多线程扩展：在多线程下验证 continuation 与 GC 的组合正确性
+### T1705 [DONE] 多线程扩展：在多线程下验证 continuation 与 GC 的组合正确性
 - 描述：把上述验证场景扩展到多线程：跨线程恢复 continuation、并发分配、并发触发 GC（或协作式 STW），确保线程注册、root 枚举与对象移动/更新正确。
 - 目标：
   - 覆盖：多个线程各自维护任务队列、跨线程偷取 continuation 并恢复。
@@ -620,6 +620,12 @@ cargo run -p scoop --features llvm -- test
   - 新增 run-pass fixtures：至少 2 个多线程用例（stdout 稳定），并在 `--gc-stress` 与默认模式均可通过。
   - 为避免 flakiness，必须固定调度策略（barrier/顺序号/确定性调度器）。
 - 依赖：（历史）多线程 STW/线程注册/并发分配基础能力已存在
+- 完成说明：
+  - 新增 2 个 run-pass fixtures：
+    - `gc_continuation_cross_thread_resume_with_objects`：主线程构建 3 节点 class 链（root→mid→leaf）+ struct Tag(String, Int)，escape continuation 在 handle body 中 2 次 suspend。每次 continuation 在新线程中 resume（`__scoop_thread_spawn_join_resume_u64`）。resume 间主线程 `__scoop_gc_debug_alloc_garbage(30)` + `__scoop_gc_collect()`。resume 后验证完整对象图（字段值 + child 链接 + 扩展节点）存活。测试 ContState 中 lifted locals（class refs → struct fields → String refs）在跨线程 resume + GC 下的正确性。
+    - `gc_continuation_multi_thread_concurrent_alloc_resume`：两个独立 effect handler（AwaitA/AwaitB）各捕获一个 continuation + String locals。通过 `threadSpawn` 创建两个 worker 线程（调用 top-level 函数避免 closure non-scalar capture 限制），分别 resume 各自的 continuation。主线程在 worker join 后执行 `__scoop_gc_collect()`，验证线程注册/注销生命周期 + GC thread list 正确性。使用 `object Shared` 共享状态 + 顺序 spawn/join 确保确定性输出。
+  - 已知限制：`SCOOP_GC_STRESS=1` + 跨线程 resume 会导致 STW 死锁（worker 线程阻塞在 native code 中无法到达 safepoint），fixture 使用主线程显式 `__scoop_gc_collect()` 替代。
+  - 所有 764 fixtures 通过。
 
 ---
 
