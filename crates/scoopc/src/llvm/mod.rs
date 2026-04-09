@@ -571,6 +571,23 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.class_itables,
         &lowered.ctor_call_sites,
     );
+
+    // T0111: Eagerly include struct member methods (operator overloads like `plus`, `compareTo`
+    // are dispatched at codegen time from `Binary` expressions, which the reachability scanner
+    // cannot detect since HIR types for VarRef are `Any`).
+    {
+        let reachable_fqns: std::collections::HashSet<&str> =
+            reachable.iter().map(|f| f.fqn.as_str()).collect();
+        for struct_fqn in lowered.struct_layouts.keys() {
+            let prefix = format!("{struct_fqn}.");
+            for (fqn, fun) in &fun_index {
+                if fqn.starts_with(&prefix) && !reachable_fqns.contains(fqn.as_str()) {
+                    reachable.push(fun);
+                }
+            }
+        }
+    }
+
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
 
     for fun in &reachable {

@@ -107,6 +107,9 @@ fn operator_overload_method_name(op: ast::BinaryOp) -> Option<&'static str> {
     match op {
         ast::BinaryOp::Add => Some("plus"),
         ast::BinaryOp::Sub => Some("minus"),
+        ast::BinaryOp::Mul => Some("times"),
+        ast::BinaryOp::Div => Some("div"),
+        ast::BinaryOp::Rem => Some("rem"),
         ast::BinaryOp::BitAnd => Some("and"),
         ast::BinaryOp::BitOr => Some("or"),
         ast::BinaryOp::BitXor => Some("xor"),
@@ -545,6 +548,9 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         match op {
             ast::BinaryOp::Add
             | ast::BinaryOp::Sub
+            | ast::BinaryOp::Mul
+            | ast::BinaryOp::Div
+            | ast::BinaryOp::Rem
             | ast::BinaryOp::BitAnd
             | ast::BinaryOp::BitXor
             | ast::BinaryOp::BitOr => {
@@ -945,7 +951,54 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             {
                 return Ok(builtins.bool_);
             }
-            Err(mismatch("相同的整数类型"))
+            // T0111: compareTo operator overloading for user-defined types.
+            // If LHS is a nominal struct/class type, try `compareTo` method.
+            //
+            // Note: we construct the error manually instead of using the `mismatch`
+            // closure because `mismatch` borrows `lower` immutably, which conflicts
+            // with the mutable/shared borrow needed by the method lookup below.
+            if let Some((receiver_fqn, receiver_args)) =
+                try_extract_nominal_fqn_and_args(lhs_ty, lower)
+            {
+                if matches!(
+                    lower.nominal_decl_kind(&receiver_fqn),
+                    Some(ast::TypeKind::Struct | ast::TypeKind::Class)
+                ) {
+                    let method = "compareTo";
+                    let callee_fqn = format!("{receiver_fqn}.{method}");
+                    let sigs = collect_member_method_signatures_from_index(
+                        source,
+                        lhs_ty,
+                        &receiver_fqn,
+                        &receiver_args,
+                        &callee_fqn,
+                        lower,
+                        builtins,
+                    )?;
+                    for sig in &sigs {
+                        if sig.params.len() == 2
+                            && is_type_assignable(rhs_ty, sig.params[1], lower, builtins)
+                            && sig.return_ty == builtins.int
+                        {
+                            record_member_method_effects_as_performed(
+                                &receiver_fqn,
+                                &receiver_args,
+                                sig,
+                                op_span,
+                                lower,
+                            )?;
+                            return Ok(builtins.bool_);
+                        }
+                    }
+                }
+            }
+            Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                op: binary_op_text(op).to_string(),
+                expected: "相同的整数类型".to_string(),
+                lhs: lower.fmt_type(lhs_ty),
+                rhs: lower.fmt_type(rhs_ty),
+                span: op_span.into(),
+            })
         }
         // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (String == String) -> Bool
         ast::BinaryOp::Eq | ast::BinaryOp::Ne => {

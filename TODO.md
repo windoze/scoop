@@ -284,7 +284,7 @@ cargo run -p scoop --features llvm -- test
 - 依赖：无
 - 备注：T1819（Ranges 增强）的 `for (x in range)` integration 依赖此任务。
 
-### T0111 [TODO] 运算符重载：用户定义类型的方法分发 + 缺失运算符
+### T0111 [DONE] 运算符重载：用户定义类型的方法分发 + 缺失运算符
 
 - 描述：当前运算符重载存在两个层面的缺陷：
   1. **codegen 不分发到用户方法**：typecheck 能识别 `plus`/`minus`/`and`/`or`/`xor`/`shl`/`shr`（`typecheck/expr/ops.rs:106`），但 codegen 的 `codegen_binary`（`codegen/mod.rs:11457`）仅发出 LLVM 内建整数指令，不会对 struct/class 类型分发到对应方法调用。

@@ -11467,6 +11467,243 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// Map a binary operator to its operator overload method name (Spec B.8).
+    fn operator_overload_method_name(op: ast::BinaryOp) -> Option<&'static str> {
+        match op {
+            ast::BinaryOp::Add => Some("plus"),
+            ast::BinaryOp::Sub => Some("minus"),
+            ast::BinaryOp::Mul => Some("times"),
+            ast::BinaryOp::Div => Some("div"),
+            ast::BinaryOp::Rem => Some("rem"),
+            ast::BinaryOp::BitAnd => Some("and"),
+            ast::BinaryOp::BitOr => Some("or"),
+            ast::BinaryOp::BitXor => Some("xor"),
+            ast::BinaryOp::Shl => Some("shl"),
+            ast::BinaryOp::Shr => Some("shr"),
+            _ => None,
+        }
+    }
+
+    /// Try to dispatch a binary operator to a user-defined method on a struct type.
+    /// Returns `Some(result)` if the LHS is a struct with the corresponding operator method,
+    /// `None` if the LHS is not a struct type (caller should use builtin integer path).
+    /// Resolve the effective CgTy for an expression, checking the local env first
+    /// (since HIR lowering often assigns `Any` to VarRef expressions).
+    fn resolve_expr_cg_ty(&self, expr: &hir::Expr) -> Option<CgTy> {
+        // Try the local environment first (has accurate types for locals).
+        if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind {
+            if let Some(local) = self.env.get(*id) {
+                return Some(local.ty);
+            }
+        }
+        // Fall back to HIR expression type.
+        self.cg_ty_of(expr.ty)
+    }
+
+    fn try_codegen_operator_overload(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::BinaryOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        // Check if LHS has a struct type, resolving through local env if needed.
+        let Some(CgTy::Struct(lhs_type_id)) = self.resolve_expr_cg_ty(lhs) else {
+            return Ok(None);
+        };
+
+        let method = match Self::operator_overload_method_name(op) {
+            Some(m) => m,
+            None => return Ok(None),
+        };
+
+        // Get the struct FQN from TypeId.
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id)
+        else {
+            return Ok(None);
+        };
+        let struct_fqn = nominal.fqn.clone();
+        let method_fqn = format!("{struct_fqn}.{method}");
+
+        // Look up the method in fun_index.
+        let sig_fun = match self.fun_index.get(method_fqn.as_str()) {
+            Some(f) => *f,
+            None => return Ok(None),
+        };
+
+        // Generate the call: StructType.method(lhs, rhs)
+        let result = self.codegen_operator_overload_call(span, &method_fqn, sig_fun, lhs, rhs)?;
+        Ok(Some(result))
+    }
+
+    /// Try to dispatch a comparison operator to a `compareTo` method on a struct type.
+    /// `compareTo(other) -> Int`, then compare the result with 0.
+    fn try_codegen_compare_to_overload(
+        &mut self,
+        span: crate::span::Span,
+        op: ast::BinaryOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        let Some(CgTy::Struct(lhs_type_id)) = self.resolve_expr_cg_ty(lhs) else {
+            return Ok(None);
+        };
+
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(lhs_type_id)
+        else {
+            return Ok(None);
+        };
+        let struct_fqn = nominal.fqn.clone();
+        let method_fqn = format!("{struct_fqn}.compareTo");
+
+        let sig_fun = match self.fun_index.get(method_fqn.as_str()) {
+            Some(f) => *f,
+            None => return Ok(None),
+        };
+
+        // Call compareTo: returns Int
+        let cmp_result =
+            self.codegen_operator_overload_call(span, &method_fqn, sig_fun, lhs, rhs)?;
+        let (cmp_int, _) = cmp_result.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
+            kind: "compareTo return type (expected Int)",
+            at: span.into(),
+        })?;
+
+        // Compare result with 0: result < 0 for Lt, result <= 0 for Le, etc.
+        let zero = self.context.i64_type().const_zero();
+        let pred = match op {
+            ast::BinaryOp::Lt => IntPredicate::SLT,
+            ast::BinaryOp::Le => IntPredicate::SLE,
+            ast::BinaryOp::Gt => IntPredicate::SGT,
+            ast::BinaryOp::Ge => IntPredicate::SGE,
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "compareTo comparison op",
+                    at: span.into(),
+                });
+            }
+        };
+        let result = self
+            .builder
+            .build_int_compare(pred, cmp_int, zero, "cmp_to")?;
+        Ok(Some(CgValue::bool(result)))
+    }
+
+    /// Generate a call to a struct's operator overload method.
+    /// The method has signature: `fun StructType.method(this: StructType, rhs: RhsType): RetType`
+    fn codegen_operator_overload_call(
+        &mut self,
+        span: crate::span::Span,
+        method_fqn: &str,
+        sig_fun: &hir::FunDecl,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if sig_fun.params.len() != 2 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "operator overload arity (expected 2)",
+                at: span.into(),
+            });
+        }
+
+        // Evaluate LHS (this/receiver parameter)
+        let this_target_cg = self.cg_ty_of(sig_fun.params[0].ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "operator overload receiver type",
+                at: lhs.span.into(),
+            },
+        )?;
+        let lhs_v = self.codegen_expr(lhs)?;
+        let lhs_coerced = self.coerce_value(lhs.span, lhs_v, this_target_cg)?;
+        let lhs_arg = self.as_llvm_arg_value(lhs.span, this_target_cg, lhs_coerced)?;
+
+        // Evaluate RHS (method parameter)
+        let rhs_target_cg = self.cg_ty_of(sig_fun.params[1].ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "operator overload rhs type",
+                at: rhs.span.into(),
+            },
+        )?;
+        let rhs_v = self.codegen_expr(rhs)?;
+        let rhs_coerced = self.coerce_value(rhs.span, rhs_v, rhs_target_cg)?;
+        let rhs_arg = self.as_llvm_arg_value(rhs.span, rhs_target_cg, rhs_coerced)?;
+
+        // Get or declare the LLVM function
+        let llvm_fun = match self.module.get_function(method_fqn) {
+            Some(f) => f,
+            None => self.declare_top_level_fun(sig_fun)?,
+        };
+
+        let call_site =
+            self.builder
+                .build_call(llvm_fun, &[lhs_arg, rhs_arg], "op_overload")?;
+        call_site.set_call_convention(self.llvm_call_convention_for_fqn(method_fqn));
+
+        // Convert return value to CgValue (same pattern as codegen_top_level_fun_call).
+        let ret_cg = self.cg_ty_of(sig_fun.return_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "operator overload return type",
+                at: span.into(),
+            },
+        )?;
+        match ret_cg {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            CgTy::Bool => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "operator overload return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::bool(value))
+            }
+            CgTy::Int(int_ty) => {
+                let value = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "operator overload return value",
+                        at: span.into(),
+                    })?
+                    .into_int_value();
+                Ok(CgValue::int(value, int_ty))
+            }
+            CgTy::String | CgTy::Ref => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "operator overload return value",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(ptr) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "operator overload return type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(ptr.into()),
+                })
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let raw = call_site.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "operator overload return value",
+                        at: span.into(),
+                    },
+                )?;
+                Ok(CgValue {
+                    ty: ret_cg,
+                    value: Some(raw),
+                })
+            }
+        }
+    }
+
     fn codegen_binary(
         &mut self,
         span: crate::span::Span,
@@ -11482,11 +11719,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | ast::BinaryOp::Rem
             | ast::BinaryOp::BitAnd
             | ast::BinaryOp::BitXor
-            | ast::BinaryOp::BitOr => self.codegen_int_binary_same_type(span, op, lhs, rhs),
+            | ast::BinaryOp::BitOr => {
+                // T0111: try operator overload dispatch for user-defined types first.
+                if let Some(result) = self.try_codegen_operator_overload(span, op, lhs, rhs)? {
+                    return Ok(result);
+                }
+                self.codegen_int_binary_same_type(span, op, lhs, rhs)
+            }
 
-            ast::BinaryOp::Shl | ast::BinaryOp::Shr => self.codegen_shift(span, op, lhs, rhs),
+            ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                if let Some(result) = self.try_codegen_operator_overload(span, op, lhs, rhs)? {
+                    return Ok(result);
+                }
+                self.codegen_shift(span, op, lhs, rhs)
+            }
 
             ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+                // T0111: try compareTo overload for user-defined types first.
+                if let Some(result) =
+                    self.try_codegen_compare_to_overload(span, op, lhs, rhs)?
+                {
+                    return Ok(result);
+                }
                 self.codegen_int_compare(span, op, lhs, rhs)
             }
 

@@ -484,6 +484,9 @@ pub(super) fn infer_expr_type(
             ),
             ast::BinaryOp::Add
             | ast::BinaryOp::Sub
+            | ast::BinaryOp::Mul
+            | ast::BinaryOp::Div
+            | ast::BinaryOp::Rem
             | ast::BinaryOp::BitAnd
             | ast::BinaryOp::BitXor
             | ast::BinaryOp::BitOr

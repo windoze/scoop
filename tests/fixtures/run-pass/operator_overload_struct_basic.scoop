@@ -1,0 +1,85 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_overload_struct_basic.stdout
+//
+// T0111: Operator overloading for user-defined struct types.
+// Tests plus (+), minus (-), times (*), div (/), rem (%), and compareTo (<, >, <=, >=).
+
+import scoop.core.*
+
+struct Vec2(val x: Int, val y: Int) {
+    fun plus(other: Vec2): Vec2 {
+        return Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+
+    fun minus(other: Vec2): Vec2 {
+        return Vec2 { x: this.x - other.x, y: this.y - other.y }
+    }
+
+    fun times(other: Vec2): Vec2 {
+        return Vec2 { x: this.x * other.x, y: this.y * other.y }
+    }
+}
+
+struct Num(val v: Int) {
+    fun div(other: Num): Num {
+        return Num { v: this.v / other.v }
+    }
+
+    fun rem(other: Num): Num {
+        return Num { v: this.v % other.v }
+    }
+
+    fun compareTo(other: Num): Int {
+        return this.v - other.v
+    }
+}
+
+fun main(): Int {
+    val a: Vec2 = Vec2 { x: 1, y: 2 }
+    val b: Vec2 = Vec2 { x: 3, y: 4 }
+
+    val c: Vec2 = a + b
+    println(c.x)
+    println(c.y)
+
+    val d: Vec2 = b - a
+    println(d.x)
+    println(d.y)
+
+    val e: Vec2 = a * b
+    println(e.x)
+    println(e.y)
+
+    val n1: Num = Num { v: 17 }
+    val n2: Num = Num { v: 5 }
+
+    val q: Num = n1 / n2
+    println(q.v)
+
+    val r: Num = n1 % n2
+    println(r.v)
+
+    // Note: `<` must be inside parentheses to avoid parser ambiguity with generics.
+    if (n1 < n2) {
+        println("lt=true")
+    } else {
+        println("lt=false")
+    }
+    if (n1 > n2) {
+        println("gt=true")
+    } else {
+        println("gt=false")
+    }
+    if (n2 <= n2) {
+        println("le=true")
+    } else {
+        println("le=false")
+    }
+    if (n2 >= n1) {
+        println("ge=true")
+    } else {
+        println("ge=false")
+    }
+
+    return 0
+}
