@@ -561,19 +561,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         for (idx, stmt) in body.stmts.iter().enumerate() {
             if let hir::StmtKind::Val(decl) = &stmt.kind {
-                if let Some(init) = &decl.init {
-                    if let hir::ExprKind::Perform { op, .. } = &init.kind {
-                        if op.fqn != "scoop.core.Raise.raise" {
-                            if let Some(id) = decl.id {
-                                return Some(CalleeSuspendInfo {
-                                    perform_stmt_idx: idx,
-                                    perform_binding_id: id,
-                                    perform_binding_ty: decl.ty,
-                                    saved_locals: locals_before,
-                                });
-                            }
-                        }
-                    }
+                if let Some(init) = &decl.init
+                    && let hir::ExprKind::Perform { op, .. } = &init.kind
+                    && op.fqn != "scoop.core.Raise.raise"
+                    && let Some(id) = decl.id
+                {
+                    return Some(CalleeSuspendInfo {
+                        perform_stmt_idx: idx,
+                        perform_binding_id: id,
+                        perform_binding_ty: decl.ty,
+                        saved_locals: locals_before,
+                    });
                 }
                 // Track locals declared before the perform.
                 if let Some(id) = decl.id {
