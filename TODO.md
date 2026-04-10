@@ -845,7 +845,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124、T0125、T0126
 
-### T0123 [TODO] `const fun` 支持 String `+` 和 substring 类操作
+### T0123 [DONE] `const fun` 支持 String `+` 和 substring 类操作
 
 - 描述：当前 `const fun` / `comptime` 求值器仅支持整数算术和布尔逻辑（`comptime/eval.rs`），不支持 String 操作。Spec §6.2 明确列出 `String ops` 为 `const fun` 允许的操作。在 T0122 将 substring 类操作迁移到纯 Scoop 后，这些操作理论上可在 comptime 求值。
 - 目标：

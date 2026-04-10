@@ -1,0 +1,16 @@
+HELLO = "Hello, World"
+CONCAT = "abcdef"
+MULTI_CONCAT = "abcd"
+EMPTY_CONCAT = "xy"
+EQ1 = true
+EQ2 = false
+NE1 = true
+NE2 = false
+BLEN = 5
+BLEN_EMPTY = 0
+LEN = 5
+B0 = 65
+B1 = 66
+B2 = 67
+B_OOB = 0
+B_NEG = 0

@@ -1,34 +1,37 @@
-## Execution Plan (high level)
+# T0123: `const fun` 支持 String `+` 和 substring 类操作
 
-### Plan
-1. Inspect the latest Git commit message and diff; if it mentions known issues (failing tests, TODOs, regressions), fix those first.
-2. Read `TODO.md` and identify the first incomplete task.
-3. If the first task is too large, decompose it into smaller subtasks; update `PLAN.md` and replace/augment the task in `TODO.md`. Treat the first new subtask as the task for this run.
-4. Implement the first incomplete task (or first subtask) completely.
-5. Run thorough validation:
-   - `cargo fmt --all`
-   - `cargo clippy --all-targets -- -D warnings`
-   - `cargo test --all`
-   - Any task-specific commands (e.g. fixture runner) if relevant.
-6. Document progress:
-   - Mark the task completed in `TODO.md`.
-   - Update `PLAN.md` to reflect the new state and any plan adjustments.
-   - Update this file with what was completed.
-7. Commit changes with a descriptive message.
-8. Stop (do not start the next task).
+## 思路
 
-### Progress log
-- 2026-04-10: Plan created.
-- 2026-04-10: Committed T0131 uncommitted changes (interface ToString + generic print/println).
-- 2026-04-10: T0128 COMPLETED — generic class GC verification with 5 run-pass fixtures, all GC stress stable.
+当前 comptime 求值器（eval.rs）已支持：
+- String 字面量 → ConstValue::String
+- String `==`/`!=` 比较（line 1143）
+- `trimIndent()` 方法调用（硬编码，line 529）
 
-### Completed: T0128
+当前 comptime 解释器（interpreter.rs）已支持：
+- String 类型的 `const val` 绑定和传参（ConstValue::String 已存在）
+- `const fun` 调用（仅限同文件内无 receiver 的函数）
 
-**Scenarios verified**:
-1. Generic class holding reference field → `generic_class_gc_ref_field.scoop` ✓
-2. Generic class holding value type → `generic_class_gc_value_field.scoop` ✓
-3. Generic class holding nullable reference → `generic_class_gc_nullable_ref.scoop` ✓ (new)
-4. Generic type with specialized types → `generic_class_gc_specialized_type.scoop` ✓ (fixed: length→size)
-5. GC allocation point safety → `generic_class_gc_multi_alloc.scoop` ✓
+**关键约束**：sysroot/string.scoop 中的 extension functions 使用了 `@Unsafe`、`unsafeSliceBytes`、while 循环、var 等解释器不支持的构造。因此**不能**通过解释器直接执行 sysroot 函数。
 
-All 5 fixtures pass under SCOOP_GC_STRESS=1. 139 unit tests + 834 fixtures pass.
+**方案**：将常用 String 方法实现为 eval.rs 中的内建 intrinsics（与 trimIndent 同一模式），直接在 Rust 侧完成编译期计算。
+
+## 实现步骤
+
+### Step 1: String `+` 拼接（eval.rs）
+- `eval_binary_eager` 中为 `Add` 操作添加 `(String, String)` 分支
+
+### Step 2: String 方法 intrinsics（eval.rs）
+在 Call handler（MemberAccess callee）中添加分支，实现常用 String 方法。
+
+### Step 3: 新增 comptime fixtures
+- `const_fun_string_ops_basic.scoop` + `.comptime`
+- `const_fun_string_methods.scoop` + `.comptime`
+
+### Step 4: 验收
+- `cargo test --all` + `cargo clippy --all-targets -- -D warnings`
+
+## 当前进度
+- [ ] Step 1: String `+`
+- [ ] Step 2: String 方法 intrinsics
+- [ ] Step 3: Fixtures
+- [ ] Step 4: 验收

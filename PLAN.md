@@ -392,3 +392,12 @@ cargo run -p scoop --features llvm -- test
     - `generic_class_gc_multi_alloc`：多实例 `Holder<String>` + `Pair<String/Int>` — GC 分配点安全
     - `generic_class_gc_nullable_ref`：`Holder<String?>` — niche 优化 + nullable GC trace + Some/None 混合
   - 139 单元测试 + 834 fixtures 通过。
+
+## 6. Comptime String 操作完善
+
+- DONE（T0123）：`const fun` 支持 String `+` 和 substring 类操作：
+  - **`comptime/eval.rs`**：新增 String `+`（concatenation）二元运算——`eval_binary_eager` 在 `Add` 操作前优先匹配 `(String, String)` 分支。
+  - **`comptime/eval.rs`**：新增 `try_eval_string_method_intrinsic` 统一 dispatch 函数——替代原有的 `trimIndent` 硬编码，支持 21 个 String 方法 intrinsics：`trimIndent`/`byteLength`/`getByte`/`length`/`substring`/`indexOf`/`contains`/`startsWith`/`endsWith`/`split`/`isEmpty`/`trim`/`trimStart`/`trimEnd`/`replace`/`charAt`/`repeat`/`compareTo`/`concat`/`toString`/`hash`。所有方法语义与 runtime/c + sysroot/string.scoop 一致。
+  - **辅助函数**：`string_index_of`/`string_split`/`string_compare_to`/`string_trim_ascii_ws`/`string_trim_start_ascii_ws`/`string_trim_end_ascii_ws`/`is_ascii_ws`——独立的字节级 String 操作实现。
+  - **新增 2 个 comptime fixtures**：`const_fun_string_ops_basic`（String `+`/`==`/`!=`/`byteLength`/`getByte`/`length`，16 个场景）+ `const_fun_string_methods`（substring/indexOf/contains/startsWith/endsWith/split/trim/replace/charAt/repeat/compareTo/concat/toString/isEmpty/hash + 组合 `extractDomain` const fun，40+ 个场景）。
+  - 139 单元测试 + 836 fixtures 通过。

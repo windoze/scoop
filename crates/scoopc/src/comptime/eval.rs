@@ -519,33 +519,19 @@ pub(crate) fn eval_const_expr_with_host(
         }
 
         ast::ExprKind::Call { callee, args } => {
-            // spec §8.4：`trimIndent()` 是 `String` 的 `const fun`。
-            //
-            // 约定（early stage）：
-            // - 仅当 receiver 为编译期常量（ConstValue::String）时，在编译期执行并折叠；
-            // - 否则（运行期语境）保持为普通调用（由 typecheck/codegen 的 fallback 路径处理）。
+            // String 方法 intrinsics（T0123）：
+            // 当 receiver 为编译期常量（ConstValue::String）时，在编译期执行并折叠。
             if let ast::ExprKind::MemberAccess { receiver, member } = &callee.kind {
                 let member_name = ctx.source.slice(member.span);
-                if member_name == "trimIndent" {
-                    if !args.is_empty() {
-                        return Err(ConstEvalError::ConstFunArityMismatch {
-                            name: "trimIndent".to_string(),
-                            expected: 0,
-                            found: args.len(),
-                            span: expr.span.into(),
-                        });
-                    }
-
-                    let recv = eval_const_expr_with_host(ctx, host, receiver)?;
-                    let ConstValue::String(s) = recv else {
-                        return Err(ConstEvalError::OperandTypeMismatch {
-                            expected: "String",
-                            found: value_kind(&recv),
-                            span: receiver.span.into(),
-                        });
-                    };
-
-                    return Ok(ConstValue::String(string_trim_indent_kotlin_like(&s)));
+                if let Some(result) = try_eval_string_method_intrinsic(
+                    ctx,
+                    host,
+                    expr.span,
+                    receiver,
+                    member_name,
+                    args,
+                )? {
+                    return Ok(result);
                 }
             }
 
@@ -617,6 +603,330 @@ pub(crate) fn eval_const_expr_with_host(
             span: expr.span.into(),
         }),
     }
+}
+
+/// String 方法 intrinsics（T0123）。
+///
+/// 当 receiver 为编译期常量 `ConstValue::String` 时，在编译期执行内建实现并返回结果。
+/// 若方法名不匹配或 receiver 非 String，返回 `Ok(None)` 表示"未匹配，由后续路径处理"。
+fn try_eval_string_method_intrinsic(
+    ctx: ConstEvalCtx<'_>,
+    host: &mut impl ConstEvalHost,
+    call_span: crate::span::Span,
+    receiver_expr: &ast::Expr,
+    method_name: &str,
+    args: &[ast::Expr],
+) -> Result<Option<ConstValue>, ConstEvalError> {
+    // 已知的 String 方法名集合——若不匹配则提前返回 None（不影响其它路径）。
+    let is_known_string_method = matches!(
+        method_name,
+        "trimIndent"
+            | "byteLength"
+            | "getByte"
+            | "length"
+            | "substring"
+            | "indexOf"
+            | "contains"
+            | "startsWith"
+            | "endsWith"
+            | "split"
+            | "isEmpty"
+            | "trim"
+            | "trimStart"
+            | "trimEnd"
+            | "replace"
+            | "charAt"
+            | "repeat"
+            | "compareTo"
+            | "concat"
+            | "toString"
+            | "hash"
+    );
+    if !is_known_string_method {
+        return Ok(None);
+    }
+
+    // 求值 receiver：若非 String 则不处理。
+    let recv = eval_const_expr_with_host(ctx, host, receiver_expr)?;
+    let ConstValue::String(s) = recv else {
+        return Ok(None);
+    };
+
+    let int_ty = ctx.default_int_ty;
+    let mk_int = |v: i64| ConstValue::Int(ConstInt::new(int_ty, v as u128));
+
+    // 求值参数。
+    let mut argv: Vec<ConstValue> = Vec::with_capacity(args.len());
+    for a in args {
+        argv.push(eval_const_expr_with_host(ctx, host, a)?);
+    }
+
+    let check_arity = |expected: usize| -> Result<(), ConstEvalError> {
+        if argv.len() != expected {
+            return Err(ConstEvalError::ConstFunArityMismatch {
+                name: method_name.to_string(),
+                expected,
+                found: argv.len(),
+                span: call_span.into(),
+            });
+        }
+        Ok(())
+    };
+
+    let arg_string = |idx: usize| -> Result<String, ConstEvalError> {
+        match &argv[idx] {
+            ConstValue::String(s) => Ok(s.clone()),
+            other => Err(ConstEvalError::OperandTypeMismatch {
+                expected: "String",
+                found: value_kind(other),
+                span: call_span.into(),
+            }),
+        }
+    };
+
+    let arg_int = |idx: usize| -> Result<i64, ConstEvalError> {
+        match &argv[idx] {
+            ConstValue::Int(i) => Ok(i.as_i128() as i64),
+            other => Err(ConstEvalError::OperandTypeMismatch {
+                expected: "Int",
+                found: value_kind(other),
+                span: call_span.into(),
+            }),
+        }
+    };
+
+    let result = match method_name {
+        // --- 0-arity methods ---
+        "trimIndent" => {
+            check_arity(0)?;
+            ConstValue::String(string_trim_indent_kotlin_like(&s))
+        }
+        "byteLength" | "length" => {
+            check_arity(0)?;
+            mk_int(s.len() as i64)
+        }
+        "isEmpty" => {
+            check_arity(0)?;
+            ConstValue::Bool(s.is_empty())
+        }
+        "trim" => {
+            check_arity(0)?;
+            ConstValue::String(string_trim_ascii_ws(&s))
+        }
+        "trimStart" => {
+            check_arity(0)?;
+            ConstValue::String(string_trim_start_ascii_ws(&s))
+        }
+        "trimEnd" => {
+            check_arity(0)?;
+            ConstValue::String(string_trim_end_ascii_ws(&s))
+        }
+        "toString" => {
+            check_arity(0)?;
+            ConstValue::String(s)
+        }
+        "hash" => {
+            // FNV-1a（与 runtime/c scoop_string_hash 一致）。
+            check_arity(0)?;
+            let bytes = s.as_bytes();
+            if bytes.is_empty() {
+                mk_int(0)
+            } else {
+                let mut h: u64 = 14695981039346656037;
+                for &b in bytes {
+                    h ^= u64::from(b);
+                    h = h.wrapping_mul(1099511628211);
+                }
+                mk_int(h as i64)
+            }
+        }
+
+        // --- 1-arity methods ---
+        "getByte" => {
+            check_arity(1)?;
+            let index = arg_int(0)?;
+            let bytes = s.as_bytes();
+            if index < 0 || (index as usize) >= bytes.len() {
+                mk_int(0)
+            } else {
+                mk_int(i64::from(bytes[index as usize]))
+            }
+        }
+        "charAt" => {
+            // charAt(index)：与 runtime 一致，按字节索引返回字节值（-1 if OOB）。
+            check_arity(1)?;
+            let index = arg_int(0)?;
+            let bytes = s.as_bytes();
+            if index < 0 || (index as usize) >= bytes.len() {
+                mk_int(-1)
+            } else {
+                mk_int(i64::from(bytes[index as usize]))
+            }
+        }
+        "indexOf" => {
+            check_arity(1)?;
+            let sub = arg_string(0)?;
+            let result = string_index_of(&s, &sub);
+            mk_int(result)
+        }
+        "contains" => {
+            check_arity(1)?;
+            let sub = arg_string(0)?;
+            ConstValue::Bool(string_index_of(&s, &sub) >= 0)
+        }
+        "startsWith" => {
+            check_arity(1)?;
+            let prefix = arg_string(0)?;
+            ConstValue::Bool(s.as_bytes().starts_with(prefix.as_bytes()))
+        }
+        "endsWith" => {
+            check_arity(1)?;
+            let suffix = arg_string(0)?;
+            ConstValue::Bool(s.as_bytes().ends_with(suffix.as_bytes()))
+        }
+        "split" => {
+            check_arity(1)?;
+            let delim = arg_string(0)?;
+            let parts = string_split(&s, &delim);
+            ConstValue::Tuple(parts.into_iter().map(ConstValue::String).collect())
+        }
+        "concat" => {
+            check_arity(1)?;
+            let other = arg_string(0)?;
+            ConstValue::String(s + &other)
+        }
+        "compareTo" => {
+            check_arity(1)?;
+            let other = arg_string(0)?;
+            let cmp = string_compare_to(&s, &other);
+            mk_int(cmp)
+        }
+        "repeat" => {
+            check_arity(1)?;
+            let n = arg_int(0)?;
+            if n <= 0 || s.is_empty() {
+                ConstValue::String(String::new())
+            } else {
+                ConstValue::String(s.repeat(n as usize))
+            }
+        }
+
+        // --- 2-arity methods ---
+        "substring" => {
+            check_arity(2)?;
+            let from = arg_int(0)?;
+            let to = arg_int(1)?;
+            let bytes = s.as_bytes();
+            let len = bytes.len() as i64;
+            // 与 sysroot/string.scoop 语义一致：clamp 到 [0, len]。
+            let start = from.max(0).min(len) as usize;
+            let end = to.max(start as i64).min(len) as usize;
+            let slice = &bytes[start..end];
+            // safety: 子串仍是合法 UTF-8（假设输入合法）。
+            ConstValue::String(String::from_utf8_lossy(slice).into_owned())
+        }
+        "replace" => {
+            check_arity(2)?;
+            let old = arg_string(0)?;
+            let new_s = arg_string(1)?;
+            if old.is_empty() {
+                ConstValue::String(s)
+            } else {
+                ConstValue::String(s.replace(&old, &new_s))
+            }
+        }
+
+        _ => return Ok(None),
+    };
+
+    Ok(Some(result))
+}
+
+/// 字节级 indexOf（与 sysroot/string.scoop 语义一致）。
+fn string_index_of(haystack: &str, needle: &str) -> i64 {
+    let h = haystack.as_bytes();
+    let n = needle.as_bytes();
+    if n.is_empty() {
+        return 0;
+    }
+    if n.len() > h.len() {
+        return -1;
+    }
+    let limit = h.len() - n.len();
+    for i in 0..=limit {
+        if &h[i..i + n.len()] == n {
+            return i as i64;
+        }
+    }
+    -1
+}
+
+/// 字节级 split（与 sysroot/string.scoop 语义一致）。
+fn string_split(s: &str, delim: &str) -> Vec<String> {
+    if s.is_empty() {
+        return vec![String::new()];
+    }
+    if delim.is_empty() {
+        return vec![s.to_string()];
+    }
+    let h = s.as_bytes();
+    let d = delim.as_bytes();
+    let mut parts = Vec::new();
+    let mut start = 0usize;
+    let mut i = 0usize;
+    while i + d.len() <= h.len() {
+        if &h[i..i + d.len()] == d {
+            parts.push(String::from_utf8_lossy(&h[start..i]).into_owned());
+            start = i + d.len();
+            i = start;
+        } else {
+            i += 1;
+        }
+    }
+    parts.push(String::from_utf8_lossy(&h[start..]).into_owned());
+    parts
+}
+
+/// 字节级 compareTo（与 runtime/c scoop_string_compare_to 一致）。
+fn string_compare_to(a: &str, b: &str) -> i64 {
+    let ab = a.as_bytes();
+    let bb = b.as_bytes();
+    let min_len = ab.len().min(bb.len());
+    for i in 0..min_len {
+        let diff = (ab[i] as i64) - (bb[i] as i64);
+        if diff != 0 {
+            return diff;
+        }
+    }
+    (ab.len() as i64) - (bb.len() as i64)
+}
+
+/// 按 ASCII 空白字符 trim（与 sysroot/string.scoop 一致：空格/Tab/CR/LF/VT/FF）。
+fn string_trim_ascii_ws(s: &str) -> String {
+    string_trim_end_ascii_ws(&string_trim_start_ascii_ws(s))
+}
+
+fn string_trim_start_ascii_ws(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut start = 0;
+    while start < b.len() && is_ascii_ws(b[start]) {
+        start += 1;
+    }
+    String::from_utf8_lossy(&b[start..]).into_owned()
+}
+
+fn string_trim_end_ascii_ws(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut end = b.len();
+    while end > 0 && is_ascii_ws(b[end - 1]) {
+        end -= 1;
+    }
+    String::from_utf8_lossy(&b[..end]).into_owned()
+}
+
+/// 与 sysroot/string.scoop 的 trimStart/trimEnd 一致：space(32) + [9..13]。
+fn is_ascii_ws(b: u8) -> bool {
+    b == 32 || (9..=13).contains(&b)
 }
 
 fn eval_member_access(
@@ -1085,6 +1395,16 @@ fn eval_binary_eager(
     rhs: ConstValue,
 ) -> Result<ConstValue, ConstEvalError> {
     match op {
+        // String `+`（concatenation）：两个编译期 String 常量拼接。
+        ast::BinaryOp::Add
+            if matches!((&lhs, &rhs), (ConstValue::String(_), ConstValue::String(_))) =>
+        {
+            let (ConstValue::String(a), ConstValue::String(b)) = (lhs, rhs) else {
+                unreachable!()
+            };
+            Ok(ConstValue::String(a + &b))
+        }
+
         // arithmetic / bitwise
         ast::BinaryOp::Add
         | ast::BinaryOp::Sub
