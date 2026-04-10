@@ -444,6 +444,16 @@ cargo run -p scoop --features llvm -- test
   - 新增 `run-pass/top_level_const_val_general_expr_basic` 与 `run_pass_cone/top_level_const_val_multi_file_basic` 两组回归，覆盖链式 const 引用、`const fun` 调用，以及多文件 helper 函数内引用 helper 文件顶层 const 的路径。
   - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (863)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
+## 4.4 Array literals（T0149）
+
+- DONE（T0149）：Array 字面量类型推断移除无上下文限制
+  - AST `File` 已新增表达式类型 side table；`typecheck/lower.rs` 与 `typecheck/expr/{mod,entry}.rs` 现把每个表达式的最终 `TypeId` 写回 AST，供 HIR lowering 在不改变 Debug/golden 形态的前提下复用完整 typecheck 结果。
+  - `typecheck/expr/infer.rs` 已支持无 expected type 的非空 `[...]` 推断为同构 `Array<T>`；空数组 `[]` 无上下文时报 `scoop::typecheck::array_lit_type_annotation_required`，混合元素类型报 `scoop::typecheck::array_lit_element_type_mismatch`。`typecheck/expr/error.rs` 已补齐稳定诊断码。
+  - `hir/lower/expr.rs` 已优先读取 typecheck side table 的数组结果类型，并继续把元素期望类型向下传给 nested array / struct literal；`val` 标注、函数参数、`return` 与赋值右侧都不再把 array literal 降成 `Todo("array_lit")`。`dump-hir` 回退路径仍保留保守 heuristic，并额外补上本地函数签名的完整 `Array<T>` / `MutableArray<T>` hint，更新后 `tests/fixtures/hir/array_lit_lowering.hir` 反映出更精确的结果类型。
+  - 新增 run-pass fixtures：`array_lit_infer_unannotated_and_nested_basic`、`array_lit_infer_fun_arg_return_assign_basic`、`array_lit_infer_string_char_float_basic`；新增 typecheck failure fixtures：`array_lit_empty_without_annotation_is_error`、`array_lit_mixed_element_types_is_error`。其中 Char / nested-array 用例通过绑定中间局部值绕开既有 rvalue 链式 codegen 限制，避免把无关缺口混入 `T0149`。
+  - 为满足当前仓库“严格 clippy 过零 warning”基线，顺手把 `hir/lower/mod.rs` 的 `HirLowering::new(...)` 收口为 `HirLoweringSetup`，消除一个现存 `too_many_arguments` lint；该改动不改变 lowering 语义。
+  - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (868)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+
 ## 5. 泛型 where 约束完善
 
 - DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：

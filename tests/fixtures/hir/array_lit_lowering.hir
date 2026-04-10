@@ -105,13 +105,13 @@ File {
                                             Expr {
                                                 span: 173..182,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: Block(
                                                     Block {
                                                         span: 173..182,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         stmts: [
                                                             Stmt {
@@ -329,13 +329,13 @@ File {
                                                             Stmt {
                                                                 span: 173..182,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    10,
                                                                 ),
                                                                 kind: Expr(
                                                                     Expr {
                                                                         span: 173..182,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            10,
                                                                         ),
                                                                         kind: Call {
                                                                             callee: Expr {
@@ -401,13 +401,13 @@ File {
                                             Expr {
                                                 span: 212..218,
                                                 ty: TypeId(
-                                                    0,
+                                                    12,
                                                 ),
                                                 kind: Block(
                                                     Block {
                                                         span: 212..218,
                                                         ty: TypeId(
-                                                            0,
+                                                            12,
                                                         ),
                                                         stmts: [
                                                             Stmt {
@@ -569,13 +569,13 @@ File {
                                                             Stmt {
                                                                 span: 212..218,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    12,
                                                                 ),
                                                                 kind: Expr(
                                                                     Expr {
                                                                         span: 212..218,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            12,
                                                                         ),
                                                                         kind: Call {
                                                                             callee: Expr {
@@ -648,13 +648,13 @@ File {
                                                     Expr {
                                                         span: 233..239,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         kind: Block(
                                                             Block {
                                                                 span: 233..239,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    10,
                                                                 ),
                                                                 stmts: [
                                                                     Stmt {
@@ -816,13 +816,13 @@ File {
                                                                     Stmt {
                                                                         span: 233..239,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            10,
                                                                         ),
                                                                         kind: Expr(
                                                                             Expr {
                                                                                 span: 233..239,
                                                                                 ty: TypeId(
-                                                                                    0,
+                                                                                    10,
                                                                                 ),
                                                                                 kind: Call {
                                                                                     callee: Expr {
@@ -897,13 +897,13 @@ File {
                                                     Expr {
                                                         span: 261..271,
                                                         ty: TypeId(
-                                                            0,
+                                                            12,
                                                         ),
                                                         kind: Block(
                                                             Block {
                                                                 span: 261..271,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    12,
                                                                 ),
                                                                 stmts: [
                                                                     Stmt {
@@ -1121,13 +1121,13 @@ File {
                                                                     Stmt {
                                                                         span: 261..271,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            12,
                                                                         ),
                                                                         kind: Expr(
                                                                             Expr {
                                                                                 span: 261..271,
                                                                                 ty: TypeId(
-                                                                                    0,
+                                                                                    12,
                                                                                 ),
                                                                                 kind: Call {
                                                                                     callee: Expr {
@@ -1195,13 +1195,13 @@ File {
                                             Expr {
                                                 span: 301..303,
                                                 ty: TypeId(
-                                                    0,
+                                                    10,
                                                 ),
                                                 kind: Block(
                                                     Block {
                                                         span: 301..303,
                                                         ty: TypeId(
-                                                            0,
+                                                            10,
                                                         ),
                                                         stmts: [
                                                             Stmt {
@@ -1251,13 +1251,13 @@ File {
                                                             Stmt {
                                                                 span: 301..303,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    10,
                                                                 ),
                                                                 kind: Expr(
                                                                     Expr {
                                                                         span: 301..303,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            10,
                                                                         ),
                                                                         kind: Call {
                                                                             callee: Expr {
@@ -1323,13 +1323,13 @@ File {
                                             Expr {
                                                 span: 338..340,
                                                 ty: TypeId(
-                                                    0,
+                                                    12,
                                                 ),
                                                 kind: Block(
                                                     Block {
                                                         span: 338..340,
                                                         ty: TypeId(
-                                                            0,
+                                                            12,
                                                         ),
                                                         stmts: [
                                                             Stmt {
@@ -1379,13 +1379,13 @@ File {
                                                             Stmt {
                                                                 span: 338..340,
                                                                 ty: TypeId(
-                                                                    0,
+                                                                    12,
                                                                 ),
                                                                 kind: Expr(
                                                                     Expr {
                                                                         span: 338..340,
                                                                         ty: TypeId(
-                                                                            0,
+                                                                            12,
                                                                         ),
                                                                         kind: Call {
                                                                             callee: Expr {

@@ -412,6 +412,13 @@ pub(crate) struct TypeLowering<'a> {
     effect_collection_suspend_depth: usize,
     /// 记录（effect TypeId, perform span）。
     performed_effects: Vec<(TypeId, Span)>,
+    /// 当前文件中“表达式 span -> 推导后的 TypeId”。
+    ///
+    /// 用途：
+    /// - typecheck 成功后写回到 `ast::File` 的 side table；
+    /// - HIR lowering 读取该表，以恢复 `return [..]` / `x = [..]` / 无注解 `val x = [..]`
+    ///   这类表达式位置的最终类型。
+    inferred_expr_tys: HashMap<Span, TypeId>,
     /// 单态化（monomorphization）请求收集器（T0712）。
     ///
     /// 说明：
@@ -517,6 +524,7 @@ impl<'a> TypeLowering<'a> {
             effect_collection_enabled: false,
             effect_collection_suspend_depth: 0,
             performed_effects: Vec::new(),
+            inferred_expr_tys: HashMap::new(),
             monomorph_requests: None,
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
@@ -1150,6 +1158,14 @@ impl<'a> TypeLowering<'a> {
             return;
         }
         self.performed_effects.push((effect, span));
+    }
+
+    pub(super) fn record_inferred_expr_ty(&mut self, span: Span, ty: TypeId) {
+        self.inferred_expr_tys.insert(span, ty);
+    }
+
+    pub(super) fn take_inferred_expr_tys(&mut self) -> HashMap<Span, TypeId> {
+        std::mem::take(&mut self.inferred_expr_tys)
     }
 
     pub(super) fn fmt_type(&self, id: TypeId) -> String {

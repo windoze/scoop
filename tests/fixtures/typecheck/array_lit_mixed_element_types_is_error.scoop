@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::array_lit_element_type_mismatch
+// EXPECT-ERROR: 第 2 个元素期望 Int，但得到 String
+//
+// 目标：T0149
+// - 无上下文数组字面量要求元素类型一致；混合类型应给出明确诊断。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs = [1, "a"]
+    return 0
+}

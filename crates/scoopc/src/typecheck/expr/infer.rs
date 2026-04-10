@@ -80,6 +80,9 @@ pub(super) fn infer_expr_type(
 
             Ok(lower.ty_tuple(element_types))
         }
+        ast::ExprKind::ArrayLit { elements } => {
+            infer_array_lit_expr_type(inputs, expr, elements, None, None, lower)
+        }
         ast::ExprKind::StructLit { ty, fields } => {
             infer_struct_lit_expr_type(inputs, expr, ty, fields, lower)
         }
@@ -324,6 +327,118 @@ pub(super) fn infer_expr_type(
             span: expr.span.into(),
         }),
     }
+}
+
+fn array_lit_element_ty_from_container(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
+    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = lower.type_kind(ty) else {
+        return None;
+    };
+    if nominal.args.len() != 1 {
+        return None;
+    }
+    match nominal.fqn.as_str() {
+        "scoop.core.Array"
+        | "scoop.core.MutableArray"
+        | "scoop.core.List"
+        | "scoop.core.MutableList"
+        | "scoop.collections.Set"
+        | "scoop.collections.MapView"
+        | "scoop.collections.MutableSet"
+        | "scoop.collections.MutableMap" => nominal.args.first().copied(),
+        _ => None,
+    }
+}
+
+fn infer_array_lit_expr_type(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    elements: &[ast::Expr],
+    expected_container_ty: Option<TypeId>,
+    expected_from: Option<&ExpectedTypeFrom>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
+    if let Some(expected_ty) = expected_container_ty {
+        let Some(element_ty) = array_lit_element_ty_from_container(expected_ty, lower) else {
+            return Err(ExprTypeError::UnsupportedExpr {
+                kind: "array literal",
+                span: expr.span.into(),
+            });
+        };
+
+        let expected_from_desc = expected_from
+            .map(|from| from.desc.clone())
+            .unwrap_or_else(|| "数组字面量的期望类型".to_string());
+        let element_expected_from = ExpectedTypeFrom::new(format!(
+            "数组字面量的元素类型（约束来源：{expected_from_desc}）"
+        ));
+
+        for (index, element) in elements.iter().enumerate() {
+            let found_ty = inputs.infer_in_expected(
+                lower,
+                element,
+                element_ty,
+                element_expected_from.clone(),
+            )?;
+
+            if is_type_assignable(found_ty, element_ty, lower, builtins) {
+                continue;
+            }
+
+            if literal_absorbs_to_expected(element, element_ty, source, lower, builtins) {
+                continue;
+            }
+
+            return Err(ExprTypeError::ArrayLitElementTypeMismatch {
+                index: index + 1,
+                expected: lower.fmt_type(element_ty),
+                found: lower.fmt_type(found_ty),
+                span: element.span.into(),
+            });
+        }
+
+        return Ok(expected_ty);
+    }
+
+    let Some(first_element) = elements.first() else {
+        return Err(ExprTypeError::ArrayLitTypeAnnotationRequired {
+            span: expr.span.into(),
+        });
+    };
+
+    let mut inferred_elem_ty = inputs.infer(lower, first_element)?;
+    let mut inferred_repr_expr = first_element;
+    for (index, element) in elements.iter().enumerate().skip(1) {
+        let found_ty = inputs.infer(lower, element)?;
+        if found_ty == inferred_elem_ty {
+            continue;
+        }
+
+        if literal_absorbs_to_expected(element, inferred_elem_ty, source, lower, builtins) {
+            continue;
+        }
+
+        if literal_absorbs_to_expected(inferred_repr_expr, found_ty, source, lower, builtins) {
+            inferred_elem_ty = found_ty;
+            inferred_repr_expr = element;
+            continue;
+        }
+
+        return Err(ExprTypeError::ArrayLitElementTypeMismatch {
+            index: index + 1,
+            expected: lower.fmt_type(inferred_elem_ty),
+            found: lower.fmt_type(found_ty),
+            span: element.span.into(),
+        });
+    }
+
+    Ok(lower.lower_type_fqn_with_args(
+        "scoop.core.Array".to_string(),
+        vec![inferred_elem_ty],
+        expr.span,
+    )?)
 }
 
 /// 推导 `async { ... }` 的类型，并在 required-effects 收集上“捕获 Async”。
@@ -1404,52 +1519,19 @@ pub(super) fn infer_expr_type_in_expected_context(
         }
     }
 
-    // T1317a：数组字面量 `[...]` 仅在“有期望类型”的语境下生效：
-    // - `Array<T>` / `MutableArray<T>` 作为两种候选；
-    // - 若期望类型不是上述两者，则回退到常规推导路径，让现有 `unsupported_expr` 诊断保持稳定。
     if let ast::ExprKind::ArrayLit { elements } = &expr.kind {
-        let expected_from_desc = expected_from.desc.clone();
-        let element_expected_from = ExpectedTypeFrom::new(format!(
-            "数组字面量的元素类型（约束来源：{expected_from_desc}）"
-        ));
-
-        let element_ty = match lower.type_kind(expected_ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(n))
-                if (n.fqn == "scoop.core.Array" || n.fqn == "scoop.core.MutableArray")
-                    && n.args.len() == 1 =>
-            {
-                n.args[0]
-            }
-            _ => {
-                return inputs.infer(lower, expr);
-            }
-        };
-
-        for (index, element) in elements.iter().enumerate() {
-            let found_ty = inputs.infer_in_expected(
+        if array_lit_element_ty_from_container(expected_ty, lower).is_some() {
+            return infer_array_lit_expr_type(
+                inputs,
+                expr,
+                elements,
+                Some(expected_ty),
+                Some(&expected_from),
                 lower,
-                element,
-                element_ty,
-                element_expected_from.clone(),
-            )?;
-
-            if is_type_assignable(found_ty, element_ty, lower, builtins) {
-                continue;
-            }
-
-            if literal_absorbs_to_expected(element, element_ty, source, lower, builtins) {
-                continue;
-            }
-
-            return Err(ExprTypeError::ArrayLitElementTypeMismatch {
-                index: index + 1,
-                expected: lower.fmt_type(element_ty),
-                found: lower.fmt_type(found_ty),
-                span: element.span.into(),
-            });
+            );
         }
 
-        return Ok(expected_ty);
+        return inputs.infer(lower, expr);
     }
 
     // T0510：分支类型不一致时，把推断失败精确映射到具体分支表达式。

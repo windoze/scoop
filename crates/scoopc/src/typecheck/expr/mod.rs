@@ -227,7 +227,9 @@ impl<'a> ExprInferInputs<'a> {
         lower: &mut TypeLowering<'_>,
         expr: &ast::Expr,
     ) -> Result<TypeId, ExprTypeError> {
-        infer::infer_expr_type(self, expr, lower)
+        let ty = infer::infer_expr_type(self, expr, lower)?;
+        lower.record_inferred_expr_ty(expr.span, ty);
+        Ok(ty)
     }
 
     fn infer_in_expected(
@@ -237,6 +239,14 @@ impl<'a> ExprInferInputs<'a> {
         expected_ty: TypeId,
         expected_from: infer::ExpectedTypeFrom,
     ) -> Result<TypeId, ExprTypeError> {
-        infer::infer_expr_type_in_expected_context(self, expr, expected_ty, expected_from, lower)
+        let ty = infer::infer_expr_type_in_expected_context(
+            self,
+            expr,
+            expected_ty,
+            expected_from,
+            lower,
+        )?;
+        lower.record_inferred_expr_ty(expr.span, ty);
+        Ok(ty)
     }
 }

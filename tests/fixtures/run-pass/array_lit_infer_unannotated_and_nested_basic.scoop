@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: array_lit_infer_unannotated_and_nested_basic.stdout
+//
+// 目标：T0149
+// - 无类型注解的数组字面量可从元素推断为 `Array<T>`；
+// - 嵌套数组字面量可递归推断并落到可执行 codegen。
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs = [1, 2, 3]
+    println(xs.size())
+    println(xs.get(0))
+    println(xs.get(2))
+
+    val nested = [[1, 2], [3, 4]]
+    println(nested.size())
+    val second: Array<Int> = nested.get(1)
+    println(second.size())
+    println(second.get(0))
+
+    return 0
+}

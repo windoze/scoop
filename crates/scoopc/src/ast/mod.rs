@@ -6,9 +6,11 @@
 //!
 //! 注意：随着 parser/typechecker 完善，AST 结构可能会演进。
 
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
+use std::collections::HashMap;
 
 use crate::span::Span;
+use crate::ty::TypeId;
 
 #[derive(Clone)]
 pub struct File {
@@ -22,6 +24,14 @@ pub struct File {
     pub package: Option<PackageDecl>,
     pub imports: Vec<ImportDecl>,
     pub items: Vec<Item>,
+    /// typecheck 写回的表达式类型 side table（按源码 span 索引）。
+    ///
+    /// 说明：
+    /// - 该表不参与 AST Debug 输出，避免影响 parse fixtures；
+    /// - HIR lowering 在 build/test 路径下会读取该表，把“expected type 已由 typecheck 推断出”的
+    ///   array literal / nested array 等表达式降为可执行 HIR；
+    /// - dump-hir 路径不运行完整 typecheck，因此这里允许保持为空。
+    pub(crate) inferred_expr_tys: RefCell<HashMap<Span, TypeId>>,
 }
 
 impl std::fmt::Debug for File {
@@ -34,6 +44,16 @@ impl std::fmt::Debug for File {
         s.field("imports", &self.imports);
         s.field("items", &self.items);
         s.finish()
+    }
+}
+
+impl File {
+    pub fn replace_inferred_expr_tys(&self, inferred: HashMap<Span, TypeId>) {
+        *self.inferred_expr_tys.borrow_mut() = inferred;
+    }
+
+    pub fn inferred_expr_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_expr_tys.borrow().get(&span).copied()
     }
 }
 

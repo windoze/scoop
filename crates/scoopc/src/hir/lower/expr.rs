@@ -63,10 +63,34 @@ impl<'a> HirLowering<'a> {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
-            ast::ExprKind::ArrayLit { elements } => match expected.array_lit_target {
-                Some(target) => self.lower_array_lit_expr(pkg_prefix, e.span, elements, target),
-                None => (ExprKind::Todo("array_lit"), self.builtins.any),
-            },
+            ast::ExprKind::ArrayLit { elements } => {
+                if let Some((target, result_ty, element_expected_ty)) =
+                    self.array_lit_lowering_hint(e.span, expected)
+                {
+                    self.lower_array_lit_expr(
+                        pkg_prefix,
+                        e.span,
+                        elements,
+                        target,
+                        result_ty,
+                        element_expected_ty,
+                    )
+                } else {
+                    let lowered_elements: Vec<Expr> = elements
+                        .iter()
+                        .map(|element| self.lower_expr(pkg_prefix, element))
+                        .collect();
+                    match self.infer_array_lit_ty_from_lowered_elements(&lowered_elements) {
+                        Some(result_ty) => self.build_array_lit_expr(
+                            e.span,
+                            lowered_elements,
+                            ArrayLitTarget::Array,
+                            result_ty,
+                        ),
+                        None => (ExprKind::Todo("array_lit"), self.builtins.any),
+                    }
+                }
+            }
             ast::ExprKind::ClassLit { .. } => (ExprKind::Todo("class_lit"), self.builtins.string),
             ast::ExprKind::InterpolatedString { raw, parts } => {
                 let parts = parts
@@ -164,6 +188,7 @@ impl<'a> HirLowering<'a> {
                                 .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
                             false => None,
                         },
+                        array_lit_ty: None,
                         struct_lit_ty: None,
                     };
                     let receiver =
@@ -778,6 +803,87 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    /// 尝试把“当前文件内”的 `TypeRef` 直接 lower 为 `TypeId`。
+    ///
+    /// 说明：
+    /// - `Index::FunSig` 里的 `TypeRef` 可能来自别的源文件；
+    /// - HIR lowering 仍以当前 `SourceFile` 负责 span 切片为前提，因此这里只在
+    ///   span 明确落在当前文件且满足 UTF-8 边界时才做该回退；
+    /// - 失败时返回 `None`，让调用方继续走更保守的 fallback。
+    fn local_type_ref_ty(&mut self, ty: &ast::TypeRef) -> Option<TypeId> {
+        let span = ty.span();
+        let text = self.source.text();
+        if span.start > text.len() || span.end > text.len() {
+            return None;
+        }
+        if !text.is_char_boundary(span.start) || !text.is_char_boundary(span.end) {
+            return None;
+        }
+        Some(self.lower_type_ref(ty))
+    }
+
+    fn typechecked_expr_ty(&mut self, span: Span) -> Option<TypeId> {
+        let typecheck_types = self.typecheck_types?;
+        let ty = self.file.inferred_expr_ty(span)?;
+        Some(self.types.re_intern_from(typecheck_types, ty))
+    }
+
+    fn array_lit_target_from_type_id(&self, ty: TypeId) -> Option<ArrayLitTarget> {
+        let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return None;
+        };
+        match nominal.fqn.as_str() {
+            "scoop.core.Array"
+            | "scoop.core.List"
+            | "scoop.collections.Set"
+            | "scoop.collections.MapView" => Some(ArrayLitTarget::Array),
+            "scoop.core.MutableArray"
+            | "scoop.core.MutableList"
+            | "scoop.collections.MutableSet"
+            | "scoop.collections.MutableMap" => Some(ArrayLitTarget::MutableArray),
+            _ => None,
+        }
+    }
+
+    fn array_lit_element_ty_from_type_id(&self, ty: TypeId) -> Option<TypeId> {
+        let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
+            return None;
+        };
+        self.array_lit_target_from_type_id(ty)?;
+        nominal.args.first().copied()
+    }
+
+    fn array_lit_lowering_hint(
+        &mut self,
+        span: Span,
+        expected: ExpectedExpr,
+    ) -> Option<(ArrayLitTarget, TypeId, Option<TypeId>)> {
+        let result_ty = self
+            .typechecked_expr_ty(span)
+            .or(expected.array_lit_ty)
+            .or(expected.struct_lit_ty)?;
+        let target = self
+            .array_lit_target_from_type_id(result_ty)
+            .or(expected.array_lit_target)?;
+        let element_ty = self.array_lit_element_ty_from_type_id(result_ty);
+        Some((target, result_ty, element_ty))
+    }
+
+    fn infer_array_lit_ty_from_lowered_elements(&mut self, elements: &[Expr]) -> Option<TypeId> {
+        let first_ty = elements.first()?.ty;
+        if first_ty == self.builtins.any {
+            return None;
+        }
+        if elements
+            .iter()
+            .skip(1)
+            .any(|element| element.ty == self.builtins.any || element.ty != first_ty)
+        {
+            return None;
+        }
+        Some(self.intern_nominal("scoop.core.Array".to_string(), vec![first_ty], None))
+    }
+
     /// 根据 FQN 获取函数签名（用于从函数参数类型向下传播 expected-type hint）。
     fn fun_sig_by_fqn(&self, fqn: &str) -> Option<crate::resolve::FunSig> {
         let syms = self.index.by_fqn.get(fqn)?;
@@ -803,7 +909,7 @@ impl<'a> HirLowering<'a> {
 
     /// 为一次函数调用的某个实参计算 expected-type hint（目前仅用于数组字面量）。
     fn expected_expr_for_fun_call_arg(
-        &self,
+        &mut self,
         sig: Option<&crate::resolve::FunSig>,
         arg: &ast::Expr,
         positional_index: usize,
@@ -823,29 +929,28 @@ impl<'a> HirLowering<'a> {
         if !arg_is_array_lit {
             return ExpectedExpr {
                 array_lit_target: None,
+                array_lit_ty: None,
                 struct_lit_ty: None,
             };
         }
 
-        let array_lit_target = match (sig, &arg.kind) {
+        let param_ty = match (sig, &arg.kind) {
             (Some(sig), ast::ExprKind::NamedArg { name, .. }) => {
                 let name = name.text(self.source);
                 sig.params
                     .iter()
                     .find(|p| p.name == name)
                     .and_then(|p| p.ty.as_ref())
-                    .and_then(|ty| self.array_lit_target_from_type_ref(ty))
             }
-            (Some(sig), _) => sig
-                .params
-                .get(positional_index)
-                .and_then(|p| p.ty.as_ref())
-                .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+            (Some(sig), _) => sig.params.get(positional_index).and_then(|p| p.ty.as_ref()),
             _ => None,
         };
+        let array_lit_target = param_ty.and_then(|ty| self.array_lit_target_from_type_ref(ty));
+        let array_lit_ty = param_ty.and_then(|ty| self.local_type_ref_ty(ty));
 
         ExpectedExpr {
             array_lit_target,
+            array_lit_ty,
             struct_lit_ty: None,
         }
     }
@@ -870,6 +975,31 @@ impl<'a> HirLowering<'a> {
         span: Span,
         elements: &[ast::Expr],
         target: ArrayLitTarget,
+        result_ty: TypeId,
+        element_expected_ty: Option<TypeId>,
+    ) -> (ExprKind, TypeId) {
+        let lowered_elements: Vec<Expr> = elements
+            .iter()
+            .map(|element| {
+                let expected = element_expected_ty
+                    .map(|ty| ExpectedExpr {
+                        array_lit_target: self.array_lit_target_from_type_id(ty),
+                        array_lit_ty: Some(ty),
+                        struct_lit_ty: Some(ty),
+                    })
+                    .unwrap_or_default();
+                self.lower_expr_with_expected(pkg_prefix, element, expected)
+            })
+            .collect();
+        self.build_array_lit_expr(span, lowered_elements, target, result_ty)
+    }
+
+    fn build_array_lit_expr(
+        &mut self,
+        span: Span,
+        elements: Vec<Expr>,
+        target: ArrayLitTarget,
+        result_ty: TypeId,
     ) -> (ExprKind, TypeId) {
         // 说明：使用 push-based builder 语义承载元素顺序。
         let builder_decl_span = Span::new(span.start, span.start);
@@ -910,8 +1040,7 @@ impl<'a> HirLowering<'a> {
             kind: StmtKind::Val(builder_decl),
         });
 
-        for element in elements {
-            let element_expr = self.lower_expr(pkg_prefix, element);
+        for element_expr in elements {
             let builder_ref = Expr {
                 span: builder_decl_span,
                 ty: self.builtins.any,
@@ -973,7 +1102,7 @@ impl<'a> HirLowering<'a> {
         };
         let build_call = Expr {
             span,
-            ty: self.builtins.any,
+            ty: result_ty,
             kind: ExprKind::Call {
                 callee: Box::new(build_callee),
                 args: vec![CallArg::Positional(builder_ref)],
@@ -988,10 +1117,10 @@ impl<'a> HirLowering<'a> {
         (
             ExprKind::Block(Block {
                 span,
-                ty: self.builtins.any,
+                ty: result_ty,
                 stmts,
             }),
-            self.builtins.any,
+            result_ty,
         )
     }
 
@@ -2342,6 +2471,7 @@ impl<'a> HirLowering<'a> {
                     .ty_ref
                     .as_ref()
                     .and_then(|t| self.array_lit_target_from_type_ref(t)),
+                array_lit_ty: Some(param_ty),
                 struct_lit_ty: Some(param_ty),
             };
             let init = self.lower_expr_with_expected(pkg_prefix, arg_value, expected);
@@ -2371,6 +2501,7 @@ impl<'a> HirLowering<'a> {
                     .ty_ref
                     .as_ref()
                     .and_then(|t| self.array_lit_target_from_type_ref(t)),
+                array_lit_ty: param.ty_ref.as_ref().map(|t| self.lower_type_ref(t)),
                 struct_lit_ty: None,
             };
             let init = self.lower_expr_with_expected(pkg_prefix, default_value, expected);

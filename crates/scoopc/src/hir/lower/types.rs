@@ -259,6 +259,12 @@ pub(super) enum ArrayLitTarget {
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct ExpectedExpr {
     pub(super) array_lit_target: Option<ArrayLitTarget>,
+    /// 数组字面量的完整期望类型（例如 `Array<Int>` / `MutableArray<String>`）。
+    ///
+    /// 用途：
+    /// - 在已知容器类型时，把元素的期望类型继续向下传给嵌套数组/struct 字面量；
+    /// - 若 typecheck 已写回表达式最终类型，HIR lowering 也可回退使用该信息恢复结果类型。
+    pub(super) array_lit_ty: Option<crate::ty::TypeId>,
     /// T0124: expected type for struct literal (used to infer type args for generic structs).
     pub(super) struct_lit_ty: Option<crate::ty::TypeId>,
 }

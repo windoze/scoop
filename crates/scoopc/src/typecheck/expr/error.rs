@@ -256,6 +256,15 @@ pub enum ExprTypeError {
     },
 
     #[error(
+        "空数组字面量缺少可推断的元素类型；请添加显式类型标注（例如 `val xs: Array<Int> = []`）"
+    )]
+    #[diagnostic(code(scoop::typecheck::array_lit_type_annotation_required))]
+    ArrayLitTypeAnnotationRequired {
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
         "if 分支类型不匹配（{branch}）：期望 {expected}，但得到 {found}（约束来源：{expected_from}）"
     )]
     #[diagnostic(code(scoop::typecheck::if_branch_type_mismatch))]

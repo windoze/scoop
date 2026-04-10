@@ -14,8 +14,8 @@ use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeKind, TypeStore, ValueTypeKind};
 
-use super::HirLowering;
 use super::types::*;
+use super::{HirLowering, HirLoweringSetup};
 
 use super::super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
@@ -436,10 +436,13 @@ pub(super) fn collect_object_inits(
         source,
         file,
         index,
-        type_kinds,
-        &delegated_properties,
         types,
-        builtins,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds,
+            delegated_properties: &delegated_properties,
+            builtins,
+        },
     );
 
     let mut out: ObjectInitIndex = HashMap::new();
@@ -573,10 +576,13 @@ pub(super) fn collect_class_inits(
         source,
         file,
         index,
-        type_kinds,
-        &delegated_properties,
         types,
-        builtins,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds,
+            delegated_properties: &delegated_properties,
+            builtins,
+        },
     );
 
     let mut out: ClassInitIndex = HashMap::new();

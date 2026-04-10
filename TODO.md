@@ -1683,7 +1683,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (863)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
+### T0149 [DONE] Array 字面量类型推断：移除无上下文限制
 
 - 描述：当前 Array 字面量 `[e0, e1, e2]` 的 HIR lowering **要求**外部提供 `ArrayLitTarget`（通过期望类型上下文推断，如 `val x: Array<Int> = [1, 2, 3]`）。当没有类型上下文时（如 `val x = [1, 2, 3]`、作为函数参数传递给类型未知的函数、嵌套在其他表达式中），lowering 退化为 `ExprKind::Todo("array_lit")`（`hir/lower/expr.rs:50-53`），产出 `Any` 类型占位——在 codegen 中不会产生可工作的代码。
 - 目标：
@@ -1708,11 +1708,21 @@ cargo run -p scoop --features llvm -- test
     - 空数组带标注：`val x: Array<Int> = []; println(x.size().toString())`。
     - Char 数组（若 T0146 已完成）：`val chars = ['a', 'b', 'c']`。
     - Float 数组（若 T0148 已完成）：`val nums = [1.0, 2.0, 3.0]`。
-  - 新增 compile-fail fixture：`val x = []` 无标注报错。
-  - 新增 compile-fail fixture：`val x = [1, "a"]` 混合类型报错。
-  - 现有 Array 相关 run-pass fixtures 全部通过。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 新增 compile-fail fixture：`val x = []` 无标注报错。
+- 新增 compile-fail fixture：`val x = [1, "a"]` 混合类型报错。
+- 现有 Array 相关 run-pass fixtures 全部通过。
+- `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无（现有 `ArrayLitTarget` 机制和 array builder intrinsics 可复用）
+- 完成说明：
+  - **AST / typecheck side table**：`crates/scoopc/src/ast/mod.rs`、`crates/scoopc/src/parser/file.rs`、`crates/scoopc/src/typecheck/lower.rs` 与 `crates/scoopc/src/typecheck/expr/{mod,entry}.rs` 新增并写回表达式类型 side table，供后续 HIR lowering 读取已完成的 typecheck 结果，而不影响现有 AST / HIR golden 的 Debug 形态。
+  - **无上下文数组推断**：`crates/scoopc/src/typecheck/expr/infer.rs` 现支持无 expected type 的非空 `[...]` 推断为同构 `Array<T>`；空数组 `[]` 在无上下文时稳定报 `scoop::typecheck::array_lit_type_annotation_required`，混合元素类型报 `scoop::typecheck::array_lit_element_type_mismatch`（见 `crates/scoopc/src/typecheck/expr/error.rs`）。
+  - **HIR lowering 去除 `Todo("array_lit")` 退化**：`crates/scoopc/src/hir/lower/expr.rs`、`crates/scoopc/src/hir/lower/{mod,types,util}.rs` 现优先读取 typecheck side table 的真实结果类型，并把元素期望类型继续向下传播到嵌套数组；`val` 标注、函数参数、`return`、赋值右侧都能得到稳定 lowering。未运行 typecheck 的 `dump-hir` 路径仍保留保守 fallback，并额外补上本地函数签名的完整 `Array<T>` / `MutableArray<T>` hint，避免 HIR fixture 中 `MutableArray` 退化成普通 `Array`。
+  - **回归与快照**：新增 3 个 run-pass fixtures（无标注推断 / 函数参数+return+assignment / String+Char+Float）、2 个 typecheck failure fixtures（空数组无注解 / 混合元素类型），并更新 `tests/fixtures/hir/array_lit_lowering.hir`。其中 Char 与 nested-array 的 run-pass 用例刻意先绑定中间值到局部，避开既有“rvalue 链式 extension / nested get” LLVM codegen 限制，让该任务只聚焦数组字面量推断本身。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (868)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0150 [TODO] 字面量完整性：所有字面量在所有语境下可工作
 

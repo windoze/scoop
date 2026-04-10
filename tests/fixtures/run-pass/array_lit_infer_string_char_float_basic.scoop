@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: array_lit_infer_string_char_float_basic.stdout
+//
+// 目标：T0149
+// - `String` / `Char` / `Float` 数组可在无注解场景下推断；
+// - 推断后的数组元素类型可驱动后续 `get()` / builtin 方法调用。
+
+import scoop.core.*
+
+fun main(): Int {
+    val names = ["a", "b", "c"]
+    println(names.size())
+    println(names.get(1))
+
+    val chars = ['a', 'b', 'c']
+    println(chars.size())
+    val last: Char = chars.get(2)
+    println(last.toInt())
+
+    val nums = [1.0, 2.0, 3.0]
+    println(nums.size())
+    println(nums.get(0).toInt())
+    println(nums.get(2).toInt())
+
+    return 0
+}

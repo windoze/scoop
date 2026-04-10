@@ -43,6 +43,11 @@ struct HirLowering<'a> {
     source: &'a SourceFile,
     file: &'a ast::File,
     index: &'a Index,
+    /// typecheck 阶段的 TypeStore（若存在）。
+    ///
+    /// 用途：把 `ast::File` side table 中记录的 typecheck `TypeId` 重新 intern 到当前 HIR 的
+    /// `TypeStore`，从而在 lowering 阶段恢复“表达式最终类型”。
+    typecheck_types: Option<&'a TypeStore>,
     /// `type fqn -> ast::TypeKind` 的最小索引，用于决定 nominal type 是 ref 还是 value。
     type_kinds: &'a HashMap<String, ast::TypeKind>,
     /// delegated property（spec §10.4）索引：`Owner.prop` → lowering 所需的合成符号信息。
@@ -79,6 +84,18 @@ struct HirLowering<'a> {
     type_param_scopes: Vec<HashMap<String, TypeId>>,
 }
 
+/// 构造 `HirLowering` 时用到的非必需上下文集合。
+///
+/// 说明：
+/// - 这些字段在不同 lowering 入口之间经常成组出现；
+/// - 单独打包后可以避免初始化函数参数过多，同时保持调用点语义明确。
+struct HirLoweringSetup<'a> {
+    typecheck_types: Option<&'a TypeStore>,
+    type_kinds: &'a HashMap<String, ast::TypeKind>,
+    delegated_properties: &'a DelegatedPropertyIndex,
+    builtins: BuiltinTypes,
+}
+
 impl<'a> HirLowering<'a> {
     const ASYNC_AWAIT_FQN: &'static str = "scoop.core.Async.await";
     const TASK_SPAWN_INT_FQN: &'static str = "scoop.core.__scoop_task_spawn_int";
@@ -102,15 +119,20 @@ impl<'a> HirLowering<'a> {
         source: &'a SourceFile,
         file: &'a ast::File,
         index: &'a Index,
-        type_kinds: &'a HashMap<String, ast::TypeKind>,
-        delegated_properties: &'a DelegatedPropertyIndex,
         types: &'a mut TypeStore,
-        builtins: BuiltinTypes,
+        setup: HirLoweringSetup<'a>,
     ) -> Self {
+        let HirLoweringSetup {
+            typecheck_types,
+            type_kinds,
+            delegated_properties,
+            builtins,
+        } = setup;
         Self {
             source,
             file,
             index,
+            typecheck_types,
             type_kinds,
             delegated_properties,
             default_arg_funs: HashMap::new(),
@@ -897,6 +919,7 @@ impl<'a> HirLowering<'a> {
                 .ty
                 .as_ref()
                 .and_then(|ty| self.array_lit_target_from_type_ref(ty)),
+            array_lit_ty: declared_ty_early,
             struct_lit_ty: declared_ty_early,
         };
         let init = v
@@ -1244,10 +1267,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             source,
             &ast,
             &index,
-            &type_kinds,
-            &delegated_properties,
             &mut types,
-            builtins,
+            HirLoweringSetup {
+                typecheck_types: None,
+                type_kinds: &type_kinds,
+                delegated_properties: &delegated_properties,
+                builtins,
+            },
         );
         let file = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
@@ -1355,10 +1381,13 @@ pub fn lower_for_compilation_unit(
             source,
             file,
             index,
-            &type_kinds,
-            &delegated_properties,
             &mut types,
-            builtins,
+            HirLoweringSetup {
+                typecheck_types: None,
+                type_kinds: &type_kinds,
+                delegated_properties: &delegated_properties,
+                builtins,
+            },
         );
         let file_hir = ctx.lower_file();
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
@@ -1467,10 +1496,13 @@ pub fn lower_for_compilation_unit_multi_files(
                 source,
                 file,
                 index,
-                &type_kinds,
-                &delegated_properties,
                 &mut types,
-                builtins,
+                HirLoweringSetup {
+                    typecheck_types: Some(typecheck_types),
+                    type_kinds: &type_kinds,
+                    delegated_properties: &delegated_properties,
+                    builtins,
+                },
             );
             let file_hir = ctx.lower_file();
             // 字面量已不再依赖“仅入口文件可切片”的旧路径，因此这里可以稳定收集所有文件的 member_funs。
@@ -1634,10 +1666,13 @@ pub(crate) fn lower_fun_with_type_bindings(
         source,
         file,
         index,
-        type_kinds,
-        &delegated_properties,
         types,
-        builtins,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds,
+            delegated_properties: &delegated_properties,
+            builtins,
+        },
     );
     ctx.push_type_param_bindings(type_bindings);
     let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
@@ -1679,10 +1714,13 @@ pub(crate) fn lower_member_fun_with_type_bindings(
         source,
         file,
         index,
-        type_kinds,
-        &delegated_properties,
         types,
-        builtins,
+        HirLoweringSetup {
+            typecheck_types: None,
+            type_kinds,
+            delegated_properties: &delegated_properties,
+            builtins,
+        },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
     // 再由 lower_member_fun_decl_with_bound_type_params 处理方法 body。

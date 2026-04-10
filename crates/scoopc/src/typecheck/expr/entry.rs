@@ -209,6 +209,7 @@ fn check_file_exprs_impl(
     let source = request.source;
     let file = request.file;
     let builtins = request.builtins;
+    file.replace_inferred_expr_tys(HashMap::new());
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
     if request.collect_monomorph {
         lower.enable_monomorph_collection();
@@ -310,6 +311,9 @@ fn check_file_exprs_impl(
         }
     }
 
+    request
+        .file
+        .replace_inferred_expr_tys(lower.take_inferred_expr_tys());
     let monomorph = lower.take_monomorph_keys();
     let type_insts = lower.take_type_instantiation_keys();
     Ok((monomorph, type_insts))

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::array_lit_type_annotation_required
+// EXPECT-ERROR: 显式类型标注
+//
+// 目标：T0149
+// - 空数组在无上下文时必须报错，而不是推断为 `Any` 或静默退化。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs = []
+    return 0
+}

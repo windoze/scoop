@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
             package,
             imports,
             items,
+            inferred_expr_tys: std::cell::RefCell::new(std::collections::HashMap::new()),
         })
     }
 
