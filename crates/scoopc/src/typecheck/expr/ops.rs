@@ -2,6 +2,7 @@ use crate::ast;
 use crate::resolve::{ConeId, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::call::{
@@ -78,8 +79,58 @@ pub(super) fn is_integer_type(
     }
 }
 
+pub(super) fn is_float_type(ty: TypeId, lower: &TypeLowering<'_>, builtins: BuiltinTypes) -> bool {
+    if ty == builtins.float64 || ty == builtins.float32 {
+        return true;
+    }
+
+    matches!(
+        lower.type_kind(ty),
+        TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+    )
+}
+
 fn is_char_type(ty: TypeId, builtins: BuiltinTypes) -> bool {
     ty == builtins.char_
+}
+
+fn is_unsuffixed_float_literal(expr: &ast::Expr, source: &SourceFile) -> bool {
+    matches!(expr.kind, ast::ExprKind::FloatLit)
+        && matches!(
+            parse_float_literal(source.slice(expr.span)).suffix,
+            FloatLiteralSuffix::Float64
+        )
+}
+
+fn block_tail_expr(block: &ast::Block) -> Option<&ast::Expr> {
+    match &block.stmts.last()?.kind {
+        ast::StmtKind::Expr(expr) => Some(expr),
+        _ => None,
+    }
+}
+
+pub(super) fn literal_absorbs_to_expected(
+    expr: &ast::Expr,
+    expected_ty: TypeId,
+    source: &SourceFile,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    match &expr.kind {
+        ast::ExprKind::IntLit => is_integer_type(expected_ty, lower, builtins),
+        ast::ExprKind::FloatLit => {
+            is_unsuffixed_float_literal(expr, source) && expected_ty == builtins.float32
+        }
+        ast::ExprKind::Block(block) => block_tail_expr(block).is_some_and(|tail| {
+            literal_absorbs_to_expected(tail, expected_ty, source, lower, builtins)
+        }),
+        ast::ExprKind::UnsafeBlock { body, .. } | ast::ExprKind::SafeBlock { body, .. } => {
+            block_tail_expr(body).is_some_and(|tail| {
+                literal_absorbs_to_expected(tail, expected_ty, source, lower, builtins)
+            })
+        }
+        _ => false,
+    }
 }
 
 fn unify_integer_operands_for_same_type_rule(
@@ -99,6 +150,34 @@ fn unify_integer_operands_for_same_type_rule(
     }
 
     if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    None
+}
+
+fn unify_float_operands_for_same_type_rule(
+    lhs: &ast::Expr,
+    lhs_ty: TypeId,
+    rhs: &ast::Expr,
+    rhs_ty: TypeId,
+    source: &SourceFile,
+    lower: &TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> Option<TypeId> {
+    if lhs_ty == rhs_ty && is_float_type(lhs_ty, lower, builtins) {
+        return Some(lhs_ty);
+    }
+
+    if literal_absorbs_to_expected(lhs, rhs_ty, source, lower, builtins)
+        && is_float_type(rhs_ty, lower, builtins)
+    {
+        return Some(rhs_ty);
+    }
+
+    if literal_absorbs_to_expected(rhs, lhs_ty, source, lower, builtins)
+        && is_float_type(lhs_ty, lower, builtins)
+    {
         return Some(lhs_ty);
     }
 
@@ -428,13 +507,15 @@ pub(super) fn infer_unary_expr_type(
             })
         }
         ast::UnaryOp::Neg => {
-            if is_integer_type(operand_ty, lower, inputs.builtins) {
+            if is_integer_type(operand_ty, lower, inputs.builtins)
+                || is_float_type(operand_ty, lower, inputs.builtins)
+            {
                 return Ok(operand_ty);
             }
 
             Err(ExprTypeError::UnaryOpOperandTypeMismatch {
                 op: unary_op_text(op).to_string(),
-                expected: "整数".to_string(),
+                expected: "整数或 Float".to_string(),
                 found: lower.fmt_type(operand_ty),
                 span: op_span.into(),
             })
@@ -571,6 +652,39 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         }
     }
 
+    if is_float_type(lhs_ty, lower, inputs.builtins) {
+        let rhs_ty = inputs.infer(lower, rhs)?;
+
+        if matches!(
+            op,
+            ast::BinaryOp::Add
+                | ast::BinaryOp::Sub
+                | ast::BinaryOp::Mul
+                | ast::BinaryOp::Div
+                | ast::BinaryOp::Rem
+        ) {
+            let Some(ty) = unify_float_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            ) else {
+                return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                    op: binary_op_text(op).to_string(),
+                    expected: "相同的 Float 类型".to_string(),
+                    lhs: lower.fmt_type(lhs_ty),
+                    rhs: lower.fmt_type(rhs_ty),
+                    span: op_span.into(),
+                });
+            };
+
+            return Ok(ty);
+        }
+    }
+
     let Some(method) = operator_overload_method_name(op) else {
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "binary operator overload（unsupported op）",
@@ -640,14 +754,12 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             kind: CallArgKind::Positional,
             expr: lhs,
             ty: lhs_ty,
-            is_int_lit: matches!(lhs.kind, ast::ExprKind::IntLit),
             is_spread: false,
         },
         CallArgInfo {
             kind: CallArgKind::Positional,
             expr: rhs,
             ty: rhs_ty_for_selection,
-            is_int_lit: matches!(rhs.kind, ast::ExprKind::IntLit),
             is_spread: false,
         },
     ];
@@ -702,7 +814,13 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
             let arg_matches_expected =
                 is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
-                    || arg.is_int_lit && is_integer_type(expected_ty, lower, inputs.builtins);
+                    || literal_absorbs_to_expected(
+                        arg.expr,
+                        expected_ty,
+                        inputs.source,
+                        lower,
+                        inputs.builtins,
+                    );
             if !arg_matches_expected {
                 ok = false;
                 break;
@@ -764,8 +882,13 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         )?;
         let rhs_matches_expected =
             is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, inputs.builtins)
-                || matches!(rhs.kind, ast::ExprKind::IntLit)
-                    && is_integer_type(expected_rhs_ty, lower, inputs.builtins);
+                || literal_absorbs_to_expected(
+                    rhs,
+                    expected_rhs_ty,
+                    inputs.source,
+                    lower,
+                    inputs.builtins,
+                );
         if !rhs_matches_expected {
             return Err(ExprTypeError::OperatorOverloadNotFound {
                 op: binary_op_text(op).to_string(),
@@ -882,6 +1005,19 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             {
                 return Ok(inputs.builtins.bool_);
             }
+            if unify_float_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            )
+            .is_some()
+            {
+                return Ok(inputs.builtins.bool_);
+            }
             if is_char_type(lhs_ty, inputs.builtins) && is_char_type(rhs_ty, inputs.builtins) {
                 return Ok(inputs.builtins.bool_);
             }
@@ -926,7 +1062,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                 }
             Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                 op: binary_op_text(op).to_string(),
-                expected: "相同的整数类型".to_string(),
+                expected: "相同的整数类型、Char 或相同的 Float 类型".to_string(),
                 lhs: lower.fmt_type(lhs_ty),
                 rhs: lower.fmt_type(rhs_ty),
                 span: op_span.into(),
@@ -944,6 +1080,19 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             if is_char_type(lhs_ty, inputs.builtins) && is_char_type(rhs_ty, inputs.builtins) {
                 return Ok(inputs.builtins.bool_);
             }
+            if unify_float_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            )
+            .is_some()
+            {
+                return Ok(inputs.builtins.bool_);
+            }
             if unify_integer_operands_for_same_type_rule(
                 lhs,
                 lhs_ty,
@@ -956,7 +1105,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             {
                 return Ok(inputs.builtins.bool_);
             }
-            Err(mismatch("相同的整数类型、Bool、Char 或 String"))
+            Err(mismatch("相同的整数类型、相同的 Float 类型、Bool、Char 或 String"))
         }
         // boolean logic: Bool op Bool -> Bool
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {

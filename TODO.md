@@ -1511,7 +1511,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (853)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0148b [TODO] Float 字面量静态语义：默认类型、Float32 absorption、基础类型检查
+### T0148b [DONE] Float 字面量静态语义：默认类型、Float32 absorption、基础类型检查
 
 - 描述：在前端已产出 Float literal AST/HIR 节点后，补齐静态语义，使 Float 字面量可参与正常的类型推断与基础方法调用。
 - 目标：
@@ -1524,6 +1524,17 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0148a
+- 完成说明：
+  - **默认推断**：`crates/scoopc/src/typecheck/expr/infer.rs` 现已识别 `FloatLit`，无后缀默认推断为 `Float64`，`f` / `f32` 后缀推断为 `Float32`。
+  - **基础静态规则**：`crates/scoopc/src/typecheck/expr/ops.rs` 新增 Float 类型判断与 `literal_absorbs_to_expected(...)` helper；一元负号支持 `Float64/Float32`，基础算术与比较/相等性支持同类型 Float，并允许“无后缀 Float 字面量”在 `Float32` 期望类型下被吸收。
+  - **expected-type 路径补齐**：`entry.rs` / `stmt.rs` / `call.rs` / `infer.rs` 已统一复用字面量吸收 helper，覆盖顶层与局部 initializer、class property initializer、默认参数、普通调用、构造调用、enum variant ctor、数组字面量、`if` 分支、赋值、`return`、`with-update` 与 `Continuation.resume(...)`。
+  - **block 尾表达式兼容**：字面量吸收 helper 会透传普通 block / `unsafe` block / `safe` block 的尾表达式，避免 `if (cond) { 1.5 } else { ... }` 这类写法在 `Float32` 期望类型下误报。
+  - **回归覆盖**：新增 `tests/fixtures/typecheck/float_literal_static_semantics_ok.scoop`，覆盖默认 `Float64`、`Float32` 后缀、`Float32` absorption、struct literal、class ctor、数组、`if`、默认参数、`return`、赋值、`with-update`、比较和一元负号。
+  - **验证**：
+    - `cargo test -p scoopc float -- --nocapture`
+    - `cargo run -p scoop -- test`（`fixtures: ok (854)`）
+    - `cargo test --all`
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0148c [TODO] Float 字面量 LLVM codegen：literal emission、算术/比较/转换、run-pass
 

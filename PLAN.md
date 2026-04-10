@@ -407,8 +407,13 @@ cargo run -p scoop --features llvm -- test
   - parser / HIR 单测已覆盖普通 float、科学计数法、Float32 后缀和 typed HIR literal lowering。
   - 为保持全仓可编译，顺手补齐 resolver/property walker、MIR `ConstValue` 与 LLVM `codegen_literal` 的 Float literal 枚举分支。
   - 验证：`cargo test -p scoopc --lib float -- --nocapture`、`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过（fixtures `ok (853)`）。
-- 待做：`T0148b`（静态语义）
-  - 默认 `Float64`、后缀 `Float32`、literal absorption、基础算术/比较/一元负号类型规则。
+- DONE（T0148b）：Float 字面量静态语义
+  - `typecheck/expr/infer.rs` 已接入 `FloatLit` 默认推断：无后缀为 `Float64`，`f` / `f32` 为 `Float32`。
+  - `typecheck/expr/ops.rs` 已新增 Float 静态规则：一元负号、基础算术、比较/相等性支持同类型 Float，并通过 `literal_absorbs_to_expected(...)` 支持“无后缀 Float 字面量 → Float32”的最小 absorption。
+  - `entry.rs` / `stmt.rs` / `call.rs` / `infer.rs` 已统一复用 literal absorption helper，覆盖 initializer、默认参数、普通调用、构造调用、enum variant ctor、数组、`if` 分支、赋值、`return`、`with-update` 与 `Continuation.resume(...)`。
+  - helper 会透传普通 block / `unsafe` block / `safe` block 的尾表达式，避免 `if (cond) { 1.5 } else { ... }` 在 `Float32` 期望类型下误报。
+  - 新增 `tests/fixtures/typecheck/float_literal_static_semantics_ok.scoop`，集中回归默认 `Float64`、`Float32` 后缀、Float32 absorption、struct/class/array/if/default-param/return/assignment/with-update/比较/一元负号。
+  - 验证：`cargo test -p scoopc float -- --nocapture`、`cargo run -p scoop -- test`、`cargo test --all`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过（fixtures `ok (854)`）。
 - 待做：`T0148c`（LLVM codegen）
   - literal emission 以外的浮点算术/比较/转换、run-pass fixtures。
 - 待做：`T0148d`（收尾）

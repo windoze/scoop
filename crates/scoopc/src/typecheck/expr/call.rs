@@ -8,8 +8,8 @@ use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTyp
 
 use super::infer::ExpectedTypeFrom;
 use super::ops::{
-    collect_member_method_signatures_from_index, is_integer_type, is_symbol_visible_from_source,
-    try_extract_nominal_fqn_and_args,
+    collect_member_method_signatures_from_index, is_symbol_visible_from_source,
+    literal_absorbs_to_expected, try_extract_nominal_fqn_and_args,
 };
 use super::util::{
     expr_kind_name, fmt_overload_signature, join_overload_signatures, short_name_from_fqn,
@@ -36,7 +36,6 @@ pub(super) struct CallArgInfo<'a> {
     pub(super) kind: CallArgKind,
     pub(super) expr: &'a ast::Expr,
     pub(super) ty: TypeId,
-    pub(super) is_int_lit: bool,
     pub(super) is_spread: bool,
 }
 
@@ -97,7 +96,6 @@ fn collect_call_arg_infos<'a>(
                     },
                     expr,
                     ty,
-                    is_int_lit: matches!(expr_for_ty.kind, ast::ExprKind::IntLit),
                     is_spread,
                 });
             }
@@ -114,7 +112,6 @@ fn collect_call_arg_infos<'a>(
                     kind: CallArgKind::Positional,
                     expr: arg,
                     ty,
-                    is_int_lit: matches!(expr_for_ty.kind, ast::ExprKind::IntLit),
                     is_spread,
                 });
             }
@@ -869,7 +866,7 @@ fn infer_function_value_call_expr_type(
             continue;
         }
         // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+        if literal_absorbs_to_expected(arg.expr, expected_ty, inputs.source, lower, builtins) {
             continue;
         }
         return Err(ExprTypeError::CallArgTypeMismatch {
@@ -1009,7 +1006,7 @@ fn infer_funptr_type_call_expr_type(
             check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
             continue;
         }
-        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+        if literal_absorbs_to_expected(arg.expr, expected_ty, inputs.source, lower, builtins) {
             continue;
         }
         return Err(ExprTypeError::CallArgTypeMismatch {
@@ -2046,7 +2043,7 @@ pub(super) fn infer_call_expr_type(
                     }
 
                     // 整数字面量允许被上下文整数参数类型吸收（后续可加入 range check）。
-                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                    if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                         continue;
                     }
 
@@ -2453,7 +2450,7 @@ pub(super) fn infer_call_expr_type(
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         continue;
                     }
-                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                    if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                         continue;
                     }
                     ok = false;
@@ -3007,7 +3004,7 @@ fn infer_class_constructor_call_expr_type(
                 if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                     continue;
                 }
-                if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                     continue;
                 }
                 ok = false;
@@ -3585,7 +3582,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
             continue;
         }
-        if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+        if literal_absorbs_to_expected(arg.expr, expected_ty, inputs.source, lower, builtins) {
             continue;
         }
 
@@ -3686,20 +3683,16 @@ fn try_infer_continuation_resume_call_expr_type(
 
     let found_value_ty = inputs.infer(lower, value_expr)?;
 
-    if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins) {
-        if matches!(value_expr.kind, ast::ExprKind::IntLit)
-            && is_integer_type(expected_value_ty, lower, builtins)
-        {
-            // 整数字面量允许被上下文整数类型吸收（与普通调用保持一致）。
-        } else {
-            return Err(ExprTypeError::CallArgTypeMismatch {
-                callee: "scoop.core.Continuation.resume".to_string(),
-                index: 1,
-                expected: lower.fmt_type(expected_value_ty),
-                found: lower.fmt_type(found_value_ty),
-                span: value_expr.span.into(),
-            });
-        }
+    if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins)
+        && !literal_absorbs_to_expected(value_expr, expected_value_ty, source, lower, builtins)
+    {
+        return Err(ExprTypeError::CallArgTypeMismatch {
+            callee: "scoop.core.Continuation.resume".to_string(),
+            index: 1,
+            expected: lower.fmt_type(expected_value_ty),
+            found: lower.fmt_type(found_value_ty),
+            span: value_expr.span.into(),
+        });
     }
 
     // required effects：`resume` 视为"立即执行 continuation 的下一步"，因此把 `E` 计入当前函数体的 required effects。
@@ -4433,7 +4426,6 @@ fn infer_member_call_expr_type(
                 kind: CallArgKind::Positional,
                 expr: receiver,
                 ty: actual_receiver_ty,
-                is_int_lit: false,
                 is_spread: false,
             };
 
@@ -4707,7 +4699,7 @@ fn infer_member_call_expr_type(
                     if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                         continue;
                     }
-                    if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+                    if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                         continue;
                     }
                     ok = false;
@@ -5482,7 +5474,7 @@ fn infer_member_call_expr_type(
                 check_nogc_boxing_gate(found_ty, expected_ty, arg.expr.span, lower, builtins)?;
                 continue;
             }
-            if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+            if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                 continue;
             }
 
@@ -5950,7 +5942,7 @@ fn infer_member_call_expr_type(
             if is_type_assignable(found_ty, expected_ty, lower, builtins) {
                 continue;
             }
-            if arg.is_int_lit && is_integer_type(expected_ty, lower, builtins) {
+            if literal_absorbs_to_expected(arg.expr, expected_ty, source, lower, builtins) {
                 continue;
             }
             ok = false;
@@ -7096,7 +7088,6 @@ fn try_infer_where_bound_method_call(
             kind: CallArgKind::Positional,
             expr: receiver,
             ty: receiver_ty,
-            is_int_lit: false,
             is_spread: false,
         };
 

@@ -13,7 +13,7 @@ use super::entry::try_infer_fun_return_ty_from_block;
 use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
 use super::member::infer_not_null_assert_expr_type;
 use super::ops::{
-    NominalReceiverRef, collect_unique_zero_arg_member_method_sig, is_integer_type,
+    NominalReceiverRef, collect_unique_zero_arg_member_method_sig, literal_absorbs_to_expected,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
 };
 use super::util::{fmt_effect_row, visibility_from_modifiers};
@@ -436,8 +436,7 @@ pub(super) fn check_fun_body_exprs(
                     )?;
 
                     if is_type_assignable(found_ty, ty, lower, builtins)
-                        || (matches!(default_value.kind, ast::ExprKind::IntLit)
-                            && is_integer_type(ty, lower, builtins))
+                        || literal_absorbs_to_expected(default_value, ty, source, lower, builtins)
                     {
                         continue;
                     }
@@ -637,7 +636,15 @@ pub(super) fn check_stmt_exprs(
                         expected,
                         ExpectedTypeFrom::new("函数返回类型"),
                     )?;
-                    if !is_type_assignable(found, expected, lower, shared.builtins) {
+                    if !is_type_assignable(found, expected, lower, shared.builtins)
+                        && !literal_absorbs_to_expected(
+                            v,
+                            expected,
+                            shared.source,
+                            lower,
+                            shared.builtins,
+                        )
+                    {
                         return Err(ExprTypeError::ReturnTypeMismatch {
                             expected: lower.fmt_type(expected),
                             found: lower.fmt_type(found),
@@ -919,10 +926,7 @@ pub(super) fn check_local_val_decl_exprs(
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
         let init = v.init.as_ref().unwrap();
         if !is_type_assignable(found, expected, lower, shared.builtins) {
-            // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-            if matches!(init.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected, lower, shared.builtins)
-            {
+            if literal_absorbs_to_expected(init, expected, shared.source, lower, shared.builtins) {
                 // ok
             } else {
                 // 复用顶层 initializer 的错误码与文本（保持 fixtures 断言稳定）。
@@ -1407,10 +1411,7 @@ fn check_assign_expr_stmt(
     )?;
 
     if !is_type_assignable(found_ty, expected_ty, lower, shared.builtins) {
-        // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-        if matches!(rhs.kind, ast::ExprKind::IntLit)
-            && is_integer_type(expected_ty, lower, shared.builtins)
-        {
+        if literal_absorbs_to_expected(rhs, expected_ty, shared.source, lower, shared.builtins) {
             return Ok(());
         }
         return Err(ExprTypeError::AssignmentTypeMismatch {

@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::call::{
@@ -16,7 +17,7 @@ use super::member::{
 };
 use super::ops::{
     infer_builtin_scalar_binary_expr_type, infer_operator_overload_binary_expr_type,
-    infer_unary_expr_type, is_integer_type,
+    infer_unary_expr_type, literal_absorbs_to_expected,
 };
 use super::stmt::{
     StmtExprShared, StmtExprState, check_local_val_decl_exprs, detect_smart_cast_for_if_condition,
@@ -47,6 +48,13 @@ pub(super) fn infer_expr_type(
 
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
+        ast::ExprKind::FloatLit => {
+            let parsed = parse_float_literal(source.slice(expr.span));
+            match parsed.suffix {
+                FloatLiteralSuffix::Float64 => Ok(builtins.float64),
+                FloatLiteralSuffix::Float32 => Ok(builtins.float32),
+            }
+        }
         ast::ExprKind::CharLit => Ok(builtins.char_),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
@@ -663,13 +671,9 @@ fn infer_assign_expr_type(
     };
     let found_ty = inputs.infer_in_expected(lower, rhs, expected_ty, expected_from)?;
 
-    if !is_type_assignable(found_ty, expected_ty, lower, inputs.builtins) {
-        // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-        if matches!(rhs.kind, ast::ExprKind::IntLit)
-            && is_integer_type(expected_ty, lower, inputs.builtins)
-        {
-            return Ok(inputs.builtins.unit);
-        }
+    if !is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+        && !literal_absorbs_to_expected(rhs, expected_ty, inputs.source, lower, inputs.builtins)
+    {
         return Err(ExprTypeError::AssignmentTypeMismatch {
             expected: lower.fmt_type(expected_ty),
             found: lower.fmt_type(found_ty),
@@ -1433,10 +1437,7 @@ pub(super) fn infer_expr_type_in_expected_context(
                 continue;
             }
 
-            // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-            if matches!(element.kind, ast::ExprKind::IntLit)
-                && is_integer_type(element_ty, lower, builtins)
-            {
+            if literal_absorbs_to_expected(element, element_ty, source, lower, builtins) {
                 continue;
             }
 
@@ -1476,8 +1477,13 @@ pub(super) fn infer_expr_type_in_expected_context(
         )?;
 
         let then_matches_expected = is_type_assignable(then_ty, expected_ty, lower, builtins)
-            || matches!(then_branch.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_ty, lower, builtins);
+            || literal_absorbs_to_expected(
+                then_branch.as_ref(),
+                expected_ty,
+                source,
+                lower,
+                builtins,
+            );
         if !then_matches_expected {
             return Err(ExprTypeError::IfBranchTypeMismatch {
                 branch: "then",
@@ -1495,8 +1501,7 @@ pub(super) fn infer_expr_type_in_expected_context(
         let else_ty = inputs.infer_in_expected(lower, else_branch, expected_ty, expected_from)?;
 
         let else_matches_expected = is_type_assignable(else_ty, expected_ty, lower, builtins)
-            || matches!(else_branch.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_ty, lower, builtins);
+            || literal_absorbs_to_expected(else_branch, expected_ty, source, lower, builtins);
         if !else_matches_expected {
             return Err(ExprTypeError::IfBranchTypeMismatch {
                 branch: "else",
@@ -1751,7 +1756,9 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
             )),
         )?;
 
-        if !is_type_assignable(found_ty, expected_field_ty, lower, builtins) {
+        if !is_type_assignable(found_ty, expected_field_ty, lower, builtins)
+            && !literal_absorbs_to_expected(arg_expr, expected_field_ty, source, lower, builtins)
+        {
             return Err(ExprTypeError::EnumVariantCtorArgTypeMismatch {
                 variant: format!("{enum_fqn}.{variant_name}"),
                 index: idx + 1,
@@ -1872,7 +1879,9 @@ fn infer_struct_lit_expr_type(
             )),
         )?;
 
-        if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+        if !is_type_assignable(found_ty, expected_ty, lower, builtins)
+            && !literal_absorbs_to_expected(&f.value, expected_ty, source, lower, builtins)
+        {
             return Err(ExprTypeError::StructLitFieldTypeMismatch {
                 struct_name: struct_name.clone(),
                 field: field_name,
@@ -1991,7 +2000,9 @@ fn infer_generic_struct_lit_expr_type(
             )),
         )?;
 
-        if !is_type_assignable(found_ty, field_expected_ty, lower, builtins) {
+        if !is_type_assignable(found_ty, field_expected_ty, lower, builtins)
+            && !literal_absorbs_to_expected(&f.value, field_expected_ty, source, lower, builtins)
+        {
             return Err(ExprTypeError::StructLitFieldTypeMismatch {
                 struct_name: struct_name.clone(),
                 field: field_name,
@@ -2157,7 +2168,15 @@ fn infer_with_update_expr_type(
                     )),
                 )?;
 
-                if found_ty != expected_ty {
+                if found_ty != expected_ty
+                    && !literal_absorbs_to_expected(
+                        &u.value,
+                        expected_ty,
+                        inputs.source,
+                        lower,
+                        inputs.builtins,
+                    )
+                {
                     return Err(ExprTypeError::WithUpdateFieldTypeMismatch {
                         struct_name: current_struct_name.clone(),
                         field,

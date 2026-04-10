@@ -1,0 +1,59 @@
+// EXPECT: pass
+// 目标：T0148b Float 字面量静态语义：默认类型、Float32 absorption、比较与一元负号。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Box32(val value: Float32)
+class Cell32(val value: Float32)
+
+class Holder {
+    val member: Float32 = 1.5
+}
+
+val defaultWide: Float64 = 1.5
+val suffixNarrow: Float32 = 0.5f
+val absorbedTopLevel: Float32 = 1.5
+val viaStructLit: Box32 = Box32 { value: 1.25 }
+val viaCtor: Cell32 = Cell32(1.25)
+val viaArray: Array<Float32> = [1.5, 2.5f]
+val viaIf: Float32 = if (true) { 1.5 } else { 2.5f }
+val viaOption: Option<Float32> = Some(3.5)
+val literalTextWide: String = 1.25.toString()
+val literalTextNarrow: String = 0.5f.toString()
+
+fun take32(x: Float32): Float32 {
+    return x
+}
+
+fun withDefault(x: Float32 = 1.5): Float32 {
+    return x
+}
+
+fun rewrite(b: Box32): Box32 {
+    return b with { value: 1.5 }
+}
+
+fun narrowReturn(): Float32 {
+    return 1.5
+}
+
+fun checks(a: Float64, b: Float32): Bool {
+    val inferredWide = 1.25
+    val inferredNarrow = 0.5f
+    val absorbedLocal: Float32 = 1.5
+    val viaCall: Float32 = take32(2.5)
+    val branchy: Float32 = if (true) { 1.5 } else { 2.5f }
+    val negWide: Float64 = -a
+    val negNarrow: Float32 = -0.5f
+    var assigned: Float32 = inferredNarrow
+    assigned = 4.5
+
+    val gt: Bool = inferredWide > 1.0
+    val le: Bool = b <= 2.5f
+    val eq: Bool = a == 3.0
+    val ne: Bool = b != 4.5
+
+    return gt && le && eq && ne
+}

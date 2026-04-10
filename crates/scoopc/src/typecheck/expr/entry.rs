@@ -13,7 +13,7 @@ use super::collect::{
     collect_top_level_value_types,
 };
 use super::infer::ExpectedTypeFrom;
-use super::ops::is_integer_type;
+use super::ops::literal_absorbs_to_expected;
 use super::stmt::{
     FunBodyCheckInputs, StmtExprFlow, StmtExprShared, StmtExprState, check_block_exprs,
     check_expr_stmt, check_fun_body_exprs, check_required_effects_for_fun_decl, check_stmt_exprs,
@@ -643,8 +643,7 @@ fn check_class_member_fun_body_exprs(
                         )?;
 
                     if is_type_assignable(found_ty, ty, lower, builtins)
-                        || (matches!(default_value.kind, ast::ExprKind::IntLit)
-                            && is_integer_type(ty, lower, builtins))
+                        || literal_absorbs_to_expected(default_value, ty, source, lower, builtins)
                     {
                         continue;
                     }
@@ -805,8 +804,7 @@ fn check_class_property_initializer_exprs(
         return Ok(());
     }
 
-    // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
-    if matches!(init.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
+    if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
         return Ok(());
     }
 
@@ -979,7 +977,7 @@ fn check_ctor_call_args_by_arity(
             check_fn_value_to_any_erasure_gate(found, expected, arg.span, lower, builtins)?;
             continue;
         }
-        if matches!(arg.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
+        if literal_absorbs_to_expected(arg, expected, inputs.source, lower, builtins) {
             continue;
         }
 
@@ -1201,9 +1199,7 @@ fn check_top_level_val_initializer(
         return Ok(());
     }
 
-    // 整数字面量（`1`）在静态语义上是”可被上下文整数类型吸收”的常量：
-    // - 允许 `val x: UInt8 = 1` 这类写法（后续可在此加入 range check）。
-    if matches!(init.kind, ast::ExprKind::IntLit) && is_integer_type(expected, lower, builtins) {
+    if literal_absorbs_to_expected(init, expected, source, lower, builtins) {
         return Ok(());
     }
 
