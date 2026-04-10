@@ -1,0 +1,50 @@
+// EXPECT: pass
+// RUN-STDOUT: tostring_interface_basic.stdout
+// EXPECT-EXIT: 0
+//
+// T0131: interface ToString + generic print/println.
+//
+// Covers:
+// 1. Built-in types: println(Int), println(Bool), println(String)
+// 2. Built-in toString(): Int.toString(), Bool.toString(), String.toString()
+// 3. print(Bool) / print(Int) (non-newline)
+// 4. toString() via extension function
+// 5. Combination: concat with toString result
+
+import scoop.core.*
+
+fun main(): Int {
+    // 1) Built-in print/println (via generic where T: ToString)
+    println(42)
+    println(true)
+    println(false)
+    println("hello")
+
+    // 2) Built-in toString() (extension function → codegen dispatch)
+    val s1: String = 123.toString()
+    println(s1)
+    val s2: String = true.toString()
+    println(s2)
+    val s3: String = false.toString()
+    println(s3)
+    val s4: String = "world".toString()
+    println(s4)
+
+    // 3) print (non-newline) for Bool/Int
+    print(10)
+    print(true)
+    println("")
+
+    // 4) Variable types
+    val x: Int = 99
+    println(x)
+    val b: Bool = false
+    println(b)
+
+    // 5) Combination with concat
+    val label: String = "value=".concat(42.toString())
+    println(label)
+
+    println("done")
+    0
+}

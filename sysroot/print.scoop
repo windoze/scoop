@@ -1,0 +1,19 @@
+// T0131: Generic print/println via ToString interface.
+//
+// This compilable sysroot file provides generic `print<T>` and `println<T>`
+// functions that accept any type implementing `ToString`. The body calls
+// `value.toString()` (dispatched via where-bound → codegen) and then routes
+// the resulting String to the internal `__scoop_print_string`/`__scoop_println_string`
+// runtime functions.
+
+package scoop.core
+
+import scoop.core.*
+
+fun <T> print(value: T): Unit where T: ToString {
+    __scoop_print_string(value.toString())
+}
+
+fun <T> println(value: T): Unit where T: ToString {
+    __scoop_println_string(value.toString())
+}

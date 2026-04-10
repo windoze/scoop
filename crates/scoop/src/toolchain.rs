@@ -317,6 +317,7 @@ fn compile_cxx_command_to_obj(
 /// 当前阶段实现策略：
 /// - 直接把 `runtime/c/*.c` 作为输入交给 clang，让其编译并参与链接；
 /// - 避免依赖 Cargo build 输出路径（后续若要复用 `scoop_runtime` crate 产物再重构）。
+#[allow(dead_code)]
 pub fn link_obj_with_runtime(
     obj: &Path,
     output: &Path,

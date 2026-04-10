@@ -1,7 +1,7 @@
 // Scoop sysroot (early stage)
 //
 // 说明：
-// - sysroot 是编译器内建 API 的“声明源”（便于 IDE/文档/规范一致）
+// - sysroot 是编译器内建 API 的"声明源"（便于 IDE/文档/规范一致）
 // - 早期阶段这里只放最小集合，随着实现推进逐步补齐
 
 package scoop.core
@@ -12,8 +12,8 @@ interface Any
 // 基础接口：Hashable（spec §2.2.2 / std v1）。
 //
 // 说明：
-// - 当前阶段 typecheck 尚未支持“普通成员函数调用”（class/interface methods），`receiver.hash()`
-//   仍主要走“扩展函数调用”的最小子集；但 `where T: Hashable` 等约束已经会被验证；
+// - 当前阶段 typecheck 尚未支持"普通成员函数调用"（class/interface methods），`receiver.hash()`
+//   仍主要走"扩展函数调用"的最小子集；但 `where T: Hashable` 等约束已经会被验证；
 // - 为避免在 early stage 对所有内建类型强制补齐成员实现，这里先提供一个默认实现（有 body → 非抽象）。
 //   后续当虚方法/接口调用链路落地后，可再把默认实现收紧为更合理的实现策略。
 interface Hashable {
@@ -22,13 +22,27 @@ interface Hashable {
     }
 }
 
+// T0131: ToString 接口——统一的文本转换表面。
+//
+// 说明：
+// - 任何类型实现 `ToString` 即可被传入泛型 `print`/`println`（`where T: ToString`）。
+// - 内建类型（Int/Bool/String）通过 body-less extension function 声明 + codegen 路由实现。
+// - 用户自定义类型只需在 class/struct 上声明 `: ToString` 并提供 `fun toString(): String` 即可。
+// - 默认实现（有 body）用于避免 interface implementation check 在 early stage 报错；
+//   后续可收紧为抽象方法。
+interface ToString {
+    fun toString(): String {
+        return ""
+    }
+}
+
 // Built-in scalar types（声明层）。
 //
 // 说明：
 // - 这些类型的布局/语义由编译器与运行时固定；
-// - sysroot 只提供“可见声明”，用于名字解析与工具链展示。
-struct Bool : Hashable
-class String : Hashable
+// - sysroot 只提供"可见声明"，用于名字解析与工具链展示。
+struct Bool : Hashable, ToString
+class String : Hashable, ToString
 // 泛型数组类型（compile-time + runtime 表面）。
 //
 // 说明：
@@ -74,7 +88,7 @@ fun MutableArray<Int>.toArray(): Array<Int>
 // 编译期列表（spec §6.4）。
 //
 // 说明：
-// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的“编译期数据结构”；
+// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的"编译期数据结构"；
 // - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续 comptime 执行与 lowering 补齐。
 class ComptimeList<T>
 struct Unit
@@ -84,7 +98,7 @@ enum Nothing
 //
 // 说明：
 // - 这些注解由编译器识别并在不同子系统中被消费（typecheck/lowering/codegen/...）；
-// - sysroot 在这里提供“声明面”，用于名字解析、类型检查与工具链可见性；
+// - sysroot 在这里提供"声明面"，用于名字解析、类型检查与工具链可见性；
 // - 当前阶段（T1013）先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
 //   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
 
@@ -114,17 +128,32 @@ annotation class Retention(val policy: String)
 annotation class ThreadLocal
 annotation class Global
 
-// I/O（最小表面，早期阶段）。
+// T0131: toString 扩展函数（body-less，codegen 路由到 runtime）。
 //
 // 说明：
-// - 目前仅作为 sysroot API 声明，让 resolver/typecheck 能识别 `print/println`；
-// - 真实实现将由 runtime（C）提供（见 TODO：T0821/T0822）。
-fun print(value: String): Unit
-fun println(value: String): Unit
-fun print(value: Int): Unit
-fun println(value: Int): Unit
-fun print(value: Bool): Unit
-fun println(value: Bool): Unit
+// - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
+//   `Int.toString()` / `Bool.toString()` / `String.toString()`；
+// - codegen 通过 FQN 拦截 `scoop.core.toString` 并按参数 CgTy 路由到 runtime 函数。
+fun Int.toString(): String
+fun Bool.toString(): String
+fun String.toString(): String
+
+// T0131: 泛型 print/println 签名（body-less，resolver/typecheck 用）。
+//
+// 说明：
+// - 这些声明让 resolver 在所有用户代码中可以解析 `print(x)` / `println(x)`；
+// - 函数体在 sysroot/print.scoop 中提供（compilable sysroot file），monomorphization
+//   会为每个具体类型生成特化版本。
+fun <T> print(value: T): Unit where T: ToString
+fun <T> println(value: T): Unit where T: ToString
+
+// I/O（内部 runtime 映射）。
+//
+// 说明：
+// - `__scoop_print_string` / `__scoop_println_string` 是 runtime 映射的内部函数；
+// - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
+fun __scoop_print_string(value: String): Unit
+fun __scoop_println_string(value: String): Unit
 
 // GC（测试辅助）。
 //
@@ -148,7 +177,7 @@ object GC {
     // Stable GC handles（spec §15.10.1）。
     //
     // 说明：
-    // - 用于把 heap 对象引用以“稳定 token”形式交给 native 长期持有（token 稳定，对象地址可变化）；
+    // - 用于把 heap 对象引用以"稳定 token"形式交给 native 长期持有（token 稳定，对象地址可变化）；
     // - 该组函数由编译器以 intrinsic 方式 lowering 到 runtime `scoop_handle_*`。
     @Unsafe
     fun handleNew(obj: Any): GcHandle
@@ -177,7 +206,7 @@ struct Pinned(val value: Any)
 // 说明：
 // - 该组 API 仅用于回归 effect lowering/codegen 与 runtime ABI（TODO T0613+）；
 // - 它们映射到 runtime 的 C 符号（`scoop_effect_*`），并不承诺稳定的用户态 API；
-// - `opTag/payload` 的语义将在后续 lowering 中固定；当前阶段只要求“可读写可观测”。
+// - `opTag/payload` 的语义将在后续 lowering 中固定；当前阶段只要求"可读写可观测"。
 fun __scoop_effect_is_active(): Int
 fun __scoop_effect_set_active(): Unit
 fun __scoop_effect_clear(): Unit
@@ -198,13 +227,13 @@ fun __scoop_effect_slot_read_word(index: Int): Int
 // - 这些类型只在编译期可用：
 //   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
 //   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
-// - 当前阶段已实现“可回归的最小集合”（T1208/T1209/T1215）：
+// - 当前阶段已实现"可回归的最小集合"（T1208/T1209/T1215）：
 //   - `TypeMeta`：类型名 + kind + 注解列表
 //   - `FieldMeta`：字段名 + 字段类型 + 字段序号 + 注解列表
 //   - `VariantMeta`：enum variant 名 + 字段列表 + 序号 + 注解列表
 //   - `ParamMeta`：函数参数名 + 参数类型 + 序号 + 注解列表
 //   - `PropertyMeta`：属性名 + 属性类型 + owner 类型
-// - 说明：注解参数值仅保证“compile-time constant”可读；更复杂表达式与导出规则后续任务补齐。
+// - 说明：注解参数值仅保证"compile-time constant"可读；更复杂表达式与导出规则后续任务补齐。
 enum TypeKind {
     Struct,
     Enum,
@@ -251,9 +280,9 @@ struct PropertyMeta {
 // Function meta（spec §6.4）。
 //
 // 说明：
-// - v0 阶段先只暴露“函数名”作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
+// - v0 阶段先只暴露"函数名"作为可构造的句柄，用于 `paramsOf(fn)` 等反射 intrinsics；
 // - 更完整的 `FunctionMeta`（params/returnType/annotations）可在后续阶段升级，
-//   但应保持“可用 name 构造句柄”这一能力（避免影响工具链/fixtures）。
+//   但应保持"可用 name 构造句柄"这一能力（避免影响工具链/fixtures）。
 struct FunctionMeta {
     val name: String
 }
@@ -262,7 +291,7 @@ struct FunctionMeta {
 //
 // 说明：
 // - 用于在编译期读取注解名与参数（`annotationsOf<T>()` 等）；参数值为 compile-time constant；
-// - v0 阶段先要求“注解名 + compile-time constant 参数”可回归：字面量/常量表达式/数组字面量/enum 常量/class literal；
+// - v0 阶段先要求"注解名 + compile-time constant 参数"可回归：字面量/常量表达式/数组字面量/enum 常量/class literal；
 // - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
 struct AnnotationMeta {
     val name: String
@@ -277,7 +306,7 @@ struct AnnotationArgMeta {
 // Integers（spec §2.3.4 / runtime §3）
 //
 // word-sized：随 target 指针宽度变化（Swift 约定）。
-struct Int : Hashable
+struct Int : Hashable, ToString
 struct UInt : Hashable
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
@@ -309,7 +338,7 @@ typealias UIntPtr = UInt
 //
 // 说明：
 // - 规范中的 `sizeOf<T>()` 是隐式 `const fun` 的反射 intrinsic；
-// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的“跨文件泛型函数签名 lowering”
+// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
 //   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
 //   - `sizeOf(1)` / `sizeOf("s")`
 // - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
@@ -321,7 +350,7 @@ fun sizeOf(value: String): Int
 // Reflection intrinsics v0（spec §6.4 / TODO T1204/T1209）。
 //
 // 说明：
-// - 这些函数在规范中“隐式 const”，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
+// - 这些函数在规范中"隐式 const"，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
 // - 当前阶段（TODO T1208）`fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
 @Intrinsic
 const fun <T> nameOf(): String
@@ -366,7 +395,7 @@ enum Option<T> {
 // Scope functions（spec §11）。
 //
 // 说明：
-// - 这些函数是库定义的（非编译器内建）；sysroot 仅提供“声明表面”，便于 resolver/typecheck 可见；
+// - 这些函数是库定义的（非编译器内建）；sysroot 仅提供"声明表面"，便于 resolver/typecheck 可见；
 // - 关键点：它们应当是 effect-polymorphic：lambda body 中 perform/raise 的 effects 会通过 `<eff E>`
 //   推断并传播到调用点的 required effects。
 //
@@ -380,7 +409,7 @@ fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
 // Continuation（spec §5.5）
 //
 // 说明：
-// - `Continuation<T, eff E>` 表示一个“等待被恢复”的计算片段；
+// - `Continuation<T, eff E>` 表示一个"等待被恢复"的计算片段；
 // - `E` 表示恢复该 continuation 可能执行的效果集合（required effects）。
 // - 当前阶段仅用于静态类型检查与 required-effects 传播；运行期语义/one-shot 约束由后续任务补齐。
 class Continuation<T, eff E = Pure>
@@ -388,7 +417,7 @@ class Continuation<T, eff E = Pure>
 // Continuation / 线程（内部测试辅助）。
 //
 // 说明：
-// - 该 API 用于回归“跨线程 resume”语义（spec §5.5 / TODO T0618）；
+// - 该 API 用于回归"跨线程 resume"语义（spec §5.5 / TODO T0618）；
 // - 当前阶段不提供调度器：该 helper 会创建一个新线程执行 `resume` 并 join 等待结束；
 // - 仅作为 fixtures 的可执行落点，并不承诺稳定的用户态 API。
 fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int>, value: Int): Unit
@@ -398,7 +427,7 @@ fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int>, value:
 // 说明：
 // - `Task<T>` 是异步计算的句柄类型；其具体运行期模型（executor/调度/取消）由 runtime 任务补齐；
 // - 规范语义：Task 默认为 lazy：直到 `await`（或显式启动，例如 `spawn`）才要求执行。
-// - 当前阶段先把它作为“可在类型系统中出现的名义类型”，用于 `await/spawn` 的最小建模（T0622）。
+// - 当前阶段先把它作为"可在类型系统中出现的名义类型"，用于 `await/spawn` 的最小建模（T0622）。
 class Task<T>
 
 // Built-in effect: Async（spec §5.7）

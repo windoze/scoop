@@ -1231,6 +1231,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(v);
             }
 
+            // T0131：where-bound `ToString.toString` 拦截（monomorphized body 内的 `value.toString()`）。
+            //
+            // 说明：
+            // - 泛型 `print<T> where T: ToString` 的 monomorphized body 调用 `value.toString()`；
+            // - where-bound 分发使 HIR 将其改写为 `scoop.core.ToString.toString(value)`；
+            // - 对内建类型（Int/Bool/String）直接调用 runtime；对用户类型 fall-through 到 itable。
+            if fqn == "scoop.core.ToString.toString"
+                && let Some(v) = self.try_codegen_tostring_iface_builtin(span, callee.span, args)?
+            {
+                return Ok(v);
+            }
+
             // T1508c：interface dispatch（itable）端到端。
             //
             // 说明：
@@ -1259,6 +1271,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if fqn == "scoop.core.print" || fqn == "scoop.core.println" {
                 return self.codegen_sysroot_print_like(span, callee.span, fqn, args);
             }
+
+            // T0131：`__scoop_print_string` / `__scoop_println_string`（内部 runtime 映射）。
+            //
+            // 说明：
+            // - 泛型 `print<T>` / `println<T>` 的 monomorphized body 调用这些内部函数；
+            // - 它们接受一个 String 参数并映射到 runtime 的 `scoop_print` / `scoop_println`。
+            if fqn == "scoop.core.__scoop_print_string"
+                || fqn == "scoop.core.__scoop_println_string"
+            {
+                return self.codegen_sysroot_internal_print_string(span, callee.span, fqn, args);
+            }
+
+            // T0131：body-less extension function `toString()`（Int/Bool/String）。
+            //
+            // 说明：
+            // - `fun Int.toString(): String` 等 body-less extension function 在 HIR lowering
+            //   阶段被改写为 top-level call `scoop.core.toString(receiver)`；
+            // - codegen 按 receiver CgTy 分发到对应 runtime 函数。
+            if fqn == "scoop.core.toString" {
+                return self.codegen_sysroot_to_string_ext(span, callee.span, args);
+            }
+
             // T1318e：std v2 io（stdin/stdout/stderr）最小平台接口：由 sysroot 表面直接映射到 runtime C 符号。
             if fqn == "scoop.io.stdoutWriteString" {
                 return self.codegen_sysroot_io_write_string(
@@ -3334,6 +3368,277 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "sysroot print/println arg type",
                 at: expr.span.into(),
+            }),
+        }
+    }
+
+    /// T0131：where-bound `ToString.toString` 拦截——内建类型短路分发。
+    ///
+    /// monomorphized `print<Bool>` body 调用 `value.toString()`，HIR 将其改写为
+    /// `scoop.core.ToString.toString(value)`。此函数在 itable dispatch 前拦截：
+    /// - 内建类型（Bool/Int/String）→ 调用 runtime → `Some(CgValue)`
+    /// - 其它类型（class/struct）→ `None`（fall-through 到 itable 或 fun_index）
+    fn try_codegen_tostring_iface_builtin(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Ok(None);
+        }
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Ok(None);
+        };
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Bool => {
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Bool value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(iv) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Bool type",
+                        at: expr.span.into(),
+                    });
+                };
+                let i64_ty = self.context.i64_type();
+                let bool_as_i64 =
+                    self.builder
+                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let rt_fun = self.declare_runtime_bool_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Bool ret",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Bool ret type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                }))
+            }
+            CgTy::Int(_) => {
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Int value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(int_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Int type",
+                        at: expr.span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_int_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Int ret",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "ToString.toString Int ret type",
+                        at: span.into(),
+                    });
+                };
+                Ok(Some(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                }))
+            }
+            CgTy::String => Ok(Some(recv)),
+            _ => Ok(None), // fall-through: let itable/fun_index handle user types
+        }
+    }
+
+    /// T0131：`__scoop_print_string` / `__scoop_println_string` codegen 拦截。
+    ///
+    /// 泛型 `print<T>` / `println<T>` 的 monomorphized body 调用这些内部函数，
+    /// 接受一个 String 参数并映射到 runtime 的 `scoop_print` / `scoop_println`。
+    fn codegen_sysroot_internal_print_string(
+        &mut self,
+        span: crate::span::Span,
+        _callee_span: crate::span::Span,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let rt_name = match fqn {
+            "scoop.core.__scoop_print_string" => "scoop_print",
+            "scoop.core.__scoop_println_string" => "scoop_println",
+            _ => {
+                return Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "__scoop_print_string fqn",
+                    at: span.into(),
+                })
+            }
+        };
+
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "__scoop_print_string arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "__scoop_print_string named arg",
+                at: span.into(),
+            });
+        };
+
+        let val = self.codegen_expr(expr)?;
+        let coerced = self.coerce_value(expr.span, val, CgTy::String)?;
+        let Some(raw) = coerced.value else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "__scoop_print_string arg value",
+                at: expr.span.into(),
+            });
+        };
+        let BasicValueEnum::PointerValue(str_ptr) = raw else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "__scoop_print_string arg type",
+                at: expr.span.into(),
+            });
+        };
+        let rt_fun = self.declare_runtime_print_like(rt_name);
+        let _ = self
+            .builder
+            .build_call(rt_fun, &[str_ptr.into()], "rt_internal_print")?;
+        Ok(CgValue::unit())
+    }
+
+    /// T0131：body-less extension function `toString()`（Int/Bool/String）codegen 拦截。
+    ///
+    /// HIR lowering 将 `receiver.toString()` 改写为 top-level call `scoop.core.toString(receiver)`。
+    /// 按 receiver CgTy 分发到对应 runtime 函数。
+    fn codegen_sysroot_to_string_ext(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        args: &[hir::CallArg],
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if args.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toString ext arity",
+                at: span.into(),
+            });
+        }
+
+        let hir::CallArg::Positional(expr) = &args[0] else {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toString ext named arg",
+                at: callee_span.into(),
+            });
+        };
+
+        let recv = self.codegen_expr(expr)?;
+        match recv.ty {
+            CgTy::Bool => {
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Bool value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(iv) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Bool type",
+                        at: expr.span.into(),
+                    });
+                };
+                let i64_ty = self.context.i64_type();
+                let bool_as_i64 =
+                    self.builder
+                        .build_int_z_extend(iv, i64_ty, "bool_zext")?;
+                let rt_fun = self.declare_runtime_bool_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[bool_as_i64.into()],
+                    "rt_bool_to_string",
+                )?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Bool ret",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Bool ret type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                })
+            }
+            CgTy::Int(_) => {
+                let Some(raw) = recv.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Int value",
+                        at: expr.span.into(),
+                    });
+                };
+                let BasicValueEnum::IntValue(int_val) = raw else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Int type",
+                        at: expr.span.into(),
+                    });
+                };
+                let rt_fun = self.declare_runtime_int_to_string();
+                let call = self.builder.build_call(
+                    rt_fun,
+                    &[int_val.into()],
+                    "rt_int_to_string",
+                )?;
+                let ret = call.try_as_basic_value().basic().ok_or(
+                    LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Int ret",
+                        at: span.into(),
+                    },
+                )?;
+                let BasicValueEnum::PointerValue(str_ptr) = ret else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "toString ext Int ret type",
+                        at: span.into(),
+                    });
+                };
+                Ok(CgValue {
+                    ty: CgTy::String,
+                    value: Some(str_ptr.into()),
+                })
+            }
+            CgTy::String => {
+                // String.toString() → return self.
+                Ok(recv)
+            }
+            _ => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "toString ext unsupported CgTy",
+                at: span.into(),
             }),
         }
     }

@@ -47,6 +47,7 @@ impl BuildInput {
         &self.sources[self.main_index]
     }
 
+    #[allow(dead_code)]
     fn cone_anchor_main_source(&self) -> Option<&scoopc::source::SourceFile> {
         self.cone_anchor_main_index.map(|idx| &self.sources[idx])
     }
@@ -74,6 +75,7 @@ impl FrontendOutput {
     }
 
     #[cfg(feature = "llvm")]
+    #[allow(dead_code)]
     fn main_ast(&self) -> &scoopc::ast::File {
         &self.asts[self.input.main_index]
     }

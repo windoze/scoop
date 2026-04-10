@@ -94,12 +94,14 @@ impl Sysroot {
 }
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
-/// 当前规则：文件名为 `string.scoop` 的 sysroot 文件含有 String 扩展方法的纯 Scoop 实现，
+/// 当前规则：文件名为 `string.scoop` 或 `print.scoop` 的 sysroot 文件含有需要编译的函数体，
 /// 需要走完整编译管线。后续可扩展为基于文件内容或 annotation 的判断。
 fn is_compilable_sysroot_file(path: &Path) -> bool {
     path.file_name()
-        .is_some_and(|name| name == "string.scoop")
+        .is_some_and(|name| name == "string.scoop" || name == "print.scoop")
 }
+
+
 
 /// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
 /// 供 build pipeline 的 `load_stdlib_sources()` 调用，将这些文件与 stdlib 一同加入 `input.sources`。
