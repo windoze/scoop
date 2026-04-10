@@ -1,0 +1,22 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_nested.stdout
+// EXPECT-EXIT: 0
+//
+// T0126: Nested generic class instantiation: Box<Box<Int>>.
+
+import scoop.core.*
+
+class Box<T>(val inner: T) {
+    fun get(): T {
+        return this.inner
+    }
+}
+
+fun main(): Int {
+    val inner: Box<Int> = Box(7)
+    val outer: Box<Box<Int>> = Box(inner)
+    val unwrapped: Box<Int> = outer.get()
+    val value: Int = unwrapped.get()
+    println(value)
+    0
+}

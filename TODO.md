@@ -695,7 +695,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0124
 
-### T0126 [TODO] 泛型验证与修复：泛型方法调用与构造函数
+### T0126 [DONE] 泛型验证与修复：泛型方法调用与构造函数
 
 - 描述：泛型 class/struct 的方法调用和构造函数在 codegen 中需要正确分发到单态化后的变体。
 - 需验证并修复的场景：

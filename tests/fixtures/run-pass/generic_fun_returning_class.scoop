@@ -1,0 +1,25 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_fun_returning_class.stdout
+// EXPECT-EXIT: 0
+//
+// T0126: Function returning a generic class instance.
+
+import scoop.core.*
+
+class Box<T>(val inner: T) {
+    fun get(): T {
+        return this.inner
+    }
+}
+
+fun wrapInt(v: Int): Box<Int> {
+    val b: Box<Int> = Box(v)
+    return b
+}
+
+fun main(): Int {
+    val b: Box<Int> = wrapInt(99)
+    val x: Int = b.get()
+    println(x)
+    0
+}

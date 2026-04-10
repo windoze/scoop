@@ -7448,6 +7448,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// T0126: 尝试将泛型 class 成员方法调用的 FQN 解析为单态化后的变体。
+    ///
+    /// 例如：`Box.get` + receiver `Box<Int>` → `Box.get::<Int>`
+    ///
+    /// 返回 `Some(mangled_fqn)` 表示应使用单态化变体；`None` 表示无需重写。
+    fn try_resolve_monomorphized_member_fqn(
+        &self,
+        fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Option<String> {
+        // 检查 fun_index 中原始函数是否存在以及其签名是否包含 Param 类型
+        let sig_fun = self.fun_index.get(fqn).copied()?;
+
+        let has_param = sig_fun.params.iter().any(|p| {
+            matches!(
+                self.types.kind(p.ty),
+                crate::ty::TypeKind::Param(_)
+            )
+        }) || matches!(
+            self.types.kind(sig_fun.return_ty),
+            crate::ty::TypeKind::Param(_)
+        );
+
+        if !has_param {
+            return None;
+        }
+
+        // 从第一个参数（receiver）的 HIR 表达式中提取 hir_ty
+        let first_arg = args.first()?;
+        let hir::CallArg::Positional(receiver_expr) = first_arg else {
+            return None;
+        };
+
+        let receiver_hir_ty = if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) =
+            &receiver_expr.kind
+        {
+            self.env.get(*id).and_then(|local| local.hir_ty)?
+        } else {
+            return None;
+        };
+
+        // 从 receiver 的 nominal 类型中提取 type args
+        let crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) =
+            self.types.kind(receiver_hir_ty)
+        else {
+            return None;
+        };
+
+        if nominal.args.is_empty() {
+            return None;
+        }
+
+        // 构造单态化后的 FQN：`fqn::<Arg1, Arg2, ...>`
+        let args_str = nominal
+            .args
+            .iter()
+            .map(|id| self.types.display(*id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mangled_fqn = format!("{fqn}::<{args_str}>");
+
+        // 只在 fun_index 中确实存在单态化变体时才返回
+        if self.fun_index.contains_key(&mangled_fqn) {
+            Some(mangled_fqn)
+        } else {
+            None
+        }
+    }
+
     fn codegen_top_level_fun_call(
         &mut self,
         span: crate::span::Span,
@@ -7455,6 +7524,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        // T0126：对泛型 class 的成员方法调用，尝试重定向到单态化后的变体。
+        //
+        // 当 fun_index 中原始 FQN 对应的函数签名包含 TypeKind::Param 时，说明这是一个
+        // 泛型 class 的成员方法（例如 `Box.get` 返回 Param("T")）。此时从第一个参数
+        // （receiver）的 CgLocal.hir_ty 中提取具体的类型实参，构造单态化后的 FQN
+        // （例如 `Box.get::<Int>`）并在 fun_index 中查找。
+        let effective_fqn = self.try_resolve_monomorphized_member_fqn(fqn, args);
+        let fqn = effective_fqn.as_deref().unwrap_or(fqn);
+
         // T1510c：`@Extern` 调用点需要显式标记"进入 native"并向 runtime 暴露 roots slots，
         // 以便 stop-the-world GC 在 InNative 线程上扫描/更新 roots（moving GC 也需写回 slot）。
         let is_extern = self.extern_funs.contains_key(fqn);

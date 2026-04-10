@@ -753,6 +753,106 @@ impl<'a> HirLowering<'a> {
         }
     }
 
+    /// T0126: 在"已绑定 owner type params"的语境下降低成员方法。
+    ///
+    /// 与 `lower_member_fun_decl` 的区别：owner type params 已经通过 `push_type_param_bindings`
+    /// 预绑定到具体类型（由调用方在调用前完成），因此 `this` 参数和方法体中的 owner type params
+    /// 均会直接解析为具体 TypeId。
+    ///
+    /// `this_concrete_args` 是 owner 的具体类型实参（例如 `[Int]` for `Box<Int>`），用于
+    /// 构造 `this` 参数的精确 nominal 类型（codegen 阶段需要从 `this.hir_ty` 提取 type args
+    /// 来查找 class field 布局）。
+    fn lower_member_fun_decl_with_bound_type_params(
+        &mut self,
+        pkg_prefix: &str,
+        owner_fqn: &str,
+        this_decl_span: Span,
+        this_concrete_args: &[TypeId],
+        fun: &ast::FunDecl,
+    ) -> FunDecl {
+        // 方法自身的 type params（如果有的话）仍然需要 push；
+        // owner 的 type params 已由调用方在 push_type_param_bindings 中绑定。
+        self.push_type_params(&fun.type_params);
+
+        let name = fun.name.text(self.source).to_string();
+        let fqn = format!("{owner_fqn}.{name}");
+
+        let this_id = self.intern_local_symbol(this_decl_span, false);
+        let this_ty =
+            self.intern_nominal(owner_fqn.to_string(), this_concrete_args.to_vec(), None);
+
+        let mut params: Vec<Param> = Vec::with_capacity(fun.params.len() + 1);
+        params.push(Param {
+            span: this_decl_span,
+            id: this_id,
+            name: "this".to_string(),
+            ty: this_ty,
+        });
+
+        for p in &fun.params {
+            let name = p.name.text(self.source).to_string();
+            let id = self.intern_local_symbol(p.name.span, false);
+            let ty = p
+                .ty
+                .as_ref()
+                .map(|t| self.lower_type_ref(t))
+                .unwrap_or(self.builtins.any);
+            params.push(Param {
+                span: p.name.span,
+                id,
+                name,
+                ty,
+            });
+        }
+
+        let is_async_fun = fun.modifiers.contains(&ast::Modifier::Async);
+        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
+        let _inner_return_ty = fun
+            .return_ty
+            .as_ref()
+            .map(|t| self.lower_type_ref(t))
+            .unwrap_or(self.builtins.any);
+        let return_ty = if is_async_fun {
+            self.builtins.uint
+        } else {
+            _inner_return_ty
+        };
+
+        let effects = self.lower_effect_row_expr(fun.effects.as_ref());
+        let ty = self.types.ty_function(
+            None,
+            params.iter().map(|p| p.ty).collect(),
+            return_ty,
+            effects,
+            fun.effects.as_ref().is_some_and(|r| r.closed),
+        );
+
+        let body = match &fun.body {
+            ast::FunBody::Block(b) => {
+                let lowered = self.lower_block(pkg_prefix, b);
+                if is_async_fun {
+                    Some(self.rewrite_async_fun_block(lowered, true))
+                } else {
+                    Some(lowered)
+                }
+            }
+            ast::FunBody::Missing => None,
+        };
+
+        self.pop_type_params(); // fun type params
+
+        FunDecl {
+            span: fun.span,
+            fqn,
+            name,
+            is_const: is_const_fun,
+            ty,
+            params,
+            return_ty,
+            body,
+        }
+    }
+
     fn call_top_level_fun(
         &mut self,
         span: Span,
@@ -1161,6 +1261,16 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ));
         ci
     };
+    // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
+    let monomorphized_member_funs = collect_generic_class_member_fun_instantiations(
+        &pairs,
+        &index,
+        &type_kinds,
+        &mut types,
+        builtins,
+    );
+    let mut member_funs = member_funs;
+    member_funs.extend(monomorphized_member_funs);
     Ok(LoweredHir {
         file,
         member_funs,
@@ -1369,6 +1479,15 @@ pub fn lower_for_compilation_unit_multi_files(
         &class_inits,
     ));
 
+    // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
+    member_funs.extend(collect_generic_class_member_fun_instantiations(
+        compilation_unit,
+        &index,
+        &type_kinds,
+        &mut types,
+        builtins,
+    ));
+
     Ok(LoweredHir {
         file: File { items },
         member_funs,
@@ -1387,7 +1506,7 @@ pub fn lower_for_compilation_unit_multi_files(
     })
 }
 
-/// 将给定的 `ast::FunDecl` 在“已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
+/// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。
 ///
 /// 说明：
 /// - 该函数假设调用方已在 AST 上运行 resolver（headers + bodies），以便 `ValueIdent.resolved` 等信息可用；
@@ -1416,6 +1535,53 @@ pub(crate) fn lower_fun_with_type_bindings(
     );
     ctx.push_type_param_bindings(type_bindings);
     let out = ctx.lower_fun_decl_with_bound_type_params(&pkg_prefix, fun);
+    ctx.pop_type_params();
+    out
+}
+
+/// T0126: 将泛型类的成员方法在”已绑定 owner type params”的语境下降低为 HIR。
+///
+/// 说明：
+/// - 类似 `lower_fun_with_type_bindings`，但处理的是 class member method（带隐式 `this` 参数）；
+/// - `owner_type_bindings` 映射 owner 的 type params 到具体 TypeId（例如 `T → Int` for `Box<Int>`）；
+/// - `this_concrete_args` 是 owner 的具体类型实参（例如 `[Int]` for `Box<Int>`），用于构造 `this` 的精确类型；
+/// - 生成的 FunDecl 中 `this` 参数类型为具体的 `owner_fqn<concrete_args>`，所有引用 owner
+///   type params 的地方均被替换为具体类型。
+pub(crate) fn lower_member_fun_with_type_bindings(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    owner_fqn: &str,
+    this_decl_span: Span,
+    this_concrete_args: &[TypeId],
+    fun: &ast::FunDecl,
+    owner_type_bindings: impl IntoIterator<Item = (String, TypeId)>,
+) -> FunDecl {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let compilation_unit = [(source, file)];
+    let delegated_properties = collect_delegated_properties(&compilation_unit);
+    let mut ctx = HirLowering::new(
+        source,
+        file,
+        index,
+        type_kinds,
+        &delegated_properties,
+        types,
+        builtins,
+    );
+    // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
+    // 再由 lower_member_fun_decl_with_bound_type_params 处理方法 body。
+    ctx.push_type_param_bindings(owner_type_bindings);
+    let out = ctx.lower_member_fun_decl_with_bound_type_params(
+        &pkg_prefix,
+        owner_fqn,
+        this_decl_span,
+        this_concrete_args,
+        fun,
+    );
     ctx.pop_type_params();
     out
 }

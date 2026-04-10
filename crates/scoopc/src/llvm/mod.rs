@@ -588,14 +588,54 @@ fn build_main_module_from_lowered_hir<'ctx>(
         }
     }
 
+    // T0126: Eagerly include monomorphized generic class member methods.
+    // When a generic class method like `Box.get` is reachable, also include all its
+    // monomorphized variants (e.g., `Box.get::<Int>`, `Box.get::<String>`).
+    {
+        let reachable_fqns: std::collections::HashSet<&str> =
+            reachable.iter().map(|f| f.fqn.as_str()).collect();
+        let mut monomorphized: Vec<&hir::FunDecl> = Vec::new();
+        for (fqn, fun) in &fun_index {
+            // Monomorphized member methods have `::<` in their FQN.
+            if fqn.contains("::<") && !reachable_fqns.contains(fqn.as_str()) {
+                // Check if the base (non-monomorphized) method is reachable.
+                if let Some(base_fqn) = fqn.split("::<").next() {
+                    if reachable_fqns.contains(base_fqn) {
+                        monomorphized.push(fun);
+                    }
+                }
+            }
+        }
+        reachable.extend(monomorphized);
+    }
+
+    // T0126: Helper to check if a function's signature contains TypeKind::Param.
+    let fun_has_param_types = |fun: &hir::FunDecl| -> bool {
+        fun.params.iter().any(|p| {
+            matches!(lowered.types.kind(p.ty), crate::ty::TypeKind::Param(_))
+        }) || matches!(
+            lowered.types.kind(fun.return_ty),
+            crate::ty::TypeKind::Param(_)
+        )
+    };
+
     reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
 
     for fun in &reachable {
+        // T0126: Skip generic (unmonomorphized) member methods — they contain Param types
+        // that cannot be lowered to LLVM types. The monomorphized variants handle these.
+        if fun_has_param_types(fun) {
+            continue;
+        }
         let _ = declare.declare_top_level_fun(fun)?;
     }
 
     for fun in &reachable {
         if fun.body.is_none() {
+            continue;
+        }
+        // T0126: Skip generic member methods (same as above).
+        if fun_has_param_types(fun) {
             continue;
         }
         let llvm_fun = module

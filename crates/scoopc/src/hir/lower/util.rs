@@ -2444,6 +2444,191 @@ fn resolve_field_type_fqn(
     None
 }
 
+/// T0126: 为所有具体的泛型 class 实例化生成单态化的成员方法 FunDecl。
+///
+/// 扫描 TypeStore 中的具体 class 实例化（例如 `Box<Int>`, `Box<String>`），
+/// 为每个实例化的每个成员方法生成一个带具体类型的 FunDecl。
+///
+/// 生成的 FunDecl 的 FQN 使用 monomorph 格式：`"pkg.Box.get::<Int>"`,
+/// 以与原始的 `"pkg.Box.get"`（含 Param 类型）共存于 `fun_index` 中。
+pub(super) fn collect_generic_class_member_fun_instantiations(
+    pairs: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+) -> Vec<super::super::FunDecl> {
+    // 1) 收集泛型 class 声明：base_fqn → (source, file, decl)
+    let mut generic_classes: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
+        HashMap::new();
+    for (source, file) in pairs {
+        let pkg_prefix = package_prefix(source, file.package.as_ref());
+        collect_generic_class_decls_with_file(
+            source,
+            file,
+            &pkg_prefix,
+            &pkg_prefix,
+            &file.items,
+            &mut generic_classes,
+        );
+    }
+
+    if generic_classes.is_empty() {
+        return Vec::new();
+    }
+
+    // 2) 收集 TypeStore 中所有具体实例化，去重
+    let mut instantiations: Vec<(String, Vec<crate::ty::TypeId>)> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+
+    // 需要先收集所有 TypeId，因为后面会 &mut types
+    let all_ids: Vec<crate::ty::TypeId> = types.iter_ids().collect();
+    for ty_id in all_ids {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty_id) else {
+            continue;
+        };
+        if nominal.args.is_empty() {
+            continue;
+        }
+        if !generic_classes.contains_key(&nominal.fqn) {
+            continue;
+        }
+        // 跳过仍包含 Param 类型的实例化（例如 Box<T>）
+        if nominal.args.iter().any(|&a| matches!(types.kind(a), TypeKind::Param(_))) {
+            continue;
+        }
+
+        let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        if seen.contains(&mangled) {
+            continue;
+        }
+        seen.insert(mangled.clone());
+        instantiations.push((nominal.fqn.clone(), nominal.args.clone()));
+    }
+
+    // 3) 为每个实例化的每个成员方法生成单态化 FunDecl
+    let mut out: Vec<super::super::FunDecl> = Vec::new();
+
+    for (base_fqn, concrete_args) in &instantiations {
+        let Some((source, file, decl)) = generic_classes.get(base_fqn) else {
+            continue;
+        };
+
+        let type_params = &decl.type_params;
+        if type_params.len() != concrete_args.len() {
+            continue;
+        }
+
+        // 构建 type param name → concrete TypeId 映射
+        let bindings: Vec<(String, crate::ty::TypeId)> = type_params
+            .iter()
+            .zip(concrete_args.iter())
+            .map(|(p, &arg)| (p.name.text(source).to_string(), arg))
+            .collect();
+
+        // 构建 monomorph 后缀（例如 "::<Int>"）
+        let type_args_suffix = if concrete_args.is_empty() {
+            String::new()
+        } else {
+            let args_str = concrete_args
+                .iter()
+                .map(|id| types.display(*id).to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("::<{args_str}>")
+        };
+
+        // 遍历 class body 中的成员方法
+        let Some(body) = &decl.body else {
+            continue;
+        };
+        for member in &body.members {
+            let ast::TypeMember::Fun(fun) = member else {
+                continue;
+            };
+
+            let mut hir_fun = super::lower_member_fun_with_type_bindings(
+                source,
+                file,
+                index,
+                type_kinds,
+                types,
+                builtins,
+                base_fqn,
+                decl.name.span,
+                concrete_args,
+                fun,
+                bindings.clone(),
+            );
+
+            // 重命名 FQN：例如 "pkg.Box.get" → "pkg.Box.get::<Int>"
+            hir_fun.fqn = format!("{}{type_args_suffix}", hir_fun.fqn);
+
+            out.push(hir_fun);
+        }
+    }
+
+    out
+}
+
+/// 类似 `collect_generic_class_decls_in_items`，但同时记录 file 引用（用于单态化 lowering）。
+fn collect_generic_class_decls_with_file<'a>(
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    _pkg_prefix: &str,
+    owner_prefix: &str,
+    items: &'a [ast::Item],
+    out: &mut HashMap<String, (&'a SourceFile, &'a ast::File, &'a ast::TypeDecl)>,
+) {
+    for item in items {
+        match item {
+            ast::Item::Type(ty) => {
+                let name = ty.name.text(source).to_string();
+                let fqn = join_prefix(owner_prefix, &name);
+
+                if matches!(ty.kind, ast::TypeKind::Class) && !ty.type_params.is_empty() {
+                    out.insert(fqn.clone(), (source, file, ty));
+                }
+
+                // 嵌套声明
+                if let Some(body) = &ty.body {
+                    for member in &body.members {
+                        if let ast::TypeMember::Type(nested) = member {
+                            let nested_name = nested.name.text(source).to_string();
+                            let nested_fqn = join_prefix(&fqn, &nested_name);
+                            if matches!(nested.kind, ast::TypeKind::Class)
+                                && !nested.type_params.is_empty()
+                            {
+                                out.insert(nested_fqn, (source, file, nested));
+                            }
+                        }
+                    }
+                }
+            }
+            ast::Item::Object(obj) => {
+                let obj_name = obj.name.as_ref().map(|n| n.text(source).to_string());
+                if let Some(obj_name) = obj_name {
+                    let obj_fqn = join_prefix(owner_prefix, &obj_name);
+                    if let Some(body) = &obj.body {
+                        for member in &body.members {
+                            if let ast::TypeMember::Type(nested) = member {
+                                let nested_name = nested.name.text(source).to_string();
+                                let nested_fqn = join_prefix(&obj_fqn, &nested_name);
+                                if matches!(nested.kind, ast::TypeKind::Class)
+                                    && !nested.type_params.is_empty()
+                                {
+                                    out.insert(nested_fqn, (source, file, nested));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {
     match &expr.kind {
         ast::ExprKind::IntLit => {

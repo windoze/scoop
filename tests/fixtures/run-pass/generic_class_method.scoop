@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: generic_class_method.stdout
+// EXPECT-EXIT: 0
+//
+// T0126: Generic class with method calls.
+//
+// Covers:
+// - class Box<T> with method that returns T
+// - Method call on generic class instance
+// - Generic function returning generic class instance
+// - Nested generic class (Box<Box<Int>>)
+
+import scoop.core.*
+
+class Box<T>(val inner: T) {
+    fun get(): T {
+        return this.inner
+    }
+}
+
+fun main(): Int {
+    // Scenario 1: generic class method call
+    val b1: Box<Int> = Box(42)
+    val x: Int = b1.get()
+    println(x)
+
+    val b2: Box<String> = Box("hello")
+    val y: String = b2.get()
+    println(y)
+
+    0
+}
