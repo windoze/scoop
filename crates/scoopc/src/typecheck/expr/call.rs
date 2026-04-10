@@ -7454,10 +7454,3 @@ fn try_infer_where_bound_method_call(
 
     Ok(None)
 }
-
-#[derive(Debug, Clone, Copy)]
-struct CallTargetSig<'a> {
-    sig: &'a FunSigOwned,
-    /// `args[i]` 对应到 `sig.params[i + arg_param_offset]`。
-    arg_param_offset: usize,
-}

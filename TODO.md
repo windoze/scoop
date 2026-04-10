@@ -864,7 +864,7 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0107（String `==`）、T0120、T0122（纯 Scoop String 操作）
 
-### T0150 [TODO] 多文件字面量重实现：SourceMap + Span 方案替代 T0140 轻量方案
+### T0150 多文件字面量重实现：SourceMap + Span 方案替代 T0140 轻量方案
 
 - 描述：T0140 采用了"HIR lowering 时直接解析字面量值"的轻量方案——`LiteralKind::Int(u128)` / `LiteralKind::String(Vec<u8>)` 在 lowering 时存储解析后的值，codegen 不再依赖 source text slicing。该方案成功解除了多文件字面量限制，但存在根本缺陷：解析后的值丢失了与源文本的关联，一旦字面量解析出错（整数溢出、非法 escape 序列、未来的 hex/binary/float 格式错误），错误信息无法精确指向源文件中的原始文本位置。
   随着后续 T0145（hex/binary）、T0146（Char）、T0148（Float）等更复杂字面量格式的引入，解析失败场景会显著增多，缺乏精确诊断将成为严重障碍。本任务**用 SourceMap + Span 方案重新实现 T0140 的多文件字面量支持**，从根本上解决诊断能力问题，同时保持多文件字面量的正常工作。
@@ -894,10 +894,73 @@ cargo run -p scoop --features llvm -- test
   - `MainCodegen` 持有 `SourceMap` 而非单个 `SourceFile`，codegen 通过 SourceMap 解析字面量。
   - 字面量解析错误（如整数溢出）的诊断输出包含文件名、行号、列号和原始字面量文本。
   - 多文件编译中，非入口文件的字面量解析错误同样能正确定位。
-  - 现有 run-pass fixtures 全部通过。
-  - HIR golden fixtures 更新（如 LiteralKind 表示发生变化）。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 现有 run-pass fixtures 全部通过。
+- HIR golden fixtures 更新（如 LiteralKind 表示发生变化）。
+- `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：无（本任务重新实现 T0140 的功能，不依赖 T0140 的具体实现方式）
+
+### T0150a [DONE] SourceMap 基础设施：多源文件文本与位置查询
+
+- 描述：先把多文件 source lookup 的公共基础设施独立出来，避免一开始就同时改 HIR 字面量表示、LLVM codegen 和诊断。该子任务只落地 `SourceMap` / `SourceId` / span 查询 API 和单元测试，不改变当前字面量行为。
+- 目标：
+  - `crates/scoopc/src/source.rs` 新增 `SourceMap`：可注册多个 `SourceFile`，并提供 source id、source text slice、line/column、全局偏移区间等查询能力。
+  - 提供“把 `(source_id, local_span)` 绑定为可查询句柄”的轻量类型，供后续 codegen / diagnostics 逐步接入。
+  - 为 future work 保持 API 明确：既支持从 source id 查本地 span，也支持计算不重叠的全局 span。
+- 验收：
+  - 新增 `source.rs` 单元测试，覆盖：
+    - 多文件 slice 查询；
+    - line/column 查询；
+    - 不同文件的 global span 不重叠。
+  - 不改变现有编译行为。
+  - `cargo test -p scoopc source::tests` 通过。
+- 依赖：无
+- 完成说明：
+  - **`crates/scoopc/src/source.rs`**：新增 `SourceId`、`SourceMapSpan`、`SourceLocation`、`SourceMap`。`SourceMap` 支持多源文件注册、本地 span 校验绑定、source slice、line/column 查询，以及不重叠的 global span 映射。
+  - **单元测试**：新增 2 个 `source.rs` 测试，覆盖多文件 slice + 位置查询，以及 global span 不重叠。
+  - **顺手清理的 pre-existing warnings（non-LLVM path）**：
+    - `cone/consume.rs`：移除未使用的 `NamespacedSymbols` import。
+    - `typecheck/expr/mod.rs` / `typecheck/expr/collect.rs`：未使用的 `span` bookkeeping 字段改为 `_span`。
+    - `typecheck/expr/call.rs`：移除未使用的重复 `CallTargetSig` helper。
+    - `typecheck/layout.rs`：移除未使用的 `union_payload_layout` helper。
+  - **验证**：`cargo test -p scoopc source::tests --no-default-features` 通过。`cargo clippy -p scoopc --no-default-features --lib --tests -- -D warnings` 仍被大量既有、与本任务无关的 repo-wide Clippy 问题阻塞。
+
+### T0150b [TODO] LLVM codegen 接入 SourceMap（保持当前 LiteralKind 存值方案）
+
+- 描述：在不改变 HIR `LiteralKind::Int/String` 表示的前提下，先把 LLVM 后端的单文件 `&SourceFile` 依赖替换为多文件 `&SourceMap`，为后续恢复 span-backed 字面量铺路。
+- 目标：
+  - `MainCodegen` / `llvm/mod.rs` 持有 `&SourceMap`，而不是单个入口 `&SourceFile`。
+  - 当前仍使用 T0140 的 parsed literal payload；非字面量的 source slicing 行为保持不变。
+  - 为后续 literal diagnostics 预留 `SourceMap` 查询入口。
+- 验收：
+  - 多文件 build/run-pass 行为不变。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150a
+
+### T0150c [TODO] 回退 Int/String 字面量为 SourceMap-backed 解析
+
+- 描述：移除 T0140 在 HIR lowering 阶段对 Int/String 的 eager parsing；恢复为运行需要时再通过 `SourceMap + Span` 取原文解析。
+- 目标：
+  - `hir::LiteralKind::Int/String` 不再仅依赖 lowering 时存储的解析值。
+  - `codegen_literal`、`WhenPat::IntLit`、comptime 相关调用点统一走 SourceMap-backed 文本解析。
+  - 保持多文件非入口字面量继续可用。
+- 验收：
+  - `multi_file_literal_basic` 继续通过。
+  - HIR / codegen fixtures 按需要更新。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150a、T0150b
+
+### T0150d [TODO] 字面量解析诊断接入 SourceMap + 多文件失败回归
+
+- 描述：在 SourceMap-backed literal parsing 完成后，补齐失败路径的诊断展示和回归 fixture，真正解决 T0150 的问题。
+- 目标：
+  - 字面量解析错误输出文件名、行号、列号和原始文本片段。
+  - 为非入口文件中的 literal parse failure 增加 regression fixture。
+  - 清理 T0140 遗留注释/辅助函数/错误路径。
+- 验收：
+  - 新增 failure fixtures：入口文件和非入口文件各至少一个 literal parse error 场景。
+  - 诊断输出包含文件名、行号、列号和原始字面量文本。
+  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+- 依赖：T0150b、T0150c
 
 ### T0145 [TODO] Hex 与 binary 整数字面量：`0x`/`0b` 前缀支持
 

@@ -365,7 +365,7 @@ fn build_fun_where_constraints(
             continue;
         };
         out.push(FunWhereConstraintInfo {
-            span: c.span,
+            _span: c.span,
             param_index,
             param_name: target_name,
             bound: c.bound.clone(),
@@ -394,7 +394,7 @@ pub(super) fn build_fun_where_constraints_from_resolve_sig(
             continue;
         };
         out.push(FunWhereConstraintInfo {
-            span: c.span,
+            _span: c.span,
             param_index,
             param_name: target_name,
             bound: c.bound.clone(),

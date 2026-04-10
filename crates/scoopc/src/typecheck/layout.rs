@@ -594,13 +594,3 @@ fn largest_two_sizes(variants: &[EnumVariantLayout]) -> (u64, u64) {
     }
     (max, second)
 }
-
-fn union_payload_layout(variants: &[EnumVariantLayout]) -> TypeLayout {
-    let mut size = 0u64;
-    let mut align = 1u64;
-    for v in variants {
-        size = size.max(v.payload.size);
-        align = align.max(v.payload.align);
-    }
-    TypeLayout::new(size, align)
-}

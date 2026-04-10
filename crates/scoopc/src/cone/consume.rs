@@ -20,8 +20,8 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::{
-    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet,
-    NamespacedSymbols, ParamSig, Symbol, SymbolKind, TypeParamSig, Visibility,
+    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, ParamSig,
+    Symbol, SymbolKind, TypeParamSig, Visibility,
 };
 use crate::source::SourceFile;
 use crate::span::Span;

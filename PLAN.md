@@ -366,6 +366,15 @@ cargo run -p scoop --features llvm -- test
   - **删除 `stdlib/string.scoop`**。
   - 139 单元测试 + 809 fixtures 通过。
 
+## 4.1 字面量 SourceMap 重实现（T0150）
+
+> 背景：T0140 用 “HIR lowering 时直接解析 Int/String 值” 的轻量方案解决了多文件字面量可用性，但把源文本与 span 的关联切断了。随着后续 hex/binary、char、float 等任务推进，缺少精确 literal parse diagnostics 会成为硬障碍，因此需要先补回统一的 source lookup 基础设施，再逐步切换 literal 管线。
+
+- DONE（T0150a）：`source.rs` 引入 `SourceMap` / `SourceId` / `SourceMapSpan` / `SourceLocation`；已覆盖多文件 slice、line/column、global-span 不重叠测试，并顺手清理 focused no-LLVM 验证路径上的 4 个既有 unused/dead-code warnings。
+- TODO（T0150b）：LLVM 后端从单个 `&SourceFile` 切到 `&SourceMap`，暂时保留 T0140 的 parsed literal payload，先完成 plumbing。
+- TODO（T0150c）：HIR Int/String literal 回退为 SourceMap-backed 解析；统一 codegen / when pattern / comptime 的 literal source 访问路径。
+- TODO（T0150d）：字面量解析失败诊断接入 SourceMap，并补齐入口/非入口文件 failure fixtures；清理 T0140 遗留辅助逻辑。
+
 ## 5. 泛型 where 约束完善
 
 - DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：

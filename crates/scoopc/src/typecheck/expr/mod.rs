@@ -63,7 +63,7 @@ struct EffParamSig {
 #[derive(Debug, Clone)]
 struct FunWhereConstraintInfo {
     /// 约束所在 span（用于诊断）。
-    span: Span,
+    _span: Span,
     /// 约束目标在函数 type param 列表中的索引（0-based）。
     param_index: usize,
     /// 约束目标的 type param 名称（用于诊断消息）。
