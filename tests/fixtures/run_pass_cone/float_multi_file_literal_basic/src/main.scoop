@@ -1,0 +1,14 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.float_multi_file_literal_basic
+
+import scoop.core.*
+
+fun main() {
+    println(helperWide().toString())
+    println(helperNarrow(1.5).toString())
+    println(helperNarrow(2.25).toString())
+    println(helperAbsorbed().toString())
+    println(helperScientificOk())
+}

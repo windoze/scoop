@@ -427,8 +427,10 @@ cargo run -p scoop --features llvm -- test
   - `comptime/interpreter.rs` 已对顶层/局部绑定、`const fun` 参数和返回值按声明类型归一化 Float，避免显式 `Float32` 绑定在后续求值里回退成 `Float64`。
   - `scoop` fixtures runner 已支持 Float comptime golden 文本格式；新增 `tests/fixtures/comptime/float_literal_basic.*`。
   - 验证：`cargo test -p scoopc comptime -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (856)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
-- 待做：`T0148d-2`
-  - 补多文件 / Cone 非入口文件 Float literal fixture，验证 SourceMap-backed literal 管线与错误定位。
+- DONE（T0148d-2）：多文件 / 非入口源文件回归
+  - 新增 `run_pass_cone/float_multi_file_literal_basic`：在 helper 文件中覆盖 Float 顶层初始化、普通函数返回值、`Float32` absorption 与科学计数法比较；入口运行输出稳定为 `3.75 / 1.75 / 2.5 / 2.0 / true`。
+  - 新增 `run_pass_cone/float_multi_file_literal_type_mismatch_non_entry`：helper 文件中的 `return 1.5` → `Int` 类型不匹配会稳定报 `scoop::typecheck::return_type_mismatch`，并把 `EXPECT-ERROR-AT` 锁到 helper 文件真实标签位置 `6:6`，避免错误漂移到入口文件。
+  - 验证：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (858)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 - 待做：`T0148d-3`
   - 统一审计剩余边角语义与诊断；能补齐的直接补齐，暂不支持的必须给出明确错误或新任务链接。
 

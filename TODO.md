@@ -1607,7 +1607,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (856)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
-### T0148d-2 [TODO] Float 字面量收尾：多文件 / 非入口源文件回归
+### T0148d-2 [DONE] Float 字面量收尾：多文件 / 非入口源文件回归
 
 - 描述：在 SourceMap-backed literal 架构下，Float literal 需要像 Int/String/Char 一样，在非入口源文件与 Cone 多文件工程中稳定解析、诊断并参与执行。
 - 目标：
@@ -1619,6 +1619,18 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0148d-1
+- 完成说明：
+  - 新增 `tests/fixtures/run_pass_cone/float_multi_file_literal_basic/**`：
+    - helper 文件声明 `Float64/Float32` 顶层初始化，并在非入口文件内覆盖 Float 函数返回值、`Float32` absorption、科学计数法比较；
+    - 入口文件运行并断言输出 `3.75 / 1.75 / 2.5 / 2.0 / true`，验证 Cone 多文件路径下 Float literal 可稳定参与执行。
+  - 新增 `tests/fixtures/run_pass_cone/float_multi_file_literal_type_mismatch_non_entry/**`：
+    - 在 helper 文件中构造 `fun helperBroken(): Int { return 1.5 }`；
+    - 断言错误码 `scoop::typecheck::return_type_mismatch`，并把 `EXPECT-ERROR-AT` 锁到 helper 文件的真实标签位置 `6:6`，回归“非入口文件报错不漂移到入口文件”。
+  - 验证：
+    - `cargo fmt --check`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (858)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0148d-3 [TODO] Float 字面量收尾：剩余转换、边角语义与审计
 

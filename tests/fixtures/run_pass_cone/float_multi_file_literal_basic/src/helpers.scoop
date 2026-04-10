@@ -1,0 +1,26 @@
+// Non-entry file with Float literals in top-level init and function bodies.
+// T0148d-2: verify Float literals behave like other literals in cone multi-file builds.
+
+package fixtures.run_pass_cone.float_multi_file_literal_basic
+
+import scoop.core.*
+
+val helperWideSeed: Float64 = 3.25
+val helperNarrowSeed: Float32 = 1.5
+
+public fun helperWide(): Float64 {
+    return 3.25 + 0.5
+}
+
+public fun helperNarrow(x: Float32): Float32 {
+    return x + 0.25f
+}
+
+public fun helperAbsorbed(): Float32 {
+    val local: Float32 = 1.5
+    return local + 0.5
+}
+
+public fun helperScientificOk(): Bool {
+    return 1.25e2 == 125.0
+}
