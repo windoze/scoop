@@ -1047,6 +1047,7 @@ fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
                 i.as_u128().to_string()
             }
         }
+        ConstValue::Float(f) => format_const_float_for_fixture(*f),
         ConstValue::String(s) => format!("{s:?}"),
         ConstValue::Tuple(items) => {
             let inner = items
@@ -1091,6 +1092,38 @@ fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
             out
         }
     }
+}
+
+fn format_const_float_for_fixture(f: scoopc::comptime::ConstFloat) -> String {
+    match f {
+        scoopc::comptime::ConstFloat::Float64(bits) => {
+            normalize_float_text(f64::from_bits(bits).to_string(), f64::from_bits(bits))
+        }
+        scoopc::comptime::ConstFloat::Float32(bits) => {
+            let value = f32::from_bits(bits);
+            format!(
+                "{}f32",
+                normalize_float_text(value.to_string(), f64::from(value))
+            )
+        }
+    }
+}
+
+fn normalize_float_text(mut text: String, value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".to_string();
+    }
+    if value.is_infinite() {
+        return if value.is_sign_negative() {
+            "-Infinity".to_string()
+        } else {
+            "Infinity".to_string()
+        };
+    }
+    if !text.contains('.') && !text.contains('e') && !text.contains('E') {
+        text.push_str(".0");
+    }
+    text
 }
 
 fn hir_fixture(

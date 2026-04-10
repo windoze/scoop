@@ -1,7 +1,7 @@
 //! 纯表达式（pure expressions）的最小常量求值器（v0）。
 //!
 //! 约束（T1202a）：
-//! - 只支持字面量（Int/Bool/Unit/String）与一元/二元运算；
+//! - 只支持字面量（Int/Float/Bool/Unit/String）与一元/二元运算；
 //! - 不支持函数调用、控制流、effects、循环；
 //! - 遇到不支持的语法节点必须返回结构化诊断（而非 panic）。
 
@@ -11,10 +11,14 @@ use thiserror::Error;
 use crate::ast;
 use crate::source::SourceFile;
 use crate::syntax::char_literal::parse_char_literal;
+use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
 use crate::syntax::int_literal::parse_int_literal;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 
-use super::value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue, mask_to_bits};
+use super::value::{
+    ConstEnum, ConstFloat, ConstFloatTy, ConstInt, ConstIntTy, ConstStruct, ConstValue,
+    mask_to_bits,
+};
 
 /// 求值上下文（v0）。
 #[derive(Debug, Clone, Copy)]
@@ -321,6 +325,15 @@ pub(crate) fn eval_const_expr_with_host(
             let text = ctx.source.slice(expr.span);
             let raw = parse_int_literal(text);
             Ok(ConstValue::Int(ConstInt::new(ctx.default_int_ty, raw)))
+        }
+        ast::ExprKind::FloatLit => {
+            let text = ctx.source.slice(expr.span);
+            let parsed = parse_float_literal(text);
+            let value = match parsed.suffix {
+                FloatLiteralSuffix::Float64 => ConstFloat::from_f64(parsed.value),
+                FloatLiteralSuffix::Float32 => ConstFloat::from_f32(parsed.value as f32),
+            };
+            Ok(ConstValue::Float(value))
         }
         ast::ExprKind::CharLit => {
             let text = ctx.source.slice(expr.span);
@@ -1042,6 +1055,7 @@ fn eval_member_access(
                 | ConstValue::Bool(_)
                 | ConstValue::Char(_)
                 | ConstValue::Int(_)
+                | ConstValue::Float(_)
                 | ConstValue::String(_) => "member access（非 aggregate）",
                 ConstValue::Tuple(_) | ConstValue::Struct(_) | ConstValue::Enum(_) => {
                     unreachable!()
@@ -1361,8 +1375,12 @@ fn eval_unary(
                 let raw = (!i.raw_bits).wrapping_add(1) & mask;
                 Ok(ConstValue::Int(ConstInt::new(i.ty, raw)))
             }
+            ConstValue::Float(f) => match f.ty() {
+                ConstFloatTy::Float64 => Ok(ConstValue::Float(ConstFloat::from_f64(-f.as_f64()))),
+                ConstFloatTy::Float32 => Ok(ConstValue::Float(ConstFloat::from_f32(-f.as_f32()))),
+            },
             _ => Err(ConstEvalError::OperandTypeMismatch {
-                expected: "整数",
+                expected: "整数或 Float",
                 found: value_kind(&v),
                 span: span.into(),
             }),
@@ -1439,15 +1457,18 @@ fn eval_binary(
         _ => {
             let l = eval_const_expr_with_host(ctx, host, lhs)?;
             let r = eval_const_expr_with_host(ctx, host, rhs)?;
-            eval_binary_eager(span, op, l, r)
+            eval_binary_eager(ctx.source, span, op, lhs, rhs, l, r)
         }
     }
 }
 
 /// 求值二元运算（eager）：假设两侧都需要被求值。
 fn eval_binary_eager(
+    source: &SourceFile,
     span: crate::span::Span,
     op: ast::BinaryOp,
+    lhs_expr: &ast::Expr,
+    rhs_expr: &ast::Expr,
     lhs: ConstValue,
     rhs: ConstValue,
 ) -> Result<ConstValue, ConstEvalError> {
@@ -1477,7 +1498,37 @@ fn eval_binary_eager(
         | ast::BinaryOp::Le
         | ast::BinaryOp::Gt
         | ast::BinaryOp::Ge => {
-            if let (ConstValue::Char(a), ConstValue::Char(b)) = (&lhs, &rhs) {
+            if matches!(
+                (&lhs, &rhs),
+                (ConstValue::Float(_), _) | (_, ConstValue::Float(_))
+            ) {
+                let (lf, rf) = match (&lhs, &rhs) {
+                    (ConstValue::Float(lf), ConstValue::Float(rf)) => (*lf, *rf),
+                    _ => {
+                        return Err(ConstEvalError::OperandTypeMismatch {
+                            expected: "相同的 Float 类型",
+                            found: binary_found_kind(&lhs, &rhs),
+                            span: span.into(),
+                        });
+                    }
+                };
+                let Some((lf, rf, _target_ty)) =
+                    coerce_float_operands_for_binary(source, lhs_expr, lf, rhs_expr, rf)
+                else {
+                    return Err(ConstEvalError::OperandTypeMismatch {
+                        expected: "相同的 Float 类型（或 Float32 + 无后缀 Float 字面量）",
+                        found: binary_found_kind(&lhs, &rhs),
+                        span: span.into(),
+                    });
+                };
+                return eval_float_binary(span, op, lf, rf);
+            }
+
+            if matches!(
+                op,
+                ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge
+            ) && let (ConstValue::Char(a), ConstValue::Char(b)) = (&lhs, &rhs)
+            {
                 let ok = match op {
                     ast::BinaryOp::Lt => a < b,
                     ast::BinaryOp::Le => a <= b,
@@ -1507,42 +1558,70 @@ fn eval_binary_eager(
             eval_int_binary(span, op, li, ri)
         }
 
-        ast::BinaryOp::Eq | ast::BinaryOp::Ne => match (lhs, rhs) {
-            (ConstValue::Bool(a), ConstValue::Bool(b)) => match op {
-                ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
-                ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
-                _ => unreachable!(),
-            },
-            (ConstValue::Char(a), ConstValue::Char(b)) => match op {
-                ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
-                ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
-                _ => unreachable!(),
-            },
-            (ConstValue::Int(a), ConstValue::Int(b)) => {
-                if a.ty != b.ty {
+        ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+            if matches!(
+                (&lhs, &rhs),
+                (ConstValue::Float(_), _) | (_, ConstValue::Float(_))
+            ) {
+                let (lf, rf) = match (&lhs, &rhs) {
+                    (ConstValue::Float(lf), ConstValue::Float(rf)) => (*lf, *rf),
+                    _ => {
+                        return Err(ConstEvalError::OperandTypeMismatch {
+                            expected: "相同的 Float 类型",
+                            found: binary_found_kind(&lhs, &rhs),
+                            span: span.into(),
+                        });
+                    }
+                };
+                let Some((lf, rf, _target_ty)) =
+                    coerce_float_operands_for_binary(source, lhs_expr, lf, rhs_expr, rf)
+                else {
                     return Err(ConstEvalError::OperandTypeMismatch {
-                        expected: "相同的整数类型",
-                        found: "不同位宽/符号位的整数",
+                        expected: "相同的 Float 类型（或 Float32 + 无后缀 Float 字面量）",
+                        found: binary_found_kind(&lhs, &rhs),
                         span: span.into(),
                     });
-                }
-                match op {
-                    ast::BinaryOp::Eq => Ok(ConstValue::Bool(a.raw_bits == b.raw_bits)),
-                    ast::BinaryOp::Ne => Ok(ConstValue::Bool(a.raw_bits != b.raw_bits)),
-                    _ => unreachable!(),
-                }
+                };
+                return eval_float_equality(op, lf, rf);
             }
-            (ConstValue::String(a), ConstValue::String(b)) => match op {
-                ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
-                ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
-                _ => unreachable!(),
-            },
-            (l, r) => Err(ConstEvalError::OperandTypeMismatch {
-                expected: "相同的 Bool/Char/整数/String",
-                found: binary_found_kind(&l, &r),
-                span: span.into(),
-            }),
-        },
+
+            match (lhs, rhs) {
+                (ConstValue::Bool(a), ConstValue::Bool(b)) => match op {
+                    ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
+                    ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
+                    _ => unreachable!(),
+                },
+                (ConstValue::Char(a), ConstValue::Char(b)) => match op {
+                    ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
+                    ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
+                    _ => unreachable!(),
+                },
+                (ConstValue::Int(a), ConstValue::Int(b)) => {
+                    if a.ty != b.ty {
+                        return Err(ConstEvalError::OperandTypeMismatch {
+                            expected: "相同的整数类型",
+                            found: "不同位宽/符号位的整数",
+                            span: span.into(),
+                        });
+                    }
+                    match op {
+                        ast::BinaryOp::Eq => Ok(ConstValue::Bool(a.raw_bits == b.raw_bits)),
+                        ast::BinaryOp::Ne => Ok(ConstValue::Bool(a.raw_bits != b.raw_bits)),
+                        _ => unreachable!(),
+                    }
+                }
+                (ConstValue::String(a), ConstValue::String(b)) => match op {
+                    ast::BinaryOp::Eq => Ok(ConstValue::Bool(a == b)),
+                    ast::BinaryOp::Ne => Ok(ConstValue::Bool(a != b)),
+                    _ => unreachable!(),
+                },
+                (l, r) => Err(ConstEvalError::OperandTypeMismatch {
+                    expected: "相同的 Bool/Char/整数/Float/String",
+                    found: binary_found_kind(&l, &r),
+                    span: span.into(),
+                }),
+            }
+        }
 
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => unreachable!("short-circuit 已在上层处理"),
         ast::BinaryOp::RangeInclusive => Err(ConstEvalError::UnsupportedExpr {
@@ -1655,6 +1734,120 @@ fn eval_int_binary(
     Ok(out)
 }
 
+fn is_unsuffixed_float_literal(source: &SourceFile, expr: &ast::Expr) -> bool {
+    matches!(expr.kind, ast::ExprKind::FloatLit)
+        && matches!(
+            parse_float_literal(source.slice(expr.span)).suffix,
+            FloatLiteralSuffix::Float64
+        )
+}
+
+fn coerce_float_operands_for_binary(
+    source: &SourceFile,
+    lhs_expr: &ast::Expr,
+    lhs: ConstFloat,
+    rhs_expr: &ast::Expr,
+    rhs: ConstFloat,
+) -> Option<(ConstFloat, ConstFloat, ConstFloatTy)> {
+    let target_ty = match (lhs.ty(), rhs.ty()) {
+        (lhs_ty, rhs_ty) if lhs_ty == rhs_ty => lhs_ty,
+        (ConstFloatTy::Float64, ConstFloatTy::Float32)
+            if is_unsuffixed_float_literal(source, lhs_expr) =>
+        {
+            ConstFloatTy::Float32
+        }
+        (ConstFloatTy::Float32, ConstFloatTy::Float64)
+            if is_unsuffixed_float_literal(source, rhs_expr) =>
+        {
+            ConstFloatTy::Float32
+        }
+        _ => return None,
+    };
+
+    Some((lhs.cast(target_ty), rhs.cast(target_ty), target_ty))
+}
+
+fn eval_float_binary(
+    span: crate::span::Span,
+    op: ast::BinaryOp,
+    lhs: ConstFloat,
+    rhs: ConstFloat,
+) -> Result<ConstValue, ConstEvalError> {
+    debug_assert_eq!(lhs.ty(), rhs.ty());
+
+    match lhs.ty() {
+        ConstFloatTy::Float64 => {
+            let a = lhs.as_f64();
+            let b = rhs.as_f64();
+            match op {
+                ast::BinaryOp::Add => Ok(ConstValue::Float(ConstFloat::from_f64(a + b))),
+                ast::BinaryOp::Sub => Ok(ConstValue::Float(ConstFloat::from_f64(a - b))),
+                ast::BinaryOp::Mul => Ok(ConstValue::Float(ConstFloat::from_f64(a * b))),
+                ast::BinaryOp::Div => Ok(ConstValue::Float(ConstFloat::from_f64(a / b))),
+                ast::BinaryOp::Rem => Ok(ConstValue::Float(ConstFloat::from_f64(a % b))),
+                ast::BinaryOp::Lt => Ok(ConstValue::Bool(a < b)),
+                ast::BinaryOp::Le => Ok(ConstValue::Bool(a <= b)),
+                ast::BinaryOp::Gt => Ok(ConstValue::Bool(a > b)),
+                ast::BinaryOp::Ge => Ok(ConstValue::Bool(a >= b)),
+                _ => Err(ConstEvalError::UnsupportedExpr {
+                    kind: "float binary op",
+                    span: span.into(),
+                }),
+            }
+        }
+        ConstFloatTy::Float32 => {
+            let a = lhs.as_f32();
+            let b = rhs.as_f32();
+            match op {
+                ast::BinaryOp::Add => Ok(ConstValue::Float(ConstFloat::from_f32(a + b))),
+                ast::BinaryOp::Sub => Ok(ConstValue::Float(ConstFloat::from_f32(a - b))),
+                ast::BinaryOp::Mul => Ok(ConstValue::Float(ConstFloat::from_f32(a * b))),
+                ast::BinaryOp::Div => Ok(ConstValue::Float(ConstFloat::from_f32(a / b))),
+                ast::BinaryOp::Rem => Ok(ConstValue::Float(ConstFloat::from_f32(a % b))),
+                ast::BinaryOp::Lt => Ok(ConstValue::Bool(a < b)),
+                ast::BinaryOp::Le => Ok(ConstValue::Bool(a <= b)),
+                ast::BinaryOp::Gt => Ok(ConstValue::Bool(a > b)),
+                ast::BinaryOp::Ge => Ok(ConstValue::Bool(a >= b)),
+                _ => Err(ConstEvalError::UnsupportedExpr {
+                    kind: "float binary op",
+                    span: span.into(),
+                }),
+            }
+        }
+    }
+}
+
+fn eval_float_equality(
+    op: ast::BinaryOp,
+    lhs: ConstFloat,
+    rhs: ConstFloat,
+) -> Result<ConstValue, ConstEvalError> {
+    debug_assert_eq!(lhs.ty(), rhs.ty());
+
+    let result = match lhs.ty() {
+        ConstFloatTy::Float64 => {
+            let a = lhs.as_f64();
+            let b = rhs.as_f64();
+            match op {
+                ast::BinaryOp::Eq => a == b,
+                ast::BinaryOp::Ne => a != b,
+                _ => unreachable!(),
+            }
+        }
+        ConstFloatTy::Float32 => {
+            let a = lhs.as_f32();
+            let b = rhs.as_f32();
+            match op {
+                ast::BinaryOp::Eq => a == b,
+                ast::BinaryOp::Ne => a != b,
+                _ => unreachable!(),
+            }
+        }
+    };
+
+    Ok(ConstValue::Bool(result))
+}
+
 /// 计算 shift amount（拒绝负数；并返回非负的 u128 值）。
 fn shift_amount(span: crate::span::Span, rhs: ConstInt) -> Result<u128, ConstEvalError> {
     let value = rhs.as_i128();
@@ -1685,6 +1878,7 @@ pub(crate) fn value_kind(v: &ConstValue) -> &'static str {
         ConstValue::Bool(_) => "Bool",
         ConstValue::Char(_) => "Char",
         ConstValue::Int(_) => "整数",
+        ConstValue::Float(f) => f.ty().name(),
         ConstValue::String(_) => "String",
         ConstValue::Tuple(_) => "Tuple",
         ConstValue::Struct(_) => "Struct",
@@ -1698,6 +1892,8 @@ fn binary_found_kind(lhs: &ConstValue, rhs: &ConstValue) -> &'static str {
         (ConstValue::Bool(_), ConstValue::Bool(_)) => "Bool",
         (ConstValue::Char(_), ConstValue::Char(_)) => "Char",
         (ConstValue::Int(_), ConstValue::Int(_)) => "整数",
+        (ConstValue::Float(a), ConstValue::Float(b)) if a.ty() == b.ty() => a.ty().name(),
+        (ConstValue::Float(_), ConstValue::Float(_)) => "不同精度的 Float",
         (ConstValue::String(_), ConstValue::String(_)) => "String",
         _ => "不匹配的类型组合",
     }

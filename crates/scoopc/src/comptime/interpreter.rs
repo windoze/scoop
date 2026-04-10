@@ -17,7 +17,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 
 use super::eval::{ConstEvalHost, eval_const_expr, eval_const_expr_with_host, value_kind};
-use super::{ConstEvalCtx, ConstEvalError, ConstValue};
+use super::{ConstEvalCtx, ConstEvalError, ConstFloatTy, ConstValue};
 
 /// const 解释器配置项（v0）。
 #[derive(Debug, Clone, Copy)]
@@ -229,7 +229,11 @@ impl<'a> ConstInterpreter<'a> {
         };
 
         let name = name_ident.text(self.ctx.source).to_string();
-        let value = eval_const_expr_with_host(self.ctx, self, init)?;
+        let value = coerce_value_to_declared_type(
+            self.ctx.source,
+            eval_const_expr_with_host(self.ctx, self, init)?,
+            v.ty.as_ref(),
+        );
 
         self.define_local(name, value);
         Ok(())
@@ -294,7 +298,11 @@ impl<'a> ConstInterpreter<'a> {
             };
 
             let name = name_ident.text(self.ctx.source).to_string();
-            let value = eval_const_expr_with_host(self.ctx, self, init)?;
+            let value = coerce_value_to_declared_type(
+                self.ctx.source,
+                eval_const_expr_with_host(self.ctx, self, init)?,
+                v.ty.as_ref(),
+            );
 
             // 顶层 const val 也进入环境：后续 const val/const fun 可引用它。
             self.define_local(name.clone(), value.clone());
@@ -1101,7 +1109,8 @@ impl<'a> ConstInterpreter<'a> {
         // 参数绑定写入当前 frame scope。
         for (param, arg) in fun.params.iter().zip(args) {
             let name = param.name.text(self.ctx.source).to_string();
-            self.define_local(name, arg);
+            let value = coerce_value_to_declared_type(self.ctx.source, arg, param.ty.as_ref());
+            self.define_local(name, value);
         }
 
         let ret = match &fun.body {
@@ -1115,6 +1124,7 @@ impl<'a> ConstInterpreter<'a> {
                 });
             }
         };
+        let ret = coerce_value_to_declared_type(self.ctx.source, ret, fun.return_ty.as_ref());
 
         self.pop_scope();
         self.call_depth -= 1;
@@ -1174,7 +1184,11 @@ impl<'a> ConstInterpreter<'a> {
                     });
                 };
 
-                let value = eval_const_expr_with_host(self.ctx, self, init)?;
+                let value = coerce_value_to_declared_type(
+                    self.ctx.source,
+                    eval_const_expr_with_host(self.ctx, self, init)?,
+                    v.ty.as_ref(),
+                );
                 self.define_local(name.text(self.ctx.source).to_string(), value);
                 Ok(ControlFlow::Continue(None))
             }
@@ -1420,6 +1434,44 @@ fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {
         "String" => Some(std::mem::align_of::<usize>()),
 
         _ => None,
+    }
+}
+
+fn builtin_float_ty_from_type_ref(source: &SourceFile, ty: &ast::TypeRef) -> Option<ConstFloatTy> {
+    match ty {
+        ast::TypeRef::Path(path) => {
+            let name = path
+                .segments
+                .iter()
+                .map(|seg| seg.text(source))
+                .collect::<Vec<_>>()
+                .join(".");
+            match name.as_str() {
+                "Float64" | "Double" | "scoop.core.Float64" => Some(ConstFloatTy::Float64),
+                "Float32" | "scoop.core.Float32" => Some(ConstFloatTy::Float32),
+                _ => None,
+            }
+        }
+        ast::TypeRef::Nullable { inner, .. } => builtin_float_ty_from_type_ref(source, inner),
+        ast::TypeRef::Tuple(_)
+        | ast::TypeRef::Star { .. }
+        | ast::TypeRef::EffectRowArg { .. }
+        | ast::TypeRef::Function(_) => None,
+    }
+}
+
+fn coerce_value_to_declared_type(
+    source: &SourceFile,
+    value: ConstValue,
+    ty: Option<&ast::TypeRef>,
+) -> ConstValue {
+    let Some(target_ty) = ty.and_then(|t| builtin_float_ty_from_type_ref(source, t)) else {
+        return value;
+    };
+
+    match value {
+        ConstValue::Float(f) => ConstValue::Float(f.cast(target_ty)),
+        other => other,
     }
 }
 

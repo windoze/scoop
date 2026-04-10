@@ -421,10 +421,16 @@ cargo run -p scoop --features llvm -- test
   - resolver 对 Float builtin API 的“保留为内建 member call”规则已同时接受 `Float64/Float32` 的短名与全名，避免误改写到扩展函数路径。
   - 新增 LLVM 单测 `float_literals_lower_to_arithmetic_comparisons_and_narrowing`，锁住 `fadd/frem/fcmp/fneg` 等关键 IR 形态；新增 run-pass fixture `float_literal_runtime_basic` 覆盖基础算术、比较、科学计数法、Float32 absorption 与 builtin 方法。
   - 验证：`cargo test -p scoopc float_literals_lower_to_arithmetic_comparisons_and_narrowing -- --nocapture`、`cargo test -p scoopc float_builtin_methods_lower_to_runtime_calls_and_hash_bits -- --nocapture`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings`、`cargo test --all`、`cargo run -p scoop -- test` 通过（fixtures `ok (855)`）。
-- 待做：`T0148d`（收尾，继续拆分）
-  - `T0148d-1`：先补 `ConstValue` / `comptime::eval` 的 Float 值模型、字面量求值与基础常量折叠，避免 `const val` / `comptime if` 路径与运行期能力脱节。
-  - `T0148d-2`：补多文件 / Cone 非入口文件 Float literal fixture，验证 SourceMap-backed literal 管线与错误定位。
-  - `T0148d-3`：统一审计剩余边角语义与诊断；能补齐的直接补齐，暂不支持的必须给出明确错误或新任务链接。
+- DONE（T0148d-1）：Float comptime 值模型与基础常量折叠
+  - `ConstValue` 已扩展 `Float(ConstFloat)`，并新增 `ConstFloatTy/ConstFloat` 保留 `Float64/Float32` raw bits。
+  - `comptime/eval.rs` 已支持 Float literal 求值、一元负号、四则、比较、相等性，以及 `Float32 + 无后缀 Float literal` 的吸收规则；NaN 比较语义与运行期保持一致。
+  - `comptime/interpreter.rs` 已对顶层/局部绑定、`const fun` 参数和返回值按声明类型归一化 Float，避免显式 `Float32` 绑定在后续求值里回退成 `Float64`。
+  - `scoop` fixtures runner 已支持 Float comptime golden 文本格式；新增 `tests/fixtures/comptime/float_literal_basic.*`。
+  - 验证：`cargo test -p scoopc comptime -- --nocapture`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (856)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+- 待做：`T0148d-2`
+  - 补多文件 / Cone 非入口文件 Float literal fixture，验证 SourceMap-backed literal 管线与错误定位。
+- 待做：`T0148d-3`
+  - 统一审计剩余边角语义与诊断；能补齐的直接补齐，暂不支持的必须给出明确错误或新任务链接。
 
 ## 5. 泛型 where 约束完善
 

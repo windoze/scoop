@@ -6,13 +6,18 @@
 
 use std::collections::BTreeMap;
 
-/// 解释器中的“编译期值”（v0：只覆盖少量字面量与整数）。
+/// 解释器中的“编译期值”。
+///
+/// 当前已覆盖：
+/// - 基础字面量：`Unit/Bool/Char/Int/Float/String`
+/// - 聚合值：`Tuple/Struct/Enum`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConstValue {
     Unit,
     Bool(bool),
     Char(char),
     Int(ConstInt),
+    Float(ConstFloat),
     String(String),
     Tuple(Vec<ConstValue>),
     Struct(ConstStruct),
@@ -105,6 +110,71 @@ impl ConstInt {
 
         let shift = 128 - bits;
         ((masked << shift) as i128) >> shift
+    }
+}
+
+/// const 浮点类型信息。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstFloatTy {
+    Float64,
+    Float32,
+}
+
+impl ConstFloatTy {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Float64 => "Float64",
+            Self::Float32 => "Float32",
+        }
+    }
+}
+
+/// const 浮点值（按 IEEE-754 原始 bit pattern 存储）。
+///
+/// 说明：
+/// - 使用 raw bits 存储，可稳定区分 `-0.0` / `0.0`，并在测试中保持可比较性；
+/// - 真正执行算术/比较时再按各自精度还原为 `f64` / `f32`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstFloat {
+    Float64(u64),
+    Float32(u32),
+}
+
+impl ConstFloat {
+    pub fn from_f64(value: f64) -> Self {
+        Self::Float64(value.to_bits())
+    }
+
+    pub fn from_f32(value: f32) -> Self {
+        Self::Float32(value.to_bits())
+    }
+
+    pub fn ty(self) -> ConstFloatTy {
+        match self {
+            Self::Float64(_) => ConstFloatTy::Float64,
+            Self::Float32(_) => ConstFloatTy::Float32,
+        }
+    }
+
+    pub fn as_f64(self) -> f64 {
+        match self {
+            Self::Float64(bits) => f64::from_bits(bits),
+            Self::Float32(bits) => f64::from(f32::from_bits(bits)),
+        }
+    }
+
+    pub fn as_f32(self) -> f32 {
+        match self {
+            Self::Float64(bits) => f64::from_bits(bits) as f32,
+            Self::Float32(bits) => f32::from_bits(bits),
+        }
+    }
+
+    pub fn cast(self, target: ConstFloatTy) -> Self {
+        match target {
+            ConstFloatTy::Float64 => Self::from_f64(self.as_f64()),
+            ConstFloatTy::Float32 => Self::from_f32(self.as_f32()),
+        }
     }
 }
 

@@ -42,3 +42,15 @@
   2. `T0148d-2`：多文件 / 非入口源文件 Float literal 回归。
   3. `T0148d-3`：剩余转换、边角语义与审计。
 - 当前执行目标将切换为 `T0148d-1`。
+- 已提交任务拆分提交：`d3715b3 [T0148d] 拆分 Float 收尾任务`。
+- `T0148d-1` 实现已完成，核心落点如下：
+  1. `ConstValue` 新增 `Float(ConstFloat)`，值模型保留 `Float64/Float32` raw bits。
+  2. `comptime/eval.rs` 支持 Float literal、一元负号、四则、比较、相等性与 NaN 语义。
+  3. `comptime/interpreter.rs` 对顶层/局部绑定、函数参数与返回值按声明类型归一化 Float，保证 `Float32` 不在后续求值中漂成 `Float64`。
+  4. fixtures runner 新增 Float comptime golden 格式化；新增 `tests/fixtures/comptime/float_literal_basic.*`。
+- 已完成验证：
+  - `cargo test -p scoopc comptime -- --nocapture`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`（`fixtures: ok (856)`）
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 下一步：把 `TODO.md` / `PLAN.md` 标记为 `T0148d-1 [DONE]` 后提交实现 commit，并停止。

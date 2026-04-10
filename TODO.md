@@ -1579,7 +1579,7 @@ cargo run -p scoop --features llvm -- test
   - `T0148d-3`：审计剩余不支持语义与诊断行为；能补齐的直接补齐，不能补齐的给出明确错误或后续任务链接。
 - 依赖：T0148c
 
-### T0148d-1 [TODO] Float 字面量收尾：comptime 值模型与基础常量折叠
+### T0148d-1 [DONE] Float 字面量收尾：comptime 值模型与基础常量折叠
 
 - 描述：当前 `crates/scoopc/src/comptime/value.rs` / `eval.rs` 仍只有 `Int/Bool/Char/String/...`，Float literal 虽已打通前端、静态语义与 LLVM，但在 `const val` / `comptime if` / const fun 折叠路径里仍不可用。
 - 目标：
@@ -1594,6 +1594,18 @@ cargo run -p scoop --features llvm -- test
   - `cargo run -p scoop -- test`
   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 - 依赖：T0148c
+- 完成说明：
+  - `crates/scoopc/src/comptime/value.rs`：新增 `ConstFloatTy` / `ConstFloat`，并把 `ConstValue` 扩展为显式 `Float` 变体，按 raw bits 保存 IEEE-754 值，保证 `Float64/Float32` 与 `-0.0/0.0` 可稳定区分。
+  - `crates/scoopc/src/comptime/eval.rs`：支持 `ExprKind::FloatLit` 常量求值；补齐 Float 一元负号、`+ - * / %`、`< <= > >=`、`== !=` 的编译期执行；沿用运行期 NaN 语义（`NaN == NaN` 为 false，`NaN != NaN` 为 true）；并按“无后缀 Float literal 可吸收到 Float32”规则处理混合 `Float64 literal + Float32` 运算。
+  - `crates/scoopc/src/comptime/interpreter.rs`：顶层 `const val`、局部 `val`、`const fun` 参数与返回值现在会按声明类型把 Float 归一化到 `Float32/Float64`，避免 `const val x: Float32 = 1.5` 在后续求值中退回成 `Float64`。
+  - `crates/scoop/src/fixtures/mod.rs`：新增 Float comptime snapshot 格式化，golden 中可稳定输出 `3.14` / `1.5f32` / `Infinity` / `NaN` 等文本。
+  - 新增 Rust 单测：覆盖 Float 字面量、基础算术、Float32 归一化，以及 NaN 比较语义。
+  - 新增 fixture：`tests/fixtures/comptime/float_literal_basic.scoop` + `.comptime`，覆盖 `const fun`、`comptime if`、`Float32` 绑定与基础比较。
+  - 验证：
+    - `cargo test -p scoopc comptime -- --nocapture`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (856)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
 ### T0148d-2 [TODO] Float 字面量收尾：多文件 / 非入口源文件回归
 

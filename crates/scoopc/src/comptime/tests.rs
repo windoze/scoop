@@ -4,7 +4,8 @@ use miette::Diagnostic;
 
 use crate::comptime::{ConstBinding, eval_const_bindings_in_file};
 use crate::comptime::{
-    ConstEnum, ConstEvalCtx, ConstInt, ConstIntTy, ConstStruct, ConstValue, eval_const_expr,
+    ConstEnum, ConstEvalCtx, ConstFloat, ConstInt, ConstIntTy, ConstStruct, ConstValue,
+    eval_const_expr,
 };
 use crate::parser;
 use crate::source::SourceFile;
@@ -37,6 +38,14 @@ fn eval_expr(expr_src: &str, default_int_ty: ConstIntTy) -> ConstValue {
 
 fn mk_int(ty: ConstIntTy, raw: u128) -> ConstValue {
     ConstValue::Int(ConstInt::new(ty, raw))
+}
+
+fn mk_float64(value: f64) -> ConstValue {
+    ConstValue::Float(ConstFloat::from_f64(value))
+}
+
+fn mk_float32(value: f32) -> ConstValue {
+    ConstValue::Float(ConstFloat::from_f32(value))
 }
 
 fn mk_type_kind(variant: &str) -> ConstValue {
@@ -185,6 +194,65 @@ fn const_eval_string_trim_indent_folds() {
         ty,
     );
     assert_eq!(v, ConstValue::String("a\n  b\nc".to_string()));
+}
+
+#[test]
+fn const_eval_float_literals_and_arithmetic() {
+    let ty = ConstIntTy::host_word(true);
+
+    assert_eq!(eval_expr("1.5 + 0.5", ty), mk_float64(2.0));
+    assert_eq!(eval_expr("1.5f + 0.5", ty), mk_float32(2.0));
+    assert_eq!(eval_expr("-0.5f", ty), mk_float32(-0.5));
+    assert_eq!(eval_expr("3.0 > 2.0", ty), ConstValue::Bool(true));
+
+    // 与运行期/LLVM 路径保持一致：NaN == NaN 为 false，NaN != NaN 为 true。
+    assert_eq!(
+        eval_expr("(0.0 / 0.0) == (0.0 / 0.0)", ty),
+        ConstValue::Bool(false)
+    );
+    assert_eq!(
+        eval_expr("(0.0 / 0.0) != (0.0 / 0.0)", ty),
+        ConstValue::Bool(true)
+    );
+}
+
+#[test]
+fn const_eval_float32_annotations_and_const_fun_preserve_precision() {
+    let consts = eval_file_consts(
+        r#"
+const fun bump(x: Float32): Float32 {
+    val mid: Float32 = x + 0.25
+    mid
+}
+
+const val BASE: Float32 = 1.5
+const val SUM: Float32 = BASE + 0.5f
+const val FROM_FUN: Float32 = bump(1.75)
+const val CMP: Bool = SUM == 2.0
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "BASE".to_string(),
+                value: mk_float32(1.5),
+            },
+            ConstBinding {
+                name: "SUM".to_string(),
+                value: mk_float32(2.0),
+            },
+            ConstBinding {
+                name: "FROM_FUN".to_string(),
+                value: mk_float32(2.0),
+            },
+            ConstBinding {
+                name: "CMP".to_string(),
+                value: ConstValue::Bool(true),
+            },
+        ]
+    );
 }
 
 #[test]

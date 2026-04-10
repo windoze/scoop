@@ -22,7 +22,9 @@ pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
 pub use interpreter::{
     ConstBinding, ConstEvalOptions, eval_const_bindings_in_file, trim_package_level_comptime_ifs,
 };
-pub use value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue};
+pub use value::{
+    ConstEnum, ConstFloat, ConstFloatTy, ConstInt, ConstIntTy, ConstStruct, ConstValue,
+};
 
 #[cfg(test)]
 mod tests;

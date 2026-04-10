@@ -1,0 +1,29 @@
+// EXPECT: pass
+// 目标：T0148d-1 comptime：Float 字面量、Float32 绑定归一化、基础算术/比较 与 comptime if。
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun bump(x: Float32): Float32 {
+    val local: Float32 = x + 0.25
+    local
+}
+
+const fun choose(flag: Float64): Int {
+    comptime if (flag > 1.0) {
+        1
+    } else {
+        0
+    }
+}
+
+const val PI: Float64 = 3.14
+const val NEG32: Float32 = -0.5f
+const val BASE32: Float32 = 1.5
+const val SUM64: Float64 = PI + 0.5
+const val SUM32: Float32 = BASE32 + 0.5
+const val FROM_FUN: Float32 = bump(1.75)
+const val LT_OK: Bool = SUM32 < 3.0
+const val NAN_NE: Bool = (0.0 / 0.0) != (0.0 / 0.0)
+const val PICK: Int = choose(2.0)
