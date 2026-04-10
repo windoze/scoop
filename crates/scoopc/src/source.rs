@@ -204,6 +204,14 @@ impl SourceMap {
         self.entries.get(source_id.0).map(|entry| &entry.source)
     }
 
+    /// 通过源文件路径反查 `SourceId`。
+    pub fn source_id_of_path(&self, path: &Path) -> Option<SourceId> {
+        self.entries
+            .iter()
+            .position(|entry| entry.source.path() == path)
+            .map(SourceId)
+    }
+
     /// 返回某个源文件在全局偏移空间中的区间。
     pub fn global_range(&self, source_id: SourceId) -> Option<Range<usize>> {
         self.entries

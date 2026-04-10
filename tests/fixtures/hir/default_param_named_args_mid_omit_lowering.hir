@@ -123,9 +123,7 @@ File {
                                                             5,
                                                         ),
                                                         kind: Literal(
-                                                            Int(
-                                                                1,
-                                                            ),
+                                                            Int,
                                                         ),
                                                     },
                                                 ),
@@ -157,9 +155,7 @@ File {
                                                             5,
                                                         ),
                                                         kind: Literal(
-                                                            Int(
-                                                                3,
-                                                            ),
+                                                            Int,
                                                         ),
                                                     },
                                                 ),
@@ -191,9 +187,7 @@ File {
                                                             5,
                                                         ),
                                                         kind: Literal(
-                                                            Int(
-                                                                2,
-                                                            ),
+                                                            Int,
                                                         ),
                                                     },
                                                 ),

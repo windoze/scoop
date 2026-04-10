@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::source::SourceFile;
+use crate::syntax::int_literal::parse_int_literal_decimal;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 
 use super::value::{ConstEnum, ConstInt, ConstIntTy, ConstStruct, ConstValue, mask_to_bits};
@@ -1593,23 +1594,6 @@ fn shift_amount(span: crate::span::Span, rhs: ConstInt) -> Result<u128, ConstEva
         });
     }
     Ok(value as u128)
-}
-
-/// 解析十进制整数字面量（允许 `_` 分隔符）。
-///
-/// 说明：当前 lexer 只产出十进制 IntLiteral，因此这里先实现最小十进制解析；
-/// 若后续引入 `0x`/`0b` 等进制，可在此扩展并保持调用点不变。
-fn parse_int_literal_decimal(text: &str) -> u128 {
-    let mut out: u128 = 0;
-    for ch in text.chars() {
-        if ch == '_' {
-            continue;
-        }
-        if let Some(d) = ch.to_digit(10) {
-            out = out.saturating_mul(10).saturating_add(u128::from(d));
-        }
-    }
-    out
 }
 
 /// 返回给定位宽对应的 mask（低 bits 位为 1）。

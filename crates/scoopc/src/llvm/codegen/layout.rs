@@ -72,6 +72,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let layouted = hir::ClassInit {
             fqn: base.fqn,
+            source_path: base.source_path,
             super_class_fqn: base.super_class_fqn,
             super_ctor_args_span: base.super_ctor_args_span,
             super_ctor_args: base.super_ctor_args,

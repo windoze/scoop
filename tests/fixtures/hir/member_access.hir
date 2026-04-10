@@ -130,9 +130,7 @@ File {
                                             5,
                                         ),
                                         kind: Literal(
-                                            Int(
-                                                2,
-                                            ),
+                                            Int,
                                         ),
                                     },
                                 },

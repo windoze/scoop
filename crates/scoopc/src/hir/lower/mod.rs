@@ -446,6 +446,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            source_path: self.source.path().to_path_buf(),
             is_const: is_const_fun,
             ty,
             params,
@@ -535,6 +536,7 @@ impl<'a> HirLowering<'a> {
             span: prop.span,
             fqn,
             name,
+            source_path: self.source.path().to_path_buf(),
             is_const: false,
             ty,
             params,
@@ -636,6 +638,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            source_path: self.source.path().to_path_buf(),
             is_const: is_const_fun,
             ty,
             params,
@@ -745,6 +748,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            source_path: self.source.path().to_path_buf(),
             is_const: is_const_fun,
             ty,
             params,
@@ -845,6 +849,7 @@ impl<'a> HirLowering<'a> {
             span: fun.span,
             fqn,
             name,
+            source_path: self.source.path().to_path_buf(),
             is_const: is_const_fun,
             ty,
             params,
@@ -953,6 +958,7 @@ impl<'a> HirLowering<'a> {
                         fqn.clone(),
                         super::TopLevelVar {
                             fqn: fqn.clone(),
+                            source_path: self.source.path().to_path_buf(),
                             span: v.span,
                             storage,
                             ty,
@@ -1381,8 +1387,8 @@ pub fn lower_for_compilation_unit(
 ///
 /// 用途（T1315a）：
 /// - `scoop build/run` 注入 `stdlib/*.scoop` 后，需要让这些文件里的顶层函数在后端可见；
-/// - T0140: `LiteralKind::Int/String` 在 HIR lowering 时直接存储解析后的值，不再依赖 source span，
-///   因此所有文件（包括非入口文件）均可正常使用 Int/String 字面量。
+/// - T0150c：HIR 继续保留本地 span，但不再在 lowering 时 eager parse Int/String 字面量；
+///   后续阶段通过“声明所属源文件 + 本地 span”回查原文。
 pub fn lower_for_compilation_unit_multi_files(
     entry_source: &SourceFile,
     index: &Index,

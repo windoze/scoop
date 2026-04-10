@@ -943,7 +943,7 @@ cargo run -p scoop --features llvm -- test
   - 验证通过：`cargo test --all`、`cargo run -p scoop -- test`。
   - 额外检查：`cargo clippy --workspace --all-targets -- -D warnings` 仍失败，但失败原因为既有仓库级 warning/clippy baseline（LLVM/inkwell deprecated `ptr_type` 与若干长期 clippy lint），非 T0150b 回归。
 
-### T0150c [TODO] 回退 Int/String 字面量为 SourceMap-backed 解析
+### T0150c [DONE] 回退 Int/String 字面量为 SourceMap-backed 解析
 
 - 描述：移除 T0140 在 HIR lowering 阶段对 Int/String 的 eager parsing；恢复为运行需要时再通过 `SourceMap + Span` 取原文解析。
 - 目标：
@@ -955,6 +955,13 @@ cargo run -p scoop --features llvm -- test
   - HIR / codegen fixtures 按需要更新。
   - `cargo test --all` + `cargo run -p scoop -- test` 通过。
 - 依赖：T0150a、T0150b
+- 完成说明：
+  - HIR `LiteralKind::Int/String` 与 `WhenPat::IntLit` 已回退为 source-backed 表示，不再在 lowering 阶段持有 eager-parsed payload。
+  - 为避免把瞬时 `SourceId` 写入 HIR，`FunDecl` / `TopLevelVar` / `ObjectInit` / `ClassInit` 新增稳定的 `source_path` provenance；`SourceMap` 新增 `source_id_of_path(...)` 供 LLVM codegen 在运行时恢复对应 source。
+  - LLVM codegen 现会在函数、对象初始化、类初始化/构造、顶层变量初始化等 emission 路径切换当前 source context；`codegen_literal`、`when` 整数字面量匹配、以及 comptime 的十进制整数字面量解析统一回到 `SourceMap + Span` 取原文再解析。
+  - HIR goldens 已按新形态更新；`multi_file_literal_basic` 继续随 fixture suite 通过。
+  - 验证通过：`cargo check -p scoopc`、`cargo test --all`、`cargo run -p scoop -- test`。
+  - 补充检查：`cargo clippy --workspace --all-targets -- -D warnings` 仍受既有仓库级 baseline 阻塞（inkwell deprecated `ptr_type` 与长期 clippy lint），非 T0150c 回归。
 
 ### T0150d [TODO] 字面量解析诊断接入 SourceMap + 多文件失败回归
 

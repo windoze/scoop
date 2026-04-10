@@ -44,9 +44,7 @@ File {
                                                     5,
                                                 ),
                                                 kind: Literal(
-                                                    Int(
-                                                        0,
-                                                    ),
+                                                    Int,
                                                 ),
                                             },
                                         ),

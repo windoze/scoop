@@ -505,6 +505,7 @@ fn collect_object_decl_inits(
     let fqn = join_prefix(owner_prefix, &name);
     let mut init = ObjectInit {
         fqn: fqn.clone(),
+        source_path: ctx.source.path().to_path_buf(),
         properties: HashMap::new(),
         steps: Vec::new(),
     };
@@ -705,6 +706,7 @@ fn collect_class_decl_init(
 
     let mut init = ClassInit {
         fqn: class_fqn.to_string(),
+        source_path: ctx.source.path().to_path_buf(),
         super_class_fqn,
         super_ctor_args_span,
         super_ctor_args,
@@ -2337,6 +2339,7 @@ pub(super) fn collect_generic_class_instantiation_inits(
 
         out.insert(mangled.clone(), ClassInit {
             fqn: mangled,
+            source_path: base_init.source_path.clone(),
             super_class_fqn: base_init.super_class_fqn.clone(),
             super_ctor_args_span: base_init.super_ctor_args_span,
             super_ctor_args: base_init.super_ctor_args.clone(),

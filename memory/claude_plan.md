@@ -1,58 +1,66 @@
+# Claude Execution Notes
+
 ## Current Objective
 
-Complete exactly the first undone task from `TODO.md`, after checking the latest commit for any explicitly mentioned pre-existing issue. Based on prior progress summary, the intended task is `T0150b`, but the code changes were reverted while `TODO.md` / `PLAN.md` were already marked done. The immediate job is to restore the code so the repository state matches the task tracking.
+Complete exactly one task for this invocation: the first undone task in `TODO.md`, which is `T0150c`.
 
-## Constraints And Working Notes
+## Commit / Issue Triage
 
-- Stop after completing one task and committing it.
-- Do not revert unrelated user changes.
-- Keep `TODO.md` task ordering accurate.
-- Treat the existing workspace as potentially dirty and verify before editing.
-- Use targeted edits only; avoid repo-wide formatting churn.
-- The repository has a known pre-existing `clippy` baseline with many unrelated failures. I will verify whether that remains unrelated to this task and document it if needed.
+- Checked the latest commit before task execution: `c15c4943f72921115fdf2d075f41b565d7fc4420`
+- Commit subject: `[T0150b] Wire LLVM codegen through SourceMap`
+- No additional pre-existing issue was called out in that commit message that needed to be fixed before `T0150c`
 
-## Step-By-Step Plan
+## Task Understanding
 
-1. Inspect the latest commit message and current git status to confirm whether there is any explicitly mentioned inherited issue that must be fixed first, and to see the current workspace state.
-2. Read `TODO.md` and `PLAN.md` to confirm the first incomplete task and verify whether `T0150b` is already marked done in docs while code is missing.
-3. Reapply the `T0150b` implementation in the LLVM codegen path:
-   - Thread `SourceMap + SourceId` through lowered-HIR LLVM emission APIs.
-   - Update `MainCodegen` to carry `SourceMap` and entry source id.
-   - Update nested codegen call sites and the effect trace fallback.
-   - Update the build command to construct the codegen `SourceMap`.
-   - Keep eager `LiteralKind::Int/String` behavior unchanged.
-   - Preserve the small `runtime_abi.rs` doc-comment cleanup.
-   - Restore the regression test covering multi-file `SourceMap` lowered-HIR codegen.
-4. Run focused verification first:
-   - `cargo test -p scoopc llvm::tests::lowered_hir_codegen_accepts_multi_file_source_map -- --exact`
-   - `cargo test -p scoop commands::build::tests::build_frontend_ok_and_creates_parent_dir -- --exact`
-5. Run broader validation:
-   - `cargo test --all`
-   - `cargo run -p scoop -- test`
-   - Optionally rerun `cargo clippy --workspace --all-targets -- -D warnings` only to confirm whether failures are still pre-existing baseline issues rather than regressions from this task.
-6. Reconcile planning files if necessary so they accurately reflect the completed state and any validation caveats.
-7. Commit with a task-scoped message, likely `[T0150b] Wire LLVM codegen through SourceMap`, then stop.
+`T0150c` required reverting eager integer/string literal payloads in HIR back to source-backed parsing while keeping LLVM codegen able to recover the correct source file for literals and constant evaluation.
+
+## Implementation Summary
+
+- Reverted HIR literal storage from parsed payloads back to source-backed forms:
+  - `hir::LiteralKind::Int(u128)` -> `hir::LiteralKind::Int`
+  - `hir::LiteralKind::String(Vec<u8>)` -> `hir::LiteralKind::String`
+  - `hir::WhenPat::IntLit { span, value }` -> `hir::WhenPat::IntLit { span }`
+- Added stable source provenance fields:
+  - `FunDecl.source_path`
+  - `TopLevelVar.source_path`
+  - `ObjectInit.source_path`
+  - `ClassInit.source_path`
+- Added `SourceMap::source_id_of_path(...)` so LLVM codegen can resolve a runtime `SourceId` from stable source paths.
+- Updated LLVM codegen to switch source context when emitting:
+  - normal functions
+  - object initializers
+  - class initializers / constructors
+  - top-level variable initializers
+- Restored source-backed parsing in:
+  - literal codegen
+  - integer constant evaluation
+  - `when` integer pattern comparisons
+- Removed duplicated integer literal parsing logic in comptime evaluation and reused the shared syntax helper.
+- Updated HIR fixture goldens to match the reverted HIR shape.
+
+## Validation Results
+
+- `cargo check -p scoopc` passed
+- `cargo test --all` passed
+- `cargo run -p scoop -- test` passed (`fixtures: ok (836)`)
+- `cargo clippy --workspace --all-targets -- -D warnings` does not pass repo-wide because of a pre-existing baseline unrelated to this task
+
+Known pre-existing strict clippy failures observed:
+
+- deprecated `inkwell::*::ptr_type` usage
+- `clippy::too_many_arguments`
+- `clippy::result_large_err`
+- `clippy::only_used_in_recursion`
+
+## Remaining Close-Out Steps
+
+1. Review the final diff for `T0150c` and confirm the bookkeeping updates are correct.
+2. Commit with a `T0150c` message.
+3. Stop after the commit.
 
 ## Progress Log
 
-- Plan recorded before running repo inspection commands, per request.
-- Checked the current worktree, latest commit subject/body, `TODO.md`, and `PLAN.md`. The latest commit did not mention an inherited issue beyond the already-completed `T0150a` work.
-- Confirmed the expected mismatch from the prior handoff: `TODO.md` / `PLAN.md` already marked `T0150b` done, while the LLVM/build code had been restored to pre-task state.
-- Reapplied the `T0150b` implementation in:
-  - `crates/scoopc/src/llvm/mod.rs`
-  - `crates/scoopc/src/llvm/codegen/mod.rs`
-  - `crates/scoopc/src/llvm/codegen/effect.rs`
-  - `crates/scoopc/src/llvm/codegen/runtime_abi.rs`
-  - `crates/scoop/src/commands/build.rs`
-- Restored the public lowered-HIR LLVM emission APIs to accept `&SourceMap + entry_source_id`, added single-file/build helpers that construct the required `SourceMap`, kept eager Int/String literal payload behavior unchanged, and restored the multi-file regression test.
-- Focused validation passed:
-  - `cargo test -p scoopc llvm::tests::lowered_hir_codegen_accepts_multi_file_source_map -- --exact`
-  - `cargo test -p scoop commands::build::tests::build_frontend_ok_and_creates_parent_dir -- --exact`
-- Broad validation passed:
-  - `cargo test --all`
-  - `cargo run -p scoop -- test` → `fixtures: ok (836)`
-- Rechecked strict clippy:
-  - `cargo clippy --workspace --all-targets -- -D warnings` still fails on the pre-existing repository baseline.
-  - The logged failures still begin with many LLVM/inkwell deprecation errors (`ptr_type`, `ptr_sized_int_type_in_context`) across long-standing codegen files, followed by unrelated existing lints such as `private_interfaces`, `dead_code`, `large_enum_variant`, `vec_init_then_push`, and `clippy::result_large_err`.
-  - I did not find evidence that the restored `T0150b` plumbing introduced a new lint category; the failure pattern matches the previously documented repo-wide baseline.
-- Next step: review the final diff, then commit `[T0150b] Wire LLVM codegen through SourceMap` and stop.
+- Reused prior implementation state instead of redoing code changes.
+- Updated `TODO.md` to mark `T0150c` done and recorded the completion notes.
+- Updated `PLAN.md` section `4.1` to mark `T0150c` done and keep `T0150d` as the next pending task.
+- Next action: final diff review, commit `[T0150c] Revert literals to SourceMap-backed parsing`, then stop.

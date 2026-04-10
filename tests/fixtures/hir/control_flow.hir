@@ -44,9 +44,7 @@ File {
                                                     5,
                                                 ),
                                                 kind: Literal(
-                                                    Int(
-                                                        0,
-                                                    ),
+                                                    Int,
                                                 ),
                                             },
                                         ),
@@ -79,9 +77,7 @@ File {
                                             5,
                                         ),
                                         kind: Literal(
-                                            Int(
-                                                1,
-                                            ),
+                                            Int,
                                         ),
                                     },
                                 },
@@ -171,9 +167,7 @@ File {
                                                                                 5,
                                                                             ),
                                                                             kind: Literal(
-                                                                                Int(
-                                                                                    2,
-                                                                                ),
+                                                                                Int,
                                                                             ),
                                                                         },
                                                                     ),
@@ -217,7 +211,6 @@ File {
                                                     span: 97..112,
                                                     pat: IntLit {
                                                         span: 97..98,
-                                                        value: 0,
                                                     },
                                                     guard: Some(
                                                         Expr {
@@ -239,9 +232,7 @@ File {
                                                             5,
                                                         ),
                                                         kind: Literal(
-                                                            Int(
-                                                                10,
-                                                            ),
+                                                            Int,
                                                         ),
                                                     },
                                                 },
@@ -258,9 +249,7 @@ File {
                                                             5,
                                                         ),
                                                         kind: Literal(
-                                                            Int(
-                                                                20,
-                                                            ),
+                                                            Int,
                                                         ),
                                                     },
                                                 },

@@ -17,6 +17,7 @@ pub use lower::mangle_nominal_fqn;
 
 use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 
 use crate::ast;
 use crate::span::Span;
@@ -92,6 +93,8 @@ pub struct FunDecl {
     pub span: Span,
     pub fqn: String,
     pub name: String,
+    /// 声明所在源文件路径；供多文件 codegen 在需要回查源码文本时确定所属文件。
+    pub source_path: PathBuf,
     /// 是否为 `const fun`（spec §6.2）。
     pub is_const: bool,
     /// 函数本身的类型（函数类型）。
@@ -375,12 +378,10 @@ pub struct EffectOpRef {
 
 #[derive(Debug, Clone)]
 pub enum LiteralKind {
-    /// Integer literal with its parsed decimal value (T0140: parsed at HIR lowering time,
-    /// no longer source-span-backed). Bit masking to target int type happens at codegen.
-    Int(u128),
-    /// String literal with its parsed byte content (T0140: parsed at HIR lowering time,
-    /// no longer source-span-backed). Escape sequences already resolved.
-    String(Vec<u8>),
+    /// Integer literal resolved on demand from source text (`Expr.span` + source provenance).
+    Int,
+    /// String literal resolved on demand from source text (`Expr.span` + source provenance).
+    String,
     Unit,
     Bool(bool),
     /// Synthesized integer literal (compiler-generated desugaring, e.g., for-loop index init/step).
@@ -546,6 +547,8 @@ pub type ClassInitIndex = HashMap<String, ClassInit>;
 #[derive(Debug, Clone)]
 pub struct ClassInit {
     pub fqn: String,
+    /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
+    pub source_path: PathBuf,
     /// 直接 superclass 的 FQN（仅 class 单继承；interface 不在此处记录）。
     pub super_class_fqn: Option<String>,
     /// class header 的 super ctor args 括号 span（若存在 `: Base(...)`）。
@@ -669,6 +672,8 @@ pub type ExternFunIndex = HashMap<String, ExternFun>;
 #[derive(Debug, Clone)]
 pub struct TopLevelVar {
     pub fqn: String,
+    /// 声明所在源文件路径；供静态 initializer 在 codegen 期解析源码字面量。
+    pub source_path: PathBuf,
     pub span: Span,
     pub storage: TopLevelVarStorage,
     pub ty: TypeId,
@@ -691,6 +696,8 @@ pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
 #[derive(Debug, Clone)]
 pub struct ObjectInit {
     pub fqn: String,
+    /// object 声明所在源文件路径；供初始化表达式 codegen 回查源码字面量。
+    pub source_path: PathBuf,
     /// object 体内声明的属性（按 name 索引）。
     pub properties: HashMap<String, ObjectProperty>,
     /// 初始化步骤（按源码顺序稳定化，用于一次初始化 codegen）。
@@ -769,8 +776,6 @@ pub enum WhenPat {
     },
     IntLit {
         span: Span,
-        /// Parsed decimal value (T0140: resolved at HIR lowering time).
-        value: u128,
     },
     StringLit {
         span: Span,

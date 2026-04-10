@@ -17,6 +17,7 @@
 //! - if/loop 等更复杂控制流（依赖 MIR/CFG codegen 任务）。
 
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use inkwell::AddressSpace;
 use inkwell::AtomicOrdering;
@@ -45,8 +46,9 @@ use crate::ast;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::syntax::int_literal::parse_int_literal_decimal;
 use crate::syntax::string_literal::{
-    StringLiteralParseError, parse_normal_string_bytes,
+    StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
 };
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -163,6 +165,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     host: &'a HostTargetInfo,
     source_map: &'a SourceMap,
     entry_source_id: SourceId,
+    current_source_id: SourceId,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
@@ -291,6 +294,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             host,
             source_map,
             entry_source_id,
+            current_source_id: entry_source_id,
             types,
             struct_layouts,
             enum_layouts,
@@ -334,6 +338,62 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.source_map
             .source(self.entry_source_id)
             .expect("entry source id should exist in source map")
+    }
+
+    fn source_id_for_path(
+        &self,
+        path: &Path,
+        at: crate::span::Span,
+    ) -> Result<SourceId, LlvmEmitError> {
+        self.source_map
+            .source_id_of_path(path)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "source file lookup",
+                at: at.into(),
+            })
+    }
+
+    fn source_slice_at(
+        &self,
+        source_id: SourceId,
+        span: crate::span::Span,
+    ) -> Result<&str, LlvmEmitError> {
+        let bound = self
+            .source_map
+            .bind_span(source_id, span)
+            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                kind: "source-backed literal span",
+                at: span.into(),
+            })?;
+        self.source_map
+            .slice(bound)
+            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
+                kind: "source-backed literal slice",
+                at: span.into(),
+            })
+    }
+
+    fn current_source_slice(&self, span: crate::span::Span) -> Result<&str, LlvmEmitError> {
+        self.source_slice_at(self.current_source_id, span)
+    }
+
+    fn parse_current_int_literal(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<u128, LlvmEmitError> {
+        Ok(parse_int_literal_decimal(self.current_source_slice(span)?))
+    }
+
+    fn parse_current_string_literal_bytes(
+        &self,
+        span: crate::span::Span,
+    ) -> Result<Vec<u8>, LlvmEmitError> {
+        parse_string_literal_bytes(self.current_source_slice(span)?).map_err(|_| {
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "string literal parse",
+                at: span.into(),
+            }
+        })
     }
 
     /// 获取 effect operation 的稳定 op_tag（T1608）。
@@ -477,7 +537,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gv.set_thread_local(true);
         }
 
-        let init = self.const_initializer_for_top_level_var(v, cg_ty, llvm_ty)?;
+        let saved_source_id = self.current_source_id;
+        self.current_source_id = self.source_id_for_path(v.source_path.as_path(), v.span)?;
+        let init = self.const_initializer_for_top_level_var(v, cg_ty, llvm_ty);
+        self.current_source_id = saved_source_id;
+        let init = init?;
         gv.set_initializer(&init);
 
         // `@CLayout(aligned = N)`：对显式对齐的值类型，在全局存储上透传 alignment。
@@ -541,9 +605,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn const_eval_int_expr_bits(&self, expr: &hir::Expr, int_ty: IntTy) -> Option<u128> {
         match &expr.kind {
-            hir::ExprKind::Literal(hir::LiteralKind::Int(raw_value)) => {
-                Some(mask_to_bits(*raw_value, int_ty.bits))
-            }
+            hir::ExprKind::Literal(hir::LiteralKind::Int) => self
+                .parse_current_int_literal(expr.span)
+                .ok()
+                .map(|raw_value| mask_to_bits(raw_value, int_ty.bits)),
             hir::ExprKind::Literal(hir::LiteralKind::SynthInt(v)) => {
                 Some(mask_to_bits(*v as u128, int_ty.bits))
             }
@@ -633,6 +698,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // extern / declaration-only：由调用点按需声明即可，这里不生成 body。
             return Ok(());
         };
+
+        self.current_source_id = self.source_id_for_path(fun.source_path.as_path(), fun.span)?;
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
@@ -2286,6 +2353,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
+        let saved_source_id = self.current_source_id;
+        self.current_source_id =
+            self.source_id_for_path(class.source_path.as_path(), callee_span)?;
         let result = (|| {
             self.env.push_scope();
 
@@ -2436,6 +2506,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Ok(())
         })();
 
+        self.current_source_id = saved_source_id;
         stack.remove(&key);
         result
     }
@@ -11192,20 +11263,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::LiteralKind::Bool(v) => Ok(CgValue::bool(
                 self.context.bool_type().const_int(*v as u64, false),
             )),
-            hir::LiteralKind::Int(raw_value) => {
+            hir::LiteralKind::Int => {
                 let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "int literal type",
                         at: span.into(),
                     });
                 };
-                let value = mask_to_bits(*raw_value, int_ty.bits) as u64;
+                let raw_value = self.parse_current_int_literal(span)?;
+                let value = mask_to_bits(raw_value, int_ty.bits) as u64;
                 Ok(CgValue::int(
                     self.int_type(int_ty).const_int(value, false),
                     int_ty,
                 ))
             }
-            hir::LiteralKind::String(bytes) => self.codegen_string_literal_from_bytes(span, bytes),
+            hir::LiteralKind::String => self.codegen_string_literal(span),
             hir::LiteralKind::SynthInt(value) => {
                 // Synthesized integer literal from compiler desugaring (T0110).
                 let int_ty = IntTy {
@@ -11220,7 +11292,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// Emit LLVM IR for a string literal from pre-parsed bytes (T0140: bytes resolved at HIR lowering time).
+    /// Emit LLVM IR for a string literal by parsing the current source text on demand.
+    fn codegen_string_literal(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let bytes = self.parse_current_string_literal_bytes(span)?;
+        self.codegen_string_literal_from_bytes(span, &bytes)
+    }
+
+    /// Emit LLVM IR for a string literal from already parsed bytes.
     fn codegen_string_literal_from_bytes(
         &mut self,
         span: crate::span::Span,
@@ -12255,6 +12336,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::ObjectInitStep::InitBlock { block } => block.span,
             })
             .unwrap_or(crate::span::Span::new(0, 0));
+
+        self.current_source_id = self.source_id_for_path(obj.source_path.as_path(), err_span)?;
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
@@ -13481,8 +13564,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
         let (l_raw, l_ty) =
             self.codegen_expr(lhs)?
@@ -13610,8 +13693,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
         let (l_raw, l_ty) =
             self.codegen_expr(lhs)?
@@ -13667,8 +13750,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
-        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int(_)));
+        let lhs_is_lit = matches!(lhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
+        let rhs_is_lit = matches!(rhs.kind, hir::ExprKind::Literal(hir::LiteralKind::Int));
 
         let lhs_v = self.codegen_expr(lhs)?;
         let rhs_v = self.codegen_expr(rhs)?;

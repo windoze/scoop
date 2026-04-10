@@ -35,16 +35,9 @@ impl<'a> HirLowering<'a> {
     ) -> Expr {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
-            ast::ExprKind::IntLit => {
-                let text = self.source.slice(e.span);
-                let value = crate::syntax::int_literal::parse_int_literal_decimal(text);
-                (ExprKind::Literal(LiteralKind::Int(value)), self.builtins.int)
-            }
+            ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
             ast::ExprKind::StringLit => {
-                let text = self.source.slice(e.span);
-                let bytes = crate::syntax::string_literal::parse_string_literal_bytes(text)
-                    .unwrap_or_default();
-                (ExprKind::Literal(LiteralKind::String(bytes)), self.builtins.string)
+                (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }
             ast::ExprKind::UnitLit => (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit),
             ast::ExprKind::ArrayLit { elements } => match expected.array_lit_target {
@@ -2503,8 +2496,8 @@ impl<'a> HirLowering<'a> {
                 return Some(lhs.ty);
             }
 
-            let lhs_is_int_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Int(_)));
-            let rhs_is_int_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Int(_)));
+            let lhs_is_int_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Int));
+            let rhs_is_int_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Int));
 
             if lhs_is_int_lit && self.is_integer_type(rhs.ty) {
                 return Some(rhs.ty);

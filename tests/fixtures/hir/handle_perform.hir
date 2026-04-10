@@ -62,9 +62,7 @@ File {
                                                                                         5,
                                                                                     ),
                                                                                     kind: Literal(
-                                                                                        Int(
-                                                                                            1,
-                                                                                        ),
+                                                                                        Int,
                                                                                     ),
                                                                                 },
                                                                             ),
@@ -85,9 +83,7 @@ File {
                                                                         5,
                                                                     ),
                                                                     kind: Literal(
-                                                                        Int(
-                                                                            0,
-                                                                        ),
+                                                                        Int,
                                                                     ),
                                                                 },
                                                             ),
@@ -123,9 +119,7 @@ File {
                                                                 5,
                                                             ),
                                                             kind: Literal(
-                                                                Int(
-                                                                    2,
-                                                                ),
+                                                                Int,
                                                             ),
                                                         },
                                                     },

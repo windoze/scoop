@@ -730,8 +730,8 @@ impl<'a> FnLowering<'a> {
         let c = match lit {
             hir::LiteralKind::Bool(b) => ConstValue::Bool(*b),
             hir::LiteralKind::Unit => ConstValue::Unit,
-            hir::LiteralKind::Int(_) | hir::LiteralKind::SynthInt(_) => ConstValue::Int,
-            hir::LiteralKind::String(_) => ConstValue::String,
+            hir::LiteralKind::Int | hir::LiteralKind::SynthInt(_) => ConstValue::Int,
+            hir::LiteralKind::String => ConstValue::String,
         };
         self.assign(span, tmp, Rvalue::Use(Operand::Const(c)));
         tmp

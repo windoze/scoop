@@ -1552,7 +1552,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_tuple_bool_eq",
                 )?)
             }
-            hir::WhenPat::IntLit { value, .. } => {
+            hir::WhenPat::IntLit { .. } => {
                 let CgTy::Int(int_ty) = elem_ty else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "when tuple elem int pattern type",
@@ -1563,7 +1563,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .builder
                     .build_extract_value(tuple_v, elem_idx as u32, "when_tuple_elem")?
                     .into_int_value();
-                let value = mask_to_bits(*value, int_ty.bits) as u64;
+                let value = mask_to_bits(self.parse_current_int_literal(pat.span())?, int_ty.bits) as u64;
                 let expected = self.int_type(int_ty).const_int(value, false);
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
