@@ -696,6 +696,24 @@ pub enum TopLevelVarStorage {
 /// `var FQN -> TopLevelVar` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
 
+/// 顶层 `const val` 的最小后端视图。
+///
+/// 说明：
+/// - 当前只为 LLVM codegen 提供“按声明类型内联 initializer”所需的信息；
+/// - 保持独立 side table，避免把 `source_path` / `is_const` 等后端细节塞回通用 `ValDecl`。
+#[derive(Debug, Clone)]
+pub struct TopLevelConst {
+    pub fqn: String,
+    /// 声明所在源文件路径；供多文件 codegen 在回查字面量原文时切换 source context。
+    pub source_path: PathBuf,
+    pub span: Span,
+    pub ty: TypeId,
+    pub init: Option<Expr>,
+}
+
+/// `const val FQN -> TopLevelConst` 的索引（由 HIR lowering 构建，供后端查询）。
+pub type TopLevelConstIndex = HashMap<String, TopLevelConst>;
+
 /// 一个 object（含 companion object）的初始化顺序与成员信息。
 #[derive(Debug, Clone)]
 pub struct ObjectInit {

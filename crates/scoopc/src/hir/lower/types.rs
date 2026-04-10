@@ -16,7 +16,7 @@ use crate::ty::TypeStore;
 
 use super::super::{
     ClassInitIndex, CtorCallSiteIndex, EnumLayoutIndex, ExternFunIndex, File, FunDecl,
-    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelVarIndex,
+    ObjectInitIndex, StructLayoutIndex, SymbolId, TopLevelConstIndex, TopLevelVarIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -182,6 +182,8 @@ pub struct LoweredHir {
     pub extern_libs: Vec<String>,
     /// 顶层可变全局变量信息（`@ThreadLocal/@Global`），供后端生成静态存储（TODO T1023）。
     pub top_level_vars: TopLevelVarIndex,
+    /// 顶层 `const val` 信息；供后端在表达式位置内联 initializer。
+    pub top_level_consts: TopLevelConstIndex,
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。

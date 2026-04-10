@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: top_level_const_val_general_expr_basic.stdout
+// EXPECT-EXIT: 0
+// 目标：顶层 `const val` 的一般表达式在 LLVM codegen 中可用，不再落到 `top-level value ref`。
+
+import scoop.core.*
+
+const fun triple(x: Int): Int {
+    return x + x + x
+}
+
+const val BASE: Int = 1 + 2
+const val DOUBLE: Int = BASE + BASE
+const val VIA_FUN: Int = triple(BASE)
+const val LABEL: String = "top".concat("-level const")
+
+fun main(): Int {
+    println(BASE)
+    println(DOUBLE)
+    println(VIA_FUN)
+    println(LABEL)
+    return 0
+}

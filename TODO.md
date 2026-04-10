@@ -1655,6 +1655,34 @@ cargo run -p scoop --features llvm -- test
     - `cargo run -p scoop -- test`（`fixtures: ok (861)`）
     - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
 
+### T0148d-4 [DONE] 顶层 `const val` 一般表达式 codegen
+
+- 描述：T0148d-3 审计记录了一个与 Float 无关的既有限制：当顶层 `const val` 的 initializer 不是“直接可落成字面量”的最简单路径时，后续在 LLVM codegen 中引用该值会落到 `top-level value ref` 错误；若 initializer 内再调用只被该常量引用的顶层函数，还会额外漏掉 reachability 收集。
+- 目标：
+  - 为顶层 `const val` 建立独立 side table，保存 `fqn / source_path / span / ty / init`，避免把后端所需元数据塞回通用 `ValDecl`。
+  - `ValueRef::TopLevel` 在 LLVM codegen 中支持顶层 `const val`：按声明类型内联 initializer，而不是报 `top-level value ref`。
+  - reachability 扫描在遇到被引用的顶层 `const val` 时递归进入 initializer，并继续扫描复合 callee 表达式（例如 `helper().concat(...)`），避免遗漏“仅经由顶层 const 可达”的函数。
+  - 多文件 cone 路径下，helper 文件内的顶层 `const val` 在 helper 函数体中被引用时可稳定 codegen。
+- 验收：
+  - 新增 run-pass fixture：`top_level_const_val_general_expr_basic`。
+  - 新增 cone 多文件 fixture：`run_pass_cone/top_level_const_val_multi_file_basic`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+- 依赖：T0148d-3（问题由该审计暴露）
+- 完成说明：
+  - **HIR side table**：`crates/scoopc/src/hir/mod.rs` 与 `crates/scoopc/src/hir/lower/*` 新增 `TopLevelConst` / `TopLevelConstIndex`，在 lowering 时收集顶层 `const val` 的 `fqn / source_path / span / ty / init`。
+  - **LLVM codegen**：`crates/scoopc/src/llvm/codegen/mod.rs` 中 `ValueRef::TopLevel` 现在会优先处理 object、再处理 `TopLevelConst`、最后处理 `@ThreadLocal/@Global var`；顶层 `const val` 会按声明类型内联 initializer，并带最小递归检测，避免循环引用无限展开。
+  - **reachability**：`crates/scoopc/src/llvm/mod.rs` 的 reachability collector 现在会在扫描顶层 `const val` 引用时递归进入 initializer，同时递归扫描复合 callee 表达式，确保 `const val X = helper().concat(...)` 这类路径会把 `helper` 带进 LLVM。
+  - **新增 fixtures**：
+    - `tests/fixtures/run-pass/top_level_const_val_general_expr_basic.*`：覆盖链式顶层 const 引用、`const fun` 调用与 String 方法调用。
+    - `tests/fixtures/run_pass_cone/top_level_const_val_multi_file_basic/**`：覆盖多文件 helper 函数体内引用 helper 文件顶层 const，以及入口文件顶层 const 调用 helper 函数。
+  - **验证**：
+    - `cargo fmt --all`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (863)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+
 ### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
 
 - 描述：当前 Array 字面量 `[e0, e1, e2]` 的 HIR lowering **要求**外部提供 `ArrayLitTarget`（通过期望类型上下文推断，如 `val x: Array<Int> = [1, 2, 3]`）。当没有类型上下文时（如 `val x = [1, 2, 3]`、作为函数参数传递给类型未知的函数、嵌套在其他表达式中），lowering 退化为 `ExprKind::Todo("array_lit")`（`hir/lower/expr.rs:50-53`），产出 `Any` 类型占位——在 codegen 中不会产生可工作的代码。

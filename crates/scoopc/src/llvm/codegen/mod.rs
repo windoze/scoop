@@ -171,6 +171,7 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
+    top_level_consts: &'a hir::TopLevelConstIndex,
     extern_funs: &'a hir::ExternFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
@@ -248,6 +249,8 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     /// T0141: Function-level return context for early return support.
     /// When set, `return` statements branch to `return_bb` after storing the value in `return_alloca`.
     return_context: Option<ReturnContext<'ctx>>,
+    /// 当前正在展开的顶层 `const val` 栈；用于避免递归引用导致无限 codegen。
+    top_level_const_eval_stack: Vec<String>,
 }
 
 /// T0141: Loop context for break/continue targets.
@@ -277,6 +280,7 @@ pub(super) struct MainCodegenInputs<'a, 'ctx> {
     pub(super) struct_layouts: &'a hir::StructLayoutIndex,
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
+    pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -312,6 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             struct_layouts,
             enum_layouts,
             top_level_vars,
+            top_level_consts,
             object_inits,
             class_inits,
             class_vtables,
@@ -334,6 +339,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             struct_layouts,
             enum_layouts,
             top_level_vars,
+            top_level_consts,
             extern_funs,
             object_inits,
             class_inits,
@@ -363,6 +369,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             pack_field_indices: HashMap::new(),
             loop_context_stack: Vec::new(),
             return_context: None,
+            top_level_const_eval_stack: Vec::new(),
         }
     }
 
@@ -726,6 +733,69 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 BasicValueEnum::ScalableVectorValue(ty.const_zero())
             }
         }
+    }
+
+    fn codegen_initializer_expr(
+        &mut self,
+        expr: &hir::Expr,
+        target_ty: CgTy,
+        target_hir_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match &expr.kind {
+            hir::ExprKind::Closure(closure) => {
+                self.codegen_closure_expr(expr.span, closure, target_hir_ty)
+            }
+            // 对 call initializer 传入声明类型，避免泛型 ctor 等路径因为 HIR `expr.ty = Any`
+            // 丢失结果类型信息。
+            hir::ExprKind::Call { callee, args } => self.codegen_call(
+                expr.span,
+                callee,
+                args,
+                Some(target_ty),
+                Some(target_hir_ty),
+            ),
+            _ => self.codegen_expr_in_expected_context(expr, Some(target_ty)),
+        }
+    }
+
+    fn codegen_top_level_const_ref(
+        &mut self,
+        span: crate::span::Span,
+        top_level_const: &hir::TopLevelConst,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if self
+            .top_level_const_eval_stack
+            .iter()
+            .any(|current| current == &top_level_const.fqn)
+        {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "recursive top-level const ref",
+                at: span.into(),
+            });
+        }
+
+        let init = top_level_const
+            .init
+            .as_ref()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "top-level const without initializer",
+                at: top_level_const.span.into(),
+            })?;
+        let target_ty =
+            self.cg_ty_of(top_level_const.ty)
+                .ok_or(LlvmEmitError::UnsupportedMainBody {
+                    kind: "top-level const type",
+                    at: top_level_const.span.into(),
+                })?;
+        let source_id = self.source_id_for_path(top_level_const.source_path.as_path(), span)?;
+        let saved_source_id = self.current_source_id;
+        self.current_source_id = source_id;
+        self.top_level_const_eval_stack
+            .push(top_level_const.fqn.clone());
+        let result = self.codegen_initializer_expr(init, target_ty, top_level_const.ty);
+        self.top_level_const_eval_stack.pop();
+        self.current_source_id = saved_source_id;
+        result
     }
 
     /// T1606f-2: Pre-scan a function body for a direct `perform` of a non-Raise custom effect
@@ -7997,9 +8067,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn infer_array_element_word_cg_ty(&self, receiver: &hir::Expr) -> Option<CgTy> {
         let receiver_ty = match &receiver.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self.env.get(*id)?.hir_ty?,
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.top_level_vars.get(fqn)?.ty
-            }
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => self
+                .top_level_vars
+                .get(fqn)
+                .map(|var| var.ty)
+                .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty))?,
             _ => return None,
         };
 
@@ -8812,6 +8884,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 对于 VarRef，尝试从 env 中获取 hir_ty
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind {
             return self.env.get(*id).and_then(|local| local.hir_ty);
+        }
+
+        if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &expr.kind {
+            return self
+                .top_level_vars
+                .get(fqn)
+                .map(|var| var.ty)
+                .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty));
         }
 
         // T0130: 对于 Call 表达式，尝试通过 callee 推导返回类型。
@@ -10160,6 +10240,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 struct_layouts: self.struct_layouts,
                 enum_layouts: self.enum_layouts,
                 top_level_vars: self.top_level_vars,
+                top_level_consts: self.top_level_consts,
                 object_inits: self.object_inits,
                 class_inits: self.class_inits,
                 class_vtables: self.class_vtables,
@@ -12331,6 +12412,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_object_value_access(span, fqn);
                 }
 
+                if let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() {
+                    return self.codegen_top_level_const_ref(span, &top_level_const);
+                }
+
                 // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
                 let Some(var) = self.top_level_vars.get(fqn) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
@@ -12972,6 +13057,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             struct_layouts: self.struct_layouts,
             enum_layouts: self.enum_layouts,
             top_level_vars: self.top_level_vars,
+            top_level_consts: self.top_level_consts,
             object_inits: self.object_inits,
             class_inits: self.class_inits,
             class_vtables: self.class_vtables,

@@ -19,18 +19,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })?;
 
         let init = match decl.init.as_ref() {
-            Some(expr) => match &expr.kind {
-                hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, decl.ty)?
-                }
-                // T0125：Call 表达式的 expr.ty 在 HIR 中总是 Any，但 val 声明的 decl.ty
-                // 保留了精确类型（如 Box<Int>）。直接传递 decl.ty 作为 result_ty，
-                // 使泛型 class ctor 能够通过 mangled FQN 查找正确的 ClassInit。
-                hir::ExprKind::Call { callee, args } => {
-                    self.codegen_call(expr.span, callee, args, Some(target_ty), Some(decl.ty))?
-                }
-                _ => self.codegen_expr_in_expected_context(expr, Some(target_ty))?,
-            },
+            Some(expr) => self.codegen_initializer_expr(expr, target_ty, decl.ty)?,
             None => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "val without initializer",

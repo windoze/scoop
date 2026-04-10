@@ -63,6 +63,8 @@ struct HirLowering<'a> {
     ctor_call_sites: CtorCallSiteIndex,
     /// 顶层可变全局变量（`@ThreadLocal/@Global`）索引（TODO T1023）。
     top_level_vars: super::TopLevelVarIndex,
+    /// 顶层 `const val` 索引：供后端在表达式位置按声明类型回放 initializer。
+    top_level_consts: super::TopLevelConstIndex,
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
@@ -114,6 +116,7 @@ impl<'a> HirLowering<'a> {
             default_arg_funs: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
+            top_level_consts: HashMap::new(),
             symbols: SymbolInterner::default(),
             local_mutability: HashMap::new(),
             next_closure: 0,
@@ -928,43 +931,57 @@ impl<'a> HirLowering<'a> {
             None => (None, None),
         };
 
-        // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
         if scope == ValScope::TopLevel
-            && v.kind == ast::ValKind::Var
             && let Some(fqn) = top_level_fqn.as_ref()
         {
-            const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
-            const GLOBAL_FQN: &str = "scoop.core.Global";
-
-            let is_thread_local = v
-                .annotations
-                .iter()
-                .any(|ann| self.annotation_use_resolves_to_fqn(ann, THREAD_LOCAL_FQN));
-            let is_global = v
-                .annotations
-                .iter()
-                .any(|ann| self.annotation_use_resolves_to_fqn(ann, GLOBAL_FQN));
-
-            let storage = if is_thread_local {
-                Some(super::TopLevelVarStorage::ThreadLocal)
-            } else if is_global {
-                Some(super::TopLevelVarStorage::Global)
-            } else {
-                None
-            };
-
-            if let Some(storage) = storage {
-                self.top_level_vars.insert(
+            if v.modifiers.contains(&ast::Modifier::Const) && v.kind == ast::ValKind::Val {
+                self.top_level_consts.insert(
                     fqn.clone(),
-                    super::TopLevelVar {
+                    super::TopLevelConst {
                         fqn: fqn.clone(),
                         source_path: self.source.path().to_path_buf(),
                         span: v.span,
-                        storage,
                         ty,
                         init: init.clone(),
                     },
                 );
+            }
+
+            // T1023：顶层 `@ThreadLocal/@Global var` 需要后端生成静态存储。
+            if v.kind == ast::ValKind::Var {
+                const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
+                const GLOBAL_FQN: &str = "scoop.core.Global";
+
+                let is_thread_local = v
+                    .annotations
+                    .iter()
+                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, THREAD_LOCAL_FQN));
+                let is_global = v
+                    .annotations
+                    .iter()
+                    .any(|ann| self.annotation_use_resolves_to_fqn(ann, GLOBAL_FQN));
+
+                let storage = if is_thread_local {
+                    Some(super::TopLevelVarStorage::ThreadLocal)
+                } else if is_global {
+                    Some(super::TopLevelVarStorage::Global)
+                } else {
+                    None
+                };
+
+                if let Some(storage) = storage {
+                    self.top_level_vars.insert(
+                        fqn.clone(),
+                        super::TopLevelVar {
+                            fqn: fqn.clone(),
+                            source_path: self.source.path().to_path_buf(),
+                            span: v.span,
+                            storage,
+                            ty,
+                            init: init.clone(),
+                        },
+                    );
+                }
             }
         }
 
@@ -1222,7 +1239,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // 先降 HIR（保持 fixtures 中 `TypeId` 分配顺序稳定），再补充 struct 布局索引供后端使用。
     let pkg_prefix = package_prefix(source, ast.package.as_ref());
-    let (file, member_funs, mut ctor_call_sites, top_level_vars) = {
+    let (file, member_funs, mut ctor_call_sites, top_level_vars, top_level_consts) = {
         let mut ctx = HirLowering::new(
             source,
             &ast,
@@ -1236,7 +1253,14 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
-        (file, member_funs, ctor_call_sites, top_level_vars)
+        let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
+        (
+            file,
+            member_funs,
+            ctor_call_sites,
+            top_level_vars,
+            top_level_consts,
+        )
     };
 
     // T0828：收集 object/companion object 的 once 初始化信息（不影响 HIR dump 输出稳定性）。
@@ -1286,6 +1310,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         extern_funs,
         extern_libs,
         top_level_vars,
+        top_level_consts,
         object_inits,
         class_inits,
         class_vtables,
@@ -1325,7 +1350,7 @@ pub fn lower_for_compilation_unit(
 
     // 先降 HIR（保持 `TypeId` 分配顺序稳定），再补充 side tables（layout/extern/object init）。
     let pkg_prefix = package_prefix(source, file.package.as_ref());
-    let (file_hir, member_funs, mut ctor_call_sites, top_level_vars) = {
+    let (file_hir, member_funs, mut ctor_call_sites, top_level_vars, top_level_consts) = {
         let mut ctx = HirLowering::new(
             source,
             file,
@@ -1339,7 +1364,14 @@ pub fn lower_for_compilation_unit(
         let member_funs = ctx.collect_member_funs(&pkg_prefix);
         let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
-        (file_hir, member_funs, ctor_call_sites, top_level_vars)
+        let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
+        (
+            file_hir,
+            member_funs,
+            ctor_call_sites,
+            top_level_vars,
+            top_level_consts,
+        )
     };
 
     let (object_inits, object_ctor_call_sites) =
@@ -1381,6 +1413,7 @@ pub fn lower_for_compilation_unit(
         extern_funs,
         extern_libs,
         top_level_vars,
+        top_level_consts,
         object_inits,
         class_inits,
         class_vtables,
@@ -1420,9 +1453,16 @@ pub fn lower_for_compilation_unit_multi_files(
     let mut member_funs: Vec<FunDecl> = Vec::new();
     let mut ctor_call_sites: CtorCallSiteIndex = HashMap::new();
     let mut top_level_vars: super::TopLevelVarIndex = HashMap::new();
+    let mut top_level_consts: super::TopLevelConstIndex = HashMap::new();
 
     for (source, file) in files_to_lower {
-        let (file_hir, file_member_funs, file_ctor_call_sites, file_top_level_vars) = {
+        let (
+            file_hir,
+            file_member_funs,
+            file_ctor_call_sites,
+            file_top_level_vars,
+            file_top_level_consts,
+        ) = {
             let mut ctx = HirLowering::new(
                 source,
                 file,
@@ -1438,11 +1478,13 @@ pub fn lower_for_compilation_unit_multi_files(
             let file_member_funs = ctx.collect_member_funs(&pkg_prefix);
             let ctor_call_sites = std::mem::take(&mut ctx.ctor_call_sites);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
+            let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             (
                 file_hir,
                 file_member_funs,
                 ctor_call_sites,
                 file_top_level_vars,
+                file_top_level_consts,
             )
         };
 
@@ -1453,6 +1495,7 @@ pub fn lower_for_compilation_unit_multi_files(
         }
 
         top_level_vars.extend(file_top_level_vars);
+        top_level_consts.extend(file_top_level_consts);
         member_funs.extend(file_member_funs);
         items.extend(file_hir.items);
     }
@@ -1540,6 +1583,7 @@ pub fn lower_for_compilation_unit_multi_files(
         extern_funs,
         extern_libs,
         top_level_vars,
+        top_level_consts,
         object_inits,
         class_inits,
         class_vtables,

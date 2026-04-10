@@ -437,6 +437,12 @@ cargo run -p scoop --features llvm -- test
   - LLVM f-string / 插值字符串现支持 `{Float}`，复用 Float `toString` 路由；新增 run-pass fixture `float_literal_other_contexts_basic`，覆盖 generic `println(Float)`、f-string 插值、`NaN` / `Infinity` 文本。
   - 审计顺带确认：顶层 `const val` 一般表达式仍有 `top-level value ref` 的老限制，但该问题并非 Float 特有，本轮仅记录，不在 T0148d-3 中扩 scope。
   - 验证：`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (861)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
+- DONE（T0148d-4）：顶层 `const val` 一般表达式 codegen
+  - HIR lowering 新增 `TopLevelConst` / `TopLevelConstIndex` side table，收集顶层 `const val` 的 `fqn/source_path/span/ty/init`，供后端在表达式位置回放 initializer。
+  - LLVM `ValueRef::TopLevel` 现在会识别顶层 `const val` 并按声明类型内联 initializer；同时加入最小递归检测，避免循环 `const val` 引用无限展开。
+  - reachability collector 现在会在扫描顶层 `const val` 引用时递归进入 initializer，并继续扫描复合 callee（例如 `helper().concat(...)`），把仅经由顶层 const 可达的函数也带进 LLVM。
+  - 新增 `run-pass/top_level_const_val_general_expr_basic` 与 `run_pass_cone/top_level_const_val_multi_file_basic` 两组回归，覆盖链式 const 引用、`const fun` 调用，以及多文件 helper 函数内引用 helper 文件顶层 const 的路径。
+  - 验证：`cargo fmt --all`、`cargo test --all`、`cargo run -p scoop -- test`（fixtures `ok (863)`）、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
 
 ## 5. 泛型 where 约束完善
 

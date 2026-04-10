@@ -1,0 +1,19 @@
+package fixtures.run_pass_cone.top_level_const_val_multi_file_basic
+
+import scoop.core.*
+
+const val HELPER_BASE: Int = 20 + 1
+const val HELPER_CHAIN: Int = HELPER_BASE + HELPER_BASE
+const val HELPER_TEXT: String = "helper".concat("-const")
+
+public fun helperBase(): Int {
+    return HELPER_BASE
+}
+
+public fun helperChain(): Int {
+    return HELPER_CHAIN
+}
+
+public fun helperText(): String {
+    return HELPER_TEXT
+}

@@ -639,6 +639,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         struct_layouts: &lowered.struct_layouts,
         enum_layouts: &lowered.enum_layouts,
         top_level_vars: &lowered.top_level_vars,
+        top_level_consts: &lowered.top_level_consts,
         object_inits: &lowered.object_inits,
         class_inits: &lowered.class_inits,
         class_vtables: &lowered.class_vtables,
@@ -656,6 +657,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         &lowered.class_vtables,
         &lowered.class_itables,
         &lowered.ctor_call_sites,
+        &lowered.top_level_consts,
     );
 
     // T0111: Eagerly include struct member methods (operator overloads like `plus`, `compareTo`
@@ -755,6 +757,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
             struct_layouts: &lowered.struct_layouts,
             enum_layouts: &lowered.enum_layouts,
             top_level_vars: &lowered.top_level_vars,
+            top_level_consts: &lowered.top_level_consts,
             object_inits: &lowered.object_inits,
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
@@ -832,6 +835,7 @@ fn build_main_module_from_lowered_hir<'ctx>(
         struct_layouts: &lowered.struct_layouts,
         enum_layouts: &lowered.enum_layouts,
         top_level_vars: &lowered.top_level_vars,
+        top_level_consts: &lowered.top_level_consts,
         object_inits: &lowered.object_inits,
         class_inits: &lowered.class_inits,
         class_vtables: &lowered.class_vtables,
@@ -1086,6 +1090,7 @@ fn collect_reachable_top_level_funs<'a>(
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    top_level_consts: &'a hir::TopLevelConstIndex,
 ) -> Vec<&'a hir::FunDecl> {
     let mut collector = ReachabilityCollector {
         fun_index,
@@ -1093,12 +1098,14 @@ fn collect_reachable_top_level_funs<'a>(
         class_vtables,
         class_itables,
         ctor_call_sites,
+        top_level_consts,
         seen_calls: HashSet::new(),
         fun_queue: VecDeque::new(),
         reachable_funs: HashSet::new(),
         seen_ctors: HashSet::new(),
         ctor_queue: VecDeque::new(),
         scanned_class_init_steps: HashSet::new(),
+        scanned_top_level_consts: HashSet::new(),
     };
 
     // 入口：扫描 `main` 的函数体，但不把 `main` 本身加入 reachable 集合（它由 `codegen_main_exit_code` 生成）。
@@ -1146,6 +1153,7 @@ struct ReachabilityCollector<'a> {
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    top_level_consts: &'a hir::TopLevelConstIndex,
 
     seen_calls: HashSet<String>,
     fun_queue: VecDeque<String>,
@@ -1155,12 +1163,25 @@ struct ReachabilityCollector<'a> {
     ctor_queue: VecDeque<(String, usize)>,
 
     scanned_class_init_steps: HashSet<String>,
+    scanned_top_level_consts: HashSet<String>,
 }
 
 impl<'a> ReachabilityCollector<'a> {
     fn enqueue_fun(&mut self, fqn: String) {
         if self.seen_calls.insert(fqn.clone()) {
             self.fun_queue.push_back(fqn);
+        }
+    }
+
+    fn scan_top_level_const(&mut self, fqn: &str) {
+        if !self.scanned_top_level_consts.insert(fqn.to_string()) {
+            return;
+        }
+        let Some(top_level_const) = self.top_level_consts.get(fqn) else {
+            return;
+        };
+        if let Some(init) = top_level_const.init.as_ref() {
+            self.scan_expr(init);
         }
     }
 
@@ -1278,9 +1299,11 @@ impl<'a> ReachabilityCollector<'a> {
     fn scan_expr(&mut self, expr: &hir::Expr) {
         match &expr.kind {
             hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Literal(_)
-            | hir::ExprKind::VarRef(_)
-            | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::Literal(_) | hir::ExprKind::UnresolvedIdent { .. } => {}
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.scan_top_level_const(fqn);
+            }
+            hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => {}
             hir::ExprKind::StructLit { fields, .. } => {
                 for f in fields {
                     self.scan_expr(&f.value);
@@ -1311,6 +1334,10 @@ impl<'a> ReachabilityCollector<'a> {
                 // 顶层函数调用：收集 callee fqn。
                 if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
                     self.enqueue_fun(fqn.clone());
+                } else {
+                    // callee 也可能是 `helper().member` / `foo()()` 这类复合表达式；
+                    // 需要继续扫描 callee，避免漏掉其中嵌套的顶层函数或顶层 const 引用。
+                    self.scan_expr(callee);
                 }
 
                 // constructor call：callee span 会在 HIR side table 中出现候选集合。
