@@ -65,7 +65,7 @@ pub(super) struct FunBodyCheckInputs<'a> {
     pub(super) struct_field_types: &'a HashMap<String, TypeId>,
 }
 
-fn expr_infer_inputs<'a, 'b>(
+pub(super) fn expr_infer_inputs<'a, 'b>(
     shared: StmtExprShared<'a>,
     locals: &'b HashMap<Span, TypeId>,
 ) -> ExprInferInputs<'b>
@@ -457,20 +457,22 @@ pub(super) fn check_fun_body_exprs(
                 Some(ret) => lower.lower_type_ref(ret)?,
                 None => match &fun.body {
                     ast::FunBody::Block(b) => {
-                        let inferred = try_infer_fun_return_ty_from_block(
+                        let shared = StmtExprShared {
                             source,
-                            b,
-                            lower,
                             builtins,
-                            &mut locals,
-                            &mut stable_bindings,
-                            &mut mutable_bindings,
-                            0,
                             top_level_types,
-                            &*top_level_funs,
+                            top_level_funs: &*top_level_funs,
                             member_mutabilities,
                             struct_field_types,
-                        )?
+                        };
+                        let inferred = {
+                            let mut state = StmtExprState {
+                                locals: &mut locals,
+                                stable_bindings: &mut stable_bindings,
+                                mutable_bindings: &mut mutable_bindings,
+                            };
+                            try_infer_fun_return_ty_from_block(shared, b, lower, &mut state, 0)?
+                        }
                         .unwrap_or(builtins.unit);
 
                         // 回写到顶层函数签名表：使得后续同文件的调用点能看到推断后的返回类型。
@@ -1088,17 +1090,12 @@ pub(super) fn check_expr_stmt(
             // - 以便捕获 handler arms 内的类型错误
             // - 以便正确记录 required effects（body 内被 handler 捕获的 effects 不应向外传播）
             let _ = infer_handle_expr_type(
-                shared.source,
+                expr_infer_inputs(shared, state.locals),
                 expr,
                 body,
                 arms,
                 finally.as_ref(),
                 lower,
-                shared.builtins,
-                &*state.locals,
-                shared.top_level_types,
-                shared.top_level_funs,
-                shared.struct_field_types,
             )?;
             Ok(())
         }
@@ -1181,17 +1178,12 @@ pub(super) fn check_expr_stmt(
             // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
             if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
                 let _ = infer_effect_op_call_expr_type(
-                    shared.source,
+                    expr_infer_inputs(shared, state.locals),
                     expr,
                     member,
                     args,
                     None,
                     lower,
-                    shared.builtins,
-                    &*state.locals,
-                    shared.top_level_types,
-                    shared.top_level_funs,
-                    shared.struct_field_types,
                 )?;
             } else if let ast::ExprKind::TypeApply {
                 callee: inner,
@@ -1205,17 +1197,12 @@ pub(super) fn check_expr_stmt(
                     .collect::<Result<Vec<_>, _>>()?;
 
                 let _ = infer_effect_op_call_expr_type(
-                    shared.source,
+                    expr_infer_inputs(shared, state.locals),
                     expr,
                     member,
                     args,
                     Some(lowered.as_slice()),
                     lower,
-                    shared.builtins,
-                    &*state.locals,
-                    shared.top_level_types,
-                    shared.top_level_funs,
-                    shared.struct_field_types,
                 )?;
             }
 

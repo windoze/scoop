@@ -1318,7 +1318,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-2d [TODO] Clippy 基线清理：typecheck expr 主干签名收口
+### T0147c-2d [DONE] Clippy 基线清理：typecheck expr 主干签名收口
 
 - 描述：最后清理 `typecheck/expr` 主干大模块，覆盖 `call` / `entry` / `infer` 中剩余 36 个 `too_many_arguments`，并关闭该类 clippy 告警。
 - 目标：
@@ -1329,6 +1329,18 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-2c
+- 完成说明：
+  - **`call.rs` / `infer.rs`**：继续把主干调用推导统一到 `ExprInferInputs`，并新增 `EnumTypeSubstContext` 收口 enum variant payload type substitution 所需的 `enum_source/use_span/enum_fqn/builtins/type_param_set/subst`；`lower_type_ref_with_enum_subst` 改为消费该上下文，`infer.rs`、`val_pat.rs`、`when_pat.rs`、`when_exhaustiveness.rs` 的复用调用点同步切换。
+  - **`entry.rs`**：新增 `CheckFileExprsRequest`、`FileExprShared`、`ClassExprShared`、`CtorCallCheckRequest`，把文件级入口、class 初始化语境与 ctor 实参检查的重复参数收口；`try_infer_fun_return_ty_from_block` 改为消费 `StmtExprShared + StmtExprState`，`check_class_member_fun_bodies_in_type_decl`、`check_class_member_fun_body_exprs`、`check_class_property_initializer_exprs`、`check_class_super_ctor_call_exprs`、`check_ctor_call_args_by_arity`、`check_class_init_block_exprs`、`check_class_secondary_ctor_exprs`、`class_init_locals` 全部切到新的上下文对象。
+  - **`stmt.rs`**：顶层函数返回类型推断入口同步切到新的 `try_infer_fun_return_ty_from_block` 签名，保持默认参数检查与返回类型回写逻辑不变。
+  - **clippy 复核**：`typecheck/expr/call.rs`、`typecheck/expr/entry.rs`、`typecheck/expr/infer.rs` 中本子任务负责的 36 个 `too_many_arguments` 告警全部清零；严格 `cargo clippy --workspace --all-targets -- -D warnings` 当前仍被既有 `result_large_err` / `private_interfaces` / `dead_code` / `large_enum_variant` 等后续 `T0147c-3` 范围告警阻塞，但输出中已不再出现任何 `too_many_arguments`。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo check -p scoopc --message-format short` 通过
+    - `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments` 复核通过（workspace 输出中无 `too_many_arguments`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 已执行，失败点仅剩后续 `T0147c-3` 范围的既有 warning
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
 ### T0147c-3 [TODO] Clippy 基线清理：缩小大 `Err` 与清理剩余零散 warning
 

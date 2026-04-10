@@ -24,7 +24,9 @@ use super::stmt::{
 use super::util::expr_kind_name;
 
 use super::lower_type_ref_with_enum_subst;
-use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, TASK_FQN};
+use super::{
+    ASYNC_EFFECT_FQN, EnumTypeSubstContext, ExprInferInputs, ExprTypeError, FunSigOwned, TASK_FQN,
+};
 
 use super::super::TypeSymbolKind;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
@@ -36,66 +38,28 @@ use super::super::when_exhaustiveness;
 use super::super::when_pat;
 
 pub(super) fn infer_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     expr: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let inputs = ExprInferInputs {
-        source,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    };
+    let source = inputs.source;
+    let builtins = inputs.builtins;
 
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
         ast::ExprKind::CharLit => Ok(builtins.char_),
         ast::ExprKind::StringLit | ast::ExprKind::InterpolatedString { .. } => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
-        ast::ExprKind::Block(b) => infer_block_value_type(
-            source,
-            b,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        ast::ExprKind::Block(b) => infer_block_value_type(inputs, b, lower),
         ast::ExprKind::UnsafeBlock { body, .. } => {
             lower.push_unsafe_context();
-            let result = infer_block_value_type(
-                source,
-                body,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            );
+            let result = infer_block_value_type(inputs, body, lower);
             lower.pop_unsafe_context();
             result
         }
-        ast::ExprKind::SafeBlock { body, .. } => lower.with_unsafe_context_suspended(|lower| {
-            infer_block_value_type(
-                source,
-                body,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )
-        }),
+        ast::ExprKind::SafeBlock { body, .. } => {
+            lower.with_unsafe_context_suspended(|lower| infer_block_value_type(inputs, body, lower))
+        }
         ast::ExprKind::TupleLit { elements } => {
             if elements.is_empty() {
                 return Ok(builtins.unit);
@@ -103,51 +67,33 @@ pub(super) fn infer_expr_type(
 
             let mut element_types = Vec::with_capacity(elements.len());
             for e in elements {
-                element_types.push(infer_expr_type(
-                    source,
-                    e,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?);
+                element_types.push(inputs.infer(lower, e)?);
             }
 
             Ok(lower.ty_tuple(element_types))
         }
-        ast::ExprKind::StructLit { ty, fields } => infer_struct_lit_expr_type(
-            source,
-            expr,
-            ty,
-            fields,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        ast::ExprKind::StructLit { ty, fields } => {
+            infer_struct_lit_expr_type(inputs, expr, ty, fields, lower)
+        }
         ast::ExprKind::If {
             cond,
             then_branch,
             else_branch,
         } => infer_if_expr_type(
-            source,
+            inputs,
             cond.as_ref(),
             then_branch.as_ref(),
             else_branch.as_deref(),
             lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         ),
-        ast::ExprKind::Ident(id) => {
-            infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
-        }
+        ast::ExprKind::Ident(id) => infer_value_ident_type(
+            source,
+            id,
+            lower,
+            builtins,
+            inputs.locals,
+            inputs.top_level_types,
+        ),
         ast::ExprKind::MemberAccess { receiver, member } => {
             infer_member_access_expr_type(inputs, receiver.as_ref(), member, lower)
         }
@@ -161,34 +107,16 @@ pub(super) fn infer_expr_type(
             expr: inner,
             op_span,
         } => infer_not_null_assert_expr_type(inputs, inner.as_ref(), *op_span, lower),
-        ast::ExprKind::Call { callee, args } => infer_call_expr_type(
-            source,
-            expr,
-            callee,
-            args,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        ast::ExprKind::Call { callee, args } => {
+            infer_call_expr_type(inputs, expr, callee, args, lower)
+        }
         ast::ExprKind::Cast {
             expr: inner,
             op,
             op_span,
             ty,
         } => {
-            let from_ty = infer_expr_type(
-                source,
-                inner,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let from_ty = inputs.infer(lower, inner)?;
             let target_ty = lower.lower_type_ref(ty)?;
 
             // spec §7.5：effects 是纯编译期信息，运行时不携带也无法验证；
@@ -237,16 +165,7 @@ pub(super) fn infer_expr_type(
             // - 确保被检查的表达式可推导类型（用于回归覆盖）；
             // - 确保目标类型引用可 lowering（否则应报 type lowering 错误）；
             // - 运行期语义与更强的类型关系约束留到后续阶段（PLAN §4.4 / TODO T0413+）。
-            let _ = infer_expr_type(
-                source,
-                inner,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let _ = inputs.infer(lower, inner)?;
             let _ = lower.lower_type_ref(ty)?;
             Ok(builtins.bool_)
         }
@@ -255,16 +174,7 @@ pub(super) fn infer_expr_type(
             // - 递归类型检查 subject 与每个 arm body（保证覆盖其中的表达式）；
             // - 对所有 arm body 的类型做分支合并（T0514：LUB / 受限 union）；
             // - 若所有分支都是 `Nothing`（不可达），则整体结果为 `Nothing`。
-            let subject_ty = infer_expr_type(
-                source,
-                subject,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let subject_ty = inputs.infer(lower, subject)?;
 
             // 说明：这里必须遍历所有 arm（即使我们已经确定结果会是 `Any`），
             // 以保证：
@@ -273,25 +183,17 @@ pub(super) fn infer_expr_type(
             let mut result: Option<TypeId> = None;
             for arm in arms {
                 // T0427：对 pattern 做最小类型约束，并把 binder 注入到该 arm 的局部环境中。
-                let mut arm_locals: HashMap<Span, TypeId> = locals.clone();
+                let mut arm_locals: HashMap<Span, TypeId> = inputs.locals.clone();
                 for (decl_span, ty) in when_pat::infer_when_pat_bindings(
                     source, &arm.pat, subject_ty, lower, builtins,
                 )? {
                     arm_locals.insert(decl_span, ty);
                 }
+                let arm_inputs = inputs.with_locals(&arm_locals);
 
                 // guard：需要在注入 binder 之后检查，这样 `Some(x) if x > 0` 才能在 guard 中引用 `x`。
                 if let Some(guard) = &arm.guard {
-                    let guard_ty = infer_expr_type(
-                        source,
-                        guard,
-                        lower,
-                        builtins,
-                        &arm_locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    )?;
+                    let guard_ty = arm_inputs.infer(lower, guard)?;
                     if !is_type_assignable(guard_ty, builtins.bool_, lower, builtins) {
                         return Err(ExprTypeError::WhenGuardNotBool {
                             found: lower.fmt_type(guard_ty),
@@ -300,16 +202,7 @@ pub(super) fn infer_expr_type(
                     }
                 }
 
-                let arm_ty = infer_expr_type(
-                    source,
-                    &arm.body,
-                    lower,
-                    builtins,
-                    &arm_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let arm_ty = arm_inputs.infer(lower, &arm.body)?;
 
                 // `Nothing`：不可达分支（例如后续 `Raise.raise`），不影响分支合并结果。
                 if arm_ty == builtins.nothing {
@@ -337,98 +230,24 @@ pub(super) fn infer_expr_type(
             body,
             arms,
             finally,
-        } => infer_handle_expr_type(
-            source,
-            expr,
-            body,
-            arms,
-            finally.as_ref(),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
-        ast::ExprKind::Async { body } => infer_async_expr_type(
-            source,
-            expr,
-            body,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
-        ast::ExprKind::Spawn { body } => infer_spawn_expr_type(
-            source,
-            expr,
-            body,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_handle_expr_type(inputs, expr, body, arms, finally.as_ref(), lower),
+        ast::ExprKind::Async { body } => infer_async_expr_type(inputs, expr, body, lower),
+        ast::ExprKind::Spawn { body } => infer_spawn_expr_type(inputs, expr, body, lower),
         ast::ExprKind::Await {
             await_span: _,
             expr: inner,
-        } => infer_await_expr_type(
-            source,
-            expr,
-            inner,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_await_expr_type(inputs, expr, inner, lower),
         ast::ExprKind::Join {
             join_span,
             expr: inner,
-        } => infer_join_expr_type(
-            source,
-            expr,
-            *join_span,
-            inner,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_join_expr_type(inputs, expr, *join_span, inner, lower),
         ast::ExprKind::WithUpdate {
             base,
             updates,
             resolved_struct_fqns,
             ..
-        } => infer_with_update_expr_type(
-            source,
-            base,
-            updates,
-            resolved_struct_fqns,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
-        ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(
-            source,
-            lhs,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_with_update_expr_type(inputs, base, updates, resolved_struct_fqns, lower),
+        ast::ExprKind::Assign { lhs, rhs, .. } => infer_assign_expr_type(inputs, lhs, rhs, lower),
         ast::ExprKind::Binary {
             lhs,
             op,
@@ -506,15 +325,10 @@ pub(super) fn infer_expr_type(
 /// - body 内发生的 `await` 会记录一次 `Async` performed effect；
 /// - `async { ... }` 作为语法糖会捕获该 `Async`，因此该 effect 不向外层传播。
 fn infer_async_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     async_expr: &ast::Expr,
     body: &ast::Block,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     let async_effect = lower.lower_type_fqn_with_args(
         ASYNC_EFFECT_FQN.to_string(),
@@ -522,18 +336,8 @@ fn infer_async_expr_type(
         async_expr.span,
     )?;
 
-    let (body_ty, body_performed) = lower.with_nested_effect_collection(|lower| {
-        infer_block_value_type(
-            source,
-            body,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )
-    })?;
+    let (body_ty, body_performed) =
+        lower.with_nested_effect_collection(|lower| infer_block_value_type(inputs, body, lower))?;
 
     // 捕获 async 语境内的 `Async` performed effect（其余 effects 正常向外传播）。
     for (effect, span) in body_performed {
@@ -553,29 +357,15 @@ fn infer_async_expr_type(
 /// - 先只支持 `spawn` body 的值类型为 `Int`，并返回一个 `Int` 句柄（后续由 `Task<T>` 替换）；
 /// - 更完整的 `Task<T>` / generic spawn / 取消语义留给后续任务（T0622/T0917）。
 fn infer_spawn_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     spawn_expr: &ast::Expr,
     body: &ast::Block,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let body_ty = infer_block_value_type(
-        source,
-        body,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let body_ty = infer_block_value_type(inputs, body, lower)?;
 
-    let expected_ty = builtins.int;
-    if !is_type_assignable(body_ty, expected_ty, lower, builtins) {
+    let expected_ty = inputs.builtins.int;
+    if !is_type_assignable(body_ty, expected_ty, lower, inputs.builtins) {
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: "spawn".to_string(),
             index: 1,
@@ -618,31 +408,17 @@ fn task_inner_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
 /// - `await` 视为一次 `Async` effect 的 perform 点；
 /// - 运行期的 executor/跨线程 resume 语义留给后续任务（T0917+）。
 fn infer_await_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     await_expr: &ast::Expr,
     inner: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let found_ty = infer_expr_type(
-        source,
-        inner,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let found_ty = inputs.infer(lower, inner)?;
 
     let Some(result_ty) = task_inner_type(found_ty, lower) else {
         let expected_task = lower.lower_type_fqn_with_args(
             TASK_FQN.to_string(),
-            vec![builtins.any],
+            vec![inputs.builtins.any],
             await_expr.span,
         )?;
         return Err(ExprTypeError::CallArgTypeMismatch {
@@ -669,31 +445,20 @@ fn infer_await_expr_type(
 /// - `join` 仅支持等待一个 `Task<T>` 并返回 `T`（当前最小可执行落点仍是 `T = Int`）；
 /// - `join` 视为一次 `Async` performed effect（与 `await` 保持一致）。
 fn infer_join_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     _join_expr: &ast::Expr,
     join_span: Span,
     inner: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let found_ty = infer_expr_type(
-        source,
-        inner,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let found_ty = inputs.infer(lower, inner)?;
 
     let Some(result_ty) = task_inner_type(found_ty, lower) else {
-        let expected_task =
-            lower.lower_type_fqn_with_args(TASK_FQN.to_string(), vec![builtins.any], join_span)?;
+        let expected_task = lower.lower_type_fqn_with_args(
+            TASK_FQN.to_string(),
+            vec![inputs.builtins.any],
+            join_span,
+        )?;
         return Err(ExprTypeError::CallArgTypeMismatch {
             callee: "join".to_string(),
             index: 1,
@@ -720,18 +485,13 @@ fn infer_join_expr_type(
 ///   - `while` 语句（T1707：条件必须为 Bool，body 递归检查）。
 /// - `return/break/continue/comptime` 等语句暂不支持（后续可对齐 `check_block_exprs` 的能力）。
 fn infer_block_value_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     block: &ast::Block,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
     // 这里用“进入时克隆 + 本地更新”的方式实现最小作用域，不要求外层维护 stable/mutable 信息。
-    let mut block_locals = locals.clone();
+    let mut block_locals = inputs.locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
     let member_mutabilities: HashMap<String, bool> = HashMap::new();
@@ -746,12 +506,12 @@ fn infer_block_value_type(
             }
             ast::StmtKind::Val(v) => {
                 let shared = StmtExprShared {
-                    source,
-                    builtins,
-                    top_level_types,
-                    top_level_funs,
+                    source: inputs.source,
+                    builtins: inputs.builtins,
+                    top_level_types: inputs.top_level_types,
+                    top_level_funs: inputs.top_level_funs,
                     member_mutabilities: &member_mutabilities,
-                    struct_field_types,
+                    struct_field_types: inputs.struct_field_types,
                 };
                 let mut state = StmtExprState {
                     locals: &mut block_locals,
@@ -761,32 +521,15 @@ fn infer_block_value_type(
                 check_local_val_decl_exprs(shared, v, lower, &mut state)?;
             }
             ast::StmtKind::Expr(e) => {
-                let ty = infer_expr_type(
-                    source,
-                    e,
-                    lower,
-                    builtins,
-                    &block_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let ty = inputs.with_locals(&block_locals).infer(lower, e)?;
                 if is_last {
                     tail_expr_ty = Some(ty);
                 }
             }
             ast::StmtKind::While { cond, body, .. } => {
-                let cond_ty = infer_expr_type(
-                    source,
-                    cond,
-                    lower,
-                    builtins,
-                    &block_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
-                if !is_type_assignable(cond_ty, builtins.bool_, lower, builtins) {
+                let block_inputs = inputs.with_locals(&block_locals);
+                let cond_ty = block_inputs.infer(lower, cond)?;
+                if !is_type_assignable(cond_ty, inputs.builtins.bool_, lower, inputs.builtins) {
                     return Err(ExprTypeError::WhileConditionNotBool {
                         found: lower.fmt_type(cond_ty),
                         span: cond.span.into(),
@@ -794,16 +537,7 @@ fn infer_block_value_type(
                 }
                 // Recursively typecheck the while body as a block expression.
                 // The body sees the same locals as the surrounding block.
-                infer_block_value_type(
-                    source,
-                    body,
-                    lower,
-                    builtins,
-                    &block_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                infer_block_value_type(block_inputs, body, lower)?;
             }
             ast::StmtKind::Missing => {
                 return Err(ExprTypeError::UnsupportedExpr {
@@ -820,7 +554,7 @@ fn infer_block_value_type(
         }
     }
 
-    Ok(tail_expr_ty.unwrap_or(builtins.unit))
+    Ok(tail_expr_ty.unwrap_or(inputs.builtins.unit))
 }
 
 /// 推导赋值表达式 `lhs = rhs` 的类型。
@@ -835,15 +569,10 @@ fn infer_block_value_type(
 /// - 对“必须是 `var`”的可写性约束，当前阶段仅在 statement 语境（`check_assign_expr_stmt`）
 ///   中强制；等 `infer_expr_type` 也携带 stable/mutable 后再统一收敛。
 fn infer_assign_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     lhs: &ast::Expr,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     let expected_ty = match &lhs.kind {
         ast::ExprKind::Ident(id) => {
@@ -855,20 +584,22 @@ fn infer_assign_expr_type(
             };
 
             match resolved {
-                ast::ResolvedValueRef::Local { name, decl_span } => locals
-                    .get(decl_span)
-                    .copied()
-                    .ok_or_else(|| ExprTypeError::UnknownLocalValueType {
-                        name: name.clone(),
-                        span: id.span.into(),
-                    })?,
-                ast::ResolvedValueRef::TopLevel { fqn } => top_level_types
-                    .get(fqn)
-                    .copied()
-                    .ok_or_else(|| ExprTypeError::UnsupportedTopLevelValueType {
-                        fqn: fqn.clone(),
-                        span: id.span.into(),
-                    })?,
+                ast::ResolvedValueRef::Local { name, decl_span } => {
+                    inputs.locals.get(decl_span).copied().ok_or_else(|| {
+                        ExprTypeError::UnknownLocalValueType {
+                            name: name.clone(),
+                            span: id.span.into(),
+                        }
+                    })?
+                }
+                ast::ResolvedValueRef::TopLevel { fqn } => {
+                    inputs.top_level_types.get(fqn).copied().ok_or_else(|| {
+                        ExprTypeError::UnsupportedTopLevelValueType {
+                            fqn: fqn.clone(),
+                            span: id.span.into(),
+                        }
+                    })?
+                }
             }
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
@@ -879,16 +610,7 @@ fn infer_assign_expr_type(
             let receiver_is_type_name =
                 matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
             if !receiver_is_type_name {
-                let _ = infer_expr_type(
-                    source,
-                    receiver,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let _ = inputs.infer(lower, receiver)?;
             }
 
             let Some(resolved) = member.resolved.as_ref() else {
@@ -912,7 +634,7 @@ fn infer_assign_expr_type(
 
             // 注意：这里不做 member 可写性检查（缺少 member_mutabilities 表）。
             // 若 fqn 不是字段/属性（例如 enum unit variant 值），这里会报 unsupported。
-            struct_field_types.get(fqn).copied().ok_or_else(|| {
+            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
                     span: member.span.into(),
@@ -929,34 +651,24 @@ fn infer_assign_expr_type(
 
     // 递归 typecheck rhs：保证 `x = f()` 这类表达式也会覆盖 rhs 中的表达式。
     let expected_from = match &lhs.kind {
-        ast::ExprKind::Ident(id) => {
-            ExpectedTypeFrom::new(format!("赋值目标 `{}` 的类型", source.slice(id.span)))
-        }
+        ast::ExprKind::Ident(id) => ExpectedTypeFrom::new(format!(
+            "赋值目标 `{}` 的类型",
+            inputs.source.slice(id.span)
+        )),
         ast::ExprKind::MemberAccess { member, .. } => ExpectedTypeFrom::new(format!(
             "赋值目标 `{}` 的字段类型",
-            source.slice(member.span)
+            inputs.source.slice(member.span)
         )),
         _ => ExpectedTypeFrom::new("赋值目标的类型"),
     };
-    let found_ty = infer_expr_type_in_expected_context(
-        source,
-        rhs,
-        expected_ty,
-        expected_from,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let found_ty = inputs.infer_in_expected(lower, rhs, expected_ty, expected_from)?;
 
-    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+    if !is_type_assignable(found_ty, expected_ty, lower, inputs.builtins) {
         // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
         if matches!(rhs.kind, ast::ExprKind::IntLit)
-            && is_integer_type(expected_ty, lower, builtins)
+            && is_integer_type(expected_ty, lower, inputs.builtins)
         {
-            return Ok(builtins.unit);
+            return Ok(inputs.builtins.unit);
         }
         return Err(ExprTypeError::AssignmentTypeMismatch {
             expected: lower.fmt_type(expected_ty),
@@ -965,7 +677,7 @@ fn infer_assign_expr_type(
         });
     }
 
-    Ok(builtins.unit)
+    Ok(inputs.builtins.unit)
 }
 
 /// 推导 `handle { ... } with { ... }` 表达式的类型，并实现 required effects 的 handler 捕获（T0606）。
@@ -976,18 +688,16 @@ fn infer_assign_expr_type(
 /// - effect type param 的推断只支持单一 type param（例如 sysroot 的 `Raise<E>`）；
 /// - required effects：body 内 perform 的 effect 若被某个 arm 捕获，则不向外层传播。
 pub(super) fn infer_handle_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     handle_expr: &ast::Expr,
     body: &ast::Block,
     arms: &[ast::HandleArm],
     finally: Option<&ast::Block>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
     #[derive(Debug, Clone)]
     struct HandleArmLowered {
         callee_fqn: String,
@@ -1394,18 +1104,8 @@ pub(super) fn infer_handle_expr_type(
     //    以便：
     //    - 推导 body 的结果类型（用于 handler arm 返回类型一致性检查）
     //    - 收集 performed effects，并在后续根据 handler arms 做过滤（实现 handler 捕获）
-    let (body_ty, body_performed) = lower.with_nested_effect_collection(|lower| {
-        infer_block_value_type(
-            source,
-            body,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )
-    })?;
+    let (body_ty, body_performed) =
+        lower.with_nested_effect_collection(|lower| infer_block_value_type(inputs, body, lower))?;
 
     // 2) 处理 handler arms：lower effect op、计算 handled effect 实例、并 typecheck arm bodies。
     // `HandleArm` 的匹配顺序遵循源码中的书写顺序：
@@ -1447,7 +1147,7 @@ pub(super) fn infer_handle_expr_type(
         seen.push(lowered.handled_effect);
         handled_effects.push(lowered.handled_effect);
 
-        let mut arm_locals = locals.clone();
+        let mut arm_locals = inputs.locals.clone();
         for (decl_span, ty) in lowered.binder_tys.iter().copied() {
             arm_locals.insert(decl_span, ty);
         }
@@ -1469,16 +1169,8 @@ pub(super) fn infer_handle_expr_type(
                 arm_locals.insert(resume_span, resume_fun_ty);
 
                 // arm body：只要求可类型检查；不参与 handle 的结果类型推导。
-                let _ = infer_expr_type(
-                    source,
-                    &arm.body,
-                    lower,
-                    builtins,
-                    &arm_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let arm_inputs = inputs.with_locals(&arm_locals);
+                let _ = arm_inputs.infer(lower, &arm.body)?;
             }
             ast::HandleArmKind::EscapeContinuation { k_span } => {
                 // `, k ->`：注入 continuation binder 的类型 `Continuation<T>`（T 为 op 返回类型）。
@@ -1492,21 +1184,16 @@ pub(super) fn infer_handle_expr_type(
                     arm.span,
                 )?;
                 arm_locals.insert(k_span, cont_ty);
+                let arm_inputs = inputs.with_locals(&arm_locals);
 
                 // arm body 的类型必须与 handle 的结果类型一致（与 non-resuming 等价：perform 时 handle 立即返回 arm 值）。
                 let arm_body_ty = match result_ty {
                     Some(expected) => {
-                        let found = infer_expr_type_in_expected_context(
-                            source,
+                        let found = arm_inputs.infer_in_expected(
+                            lower,
                             &arm.body,
                             expected,
                             ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
-                            lower,
-                            builtins,
-                            &arm_locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
                         )?;
                         if !is_type_assignable(found, expected, lower, builtins) {
                             return Err(ExprTypeError::HandleArmReturnTypeMismatch {
@@ -1518,16 +1205,7 @@ pub(super) fn infer_handle_expr_type(
                         found
                     }
                     None => {
-                        let found = infer_expr_type(
-                            source,
-                            &arm.body,
-                            lower,
-                            builtins,
-                            &arm_locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        )?;
+                        let found = arm_inputs.infer(lower, &arm.body)?;
                         result_ty = Some(found);
                         found
                     }
@@ -1549,20 +1227,15 @@ pub(super) fn infer_handle_expr_type(
                 }
             }
             ast::HandleArmKind::NonResuming => {
+                let arm_inputs = inputs.with_locals(&arm_locals);
                 // arm body 的类型必须与 handle 的结果类型一致（try/catch 等价语义）。
                 let arm_body_ty = match result_ty {
                     Some(expected) => {
-                        let found = infer_expr_type_in_expected_context(
-                            source,
+                        let found = arm_inputs.infer_in_expected(
+                            lower,
                             &arm.body,
                             expected,
                             ExpectedTypeFrom::new("handle 表达式的期望结果类型"),
-                            lower,
-                            builtins,
-                            &arm_locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
                         )?;
                         if !is_type_assignable(found, expected, lower, builtins) {
                             return Err(ExprTypeError::HandleArmReturnTypeMismatch {
@@ -1575,16 +1248,7 @@ pub(super) fn infer_handle_expr_type(
                     }
                     None => {
                         // body 不可达：用第一个 arm body 的类型作为结果类型。
-                        let found = infer_expr_type(
-                            source,
-                            &arm.body,
-                            lower,
-                            builtins,
-                            &arm_locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        )?;
+                        let found = arm_inputs.infer(lower, &arm.body)?;
                         result_ty = Some(found);
                         found
                     }
@@ -1610,16 +1274,7 @@ pub(super) fn infer_handle_expr_type(
 
     // 3) finally block：当前阶段仅递归 typecheck（不参与结果类型），其 performed effects 向外传播。
     if let Some(finally) = finally {
-        let _ = infer_block_value_type(
-            source,
-            finally,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let _ = infer_block_value_type(inputs, finally, lower)?;
     }
 
     // 4) required effects：body 内 performed 的 effects 若被 handler 捕获，则不向外层传播。
@@ -1640,20 +1295,15 @@ pub(super) fn infer_handle_expr_type(
         lower.record_performed_effect(effect, span);
     }
 
-    Ok(result_ty.unwrap_or(builtins.nothing))
+    Ok(result_ty.unwrap_or(inputs.builtins.nothing))
 }
 
 fn infer_if_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     cond: &ast::Expr,
     then_branch: &ast::Expr,
     else_branch: Option<&ast::Expr>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // `if` 表达式结果类型：
     // - 递归类型检查 cond / then / else（保证覆盖内部表达式）；
@@ -1661,66 +1311,43 @@ fn infer_if_expr_type(
     // - 没有 else 时视为 `Unit`（更接近语句形式）。
 
     // 先 typecheck cond：保证其中的表达式也会被覆盖（错误不应被吞掉）。
-    let _ = infer_expr_type(
-        source,
-        cond,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let _ = inputs.infer(lower, cond)?;
 
     // smart cast（T0413）的表达式语境版本（最小实现）：
     // - 与 `check_if_expr_stmt` 保持一致的语义：识别 `if (x is T)` / `if (x !is T)`；
     // - 由于 `infer_expr_type` 当前不携带 stable/mutable bindings 信息，这里采用保守近似：
     //   把当前 `locals` 中出现的绑定视为“可收窄”候选。
-    let stable_bindings: HashSet<Span> = locals.keys().copied().collect();
-    let smart_cast = detect_smart_cast_for_if_condition(cond, lower, locals, &stable_bindings)?;
+    let stable_bindings: HashSet<Span> = inputs.locals.keys().copied().collect();
+    let smart_cast =
+        detect_smart_cast_for_if_condition(cond, lower, inputs.locals, &stable_bindings)?;
 
-    let mut then_locals = locals.clone();
+    let mut then_locals = inputs.locals.clone();
     if let Some(sc) = smart_cast
         && sc.narrow_in_then
     {
         then_locals.insert(sc.decl_span, sc.target_ty);
     }
-    let then_ty = infer_expr_type(
-        source,
-        then_branch,
-        lower,
-        builtins,
-        &then_locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let then_ty = inputs.with_locals(&then_locals).infer(lower, then_branch)?;
 
     let Some(else_branch) = else_branch else {
         // `if` 没有 else：语义上更接近“语句形式”，结果类型视为 `Unit`。
         // 仍然需要确保 then branch 内的表达式被覆盖（见上方 `then_ty`）。
-        return Ok(builtins.unit);
+        return Ok(inputs.builtins.unit);
     };
 
-    let mut else_locals = locals.clone();
+    let mut else_locals = inputs.locals.clone();
     if let Some(sc) = smart_cast
         && !sc.narrow_in_then
     {
         else_locals.insert(sc.decl_span, sc.target_ty);
     }
-    let else_ty = infer_expr_type(
-        source,
-        else_branch,
-        lower,
-        builtins,
-        &else_locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let else_ty = inputs.with_locals(&else_locals).infer(lower, else_branch)?;
 
     Ok(branch_merge::merge_branch_result_type(
-        then_ty, else_ty, lower, builtins,
+        then_ty,
+        else_ty,
+        lower,
+        inputs.builtins,
     ))
 }
 
@@ -1747,17 +1374,15 @@ impl ExpectedTypeFrom {
 ///   尝试用期望类型（例如 `Option<Int>`）来消歧并继续类型检查；
 /// - 若无法消歧，则回退到常规推导逻辑，由原有路径给出稳定的歧义诊断。
 pub(super) fn infer_expr_type_in_expected_context(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     expr: &ast::Expr,
     expected_ty: TypeId,
     expected_from: ExpectedTypeFrom,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
     // T0504：lambda 参数类型下推（spec §14.7.2）。
     //
     // 说明：lambda 的参数类型通常由“期望的函数类型”向下传播而来，因此这里在存在 expected type 时
@@ -1768,18 +1393,9 @@ pub(super) fn infer_expr_type_in_expected_context(
                 span: expr.span.into(),
             });
         }
-        if let Some(ty) = try_infer_lambda_expr_type_by_expected(
-            source,
-            expr,
-            lam,
-            expected_ty,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )? {
+        if let Some(ty) =
+            try_infer_lambda_expr_type_by_expected(inputs, expr, lam, expected_ty, lower)?
+        {
             return Ok(ty);
         }
     }
@@ -1801,31 +1417,16 @@ pub(super) fn infer_expr_type_in_expected_context(
                 n.args[0]
             }
             _ => {
-                return infer_expr_type(
-                    source,
-                    expr,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                );
+                return inputs.infer(lower, expr);
             }
         };
 
         for (index, element) in elements.iter().enumerate() {
-            let found_ty = infer_expr_type_in_expected_context(
-                source,
+            let found_ty = inputs.infer_in_expected(
+                lower,
                 element,
                 element_ty,
                 element_expected_from.clone(),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )?;
 
             if is_type_assignable(found_ty, element_ty, lower, builtins) {
@@ -1865,28 +1466,13 @@ pub(super) fn infer_expr_type_in_expected_context(
         let expected_from_desc = expected_from.desc.clone();
 
         // 先覆盖 cond（不在此处强制 Bool 规则；相关诊断留给控制流/语句层）。
-        let _ = infer_expr_type(
-            source,
-            cond.as_ref(),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let _ = inputs.infer(lower, cond.as_ref())?;
 
-        let then_ty = infer_expr_type_in_expected_context(
-            source,
+        let then_ty = inputs.infer_in_expected(
+            lower,
             then_branch.as_ref(),
             expected_ty,
             expected_from.clone(),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if !is_type_assignable(then_ty, expected_ty, lower, builtins)
@@ -1906,18 +1492,7 @@ pub(super) fn infer_expr_type_in_expected_context(
             return Ok(builtins.unit);
         };
 
-        let else_ty = infer_expr_type_in_expected_context(
-            source,
-            else_branch,
-            expected_ty,
-            expected_from,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let else_ty = inputs.infer_in_expected(lower, else_branch, expected_ty, expected_from)?;
 
         if !is_type_assignable(else_ty, expected_ty, lower, builtins)
             && !(matches!(else_branch.kind, ast::ExprKind::IntLit)
@@ -1940,17 +1515,12 @@ pub(super) fn infer_expr_type_in_expected_context(
         && let ast::ExprKind::Ident(id) = &callee.kind
         && id.resolved.is_none()
         && let Some(ty) = try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
-            source,
+            inputs,
             expr,
             id,
             args,
             expected_ty,
             lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?
     {
         return Ok(ty);
@@ -1972,44 +1542,19 @@ pub(super) fn infer_expr_type_in_expected_context(
                     .get(nominal.fqn.len() - local_name.len() - 1)
                     == Some(&b'.'));
         if fqn_matches {
-            return infer_generic_struct_lit_expr_type(
-                source,
-                expr,
-                expected_ty,
-                fields,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            );
+            return infer_generic_struct_lit_expr_type(inputs, expr, expected_ty, fields, lower);
         }
     }
 
-    infer_expr_type(
-        source,
-        expr,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )
+    inputs.infer(lower, expr)
 }
 
 fn try_infer_lambda_expr_type_by_expected(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     lam_expr: &ast::Expr,
     lam: &ast::LambdaExpr,
     expected_ty: TypeId,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     let TypeKind::Ref(RefTypeKind::Function(expected_fun)) = lower.type_kind(expected_ty) else {
         return Ok(None);
@@ -2020,7 +1565,7 @@ fn try_infer_lambda_expr_type_by_expected(
     // - 支持 receiver function type（`T.() -> R`）：把 receiver 写入 lambda 的函数类型；
     //   注意：当前阶段 resolver 尚未为 lambda body 引入 `this` 绑定，因此这里不额外注入局部 `this`。
 
-    let mut lambda_locals = locals.clone();
+    let mut lambda_locals = inputs.locals.clone();
     let mut param_tys: Vec<TypeId> = Vec::new();
     let kind_param_count_limit = "lambda（当前仅支持 0/1/2 参数，且参数类型需来自期望函数类型）";
 
@@ -2086,18 +1631,9 @@ fn try_infer_lambda_expr_type_by_expected(
 
     // 返回类型推导（最小）：以 body 表达式的类型为 lambda 返回类型。
     // 当前阶段不做“expected return type 向下传播”（避免引入多段推断链）。
-    let (body_ty, performed_effects) = lower.with_nested_effect_collection(|lower| {
-        infer_expr_type(
-            source,
-            lam.body.as_ref(),
-            lower,
-            builtins,
-            &lambda_locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )
-    })?;
+    let lambda_inputs = inputs.with_locals(&lambda_locals);
+    let (body_ty, performed_effects) = lower
+        .with_nested_effect_collection(|lower| lambda_inputs.infer(lower, lam.body.as_ref()))?;
 
     let effects = EffectRow::new(
         performed_effects
@@ -2112,18 +1648,15 @@ fn try_infer_lambda_expr_type_by_expected(
 }
 
 fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::ValueIdent,
     args: &[ast::Expr],
     expected_ty: TypeId,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
     let variant_name = source.slice(callee.span);
     let candidates = lower.env().find_enum_variants_named(variant_name);
 
@@ -2187,7 +1720,7 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
         });
     }
 
-    let type_param_set: HashSet<&str> = type_params.iter().map(|s| s.as_str()).collect();
+    let type_param_set: HashSet<String> = type_params.iter().cloned().collect();
     let subst: HashMap<String, TypeId> = type_params
         .iter()
         .cloned()
@@ -2196,30 +1729,26 @@ fn try_infer_ambiguous_enum_variant_ctor_call_expr_type_by_expected(
 
     for (idx, (field, arg_expr)) in variant.fields.iter().zip(args.iter()).enumerate() {
         let expected_field_ty = lower_type_ref_with_enum_subst(
-            &enum_source,
-            call_expr.span,
-            &enum_fqn,
+            EnumTypeSubstContext {
+                enum_source: &enum_source,
+                use_span: call_expr.span,
+                enum_fqn: &enum_fqn,
+                builtins,
+                type_param_set: &type_param_set,
+                subst: &subst,
+            },
             &field.ty,
             lower,
-            builtins,
-            &type_param_set,
-            &subst,
         )?;
 
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             arg_expr,
             expected_field_ty,
             ExpectedTypeFrom::new(format!(
                 "enum variant `{enum_fqn}.{variant_name}` 第 {} 个参数",
                 idx + 1
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if !is_type_assignable(found_ty, expected_field_ty, lower, builtins) {
@@ -2257,17 +1786,14 @@ fn enum_instance_fqn_and_args_from_type(
 }
 
 fn infer_struct_lit_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     struct_lit_expr: &ast::Expr,
     ty: &ast::TypePath,
     fields: &[ast::StructLitField],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
     // 先把 TypeName lowering 为一个 nominal value type（struct/enum）；并进一步约束必须是 struct。
     let struct_ty = lower.lower_type_ref(&ast::TypeRef::Path(ty.clone()))?;
 
@@ -2300,7 +1826,7 @@ fn infer_struct_lit_expr_type(
     // 对于 `Outer { ... }` 的 struct literal，我们只接受 `Outer.<field>` 这一层。
     let prefix = format!("{struct_fqn}.");
     let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
-    for (field_fqn, field_ty) in struct_field_types {
+    for (field_fqn, field_ty) in inputs.struct_field_types {
         let Some(rest) = field_fqn.strip_prefix(&prefix) else {
             continue;
         };
@@ -2336,20 +1862,14 @@ fn infer_struct_lit_expr_type(
             });
         };
 
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             &f.value,
             expected_ty,
             ExpectedTypeFrom::new(format!(
                 "struct `{}` 字段 `{}` 的类型",
                 struct_name, field_name
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
@@ -2394,17 +1914,14 @@ fn infer_struct_lit_expr_type(
 /// but the expected type provides concrete instantiation (e.g., `Pair<Int, String>`),
 /// we use the expected type to drive type inference.
 fn infer_generic_struct_lit_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     struct_lit_expr: &ast::Expr,
     expected_ty: TypeId,
     fields: &[ast::StructLitField],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
     let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = lower.type_kind(expected_ty) else {
         unreachable!("caller guarantees expected_ty is a Nominal");
     };
@@ -2426,7 +1943,7 @@ fn infer_generic_struct_lit_expr_type(
     // Collect direct fields of this struct (same prefix logic as non-generic path).
     let prefix = format!("{struct_fqn}.");
     let mut expected_fields: HashMap<String, TypeId> = HashMap::new();
-    for (field_fqn, field_ty) in struct_field_types {
+    for (field_fqn, field_ty) in inputs.struct_field_types {
         let Some(rest) = field_fqn.strip_prefix(&prefix) else {
             continue;
         };
@@ -2464,20 +1981,14 @@ fn infer_generic_struct_lit_expr_type(
             });
         };
 
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             &f.value,
             field_expected_ty,
             ExpectedTypeFrom::new(format!(
                 "struct `{}` 字段 `{}` 的类型",
                 struct_name, field_name
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if !is_type_assignable(found_ty, field_expected_ty, lower, builtins) {
@@ -2515,28 +2026,15 @@ fn infer_generic_struct_lit_expr_type(
 }
 
 fn infer_with_update_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     base: &ast::Expr,
     updates: &[ast::WithUpdateField],
     resolved_struct_fqns: &std::cell::OnceCell<std::collections::HashMap<String, String>>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
     // 先递归类型检查 base：保证 `p with { ... }` 中的 `p` 自身也会被覆盖。
-    let base_ty = infer_expr_type(
-        source,
-        base,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let base_ty = inputs.infer(lower, base)?;
 
     // 当前阶段（T0415）仅支持 struct 字段更新：
     // - base 必须是名义值类型，并且其声明 kind 为 `struct`
@@ -2638,7 +2136,7 @@ fn infer_with_update_expr_type(
         for (i, seg) in u.path.segments.iter().enumerate() {
             let field = source.slice(seg.span).to_string();
             let field_fqn = format!("{current_struct_fqn}.{field}");
-            let Some(field_ty) = struct_field_types.get(&field_fqn).copied() else {
+            let Some(field_ty) = inputs.struct_field_types.get(&field_fqn).copied() else {
                 return Err(ExprTypeError::WithUpdateUnknownField {
                     struct_name: current_struct_name.clone(),
                     field,
@@ -2649,20 +2147,14 @@ fn infer_with_update_expr_type(
             let is_last = i + 1 == u.path.segments.len();
             if is_last {
                 let expected_ty = field_ty;
-                let found_ty = infer_expr_type_in_expected_context(
-                    source,
+                let found_ty = inputs.infer_in_expected(
+                    lower,
                     &u.value,
                     expected_ty,
                     ExpectedTypeFrom::new(format!(
                         "with-update `{}` 字段 `{}` 的类型",
                         current_struct_name, field
                     )),
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
                 )?;
 
                 if found_ty != expected_ty {

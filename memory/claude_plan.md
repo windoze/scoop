@@ -1,56 +1,51 @@
-# 本轮执行计划
+## 当前执行计划（续）
 
-说明：按要求先记录当前的高层执行计划与检查顺序。已完成初步仓库检查；以下补充本轮识别出的具体任务、范围与执行细化计划。
+无法提供逐字内部思考过程；这里记录可审计的执行计划、关键判断和进度，便于随时检查。
 
-## 初始约束
+### 目标
 
-- 本轮只完成 `TODO.md` 中第一个未完成任务，然后停止。
-- 在开始该任务前，先检查最新提交是否提到已有问题；若有，先修复这些问题。
-- 如果首个未完成任务过大，需要先拆分，并同步更新 `PLAN.md` 与 `TODO.md`。
-- 所有改动完成后，需要运行格式化、测试和无 warning 的 lint。
-- 完成后更新 `TODO.md`、`PLAN.md`，并提交 git commit。
+本轮只完成 `TODO.md` 中首个未完成任务：`T0147c-2d Clippy 基线清理：typecheck expr 主干签名收口`，然后停止。
 
-## 初始执行步骤
+### 已知状态
 
-1. 查看最新一次 git 提交，确认是否提到已知问题、回归或待补修事项。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 结合 `PLAN.md`、相关源码与测试，判断该任务是否可直接落地；若过大，先拆分任务并更新计划文件。
-4. 实现当前目标任务所需的代码改动，必要时补充或整理注释与文档。
-5. 运行相关测试、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`，修复发现的问题。
-6. 更新 `TODO.md` 与 `PLAN.md`，记录本轮完成情况与后续状态。
-7. 使用清晰的提交信息创建一次 git commit，然后停止。
+1. 最新提交 `ad94bf4 [T0147c-2c]` 未在提交信息中暴露需要先处理的遗留问题。
+2. `ExprInferInputs` 已在 `mod.rs`、`infer.rs`、`call.rs`、`stmt.rs`、`entry.rs` 中接入一轮，`infer.rs` 的 `clippy::too_many_arguments` 已清零。
+3. 当前剩余工作集中在：
+   - `crates/scoopc/src/typecheck/expr/call.rs` 的最后一个 `too_many_arguments`
+   - `crates/scoopc/src/typecheck/expr/entry.rs` 的多处 `too_many_arguments`
+   - 这轮重构引入的少量 `unused variable`
 
-## 进度记录
+### 执行步骤
 
-- 已创建初始计划文件。
-- 已检查最新提交：`a5fe8fb03d0aceda065ee386f8b22ac350cd4480`（`[T0147c-2b] Refactor typecheck support module inputs`）。
-- 最新提交说明中未显式提到待补修的遗留问题；当前无“必须先修复的提交内问题”阻塞项。
-- 已读取 `TODO.md` 与 `PLAN.md`：首个未完成任务为 `T0147c-2c`，目标是清理 `typecheck/expr/member.rs`、`typecheck/expr/ops.rs`、`typecheck/expr/stmt.rs` 中全部 `too_many_arguments`。
-- 该任务已经是可单轮完成的子任务，当前不需要继续拆分 `TODO.md` / `PLAN.md`。
-- 已完成精确告警收集：确认目标文件共有 17 个 `too_many_arguments`（`member.rs` 5、`ops.rs` 4、`stmt.rs` 8）。
-- 已完成代码修改：引入共享输入/局部状态对象，收口三个目标模块及其调用点的长参数函数。
-- 已完成验证：
-  - `cargo fmt --all`
-  - `cargo check -p scoopc`
-  - `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments`
-  - `cargo test --all`
-  - `cargo run -p scoop -- test`
-- 验证结果：
-  - `member.rs` / `ops.rs` / `stmt.rs` 的 17 个 `too_many_arguments` 告警已全部清零。
-  - 全量测试通过；fixture 回归结果为 `fixtures: ok (852)`。
-  - 剩余 `too_many_arguments` 总数为 36，集中在后续任务 `T0147c-2d`（`call.rs` 12、`entry.rs` 9、`infer.rs` 15）。
-  - 全量严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被后续任务范围内的既有 warning 阻塞（剩余长参数、`result_large_err`、`private_interfaces`、`dead_code` 等），不属于本轮新增问题。
-- 待执行：更新 `TODO.md` / `PLAN.md` 后提交 git commit 并停止。
-
-## 本轮具体计划（T0147c-2c）
-
-1. 收集 `member.rs` / `ops.rs` / `stmt.rs` 中 `too_many_arguments` 的精确函数列表与调用路径。
-2. 识别重复传递的共享参数，优先提炼为局部上下文结构体或请求对象，避免简单加 `allow`。
-3. 修改三个模块及必要调用点，保持 typecheck 规则、诊断文本与 fixture 行为不变。
-4. 运行 `cargo fmt --all`。
-5. 运行针对性验证与全量验证：
+1. 先收掉 `call.rs` 剩余的单个超参函数，优先复用 `ExprInferInputs` 或新增轻量请求对象。
+2. 再处理 `entry.rs` 的超参函数，尽量把重复传递的共享类型检查上下文收口到 1 到 2 个轻量结构里，避免扩大改动面。
+3. 跑定向命令确认 `clippy::too_many_arguments` 全部清零，并顺手修掉本轮引入的未使用变量。
+4. 任务完成后执行格式化与验收：
+   - `cargo fmt --all`
    - `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments`
+   - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
    - `cargo test --all`
    - `cargo run -p scoop -- test`
-6. 更新 `TODO.md` 与 `PLAN.md`，将 `T0147c-2c` 标记完成并记录本轮收敛结果。
-7. 提交 git commit，然后停止。
+5. 若 `-D warnings` 被后续任务范围内的既有基线问题阻塞，明确记录阻塞事实；但本任务必须完整消除 `too_many_arguments`。
+6. 任务完成后更新 `TODO.md`、`PLAN.md`、本文件，并提交一次 git commit，然后停止。
+
+### 当前判断
+
+- 不在本轮扩展处理 `result_large_err`、`private_interfaces`、`dead_code` 等非 `T0147c-2d` 范围告警。
+- 不回退任何既有用户改动，只在当前任务相关文件内做最小必要重构。
+
+### 最新进度
+
+- 已把 `call.rs` / `infer.rs` / `entry.rs` 的剩余 `too_many_arguments` 收口到上下文对象：
+  - `call.rs` 新增 `EnumTypeSubstContext`
+  - `entry.rs` 新增文件级 / class 级共享上下文以及 ctor 调用请求对象
+  - `stmt.rs`、`val_pat.rs`、`when_exhaustiveness.rs`、`when_pat.rs` 的复用调用点已同步切换
+- `cargo check -p scoopc --message-format short` 已恢复通过。
+- `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments` 已复核通过，当前输出中不再出现 `too_many_arguments`。
+- 验收已完成：
+  - `cargo fmt --all` 通过
+  - `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments` 通过，未再出现 `too_many_arguments`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 已执行；失败点仅剩 `T0147c-3` 范围内的既有 `result_large_err` / `private_interfaces` / `dead_code` / `large_enum_variant` 等 warning
+  - `cargo test --all` 通过
+  - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
+- 下一步只剩更新 `TODO.md` / `PLAN.md`、检查变更、提交 git commit，然后停止。

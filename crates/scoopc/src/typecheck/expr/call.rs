@@ -6,7 +6,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
-use super::infer::{ExpectedTypeFrom, infer_expr_type, infer_expr_type_in_expected_context};
+use super::infer::ExpectedTypeFrom;
 use super::ops::{
     collect_member_method_signatures_from_index, is_integer_type, is_symbol_visible_from_source,
     try_extract_nominal_fqn_and_args,
@@ -16,7 +16,7 @@ use super::util::{
 };
 
 use super::collect::build_fun_where_constraints_from_resolve_sig;
-use super::{EffParamSig, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
+use super::{EffParamSig, ExprInferInputs, ExprTypeError, FUNPTR_FQN, FunSigOwned, PTR_FQN};
 
 use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::{
@@ -40,6 +40,26 @@ pub(super) struct CallArgInfo<'a> {
     pub(super) is_spread: bool,
 }
 
+#[derive(Clone, Copy)]
+struct MemberCallRequest<'a> {
+    call_expr: &'a ast::Expr,
+    receiver: &'a ast::Expr,
+    member: &'a ast::MemberIdent,
+    args: &'a [ast::Expr],
+    explicit_type_args: Option<&'a [TypeId]>,
+    safe: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(in super::super) struct EnumTypeSubstContext<'a> {
+    pub(in super::super) enum_source: &'a SourceFile,
+    pub(in super::super) use_span: Span,
+    pub(in super::super) enum_fqn: &'a str,
+    pub(in super::super) builtins: BuiltinTypes,
+    pub(in super::super) type_param_set: &'a HashSet<String>,
+    pub(in super::super) subst: &'a HashMap<String, TypeId>,
+}
+
 /// 把 AST 的调用实参列表归一化为"用于重载筛选"的结构，并预先推导每个实参表达式的类型。
 ///
 /// 说明：
@@ -48,21 +68,16 @@ pub(super) struct CallArgInfo<'a> {
 ///   - 子表达式的类型错误不会被重载筛选吞掉；
 ///   - 后续候选过滤只做纯比较，不再递归进入表达式树。
 fn collect_call_arg_infos<'a>(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     args: &'a [ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Vec<CallArgInfo<'a>>, ExprTypeError> {
     let mut out: Vec<CallArgInfo<'a>> = Vec::with_capacity(args.len());
 
     for arg in args {
         match &arg.kind {
             ast::ExprKind::NamedArg { name, value, .. } => {
-                let name_text = source.slice(name.span).to_string();
+                let name_text = inputs.source.slice(name.span).to_string();
                 let name_span = name.span;
                 let expr = value.as_ref();
                 let (expr_for_ty, is_spread) = match &expr.kind {
@@ -72,17 +87,8 @@ fn collect_call_arg_infos<'a>(
                 let ty = match expr_for_ty.kind {
                     // lambda 的类型通常依赖 expected type；在"预收集实参信息"阶段先用占位类型，
                     // 以便后续在"已选定签名"的语境下重新 typecheck（T0504）。
-                    ast::ExprKind::Lambda(_) => builtins.any,
-                    _ => infer_expr_type(
-                        source,
-                        expr_for_ty,
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    )?,
+                    ast::ExprKind::Lambda(_) => inputs.builtins.any,
+                    _ => inputs.infer(lower, expr_for_ty)?,
                 };
                 out.push(CallArgInfo {
                     kind: CallArgKind::Named {
@@ -101,17 +107,8 @@ fn collect_call_arg_infos<'a>(
                     _ => (arg, false),
                 };
                 let ty = match expr_for_ty.kind {
-                    ast::ExprKind::Lambda(_) => builtins.any,
-                    _ => infer_expr_type(
-                        source,
-                        expr_for_ty,
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    )?,
+                    ast::ExprKind::Lambda(_) => inputs.builtins.any,
+                    _ => inputs.infer(lower, expr_for_ty)?,
                 };
                 out.push(CallArgInfo {
                     kind: CallArgKind::Positional,
@@ -766,18 +763,15 @@ fn vararg_spread_missing_bridge_hint(
 }
 
 fn infer_function_value_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee_name: &str,
     callee_decl_span: Span,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let builtins = inputs.builtins;
+
     // spec §6.2：`const fun` 禁止闭包/lambda；因此也禁止调用"函数值"（无论其来源是参数还是局部绑定）。
     if lower.in_const_context() {
         return Err(ExprTypeError::ConstFunFunctionValueCallNotAllowed {
@@ -812,7 +806,7 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    let Some(callee_ty) = locals.get(&callee_decl_span).copied() else {
+    let Some(callee_ty) = inputs.locals.get(&callee_decl_span).copied() else {
         // 防御性：resolver 已把该引用绑定为 local，但 typecheck locals 未包含该 decl。
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "函数值调用（缺少局部绑定类型信息）",
@@ -834,16 +828,7 @@ fn infer_function_value_call_expr_type(
         });
     }
 
-    let call_args = collect_call_arg_infos(
-        source,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
 
     if call_args.len() != fun.params.len() {
         return Err(ExprTypeError::CallArityMismatch {
@@ -858,17 +843,11 @@ fn infer_function_value_call_expr_type(
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
     for (idx, arg) in call_args.iter().enumerate() {
         let expected_ty = fun.params[idx];
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             arg.expr,
             expected_ty,
             ExpectedTypeFrom::new(format!("函数值 `{callee_name}` 的第 {} 个参数", idx + 1)),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
         checked_arg_tys.push(found_ty);
     }
@@ -913,53 +892,33 @@ fn infer_function_value_call_expr_type(
 }
 
 fn infer_funptr_value_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee_name: &str,
     callee_decl_span: Span,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let Some(callee_ty) = locals.get(&callee_decl_span).copied() else {
+    let Some(callee_ty) = inputs.locals.get(&callee_decl_span).copied() else {
         return Err(ExprTypeError::UnsupportedExpr {
             kind: "函数指针调用（缺少局部绑定类型信息）",
             span: call_expr.span.into(),
         });
     };
 
-    infer_funptr_type_call_expr_type(
-        source,
-        call_expr,
-        callee_name,
-        callee_ty,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )
+    infer_funptr_type_call_expr_type(inputs, call_expr, callee_name, callee_ty, args, lower)
 }
 
 fn infer_funptr_type_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee_name: &str,
     callee_ty: TypeId,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let builtins = inputs.builtins;
+
     if lower.in_const_context() {
         return Err(ExprTypeError::ConstFunFunPtrCallNotAllowed {
             callee: callee_name.to_string(),
@@ -1012,16 +971,7 @@ fn infer_funptr_type_call_expr_type(
         });
     }
 
-    let call_args = collect_call_arg_infos(
-        source,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
 
     if call_args.len() != fun.params.len() {
         return Err(ExprTypeError::CallArityMismatch {
@@ -1035,17 +985,11 @@ fn infer_funptr_type_call_expr_type(
     let mut checked_arg_tys: Vec<TypeId> = Vec::with_capacity(call_args.len());
     for (idx, arg) in call_args.iter().enumerate() {
         let expected_ty = fun.params[idx];
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             arg.expr,
             expected_ty,
             ExpectedTypeFrom::new(format!("函数指针 `{callee_name}` 的第 {} 个参数", idx + 1)),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
         checked_arg_tys.push(found_ty);
     }
@@ -1594,17 +1538,18 @@ pub(super) fn check_nogc_boxing_gate(
 }
 
 pub(super) fn infer_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::Expr,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+    let locals = inputs.locals;
+    let top_level_types = inputs.top_level_types;
+    let top_level_funs = inputs.top_level_funs;
+
     // 显式类型实参（T1204）：`callee<T>()` 在 AST 中表示为 `Call(TypeApply(callee, type_args), args)`。
     //
     // 说明：
@@ -1632,16 +1577,11 @@ pub(super) fn infer_call_expr_type(
             let Some(resolved) = &id.resolved else {
                 // T1009：unsafe 指针原语（最小集合）。
                 if let Some(ty) = infer_unsafe_ptr_primitive_call_expr_type(
-                    source,
+                    inputs,
                     call_expr,
                     callee_name,
                     args,
                     lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
                 )? {
                     return Ok(ty);
                 }
@@ -1649,34 +1589,16 @@ pub(super) fn infer_call_expr_type(
                 // T0426：`Some(x)` 这类 enum variant 构造表达式在语法上与普通函数调用一致，
                 // 但 resolver 不会把 `Some` 绑定为顶层函数符号，因此这里在"未 resolve 的 ident"
                 // 情况下尝试按 enum variant ctor 处理。
-                if let Some(ctor_ty) = infer_enum_variant_ctor_call_expr_type(
-                    source,
-                    call_expr,
-                    id,
-                    args,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )? {
+                if let Some(ctor_ty) =
+                    infer_enum_variant_ctor_call_expr_type(inputs, call_expr, id, args, lower)?
+                {
                     return Ok(ctor_ty);
                 }
 
                 // T0454：class 构造调用（primary + secondary constructors）重载决议。
-                if let Some(ctor_ty) = infer_class_constructor_call_expr_type(
-                    source,
-                    call_expr,
-                    id,
-                    args,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )? {
+                if let Some(ctor_ty) =
+                    infer_class_constructor_call_expr_type(inputs, call_expr, id, args, lower)?
+                {
                     return Ok(ctor_ty);
                 }
 
@@ -1695,31 +1617,21 @@ pub(super) fn infer_call_expr_type(
                         .is_some_and(|ty| is_funptr_type(ty, lower))
                     {
                         return infer_funptr_value_call_expr_type(
-                            source,
+                            inputs,
                             call_expr,
                             callee_name,
                             *decl_span,
                             args,
                             lower,
-                            builtins,
-                            locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
                         );
                     }
                     return infer_function_value_call_expr_type(
-                        source,
+                        inputs,
                         call_expr,
                         callee_name,
                         *decl_span,
                         args,
                         lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
                     );
                 }
             };
@@ -1740,7 +1652,7 @@ pub(super) fn infer_call_expr_type(
                             .is_some_and(|ty| is_funptr_type(ty, lower))
                         {
                             return infer_funptr_type_call_expr_type(
-                                source,
+                                inputs,
                                 call_expr,
                                 callee_name,
                                 top_level_types
@@ -1749,11 +1661,6 @@ pub(super) fn infer_call_expr_type(
                                     .unwrap_or(builtins.any),
                                 args,
                                 lower,
-                                builtins,
-                                locals,
-                                top_level_types,
-                                top_level_funs,
-                                struct_field_types,
                             );
                         }
                         if id.call.is_none() && lower.is_object_type(&callee_fqn) {
@@ -1787,16 +1694,7 @@ pub(super) fn infer_call_expr_type(
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
-                let call_args = collect_call_arg_infos(
-                    source,
-                    args,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let call_args = collect_call_arg_infos(inputs, args, lower)?;
                 check_call_arg_named_rules(&callee_fqn, &call_args)?;
                 check_call_named_args_exist_in_any_candidate(
                     &callee_fqn,
@@ -1983,8 +1881,8 @@ pub(super) fn infer_call_expr_type(
                     }
 
                     let expected_ty = instantiated.params[param_idx];
-                    let found_ty = infer_expr_type_in_expected_context(
-                        source,
+                    let found_ty = inputs.infer_in_expected(
+                        lower,
                         arg.expr,
                         expected_ty,
                         ExpectedTypeFrom::new(format!(
@@ -1993,12 +1891,6 @@ pub(super) fn infer_call_expr_type(
                             param_idx + 1,
                             sig.param_names[param_idx]
                         )),
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
                     )?;
                     checked_arg_tys[arg_idx] = found_ty;
                 }
@@ -2204,16 +2096,7 @@ pub(super) fn infer_call_expr_type(
             }
 
             // 多候选：先按形参映射过滤，再对剩余候选尝试泛型/eff 推断（T0512）。
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(&callee_fqn, &call_args)?;
             check_call_named_args_exist_in_any_candidate(
                 &callee_fqn,
@@ -2410,8 +2293,8 @@ pub(super) fn infer_call_expr_type(
                     }
 
                     let expected_ty = instantiated.params[param_idx];
-                    let found_ty = match infer_expr_type_in_expected_context(
-                        source,
+                    let found_ty = match inputs.infer_in_expected(
+                        lower,
                         arg.expr,
                         expected_ty,
                         ExpectedTypeFrom::new(format!(
@@ -2420,12 +2303,6 @@ pub(super) fn infer_call_expr_type(
                             param_idx + 1,
                             cand.param_names[param_idx]
                         )),
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
                     ) {
                         Ok(ty) => ty,
                         Err(_) => {
@@ -2701,53 +2578,42 @@ pub(super) fn infer_call_expr_type(
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
             if let Some(ty) = infer_effect_op_call_expr_type(
-                source,
+                inputs,
                 call_expr,
                 member,
                 args,
                 explicit_type_args.as_deref(),
                 lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )? {
                 return Ok(ty);
             }
 
             infer_member_call_expr_type(
-                source,
-                call_expr,
-                receiver.as_ref(),
-                member,
-                args,
-                explicit_type_args.as_deref(),
-                false,
+                inputs,
+                MemberCallRequest {
+                    call_expr,
+                    receiver: receiver.as_ref(),
+                    member,
+                    args,
+                    explicit_type_args: explicit_type_args.as_deref(),
+                    safe: false,
+                },
                 lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )
         }
         ast::ExprKind::SafeMemberAccess {
             receiver, member, ..
         } => infer_member_call_expr_type(
-            source,
-            call_expr,
-            receiver.as_ref(),
-            member,
-            args,
-            explicit_type_args.as_deref(),
-            true,
+            inputs,
+            MemberCallRequest {
+                call_expr,
+                receiver: receiver.as_ref(),
+                member,
+                args,
+                explicit_type_args: explicit_type_args.as_deref(),
+                safe: true,
+            },
             lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         ),
         other => Err(ExprTypeError::UnsupportedExpr {
             kind: expr_kind_name(other),
@@ -2757,17 +2623,13 @@ pub(super) fn infer_call_expr_type(
 }
 
 fn infer_unsafe_ptr_primitive_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee_name: &str,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let builtins = inputs.builtins;
     let primitive = match callee_name {
         "addrOf" | "load" | "store" => callee_name,
         _ => return Ok(None),
@@ -2797,16 +2659,7 @@ fn infer_unsafe_ptr_primitive_call_expr_type(
                 });
             }
 
-            let pointee_ty = infer_expr_type(
-                source,
-                &args[0],
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let pointee_ty = inputs.infer(lower, &args[0])?;
 
             let ptr_ty = lower.lower_type_fqn_with_args(
                 ptr_fqn.clone(),
@@ -2825,16 +2678,7 @@ fn infer_unsafe_ptr_primitive_call_expr_type(
                 });
             }
 
-            let ptr_arg_ty = infer_expr_type(
-                source,
-                &args[0],
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let ptr_arg_ty = inputs.infer(lower, &args[0])?;
 
             let Some(pointee) = extract_ptr_pointee(ptr_arg_ty, &ptr_fqn, lower) else {
                 return Err(ExprTypeError::UnsafePtrPrimitiveRequiresPtrType {
@@ -2856,16 +2700,7 @@ fn infer_unsafe_ptr_primitive_call_expr_type(
                 });
             }
 
-            let ptr_arg_ty = infer_expr_type(
-                source,
-                &args[0],
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let ptr_arg_ty = inputs.infer(lower, &args[0])?;
 
             let Some(pointee) = extract_ptr_pointee(ptr_arg_ty, &ptr_fqn, lower) else {
                 return Err(ExprTypeError::UnsafePtrPrimitiveRequiresPtrType {
@@ -2875,17 +2710,11 @@ fn infer_unsafe_ptr_primitive_call_expr_type(
                 });
             };
 
-            let value_ty = infer_expr_type_in_expected_context(
-                source,
+            let value_ty = inputs.infer_in_expected(
+                lower,
                 &args[1],
                 pointee,
                 ExpectedTypeFrom::new("store 的 pointee 类型".to_string()),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )?;
 
             if !is_type_assignable(value_ty, pointee, lower, builtins) {
@@ -2948,17 +2777,15 @@ pub(super) fn is_ctor_visible_from(
 }
 
 fn infer_class_constructor_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::ValueIdent,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
     let Some(call) = callee.call.as_ref() else {
         return Ok(None);
     };
@@ -2998,16 +2825,7 @@ fn infer_class_constructor_call_expr_type(
         });
     }
 
-    let call_args = collect_call_arg_infos(
-        source,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
 
     let use_cone = lower.index().cone_of_source(source);
     let callee_name = source.slice(callee.span).to_string();
@@ -3259,17 +3077,14 @@ fn infer_class_constructor_call_expr_type(
 }
 
 fn infer_enum_variant_ctor_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     callee: &ast::ValueIdent,
     args: &[ast::Expr],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
     let variant_name = source.slice(callee.span);
     let candidates = lower.env().find_enum_variants_named(variant_name);
 
@@ -3321,20 +3136,11 @@ fn infer_enum_variant_ctor_call_expr_type(
     // 先推导所有实参类型，保证子表达式（如 `Some(f())`）也会被覆盖。
     let mut arg_types: Vec<TypeId> = Vec::with_capacity(args.len());
     for arg in args {
-        arg_types.push(infer_expr_type(
-            source,
-            arg,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?);
+        arg_types.push(inputs.infer(lower, arg)?);
     }
 
     // enum 的类型参数名集合（用于识别 `T` 这类 type param 引用）。
-    let type_param_set: HashSet<&str> = type_params.iter().map(|s| s.as_str()).collect();
+    let type_param_set: HashSet<String> = type_params.iter().cloned().collect();
 
     // 早期最小泛型推断（T0426）：
     // - 只从 "payload 字段类型为直接 type param（例如 `T`）" 的位置推断；
@@ -3388,14 +3194,16 @@ fn infer_enum_variant_ctor_call_expr_type(
         .enumerate()
     {
         let expected_ty = lower_type_ref_with_enum_subst(
-            &enum_source,
-            call_expr.span,
-            &enum_fqn,
+            EnumTypeSubstContext {
+                enum_source: &enum_source,
+                use_span: call_expr.span,
+                enum_fqn: &enum_fqn,
+                builtins,
+                type_param_set: &type_param_set,
+                subst: &subst,
+            },
             &field.ty,
             lower,
-            builtins,
-            &type_param_set,
-            &subst,
         )?;
 
         if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
@@ -3427,26 +3235,21 @@ fn infer_enum_variant_ctor_call_expr_type(
 }
 
 pub(in super::super) fn lower_type_ref_with_enum_subst(
-    enum_source: &SourceFile,
-    use_span: Span,
-    enum_fqn: &str,
+    ctx: EnumTypeSubstContext<'_>,
     ty: &ast::TypeRef,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    type_param_set: &HashSet<&str>,
-    subst: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     match ty {
         ast::TypeRef::Path(p) => {
             // 单段名且无 type args：可能是对 enum type param 的引用（例如 `T`）。
             if p.segments.len() == 1 && p.args.is_empty() {
-                let name = enum_source.slice(p.segments[0].span);
-                if type_param_set.contains(name) {
-                    return subst.get(name).copied().ok_or_else(|| {
+                let name = ctx.enum_source.slice(p.segments[0].span);
+                if ctx.type_param_set.contains(name) {
+                    return ctx.subst.get(name).copied().ok_or_else(|| {
                         ExprTypeError::EnumVariantCtorTypeArgNotInferred {
-                            enum_fqn: enum_fqn.to_string(),
+                            enum_fqn: ctx.enum_fqn.to_string(),
                             param: name.to_string(),
-                            span: use_span.into(),
+                            span: ctx.use_span.into(),
                         }
                     });
                 }
@@ -3455,10 +3258,10 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
             let segments: Vec<String> = p
                 .segments
                 .iter()
-                .map(|id| enum_source.slice(id.span).to_string())
+                .map(|id| ctx.enum_source.slice(id.span).to_string())
                 .collect();
 
-            let fqn = match lower.resolve_type_path_fqn_by_name(&segments, use_span) {
+            let fqn = match lower.resolve_type_path_fqn_by_name(&segments, ctx.use_span) {
                 Ok(fqn) => fqn,
                 Err(TypeLowerError::UnresolvedType { name, span }) => {
                     let Some(builtin_fqn) = implicit_builtin_type_fqn(&name) else {
@@ -3471,101 +3274,47 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
 
             let mut args: Vec<TypeId> = Vec::with_capacity(p.args.len());
             for a in &p.args {
-                args.push(lower_type_ref_with_enum_subst(
-                    enum_source,
-                    use_span,
-                    enum_fqn,
-                    a,
-                    lower,
-                    builtins,
-                    type_param_set,
-                    subst,
-                )?);
+                args.push(lower_type_ref_with_enum_subst(ctx, a, lower)?);
             }
 
-            Ok(lower.lower_type_fqn_with_args(fqn, args, use_span)?)
+            Ok(lower.lower_type_fqn_with_args(fqn, args, ctx.use_span)?)
         }
         ast::TypeRef::Tuple(t) => {
             if t.elements.is_empty() {
-                return Ok(builtins.unit);
+                return Ok(ctx.builtins.unit);
             }
             let mut elements: Vec<TypeId> = Vec::with_capacity(t.elements.len());
             for e in &t.elements {
-                elements.push(lower_type_ref_with_enum_subst(
-                    enum_source,
-                    use_span,
-                    enum_fqn,
-                    e,
-                    lower,
-                    builtins,
-                    type_param_set,
-                    subst,
-                )?);
+                elements.push(lower_type_ref_with_enum_subst(ctx, e, lower)?);
             }
             Ok(lower.ty_tuple(elements))
         }
         ast::TypeRef::Nullable { inner, .. } => {
-            let inner = lower_type_ref_with_enum_subst(
-                enum_source,
-                use_span,
-                enum_fqn,
-                inner,
-                lower,
-                builtins,
-                type_param_set,
-                subst,
-            )?;
+            let inner = lower_type_ref_with_enum_subst(ctx, inner, lower)?;
             Ok(lower.ty_option(inner))
         }
         ast::TypeRef::Star { .. } => Err(TypeLowerError::UnsupportedTypeRef {
             kind: "star projection (*)",
-            span: use_span.into(),
+            span: ctx.use_span.into(),
         }
         .into()),
         ast::TypeRef::EffectRowArg { .. } => Err(TypeLowerError::UnsupportedTypeRef {
             kind: "use-site effect row arg (`eff ...`)",
-            span: use_span.into(),
+            span: ctx.use_span.into(),
         }
         .into()),
         ast::TypeRef::Function(f) => {
             let receiver = match &f.receiver {
-                Some(r) => Some(lower_type_ref_with_enum_subst(
-                    enum_source,
-                    use_span,
-                    enum_fqn,
-                    r,
-                    lower,
-                    builtins,
-                    type_param_set,
-                    subst,
-                )?),
+                Some(r) => Some(lower_type_ref_with_enum_subst(ctx, r, lower)?),
                 None => None,
             };
 
             let mut params = Vec::with_capacity(f.params.len());
             for p in &f.params {
-                params.push(lower_type_ref_with_enum_subst(
-                    enum_source,
-                    use_span,
-                    enum_fqn,
-                    p,
-                    lower,
-                    builtins,
-                    type_param_set,
-                    subst,
-                )?);
+                params.push(lower_type_ref_with_enum_subst(ctx, p, lower)?);
             }
 
-            let return_ty = lower_type_ref_with_enum_subst(
-                enum_source,
-                use_span,
-                enum_fqn,
-                &f.return_ty,
-                lower,
-                builtins,
-                type_param_set,
-                subst,
-            )?;
+            let return_ty = lower_type_ref_with_enum_subst(ctx, &f.return_ty, lower)?;
 
             let effects = match &f.effects {
                 None => EffectRow::pure(),
@@ -3574,16 +3323,7 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
                     let mut terms: Vec<TypeId> = Vec::with_capacity(e.terms.len());
                     for term in &e.terms {
                         let term_ref = ast::TypeRef::Path(term.clone());
-                        let ty = lower_type_ref_with_enum_subst(
-                            enum_source,
-                            use_span,
-                            enum_fqn,
-                            &term_ref,
-                            lower,
-                            builtins,
-                            type_param_set,
-                            subst,
-                        )?;
+                        let ty = lower_type_ref_with_enum_subst(ctx, &term_ref, lower)?;
 
                         let ok = match lower.type_kind(ty) {
                             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => matches!(
@@ -3594,7 +3334,7 @@ pub(in super::super) fn lower_type_ref_with_enum_subst(
                         };
                         if !ok {
                             return Err(TypeLowerError::EffectRowItemNotEffect {
-                                item: enum_source.slice(term.span).to_string(),
+                                item: ctx.enum_source.slice(term.span).to_string(),
                                 found: lower.fmt_type(ty),
                                 span: term.span.into(),
                             }
@@ -3632,18 +3372,15 @@ fn implicit_builtin_type_fqn(local_or_fqn: &str) -> Option<&'static str> {
 }
 
 pub(super) fn infer_effect_op_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     member: &ast::MemberIdent,
     args: &[ast::Expr],
     explicit_type_args: Option<&[TypeId]>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let builtins = inputs.builtins;
+
     let Some(ast::ResolvedMemberRef::Fun { fqn }) = member.resolved.as_ref() else {
         return Ok(None);
     };
@@ -3775,16 +3512,7 @@ pub(super) fn infer_effect_op_call_expr_type(
         where_constraints: Vec::new(),
     };
 
-    let call_args = collect_call_arg_infos(
-        source,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
@@ -3844,8 +3572,8 @@ pub(super) fn infer_effect_op_call_expr_type(
     for (param_idx, arg_idx) in mapping.iter().copied().enumerate() {
         let arg = &call_args[arg_idx];
         let expected_ty = instantiated.params[param_idx];
-        let found_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_ty = inputs.infer_in_expected(
+            lower,
             arg.expr,
             expected_ty,
             ExpectedTypeFrom::new(format!(
@@ -3854,12 +3582,6 @@ pub(super) fn infer_effect_op_call_expr_type(
                 param_idx + 1,
                 sig.param_names[param_idx]
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if is_type_assignable(found_ty, expected_ty, lower, builtins) {
@@ -3903,19 +3625,17 @@ pub(super) fn infer_effect_op_call_expr_type(
 }
 
 fn try_infer_continuation_resume_call_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,
     receiver_ty: TypeId,
     member: &ast::MemberIdent,
     args: &[ast::Expr],
     safe: bool,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+
     // spec §5.5：`k.resume(value: T)`。
     //
     // 说明：
@@ -3966,16 +3686,7 @@ fn try_infer_continuation_resume_call_expr_type(
         }
     };
 
-    let found_value_ty = infer_expr_type(
-        source,
-        value_expr,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let found_value_ty = inputs.infer(lower, value_expr)?;
 
     if !is_type_assignable(found_value_ty, expected_value_ty, lower, builtins) {
         if matches!(value_expr.kind, ast::ExprKind::IntLit)
@@ -4020,31 +3731,27 @@ fn try_infer_continuation_resume_call_expr_type(
 }
 
 fn infer_member_call_expr_type(
-    source: &SourceFile,
-    call_expr: &ast::Expr,
-    receiver: &ast::Expr,
-    member: &ast::MemberIdent,
-    args: &[ast::Expr],
-    explicit_type_args: Option<&[TypeId]>,
-    safe: bool,
+    inputs: ExprInferInputs<'_>,
+    request: MemberCallRequest<'_>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    // 先递归类型检查 receiver：保证 `a?.b()` 中的 `a` 自身也会被覆盖。
-    let receiver_ty = infer_expr_type(
-        source,
+    let MemberCallRequest {
+        call_expr,
         receiver,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+        member,
+        args,
+        explicit_type_args,
+        safe,
+    } = request;
+    let source = inputs.source;
+    let builtins = inputs.builtins;
+    let locals = inputs.locals;
+    let top_level_types = inputs.top_level_types;
+    let top_level_funs = inputs.top_level_funs;
+    let struct_field_types = inputs.struct_field_types;
+
+    // 先递归类型检查 receiver：保证 `a?.b()` 中的 `a` 自身也会被覆盖。
+    let receiver_ty = inputs.infer(lower, receiver)?;
 
     let actual_receiver_ty = if safe {
         match lower.type_kind(receiver_ty) {
@@ -4061,18 +3768,13 @@ fn infer_member_call_expr_type(
     };
 
     if let Some(ret) = try_infer_continuation_resume_call_expr_type(
-        source,
+        inputs,
         call_expr,
         actual_receiver_ty,
         member,
         args,
         safe,
         lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
     )? {
         return Ok(ret);
     }
@@ -4343,16 +4045,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4413,16 +4106,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4485,16 +4169,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4557,16 +4232,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4627,16 +4293,7 @@ fn infer_member_call_expr_type(
                 });
             }
 
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             if call_args.len() != 1 {
                 return Err(ExprTypeError::CallArityMismatch {
@@ -4738,16 +4395,7 @@ fn infer_member_call_expr_type(
 
             // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
             // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
-            let call_args = collect_call_arg_infos(
-                source,
-                args,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let call_args = collect_call_arg_infos(inputs, args, lower)?;
             check_call_arg_named_rules(fqn.as_str(), &call_args)?;
             check_call_named_args_exist_in_any_candidate(
                 fqn.as_str(),
@@ -4959,8 +4607,8 @@ fn infer_member_call_expr_type(
                     }
 
                     let expected_ty = instantiated.params[param_idx];
-                    let found_ty = match infer_expr_type_in_expected_context(
-                        source,
+                    let found_ty = match inputs.infer_in_expected(
+                        lower,
                         arg.expr,
                         expected_ty,
                         ExpectedTypeFrom::new(format!(
@@ -4969,12 +4617,6 @@ fn infer_member_call_expr_type(
                             param_idx + 1,
                             cand.param_names[param_idx]
                         )),
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
                     ) {
                         Ok(ty) => ty,
                         Err(_) => {
@@ -5386,16 +5028,7 @@ fn infer_member_call_expr_type(
 
     // 预先推导所有"显式实参"的类型（不含 receiver），并归一化 named arg 的语法糖节点，
     // 以便在重载筛选中复用这份结果并避免把子表达式错误吞掉。
-    let call_args = collect_call_arg_infos(
-        source,
-        args,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let call_args = collect_call_arg_infos(inputs, args, lower)?;
     check_call_arg_named_rules(&callee_fqn, &call_args)?;
     check_call_named_args_exist_in_any_candidate(
         &callee_fqn,
@@ -5623,8 +5256,8 @@ fn infer_member_call_expr_type(
             if arg.is_spread {
                 continue;
             }
-            let found_ty = infer_expr_type_in_expected_context(
-                source,
+            let found_ty = inputs.infer_in_expected(
+                lower,
                 arg.expr,
                 expected_ty,
                 ExpectedTypeFrom::new(format!(
@@ -5633,12 +5266,6 @@ fn infer_member_call_expr_type(
                     param_idx + 2,
                     sig.param_names[param_idx + 1]
                 )),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )?;
             checked_arg_tys[arg_idx] = found_ty;
         }
@@ -6105,8 +5732,8 @@ fn infer_member_call_expr_type(
             }
 
             let expected_ty = instantiated.params[param_idx + 1];
-            let found_ty = match infer_expr_type_in_expected_context(
-                source,
+            let found_ty = match inputs.infer_in_expected(
+                lower,
                 arg.expr,
                 expected_ty,
                 ExpectedTypeFrom::new(format!(
@@ -6115,12 +5742,6 @@ fn infer_member_call_expr_type(
                     param_idx + 2,
                     cand.param_names[param_idx + 1]
                 )),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             ) {
                 Ok(ty) => ty,
                 Err(_) => {
@@ -7390,6 +7011,14 @@ fn try_infer_where_bound_method_call(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
+    let inputs = ExprInferInputs {
+        source,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    };
     let bounds = lower.lookup_where_bounds_for_param(param_name);
     if bounds.is_empty() {
         return Ok(None);
@@ -7433,16 +7062,7 @@ fn try_infer_where_bound_method_call(
         }
 
         // 找到了匹配的 bound 方法——按照普通 member method call 的模式进行类型检查。
-        let call_args = collect_call_arg_infos(
-            source,
-            args,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let call_args = collect_call_arg_infos(inputs, args, lower)?;
         check_call_arg_named_rules(&method_fqn, &call_args)?;
 
         // 用 receiver 作为隐式第 0 个参数（使用 TypeKind::Param 的原始类型）。

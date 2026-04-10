@@ -38,7 +38,7 @@ use crate::ty::{BuiltinTypes, EffectRow, TypeId};
 use super::eff_row_subst::EffRowVarSubstPlan;
 use super::lower::TypeLowering;
 
-pub(super) use call::lower_type_ref_with_enum_subst;
+pub(super) use call::{EnumTypeSubstContext, lower_type_ref_with_enum_subst};
 
 pub(super) const ASYNC_EFFECT_FQN: &str = "scoop.core.Async";
 pub(super) const TASK_FQN: &str = "scoop.core.Task";
@@ -208,21 +208,26 @@ struct ExprInferInputs<'a> {
 }
 
 impl<'a> ExprInferInputs<'a> {
+    fn with_locals<'b>(self, locals: &'b HashMap<Span, TypeId>) -> ExprInferInputs<'b>
+    where
+        'a: 'b,
+    {
+        ExprInferInputs {
+            source: self.source,
+            builtins: self.builtins,
+            locals,
+            top_level_types: self.top_level_types,
+            top_level_funs: self.top_level_funs,
+            struct_field_types: self.struct_field_types,
+        }
+    }
+
     fn infer(
         self,
         lower: &mut TypeLowering<'_>,
         expr: &ast::Expr,
     ) -> Result<TypeId, ExprTypeError> {
-        infer::infer_expr_type(
-            self.source,
-            expr,
-            lower,
-            self.builtins,
-            self.locals,
-            self.top_level_types,
-            self.top_level_funs,
-            self.struct_field_types,
-        )
+        infer::infer_expr_type(self, expr, lower)
     }
 
     fn infer_in_expected(
@@ -232,17 +237,6 @@ impl<'a> ExprInferInputs<'a> {
         expected_ty: TypeId,
         expected_from: infer::ExpectedTypeFrom,
     ) -> Result<TypeId, ExprTypeError> {
-        infer::infer_expr_type_in_expected_context(
-            self.source,
-            expr,
-            expected_ty,
-            expected_from,
-            lower,
-            self.builtins,
-            self.locals,
-            self.top_level_types,
-            self.top_level_funs,
-            self.struct_field_types,
-        )
+        infer::infer_expr_type_in_expected_context(self, expr, expected_ty, expected_from, lower)
     }
 }

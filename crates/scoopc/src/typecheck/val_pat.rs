@@ -14,7 +14,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
 
-use super::expr::{ExprTypeError, lower_type_ref_with_enum_subst};
+use super::expr::{EnumTypeSubstContext, ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
 
 struct ValPatChecker<'a, 'lower> {
@@ -213,20 +213,22 @@ impl ValPatChecker<'_, '_> {
             });
         }
 
-        let type_param_set: HashSet<&str> = decl.type_params.iter().map(|s| s.as_str()).collect();
+        let type_param_set: HashSet<String> = decl.type_params.iter().cloned().collect();
         let subst: HashMap<String, TypeId> =
             decl.type_params.iter().cloned().zip(enum_args).collect();
 
         for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
             let expected_field_ty = lower_type_ref_with_enum_subst(
-                &enum_source,
-                pat.span,
-                &enum_fqn,
+                EnumTypeSubstContext {
+                    enum_source: &enum_source,
+                    use_span: pat.span,
+                    enum_fqn: &enum_fqn,
+                    builtins: self.builtins,
+                    type_param_set: &type_param_set,
+                    subst: &subst,
+                },
                 &field.ty,
                 self.lower,
-                self.builtins,
-                &type_param_set,
-                &subst,
             )?;
             self.check_val_pat(arg_pat, expected_field_ty)?;
         }

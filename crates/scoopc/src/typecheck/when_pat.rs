@@ -16,7 +16,7 @@ use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, TypeId, TypeKind, ValueTypeKind};
 
-use super::expr::{ExprTypeError, lower_type_ref_with_enum_subst};
+use super::expr::{EnumTypeSubstContext, ExprTypeError, lower_type_ref_with_enum_subst};
 use super::lower::TypeLowering;
 
 /// 对一个 `when` 分支 pattern 进行最小类型检查，并返回该 pattern 引入的局部绑定类型表。
@@ -197,21 +197,22 @@ fn check_when_pat(
                 });
             }
 
-            let type_param_set: HashSet<&str> =
-                decl.type_params.iter().map(|s| s.as_str()).collect();
+            let type_param_set: HashSet<String> = decl.type_params.iter().cloned().collect();
             let subst: HashMap<String, TypeId> =
                 decl.type_params.iter().cloned().zip(enum_args).collect();
 
             for (arg_pat, field) in prefix_pats.iter().zip(variant.fields.iter()) {
                 let expected_field_ty = lower_type_ref_with_enum_subst(
-                    &enum_source,
-                    *span,
-                    &enum_fqn,
+                    EnumTypeSubstContext {
+                        enum_source: &enum_source,
+                        use_span: *span,
+                        enum_fqn: &enum_fqn,
+                        builtins,
+                        type_param_set: &type_param_set,
+                        subst: &subst,
+                    },
                     &field.ty,
                     lower,
-                    builtins,
-                    &type_param_set,
-                    &subst,
                 )?;
                 check_when_pat(
                     source,

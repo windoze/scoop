@@ -12,20 +12,76 @@ use super::collect::{
     collect_member_mutabilities, collect_struct_field_types, collect_top_level_fun_signatures,
     collect_top_level_value_types,
 };
-use super::infer::{ExpectedTypeFrom, infer_expr_type, infer_expr_type_in_expected_context};
+use super::infer::ExpectedTypeFrom;
 use super::ops::is_integer_type;
 use super::stmt::{
     FunBodyCheckInputs, StmtExprFlow, StmtExprShared, StmtExprState, check_block_exprs,
     check_expr_stmt, check_fun_body_exprs, check_required_effects_for_fun_decl, check_stmt_exprs,
+    expr_infer_inputs,
 };
 use super::util::{expr_kind_name, join_overload_signatures, package_prefix};
 
-use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
+use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind};
 
 use super::super::TypeEnv;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::lower::{TypeInstantiationKey, TypeLowering, WhereBoundEntry};
+
+#[derive(Clone, Copy)]
+struct CheckFileExprsRequest<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    builtins: BuiltinTypes,
+    collect_monomorph: bool,
+    collect_type_insts: bool,
+}
+
+#[derive(Clone, Copy)]
+struct FileExprShared<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    builtins: BuiltinTypes,
+    top_level_types: &'a HashMap<String, TypeId>,
+    top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
+    member_mutabilities: &'a HashMap<String, bool>,
+    struct_field_types: &'a HashMap<String, TypeId>,
+}
+
+impl<'a> FileExprShared<'a> {
+    fn stmt_shared(self) -> StmtExprShared<'a> {
+        StmtExprShared {
+            source: self.source,
+            builtins: self.builtins,
+            top_level_types: self.top_level_types,
+            top_level_funs: self.top_level_funs,
+            member_mutabilities: self.member_mutabilities,
+            struct_field_types: self.struct_field_types,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ClassExprShared<'a> {
+    file: FileExprShared<'a>,
+    this_decl_span: Span,
+    this_ty: TypeId,
+    ctor_params: &'a [ast::Param],
+}
+
+impl<'a> ClassExprShared<'a> {
+    fn stmt_shared(self) -> StmtExprShared<'a> {
+        self.file.stmt_shared()
+    }
+}
+
+struct CtorCallCheckRequest<'a> {
+    callee_for_diag: String,
+    ctor_owner_ty_fqn: &'a str,
+    call_span: Span,
+    args: &'a [ast::Expr],
+    exclude_ctor_span: Option<Span>,
+}
 
 /// 对一个文件的表达式做最小类型检查。
 ///
@@ -43,7 +99,17 @@ pub fn check_file_exprs(
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
     let _ = check_file_exprs_impl(
-        source, file, index, imports, env, types, builtins, false, false,
+        CheckFileExprsRequest {
+            source,
+            file,
+            builtins,
+            collect_monomorph: false,
+            collect_type_insts: false,
+        },
+        index,
+        imports,
+        env,
+        types,
     )?;
     Ok(())
 }
@@ -63,7 +129,17 @@ pub fn check_file_exprs_with_monomorph_keys(
     builtins: BuiltinTypes,
 ) -> Result<Vec<MonomorphKey>, ExprTypeError> {
     let (monomorph, _) = check_file_exprs_impl(
-        source, file, index, imports, env, types, builtins, true, false,
+        CheckFileExprsRequest {
+            source,
+            file,
+            builtins,
+            collect_monomorph: true,
+            collect_type_insts: false,
+        },
+        index,
+        imports,
+        env,
+        types,
     )?;
     Ok(monomorph)
 }
@@ -79,7 +155,17 @@ pub fn check_file_exprs_with_type_instantiation_keys(
     builtins: BuiltinTypes,
 ) -> Result<Vec<TypeInstantiationKey>, ExprTypeError> {
     let (_, type_insts) = check_file_exprs_impl(
-        source, file, index, imports, env, types, builtins, false, true,
+        CheckFileExprsRequest {
+            source,
+            file,
+            builtins,
+            collect_monomorph: false,
+            collect_type_insts: true,
+        },
+        index,
+        imports,
+        env,
+        types,
     )?;
     Ok(type_insts)
 }
@@ -97,26 +183,35 @@ pub fn check_file_exprs_with_monomorph_and_type_instantiation_keys(
     builtins: BuiltinTypes,
 ) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
     check_file_exprs_impl(
-        source, file, index, imports, env, types, builtins, true, true,
+        CheckFileExprsRequest {
+            source,
+            file,
+            builtins,
+            collect_monomorph: true,
+            collect_type_insts: true,
+        },
+        index,
+        imports,
+        env,
+        types,
     )
 }
 
 fn check_file_exprs_impl(
-    source: &SourceFile,
-    file: &ast::File,
+    request: CheckFileExprsRequest<'_>,
     index: &Index,
     imports: &ImportTable,
     env: &TypeEnv,
     types: &mut TypeStore,
-    builtins: BuiltinTypes,
-    collect_monomorph: bool,
-    collect_type_insts: bool,
 ) -> Result<(Vec<MonomorphKey>, Vec<TypeInstantiationKey>), ExprTypeError> {
+    let source = request.source;
+    let file = request.file;
+    let builtins = request.builtins;
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
-    if collect_monomorph {
+    if request.collect_monomorph {
         lower.enable_monomorph_collection();
     }
-    if collect_type_insts {
+    if request.collect_type_insts {
         lower.enable_type_instantiation_collection();
     }
 
@@ -193,16 +288,18 @@ fn check_file_exprs_impl(
                 )?;
             }
             ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
-                source,
-                file,
+                FileExprShared {
+                    source,
+                    file,
+                    builtins,
+                    top_level_types: &top_level_types,
+                    top_level_funs: &top_level_funs,
+                    member_mutabilities: &member_mutabilities,
+                    struct_field_types: &struct_field_types,
+                },
                 ty,
                 &pkg_prefix,
                 &mut lower,
-                builtins,
-                &top_level_types,
-                &top_level_funs,
-                &member_mutabilities,
-                &struct_field_types,
             )?,
             ast::Item::ExtensionProperty(_)
             | ast::Item::Object(_)
@@ -217,18 +314,11 @@ fn check_file_exprs_impl(
 }
 
 pub(super) fn try_infer_fun_return_ty_from_block(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     body: &ast::Block,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &mut HashMap<Span, TypeId>,
-    stable_bindings: &mut HashSet<Span>,
-    mutable_bindings: &mut HashSet<Span>,
+    state: &mut StmtExprState<'_>,
     loop_depth: usize,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<Option<TypeId>, ExprTypeError> {
     // T0507：返回类型推断（最小实现）。
     //
@@ -254,9 +344,9 @@ pub(super) fn try_infer_fun_return_ty_from_block(
 
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
     // 这里与 `check_block_exprs` 一样用“进入时快照 + 退出时回滚”实现。
-    let saved_locals = locals.clone();
-    let saved_stable = stable_bindings.clone();
-    let saved_mutable = mutable_bindings.clone();
+    let saved_locals = state.locals.clone();
+    let saved_stable = state.stable_bindings.clone();
+    let saved_mutable = state.mutable_bindings.clone();
 
     let mut top_level_return_count = 0usize;
     let mut last_return_ty: Option<TypeId> = None;
@@ -270,17 +360,8 @@ pub(super) fn try_infer_fun_return_ty_from_block(
                 top_level_return_count += 1;
                 if is_last {
                     last_return_ty = Some(match value {
-                        Some(v) => infer_expr_type(
-                            source,
-                            v,
-                            lower,
-                            builtins,
-                            locals,
-                            top_level_types,
-                            top_level_funs,
-                            struct_field_types,
-                        )?,
-                        None => builtins.unit,
+                        Some(v) => expr_infer_inputs(shared, &*state.locals).infer(lower, v)?,
+                        None => shared.builtins.unit,
                     });
                 }
                 // 说明：这里刻意不做 `return` 的“类型匹配检查”，因为 expected return type 尚未确定。
@@ -288,41 +369,19 @@ pub(super) fn try_infer_fun_return_ty_from_block(
             }
             ast::StmtKind::Expr(e) => {
                 // 先执行现有的“语句层递归”检查（smart cast / lambda return 门禁等）。
-                let shared = StmtExprShared {
-                    source,
-                    builtins,
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                };
-                let mut state = StmtExprState {
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
-                };
                 check_expr_stmt(
                     shared,
                     e,
                     lower,
-                    &mut state,
+                    state,
                     StmtExprFlow {
                         loop_depth,
-                        expected_return_ty: Some(builtins.unit),
+                        expected_return_ty: Some(shared.builtins.unit),
                     },
                 )?;
 
                 if is_last {
-                    match infer_expr_type(
-                        source,
-                        e,
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    ) {
+                    match expr_infer_inputs(shared, &*state.locals).infer(lower, e) {
                         Ok(ty) => tail_expr_ty = Some(ty),
                         Err(ExprTypeError::UnsupportedExpr { .. }) => {
                             // 兼容：statement position 的表达式当前并不总是完整 typecheck；
@@ -334,36 +393,23 @@ pub(super) fn try_infer_fun_return_ty_from_block(
             }
             _ => {
                 // 其它语句：复用现有逻辑以便正确更新 locals/stable/mutable，并递归覆盖子结构。
-                let shared = StmtExprShared {
-                    source,
-                    builtins,
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                };
-                let mut state = StmtExprState {
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
-                };
                 check_stmt_exprs(
                     shared,
                     stmt,
                     lower,
-                    &mut state,
+                    state,
                     StmtExprFlow {
                         loop_depth,
-                        expected_return_ty: Some(builtins.unit),
+                        expected_return_ty: Some(shared.builtins.unit),
                     },
                 )?;
             }
         }
     }
 
-    *locals = saved_locals;
-    *stable_bindings = saved_stable;
-    *mutable_bindings = saved_mutable;
+    *state.locals = saved_locals;
+    *state.stable_bindings = saved_stable;
+    *state.mutable_bindings = saved_mutable;
 
     // 推断规则（最小子集）：
     // - 唯一的 top-level return 且它是最后一条语句：返回该 return 的值类型
@@ -379,17 +425,13 @@ pub(super) fn try_infer_fun_return_ty_from_block(
 }
 
 fn check_class_member_fun_bodies_in_type_decl(
-    source: &SourceFile,
-    file: &ast::File,
+    shared: FileExprShared<'_>,
     decl: &ast::TypeDecl,
     prefix: &str,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let file = shared.file;
     let local_name = source.slice(decl.name.span);
     let type_fqn = if prefix.is_empty() {
         local_name.to_string()
@@ -439,82 +481,35 @@ fn check_class_member_fun_bodies_in_type_decl(
                 .find(|st| st.ctor_args_span.is_some())
                 .and_then(|st| lower.index().type_ref_to_fqn_in_file(source, file, &st.ty));
 
-            check_class_super_ctor_call_exprs(
-                source,
-                file,
-                &type_fqn,
-                decl,
+            check_class_super_ctor_call_exprs(shared, &type_fqn, decl, ctor_params, lower)?;
+
+            let class_shared = ClassExprShared {
+                file: shared,
+                this_decl_span: decl.name.span,
+                this_ty,
                 ctor_params,
-                lower,
-                builtins,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            };
 
             if let Some(body) = &decl.body {
                 for member in &body.members {
                     match member {
                         ast::TypeMember::Fun(fun) => {
-                            check_class_member_fun_body_exprs(
-                                source,
-                                decl.name.span,
-                                this_ty,
-                                ctor_params,
-                                fun,
-                                lower,
-                                builtins,
-                                top_level_types,
-                                top_level_funs,
-                                member_mutabilities,
-                                struct_field_types,
-                            )?;
+                            check_class_member_fun_body_exprs(class_shared, fun, lower)?;
                         }
                         ast::TypeMember::Property(p) => {
-                            check_class_property_initializer_exprs(
-                                source,
-                                decl.name.span,
-                                this_ty,
-                                ctor_params,
-                                p,
-                                lower,
-                                builtins,
-                                top_level_types,
-                                top_level_funs,
-                                struct_field_types,
-                            )?;
+                            check_class_property_initializer_exprs(class_shared, p, lower)?;
                         }
                         ast::TypeMember::InitBlock(b) => {
-                            check_class_init_block_exprs(
-                                source,
-                                decl.name.span,
-                                this_ty,
-                                ctor_params,
-                                b,
-                                lower,
-                                builtins,
-                                top_level_types,
-                                top_level_funs,
-                                member_mutabilities,
-                                struct_field_types,
-                            )?;
+                            check_class_init_block_exprs(class_shared, b, lower)?;
                         }
                         ast::TypeMember::SecondaryCtor(ctor) => {
                             check_class_secondary_ctor_exprs(
-                                source,
-                                decl.name.span,
+                                class_shared,
                                 &type_fqn,
                                 decl.primary_ctor.is_some(),
                                 superclass_fqn.as_deref(),
-                                this_ty,
-                                ctor_params,
                                 ctor,
                                 lower,
-                                builtins,
-                                top_level_types,
-                                top_level_funs,
-                                member_mutabilities,
-                                struct_field_types,
                             )?;
                         }
                         ast::TypeMember::EnumVariant(_)
@@ -540,18 +535,7 @@ fn check_class_member_fun_bodies_in_type_decl(
             let ast::TypeMember::Type(nested) = member else {
                 continue;
             };
-            check_class_member_fun_bodies_in_type_decl(
-                source,
-                file,
-                nested,
-                &type_fqn,
-                lower,
-                builtins,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )?;
+            check_class_member_fun_bodies_in_type_decl(shared, nested, &type_fqn, lower)?;
         }
     }
 
@@ -559,18 +543,12 @@ fn check_class_member_fun_bodies_in_type_decl(
 }
 
 fn check_class_member_fun_body_exprs(
-    source: &SourceFile,
-    this_decl_span: Span,
-    this_ty: TypeId,
-    ctor_params: &[ast::Param],
+    shared: ClassExprShared<'_>,
     fun: &ast::FunDecl,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    let source = shared.file.source;
+    let builtins = shared.file.builtins;
     lower.push_type_params(&fun.type_params);
     let eff_binding_pushed = if let Some(eff_param) = &fun.eff_param {
         let name = source.slice(eff_param.name.span).to_string();
@@ -612,8 +590,8 @@ fn check_class_member_fun_body_exprs(
             let mut mutable_bindings: HashSet<Span> = HashSet::new();
 
             // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
-            locals.insert(this_decl_span, this_ty);
-            stable_bindings.insert(this_decl_span);
+            locals.insert(shared.this_decl_span, shared.this_ty);
+            stable_bindings.insert(shared.this_decl_span);
 
             // 若该 member fun 本身是扩展函数（member extension），resolver 会把 `this` 解析到 receiver 的 span；
             // 这里沿用顶层扩展函数的处理方式：receiver 作为一个隐式稳定绑定。
@@ -624,7 +602,7 @@ fn check_class_member_fun_body_exprs(
             }
 
             // 主构造参数：resolver 在 member fun 内把 ctor params 当作外层局部绑定（T0313）。
-            for p in ctor_params {
+            for p in shared.ctor_params {
                 let Some(ty_ref) = &p.ty else {
                     continue;
                 };
@@ -651,21 +629,16 @@ fn check_class_member_fun_body_exprs(
                 if let Some(default_value) = &p.default_value {
                     let fun_name = fun.name.text(source).to_string();
                     let param_name = p.name.text(source).to_string();
-                    let found_ty = infer_expr_type_in_expected_context(
-                        source,
-                        default_value,
-                        ty,
-                        ExpectedTypeFrom::new(format!(
-                            "`{}` 的形参 `{}` 的默认值",
-                            fun_name, param_name
-                        )),
-                        lower,
-                        builtins,
-                        &locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
-                    )?;
+                    let found_ty = expr_infer_inputs(shared.stmt_shared(), &locals)
+                        .infer_in_expected(
+                            lower,
+                            default_value,
+                            ty,
+                            ExpectedTypeFrom::new(format!(
+                                "`{}` 的形参 `{}` 的默认值",
+                                fun_name, param_name
+                            )),
+                        )?;
 
                     if is_type_assignable(found_ty, ty, lower, builtins)
                         || (matches!(default_value.kind, ast::ExprKind::IntLit)
@@ -688,42 +661,36 @@ fn check_class_member_fun_body_exprs(
             let expected_return_ty = match &fun.return_ty {
                 Some(ret) => lower.lower_type_ref(ret)?,
                 None => match &fun.body {
-                    ast::FunBody::Block(b) => try_infer_fun_return_ty_from_block(
-                        source,
-                        b,
-                        lower,
-                        builtins,
-                        &mut locals,
-                        &mut stable_bindings,
-                        &mut mutable_bindings,
-                        0,
-                        top_level_types,
-                        top_level_funs,
-                        member_mutabilities,
-                        struct_field_types,
-                    )?
-                    .unwrap_or(builtins.unit),
+                    ast::FunBody::Block(b) => {
+                        let inferred = {
+                            let mut state = StmtExprState {
+                                locals: &mut locals,
+                                stable_bindings: &mut stable_bindings,
+                                mutable_bindings: &mut mutable_bindings,
+                            };
+                            try_infer_fun_return_ty_from_block(
+                                shared.stmt_shared(),
+                                b,
+                                lower,
+                                &mut state,
+                                0,
+                            )?
+                        };
+                        inferred.unwrap_or(builtins.unit)
+                    }
                     ast::FunBody::Missing => builtins.unit,
                 },
             };
 
             match &fun.body {
                 ast::FunBody::Block(b) => {
-                    let shared = StmtExprShared {
-                        source,
-                        builtins,
-                        top_level_types,
-                        top_level_funs,
-                        member_mutabilities,
-                        struct_field_types,
-                    };
                     let mut state = StmtExprState {
                         locals: &mut locals,
                         stable_bindings: &mut stable_bindings,
                         mutable_bindings: &mut mutable_bindings,
                     };
                     check_block_exprs(
-                        shared,
+                        shared.stmt_shared(),
                         b,
                         lower,
                         &mut state,
@@ -798,17 +765,12 @@ fn check_class_member_fun_body_exprs(
 /// - 仅覆盖 `= expr` initializer（delegate `by expr` 的表达式类型检查留给 delegated property lowering 任务）。
 /// - initializer 处于 class 初始化语境：可见 `this` 与主构造参数（resolver 已写回 Local decl_span）。
 fn check_class_property_initializer_exprs(
-    source: &SourceFile,
-    this_decl_span: Span,
-    this_ty: TypeId,
-    ctor_params: &[ast::Param],
+    shared: ClassExprShared<'_>,
     p: &ast::PropertyDecl,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    let source = shared.file.source;
+    let builtins = shared.file.builtins;
     // delegated property 的语义由 `typecheck::properties` 覆盖；这里避免引入不完整的 delegate expr typecheck。
     if p.delegate.is_some() {
         return Ok(());
@@ -824,31 +786,16 @@ fn check_class_property_initializer_exprs(
 
     let expected = lower.lower_type_ref(ty_ref)?;
 
-    // initializer 语境的 locals：`this` + 主构造参数。
-    let mut locals: HashMap<Span, TypeId> = HashMap::new();
-    locals.insert(this_decl_span, this_ty);
-    for p in ctor_params {
-        let Some(ty_ref) = &p.ty else {
-            continue;
-        };
-        let ty = lower.lower_type_ref(ty_ref)?;
-        locals.insert(p.name.span, ty);
-    }
+    let (locals, _, _) = class_init_locals(shared, lower)?;
 
-    let found = infer_expr_type_in_expected_context(
-        source,
+    let found = expr_infer_inputs(shared.stmt_shared(), &locals).infer_in_expected(
+        lower,
         init,
         expected,
         ExpectedTypeFrom::new(format!(
             "property `{}` 的类型注解",
             source.slice(p.name.span)
         )),
-        lower,
-        builtins,
-        &locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
     )?;
 
     if is_type_assignable(found, expected, lower, builtins) {
@@ -875,17 +822,14 @@ fn check_class_property_initializer_exprs(
 /// - 为与当前 LLVM codegen 行为保持一致：ctor overload 选择仅按“参数个数（arity）”做最小匹配；
 /// - 更完整的 most-specific 重载规则由普通调用点（`C(...)`）的 typecheck 覆盖（T0454）。
 fn check_class_super_ctor_call_exprs(
-    source: &SourceFile,
-    file: &ast::File,
+    shared: FileExprShared<'_>,
     class_fqn: &str,
     decl: &ast::TypeDecl,
     ctor_params: &[ast::Param],
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    let source = shared.source;
+    let file = shared.file;
     let Some(superclass) = decl
         .supertypes
         .iter()
@@ -912,18 +856,15 @@ fn check_class_super_ctor_call_exprs(
     }
 
     check_ctor_call_args_by_arity(
-        source,
-        format!("{class_fqn} -> {base_fqn}"),
-        &base_fqn,
-        superclass.span,
-        &superclass.ctor_args,
-        None,
+        expr_infer_inputs(shared.stmt_shared(), &locals),
+        CtorCallCheckRequest {
+            callee_for_diag: format!("{class_fqn} -> {base_fqn}"),
+            ctor_owner_ty_fqn: &base_fqn,
+            call_span: superclass.span,
+            args: &superclass.ctor_args,
+            exclude_ctor_span: None,
+        },
         lower,
-        builtins,
-        &locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
     )?;
 
     Ok(())
@@ -936,19 +877,19 @@ fn check_class_super_ctor_call_exprs(
 /// - 逐个实参按形参类型做 assignable 检查（允许 int literal 吸收）；
 /// - defaults/named/spread/vararg 的完整调用规则留给后续任务补齐。
 fn check_ctor_call_args_by_arity(
-    source: &SourceFile,
-    callee_for_diag: String,
-    ctor_owner_ty_fqn: &str,
-    call_span: Span,
-    args: &[ast::Expr],
-    exclude_ctor_span: Option<Span>,
+    inputs: ExprInferInputs<'_>,
+    request: CtorCallCheckRequest<'_>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
+    let CtorCallCheckRequest {
+        callee_for_diag,
+        ctor_owner_ty_fqn,
+        call_span,
+        args,
+        exclude_ctor_span,
+    } = request;
+    let builtins = inputs.builtins;
+
     // 当前阶段（T1327c）约束：super ctor args / ctor delegation args 仅支持位置参数。
     //
     // 备注：这些位置并非普通调用点（`callee(args...)`），HIR lowering 也不会把它们转成 `CallArg`，
@@ -965,17 +906,17 @@ fn check_ctor_call_args_by_arity(
         }
     }
 
-    let use_cone = lower.index().cone_of_source(source);
+    let use_cone = lower.index().cone_of_source(inputs.source);
     let Some(ctors) = lower.index().constructors.get(ctor_owner_ty_fqn).cloned() else {
         return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_for_diag,
+            callee: callee_for_diag.clone(),
             span: call_span.into(),
         });
     };
 
     let mut visible: Vec<&ConstructorOverload> = ctors
         .iter()
-        .filter(|c| is_ctor_visible_from(use_cone, source, c))
+        .filter(|c| is_ctor_visible_from(use_cone, inputs.source, c))
         .collect();
     if let Some(exclude) = exclude_ctor_span {
         visible.retain(|c| c.span != exclude);
@@ -989,7 +930,7 @@ fn check_ctor_call_args_by_arity(
 
     if matching.is_empty() {
         return Err(ExprTypeError::NoMatchingOverload {
-            callee: callee_for_diag,
+            callee: callee_for_diag.clone(),
             span: call_span.into(),
         });
     }
@@ -1021,8 +962,8 @@ fn check_ctor_call_args_by_arity(
             None => builtins.any,
         };
 
-        let found = infer_expr_type_in_expected_context(
-            source,
+        let found = inputs.infer_in_expected(
+            lower,
             arg,
             expected,
             ExpectedTypeFrom::new(format!(
@@ -1030,12 +971,6 @@ fn check_ctor_call_args_by_arity(
                 ctor_owner_ty_fqn,
                 idx + 1
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
 
         if is_type_assignable(found, expected, lower, builtins) {
@@ -1060,37 +995,20 @@ fn check_ctor_call_args_by_arity(
 
 /// 检查 class `init { ... }` 初始化块的最小表达式类型（T0448）。
 fn check_class_init_block_exprs(
-    source: &SourceFile,
-    this_decl_span: Span,
-    this_ty: TypeId,
-    ctor_params: &[ast::Param],
+    shared: ClassExprShared<'_>,
     b: &ast::InitBlockDecl,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
-    let (mut locals, mut stable_bindings, mut mutable_bindings) =
-        class_init_locals(this_decl_span, this_ty, ctor_params, lower)?;
+    let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
 
     // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
-    let shared = StmtExprShared {
-        source,
-        builtins,
-        top_level_types,
-        top_level_funs,
-        member_mutabilities,
-        struct_field_types,
-    };
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
     };
     check_block_exprs(
-        shared,
+        shared.stmt_shared(),
         &b.body,
         lower,
         &mut state,
@@ -1105,20 +1023,12 @@ fn check_class_init_block_exprs(
 
 /// 检查 class 次构造器 body 的最小表达式类型（T0448）。
 fn check_class_secondary_ctor_exprs(
-    source: &SourceFile,
-    this_decl_span: Span,
+    shared: ClassExprShared<'_>,
     class_fqn: &str,
     has_primary_ctor: bool,
     superclass_fqn: Option<&str>,
-    this_ty: TypeId,
-    primary_ctor_params: &[ast::Param],
     ctor: &ast::SecondaryCtorDecl,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<(), ExprTypeError> {
     // Kotlin-like 语义：当 class 有主构造器时，secondary constructor 必须显式委托到 `this(...)`。
     if has_primary_ctor {
@@ -1154,18 +1064,15 @@ fn check_class_secondary_ctor_exprs(
         match call.kind {
             ast::CtorDelegationKind::This => {
                 check_ctor_call_args_by_arity(
-                    source,
-                    "this".to_string(),
-                    class_fqn,
-                    call.span,
-                    &call.args,
-                    Some(ctor.span),
+                    expr_infer_inputs(shared.stmt_shared(), &delegation_locals),
+                    CtorCallCheckRequest {
+                        callee_for_diag: "this".to_string(),
+                        ctor_owner_ty_fqn: class_fqn,
+                        call_span: call.span,
+                        args: &call.args,
+                        exclude_ctor_span: Some(ctor.span),
+                    },
                     lower,
-                    builtins,
-                    &delegation_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
                 )?;
             }
             ast::CtorDelegationKind::Super => {
@@ -1176,25 +1083,21 @@ fn check_class_secondary_ctor_exprs(
                     });
                 };
                 check_ctor_call_args_by_arity(
-                    source,
-                    format!("super({base_fqn})"),
-                    base_fqn,
-                    call.span,
-                    &call.args,
-                    None,
+                    expr_infer_inputs(shared.stmt_shared(), &delegation_locals),
+                    CtorCallCheckRequest {
+                        callee_for_diag: format!("super({base_fqn})"),
+                        ctor_owner_ty_fqn: base_fqn,
+                        call_span: call.span,
+                        args: &call.args,
+                        exclude_ctor_span: None,
+                    },
                     lower,
-                    builtins,
-                    &delegation_locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
                 )?;
             }
         }
     }
 
-    let (mut locals, mut stable_bindings, mut mutable_bindings) =
-        class_init_locals(this_decl_span, this_ty, primary_ctor_params, lower)?;
+    let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
 
     // 次构造器参数：作为函数参数语义处理（稳定绑定；不可赋值）。
     for p in &ctor.params {
@@ -1207,21 +1110,13 @@ fn check_class_secondary_ctor_exprs(
     }
 
     // secondary ctor body 不是函数体：不允许 `return`。
-    let shared = StmtExprShared {
-        source,
-        builtins,
-        top_level_types,
-        top_level_funs,
-        member_mutabilities,
-        struct_field_types,
-    };
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
     };
     check_block_exprs(
-        shared,
+        shared.stmt_shared(),
         &ctor.body,
         lower,
         &mut state,
@@ -1240,9 +1135,7 @@ fn check_class_secondary_ctor_exprs(
 /// - `this` 与主构造参数在 resolver 阶段会被写回为 `ResolvedValueRef::Local { decl_span }`；
 /// - 这里把这些 decl_span 映射到 TypeId，供后续 type inference 查询。
 fn class_init_locals(
-    this_decl_span: Span,
-    this_ty: TypeId,
-    ctor_params: &[ast::Param],
+    shared: ClassExprShared<'_>,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(HashMap<Span, TypeId>, HashSet<Span>, HashSet<Span>), ExprTypeError> {
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
@@ -1250,11 +1143,11 @@ fn class_init_locals(
     let mutable_bindings: HashSet<Span> = HashSet::new();
 
     // `this`：resolver 使用 class name 的 span 作为 decl_span。
-    locals.insert(this_decl_span, this_ty);
-    stable_bindings.insert(this_decl_span);
+    locals.insert(shared.this_decl_span, shared.this_ty);
+    stable_bindings.insert(shared.this_decl_span);
 
     // 主构造参数：在初始化语境内可见（T0313）。
-    for p in ctor_params {
+    for p in shared.ctor_params {
         let Some(ty_ref) = &p.ty else {
             continue;
         };
@@ -1291,18 +1184,16 @@ fn check_top_level_val_initializer(
         }
         ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("顶层解构绑定的类型注解"),
     };
-    let found = infer_expr_type_in_expected_context(
+    let empty_locals = HashMap::new();
+    let found = ExprInferInputs {
         source,
-        init,
-        expected,
-        expected_from,
-        lower,
         builtins,
-        &HashMap::new(),
+        locals: &empty_locals,
         top_level_types,
         top_level_funs,
         struct_field_types,
-    )?;
+    }
+    .infer_in_expected(lower, init, expected, expected_from)?;
 
     if is_type_assignable(found, expected, lower, builtins) {
         return Ok(());
