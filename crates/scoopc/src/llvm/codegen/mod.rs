@@ -11861,6 +11861,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     int_ty,
                 ))
             }
+            hir::LiteralKind::Float64(value) => Ok(CgValue::float(
+                self.context.f64_type().const_float(*value),
+                CgTy::Float64,
+            )),
+            hir::LiteralKind::Float32(value) => Ok(CgValue::float(
+                self.context.f32_type().const_float(f64::from(*value)),
+                CgTy::Float32,
+            )),
             hir::LiteralKind::String => self.codegen_string_literal(span),
             hir::LiteralKind::SynthInt(value) => {
                 // Synthesized integer literal from compiler desugaring (T0110).

@@ -646,6 +646,14 @@ impl<'a> Parser<'a> {
             }));
         }
 
+        if self.peek_kind(TokenKind::FloatLiteral) {
+            let tok = self.bump();
+            return Ok(Some(ast::Expr {
+                span: tok.span,
+                kind: ast::ExprKind::FloatLit,
+            }));
+        }
+
         if self.peek_kind(TokenKind::CharLiteral) {
             let tok = self.bump();
             return Ok(Some(ast::Expr {

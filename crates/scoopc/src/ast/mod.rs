@@ -1154,6 +1154,7 @@ pub enum ExprKind {
     Missing,
     Ident(ValueIdent),
     IntLit,
+    FloatLit,
     CharLit,
     StringLit,
     /// `()`：Unit 字面量（spec §2.3.3）。

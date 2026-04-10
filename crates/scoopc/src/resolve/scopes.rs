@@ -701,6 +701,7 @@ impl<'a> BlockScopeChecker<'a> {
         match &mut expr.kind {
             ast::ExprKind::Missing
             | ast::ExprKind::IntLit
+            | ast::ExprKind::FloatLit
             | ast::ExprKind::CharLit
             | ast::ExprKind::StringLit
             | ast::ExprKind::UnitLit

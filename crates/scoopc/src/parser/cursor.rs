@@ -527,6 +527,7 @@ impl<'a> Parser<'a> {
                     | Keyword::Await
             ) | TokenKind::Ident
                 | TokenKind::IntLiteral
+                | TokenKind::FloatLiteral
                 | TokenKind::StringLiteral(_)
                 | TokenKind::Symbol(Symbol::LBrace | Symbol::LParen)
         )

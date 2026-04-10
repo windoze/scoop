@@ -16,6 +16,7 @@ pub struct Token {
 pub enum TokenKind {
     Ident,
     IntLiteral,
+    FloatLiteral,
     CharLiteral,
     StringLiteral(StringKind),
 

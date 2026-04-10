@@ -732,6 +732,8 @@ impl<'a> FnLowering<'a> {
             hir::LiteralKind::Char(_) => ConstValue::Char,
             hir::LiteralKind::Unit => ConstValue::Unit,
             hir::LiteralKind::Int | hir::LiteralKind::SynthInt(_) => ConstValue::Int,
+            hir::LiteralKind::Float64(_) => ConstValue::Float64,
+            hir::LiteralKind::Float32(_) => ConstValue::Float32,
             hir::LiteralKind::String => ConstValue::String,
         };
         self.assign(span, tmp, Rvalue::Use(Operand::Const(c)));

@@ -1467,66 +1467,90 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (853)`）
 
-### T0148 [TODO] Float 字面量：词法器、AST、HIR、类型检查、codegen、comptime
+### T0148 Float 字面量（拆分）
 
-- 描述：在 T0147 引入 Float 类型后，本任务实现浮点字面量的完整词法分析、解析和代码生成管线，使 `3.14`、`1.0e-5`、`0.5f` 等浮点字面量可从 Scoop 源码到 LLVM IR 到可执行程序完整工作。
+- 描述：原始 T0148 同时跨越 lexer / parser / AST / HIR / typecheck / LLVM codegen / comptime / 多文件回归，单轮改动面过大，现拆为可独立验收的小步。
+- 总依赖：T0147a、T0147b、T0147c、T0140（多文件字面量框架）
+
+### T0148a [DONE] Float 字面量前端：词法器、Token、AST、parser、HIR
+
+- 描述：先打通 `3.14`、`1.0e-5`、`0.5f` 等字面量从源码到 HIR 的前端链路，不在本任务里覆盖完整 typecheck / codegen / comptime。
 - 目标：
-  - **词法器**（`syntax/lexer.rs`）：
-    - 扩展 `lex_int_literal`（或新增 `lex_number_literal`）：当十进制数字序列后遇到 `.`（且下一个字符是数字，避免与方法调用 `1.toString()` 冲突）时，切换到浮点模式。
-    - 浮点格式：`[digits].[digits]`（小数部分）、`[digits][eE][+-]?[digits]`（科学计数法）、两者组合。
-    - `_` 分隔符在整数和小数部分均允许。
-    - 产出 `TokenKind::FloatLiteral` token。
-    - 可选后缀：`f` 或 `f32` 表示 `Float32`（无后缀默认 `Float64`）。
-  - **Token**（`syntax/token.rs`）：新增 `TokenKind::FloatLiteral`。
-  - **AST**（`ast/mod.rs`）：
-    - `ExprKind` 新增 `FloatLit` 变体（span-only）。
-    - 注意：不为 `WhenPat` 新增 `FloatLit`——浮点数在模式匹配中不建议使用（精度问题），可后置或明确禁止。
-  - **Float 字面量解析**（新增 `syntax/float_literal.rs`）：
-    - `parse_float_literal(text: &str) -> (f64, bool)`：返回解析后的值和是否有 `f32` 后缀。
-    - 处理 `_` 分隔符移除、科学计数法、后缀剥离。
-  - **HIR**（`hir/mod.rs`）：
-    - `LiteralKind` 新增 `Float64(f64)` 变体。
-    - 当有 `f32` 后缀时，可存储为 `Float32(f32)` 或在 typecheck 阶段通过 absorption 处理。
-  - **HIR lowering**（`hir/lower/expr.rs`）：
-    - `ExprKind::FloatLit` → `LiteralKind::Float64(parsed_value)`，默认类型为 `Float64`。
-    - 当有 `f32` 后缀时，类型为 `Float32`。
-  - **类型检查**（`typecheck/`）：
-    - Float 字面量默认推断为 `Float64`。
-    - **Float absorption**：当期望类型为 `Float32` 时，Float64 字面量隐式适配（截断）。
-    - Float 算术运算符类型推断：`Float64 + Float64 -> Float64` 等。
-    - Float 比较运算符：`==`、`!=`、`<`、`>`、`<=`、`>=`（返回 `Bool`）。
-    - Float 一元取负：`-1.5`。
-  - **LLVM codegen**（`llvm/codegen/`）：
-    - `codegen_literal`：`LiteralKind::Float64(v)` → `f64_type().const_float(v)`。
-    - Float 算术运算符 codegen：`fadd`、`fsub`、`fmul`、`fdiv`、`frem`。
-    - Float 比较运算符 codegen：`fcmp` 指令（ordered comparisons）。
-    - Float 一元取负：`fneg` 或 `fsub(0.0, x)`。
-    - Float → Int 转换（`toInt()`）：`fptosi` 指令。
-    - Int → Float 转换：`sitofp` 指令（需要在 sysroot 声明 `Int.toFloat64(): Float64` 等）。
-    - Float64 ↔ Float32 转换：`fptrunc`/`fpext`。
-    - Float `toString()`/`hash()`/`abs()`/`isNaN()`/`isInfinite()` 的 codegen。
-  - **Comptime**（`comptime/eval.rs`）：
-    - `ExprKind::FloatLit` → `ConstValue::Float64(f64)`。
-    - `ConstValue` 新增 `Float64(f64)` 变体。
-    - Float 算术和比较在编译期可求值。
-  - **多文件支持**：确保 Float 字面量在非入口源文件中可用（T0140 框架已为 Int/String 解决，Float 需同样纳入）。
+  - `syntax/lexer.rs` 支持十进制 float token：小数部分、科学计数法、`_` 分隔符、`f` / `f32` 后缀。
+  - `syntax/token.rs` 新增 `TokenKind::FloatLiteral`。
+  - `syntax/float_literal.rs` 提供共享解析 helper，去除 `_` 并识别 `Float32` 后缀。
+  - `ast/mod.rs` 新增 `ExprKind::FloatLit`；`when` pattern 仍不支持 Float 字面量。
+  - `parser/expr.rs` 能把 Float token 解析为表达式；错误恢复入口同步承认该 token。
+  - `hir/mod.rs` 新增 `LiteralKind::Float64(f64)` / `LiteralKind::Float32(f32)`。
+  - `hir/lower/expr.rs` 将 `ExprKind::FloatLit` lowering 到对应 HIR literal，并赋 builtin `Float64` / `Float32` 类型。
+  - 新增 parse / HIR 回归覆盖基础浮点字面量、科学计数法、后缀和 `1.toString()` 不冲突场景。
 - 验收：
-  - 新增 run-pass fixtures：
-    - 基础：`val x = 3.14; val y = 2.0; println((x + y).toString())`。
-    - 科学计数法：`val x = 1.5e3; println(x.toString())`（1500.0）。
-    - 算术：`+`、`-`、`*`、`/`、`%` 运算。
-    - 比较：`1.0 < 2.0`、`3.14 == 3.14`、`1.0 != 2.0`。
-    - 一元取负：`val x = -1.5`。
-    - 类型转换：`val n = 3.14.toInt()`（结果为 3）；`val f = 42.toFloat64()`。
-    - Float32 后缀：`val x = 1.5f`（或 `1.5f32`），验证 Float32 类型。
-    - Float64 ↔ Float32 转换。
-    - 多文件：非入口源文件中使用 Float 字面量。
-    - `Float64.abs()`、`Float64.isNaN()`、`Float64.isInfinite()`。
-    - `Float64.toString()` 和 `String.toFloat64()`。
-  - 新增 comptime fixture：`const val pi = 3.14159; const val area = pi * 2.0 * 2.0`。
-  - 现有 run-pass fixtures 全部通过。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
-- 依赖：T0147a、T0147b、T0147c、T0140（多文件字面量框架）
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0147a、T0147b、T0147c
+- 完成说明：
+  - **syntax**：
+    - `syntax/token.rs` 新增 `TokenKind::FloatLiteral`。
+    - 新增 `syntax/float_literal.rs`，统一解析 `_` 分隔符、科学计数法和 `f` / `f32` 后缀。
+    - `syntax/lexer.rs` 将整数扫描扩展为 number scanning：支持十进制 float、小数部分、指数部分和 Float32 后缀，同时保持 `1.toString()` / `1..2` 不被误词法成 float。
+  - **AST / parser**：
+    - `ast::ExprKind` 新增 `FloatLit`。
+    - `parser/expr.rs` 与 `parser/cursor.rs` 已接入 Float literal 解析和错误恢复入口。
+    - 新增 parser 单测 `parse_float_literals_and_int_member_call`，覆盖普通 float、科学计数法、Float32 后缀，以及 `1.toString()` 仍以 `IntLit + member access` 解析。
+  - **HIR**：
+    - `hir::LiteralKind` 新增 `Float64(f64)` / `Float32(f32)`。
+    - `hir/lower/expr.rs` 已将 `ExprKind::FloatLit` lowering 到对应 HIR literal，并赋 builtin `Float64` / `Float32` 类型。
+    - 新增 HIR 单测 `lower_float_literals_to_typed_hir_literals`。
+  - **辅助同步**：
+    - resolver/property walker 补齐 `FloatLit` 无副作用分支；
+    - MIR `ConstValue` 与 LLVM `codegen_literal` 补齐 Float literal 枚举分支，避免全仓编译因穷举匹配缺口失败。
+  - **验证**：
+    - `cargo test -p scoopc --lib float -- --nocapture`
+    - `cargo fmt --check`
+    - `cargo test --all`
+    - `cargo run -p scoop -- test`（`fixtures: ok (853)`）
+    - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+
+### T0148b [TODO] Float 字面量静态语义：默认类型、Float32 absorption、基础类型检查
+
+- 描述：在前端已产出 Float literal AST/HIR 节点后，补齐静态语义，使 Float 字面量可参与正常的类型推断与基础方法调用。
+- 目标：
+  - AST/typecheck 识别 Float literal，默认推断为 `Float64`，带 `f` / `f32` 后缀时推断为 `Float32`。
+  - 补齐 `Float64 -> Float32` literal absorption（仅字面量）。
+  - 基础算术 / 比较 / 一元负号的类型规则接入 Float。
+  - 相关诊断与 `expr_kind_name` / property walker / annotation const-check 等辅助路径不因 Float literal 崩溃。
+- 验收：
+  - 新增 typecheck fixtures：默认 `Float64`、`Float32` 后缀、`val x: Float32 = 1.5`、基础比较和一元负号。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0148a
+
+### T0148c [TODO] Float 字面量 LLVM codegen：literal emission、算术/比较/转换、run-pass
+
+- 描述：在静态语义完成后，补齐 LLVM 后端，使 Float 字面量与基础运算可真正执行。
+- 目标：
+  - `codegen_literal` 支持 `LiteralKind::Float64/Float32`。
+  - Float 算术、比较、一元负号和 `toInt()` / 基础 widening-narrowing 转换接到 LLVM IR。
+  - 现有 Float builtin 方法（`toString` / `hash` / `abs` / `isNaN` / `isInfinite`）与字面量调用路径联通。
+  - 新增 run-pass fixture 覆盖基础算术、比较、科学计数法、Float32 后缀和 builtin 方法调用。
+- 验收：
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0148b
+
+### T0148d [TODO] Float 字面量收尾：comptime、多文件、剩余转换与审计
+
+- 描述：补齐 Float literal 在 comptime、多文件和剩余边角语境中的行为，完成对原始 T0148 的收尾。
+- 目标：
+  - `comptime/eval.rs` / `ConstValue` 支持 Float literal 与基础常量折叠。
+  - 验证非入口源文件中的 Float literal 与 SourceMap-backed literal 框架联通。
+  - 如需保留暂不支持的语义（例如 `when` pattern / `String.toFloat64()`），给出明确诊断或后续任务链接，而不是静默退化。
+  - 汇总并补齐 T0148 相关 fixture 审计。
+- 验收：
+  - 新增 comptime fixture 和多文件 fixture。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0148c
 
 ### T0149 [TODO] Array 字面量类型推断：移除无上下文限制
 

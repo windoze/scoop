@@ -380,6 +380,8 @@ pub struct EffectOpRef {
 pub enum LiteralKind {
     /// Integer literal resolved on demand from source text (`Expr.span` + source provenance).
     Int,
+    Float64(f64),
+    Float32(f32),
     /// Char literal fully parsed during HIR lowering so later phases do not need to re-slice source text.
     Char(char),
     /// String literal resolved on demand from source text (`Expr.span` + source provenance).

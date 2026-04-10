@@ -3,6 +3,7 @@
 //! 当前阶段只实现 lexer。
 
 pub mod char_literal;
+pub mod float_literal;
 pub mod int_literal;
 pub mod lexer;
 pub mod string_literal;

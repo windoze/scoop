@@ -95,9 +95,9 @@ impl<'a> Lexer<'a> {
 
             // numbers
             if ch.is_ascii_digit() {
-                self.lex_int_literal();
+                let kind = self.lex_number_literal();
                 tokens.push(Token {
-                    kind: TokenKind::IntLiteral,
+                    kind,
                     span: Span::new(start, self.pos),
                 });
                 continue;
@@ -254,17 +254,81 @@ impl<'a> Lexer<'a> {
         })
     }
 
-    fn lex_int_literal(&mut self) {
+    fn lex_number_literal(&mut self) -> TokenKind {
         let Some(first) = self.bump_char() else {
-            return;
+            return TokenKind::IntLiteral;
         };
         if first == '0' && self.try_lex_prefixed_int_literal() {
-            return;
+            return TokenKind::IntLiteral;
         }
+        self.lex_decimal_digits();
+
+        let mut is_float = self.try_lex_float_fraction();
+        if self.try_lex_float_exponent() {
+            is_float = true;
+        }
+
+        if is_float {
+            self.lex_float_suffix();
+            TokenKind::FloatLiteral
+        } else {
+            TokenKind::IntLiteral
+        }
+    }
+
+    fn lex_decimal_digits(&mut self) {
         while self
             .peek_char()
-            .is_some_and(|c| c.is_ascii_digit() || c == '_')
+            .is_some_and(|ch| ch.is_ascii_digit() || ch == '_')
         {
+            self.bump_char();
+        }
+    }
+
+    fn try_lex_float_fraction(&mut self) -> bool {
+        let Some([b'.', next]) = self.peek_bytes2() else {
+            return false;
+        };
+        if !char::from(next).is_ascii_digit() {
+            return false;
+        }
+
+        self.bump_bytes(1);
+        self.lex_decimal_digits();
+        true
+    }
+
+    fn try_lex_float_exponent(&mut self) -> bool {
+        if !self.float_exponent_starts_here() {
+            return false;
+        }
+
+        self.bump_char();
+        if self.peek_char().is_some_and(|ch| matches!(ch, '+' | '-')) {
+            self.bump_char();
+        }
+        self.lex_decimal_digits();
+        true
+    }
+
+    fn float_exponent_starts_here(&self) -> bool {
+        let bytes = self.text.as_bytes();
+        if self.pos >= bytes.len() || !matches!(bytes[self.pos], b'e' | b'E') {
+            return false;
+        }
+
+        let mut idx = self.pos + 1;
+        if idx < bytes.len() && matches!(bytes[idx], b'+' | b'-') {
+            idx += 1;
+        }
+
+        idx < bytes.len() && char::from(bytes[idx]).is_ascii_digit()
+    }
+
+    fn lex_float_suffix(&mut self) {
+        if self.text[self.pos..].starts_with("f32") {
+            self.bump_bytes(3);
+        } else if self.peek_char() == Some('f') {
             self.bump_char();
         }
     }
@@ -680,6 +744,39 @@ mod tests {
                 TokenKind::IntLiteral,
                 TokenKind::IntLiteral,
                 TokenKind::IntLiteral,
+                TokenKind::IntLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_float_literals() {
+        assert_eq!(
+            kinds("3.14 1e3 1_2.3_4e5_6 0.5f 1.0f32"),
+            vec![
+                TokenKind::FloatLiteral,
+                TokenKind::FloatLiteral,
+                TokenKind::FloatLiteral,
+                TokenKind::FloatLiteral,
+                TokenKind::FloatLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_int_member_call_and_range_do_not_become_float_literals() {
+        assert_eq!(
+            kinds("1.toString() 1..2"),
+            vec![
+                TokenKind::IntLiteral,
+                TokenKind::Symbol(Symbol::Dot),
+                TokenKind::Ident,
+                TokenKind::Symbol(Symbol::LParen),
+                TokenKind::Symbol(Symbol::RParen),
+                TokenKind::IntLiteral,
+                TokenKind::Symbol(Symbol::DotDot),
                 TokenKind::IntLiteral,
                 TokenKind::Eof,
             ]

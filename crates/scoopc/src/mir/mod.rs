@@ -284,6 +284,8 @@ pub enum ConstValue {
     Char,
     Unit,
     Int,
+    Float64,
+    Float32,
     String,
 }
 

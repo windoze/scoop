@@ -7,6 +7,7 @@
 use crate::ast;
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
+use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
 use crate::ty::{TypeId, TypeKind, ValueTypeKind};
 
 use super::HirLowering;
@@ -37,6 +38,19 @@ impl<'a> HirLowering<'a> {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
+            ast::ExprKind::FloatLit => {
+                let parsed = parse_float_literal(self.source.slice(e.span));
+                match parsed.suffix {
+                    FloatLiteralSuffix::Float64 => (
+                        ExprKind::Literal(LiteralKind::Float64(parsed.value)),
+                        self.builtins.float64,
+                    ),
+                    FloatLiteralSuffix::Float32 => (
+                        ExprKind::Literal(LiteralKind::Float32(parsed.value as f32)),
+                        self.builtins.float32,
+                    ),
+                }
+            }
             ast::ExprKind::CharLit => {
                 let value = parse_char_literal(self.source.slice(e.span))
                     .expect("lexer validated Char literal before HIR lowering");

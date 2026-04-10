@@ -365,6 +365,49 @@ fn parse_prefixed_int_literals_as_single_tokens() {
 }
 
 #[test]
+fn parse_float_literals_and_int_member_call() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval plain = 2.75\nval sci = 1.5e3\nval f32 = 0.5f\nval call = 1.toString()\n",
+    );
+    let file = parse_file(&src).unwrap();
+
+    let ast::Item::Val(plain) = &file.items[0] else {
+        panic!("期望第一个 item 为 val 声明");
+    };
+    let plain_init = plain.init.as_ref().expect("plain initializer 应存在");
+    assert!(matches!(plain_init.kind, ast::ExprKind::FloatLit));
+    assert_eq!(src.slice(plain_init.span), "2.75");
+
+    let ast::Item::Val(sci) = &file.items[1] else {
+        panic!("期望第二个 item 为 val 声明");
+    };
+    let sci_init = sci.init.as_ref().expect("sci initializer 应存在");
+    assert!(matches!(sci_init.kind, ast::ExprKind::FloatLit));
+    assert_eq!(src.slice(sci_init.span), "1.5e3");
+
+    let ast::Item::Val(f32_) = &file.items[2] else {
+        panic!("期望第三个 item 为 val 声明");
+    };
+    let f32_init = f32_.init.as_ref().expect("f32 initializer 应存在");
+    assert!(matches!(f32_init.kind, ast::ExprKind::FloatLit));
+    assert_eq!(src.slice(f32_init.span), "0.5f");
+
+    let ast::Item::Val(call) = &file.items[3] else {
+        panic!("期望第四个 item 为 val 声明");
+    };
+    let call_init = call.init.as_ref().expect("call initializer 应存在");
+    let ast::ExprKind::Call { callee, .. } = &call_init.kind else {
+        panic!("期望 `1.toString()` 解析为调用表达式");
+    };
+    let ast::ExprKind::MemberAccess { receiver, .. } = &callee.kind else {
+        panic!("期望调用的 callee 为 member access");
+    };
+    assert!(matches!(receiver.kind, ast::ExprKind::IntLit));
+    assert_eq!(src.slice(receiver.span), "1");
+}
+
+#[test]
 fn parse_comptime_syntax_and_splice() {
     let src = SourceFile::new_virtual(
         "<mem>",

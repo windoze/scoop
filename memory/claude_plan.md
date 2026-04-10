@@ -1,46 +1,91 @@
 # 本轮执行计划
 
-## 目标
-- 按照 `TODO.md` 的顺序，只完成第一个未完成任务，然后停止。
+## 约束说明
+
+根据任务要求，我会先记录高层执行计划、关键判断点和进度更新；这里不会写逐字内部思维，而是写可审计的执行步骤、决策依据和状态变化。
 
 ## 初始步骤
-1. 检查最新一次 Git 提交，确认是否提到了需要先修复的既有问题。
-2. 阅读 `TODO.md`，定位第一个未完成任务。
-3. 如果该任务过大，拆分为可执行子任务，并同步更新 `PLAN.md` 与 `TODO.md`。
-4. 实现当前要执行的任务。
-5. 运行相关测试与必要的 lint / 检查，修复发现的问题。
-6. 更新 `TODO.md`、`PLAN.md` 和本文件，记录完成情况或依赖调整。
-7. 提交本轮修改，随后停止。
 
-## 说明
-- 这里记录的是可审阅的执行计划与进度摘要，不包含内部草稿式推理。
-- 在确认最新提交和任务内容后，我会把更具体的实施步骤补充到本文件。
+1. 检查最新一次 Git 提交，确认提交信息或相关变更里是否提到已有问题。
+2. 如果发现“需先修复的既有问题”，优先修复并验证。
+3. 读取 `TODO.md`，定位第一个未完成任务。
+4. 读取 `PLAN.md`，确认当前计划与该任务是否一致。
+5. 判断该任务是否足够小且可在本轮完整完成。
+6. 如果任务过大，则把任务拆成更小子任务，并同步更新 `PLAN.md` 与 `TODO.md`，本轮只执行拆分后的第一个子任务。
+7. 实现本轮目标任务。
+8. 运行相关测试、格式化、lint，至少覆盖：
+   - 相关最小测试集
+   - `cargo fmt --check`
+   - `cargo clippy --all-targets -- -D warnings`
+   - 必要时运行更大范围测试
+9. 更新文档与计划：
+   - 在 `TODO.md` 标记本轮任务完成
+   - 在 `PLAN.md` 记录状态变化
+   - 按需要继续更新本文件
+10. 提交 Git commit，然后停止。
 
-## 当前进展
-- 已检查最新提交：`1aa5e2bf8284b395e6ac1e02f470d9c51da1dc66`（`[T0147c-3c] 清零剩余结构性 clippy warning`）。提交信息中未显式记录需要先处理的遗留问题，因此无需在本轮进入额外预修复分支。
-- 已读取 `TODO.md` 与 `PLAN.md`。
-- 当前第一个未完成任务是 `T0147c`：`Float sysroot API 与 builtin 方法路由：resolver / typecheck / runtime / codegen`。
-- 已完成主要实现：
-  - `sysroot/core.scoop`：`Float64/Float32` 已声明为 `Hashable, ToString`，并补齐 `toInt()/toString()/hash()/abs()/isNaN()/isInfinite()`。
-  - `resolve/scopes.rs` + `typecheck/expr/call.rs`：Float builtin member 调用已接入最小白名单与返回类型检查。
-  - `runtime/c/scoop_runtime.c` + `runtime/c/scoop_runtime_api.h`：已新增 Float `toString()` / `toInt()` 的 runtime 符号，并预留 `scoop_string_to_float64`。
-  - `llvm/codegen/*`：已新增 Float runtime symbol / ABI 声明，`toString()/toInt()/hash()/abs()/isNaN()/isInfinite()` 与 direct `print/println(Float)` 的 codegen 路径已补齐。
-  - 测试：已新增 typecheck fixture 与 LLVM 单测；定向 LLVM 单测已收敛为 `float_builtin_methods_lower_to_runtime_calls_and_hash_bits` 并通过。
-- 最终验证已完成：
-  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过。
-  - `cargo test --all` 通过。
-  - `cargo run -p scoop -- test` 通过（`fixtures: ok (853)`）。
-- 收尾待办：
-  - 更新 `TODO.md` / `PLAN.md` 为 DONE 状态。
-  - 提交本轮修改并停止。
+## 预设决策规则
 
-## 针对 T0147c 的细化执行步骤
-1. 盘点现有 Float 相关实现：检查 sysroot、resolver、typecheck、runtime、LLVM codegen 中是否已有 `Float32/Float64` 基础类型与部分 builtin 支持。
-2. 根据现状决定是否需要拆分任务；若任务可在本轮完整实现，则直接实现，不改写 `TODO.md` 结构。
-3. 补齐 sysroot 声明与对应的 builtin 路由：
-   - `toInt()` / `toString()` / `hash()` / `abs()` / `isNaN()` / `isInfinite()`
-   - 覆盖 `Float64` 与 `Float32`
-4. 补齐 runtime C API 与 LLVM 符号声明，确保 codegen 对上述方法调用不会 panic。
-5. 增加或更新测试/fixtures，覆盖最小 Float builtin 方法调用路径。
-6. 运行 `cargo fmt --all`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings`、`cargo test --all`、`cargo run -p scoop -- test` 验证。
-7. 更新 `TODO.md`、`PLAN.md`、本文件，提交本轮更改并停止。
+- 不会跳过“最新提交中提到的既有问题”检查。
+- 不会同时推进多个 TODO 任务；只完成当前第一项未完成任务。
+- 如果遇到阻塞，会保持任务为 TODO，并按依赖顺序重排 `TODO.md` 与更新 `PLAN.md`，然后提交并停止。
+- 任何代码编辑前，会先补充本文件中的执行进度说明。
+
+## 当前状态
+
+- 状态：已完成仓库检查，正在拆分 T0148。
+
+## 已完成检查
+
+1. 已查看最新提交 `08be83bced3efe656daf1f5c7c82dd14d70e255f`，提交信息仅为 `[T0147c] 补齐 Float sysroot API 与 builtin 路由`，未在提交说明中声明需先修复的遗留问题。
+2. 已读取 `TODO.md` 与 `PLAN.md`。
+3. 已确认当前第一个未完成任务为 `T0148`（Float 字面量完整管线）。
+
+## 关键判断
+
+- `T0148` 同时跨越 lexer / parser / AST / HIR / typecheck / LLVM codegen / comptime / fixtures，单轮完整落地的改动面过大，且回归路径横跨多个阶段，不适合作为一次提交直接完成。
+- 因此需要先拆为更小子任务，并在本轮只执行第一个子任务。
+
+## 拆分方案（拟定）
+
+1. `T0148a`：Float 字面量前端打通（lexer / token / AST / parser / HIR lowering / parse+hIR fixtures）。
+2. `T0148b`：Float 字面量静态语义（默认类型、Float32 后缀、absorption、基础类型推断）。
+3. `T0148c`：Float 算术/比较/转换的 LLVM codegen 与 run-pass fixtures。
+4. `T0148d`：comptime、多文件与剩余字面量审计收尾。
+
+## 本轮执行目标
+
+- 更新 `TODO.md` / `PLAN.md`，将 `T0148` 替换为可独立验收的子任务。
+- 实现并完成 `T0148a`。
+- 运行针对性测试与全量回归。
+- 更新文档状态并提交 commit。
+
+## 已完成实现
+
+1. 已把 `T0148` 在 `TODO.md` / `PLAN.md` 中拆分为 `T0148a ~ T0148d`。
+2. 已完成 `T0148a`：
+   - `TokenKind::FloatLiteral`
+   - `syntax/float_literal.rs`
+   - lexer 数字扫描扩展（小数 / 科学计数法 / `f` / `f32` 后缀）
+   - AST `ExprKind::FloatLit`
+   - parser Float literal 解析与 `1.toString()` / `1..2` 保护
+   - HIR `LiteralKind::Float64(f64)` / `LiteralKind::Float32(f32)`
+   - HIR lowering 到 builtin `Float64` / `Float32`
+3. 为保持全仓编译通过，已同步补齐少量辅助路径：
+   - resolver/property walker 对 `FloatLit` 的无副作用遍历
+   - MIR `ConstValue` 新增 Float kind
+   - LLVM `codegen_literal` 新增 Float literal 常量发射
+
+## 已完成验证
+
+- 定向单测：
+  - `cargo test -p scoopc --lib float -- --nocapture`
+- 全量验证：
+  - `cargo fmt --check`
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+  - `cargo clippy --workspace --all-targets --message-format short -- -D warnings`
+
+## 当前状态
+
+- 状态：`T0148a` 实现与验证完成，正在回写计划与待办状态，然后提交。

@@ -1657,6 +1657,7 @@ pub(crate) fn lower_member_fun_with_type_bindings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hir::LiteralKind;
     use std::collections::HashSet;
     use std::path::PathBuf;
 
@@ -1775,6 +1776,54 @@ mod tests {
         let expected = std::fs::read_to_string(&golden_path).unwrap();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn lower_float_literals_to_typed_hir_literals() {
+        let sess = Session::new().unwrap();
+        let src = SourceFile::new_virtual(
+            "<mem>",
+            "package a\nfun main() { val a = 2.75; val b = 0.5f; val c = 1e3 }\n",
+        );
+
+        let lowered = lower_for_dump(&sess, &src).unwrap();
+        let Item::Fun(fun) = &lowered.file.items[0] else {
+            panic!("期望第一个 item 为函数");
+        };
+        let body = fun.body.as_ref().expect("main 应有函数体");
+        let [stmt_a, stmt_b, stmt_c] = body.stmts.as_slice() else {
+            panic!("期望 main 中包含三个 val 语句");
+        };
+
+        let StmtKind::Val(val_a) = &stmt_a.kind else {
+            panic!("第一个语句应为 val");
+        };
+        let init_a = val_a.init.as_ref().expect("a 应有 initializer");
+        assert!(matches!(
+            init_a.kind,
+            ExprKind::Literal(LiteralKind::Float64(value)) if value == 2.75
+        ));
+        assert_eq!(lowered.types.display(init_a.ty).to_string(), "Float64");
+
+        let StmtKind::Val(val_b) = &stmt_b.kind else {
+            panic!("第二个语句应为 val");
+        };
+        let init_b = val_b.init.as_ref().expect("b 应有 initializer");
+        assert!(matches!(
+            init_b.kind,
+            ExprKind::Literal(LiteralKind::Float32(value)) if value == 0.5
+        ));
+        assert_eq!(lowered.types.display(init_b.ty).to_string(), "Float32");
+
+        let StmtKind::Val(val_c) = &stmt_c.kind else {
+            panic!("第三个语句应为 val");
+        };
+        let init_c = val_c.init.as_ref().expect("c 应有 initializer");
+        assert!(matches!(
+            init_c.kind,
+            ExprKind::Literal(LiteralKind::Float64(value)) if value == 1000.0
+        ));
+        assert_eq!(lowered.types.display(init_c.ty).to_string(), "Float64");
     }
 
     #[test]

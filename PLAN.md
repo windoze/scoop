@@ -397,6 +397,23 @@ cargo run -p scoop --features llvm -- test
 - DONE（T0147c-3）：Clippy 基线清理（`result_large_err` + 零散 warning）——`T0147c-3a ~ T0147c-3c` 已全部完成；workspace 已恢复严格 `cargo clippy --workspace --all-targets -- -D warnings` 基线。
 - DONE（T0147c）：Float sysroot API 与 builtin 方法路由——`sysroot/core.scoop` 已将 `Float64/Float32` 声明为 `Hashable, ToString` 并补齐 6 个 builtin 方法；`resolve/scopes.rs` / `typecheck/expr/call.rs` 已接入最小 member 路由并避免与 `abs(Int)` 混淆；runtime 新增 `scoop_float{32,64}_to_string`、`scoop_float{32,64}_to_int`，并预留 `scoop_string_to_float64`；LLVM codegen 已补齐 runtime symbols/ABI、`toString()/toInt()` runtime lowering、`hash()` 位级 lowering，以及 `abs()/isNaN()/isInfinite()` 的直接 lowering。新增 `typecheck/float_builtin_methods_ok.scoop` 与 LLVM 单测 `float_builtin_methods_lower_to_runtime_calls_and_hash_bits`。验证：`cargo clippy --workspace --all-targets --message-format short -- -D warnings`、`cargo test --all`、`cargo run -p scoop -- test` 通过（`fixtures: ok (853)`）。
 
+## 4.3 Float literals（T0148）
+
+> 背景：在 `T0147` 完成 Float builtin type / LLVM scalar / sysroot API groundwork 之后，下一步是把 `3.14` / `1e-5` / `0.5f` 之类的源码字面量真正接入语言前端和执行链路。该任务横跨前端、静态语义、LLVM 与 comptime，已拆分为可独立验收的小步，避免一次性改动面过大。
+
+- DONE（T0148a）：Float 字面量前端打通
+  - 已新增 `TokenKind::FloatLiteral`、`syntax/float_literal.rs`、AST `ExprKind::FloatLit`、HIR `LiteralKind::Float64/Float32`，并打通 lexer → parser → HIR lowering。
+  - lexer 支持十进制 float、小数部分、科学计数法、`f` / `f32` 后缀，并明确保护 `1.toString()` / `1..2` 不被误判为 float。
+  - parser / HIR 单测已覆盖普通 float、科学计数法、Float32 后缀和 typed HIR literal lowering。
+  - 为保持全仓可编译，顺手补齐 resolver/property walker、MIR `ConstValue` 与 LLVM `codegen_literal` 的 Float literal 枚举分支。
+  - 验证：`cargo test -p scoopc --lib float -- --nocapture`、`cargo fmt --check`、`cargo test --all`、`cargo run -p scoop -- test`、`cargo clippy --workspace --all-targets --message-format short -- -D warnings` 通过（fixtures `ok (853)`）。
+- 待做：`T0148b`（静态语义）
+  - 默认 `Float64`、后缀 `Float32`、literal absorption、基础算术/比较/一元负号类型规则。
+- 待做：`T0148c`（LLVM codegen）
+  - literal emission 以外的浮点算术/比较/转换、run-pass fixtures。
+- 待做：`T0148d`（收尾）
+  - comptime、多文件与剩余边角语义审计。
+
 ## 5. 泛型 where 约束完善
 
 - DONE（T0131）：`interface ToString` 引入 + 现有 `toString` 硬编码迁移 + `print`/`println` 泛型化：
