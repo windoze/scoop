@@ -18,11 +18,13 @@ use super::ops::{
     infer_builtin_scalar_binary_expr_type, infer_operator_overload_binary_expr_type,
     infer_unary_expr_type, is_integer_type,
 };
-use super::stmt::{check_local_val_decl_exprs, detect_smart_cast_for_if_condition};
+use super::stmt::{
+    StmtExprShared, StmtExprState, check_local_val_decl_exprs, detect_smart_cast_for_if_condition,
+};
 use super::util::expr_kind_name;
 
 use super::lower_type_ref_with_enum_subst;
-use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, TASK_FQN};
+use super::{ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, TASK_FQN};
 
 use super::super::TypeSymbolKind;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
@@ -43,6 +45,15 @@ pub(super) fn infer_expr_type(
     top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
     struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
+    let inputs = ExprInferInputs {
+        source,
+        builtins,
+        locals,
+        top_level_types,
+        top_level_funs,
+        struct_field_types,
+    };
+
     match &expr.kind {
         ast::ExprKind::IntLit => Ok(builtins.int),
         ast::ExprKind::CharLit => Ok(builtins.char_),
@@ -137,55 +148,19 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::Ident(id) => {
             infer_value_ident_type(source, id, lower, builtins, locals, top_level_types)
         }
-        ast::ExprKind::MemberAccess { receiver, member } => infer_member_access_expr_type(
-            source,
-            receiver.as_ref(),
-            member,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
-        ast::ExprKind::SpliceField { receiver, field } => infer_splice_field_expr_type(
-            source,
-            receiver.as_ref(),
-            field.as_ref(),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            infer_member_access_expr_type(inputs, receiver.as_ref(), member, lower)
+        }
+        ast::ExprKind::SpliceField { receiver, field } => {
+            infer_splice_field_expr_type(inputs, receiver.as_ref(), field.as_ref(), lower)
+        }
         ast::ExprKind::SafeMemberAccess {
             receiver, member, ..
-        } => infer_safe_member_access_expr_type(
-            source,
-            receiver.as_ref(),
-            member,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_safe_member_access_expr_type(inputs, receiver.as_ref(), member, lower),
         ast::ExprKind::NotNullAssert {
             expr: inner,
             op_span,
-        } => infer_not_null_assert_expr_type(
-            source,
-            inner.as_ref(),
-            *op_span,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_not_null_assert_expr_type(inputs, inner.as_ref(), *op_span, lower),
         ast::ExprKind::Call { callee, args } => infer_call_expr_type(
             source,
             expr,
@@ -252,18 +227,7 @@ pub(super) fn infer_expr_type(
             op,
             op_span,
             expr: inner,
-        } => infer_unary_expr_type(
-            source,
-            *op,
-            *op_span,
-            inner.as_ref(),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        ),
+        } => infer_unary_expr_type(inputs, *op, *op_span, inner.as_ref(), lower),
         ast::ExprKind::TypeCheck {
             expr: inner, ty, ..
         } => {
@@ -471,17 +435,7 @@ pub(super) fn infer_expr_type(
             op_span,
             rhs,
         } => match op {
-            ast::BinaryOp::Elvis => infer_elvis_expr_type(
-                source,
-                lhs,
-                rhs,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            ),
+            ast::BinaryOp::Elvis => infer_elvis_expr_type(inputs, lhs, rhs, lower),
             ast::BinaryOp::Add
             | ast::BinaryOp::Sub
             | ast::BinaryOp::Mul
@@ -492,31 +446,21 @@ pub(super) fn infer_expr_type(
             | ast::BinaryOp::BitOr
             | ast::BinaryOp::Shl
             | ast::BinaryOp::Shr => infer_operator_overload_binary_expr_type(
-                source,
+                inputs,
                 expr,
                 lhs.as_ref(),
                 *op,
                 *op_span,
                 rhs.as_ref(),
                 lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             ),
             _ => infer_builtin_scalar_binary_expr_type(
-                source,
+                inputs,
                 lhs.as_ref(),
                 *op,
                 *op_span,
                 rhs.as_ref(),
                 lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             ),
         },
         ast::ExprKind::Lambda(lam) => {
@@ -790,6 +734,7 @@ fn infer_block_value_type(
     let mut block_locals = locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
+    let member_mutabilities: HashMap<String, bool> = HashMap::new();
 
     let mut tail_expr_ty: Option<TypeId> = None;
     for (idx, stmt) in block.stmts.iter().enumerate() {
@@ -800,18 +745,20 @@ fn infer_block_value_type(
                 // no-op
             }
             ast::StmtKind::Val(v) => {
-                check_local_val_decl_exprs(
+                let shared = StmtExprShared {
                     source,
-                    v,
-                    lower,
                     builtins,
-                    &mut block_locals,
-                    &mut stable_bindings,
-                    &mut mutable_bindings,
                     top_level_types,
                     top_level_funs,
+                    member_mutabilities: &member_mutabilities,
                     struct_field_types,
-                )?;
+                };
+                let mut state = StmtExprState {
+                    locals: &mut block_locals,
+                    stable_bindings: &mut stable_bindings,
+                    mutable_bindings: &mut mutable_bindings,
+                };
+                check_local_val_decl_exprs(shared, v, lower, &mut state)?;
             }
             ast::StmtKind::Expr(e) => {
                 let ty = infer_expr_type(

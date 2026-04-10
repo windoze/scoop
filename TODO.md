@@ -1294,7 +1294,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-2c [TODO] Clippy 基线清理：typecheck expr 中等规模路径签名收口
+### T0147c-2c [DONE] Clippy 基线清理：typecheck expr 中等规模路径签名收口
 
 - 描述：`typecheck/expr` 内部告警数量最多，需要分批处理。此子任务先覆盖 member / ops / stmt 三个中等规模模块，减少交叉调用时的参数扩散。
 - 目标：
@@ -1305,12 +1305,24 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-2b
+- 完成说明：
+  - **共享表达式输入收口**：在 `typecheck/expr/mod.rs` 新增 `ExprInferInputs`，统一承载 `source` / builtin types / locals / 顶层类型表 / 顶层函数表 / struct field table；`member.rs` 与 `ops.rs` 中所有目标 helper 改为消费该上下文，不再沿调用链重复传整组只读输入。
+  - **`member.rs`**：`infer_safe_member_access_expr_type`、`infer_elvis_expr_type`、`infer_not_null_assert_expr_type`、`infer_splice_field_expr_type`、`infer_member_access_expr_type` 全部改为消费 `ExprInferInputs` + 语法节点参数；safe access / Elvis / splice field / extension property getter 的语义保持不变。
+  - **`ops.rs`**：新增 `NominalReceiverRef` 收口 member operator lookup 的 receiver 三元组（`ty/fqn/args`）；`infer_unary_expr_type`、`infer_operator_overload_binary_expr_type`、`infer_builtin_scalar_binary_expr_type` 全部切到 `ExprInferInputs`，operator overload / compareTo / effect 记录路径保持不变。
+  - **`stmt.rs`**：新增 `StmtExprShared`、`StmtExprState`、`StmtExprFlow`、`FunBodyCheckInputs`，把“只读环境 / 局部绑定表 / 控制流态”拆开；`check_lambda_expr_stmt_body`、`check_fun_body_exprs`、`check_block_exprs`、`check_stmt_exprs`、`check_local_val_decl_exprs`、`check_expr_stmt`、`check_if_expr_stmt`、`check_assign_expr_stmt` 全部改为消费局部上下文对象。`entry.rs` / `infer.rs` 调用点同步切换。
+  - **clippy 复核**：`typecheck/expr/member.rs`、`typecheck/expr/ops.rs`、`typecheck/expr/stmt.rs` 中本子任务负责的 17 个 `too_many_arguments` 告警全部清零；剩余 `too_many_arguments` 总数从 **53** 降到 **36**，当前集中在 `typecheck/expr/call.rs`（12）、`typecheck/expr/entry.rs`（9）、`typecheck/expr/infer.rs`（15），对应后续 `T0147c-2d`。严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被这些剩余长参数与既有 `result_large_err` / `private_interfaces` / `dead_code` 等后续任务阻塞。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo check -p scoopc` 通过
+    - `cargo clippy -p scoopc --all-targets --message-format short -- -W clippy::too_many_arguments` 复核通过（目标三个文件无 `too_many_arguments`）
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
 ### T0147c-2d [TODO] Clippy 基线清理：typecheck expr 主干签名收口
 
 - 描述：最后清理 `typecheck/expr` 主干大模块，覆盖 `call` / `entry` / `infer` 中剩余 36 个 `too_many_arguments`，并关闭该类 clippy 告警。
 - 目标：
-  - 清理 `typecheck/expr/call.rs`（11）、`typecheck/expr/entry.rs`（9）、`typecheck/expr/infer.rs`（16）中的全部 `too_many_arguments`。
+  - 清理 `typecheck/expr/call.rs`（12）、`typecheck/expr/entry.rs`（9）、`typecheck/expr/infer.rs`（15）中的全部 `too_many_arguments`。
   - 完成后，workspace 严格 clippy 输出中不再出现任何 `too_many_arguments`。
 - 验收：
   - `cargo clippy --workspace --all-targets -- -D warnings` 不再出现 `too_many_arguments`。

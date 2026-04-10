@@ -1,40 +1,21 @@
-use std::collections::HashMap;
-
 use crate::ast;
-use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
-use super::infer::infer_expr_type;
-
-use super::{ExprTypeError, FunSigOwned};
+use super::{ExprInferInputs, ExprTypeError};
 
 use super::super::assignable::is_type_assignable;
 use super::super::lower::TypeLowering;
 
 pub(super) fn infer_safe_member_access_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     receiver: &ast::Expr,
     member: &ast::MemberIdent,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // 先递归类型检查 receiver：保证其中的表达式也会被覆盖。
-    let receiver_ty = infer_expr_type(
-        source,
-        receiver,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let receiver_ty = inputs.infer(lower, receiver)?;
 
     let inner_ty = match lower.type_kind(receiver_ty) {
         TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
@@ -51,13 +32,14 @@ pub(super) fn infer_safe_member_access_expr_type(
     // - extension property / method 的语义留给后续任务；safe-call 的“调用”形式在 `Call(SafeMemberAccess)`
     //   分支中处理。
     let field_ty = match member.resolved.as_ref() {
-        Some(ast::ResolvedMemberRef::Value { fqn }) => struct_field_types
-            .get(fqn)
-            .copied()
-            .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
-                fqn: fqn.clone(),
-                span: member.span.into(),
-            })?,
+        Some(ast::ResolvedMemberRef::Value { fqn }) => {
+            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
+                ExprTypeError::UnsupportedMemberAccess {
+                    fqn: fqn.clone(),
+                    span: member.span.into(),
+                }
+            })?
+        }
         Some(ast::ResolvedMemberRef::Fun { fqn })
         | Some(ast::ResolvedMemberRef::ExtensionValue { fqn })
         | Some(ast::ResolvedMemberRef::ExtensionFun { fqn }) => {
@@ -69,16 +51,18 @@ pub(super) fn infer_safe_member_access_expr_type(
         None => {
             // resolver 无法静态确定 receiver 类型（例如 receiver 为 `T?`）时不会写回 resolved；
             // 这里用“已推导出的 inner_ty”尝试补上最小字段查找。
-            let name = source.slice(member.span);
+            let name = inputs.source.slice(member.span);
             match lower.type_kind(inner_ty) {
                 TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                     let fqn = format!("{}.{}", nominal.fqn, name);
-                    struct_field_types.get(&fqn).copied().ok_or_else(|| {
-                        ExprTypeError::UnsupportedMemberAccess {
+                    inputs
+                        .struct_field_types
+                        .get(&fqn)
+                        .copied()
+                        .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
                             fqn,
                             span: member.span.into(),
-                        }
-                    })?
+                        })?
                 }
                 other => {
                     return Err(ExprTypeError::UnsupportedExpr {
@@ -98,26 +82,12 @@ pub(super) fn infer_safe_member_access_expr_type(
 }
 
 pub(super) fn infer_elvis_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     lhs: &ast::Expr,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let lhs_ty = infer_expr_type(
-        source,
-        lhs,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let lhs_ty = inputs.infer(lower, lhs)?;
 
     let inner_ty = match lower.type_kind(lhs_ty) {
         TypeKind::Value(ValueTypeKind::Option(inner)) => inner,
@@ -129,18 +99,9 @@ pub(super) fn infer_elvis_expr_type(
         }
     };
 
-    let rhs_ty = infer_expr_type(
-        source,
-        rhs,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let rhs_ty = inputs.infer(lower, rhs)?;
 
-    if !is_type_assignable(rhs_ty, inner_ty, lower, builtins) {
+    if !is_type_assignable(rhs_ty, inner_ty, lower, inputs.builtins) {
         return Err(ExprTypeError::ElvisRhsTypeMismatch {
             expected: lower.fmt_type(inner_ty),
             found: lower.fmt_type(rhs_ty),
@@ -152,31 +113,17 @@ pub(super) fn infer_elvis_expr_type(
 }
 
 pub(super) fn infer_not_null_assert_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     expr: &ast::Expr,
     op_span: Span,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // T0421a：最小规则：
     // - `x!!` 的操作数必须是 nullable（`T?` / `Option<T>`）
     // - 结果类型为去掉 nullable 后的 inner type：`Option<T>` → `T`
     //
     // T0421b：`x!!` 的失败语义要求 `Raise<RuntimeError>`（静态 required effects）。
-    let ty = infer_expr_type(
-        source,
-        expr,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let ty = inputs.infer(lower, expr)?;
 
     match lower.type_kind(ty) {
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
@@ -201,15 +148,10 @@ pub(super) fn infer_not_null_assert_expr_type(
 }
 
 pub(super) fn infer_splice_field_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     receiver: &ast::Expr,
     field: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // splice 字段访问：`receiver.[field]`（spec §6.4）
     //
@@ -217,32 +159,14 @@ pub(super) fn infer_splice_field_expr_type(
     // - 当 `field` 为字符串字面量时：等价于普通成员访问 `receiver.<name>` 并返回该字段类型；
     // - 其它情况（例如未来的 FieldMeta / comptime for binder）：当前阶段先保守退化为 `Any`，
     //   留给后续 comptime 展开/元数据补齐后再做更精确的约束与推导。
-    let receiver_ty = infer_expr_type(
-        source,
-        receiver,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let receiver_ty = inputs.infer(lower, receiver)?;
 
     // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
-    let _ = infer_expr_type(
-        source,
-        field,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let _ = inputs.infer(lower, field)?;
 
     let field_name: Option<String> = match &field.kind {
         ast::ExprKind::StringLit => {
-            let raw = source.slice(field.span);
+            let raw = inputs.source.slice(field.span);
             match parse_string_literal_utf8(raw) {
                 Ok(s) => Some(s),
                 Err(StringLiteralParseError::Invalid)
@@ -259,13 +183,13 @@ pub(super) fn infer_splice_field_expr_type(
     };
 
     let Some(field_name) = field_name else {
-        return Ok(builtins.any);
+        return Ok(inputs.builtins.any);
     };
 
     let receiver_fqn = match lower.type_kind(receiver_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(n)) => n.fqn.clone(),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => n.fqn.clone(),
-        TypeKind::Param(_) => return Ok(builtins.any),
+        TypeKind::Param(_) => return Ok(inputs.builtins.any),
         _ => {
             return Err(ExprTypeError::UnsupportedExpr {
                 kind: "splice field access（receiver 必须为名义类型）",
@@ -278,27 +202,24 @@ pub(super) fn infer_splice_field_expr_type(
 
     // sysroot 跨文件特判：Pinned.value（与 infer_member_access_expr_type 保持一致）。
     if field_fqn == "scoop.core.Pinned.value" {
-        return Ok(builtins.any);
+        return Ok(inputs.builtins.any);
     }
 
-    struct_field_types.get(&field_fqn).copied().ok_or_else(|| {
-        ExprTypeError::UnsupportedMemberAccess {
+    inputs
+        .struct_field_types
+        .get(&field_fqn)
+        .copied()
+        .ok_or_else(|| ExprTypeError::UnsupportedMemberAccess {
             fqn: field_fqn,
             span: field.span.into(),
-        }
-    })
+        })
 }
 
 pub(super) fn infer_member_access_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     receiver: &ast::Expr,
     member: &ast::MemberIdent,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
     // enum unit variant 值：`EnumName.Variant`（例如 `RuntimeError.NullAssertionFailed`）。
     //
@@ -332,16 +253,7 @@ pub(super) fn infer_member_access_expr_type(
     let receiver_ty = if receiver_is_type_name {
         None
     } else {
-        Some(infer_expr_type(
-            source,
-            receiver,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?)
+        Some(inputs.infer(lower, receiver)?)
     };
 
     match member.resolved.as_ref() {
@@ -366,7 +278,7 @@ pub(super) fn infer_member_access_expr_type(
                 });
             };
 
-            let member_name = source.slice(member.span);
+            let member_name = inputs.source.slice(member.span);
             let Some(idx) = parse_tuple_member_index(member_name) else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
@@ -407,7 +319,7 @@ pub(super) fn infer_member_access_expr_type(
                     lower.type_kind(receiver_ty)
                     && nominal.fqn == "scoop.core.Platform"
                 {
-                    return Ok(builtins.string);
+                    return Ok(inputs.builtins.string);
                 }
             }
 
@@ -428,7 +340,7 @@ pub(super) fn infer_member_access_expr_type(
                     lower.type_kind(receiver_ty)
                     && nominal.fqn == "scoop.core.Pinned"
                 {
-                    return Ok(builtins.any);
+                    return Ok(inputs.builtins.any);
                 }
             }
 
@@ -457,7 +369,7 @@ pub(super) fn infer_member_access_expr_type(
                 }
             }
 
-            struct_field_types.get(fqn).copied().ok_or_else(|| {
+            inputs.struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
                     span: member.span.into(),
@@ -466,7 +378,7 @@ pub(super) fn infer_member_access_expr_type(
         }
         Some(ast::ResolvedMemberRef::ExtensionValue { fqn }) => {
             // T0112：Extension property getter — look up the getter function's return type.
-            if let Some(sigs) = top_level_funs.get(fqn.as_str())
+            if let Some(sigs) = inputs.top_level_funs.get(fqn.as_str())
                 && let Some(sig) = sigs.first()
             {
                 return Ok(sig.return_ty);

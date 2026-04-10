@@ -28,11 +28,15 @@ pub use entry::{
 };
 pub use error::ExprTypeError;
 
+use std::collections::HashMap;
+
 use crate::ast;
+use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{EffectRow, TypeId};
+use crate::ty::{BuiltinTypes, EffectRow, TypeId};
 
 use super::eff_row_subst::EffRowVarSubstPlan;
+use super::lower::TypeLowering;
 
 pub(super) use call::lower_type_ref_with_enum_subst;
 
@@ -191,4 +195,54 @@ struct FunSigOwned {
     ///
     /// 在调用点泛型实参推断完成后，遍历该列表验证具体 type arg 满足每条约束。
     where_constraints: Vec<FunWhereConstraintInfo>,
+}
+
+#[derive(Clone, Copy)]
+struct ExprInferInputs<'a> {
+    source: &'a SourceFile,
+    builtins: BuiltinTypes,
+    locals: &'a HashMap<Span, TypeId>,
+    top_level_types: &'a HashMap<String, TypeId>,
+    top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
+    struct_field_types: &'a HashMap<String, TypeId>,
+}
+
+impl<'a> ExprInferInputs<'a> {
+    fn infer(
+        self,
+        lower: &mut TypeLowering<'_>,
+        expr: &ast::Expr,
+    ) -> Result<TypeId, ExprTypeError> {
+        infer::infer_expr_type(
+            self.source,
+            expr,
+            lower,
+            self.builtins,
+            self.locals,
+            self.top_level_types,
+            self.top_level_funs,
+            self.struct_field_types,
+        )
+    }
+
+    fn infer_in_expected(
+        self,
+        lower: &mut TypeLowering<'_>,
+        expr: &ast::Expr,
+        expected_ty: TypeId,
+        expected_from: infer::ExpectedTypeFrom,
+    ) -> Result<TypeId, ExprTypeError> {
+        infer::infer_expr_type_in_expected_context(
+            self.source,
+            expr,
+            expected_ty,
+            expected_from,
+            lower,
+            self.builtins,
+            self.locals,
+            self.top_level_types,
+            self.top_level_funs,
+            self.struct_field_types,
+        )
+    }
 }

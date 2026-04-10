@@ -15,8 +15,8 @@ use super::collect::{
 use super::infer::{ExpectedTypeFrom, infer_expr_type, infer_expr_type_in_expected_context};
 use super::ops::is_integer_type;
 use super::stmt::{
-    check_block_exprs, check_expr_stmt, check_fun_body_exprs, check_required_effects_for_fun_decl,
-    check_stmt_exprs,
+    FunBodyCheckInputs, StmtExprFlow, StmtExprShared, StmtExprState, check_block_exprs,
+    check_expr_stmt, check_fun_body_exprs, check_required_effects_for_fun_decl, check_stmt_exprs,
 };
 use super::util::{expr_kind_name, join_overload_signatures, package_prefix};
 
@@ -178,16 +178,18 @@ fn check_file_exprs_impl(
                 };
 
                 check_fun_body_exprs(
-                    source,
                     &fun_fqn,
                     fun,
                     program_boundary,
                     &mut lower,
-                    builtins,
-                    &top_level_types,
-                    &mut top_level_funs,
-                    &member_mutabilities,
-                    &struct_field_types,
+                    FunBodyCheckInputs {
+                        source,
+                        builtins,
+                        top_level_types: &top_level_types,
+                        top_level_funs: &mut top_level_funs,
+                        member_mutabilities: &member_mutabilities,
+                        struct_field_types: &struct_field_types,
+                    },
                 )?;
             }
             ast::Item::Type(ty) => check_class_member_fun_bodies_in_type_decl(
@@ -286,20 +288,28 @@ pub(super) fn try_infer_fun_return_ty_from_block(
             }
             ast::StmtKind::Expr(e) => {
                 // 先执行现有的“语句层递归”检查（smart cast / lambda return 门禁等）。
-                check_expr_stmt(
+                let shared = StmtExprShared {
                     source,
-                    e,
-                    lower,
                     builtins,
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
-                    loop_depth,
-                    Some(builtins.unit),
                     top_level_types,
                     top_level_funs,
                     member_mutabilities,
                     struct_field_types,
+                };
+                let mut state = StmtExprState {
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                };
+                check_expr_stmt(
+                    shared,
+                    e,
+                    lower,
+                    &mut state,
+                    StmtExprFlow {
+                        loop_depth,
+                        expected_return_ty: Some(builtins.unit),
+                    },
                 )?;
 
                 if is_last {
@@ -324,20 +334,28 @@ pub(super) fn try_infer_fun_return_ty_from_block(
             }
             _ => {
                 // 其它语句：复用现有逻辑以便正确更新 locals/stable/mutable，并递归覆盖子结构。
-                check_stmt_exprs(
+                let shared = StmtExprShared {
                     source,
-                    stmt,
-                    lower,
                     builtins,
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
-                    loop_depth,
-                    Some(builtins.unit),
                     top_level_types,
                     top_level_funs,
                     member_mutabilities,
                     struct_field_types,
+                };
+                let mut state = StmtExprState {
+                    locals,
+                    stable_bindings,
+                    mutable_bindings,
+                };
+                check_stmt_exprs(
+                    shared,
+                    stmt,
+                    lower,
+                    &mut state,
+                    StmtExprFlow {
+                        loop_depth,
+                        expected_return_ty: Some(builtins.unit),
+                    },
                 )?;
             }
         }
@@ -690,21 +708,31 @@ fn check_class_member_fun_body_exprs(
             };
 
             match &fun.body {
-                ast::FunBody::Block(b) => check_block_exprs(
-                    source,
-                    b,
-                    lower,
-                    builtins,
-                    &mut locals,
-                    &mut stable_bindings,
-                    &mut mutable_bindings,
-                    0,
-                    Some(expected_return_ty),
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                )?,
+                ast::FunBody::Block(b) => {
+                    let shared = StmtExprShared {
+                        source,
+                        builtins,
+                        top_level_types,
+                        top_level_funs,
+                        member_mutabilities,
+                        struct_field_types,
+                    };
+                    let mut state = StmtExprState {
+                        locals: &mut locals,
+                        stable_bindings: &mut stable_bindings,
+                        mutable_bindings: &mut mutable_bindings,
+                    };
+                    check_block_exprs(
+                        shared,
+                        b,
+                        lower,
+                        &mut state,
+                        StmtExprFlow {
+                            loop_depth: 0,
+                            expected_return_ty: Some(expected_return_ty),
+                        },
+                    )?
+                }
                 ast::FunBody::Missing => {}
             }
 
@@ -1048,20 +1076,28 @@ fn check_class_init_block_exprs(
         class_init_locals(this_decl_span, this_ty, ctor_params, lower)?;
 
     // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
-    check_block_exprs(
+    let shared = StmtExprShared {
         source,
-        &b.body,
-        lower,
         builtins,
-        &mut locals,
-        &mut stable_bindings,
-        &mut mutable_bindings,
-        0,
-        None,
         top_level_types,
         top_level_funs,
         member_mutabilities,
         struct_field_types,
+    };
+    let mut state = StmtExprState {
+        locals: &mut locals,
+        stable_bindings: &mut stable_bindings,
+        mutable_bindings: &mut mutable_bindings,
+    };
+    check_block_exprs(
+        shared,
+        &b.body,
+        lower,
+        &mut state,
+        StmtExprFlow {
+            loop_depth: 0,
+            expected_return_ty: None,
+        },
     )?;
 
     Ok(())
@@ -1171,20 +1207,28 @@ fn check_class_secondary_ctor_exprs(
     }
 
     // secondary ctor body 不是函数体：不允许 `return`。
-    check_block_exprs(
+    let shared = StmtExprShared {
         source,
-        &ctor.body,
-        lower,
         builtins,
-        &mut locals,
-        &mut stable_bindings,
-        &mut mutable_bindings,
-        0,
-        None,
         top_level_types,
         top_level_funs,
         member_mutabilities,
         struct_field_types,
+    };
+    let mut state = StmtExprState {
+        locals: &mut locals,
+        stable_bindings: &mut stable_bindings,
+        mutable_bindings: &mut mutable_bindings,
+    };
+    check_block_exprs(
+        shared,
+        &ctor.body,
+        lower,
+        &mut state,
+        StmtExprFlow {
+            loop_depth: 0,
+            expected_return_ty: None,
+        },
     )?;
 
     Ok(())

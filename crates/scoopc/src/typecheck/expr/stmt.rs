@@ -10,17 +10,17 @@ use super::call::{
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, infer_effect_op_call_expr_type,
 };
 use super::entry::try_infer_fun_return_ty_from_block;
-use super::infer::{
-    ExpectedTypeFrom, infer_expr_type, infer_expr_type_in_expected_context, infer_handle_expr_type,
-};
+use super::infer::{ExpectedTypeFrom, infer_handle_expr_type};
 use super::member::infer_not_null_assert_expr_type;
 use super::ops::{
-    collect_unique_zero_arg_member_method_sig, is_integer_type,
+    NominalReceiverRef, collect_unique_zero_arg_member_method_sig, is_integer_type,
     record_member_method_effects_as_performed, try_extract_nominal_fqn_and_args,
 };
 use super::util::{fmt_effect_row, visibility_from_modifiers};
 
-use super::{ASYNC_EFFECT_FQN, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN};
+use super::{
+    ASYNC_EFFECT_FQN, ExprInferInputs, ExprTypeError, FunSigOwned, ProgramBoundaryKind, TASK_FQN,
+};
 
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
@@ -32,6 +32,54 @@ struct CallTargetSig<'a> {
     sig: &'a FunSigOwned,
     /// `args[i]` 对应到 `sig.params[i + arg_param_offset]`。
     arg_param_offset: usize,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct StmtExprShared<'a> {
+    pub(super) source: &'a SourceFile,
+    pub(super) builtins: BuiltinTypes,
+    pub(super) top_level_types: &'a HashMap<String, TypeId>,
+    pub(super) top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
+    pub(super) member_mutabilities: &'a HashMap<String, bool>,
+    pub(super) struct_field_types: &'a HashMap<String, TypeId>,
+}
+
+pub(super) struct StmtExprState<'a> {
+    pub(super) locals: &'a mut HashMap<Span, TypeId>,
+    pub(super) stable_bindings: &'a mut HashSet<Span>,
+    pub(super) mutable_bindings: &'a mut HashSet<Span>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) struct StmtExprFlow {
+    pub(super) loop_depth: usize,
+    pub(super) expected_return_ty: Option<TypeId>,
+}
+
+pub(super) struct FunBodyCheckInputs<'a> {
+    pub(super) source: &'a SourceFile,
+    pub(super) builtins: BuiltinTypes,
+    pub(super) top_level_types: &'a HashMap<String, TypeId>,
+    pub(super) top_level_funs: &'a mut HashMap<String, Vec<FunSigOwned>>,
+    pub(super) member_mutabilities: &'a HashMap<String, bool>,
+    pub(super) struct_field_types: &'a HashMap<String, TypeId>,
+}
+
+fn expr_infer_inputs<'a, 'b>(
+    shared: StmtExprShared<'a>,
+    locals: &'b HashMap<Span, TypeId>,
+) -> ExprInferInputs<'b>
+where
+    'a: 'b,
+{
+    ExprInferInputs {
+        source: shared.source,
+        builtins: shared.builtins,
+        locals,
+        top_level_types: shared.top_level_types,
+        top_level_funs: shared.top_level_funs,
+        struct_field_types: shared.struct_field_types,
+    }
 }
 
 fn is_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
@@ -100,28 +148,21 @@ fn resolve_call_target_for_expr_stmt<'a>(
 }
 
 fn check_lambda_expr_stmt_body(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     lam: &ast::LambdaExpr,
     allow_non_local_return: bool,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    stable_bindings: &HashSet<Span>,
-    mutable_bindings: &HashSet<Span>,
-    expected_return_ty: Option<TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // 说明：当前阶段 lambda 仍未完整 typecheck；这里仅复用现有的“语句层递归”逻辑来：
     // - 捕获非法 `return`（non-local return 门禁，T0444）
     // - 避免 lambda 内的局部声明污染外层作用域（clone 快照）
-    let mut lambda_locals = locals.clone();
-    let mut lambda_stable = stable_bindings.clone();
-    let mut lambda_mutable = mutable_bindings.clone();
+    let mut lambda_locals = state.locals.clone();
+    let mut lambda_stable = state.stable_bindings.clone();
+    let mut lambda_mutable = state.mutable_bindings.clone();
     let nested_expected_return_ty = if allow_non_local_return {
-        expected_return_ty
+        flow.expected_return_ty
     } else {
         None
     };
@@ -130,20 +171,20 @@ fn check_lambda_expr_stmt_body(
     lower.with_effect_collection_suspended(|lower| {
         // `@NoGC`：lambda body 并不在外层函数执行时立即运行，不能把 `@NoGC` 的限制“向内传播”。
         lower.with_nogc_context_suspended(|lower| {
+            let mut lambda_state = StmtExprState {
+                locals: &mut lambda_locals,
+                stable_bindings: &mut lambda_stable,
+                mutable_bindings: &mut lambda_mutable,
+            };
             check_expr_stmt(
-                source,
+                shared,
                 lam.body.as_ref(),
                 lower,
-                builtins,
-                &mut lambda_locals,
-                &mut lambda_stable,
-                &mut lambda_mutable,
-                0,
-                nested_expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
+                &mut lambda_state,
+                StmtExprFlow {
+                    loop_depth: 0,
+                    expected_return_ty: nested_expected_return_ty,
+                },
             )
         })
     })
@@ -269,17 +310,21 @@ pub(super) fn check_required_effects_for_fun_decl(
 }
 
 pub(super) fn check_fun_body_exprs(
-    source: &SourceFile,
     fun_fqn: &str,
     fun: &ast::FunDecl,
     program_boundary: ProgramBoundaryKind,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &mut HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    inputs: FunBodyCheckInputs<'_>,
 ) -> Result<(), ExprTypeError> {
+    let FunBodyCheckInputs {
+        source,
+        builtins,
+        top_level_types,
+        top_level_funs,
+        member_mutabilities,
+        struct_field_types,
+    } = inputs;
+
     lower.push_type_params(&fun.type_params);
 
     // T0130：把函数声明处的 where 约束推入 bound 作用域，
@@ -372,20 +417,22 @@ pub(super) fn check_fun_body_exprs(
                 // T1305：默认参数的默认值表达式需要在声明处通过类型检查（按形参类型做可赋值检查）。
                 if let Some(default_value) = &p.default_value {
                     let param_name = p.name.text(source).to_string();
-                    let found_ty = infer_expr_type_in_expected_context(
+                    let shared = StmtExprShared {
                         source,
+                        builtins,
+                        top_level_types,
+                        top_level_funs: &*top_level_funs,
+                        member_mutabilities,
+                        struct_field_types,
+                    };
+                    let found_ty = expr_infer_inputs(shared, &locals).infer_in_expected(
+                        lower,
                         default_value,
                         ty,
                         ExpectedTypeFrom::new(format!(
                             "`{}` 的形参 `{}` 的默认值",
                             fun_fqn, param_name
                         )),
-                        lower,
-                        builtins,
-                        &locals,
-                        top_level_types,
-                        &*top_level_funs,
-                        struct_field_types,
                     )?;
 
                     if is_type_assignable(found_ty, ty, lower, builtins)
@@ -449,21 +496,31 @@ pub(super) fn check_fun_body_exprs(
             };
 
             match &fun.body {
-                ast::FunBody::Block(b) => check_block_exprs(
-                    source,
-                    b,
-                    lower,
-                    builtins,
-                    &mut locals,
-                    &mut stable_bindings,
-                    &mut mutable_bindings,
-                    0,
-                    Some(expected_return_ty),
-                    top_level_types,
-                    &*top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                )?,
+                ast::FunBody::Block(b) => {
+                    let shared = StmtExprShared {
+                        source,
+                        builtins,
+                        top_level_types,
+                        top_level_funs: &*top_level_funs,
+                        member_mutabilities,
+                        struct_field_types,
+                    };
+                    let mut state = StmtExprState {
+                        locals: &mut locals,
+                        stable_bindings: &mut stable_bindings,
+                        mutable_bindings: &mut mutable_bindings,
+                    };
+                    check_block_exprs(
+                        shared,
+                        b,
+                        lower,
+                        &mut state,
+                        StmtExprFlow {
+                            loop_depth: 0,
+                            expected_return_ty: Some(expected_return_ty),
+                        },
+                    )?
+                }
                 ast::FunBody::Missing => {}
             }
 
@@ -530,96 +587,41 @@ pub(super) fn check_fun_body_exprs(
 }
 
 pub(super) fn check_block_exprs(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     block: &ast::Block,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &mut HashMap<Span, TypeId>,
-    stable_bindings: &mut HashSet<Span>,
-    mutable_bindings: &mut HashSet<Span>,
-    loop_depth: usize,
-    expected_return_ty: Option<TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // 与 resolver 的作用域规则对齐：block 内声明仅在该 block 内可见。
     // 这里用“进入时快照 + 退出时回滚”的方式实现最小作用域，不引入额外的数据结构。
-    let saved_locals = locals.clone();
-    let saved_stable = stable_bindings.clone();
-    let saved_mutable = mutable_bindings.clone();
+    let saved_locals = state.locals.clone();
+    let saved_stable = state.stable_bindings.clone();
+    let saved_mutable = state.mutable_bindings.clone();
 
     for stmt in &block.stmts {
-        check_stmt_exprs(
-            source,
-            stmt,
-            lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            loop_depth,
-            expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )?;
+        check_stmt_exprs(shared, stmt, lower, state, flow)?;
     }
 
-    *locals = saved_locals;
-    *stable_bindings = saved_stable;
-    *mutable_bindings = saved_mutable;
+    *state.locals = saved_locals;
+    *state.stable_bindings = saved_stable;
+    *state.mutable_bindings = saved_mutable;
 
     Ok(())
 }
 
 pub(super) fn check_stmt_exprs(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     stmt: &ast::Stmt,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &mut HashMap<Span, TypeId>,
-    stable_bindings: &mut HashSet<Span>,
-    mutable_bindings: &mut HashSet<Span>,
-    loop_depth: usize,
-    expected_return_ty: Option<TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     match &stmt.kind {
-        ast::StmtKind::Val(v) => check_local_val_decl_exprs(
-            source,
-            v,
-            lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?,
-        ast::StmtKind::Expr(e) => check_expr_stmt(
-            source,
-            e,
-            lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            loop_depth,
-            expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )?,
+        ast::StmtKind::Val(v) => check_local_val_decl_exprs(shared, v, lower, state)?,
+        ast::StmtKind::Expr(e) => check_expr_stmt(shared, e, lower, state, flow)?,
         ast::StmtKind::Return { return_span, value } => {
-            let Some(expected) = expected_return_ty else {
+            let Some(expected) = flow.expected_return_ty else {
                 return Err(ExprTypeError::ReturnNotInFunctionBody {
                     span: (*return_span).into(),
                 });
@@ -627,31 +629,31 @@ pub(super) fn check_stmt_exprs(
 
             match value {
                 Some(v) => {
-                    let found = infer_expr_type_in_expected_context(
-                        source,
+                    let found = expr_infer_inputs(shared, state.locals).infer_in_expected(
+                        lower,
                         v,
                         expected,
                         ExpectedTypeFrom::new("函数返回类型"),
-                        lower,
-                        builtins,
-                        locals,
-                        top_level_types,
-                        top_level_funs,
-                        struct_field_types,
                     )?;
-                    if !is_type_assignable(found, expected, lower, builtins) {
+                    if !is_type_assignable(found, expected, lower, shared.builtins) {
                         return Err(ExprTypeError::ReturnTypeMismatch {
                             expected: lower.fmt_type(expected),
                             found: lower.fmt_type(found),
                             span: v.span.into(),
                         });
                     }
-                    check_fn_value_to_any_erasure_gate(found, expected, v.span, lower, builtins)?;
-                    check_nogc_boxing_gate(found, expected, v.span, lower, builtins)?;
+                    check_fn_value_to_any_erasure_gate(
+                        found,
+                        expected,
+                        v.span,
+                        lower,
+                        shared.builtins,
+                    )?;
+                    check_nogc_boxing_gate(found, expected, v.span, lower, shared.builtins)?;
                 }
                 None => {
                     // `return` 不带返回值：等价于返回 `Unit`。
-                    if expected != builtins.unit {
+                    if expected != shared.builtins.unit {
                         return Err(ExprTypeError::ReturnValueRequired {
                             expected: lower.fmt_type(expected),
                             span: (*return_span).into(),
@@ -661,18 +663,9 @@ pub(super) fn check_stmt_exprs(
             }
         }
         ast::StmtKind::While { cond, body, .. } => {
-            let cond_ty = infer_expr_type(
-                source,
-                cond,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let cond_ty = expr_infer_inputs(shared, state.locals).infer(lower, cond)?;
 
-            if !is_type_assignable(cond_ty, builtins.bool_, lower, builtins) {
+            if !is_type_assignable(cond_ty, shared.builtins.bool_, lower, shared.builtins) {
                 return Err(ExprTypeError::WhileConditionNotBool {
                     found: lower.fmt_type(cond_ty),
                     span: cond.span.into(),
@@ -680,30 +673,25 @@ pub(super) fn check_stmt_exprs(
             }
 
             check_block_exprs(
-                source,
+                shared,
                 body,
                 lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth + 1,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
+                state,
+                StmtExprFlow {
+                    loop_depth: flow.loop_depth + 1,
+                    expected_return_ty: flow.expected_return_ty,
+                },
             )?;
         }
         ast::StmtKind::Break { break_span } => {
-            if loop_depth == 0 {
+            if flow.loop_depth == 0 {
                 return Err(ExprTypeError::BreakNotInLoop {
                     span: (*break_span).into(),
                 });
             }
         }
         ast::StmtKind::Continue { continue_span } => {
-            if loop_depth == 0 {
+            if flow.loop_depth == 0 {
                 return Err(ExprTypeError::ContinueNotInLoop {
                     span: (*continue_span).into(),
                 });
@@ -715,16 +703,7 @@ pub(super) fn check_stmt_exprs(
             // - `Iter.next(): Option<Elem>`
             //
             // 当前阶段仅做“协议存在性 + 元素类型推导 + 作用域规则 + effects 计入”。
-            let iter_ty = infer_expr_type(
-                source,
-                &f.iter,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let iter_ty = expr_infer_inputs(shared, state.locals).infer(lower, &f.iter)?;
 
             let Some((iter_fqn, iter_args)) = try_extract_nominal_fqn_and_args(iter_ty, lower)
             else {
@@ -744,24 +723,26 @@ pub(super) fn check_stmt_exprs(
                     kind: ForLoopIterableKind::ArrayInt,
                 });
                 // Array<T> — 要素型は最初の型引数
-                iter_args.first().copied().unwrap_or(builtins.any)
+                iter_args.first().copied().unwrap_or(shared.builtins.any)
             } else if iter_fqn == "scoop.core.IntProgression" {
                 let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
                     kind: ForLoopIterableKind::IntProgression,
                 });
                 // IntProgression — 要素型は常に Int
-                builtins.int
+                shared.builtins.int
             } else {
                 // Generic iterator protocol: xs.iterator().next(): Option<Elem>
                 let Some(iterator_sig) = collect_unique_zero_arg_member_method_sig(
-                    source,
-                    iter_ty,
-                    &iter_fqn,
-                    &iter_args,
+                    shared.source,
+                    NominalReceiverRef {
+                        ty: iter_ty,
+                        fqn: &iter_fqn,
+                        args: &iter_args,
+                    },
                     "iterator",
                     f.iter.span,
                     lower,
-                    builtins,
+                    shared.builtins,
                 )?
                 else {
                     return Err(ExprTypeError::ForMissingIteratorMethod {
@@ -789,14 +770,16 @@ pub(super) fn check_stmt_exprs(
                 };
 
                 let Some(next_sig) = collect_unique_zero_arg_member_method_sig(
-                    source,
-                    iterator_ty,
-                    &iterator_fqn,
-                    &iterator_args,
+                    shared.source,
+                    NominalReceiverRef {
+                        ty: iterator_ty,
+                        fqn: &iterator_fqn,
+                        args: &iterator_args,
+                    },
                     "next",
                     f.iter.span,
                     lower,
-                    builtins,
+                    shared.builtins,
                 )?
                 else {
                     return Err(ExprTypeError::ForMissingNextMethod {
@@ -829,120 +812,47 @@ pub(super) fn check_stmt_exprs(
             };
 
             // binder 仅在 body 作用域内可见：进入时注入，退出时回滚。
-            let saved_locals = locals.clone();
-            let saved_stable = stable_bindings.clone();
-            let saved_mutable = mutable_bindings.clone();
+            let saved_locals = state.locals.clone();
+            let saved_stable = state.stable_bindings.clone();
+            let saved_mutable = state.mutable_bindings.clone();
 
-            locals.insert(f.binder.span, elem_ty);
-            stable_bindings.insert(f.binder.span);
+            state.locals.insert(f.binder.span, elem_ty);
+            state.stable_bindings.insert(f.binder.span);
 
             check_block_exprs(
-                source,
+                shared,
                 &f.body,
                 lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth + 1,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
+                state,
+                StmtExprFlow {
+                    loop_depth: flow.loop_depth + 1,
+                    expected_return_ty: flow.expected_return_ty,
+                },
             )?;
 
-            *locals = saved_locals;
-            *stable_bindings = saved_stable;
-            *mutable_bindings = saved_mutable;
+            *state.locals = saved_locals;
+            *state.stable_bindings = saved_stable;
+            *state.mutable_bindings = saved_mutable;
         }
         ast::StmtKind::ComptimeBlock { body, .. } => {
-            check_block_exprs(
-                source,
-                body,
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )?;
+            check_block_exprs(shared, body, lower, state, flow)?;
         }
         ast::StmtKind::ComptimeIf(ci) => {
-            check_block_exprs(
-                source,
-                &ci.then_branch,
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )?;
+            check_block_exprs(shared, &ci.then_branch, lower, state, flow)?;
             if let Some(else_branch) = &ci.else_branch {
                 match &**else_branch {
-                    ast::ComptimeIfElse::Block(b) => check_block_exprs(
-                        source,
-                        b,
-                        lower,
-                        builtins,
-                        locals,
-                        stable_bindings,
-                        mutable_bindings,
-                        loop_depth,
-                        expected_return_ty,
-                        top_level_types,
-                        top_level_funs,
-                        member_mutabilities,
-                        struct_field_types,
-                    )?,
+                    ast::ComptimeIfElse::Block(b) => {
+                        check_block_exprs(shared, b, lower, state, flow)?
+                    }
                     ast::ComptimeIfElse::If(next) => {
                         // 递归跟进 else-if 链。
                         let mut cur: &ast::ComptimeIf = next;
                         loop {
-                            check_block_exprs(
-                                source,
-                                &cur.then_branch,
-                                lower,
-                                builtins,
-                                locals,
-                                stable_bindings,
-                                mutable_bindings,
-                                loop_depth,
-                                expected_return_ty,
-                                top_level_types,
-                                top_level_funs,
-                                member_mutabilities,
-                                struct_field_types,
-                            )?;
+                            check_block_exprs(shared, &cur.then_branch, lower, state, flow)?;
                             match &cur.else_branch {
                                 Some(e) => match &**e {
                                     ast::ComptimeIfElse::Block(b) => {
-                                        check_block_exprs(
-                                            source,
-                                            b,
-                                            lower,
-                                            builtins,
-                                            locals,
-                                            stable_bindings,
-                                            mutable_bindings,
-                                            loop_depth,
-                                            expected_return_ty,
-                                            top_level_types,
-                                            top_level_funs,
-                                            member_mutabilities,
-                                            struct_field_types,
-                                        )?;
+                                        check_block_exprs(shared, b, lower, state, flow)?;
                                         break;
                                     }
                                     ast::ComptimeIfElse::If(next) => cur = next,
@@ -956,19 +866,14 @@ pub(super) fn check_stmt_exprs(
         }
         ast::StmtKind::ComptimeFor(cf) => {
             check_block_exprs(
-                source,
+                shared,
                 &cf.body,
                 lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth + 1,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
+                state,
+                StmtExprFlow {
+                    loop_depth: flow.loop_depth + 1,
+                    expected_return_ty: flow.expected_return_ty,
+                },
             )?;
         }
         ast::StmtKind::Empty | ast::StmtKind::Missing => {}
@@ -978,63 +883,43 @@ pub(super) fn check_stmt_exprs(
 }
 
 pub(super) fn check_local_val_decl_exprs(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     v: &ast::ValDecl,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &mut HashMap<Span, TypeId>,
-    stable_bindings: &mut HashSet<Span>,
-    mutable_bindings: &mut HashSet<Span>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &mut StmtExprState<'_>,
 ) -> Result<(), ExprTypeError> {
     let declared_ty = match &v.ty {
         Some(ty_ref) => Some(lower.lower_type_ref(ty_ref)?),
         None => None,
     };
     let expected_from = match &v.binding {
-        ast::ValBinding::Name(name) => {
-            ExpectedTypeFrom::new(format!("局部绑定 `{}` 的类型注解", source.slice(name.span)))
-        }
+        ast::ValBinding::Name(name) => ExpectedTypeFrom::new(format!(
+            "局部绑定 `{}` 的类型注解",
+            shared.source.slice(name.span)
+        )),
         ast::ValBinding::Pattern(_) => ExpectedTypeFrom::new("局部解构绑定的类型注解"),
     };
 
     // 先类型检查 initializer（语义：局部变量在其声明之后可见，因此 init 内不能引用自身）。
     let init_ty = match &v.init {
         Some(init) => Some(match declared_ty {
-            Some(expected) => infer_expr_type_in_expected_context(
-                source,
+            Some(expected) => expr_infer_inputs(shared, state.locals).infer_in_expected(
+                lower,
                 init,
                 expected,
                 expected_from.clone(),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )?,
-            None => infer_expr_type(
-                source,
-                init,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?,
+            None => expr_infer_inputs(shared, state.locals).infer(lower, init)?,
         }),
         None => None,
     };
 
     if let (Some(expected), Some(found)) = (declared_ty, init_ty) {
         let init = v.init.as_ref().unwrap();
-        if !is_type_assignable(found, expected, lower, builtins) {
+        if !is_type_assignable(found, expected, lower, shared.builtins) {
             // 与顶层 initializer 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
             if matches!(init.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected, lower, builtins)
+                && is_integer_type(expected, lower, shared.builtins)
             {
                 // ok
             } else {
@@ -1046,8 +931,8 @@ pub(super) fn check_local_val_decl_exprs(
                 });
             }
         }
-        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, builtins)?;
-        check_nogc_boxing_gate(found, expected, init.span, lower, builtins)?;
+        check_fn_value_to_any_erasure_gate(found, expected, init.span, lower, shared.builtins)?;
+        check_nogc_boxing_gate(found, expected, init.span, lower, shared.builtins)?;
     }
 
     let inferred = declared_ty.or(init_ty);
@@ -1061,13 +946,13 @@ pub(super) fn check_local_val_decl_exprs(
                     span: name.span.into(),
                 });
             };
-            locals.insert(name.span, ty);
+            state.locals.insert(name.span, ty);
             match v.kind {
                 ast::ValKind::Val => {
-                    stable_bindings.insert(name.span);
+                    state.stable_bindings.insert(name.span);
                 }
                 ast::ValKind::Var => {
-                    mutable_bindings.insert(name.span);
+                    state.mutable_bindings.insert(name.span);
                 }
             }
         }
@@ -1088,20 +973,20 @@ pub(super) fn check_local_val_decl_exprs(
             };
 
             let bindings = val_pat::infer_val_pat_bindings(
-                source,
+                shared.source,
                 pat,
                 init_ty,
                 lower,
-                builtins,
-                struct_field_types,
+                shared.builtins,
+                shared.struct_field_types,
             )?;
 
             // `val` 解构引入的绑定与普通 `val x = ...` 一样：
             // - 在其声明之后可见（resolver 已建立作用域）
             // - 属于稳定绑定，可用于 smart cast（当前阶段仅记录）
             for (decl_span, ty) in bindings {
-                locals.insert(decl_span, ty);
-                stable_bindings.insert(decl_span);
+                state.locals.insert(decl_span, ty);
+                state.stable_bindings.insert(decl_span);
             }
         }
     }
@@ -1110,19 +995,11 @@ pub(super) fn check_local_val_decl_exprs(
 }
 
 pub(super) fn check_expr_stmt(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     expr: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &mut HashMap<Span, TypeId>,
-    stable_bindings: &mut HashSet<Span>,
-    mutable_bindings: &mut HashSet<Span>,
-    loop_depth: usize,
-    expected_return_ty: Option<TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &mut StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // 当前阶段的表达式语句仅用于支持控制流结构内部的“局部 val/var 推导”回归：
     // - `if (...) { val ... } else { ... }`
@@ -1131,146 +1008,74 @@ pub(super) fn check_expr_stmt(
     // 其他表达式语句（例如单独的调用）暂不强制 typecheck，以避免在未实现更多 ExprKind
     // 的阶段引入大量不相关的回归失败。
     match &expr.kind {
-        ast::ExprKind::Block(b) => check_block_exprs(
-            source,
-            b,
-            lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            loop_depth,
-            expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        ),
+        ast::ExprKind::Block(b) => check_block_exprs(shared, b, lower, state, flow),
         ast::ExprKind::UnsafeBlock { body, .. } => {
             lower.push_unsafe_context();
-            let result = check_block_exprs(
-                source,
-                body,
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            );
+            let result = check_block_exprs(shared, body, lower, state, flow);
             lower.pop_unsafe_context();
             result
         }
         ast::ExprKind::SafeBlock { body, .. } => lower.with_unsafe_context_suspended(|lower| {
-            check_block_exprs(
-                source,
-                body,
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )
+            check_block_exprs(shared, body, lower, state, flow)
         }),
         ast::ExprKind::If {
             cond,
             then_branch,
             else_branch,
         } => check_if_expr_stmt(
-            source,
+            shared,
             cond.as_ref(),
             then_branch.as_ref(),
             else_branch.as_deref(),
             lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            loop_depth,
-            expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
+            state,
+            flow,
         ),
         ast::ExprKind::When { subject, arms } => {
             // `when` 表达式作为语句时：
             // - 递归进入分支 body，以覆盖其中的局部绑定/控制流；
             // - T0427：为每个 arm 建立独立的“局部类型表”快照，并注入 pattern binder 的类型。
-            check_expr_stmt(
-                source,
-                subject.as_ref(),
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )?;
+            check_expr_stmt(shared, subject.as_ref(), lower, state, flow)?;
 
-            let subject_ty = infer_expr_type(
-                source,
-                subject.as_ref(),
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )
-            .ok();
+            let subject_ty = expr_infer_inputs(shared, state.locals)
+                .infer(lower, subject.as_ref())
+                .ok();
 
             if let Some(subject_ty) = subject_ty {
                 when_exhaustiveness::check_when_exhaustiveness(
-                    source, expr, subject_ty, arms, lower, builtins,
+                    shared.source,
+                    expr,
+                    subject_ty,
+                    arms,
+                    lower,
+                    shared.builtins,
                 )?;
             }
 
             for arm in arms {
-                let mut arm_locals = locals.clone();
-                let mut arm_stable = stable_bindings.clone();
-                let mut arm_mutable = mutable_bindings.clone();
+                let mut arm_locals = state.locals.clone();
+                let mut arm_stable = state.stable_bindings.clone();
+                let mut arm_mutable = state.mutable_bindings.clone();
 
                 if let Some(subject_ty) = subject_ty {
                     for (decl_span, ty) in when_pat::infer_when_pat_bindings(
-                        source, &arm.pat, subject_ty, lower, builtins,
+                        shared.source,
+                        &arm.pat,
+                        subject_ty,
+                        lower,
+                        shared.builtins,
                     )? {
                         arm_locals.insert(decl_span, ty);
                         arm_stable.insert(decl_span);
                     }
                 }
 
-                check_expr_stmt(
-                    source,
-                    &arm.body,
-                    lower,
-                    builtins,
-                    &mut arm_locals,
-                    &mut arm_stable,
-                    &mut arm_mutable,
-                    loop_depth,
-                    expected_return_ty,
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
-                )?;
+                let mut arm_state = StmtExprState {
+                    locals: &mut arm_locals,
+                    stable_bindings: &mut arm_stable,
+                    mutable_bindings: &mut arm_mutable,
+                };
+                check_expr_stmt(shared, &arm.body, lower, &mut arm_state, flow)?;
             }
             Ok(())
         }
@@ -1283,17 +1088,17 @@ pub(super) fn check_expr_stmt(
             // - 以便捕获 handler arms 内的类型错误
             // - 以便正确记录 required effects（body 内被 handler 捕获的 effects 不应向外传播）
             let _ = infer_handle_expr_type(
-                source,
+                shared.source,
                 expr,
                 body,
                 arms,
                 finally.as_ref(),
                 lower,
-                builtins,
-                &*locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
+                shared.builtins,
+                &*state.locals,
+                shared.top_level_types,
+                shared.top_level_funs,
+                shared.struct_field_types,
             )?;
             Ok(())
         }
@@ -1304,15 +1109,10 @@ pub(super) fn check_expr_stmt(
             // `!!` 的语义属于“立即执行的表达式”（会在运行期做 null assertion），
             // 因此即使它出现在表达式语句位置，也必须参与 typecheck/required-effects 收集（T0421b）。
             let _ = infer_not_null_assert_expr_type(
-                source,
+                expr_infer_inputs(shared, state.locals),
                 inner.as_ref(),
                 *op_span,
                 lower,
-                builtins,
-                &*locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
             )?;
             Ok(())
         }
@@ -1320,16 +1120,7 @@ pub(super) fn check_expr_stmt(
             // T0445：`x as T` 的失败语义会触发 `Raise<RuntimeError>`。
             // 与 `!!` 一样，它属于“立即执行的表达式”，即使出现在表达式语句位置也必须参与
             // required-effects 收集；否则 `/ Pure` 函数体内的 `as` 会被错误放过。
-            match infer_expr_type(
-                source,
-                expr,
-                lower,
-                builtins,
-                &*locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            ) {
+            match expr_infer_inputs(shared, state.locals).infer(lower, expr) {
                 Ok(_) => Ok(()),
                 Err(ExprTypeError::UnsupportedExpr { .. }) => Ok(()),
                 Err(e) => Err(e),
@@ -1339,16 +1130,7 @@ pub(super) fn check_expr_stmt(
             // `@NoGC`：在表达式语句位置也必须强制检查调用点，
             // 否则会被 `call();` 这类“仅为副作用的调用”绕过门禁。
             if lower.in_nogc_context() {
-                let _ = infer_expr_type(
-                    source,
-                    expr,
-                    lower,
-                    builtins,
-                    &*locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let _ = expr_infer_inputs(shared, state.locals).infer(lower, expr)?;
             }
 
             // T0444：`inline` 与 non-local return 的最小语义门禁：
@@ -1357,43 +1139,19 @@ pub(super) fn check_expr_stmt(
             //
             // 注意：当前阶段不做完整的调用类型检查（包括 lambda 类型推导），这里只做结构化递归与门禁，
             // 以便在不引入更多 type inference 复杂度的前提下先把语义边界钉死。
-            let target =
-                resolve_call_target_for_expr_stmt(source, callee.as_ref(), lower, top_level_funs);
-
-            // 递归进入 callee 与 args：保证 `f({ return ... })` 这类结构也能被覆盖。
-            check_expr_stmt(
-                source,
+            let target = resolve_call_target_for_expr_stmt(
+                shared.source,
                 callee.as_ref(),
                 lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                loop_depth,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )?;
+                shared.top_level_funs,
+            );
+
+            // 递归进入 callee 与 args：保证 `f({ return ... })` 这类结构也能被覆盖。
+            check_expr_stmt(shared, callee.as_ref(), lower, state, flow)?;
 
             for (idx, arg) in args.iter().enumerate() {
                 let ast::ExprKind::Lambda(lam) = &arg.kind else {
-                    check_expr_stmt(
-                        source,
-                        arg,
-                        lower,
-                        builtins,
-                        locals,
-                        stable_bindings,
-                        mutable_bindings,
-                        loop_depth,
-                        expected_return_ty,
-                        top_level_types,
-                        top_level_funs,
-                        member_mutabilities,
-                        struct_field_types,
-                    )?;
+                    check_expr_stmt(shared, arg, lower, state, flow)?;
                     continue;
                 };
 
@@ -1409,19 +1167,12 @@ pub(super) fn check_expr_stmt(
                 };
 
                 check_lambda_expr_stmt_body(
-                    source,
+                    shared,
                     lam,
                     allow_non_local_return,
                     lower,
-                    builtins,
-                    locals,
-                    stable_bindings,
-                    mutable_bindings,
-                    expected_return_ty,
-                    top_level_types,
-                    top_level_funs,
-                    member_mutabilities,
-                    struct_field_types,
+                    state,
+                    flow,
                 )?;
             }
 
@@ -1430,17 +1181,17 @@ pub(super) fn check_expr_stmt(
             // 但 effect op call（例如 `Raise.raise(e)`）属于“立即执行的 perform”，必须被记录。
             if let ast::ExprKind::MemberAccess { member, .. } = &callee.kind {
                 let _ = infer_effect_op_call_expr_type(
-                    source,
+                    shared.source,
                     expr,
                     member,
                     args,
                     None,
                     lower,
-                    builtins,
-                    &*locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
+                    shared.builtins,
+                    &*state.locals,
+                    shared.top_level_types,
+                    shared.top_level_funs,
+                    shared.struct_field_types,
                 )?;
             } else if let ast::ExprKind::TypeApply {
                 callee: inner,
@@ -1454,17 +1205,17 @@ pub(super) fn check_expr_stmt(
                     .collect::<Result<Vec<_>, _>>()?;
 
                 let _ = infer_effect_op_call_expr_type(
-                    source,
+                    shared.source,
                     expr,
                     member,
                     args,
                     Some(lowered.as_slice()),
                     lower,
-                    builtins,
-                    &*locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
+                    shared.builtins,
+                    &*state.locals,
+                    shared.top_level_types,
+                    shared.top_level_funs,
+                    shared.struct_field_types,
                 )?;
             }
 
@@ -1474,130 +1225,73 @@ pub(super) fn check_expr_stmt(
             // spec §7.3：默认不允许 lambda non-local return。
             //
             // 例外：当 lambda 作为 inline 函数调用的 lambda 实参时允许（见 `ExprKind::Call` 分支）。
-            check_lambda_expr_stmt_body(
-                source,
-                lam,
-                false,
-                lower,
-                builtins,
-                locals,
-                stable_bindings,
-                mutable_bindings,
-                expected_return_ty,
-                top_level_types,
-                top_level_funs,
-                member_mutabilities,
-                struct_field_types,
-            )
+            check_lambda_expr_stmt_body(shared, lam, false, lower, state, flow)
         }
-        ast::ExprKind::Assign { lhs, rhs, .. } => check_assign_expr_stmt(
-            source,
-            lhs,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            stable_bindings,
-            mutable_bindings,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        ),
+        ast::ExprKind::Assign { lhs, rhs, .. } => {
+            check_assign_expr_stmt(shared, lhs, rhs, lower, state)
+        }
         _ => Ok(()),
     }
 }
 
 fn check_if_expr_stmt(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     cond: &ast::Expr,
     then_branch: &ast::Expr,
     else_branch: Option<&ast::Expr>,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    stable_bindings: &HashSet<Span>,
-    mutable_bindings: &HashSet<Span>,
-    loop_depth: usize,
-    expected_return_ty: Option<TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &StmtExprState<'_>,
+    flow: StmtExprFlow,
 ) -> Result<(), ExprTypeError> {
     // smart cast（T0413）最小子集：仅识别 `if (x is T)` / `if (x !is T)` 形式，
     // 并且只对“稳定绑定”（参数 + `val`）在对应分支内做类型收窄。
-    let smart_cast = detect_smart_cast_for_if_condition(cond, lower, locals, stable_bindings)?;
+    let smart_cast =
+        detect_smart_cast_for_if_condition(cond, lower, state.locals, state.stable_bindings)?;
 
     // then 分支：在 `x is T` 时收窄；在 `x !is T` 时保持原类型。
-    let mut then_locals = locals.clone();
-    let mut then_stable = stable_bindings.clone();
-    let mut then_mutable = mutable_bindings.clone();
+    let mut then_locals = state.locals.clone();
+    let mut then_stable = state.stable_bindings.clone();
+    let mut then_mutable = state.mutable_bindings.clone();
     if let Some(smart_cast) = smart_cast
         && smart_cast.narrow_in_then
     {
         then_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
     }
-    check_expr_stmt(
-        source,
-        then_branch,
-        lower,
-        builtins,
-        &mut then_locals,
-        &mut then_stable,
-        &mut then_mutable,
-        loop_depth,
-        expected_return_ty,
-        top_level_types,
-        top_level_funs,
-        member_mutabilities,
-        struct_field_types,
-    )?;
+    let mut then_state = StmtExprState {
+        locals: &mut then_locals,
+        stable_bindings: &mut then_stable,
+        mutable_bindings: &mut then_mutable,
+    };
+    check_expr_stmt(shared, then_branch, lower, &mut then_state, flow)?;
 
     // else 分支：在 `x !is T` 且存在 else 时收窄；否则保持原类型。
     if let Some(else_branch) = else_branch {
-        let mut else_locals = locals.clone();
-        let mut else_stable = stable_bindings.clone();
-        let mut else_mutable = mutable_bindings.clone();
+        let mut else_locals = state.locals.clone();
+        let mut else_stable = state.stable_bindings.clone();
+        let mut else_mutable = state.mutable_bindings.clone();
         if let Some(smart_cast) = smart_cast
             && !smart_cast.narrow_in_then
         {
             else_locals.insert(smart_cast.decl_span, smart_cast.target_ty);
         }
 
-        check_expr_stmt(
-            source,
-            else_branch,
-            lower,
-            builtins,
-            &mut else_locals,
-            &mut else_stable,
-            &mut else_mutable,
-            loop_depth,
-            expected_return_ty,
-            top_level_types,
-            top_level_funs,
-            member_mutabilities,
-            struct_field_types,
-        )?;
+        let mut else_state = StmtExprState {
+            locals: &mut else_locals,
+            stable_bindings: &mut else_stable,
+            mutable_bindings: &mut else_mutable,
+        };
+        check_expr_stmt(shared, else_branch, lower, &mut else_state, flow)?;
     }
 
     Ok(())
 }
 
 fn check_assign_expr_stmt(
-    source: &SourceFile,
+    shared: StmtExprShared<'_>,
     lhs: &ast::Expr,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    stable_bindings: &HashSet<Span>,
-    mutable_bindings: &HashSet<Span>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    member_mutabilities: &HashMap<String, bool>,
-    struct_field_types: &HashMap<String, TypeId>,
+    state: &StmtExprState<'_>,
 ) -> Result<(), ExprTypeError> {
     // T0443：赋值语句 `lhs = rhs` 最小规则：
     // - lhs 必须是可写目标：局部 `var` 绑定 或 可写属性（`var` property / ctor `var` param）
@@ -1613,7 +1307,8 @@ fn check_assign_expr_stmt(
 
             match resolved {
                 ast::ResolvedValueRef::Local { name, decl_span } => {
-                    if stable_bindings.contains(decl_span) || !mutable_bindings.contains(decl_span)
+                    if state.stable_bindings.contains(decl_span)
+                        || !state.mutable_bindings.contains(decl_span)
                     {
                         return Err(ExprTypeError::AssignmentTargetNotMutable {
                             name: name.clone(),
@@ -1621,7 +1316,7 @@ fn check_assign_expr_stmt(
                         });
                     }
 
-                    locals.get(decl_span).copied().ok_or_else(|| {
+                    state.locals.get(decl_span).copied().ok_or_else(|| {
                         ExprTypeError::UnknownLocalValueType {
                             name: name.clone(),
                             span: id.span.into(),
@@ -1629,16 +1324,17 @@ fn check_assign_expr_stmt(
                     })?
                 }
                 ast::ResolvedValueRef::TopLevel { fqn } => {
-                    let expected_ty = top_level_types.get(fqn).copied().ok_or_else(|| {
-                        ExprTypeError::UnsupportedTopLevelValueType {
-                            fqn: fqn.clone(),
-                            span: id.span.into(),
-                        }
-                    })?;
+                    let expected_ty =
+                        shared.top_level_types.get(fqn).copied().ok_or_else(|| {
+                            ExprTypeError::UnsupportedTopLevelValueType {
+                                fqn: fqn.clone(),
+                                span: id.span.into(),
+                            }
+                        })?;
 
                     if !lower.is_top_level_value_mutable(fqn) {
                         return Err(ExprTypeError::AssignmentTargetNotMutable {
-                            name: source.slice(id.span).to_string(),
+                            name: shared.source.slice(id.span).to_string(),
                             span: id.span.into(),
                         });
                     }
@@ -1655,16 +1351,7 @@ fn check_assign_expr_stmt(
             let receiver_is_type_name =
                 matches!(&receiver.kind, ast::ExprKind::Ident(id) if id.resolved.is_none());
             if !receiver_is_type_name {
-                let _ = infer_expr_type(
-                    source,
-                    receiver,
-                    lower,
-                    builtins,
-                    locals,
-                    top_level_types,
-                    top_level_funs,
-                    struct_field_types,
-                )?;
+                let _ = expr_infer_inputs(shared, state.locals).infer(lower, receiver)?;
             }
 
             let Some(resolved) = member.resolved.as_ref() else {
@@ -1686,14 +1373,19 @@ fn check_assign_expr_stmt(
                 }
             };
 
-            if !member_mutabilities.get(fqn).copied().unwrap_or(false) {
+            if !shared
+                .member_mutabilities
+                .get(fqn)
+                .copied()
+                .unwrap_or(false)
+            {
                 return Err(ExprTypeError::AssignmentTargetNotMutable {
-                    name: source.slice(member.span).to_string(),
+                    name: shared.source.slice(member.span).to_string(),
                     span: member.span.into(),
                 });
             }
 
-            struct_field_types.get(fqn).copied().ok_or_else(|| {
+            shared.struct_field_types.get(fqn).copied().ok_or_else(|| {
                 ExprTypeError::UnsupportedMemberAccess {
                     fqn: fqn.clone(),
                     span: member.span.into(),
@@ -1710,32 +1402,27 @@ fn check_assign_expr_stmt(
 
     // 递归 typecheck rhs：保证 `x = f()` 这类语句也会覆盖 rhs 中的表达式。
     let expected_from = match &lhs.kind {
-        ast::ExprKind::Ident(id) => {
-            ExpectedTypeFrom::new(format!("赋值目标 `{}` 的类型", source.slice(id.span)))
-        }
+        ast::ExprKind::Ident(id) => ExpectedTypeFrom::new(format!(
+            "赋值目标 `{}` 的类型",
+            shared.source.slice(id.span)
+        )),
         ast::ExprKind::MemberAccess { member, .. } => ExpectedTypeFrom::new(format!(
             "赋值目标 `{}` 的字段类型",
-            source.slice(member.span)
+            shared.source.slice(member.span)
         )),
         _ => ExpectedTypeFrom::new("赋值目标的类型"),
     };
-    let found_ty = infer_expr_type_in_expected_context(
-        source,
+    let found_ty = expr_infer_inputs(shared, state.locals).infer_in_expected(
+        lower,
         rhs,
         expected_ty,
         expected_from,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
     )?;
 
-    if !is_type_assignable(found_ty, expected_ty, lower, builtins) {
+    if !is_type_assignable(found_ty, expected_ty, lower, shared.builtins) {
         // 与 initializer/call args 一致：允许整数字面量被上下文整数类型吸收（后续可加入 range check）。
         if matches!(rhs.kind, ast::ExprKind::IntLit)
-            && is_integer_type(expected_ty, lower, builtins)
+            && is_integer_type(expected_ty, lower, shared.builtins)
         {
             return Ok(());
         }

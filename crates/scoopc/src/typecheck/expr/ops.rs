@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::ast;
 use crate::resolve::{ConeId, Visibility};
 use crate::source::SourceFile;
@@ -12,10 +10,10 @@ use super::call::{
     check_unsafe_call_gate, instantiate_fun_sig_for_call, map_call_args_to_params_with_defaults,
     substitute_type_args_in_effect_row, type_param_name,
 };
-use super::infer::{ExpectedTypeFrom, infer_expr_type, infer_expr_type_in_expected_context};
+use super::infer::ExpectedTypeFrom;
 use super::util::{fmt_overload_signature, join_overload_signatures};
 
-use super::{ExprTypeError, FunSigOwned};
+use super::{ExprInferInputs, ExprTypeError, FunSigOwned};
 
 use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::EffRowVarSubstPlan;
@@ -333,22 +331,27 @@ pub(super) fn try_extract_nominal_fqn_and_args(
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct NominalReceiverRef<'a> {
+    pub(super) ty: TypeId,
+    pub(super) fqn: &'a str,
+    pub(super) args: &'a [TypeId],
+}
+
 pub(super) fn collect_unique_zero_arg_member_method_sig(
     source: &SourceFile,
-    receiver_ty: TypeId,
-    receiver_fqn: &str,
-    receiver_args: &[TypeId],
+    receiver: NominalReceiverRef<'_>,
     method: &str,
     call_site_span: Span,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<Option<FunSigOwned>, ExprTypeError> {
-    let callee_fqn = format!("{receiver_fqn}.{method}");
+    let callee_fqn = format!("{}.{}", receiver.fqn, method);
     let sigs = collect_member_method_signatures_from_index(
         source,
-        receiver_ty,
-        receiver_fqn,
-        receiver_args,
+        receiver.ty,
+        receiver.fqn,
+        receiver.args,
         &callee_fqn,
         lower,
         builtins,
@@ -403,32 +406,18 @@ pub(super) fn record_member_method_effects_as_performed(
 }
 
 pub(super) fn infer_unary_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     op: ast::UnaryOp,
     op_span: Span,
     operand: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let operand_ty = infer_expr_type(
-        source,
-        operand,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let operand_ty = inputs.infer(lower, operand)?;
 
     match op {
         ast::UnaryOp::Not => {
-            if operand_ty == builtins.bool_ {
-                return Ok(builtins.bool_);
+            if operand_ty == inputs.builtins.bool_ {
+                return Ok(inputs.builtins.bool_);
             }
 
             Err(ExprTypeError::UnaryOpOperandTypeMismatch {
@@ -439,7 +428,7 @@ pub(super) fn infer_unary_expr_type(
             })
         }
         ast::UnaryOp::Neg => {
-            if is_integer_type(operand_ty, lower, builtins) {
+            if is_integer_type(operand_ty, lower, inputs.builtins) {
                 return Ok(operand_ty);
             }
 
@@ -451,7 +440,7 @@ pub(super) fn infer_unary_expr_type(
             })
         }
         ast::UnaryOp::BitNot => {
-            if is_integer_type(operand_ty, lower, builtins) {
+            if is_integer_type(operand_ty, lower, inputs.builtins) {
                 return Ok(operand_ty);
             }
 
@@ -482,14 +471,16 @@ pub(super) fn infer_unary_expr_type(
             let method = "inv";
             let callee_fqn = format!("{receiver_fqn}.{method}");
             let Some(sig) = collect_unique_zero_arg_member_method_sig(
-                source,
-                operand_ty,
-                &receiver_fqn,
-                &receiver_args,
+                inputs.source,
+                NominalReceiverRef {
+                    ty: operand_ty,
+                    fqn: &receiver_fqn,
+                    args: &receiver_args,
+                },
                 method,
                 op_span,
                 lower,
-                builtins,
+                inputs.builtins,
             )?
             else {
                 return Err(ExprTypeError::UnaryOperatorOverloadNotFound {
@@ -520,42 +511,19 @@ pub(super) fn infer_unary_expr_type(
 }
 
 pub(super) fn infer_operator_overload_binary_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     binary_expr: &ast::Expr,
     lhs: &ast::Expr,
     op: ast::BinaryOp,
     op_span: Span,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let lhs_ty = infer_expr_type(
-        source,
-        lhs,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let lhs_ty = inputs.infer(lower, lhs)?;
 
     // Kotlin-like：对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/and/shl/...`）。
-    if is_integer_type(lhs_ty, lower, builtins) {
-        let rhs_ty = infer_expr_type(
-            source,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+    if is_integer_type(lhs_ty, lower, inputs.builtins) {
+        let rhs_ty = inputs.infer(lower, rhs)?;
 
         match op {
             ast::BinaryOp::Add
@@ -568,7 +536,12 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             | ast::BinaryOp::BitOr => {
                 // 注意：复用 `unify_integer_operands_for_same_type_rule` 允许整数字面量被上下文整数类型吸收。
                 let Some(ty) = unify_integer_operands_for_same_type_rule(
-                    lhs, lhs_ty, rhs, rhs_ty, lower, builtins,
+                    lhs,
+                    lhs_ty,
+                    rhs,
+                    rhs_ty,
+                    lower,
+                    inputs.builtins,
                 ) else {
                     return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                         op: binary_op_text(op).to_string(),
@@ -582,7 +555,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 return Ok(ty);
             }
             ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
-                if rhs_ty == builtins.int {
+                if rhs_ty == inputs.builtins.int {
                     return Ok(lhs_ty);
                 }
 
@@ -609,16 +582,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         TypeKind::Value(ValueTypeKind::Nominal(n)) => (n.fqn, n.args),
         TypeKind::Ref(RefTypeKind::Nominal(n)) => (n.fqn, n.args),
         _ => {
-            let rhs_ty = infer_expr_type(
-                source,
-                rhs,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let rhs_ty = inputs.infer(lower, rhs)?;
             return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
                 op: binary_op_text(op).to_string(),
                 expected: builtin_binary_op_expected_text(op).to_string(),
@@ -634,16 +598,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         lower.nominal_decl_kind(&receiver_fqn),
         Some(ast::TypeKind::Struct | ast::TypeKind::Class)
     ) {
-        let rhs_ty = infer_expr_type(
-            source,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let rhs_ty = inputs.infer(lower, rhs)?;
         return Err(ExprTypeError::BinaryOpOperandTypeMismatch {
             op: binary_op_text(op).to_string(),
             expected: builtin_binary_op_expected_text(op).to_string(),
@@ -655,26 +610,17 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     let callee_fqn = format!("{receiver_fqn}.{method}");
     let sigs = collect_member_method_signatures_from_index(
-        source,
+        inputs.source,
         lhs_ty,
         &receiver_fqn,
         &receiver_args,
         &callee_fqn,
         lower,
-        builtins,
+        inputs.builtins,
     )?;
 
     if sigs.is_empty() {
-        let rhs_ty = infer_expr_type(
-            source,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?;
+        let rhs_ty = inputs.infer(lower, rhs)?;
         return Err(ExprTypeError::OperatorOverloadNotFound {
             op: binary_op_text(op).to_string(),
             receiver: lower.fmt_type(lhs_ty),
@@ -686,17 +632,8 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     // operator overloading 的 call args：隐式 receiver + rhs（仅位置实参）。
     let rhs_ty_for_selection = match rhs.kind {
-        ast::ExprKind::Lambda(_) => builtins.any,
-        _ => infer_expr_type(
-            source,
-            rhs,
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
-        )?,
+        ast::ExprKind::Lambda(_) => inputs.builtins.any,
+        _ => inputs.infer(lower, rhs)?,
     };
     let call_args: Vec<CallArgInfo<'_>> = vec![
         CallArgInfo {
@@ -752,7 +689,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     })
                 }),
             lower,
-            builtins,
+            inputs.builtins,
         )?;
 
         let mut ok = true;
@@ -765,8 +702,8 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             let arg = &call_args[arg_idx];
             let found_ty = arg.ty;
 
-            if !is_type_assignable(found_ty, expected_ty, lower, builtins)
-                && !(arg.is_int_lit && is_integer_type(expected_ty, lower, builtins))
+            if !is_type_assignable(found_ty, expected_ty, lower, inputs.builtins)
+                && !(arg.is_int_lit && is_integer_type(expected_ty, lower, inputs.builtins))
             {
                 ok = false;
                 break;
@@ -780,16 +717,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     let (sig, instantiated) = match matched.len() {
         0 => {
-            let rhs_ty = infer_expr_type(
-                source,
-                rhs,
-                lower,
-                builtins,
-                locals,
-                top_level_types,
-                top_level_funs,
-                struct_field_types,
-            )?;
+            let rhs_ty = inputs.infer(lower, rhs)?;
             return Err(ExprTypeError::OperatorOverloadNotFound {
                 op: binary_op_text(op).to_string(),
                 receiver: lower.fmt_type(lhs_ty),
@@ -822,8 +750,8 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     // rhs 最终类型检查：在期望类型语境下覆盖（lambda 下推推断等）。
     if let Some(expected_rhs_ty) = instantiated.params.get(1).copied() {
-        let found_rhs_ty = infer_expr_type_in_expected_context(
-            source,
+        let found_rhs_ty = inputs.infer_in_expected(
+            lower,
             rhs,
             expected_rhs_ty,
             ExpectedTypeFrom::new(format!(
@@ -834,16 +762,10 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     .cloned()
                     .unwrap_or_else(|| "<arg>".to_string())
             )),
-            lower,
-            builtins,
-            locals,
-            top_level_types,
-            top_level_funs,
-            struct_field_types,
         )?;
-        if !is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, builtins)
+        if !is_type_assignable(found_rhs_ty, expected_rhs_ty, lower, inputs.builtins)
             && !(matches!(rhs.kind, ast::ExprKind::IntLit)
-                && is_integer_type(expected_rhs_ty, lower, builtins))
+                && is_integer_type(expected_rhs_ty, lower, inputs.builtins))
         {
             return Err(ExprTypeError::OperatorOverloadNotFound {
                 op: binary_op_text(op).to_string(),
@@ -859,9 +781,15 @@ pub(super) fn infer_operator_overload_binary_expr_type(
             expected_rhs_ty,
             rhs.span,
             lower,
-            builtins,
+            inputs.builtins,
         )?;
-        check_nogc_boxing_gate(found_rhs_ty, expected_rhs_ty, rhs.span, lower, builtins)?;
+        check_nogc_boxing_gate(
+            found_rhs_ty,
+            expected_rhs_ty,
+            rhs.span,
+            lower,
+            inputs.builtins,
+        )?;
     }
 
     // required effects：把被调用方法的 effect row 计入当前函数体的 performed effects。
@@ -890,38 +818,15 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 }
 
 pub(super) fn infer_builtin_scalar_binary_expr_type(
-    source: &SourceFile,
+    inputs: ExprInferInputs<'_>,
     lhs: &ast::Expr,
     op: ast::BinaryOp,
     op_span: Span,
     rhs: &ast::Expr,
     lower: &mut TypeLowering<'_>,
-    builtins: BuiltinTypes,
-    locals: &HashMap<Span, TypeId>,
-    top_level_types: &HashMap<String, TypeId>,
-    top_level_funs: &HashMap<String, Vec<FunSigOwned>>,
-    struct_field_types: &HashMap<String, TypeId>,
 ) -> Result<TypeId, ExprTypeError> {
-    let lhs_ty = infer_expr_type(
-        source,
-        lhs,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
-    let rhs_ty = infer_expr_type(
-        source,
-        rhs,
-        lower,
-        builtins,
-        locals,
-        top_level_types,
-        top_level_funs,
-        struct_field_types,
-    )?;
+    let lhs_ty = inputs.infer(lower, lhs)?;
+    let rhs_ty = inputs.infer(lower, rhs)?;
 
     let mismatch = |expected: &'static str| ExprTypeError::BinaryOpOperandTypeMismatch {
         op: binary_op_text(op).to_string(),
@@ -943,7 +848,14 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
         | ast::BinaryOp::BitXor
         | ast::BinaryOp::BitOr => {
             let Some(ty) =
-                unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+                unify_integer_operands_for_same_type_rule(
+                    lhs,
+                    lhs_ty,
+                    rhs,
+                    rhs_ty,
+                    lower,
+                    inputs.builtins,
+                )
             else {
                 return Err(mismatch("相同的整数类型"));
             };
@@ -951,20 +863,27 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
         }
         // shifts: T << Int -> T
         ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
-            if is_integer_type(lhs_ty, lower, builtins) && rhs_ty == builtins.int {
+            if is_integer_type(lhs_ty, lower, inputs.builtins) && rhs_ty == inputs.builtins.int {
                 return Ok(lhs_ty);
             }
             Err(mismatch("lhs 为整数且 rhs 为 Int"))
         }
         // comparisons: T < T -> Bool
         ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
-            if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+            if unify_integer_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                lower,
+                inputs.builtins,
+            )
                 .is_some()
             {
-                return Ok(builtins.bool_);
+                return Ok(inputs.builtins.bool_);
             }
-            if is_char_type(lhs_ty, builtins) && is_char_type(rhs_ty, builtins) {
-                return Ok(builtins.bool_);
+            if is_char_type(lhs_ty, inputs.builtins) && is_char_type(rhs_ty, inputs.builtins) {
+                return Ok(inputs.builtins.bool_);
             }
             // T0111: compareTo operator overloading for user-defined types.
             // If LHS is a nominal struct/class type, try `compareTo` method.
@@ -981,18 +900,18 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                     let method = "compareTo";
                     let callee_fqn = format!("{receiver_fqn}.{method}");
                     let sigs = collect_member_method_signatures_from_index(
-                        source,
+                        inputs.source,
                         lhs_ty,
                         &receiver_fqn,
                         &receiver_args,
                         &callee_fqn,
                         lower,
-                        builtins,
+                        inputs.builtins,
                     )?;
                     for sig in &sigs {
                         if sig.params.len() == 2
-                            && is_type_assignable(rhs_ty, sig.params[1], lower, builtins)
-                            && sig.return_ty == builtins.int
+                            && is_type_assignable(rhs_ty, sig.params[1], lower, inputs.builtins)
+                            && sig.return_ty == inputs.builtins.int
                         {
                             record_member_method_effects_as_performed(
                                 &receiver_fqn,
@@ -1001,7 +920,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                                 op_span,
                                 lower,
                             )?;
-                            return Ok(builtins.bool_);
+                            return Ok(inputs.builtins.bool_);
                         }
                     }
                 }
@@ -1015,27 +934,34 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
         }
         // equality: (T == T) -> Bool; (Bool == Bool) -> Bool; (String == String) -> Bool; (Char == Char) -> Bool
         ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
-            if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
-                return Ok(builtins.bool_);
+            if lhs_ty == inputs.builtins.bool_ && rhs_ty == inputs.builtins.bool_ {
+                return Ok(inputs.builtins.bool_);
             }
             // T0107: String == String
-            if lhs_ty == builtins.string && rhs_ty == builtins.string {
-                return Ok(builtins.bool_);
+            if lhs_ty == inputs.builtins.string && rhs_ty == inputs.builtins.string {
+                return Ok(inputs.builtins.bool_);
             }
-            if is_char_type(lhs_ty, builtins) && is_char_type(rhs_ty, builtins) {
-                return Ok(builtins.bool_);
+            if is_char_type(lhs_ty, inputs.builtins) && is_char_type(rhs_ty, inputs.builtins) {
+                return Ok(inputs.builtins.bool_);
             }
-            if unify_integer_operands_for_same_type_rule(lhs, lhs_ty, rhs, rhs_ty, lower, builtins)
+            if unify_integer_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                lower,
+                inputs.builtins,
+            )
                 .is_some()
             {
-                return Ok(builtins.bool_);
+                return Ok(inputs.builtins.bool_);
             }
             Err(mismatch("相同的整数类型、Bool、Char 或 String"))
         }
         // boolean logic: Bool op Bool -> Bool
         ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
-            if lhs_ty == builtins.bool_ && rhs_ty == builtins.bool_ {
-                return Ok(builtins.bool_);
+            if lhs_ty == inputs.builtins.bool_ && rhs_ty == inputs.builtins.bool_ {
+                return Ok(inputs.builtins.bool_);
             }
             Err(mismatch("Bool"))
         }
@@ -1047,6 +973,6 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
         }),
 
         // range/progression（Appendix B.12）：语义由 stdlib/lowering 补齐；v0 先放行以服务 comptime for（T1207）。
-        ast::BinaryOp::RangeInclusive => Ok(builtins.any),
+        ast::BinaryOp::RangeInclusive => Ok(inputs.builtins.any),
     }
 }
