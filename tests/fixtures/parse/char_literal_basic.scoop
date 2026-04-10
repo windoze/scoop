@@ -1,0 +1,17 @@
+// EXPECT: pass
+// 目标：验证 Char 字面量可在普通表达式和 when pattern 中被 parser 接受。
+
+package fixtures.parse
+
+val plain = 'A'
+val newline = '\n'
+val quote = '\''
+val unicode = '\u0041'
+
+fun classify(c: Char) {
+    when (c) {
+        'a' -> 1
+        '\n' -> 2
+        else -> 3
+    }
+}

@@ -1015,61 +1015,72 @@ cargo run -p scoop --features llvm -- test
   - **验证**：`cargo test --all` 通过；`cargo run -p scoop -- test` 通过（`fixtures: ok (841)`）。
   - **补充检查**：严格 `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有 workspace baseline 阻塞（大量 inkwell `ptr_type` deprecated、`too_many_arguments`、`result_large_err` 等）；针对本任务改动文件的额外 grep 未发现新的 task-specific clippy 失败。
 
-### T0146 [TODO] Char 类型与 Char 字面量：全管线实现
+### T0146 Char 类型与 Char 字面量：拆分说明
 
-- 描述：Scoop 当前没有字符类型。需要在类型系统、sysroot、词法器、解析器、AST、HIR、类型检查、LLVM codegen、comptime 求值器中全面引入 `Char` 类型和 `'c'` 字面量语法。`Char` 表示一个 Unicode 码点（scalar value），运行时表示为 `i32`（U+0000..U+10FFFF）。
+- 说明：原 T0146 横跨 lexer / parser / AST / HIR / typecheck / comptime / sysroot / runtime / LLVM codegen，单次实现和回归风险过高，现拆分为 T0146a ~ T0146c 顺序落地。
+- 最终目标保持不变：引入 `Char` 类型和 `'c'` 字面量语法，表示单个 Unicode scalar value，运行时表示为 `i32`（U+0000..U+10FFFF）。
+
+### T0146a [DONE] Char 字面量前端语法与诊断：lexer / token / parser / AST / shared parser
+
+- 描述：先把 `'...'` 作为合法字面量语法接入前端，并把错误尽量前移到词法阶段，为后续 HIR/typecheck/codegen 子任务提供稳定输入。
 - 目标：
-  - **类型系统**（`ty/mod.rs`）：
-    - `ValueTypeKind` 新增 `Char` 变体。
-    - `BuiltinTypes` 新增 `char_: TypeId`。
-  - **Sysroot**（`sysroot/core.scoop`）：
-    - 新增 `struct Char` 声明。
-    - 基础方法：`fun toInt(): Int`（码点值）、`fun toString(): String`（UTF-8 编码的单字符字符串）。
-    - 实现 `Hashable` 接口（`fun hash(): Int`）。
-  - **词法器**（`syntax/lexer.rs`）：
-    - 识别 `'...'` 单引号语法，产出 `TokenKind::CharLiteral` token。
-    - 支持转义序列：`'\n'`、`'\t'`、`'\r'`、`'\\'`、`'\''`、`'\0'`、`'\uXXXX'`（Unicode escape）。
-    - 错误处理：空 char `''`、多字符 `'ab'`、未闭合引号。
-  - **Token**（`syntax/token.rs`）：新增 `TokenKind::CharLiteral`。
-  - **AST**（`ast/mod.rs`）：
-    - `ExprKind` 新增 `CharLit` 变体（span-only，与 `IntLit`/`StringLit` 一致）。
-    - `WhenPat` 新增 `CharLit { span }` 变体。
-  - **HIR**（`hir/mod.rs`）：
-    - `LiteralKind` 新增 `Char(char)` 变体（存储解析后的 Unicode 码点）。
-    - `WhenPat` 新增 `CharLit { value: char, span }` 变体。
-  - **Char 字面量解析**（新增 `syntax/char_literal.rs` 或放入 `string_literal.rs`）：
-    - `parse_char_literal(text: &str) -> char`：解析引号内的内容，处理转义序列。
-  - **HIR lowering**（`hir/lower/expr.rs`）：
-    - `ExprKind::CharLit` → `LiteralKind::Char(parsed_char)`，类型为 `Char`。
-  - **类型检查**（`typecheck/`）：
-    - Char 字面量推断为 `Char` 类型。
-    - Char 比较运算符：`==`、`!=`、`<`、`>`、`<=`、`>=`。
-    - `when` 模式中的 `CharLit` 类型检查。
-  - **LLVM codegen**（`llvm/codegen/`）：
-    - `CgTy` 新增 `Char` 变体，映射到 LLVM `i32`。
-    - `codegen_literal`：`LiteralKind::Char(c)` → `i32` 常量。
-    - Char 比较运算符 codegen。
-    - `Char.toInt()`、`Char.toString()`、`Char.hash()` 的 codegen。
-    - `when` 模式中 Char 的 codegen（整数比较）。
-  - **Runtime/C**（`runtime/c/scoop_runtime.c`）：
-    - `scoop_char_to_string(i32 codepoint) -> ScoopString*`：将 Unicode 码点编码为 UTF-8 字符串。
-  - **Comptime**（`comptime/eval.rs`）：
-    - `ExprKind::CharLit` → `ConstValue::Char(char)`。
-    - `ConstValue` 新增 `Char(char)` 变体。
-    - Char 比较与 `toInt()` 在编译期可求值。
+  - `syntax/token.rs`：新增 `TokenKind::CharLiteral`。
+  - `syntax/char_literal.rs`：新增共享 `parse_char_literal(text: &str)` helper，覆盖单字符、常见转义与 Unicode escape。
+  - `syntax/lexer.rs`：识别 `'...'` 并产出 `CharLiteral` token；对空 char、多个字符、非法转义/非法码点、未闭合引号给出词法错误。
+  - `ast/mod.rs`：新增 `ExprKind::CharLit` 与 `WhenPat::CharLit { span }`。
+  - `parser/expr.rs`：普通表达式与 `when` pattern 均可解析 Char 字面量。
+  - 下游阶段先做最小兼容接线，保证 workspace 编译通过，但暂不承诺 Char 的 HIR/typecheck/runtime 语义。
 - 验收：
-  - 新增 run-pass fixtures：
-    - Char 字面量赋值与 `println`：`val c = 'A'; println(c.toString())`。
-    - 转义序列：`'\n'`、`'\t'`、`'\\'`、`'\''`、`'\0'`。
-    - Unicode 转义：`'\u0041'` == `'A'`。
-    - Char 比较：`'a' < 'b'`、`'x' == 'x'`。
-    - `Char.toInt()`：`'A'.toInt()` == 65。
-    - `when` 模式匹配：`when (c) { 'a' -> ..., 'b' -> ... }`。
-    - 多文件：非入口源文件中使用 Char 字面量。
-  - 新增 comptime fixture：`const val c = 'A'; const val code = c.toInt()`。
-  - 现有 run-pass fixtures 全部通过。
-  - `cargo test --all` + `cargo run -p scoop -- test` 通过。
+  - 新增 parse fixture：普通 Char 字面量、转义序列、`when` pattern 中的 Char 字面量。
+  - 新增 parse failure fixture：空 char、多个字符、未闭合 char、非法 Unicode escape。
+  - 新增 syntax 单元测试：`parse_char_literal(...)` 与 lexer Char token coverage。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
 - 依赖：T0140（多文件字面量框架可复用）
+- 完成记录：
+  - **共享 parser**：新增 `crates/scoopc/src/syntax/char_literal.rs`，严格解析 `'a'` / `'\n'` / `'\''` / `'\u0041'` 等形式；空字面量、多字符、非法转义、非法 Unicode 码点会返回结构化错误。
+  - **词法器/Token**：`TokenKind` 新增 `CharLiteral`；`syntax/lexer.rs` 新增 Char lex 路径，并提供 `scoop::lex::invalid_char_literal` / `scoop::lex::unterminated_char_literal` 两类诊断。
+  - **AST / parser**：`ast::ExprKind::CharLit` 与 `ast::WhenPat::CharLit` 已接线；普通表达式与 `when` pattern 均可解析 Char 字面量。
+  - **最小兼容接线**：resolver / HIR lowering / typecheck / comptime / LLVM `when` pattern 边界处补齐最小 match 分支，保证在完整 Char 语义落地前 workspace 可编译、非 Char 路径行为不变。
+  - **回归覆盖**：
+    - parser 单测：`parse_char_literal_expr_and_when_pattern`
+    - syntax 单测：`parse_char_literal(...)`、lexer Char token / invalid / unterminated coverage
+    - fixtures：`parse/char_literal_basic.scoop`、`parse/char_literal_empty_fail.scoop`、`parse/char_literal_multiple_chars_fail.scoop`、`parse/char_literal_invalid_unicode_fail.scoop`、`parse/char_literal_unterminated_fail.scoop`
+  - **验证**：
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (846)`）
+    - `cargo clippy --workspace --all-targets -- -D warnings` 仍被既有仓库级 baseline 阻塞（大量 `inkwell` deprecated `ptr_type` / `ptr_sized_int_type_in_context`，以及长期存在的 `too_many_arguments` / `result_large_err` 等），未发现由本任务新增的 task-specific clippy blocker
+
+### T0146b [TODO] Char 类型语义：type system / HIR / typecheck / comptime
+
+- 描述：在前端语法稳定后，引入真正的 `Char` 类型和 HIR / typecheck / comptime 语义，使 Char 字面量在静态阶段可推断、可比较、可用于 `when` 模式与 const eval。
+- 目标：
+  - `ty/mod.rs`：`ValueTypeKind::Char` + `BuiltinTypes::char_`。
+  - `hir/mod.rs`：`LiteralKind::Char(char)` + `WhenPat::CharLit { value, span }`。
+  - `hir/lower/*`：把 AST `CharLit` lowering 到 HIR，并统一通过 shared parser 解析源码字面量。
+  - `typecheck/`：Char 字面量推断为 `Char`；补齐 `==`/`!=`/`<`/`>`/`<=`/`>=` 与 `when` pattern 检查。
+  - `comptime/`：`ConstValue::Char(char)` + Char 比较 / `toInt()` 的编译期求值。
+- 验收：
+  - 新增 typecheck fixture：Char 比较与 `when` pattern。
+  - 新增 comptime fixture：`const val c = 'A'` 与 `c.toInt()`。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0146a
+
+### T0146c [TODO] Char 端到端：sysroot / runtime / LLVM codegen / run-pass
+
+- 描述：在静态语义到位后补齐运行时与后端，使 `Char` 成为可打印、可哈希、可在运行期比较与分支的内建值类型。
+- 目标：
+  - `sysroot/core.scoop`：新增 `struct Char`，补齐 `toInt()` / `toString()` / `hash()`。
+  - `runtime/c/scoop_runtime.c`：新增 `scoop_char_to_string(i32 codepoint)`。
+  - `llvm/codegen/`：补齐 `CgTy::Char`、Char literal emission、比较、方法 dispatch 与 `when` pattern codegen。
+  - 多文件 / run-pass 场景下 Char 字面量与 Char API 端到端工作。
+- 验收：
+  - 新增 run-pass fixtures：赋值打印、转义、Unicode escape、比较、`toInt()`、`when` pattern、多文件。
+  - 现有 run-pass fixtures 全部通过。
+  - `cargo test --all`
+  - `cargo run -p scoop -- test`
+- 依赖：T0146a、T0146b
 
 ### T0147 [TODO] Float 类型系统与 sysroot 基础
 

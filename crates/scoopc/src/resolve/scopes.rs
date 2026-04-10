@@ -701,6 +701,7 @@ impl<'a> BlockScopeChecker<'a> {
         match &mut expr.kind {
             ast::ExprKind::Missing
             | ast::ExprKind::IntLit
+            | ast::ExprKind::CharLit
             | ast::ExprKind::StringLit
             | ast::ExprKind::UnitLit
             | ast::ExprKind::ClassLit { .. } => {}
@@ -921,6 +922,7 @@ impl<'a> BlockScopeChecker<'a> {
             | ast::WhenPat::Wildcard { .. }
             | ast::WhenPat::Rest { .. }
             | ast::WhenPat::IntLit { .. }
+            | ast::WhenPat::CharLit { .. }
             | ast::WhenPat::StringLit { .. }
             | ast::WhenPat::BoolLit { .. } => Ok(()),
             ast::WhenPat::Bind { ident } => self.declare_ident(ident),

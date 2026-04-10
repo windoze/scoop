@@ -801,6 +801,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | hir::WhenPat::Rest { .. }
             | hir::WhenPat::Is { .. }
             | hir::WhenPat::IntLit { .. }
+            | hir::WhenPat::CharLit { .. }
             | hir::WhenPat::StringLit { .. }
             | hir::WhenPat::BoolLit { .. } => Ok(()),
             hir::WhenPat::Bind { id, name, .. } => {

@@ -63,6 +63,7 @@ pub(super) fn expr_kind_name(kind: &ast::ExprKind) -> &'static str {
         ast::ExprKind::Missing => "missing",
         ast::ExprKind::Ident(_) => "ident",
         ast::ExprKind::IntLit => "int literal",
+        ast::ExprKind::CharLit => "char literal",
         ast::ExprKind::StringLit => "string literal",
         ast::ExprKind::UnitLit => "unit literal",
         ast::ExprKind::TupleLit { .. } => "tuple literal",

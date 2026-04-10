@@ -51,6 +51,7 @@ impl<'a> HirLowering<'a> {
                 args: args.iter().map(|a| self.lower_when_pat(a)).collect(),
             },
             ast::WhenPat::IntLit { span } => WhenPat::IntLit { span: *span },
+            ast::WhenPat::CharLit { span } => WhenPat::CharLit { span: *span },
             ast::WhenPat::StringLit { span } => WhenPat::StringLit { span: *span },
             ast::WhenPat::BoolLit { span } => {
                 let value = self.source.slice(*span) == "true";

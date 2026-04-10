@@ -222,6 +222,7 @@ fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<Sym
         | WhenPat::Rest { .. }
         | WhenPat::Is { .. }
         | WhenPat::IntLit { .. }
+        | WhenPat::CharLit { .. }
         | WhenPat::StringLit { .. }
         | WhenPat::BoolLit { .. } => {}
     }

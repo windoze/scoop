@@ -656,6 +656,14 @@ impl<'a> Parser<'a> {
             }));
         }
 
+        if self.peek_kind(TokenKind::CharLiteral) {
+            let tok = self.bump();
+            return Ok(Some(ast::Expr {
+                span: tok.span,
+                kind: ast::ExprKind::CharLit,
+            }));
+        }
+
         if let TokenKind::StringLiteral(string_kind) = self.peek().kind {
             let tok = self.bump();
             return Ok(Some(match string_kind {
@@ -1850,6 +1858,11 @@ impl<'a> Parser<'a> {
             return Ok(ast::WhenPat::IntLit { span: tok.span });
         }
 
+        if self.peek_kind(TokenKind::CharLiteral) {
+            let tok = self.bump();
+            return Ok(ast::WhenPat::CharLit { span: tok.span });
+        }
+
         if matches!(self.peek().kind, TokenKind::StringLiteral(_)) {
             let tok = self.bump();
             return Ok(ast::WhenPat::StringLit { span: tok.span });
@@ -2775,6 +2788,13 @@ fn shift_lex_error(err: LexError, base_offset: usize) -> LexError {
             span: shift_source_span(span, base_offset),
         },
         LexError::UnterminatedString { span } => LexError::UnterminatedString {
+            span: shift_source_span(span, base_offset),
+        },
+        LexError::UnterminatedCharLiteral { span } => LexError::UnterminatedCharLiteral {
+            span: shift_source_span(span, base_offset),
+        },
+        LexError::InvalidCharLiteral { reason, span } => LexError::InvalidCharLiteral {
+            reason,
             span: shift_source_span(span, base_offset),
         },
     }

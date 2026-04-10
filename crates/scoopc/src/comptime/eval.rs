@@ -321,6 +321,10 @@ pub(crate) fn eval_const_expr_with_host(
             let raw = parse_int_literal(text);
             Ok(ConstValue::Int(ConstInt::new(ctx.default_int_ty, raw)))
         }
+        ast::ExprKind::CharLit => Err(ConstEvalError::UnsupportedExpr {
+            kind: "char literal",
+            span: expr.span.into(),
+        }),
         ast::ExprKind::StringLit => {
             let text = ctx.source.slice(expr.span);
             let bytes = match parse_string_literal_bytes(text) {

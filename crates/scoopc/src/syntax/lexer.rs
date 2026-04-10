@@ -9,6 +9,7 @@ use thiserror::Error;
 
 use crate::span::Span;
 
+use super::char_literal::parse_char_literal;
 use super::token::{Keyword, StringKind, Symbol, Token, TokenKind};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -32,6 +33,21 @@ pub enum LexError {
     #[diagnostic(code(scoop::lex::unterminated_string))]
     UnterminatedString {
         #[label("从这里开始")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("未闭合的 Char 字面量")]
+    #[diagnostic(code(scoop::lex::unterminated_char_literal))]
+    UnterminatedCharLiteral {
+        #[label("从这里开始")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("非法 Char 字面量：{reason}")]
+    #[diagnostic(code(scoop::lex::invalid_char_literal))]
+    InvalidCharLiteral {
+        reason: &'static str,
+        #[label("这里")]
         span: miette::SourceSpan,
     },
 }
@@ -92,6 +108,15 @@ impl<'a> Lexer<'a> {
                 let string_kind = self.lex_string(false)?;
                 tokens.push(Token {
                     kind: TokenKind::StringLiteral(string_kind),
+                    span: Span::new(start, self.pos),
+                });
+                continue;
+            }
+
+            if ch == '\'' {
+                self.lex_char_literal()?;
+                tokens.push(Token {
+                    kind: TokenKind::CharLiteral,
                     span: Span::new(start, self.pos),
                 });
                 continue;
@@ -337,6 +362,39 @@ impl<'a> Lexer<'a> {
         })
     }
 
+    fn lex_char_literal(&mut self) -> Result<(), LexError> {
+        let start = self.pos;
+        debug_assert_eq!(self.peek_char(), Some('\''));
+        self.bump_char();
+
+        let mut escaped = false;
+        while let Some(ch) = self.peek_char() {
+            if ch == '\n' {
+                return Err(LexError::UnterminatedCharLiteral {
+                    span: Span::new(start, self.pos).into(),
+                });
+            }
+
+            if ch == '\'' && !escaped {
+                self.bump_char();
+                let text = &self.text[start..self.pos];
+                return parse_char_literal(text).map(|_| ()).map_err(|err| {
+                    LexError::InvalidCharLiteral {
+                        reason: err.reason(),
+                        span: Span::new(start, self.pos).into(),
+                    }
+                });
+            }
+
+            escaped = ch == '\\' && !escaped;
+            self.bump_char();
+        }
+
+        Err(LexError::UnterminatedCharLiteral {
+            span: Span::new(start, self.pos).into(),
+        })
+    }
+
     fn lex_symbol(&mut self) -> Option<Symbol> {
         // multi-char first (longest match)
         if self.peek_bytes2() == Some([b'-', b'>']) {
@@ -518,8 +576,8 @@ mod tests {
         // 尽量覆盖 lexer 关心的字符：注释/字符串/括号/运算符/空白等。
         const CHARS: &[char] = &[
             ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']', '+',
-            '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c', 'x', 'y',
-            'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
+            '-', '*', '/', '=', '<', '>', '!', '?', '&', '|', '"', '\'', '\\', 'a', 'b', 'c', 'x',
+            'y', 'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
         ];
 
         let len = rng.gen_usize(max_len + 1);
@@ -626,6 +684,35 @@ mod tests {
                 TokenKind::Eof,
             ]
         );
+    }
+
+    #[test]
+    fn lex_char_literals() {
+        assert_eq!(
+            kinds(r"'a' '\n' '\u0041' '\''"),
+            vec![
+                TokenKind::CharLiteral,
+                TokenKind::CharLiteral,
+                TokenKind::CharLiteral,
+                TokenKind::CharLiteral,
+                TokenKind::Eof,
+            ]
+        );
+    }
+
+    #[test]
+    fn lex_invalid_char_literal_reports_reason() {
+        let err = lex("''").expect_err("empty char literal should fail");
+        match err {
+            LexError::InvalidCharLiteral { reason, .. } => assert_eq!(reason, "不能为空"),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn lex_unterminated_char_literal() {
+        let err = lex("'a").expect_err("unterminated char literal should fail");
+        assert!(matches!(err, LexError::UnterminatedCharLiteral { .. }));
     }
 
     #[test]

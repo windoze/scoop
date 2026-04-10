@@ -36,6 +36,7 @@ impl<'a> HirLowering<'a> {
         let (kind, ty) = match &e.kind {
             ast::ExprKind::Missing => (ExprKind::Missing, self.builtins.any),
             ast::ExprKind::IntLit => (ExprKind::Literal(LiteralKind::Int), self.builtins.int),
+            ast::ExprKind::CharLit => (ExprKind::Todo("char_lit"), self.builtins.any),
             ast::ExprKind::StringLit => {
                 (ExprKind::Literal(LiteralKind::String), self.builtins.string)
             }

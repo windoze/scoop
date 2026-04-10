@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::lex::unterminated_char_literal
+// EXPECT-ERROR: 未闭合的 Char 字面量
+// EXPECT-ERROR-AT: 6:9
+
+val c = 'a

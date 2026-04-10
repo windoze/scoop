@@ -39,8 +39,8 @@ fn gen_source(rng: &mut XorShift64, max_len: usize) -> String {
     // parser 会先走 lexer，所以字符集同样偏向 token/分隔符/空白等。
     const CHARS: &[char] = &[
         ' ', '\t', '\n', '\r', '_', '@', '.', ',', ':', ';', '(', ')', '{', '}', '[', ']', '+',
-        '-', '*', '/', '%', '=', '<', '>', '!', '?', '&', '|', '"', '\\', 'a', 'b', 'c', 'x', 'y',
-        'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
+        '-', '*', '/', '%', '=', '<', '>', '!', '?', '&', '|', '"', '\'', '\\', 'a', 'b', 'c', 'x',
+        'y', 'z', 'A', 'B', 'C', '0', '1', '2', '3', '9', '中', 'é',
     ];
 
     let len = rng.gen_usize(max_len + 1);
@@ -227,6 +227,33 @@ fn parse_safe_block_expr() {
     assert_eq!(src.slice(*at_safe_span), "@Safe");
     assert_eq!(body.stmts.len(), 1);
     assert!(matches!(body.stmts[0].kind, ast::StmtKind::Expr(_)));
+}
+
+#[test]
+fn parse_char_literal_expr_and_when_pattern() {
+    let src = SourceFile::new_virtual(
+        "<mem>",
+        "package a\nval plain = 'A'\nval choice = when (c) { 'x' -> 1 else -> 2 }\n",
+    );
+    let file = parse_file(&src).unwrap();
+    assert_eq!(file.items.len(), 2);
+
+    let ast::Item::Val(plain) = &file.items[0] else {
+        panic!("期望第一个 item 为 val");
+    };
+    let plain_init = plain.init.as_ref().expect("plain 应有 initializer");
+    assert!(matches!(plain_init.kind, ast::ExprKind::CharLit));
+    assert_eq!(src.slice(plain_init.span), "'A'");
+
+    let ast::Item::Val(choice) = &file.items[1] else {
+        panic!("期望第二个 item 为 val");
+    };
+    let choice_init = choice.init.as_ref().expect("choice 应有 initializer");
+    let ast::ExprKind::When { arms, .. } = &choice_init.kind else {
+        panic!("期望 choice initializer 为 when 表达式");
+    };
+    assert!(matches!(arms[0].pat, ast::WhenPat::CharLit { .. }));
+    assert_eq!(src.slice(arms[0].pat.span()), "'x'");
 }
 
 #[test]

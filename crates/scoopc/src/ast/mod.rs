@@ -1154,6 +1154,7 @@ pub enum ExprKind {
     Missing,
     Ident(ValueIdent),
     IntLit,
+    CharLit,
     StringLit,
     /// `()`：Unit 字面量（spec §2.3.3）。
     UnitLit,
@@ -1579,6 +1580,9 @@ pub enum WhenPat {
     IntLit {
         span: Span,
     },
+    CharLit {
+        span: Span,
+    },
     StringLit {
         span: Span,
     },
@@ -1600,6 +1604,7 @@ impl WhenPat {
             WhenPat::Tuple { span, .. } => *span,
             WhenPat::Variant { span, .. } => *span,
             WhenPat::IntLit { span } => *span,
+            WhenPat::CharLit { span } => *span,
             WhenPat::StringLit { span } => *span,
             WhenPat::BoolLit { span } => *span,
         }

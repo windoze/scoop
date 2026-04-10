@@ -859,6 +859,7 @@ fn field_use_span_in_expr(
         ast::ExprKind::Missing
         | ast::ExprKind::Ident(_)
         | ast::ExprKind::IntLit
+        | ast::ExprKind::CharLit
         | ast::ExprKind::StringLit
         | ast::ExprKind::UnitLit
         | ast::ExprKind::ClassLit { .. } => None,

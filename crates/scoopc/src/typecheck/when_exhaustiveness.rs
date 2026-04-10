@@ -412,6 +412,7 @@ fn pat_covers_example(source: &SourceFile, pat: &ast::WhenPat, ex: &ExamplePat) 
         // 它们只覆盖值域的一部分，因此不用于证明穷尽。
         ast::WhenPat::Is { .. }
         | ast::WhenPat::IntLit { .. }
+        | ast::WhenPat::CharLit { .. }
         | ast::WhenPat::StringLit { .. } => false,
 
         ast::WhenPat::Tuple { elements, .. } => match ex {
