@@ -39,6 +39,15 @@ const ANY_FQN: &str = "scoop.core.Any";
 const PROPERTY_META_FQN: &str = "scoop.core.PropertyMeta";
 const UNIT_FQN: &str = "scoop.core.Unit";
 
+#[derive(Clone, Copy)]
+struct DelegatedPropertySignatureCheck<'a> {
+    class_fqn: &'a str,
+    property: &'a str,
+    delegate_ty: &'a str,
+    property_ty_fqn: Option<&'a str>,
+    use_span: Span,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum PropertyDeclError {
     #[error("`val` 属性不允许自定义 setter：{class_fqn}.{property}")]
@@ -368,17 +377,14 @@ fn check_one_class_property(
                 });
             }
 
-            check_delegated_property_get_value_signature(
-                source,
-                file,
-                index,
-                env,
+            let signature_check = DelegatedPropertySignatureCheck {
                 class_fqn,
-                &property,
-                &delegate_ty,
-                property_ty_fqn.as_deref(),
-                delegate.span,
-            )?;
+                property: &property,
+                delegate_ty: &delegate_ty,
+                property_ty_fqn: property_ty_fqn.as_deref(),
+                use_span: delegate.span,
+            };
+            check_delegated_property_get_value_signature(index, env, signature_check)?;
 
             if matches!(p.kind, ast::ValKind::Var) {
                 if !type_has_method_named(index, env, &delegate_ty, "setValue") {
@@ -390,17 +396,7 @@ fn check_one_class_property(
                     });
                 }
 
-                check_delegated_property_set_value_signature(
-                    source,
-                    file,
-                    index,
-                    env,
-                    class_fqn,
-                    &property,
-                    &delegate_ty,
-                    property_ty_fqn.as_deref(),
-                    delegate.span,
-                )?;
+                check_delegated_property_set_value_signature(index, env, signature_check)?;
             }
         }
     }
@@ -1130,16 +1126,17 @@ fn type_has_method_named(index: &Index, env: &TypeEnv, ty_fqn: &str, method: &st
 }
 
 fn check_delegated_property_get_value_signature(
-    _source: &SourceFile,
-    _file: &ast::File,
     index: &Index,
     env: &TypeEnv,
-    class_fqn: &str,
-    property: &str,
-    delegate_ty: &str,
-    property_ty_fqn: Option<&str>,
-    use_span: Span,
+    check: DelegatedPropertySignatureCheck<'_>,
 ) -> Result<(), PropertyDeclError> {
+    let DelegatedPropertySignatureCheck {
+        class_fqn,
+        property,
+        delegate_ty,
+        property_ty_fqn,
+        use_span,
+    } = check;
     let Some(property_ty_fqn) = property_ty_fqn else {
         // 解析/类型引用校验应当能确保 property type 可解析；这里避免 panic，保守放行。
         return Ok(());
@@ -1170,16 +1167,17 @@ fn check_delegated_property_get_value_signature(
 }
 
 fn check_delegated_property_set_value_signature(
-    _source: &SourceFile,
-    _file: &ast::File,
     index: &Index,
     env: &TypeEnv,
-    class_fqn: &str,
-    property: &str,
-    delegate_ty: &str,
-    property_ty_fqn: Option<&str>,
-    use_span: Span,
+    check: DelegatedPropertySignatureCheck<'_>,
 ) -> Result<(), PropertyDeclError> {
+    let DelegatedPropertySignatureCheck {
+        class_fqn,
+        property,
+        delegate_ty,
+        property_ty_fqn,
+        use_span,
+    } = check;
     let Some(property_ty_fqn) = property_ty_fqn else {
         return Ok(());
     };

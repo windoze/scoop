@@ -63,6 +63,13 @@ pub enum OverrideEffectError {
     },
 }
 
+#[derive(Clone, Copy)]
+struct TypeInterfaceImplTarget<'a> {
+    type_fqn: &'a str,
+    supertypes: &'a [ast::SuperType],
+    body: Option<&'a ast::TypeBody>,
+}
+
 pub fn check_file_override_effects(
     source: &SourceFile,
     file: &ast::File,
@@ -141,24 +148,28 @@ fn check_type_decl_override_effects(
             check_type_interface_impl_effects(
                 source,
                 file,
-                &type_fqn,
-                &decl.supertypes,
-                decl.body.as_ref(),
                 index,
                 env,
                 lower,
+                TypeInterfaceImplTarget {
+                    type_fqn: &type_fqn,
+                    supertypes: &decl.supertypes,
+                    body: decl.body.as_ref(),
+                },
             )?;
         }
         ast::TypeKind::Struct | ast::TypeKind::Enum => {
             check_type_interface_impl_effects(
                 source,
                 file,
-                &type_fqn,
-                &decl.supertypes,
-                decl.body.as_ref(),
                 index,
                 env,
                 lower,
+                TypeInterfaceImplTarget {
+                    type_fqn: &type_fqn,
+                    supertypes: &decl.supertypes,
+                    body: decl.body.as_ref(),
+                },
             )?;
         }
         ast::TypeKind::Interface | ast::TypeKind::Effect => {
@@ -223,12 +234,14 @@ fn check_object_decl_override_effects(
     check_type_interface_impl_effects(
         source,
         file,
-        &obj_fqn,
-        &obj.supertypes,
-        obj.body.as_ref(),
         index,
         env,
         lower,
+        TypeInterfaceImplTarget {
+            type_fqn: &obj_fqn,
+            supertypes: &obj.supertypes,
+            body: obj.body.as_ref(),
+        },
     )?;
 
     // 递归检查 nested types / nested objects。
@@ -488,13 +501,16 @@ fn check_object_member_override_effects(
 fn check_type_interface_impl_effects(
     source: &SourceFile,
     file: &ast::File,
-    type_fqn: &str,
-    supertypes: &[ast::SuperType],
-    body: Option<&ast::TypeBody>,
     index: &Index,
     env: &TypeEnv,
     lower: &mut TypeLowering<'_>,
+    target: TypeInterfaceImplTarget<'_>,
 ) -> Result<(), OverrideEffectError> {
+    let TypeInterfaceImplTarget {
+        type_fqn,
+        supertypes,
+        body,
+    } = target;
     // 计算 direct superclass（若有），用于“继承的成员也可用于满足 interface”的最小 fallback（与 T0440 保持一致）。
     let superclass = supertypes.iter().find(|st| st.ctor_args_span.is_some());
     let superclass_fqn =

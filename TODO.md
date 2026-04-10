@@ -1272,7 +1272,7 @@ cargo run -p scoop --features llvm -- test
     - `cargo test --all` 通过
     - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
-### T0147c-2b [TODO] Clippy 基线清理：typecheck 支撑模块签名收口
+### T0147c-2b [DONE] Clippy 基线清理：typecheck 支撑模块签名收口
 
 - 描述：在 lowering / resolve / LLVM 收口后，继续清理 typecheck 非 expr 主路径中的长参数函数，先降低外围模块噪声，再进入 expr 主干。
 - 目标：
@@ -1283,6 +1283,16 @@ cargo run -p scoop --features llvm -- test
   - `cargo test --all`
   - `cargo run -p scoop -- test`
 - 依赖：T0147c-2a
+- 完成说明：
+  - **`annotations.rs`**：新增 `AnnotationCheckContext`，将 `source/file/index/env` 收口为只读上下文；`check_type_decl_annotations`、`check_object_decl_annotations`、`check_annotation_uses`、`check_annotation_args`、`infer_annotation_const_expr_type` 等 helper 改为消费上下文 + `TypeLowering`，不再在递归调用链中重复传递整组只读参数。
+  - **`override_effects.rs`**：新增 `TypeInterfaceImplTarget`，把 `type_fqn` / `supertypes` / `body` 收入单独目标对象，类/结构体/枚举/object 的 interface impl effect 检查共用同一入口。
+  - **`properties.rs`**：新增 `DelegatedPropertySignatureCheck`，集中 delegated property 的类名、属性名、delegate 类型、属性类型与 use span，`getValue` / `setValue` 签名检查改为消费单个请求对象。
+  - **`val_pat.rs`**：新增 `ValPatChecker`，把 `source`、`TypeLowering`、builtin types、struct field table 与 bindings 收入口部 checker，tuple / variant / struct pattern 递归检查改为方法调用。
+  - **clippy 复核**：上述四个文件中本子任务负责的 12 个 `too_many_arguments` 告警全部清零；workspace 全局剩余 `too_many_arguments` 数量从 **65** 降到 **53**，余下告警集中在 `typecheck/expr/**`，属后续 `T0147c-2c` / `T0147c-2d` 范围。严格 clippy 仍被既有 `result_large_err` / `type_complexity` / `private_interfaces` / `dead_code` 等后续任务阻塞。
+  - **验证**：
+    - `cargo fmt --all` 通过
+    - `cargo test --all` 通过
+    - `cargo run -p scoop -- test` 通过（`fixtures: ok (852)`）
 
 ### T0147c-2c [TODO] Clippy 基线清理：typecheck expr 中等规模路径签名收口
 

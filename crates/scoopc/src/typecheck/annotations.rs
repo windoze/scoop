@@ -54,6 +54,14 @@ impl AnnotationSite {
     }
 }
 
+#[derive(Clone, Copy)]
+struct AnnotationCheckContext<'a> {
+    source: &'a SourceFile,
+    file: &'a ast::File,
+    index: &'a Index,
+    env: &'a TypeEnv,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum AnnotationError {
     #[error("注解类必须是 `class`：{type_fqn}")]
@@ -361,14 +369,17 @@ pub fn check_file_annotations(
     builtins: BuiltinTypes,
 ) -> Result<(), AnnotationError> {
     let mut lower = TypeLowering::new(source, file, index, imports, env, types, builtins);
-    let pkg_prefix = package_prefix(source, file.package.as_ref());
-
-    // 文件级注解：`@file:...`
-    check_annotation_uses(
+    let ctx = AnnotationCheckContext {
         source,
         file,
         index,
         env,
+    };
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+
+    // 文件级注解：`@file:...`
+    check_annotation_uses(
+        ctx,
         &mut lower,
         builtins,
         &file.file_annotations,
@@ -380,10 +391,7 @@ pub fn check_file_annotations(
         match item {
             ast::Item::TypeAlias(ta) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     &mut lower,
                     builtins,
                     &ta.annotations,
@@ -393,32 +401,18 @@ pub fn check_file_annotations(
             }
             ast::Item::Fun(fun) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     &mut lower,
                     builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
                 check_builtin_annotations_on_fun_decl(source, fun, &mut lower)?;
-                check_param_list_annotations(
-                    source,
-                    file,
-                    index,
-                    env,
-                    &mut lower,
-                    builtins,
-                    &fun.params,
-                )?;
+                check_param_list_annotations(ctx, &mut lower, builtins, &fun.params)?;
             }
             ast::Item::ExtensionProperty(p) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     &mut lower,
                     builtins,
                     &p.annotations,
@@ -428,10 +422,7 @@ pub fn check_file_annotations(
             }
             ast::Item::Val(v) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     &mut lower,
                     builtins,
                     &v.annotations,
@@ -441,28 +432,10 @@ pub fn check_file_annotations(
                 check_top_level_var_storage_and_gc_free(source, file, index, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
-                check_type_decl_annotations(
-                    source,
-                    file,
-                    index,
-                    env,
-                    &mut lower,
-                    builtins,
-                    ty,
-                    &pkg_prefix,
-                )?;
+                check_type_decl_annotations(ctx, &mut lower, builtins, ty, &pkg_prefix)?;
             }
             ast::Item::Object(obj) => {
-                check_object_decl_annotations(
-                    source,
-                    file,
-                    index,
-                    env,
-                    &mut lower,
-                    builtins,
-                    obj,
-                    &pkg_prefix,
-                )?;
+                check_object_decl_annotations(ctx, &mut lower, builtins, obj, &pkg_prefix)?;
             }
             // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
             ast::Item::ComptimeIf(_ci) => {}
@@ -474,16 +447,13 @@ pub fn check_file_annotations(
 
 /// 检查类型声明上的注解，并递归检查其类型体成员（含 nested type/object）。
 fn check_type_decl_annotations(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     decl: &ast::TypeDecl,
     prefix: &str,
 ) -> Result<(), AnnotationError> {
-    let local = source.slice(decl.name.span);
+    let local = ctx.source.slice(decl.name.span);
     let type_fqn = join_prefix(prefix, local);
 
     // 1) 注解使用：`@Foo` / `@Foo(...)`。
@@ -494,17 +464,8 @@ fn check_type_decl_annotations(
     } else {
         AnnotationSite::new(AnnotationTargetKind::Type)
     };
-    check_annotation_uses(
-        source,
-        file,
-        index,
-        env,
-        lower,
-        builtins,
-        &decl.annotations,
-        site,
-    )?;
-    check_builtin_annotations_on_type_decl(source, decl, &type_fqn)?;
+    check_annotation_uses(ctx, lower, builtins, &decl.annotations, site)?;
+    check_builtin_annotations_on_type_decl(ctx.source, decl, &type_fqn)?;
 
     // 1.5) `@CLayout(aligned, packed)`：GC-free struct 的 ABI 布局控制（spec §15.5.2）。
     //
@@ -512,24 +473,16 @@ fn check_type_decl_annotations(
     // - `@CLayout` 是 sysroot 声明的内建注解类（`scoop.core.CLayout`），但其约束是“结构体布局语义”，
     //   因此不放进 `BuiltinAnnotationKind`（它们主要是执行模型/门禁类注解）。
     // - 这里在 typecheck 阶段做最小门禁与参数合法性检查；后端（LLVM）会消费这些参数生成 packed/aligned layout。
-    check_clayout_struct_decl(source, file, index, decl, &type_fqn, lower)?;
+    check_clayout_struct_decl(ctx.source, ctx.file, ctx.index, decl, &type_fqn, lower)?;
 
     // 2) 注解类自身的最小形态约束（data-only）。
     if decl.modifiers.contains(&ast::Modifier::Annotation) {
-        check_annotation_class_decl_rules(source, decl, &type_fqn)?;
+        check_annotation_class_decl_rules(ctx.source, decl, &type_fqn)?;
     }
 
     // 2.5) 主构造参数上的注解（包含 `@param:` / `@property:` / `@field:` 等 use-site target）。
     if let Some(primary_ctor) = &decl.primary_ctor {
-        check_param_list_annotations(
-            source,
-            file,
-            index,
-            env,
-            lower,
-            builtins,
-            &primary_ctor.params,
-        )?;
+        check_param_list_annotations(ctx, lower, builtins, &primary_ctor.params)?;
     }
 
     // 3) 递归检查类型体成员（包含 nested types）。
@@ -540,83 +493,51 @@ fn check_type_decl_annotations(
         match member {
             ast::TypeMember::EnumVariant(v) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
-                reject_builtin_annotations_on_target(source, &v.annotations, "enum variant")?;
+                reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(source, &p.annotations, "property")?;
+                reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
-                reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
-                check_param_list_annotations(
-                    source,
-                    file,
-                    index,
-                    env,
-                    lower,
-                    builtins,
-                    &ctor.params,
-                )?;
+                reject_builtin_annotations_on_target(ctx.source, &ctor.annotations, "constructor")?;
+                check_param_list_annotations(ctx, lower, builtins, &ctor.params)?;
             }
             ast::TypeMember::Fun(fun) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun, lower)?;
-                check_param_list_annotations(
-                    source,
-                    file,
-                    index,
-                    env,
-                    lower,
-                    builtins,
-                    &fun.params,
-                )?;
+                check_builtin_annotations_on_fun_decl(ctx.source, fun, lower)?;
+                check_param_list_annotations(ctx, lower, builtins, &fun.params)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(
-                    source, file, index, env, lower, builtins, nested, &type_fqn,
-                )?;
+                check_type_decl_annotations(ctx, lower, builtins, nested, &type_fqn)?;
             }
             ast::TypeMember::Object(obj) => {
-                check_object_decl_annotations(
-                    source, file, index, env, lower, builtins, obj, &type_fqn,
-                )?;
+                check_object_decl_annotations(ctx, lower, builtins, obj, &type_fqn)?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -627,10 +548,7 @@ fn check_type_decl_annotations(
 
 /// 检查一组参数上的注解使用（`@Name(...)`）。
 fn check_param_list_annotations(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     params: &[ast::Param],
@@ -642,27 +560,15 @@ fn check_param_list_annotations(
         } else {
             AnnotationSite::new(AnnotationTargetKind::Param)
         };
-        check_annotation_uses(
-            source,
-            file,
-            index,
-            env,
-            lower,
-            builtins,
-            &p.annotations,
-            site,
-        )?;
-        reject_builtin_annotations_on_target(source, &p.annotations, "param")?;
+        check_annotation_uses(ctx, lower, builtins, &p.annotations, site)?;
+        reject_builtin_annotations_on_target(ctx.source, &p.annotations, "param")?;
     }
     Ok(())
 }
 
 /// 检查 object 声明上的注解，并递归检查其类型体成员（含 nested type/object）。
 fn check_object_decl_annotations(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     obj: &ast::ObjectDecl,
@@ -670,16 +576,13 @@ fn check_object_decl_annotations(
 ) -> Result<(), AnnotationError> {
     // object 自身的注解使用。
     check_annotation_uses(
-        source,
-        file,
-        index,
-        env,
+        ctx,
         lower,
         builtins,
         &obj.annotations,
         AnnotationSite::new(AnnotationTargetKind::Type),
     )?;
-    check_builtin_annotations_on_object_decl(source, obj)?;
+    check_builtin_annotations_on_object_decl(ctx.source, obj)?;
 
     let Some(body) = &obj.body else {
         return Ok(());
@@ -687,7 +590,7 @@ fn check_object_decl_annotations(
 
     // 为递归处理 nested type/object 计算容器前缀（与 TypeEnv 的收集规则对齐）。
     let local_name = match &obj.name {
-        Some(name) => source.slice(name.span).to_string(),
+        Some(name) => ctx.source.slice(name.span).to_string(),
         None => match obj.kind {
             ast::ObjectKind::Companion => "Companion".to_string(),
             ast::ObjectKind::Object => {
@@ -702,65 +605,49 @@ fn check_object_decl_annotations(
         match member {
             ast::TypeMember::EnumVariant(v) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::EnumVariant),
                 )?;
-                reject_builtin_annotations_on_target(source, &v.annotations, "enum variant")?;
+                reject_builtin_annotations_on_target(ctx.source, &v.annotations, "enum variant")?;
             }
             ast::TypeMember::Property(p) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &p.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                reject_builtin_annotations_on_target(source, &p.annotations, "property")?;
+                reject_builtin_annotations_on_target(ctx.source, &p.annotations, "property")?;
             }
             ast::TypeMember::SecondaryCtor(ctor) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &ctor.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Constructor),
                 )?;
-                reject_builtin_annotations_on_target(source, &ctor.annotations, "constructor")?;
+                reject_builtin_annotations_on_target(ctx.source, &ctor.annotations, "constructor")?;
             }
             ast::TypeMember::Fun(fun) => {
                 check_annotation_uses(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     &fun.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Function),
                 )?;
-                check_builtin_annotations_on_fun_decl(source, fun, lower)?;
+                check_builtin_annotations_on_fun_decl(ctx.source, fun, lower)?;
             }
             ast::TypeMember::Type(nested) => {
-                check_type_decl_annotations(
-                    source, file, index, env, lower, builtins, nested, &obj_fqn,
-                )?;
+                check_type_decl_annotations(ctx, lower, builtins, nested, &obj_fqn)?;
             }
             ast::TypeMember::Object(nested) => {
-                check_object_decl_annotations(
-                    source, file, index, env, lower, builtins, nested, &obj_fqn,
-                )?;
+                check_object_decl_annotations(ctx, lower, builtins, nested, &obj_fqn)?;
             }
             ast::TypeMember::InitBlock(_b) => {}
         }
@@ -818,37 +705,31 @@ fn check_annotation_class_decl_rules(
 
 /// 批量检查一组注解使用（`@Name(...)`）。
 fn check_annotation_uses(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     annotations: &[ast::AnnotationUse],
     site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
     for a in annotations {
-        check_one_annotation_use(source, file, index, env, lower, builtins, a, site)?;
+        check_one_annotation_use(ctx, lower, builtins, a, site)?;
     }
     Ok(())
 }
 
 /// 检查单个注解使用：解析注解名并确认其引用一个注解类。
 fn check_one_annotation_use(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     ann: &ast::AnnotationUse,
     site: AnnotationSite,
 ) -> Result<(), AnnotationError> {
-    let (name, name_span) = annotation_name_and_span(source, ann);
+    let (name, name_span) = annotation_name_and_span(ctx.source, ann);
 
     // T1003：内建注解（`@Unsafe/@NoGC/@Extern/@Intrinsic`）由编译器识别，
     // 不要求存在对应的 `annotation class` 声明。
-    if builtin_annotation_kind(source, ann).is_some() {
+    if builtin_annotation_kind(ctx.source, ann).is_some() {
         return Ok(());
     }
 
@@ -859,14 +740,14 @@ fn check_one_annotation_use(
         args: Vec::new(),
     });
 
-    let Some(fqn) = index.type_ref_to_fqn_in_file(source, file, &ty) else {
+    let Some(fqn) = ctx.index.type_ref_to_fqn_in_file(ctx.source, ctx.file, &ty) else {
         return Err(AnnotationError::UnresolvedAnnotationType {
             name,
             span: name_span.into(),
         });
     };
 
-    let Some(sym) = env.type_symbol(&fqn) else {
+    let Some(sym) = ctx.env.type_symbol(&fqn) else {
         return Err(AnnotationError::UnresolvedAnnotationType {
             name,
             span: name_span.into(),
@@ -881,7 +762,7 @@ fn check_one_annotation_use(
         });
     }
 
-    let effective_target = effective_annotation_target(source, ann, site.primary_target);
+    let effective_target = effective_annotation_target(ctx.source, ann, site.primary_target);
 
     // T1016a：meta-annotations 的合法位置与最小参数检查。
     if fqn == "scoop.core.Target" {
@@ -892,7 +773,7 @@ fn check_one_annotation_use(
                 span: name_span.into(),
             });
         }
-        check_target_annotation_args(source, ann)?;
+        check_target_annotation_args(ctx.source, ann)?;
         return Ok(());
     }
     if fqn == "scoop.core.Retention" {
@@ -903,7 +784,7 @@ fn check_one_annotation_use(
                 span: name_span.into(),
             });
         }
-        check_retention_annotation_args(source, ann)?;
+        check_retention_annotation_args(ctx.source, ann)?;
         return Ok(());
     }
 
@@ -920,7 +801,7 @@ fn check_one_annotation_use(
     }
 
     // T1019：注解参数的“类型匹配 + 编译期常量”检查。
-    check_annotation_args(source, file, index, env, lower, builtins, &fqn, sym, ann)?;
+    check_annotation_args(ctx, lower, builtins, &fqn, sym, ann)?;
 
     Ok(())
 }
@@ -967,10 +848,7 @@ fn check_retention_annotation_args(
 }
 
 fn check_annotation_args(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     annotation_fqn: &str,
@@ -1002,7 +880,7 @@ fn check_annotation_args(
         match &arg.name {
             Some(name_id) => {
                 seen_named = true;
-                let name = name_id.text(source).to_string();
+                let name = name_id.text(ctx.source).to_string();
                 let Some(&param_idx) = idx_of.get(&name) else {
                     return Err(AnnotationError::UnknownAnnotationParam {
                         annotation: annotation_fqn.to_string(),
@@ -1064,10 +942,7 @@ fn check_annotation_args(
         };
 
         let found_ty = infer_annotation_const_expr_type(
-            source,
-            file,
-            index,
-            env,
+            ctx,
             lower,
             builtins,
             &arg.value,
@@ -1090,10 +965,7 @@ fn check_annotation_args(
 }
 
 fn infer_annotation_const_expr_type(
-    source: &SourceFile,
-    file: &ast::File,
-    index: &Index,
-    env: &TypeEnv,
+    ctx: AnnotationCheckContext<'_>,
     lower: &mut TypeLowering<'_>,
     builtins: BuiltinTypes,
     expr: &ast::Expr,
@@ -1111,7 +983,7 @@ fn infer_annotation_const_expr_type(
         ast::ExprKind::StringLit => Ok(builtins.string),
         ast::ExprKind::UnitLit => Ok(builtins.unit),
         ast::ExprKind::InterpolatedString { .. } => Err(not_const()),
-        ast::ExprKind::Ident(id) => match source.slice(id.span) {
+        ast::ExprKind::Ident(id) => match ctx.source.slice(id.span) {
             "true" | "false" => Ok(builtins.bool_),
             _ => Err(not_const()),
         },
@@ -1119,10 +991,7 @@ fn infer_annotation_const_expr_type(
             op, expr: inner, ..
         } => {
             let operand_ty = infer_annotation_const_expr_type(
-                source,
-                file,
-                index,
-                env,
+                ctx,
                 lower,
                 builtins,
                 inner.as_ref(),
@@ -1148,10 +1017,7 @@ fn infer_annotation_const_expr_type(
         }
         ast::ExprKind::Binary { lhs, op, rhs, .. } => {
             let lhs_ty = infer_annotation_const_expr_type(
-                source,
-                file,
-                index,
-                env,
+                ctx,
                 lower,
                 builtins,
                 lhs.as_ref(),
@@ -1159,10 +1025,7 @@ fn infer_annotation_const_expr_type(
                 param_name,
             )?;
             let rhs_ty = infer_annotation_const_expr_type(
-                source,
-                file,
-                index,
-                env,
+                ctx,
                 lower,
                 builtins,
                 rhs.as_ref(),
@@ -1231,17 +1094,14 @@ fn infer_annotation_const_expr_type(
                 ast::BinaryOp::Elvis => Err(not_const()),
             }
         }
-        ast::ExprKind::MemberAccess { .. } => {
-            infer_enum_unit_variant_const_type(source, file, index, env, lower, expr)
-                .ok_or_else(not_const)
-        }
+        ast::ExprKind::MemberAccess { .. } => infer_enum_unit_variant_const_type(
+            ctx.source, ctx.file, ctx.index, ctx.env, lower, expr,
+        )
+        .ok_or_else(not_const),
         ast::ExprKind::ArrayLit { elements } => {
             let first = elements.first().ok_or_else(not_const)?;
             let mut elem_ty = infer_annotation_const_expr_type(
-                source,
-                file,
-                index,
-                env,
+                ctx,
                 lower,
                 builtins,
                 first,
@@ -1251,10 +1111,7 @@ fn infer_annotation_const_expr_type(
 
             for e in elements.iter().skip(1) {
                 let ty = infer_annotation_const_expr_type(
-                    source,
-                    file,
-                    index,
-                    env,
+                    ctx,
                     lower,
                     builtins,
                     e,
@@ -1292,7 +1149,11 @@ fn infer_annotation_const_expr_type(
         ast::ExprKind::ClassLit { ty } => {
             // 当前阶段：class literal 仅作为“编译期可用的类型名常量”存在。
             // 这里做最小保证：类型引用必须可解析（存在性由 Index/TypeEnv 决定）。
-            if index.type_ref_to_fqn_in_file(source, file, ty).is_none() {
+            if ctx
+                .index
+                .type_ref_to_fqn_in_file(ctx.source, ctx.file, ty)
+                .is_none()
+            {
                 return Err(not_const());
             }
             Ok(builtins.string)
