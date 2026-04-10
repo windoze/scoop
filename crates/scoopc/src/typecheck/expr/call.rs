@@ -4664,6 +4664,10 @@ fn infer_member_call_expr_type(
             && fqn != "scoop.core.GC.handleNew"
             && fqn != "scoop.core.GC.handleGet"
             && fqn != "scoop.core.GC.handleDrop"
+            // T0130 修复：当 receiver 为 TypeKind::Param 时，跳过直连成员调用路径，
+            // 让后续 where-bound 驱动的方法分发来处理（否则 try_extract_nominal_fqn_and_args
+            // 会因 Param 非 nominal 而返回 CalleeNotCallable）。
+            && !matches!(lower.type_kind(actual_receiver_ty), TypeKind::Param(_))
         {
             let Some((receiver_fqn, receiver_args)) =
                 try_extract_nominal_fqn_and_args(actual_receiver_ty, lower)
